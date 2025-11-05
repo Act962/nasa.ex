@@ -99,7 +99,7 @@ export function SignupForm({
           <Input
             id="email"
             type="email"
-            placeholder="m@example.com"
+            placeholder="john@example.com"
             {...register("email")}
           />
           {errors.email && (
@@ -127,11 +127,13 @@ export function SignupForm({
           )}
         </Field>
         <Field>
-          <Button type="submit">Criar conta</Button>
+          <Button type="submit" className="cursor-pointer">
+            Criar conta
+          </Button>
         </Field>
-        <FieldSeparator>Ou</FieldSeparator>
+        <FieldSeparator>ou</FieldSeparator>
         <Field>
-          <Button variant="outline" type="button">
+          <Button variant="outline" type="button" className="cursor-pointer">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="200"

@@ -5,27 +5,47 @@ import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
 } from "@/components/ui/field";
 import { useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
-import z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useTransition } from "react";
 
 const signInShchema = z.object({
   email: z.email(),
-  password: z.string().min(6, "Senha precisar ter no mínimo 6 caracteres"),
+  password: z.string(),
 });
+
+type SignInSchema = z.infer<typeof signInShchema>;
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
-  const {} = useForm();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(signInShchema),
+  });
+  const [loading, setIsLoading] = useTransition();
+
+  const onSignIn = (data: SignInSchema) => {
+    console.log(data);
+  };
 
   return (
-    <form className={cn("flex flex-col gap-6", className)} {...props}>
+    <form
+      onSubmit={handleSubmit(onSignIn)}
+      className={cn("flex flex-col gap-6", className)}
+      {...props}
+    >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">Faça login na sua conta</h1>
@@ -40,14 +60,17 @@ export function LoginForm({
             type="email"
             autoFocus
             placeholder="johndoe@example.com"
-            required
+            {...register("email")}
           />
+          {errors.email && (
+            <FieldError>{errors.email.message || "E-mail inválido"}</FieldError>
+          )}
         </Field>
         <Field>
           <div className="flex items-center">
             <FieldLabel htmlFor="password">Senha</FieldLabel>
           </div>
-          <Input id="password" type="password" required />
+          <Input id="password" type="password" {...register("password")} />
           <a
             href="#"
             className="ml-auto text-sm underline-offset-4 hover:underline"
@@ -56,11 +79,13 @@ export function LoginForm({
           </a>
         </Field>
         <Field>
-          <Button type="submit">Entrar</Button>
+          <Button type="submit" className="cursor-pointer">
+            Entrar
+          </Button>
         </Field>
-        <FieldSeparator>Ou</FieldSeparator>
+        <FieldSeparator>ou</FieldSeparator>
         <Field>
-          <Button variant="outline" type="button">
+          <Button variant="outline" type="button" className="cursor-pointer">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="200"
