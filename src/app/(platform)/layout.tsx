@@ -14,5 +14,6 @@ export default async function RouteLayout({
   if (!session) {
     redirect("/sign-in");
   }
+
   return <div className="h-full">{children}</div>;
 }

@@ -61,6 +61,14 @@ export function LoginForm({
     });
   };
 
+  const onSignInWithGoogle = async () => {
+    const data = await authClient.signIn.social({
+      provider: "google",
+      callbackURL: "/tracking",
+      scopes: ["https://www.googleapis.com/auth/drive.file"],
+    });
+  };
+
   return (
     <form
       onSubmit={handleSubmit(onSignIn)}
@@ -146,7 +154,12 @@ export function LoginForm({
         </Field>
         <FieldSeparator>ou</FieldSeparator>
         <Field>
-          <Button variant="outline" type="button" className="cursor-pointer">
+          <Button
+            variant="outline"
+            type="button"
+            className="cursor-pointer"
+            onClick={onSignInWithGoogle}
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="200"

@@ -27,7 +27,7 @@ export function Navbar() {
         {session?.user && !isPending && (
           <>
             <Button asChild className="cursor-pointer">
-              <Link href="/sign-out">Entrar</Link>
+              <Link href="/tracking">Entrar</Link>
             </Button>
           </>
         )}
