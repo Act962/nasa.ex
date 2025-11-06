@@ -11,10 +11,11 @@ import {
   FieldSeparator,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 
@@ -22,8 +23,10 @@ const signUpSchema = z
   .object({
     name: z.string().min(1, "Campo obrigatório"),
     email: z.email(),
-    password: z.string().min(6, "Senha precisar ter no mínimo 6 caracteres"),
-    confirmPassword: z.string(),
+    password: z.string().min(8, "Senha precisar ter no mínimo 8 caracteres"),
+    confirmPassword: z
+      .string()
+      .min(8, "Confirmação de senha precisar ter no mínimo 8 caracteres"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "As senhas não conferem",
@@ -43,22 +46,25 @@ export function SignupForm({
   } = useForm<SignUpData>({
     resolver: zodResolver(signUpSchema),
   });
-  const [loading, setLoading] = useTransition();
+  const [isLoading, setIsLoading] = useTransition();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setConfirmPassword] = useState(false);
 
   const onSignUp = (data: SignUpData) => {
-    setLoading(async () => {
-      const { data: response } = await authClient.signUp.email(
+    setIsLoading(async () => {
+      await authClient.signUp.email(
         {
           email: data.email,
           password: data.password,
           name: data.name,
-          callbackURL: "/",
+          callbackURL: "/tracking",
         },
         {
           onSuccess: (ctx) => {
             toast.success("Conta criada com succeso");
           },
           onError: (err) => {
+            console.log(err);
             toast.error("Erro ao criar conta");
           },
         }
@@ -87,6 +93,7 @@ export function SignupForm({
             autoFocus
             placeholder="John Doe"
             {...register("name")}
+            disabled={isLoading}
           />
           {errors.name && (
             <FieldError className="text-sm text-red-400">
@@ -101,6 +108,7 @@ export function SignupForm({
             type="email"
             placeholder="john@example.com"
             {...register("email")}
+            disabled={isLoading}
           />
           {errors.email && (
             <FieldError className="text-sm text-red-400">
@@ -110,25 +118,78 @@ export function SignupForm({
         </Field>
         <Field>
           <FieldLabel htmlFor="password">Senha</FieldLabel>
-          <Input id="password" type="password" {...register("password")} />
+          <div className="relative">
+            <Input
+              id="password"
+              placeholder="••••••••"
+              type={showPassword ? "text" : "password"}
+              {...register("password")}
+              disabled={isLoading}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent!"
+              onClick={() => setShowPassword(!showPassword)}
+              disabled={isLoading}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <Eye className="h-4 w-4 text-muted-foreground" />
+              )}
+              <span className="sr-only">
+                {showPassword ? "Esconder senha" : "Mostrar senha"}
+              </span>
+            </Button>
+          </div>
           {errors.password && (
             <FieldError>{errors.password.message} </FieldError>
           )}
         </Field>
         <Field>
           <FieldLabel htmlFor="confirm-password">Confirmar senha</FieldLabel>
-          <Input
-            id="confirm-password"
-            type="password"
-            {...register("confirmPassword")}
-          />
+          <div className="relative">
+            <Input
+              placeholder="••••••••"
+              type={showConfirmPassword ? "text" : "password"}
+              id="confirm-password"
+              {...register("confirmPassword")}
+              disabled={isLoading}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent!"
+              onClick={() => setConfirmPassword(!showConfirmPassword)}
+              disabled={isLoading}
+            >
+              {showConfirmPassword ? (
+                <EyeOff className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <Eye className="h-4 w-4 text-muted-foreground" />
+              )}
+              <span className="sr-only">
+                {showConfirmPassword ? "Esconder senha" : "Mostrar senha"}
+              </span>
+            </Button>
+          </div>
           {errors.confirmPassword && (
             <FieldError>{errors.confirmPassword.message} </FieldError>
           )}
         </Field>
         <Field>
-          <Button type="submit" className="cursor-pointer">
-            Criar conta
+          <Button type="submit" className="cursor-pointer" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Cadastrando...
+              </>
+            ) : (
+              "Cadastrar"
+            )}
           </Button>
         </Field>
         <FieldSeparator>ou</FieldSeparator>

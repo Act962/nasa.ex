@@ -1,7 +1,7 @@
 services:
   postgres:
     image: "bitnami/postgresql:latest"
-    container_name: petshop-db
+    container_name: nasa-db
     ports:
       - "5432:5432"
     environment:

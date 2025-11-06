@@ -14,11 +14,14 @@ import { useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
+import { toast } from "sonner";
 
 const signInShchema = z.object({
-  email: z.email(),
-  password: z.string(),
+  email: z.email("E-mail inválido"),
+  password: z.string().min(8, "A senha deve ter pelo menos 8 caracteres"),
 });
 
 type SignInSchema = z.infer<typeof signInShchema>;
@@ -34,10 +37,28 @@ export function LoginForm({
   } = useForm({
     resolver: zodResolver(signInShchema),
   });
-  const [loading, setIsLoading] = useTransition();
+  const [isLoading, setIsLoading] = useTransition();
+  const [showPassword, setShowPassword] = useState(false);
 
   const onSignIn = (data: SignInSchema) => {
-    console.log(data);
+    setIsLoading(async () => {
+      await authClient.signIn.email(
+        {
+          email: data.email,
+          password: data.password,
+          callbackURL: "/tracking",
+        },
+        {
+          onSuccess: () => {
+            toast.success("Logado com sucesso!");
+          },
+          onError: (cxt) => {
+            console.log("Erro ao logar", cxt);
+            toast.error("Erro ao tentar entrar!");
+          },
+        }
+      );
+    });
   };
 
   return (
@@ -61,6 +82,7 @@ export function LoginForm({
             autoFocus
             placeholder="johndoe@example.com"
             {...register("email")}
+            disabled={isLoading}
           />
           {errors.email && (
             <FieldError>{errors.email.message || "E-mail inválido"}</FieldError>
@@ -70,7 +92,39 @@ export function LoginForm({
           <div className="flex items-center">
             <FieldLabel htmlFor="password">Senha</FieldLabel>
           </div>
-          <Input id="password" type="password" {...register("password")} />
+          <div className="relative">
+            <Input
+              id="password"
+              placeholder="••••••••"
+              type={showPassword ? "text" : "password"}
+              {...register("password")}
+              disabled={isLoading}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent!"
+              onClick={() => setShowPassword(!showPassword)}
+              disabled={isLoading}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <Eye className="h-4 w-4 text-muted-foreground" />
+              )}
+              <span className="sr-only">
+                {showPassword ? "Esconder senha" : "Mostrar senha"}
+              </span>
+            </Button>
+          </div>
+
+          {errors.password && (
+            <FieldError>
+              {errors.password.message || "Senha inválida"}
+            </FieldError>
+          )}
+
           <a
             href="#"
             className="ml-auto text-sm underline-offset-4 hover:underline"
@@ -80,7 +134,14 @@ export function LoginForm({
         </Field>
         <Field>
           <Button type="submit" className="cursor-pointer">
-            Entrar
+            {isLoading ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Entrando...
+              </>
+            ) : (
+              "Entrar"
+            )}
           </Button>
         </Field>
         <FieldSeparator>ou</FieldSeparator>
