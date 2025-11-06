@@ -1,6 +1,3 @@
-import { ModeToggle } from "@/components/mode-toggle";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { Heading } from "./_components/heading";
 
 export default function Home() {

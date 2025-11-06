@@ -11,12 +11,11 @@ export function Heading() {
   return (
     <div className="max-w-3xl space-y-4">
       <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold">
-        Your Ideas, Documents, & Plans. Unified. Welcome to{" "}
-        <span className="underline">Jotion</span>
+        Suas ideias e Seus Planos. Bem-vindo ao{" "}
+        <span className="underline">N.A.S.A</span>
       </h1>
       <h3 className="text-base sm:text-xl md:text-2xl font-medium">
-        Jotion is the connected workspace where <br />
-        better, faster work happens
+        Descubra um universo de opções para <br /> gestão de trabalho em equipe
       </h3>
       {isPending && (
         <div className="w-full flex items-center justify-center">

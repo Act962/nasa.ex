@@ -18,6 +18,7 @@ import { z } from "zod";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 
 const signUpSchema = z
   .object({
@@ -49,6 +50,7 @@ export function SignupForm({
   const [isLoading, setIsLoading] = useTransition();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setConfirmPassword] = useState(false);
+  const router = useRouter();
 
   const onSignUp = (data: SignUpData) => {
     setIsLoading(async () => {
@@ -60,8 +62,9 @@ export function SignupForm({
           callbackURL: "/tracking",
         },
         {
-          onSuccess: (ctx) => {
+          onSuccess: () => {
             toast.success("Conta criada com succeso");
+            router.push("/tracking");
           },
           onError: (err) => {
             console.log(err);
