@@ -23,6 +23,7 @@ model User {
 
   members     Member[]
   invitations Invitation[]
+  trackings   TrackingParticipant[]
 
   @@unique([email])
   @@map("user")
@@ -113,4 +114,41 @@ model Invitation {
   user           User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
 
   @@map("invitation")
+}
+
+
+model Tracking {
+  id String @id @default(cuid())
+  name String
+  description String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relacionamento com participantes
+  participants TrackingParticipant[]
+  
+  @@map("tracking")
+}
+
+model TrackingParticipant {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  trackingId  String   @map("tracking_id")
+  role        ParticipantRole @default(MEMBER)
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  // Relacionamentos
+  tracking    Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Garantir que um usuário não seja adicionado duas vezes ao mesmo tracking
+  @@unique([userId, trackingId])
+  @@map("tracking_participant")
+}
+
+enum ParticipantRole {
+  OWNER      // Criador, controle total
+  ADMIN      // Pode gerenciar participantes
+  MEMBER     // Pode visualizar e interagir
+  VIEWER     // Apenas visualização
 }

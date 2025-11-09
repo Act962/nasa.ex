@@ -1,6 +1,6 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./_components/sidebar";
-import { HeaderTracking } from "./_components/header";
+import { HeaderTracking } from "./_components/header-tracking";
 
 export default async function RouteLayout({
   children,
