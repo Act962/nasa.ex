@@ -1,5 +1,5 @@
 import Heading from "../_components/heading";
-import { requireAuth } from "@/lib/auth-utils";
+import { currentOrganization, requireAuth } from "@/lib/auth-utils";
 import prisma from "@/lib/prisma";
 import {
   Empty,
@@ -16,22 +16,26 @@ import { TrackingList } from "@/features/tracking/components/tracking-list";
 
 export default async function TrackingPage() {
   const session = await requireAuth();
+  const organizationId = session.session.activeOrganizationId;
 
-  const trackings = await prisma.tracking.findMany({
-    where: {
-      participants: {
-        some: {
-          userId: session.user.id,
+  const trackings = organizationId
+    ? await prisma.tracking.findMany({
+        where: {
+          participants: {
+            some: {
+              userId: session.user.id,
+            },
+          },
+          organizationId: organizationId,
         },
-      },
-    },
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      createdAt: true,
-    },
-  });
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          createdAt: true,
+        },
+      })
+    : [];
 
   return (
     <div className="h-full px-4">

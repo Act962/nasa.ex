@@ -18,6 +18,12 @@ export default async function createTracking(data: CreateTrackingSchema) {
 
     const session = await requireAuth();
 
+    if (!session.session.activeOrganizationId) {
+      return {
+        error: "Organização não encontrada",
+      };
+    }
+
     await prisma.tracking.create({
       data: {
         name: parseData.name,
@@ -27,6 +33,7 @@ export default async function createTracking(data: CreateTrackingSchema) {
             userId: session.user.id,
           },
         },
+        organizationId: session.session.activeOrganizationId,
       },
     });
 

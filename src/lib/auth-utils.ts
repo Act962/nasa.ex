@@ -24,3 +24,15 @@ export const requireUnauth = async () => {
     redirect("/tracking");
   }
 };
+
+export const currentOrganization = async () => {
+  const organization = await auth.api.getFullOrganization({
+    headers: await headers(),
+  });
+
+  if (!organization) {
+    return null;
+  }
+
+  return organization;
+};

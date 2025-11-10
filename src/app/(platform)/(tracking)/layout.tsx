@@ -1,20 +1,33 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./_components/sidebar";
 import { HeaderTracking } from "./_components/header-tracking";
+import { currentOrganization, requireAuth } from "@/lib/auth-utils";
+import { EmptyOrganization } from "./_components/empty-organization";
 
 export default async function RouteLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await requireAuth();
+
+  const org = await currentOrganization();
+
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
         <HeaderTracking />
-        <main className="h-full flex flex-1 flex-col gap-4 p-4 pt-0">
-          {children}
-        </main>
+        {org && (
+          <main className="h-full flex flex-1 flex-col gap-4 p-4 pt-0">
+            {children}
+          </main>
+        )}
+        {!org && (
+          <div className="h-full flex items-center justify-center">
+            <EmptyOrganization />
+          </div>
+        )}
       </SidebarInset>
     </SidebarProvider>
   );
