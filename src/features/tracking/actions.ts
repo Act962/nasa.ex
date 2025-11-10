@@ -12,7 +12,7 @@ const createTrackingSchema = z.object({
 
 type CreateTrackingSchema = z.infer<typeof createTrackingSchema>;
 
-export default async function createTracking(data: CreateTrackingSchema) {
+export async function createTracking(data: CreateTrackingSchema) {
   try {
     const parseData = createTrackingSchema.parse(data);
 
@@ -37,11 +37,47 @@ export default async function createTracking(data: CreateTrackingSchema) {
       },
     });
 
-    revalidatePath("/");
+    revalidatePath("/tracking");
   } catch (error) {
     console.log(error);
     return {
       error: "Erro ao criar tracking",
+    };
+  }
+}
+
+const createStatusSchema = z.object({
+  name: z.string(),
+  color: z.string().optional(),
+  trackingId: z.string(),
+});
+
+type CreateStatusSchema = z.infer<typeof createStatusSchema>;
+
+export async function createStatus(data: CreateStatusSchema) {
+  try {
+    const parseData = createStatusSchema.parse(data);
+
+    const session = await requireAuth();
+
+    if (!session) {
+      return {
+        error: "Não autorizado",
+      };
+    }
+
+    await prisma.status.create({
+      data: {
+        name: parseData.name,
+        color: parseData.color,
+        trackingId: parseData.trackingId,
+      },
+    });
+
+    revalidatePath(`/tracking/${parseData.trackingId}`);
+  } catch (error) {
+    return {
+      error: "Erro ao criar status",
     };
   }
 }

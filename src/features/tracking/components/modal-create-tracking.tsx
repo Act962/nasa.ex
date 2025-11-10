@@ -25,7 +25,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import createTracking from "../actions";
+import { createTracking } from "../actions";
 import { toast } from "sonner";
 
 const createTrackingSchema = z.object({
@@ -43,7 +43,8 @@ export function ModalCreateTracking({
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    reset,
+    formState: { errors, isSubmitting },
   } = useForm<CreateTrackingForm>({
     resolver: zodResolver(createTrackingSchema),
     defaultValues: {
@@ -63,6 +64,7 @@ export function ModalCreateTracking({
       toast.error("Erro ao criar tracking");
     }
 
+    reset();
     toast.success("Tracking criado com sucesso");
     setIsOpen(false);
   };
@@ -88,6 +90,7 @@ export function ModalCreateTracking({
                   {...register("name")}
                   placeholder="Ex.: Acompanhamento"
                   autoFocus
+                  disabled={isSubmitting}
                 />
                 {errors.name && <FieldError>{errors.name.message}</FieldError>}
                 <FieldDescription>Dê um nome para o tracking</FieldDescription>
@@ -97,6 +100,7 @@ export function ModalCreateTracking({
                 <FieldLabel htmlFor="description">Descrição</FieldLabel>
                 <Textarea
                   {...register("description")}
+                  disabled={isSubmitting}
                   className="resize-none"
                 />
               </Field>
@@ -109,7 +113,9 @@ export function ModalCreateTracking({
                 Cancelar
               </Button>
             </DialogClose>
-            <Button className="sumbmit">Criar</Button>
+            <Button className="sumbmit" disabled={isSubmitting}>
+              Criar
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

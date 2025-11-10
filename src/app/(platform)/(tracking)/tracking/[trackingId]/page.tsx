@@ -2,7 +2,6 @@ import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { ListColumn } from "@/features/tracking/components/kamban/list-column";
 
-
 type TrackingPageProps = {
   params: Promise<{ trackingId: string }>;
 };
@@ -19,8 +18,18 @@ export default async function TrackingPage({ params }: TrackingPageProps) {
     notFound();
   }
 
-  return <div>
-    <header>{tracking.name}</header>
-    <ListColumn />
-  </div>;
+  const status = await prisma.status.findMany({
+    where: {
+      trackingId,
+    },
+    orderBy: {
+      order: "asc",
+    },
+  });
+
+  return (
+    <div className="h-full">
+      <ListColumn />
+    </div>
+  );
 }
