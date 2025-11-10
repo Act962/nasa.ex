@@ -204,9 +204,7 @@ export function FormCreateOrg() {
               </Field>
             </FieldGroup>
 
-            <FieldSeparator />
-
-            <Field>
+            <Field className="w-fit self-end">
               <Button type="submit">Criar organização</Button>
             </Field>
           </FieldSet>
