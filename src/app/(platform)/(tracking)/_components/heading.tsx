@@ -5,7 +5,8 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { ModalCreateTracking } from "@/features/tracking/components/modal-create-tracking";
-import { Plus, Search } from "lucide-react";
+import { Plus } from "lucide-react";
+import Search from "./search";
 
 export default function Heading() {
   return (
@@ -19,12 +20,7 @@ export default function Heading() {
       </div>
 
       <div className="flex items-center justify-between gap-4">
-        <InputGroup>
-          <InputGroupInput placeholder="Pesquisar..." />
-          <InputGroupAddon>
-            <Search />
-          </InputGroupAddon>
-        </InputGroup>
+        <Search />
 
         <ModalCreateTracking>
           <Button>
