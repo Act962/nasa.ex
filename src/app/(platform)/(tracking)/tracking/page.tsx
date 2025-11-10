@@ -12,6 +12,7 @@ import {
 import { Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModalCreateTracking } from "@/features/tracking/components/modal-create-tracking";
+import { TrackingList } from "@/features/tracking/components/tracking-list";
 
 export default async function TrackingPage() {
   const session = await requireAuth();
@@ -24,16 +25,20 @@ export default async function TrackingPage() {
         },
       },
     },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      createdAt: true,
+    },
   });
-
-  console.log(trackings);
 
   return (
     <div className="h-full px-4">
       <Heading />
 
       {trackings.length > 0 ? (
-        <p>Trackings</p>
+        <TrackingList trackings={trackings} />
       ) : (
         <div className="flex items-center justify-center mt-16">
           <Empty>

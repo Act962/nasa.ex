@@ -16,13 +16,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 
 const items = [
   {
     title: "Trackings",
-    url: "#",
+    url: "/tracking",
     icon: Kanban,
     isActive: true,
   },
