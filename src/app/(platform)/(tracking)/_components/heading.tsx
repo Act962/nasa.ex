@@ -4,7 +4,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { ModalCreateTracking } from "@/features/tracking/modal-create-tracking";
+import { ModalCreateTracking } from "@/features/tracking/components/modal-create-tracking";
 import { Plus, Search } from "lucide-react";
 
 export default function Heading() {
