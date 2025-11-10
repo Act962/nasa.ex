@@ -42,6 +42,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
+
 :root {
   --radius: 0.65rem;
   --background: oklch(1 0 0);
@@ -115,9 +116,11 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html,
   body,
   :root {
@@ -126,8 +129,38 @@
 }
 
 @layer base {
+
   button:not([disabled]),
   [role="button"]:not([disabled]) {
     cursor: pointer;
   }
+}
+
+.scroll-cols-tracking::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scroll-cols-tracking::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scroll-cols-tracking::-webkit-scrollbar-track {
+  background: transparent;
+  /* ou use uma cor ex: #1f1f1f */
+}
+
+.scroll-cols-tracking::-webkit-scrollbar-thumb {
+  background-color: #555;
+  border-radius: 9999px;
+}
+
+.scroll-cols-tracking::-webkit-scrollbar-thumb:hover {
+  background-color: #777;
+}
+
+.scroll-cols-tracking {
+  scrollbar-width: thin;
+  scrollbar-color: #555 transparent;
 }
