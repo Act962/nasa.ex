@@ -23,6 +23,7 @@ import Image from "next/image";
 import { ActiveOrganization } from "@/lib/auth-types";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export function TeamSwitcher({
   teams,
@@ -38,6 +39,7 @@ export function TeamSwitcher({
   const [organizationActive, setOrganizationActive] =
     React.useState<ActiveOrganization | null>();
   const { data: organizations } = authClient.useListOrganizations();
+  const router = useRouter();
 
   if (!activeTeam) {
     return null;
@@ -59,6 +61,8 @@ export function TeamSwitcher({
 
     setOrganizationActive(organization);
     toast.success("Sucesso!");
+
+    router.refresh();
   };
 
   React.useEffect(() => {

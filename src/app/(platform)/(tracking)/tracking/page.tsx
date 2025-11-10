@@ -1,5 +1,5 @@
 import Heading from "../_components/heading";
-import { requireAuth } from "@/lib/auth-utils";
+import { currentOrganization, requireAuth } from "@/lib/auth-utils";
 import prisma from "@/lib/prisma";
 import {
   Empty,
@@ -12,28 +12,37 @@ import {
 import { Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModalCreateTracking } from "@/features/tracking/components/modal-create-tracking";
+import { TrackingList } from "@/features/tracking/components/tracking-list";
 
 export default async function TrackingPage() {
   const session = await requireAuth();
+  const organizationId = session.session.activeOrganizationId;
 
-  const trackings = await prisma.tracking.findMany({
-    where: {
-      participants: {
-        some: {
-          userId: session.user.id,
+  const trackings = organizationId
+    ? await prisma.tracking.findMany({
+        where: {
+          participants: {
+            some: {
+              userId: session.user.id,
+            },
+          },
+          organizationId: organizationId,
         },
-      },
-    },
-  });
-
-  console.log(trackings);
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          createdAt: true,
+        },
+      })
+    : [];
 
   return (
     <div className="h-full px-4">
       <Heading />
 
       {trackings.length > 0 ? (
-        <p>Trackings</p>
+        <TrackingList trackings={trackings} />
       ) : (
         <div className="flex items-center justify-center mt-16">
           <Empty>

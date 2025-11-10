@@ -85,6 +85,7 @@ model Organization {
   metadata    String?
   members     Member[]
   invitations Invitation[]
+  trackings   Tracking[]
 
   @@unique([slug])
   @@map("organization")
@@ -121,11 +122,15 @@ model Tracking {
   id String @id @default(cuid())
   name String
   description String?
+  organizationId String   @map("organization_id")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  // Relacionamento com participantes
-  participants TrackingParticipant[]
+  // Relacionamentos
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  participants   TrackingParticipant[]
+  status       Status[]
+  leads          Lead[]
   
   @@map("tracking")
 }
@@ -151,4 +156,40 @@ enum ParticipantRole {
   ADMIN      // Pode gerenciar participantes
   MEMBER     // Pode visualizar e interagir
   VIEWER     // Apenas visualização
+}
+
+model Status {
+  id         String   @id @default(cuid())
+  name       String
+  color      String?
+  order      Int      @default(0)
+  trackingId String   @map("tracking_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relacionamentos
+  tracking   Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  leads      Lead[]
+
+  @@map("status")
+}
+
+model Lead {
+  id          String   @id @default(cuid())
+  title       String
+  email       String?
+  phone       String?
+  description String?
+  statusId    String   @map("status_id")
+  trackingId  String   @map("tracking_id")
+  order       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relacionamentos
+  status      Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  tracking    Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+
+  @@unique([phone, trackingId])
+  @@map("leads")
 }
