@@ -1,7 +1,5 @@
 "use client"
 
-import { Badge } from "@/components/ui/badge";
-import { OptionColumn } from "./option";
 import { CirclePlus } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Column } from "../list-column";
@@ -9,7 +7,7 @@ import { CardTracking } from "../card/card";
 import { useSortable, SortableContext } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useMemo } from "react";
-import { Grip } from 'lucide-react';
+import { HeaderColumnKanban } from "./header";
 
 
 export function ColumnTracking({ id, title, leads, loading }: Column) {
@@ -38,41 +36,23 @@ export function ColumnTracking({ id, title, leads, loading }: Column) {
     const leadsIds = useMemo(() => leads.map((lead) => lead.id), [leads]);
 
     return (
-        <div
+        <li
             ref={setNodeRef}
             style={style}
-            className="w-[350px] h-full max-h-[calc(100vh-4rem)] flex flex-col rounded-2xl bg-foreground/5"
+            className="w-[272px] h-full select-none max-h-[calc(100vh-7rem)] flex flex-col rounded-2xl 
+            bg-foreground/5"
         >
             {/* Cabeçalho */}
-            <header
-                className="flex flex-row px-4 py-6 justify-between  rounded-t-lg"
-            >
-                <div className="flex flex-row gap-2 items-center">
-                    <Grip
-                        className="
-                    cursor-grab
-                    active:cursor-grabbing 
-                    "
-                        size={16}
-                        {...attributes}
-                        {...listeners}
-                    />
-                    {title}
-                    <Badge className="bg-gray-700">{leads.length || 0}</Badge>
-                </div>
-                <OptionColumn />
-            </header>
+            <HeaderColumnKanban
+                leads={leads}
+                title={title}
+                attributes={attributes}
+                listeners={listeners}
+            />
+
 
             {/* Corpo (lista de leads rolável) */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 scroll-cols-tracking">
-                {leads.length >= 1 && loading && (
-                    <div className="flex flex-col gap-2">
-                        <Skeleton />
-                        <Skeleton />
-                        <Skeleton />
-                    </div>
-                )}
-
                 {leads.length >= 1 && !loading && (
                     <SortableContext items={leadsIds}>
                         {leads.map((lead) => (
@@ -87,16 +67,14 @@ export function ColumnTracking({ id, title, leads, loading }: Column) {
                         ))}
                     </SortableContext>
                 )}
-
-                {leads.length === 0 && (
-                    <div className="text-center text-gray-400 py-4">Nada aqui</div>
-                )}
             </div>
 
             {/* Rodapé */}
-            <div className="mt-2 py-4 flex flex-row justify-center items-center gap-2 rounded-b-lg hover:bg-foreground/10 cursor-pointer transition-colors">
+
+            <div
+                className="mt-2 py-4 flex flex-row justify-center items-center gap-2 rounded-b-lg hover:bg-foreground/10 cursor-pointer transition-colors">
                 Adicionar Lead <CirclePlus />
             </div>
-        </div>
+        </li>
     )
 }

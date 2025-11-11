@@ -13,6 +13,9 @@ import { ArrowUpRight } from 'lucide-react';
 import { Lead } from "../list-column";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { ToggleLeft } from 'lucide-react';
+import { User } from 'lucide-react';
 
 export function CardTracking({ id, name, tags, columnId }: Lead) {
 
@@ -46,23 +49,35 @@ export function CardTracking({ id, name, tags, columnId }: Lead) {
             {...attributes}
             {...listeners}
         >
-            <Card className="w-full cursor-grab active:cursor-grabbing">
-                <CardHeader>
-                    <CardTitle>{name}</CardTitle>
-                    <CardAction>
-                        <ArrowUpRight />
+            <Card className="w-full cursor-grab active:cursor-grabbing gap-3 py-2 ">
+                <CardHeader className=" flex justify-between px-3">
+                    <div className="flex flex-row items-center gap-3 ">
+                        <Avatar>
+                            <AvatarImage src="https://github.com/shadcn.png" />
+                        </Avatar>
+                        <CardTitle>{name}</CardTitle>
+                    </div>
+                    <CardAction className="flex flex-row items-center justify-center opacity-90 gap-2">
+                        <ToggleLeft size={20} />
+                        <ArrowUpRight size={20} />
                     </CardAction>
                 </CardHeader>
-                <CardContent>
+                <CardContent
+                    className="px-3"
+                >
                     {tags.length >= 1 && tags.map((tag, index) => (
-                        <Badge key={index}>{tag}</Badge>
+                        <Badge className="mr-1"
+                            key={index}>{tag}</Badge>
                     ))}
                 </CardContent>
-                <CardFooter className="flex-row gap-2">
-                    <div>
+                <CardFooter
+                    className="flex-row gap-2 px-3
+                
+                ">
+                    <div className="flex flex-row justify-between w-full">
                         12-06-2006
+                        <User size={20} />
                     </div>
-
                 </CardFooter>
             </Card>
         </div>
