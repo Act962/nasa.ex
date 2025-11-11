@@ -36,11 +36,9 @@ export function TrackingList() {
   const searchParams = useSearchParams();
   const query = searchParams?.get("q") ?? "";
 
-  const {
-    data: trackings,
-    isError,
-    isLoading,
-  } = useSuspenseQuery(orpc.tracking.list.queryOptions());
+  const { data: trackings, isLoading } = useSuspenseQuery(
+    orpc.tracking.list.queryOptions()
+  );
 
   const trackingList = query
     ? trackings.filter((tracking) =>

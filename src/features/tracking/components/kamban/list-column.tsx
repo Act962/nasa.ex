@@ -19,6 +19,9 @@ import { arrayMove, SortableContext } from "@dnd-kit/sortable";
 import { createPortal } from "react-dom";
 import { CardTracking } from "./card/card";
 import { ButtonAddColumn } from "./button-add-column";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
+import { useParams } from "next/navigation";
 
 export interface Column {
   id: string;
@@ -37,6 +40,18 @@ export interface Lead {
 
 export function ListColumn() {
   const loadingColumns = false;
+  const params = useParams();
+  const trackingId = params.trackingId as string;
+  const {
+    data: { status },
+    isLoading,
+  } = useSuspenseQuery(
+    orpc.status.list.queryOptions({
+      input: {
+        trackingId,
+      },
+    })
+  );
 
   // Estados separados para columns e leads
   const [columns, setColumns] = useState<Column[]>([
@@ -209,6 +224,9 @@ export function ListColumn() {
         onDragEnd={onDragEnd}
         onDragOver={onDragOver}
       >
+        {!isLoading &&
+          status.length > 0 &&
+          status.map((column) => <p key={column.id}>{column.name}</p>)}
         <ol className="overflow-x-auto overflow-y-auto flex flex-row">
           {columns.length >= 1 && !loadingColumns && (
             <div className="flex gap-2">
