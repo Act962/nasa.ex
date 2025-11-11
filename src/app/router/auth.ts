@@ -1,20 +1,24 @@
+import { auth } from "@/lib/auth";
 import { base } from "../middlewares/base";
-
-import { currentOrganization, requireAuth } from "@/lib/auth-utils";
 
 export const requiredAuthMiddleware = base.middleware(
   async ({ context, next, errors }) => {
-    const session = await requireAuth();
+    const sessionData = await auth.api.getSession({
+      headers: context.headers,
+    });
 
-    if (!session) {
+    if (!sessionData?.session || !sessionData.user) {
       throw errors.UNAUTHORIZED;
     }
-    const organization = await currentOrganization();
+
+    const organization = await auth.api.getFullOrganization({
+      headers: context.headers,
+    });
 
     return next({
       context: {
-        ...context,
-        auth: session,
+        session: sessionData.session,
+        user: sessionData.user,
         org: organization,
       },
     });

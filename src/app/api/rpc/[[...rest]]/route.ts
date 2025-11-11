@@ -11,10 +11,11 @@ const handler = new RPCHandler(router, {
 });
 
 async function handleRequest(request: Request) {
-  console.log("Handling request", request.method, request.url);
   const { response } = await handler.handle(request, {
-    prefix: "/rpc",
-    context: {}, // Provide initial context if needed
+    prefix: "/api/rpc",
+    context: {
+      headers: request.headers,
+    }, // Provide initial context if needed
   });
 
   return response ?? new Response("Not found", { status: 404 });

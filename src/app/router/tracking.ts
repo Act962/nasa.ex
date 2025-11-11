@@ -7,20 +7,23 @@ export const listTrackings = base
   .use(requiredAuthMiddleware)
   .route({
     method: "GET",
-    path: "/trackings",
     summary: "List all trackings",
     tags: ["Trackings"],
   })
   .input(z.void())
-  .handler(async ({ input, context }) => {
-    const { auth, org } = context;
+  .handler(async ({ input, context, errors }) => {
+    const { session, user, org } = context;
+
+    if (!org) {
+      throw errors.BAD_REQUEST;
+    }
 
     const trackings = await prisma.tracking.findMany({
       where: {
         organizationId: org?.id,
         participants: {
           some: {
-            userId: auth.user.id,
+            userId: user.id,
           },
         },
       },
@@ -32,7 +35,6 @@ export const createTracking = base
   .use(requiredAuthMiddleware)
   .route({
     method: "POST",
-    path: "/trackings",
     summary: "Create a tracking",
     tags: ["Trackings"],
   })
@@ -47,11 +49,11 @@ export const createTracking = base
       trackingName: z.string(),
     })
   )
-  .handler(async ({ input, context }) => {
-    const { auth, org } = context;
+  .handler(async ({ input, context, errors }) => {
+    const { session, user, org } = context;
 
     if (!org) {
-      throw new Error("TESTE");
+      throw errors.BAD_REQUEST;
     }
 
     const tracking = await prisma.tracking.create({
@@ -61,7 +63,7 @@ export const createTracking = base
         organizationId: org.id,
         participants: {
           create: {
-            userId: auth.user.id,
+            userId: user.id,
             role: "OWNER",
           },
         },
