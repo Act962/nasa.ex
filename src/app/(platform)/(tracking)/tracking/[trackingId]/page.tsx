@@ -1,6 +1,6 @@
-import { KanbanBoardTracking } from "@/features/tracking/components/kamban/_layout";
 import { getQueryClient } from "@/lib/query/hydration";
 import { client, orpc } from "@/lib/orpc";
+import { ListColumn } from "@/features/tracking/components/kamban/list-column";
 
 type TrackingPageProps = {
   params: Promise<{ trackingId: string }>;
@@ -23,10 +23,11 @@ export default async function TrackingPage({ params }: TrackingPageProps) {
   });
 
   return (
-    <div className="h-full ">
-      <header> {tracking.name} </header>
-
-      <KanbanBoardTracking />
+    <div className="">
+      <header>{tracking.name}</header>
+      <div className="w-full h-full relative ">
+        <ListColumn />
+      </div>
     </div>
   );
 }

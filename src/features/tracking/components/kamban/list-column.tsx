@@ -1,11 +1,14 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMemo, useState } from "react";
 import { ColumnTracking } from "./column";
 import {
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -38,7 +41,13 @@ export function ListColumn() {
   // Estados separados para columns e leads
   const [columns, setColumns] = useState<Column[]>([
     { title: "Coluna 1", id: "1", loading: false, leads: [] },
-    { title: "Coluna 2", id: "2", loading: false, leads: [] },
+    {
+      title:
+        "Coluna 2zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+      id: "2",
+      loading: false,
+      leads: [],
+    },
     { title: "Coluna 3", id: "3", loading: false, leads: [] },
   ]);
 
@@ -90,6 +99,9 @@ export function ListColumn() {
   const columnsId = useMemo(() => columns.map((col) => col.id), [columns]);
   const [activeColumn, setActiveColumn] = useState<Column | null>(null);
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
+  const touchSensor = useSensor(TouchSensor);
+
+  const keyboardSensor = useSensor(KeyboardSensor);
 
   // Configuração dos sensores
   const sensors = useSensors(
@@ -97,7 +109,9 @@ export function ListColumn() {
       activationConstraint: {
         distance: 2,
       },
-    })
+    }),
+    touchSensor,
+    keyboardSensor
   );
 
   function handleAddColumn() {
