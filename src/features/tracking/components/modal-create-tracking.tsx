@@ -27,6 +27,9 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import createTracking from "../actions";
 import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
+import { Spinner } from "@/components/spinner";
 
 const createTrackingSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório"),
@@ -40,10 +43,13 @@ export function ModalCreateTracking({
 }: {
   children: React.ReactNode;
 }) {
+  const queryClient = useQueryClient();
+
   const {
     register,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm<CreateTrackingForm>({
     resolver: zodResolver(createTrackingSchema),
     defaultValues: {
@@ -54,18 +60,33 @@ export function ModalCreateTracking({
 
   const [isOpen, setIsOpen] = useState(false);
 
+  const createTrackingMutation = useMutation(
+    orpc.tracking.create.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(`Tracking ${data.trackingName}`);
+
+        queryClient.invalidateQueries({
+          queryKey: orpc.tracking.list.queryKey(),
+        });
+
+        reset();
+        setIsOpen(false);
+      },
+      onError: (error) => {
+        console.log(error);
+        toast.error("Erro ao criar tracking, tente novamente");
+      },
+    })
+  );
+
   const onSubmit = async (data: CreateTrackingForm) => {
-    const result = await createTracking({
-      ...data,
+    createTrackingMutation.mutate({
+      name: data.name,
+      description: data.description,
     });
-
-    if (result?.error) {
-      toast.error("Erro ao criar tracking");
-    }
-
-    toast.success("Tracking criado com sucesso");
-    setIsOpen(false);
   };
+
+  const isLoading = createTrackingMutation.isPending;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -88,6 +109,7 @@ export function ModalCreateTracking({
                   {...register("name")}
                   placeholder="Ex.: Acompanhamento"
                   autoFocus
+                  disabled={isLoading}
                 />
                 {errors.name && <FieldError>{errors.name.message}</FieldError>}
                 <FieldDescription>Dê um nome para o tracking</FieldDescription>
@@ -98,6 +120,7 @@ export function ModalCreateTracking({
                 <Textarea
                   {...register("description")}
                   className="resize-none"
+                  disabled={isLoading}
                 />
               </Field>
             </FieldGroup>
@@ -109,7 +132,10 @@ export function ModalCreateTracking({
                 Cancelar
               </Button>
             </DialogClose>
-            <Button className="sumbmit">Criar</Button>
+            <Button className="sumbmit" disabled={isLoading}>
+              {isLoading && <Spinner />}
+              Criar
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

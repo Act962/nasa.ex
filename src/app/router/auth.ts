@@ -1,21 +1,25 @@
 import { auth } from "@/lib/auth";
 import { base } from "../middlewares/base";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 
 export const requiredAuthMiddleware = base.middleware(
-  async ({ context, next }) => {
-    const session = await auth.api.getSession({
-      headers: await headers(),
+  async ({ context, next, errors }) => {
+    const sessionData = await auth.api.getSession({
+      headers: context.headers,
     });
 
-    if (!session) {
-      return redirect("/sign-in");
+    if (!sessionData?.session || !sessionData.user) {
+      throw errors.UNAUTHORIZED;
     }
+
+    const organization = await auth.api.getFullOrganization({
+      headers: context.headers,
+    });
 
     return next({
       context: {
-        auth: session,
+        session: sessionData.session,
+        user: sessionData.user,
+        org: organization,
       },
     });
   }

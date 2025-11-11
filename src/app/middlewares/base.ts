@@ -1,6 +1,6 @@
 import { os } from "@orpc/server";
 
-export const base = os.errors({
+export const base = os.$context<{ headers: Headers }>().errors({
   BAD_REQUEST: {
     message: "You are being ratee limited",
   },
