@@ -22,7 +22,7 @@ export function HeaderColumnKanban({ leads, title, attributes, listeners }: Head
             <Grip
                 className="
                     cursor-grab
-                    active:cursor-grabbing 
+                    active:cursor-grabbing touch-none 
                     "
                 size={16}
                 {...attributes}
