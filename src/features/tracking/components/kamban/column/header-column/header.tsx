@@ -67,8 +67,8 @@ export function HeaderColumnKanban({
   useEventListener("keydown", onKeyDown);
 
   return (
-    <header className="flex flex-row px-2 py-6 justify-between items-center rounded-t-lg">
-      <div className="flex flex-row justify-center gap-2 items-center">
+    <header className="flex flex-row px-2 h-12 justify-between items-center rounded-t-lg">
+      <div className="flex flex-row justify-between gap-2 items-center w-full">
         {isEditing ? (
           <form onSubmit={handleSubmit(onSubmit)} className="w-full">
             <Input
@@ -83,8 +83,7 @@ export function HeaderColumnKanban({
         ) : (
           <div className="flex flex-row items-center gap-2">
             <Grip
-              className="cursor-grab active:cursor-grabbing touch-none"
-              size={16}
+              className="cursor-grab active:cursor-grabbing touch-none size-4"
               {...attributes}
               {...listeners}
             />
