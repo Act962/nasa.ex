@@ -6,7 +6,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useTrackingSetting } from "@/hooks/uset-settings";
+import { useTrackingSetting } from "@/hooks/use-settings";
 import { authClient } from "@/lib/auth-client";
 import { ModeToggle } from "../mode-toggle";
 

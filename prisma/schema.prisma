@@ -176,7 +176,7 @@ model Status {
 
 model Lead {
   id          String   @id @default(cuid())
-  title       String
+  name       String
   email       String?
   phone       String?
   description String?

@@ -10,7 +10,7 @@ export function Navbar() {
   const { data: session, isPending } = authClient.useSession();
 
   return (
-    <header className="fixed top-0 w-full z-999999 p-4 ">
+    <header className="fixed top-0 w-full z-999999 p-4 flex items-center justify-between">
       <Logo />
       <div className="md:ml-auto md:justify-end justify-between w-full flex items-center gap-x-2">
         {isPending && <Spinner />}

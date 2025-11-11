@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import { useTrackingSetting } from "@/hooks/uset-settings";
+import { useTrackingSetting } from "@/hooks/use-settings";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
