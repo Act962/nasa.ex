@@ -6,7 +6,6 @@ import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { orpc } from "@/lib/orpc";
 
 export default async function TrackingPage() {
-  await requireAuth();
   const queryClient = getQueryClient();
 
   await queryClient.prefetchQuery(orpc.tracking.list.queryOptions());
