@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import { ListColumn } from "@/features/tracking/components/kamban/list-column";
+import { KanbanBoardTracking } from "@/features/tracking/components/kamban/_layout";
 
 
 type TrackingPageProps = {
@@ -19,8 +19,10 @@ export default async function TrackingPage({ params }: TrackingPageProps) {
     notFound();
   }
 
-  return <div>
+  return <div className="h-full ">
     <header>{tracking.name}</header>
-    <ListColumn />
+    <div>
+      <KanbanBoardTracking />
+    </div>
   </div>;
 }

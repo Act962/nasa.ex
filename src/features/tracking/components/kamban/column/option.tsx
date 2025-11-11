@@ -12,15 +12,15 @@ export function OptionColumn() {
     return (
         <Popover>
             <PopoverTrigger asChild>
-                <EllipsisVertical className="cursor-pointer" />
+                <EllipsisVertical
+                    size={16}
+                    className="cursor-pointer" />
             </PopoverTrigger>
             <PopoverContent className="w-40 flex flex-row gap-2">
-                <Pencil size={16} />
+                <Pencil className="size-4" />
                 <h4 className="leading-none font-medium">
                     Editar Item
                 </h4>
-
-
             </PopoverContent>
         </Popover>
     )

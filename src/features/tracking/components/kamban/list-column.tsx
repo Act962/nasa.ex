@@ -2,7 +2,7 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMemo, useState } from "react"
-import { ColumnTracking } from "./column/column";
+import { ColumnTracking } from "./column";
 import {
     DndContext,
     DragOverlay,
@@ -30,6 +30,7 @@ export interface Lead {
     id: string
     name: string
     tags: string[]
+    profile?: string
     columnId: string
 
 }
@@ -181,67 +182,61 @@ export function ListColumn() {
     }
 
     return (
-        <div className="flex flex-row">
+        <div className="h-full w-full absolute">
             <DndContext
                 sensors={sensors}
                 onDragStart={onDragStart}
                 onDragEnd={onDragEnd}
                 onDragOver={onDragOver}
             >
-                {columns.length >= 1 && loadingColumns && (
+                <ol className="overflow-x-auto overflow-y-auto flex flex-row">
+
+                    {columns.length >= 1 && !loadingColumns && (
+                        <div className="flex gap-2">
+                            <SortableContext items={columnsId}>
+                                {columns.map((column) => (
+                                    <div key={column.id} className="ml-2">
+                                        <ColumnTracking
+                                            key={column.id}
+                                            id={column.id}
+                                            title={column.title}
+                                            leads={leads.filter((lead) => lead.columnId === column.id)}
+                                        />
+                                    </div>
+                                ))}
+                            </SortableContext>
+                        </div>
+                    )}
+
                     <div>
-                        <Skeleton />
-                        <Skeleton />
-                        <Skeleton />
+                        <ButtonAddColumn />
                     </div>
-                )}
 
-                {columns.length >= 1 && !loadingColumns && (
-                    <div className="flex gap-2">
-                        <SortableContext items={columnsId}>
-                            {columns.map((column) => (
-                                <div key={column.id} className="ml-2">
-                                    <ColumnTracking
-                                        key={column.id}
-                                        id={column.id}
-                                        title={column.title}
-                                        leads={leads.filter((lead) => lead.columnId === column.id)}
-                                    />
+                    {/* DragOverlay para preview durante o drag */}
+                    {typeof document !== 'undefined' && createPortal(
+                        <DragOverlay>
+                            {activeColumn && (
+                                <ColumnTracking
+                                    id={activeColumn.id}
+                                    title={activeColumn.title}
+                                    leads={leads.filter((lead) => lead.columnId === activeColumn.id)}
+                                />
+                            )}
+                            {activeLead && (
+                                <div >
+                                    <CardTracking
+                                        columnId={activeLead.columnId}
+                                        id={activeLead.id}
+                                        name={activeLead.name}
+                                        tags={activeLead.tags}
+                                        key={activeLead.id} />
+
                                 </div>
-                            ))}
-                        </SortableContext>
-                    </div>
-                )}
-
-                <div>
-
-                    <ButtonAddColumn />
-                </div>
-
-                {/* DragOverlay para preview durante o drag */}
-                {typeof document !== 'undefined' && createPortal(
-                    <DragOverlay>
-                        {activeColumn && (
-                            <ColumnTracking
-                                id={activeColumn.id}
-                                title={activeColumn.title}
-                                leads={leads.filter((lead) => lead.columnId === activeColumn.id)}
-                            />
-                        )}
-                        {activeLead && (
-                            <div >
-                                <CardTracking
-                                    columnId={activeLead.columnId}
-                                    id={activeLead.id}
-                                    name={activeLead.name}
-                                    tags={activeLead.tags}
-                                    key={activeLead.id} />
-
-                            </div>
-                        )}
-                    </DragOverlay>,
-                    document.body
-                )}
+                            )}
+                        </DragOverlay>,
+                        document.body
+                    )}
+                </ol>
             </DndContext>
         </div>
     )
