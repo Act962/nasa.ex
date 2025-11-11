@@ -48,6 +48,7 @@ export function CardTracking({ id, name, tags, columnId }: Lead) {
             style={style}
             {...attributes}
             {...listeners}
+            className="touch-none"
         >
             <Card className="w-full cursor-grab active:cursor-grabbing gap-3 py-2 ">
                 <CardHeader className=" flex justify-between px-3">

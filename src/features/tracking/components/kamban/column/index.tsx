@@ -1,7 +1,6 @@
 "use client"
 
 import { CirclePlus } from 'lucide-react';
-import { Skeleton } from "@/components/ui/skeleton";
 import { Column } from "../list-column";
 import { CardTracking } from "../card/card";
 import { useSortable, SortableContext } from "@dnd-kit/sortable";

@@ -6,7 +6,9 @@ import { ColumnTracking } from "./column";
 import {
     DndContext,
     DragOverlay,
+    KeyboardSensor,
     PointerSensor,
+    TouchSensor,
     useSensor,
     useSensors,
     type DragEndEvent,
@@ -91,6 +93,9 @@ export function ListColumn() {
     const columnsId = useMemo(() => columns.map((col) => col.id), [columns])
     const [activeColumn, setActiveColumn] = useState<Column | null>(null)
     const [activeLead, setActiveLead] = useState<Lead | null>(null)
+    const touchSensor = useSensor(TouchSensor);
+
+    const keyboardSensor = useSensor(KeyboardSensor);
 
     // Configuração dos sensores
     const sensors = useSensors(
@@ -98,7 +103,9 @@ export function ListColumn() {
             activationConstraint: {
                 distance: 2,
             }
-        })
+        }),
+        touchSensor,
+        keyboardSensor
     )
 
     function handleAddColumn() {
