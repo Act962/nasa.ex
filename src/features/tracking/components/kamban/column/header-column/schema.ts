@@ -1,5 +1,5 @@
 import z from "zod";
 
 export const schema = z.object({
-  title: z.string("Valor inválido"),
+  name: z.string("Valor inválido"),
 });

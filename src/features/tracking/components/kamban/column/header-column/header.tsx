@@ -18,17 +18,18 @@ import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
 
-interface HeaderColumnKanbanProps extends Column {
+interface HeaderColumnKanbanProps {
   leads: Lead[];
-  title: string;
+  name: string;
   attributes: DraggableAttributes;
   listeners?: SyntheticListenerMap;
+  id: string;
 }
 type EditColumnForm = z.infer<typeof schema>;
 
 export function HeaderColumnKanban({
   leads,
-  title,
+  name,
   attributes,
   listeners,
   id,
@@ -46,7 +47,7 @@ export function HeaderColumnKanban({
   } = useForm<EditColumnForm>({
     resolver: zodResolver(schema),
     defaultValues: {
-      title,
+      name,
     },
   });
 
@@ -82,27 +83,18 @@ export function HeaderColumnKanban({
   );
 
   function onSubmit(data: EditColumnForm) {
-    if (!data.title) {
+    if (!data.name) {
       toggleEditing();
       return;
     }
 
     updateNameColumn.mutate({
-      name: data.title,
+      name: data.name,
       statusId: id,
     });
   }
 
-  function onKeyDown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
-    }
-  }
-
-  //   function onBlur() {
-  //     formRefer.current?.requestSubmit();
-  //   }
-
-  useEventListener("keydown", onKeyDown);
+  const isLoading = updateNameColumn.isPending;
 
   return (
     <header className="flex flex-row px-2 h-12 justify-between items-center rounded-t-lg">
@@ -110,14 +102,15 @@ export function HeaderColumnKanban({
         {isEditing ? (
           <form onSubmit={handleSubmit(onSubmit)} className="w-full">
             <Input
-              {...register("title")}
+              {...register("name")}
               type="text"
               autoFocus
               placeholder="Insira o título da coluna"
               className="h-7 w-full"
               onBlur={toggleEditing}
+              disabled={isLoading}
             />
-            {errors.title && <FieldError>{errors.title.message}</FieldError>}
+            {errors.name && <FieldError>{errors.name.message}</FieldError>}
           </form>
         ) : (
           <div className="flex flex-row items-center gap-2">
@@ -130,7 +123,7 @@ export function HeaderColumnKanban({
               onClick={toggleEditing}
               className="truncate line-clamp-1 max-w-32"
             >
-              {title}
+              {name}
             </span>
             <Badge className="bg-foreground/5 text-muted-foreground">
               {leads.length || 0}

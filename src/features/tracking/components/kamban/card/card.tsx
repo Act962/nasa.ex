@@ -10,14 +10,25 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ArrowUpRight } from "lucide-react";
-import { Lead } from "../list-column";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { ToggleLeft } from "lucide-react";
 import { User } from "lucide-react";
 
-export function CardTracking({ id, name, tags, columnId }: Lead) {
+interface CardTrackingProps {
+  leadId: string;
+  name: string;
+  columnId: string;
+  index: number;
+}
+
+export function CardTracking({
+  name,
+  leadId,
+  columnId,
+  index,
+}: CardTrackingProps) {
   // Hook do dnd-kit para tornar o card arrastável
   const {
     attributes,
@@ -27,10 +38,10 @@ export function CardTracking({ id, name, tags, columnId }: Lead) {
     transition,
     isDragging,
   } = useSortable({
-    id: id,
+    id: leadId,
     data: {
       type: "Lead",
-      lead: { id, name, tags, columnId },
+      lead: { id: leadId, name, columnId, index },
     },
   });
 
@@ -63,18 +74,14 @@ export function CardTracking({ id, name, tags, columnId }: Lead) {
           </CardAction>
         </CardHeader>
         <CardContent className="px-3">
-          {tags.length >= 1 &&
+          {/* {tags.length >= 1 &&
             tags.map((tag, index) => (
               <Badge className="mr-1" key={index}>
                 {tag}
               </Badge>
-            ))}
+            ))} */}
         </CardContent>
-        <CardFooter
-          className="flex-row gap-2 px-3
-                
-                "
-        >
+        <CardFooter className="flex-row gap-2 px-3">
           <div className="flex flex-row justify-between w-full">
             12-06-2006
             <User size={20} />

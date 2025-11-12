@@ -44,7 +44,6 @@ export function ModalCreateTracking({
   children: React.ReactNode;
 }) {
   const queryClient = useQueryClient();
-
   const {
     register,
     handleSubmit,

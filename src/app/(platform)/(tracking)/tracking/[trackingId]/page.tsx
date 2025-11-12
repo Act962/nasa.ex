@@ -25,7 +25,7 @@ export default async function TrackingPage({ params }: TrackingPageProps) {
   return (
     <div className="h-full">
       <header>{tracking.name}</header>
-      <div className="w-full relative ">
+      <div className="w-full relative">
         <HydrateClient client={queryClient}>
           <ListColumn />
         </HydrateClient>

@@ -19,6 +19,7 @@ type CreateColumnForm = z.infer<typeof schema>;
 
 export function ButtonAddColumn() {
   const params = useParams<{ trackingId: string }>();
+
   const queryClient = useQueryClient();
   const {
     register,

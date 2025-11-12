@@ -1,7 +1,6 @@
 "use client";
 
-import { Skeleton } from "@/components/ui/skeleton";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ColumnTracking } from "./column";
 import {
   DndContext,
@@ -19,28 +18,36 @@ import { arrayMove, SortableContext } from "@dnd-kit/sortable";
 import { createPortal } from "react-dom";
 import { CardTracking } from "./card/card";
 import { ButtonAddColumn } from "./button-add-column";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { useParams } from "next/navigation";
+import { toast } from "sonner";
 
 export interface Column {
   id: string;
-  title: string;
-  loading?: boolean;
+  name: string;
+  color: string | null;
+  order: number;
   leads: Lead[];
 }
 
 export interface Lead {
   id: string;
   name: string;
-  tags: string[];
-  profile?: string;
-  columnId: string;
+  email: string | null;
+  order: number;
+  phone: string | null;
+  statusId: string;
 }
 
 export function ListColumn() {
   const loadingColumns = false;
   const params = useParams();
+
   const trackingId = params.trackingId as string;
   const {
     data: { status },
@@ -53,65 +60,20 @@ export function ListColumn() {
     })
   );
 
-  // Estados separados para columns e leads
-  const [columns, setColumns] = useState<Column[]>([
-    { title: "Coluna 1", id: "1", loading: false, leads: [] },
-    {
-      title:
-        "Coluna 2zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
-      id: "2",
-      loading: false,
-      leads: [],
-    },
-    { title: "Coluna 3", id: "3", loading: false, leads: [] },
-  ]);
+  const updateColumnOrder = useMutation(
+    orpc.status.updateOrder.mutationOptions({
+      onSuccess: (data) => {
+        toast.success("Coluna atualizado com sucesso!");
+      },
+      onError: () => {
+        toast.error("Erro ao atualizar coluna");
+      },
+    })
+  );
 
-  const [leads, setLeads] = useState<Lead[]>([
-    {
-      name: "Arthur",
-      id: "01",
-      tags: ["nada", "teste"],
-      columnId: "1",
-    },
-    {
-      name: "Fulano",
-      id: "02",
-      tags: ["nada", "teste"],
-      columnId: "1",
-    },
-    {
-      name: "Maria",
-      id: "03",
-      tags: ["importante"],
-      columnId: "2",
-    },
-    {
-      name: "João",
-      id: "04",
-      tags: ["urgente"],
-      columnId: "3",
-    },
-    {
-      name: "Arthur",
-      id: "06",
-      tags: ["nada", "teste"],
-      columnId: "1",
-    },
-    {
-      name: "Arthur",
-      id: "07",
-      tags: ["nada", "teste"],
-      columnId: "1",
-    },
-    {
-      name: "Arthur",
-      id: "08",
-      tags: ["nada", "teste"],
-      columnId: "1",
-    },
-  ]);
+  const [columns, setColumns] = useState<Column[]>(status);
 
-  const columnsId = useMemo(() => columns.map((col) => col.id), [columns]);
+  const columnsId = useMemo(() => status.map((col) => col.id), [status]);
   const [activeColumn, setActiveColumn] = useState<Column | null>(null);
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const touchSensor = useSensor(TouchSensor);
@@ -128,10 +90,6 @@ export function ListColumn() {
     touchSensor,
     keyboardSensor
   );
-
-  function handleAddColumn() {
-    // Sua lógica aqui
-  }
 
   // Handlers de drag and drop
   function onDragStart(event: DragStartEvent) {
@@ -151,7 +109,8 @@ export function ListColumn() {
 
     const { active, over } = event;
     if (!over) return;
-
+    console.log("active:", active);
+    console.log("over:", over);
     // Drag de colunas
     if (
       active.data.current?.type === "Column" &&
@@ -162,15 +121,28 @@ export function ListColumn() {
 
       if (activeColumnId === overColumnId) return;
 
-      setColumns((columns) => {
-        const activeColumnIndex = columns.findIndex(
-          (col) => col.id === activeColumnId
-        );
-        const overColumnIndex = columns.findIndex(
-          (col) => col.id === overColumnId
-        );
+      // Calcule primeiro
+      const activeColumnIndex = columns.findIndex(
+        (col) => col.id === activeColumnId
+      );
+      const overColumnIndex = columns.findIndex(
+        (col) => col.id === overColumnId
+      );
 
-        return arrayMove(columns, activeColumnIndex, overColumnIndex);
+      const newItems = arrayMove(columns, activeColumnIndex, overColumnIndex);
+
+      // Agora você tem newItems disponível
+      console.log("Nova ordem:", newItems);
+
+      // Atualiza o estado
+      setColumns(newItems);
+
+      const newOrder = newItems.findIndex((col) => col.id === activeColumnId);
+
+      updateColumnOrder.mutate({
+        newOrder,
+        statusId: activeColumnId as string,
+        trackingId,
       });
     }
   }
@@ -190,53 +162,53 @@ export function ListColumn() {
     if (!isActiveALead) return;
 
     // Lead sobre Lead (mesma coluna ou coluna diferente)
-    if (isActiveALead && isOverALead) {
-      setLeads((leads) => {
-        const activeIndex = leads.findIndex((t) => t.id === activeId);
-        const overIndex = leads.findIndex((t) => t.id === overId);
+    // if (isActiveALead && isOverALead) {
+    //   setLeads((leads) => {
+    //     const activeIndex = leads.findIndex((t) => t.id === activeId);
+    //     const overIndex = leads.findIndex((t) => t.id === overId);
 
-        // Atualiza a coluna do lead ativo
-        leads[activeIndex].columnId = leads[overIndex].columnId;
+    //     // Atualiza a coluna do lead ativo
+    //     leads[activeIndex].statusId = leads[overIndex].statusId;
 
-        return arrayMove(leads, activeIndex, overIndex);
-      });
-    }
+    //     return arrayMove(leads, activeIndex, overIndex);
+    //   });
+    // }
 
-    // Lead sobre Coluna
-    const isOverAColumn = over.data.current?.type === "Column";
-    if (isActiveALead && isOverAColumn) {
-      setLeads((leads) => {
-        const activeIndex = leads.findIndex((t) => t.id === activeId);
+    // // Lead sobre Coluna
+    // const isOverAColumn = over.data.current?.type === "Column";
+    // if (isActiveALead && isOverAColumn) {
+    //   setLeads((leads) => {
+    //     const activeIndex = leads.findIndex((t) => t.id === activeId);
 
-        // Atualiza a coluna do lead
-        leads[activeIndex].columnId = overId as string;
+    //     // Atualiza a coluna do lead
+    //     leads[activeIndex].statusId = overId as string;
 
-        return arrayMove(leads, activeIndex, activeIndex);
-      });
-    }
+    //     return arrayMove(leads, activeIndex, activeIndex);
+    //   });
+    // }
   }
-
   return (
-    <div className="h-full w-full absolute">
+    <div className="h-full w-full absolute ">
       <DndContext
         sensors={sensors}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
         onDragOver={onDragOver}
       >
-        <ol className="overflow-x-auto overflow-y-auto flex flex-row scroll-cols-tracking">
-          {status.length >= 1 && !loadingColumns && (
+        <ol className="overflow-x-auto overflow-y-auto flex flex-row scroll-cols-tracking ">
+          {columns.length >= 1 && !loadingColumns && (
             <div className="flex gap-2">
               <SortableContext items={columnsId}>
-                {status.map((column) => (
+                {columns.map((column, index) => (
                   <div key={column.id} className="ml-2">
                     <ColumnTracking
+                      index={index}
                       key={column.id}
                       id={column.id}
-                      title={column.name}
-                      leads={leads.filter(
-                        (lead) => lead.columnId === column.id
-                      )}
+                      name={column.name}
+                      leads={column.leads}
+                      color=""
+                      columnId={column.id}
                     />
                   </div>
                 ))}
@@ -255,20 +227,22 @@ export function ListColumn() {
                 {activeColumn && (
                   <ColumnTracking
                     id={activeColumn.id}
-                    title={activeColumn.title}
-                    leads={leads.filter(
-                      (lead) => lead.columnId === activeColumn.id
-                    )}
+                    name={activeColumn.name}
+                    color=""
+                    columnId={activeColumn.id}
+                    leads={activeColumn.leads}
+                    index={activeColumn.order}
                   />
                 )}
                 {activeLead && (
                   <div>
                     <CardTracking
-                      columnId={activeLead.columnId}
-                      id={activeLead.id}
+                      columnId={activeLead.statusId}
+                      leadId={activeLead.id}
                       name={activeLead.name}
-                      tags={activeLead.tags}
+                      // tags={activeLead.tags}
                       key={activeLead.id}
+                      index={activeLead.order}
                     />
                   </div>
                 )}
