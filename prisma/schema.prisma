@@ -190,6 +190,7 @@ model Lead {
   status      Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
   tracking    Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
 
+  @@index([phone])
   @@unique([phone, trackingId])
   @@map("leads")
 }

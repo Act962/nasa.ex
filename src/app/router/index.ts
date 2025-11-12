@@ -1,4 +1,18 @@
-import { createStatus, listStatus, updateStatus } from "./status";
+import {
+  addLeadFirst,
+  addLeadLast,
+  createLead,
+  deleteLead,
+  getLead,
+  updateLead,
+  updateLeadOrder,
+} from "./leads";
+import {
+  createStatus,
+  listStatus,
+  updateStatus,
+  updateStatusOrder,
+} from "./status";
 import {
   createTracking,
   getTracking,
@@ -21,5 +35,15 @@ export const router = {
     // get: {},
     update: updateStatus,
     // delete: {},
+    updateOrder: updateStatusOrder,
+  },
+  leads: {
+    create: createLead,
+    get: getLead,
+    update: updateLead,
+    delete: deleteLead,
+    addToFirst: addLeadFirst,
+    addToLast: addLeadLast,
+    updateOrder: updateLeadOrder,
   },
 };
