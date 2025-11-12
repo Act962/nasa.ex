@@ -224,19 +224,16 @@ export function ListColumn() {
         onDragEnd={onDragEnd}
         onDragOver={onDragOver}
       >
-        {!isLoading &&
-          status.length > 0 &&
-          status.map((column) => <p key={column.id}>{column.name}</p>)}
-        <ol className="overflow-x-auto overflow-y-auto flex flex-row">
-          {columns.length >= 1 && !loadingColumns && (
+        <ol className="overflow-x-auto overflow-y-auto flex flex-row scroll-cols-tracking">
+          {status.length >= 1 && !loadingColumns && (
             <div className="flex gap-2">
               <SortableContext items={columnsId}>
-                {columns.map((column) => (
+                {status.map((column) => (
                   <div key={column.id} className="ml-2">
                     <ColumnTracking
                       key={column.id}
                       id={column.id}
-                      title={column.title}
+                      title={column.name}
                       leads={leads.filter(
                         (lead) => lead.columnId === column.id
                       )}

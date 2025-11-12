@@ -13,6 +13,10 @@ import { useForm } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldError } from "@/components/ui/field";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
+import { toast } from "sonner";
+import { useParams } from "next/navigation";
 
 interface HeaderColumnKanbanProps extends Column {
   leads: Lead[];
@@ -27,7 +31,11 @@ export function HeaderColumnKanban({
   title,
   attributes,
   listeners,
+  id,
 }: HeaderColumnKanbanProps) {
+  const queryClient = useQueryClient();
+  const params = useParams<{ trackingId: string }>();
+
   const [isEditing, setIsEditing] = useState(false);
   const inputRefer = useRef<ComponentRef<"input">>(null);
 
@@ -37,22 +45,52 @@ export function HeaderColumnKanban({
     formState: { errors },
   } = useForm<EditColumnForm>({
     resolver: zodResolver(schema),
+    defaultValues: {
+      title,
+    },
   });
 
-  function enableEditing() {
-    setIsEditing(true);
+  function toggleEditing() {
+    setIsEditing(!isEditing);
     setTimeout(() => {
       inputRefer.current?.focus();
       inputRefer.current?.select();
     });
   }
-  function onSubmit(data: EditColumnForm) {
-    disableEditing();
-    console.log(data);
-  }
 
-  function disableEditing() {
-    setIsEditing(false);
+  const updateNameColumn = useMutation(
+    orpc.status.update.mutationOptions({
+      onSuccess: (updateColumn) => {
+        toast.success(
+          `Nome da coluna atualizado para ${updateColumn.statusName}`
+        );
+
+        toggleEditing();
+
+        queryClient.invalidateQueries({
+          queryKey: orpc.status.list.queryKey({
+            input: {
+              trackingId: params.trackingId,
+            },
+          }),
+        });
+      },
+      onError: () => {
+        toast.error("Erro ao atualizar coluna, tente novamente");
+      },
+    })
+  );
+
+  function onSubmit(data: EditColumnForm) {
+    if (!data.title) {
+      toggleEditing();
+      return;
+    }
+
+    updateNameColumn.mutate({
+      name: data.title,
+      statusId: id,
+    });
   }
 
   function onKeyDown(e: KeyboardEvent) {
@@ -77,6 +115,7 @@ export function HeaderColumnKanban({
               autoFocus
               placeholder="Insira o título da coluna"
               className="h-7 w-full"
+              onBlur={toggleEditing}
             />
             {errors.title && <FieldError>{errors.title.message}</FieldError>}
           </form>
@@ -88,7 +127,7 @@ export function HeaderColumnKanban({
               {...listeners}
             />
             <span
-              onClick={enableEditing}
+              onClick={toggleEditing}
               className="truncate line-clamp-1 max-w-32"
             >
               {title}
