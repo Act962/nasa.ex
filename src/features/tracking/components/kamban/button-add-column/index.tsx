@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CirclePlus } from "lucide-react";
+import { CirclePlus, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { X } from "lucide-react";
 import z from "zod";
@@ -70,6 +70,8 @@ export function ButtonAddColumn() {
     });
   }
 
+  const isLoading = createColumnMutation.isPending;
+
   return (
     <>
       {!isCreating ? (
@@ -88,10 +90,14 @@ export function ButtonAddColumn() {
               {...register("name")}
               placeholder="Ex: Coluna de compras"
               autoFocus
+              disabled={isLoading}
             />
             {errors.name && <FieldError>{errors.name.message}</FieldError>}
             <div className="flex flex-row  gap-2 items-center">
-              <Button type="submit">Adicionar Lista</Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="size-4 animate-spin" />}
+                Adicionar Lista
+              </Button>
               <X
                 className="cursor-pointer hover:bg-foreground/5 p-1 rounded transition-colors"
                 onClick={toggleCreating}
