@@ -48,7 +48,7 @@ export function ColumnTracking({ id, title, leads, loading }: Column) {
         id={id}
       />
       {/* Corpo (lista de leads rolável) */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 scroll-cols-tracking">
+      <div className=" overflow-y-auto overflow-x-hidden p-2 scroll-cols-tracking ">
         {leads.length >= 1 && !loading && (
           <SortableContext items={leadsIds}>
             {leads.map((lead) => (

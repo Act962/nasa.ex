@@ -1,4 +1,4 @@
-import { createStatus, listStatus } from "./status";
+import { createStatus, listStatus, updateStatus } from "./status";
 import {
   createTracking,
   getTracking,
@@ -19,7 +19,7 @@ export const router = {
     list: listStatus,
     create: createStatus,
     // get: {},
-    // update: {},
+    update: updateStatus,
     // delete: {},
   },
 };
