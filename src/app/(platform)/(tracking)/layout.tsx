@@ -16,15 +16,15 @@ export default async function RouteLayout({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
-        <HeaderTracking />
-        {org && <>{children}</>}
-        {!org && (
+
+      {org && <>{children}</>}
+      {!org && (
+        <SidebarInset>
           <div className="h-full flex items-center justify-center">
             <EmptyOrganization />
           </div>
-        )}
-      </SidebarInset>
+        </SidebarInset>
+      )}
     </SidebarProvider>
   );
 }
