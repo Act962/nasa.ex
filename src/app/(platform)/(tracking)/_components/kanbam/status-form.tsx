@@ -62,6 +62,8 @@ export const StatusForm = () => {
     });
   };
 
+  const isLoading = createStatusColumn.isPending;
+
   if (isEditing) {
     return (
       <StatusWrapper>
@@ -75,9 +77,10 @@ export const StatusForm = () => {
             id="title"
             placeholder="Digite um nome..."
             className="text-sm px-2 py-1 h-7 font-medium"
+            disabled={isLoading}
           />
           <div className="flex items-center gap-x-1">
-            <Button size="sm" type="submit">
+            <Button size="sm" type="submit" disabled={isLoading}>
               Adicionar
             </Button>
             <Button

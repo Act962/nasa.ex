@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import { LeadForm } from "./lead-form";
 import { StatusHeader } from "./status-header";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type Lead = {
   id: string;
@@ -26,10 +28,35 @@ interface StatusItemProps {
   index: number;
 }
 export const StatusItem = ({ data, index }: StatusItemProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: data.id });
+
+  const style = {
+    transition,
+    transform: CSS.Transform.toString(transform),
+  };
+
   return (
-    <li className="shrink-0 w-[272px] h-full flex flex-col select-none">
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "shrink-0 w-[272px] h-full flex flex-col select-none",
+        isDragging && "z-50"
+      )}
+    >
       <div className="flex flex-col flex-1 min-h-0 rounded-md bg-muted/80 shadow-md pb-2">
-        <StatusHeader data={data} />
+        <StatusHeader
+          data={data}
+          attributes={attributes}
+          listeners={listeners}
+        />
         <ScrollArea className="flex-1 min-h-0">
           <ol
             className={cn(
@@ -47,29 +74,6 @@ export const StatusItem = ({ data, index }: StatusItemProps) => {
     </li>
   );
 };
-// export const StatusItem = ({ data, index }: StatusItemProps) => {
-//   return (
-//     <li className="shrink-0 h-full w-[272] select-none">
-//       <div className="w-full rounded-md bg-muted/80 shadow-md pb-2">
-//         <StatusHeader data={data} />
-
-//         <ScrollArea className="h-full">
-//           <ol
-//             className={cn(
-//               "mx-1 px-1 py-0.5 flex flex-col gap-y-2 grow",
-//               data.leads.length > 0 ? "mt-2" : "mt-0"
-//             )}
-//           >
-//             {data.leads.map((lead, index) => (
-//               <LeadItem key={lead.id} data={lead} index={index} />
-//             ))}
-//           </ol>
-//         </ScrollArea>
-//         <LeadForm statusId={data.id} />
-//       </div>
-//     </li>
-//   );
-// };
 
 const LeadItem = ({ data, index }: { data: Lead; index: number }) => {
   return (

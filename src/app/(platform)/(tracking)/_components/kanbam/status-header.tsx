@@ -12,9 +12,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { useSidebar } from "@/components/ui/sidebar";
 import { orpc } from "@/lib/orpc";
+import { DraggableAttributes } from "@dnd-kit/core";
+import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Circle, MoreHorizontalIcon, Pencil } from "lucide-react";
+import { Circle, Grip, MoreHorizontalIcon, Pencil } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -32,7 +34,15 @@ export const updateSatusName = z.object({
   name: z.string().min(1, "O nome é obrigatório"),
 });
 
-export const StatusHeader = ({ data }: { data: StatusHeaderProps }) => {
+export const StatusHeader = ({
+  data,
+  attributes,
+  listeners,
+}: {
+  data: StatusHeaderProps;
+  attributes: DraggableAttributes;
+  listeners?: SyntheticListenerMap;
+}) => {
   const queryClient = useQueryClient();
   const form = useForm({
     resolver: zodResolver(updateSatusName),
@@ -95,8 +105,17 @@ export const StatusHeader = ({ data }: { data: StatusHeaderProps }) => {
       ) : (
         <div
           onClick={toggleEditing}
-          className="w-full text-sm px-2.5 py-1 h-7 font-medium border-transparent"
+          className="w-full flex items-center justify-start text-sm py-1 h-7 font-medium border-transparent truncate"
         >
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="touch-none active:cursor-grabbing cursor-grab"
+            {...listeners}
+            {...attributes}
+          >
+            <Grip className="size-4" />
+          </Button>
           {data.name}
         </div>
       )}
