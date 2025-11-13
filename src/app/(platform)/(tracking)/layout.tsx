@@ -20,6 +20,7 @@ export default async function RouteLayout({
       {org && <>{children}</>}
       {!org && (
         <SidebarInset>
+          <HeaderTracking />
           <div className="h-full flex items-center justify-center">
             <EmptyOrganization />
           </div>
