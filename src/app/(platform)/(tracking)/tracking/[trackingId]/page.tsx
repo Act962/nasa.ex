@@ -1,6 +1,7 @@
 import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { client, orpc } from "@/lib/orpc";
 import { ListColumn } from "@/features/tracking/components/kamban/list-column";
+import { ListContainer } from "../../_components/kanbam/list-container";
 
 type TrackingPageProps = {
   params: Promise<{ trackingId: string }>;
@@ -23,13 +24,10 @@ export default async function TrackingPage({ params }: TrackingPageProps) {
   });
 
   return (
-    <div className="h-full">
-      <header>{tracking.name}</header>
-      <div className="w-full relative ">
-        <HydrateClient client={queryClient}>
-          <ListColumn />
-        </HydrateClient>
-      </div>
+    <div className="p-4 h-full overflow-x-auto scroll-cols-tracking">
+      <HydrateClient client={queryClient}>
+        <ListContainer trackingId={trackingId} />
+      </HydrateClient>
     </div>
   );
 }

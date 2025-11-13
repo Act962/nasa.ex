@@ -11,7 +11,7 @@ export default async function TrackingPage() {
   await queryClient.prefetchQuery(orpc.tracking.list.queryOptions());
 
   return (
-    <div className="h-full px-4">
+    <div className="h-full px-4 ">
       <Heading />
 
       <HydrateClient client={queryClient}>
