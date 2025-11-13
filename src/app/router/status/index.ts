@@ -23,6 +23,7 @@ export const listStatus = base
           name: z.string(),
           color: z.string().nullable(),
           order: z.number(),
+          trackingId: z.string(),
           leads: z.array(
             z.object({
               id: z.string(),
