@@ -4,8 +4,9 @@ import { cn } from "@/lib/utils";
 import { LeadForm } from "./lead-form";
 import { StatusHeader } from "./status-header";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useSortable } from "@dnd-kit/sortable";
+import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { LeadItem } from "./lead-item";
 
 type Lead = {
   id: string;
@@ -35,7 +36,13 @@ export const StatusItem = ({ data, index }: StatusItemProps) => {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: data.id });
+  } = useSortable({
+    id: data.id,
+    data: {
+      type: "Column",
+      column: data,
+    },
+  });
 
   const style = {
     transition,
@@ -64,21 +71,15 @@ export const StatusItem = ({ data, index }: StatusItemProps) => {
               data.leads.length > 0 ? "mt-2" : "mt-0"
             )}
           >
-            {data.leads.map((lead, index) => (
-              <LeadItem key={lead.id} data={lead} index={index} />
-            ))}
+            <SortableContext items={data.leads.map((col) => col.id)}>
+              {data.leads.map((lead, index) => (
+                <LeadItem key={lead.id} data={lead} />
+              ))}
+            </SortableContext>
           </ol>
         </ScrollArea>
         <LeadForm statusId={data.id} />
       </div>
     </li>
-  );
-};
-
-const LeadItem = ({ data, index }: { data: Lead; index: number }) => {
-  return (
-    <div className="truncate border-2 border-transparent hover:border-muted py-2 px-3 text-sm bg-muted rounded-md shadow-sm">
-      {data.name}
-    </div>
   );
 };
