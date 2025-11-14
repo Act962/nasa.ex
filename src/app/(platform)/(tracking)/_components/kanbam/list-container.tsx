@@ -85,9 +85,6 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     order: number;
   } | null>(null);
   const [statusData, setStatusData] = useState(data.status);
-  const [leadsData, leadData] = useState(
-    data.status.flatMap((col) => col.leads)
-  );
 
   const updateColumnOrder = useMutation(
     orpc.status.updateOrder.mutationOptions({

@@ -26,7 +26,7 @@ export default function RootLayout({
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${inter.variable} antialiased`}>
         <Providers>
-          <Toaster position="bottom-center" />
+          <Toaster position="bottom-right" />
 
           {children}
         </Providers>

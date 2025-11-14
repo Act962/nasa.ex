@@ -16,10 +16,10 @@ export function Navbar() {
         {isPending && <Spinner />}
         {!session?.user && !isPending && (
           <>
-            <Button variant="ghost" asChild className="cursor-pointer">
+            <Button variant="outline" asChild className="cursor-pointer">
               <Link href="/sign-in">Entrar</Link>
             </Button>
-            <Button asChild className="cursor-pointer">
+            <Button asChild className="hidden md:block cursor-pointer">
               <Link href="/sign-up">Começar gratuitamente</Link>
             </Button>
           </>
