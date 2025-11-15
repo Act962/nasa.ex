@@ -366,6 +366,9 @@ export const getLead = base
     }
   });
 
+/**
+ * 🟢 Adicionar Lead como o primeiro da coluna
+ */
 export const addLeadFirst = base
   .use(requiredAuthMiddleware)
   .route({
@@ -384,22 +387,50 @@ export const addLeadFirst = base
     const { leadId, statusId } = input;
 
     try {
-      // Incrementa todos os leads da coluna EXCETO o que está sendo movido
-      await prisma.lead.updateMany({
-        where: {
-          statusId,
-          id: { not: leadId },
-        },
-        data: { order: { increment: 1 } },
-      });
+      return await prisma.$transaction(async (tx) => {
+        const lead = await tx.lead.findUnique({
+          where: { id: leadId },
+          select: { id: true, statusId: true, order: true, name: true },
+        });
 
-      // Coloca o lead como o primeiro
-      const lead = await prisma.lead.update({
-        where: { id: leadId },
-        data: { statusId, order: 0 },
-      });
+        if (!lead) throw errors.NOT_FOUND;
 
-      return { leadName: lead.name };
+        const oldStatusId = lead.statusId;
+        const isChangingColumn = oldStatusId !== statusId;
+
+        // Se está mudando de coluna, fecha o espaço na coluna antiga
+        if (isChangingColumn) {
+          await tx.lead.updateMany({
+            where: {
+              statusId: oldStatusId,
+              order: { gt: lead.order },
+            },
+            data: { order: { decrement: 1 } },
+          });
+        } else {
+          // Se está na mesma coluna e já é o primeiro, não faz nada
+          if (lead.order === 0) {
+            return { leadName: lead.name };
+          }
+        }
+
+        // Abre espaço na nova coluna (ou atual) para inserir no topo
+        await tx.lead.updateMany({
+          where: {
+            statusId,
+            id: { not: leadId },
+          },
+          data: { order: { increment: 1 } },
+        });
+
+        // Coloca o lead como o primeiro
+        await tx.lead.update({
+          where: { id: leadId },
+          data: { statusId, order: 0 },
+        });
+
+        return { leadName: lead.name };
+      });
     } catch (err) {
       console.error(err);
       throw errors.INTERNAL_SERVER_ERROR;
@@ -407,7 +438,6 @@ export const addLeadFirst = base
   });
 /**
  * 🟡 Adicionar Lead como o último da coluna
- * Define o order como o maior + 1 dentro da coluna
  */
 export const addLeadLast = base
   .use(requiredAuthMiddleware)
@@ -427,21 +457,63 @@ export const addLeadLast = base
     const { leadId, statusId } = input;
 
     try {
-      // Busca o maior order da coluna
-      const lastLead = await prisma.lead.findFirst({
-        where: { statusId },
-        orderBy: { order: "desc" },
-        select: { order: true },
+      return await prisma.$transaction(async (tx) => {
+        const lead = await tx.lead.findUnique({
+          where: { id: leadId },
+          select: { id: true, statusId: true, order: true, name: true },
+        });
+
+        if (!lead) throw errors.NOT_FOUND;
+
+        const oldStatusId = lead.statusId;
+        const isChangingColumn = oldStatusId !== statusId;
+
+        // Se está mudando de coluna, fecha o espaço na coluna antiga
+        if (isChangingColumn) {
+          await tx.lead.updateMany({
+            where: {
+              statusId: oldStatusId,
+              order: { gt: lead.order },
+            },
+            data: { order: { decrement: 1 } },
+          });
+
+          // Busca o maior order da nova coluna
+          const lastLead = await tx.lead.findFirst({
+            where: { statusId },
+            orderBy: { order: "desc" },
+            select: { order: true },
+          });
+
+          const newOrder = lastLead !== null ? lastLead.order + 1 : 0;
+
+          await tx.lead.update({
+            where: { id: leadId },
+            data: { statusId, order: newOrder },
+          });
+        } else {
+          // Se está na mesma coluna, move para o final
+          const lastLead = await tx.lead.findFirst({
+            where: { statusId, id: { not: leadId } },
+            orderBy: { order: "desc" },
+            select: { order: true },
+          });
+
+          const newOrder = lastLead !== null ? lastLead.order + 1 : 0;
+
+          // Se já é o último, não faz nada
+          if (lead.order === newOrder) {
+            return { leadName: lead.name };
+          }
+
+          await tx.lead.update({
+            where: { id: leadId },
+            data: { order: newOrder },
+          });
+        }
+
+        return { leadName: lead.name };
       });
-
-      const newOrder = lastLead ? lastLead.order + 1 : 0;
-
-      const lead = await prisma.lead.update({
-        where: { id: leadId },
-        data: { statusId, order: newOrder },
-      });
-
-      return { leadName: lead.name };
     } catch (err) {
       console.error(err);
       throw errors.INTERNAL_SERVER_ERROR;
