@@ -342,14 +342,17 @@ export const addLeadFirst = base
       statusId: z.string(),
     })
   )
-  .output(z.object({ lead: z.any() }))
+  .output(z.object({ leadName: z.string() }))
   .handler(async ({ input, errors }) => {
     const { leadId, statusId } = input;
 
     try {
-      // Incrementa todos os leads existentes na coluna
+      // Incrementa todos os leads da coluna EXCETO o que está sendo movido
       await prisma.lead.updateMany({
-        where: { statusId },
+        where: {
+          statusId,
+          id: { not: leadId },
+        },
         data: { order: { increment: 1 } },
       });
 
@@ -359,13 +362,12 @@ export const addLeadFirst = base
         data: { statusId, order: 0 },
       });
 
-      return { lead };
+      return { leadName: lead.name };
     } catch (err) {
       console.error(err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
-
 /**
  * 🟡 Adicionar Lead como o último da coluna
  * Define o order como o maior + 1 dentro da coluna
@@ -383,7 +385,7 @@ export const addLeadLast = base
       statusId: z.string(),
     })
   )
-  .output(z.object({ lead: z.any() }))
+  .output(z.object({ leadName: z.string() }))
   .handler(async ({ input, errors }) => {
     const { leadId, statusId } = input;
 
@@ -402,7 +404,7 @@ export const addLeadLast = base
         data: { statusId, order: newOrder },
       });
 
-      return { lead };
+      return { leadName: lead.name };
     } catch (err) {
       console.error(err);
       throw errors.INTERNAL_SERVER_ERROR;
