@@ -44,10 +44,11 @@ export const LeadItem = ({ data }: { data: Lead }) => {
       ref={setNodeRef}
       style={style}
       {...attributes}
+      {...listeners}
       className="truncate border-2 border-transparent hover:border-muted text-sm bg-muted rounded-md shadow-sm group"
     >
       <div className="flex items-center justify-between px-3 ">
-        <div {...listeners} className="flex flex-row items-center gap-2">
+        <div className="flex flex-row items-center gap-2">
           <Avatar className="size-5 ">
             <AvatarImage
               src={"https://github.com/ElFabrica.png"}
