@@ -56,6 +56,9 @@ export const listStatus = base
             statusId: true,
             order: true,
           },
+          orderBy: {
+            order: "asc",
+          },
         },
       },
     });

@@ -50,7 +50,7 @@ type StatusWithLeads = {
 
 export function ListContainer({ trackingId }: ListContainerProps) {
   const params = useParams<{ trackingId: string }>();
-  const { data, isLoading } = useSuspenseQuery(
+  const { data } = useSuspenseQuery(
     orpc.status.list.queryOptions({
       input: {
         trackingId,
@@ -82,7 +82,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
   >(null);
   const [originalLeadPosition, setOriginalLeadPosition] = useState<{
     statusId: string;
-    order: number;
+    index: number; // ← Mudamos de 'order' para 'index'
   } | null>(null);
   const [statusData, setStatusData] = useState(data.status);
 
@@ -93,7 +93,6 @@ export function ListContainer({ trackingId }: ListContainerProps) {
       },
       onError: () => {
         toast.error("Erro ao atualizar coluna, tente novamente");
-
         setStatusData(data.status);
       },
     })
@@ -106,6 +105,8 @@ export function ListContainer({ trackingId }: ListContainerProps) {
       },
       onError: () => {
         toast.error("Erro ao atualizar lead, tente novamente mais tarde");
+        // Reverte o estado em caso de erro
+        setStatusData(data.status);
       },
     })
   );
@@ -120,11 +121,23 @@ export function ListContainer({ trackingId }: ListContainerProps) {
       const lead = event.active.data.current.lead;
       setActiveLead(lead);
 
-      // Salva a posição original do lead
-      setOriginalLeadPosition({
-        statusId: lead.statusId,
-        order: lead.order,
-      });
+      // CORREÇÃO: Salva o índice REAL atual do lead no array
+      const statusIndex = statusData.findIndex(
+        (status) => status.id === lead.statusId
+      );
+
+      if (statusIndex !== -1) {
+        const leadIndex = statusData[statusIndex].leads.findIndex(
+          (l) => l.id === lead.id
+        );
+
+        if (leadIndex !== -1) {
+          setOriginalLeadPosition({
+            statusId: lead.statusId,
+            index: leadIndex, // ← Índice real no array
+          });
+        }
+      }
       return;
     }
   }
@@ -136,7 +149,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     const { active, over } = event;
 
     if (!over) {
-      setOriginalLeadPosition(null); // ← FALTANDO
+      setOriginalLeadPosition(null);
       return;
     }
 
@@ -148,7 +161,10 @@ export function ListContainer({ trackingId }: ListContainerProps) {
       const activeColumnId = active.id;
       const overColumnId = over.id;
 
-      if (activeColumnId === overColumnId) return;
+      if (activeColumnId === overColumnId) {
+        setOriginalLeadPosition(null);
+        return;
+      }
 
       const activeColumnIndex = statusData.findIndex(
         (col) => col.id === activeColumnId
@@ -168,15 +184,23 @@ export function ListContainer({ trackingId }: ListContainerProps) {
         statusId: active.id as string,
         trackingId: params.trackingId,
       });
+
+      setOriginalLeadPosition(null);
+      return;
     }
 
     // Movimentação de leads
     if (active.data.current?.type === "Lead") {
       const activeId = active.id;
 
+      // Verifica se temos posição original salva
+      if (!originalLeadPosition) {
+        return;
+      }
+
       // Encontra a nova posição e statusId do lead no estado atual
       let newStatusId = "";
-      let newOrder = -1;
+      let newIndex = -1;
 
       for (const status of statusData) {
         const leadIndex = status.leads.findIndex(
@@ -184,34 +208,37 @@ export function ListContainer({ trackingId }: ListContainerProps) {
         );
         if (leadIndex !== -1) {
           newStatusId = status.id;
-          newOrder = leadIndex;
+          newIndex = leadIndex;
           break;
         }
       }
 
-      if (newStatusId && newOrder !== -1 && originalLeadPosition) {
-        const positionChanged =
-          newStatusId !== originalLeadPosition.statusId ||
-          newOrder !== originalLeadPosition.order;
+      // Limpa a posição original ao final
+      setOriginalLeadPosition(null);
 
-        if (positionChanged) {
-          updateLeadOrder.mutate({
-            leadId: activeId as string,
-            statusId: newStatusId,
-            newOrder: newOrder,
-          });
-        }
-        setOriginalLeadPosition(null);
+      // Valida se encontrou a nova posição
+      if (!newStatusId || newIndex < 0) {
+        return;
+      }
+
+      // CORREÇÃO: Compara índices ao invés de order
+      const positionChanged =
+        newStatusId !== originalLeadPosition.statusId ||
+        newIndex !== originalLeadPosition.index;
+
+      if (positionChanged) {
+        updateLeadOrder.mutate({
+          leadId: activeId as string,
+          statusId: newStatusId,
+          newOrder: newIndex,
+        });
       }
     }
   }
 
   function onDragOver(event: DragOverEvent) {
     const { active, over } = event;
-    if (!over) {
-      setOriginalLeadPosition(null); // ← FALTANDO
-      return;
-    }
+    if (!over) return;
 
     const activeId = active.id;
     const overId = over.id;
@@ -331,6 +358,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
       });
     }
   }
+
   useEffect(() => {
     setStatusData(data.status);
   }, [data]);

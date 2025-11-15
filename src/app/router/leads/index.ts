@@ -84,6 +84,7 @@ export const listLeads = base
     }
   });
 
+// 🟧 LIST ALL
 export const createLead = base
   .use(requiredAuthMiddleware)
   .route({
@@ -111,38 +112,74 @@ export const createLead = base
         description: z.string().nullable(),
         statusId: z.string(),
         trackingId: z.string(),
+        order: z.number(),
         createdAt: z.date(),
       }),
     })
   )
   .handler(async ({ input, context, errors }) => {
     try {
-      const lead = await prisma.lead.upsert({
-        where: {
-          phone_trackingId: {
-            phone: input.phone,
+      const lead = await prisma.$transaction(async (tx) => {
+        // Verifica se o lead já existe
+        const existingLead = await tx.lead.findUnique({
+          where: {
+            phone_trackingId: {
+              phone: input.phone,
+              trackingId: input.trackingId,
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+            description: true,
+            statusId: true,
+            trackingId: true,
+            order: true,
+            createdAt: true,
+          },
+        });
+
+        if (existingLead) {
+          return existingLead;
+        }
+
+        // Busca o maior order da coluna com FOR UPDATE (lock pessimista)
+        const lastLead = await tx.lead.findFirst({
+          where: {
+            statusId: input.statusId,
             trackingId: input.trackingId,
           },
-        },
-        update: {}, // opcional: atualiza se já existir
-        create: {
-          name: input.name,
-          phone: input.phone,
-          email: input.email,
-          description: input.description,
-          statusId: input.statusId,
-          trackingId: input.trackingId,
-        },
-        select: {
-          id: true,
-          name: true,
-          phone: true,
-          email: true,
-          description: true,
-          statusId: true,
-          trackingId: true,
-          createdAt: true,
-        },
+          orderBy: { order: "desc" },
+          select: { order: true },
+        });
+
+        const newOrder = lastLead !== null ? lastLead.order + 1 : 0;
+
+        // Cria o novo lead
+        return await tx.lead.create({
+          data: {
+            name: input.name,
+            phone: input.phone,
+            email: input.email,
+            description: input.description,
+            statusId: input.statusId,
+            trackingId: input.trackingId,
+            order: newOrder,
+          },
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+            description: true,
+            statusId: true,
+            trackingId: true,
+            order: true,
+            createdAt: true,
+          },
+        });
       });
 
       return { lead };
@@ -410,10 +447,9 @@ export const addLeadLast = base
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
-
 /**
- * 🔵 Atualizar ordem e coluna (drag & drop)
- * O usuário pode mover um lead para qualquer posição/coluna.
+ * 🔵 Atualizar ordem e coluna (OTIMIZADO)
+ * Lógica corrigida para evitar conflitos de order
  */
 export const updateLeadOrder = base
   .use(requiredAuthMiddleware)
@@ -426,7 +462,7 @@ export const updateLeadOrder = base
     z.object({
       leadId: z.string(),
       statusId: z.string(),
-      newOrder: z.number(),
+      newOrder: z.number().int().min(0),
     })
   )
   .output(z.object({ success: z.boolean() }))
@@ -437,43 +473,75 @@ export const updateLeadOrder = base
       await prisma.$transaction(async (tx) => {
         const lead = await tx.lead.findUnique({
           where: { id: leadId },
+          select: { id: true, statusId: true, order: true },
         });
 
         if (!lead) throw errors.NOT_FOUND;
 
         const oldStatusId = lead.statusId;
+        const oldOrder = lead.order;
+        const isChangingColumn = oldStatusId !== statusId;
 
-        // Atualiza o lead
-        await tx.lead.update({
-          where: { id: leadId },
-          data: { statusId, order: newOrder },
-        });
-
-        // Reordena a coluna antiga se mudou de coluna
-        if (oldStatusId !== statusId) {
-          const oldLeads = await tx.lead.findMany({
-            where: { statusId: oldStatusId },
-            orderBy: { order: "asc" },
+        // CASO 1: Mudando de coluna
+        if (isChangingColumn) {
+          // 1.1: Fecha o espaço na coluna antiga
+          await tx.lead.updateMany({
+            where: {
+              statusId: oldStatusId,
+              order: { gt: oldOrder },
+            },
+            data: { order: { decrement: 1 } },
           });
 
-          for (let i = 0; i < oldLeads.length; i++) {
-            await tx.lead.update({
-              where: { id: oldLeads[i].id },
-              data: { order: i },
+          // 1.2: Abre espaço na nova coluna
+          await tx.lead.updateMany({
+            where: {
+              statusId,
+              order: { gte: newOrder },
+            },
+            data: { order: { increment: 1 } },
+          });
+
+          // 1.3: Move o lead
+          await tx.lead.update({
+            where: { id: leadId },
+            data: { statusId, order: newOrder },
+          });
+        }
+        // CASO 2: Mesma coluna
+        else {
+          // 2.1: Se não mudou de posição, não faz nada
+          if (newOrder === oldOrder) {
+            return;
+          }
+
+          // 2.2: Movendo para baixo (aumentando order)
+          if (newOrder > oldOrder) {
+            // Decrementa os leads entre a posição antiga e nova
+            await tx.lead.updateMany({
+              where: {
+                statusId,
+                order: { gt: oldOrder, lte: newOrder },
+              },
+              data: { order: { decrement: 1 } },
             });
           }
-        }
+          // 2.3: Movendo para cima (diminuindo order)
+          else {
+            // Incrementa os leads entre a posição nova e antiga
+            await tx.lead.updateMany({
+              where: {
+                statusId,
+                order: { gte: newOrder, lt: oldOrder },
+              },
+              data: { order: { increment: 1 } },
+            });
+          }
 
-        // Sempre reordena a coluna de destino
-        const newLeads = await tx.lead.findMany({
-          where: { statusId },
-          orderBy: { order: "asc" },
-        });
-
-        for (let i = 0; i < newLeads.length; i++) {
+          // 2.4: Move o lead
           await tx.lead.update({
-            where: { id: newLeads[i].id },
-            data: { order: i },
+            where: { id: leadId },
+            data: { order: newOrder },
           });
         }
       });
@@ -484,20 +552,3 @@ export const updateLeadOrder = base
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
-
-//   /** 🔄 Função auxiliar: renumera leads em um status (coluna) */
-// async function normalizeLeadOrder(statusId: string) {
-//   const leads = await prisma.lead.findMany({
-//     where: { statusId },
-//     orderBy: { order: "asc" },
-//   });
-
-//   for (let i = 0; i < leads.length; i++) {
-//     if (leads[i].order !== i) {
-//       await prisma.lead.update({
-//         where: { id: leads[i].id },
-//         data: { order: i },
-//       });
-//     }
-//   }
-// }

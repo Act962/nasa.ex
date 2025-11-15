@@ -43,11 +43,12 @@ export const LeadItem = ({ data }: { data: Lead }) => {
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
       className="truncate border-2 border-transparent hover:border-muted text-sm bg-muted rounded-md shadow-sm group"
     >
       <div className="flex items-center justify-between px-3 ">
-        <div className="flex flex-row items-center gap-2">
-          <Avatar className="size-5 " {...attributes} {...listeners}>
+        <div {...listeners} className="flex flex-row items-center gap-2">
+          <Avatar className="size-5 ">
             <AvatarImage
               src={"https://github.com/ElFabrica.png"}
               alt="photo user"
@@ -71,7 +72,9 @@ export const LeadItem = ({ data }: { data: Lead }) => {
           <Tag className="size-3" />
           <div className="flex space-x-0.5">
             {Array.from({ length: 3 }).map((_, index) => (
-              <Badge className="size-4 text-[8px]">{index}</Badge>
+              <Badge key={index} className="size-4 text-[8px]">
+                {index}
+              </Badge>
             ))}
           </div>
         </div>
