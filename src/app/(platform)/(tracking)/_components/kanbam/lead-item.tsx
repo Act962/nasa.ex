@@ -45,7 +45,7 @@ export const LeadItem = ({ data }: { data: Lead }) => {
       style={style}
       {...attributes}
       {...listeners}
-      className="truncate border-2 border-transparent hover:border-muted text-sm bg-muted rounded-md shadow-sm group"
+      className="truncate border-2 border-transparent hover:border-muted text-sm bg-muted rounded-md shadow-sm group touch-none"
     >
       <div className="flex items-center justify-between px-3 ">
         <div className="flex flex-row items-center gap-2">
