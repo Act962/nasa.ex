@@ -20,6 +20,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useSearchLead } from "@/hooks/use-search-lead";
 import { DropdownMenu } from "@radix-ui/react-dropdown-menu";
 import {
   ArrowLeftIcon,
@@ -32,15 +33,22 @@ import {
   Trash2Icon,
   UserRoundPlus,
 } from "lucide-react";
-import { useState } from "react";
 
 export function NavTracking() {
+  const triggerModalSearch = useSearchLead();
+
   return (
-    <div className="flex justify-between items-center px-4 py-5 ">
+    <div className="flex justify-between items-center px-4 py-5">
       <div className="flex items-center gap-x-2">
         <SidebarTrigger />
         <InputGroup>
-          <InputGroupInput placeholder="Pesquisar..." className="h-6" />
+          <InputGroupInput
+            onClick={() => {
+              triggerModalSearch.onOpen();
+            }}
+            placeholder="Pesquisar..."
+            className="h-6"
+          />
           <InputGroupAddon>
             <Search />
           </InputGroupAddon>
@@ -49,19 +57,19 @@ export function NavTracking() {
       <div>
         <ButtonGroup>
           <ButtonGroup className="hidden sm:flex">
-            <Button variant="outline" size="icon" aria-label="Go Back">
-              <ArrowLeftIcon />
-            </Button>
+            <Button variant="outline">Automações</Button>
+            <Button variant="outline">Configurações</Button>
+            <Button variant="default">Novo Lead</Button>
           </ButtonGroup>
           <ButtonGroup>
-            <Button variant="outline">Archive</Button>
-            <Button variant="outline">Report</Button>
-          </ButtonGroup>
-          <ButtonGroup>
-            <Button variant="outline">Snooze</Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="More Options">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="More Options"
+                  className="sm:hidden"
+                >
                   <MoreHorizontalIcon />
                 </Button>
               </DropdownMenuTrigger>
