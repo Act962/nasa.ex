@@ -19,6 +19,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { DropdownMenu } from "@radix-ui/react-dropdown-menu";
 import {
   ArrowLeftIcon,
@@ -36,7 +37,8 @@ import { useState } from "react";
 export function NavTracking() {
   return (
     <div className="flex justify-between items-center px-4 py-5 ">
-      <div>
+      <div className="flex items-center gap-x-2">
+        <SidebarTrigger />
         <InputGroup>
           <InputGroupInput placeholder="Pesquisar..." className="h-6" />
           <InputGroupAddon>

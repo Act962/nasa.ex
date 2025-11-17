@@ -2,7 +2,6 @@ import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { orpc } from "@/lib/orpc";
 import { ListContainer } from "../../_components/kanbam/list-container";
 import { SidebarInset } from "@/components/ui/sidebar";
-import { HeaderTracking } from "../../_components/header-tracking";
 import { NavTracking } from "../../_components/nav-tracking";
 
 type TrackingPageProps = {
