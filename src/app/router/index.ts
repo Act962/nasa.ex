@@ -4,6 +4,7 @@ import {
   createLead,
   deleteLead,
   getLead,
+  listLeads,
   updateLead,
   updateLeadOrder,
 } from "./leads";
@@ -38,8 +39,9 @@ export const router = {
     updateOrder: updateStatusOrder,
   },
   leads: {
-    create: createLead,
     get: getLead,
+    list: listLeads,
+    create: createLead,
     update: updateLead,
     delete: deleteLead,
     addToFirst: addLeadFirst,

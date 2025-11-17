@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowUpRight, Mail, Phone, Tag } from "lucide-react";
+import { ArrowUpRight, Grip, Mail, Phone, Tag } from "lucide-react";
 import { CardOptions } from "./card-options";
 import { useLeads } from "@/hooks/use-lead";
 import { Button } from "@/components/ui/button";
@@ -42,19 +42,26 @@ export const LeadItem = ({ data }: { data: Lead }) => {
     opacity: isDragging ? 0.5 : 1,
   };
 
-
-
   return (
     <div
       ref={setNodeRef}
       style={style}
-      // {...attributes}
-      // {...listeners}
-      className="truncate border-2 border-transparent hover:border-muted text-sm bg-muted rounded-md shadow-sm group touch-none"
+      className="truncate border-2 border-transparent hover:border-muted text-sm bg-muted rounded-md shadow-sm group"
     >
-      <div className="flex items-center justify-between px-2">
+      <div className="flex items-center justify-between px-3">
         <div className="flex flex-row items-center gap-2">
-          <Avatar className="size-5 ">
+          <button
+            className="touch-none group-hover:flex active:cursor-grabbing cursor-grab hidden"
+            {...listeners}
+            {...attributes}
+          >
+            <Grip className="size-4 " />
+          </button>
+          <Avatar
+            className="size-4 group-hover:hidden touch-none"
+            {...listeners}
+            {...attributes}
+          >
             <AvatarImage
               src={"https://github.com/ElFabrica.png"}
               alt="photo user"
@@ -62,8 +69,12 @@ export const LeadItem = ({ data }: { data: Lead }) => {
           </Avatar>
           <span className="font-medium text-xs">{data.name}</span>
         </div>
-        {/* <CardOptions leadId={data.id} statusId={data.statusId} /> */}
-        <Button size={"sm"} variant={"ghost"} className="opacity-0 group-hover:opacity-100" onClick={lead.onOpen}>
+        <Button
+          size={"sm"}
+          variant={"ghost"}
+          className="opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={lead.onOpen}
+        >
           <ArrowUpRight className="size-4" />
         </Button>
       </div>
