@@ -1,7 +1,7 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./_components/sidebar";
 import { HeaderTracking } from "./_components/header-tracking";
-import { currentOrganization, requireAuth } from "@/lib/auth-utils";
+import { currentOrganization } from "@/lib/auth-utils";
 import { EmptyOrganization } from "./_components/empty-organization";
 
 export default async function RouteLayout({
@@ -9,8 +9,6 @@ export default async function RouteLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireAuth();
-
   const org = await currentOrganization();
 
   return (

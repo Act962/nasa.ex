@@ -27,7 +27,6 @@ export default function RootLayout({
       <body className={`${inter.variable} antialiased`}>
         <Providers>
           <Toaster position="bottom-right" />
-
           {children}
         </Providers>
       </body>

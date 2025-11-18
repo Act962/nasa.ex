@@ -30,7 +30,6 @@ export function LeadModal() {
       <DialogContent className="w-full md:max-w-5xl">
         <DialogHeader>
           <DialogTitle>
-            {/* ✅ Mostra o nome do lead do estado inicial enquanto carrega */}
             {isLoading ? "Carregando..." : data?.lead.name || lead.lead?.name}
           </DialogTitle>
         </DialogHeader>

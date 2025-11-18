@@ -1,6 +1,12 @@
 "use client";
 
-import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useSearchLead } from "@/hooks/use-search-lead";
 import {
   InputGroup,
@@ -141,6 +147,9 @@ export function SearchLeadModal() {
       }}
     >
       <DialogContent className="w-full md:max-w-5xl" showCloseButton={false}>
+        <DialogHeader className="sr-only">
+          <DialogTitle>Buscar Lead</DialogTitle>
+        </DialogHeader>
         <InputGroup className="w-full min-w-full">
           <InputGroupInput
             value={search}
