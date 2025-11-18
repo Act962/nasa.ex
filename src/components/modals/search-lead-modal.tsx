@@ -32,6 +32,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "../ui/empty";
+import { Lead, useLeads } from "@/hooks/use-lead";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -41,6 +42,16 @@ export function SearchLeadModal() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const debouncedSearch = useDebouncedValue(search, 200);
+
+  const { onOpen, setLead } = useLeads();
+  const { onClose } = useSearchLead();
+
+  const handleOpenLeadModal = (lead: Lead) => {
+    setLead(lead);
+
+    onOpen();
+    onClose();
+  };
 
   // Reset para página 1 quando a busca mudar
   const handleSearchChange = (value: string) => {
@@ -182,6 +193,7 @@ export function SearchLeadModal() {
               <div
                 key={lead.id}
                 className="px-3 py-3 hover:bg-accent rounded-md transition cursor-pointer"
+                onClick={() => handleOpenLeadModal({ id: lead.id })}
               >
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-medium">{lead.name}</span>

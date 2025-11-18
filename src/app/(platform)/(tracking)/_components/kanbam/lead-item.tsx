@@ -36,10 +36,17 @@ export const LeadItem = ({ data }: { data: Lead }) => {
     },
   });
 
+  const { setLead, onOpen } = useLeads();
+
   const style = {
     transition,
     transform: CSS.Transform.toString(transform),
     opacity: isDragging ? 0.5 : 1,
+  };
+
+  const handleOpenModal = (leadId: string) => {
+    setLead({ id: leadId });
+    onOpen();
   };
 
   return (
@@ -73,7 +80,7 @@ export const LeadItem = ({ data }: { data: Lead }) => {
           size={"sm"}
           variant={"ghost"}
           className="opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={lead.onOpen}
+          onClick={() => handleOpenModal(data.id)}
         >
           <ArrowUpRight className="size-4" />
         </Button>
