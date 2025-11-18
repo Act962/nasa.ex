@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { MoreHorizontalIcon, Plus, X } from "lucide-react";
 import { StatusWrapper } from "./status-wrapper";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -12,6 +12,13 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { SketchPicker } from "react-color";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const createStatusSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório"),
@@ -58,7 +65,6 @@ export const StatusForm = () => {
     createStatusColumn.mutate({
       name: data.name,
       trackingId: params.trackingId,
-      color: "#1341D0",
     });
   };
 
@@ -71,7 +77,7 @@ export const StatusForm = () => {
           onSubmit={form.handleSubmit(onSubmit)}
           className="w-full p-3 rounded-md bg-muted/80 space-y-4 shadow-md"
         >
-          <div>
+          <div className="flex flex-row w-full items-center justify-center gap-x-2">
             <Input
               autoFocus
               {...form.register("name")}
