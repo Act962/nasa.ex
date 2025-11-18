@@ -71,14 +71,16 @@ export const StatusForm = () => {
           onSubmit={form.handleSubmit(onSubmit)}
           className="w-full p-3 rounded-md bg-muted/80 space-y-4 shadow-md"
         >
-          <Input
-            autoFocus
-            {...form.register("name")}
-            id="title"
-            placeholder="Digite um nome..."
-            className="text-sm px-2 py-1 h-7 font-medium"
-            disabled={isLoading}
-          />
+          <div>
+            <Input
+              autoFocus
+              {...form.register("name")}
+              id="title"
+              placeholder="Digite um nome..."
+              className="text-sm px-2 py-1 h-7 font-medium"
+              disabled={isLoading}
+            />
+          </div>
           <div className="flex items-center gap-x-1">
             <Button size="sm" type="submit" disabled={isLoading}>
               Adicionar
