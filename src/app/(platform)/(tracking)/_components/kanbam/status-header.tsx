@@ -7,6 +7,10 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -18,6 +22,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Circle, Grip, MoreHorizontalIcon, Pencil } from "lucide-react";
 import { useState } from "react";
+import { SketchPicker } from "react-color";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -50,6 +55,7 @@ export const StatusHeader = ({
       name: data.name,
     },
   });
+  const [colorSelect, setColorSelect] = useState(data.color ?? "#1447e6");
 
   const updateStatusNameMutation = useMutation(
     orpc.status.update.mutationOptions({
@@ -81,6 +87,7 @@ export const StatusHeader = ({
   const onSubmit = (formData: { name: string }) => {
     updateStatusNameMutation.mutate({
       name: formData.name,
+      color: colorSelect,
       statusId: data.id,
     });
   };
@@ -91,7 +98,7 @@ export const StatusHeader = ({
         <>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="flex-1 px-0.5"
+            className="flex-1 px-0.5 "
           >
             <Input
               placeholder="Digite um nome..."
@@ -116,15 +123,24 @@ export const StatusHeader = ({
           >
             <Grip className="size-4" />
           </Button>
-          {data.name}
+          <span
+            style={{ backgroundColor: data.color ?? "#1447e6" }}
+            className="rounded-sm px-2 "
+          >
+            {data.name}
+          </span>
         </div>
       )}
-      <ListOption />
+      <ListOption currentColor={colorSelect} setCurrentColor={setColorSelect} />
     </div>
   );
 };
+interface ListOptionProps {
+  currentColor: string;
+  setCurrentColor: (color: string) => void;
+}
 
-const ListOption = () => {
+const ListOption = ({ currentColor, setCurrentColor }: ListOptionProps) => {
   const { isMobile } = useSidebar();
 
   return (
@@ -141,13 +157,29 @@ const ListOption = () => {
         >
           <DropdownMenuLabel>Mais ações</DropdownMenuLabel>
           <DropdownMenuGroup>
-            <DropdownMenuItem>
-              <Pencil className="rounded-2xl bg-foreground size-3" />
-              Editar título
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Circle className="rounded-2xl bg-foreground size-3" /> Editar cor
-            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Editar cor</DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                  <div className="dark:text-background bg-amber-50 w-40">
+                    <SketchPicker
+                      width="89%"
+                      color={currentColor}
+                      onChange={(e) => setCurrentColor(e.hex)}
+                      disableAlpha
+                      presetColors={[
+                        "#D0021B",
+                        "#F5A623",
+                        "#F8E71C",
+                        "#8B572A",
+                        "#7ED321",
+                        "#417505",
+                      ]}
+                    />
+                  </div>
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
