@@ -106,7 +106,7 @@ export const StatusForm = () => {
         className="w-full rounded-md bg-muted/80 hover:bg-muted/90 transition p-3 flex items-center font-medium text-sm gap-2"
       >
         <Plus className="size-4" />
-        Adicioanr um status
+        Adicionar um status
       </button>
     </StatusWrapper>
   );
