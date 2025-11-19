@@ -34,9 +34,19 @@ export const StatusForm = () => {
   });
 
   const [isEditing, setIsEditing] = useState(false);
+  const [colorSelect, setColorSelect] = useState("");
 
   const toggleEditing = () => {
     setIsEditing((prev) => !prev);
+
+    const length = 6;
+    let result = "#";
+    const characters = "0123456789abcdef";
+
+    for (let i = 0; i < length; i++) {
+      result += characters[Math.floor(Math.random() * characters.length)];
+    }
+    setColorSelect(result);
   };
 
   const createStatusColumn = useMutation(
@@ -65,6 +75,7 @@ export const StatusForm = () => {
     createStatusColumn.mutate({
       name: data.name,
       trackingId: params.trackingId,
+      color: colorSelect ?? "#1341D0",
     });
   };
 
@@ -78,6 +89,37 @@ export const StatusForm = () => {
           className="w-full p-3 rounded-md bg-muted/80 space-y-4 shadow-md"
         >
           <div className="flex flex-row w-full items-center justify-center gap-x-2">
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger>
+                <div
+                  className={`cursor-pointer flex w-6 h-6 rounded-sm`}
+                  style={{ backgroundColor: colorSelect }}
+                />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="w-45 items-center justify-center"
+                align="end"
+              >
+                <DropdownMenuLabel>Cor do status</DropdownMenuLabel>
+                <div className="dark:text-background">
+                  <SketchPicker
+                    width="91%"
+                    color={colorSelect}
+                    onChange={(e) => setColorSelect(e.hex)}
+                    disableAlpha
+                    presetColors={[
+                      "#D0021B",
+                      "#F5A623",
+                      "#F8E71C",
+                      "#8B572A",
+                      "#7ED321",
+                      "#417505",
+                    ]}
+                  />
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Input
               autoFocus
               {...form.register("name")}
