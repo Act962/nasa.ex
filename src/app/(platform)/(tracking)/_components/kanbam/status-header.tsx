@@ -39,6 +39,23 @@ export const updateSatusName = z.object({
   name: z.string().min(1, "O nome é obrigatório"),
 });
 
+// Função para calcular se a cor é clara ou escura
+const getContrastColor = (hexColor: string): string => {
+  // Remove o # se existir
+  const hex = hexColor.replace("#", "");
+
+  // Converte para RGB
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
+  // Calcula a luminância relativa (fórmula WCAG)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+  // Retorna branco para cores escuras e preto para cores claras
+  return luminance > 0.5 ? "#000000" : "#FFFFFF";
+};
+
 export const StatusHeader = ({
   data,
   attributes,
@@ -124,7 +141,10 @@ export const StatusHeader = ({
             <Grip className="size-4" />
           </Button>
           <span
-            style={{ backgroundColor: data.color ?? "#1447e6" }}
+            style={{
+              backgroundColor: data.color ?? "#1447e6",
+              color: getContrastColor(data.color ?? "#1447e6"),
+            }}
             className="rounded-sm px-2 "
           >
             {data.name}
@@ -135,6 +155,7 @@ export const StatusHeader = ({
     </div>
   );
 };
+
 interface ListOptionProps {
   currentColor: string;
   setCurrentColor: (color: string) => void;
