@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useLeads } from "@/hooks/use-lead";
+import { useLeads } from "@/hooks/use-lead-modal";
 import { orpc } from "@/lib/orpc";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "../ui/skeleton";
@@ -19,9 +19,9 @@ export function LeadModal() {
   const { data, isLoading, error } = useQuery(
     orpc.leads.get.queryOptions({
       input: {
-        id: lead.lead?.id,
+        id: lead.id,
       },
-      enabled: lead.isOpen && !!lead.lead?.id,
+      enabled: lead.isOpen && !!lead.id,
     })
   );
 
@@ -30,7 +30,7 @@ export function LeadModal() {
       <DialogContent className="w-full md:max-w-5xl">
         <DialogHeader>
           <DialogTitle>
-            {isLoading ? "Carregando..." : data?.lead.name || lead.lead?.name}
+            {isLoading ? "Carregando..." : data?.lead.name || "Sem nome"}
           </DialogTitle>
         </DialogHeader>
 

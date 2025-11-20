@@ -38,7 +38,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "../ui/empty";
-import { Lead, useLeads } from "@/hooks/use-lead";
+import { useLeads } from "@/hooks/use-lead-modal";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -49,13 +49,11 @@ export function SearchLeadModal() {
   const [currentPage, setCurrentPage] = useState(1);
   const debouncedSearch = useDebouncedValue(search, 200);
 
-  const { onOpen, setLead } = useLeads();
+  const { onOpen } = useLeads();
   const { onClose } = useSearchLead();
 
-  const handleOpenLeadModal = (lead: Lead) => {
-    setLead(lead);
-
-    onOpen();
+  const handleOpenLeadModal = ({ id }: { id: string }) => {
+    onOpen(id);
     onClose();
   };
 
