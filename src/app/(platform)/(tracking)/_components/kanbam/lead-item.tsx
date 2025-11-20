@@ -7,7 +7,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowUpRight, Grip, Mail, Phone, Tag } from "lucide-react";
 import { CardOptions } from "./card-options";
-import { useLeads } from "@/hooks/use-lead";
+import { useLeads } from "@/hooks/use-lead-modal";
 import { Button } from "@/components/ui/button";
 
 type Lead = {
@@ -20,7 +20,6 @@ type Lead = {
 };
 
 export const LeadItem = ({ data }: { data: Lead }) => {
-  const lead = useLeads();
   const {
     attributes,
     listeners,
@@ -36,7 +35,7 @@ export const LeadItem = ({ data }: { data: Lead }) => {
     },
   });
 
-  const { setLead, onOpen } = useLeads();
+  const { onOpen } = useLeads();
 
   const style = {
     transition,
@@ -45,8 +44,7 @@ export const LeadItem = ({ data }: { data: Lead }) => {
   };
 
   const handleOpenModal = (leadId: string) => {
-    setLead({ id: leadId });
-    onOpen();
+    onOpen(leadId);
   };
 
   return (

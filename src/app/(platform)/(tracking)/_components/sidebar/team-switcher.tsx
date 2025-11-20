@@ -1,7 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { ChevronsUpDown, Plus } from "lucide-react";
+import {
+  Building,
+  ChevronsUpDown,
+  GalleryVerticalEnd,
+  Plus,
+} from "lucide-react";
 
 import {
   DropdownMenu,
@@ -25,25 +30,13 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-export function TeamSwitcher({
-  teams,
-}: {
-  teams: {
-    name: string;
-    logo: React.ElementType;
-    plan: string;
-  }[];
-}) {
+// Update
+export function TeamSwitcher() {
   const { isMobile } = useSidebar();
-  const [activeTeam, setActiveTeam] = React.useState(teams[0]);
   const [organizationActive, setOrganizationActive] =
     React.useState<ActiveOrganization | null>();
   const { data: organizations } = authClient.useListOrganizations();
   const router = useRouter();
-
-  if (!activeTeam) {
-    return null;
-  }
 
   const selectedOrganization = async (data: {
     orgId: string;
@@ -95,7 +88,7 @@ export function TeamSwitcher({
                 />
               ) : (
                 <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <activeTeam.logo className="size-4" />
+                  <GalleryVerticalEnd className="size-4" />
                 </div>
               )}
               <div className="grid flex-1 text-left text-sm leading-tight">
@@ -128,7 +121,7 @@ export function TeamSwitcher({
                 }
               >
                 <div className="flex size-6 items-center justify-center rounded-md border overflow-hidden">
-                  {org.logo && (
+                  {org.logo ? (
                     <Image
                       src={org.logo}
                       alt={org.name}
@@ -136,10 +129,12 @@ export function TeamSwitcher({
                       height={16}
                       className="size-6"
                     />
+                  ) : (
+                    <Building className="size-4" />
                   )}
                 </div>
                 {org.name}
-                <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
+                {/* <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut> */}
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
