@@ -1,51 +1,9 @@
-import {
-  addLeadFirst,
-  addLeadLast,
-  createLead,
-  deleteLead,
-  getLead,
-  listLeads,
-  updateLead,
-  updateLeadOrder,
-} from "./leads";
-import {
-  createStatus,
-  listStatus,
-  updateStatus,
-  updateStatusOrder,
-} from "./status";
-import {
-  createTracking,
-  getTracking,
-  listTrackings,
-  updateTracking,
-  deleteTracking,
-} from "./trackings";
+import { leadRoutes } from "./leads";
+import { statusRoutes } from "./status";
+import { trackingRoutes } from "./trackings";
 
 export const router = {
-  tracking: {
-    list: listTrackings,
-    create: createTracking,
-    get: getTracking,
-    update: updateTracking,
-    delete: deleteTracking,
-  },
-  status: {
-    list: listStatus,
-    create: createStatus,
-    // get: {},
-    update: updateStatus,
-    // delete: {},
-    updateOrder: updateStatusOrder,
-  },
-  leads: {
-    get: getLead,
-    list: listLeads,
-    create: createLead,
-    update: updateLead,
-    delete: deleteLead,
-    addToFirst: addLeadFirst,
-    addToLast: addLeadLast,
-    updateOrder: updateLeadOrder,
-  },
+  tracking: trackingRoutes,
+  status: statusRoutes,
+  leads: leadRoutes,
 };

@@ -46,7 +46,7 @@ const items = [
   },
   {
     title: "Contatos",
-    url: "/tracking/contatos",
+    url: "/contatos",
     icon: Users,
     isActive: true,
   },

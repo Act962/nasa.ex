@@ -1,0 +1,86 @@
+import { base } from "@/app/middlewares/base";
+import { requiredAuthMiddleware } from "../auth";
+import prisma from "@/lib/prisma";
+import { z } from "zod";
+
+// 🟧 LIST ALL
+export const searchLeads = base
+  .use(requiredAuthMiddleware)
+  .route({
+    method: "GET",
+    summary: "Search leads with optional filters, pagination, and sorting",
+    tags: ["Leads"],
+  })
+  .input(
+    z.object({
+      statusId: z.string().optional(),
+      trackingId: z.string().optional(),
+      search: z.string().optional(), // busca por nome, email ou telefone
+      page: z.number().default(1),
+      limit: z.number().default(20),
+      orderBy: z.enum(["createdAt", "updatedAt", "name"]).default("createdAt"),
+      order: z.enum(["asc", "desc"]).default("desc"),
+    })
+  )
+  .output(
+    z.object({
+      leads: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          phone: z.string().nullable(),
+          email: z.string().nullable(),
+          description: z.string().nullable(),
+          order: z.number(),
+          statusId: z.string(),
+          trackingId: z.string(),
+          createdAt: z.date(),
+          updatedAt: z.date(),
+        })
+      ),
+      total: z.number(),
+      page: z.number(),
+      totalPages: z.number(),
+    })
+  )
+  .handler(async ({ input, errors }) => {
+    try {
+      const { page, limit, statusId, trackingId, search, orderBy, order } =
+        input;
+
+      // filtros dinâmicos
+      const where: any = {};
+
+      if (statusId) where.statusId = statusId;
+      if (trackingId) where.trackingId = trackingId;
+
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+          { phone: { contains: search, mode: "insensitive" } },
+        ];
+      }
+
+      const total = await prisma.lead.count({ where });
+
+      const leads = await prisma.lead.findMany({
+        where,
+        orderBy: { [orderBy]: order },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+
+      const totalPages = Math.ceil(total / limit);
+
+      return {
+        leads,
+        total,
+        page,
+        totalPages,
+      };
+    } catch (err) {
+      console.error(err);
+      throw errors.INTERNAL_SERVER_ERROR;
+    }
+  });
