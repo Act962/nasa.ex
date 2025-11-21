@@ -64,7 +64,7 @@ export function SearchLeadModal() {
   };
 
   const { data, isLoading } = useSuspenseQuery(
-    orpc.leads.list.queryOptions({
+    orpc.leads.search.queryOptions({
       input: {
         search: debouncedSearch,
         trackingId: params.trackingId,

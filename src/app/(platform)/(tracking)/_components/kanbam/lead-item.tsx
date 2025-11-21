@@ -6,9 +6,10 @@ import { Separator } from "@/components/ui/separator";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowUpRight, Grip, Mail, Phone, Tag } from "lucide-react";
-import { CardOptions } from "./card-options";
-import { useLeads } from "@/hooks/use-lead-modal";
+// import { CardOptions } from "./card-options";
+// import { useLeads } from "@/hooks/use-lead-modal";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 type Lead = {
   id: string;
@@ -20,6 +21,8 @@ type Lead = {
 };
 
 export const LeadItem = ({ data }: { data: Lead }) => {
+  const router = useRouter();
+
   const {
     attributes,
     listeners,
@@ -35,7 +38,7 @@ export const LeadItem = ({ data }: { data: Lead }) => {
     },
   });
 
-  const { onOpen } = useLeads();
+  // const { onOpen } = useLeads();
 
   const style = {
     transition,
@@ -43,9 +46,9 @@ export const LeadItem = ({ data }: { data: Lead }) => {
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const handleOpenModal = (leadId: string) => {
-    onOpen(leadId);
-  };
+  // const handleOpenModal = (leadId: string) => {
+  //   onOpen(leadId);
+  // };
 
   return (
     <div
@@ -78,7 +81,7 @@ export const LeadItem = ({ data }: { data: Lead }) => {
           size={"sm"}
           variant={"ghost"}
           className="opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={() => handleOpenModal(data.id)}
+          onClick={() => router.push(`/contatos/${data.id}`)}
         >
           <ArrowUpRight className="size-4" />
         </Button>
