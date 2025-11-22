@@ -23,10 +23,10 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { ModalCreateTracking } from "./modal-create-tracking";
 import { Button } from "@/components/ui/button";
 import { Folder } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTracking } from "@/hooks/use-tracking-modal";
 dayjs.extend(utc);
 dayjs.extend(relativeTime);
 
@@ -35,6 +35,7 @@ dayjs.locale("pt-BR");
 export function TrackingList() {
   const searchParams = useSearchParams();
   const query = searchParams?.get("q") ?? "";
+  const { onOpen } = useTracking()
 
   const { data: trackings, isLoading } = useSuspenseQuery(
     orpc.tracking.list.queryOptions()
@@ -99,9 +100,7 @@ export function TrackingList() {
             </EmptyHeader>
             <EmptyContent>
               <div className="flex gap-2">
-                <ModalCreateTracking>
-                  <Button>Criar novo tracking</Button>
-                </ModalCreateTracking>
+                <Button onClick={onOpen}>Criar novo tracking</Button>
               </div>
             </EmptyContent>
           </Empty>

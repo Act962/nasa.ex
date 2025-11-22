@@ -1,3 +1,5 @@
+"use client"
+
 import { Button } from "@/components/ui/button";
 import {
   InputGroup,
@@ -5,9 +7,13 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Download, DownloadCloud, Search } from "lucide-react";
+import { useSearchLead } from "@/hooks/use-search-lead";
+import { DownloadCloud, Search } from "lucide-react";
 
 export default function HeadingContacts() {
+  const { onOpen } = useSearchLead()
+
+
   return (
     <div className="flex items-center justify-between px-4 py-2">
       <div className="flex items-center gap-2">
@@ -15,7 +21,7 @@ export default function HeadingContacts() {
         <h1>Leads</h1>
       </div>
       <InputGroup className="w-[250px]">
-        <InputGroupInput placeholder="Buscar contato" />
+        <InputGroupInput placeholder="Buscar contato" onClick={onOpen} />
         <InputGroupAddon>
           <Search />
         </InputGroupAddon>
