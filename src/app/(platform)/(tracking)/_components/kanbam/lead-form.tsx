@@ -29,6 +29,14 @@ export const LeadForm = ({ statusId }: LeadFormProps) => {
             },
           }),
         });
+
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.search.queryKey({
+            input: {
+              trackingId: params.trackingId,
+            },
+          }),
+        });
       },
       onError: () => {
         toast.error("Erro ao criar lead, tente novamente");

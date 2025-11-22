@@ -25,11 +25,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import createTracking from "../actions";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Spinner } from "@/components/spinner";
+import { useTracking } from "@/hooks/use-tracking-modal";
 
 const createTrackingSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório"),
@@ -58,7 +58,7 @@ export function ModalCreateTracking({
     },
   });
 
-  const [isOpen, setIsOpen] = useState(false);
+  const { isOpen, onOpen, onClose } = useTracking()
 
   const createTrackingMutation = useMutation(
     orpc.tracking.create.mutationOptions({
@@ -70,7 +70,7 @@ export function ModalCreateTracking({
         });
 
         reset();
-        setIsOpen(false);
+        onClose();
       },
       onError: (error) => {
         console.log(error);
@@ -89,8 +89,7 @@ export function ModalCreateTracking({
   const isLoading = createTrackingMutation.isPending;
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onOpen}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Criar novo tracking</DialogTitle>

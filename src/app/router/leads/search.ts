@@ -30,12 +30,16 @@ export const searchLeads = base
           name: z.string(),
           phone: z.string().nullable(),
           email: z.string().nullable(),
-          description: z.string().nullable(),
-          order: z.number(),
-          statusId: z.string(),
-          trackingId: z.string(),
           createdAt: z.date(),
-          updatedAt: z.date(),
+          status: z.object({
+            id: z.string(),
+            name: z.string(),
+            color: z.string().nullable(),
+          }),
+          tracking: z.object({
+            id: z.string(),
+            name: z.string(),
+          }),
         })
       ),
       total: z.number(),
@@ -43,13 +47,17 @@ export const searchLeads = base
       totalPages: z.number(),
     })
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, errors, context }) => {
     try {
       const { page, limit, statusId, trackingId, search, orderBy, order } =
         input;
 
       // filtros dinâmicos
-      const where: any = {};
+      const where: any = {
+        tracking: {
+          organizationId: context.org?.id
+        }
+      };
 
       if (statusId) where.statusId = statusId;
       if (trackingId) where.trackingId = trackingId;
@@ -66,9 +74,30 @@ export const searchLeads = base
 
       const leads = await prisma.lead.findMany({
         where,
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          email: true,
+          createdAt: true,
+          status: {
+            select: {
+              id: true,
+              name: true,
+              color: true
+            }
+          },
+          tracking: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
         orderBy: { [orderBy]: order },
         skip: (page - 1) * limit,
         take: limit,
+        
       });
 
       const totalPages = Math.ceil(total / limit);
