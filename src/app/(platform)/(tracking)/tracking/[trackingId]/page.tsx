@@ -20,8 +20,6 @@ export default async function TrackingPage({ params }: TrackingPageProps) {
     })
   );
 
-  throw Error("Not implemented");
-
   return (
     <SidebarInset className="h-screen">
       <NavTracking />
