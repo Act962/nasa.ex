@@ -1,67 +1,56 @@
 "use client";
 import { DataTable } from "./data-table";
-import { columns, LeadWithTrackingAndStatus } from "./columns";
-import { getQueryClient } from "@/lib/query/hydration";
+import { columns } from "./columns";
 import { orpc } from "@/lib/orpc";
 import { useSuspenseQuery } from "@tanstack/react-query";
-
-const leads: LeadWithTrackingAndStatus[] = [
-  {
-    name: "Lead 1",
-    id: "1",
-    email: "lead1@example.com",
-    createdAt: new Date(),
-    phone: "123456789",
-    status: {
-      name: "Status 1",
-      id: "1",
-      color: "red",
-    },
-    tracking: {
-      name: "Tracking 1",
-      id: "1",
-    },
-  },
-  {
-    name: "Lead 2",
-    id: "2",
-    email: "lead2@example.com",
-    createdAt: new Date(),
-    phone: "123456789",
-    status: {
-      name: "Status 2",
-      id: "2",
-      color: "green",
-    },
-    tracking: {
-      name: "Tracking 2",
-      id: "2",
-    },
-  },
-  {
-    name: "Lead 3",
-    id: "3",
-    email: "lead3@example.com",
-    createdAt: new Date(),
-    phone: "123456789",
-    status: {
-      name: "Status 3",
-      id: "3",
-      color: "blue",
-    },
-    tracking: {
-      name: "Tracking 3",
-      id: "3",
-    },
-  },
-];
+import { useState } from "react";
 
 export function TableLeads() {
-  const { data } = useSuspenseQuery(
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState("");
+  const [statusId, setStatusId] = useState<string | undefined>();
+  const [trackingId, setTrackingId] = useState<string | undefined>();
+
+  const { data, isLoading, isFetching } = useSuspenseQuery(
     orpc.leads.search.queryOptions({
-      input: {},
+      input: {
+        page: page,
+        limit: pageSize,
+        trackingId: trackingId,
+        statusId: statusId,
+      },
     })
   );
 
-  return <DataTable columns={columns} data={data.leads} />;
+  return (
+    <DataTable
+      columns={columns}
+      data={data?.leads ?? []}
+      pageCount={data?.totalPages ?? 0}
+      currentPage={page}
+      pageSize={pageSize}
+      totalItems={data?.total ?? 0}
+      onPageChange={setPage}
+      onPageSizeChange={(newSize) => {
+        setPageSize(newSize);
+        setPage(1); // Reset para primeira página
+      }}
+      onSearchChange={(value) => {
+        setSearch(value);
+        setPage(1); // Reset para primeira página ao buscar
+      }}
+      searchValue={search}
+      isLoading={isLoading || isFetching}
+      // Opcional: adicionar filtros
+      onStatusChange={(value) => {
+        setStatusId(value);
+        setPage(1);
+      }}
+      onTrackingChange={(value) => {
+        setTrackingId(value);
+        setPage(1);
+      }}
+    />
+  );
 }
