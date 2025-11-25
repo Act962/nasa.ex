@@ -21,7 +21,7 @@ export function LeadContainer() {
     <div className="flex h-full">
       <LeadInfo initialData={data} className="hidden sm:block" />
 
-      <LeadDetails />
+      <LeadDetails initialData={data} />
     </div>
   );
 }

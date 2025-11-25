@@ -86,7 +86,7 @@ model Organization {
   members     Member[]
   invitations Invitation[]
   trackings   Tracking[]
-  // tags        Tag[]
+  tags        Tag[]
 
   @@unique([slug])
   @@map("organization")
@@ -101,6 +101,9 @@ model Member {
   role           String
   createdAt      DateTime
 
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
   @@map("member")
 }
 
@@ -124,6 +127,7 @@ model Tracking {
   name String
   description String?
   organizationId String   @map("organization_id")
+  isArchived      Boolean  @default(false) @map("is_archived")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -132,7 +136,7 @@ model Tracking {
   participants   TrackingParticipant[]
   status       Status[]
   leads          Lead[]
-  // tags Tag[]
+  tags Tag[]
   
   @@map("tracking")
 }
@@ -144,11 +148,10 @@ model TrackingParticipant {
   role        ParticipantRole @default(MEMBER)
   createdAt   DateTime @default(now()) @map("created_at")
   
-  // Relacionamentos
   tracking    Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // Garantir que um usuário não seja adicionado duas vezes ao mesmo tracking
+
   @@unique([userId, trackingId])
   @@map("tracking_participant")
 }
@@ -173,6 +176,7 @@ model Status {
   tracking   Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   leads      Lead[]
 
+  @@index([trackingId, order])
   @@map("status")
 }
 
@@ -193,43 +197,50 @@ model Lead {
   status      Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
   tracking    Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
 
-  //  leadTags    LeadTag[]
+  leadTags    LeadTag[]
 
   @@index([phone])
+  @@index([trackingId]) 
+  @@index([statusId]) 
+  @@index([email])      
+  @@index([createdAt]) 
   @@unique([phone, trackingId])
   @@map("leads")
 }
 
-// model Tag {
-//   id  String @id @default(cuid())
-//   name String
-//   color String? @default("#1447e6")
-//   organizationId String   @map("organization_id")
-//   trackingId  String   @map("tracking_id")
-//   createdAt   DateTime @default(now()) @map("created_at")
+model Tag {
+  id             String       @id @default(cuid())
+  name           String
+  color          String?      @default("#1447e6")
+  organizationId String       @map("organization_id")
+  trackingId     String?      @map("tracking_id") // 👈 Opcional
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
 
 
-//   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-//   tracking    Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-//   leadTags       LeadTag[]
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tracking       Tracking?    @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  leadTags       LeadTag[]
 
-//   @@index([trackingId, organizationId])
-//   @@map("tags")
-// }
+  @@unique([name, organizationId, trackingId]) // 👈 Importante: nome único por contexto
+  @@index([organizationId])
+  @@index([trackingId])
+  @@map("tags")
+}
 
-// model LeadTag {
-//   id        String   @id @default(cuid())
-//   leadId    String   @map("lead_id")
-//   tagId     String   @map("tag_id")
-//   createdAt DateTime @default(now()) @map("created_at")
+model LeadTag {
+  id        String   @id @default(cuid())
+  leadId    String   @map("lead_id")
+  tagId     String   @map("tag_id")
+  createdAt DateTime @default(now()) @map("created_at")
 
-//   // Relacionamentos
-//   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
-//   tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  // Relacionamentos
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-//   // Garantir que a mesma tag não seja adicionada duas vezes ao mesmo lead
-//   @@unique([leadId, tagId])
-//   @@index([leadId])
-//   @@index([tagId])
-//   @@map("lead_tags")
-// }
+  // Garantir que a mesma tag não seja adicionada duas vezes ao mesmo lead
+  @@unique([leadId, tagId])
+  @@index([leadId])
+  @@index([tagId])
+  @@map("lead_tags")
+}

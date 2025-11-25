@@ -1,8 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { LeadInfo } from "./lead-info";
+import { LeadFull } from "@/types/lead";
 
-export function LeadDetails() {
+interface LeadDatailsProps {
+  initialData: LeadFull;
+}
+
+export function LeadDetails({ initialData }: LeadDatailsProps) {
   return (
     <div className="flex-1">
       <Sheet>
@@ -10,7 +15,7 @@ export function LeadDetails() {
           <Button className="sm:hidden">Lead Info</Button>
         </SheetTrigger>
         <SheetContent side="left">
-          <LeadInfo className=" w-full" />
+          <LeadInfo initialData={initialData} className=" w-full" />
         </SheetContent>
       </Sheet>
 
