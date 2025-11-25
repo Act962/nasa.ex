@@ -12,51 +12,59 @@ export const getLead = base
     tags: ["Leads"],
   })
   .input(
-    z
-      .object({
-        id: z.string().optional(),
-        phone: z.string().optional(),
-        trackingId: z.string().optional(),
-      })
-      .refine(
-        (data) => data.id || (data.phone && data.trackingId),
-        "You must provide either 'id' or both 'phone' and 'trackingId'."
-      )
+    z.object({
+      id: z.string(),
+    })
   )
   .output(
     z.object({
       lead: z.object({
+        // Campos do lead
         id: z.string(),
         name: z.string(),
-        phone: z.string().nullable(),
         email: z.string().nullable(),
+        phone: z.string().nullable(),
         description: z.string().nullable(),
         statusId: z.string(),
         order: z.number(),
         trackingId: z.string(),
         createdAt: z.date(),
         updatedAt: z.date(),
+
+        // Relacionamento status
+        status: z.object({
+          id: z.string(),
+          name: z.string(),
+          trackingId: z.string(),
+          order: z.number(),
+          color: z.string().nullable(),
+          createdAt: z.date(),
+          updatedAt: z.date(),
+        }),
+
+        // Relacionamento tracking
+        tracking: z.object({
+          id: z.string(),
+          name: z.string(),
+          organizationId: z.string(),
+          description: z.string().nullable(),
+          createdAt: z.date(),
+          updatedAt: z.date(),
+        }),
       }),
     })
   )
   .handler(async ({ input, errors }) => {
     try {
-      let lead = null;
-
-      if (input.id) {
-        lead = await prisma.lead.findUnique({
-          where: { id: input.id },
-        });
-      } else if (input.phone && input.trackingId) {
-        lead = await prisma.lead.findUnique({
-          where: {
-            phone_trackingId: {
-              phone: input.phone,
-              trackingId: input.trackingId,
-            },
-          },
-        });
-      }
+      const lead = await prisma.lead.findUnique({
+        where: {
+          id: input.id,
+        },
+        include: {
+          tracking: true,
+          status: true,
+        },
+      });
 
       if (!lead) {
         throw errors.NOT_FOUND;
