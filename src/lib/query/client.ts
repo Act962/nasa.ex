@@ -12,7 +12,13 @@ export function createQueryClient() {
           const [json, meta] = serializer.serialize(queryKey);
           return JSON.stringify({ json, meta });
         },
-        staleTime: 60 * 1000, // > 0 to prevent immediate refetching on mount
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+        refetchOnReconnect: false,
+        refetchInterval: false,
+        retry: 1,
+        staleTime: 1000 * 60 * 5,
+        gcTime: 1000 * 60 * 10,
       },
       dehydrate: {
         shouldDehydrateQuery: (query) =>
