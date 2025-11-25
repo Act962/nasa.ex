@@ -14,6 +14,7 @@ import { getContrastColor } from "@/utils/get-contrast-color";
 import { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import Link from "next/link";
 
 export function getInitials(name: string): string {
   if (!name) return "";
@@ -141,12 +142,9 @@ export const columns: ColumnDef<LeadWithTrackingAndStatus>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => {}}>
-              Copy payment ID
+            <DropdownMenuItem className="cursor-pointer" role="button" asChild>
+              <Link href={`/contatos/${row.original.id}`}>Visualizar</Link>
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>View customer</DropdownMenuItem>
-            <DropdownMenuItem>View payment details</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       );
