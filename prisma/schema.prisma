@@ -1,13 +1,12 @@
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
   output   = "../src/generated/prisma"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -182,7 +181,7 @@ model Status {
 
 model Lead {
   id          String   @id @default(cuid())
-  name       String
+  name        String
   email       String?
   phone       String?
   profile     String?

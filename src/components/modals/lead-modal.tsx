@@ -16,6 +16,11 @@ import { AlertCircle } from "lucide-react";
 export function LeadModal() {
   const lead = useLeads();
 
+  // Não renderiza nada se não houver ID
+  if (!lead.id || !lead.isOpen) {
+    return null;
+  }
+
   const { data, isLoading, error } = useQuery(
     orpc.leads.get.queryOptions({
       input: {
