@@ -1,12 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { orpc } from "@/lib/orpc";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { generateId } from "better-auth";
+import { useCreateLead } from "@/mutations";
 import { Plus } from "lucide-react";
 import { useParams } from "next/navigation";
-import { toast } from "sonner";
 
 interface LeadFormProps {
   statusId: string;
@@ -14,38 +11,10 @@ interface LeadFormProps {
 
 export const LeadForm = ({ statusId }: LeadFormProps) => {
   const params = useParams<{ trackingId: string }>();
-
-  const queryClient = useQueryClient();
-
-  const createInitalLead = useMutation(
-    orpc.leads.create.mutationOptions({
-      onSuccess: () => {
-        toast.success("Lead criada com sucesso!");
-
-        queryClient.invalidateQueries({
-          queryKey: orpc.status.list.queryKey({
-            input: {
-              trackingId: params.trackingId,
-            },
-          }),
-        });
-
-        queryClient.invalidateQueries({
-          queryKey: orpc.leads.search.queryKey({
-            input: {
-              trackingId: params.trackingId,
-            },
-          }),
-        });
-      },
-      onError: () => {
-        toast.error("Erro ao criar lead, tente novamente");
-      },
-    })
-  );
+  const createLead = useCreateLead({ trackingId: params.trackingId });
 
   const onCreateLead = () => {
-    createInitalLead.mutate({
+    createLead.mutate({
       name: "Sem nome",
       statusId,
       phone: Math.random().toString(),

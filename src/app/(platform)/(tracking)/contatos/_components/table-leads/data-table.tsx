@@ -4,17 +4,12 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
-  getSortedRowModel,
+  getPaginationRowModel,
   SortingState,
-  VisibilityState,
+  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
 import {
   Table,
   TableBody,
@@ -23,14 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-} from "lucide-react";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -38,69 +27,59 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Columns2,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
-  pageCount: number;
-  currentPage: number;
-  pageSize: number;
-  totalItems: number;
-  onPageChange: (page: number) => void;
-  onPageSizeChange: (pageSize: number) => void;
-  onSearchChange?: (search: string) => void;
-  searchValue?: string;
-  isLoading?: boolean;
-  onStatusChange?: (statusId: string | undefined) => void;
-  onTrackingChange?: (trackingId: string | undefined) => void;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
-  pageCount,
-  currentPage,
-  pageSize,
-  totalItems,
-  onPageChange,
-  onPageSizeChange,
-  onSearchChange,
-  searchValue,
-  isLoading,
-  onStatusChange,
-  onTrackingChange,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
 
   const table = useReactTable({
     data,
     columns,
     state: {
       sorting,
-      pagination: {
-        pageIndex: currentPage - 1,
-        pageSize,
-      },
-      columnVisibility,
+      pagination,
     },
-    manualPagination: true,
     getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    onPaginationChange: setPagination,
     onSortingChange: setSorting,
-    onColumnVisibilityChange: setColumnVisibility,
     getSortedRowModel: getSortedRowModel(),
   });
-
-  const startItem = (currentPage - 1) * pageSize + 1;
-  const endItem = Math.min(currentPage * pageSize, totalItems);
 
   return (
     <>
       <div className="flex items-center justify-end mb-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
-              Colunas
+            <Button variant="outline" size={"sm"} className="ml-auto">
+              <Columns2 className="size-4" />
+              <span className="hidden lg:inline">Customizar colunas</span>
+              <span className="lg:hidden">Colunas</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -124,7 +103,7 @@ export function DataTable<TData, TValue>({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="overflow-hidden ">
+      <div className="overflow-hidden rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -152,7 +131,7 @@ export function DataTable<TData, TValue>({
                   data-state={row.getIsSelected() && "selected"}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-4">
+                    <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
@@ -167,7 +146,7 @@ export function DataTable<TData, TValue>({
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  Nenhum resultado encontrado.
+                  No results.
                 </TableCell>
               </TableRow>
             )}
@@ -175,71 +154,68 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      <div className="flex items-center justify-between py-4">
-        <div className="flex items-center gap-2">
-          <p className="text-sm text-muted-foreground">
-            Mostrando {totalItems > 0 ? startItem : 0} a {endItem} de{" "}
-            {totalItems} resultados
-          </p>
+      <div className="flex items-center justify-between mt-3">
+        <div className="hidden items-center gap-2 lg:flex">
+          <Label htmlFor="rows-per-page" className="text-sm font-medium">
+            Lead por página
+          </Label>
           <Select
-            value={String(pageSize)}
-            onValueChange={(value) => onPageSizeChange(Number(value))}
+            value={`${table.getState().pagination.pageSize}`}
+            onValueChange={(value) => {
+              table.setPageSize(Number(value));
+            }}
           >
-            <SelectTrigger className="h-8 w-[70px]">
-              <SelectValue placeholder={String(pageSize)} />
+            <SelectTrigger size="sm" className="w-20" id="rows-per-page">
+              <SelectValue placeholder={table.getState().pagination.pageSize} />
             </SelectTrigger>
             <SelectContent side="top">
-              {[10, 20, 30, 50, 100].map((size) => (
-                <SelectItem key={size} value={String(size)}>
-                  {size}
+              {[10, 20, 30, 40, 50].map((pageSize) => (
+                <SelectItem key={pageSize} value={`${pageSize}`}>
+                  {pageSize}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 lg:ml-0">
           <Button
             variant="outline"
-            size="sm"
-            onClick={() => onPageChange(1)}
-            disabled={currentPage === 1 || isLoading}
+            className="hidden h-8 w-8 p-0 lg:flex"
+            onClick={() => table.setPageIndex(0)}
+            disabled={!table.getCanPreviousPage()}
           >
-            <ChevronsLeft className="h-4 w-4" />
-            <span className="sr-only">Primeira página</span>
+            <span className="sr-only">Go to first page</span>
+            <ChevronsLeft />
           </Button>
           <Button
             variant="outline"
-            size="sm"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1 || isLoading}
+            className="size-8"
+            size="icon"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
           >
-            <ChevronLeft className="h-4 w-4" />
-            <span className="sr-only">Página anterior</span>
-          </Button>
-
-          <div className="flex items-center gap-1">
-            <span className="text-sm">
-              Página {currentPage} de {pageCount || 1}
-            </span>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage >= pageCount || isLoading}
-          >
-            <ChevronRight className="h-4 w-4" />
-            <span className="sr-only">Próxima página</span>
+            <span className="sr-only">Go to previous page</span>
+            <ChevronLeft />
           </Button>
           <Button
             variant="outline"
-            size="sm"
-            onClick={() => onPageChange(pageCount)}
-            disabled={currentPage >= pageCount || isLoading}
+            className="size-8"
+            size="icon"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
           >
-            <ChevronsRight className="h-4 w-4" />
-            <span className="sr-only">Última página</span>
+            <span className="sr-only">Go to next page</span>
+            <ChevronRight />
+          </Button>
+          <Button
+            variant="outline"
+            className="hidden size-8 lg:flex"
+            size="icon"
+            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+            disabled={!table.getCanNextPage()}
+          >
+            <span className="sr-only">Go to last page</span>
+            <ChevronsRight />
           </Button>
         </div>
       </div>

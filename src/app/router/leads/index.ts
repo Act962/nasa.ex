@@ -6,8 +6,10 @@ import { addLeadFirst } from "./add-lead-to-first";
 import { addLeadLast } from "./add-lead-to-last";
 import { updateLeadOrder } from "./update-order";
 import { getLead } from "./get";
+import { listLead } from "./list";
 
 export const leadRoutes = {
+  list: listLead,
   get: getLead,
   search: searchLeads,
   create: createLead,

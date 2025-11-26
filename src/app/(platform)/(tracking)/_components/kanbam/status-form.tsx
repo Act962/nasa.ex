@@ -1,14 +1,12 @@
 "use client";
 
-import { MoreHorizontalIcon, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { StatusWrapper } from "./status-wrapper";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import z from "zod";
+import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
-import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -19,6 +17,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useCreateStatus } from "@/mutations";
 
 const createStatusSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório"),
@@ -35,6 +34,13 @@ export const StatusForm = () => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [colorSelect, setColorSelect] = useState("");
+  const createStatus = useCreateStatus({
+    trackingId: params.trackingId,
+    onSuccess() {
+      setIsEditing(false);
+      form.reset();
+    },
+  });
 
   const toggleEditing = () => {
     setIsEditing((prev) => !prev);
@@ -49,37 +55,15 @@ export const StatusForm = () => {
     setColorSelect(result);
   };
 
-  const createStatusColumn = useMutation(
-    orpc.status.create.mutationOptions({
-      onSuccess: () => {
-        toast.success("Status criado com sucesso!");
-
-        queryClient.invalidateQueries({
-          queryKey: orpc.status.list.queryKey({
-            input: {
-              trackingId: params.trackingId,
-            },
-          }),
-        });
-
-        setIsEditing(false);
-        form.reset();
-      },
-      onError: () => {
-        toast.error("Erro ao criar status, tente novamente");
-      },
-    })
-  );
-
   const onSubmit = (data: CreateStatusSchema) => {
-    createStatusColumn.mutate({
+    createStatus.mutate({
       name: data.name,
       trackingId: params.trackingId,
       color: colorSelect ?? "#1341D0",
     });
   };
 
-  const isLoading = createStatusColumn.isPending;
+  const isLoading = createStatus.isPending;
 
   if (isEditing) {
     return (

@@ -7,9 +7,7 @@ import { orpc } from "@/lib/orpc";
 export default async function ContatosPage() {
   const queryClient = getQueryClient();
 
-  await queryClient.prefetchQuery(
-    orpc.leads.search.queryOptions({ input: {} })
-  );
+  await queryClient.prefetchQuery(orpc.leads.list.queryOptions());
   return (
     <SidebarInset className="min-h-full pb-8">
       <HeadingContacts />
