@@ -8,6 +8,7 @@ export const searchLeads = base
   .use(requiredAuthMiddleware)
   .route({
     method: "GET",
+    path: "/leads/search",
     summary: "Search leads with optional filters, pagination, and sorting",
     tags: ["Leads"],
   })
@@ -31,15 +32,6 @@ export const searchLeads = base
           phone: z.string().nullable(),
           email: z.string().nullable(),
           createdAt: z.date(),
-          status: z.object({
-            id: z.string(),
-            name: z.string(),
-            color: z.string().nullable(),
-          }),
-          tracking: z.object({
-            id: z.string(),
-            name: z.string(),
-          }),
         })
       ),
       total: z.number(),
@@ -55,8 +47,8 @@ export const searchLeads = base
       // filtros dinâmicos
       const where: any = {
         tracking: {
-          organizationId: context.org?.id
-        }
+          organizationId: context.org?.id,
+        },
       };
 
       if (statusId) where.statusId = statusId;
@@ -80,24 +72,10 @@ export const searchLeads = base
           phone: true,
           email: true,
           createdAt: true,
-          status: {
-            select: {
-              id: true,
-              name: true,
-              color: true
-            }
-          },
-          tracking: {
-            select: {
-              id: true,
-              name: true
-            }
-          }
         },
         orderBy: { [orderBy]: order },
         skip: (page - 1) * limit,
         take: limit,
-        
       });
 
       const totalPages = Math.ceil(total / limit);
