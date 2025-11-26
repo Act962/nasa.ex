@@ -6,12 +6,7 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -23,14 +18,11 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useSearchLead } from "@/hooks/use-search-lead";
 import { DropdownMenu } from "@radix-ui/react-dropdown-menu";
 import {
-  ArrowLeftIcon,
   CalendarPlusIcon,
   ClockIcon,
   Grid2x2Plus,
   MoreHorizontalIcon,
   Search,
-  TagIcon,
-  Trash2Icon,
   UserRoundPlus,
 } from "lucide-react";
 
@@ -38,7 +30,7 @@ export function NavTracking() {
   const triggerModalSearch = useSearchLead();
 
   return (
-    <div className="flex justify-between items-center px-4 py-5">
+    <div className="flex justify-between items-center px-4 py-5 gap-2">
       <div className="flex items-center gap-x-2">
         <SidebarTrigger />
         <InputGroup>
