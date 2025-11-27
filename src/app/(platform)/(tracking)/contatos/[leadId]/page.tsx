@@ -1,5 +1,5 @@
 import { SidebarInset } from "@/components/ui/sidebar";
-import { LeadContainer } from "../_components/lead-container";
+import { LeadContainer } from "../../_components/lead-container";
 import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { orpc } from "@/lib/orpc";
 
