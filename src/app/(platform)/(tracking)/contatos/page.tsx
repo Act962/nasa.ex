@@ -1,6 +1,6 @@
 import { SidebarInset } from "@/components/ui/sidebar";
-import HeadingContacts from "./_components/heading-contact";
-import { TableLeads } from "./_components/table-leads";
+import HeadingContacts from "../_components/heading-contact";
+import { TableLeads } from "../_components/table-leads";
 import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { orpc } from "@/lib/orpc";
 
