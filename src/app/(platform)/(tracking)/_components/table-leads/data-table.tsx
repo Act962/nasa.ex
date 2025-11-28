@@ -155,8 +155,11 @@ export function DataTable<TData, TValue>({
       </div>
 
       <div className="flex items-center justify-between mt-3">
-        <div className="hidden items-center gap-2 lg:flex">
-          <Label htmlFor="rows-per-page" className="text-sm font-medium">
+        <div className="flex items-center gap-2">
+          <Label
+            htmlFor="rows-per-page"
+            className="text-sm font-medium hidden sm:block"
+          >
             Lead por página
           </Label>
           <Select

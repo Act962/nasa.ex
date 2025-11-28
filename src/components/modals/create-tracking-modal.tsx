@@ -30,6 +30,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Spinner } from "@/components/spinner";
 import { useTracking } from "@/hooks/use-tracking-modal";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 
 const createTrackingSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório"),
@@ -38,11 +45,7 @@ const createTrackingSchema = z.object({
 
 type CreateTrackingForm = z.infer<typeof createTrackingSchema>;
 
-export function ModalCreateTracking({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function ModalCreateTracking() {
   const queryClient = useQueryClient();
 
   const {
@@ -58,7 +61,7 @@ export function ModalCreateTracking({
     },
   });
 
-  const { isOpen, onOpen, onClose } = useTracking()
+  const { isOpen, onOpen, onClose } = useTracking();
 
   const createTrackingMutation = useMutation(
     orpc.tracking.create.mutationOptions({
@@ -124,6 +127,18 @@ export function ModalCreateTracking({
               </Field>
             </FieldGroup>
           </FieldSet>
+
+          <Select value="lead">
+            <SelectTrigger className="truncate overflow-x-hidden">
+              <SelectValue placeholder="Selecione o tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="lead" className="truncate">
+                Leadffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+              </SelectItem>
+              <SelectItem value="client">Cliente</SelectItem>
+            </SelectContent>
+          </Select>
 
           <DialogFooter className="mt-3">
             <DialogClose asChild>

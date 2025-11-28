@@ -3,12 +3,12 @@ import { requiredAuthMiddleware } from "../auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
-export const listStatus = base
+export const listStatusSimple = base
   .use(requiredAuthMiddleware)
   .route({
     method: "GET",
-    path: "/list-status-with-leads",
-    summary: "List all status",
+    path: "/list-status",
+    summary: "List all status without leads",
     tags: ["Status"],
   })
   .input(
@@ -25,16 +25,6 @@ export const listStatus = base
           color: z.string().nullable(),
           order: z.number(),
           trackingId: z.string(),
-          leads: z.array(
-            z.object({
-              id: z.string(),
-              name: z.string(),
-              email: z.string().nullable(),
-              order: z.number(),
-              phone: z.string().nullable(),
-              statusId: z.string(),
-            })
-          ),
         })
       ),
     })
@@ -46,21 +36,6 @@ export const listStatus = base
       },
       orderBy: {
         order: "asc",
-      },
-      include: {
-        leads: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            statusId: true,
-            order: true,
-          },
-          orderBy: {
-            order: "asc",
-          },
-        },
       },
     });
 

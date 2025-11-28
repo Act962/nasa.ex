@@ -17,7 +17,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useCreateStatus } from "@/mutations";
+import { useCreateStatus } from "@/context/status/hooks/use-status";
 
 const createStatusSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório"),
@@ -27,7 +27,6 @@ type CreateStatusSchema = z.infer<typeof createStatusSchema>;
 
 export const StatusForm = () => {
   const params = useParams<{ trackingId: string }>();
-  const queryClient = useQueryClient();
   const form = useForm<CreateStatusSchema>({
     resolver: zodResolver(createStatusSchema),
   });
