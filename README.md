@@ -5,16 +5,21 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 First, run the development server:
 
 # install the docker image
+
 docker compose up -d
 
-# initialize the container depenendencies 
-docker start *name_container*
+# initialize the container depenendencies
 
-# install the project dependencies 
-npm i 
+docker start _name_container_
+
+# install the project dependencies
+
+npm i
 
 # Com as variáveis de ambiente configuradas, dê um "migrate" nas tabelas
+
 npx prisma migrate dev
+npx prisma generate
 
 # E por fim inicialize o projeto
 

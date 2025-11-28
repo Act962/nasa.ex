@@ -17,7 +17,7 @@ import { Search, UserSearch, X } from "lucide-react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { useState, useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Pagination,
   PaginationContent,
@@ -38,22 +38,21 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "../ui/empty";
-import { useLeads } from "@/hooks/use-lead-modal";
 
 const ITEMS_PER_PAGE = 6;
 
 export function SearchLeadModal() {
+  const router = useRouter();
   const params = useParams<{ trackingId: string }>();
   const trigger = useSearchLead();
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const debouncedSearch = useDebouncedValue(search, 200);
 
-  const { onOpen } = useLeads();
   const { onClose } = useSearchLead();
 
-  const handleOpenLeadModal = ({ id }: { id: string }) => {
-    onOpen(id);
+  const handleOnLead = ({ id }: { id: string }) => {
+    router.push(`/contatos/${id}`);
     onClose();
   };
 
@@ -200,7 +199,7 @@ export function SearchLeadModal() {
               <div
                 key={lead.id}
                 className="px-3 py-3 hover:bg-accent rounded-md transition cursor-pointer"
-                onClick={() => handleOpenLeadModal({ id: lead.id })}
+                onClick={() => handleOnLead({ id: lead.id })}
               >
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-medium">{lead.name}</span>
