@@ -55,7 +55,8 @@ export const StatusItem = ({ data, index }: StatusItemProps) => {
       style={style}
       className={cn(
         "shrink-0 w-[272px] h-full flex flex-col select-none",
-        isDragging && "z-50"
+        isDragging && "z-50",
+        index === 0 && "ml-4"
       )}
     >
       <div className="flex flex-col flex-1 min-h-0 rounded-md bg-muted/80 shadow-md pb-2">
