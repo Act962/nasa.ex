@@ -27,6 +27,7 @@ import {
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
 import { LeadItem } from "./lead-item";
+import { Footer } from "./footer";
 
 interface ListContainerProps {
   trackingId: string;
@@ -50,6 +51,7 @@ type StatusWithLeads = {
 
 export function ListContainer({ trackingId }: ListContainerProps) {
   const params = useParams<{ trackingId: string }>();
+
   const { data } = useSuspenseQuery(
     orpc.status.list.queryOptions({
       input: {
@@ -149,6 +151,36 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     const { active, over } = event;
 
     if (!over) {
+      setOriginalLeadPosition(null);
+      return;
+    }
+
+    // Verifica se foi solto em um botão do footer
+    if (
+      active.data.current?.type === "Lead" &&
+      over.data.current?.type === "FooterButton"
+    ) {
+      const leadData = active.data.current.lead;
+      const footerAction = over.data.current.action;
+
+      // Aqui você pode adicionar a lógica específica para cada ação
+      switch (footerAction) {
+        case "excluir":
+          console.log("⚠️ Ação: Excluir lead", leadData.id);
+          // Adicione aqui a lógica de exclusão
+          break;
+        case "ganho":
+          console.log("✅ Ação: Marcar como ganho", leadData.id);
+          // Adicione aqui a lógica de ganho
+          break;
+        case "perdido":
+          console.log("❌ Ação: Marcar como perdido", leadData.id);
+          // Adicione aqui a lógica de perdido
+          break;
+      }
+
+      // Reverte a posição visual do lead
+      setStatusData(data.status);
       setOriginalLeadPosition(null);
       return;
     }
@@ -370,15 +402,19 @@ export function ListContainer({ trackingId }: ListContainerProps) {
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
     >
-      <ol className="flex gap-x-3 h-full">
-        <SortableContext items={statusData.map((col) => col.id)}>
-          {statusData.map((status, index) => {
-            return <StatusItem key={status.id} index={index} data={status} />;
-          })}
-        </SortableContext>
-        <StatusForm />
-        <div className="shrink-0 w-1" />
-      </ol>
+      <div className="grid grid-rows-[1fr_auto] h-full">
+        <ol className="flex gap-x-3 overflow-x-auto">
+          <SortableContext items={statusData.map((col) => col.id)}>
+            {statusData.map((status, index) => {
+              return <StatusItem key={status.id} index={index} data={status} />;
+            })}
+          </SortableContext>
+          <StatusForm />
+          <div className="shrink-0 w-1" />
+        </ol>
+
+        <Footer />
+      </div>
 
       {typeof window !== "undefined" &&
         createPortal(

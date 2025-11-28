@@ -23,7 +23,7 @@ export default async function TrackingPage({ params }: TrackingPageProps) {
   return (
     <SidebarInset className="h-screen">
       <NavTracking />
-      <div className="px-4 h-full overflow-x-auto scroll-cols-tracking">
+      <div className="relative h-full overflow-x-auto scroll-cols-tracking ">
         <HydrateClient client={queryClient}>
           <ListContainer trackingId={trackingId} />
         </HydrateClient>
