@@ -7,6 +7,7 @@ import { LeadFull } from "@/types/lead";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ActivityIcon, Book, StickyNote } from "lucide-react";
 import { RichtTextEditor } from "@/app/(platform)/(tracking)/_components/rich-text-editor/editor";
+import { ContainerItemLead } from "./container-item-lead";
 
 const tabs = [
   {
@@ -75,6 +76,18 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
         <div className="w-full space-y-4">
           <h2 className="text-lg font-semibold">Adicione um nova nota</h2>
           <RichtTextEditor />
+          <div className="flex flex-col gap-5">
+            <ContainerItemLead
+              type="Activity"
+              children={<>Uma atividade random</>}
+            />
+            <ContainerItemLead
+              type="Meeting"
+              children={<>Uma Reunião random</>}
+            />
+            <ContainerItemLead type="Note" children={<>Uma nota random</>} />
+            <ContainerItemLead type="Task" children={<>Uma Task random</>} />
+          </div>
         </div>
       ),
     },
