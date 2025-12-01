@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ActivityIcon, Book, StickyNote } from "lucide-react";
 import { RichtTextEditor } from "@/app/(platform)/(tracking)/_components/rich-text-editor/editor";
 import { ContainerItemLead } from "./container-item-lead";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const tabs = [
   {
@@ -77,16 +78,10 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
           <h2 className="text-lg font-semibold">Adicione um nova nota</h2>
           <RichtTextEditor />
           <div className="flex flex-col gap-5">
-            <ContainerItemLead
-              type="Activity"
-              children={<>Uma atividade random</>}
-            />
-            <ContainerItemLead
-              type="Meeting"
-              children={<>Uma Reunião random</>}
-            />
-            <ContainerItemLead type="Note" children={<>Uma nota random</>} />
-            <ContainerItemLead type="Task" children={<>Uma Task random</>} />
+            <ContainerItemLead type="Activity" />
+            <ContainerItemLead type="Meeting" />
+            <ContainerItemLead type="Note" />
+            <ContainerItemLead type="Task" />
           </div>
         </div>
       ),
@@ -109,26 +104,21 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
   ];
 
   return (
-    <div className="flex-1">
+    <div className="flex-1 flex flex-col overflow-y-auto">
       <Sheet>
         <SheetTrigger asChild>
-          <Button className="sm:hidden">Lead Info</Button>
+          <Button className="sm:hidden m-4">Lead Info</Button>
         </SheetTrigger>
         <SheetContent side="left">
-          <LeadInfo initialData={initialData} className=" w-full" />
+          <LeadInfo initialData={initialData} className="w-full" />
         </SheetContent>
       </Sheet>
 
-      <aside className="flex flex-col h-full px-8">
-        <Tabs defaultValue={tabs[0].value} className="gap-4 w-full mt-8">
+      <aside className="flex-1 px-8">
+        <Tabs defaultValue={tabs[0].value} className="gap-4 w-full mt-8 pb-8">
           <TabsList className="p-0 w-full bg-muted/20">
             {tabs.map(({ icon: Icon, name, value }) => (
-              <TabsTrigger
-                key={value}
-                value={value}
-                className="w-full"
-                //
-              >
+              <TabsTrigger key={value} value={value} className="w-full">
                 <Icon className="size-4" />
                 {name}
               </TabsTrigger>
