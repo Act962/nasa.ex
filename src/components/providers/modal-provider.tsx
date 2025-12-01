@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { ModalSettingTracking } from "../modals/settings-tracking";
 import { SearchLeadModal } from "../modals/search-lead-modal";
+import AddLeadSheet from "../modals/add-lead-sheet";
+import { ModalCreateTracking } from "../modals/create-tracking-modal";
 import { LostOrWinModal } from "../modals/lost-or-win-modal";
 
 export function ModalProvider() {
@@ -19,7 +21,10 @@ export function ModalProvider() {
     <>
       <LostOrWinModal />
       <ModalSettingTracking />
+      <ModalCreateTracking />
+      <LeadModal />
       <SearchLeadModal />
+      <AddLeadSheet />
     </>
   );
 }

@@ -15,6 +15,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useAddLead } from "@/hooks/use-add-lead-sheet";
 import { useSearchLead } from "@/hooks/use-search-lead";
 import { DropdownMenu } from "@radix-ui/react-dropdown-menu";
 import {
@@ -25,9 +26,12 @@ import {
   Search,
   UserRoundPlus,
 } from "lucide-react";
+import { useParams } from "next/navigation";
 
 export function NavTracking() {
+  const params = useParams<{ trackingId: string }>();
   const triggerModalSearch = useSearchLead();
+  const { onOpen } = useAddLead();
 
   return (
     <div className="flex justify-between items-center px-4 py-5 gap-2">
@@ -51,8 +55,10 @@ export function NavTracking() {
           <ButtonGroup className="hidden sm:flex">
             <Button variant="outline">Automações</Button>
             <Button variant="outline">Configurações</Button>
-            <Button variant="default">Novo Lead</Button>
+            <Button onClick={() => onOpen(params.trackingId)}>Novo Lead</Button>
           </ButtonGroup>
+
+          {/* Mobile */}
           <ButtonGroup>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -67,7 +73,7 @@ export function NavTracking() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuGroup>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onOpen(params.trackingId)}>
                     <UserRoundPlus />
                     Lead
                   </DropdownMenuItem>
