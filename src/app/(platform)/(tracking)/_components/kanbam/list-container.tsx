@@ -29,6 +29,7 @@ import { useParams } from "next/navigation";
 import { LeadItem } from "./lead-item";
 import { Footer } from "./footer";
 import { useUpdateStatus } from "@/context/status/hooks/use-status";
+import { useLostOrWin } from "@/hooks/use-lost-or-win";
 
 interface ListContainerProps {
   trackingId: string;
@@ -52,6 +53,7 @@ type StatusWithLeads = {
 
 export function ListContainer({ trackingId }: ListContainerProps) {
   const params = useParams<{ trackingId: string }>();
+  const { onOpen } = useLostOrWin();
 
   const { data } = useSuspenseQuery(
     orpc.status.list.queryOptions({
@@ -171,12 +173,10 @@ export function ListContainer({ trackingId }: ListContainerProps) {
           // Adicione aqui a lógica de exclusão
           break;
         case "ganho":
-          console.log("✅ Ação: Marcar como ganho", leadData.id);
-          // Adicione aqui a lógica de ganho
+          onOpen(leadData.id, "WIN");
           break;
         case "perdido":
-          console.log("❌ Ação: Marcar como perdido", leadData.id);
-          // Adicione aqui a lógica de perdido
+          onOpen(leadData.id, "LOST");
           break;
       }
 
