@@ -15,7 +15,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../ui/select";
+} from "../ui/select-studio";
 import { Label } from "../ui/label";
 import { InputGroup, InputGroupTextarea } from "../ui/input-group";
 import { Button } from "../ui/button";
@@ -97,7 +97,7 @@ export function LostOrWinModal() {
               control={form.control}
               render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger className="w-full" id="popoverLost">
+                  <SelectTrigger className="w-full " id="popoverLost">
                     <SelectValue placeholder="Selecione o motivo" />
                   </SelectTrigger>
                   <SelectContent>
