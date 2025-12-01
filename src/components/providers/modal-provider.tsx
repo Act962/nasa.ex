@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { ModalSettingTracking } from "../modals/settings-tracking";
-import { LeadModal } from "../modals/lead-modal";
 import { SearchLeadModal } from "../modals/search-lead-modal";
+import { LostOrWinModal } from "../modals/lost-or-win-modal";
 
 export function ModalProvider() {
   const [isMounted, setIsMounted] = useState(false);
@@ -17,8 +17,8 @@ export function ModalProvider() {
   }
   return (
     <>
+      <LostOrWinModal />
       <ModalSettingTracking />
-      <LeadModal />
       <SearchLeadModal />
     </>
   );
