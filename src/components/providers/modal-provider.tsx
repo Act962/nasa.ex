@@ -22,7 +22,6 @@ export function ModalProvider() {
       <LostOrWinModal />
       <ModalSettingTracking />
       <ModalCreateTracking />
-      <LeadModal />
       <SearchLeadModal />
       <AddLeadSheet />
     </>
