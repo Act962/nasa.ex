@@ -21,8 +21,9 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 
-type TypeContainerItemLead = "Activity" | "Note" | "Task" | "Meeting";
+type TypeContainerItemLead = "Nota" | "Tarefa" | "Reunião";
 
 interface ComtainerItemLeadProps {
   type: TypeContainerItemLead;
@@ -72,7 +73,6 @@ export function ContainerItemLead({ type }: ComtainerItemLeadProps) {
         </div>
       </div>
       <Separator className="w-full" />
-
       <CardDetails type={type} />
     </div>
   );
@@ -84,19 +84,15 @@ interface IconsData {
 }
 
 export const ICONS: Record<TypeContainerItemLead, IconsData> = {
-  ["Activity"]: {
-    Icon: <ClipboardList className="size-4 text-blue-600" />,
-    bgIcon: "bg-blue-400/10",
-  },
-  ["Note"]: {
+  ["Nota"]: {
     Icon: <StickyNote className="size-4 text-green-600" />,
     bgIcon: "bg-green-400/10",
   },
-  ["Task"]: {
+  ["Tarefa"]: {
     Icon: <ClipboardCheck className="size-4 text-yellow-600" />,
     bgIcon: "bg-yellow-400/10",
   },
-  ["Meeting"]: {
+  ["Reunião"]: {
     Icon: <Phone className="size-4 text-orange-600" />,
     bgIcon: "bg-orange-400/10",
   },
@@ -128,20 +124,10 @@ function CardDetails({ type, image }: CardDetailsProps) {
       </div>
       <div
         className="hidden border border-accent/40 p-4 rounded-sm
-      sm:flex sm:flex-row sm:gap-0 sm:justify-between
-      "
+      sm:flex sm:flex-row sm:gap-0 sm:justify-between"
       >
-        <SubSectionRemimber />
-        <Separator
-          orientation="vertical"
-          className="hidden sm:flex h-13! bg-accent/40 "
-        />
-        <SubSectionPriority />
-        <Separator
-          orientation="vertical"
-          className="hidden sm:flex h-13! bg-accent/40"
-        />
-        <SubSectionAssigned />
+        {type === "Tarefa" && <SectionTask />}
+        {type === "Reunião" && <SectionMeeting />}
       </div>
     </div>
   );
@@ -150,7 +136,11 @@ function CardDetails({ type, image }: CardDetailsProps) {
 function SubSectionPriority() {
   const [prioritySelected, setPrioritySelected] = useState("Baixa");
 
-  const status = [{ name: "Baixa" }, { name: "Mediana" }, { name: "Alta" }];
+  const statusPriority = [
+    { name: "Baixa" },
+    { name: "Mediana" },
+    { name: "Alta" },
+  ];
 
   return (
     <div>
@@ -169,7 +159,7 @@ function SubSectionPriority() {
               value={prioritySelected}
               onValueChange={setPrioritySelected}
             >
-              {status.map((item) => (
+              {statusPriority.map((item) => (
                 <DropdownMenuRadioItem
                   key={`item-${item.name}`}
                   value={item.name}
@@ -188,7 +178,11 @@ function SubSectionPriority() {
 function SubSectionAssigned() {
   const [assignedSelected, setAssignedSelected] = useState("John");
 
-  const status = [{ name: "Chiquinho" }, { name: "John" }, { name: "Pedrin" }];
+  const userSelectable = [
+    { name: "Chiquinho" },
+    { name: "John" },
+    { name: "Pedrin" },
+  ];
 
   return (
     <div>
@@ -198,6 +192,9 @@ function SubSectionAssigned() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="xs" className="text-sm">
+              <Avatar className="size-4">
+                <AvatarImage src={"https://github.com/elfabrica.png"} />
+              </Avatar>
               {assignedSelected || "Selecionar"}
             </Button>
           </DropdownMenuTrigger>
@@ -207,7 +204,7 @@ function SubSectionAssigned() {
               value={assignedSelected}
               onValueChange={setAssignedSelected}
             >
-              {status.map((item) => (
+              {userSelectable.map((item) => (
                 <DropdownMenuRadioItem
                   key={`item-${item.name}`}
                   value={item.name}
@@ -226,7 +223,7 @@ function SubSectionAssigned() {
 function SubSectionRemimber() {
   const [assignedSelected, setAssignedSelected] = useState("John");
 
-  const status = ["Sim", "Não"];
+  const remimberStatus = ["Sim", "Não"];
 
   return (
     <div>
@@ -245,7 +242,7 @@ function SubSectionRemimber() {
               value={assignedSelected}
               onValueChange={setAssignedSelected}
             >
-              {status.map((item) => (
+              {remimberStatus.map((item) => (
                 <DropdownMenuRadioItem
                   key={`item-${item}`}
                   value={item}
@@ -258,6 +255,126 @@ function SubSectionRemimber() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+    </div>
+  );
+}
+function SubSectionDuration() {
+  const [assignedSelected, setAssignedSelected] = useState("30min");
+
+  const timesToSelect = ["30min", "1h", "1:30h", "2h", "2:30h", "3h"];
+
+  return (
+    <div>
+      <div className="space-y-2 ">
+        <Label className="opacity-80 font-normal text-xs">Duração</Label>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="xs" className="text-sm">
+              {assignedSelected || "Selecionar"}
+            </Button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent className="w-54">
+            <DropdownMenuRadioGroup
+              value={assignedSelected}
+              onValueChange={setAssignedSelected}
+            >
+              {timesToSelect.map((item) => (
+                <DropdownMenuRadioItem
+                  key={`item-${item}`}
+                  value={item}
+                  id={item}
+                >
+                  {item}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+}
+function SubSectionAttendance() {
+  const [assignedSelected, setAssignedSelected] = useState("30min");
+
+  const userAttendance = ["Chiquinho", "John", "Pedrin"];
+
+  return (
+    <div>
+      <div className="space-y-2 ">
+        <Label className="opacity-80 font-normal text-xs">Atendente</Label>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="xs" className="text-sm">
+              <Avatar className="size-4">
+                <AvatarImage src={"https://github.com/elfabrica.png"} />
+              </Avatar>
+              {assignedSelected || "Selecionar"}
+            </Button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent className="w-54">
+            <DropdownMenuRadioGroup
+              value={assignedSelected}
+              onValueChange={setAssignedSelected}
+            >
+              {userAttendance.map((item) => (
+                <DropdownMenuRadioItem
+                  key={`item-${item}`}
+                  value={item}
+                  id={item}
+                >
+                  {item}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+}
+
+function SectionTask() {
+  return (
+    <div className="flex flex-row justify-between w-full">
+      <SubSectionRemimber />
+      <Separator
+        orientation="vertical"
+        className="hidden sm:flex h-13! bg-accent/40 "
+      />
+      <SubSectionPriority />
+      <div className="flex flex-row gap-6 ">
+        <Separator
+          orientation="vertical"
+          className="hidden sm:flex h-13! bg-accent/40"
+        />
+        <SubSectionAssigned />
+      </div>
+      <div />
+    </div>
+  );
+}
+function SectionMeeting() {
+  return (
+    <div className="flex flex-row justify-between w-full">
+      <SubSectionRemimber />
+      <Separator
+        orientation="vertical"
+        className="hidden sm:flex h-13! bg-accent/40 "
+      />
+      <SubSectionDuration />
+      <div className="flex flex-row gap-6 ">
+        <Separator
+          orientation="vertical"
+          className="hidden sm:flex h-13! bg-accent/40"
+        />
+        <SubSectionAttendance />
+      </div>
+      <div />
     </div>
   );
 }

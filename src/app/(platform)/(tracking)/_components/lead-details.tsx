@@ -78,7 +78,8 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
           <h2 className="text-lg font-semibold">Adicione um nova nota</h2>
           <RichtTextEditor />
           <div className="flex flex-col gap-5">
-            <ContainerItemLead type="Activity" />
+            <ContainerItemLead type="Tarefa" />
+            <ContainerItemLead type="Reunião" />
           </div>
         </div>
       ),
