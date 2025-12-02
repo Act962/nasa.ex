@@ -79,9 +79,6 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
           <RichtTextEditor />
           <div className="flex flex-col gap-5">
             <ContainerItemLead type="Activity" />
-            <ContainerItemLead type="Meeting" />
-            <ContainerItemLead type="Note" />
-            <ContainerItemLead type="Task" />
           </div>
         </div>
       ),
