@@ -83,7 +83,7 @@ interface IconsData {
   bgIcon: string;
 }
 
-export const ICONS: Record<TypeContainerItemLead, IconsData> = {
+const ICONS: Record<TypeContainerItemLead, IconsData> = {
   ["Nota"]: {
     Icon: <StickyNote className="size-4 text-green-600" />,
     bgIcon: "bg-green-400/10",
