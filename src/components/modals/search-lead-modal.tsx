@@ -70,6 +70,7 @@ export function SearchLeadModal() {
         limit: ITEMS_PER_PAGE,
         page: currentPage,
       },
+      enabled: !!trigger.isOpen,
     })
   );
 

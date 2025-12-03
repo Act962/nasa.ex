@@ -33,6 +33,7 @@ export const listStatus = base
               order: z.number(),
               phone: z.string().nullable(),
               statusId: z.string(),
+              tags: z.array(z.string()),
             })
           ),
         })
@@ -41,13 +42,12 @@ export const listStatus = base
   )
   .handler(async ({ input }) => {
     const status = await prisma.status.findMany({
-      where: {
-        trackingId: input.trackingId,
-      },
-      orderBy: {
-        order: "asc",
-      },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        order: true,
+        trackingId: true,
         leads: {
           select: {
             id: true,
@@ -56,15 +56,44 @@ export const listStatus = base
             phone: true,
             statusId: true,
             order: true,
+            leadTags: {
+              select: {
+                tag: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
           },
           orderBy: {
             order: "asc",
           },
         },
       },
+      where: {
+        trackingId: input.trackingId,
+      },
+      orderBy: {
+        order: "asc",
+      },
     });
 
+    // Transforme os dados para o formato desejado
+    const formattedStatus = status.map((s) => ({
+      ...s,
+      leads: s.leads.map((lead) => ({
+        id: lead.id,
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        statusId: lead.statusId,
+        order: lead.order,
+        tags: lead.leadTags.map((lt) => lt.tag.name),
+      })),
+    }));
+
     return {
-      status: status,
+      status: formattedStatus,
     };
   });

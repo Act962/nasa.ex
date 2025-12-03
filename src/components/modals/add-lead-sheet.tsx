@@ -52,6 +52,10 @@ import {
 
 import { useState } from "react";
 import { FieldError } from "../ui/field";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
+import { Spinner } from "../ui/spinner";
+import { toast } from "sonner";
 
 const schema = z.object({
   name: z.string().min(2, "Nome obrigatório"),
@@ -60,7 +64,7 @@ const schema = z.object({
   description: z.string().optional(),
   statusId: z.string().min(1, "Selecione um status"),
   tags: z.array(z.string()).optional(),
-  position: z.enum(["start", "end"], {
+  position: z.enum(["first", "last"], {
     error: "Selecione uma posição",
   }),
 });
@@ -84,13 +88,7 @@ function phoneMask(value: string) {
 }
 
 export default function AddLeadSheet() {
-  const { isOpen, onClose, trackingId } = useAddLead();
-
-  const { status, isLoadingStatus } = useStatus(trackingId || "");
-  const { tags, isLoadingTags } = useTags();
-  const { createTag } = useTag();
-
-  const [newTag, setNewTag] = useState("");
+  const queryClient = useQueryClient();
 
   const {
     register,
@@ -98,6 +96,7 @@ export default function AddLeadSheet() {
     control,
     setValue,
     watch,
+    reset,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -108,12 +107,38 @@ export default function AddLeadSheet() {
       description: "",
       statusId: "",
       tags: [],
-      position: "start",
+      position: "first",
     },
   });
 
-  const selectedStatus = watch("statusId");
+  const onCreateLead = useMutation(
+    orpc.leads.createWithTags.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.status.list.queryKey({
+            input: {
+              trackingId: trackingId!,
+            },
+          }),
+        });
+        toast.success("Lead criado com sucesso");
+        reset();
+        onClose();
+      },
+      onError: () => {
+        toast.error("Erro ao criar lead, tente novamente mais tarde!");
+      },
+    })
+  );
 
+  const { isOpen, onClose, trackingId } = useAddLead();
+
+  const { status, isLoadingStatus } = useStatus(trackingId ?? "");
+  const { tags, isLoadingTags } = useTags();
+  const { createTag } = useTag();
+  const [newTag, setNewTag] = useState("");
+
+  const selectedStatus = watch("statusId");
   const selectedTags = watch("tags") || [];
 
   const toggleTag = (id: string) => {
@@ -122,6 +147,7 @@ export default function AddLeadSheet() {
       : [...selectedTags, id];
 
     setValue("tags", updated);
+    setNewTag("");
   };
 
   const removeTag = (id: string) => {
@@ -145,8 +171,19 @@ export default function AddLeadSheet() {
 
   const onSubmit = (data: FormData) => {
     console.log("FORM DATA:", data);
-    // enviar para API...
+    onCreateLead.mutate({
+      name: data.name,
+      phone: data.phone,
+      email: data.email,
+      description: data.description,
+      statusId: data.statusId,
+      trackingId: trackingId!,
+      position: data.position,
+      tagIds: selectedTags,
+    });
   };
+
+  const isCreatingLead = onCreateLead.isPending;
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -167,6 +204,7 @@ export default function AddLeadSheet() {
               <InputGroupInput
                 id="name"
                 placeholder="Nome"
+                disabled={isCreatingLead}
                 {...register("name")}
               />
               <InputGroupAddon>
@@ -187,6 +225,7 @@ export default function AddLeadSheet() {
               <InputGroupInput
                 id="phone"
                 placeholder="Telefone"
+                disabled={isCreatingLead}
                 {...register("phone")}
                 onChange={(e) => setValue("phone", phoneMask(e.target.value))}
               />
@@ -206,6 +245,7 @@ export default function AddLeadSheet() {
               <InputGroupInput
                 id="email"
                 placeholder="E-mail"
+                disabled={isCreatingLead}
                 {...register("email")}
               />
               <InputGroupAddon>
@@ -223,6 +263,7 @@ export default function AddLeadSheet() {
               <InputGroupTextarea
                 id="description"
                 placeholder="Descrição"
+                disabled={isCreatingLead}
                 {...register("description")}
               />
             </InputGroup>
@@ -241,7 +282,8 @@ export default function AddLeadSheet() {
                 render={({ field }) => (
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    defaultValue={status?.[0]?.id}
+                    disabled={isCreatingLead}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecione um status" />
@@ -273,17 +315,17 @@ export default function AddLeadSheet() {
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
-                  disabled={!selectedStatus}
+                  disabled={!selectedStatus || isCreatingLead}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Selecione uma posição" />
                   </SelectTrigger>
 
                   <SelectContent>
-                    <SelectItem value="start" className="cursor-pointer">
+                    <SelectItem value="first" className="cursor-pointer">
                       Início da coluna
                     </SelectItem>
-                    <SelectItem value="end" className="cursor-pointer">
+                    <SelectItem value="last" className="cursor-pointer">
                       Fim da coluna
                     </SelectItem>
                   </SelectContent>
@@ -303,7 +345,10 @@ export default function AddLeadSheet() {
               <Skeleton className="h-10" />
             ) : (
               <Tags>
-                <TagsTrigger placeholder="Selecione uma tag">
+                <TagsTrigger
+                  disabled={isCreatingLead}
+                  placeholder="Selecione uma tag"
+                >
                   {selectedTagsData?.map((tag) => (
                     <TagsValue key={tag.id} onRemove={() => removeTag(tag.id)}>
                       {tag.name}
@@ -313,6 +358,7 @@ export default function AddLeadSheet() {
 
                 <TagsContent>
                   <TagsInput
+                    value={newTag}
                     onValueChange={setNewTag}
                     placeholder="Pesquisar tags..."
                   />
@@ -349,8 +395,8 @@ export default function AddLeadSheet() {
               </Tags>
             )}
           </div>
-          <Button type="submit" className="w-full">
-            Continuar
+          <Button type="submit" className="w-full" disabled={isCreatingLead}>
+            {isCreatingLead ? <Spinner /> : "Criar lead"}
           </Button>
         </form>
       </SheetContent>

@@ -36,10 +36,9 @@ export const createLead = base
       }),
     })
   )
-  .handler(async ({ input, context, errors }) => {
+  .handler(async ({ input, errors }) => {
     try {
       const lead = await prisma.$transaction(async (tx) => {
-        // Verifica se o lead já existe
         const existingLead = await tx.lead.findUnique({
           where: {
             phone_trackingId: {
@@ -47,24 +46,12 @@ export const createLead = base
               trackingId: input.trackingId,
             },
           },
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            email: true,
-            description: true,
-            statusId: true,
-            trackingId: true,
-            order: true,
-            createdAt: true,
-          },
         });
 
         if (existingLead) {
           return existingLead;
         }
 
-        // Busca o maior order da coluna com FOR UPDATE (lock pessimista)
         const lastLead = await tx.lead.findFirst({
           where: {
             statusId: input.statusId,
