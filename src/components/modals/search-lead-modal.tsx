@@ -14,8 +14,6 @@ import {
   InputGroupInput,
 } from "../ui/input-group";
 import { Search, UserSearch, X } from "lucide-react";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
 import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -38,6 +36,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "../ui/empty";
+import { useLeadSearch } from "@/context/leads/hooks/use-lead-search";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -62,21 +61,15 @@ export function SearchLeadModal() {
     setCurrentPage(1);
   };
 
-  const { data, isLoading } = useSuspenseQuery(
-    orpc.leads.search.queryOptions({
-      input: {
-        search: debouncedSearch,
-        trackingId: params.trackingId,
-        limit: ITEMS_PER_PAGE,
-        page: currentPage,
-      },
-      enabled: !!trigger.isOpen,
-    })
-  );
+  const { leads, isSearchLead, totalPages, total } = useLeadSearch({
+    search: debouncedSearch,
+    trackingId: params.trackingId,
+    page: currentPage,
+    limit: ITEMS_PER_PAGE,
+  });
 
   // Gera números de página visíveis de forma inteligente e responsiva
   const pageNumbers = useMemo(() => {
-    const { totalPages } = data;
     const pages: (number | "ellipsis")[] = [];
 
     // Em mobile, mostra menos páginas
@@ -122,16 +115,16 @@ export function SearchLeadModal() {
     }
 
     return pages;
-  }, [data.totalPages, currentPage]);
+  }, [totalPages, currentPage]);
 
   const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= data.totalPages) {
+    if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
   };
 
   const canGoPrevious = currentPage > 1;
-  const canGoNext = currentPage < data.totalPages;
+  const canGoNext = currentPage < totalPages;
 
   return (
     <Dialog
@@ -169,19 +162,19 @@ export function SearchLeadModal() {
         </InputGroup>
         <div className="flex items-center justify-between">
           <span className="text-sm md:text-base">Leads encontrados</span>
-          {!isLoading && (
+          {!isSearchLead && (
             <span className="text-xs text-muted-foreground">
-              {data.total} {data.total === 1 ? "resultado" : "resultados"}
+              {total} {total === 1 ? "resultado" : "resultados"}
             </span>
           )}
         </div>
 
         <div className="min-h-[400px] space-y-1">
-          {isLoading ? (
+          {isSearchLead ? (
             Array.from({ length: ITEMS_PER_PAGE }).map((_, index) => (
               <Skeleton key={index} className="h-12 w-full" />
             ))
-          ) : data.leads.length === 0 ? (
+          ) : leads.length === 0 ? (
             <Empty>
               <EmptyHeader>
                 <EmptyMedia variant={"icon"}>
@@ -196,7 +189,7 @@ export function SearchLeadModal() {
               </EmptyHeader>
             </Empty>
           ) : (
-            data.leads.map((lead) => (
+            leads.map((lead) => (
               <div
                 key={lead.id}
                 className="px-3 py-3 hover:bg-accent rounded-md transition cursor-pointer"
@@ -214,7 +207,7 @@ export function SearchLeadModal() {
           )}
         </div>
 
-        {!isLoading && data.totalPages > 1 && (
+        {!isSearchLead && totalPages > 1 && (
           <DialogFooter>
             {/* Paginação Mobile */}
             <div className="flex md:hidden items-center justify-between w-full gap-2">
@@ -229,7 +222,7 @@ export function SearchLeadModal() {
               </Button>
 
               <span className="text-sm text-muted-foreground">
-                {currentPage} / {data.totalPages}
+                {currentPage} / {totalPages}
               </span>
 
               <Button
