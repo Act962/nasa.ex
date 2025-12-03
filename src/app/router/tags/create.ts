@@ -11,11 +11,9 @@ export const createTag = base
   })
   .input(
     z.object({
-      body: z.object({
-        name: z.string(),
-        color: z.string().nullable().default("#1447e6"),
-        trackingId: z.string().nullable().default(null),
-      }),
+      name: z.string().trim().min(2),
+      color: z.string().nullable().default("#1447e6"),
+      trackingId: z.string().nullable().default(null),
     })
   )
   .handler(async ({ input, context, errors }) => {
@@ -27,10 +25,10 @@ export const createTag = base
 
     const tag = await prisma.tag.create({
       data: {
-        name: input.body.name,
-        color: input.body.color,
+        name: input.name,
+        color: input.color,
         organizationId: org.id,
-        trackingId: input.body.trackingId,
+        trackingId: input.trackingId,
       },
     });
 

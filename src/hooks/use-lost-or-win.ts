@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-type Type = "WIN" | "LOST";
+type Type = "WIN" | "LOSS";
 
 type lostOwWinStore = {
   id?: string;
@@ -15,5 +15,5 @@ export const useLostOrWin = create<lostOwWinStore>((set) => ({
   isOpen: false,
   onOpen: (id: string, type: Type) => set({ isOpen: true, id, type }),
   onClose: () => set({ isOpen: false, id: undefined }),
-  type: "LOST",
+  type: "LOSS",
 }));

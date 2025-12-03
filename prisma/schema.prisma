@@ -23,6 +23,7 @@ model User {
   members     Member[]
   invitations Invitation[]
   trackings   TrackingParticipant[]
+  leadHistories LeadHistory[]
 
   @@unique([email])
   @@map("user")
@@ -136,8 +137,30 @@ model Tracking {
   status       Status[]
   leads          Lead[]
   tags Tag[]
+  winLossReasons  WinLossReason[]
   
   @@map("tracking")
+}
+
+enum ReasonType {
+  WIN  // Ganho
+  LOSS // Perda
+}
+
+model WinLossReason {
+  id          String   @id @default(cuid())
+  name        String
+  type        ReasonType // GANHO ou PERDA
+  trackingId  String   @map("tracking_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  order       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tracking  Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  leadHistories LeadHistory[]
+
+  @@index([trackingId])
+  @@map("win_loss_reasons")
 }
 
 model TrackingParticipant {
@@ -179,6 +202,33 @@ model Status {
   @@map("status")
 }
 
+enum LeadAction {
+  ACTIVE   // Lead ativo no funil
+  DELETED  // Excluído (lixeira)
+  WON      // Ganho
+  LOST     // Perdido
+}
+
+model LeadHistory {
+  id String @id @default(cuid())
+  leadId String @map("lead_id")
+  action LeadAction
+  reasonId String? @map("reason_id")
+  notes String?
+  userId String @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relacionamentos
+  lead   Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  reason WinLossReason? @relation(fields: [reasonId], references: [id], onDelete: SetNull)
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("lead_history")
+}
+
 model Lead {
   id          String   @id @default(cuid())
   name        String
@@ -189,20 +239,28 @@ model Lead {
   statusId    String   @map("status_id")
   trackingId  String   @map("tracking_id")
   order       Int      @default(0)
+
+  currentAction  LeadAction @default(ACTIVE) @map("current_action")
+  isActive       Boolean    @default(true) @map("is_active")
+
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+  closedAt       DateTime?  @map("closed_at")
 
   // Relacionamentos
   status      Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
   tracking    Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
 
   leadTags    LeadTag[]
+  history  LeadHistory[]
 
   @@index([phone])
   @@index([trackingId]) 
   @@index([statusId]) 
   @@index([email])      
-  @@index([createdAt]) 
+  @@index([createdAt])
+  @@index([currentAction])
+  @@index([isActive])
   @@unique([phone, trackingId])
   @@map("leads")
 }

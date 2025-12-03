@@ -1,7 +1,7 @@
 "use client";
 
 import { orpc } from "@/lib/orpc";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -47,7 +47,7 @@ export const useCreateStatus = ({
 };
 
 export function useStatus(trackingId: string) {
-  const { data, isLoading } = useSuspenseQuery(
+  const { data, isLoading } = useQuery(
     orpc.status.listSimple.queryOptions({
       input: {
         trackingId,
@@ -57,7 +57,7 @@ export function useStatus(trackingId: string) {
   );
 
   return {
-    status: data?.status,
+    status: data?.status || [],
     isLoadingStatus: isLoading,
   };
 }

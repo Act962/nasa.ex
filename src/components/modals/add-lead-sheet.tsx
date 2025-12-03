@@ -158,11 +158,10 @@ export default function AddLeadSheet() {
   };
 
   const handleCreateTag = () => {
+    if (newTag.trim() === "") return;
     createTag.mutate({
-      body: {
-        name: newTag,
-        trackingId: trackingId,
-      },
+      name: newTag,
+      trackingId: trackingId!,
     });
     setNewTag("");
   };
@@ -282,7 +281,7 @@ export default function AddLeadSheet() {
                 render={({ field }) => (
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={status?.[0]?.id}
+                    defaultValue={field.value}
                     disabled={isCreatingLead}
                   >
                     <SelectTrigger className="w-full">

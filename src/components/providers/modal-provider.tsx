@@ -1,11 +1,44 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ModalSettingTracking } from "../modals/settings-tracking";
-import { SearchLeadModal } from "../modals/search-lead-modal";
-import AddLeadSheet from "../modals/add-lead-sheet";
-import { ModalCreateTracking } from "../modals/create-tracking-modal";
-import { LostOrWinModal } from "../modals/lost-or-win-modal";
+import dynamic from "next/dynamic";
+
+// Lazy load dos modais
+const ModalSettingTracking = dynamic(
+  () =>
+    import("../modals/settings-tracking").then((mod) => ({
+      default: mod.ModalSettingTracking,
+    })),
+  { ssr: false }
+);
+
+const SearchLeadModal = dynamic(
+  () =>
+    import("../modals/search-lead-modal").then((mod) => ({
+      default: mod.SearchLeadModal,
+    })),
+  { ssr: false }
+);
+
+const AddLeadSheet = dynamic(() => import("../modals/add-lead-sheet"), {
+  ssr: false,
+});
+
+const ModalCreateTracking = dynamic(
+  () =>
+    import("../modals/create-tracking-modal").then((mod) => ({
+      default: mod.ModalCreateTracking,
+    })),
+  { ssr: false }
+);
+
+const LostOrWinModal = dynamic(
+  () =>
+    import("../modals/lost-or-win-modal").then((mod) => ({
+      default: mod.LostOrWinModal,
+    })),
+  { ssr: false }
+);
 
 export function ModalProvider() {
   const [isMounted, setIsMounted] = useState(false);
@@ -17,6 +50,7 @@ export function ModalProvider() {
   if (!isMounted) {
     return null;
   }
+
   return (
     <>
       <LostOrWinModal />
