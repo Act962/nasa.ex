@@ -128,18 +128,6 @@ export function ModalCreateTracking() {
             </FieldGroup>
           </FieldSet>
 
-          <Select value="lead">
-            <SelectTrigger className="truncate overflow-x-hidden">
-              <SelectValue placeholder="Selecione o tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="lead" className="truncate">
-                Leadffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-              </SelectItem>
-              <SelectItem value="client">Cliente</SelectItem>
-            </SelectContent>
-          </Select>
-
           <DialogFooter className="mt-3">
             <DialogClose asChild>
               <Button type="button" variant="outline">

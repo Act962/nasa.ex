@@ -177,7 +177,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
           onOpen(leadData.id, "WIN");
           break;
         case "perdido":
-          onOpen(leadData.id, "LOST");
+          onOpen(leadData.id, "LOSS");
           break;
       }
 

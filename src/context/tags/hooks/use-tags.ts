@@ -1,10 +1,10 @@
 import { orpc } from "@/lib/orpc";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 
 export function useTags() {
   const trackingId = useParams<{ trackingId?: string }>();
-  const { data, isLoading } = useSuspenseQuery(
+  const { data, isLoading } = useQuery(
     orpc.tags.listTags.queryOptions({
       input: {
         query: {
@@ -15,7 +15,7 @@ export function useTags() {
   );
 
   return {
-    tags: data?.tags,
+    tags: data?.tags || [],
     isLoadingTags: isLoading,
   };
 }

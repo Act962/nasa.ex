@@ -12,7 +12,6 @@ import {
   Select,
   SelectContent,
   SelectGroup,
-  SelectItem,
   SelectTrigger,
   SelectValue,
 } from "../ui/select-studio";
@@ -24,13 +23,20 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldError } from "../ui/field";
 import { useEffect } from "react";
+import { useParams } from "next/navigation";
+import { useReasons } from "@/context/reasons/hooks/use-reasons";
+import { Skeleton } from "../ui/skeleton";
+import { SelectItem } from "../ui/select";
 
 const schemaLostOrWinner = z.object({
   observation: z.string().optional(),
   reasons: z.string().min(1, "Campo obrigatório"),
 });
+
 export function LostOrWinModal() {
-  const { id, isOpen, onClose, type } = useLostOrWin();
+  const params = useParams<{ trackingId: string }>();
+  const { isOpen, onClose, type } = useLostOrWin();
+  const { reasons, isLoading } = useReasons(params.trackingId, type);
 
   const form = useForm({
     resolver: zodResolver(schemaLostOrWinner),
@@ -40,31 +46,7 @@ export function LostOrWinModal() {
     },
   });
 
-  const isLost = type === "LOST";
-
-  const reasonsLost = [
-    { id: 1, reason: "Preço acima do orçamento disponível pelo cliente" },
-    { id: 2, reason: "Cliente optou por um concorrente" },
-    { id: 3, reason: "Falta de retorno ou follow-up no tempo esperado" },
-    {
-      id: 4,
-      reason:
-        "Não houve alinhamento entre a solução e a necessidade do cliente",
-    },
-    { id: 5, reason: "Cliente desistiu do projeto ou adiou indefinidamente" },
-    { id: 6, reason: "Problemas de confiança ou credibilidade da empresa" },
-    { id: 7, reason: "Decisor não foi envolvido no processo de negociação" },
-    { id: 8, reason: "Condições comerciais ou de pagamento não foram viáveis" },
-    {
-      id: 9,
-      reason: "Lead estava apenas pesquisando, sem intenção real de compra",
-    },
-    {
-      id: 10,
-      reason:
-        "Mudança interna no cliente (prioridades, orçamento ou estratégia)",
-    },
-  ];
+  const isLost = type === "LOSS";
 
   const onSubmit = () => {
     console.log(form.getValues());
@@ -102,11 +84,22 @@ export function LostOrWinModal() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {reasonsLost.map((reason) => (
-                        <SelectItem key={reason.id} value={reason.reason}>
-                          {reason.reason}
-                        </SelectItem>
-                      ))}
+                      {isLoading &&
+                        Array.from({ length: 5 }).map((_, index) => (
+                          <Skeleton key={index} className="h-10" />
+                        ))}
+                      {!isLoading && reasons?.length === 0 && (
+                        <span className="text-sm text-muted-foreground">
+                          Nenhum motivo encontrado
+                        </span>
+                      )}
+                      {!isLoading &&
+                        reasons?.length > 0 &&
+                        reasons.map((reason) => (
+                          <SelectItem key={reason.id} value={reason.name}>
+                            {reason.name}
+                          </SelectItem>
+                        ))}
                     </SelectGroup>
                   </SelectContent>
                 </Select>
