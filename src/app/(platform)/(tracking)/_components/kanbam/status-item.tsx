@@ -15,6 +15,7 @@ type Lead = {
   order: number;
   phone: string | null;
   statusId: string;
+  tags: string[];
 };
 
 interface StatusItemProps {
@@ -73,7 +74,7 @@ export const StatusItem = ({ data, index }: StatusItemProps) => {
             )}
           >
             <SortableContext items={data.leads.map((col) => col.id)}>
-              {data.leads.map((lead, index) => (
+              {data.leads.map((lead) => (
                 <LeadItem key={lead.id} data={lead} />
               ))}
             </SortableContext>

@@ -18,6 +18,7 @@ type Lead = {
   order: number;
   phone: string | null;
   statusId: string;
+  tags: string[];
 };
 
 export const LeadItem = ({ data }: { data: Lead }) => {
@@ -38,17 +39,11 @@ export const LeadItem = ({ data }: { data: Lead }) => {
     },
   });
 
-  // const { onOpen } = useLeads();
-
   const style = {
     transition,
     transform: CSS.Transform.toString(transform),
     opacity: isDragging ? 0.5 : 1,
   };
-
-  // const handleOpenModal = (leadId: string) => {
-  //   onOpen(leadId);
-  // };
 
   return (
     <div
@@ -96,16 +91,24 @@ export const LeadItem = ({ data }: { data: Lead }) => {
           <Phone className="size-3" />
           {data.phone || "(00) 00000-0000"}
         </div>
-        <div className="flex flex-row gap-2 items-center">
-          <Tag className="size-3" />
-          <div className="flex space-x-0.5">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <Badge key={index} className="size-4 text-[8px]">
-                {index}
-              </Badge>
-            ))}
+        {data.tags.length > 0 && (
+          <div className="flex flex-row gap-2 items-center">
+            <Tag className="size-3" />
+            <div className="flex space-x-0.5">
+              {data.tags.slice(0, 2).map((tag) => (
+                <Badge key={tag}>{tag}</Badge>
+              ))}
+              {data.tags.length > 2 && (
+                <Badge
+                  key={data.tags.length}
+                  className="bg-input rounded-full p-0.5 text-[10px]"
+                >
+                  +{data.tags.length - 2}
+                </Badge>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

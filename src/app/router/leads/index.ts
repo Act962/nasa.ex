@@ -7,12 +7,14 @@ import { addLeadLast } from "./add-lead-to-last";
 import { updateLeadOrder } from "./update-order";
 import { getLead } from "./get";
 import { listLead } from "./list";
+import { createLeadWithTags } from "./create-lead-with-tags";
 
 export const leadRoutes = {
   list: listLead,
   get: getLead,
   search: searchLeads,
   create: createLead,
+  createWithTags: createLeadWithTags,
   update: updateLead,
   delete: deleteLead,
   addToFirst: addLeadFirst,

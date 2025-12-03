@@ -1,4 +1,5 @@
 "use client";
+
 import { XIcon } from "lucide-react";
 import {
   type ComponentProps,
@@ -26,6 +27,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+
 type TagsContextType = {
   value?: string;
   setValue?: (value: string) => void;
@@ -34,6 +36,7 @@ type TagsContextType = {
   width?: number;
   setWidth?: (width: number) => void;
 };
+
 const TagsContext = createContext<TagsContextType>({
   value: undefined,
   setValue: undefined,
@@ -42,13 +45,17 @@ const TagsContext = createContext<TagsContextType>({
   width: undefined,
   setWidth: undefined,
 });
+
 const useTagsContext = () => {
   const context = useContext(TagsContext);
+
   if (!context) {
     throw new Error("useTagsContext must be used within a TagsProvider");
   }
+
   return context;
 };
+
 export type TagsProps = {
   value?: string;
   setValue?: (value: string) => void;
@@ -57,6 +64,7 @@ export type TagsProps = {
   children?: ReactNode;
   className?: string;
 };
+
 export const Tags = ({
   value,
   setValue,
@@ -68,20 +76,26 @@ export const Tags = ({
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const [width, setWidth] = useState<number>();
   const ref = useRef<HTMLDivElement>(null);
+
   const open = controlledOpen ?? uncontrolledOpen;
   const onOpenChange = controlledOnOpenChange ?? setUncontrolledOpen;
+
   useEffect(() => {
     if (!ref.current) {
       return;
     }
+
     const resizeObserver = new ResizeObserver((entries) => {
       setWidth(entries[0].contentRect.width);
     });
+
     resizeObserver.observe(ref.current);
+
     return () => {
       resizeObserver.disconnect();
     };
   }, []);
+
   return (
     <TagsContext.Provider
       value={{ value, setValue, open, onOpenChange, width, setWidth }}
@@ -94,30 +108,45 @@ export const Tags = ({
     </TagsContext.Provider>
   );
 };
-export type TagsTriggerProps = ComponentProps<typeof Button>;
+
+export type TagsTriggerProps = ComponentProps<typeof Button> & {
+  placeholder?: string;
+};
+
 export const TagsTrigger = ({
   className,
   children,
+  placeholder = "Select a tag...",
   ...props
-}: TagsTriggerProps) => (
-  <PopoverTrigger asChild>
-    <Button
-      className={cn("h-auto w-full justify-between p-2", className)}
-      // biome-ignore lint/a11y/useSemanticElements: "Required"
-      role="combobox"
-      variant="outline"
-      {...props}
-    >
-      <div className="flex flex-wrap items-center gap-1">
-        {children}
-        <span className="px-2 py-px text-muted-foreground">
-          Selecione uma tag...
-        </span>
-      </div>
-    </Button>
-  </PopoverTrigger>
-);
+}: TagsTriggerProps) => {
+  // Verifica se há children (tags selecionadas)
+  const hasSelectedTags =
+    children && (Array.isArray(children) ? children.length > 0 : true);
+
+  return (
+    <PopoverTrigger asChild>
+      <Button
+        className={cn("h-auto w-full justify-between p-2", className)}
+        // biome-ignore lint/a11y/useSemanticElements: "Required"
+        role="combobox"
+        variant="outline"
+        {...(props as any)}
+      >
+        <div className="flex flex-wrap items-center gap-1">
+          {children}
+          {!hasSelectedTags && (
+            <span className="px-2 py-px text-muted-foreground">
+              {placeholder}
+            </span>
+          )}
+        </div>
+      </Button>
+    </PopoverTrigger>
+  );
+};
+
 export type TagsValueProps = ComponentProps<typeof Badge>;
+
 export const TagsValue = ({
   className,
   children,
@@ -129,8 +158,12 @@ export const TagsValue = ({
     event.stopPropagation();
     onRemove?.();
   };
+
   return (
-    <Badge className={cn("flex items-center gap-2", className)} {...props}>
+    <Badge
+      className={cn("flex items-center gap-2", className)}
+      {...(props as any)}
+    >
       {children}
       {onRemove && (
         // biome-ignore lint/a11y/noStaticElementInteractions: "This is a clickable badge"
@@ -145,45 +178,60 @@ export const TagsValue = ({
     </Badge>
   );
 };
+
 export type TagsContentProps = ComponentProps<typeof PopoverContent>;
+
 export const TagsContent = ({
   className,
   children,
   ...props
 }: TagsContentProps) => {
   const { width } = useTagsContext();
+
   return (
     <PopoverContent
       className={cn("p-0", className)}
       style={{ width }}
-      {...props}
+      {...(props as any)}
     >
       <Command>{children}</Command>
     </PopoverContent>
   );
 };
+
 export type TagsInputProps = ComponentProps<typeof CommandInput>;
+
 export const TagsInput = ({ className, ...props }: TagsInputProps) => (
-  <CommandInput className={cn("h-9", className)} {...props} />
+  <CommandInput className={cn("h-9", className)} {...(props as any)} />
 );
+
 export type TagsListProps = ComponentProps<typeof CommandList>;
+
 export const TagsList = ({ className, ...props }: TagsListProps) => (
-  <CommandList className={cn("max-h-[200px]", className)} {...props} />
+  <CommandList className={cn("max-h-[200px]", className)} {...(props as any)} />
 );
+
 export type TagsEmptyProps = ComponentProps<typeof CommandEmpty>;
+
 export const TagsEmpty = ({
   children,
   className,
   ...props
 }: TagsEmptyProps) => (
-  <CommandEmpty {...props}>{children ?? "No tags found."}</CommandEmpty>
+  <CommandEmpty {...(props as any)}>
+    {children ?? "No tags found."}
+  </CommandEmpty>
 );
+
 export type TagsGroupProps = ComponentProps<typeof CommandGroup>;
+
 export const TagsGroup = CommandGroup;
+
 export type TagsItemProps = ComponentProps<typeof CommandItem>;
+
 export const TagsItem = ({ className, ...props }: TagsItemProps) => (
   <CommandItem
     className={cn("cursor-pointer items-center justify-between", className)}
-    {...props}
+    {...(props as any)}
   />
 );

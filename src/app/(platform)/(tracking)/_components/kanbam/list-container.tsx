@@ -48,6 +48,7 @@ type StatusWithLeads = {
     order: number;
     phone: string | null;
     statusId: string;
+    tags: string[];
   }[];
 };
 
