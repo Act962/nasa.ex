@@ -179,7 +179,7 @@ function InfoItem({ label, value, loading, type }: InfoItemProps) {
 
   function handleEditField(dataField: string) {
     handleToggle();
-    console.log({ data: dataField, leadId: leadId });
+    //console.log({ data: dataField, leadId: leadId });
   }
 
   return (
