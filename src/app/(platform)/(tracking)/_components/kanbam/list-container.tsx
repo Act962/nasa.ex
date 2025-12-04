@@ -171,7 +171,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
       // Aqui você pode adicionar a lógica específica para cada ação
       switch (footerAction) {
         case "excluir":
-          onOpenDeleteLead(leadData);
+          onOpenDeleteLead({ ...leadData, trackingId });
           break;
         case "ganho":
           onOpen(leadData.id, "WIN");
