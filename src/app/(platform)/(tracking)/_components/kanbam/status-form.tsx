@@ -84,19 +84,25 @@ export const StatusForm = () => {
                 align="end"
               >
                 <DropdownMenuLabel>Cor do status</DropdownMenuLabel>
-                <div className="dark:text-background">
+                <div >
                   <SketchPicker
-                    width="91%"
+                    width="88%"
                     color={colorSelect}
                     onChange={(e) => setColorSelect(e.hex)}
                     disableAlpha
                     presetColors={[
-                      "#D0021B",
-                      "#F5A623",
-                      "#F8E71C",
-                      "#8B572A",
-                      "#7ED321",
-                      "#417505",
+                      "#FFFFFF",
+                      "#595D66",
+                      "#f6fa14",
+                      "#1090E0",
+                      "#EE5E99",
+                      "#3DB88B",
+                      "#E16B16",
+                      "#B660E0",
+                      "#FE5050",
+                      "#FAB515",
+                      "#7A5FDF",
+                      "#000000",
                     ]}
                   />
                 </div>
