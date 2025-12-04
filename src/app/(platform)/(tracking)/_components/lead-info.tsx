@@ -14,6 +14,11 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { LeadFull } from "@/types/lead";
@@ -27,8 +32,8 @@ import {
   Phone,
   Plus,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { ReactNode, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
   initialData: LeadFull;
@@ -38,6 +43,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
   const { data: session, isPending } = authClient.useSession();
   const router = useRouter();
   const { lead } = initialData;
+
   return (
     <div
       className={cn("w-64 h-full bg-sidebar border-r px-4", className)}
@@ -163,19 +169,17 @@ interface InfoItemProps {
   value: string;
   loading?: boolean;
   type?: TypeFieldLead;
-  handleInfoLead?: () => void;
 }
-function InfoItem({
-  label,
-  value,
-  loading,
-  handleInfoLead,
-  type,
-}: InfoItemProps) {
+function InfoItem({ label, value, loading, type }: InfoItemProps) {
   const [isEditingLead, setIsEditingLead] = useState(false);
-
+  const { leadId } = useParams<{ leadId: string }>();
   function handleToggle() {
     setIsEditingLead((isEditingLead) => !isEditingLead);
+  }
+
+  function handleEditField(dataField: string) {
+    handleToggle();
+    //console.log({ data: dataField, leadId: leadId });
   }
 
   return (
@@ -191,8 +195,17 @@ function InfoItem({
           <div className="flex flex-col gap-1 group">
             <span className="text-xs opacity-60">{label}</span>
             {!isEditingLead ? (
-              <div>
-                <span className="text-xs">{value}</span>
+              <div className="flex items-center">
+                <Tooltip delayDuration={700}>
+                  <TooltipTrigger asChild>
+                    <span className="text-xs max-w-[180px] truncate">
+                      {value}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{value}</p>
+                  </TooltipContent>
+                </Tooltip>
                 {type && (
                   <Button
                     variant={"ghost"}
@@ -210,15 +223,13 @@ function InfoItem({
               <>
                 {type === "responsible" ? (
                   <SelectEditForm
-                    onBlur={handleToggle}
                     value={value}
-                    onSubmit={() => handleInfoLead}
+                    onSubmit={(value) => handleEditField(value)}
                   />
                 ) : (
                   <InputEditForm
-                    onBlur={handleToggle}
                     value={value}
-                    onSubmit={() => handleInfoLead}
+                    onSubmit={(value) => handleEditField(value)}
                   />
                 )}
               </>
@@ -231,41 +242,38 @@ function InfoItem({
 }
 interface EditingComponentProps {
   value: string;
-  onBlur: () => void;
   onSubmit: (value: string) => void;
 }
 
-const InputEditForm = ({ value, onBlur, onSubmit }: EditingComponentProps) => {
+const InputEditForm = ({ value, onSubmit }: EditingComponentProps) => {
   const [localValue, setLocalValue] = useState(value);
 
   const handleSubmit = (e: React.FormEvent) => {
-    onBlur();
-    e.preventDefault();
     onSubmit(localValue);
+    e.preventDefault();
   };
 
   return (
     <form onSubmit={handleSubmit}>
       <Input
-        className="h-8"
+        className="h-8 text-xs  "
         autoFocus
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
-        onBlur={onBlur}
+        onBlur={handleSubmit}
       />
       <button type="submit" className="hidden sr-only" />
     </form>
   );
 };
 
-const SelectEditForm = ({ value, onBlur, onSubmit }: EditingComponentProps) => {
+const SelectEditForm = ({ value, onSubmit }: EditingComponentProps) => {
   const [localValue, setLocalValue] = useState(value);
 
   const userSelectable = ["Chiquinho", "John", "Pedrin"];
 
   const handleChange = (newValue: string) => {
     setLocalValue(newValue);
-    onBlur();
     onSubmit(newValue);
   };
 
