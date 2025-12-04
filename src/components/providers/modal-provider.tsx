@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { DeletarLeadModal } from "../modals/delete-lead-modal";
 
 // Lazy load dos modais
 const ModalSettingTracking = dynamic(
@@ -57,6 +58,7 @@ export function ModalProvider() {
       <ModalSettingTracking />
       <ModalCreateTracking />
       <SearchLeadModal />
+      <DeletarLeadModal />
       {/* <AddLeadSheet /> */}
     </>
   );

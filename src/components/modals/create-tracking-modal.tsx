@@ -9,7 +9,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Field,
@@ -22,7 +21,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -30,13 +28,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Spinner } from "@/components/spinner";
 import { useTracking } from "@/hooks/use-tracking-modal";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
 
 const createTrackingSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório"),
@@ -53,6 +44,7 @@ export function ModalCreateTracking() {
     handleSubmit,
     formState: { errors },
     reset,
+    watch,
   } = useForm<CreateTrackingForm>({
     resolver: zodResolver(createTrackingSchema),
     defaultValues: {
