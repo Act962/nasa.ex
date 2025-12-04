@@ -28,8 +28,8 @@ import { toast } from "sonner";
 import { useParams } from "next/navigation";
 import { LeadItem } from "./lead-item";
 import { Footer } from "./footer";
-import { useUpdateStatus } from "@/context/status/hooks/use-status";
 import { useLostOrWin } from "@/hooks/use-lost-or-win";
+import { useDeletLead } from "@/hooks/use-delete-lead";
 
 interface ListContainerProps {
   trackingId: string;
@@ -55,6 +55,7 @@ type StatusWithLeads = {
 export function ListContainer({ trackingId }: ListContainerProps) {
   const params = useParams<{ trackingId: string }>();
   const { onOpen } = useLostOrWin();
+  const { onOpen: onOpenDeleteLead } = useDeletLead();
 
   const { data } = useSuspenseQuery(
     orpc.status.list.queryOptions({
@@ -164,14 +165,13 @@ export function ListContainer({ trackingId }: ListContainerProps) {
       active.data.current?.type === "Lead" &&
       over.data.current?.type === "FooterButton"
     ) {
-      const leadData = active.data.current.lead;
+      const leadData: StatusWithLeads["leads"][0] = active.data.current.lead;
       const footerAction = over.data.current.action;
 
       // Aqui você pode adicionar a lógica específica para cada ação
       switch (footerAction) {
         case "excluir":
-          console.log("⚠️ Ação: Excluir lead", leadData.id);
-          // Adicione aqui a lógica de exclusão
+          onOpenDeleteLead(leadData);
           break;
         case "ganho":
           onOpen(leadData.id, "WIN");
