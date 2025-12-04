@@ -69,6 +69,9 @@ export const listStatus = base
           orderBy: {
             order: "asc",
           },
+          where: {
+            currentAction: "ACTIVE",
+          },
         },
       },
       where: {

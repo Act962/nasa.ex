@@ -8,6 +8,7 @@ import { updateLeadOrder } from "./update-order";
 import { getLead } from "./get";
 import { listLead } from "./list";
 import { createLeadWithTags } from "./create-lead-with-tags";
+import { updateLeadAction } from "./update-action";
 
 export const leadRoutes = {
   list: listLead,
@@ -20,4 +21,5 @@ export const leadRoutes = {
   addToFirst: addLeadFirst,
   addToLast: addLeadLast,
   updateOrder: updateLeadOrder,
+  updateAction: updateLeadAction,
 };
