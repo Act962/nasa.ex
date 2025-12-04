@@ -4,6 +4,14 @@ import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { authClient } from "@/lib/auth-client";
@@ -122,7 +130,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                 loading={isPending}
                 label="Responsável"
                 value={session?.user.name ?? "Sem Responsável"}
-                type="responsable"
+                type="responsible"
               />
               <InfoItem label="Tracking" value={lead.tracking.name} />
               <InfoItem label="Status" value={lead.status.name} />
@@ -130,10 +138,10 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
           </TabsContent>
           <TabsContent value="address-lead" className="w-full ">
             <CardContent className="space-y-3">
-              <InfoItem label="Rua" value="Sem rua" />
-              <InfoItem label="Cidade" value="Sem Cidade" />
-              <InfoItem label="Estado" value="Sem Estado" />
-              <InfoItem label="País" value="Sem País" />
+              <InfoItem label="Rua" value="Sem rua" type="street" />
+              <InfoItem label="Cidade" value="Sem Cidade" type="city" />
+              <InfoItem label="Estado" value="Sem Estado" type="city" />
+              <InfoItem label="País" value="Sem País" type="country" />
             </CardContent>
           </TabsContent>
         </Tabs>
@@ -142,7 +150,13 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
   );
 }
 
-type TypeFieldLead = "email" | "phone" | "responsable";
+type TypeFieldLead =
+  | "email"
+  | "phone"
+  | "responsible"
+  | "street"
+  | "city"
+  | "country";
 
 interface InfoItemProps {
   label: string;
@@ -151,7 +165,6 @@ interface InfoItemProps {
   type?: TypeFieldLead;
   handleInfoLead?: () => void;
 }
-
 function InfoItem({
   label,
   value,
@@ -164,26 +177,27 @@ function InfoItem({
   function handleToggle() {
     setIsEditingLead((isEditingLead) => !isEditingLead);
   }
+
   return (
     <>
-      {!isEditingLead ? (
-        <div className="flex flex-col gap-1 lead">
-          {loading && (
-            <div className="flex flex-col w-full gap-1">
-              <Skeleton className="w-full h-4 rounded-sm" />
-              <Skeleton className="w-20 h-4 rounded-sm" />
-            </div>
-          )}
-          {!loading && (
-            <div className="flex flex-col gap-1 group">
-              <span className="text-xs opacity-60">{label}</span>
+      <div className="flex flex-col gap-1 lead">
+        {loading && (
+          <div className="flex flex-col w-full gap-1">
+            <Skeleton className="w-full h-4 rounded-sm" />
+            <Skeleton className="w-20 h-4 rounded-sm" />
+          </div>
+        )}
+        {!loading && (
+          <div className="flex flex-col gap-1 group">
+            <span className="text-xs opacity-60">{label}</span>
+            {!isEditingLead ? (
               <div>
                 <span className="text-xs">{value}</span>
                 {type && (
                   <Button
                     variant={"ghost"}
                     size={"icon-xs"}
-                    className="items-center ml-2 opacity-0 
+                    className="items-center ml-2 opacity-100 sm:opacity-0 
                     transition-opacity
                     group-hover:opacity-100"
                     onClick={handleToggle}
@@ -192,41 +206,48 @@ function InfoItem({
                   </Button>
                 )}
               </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        <>
-          {type === "email" && (
-            <EmailEditForm onBlur={handleToggle} value={value} />
-          )}
-          {type === "phone" && (
-            <PhoneEditForm onBlur={handleToggle} value={value} />
-          )}
-          {type === "responsable" && (
-            <ResponsableEditForm onBlur={handleToggle} value={value} />
-          )}
-        </>
-      )}
+            ) : (
+              <>
+                {type === "responsible" ? (
+                  <SelectEditForm
+                    onBlur={handleToggle}
+                    value={value}
+                    onSubmit={() => handleInfoLead}
+                  />
+                ) : (
+                  <InputEditForm
+                    onBlur={handleToggle}
+                    value={value}
+                    onSubmit={() => handleInfoLead}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </>
   );
 }
-
 interface EditingComponentProps {
   value: string;
   onBlur: () => void;
+  onSubmit: (value: string) => void;
 }
 
-const EmailEditForm = ({ value, onBlur }: EditingComponentProps) => {
+const InputEditForm = ({ value, onBlur, onSubmit }: EditingComponentProps) => {
   const [localValue, setLocalValue] = useState(value);
 
   const handleSubmit = (e: React.FormEvent) => {
+    onBlur();
     e.preventDefault();
+    onSubmit(localValue);
   };
 
   return (
     <form onSubmit={handleSubmit}>
       <Input
+        className="h-8"
         autoFocus
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
@@ -237,41 +258,31 @@ const EmailEditForm = ({ value, onBlur }: EditingComponentProps) => {
   );
 };
 
-const PhoneEditForm = ({ value, onBlur }: EditingComponentProps) => {
+const SelectEditForm = ({ value, onBlur, onSubmit }: EditingComponentProps) => {
   const [localValue, setLocalValue] = useState(value);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const userSelectable = ["Chiquinho", "John", "Pedrin"];
+
+  const handleChange = (newValue: string) => {
+    setLocalValue(newValue);
+    onBlur();
+    onSubmit(newValue);
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <Input
-        autoFocus
-        value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
-        onBlur={onBlur}
-      />
-      <button type="submit" className="hidden sr-only" />
-    </form>
-  );
-};
-const ResponsableEditForm = ({ value, onBlur }: EditingComponentProps) => {
-  const [localValue, setLocalValue] = useState(value);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-  };
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <Input
-        autoFocus
-        value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
-        onBlur={onBlur}
-      />
-      <button type="submit" className="hidden sr-only" />
-    </form>
+    <Select onValueChange={handleChange}>
+      <SelectTrigger className="w-[180px]" size="sm" autoFocus>
+        <SelectValue placeholder={localValue} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {userSelectable.map((user) => (
+            <SelectItem key={`user-selectable-${user}`} value={user}>
+              {user}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
   );
 };

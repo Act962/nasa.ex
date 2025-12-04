@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ActivityIcon, Book, StickyNote } from "lucide-react";
 import { RichtTextEditor } from "@/app/(platform)/(tracking)/_components/rich-text-editor/editor";
 import { ContainerItemLead } from "./container-item-lead";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 const tabs = [
   {
