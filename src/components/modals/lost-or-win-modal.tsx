@@ -27,15 +27,21 @@ import { useParams } from "next/navigation";
 import { useReasons } from "@/context/reasons/hooks/use-reasons";
 import { Skeleton } from "../ui/skeleton";
 import { SelectItem } from "../ui/select";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
+import { toast } from "sonner";
 
 const schemaLostOrWinner = z.object({
   observation: z.string().optional(),
   reasons: z.string().min(1, "Campo obrigatório"),
 });
 
+type FromLostOrWinner = z.infer<typeof schemaLostOrWinner>;
+
 export function LostOrWinModal() {
+  const { id: leadId, isOpen, onClose, type } = useLostOrWin();
   const params = useParams<{ trackingId: string }>();
-  const { isOpen, onClose, type } = useLostOrWin();
+  const queryClient = useQueryClient();
   const { reasons, isLoading } = useReasons(params.trackingId, type);
 
   const form = useForm({
@@ -48,15 +54,43 @@ export function LostOrWinModal() {
 
   const isLost = type === "LOSS";
 
-  const onSubmit = () => {
-    console.log(form.getValues());
+  const mutation = useMutation(
+    orpc.leads.updateAction.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.status.list.queryKey({
+            input: {
+              trackingId: params.trackingId,
+            },
+          }),
+        });
+
+        toast.success("Lead atualizado com sucesso");
+        form.reset();
+        onClose();
+      },
+      onError: () => {
+        toast.error("Erro ao atualizar lead");
+      },
+    })
+  );
+
+  const onSubmit = (data: FromLostOrWinner) => {
+    if (!leadId) return;
+
+    mutation.mutate({
+      leadId,
+      action: isLost ? "LOSS" : "WIN",
+      reasonId: data.reasons,
+      observation: data.observation,
+    });
   };
 
   useEffect(() => {
     if (!isOpen) {
       form.reset();
     }
-  }, [onClose, form]);
+  }, [isOpen, form]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -96,7 +130,7 @@ export function LostOrWinModal() {
                       {!isLoading &&
                         reasons?.length > 0 &&
                         reasons.map((reason) => (
-                          <SelectItem key={reason.id} value={reason.name}>
+                          <SelectItem key={reason.id} value={reason.id}>
                             {reason.name}
                           </SelectItem>
                         ))}
