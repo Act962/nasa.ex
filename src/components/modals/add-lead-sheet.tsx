@@ -192,7 +192,7 @@ export default function AddLeadSheet() {
           <SheetDescription>Crie um novo lead para o tracking</SheetDescription>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 px-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 h-full overflow-y-auto px-4 pb-4">
           {/* Nome */}
           <div className="flex flex-col gap-y-2">
             <Label htmlFor="name">
