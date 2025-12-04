@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { DeletarLeadModal } from "../modals/delete-lead-modal";
 
 // Lazy load dos modais
 const ModalSettingTracking = dynamic(
@@ -41,6 +40,14 @@ const LostOrWinModal = dynamic(
   { ssr: false }
 );
 
+const DeletarLeadModal = dynamic(
+  () =>
+    import("../modals/delete-lead-modal").then((mod) => ({
+      default: mod.DeletarLeadModal,
+    })),
+  { ssr: false }
+);
+
 export function ModalProvider() {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -59,7 +66,7 @@ export function ModalProvider() {
       <ModalCreateTracking />
       <SearchLeadModal />
       <DeletarLeadModal />
-      {/* <AddLeadSheet /> */}
+      <AddLeadSheet />
     </>
   );
 }

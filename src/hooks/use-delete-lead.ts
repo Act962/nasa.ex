@@ -3,6 +3,7 @@ import { create } from "zustand";
 type leadsDeletModal = {
   id: string;
   name: string;
+  trackingId: string;
 } | null;
 
 type deletLeadType = {

@@ -13,6 +13,15 @@ export const archiveLead = base
   })
   .use(requiredAuthMiddleware)
   .input(z.object({ leadId: z.string() }))
+  .output(
+    z.object({
+      lead: z.object({
+        id: z.string(),
+        name: z.string(),
+        trackingId: z.string(),
+      }),
+    })
+  )
   .handler(async ({ input, errors, context }) => {
     try {
       const { id: userId } = context.user;
@@ -42,6 +51,10 @@ export const archiveLead = base
           },
         }),
       ]);
+
+      return {
+        lead: leadExists,
+      };
     } catch (error) {
       throw errors.INTERNAL_SERVER_ERROR;
     }
