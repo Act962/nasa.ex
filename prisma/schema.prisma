@@ -24,6 +24,11 @@ model User {
   invitations Invitation[]
   trackings   TrackingParticipant[]
   leadHistories LeadHistory[]
+  participantOnActions ActionsUserParticipant[]
+  responsibleOnActions ActionsUserResponsible[]
+  actions Action[]
+  responsibleOnSubActions SubActionUserResponsible[]
+
 
   @@unique([email])
   @@map("user")
@@ -301,3 +306,83 @@ model LeadTag {
   @@index([tagId])
   @@map("lead_tags")
 }
+
+model ActionsUserParticipant {
+  id String @id @default(cuid())
+  actionId String @map("action_id")
+  userId String @map("user_id")
+
+  action Action @relation(fields: [actionId], references: [id] ) 
+  user User @relation(fields: [userId], references: [id])
+  
+  @@unique([actionId, userId])
+  @@map("actions_user_participants")
+}
+
+model ActionsUserResponsible{
+  id String @id @default(cuid())
+  actionId String @map("action_id")
+  userId String @map("user_id")
+
+  action Action @relation(fields: [actionId], references: [id] ) 
+  user User @relation(fields: [userId], references: [id])
+  
+  @@unique([actionId, userId])
+  @@map("actions_user_responsibles")
+}
+
+enum TypeAction {
+  TASK
+  ACTION
+  MEETING
+  NOTE
+}
+model Action {
+  id String @id @default(cuid())
+  title String 
+  description String?
+  score Int @default(0) 
+  isDone Boolean @default(false) @map("is_done")
+  type TypeAction @default(TASK)
+  createdBy String @map("created_by")
+  startDate DateTime? @map("start_date")
+  endDate DateTime? @map("end_date")
+  closedAt DateTime? @map("closed_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [createdBy], references: [id])
+
+  participants ActionsUserParticipant[]
+  responsibles ActionsUserResponsible[]
+  subActions SubActions[]
+
+  @@map("actions")
+}
+
+model SubActionUserResponsible{
+  id String @id @default(cuid())
+  userId String @map("user_id")
+  subActionId String @map("sub_action_id")
+
+  user User @relation(fields: [userId], references: [id])
+  subAction SubActions @relation(fields: [subActionId], references: [id])
+
+  @@unique([userId, subActionId])
+  @@map("sub_actions_user_responsible")
+}
+
+model SubActions {
+  id String @id @default(cuid())
+  title String
+  description String?
+  isDone Boolean @default(false) @map("is_done")
+  finishDate DateTime? @map("finish_date")
+  createdAt DateTime @default(now()) @map("created_at")
+  actionId String @map("action_id")
+  
+  action Action @relation(fields: [actionId], references: [id])
+  responsibles SubActionUserResponsible[]
+
+  @@map("sub_action")
+}
+
