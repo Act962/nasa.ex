@@ -92,6 +92,7 @@ model Organization {
   invitations Invitation[]
   trackings   Tracking[]
   tags        Tag[]
+  actions Action[]
 
   @@unique([slug])
   @@map("organization")
@@ -143,6 +144,7 @@ model Tracking {
   leads          Lead[]
   tags Tag[]
   winLossReasons  WinLossReason[]
+  actions Action[]
   
   @@map("tracking")
 }
@@ -258,6 +260,7 @@ model Lead {
 
   leadTags    LeadTag[]
   history  LeadHistory[]
+  actions  Action[]
 
   @@index([phone])
   @@index([trackingId]) 
@@ -308,15 +311,16 @@ model LeadTag {
 }
 
 model ActionsUserParticipant {
-  id String @id @default(cuid())
-  actionId String @map("action_id")
-  userId String @map("user_id")
+  id       String   @id @default(cuid())
+  actionId String   @map("action_id")
+  userId   String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  action Action @relation(fields: [actionId], references: [id] ) 
-  user User @relation(fields: [userId], references: [id])
-  
+  action Action @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([actionId, userId])
-  @@map("actions_user_participants")
+  @@index([userId])
 }
 
 model ActionsUserResponsible{
@@ -324,8 +328,8 @@ model ActionsUserResponsible{
   actionId String @map("action_id")
   userId String @map("user_id")
 
-  action Action @relation(fields: [actionId], references: [id] ) 
-  user User @relation(fields: [userId], references: [id])
+  action Action @relation(fields: [actionId], references: [id], onDelete: Cascade) 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@unique([actionId, userId])
   @@map("actions_user_responsibles")
@@ -344,18 +348,31 @@ model Action {
   score Int @default(0) 
   isDone Boolean @default(false) @map("is_done")
   type TypeAction @default(TASK)
+  trackingId     String?  @map("tracking_id")
+  organizationId String?  @map("organization_id")
   createdBy String @map("created_by")
+  leadId String? @map("lead_id")
   startDate DateTime? @map("start_date")
   endDate DateTime? @map("end_date")
   closedAt DateTime? @map("closed_at")
   createdAt DateTime @default(now()) @map("created_at")
 
-  user User @relation(fields: [createdBy], references: [id])
+  user User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  lead Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  tracking     Tracking?     @relation(fields: [trackingId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   participants ActionsUserParticipant[]
   responsibles ActionsUserResponsible[]
   subActions SubActions[]
 
+  @@index([leadId])
+  @@index([createdBy])
+  @@index([isDone])
+  @@index([type])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([closedAt])
   @@map("actions")
 }
 
@@ -364,8 +381,8 @@ model SubActionUserResponsible{
   userId String @map("user_id")
   subActionId String @map("sub_action_id")
 
-  user User @relation(fields: [userId], references: [id])
-  subAction SubActions @relation(fields: [subActionId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subAction SubActions @relation(fields: [subActionId], references: [id], onDelete: Cascade)
 
   @@unique([userId, subActionId])
   @@map("sub_actions_user_responsible")
@@ -383,6 +400,9 @@ model SubActions {
   action Action @relation(fields: [actionId], references: [id])
   responsibles SubActionUserResponsible[]
 
+  @@index([actionId])
+  @@index([isDone])
+  @@index([finishDate])
   @@map("sub_action")
 }
 

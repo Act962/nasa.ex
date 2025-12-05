@@ -31,7 +31,7 @@ export const createLeadWithTags = base
         });
 
         if (existingLead) {
-          return { lead: existingLead };
+          throw errors.BAD_REQUEST;
         }
 
         // Determinar ordem baseado na posição
