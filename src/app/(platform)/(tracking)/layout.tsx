@@ -3,16 +3,19 @@ import { AppSidebar } from "./_components/sidebar";
 import { HeaderTracking } from "./_components/header-tracking";
 import { currentOrganization } from "@/lib/auth-utils";
 import { EmptyOrganization } from "./_components/empty-organization";
+import { cookies } from "next/headers";
 
 export default async function RouteLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const cookieStore = await cookies();
+  const defaultOpen = cookieStore.get("sidebar_state")?.value === "open";
   const org = await currentOrganization();
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={defaultOpen}>
       <AppSidebar />
 
       {org && <>{children}</>}

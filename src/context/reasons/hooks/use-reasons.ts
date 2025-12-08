@@ -9,6 +9,7 @@ export function useReasons(trackingId: string, type: "WIN" | "LOSS") {
         type,
       },
       enabled: !!trackingId,
+      queryKey: ["reasons", trackingId, type],
     })
   );
 

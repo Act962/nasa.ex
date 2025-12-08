@@ -7,7 +7,7 @@ import {
 import { useTrackingSetting } from "@/hooks/use-settings";
 import { ModeToggle } from "../mode-toggle";
 
-export function ModalSettingTracking() {
+export function SettingsModal() {
   const settings = useTrackingSetting();
 
   return (

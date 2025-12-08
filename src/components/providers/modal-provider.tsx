@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 
 // Lazy load dos modais
-const ModalSettingTracking = dynamic(
+const SettingsModal = dynamic(
   () =>
-    import("../modals/settings-tracking").then((mod) => ({
-      default: mod.ModalSettingTracking,
+    import("../modals/settings-modal").then((mod) => ({
+      default: mod.SettingsModal,
     })),
   { ssr: false }
 );
@@ -62,7 +62,7 @@ export function ModalProvider() {
   return (
     <>
       <LostOrWinModal />
-      <ModalSettingTracking />
+      <SettingsModal />
       <ModalCreateTracking />
       <SearchLeadModal />
       <DeletarLeadModal />

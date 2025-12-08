@@ -26,6 +26,7 @@ import {
   Search,
   UserRoundPlus,
 } from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 
 export function NavTracking() {
@@ -54,7 +55,11 @@ export function NavTracking() {
         <ButtonGroup>
           <ButtonGroup className="hidden sm:flex">
             <Button variant="outline">Automações</Button>
-            <Button variant="outline">Configurações</Button>
+            <Button variant="outline">
+              <Link href={`/tracking/${params.trackingId}/settings`} prefetch>
+                Configurações
+              </Link>
+            </Button>
             <Button onClick={() => onOpen(params.trackingId)}>Novo Lead</Button>
           </ButtonGroup>
 
@@ -88,9 +93,14 @@ export function NavTracking() {
                     <ClockIcon />
                     Automação
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <CalendarPlusIcon />
-                    Configurações
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href={`/tracking/${params.trackingId}/settings`}
+                      prefetch
+                    >
+                      <CalendarPlusIcon />
+                      Configurações
+                    </Link>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>
