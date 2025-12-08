@@ -48,6 +48,14 @@ const DeletarLeadModal = dynamic(
   { ssr: false }
 );
 
+const AddMemberModal = dynamic(
+  () =>
+    import("../modals/add-member-modal").then((mod) => ({
+      default: mod.AddMemberModal,
+    })),
+  { ssr: false }
+);
+
 export function ModalProvider() {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -67,6 +75,7 @@ export function ModalProvider() {
       <SearchLeadModal />
       <DeletarLeadModal />
       <AddLeadSheet />
+      <AddMemberModal />
     </>
   );
 }

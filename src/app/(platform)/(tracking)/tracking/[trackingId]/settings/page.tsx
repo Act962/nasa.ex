@@ -7,55 +7,6 @@ type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
 };
 
-const tabs = [
-  {
-    name: "Geral",
-    value: "general",
-    content: (
-      <>
-        Discover{" "}
-        <span className="text-foreground font-semibold">fresh ideas</span>,
-        trending topics, and hidden gems curated just for you. Start exploring
-        and let your curiosity lead the way!
-      </>
-    ),
-  },
-  {
-    name: "Participantes",
-    value: "participants",
-    content: (
-      <>
-        Discover{" "}
-        <span className="text-foreground font-semibold">fresh ideas</span>,
-        trending topics, and hidden gems curated just for you. Start exploring
-        and let your curiosity lead the way!
-      </>
-    ),
-  },
-  {
-    name: "Motivos de ganho",
-    value: "reasons_win",
-    content: (
-      <>
-        All your <span className="text-foreground font-semibold">reasons</span>{" "}
-        are saved here. Revisit articles, collections, and moments you love, any
-        time you want a little inspiration.
-      </>
-    ),
-  },
-  {
-    name: "Motivos de perda",
-    value: "reasons_loss",
-    content: (
-      <>
-        <span className="text-foreground font-semibold">Motivos de perda!</span>{" "}
-        Here&apos;s something unexpected—a fun fact, a quirky tip, or a daily
-        challenge. Come back for a new surprise every day!
-      </>
-    ),
-  },
-];
-
 export default async function Page({ params }: SettingTrackingPage) {
   const { trackingId } = await params;
 
@@ -83,29 +34,31 @@ export default async function Page({ params }: SettingTrackingPage) {
   ];
 
   return (
-    <div className="w-full px-4">
+    <div className="w-full">
       <Tabs
         defaultValue="general"
-        orientation="vertical"
-        className="flex-row gap-6"
+        orientation="horizontal"
+        className="flex-col sm:flex-row gap-6"
       >
-        <TabsList className="bg-background h-full flex-col rounded-none p-0 w-1/4">
+        <TabsList className="bg-background h-full flex-row sm:flex-col rounded-none p-0 w-full sm:w-1/4 border-b sm:border-b-0 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
           {tabs.map((tab) => (
             <TabsTrigger
               key={tab.value}
               value={tab.value}
-              className="bg-background data-[state=active]:border-primary dark:data-[state=active]:border-primary h-full w-full justify-start rounded-none border-0 border-l-2 border-transparent data-[state=active]:shadow-none py-3"
+              className="bg-background data-[state=active]:border-primary dark:data-[state=active]:border-primary h-full w-auto sm:w-full justify-start rounded-none border-0 border-b-2 sm:border-l-2 sm:border-b-0 border-transparent data-[state=active]:shadow-none sm:py-3 whitespace-nowrap px-4 first:pl-0 sm:first:pl-4"
             >
               {tab.name}
             </TabsTrigger>
           ))}
         </TabsList>
 
-        {tabs.map((tab) => (
-          <TabsContent key={tab.value} value={tab.value}>
-            {tab.content}
-          </TabsContent>
-        ))}
+        <div className="px-4 w-full">
+          {tabs.map((tab) => (
+            <TabsContent key={tab.value} value={tab.value}>
+              {tab.content}
+            </TabsContent>
+          ))}
+        </div>
       </Tabs>
     </div>
   );

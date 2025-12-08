@@ -1,7 +1,7 @@
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider      = "prisma-client"
+  output        = "../src/generated/prisma"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
@@ -10,7 +10,7 @@ datasource db {
 }
 
 model User {
-  id            String    @id
+  id            String    @id @default(cuid())
   name          String
   email         String
   emailVerified Boolean   @default(false)
@@ -20,22 +20,21 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
-  members     Member[]
-  invitations Invitation[]
-  trackings   TrackingParticipant[]
-  leadHistories LeadHistory[]
-  participantOnActions ActionsUserParticipant[]
-  responsibleOnActions ActionsUserResponsible[]
-  actions Action[]
+  members                 Member[]
+  invitations             Invitation[]
+  trackings               TrackingParticipant[]
+  leadHistories           LeadHistory[]
+  participantOnActions    ActionsUserParticipant[]
+  responsibleOnActions    ActionsUserResponsible[]
+  actions                 Action[]
   responsibleOnSubActions SubActionUserResponsible[]
-
 
   @@unique([email])
   @@map("user")
 }
 
 model Session {
-  id        String   @id
+  id        String   @id @default(cuid())
   expiresAt DateTime
   token     String
   createdAt DateTime @default(now())
@@ -49,10 +48,11 @@ model Session {
 
   @@unique([token])
   @@map("session")
+  @@index([userId])
 }
 
 model Account {
-  id                    String    @id
+  id                    String    @id @default(cuid())
   accountId             String
   providerId            String
   userId                String
@@ -68,10 +68,11 @@ model Account {
   updatedAt             DateTime  @updatedAt
 
   @@map("account")
+  @@index([userId])
 }
 
 model Verification {
-  id         String   @id
+  id         String   @id @default(cuid())
   identifier String
   value      String
   expiresAt  DateTime
@@ -79,10 +80,11 @@ model Verification {
   updatedAt  DateTime @default(now()) @updatedAt
 
   @@map("verification")
+  @@index([identifier])
 }
 
 model Organization {
-  id          String       @id
+  id          String       @id @default(cuid())
   name        String
   slug        String
   logo        String?
@@ -92,14 +94,14 @@ model Organization {
   invitations Invitation[]
   trackings   Tracking[]
   tags        Tag[]
-  actions Action[]
+  actions     Action[]
 
   @@unique([slug])
   @@map("organization")
 }
 
 model Member {
-  id             String       @id
+  id             String       @id @default(cuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userId         String
@@ -114,7 +116,7 @@ model Member {
 }
 
 model Invitation {
-  id             String       @id
+  id             String       @id @default(cuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   email          String
@@ -124,46 +126,49 @@ model Invitation {
   inviterId      String
   user           User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
 
+  createdAt DateTime @default(now())
+
   @@map("invitation")
+  @@index([organizationId])
+  @@index([email])
 }
 
-
 model Tracking {
-  id String @id @default(cuid())
-  name String
-  description String?
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
   organizationId String   @map("organization_id")
-  isArchived      Boolean  @default(false) @map("is_archived")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  isArchived     Boolean  @default(false) @map("is_archived")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   // Relacionamentos
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   participants   TrackingParticipant[]
-  status       Status[]
+  status         Status[]
   leads          Lead[]
-  tags Tag[]
-  winLossReasons  WinLossReason[]
-  actions Action[]
-  
+  tags           Tag[]
+  winLossReasons WinLossReason[]
+  actions        Action[]
+
   @@map("tracking")
 }
 
 enum ReasonType {
-  WIN  // Ganho
+  WIN // Ganho
   LOSS // Perda
 }
 
 model WinLossReason {
-  id          String   @id @default(cuid())
-  name        String
-  type        ReasonType // GANHO ou PERDA
-  trackingId  String   @map("tracking_id")
-  isActive    Boolean  @default(true) @map("is_active")
-  order       Int      @default(0)
-  createdAt   DateTime @default(now()) @map("created_at")
+  id         String     @id @default(cuid())
+  name       String
+  type       ReasonType // GANHO ou PERDA
+  trackingId String     @map("tracking_id")
+  isActive   Boolean    @default(true) @map("is_active")
+  order      Int        @default(0)
+  createdAt  DateTime   @default(now()) @map("created_at")
 
-  tracking  Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  tracking      Tracking      @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   leadHistories LeadHistory[]
 
   @@index([trackingId])
@@ -171,25 +176,23 @@ model WinLossReason {
 }
 
 model TrackingParticipant {
-  id          String   @id @default(cuid())
-  userId      String   @map("user_id")
-  trackingId  String   @map("tracking_id")
-  role        ParticipantRole @default(MEMBER)
-  createdAt   DateTime @default(now()) @map("created_at")
-  
-  tracking    Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id         String          @id @default(cuid())
+  userId     String          @map("user_id")
+  trackingId String          @map("tracking_id")
+  role       ParticipantRole @default(MEMBER)
+  createdAt  DateTime        @default(now()) @map("created_at")
+  tracking   Tracking        @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, trackingId])
   @@map("tracking_participant")
 }
 
 enum ParticipantRole {
-  OWNER      // Criador, controle total
-  ADMIN      // Pode gerenciar participantes
-  MEMBER     // Pode visualizar e interagir
-  VIEWER     // Apenas visualização
+  OWNER // Criador, controle total
+  ADMIN // Pode gerenciar participantes
+  MEMBER // Pode visualizar e interagir
+  VIEWER // Apenas visualização
 }
 
 model Status {
@@ -202,28 +205,28 @@ model Status {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   // Relacionamentos
-  tracking   Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  leads      Lead[]
+  tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  leads    Lead[]
 
   @@index([trackingId, order])
   @@map("status")
 }
 
 enum LeadAction {
-  ACTIVE   // Lead ativo no funil
-  DELETED  // Excluído (lixeira)
-  WON      // Ganho
-  LOST     // Perdido
+  ACTIVE // Lead ativo no funil
+  DELETED // Excluído (lixeira)
+  WON // Ganho
+  LOST // Perdido
 }
 
 model LeadHistory {
-  id String @id @default(cuid())
-  leadId String @map("lead_id")
-  action LeadAction
-  reasonId String? @map("reason_id")
-  notes String?
-  userId String @map("user_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  id        String     @id @default(cuid())
+  leadId    String     @map("lead_id")
+  action    LeadAction
+  reasonId  String?    @map("reason_id")
+  notes     String?
+  userId    String     @map("user_id")
+  createdAt DateTime   @default(now()) @map("created_at")
 
   // Relacionamentos
   lead   Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -237,35 +240,35 @@ model LeadHistory {
 }
 
 model Lead {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
   email       String?
   phone       String?
   profile     String?
   description String?
-  statusId    String   @map("status_id")
-  trackingId  String   @map("tracking_id")
-  order       Int      @default(0)
+  statusId    String  @map("status_id")
+  trackingId  String  @map("tracking_id")
+  order       Int     @default(0)
 
-  currentAction  LeadAction @default(ACTIVE) @map("current_action")
-  isActive       Boolean    @default(true) @map("is_active")
+  currentAction LeadAction @default(ACTIVE) @map("current_action")
+  isActive      Boolean    @default(true) @map("is_active")
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  closedAt       DateTime?  @map("closed_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  closedAt  DateTime? @map("closed_at")
 
   // Relacionamentos
-  status      Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
-  tracking    Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  status   Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
 
-  leadTags    LeadTag[]
+  leadTags LeadTag[]
   history  LeadHistory[]
   actions  Action[]
 
   @@index([phone])
-  @@index([trackingId]) 
-  @@index([statusId]) 
-  @@index([email])      
+  @@index([trackingId])
+  @@index([statusId])
+  @@index([email])
   @@index([createdAt])
   @@index([currentAction])
   @@index([isActive])
@@ -274,20 +277,20 @@ model Lead {
 }
 
 model Tag {
-  id             String       @id @default(cuid())
+  id             String   @id @default(cuid())
   name           String
-  color          String?      @default("#1447e6")
-  organizationId String       @map("organization_id")
-  trackingId     String?      @map("tracking_id") // 👈 Opcional
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
+  color          String?  @default("#1447e6")
+  organizationId String   @map("organization_id")
+  trackingId     String?  @map("tracking_id") // 👈 Opcional
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tracking     Tracking?    @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  leadTags     LeadTag[]
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  tracking       Tracking?    @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  leadTags       LeadTag[]
-
-  @@unique([name, organizationId, trackingId]) // 👈 Importante: nome único por contexto
+  // 👈 Importante: nome único por contexto
+  @@unique([name, organizationId, trackingId])
   @@index([organizationId])
   @@index([trackingId])
   @@map("tags")
@@ -311,9 +314,9 @@ model LeadTag {
 }
 
 model ActionsUserParticipant {
-  id       String   @id @default(cuid())
-  actionId String   @map("action_id")
-  userId   String   @map("user_id")
+  id        String   @id @default(cuid())
+  actionId  String   @map("action_id")
+  userId    String   @map("user_id")
   createdAt DateTime @default(now()) @map("created_at")
 
   action Action @relation(fields: [actionId], references: [id], onDelete: Cascade)
@@ -323,14 +326,14 @@ model ActionsUserParticipant {
   @@index([userId])
 }
 
-model ActionsUserResponsible{
-  id String @id @default(cuid())
+model ActionsUserResponsible {
+  id       String @id @default(cuid())
   actionId String @map("action_id")
-  userId String @map("user_id")
+  userId   String @map("user_id")
 
-  action Action @relation(fields: [actionId], references: [id], onDelete: Cascade) 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  action Action @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([actionId, userId])
   @@map("actions_user_responsibles")
 }
@@ -341,30 +344,31 @@ enum TypeAction {
   MEETING
   NOTE
 }
-model Action {
-  id String @id @default(cuid())
-  title String 
-  description String?
-  score Int @default(0) 
-  isDone Boolean @default(false) @map("is_done")
-  type TypeAction @default(TASK)
-  trackingId     String?  @map("tracking_id")
-  organizationId String?  @map("organization_id")
-  createdBy String @map("created_by")
-  leadId String? @map("lead_id")
-  startDate DateTime? @map("start_date")
-  endDate DateTime? @map("end_date")
-  closedAt DateTime? @map("closed_at")
-  createdAt DateTime @default(now()) @map("created_at")
 
-  user User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
-  lead Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+model Action {
+  id             String     @id @default(cuid())
+  title          String
+  description    String?
+  score          Int        @default(0)
+  isDone         Boolean    @default(false) @map("is_done")
+  type           TypeAction @default(TASK)
+  trackingId     String?    @map("tracking_id")
+  organizationId String?    @map("organization_id")
+  createdBy      String     @map("created_by")
+  leadId         String?    @map("lead_id")
+  startDate      DateTime?  @map("start_date")
+  endDate        DateTime?  @map("end_date")
+  closedAt       DateTime?  @map("closed_at")
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  user         User          @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  lead         Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
   tracking     Tracking?     @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   participants ActionsUserParticipant[]
   responsibles ActionsUserResponsible[]
-  subActions SubActions[]
+  subActions   SubActions[]
 
   @@index([leadId])
   @@index([createdBy])
@@ -376,12 +380,12 @@ model Action {
   @@map("actions")
 }
 
-model SubActionUserResponsible{
-  id String @id @default(cuid())
-  userId String @map("user_id")
+model SubActionUserResponsible {
+  id          String @id @default(cuid())
+  userId      String @map("user_id")
   subActionId String @map("sub_action_id")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   subAction SubActions @relation(fields: [subActionId], references: [id], onDelete: Cascade)
 
   @@unique([userId, subActionId])
@@ -389,15 +393,14 @@ model SubActionUserResponsible{
 }
 
 model SubActions {
-  id String @id @default(cuid())
-  title String
-  description String?
-  isDone Boolean @default(false) @map("is_done")
-  finishDate DateTime? @map("finish_date")
-  createdAt DateTime @default(now()) @map("created_at")
-  actionId String @map("action_id")
-  
-  action Action @relation(fields: [actionId], references: [id])
+  id           String                     @id @default(cuid())
+  title        String
+  description  String?
+  isDone       Boolean                    @default(false) @map("is_done")
+  finishDate   DateTime?                  @map("finish_date")
+  createdAt    DateTime                   @default(now()) @map("created_at")
+  actionId     String                     @map("action_id")
+  action       Action                     @relation(fields: [actionId], references: [id])
   responsibles SubActionUserResponsible[]
 
   @@index([actionId])
@@ -405,4 +408,5 @@ model SubActions {
   @@index([finishDate])
   @@map("sub_action")
 }
+
 
