@@ -50,6 +50,7 @@ export default function Page() {
           );
         } else {
           setInvitationStatus("accepted");
+
           router.push(`/tracking`);
         }
       });

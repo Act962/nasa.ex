@@ -3,15 +3,6 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 
-// Lazy load dos modais
-const SettingsModal = dynamic(
-  () =>
-    import("../modals/settings-modal").then((mod) => ({
-      default: mod.SettingsModal,
-    })),
-  { ssr: false }
-);
-
 const SearchLeadModal = dynamic(
   () =>
     import("../modals/search-lead-modal").then((mod) => ({
@@ -70,7 +61,6 @@ export function ModalProvider() {
   return (
     <>
       <LostOrWinModal />
-      <SettingsModal />
       <ModalCreateTracking />
       <SearchLeadModal />
       <DeletarLeadModal />
