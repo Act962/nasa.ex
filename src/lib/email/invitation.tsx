@@ -56,7 +56,7 @@ export const InviteUserEmail = ({
               <strong>{invitedByUsername}</strong> (
               <Link
                 href={`mailto:${invitedByEmail}`}
-                className="text-[#7c3aed] no-underline hover:underline"
+                className="text-[#7c3aed] no-underline"
               >
                 {invitedByEmail}
               </Link>
@@ -82,7 +82,7 @@ export const InviteUserEmail = ({
 
             <Section className="text-center mt-8 mb-8">
               <Button
-                className="bg-[#7c3aed] rounded-lg text-white text-[14px] font-semibold no-underline text-center px-6 py-3 hover:bg-[#6d28d9]"
+                className="bg-[#7c3aed] rounded-lg text-white text-[14px] font-semibold no-underline text-center px-6 py-3"
                 href={inviteLink}
               >
                 Entrar na equipe
@@ -96,7 +96,7 @@ export const InviteUserEmail = ({
             <Text className="text-center my-4">
               <Link
                 href={inviteLink}
-                className="text-[#7c3aed] no-underline text-[13px] break-all hover:underline"
+                className="text-[#7c3aed] no-underline text-[13px] break-all"
               >
                 {inviteLink}
               </Link>
@@ -110,7 +110,7 @@ export const InviteUserEmail = ({
               você não estava esperando este convite, pode ignorar este e-mail.
             </Text>
 
-            <Text className="text-[#a3a3a3] text-[11px] leading-6 text-center mt-6">
+            <Text className="text-[#a3a3a3] text-[11px] leading-5 text-center mt-6">
               © 2024 N.A.S.A. Todos os direitos reservados.
             </Text>
           </Container>

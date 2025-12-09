@@ -30,6 +30,7 @@ export function AddMemberModal() {
       {
         email,
         role: "member",
+        resend: true,
       },
       {
         onSuccess: () => {
@@ -37,7 +38,8 @@ export function AddMemberModal() {
           onClose();
           toast.success("Membro convidado com sucesso!");
         },
-        onError: () => {
+        onError: ({ error }) => {
+          console.log("Invite:", error);
           toast.error("Erro ao convidar membro.");
         },
       }

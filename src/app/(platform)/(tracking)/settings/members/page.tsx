@@ -4,11 +4,11 @@ import { InvitationsTab } from "./tabs/invitations-tab";
 
 export default function Page() {
   return (
-    <div>
+    <div className="px-4">
       <Tabs
         defaultValue="members"
         orientation="vertical"
-        className="flex-row gap-12"
+        className="flex-col sm:flex-row gap-12"
       >
         <TabsList className="h-full flex-col">
           <TabsTrigger value="members">Membros</TabsTrigger>
