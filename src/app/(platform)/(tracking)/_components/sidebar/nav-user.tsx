@@ -27,12 +27,11 @@ import {
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import { useTrackingSetting } from "@/hooks/use-settings";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
   const { data: session, isPending } = authClient.useSession();
-  const settings = useTrackingSetting();
   const router = useRouter();
 
   function getInitials(name: string): string {
@@ -64,30 +63,37 @@ export function NavUser() {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <Avatar className="h-8 w-8 rounded-lg">
-                {session?.user.image && (
-                  <AvatarImage
-                    src={session.user.image}
-                    alt={session.user.name}
-                  />
-                )}
-                {session?.user.name && (
-                  <AvatarFallback className="rounded-lg">
-                    {" "}
-                    {getInitials(session.user.name)}{" "}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                {session?.user.name && (
-                  <span className="truncate font-medium">
-                    {session?.user.name}
-                  </span>
-                )}
-                {session?.user.email && (
-                  <span className="truncate text-xs">{session.user.email}</span>
-                )}
-              </div>
+              {isPending && <Skeleton className="h-8 w-full rounded-lg" />}
+              {!isPending && (
+                <>
+                  <Avatar className="h-8 w-8 rounded-lg">
+                    {session?.user.image && (
+                      <AvatarImage
+                        src={session.user.image}
+                        alt={session.user.name}
+                      />
+                    )}
+                    {session?.user.name && (
+                      <AvatarFallback className="rounded-lg">
+                        {" "}
+                        {getInitials(session.user.name)}{" "}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    {session?.user.name && (
+                      <span className="truncate font-medium">
+                        {session?.user.name}
+                      </span>
+                    )}
+                    {session?.user.email && (
+                      <span className="truncate text-xs">
+                        {session.user.email}
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
               <ChevronsUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -129,7 +135,7 @@ export function NavUser() {
             <DropdownMenuSeparator />
 
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => settings.onOpen()}>
+              <DropdownMenuItem onClick={() => router.push("/settings")}>
                 <BadgeCheck />
                 Configurações
               </DropdownMenuItem>

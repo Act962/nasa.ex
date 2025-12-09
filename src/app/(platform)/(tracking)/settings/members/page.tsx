@@ -1,8 +1,14 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MembersTab } from "./tabs/members-tab";
 import { InvitationsTab } from "./tabs/invitations-tab";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
-export default function Page() {
+export default async function Page() {
+  const organization = await auth.api.getFullOrganization({
+    headers: await headers(),
+  });
+
   return (
     <div className="px-4">
       <Tabs
@@ -15,10 +21,13 @@ export default function Page() {
           <TabsTrigger value="invitations">Convites</TabsTrigger>
         </TabsList>
         <TabsContent value="members">
-          <MembersTab />
+          <MembersTab members={organization?.members || []} />
         </TabsContent>
         <TabsContent value="invitations">
-          <InvitationsTab />
+          <InvitationsTab
+            invitations={organization?.invitations || []}
+            members={organization?.members || []}
+          />
         </TabsContent>
       </Tabs>
     </div>
