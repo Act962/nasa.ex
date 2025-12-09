@@ -27,9 +27,9 @@ export const auth = betterAuth({
     organization({
       async sendInvitationEmail(data) {
         await resend.emails.send({
-          from,
+          from: "Nasa <suportetecniconasa@gmail.com>",
           to: data.email,
-          subject: "Você foi convidado(a) a participar de uma organização.",
+          subject: "Você foi convidado(a) a participar de uma empresa.",
           react: reactInvitationEmail({
             username: data.email,
             invitedByUsername: data.inviter.user.name,
