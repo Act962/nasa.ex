@@ -48,6 +48,7 @@ export const columns: ColumnDef<LeadWithTrackingAndStatus>[] = [
   {
     id: "Nome",
     accessorKey: "name",
+    enableHiding: false,
     header: ({ column }) => {
       return (
         <div className="flex items-center gap-2 group">

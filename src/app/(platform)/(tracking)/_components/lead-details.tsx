@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ActivityIcon, Book, StickyNote } from "lucide-react";
 import { RichtTextEditor } from "@/app/(platform)/(tracking)/_components/rich-text-editor/editor";
 import { ContainerItemLead } from "./container-item-lead";
+import { TabNotes } from "./tags/lead/notes";
 
 const tabs = [
   {
@@ -72,16 +73,7 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       name: "Notas",
       value: "notes",
       icon: StickyNote,
-      content: (
-        <div className="w-full space-y-4">
-          <h2 className="text-lg font-semibold">Adicione um nova nota</h2>
-          <RichtTextEditor />
-          <div className="flex flex-col gap-5">
-            <ContainerItemLead type="Tarefa" />
-            <ContainerItemLead type="Reunião" />
-          </div>
-        </div>
-      ),
+      content: <TabNotes />,
     },
     {
       name: "Ações",

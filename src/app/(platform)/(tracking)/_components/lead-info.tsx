@@ -20,9 +20,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { authClient } from "@/lib/auth-client";
+import { orpc } from "@/lib/orpc";
+import { getQueryClient } from "@/lib/query/hydration";
 import { cn } from "@/lib/utils";
 import { LeadFull } from "@/types/lead";
 import { TabsContent } from "@radix-ui/react-tabs";
+import { useMutation } from "@tanstack/react-query";
 import {
   ChevronLeft,
   Circle,
@@ -33,7 +36,7 @@ import {
   Plus,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
   initialData: LeadFull;
@@ -61,51 +64,49 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
       </div>
       {/*Info */}
 
-      <div>
-        <div className="flex flex-col space-y-2 items-center mt-4">
-          <Avatar className="size-12">
-            <AvatarImage src={"https://github.com/ElFabrica.png"} />
-          </Avatar>
-          <span className="text-2xl font-medium">{lead.name}</span>
-          <div className="flex items-center justify-items-center gap-3">
-            <Button
-              size={"icon-xs"}
-              className="bg-foreground/1"
-              variant={"ghost"}
-            >
-              <Plus className="size-3" />
-            </Button>
-            <Button
-              size={"icon-xs"}
-              className="bg-foreground/1"
-              variant={"ghost"}
-            >
-              <Mail className="size-3" />
-            </Button>
-            <Button
-              size={"icon-xs"}
-              className="bg-foreground/1"
-              variant={"ghost"}
-            >
-              <Phone className="size-3" />
-            </Button>
-            <Button
-              size={"icon-xs"}
-              className="bg-foreground/1"
-              variant={"ghost"}
-            >
-              <MoreHorizontal className="size-3" />
-            </Button>
-          </div>
-          <div className="flex items-center gap-1">
-            <Circle
-              color="bg-emerald-500"
-              className="bg-emerald-500 rounded-3xl size-1.5"
-            />
-            <span className="text-xs font-light opacity-70">
-              Última atividade - {lead.updatedAt.toLocaleDateString()}
-            </span>
-          </div>
+      <div className="flex flex-col space-y-2 items-center mt-4">
+        <Avatar className="size-12">
+          <AvatarImage src={"https://github.com/ElFabrica.png"} />
+        </Avatar>
+        <span className="text-2xl font-medium">{lead.name}</span>
+        <div className="flex items-center justify-items-center gap-3">
+          <Button
+            size={"icon-xs"}
+            className="bg-foreground/1"
+            variant={"ghost"}
+          >
+            <Plus className="size-3" />
+          </Button>
+          <Button
+            size={"icon-xs"}
+            className="bg-foreground/1"
+            variant={"ghost"}
+          >
+            <Mail className="size-3" />
+          </Button>
+          <Button
+            size={"icon-xs"}
+            className="bg-foreground/1"
+            variant={"ghost"}
+          >
+            <Phone className="size-3" />
+          </Button>
+          <Button
+            size={"icon-xs"}
+            className="bg-foreground/1"
+            variant={"ghost"}
+          >
+            <MoreHorizontal className="size-3" />
+          </Button>
+        </div>
+        <div className="flex items-center gap-1">
+          <Circle
+            color="bg-emerald-500"
+            className="bg-emerald-500 rounded-3xl size-1.5"
+          />
+          <span className="text-xs font-light opacity-70">
+            Última atividade - {lead.updatedAt.toLocaleDateString()}
+          </span>
         </div>
       </div>
 
@@ -172,15 +173,43 @@ interface InfoItemProps {
 }
 function InfoItem({ label, value, loading, type }: InfoItemProps) {
   const [isEditingLead, setIsEditingLead] = useState(false);
+  const [displayValue, setDisplayValue] = useState(value);
   const { leadId } = useParams<{ leadId: string }>();
   function handleToggle() {
     setIsEditingLead((isEditingLead) => !isEditingLead);
   }
 
+  const queryClient = getQueryClient();
+  const mutation = useMutation(
+    orpc.leads.update.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.get.queryKey({
+            input: { id: leadId },
+          }),
+        });
+      },
+    })
+  );
+
   function handleEditField(dataField: string) {
     handleToggle();
-    //console.log({ data: dataField, leadId: leadId });
+    const prev = displayValue;
+    setDisplayValue(dataField);
+    const payload: Record<string, string> = { id: leadId } as any;
+    if (type === "email") payload.email = dataField;
+    if (type === "phone") payload.phone = dataField;
+    if (type === "responsible") return;
+    mutation.mutate(payload as any, {
+      onError: () => {
+        setDisplayValue(prev);
+      },
+    });
   }
+
+  useEffect(() => {
+    setDisplayValue(value);
+  }, [value]);
 
   return (
     <>
@@ -199,11 +228,11 @@ function InfoItem({ label, value, loading, type }: InfoItemProps) {
                 <Tooltip delayDuration={700}>
                   <TooltipTrigger asChild>
                     <span className="text-xs max-w-[180px] truncate">
-                      {value}
+                      {displayValue}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{value}</p>
+                    <p>{displayValue}</p>
                   </TooltipContent>
                 </Tooltip>
                 {type && (
@@ -223,12 +252,12 @@ function InfoItem({ label, value, loading, type }: InfoItemProps) {
               <>
                 {type === "responsible" ? (
                   <SelectEditForm
-                    value={value}
+                    value={displayValue}
                     onSubmit={(value) => handleEditField(value)}
                   />
                 ) : (
                   <InputEditForm
-                    value={value}
+                    value={displayValue}
                     onSubmit={(value) => handleEditField(value)}
                   />
                 )}

@@ -12,14 +12,27 @@ export const updateLead = base
     tags: ["Leads"],
   })
   .input(
-    z.object({
-      id: z.string(),
-      name: z.string().optional(),
-      phone: z.string().optional(),
-      email: z.string().optional(),
-      description: z.string().optional(),
-      statusId: z.string().optional(),
-    })
+    z
+      .object({
+        id: z.string(),
+        name: z.string().optional(),
+        phone: z.string().optional(),
+        email: z.string().optional(),
+        description: z.string().optional(),
+        statusId: z.string().optional(),
+      })
+      .refine(
+        (v) =>
+          v.name !== undefined ||
+          v.phone !== undefined ||
+          v.email !== undefined ||
+          v.description !== undefined ||
+          v.statusId !== undefined,
+        {
+          message: "No fields to update",
+          path: ["id"],
+        }
+      )
   )
   .output(
     z.object({
@@ -54,6 +67,17 @@ export const updateLead = base
           email: input.email,
           description: input.description,
           statusId: input.statusId,
+        },
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          email: true,
+          description: true,
+          statusId: true,
+          trackingId: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
 
