@@ -5,9 +5,6 @@ import prisma from "./prisma";
 import { resend } from "./email/resend";
 import { reactInvitationEmail } from "./email/invitation";
 
-const from =
-  (process.env.BETTER_AUTH_EMAIL as string) || "notifications.nasaex.com";
-
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -28,7 +25,7 @@ export const auth = betterAuth({
     organization({
       async sendInvitationEmail(data) {
         await resend.emails.send({
-          from,
+          from: "Nasaex <noreply@notifications.nasaex.com>",
           to: data.email,
           subject: "Você foi convidado(a) a participar de uma empresa.",
           react: reactInvitationEmail({
