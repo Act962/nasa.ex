@@ -1,5 +1,5 @@
 import { base } from "@/app/middlewares/base";
-import { requiredAuthMiddleware } from "../auth";
+import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -27,7 +27,7 @@ export const listReasons = base
       ),
     })
   )
-  .handler(async ({ input, context, errors }) => {
+  .handler(async ({ input }) => {
     const reasons = await prisma.winLossReason.findMany({
       select: {
         id: true,

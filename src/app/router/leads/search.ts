@@ -1,11 +1,13 @@
 import { base } from "@/app/middlewares/base";
-import { requiredAuthMiddleware } from "../auth";
+import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { requireOrgMiddleware } from "../../middlewares/org";
 
 // 🟧 LIST ALL
 export const searchLeads = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "GET",
     path: "/leads/search",
@@ -44,10 +46,9 @@ export const searchLeads = base
       const { page, limit, statusId, trackingId, search, orderBy, order } =
         input;
 
-      // filtros dinâmicos
       const where: any = {
         tracking: {
-          organizationId: context.org?.id,
+          organizationId: context.org.id,
         },
       };
 

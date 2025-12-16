@@ -1,10 +1,12 @@
 import { base } from "@/app/middlewares/base";
-import { requiredAuthMiddleware } from "../auth";
+import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { requireOrgMiddleware } from "../../middlewares/org";
 
 export const addTagsToLead = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     path: "/leads/add-tags",
     method: "POST",
@@ -17,10 +19,6 @@ export const addTagsToLead = base
   )
   .handler(async ({ input, context, errors }) => {
     const { org } = context;
-
-    if (!org) {
-      throw errors.BAD_REQUEST;
-    }
 
     const lead = await prisma.lead.findUnique({
       where: { id: input.leadId },

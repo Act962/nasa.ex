@@ -1,10 +1,12 @@
 import { base } from "@/app/middlewares/base";
-import { requiredAuthMiddleware } from "../auth";
+import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { requireOrgMiddleware } from "../../middlewares/org";
 
 export const listTrackings = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "GET",
     summary: "List all trackings",
@@ -13,10 +15,6 @@ export const listTrackings = base
   .input(z.void())
   .handler(async ({ context, errors }) => {
     const { user, org } = context;
-
-    if (!org) {
-      throw errors.BAD_REQUEST;
-    }
 
     const trackings = await prisma.tracking.findMany({
       where: {

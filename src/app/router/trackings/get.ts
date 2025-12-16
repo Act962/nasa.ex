@@ -1,10 +1,12 @@
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { base } from "../../middlewares/base";
-import { requiredAuthMiddleware } from "../auth";
+import { requiredAuthMiddleware } from "../../middlewares/auth";
+import { requireOrgMiddleware } from "../../middlewares/org";
 
 export const getTracking = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "GET",
     summary: "Get a tracking",
@@ -27,13 +29,7 @@ export const getTracking = base
       }),
     })
   )
-  .handler(async ({ input, context, errors }) => {
-    const { org } = context;
-
-    if (!org) {
-      throw errors.BAD_REQUEST;
-    }
-
+  .handler(async ({ input, errors }) => {
     const tracking = await prisma.tracking.findUnique({
       where: {
         id: input.trackingId,

@@ -1,10 +1,12 @@
 import { base } from "@/app/middlewares/base";
-import { requiredAuthMiddleware } from "../auth";
+import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 
 export const createTag = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "POST",
     path: "/tags",
@@ -17,17 +19,11 @@ export const createTag = base
     })
   )
   .handler(async ({ input, context, errors }) => {
-    const { org } = context;
-
-    if (!org) {
-      throw errors.BAD_REQUEST;
-    }
-
     const tag = await prisma.tag.create({
       data: {
         name: input.name,
         color: input.color,
-        organizationId: org.id,
+        organizationId: context.org.id,
         trackingId: input.trackingId,
       },
     });

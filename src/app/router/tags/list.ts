@@ -1,10 +1,12 @@
 import { base } from "@/app/middlewares/base";
-import { requiredAuthMiddleware } from "../auth";
+import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { requireOrgMiddleware } from "../../middlewares/org";
 
 export const listTags = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "GET",
     path: "/tags",
@@ -31,13 +33,6 @@ export const listTags = base
   )
   .handler(async ({ input, context, errors }) => {
     try {
-      const { org } = context;
-
-      // Validação da organização
-      if (!org?.id) {
-        throw errors.BAD_REQUEST;
-      }
-
       // Query ao banco com tratamento
       const tags = await prisma.tag.findMany({
         select: {
@@ -46,7 +41,7 @@ export const listTags = base
           color: true,
         },
         where: {
-          organizationId: org.id,
+          organizationId: context.org.id,
           ...(input.query?.trackingId && {
             trackingId: input.query.trackingId,
           }),

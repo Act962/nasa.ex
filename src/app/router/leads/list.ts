@@ -1,10 +1,12 @@
 import { base } from "@/app/middlewares/base";
-import { requiredAuthMiddleware } from "../auth";
+import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { requireOrgMiddleware } from "../../middlewares/org";
 
 export const listLead = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "GET",
     path: "/leads",
@@ -35,10 +37,6 @@ export const listLead = base
   .handler(async ({ errors, context }) => {
     try {
       const { org } = context;
-
-      if (!org) {
-        throw errors.BAD_REQUEST;
-      }
 
       const leads = await prisma.lead.findMany({
         where: {

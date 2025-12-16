@@ -1,10 +1,12 @@
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { base } from "../../middlewares/base";
-import { requiredAuthMiddleware } from "../auth";
+import { requiredAuthMiddleware } from "../../middlewares/auth";
+import { requireOrgMiddleware } from "../../middlewares/org";
 
 export const updateTracking = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "PUT",
     summary: "Update a tracking",
@@ -23,12 +25,6 @@ export const updateTracking = base
     })
   )
   .handler(async ({ input, context, errors }) => {
-    const { org } = context;
-
-    if (!org) {
-      throw errors.BAD_REQUEST;
-    }
-
     const trackingExists = await prisma.tracking.findUnique({
       where: {
         id: input.trackingId,

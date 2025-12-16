@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { base } from "../middlewares/base";
+import { base } from "./base";
 
 export const requiredAuthMiddleware = base.middleware(
   async ({ context, next, errors }) => {
@@ -11,15 +11,10 @@ export const requiredAuthMiddleware = base.middleware(
       throw errors.UNAUTHORIZED;
     }
 
-    const organization = await auth.api.getFullOrganization({
-      headers: context.headers,
-    });
-
     return next({
       context: {
         session: sessionData.session,
         user: sessionData.user,
-        org: organization,
       },
     });
   }
