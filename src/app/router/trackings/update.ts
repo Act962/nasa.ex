@@ -32,7 +32,9 @@ export const updateTracking = base
     });
 
     if (!trackingExists) {
-      throw errors.NOT_FOUND;
+      throw errors.NOT_FOUND({
+        message: "Tracking não encontrado",
+      });
     }
 
     const tracking = await prisma.tracking.update({

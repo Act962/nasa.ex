@@ -19,11 +19,21 @@ export default async function Page({ params }: SettingTrackingPage) {
     })
   );
 
+  await queryClient.prefetchQuery(
+    orpc.tracking.get.queryOptions({
+      input: { trackingId },
+    })
+  );
+
   const tabs = [
     {
       name: "Geral",
       value: "general",
-      content: <General />,
+      content: (
+        <HydrateClient client={queryClient}>
+          <General />
+        </HydrateClient>
+      ),
     },
     {
       name: "Participantes",

@@ -135,20 +135,27 @@ export function NavUser() {
             <DropdownMenuSeparator />
 
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => router.push("/settings")}>
+              <DropdownMenuItem
+                onClick={() => router.push("/settings")}
+                className="cursor-pointer"
+              >
                 <BadgeCheck />
                 Configurações
               </DropdownMenuItem>
 
-              <DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer">
                 <Bell />
                 Notificações
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={hanldeLogout} className="cursor-pointer">
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={hanldeLogout}
+              className="cursor-pointer"
+            >
               <LogOut />
-              Log out
+              Sair
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
