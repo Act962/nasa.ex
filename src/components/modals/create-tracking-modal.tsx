@@ -53,7 +53,7 @@ export function ModalCreateTracking() {
     },
   });
 
-  const { isOpen, onOpen, onClose } = useTracking();
+  const { isOpen, onClose } = useTracking();
 
   const createTrackingMutation = useMutation(
     orpc.tracking.create.mutationOptions({
@@ -84,7 +84,7 @@ export function ModalCreateTracking() {
   const isLoading = createTrackingMutation.isPending;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpen}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Criar novo tracking</DialogTitle>

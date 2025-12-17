@@ -2,6 +2,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { General } from "./tabs/general";
 import { Participants } from "./tabs/participants";
 import { Reasons } from "./tabs/reasons";
+import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
+import { orpc } from "@/lib/orpc";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
@@ -9,6 +11,13 @@ type SettingTrackingPage = {
 
 export default async function Page({ params }: SettingTrackingPage) {
   const { trackingId } = await params;
+  const queryClient = getQueryClient();
+
+  await queryClient.prefetchQuery(
+    orpc.tracking.listParticipants.queryOptions({
+      input: { trackingId: trackingId },
+    })
+  );
 
   const tabs = [
     {
@@ -19,7 +28,11 @@ export default async function Page({ params }: SettingTrackingPage) {
     {
       name: "Participantes",
       value: "participants",
-      content: <Participants />,
+      content: (
+        <HydrateClient client={queryClient}>
+          <Participants />
+        </HydrateClient>
+      ),
     },
     {
       name: "Motivos de ganho",

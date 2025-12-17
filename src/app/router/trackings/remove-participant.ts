@@ -25,7 +25,7 @@ export const removeParticipant = base
       role: z.custom<ParticipantRole>(),
     })
   )
-  .handler(async ({ context, errors, input }) => {
+  .handler(async ({ errors, input }) => {
     const trackingParticipant = await prisma.trackingParticipant.findUnique({
       where: {
         userId_trackingId: {

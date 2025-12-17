@@ -16,14 +16,13 @@ export const addParticipant = base
   .input(
     z.object({
       trackingId: z.string(),
-      participantId: z.string(),
+      participantIds: z.array(z.string()),
       role: z.custom<ParticipantRole>(),
     })
   )
   .output(
     z.object({
       trackingName: z.string(),
-      participantName: z.string(),
       role: z.custom<ParticipantRole>(),
     })
   )
@@ -40,11 +39,11 @@ export const addParticipant = base
       });
     }
 
-    const participant = await prisma.member.findUnique({
+    const participants = await prisma.member.findMany({
       where: {
-        userId_organizationId: {
-          userId: input.participantId,
-          organizationId: context.org.id,
+        organizationId: context.org.id,
+        userId: {
+          in: input.participantIds,
         },
       },
       include: {
@@ -56,23 +55,22 @@ export const addParticipant = base
       },
     });
 
-    if (!participant) {
+    if (!participants) {
       throw errors.NOT_FOUND({
         message: "Participante não encontrado",
       });
     }
 
-    await prisma.trackingParticipant.create({
-      data: {
+    await prisma.trackingParticipant.createMany({
+      data: participants.map((participant) => ({
         trackingId: tracking.id,
         userId: participant.userId,
         role: input.role,
-      },
+      })),
     });
 
     return {
       trackingName: tracking.name,
-      participantName: participant.user.name,
       role: input.role,
     };
   });

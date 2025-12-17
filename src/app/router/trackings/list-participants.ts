@@ -38,7 +38,7 @@ export const listParticipants = base
       ),
     })
   )
-  .handler(async ({ context, errors, input }) => {
+  .handler(async ({ errors, input }) => {
     const tracking = await prisma.tracking.findUnique({
       where: {
         id: input.trackingId,
