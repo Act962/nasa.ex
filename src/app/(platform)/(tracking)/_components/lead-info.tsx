@@ -24,8 +24,9 @@ import { orpc } from "@/lib/orpc";
 import { getQueryClient } from "@/lib/query/hydration";
 import { cn } from "@/lib/utils";
 import { LeadFull } from "@/types/lead";
+import { normalizePhone, phoneMask } from "@/utils/format-phone";
 import { TabsContent } from "@radix-ui/react-tabs";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   ChevronLeft,
   Circle,
@@ -138,9 +139,14 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                 label="Responsável"
                 value={session?.user.name ?? "Sem Responsável"}
                 type="responsible"
+                trackingId={lead.trackingId}
               />
-              <InfoItem label="Tracking" value={lead.tracking.name} />
-              <InfoItem label="Status" value={lead.status.name} />
+              <InfoItem
+                label="Tracking"
+                value={lead.tracking.name}
+                type={null}
+              />
+              <InfoItem label="Status" value={lead.status.name} type={null} />
             </CardContent>
           </TabsContent>
           <TabsContent value="address-lead" className="w-full ">
@@ -163,15 +169,17 @@ type TypeFieldLead =
   | "responsible"
   | "street"
   | "city"
-  | "country";
+  | "country"
+  | null;
 
 interface InfoItemProps {
   label: string;
   value: string;
   loading?: boolean;
-  type?: TypeFieldLead;
+  type: TypeFieldLead;
+  trackingId?: string;
 }
-function InfoItem({ label, value, loading, type }: InfoItemProps) {
+function InfoItem({ label, value, loading, type, trackingId }: InfoItemProps) {
   const [isEditingLead, setIsEditingLead] = useState(false);
   const [displayValue, setDisplayValue] = useState(value);
   const { leadId } = useParams<{ leadId: string }>();
@@ -198,7 +206,7 @@ function InfoItem({ label, value, loading, type }: InfoItemProps) {
     setDisplayValue(dataField);
     const payload: Record<string, string> = { id: leadId } as any;
     if (type === "email") payload.email = dataField;
-    if (type === "phone") payload.phone = dataField;
+    if (type === "phone") payload.phone = normalizePhone(dataField);
     if (type === "responsible") return;
     mutation.mutate(payload as any, {
       onError: () => {
@@ -228,7 +236,9 @@ function InfoItem({ label, value, loading, type }: InfoItemProps) {
                 <Tooltip delayDuration={700}>
                   <TooltipTrigger asChild>
                     <span className="text-xs max-w-[180px] truncate">
-                      {displayValue}
+                      {type === "phone"
+                        ? phoneMask(displayValue)
+                        : displayValue}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -252,11 +262,14 @@ function InfoItem({ label, value, loading, type }: InfoItemProps) {
               <>
                 {type === "responsible" ? (
                   <SelectEditForm
+                    type={type}
+                    trackingId={trackingId!}
                     value={displayValue}
                     onSubmit={(value) => handleEditField(value)}
                   />
                 ) : (
                   <InputEditForm
+                    type={type}
                     value={displayValue}
                     onSubmit={(value) => handleEditField(value)}
                   />
@@ -269,12 +282,17 @@ function InfoItem({ label, value, loading, type }: InfoItemProps) {
     </>
   );
 }
-interface EditingComponentProps {
+interface EditingInputComponentProps {
   value: string;
   onSubmit: (value: string) => void;
+  type: TypeFieldLead;
 }
 
-const InputEditForm = ({ value, onSubmit }: EditingComponentProps) => {
+const InputEditForm = ({
+  value,
+  onSubmit,
+  type,
+}: EditingInputComponentProps) => {
   const [localValue, setLocalValue] = useState(value);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -285,9 +303,9 @@ const InputEditForm = ({ value, onSubmit }: EditingComponentProps) => {
   return (
     <form onSubmit={handleSubmit}>
       <Input
-        className="h-8 text-xs  "
+        className="h-8 text-xs"
         autoFocus
-        value={localValue}
+        value={type === "phone" ? phoneMask(localValue) : localValue}
         onChange={(e) => setLocalValue(e.target.value)}
         onBlur={handleSubmit}
       />
@@ -296,10 +314,26 @@ const InputEditForm = ({ value, onSubmit }: EditingComponentProps) => {
   );
 };
 
-const SelectEditForm = ({ value, onSubmit }: EditingComponentProps) => {
+interface EditingDropdownComponentProps extends EditingInputComponentProps {
+  trackingId: string;
+}
+
+const SelectEditForm = ({
+  value,
+  onSubmit,
+  trackingId,
+}: EditingDropdownComponentProps) => {
   const [localValue, setLocalValue] = useState(value);
 
-  const userSelectable = ["Chiquinho", "John", "Pedrin"];
+  const { data } = useQuery(
+    orpc.tracking.listParticipants.queryOptions({
+      input: {
+        trackingId: trackingId,
+      },
+    })
+  );
+
+  const userSelectable = data ? data.participants : [];
 
   const handleChange = (newValue: string) => {
     setLocalValue(newValue);
@@ -313,9 +347,12 @@ const SelectEditForm = ({ value, onSubmit }: EditingComponentProps) => {
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
-          {userSelectable.map((user) => (
-            <SelectItem key={`user-selectable-${user}`} value={user}>
-              {user}
+          {userSelectable.map((participant) => (
+            <SelectItem
+              key={`user-selectable-${participant.id}`}
+              value={participant.user.name}
+            >
+              {participant.user.name}
             </SelectItem>
           ))}
         </SelectGroup>
