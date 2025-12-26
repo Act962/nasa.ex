@@ -10,6 +10,7 @@ import { ArrowUpRight, Grip, Mail, Phone, Tag } from "lucide-react";
 // import { useLeads } from "@/hooks/use-lead-modal";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { phoneMask } from "@/utils/format-phone";
 
 type Lead = {
   id: string;
@@ -89,7 +90,7 @@ export const LeadItem = ({ data }: { data: Lead }) => {
         </div>
         <div className="flex flex-row gap-2 items-center">
           <Phone className="size-3" />
-          {data.phone || "(00) 00000-0000"}
+          {phoneMask(data.phone) || "(00) 00000-0000"}
         </div>
         {data.tags.length > 0 && (
           <div className="flex flex-row gap-2 items-center">

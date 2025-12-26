@@ -1,4 +1,4 @@
-export function phoneMask(value: string) {
+export function phoneMask(value: string | null) {
   if (!value) return "";
 
   value = value.replace(/\D/g, "");
