@@ -3,18 +3,6 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 
-const SearchLeadModal = dynamic(
-  () =>
-    import("../modals/search-lead-modal").then((mod) => ({
-      default: mod.SearchLeadModal,
-    })),
-  { ssr: false }
-);
-
-const AddLeadSheet = dynamic(() => import("../modals/add-lead-sheet"), {
-  ssr: false,
-});
-
 const ModalCreateTracking = dynamic(
   () =>
     import("../modals/create-tracking-modal").then((mod) => ({
@@ -62,9 +50,7 @@ export function ModalProvider() {
     <>
       <LostOrWinModal />
       <ModalCreateTracking />
-      <SearchLeadModal />
       <DeletarLeadModal />
-      <AddLeadSheet />
       <AddMemberModal />
     </>
   );
