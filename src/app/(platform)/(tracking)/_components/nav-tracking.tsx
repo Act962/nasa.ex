@@ -38,7 +38,7 @@ export function NavTracking() {
 
   return (
     <>
-      <div className="flex justify-between items-center px-4 py-5 gap-2">
+      <div className="flex justify-between items-center px-4 py-2 gap-2 border-b border-border mb-2">
         <div className="flex items-center gap-x-2">
           <SidebarTrigger />
           <InputGroup onClick={() => searchLead.setIsOpen(true)}>
