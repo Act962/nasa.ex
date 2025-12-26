@@ -87,7 +87,6 @@ export const StatusHeader = ({
   const onSubmit = (formData: { name: string }) => {
     updateStatusNameMutation.mutate({
       name: formData.name,
-      color: colorSelect,
       statusId: data.id,
     });
   };
@@ -205,7 +204,7 @@ const ListOption = ({ currentColor, onColorChange }: ListOptionProps) => {
                       {colors.map((color) => (
                         <div key={color}>
                           <div
-                            className="w-4 h-4 rounded-full cursor-pointer hover:scale-110 transition-transform"
+                            className={`w-4 h-4 rounded-full cursor-pointer hover:scale-110 transition-transform ${color === currentColor ? "scale-110" : ""}`}
                             style={{ backgroundColor: color }}
                             onClick={() => handlePresetColorClick(color)}
                           />
