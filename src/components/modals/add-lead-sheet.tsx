@@ -56,6 +56,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Spinner } from "../ui/spinner";
 import { toast } from "sonner";
+import { useParams } from "next/navigation";
 
 const schema = z.object({
   name: z.string().min(2, "Nome obrigatório"),
@@ -87,8 +88,17 @@ function phoneMask(value: string) {
     .replace(/(\d{4})(\d{4})$/, "$1-$2");
 }
 
-export default function AddLeadSheet() {
+interface AddLeadSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export default function AddLeadSheet({
+  open,
+  onOpenChange,
+}: AddLeadSheetProps) {
   const queryClient = useQueryClient();
+  const { trackingId } = useParams<{ trackingId: string }>();
 
   const {
     register,
@@ -123,15 +133,13 @@ export default function AddLeadSheet() {
         });
         toast.success("Lead criado com sucesso");
         reset();
-        onClose();
+        onOpenChange(false);
       },
       onError: () => {
         toast.error("Erro ao criar lead, tente novamente mais tarde!");
       },
     })
   );
-
-  const { isOpen, onClose, trackingId } = useAddLead();
 
   const { status, isLoadingStatus } = useStatus(trackingId ?? "");
   const { tags, isLoadingTags } = useTags();
@@ -185,14 +193,17 @@ export default function AddLeadSheet() {
   const isCreatingLead = onCreateLead.isPending;
 
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right">
         <SheetHeader>
           <SheetTitle>Novo Lead</SheetTitle>
           <SheetDescription>Crie um novo lead para o tracking</SheetDescription>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 h-full overflow-y-auto px-4 pb-4">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="space-y-4 h-full overflow-y-auto px-4 pb-4"
+        >
           {/* Nome */}
           <div className="flex flex-col gap-y-2">
             <Label htmlFor="name">
