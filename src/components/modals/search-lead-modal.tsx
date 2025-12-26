@@ -7,14 +7,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useSearchLead } from "@/hooks/use-search-lead";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "../ui/input-group";
 import { Search, UserSearch, X } from "lucide-react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -41,19 +40,22 @@ import {
 
 const ITEMS_PER_PAGE = 6;
 
-export function SearchLeadModal() {
+interface SearchLeadModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function SearchLeadModal({ open, onOpenChange }: SearchLeadModalProps) {
   const router = useRouter();
   const params = useParams<{ trackingId: string }>();
-  const trigger = useSearchLead();
+
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const debouncedSearch = useDebouncedValue(search, 200);
 
-  const { onClose } = useSearchLead();
-
   const handleOnLead = ({ id }: { id: string }) => {
     router.push(`/contatos/${id}`);
-    onClose();
+    onOpenChange(false);
   };
 
   // Reset para página 1 quando a busca mudar
@@ -62,7 +64,7 @@ export function SearchLeadModal() {
     setCurrentPage(1);
   };
 
-  const { data, isLoading } = useSuspenseQuery(
+  const { data, isLoading } = useQuery(
     orpc.leads.search.queryOptions({
       input: {
         search: debouncedSearch,
@@ -70,12 +72,13 @@ export function SearchLeadModal() {
         limit: ITEMS_PER_PAGE,
         page: currentPage,
       },
-      enabled: !!trigger.isOpen,
+      enabled: open,
     })
   );
 
   // Gera números de página visíveis de forma inteligente e responsiva
   const pageNumbers = useMemo(() => {
+    if (!data) return;
     const { totalPages } = data;
     const pages: (number | "ellipsis")[] = [];
 
@@ -122,26 +125,26 @@ export function SearchLeadModal() {
     }
 
     return pages;
-  }, [data.totalPages, currentPage]);
+  }, [data?.totalPages, currentPage]);
 
   const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= data.totalPages) {
+    if (data && page >= 1 && page <= data.totalPages) {
       setCurrentPage(page);
     }
   };
 
   const canGoPrevious = currentPage > 1;
-  const canGoNext = currentPage < data.totalPages;
+  const canGoNext = data && currentPage < data.totalPages;
 
   return (
     <Dialog
-      open={trigger.isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           setSearch("");
           setCurrentPage(1);
         }
-        trigger.onClose();
+        onOpenChange(open);
       }}
     >
       <DialogContent className="w-full md:max-w-5xl" showCloseButton={false}>
@@ -169,7 +172,7 @@ export function SearchLeadModal() {
         </InputGroup>
         <div className="flex items-center justify-between">
           <span className="text-sm md:text-base">Leads encontrados</span>
-          {!isLoading && (
+          {!isLoading && data && (
             <span className="text-xs text-muted-foreground">
               {data.total} {data.total === 1 ? "resultado" : "resultados"}
             </span>
@@ -181,7 +184,7 @@ export function SearchLeadModal() {
             Array.from({ length: ITEMS_PER_PAGE }).map((_, index) => (
               <Skeleton key={index} className="h-12 w-full" />
             ))
-          ) : data.leads.length === 0 ? (
+          ) : data?.leads.length === 0 ? (
             <Empty>
               <EmptyHeader>
                 <EmptyMedia variant={"icon"}>
@@ -196,7 +199,7 @@ export function SearchLeadModal() {
               </EmptyHeader>
             </Empty>
           ) : (
-            data.leads.map((lead) => (
+            data?.leads.map((lead) => (
               <div
                 key={lead.id}
                 className="px-3 py-3 hover:bg-accent rounded-md transition cursor-pointer"
@@ -214,7 +217,7 @@ export function SearchLeadModal() {
           )}
         </div>
 
-        {!isLoading && data.totalPages > 1 && (
+        {!isLoading && data && data.totalPages > 1 && (
           <DialogFooter>
             {/* Paginação Mobile */}
             <div className="flex md:hidden items-center justify-between w-full gap-2">
@@ -256,7 +259,7 @@ export function SearchLeadModal() {
                     }
                   />
                 </PaginationItem>
-                {pageNumbers.map((pageNum, index) =>
+                {pageNumbers?.map((pageNum, index) =>
                   pageNum === "ellipsis" ? (
                     <PaginationItem key={`ellipsis-${index}`}>
                       <PaginationEllipsis />
