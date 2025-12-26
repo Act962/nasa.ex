@@ -9,6 +9,7 @@ import { ActivityIcon, Book, StickyNote } from "lucide-react";
 import { RichtTextEditor } from "@/app/(platform)/(tracking)/_components/rich-text-editor/editor";
 import { ContainerItemLead } from "./container-item-lead";
 import { TabNotes } from "./tags/lead/notes";
+import { Action } from "@/generated/prisma/client";
 
 const tabs = [
   {
@@ -51,6 +52,7 @@ const tabs = [
 
 interface LeadDatailsProps {
   initialData: LeadFull;
+  // actions: Action[];
 }
 
 export function LeadDetails({ initialData }: LeadDatailsProps) {
