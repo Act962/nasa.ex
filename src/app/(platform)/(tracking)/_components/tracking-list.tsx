@@ -35,7 +35,7 @@ dayjs.locale("pt-BR");
 export function TrackingList() {
   const searchParams = useSearchParams();
   const query = searchParams?.get("q") ?? "";
-  const { onOpen } = useTracking()
+  const { onOpen } = useTracking();
 
   const { data: trackings, isLoading } = useSuspenseQuery(
     orpc.tracking.list.queryOptions()
@@ -63,7 +63,7 @@ export function TrackingList() {
           {trackingList.map((tracking) => {
             return (
               <Link key={tracking.id} href={`/tracking/${tracking.id}`}>
-                <Card className="cursor-pointer h-full">
+                <Card className="cursor-pointer h-full transition-colors hover:bg-accent/60">
                   <CardHeader>
                     <CardTitle>{tracking.name}</CardTitle>
                     <CardDescription>
