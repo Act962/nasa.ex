@@ -20,6 +20,7 @@ export const createTracking = base
   )
   .output(
     z.object({
+      trackingId: z.string(),
       trackingName: z.string(),
     })
   )
@@ -89,6 +90,7 @@ export const createTracking = base
     });
 
     return {
+      trackingId: tracking.id,
       trackingName: tracking.name,
     };
   });

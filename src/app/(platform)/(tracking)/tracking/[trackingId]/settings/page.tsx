@@ -75,7 +75,7 @@ export default async function Page({ params }: SettingTrackingPage) {
           ))}
         </TabsList>
 
-        <div className="px-4 w-full">
+        <div className="px-4 w-full py-4">
           {tabs.map((tab) => (
             <TabsContent key={tab.value} value={tab.value}>
               {tab.content}

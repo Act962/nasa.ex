@@ -18,6 +18,13 @@ export const createTag = base
       trackingId: z.string().nullable().default(null),
     })
   )
+  .output(
+    z.object({
+      tagId: z.string(),
+      tagName: z.string(),
+      trackingId: z.string().nullable()
+    })
+  )
   .handler(async ({ input, context, errors }) => {
     const tag = await prisma.tag.create({
       data: {
@@ -29,6 +36,8 @@ export const createTag = base
     });
 
     return {
-      tag,
+      tagId: tag.id,
+      tagName: tag.name,
+      trackingId: tag.trackingId,
     };
   });

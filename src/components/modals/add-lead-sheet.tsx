@@ -142,7 +142,7 @@ export default function AddLeadSheet({
   );
 
   const { status, isLoadingStatus } = useStatus(trackingId ?? "");
-  const { tags, isLoadingTags } = useTags();
+  const { tags, isLoadingTags } = useTags({ trackingId });
   const { createTag } = useTag();
   const [newTag, setNewTag] = useState("");
 

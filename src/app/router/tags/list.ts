@@ -47,7 +47,7 @@ export const listTags = base
           }),
         },
         orderBy: {
-          createdAt: "desc",
+          name: "asc",
         },
       });
 
