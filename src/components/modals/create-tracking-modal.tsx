@@ -28,6 +28,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Spinner } from "@/components/spinner";
 import { useTracking } from "@/hooks/use-tracking-modal";
+import { useRouter } from "next/navigation";
 
 const createTrackingSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório"),
@@ -37,6 +38,7 @@ const createTrackingSchema = z.object({
 type CreateTrackingForm = z.infer<typeof createTrackingSchema>;
 
 export function ModalCreateTracking() {
+  const router = useRouter()
   const queryClient = useQueryClient();
 
   const {
@@ -44,7 +46,6 @@ export function ModalCreateTracking() {
     handleSubmit,
     formState: { errors },
     reset,
-    watch,
   } = useForm<CreateTrackingForm>({
     resolver: zodResolver(createTrackingSchema),
     defaultValues: {
@@ -66,6 +67,7 @@ export function ModalCreateTracking() {
 
         reset();
         onClose();
+        router.push(`/tracking/${data.trackingId}`)
       },
       onError: (error) => {
         console.log(error);
@@ -114,6 +116,7 @@ export function ModalCreateTracking() {
                 <Textarea
                   {...register("description")}
                   className="resize-none"
+                  placeholder="Ex.: Acompanhar o progresso do lead"
                   disabled={isLoading}
                 />
               </Field>

@@ -14,7 +14,6 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldSeparator,
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -97,7 +96,6 @@ export function FormCreateOrg() {
       slug: data.slug,
     });
 
-    console.log(checkData);
 
     if (!checkData?.status) {
       toast.error("Este slug já está em uso. Por favor, escolha outro.");
@@ -112,7 +110,6 @@ export function FormCreateOrg() {
       slug: data.slug,
       logo: data.logo,
       metadata,
-      keepCurrentActiveOrganization: true,
     });
 
     if (error) {

@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useSidebar } from "@/components/ui/sidebar";
 import { orpc } from "@/lib/orpc";
+import { cn } from "@/lib/utils";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { DraggableAttributes } from "@dnd-kit/core";
 import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
@@ -200,11 +201,11 @@ const ListOption = ({ currentColor, onColorChange }: ListOptionProps) => {
                 <DropdownMenuSubContent>
                   <div className="w-40 pb-1 px-2">
                     <span className="text-sm font-medium">Cores</span>
-                    <div className="grid grid-cols-6 gap-x-1.5 gap-y-2">
+                    <div className="grid grid-cols-6 gap-x-1.5 gap-y-2 mt-2">
                       {colors.map((color) => (
-                        <div key={color}>
+                        <div role="button" key={color} className={cn("size-5 rounded-full transition-all border border-transparent flex items-center justify-center hover:border-border", color === currentColor && "border-border")}>
                           <div
-                            className={`w-4 h-4 rounded-full cursor-pointer hover:scale-110 transition-transform ${color === currentColor ? "scale-110" : ""}`}
+                            className={`size-3.5 rounded-full transition-transform`}
                             style={{ backgroundColor: color }}
                             onClick={() => handlePresetColorClick(color)}
                           />

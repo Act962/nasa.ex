@@ -30,6 +30,8 @@ import { LeadItem } from "./lead-item";
 import { Footer } from "./footer";
 import { useLostOrWin } from "@/hooks/use-lost-or-win";
 import { useDeletLead } from "@/hooks/use-delete-lead";
+import { useQueryState } from "nuqs";
+import dayjs from "dayjs";
 
 interface ListContainerProps {
   trackingId: string;
@@ -54,6 +56,8 @@ type StatusWithLeads = {
 
 export function ListContainer({ trackingId }: ListContainerProps) {
   const params = useParams<{ trackingId: string }>();
+  const [dateInit, setDateInit] = useQueryState("date_init");
+  const [dateEnd, setDateEnd] = useQueryState("date_end");
   const { onOpen } = useLostOrWin();
   const { onOpen: onOpenDeleteLead } = useDeletLead();
 
@@ -61,6 +65,8 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     orpc.status.list.queryOptions({
       input: {
         trackingId,
+        date_init: dateInit ? dayjs(dateInit).toDate() : undefined,
+        date_end: dateEnd ? dayjs(dateEnd).toDate() : undefined,
       },
     })
   );

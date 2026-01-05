@@ -14,6 +14,10 @@ export const listStatus = base
   .input(
     z.object({
       trackingId: z.string(),
+      participant: z.string().optional(),
+      tags: z.string().optional(),
+      date_init: z.date().optional(),
+      date_end: z.date().optional(),
     })
   )
   .output(
@@ -71,6 +75,13 @@ export const listStatus = base
           },
           where: {
             currentAction: "ACTIVE",
+            ...(input.date_init &&
+              input.date_end && {
+                createdAt: {
+                  gte: input.date_init,
+                  lte: input.date_end,
+                },
+              }),
           },
         },
       },

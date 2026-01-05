@@ -14,7 +14,7 @@ export function useTag() {
           queryKey: orpc.tags.listTags.queryKey({
             input: {
               query: {
-                trackingId: data.tag.trackingId ?? "",
+                trackingId: data.trackingId ?? "",
               },
             },
           }),

@@ -1,14 +1,13 @@
 import { orpc } from "@/lib/orpc";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
 
-export function useTags() {
-  const trackingId = useParams<{ trackingId?: string }>();
+export function useTags({ trackingId }: { trackingId?: string }) {
+
   const { data, isLoading } = useQuery(
     orpc.tags.listTags.queryOptions({
       input: {
         query: {
-          trackingId: trackingId?.trackingId,
+          trackingId,
         },
       },
     })
