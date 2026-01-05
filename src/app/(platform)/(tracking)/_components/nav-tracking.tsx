@@ -2,12 +2,14 @@
 
 import AddLeadSheet from "@/components/modals/add-lead-sheet";
 import { SearchLeadModal } from "@/components/modals/search-lead-modal";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -19,9 +21,13 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAddLead } from "@/hooks/modal/use-add-lead";
 import { useSearchModal } from "@/hooks/modal/use-search-modal";
+import { orpc } from "@/lib/orpc";
 import { DropdownMenu } from "@radix-ui/react-dropdown-menu";
+import { useQuery } from "@tanstack/react-query";
 import {
   CalendarPlusIcon,
+  CheckIcon,
+  ChevronsUpDown,
   ClockIcon,
   Grid2x2Plus,
   MoreHorizontalIcon,
@@ -38,9 +44,10 @@ export function NavTracking() {
 
   return (
     <>
-      <div className="flex justify-between items-center px-4 py-2 gap-2 border-b border-border mb-2">
+      <div className="flex justify-between items-center px-4 py-2 gap-2 border-b border-border">
         <div className="flex items-center gap-x-2">
           <SidebarTrigger />
+
           <InputGroup onClick={() => searchLead.setIsOpen(true)}>
             <InputGroupInput placeholder="Pesquisar..." className="h-6" />
             <InputGroupAddon>

@@ -10,7 +10,7 @@ export default async function RouteLayout({
 
   return (
     <>
-      {/* <ModalProvider /> */}
+      <ModalProvider />
       {children}
     </>
   );
