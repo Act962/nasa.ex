@@ -4,7 +4,7 @@ import { orpc } from "@/lib/orpc";
 import { createPortal } from "react-dom";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { StatusForm } from "./status-form";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { StatusItem } from "./status-item";
 import {
   DndContext,
@@ -61,13 +61,18 @@ export function ListContainer({ trackingId }: ListContainerProps) {
   const { onOpen } = useLostOrWin();
   const { onOpen: onOpenDeleteLead } = useDeletLead();
 
+  const queryInput = useMemo(
+    () => ({
+      trackingId,
+      date_init: dateInit ? dayjs(dateInit).toDate() : undefined,
+      date_end: dateEnd ? dayjs(dateEnd).toDate() : undefined,
+    }),
+    [trackingId, dateInit, dateEnd]
+  );
+
   const { data } = useSuspenseQuery(
     orpc.status.list.queryOptions({
-      input: {
-        trackingId,
-        date_init: dateInit ? dayjs(dateInit).toDate() : undefined,
-        date_end: dateEnd ? dayjs(dateEnd).toDate() : undefined,
-      },
+      input: queryInput,
     })
   );
   const sensors = useSensors(
@@ -401,7 +406,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
 
   useEffect(() => {
     setStatusData(data.status);
-  }, [data]);
+  }, [data.status]);
 
   return (
     <DndContext

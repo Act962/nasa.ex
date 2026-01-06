@@ -8,7 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
 import dayjs from "dayjs";
 import { pt } from "react-day-picker/locale";
@@ -18,15 +18,31 @@ export function CalendarFilter() {
   const [open, setOpen] = useState(false);
   const [dateInit, setDateInit] = useQueryState("date_init");
   const [dateEnd, setDateEnd] = useQueryState("date_end");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: dayjs(dateInit || dayjs().day(0).toDate()).toDate(),
-    to: dayjs(dateEnd || dayjs().day(6).toDate()).toDate(),
-  });
+
+  // ✅ Use useMemo para memoizar as datas e evitar criar novos objetos a cada render
+  const initialDateRange = useMemo<DateRange | undefined>(() => {
+    return {
+      from: dateInit ? dayjs(dateInit).toDate() : dayjs().day(0).toDate(),
+      to: dateEnd ? dayjs(dateEnd).toDate() : dayjs().day(6).toDate(),
+    };
+  }, [dateInit, dateEnd]);
+
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(
+    initialDateRange
+  );
 
   const handleApply = () => {
-    setDateInit(dayjs(dateRange?.from).format("YYYY-MM-DD"));
-    setDateEnd(dayjs(dateRange?.to).format("YYYY-MM-DD"));
+    if (dateRange?.from) {
+      setDateInit(dayjs(dateRange.from).format("YYYY-MM-DD"));
+    }
+    if (dateRange?.to) {
+      setDateEnd(dayjs(dateRange.to).format("YYYY-MM-DD"));
+    }
+    setOpen(false);
+  };
 
+  const handleCancel = () => {
+    setDateRange(initialDateRange);
     setOpen(false);
   };
 
@@ -53,7 +69,10 @@ export function CalendarFilter() {
           className="border-none"
         />
 
-        <div className="flex justify-end p-2">
+        <div className="flex justify-end gap-2 p-2">
+          <Button variant="outline" onClick={handleCancel}>
+            Cancelar
+          </Button>
           <Button onClick={handleApply}>Aplicar</Button>
         </div>
       </PopoverContent>

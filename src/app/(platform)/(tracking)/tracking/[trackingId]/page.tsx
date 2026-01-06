@@ -27,12 +27,7 @@ export default async function TrackingPage({
   const queryClient = getQueryClient();
   const search = await searchParams;
 
-  const {
-    participant,
-    tags,
-    date_init: dateInit,
-    date_end: dateEnd,
-  } = filterSchema.parse(search);
+  const { date_init: dateInit, date_end: dateEnd } = filterSchema.parse(search);
 
   await queryClient.prefetchQuery(
     orpc.status.list.queryOptions({
