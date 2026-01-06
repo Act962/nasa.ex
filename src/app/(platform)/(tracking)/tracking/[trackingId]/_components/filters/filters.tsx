@@ -8,6 +8,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { ListFilter } from "lucide-react";
+import { ParticipantsSwitcher } from "./participant-switcher";
+import { TagsFilter } from "./tags-filter";
+import { CalendarFilter } from "./calendar-filter";
 
 export function Filters() {
   return (
@@ -24,6 +27,12 @@ export function Filters() {
             Aplique filtros para refinar sua busca.
           </SheetDescription>
         </SheetHeader>
+
+        <div className="flex flex-col gap-2 px-4">
+          <ParticipantsSwitcher />
+          <TagsFilter />
+          <CalendarFilter />
+        </div>
       </SheetContent>
     </Sheet>
   );

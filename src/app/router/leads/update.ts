@@ -20,6 +20,7 @@ export const updateLead = base
         email: z.string().optional(),
         description: z.string().optional(),
         statusId: z.string().optional(),
+        responsibleId: z.string().optional(),
       })
       .refine(
         (v) =>
@@ -27,7 +28,8 @@ export const updateLead = base
           v.phone !== undefined ||
           v.email !== undefined ||
           v.description !== undefined ||
-          v.statusId !== undefined,
+          v.statusId !== undefined ||
+          v.responsibleId !== undefined,
         {
           message: "No fields to update",
           path: ["id"],
@@ -67,6 +69,7 @@ export const updateLead = base
           email: input.email,
           description: input.description,
           statusId: input.statusId,
+          responsibleId: input.responsibleId,
         },
         select: {
           id: true,

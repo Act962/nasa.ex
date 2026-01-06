@@ -16,6 +16,12 @@ type Lead = {
   phone: string | null;
   statusId: string;
   tags: string[];
+  createdAt: Date;
+  responsible: {
+    image: string | null;
+    email: string;
+    name: string;
+  } | null;
 };
 
 interface StatusItemProps {
@@ -55,7 +61,7 @@ export const StatusItem = ({ data, index }: StatusItemProps) => {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "shrink-0 w-[272px] h-full flex flex-col select-none",
+        "shrink-0 w-68 h-full flex flex-col select-none",
         isDragging && "z-50",
         index === 0 && "ml-4"
       )}

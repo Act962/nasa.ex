@@ -45,11 +45,13 @@ export function NavTracking() {
   const searchLead = useSearchModal();
   const useLeadSheet = useAddLead();
   const [addMemberDialogIsOpen, setAddMemberDialogIsOpen] = useState(false);
-  const { data, isPending } = useQuery(orpc.tracking.listParticipants.queryOptions({
-    input: {
-      trackingId: params.trackingId,
-    }
-  }))
+  const { data, isPending } = useQuery(
+    orpc.tracking.listParticipants.queryOptions({
+      input: {
+        trackingId: params.trackingId,
+      },
+    })
+  );
 
   return (
     <>
@@ -68,27 +70,42 @@ export function NavTracking() {
           {!isPending && data?.participants && data.participants.length > 0 && (
             <div className="flex items-center gap-0.5">
               <div className="*:data-[slot=avatar]:ring-background flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:grayscale">
-              {data.participants.slice(0, 6).map((participant) => (
-                <Avatar className="size-6" key={participant.id}>
-                  <AvatarImage src={participant?.user?.image || ""} alt={participant.user.name} />
-                  <AvatarFallback>{participant.user.name[0]}</AvatarFallback>
-              </Avatar>
-              ))}
-              {data.participants.length > 6 && (
-                <Avatar className="size-6">
-                  <AvatarFallback>+{data.participants.length - 6}</AvatarFallback>
-                </Avatar>
-              )}
-            </div>
+                {data.participants.slice(0, 6).map((participant) => (
+                  <Avatar className="size-6" key={participant.id}>
+                    <AvatarImage
+                      src={participant?.user?.image || ""}
+                      alt={participant.user.name}
+                    />
+                    <AvatarFallback>{participant.user.name[0]}</AvatarFallback>
+                  </Avatar>
+                ))}
+                {data.participants.length > 6 && (
+                  <Avatar className="size-6">
+                    <AvatarFallback>
+                      +{data.participants.length - 6}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
 
-            <button className="size-6 flex items-center justify-center border-dashed border border-border rounded-full transition-colors hover:bg-primary hover:text-primary-foreground hover:border-primary" onClick={() => setAddMemberDialogIsOpen(true)}>
-              <Plus className="size-4" />
-            </button>
+              <button
+                className="size-6 flex items-center justify-center border-dashed border border-border rounded-full transition-colors hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                onClick={() => setAddMemberDialogIsOpen(true)}
+              >
+                <Plus className="size-4" />
+              </button>
             </div>
           )}
           <ButtonGroup>
             <ButtonGroup className="hidden sm:flex">
-              <Button variant="outline">Automações</Button>
+              <Button variant="outline">
+                <Link
+                  href={`/tracking/${params.trackingId}/workflows`}
+                  prefetch
+                >
+                  Automações
+                </Link>
+              </Button>
               <Button variant="outline">
                 <Link href={`/tracking/${params.trackingId}/settings`} prefetch>
                   Configurações
@@ -156,7 +173,9 @@ export function NavTracking() {
       <AddParticipantDialog
         open={addMemberDialogIsOpen}
         onOpenChange={setAddMemberDialogIsOpen}
-        participantsIds={data?.participants.map((participant) => participant.user.id) || []}
+        participantsIds={
+          data?.participants.map((participant) => participant.user.id) || []
+        }
       />
 
       <AddLeadSheet

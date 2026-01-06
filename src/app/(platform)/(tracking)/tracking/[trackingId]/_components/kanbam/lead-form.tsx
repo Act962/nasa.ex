@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useCreateLead } from "@/context/leads/hooks/use-lead";
+import { useCreateLead } from "@/features/leads/hooks/use-lead";
 import { Plus } from "lucide-react";
 import { useParams } from "next/navigation";
 

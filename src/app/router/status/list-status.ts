@@ -14,8 +14,8 @@ export const listStatus = base
   .input(
     z.object({
       trackingId: z.string(),
-      participant: z.string().optional(),
-      tags: z.string().optional(),
+      participant: z.email().optional(),
+      tags: z.array(z.string()).optional(),
       date_init: z.date().optional(),
       date_end: z.date().optional(),
     })
@@ -36,6 +36,14 @@ export const listStatus = base
               email: z.string().nullable(),
               order: z.number(),
               phone: z.string().nullable(),
+              createdAt: z.date(),
+              responsible: z
+                .object({
+                  name: z.string(),
+                  email: z.string(),
+                  image: z.string().nullable(),
+                })
+                .nullable(),
               statusId: z.string(),
               tags: z.array(z.string()),
             })
@@ -60,6 +68,8 @@ export const listStatus = base
             phone: true,
             statusId: true,
             order: true,
+            createdAt: true,
+            responsible: true,
             leadTags: {
               select: {
                 tag: {
@@ -82,6 +92,11 @@ export const listStatus = base
                   lte: input.date_end,
                 },
               }),
+            ...(input.participant && {
+              responsible: {
+                email: input.participant,
+              },
+            }),
           },
         },
       },
@@ -102,7 +117,9 @@ export const listStatus = base
         email: lead.email,
         phone: lead.phone,
         statusId: lead.statusId,
+        responsible: lead.responsible,
         order: lead.order,
+        createdAt: lead.createdAt,
         tags: lead.leadTags.map((lt) => lt.tag.name),
       })),
     }));

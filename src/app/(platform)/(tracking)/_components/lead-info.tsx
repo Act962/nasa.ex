@@ -137,7 +137,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
               <InfoItem
                 loading={isPending}
                 label="Responsável"
-                value={session?.user.name ?? "Sem Responsável"}
+                value={lead.responsible?.name ?? "Sem Responsável"}
                 type="responsible"
                 trackingId={lead.trackingId}
               />
@@ -208,6 +208,7 @@ function InfoItem({ label, value, loading, type, trackingId }: InfoItemProps) {
     if (type === "email") payload.email = dataField;
     if (type === "phone") payload.phone = normalizePhone(dataField);
     if (type === "responsible") return;
+
     mutation.mutate(payload as any, {
       onError: () => {
         setDisplayValue(prev);
@@ -235,7 +236,7 @@ function InfoItem({ label, value, loading, type, trackingId }: InfoItemProps) {
               <div className="flex items-center">
                 <Tooltip delayDuration={700}>
                   <TooltipTrigger asChild>
-                    <span className="text-xs max-w-[180px] truncate">
+                    <span className="text-xs max-w-45 truncate">
                       {type === "phone"
                         ? phoneMask(displayValue)
                         : displayValue}
@@ -333,26 +334,29 @@ const SelectEditForm = ({
     })
   );
 
-  const userSelectable = data ? data.participants : [];
+  const userSelectable = data ? data.participants.flatMap((p) => p.user) : [];
 
   const handleChange = (newValue: string) => {
-    setLocalValue(newValue);
-    onSubmit(newValue);
+    // Convert ID to name
+    // const selectedUser = userSelectable.find((user) => user.id === newValue);
+    // if (selectedUser) {
+    //   onSubmit(selectedUser.name);
+    // }
   };
 
   return (
-    <Select onValueChange={handleChange}>
-      <SelectTrigger className="w-[180px]" size="sm" autoFocus>
-        <SelectValue placeholder={localValue} />
+    <Select value={value} onValueChange={handleChange}>
+      <SelectTrigger className="w-45" size="sm" autoFocus>
+        <SelectValue placeholder="Selecione..." />
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
           {userSelectable.map((participant) => (
             <SelectItem
               key={`user-selectable-${participant.id}`}
-              value={participant.user.name}
+              value={participant.id}
             >
-              {participant.user.name}
+              {participant.name}
             </SelectItem>
           ))}
         </SelectGroup>

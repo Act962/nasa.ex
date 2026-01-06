@@ -13,11 +13,12 @@ export const createLeadWithTags = base
       description: z.string().optional(),
       statusId: z.string(),
       trackingId: z.string(),
+      responsibleId: z.string().optional(),
       position: z.enum(["first", "last"]).default("last"),
       tagIds: z.array(z.string()).optional(),
     })
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, errors, context }) => {
     try {
       return await prisma.$transaction(async (tx) => {
         // Verificar se já existe
@@ -60,6 +61,8 @@ export const createLeadWithTags = base
           newOrder = lastLead ? lastLead.order + 1 : 0;
         }
 
+        const responsibleId = input.responsibleId || context.user.id;
+
         // Criar lead
         const lead = await tx.lead.create({
           data: {
@@ -70,6 +73,7 @@ export const createLeadWithTags = base
             statusId: input.statusId,
             trackingId: input.trackingId,
             order: newOrder,
+            responsibleId,
           },
         });
 
