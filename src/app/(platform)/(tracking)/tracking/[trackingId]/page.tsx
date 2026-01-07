@@ -1,16 +1,19 @@
-import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
+import { getQueryClient } from "@/lib/query/hydration";
 import { orpc } from "@/lib/orpc";
 import { ListContainer } from "./_components/kanbam/list-container";
 import { FiltersTracking } from "./_components/filters";
 import { z } from "zod";
 import dayjs from "dayjs";
 import { prefetchStatus } from "@/features/status/server/prefetch";
+import { ErrorBoundary } from "react-error-boundary";
+import { HydrateClient, prefetch, trpc } from "@/trpc/server";
+import { Suspense } from "react";
+import { SearchParams } from "nuqs";
+import { statusParamsLoader } from "@/features/status/server/params-loader";
 
 type TrackingPageProps = {
   params: Promise<{ trackingId: string }>;
-  searchParams: Promise<{
-    [key: string]: string | string[] | undefined;
-  }>;
+  searchParams: Promise<SearchParams>;
 };
 
 const filterSchema = z.object({
@@ -25,30 +28,48 @@ export default async function TrackingPage({
   searchParams,
 }: TrackingPageProps) {
   const { trackingId } = await params;
-  const queryClient = getQueryClient();
-  const search = await searchParams;
 
-  const {
-    participant,
-    date_init: dateInit,
-    date_end: dateEnd,
-  } = filterSchema.parse(search);
+  const queryParams = await statusParamsLoader(searchParams);
 
-  await prefetchStatus(queryClient, {
-    trackingId,
-    date_init: dateInit ? dayjs(dateInit).startOf("day").toDate() : undefined,
-    date_end: dateEnd ? dayjs(dateEnd).endOf("day").toDate() : undefined,
-    participant,
-  });
+  // await prefetchStatus(queryClient, {
+  //   trackingId,
+  //   date_init: dateInit ? dayjs(dateInit).startOf("day").toDate() : undefined,
+  //   date_end: dateEnd ? dayjs(dateEnd).endOf("day").toDate() : undefined,
+  //   participant,
+  // });
+
+  prefetch(
+    trpc.status.list.queryOptions({
+      trackingId,
+      date_init: queryParams.date_init,
+      date_end: queryParams.date_end,
+      participant: queryParams.participant,
+    })
+  );
 
   return (
     <>
       <FiltersTracking />
-      <div className="relative h-full overflow-x-auto scroll-cols-tracking ">
-        <HydrateClient client={queryClient}>
-          <ListContainer trackingId={trackingId} />
-        </HydrateClient>
-      </div>
+      <HydrateClient>
+        <ErrorBoundary fallback={<div>Something went wrong</div>}>
+          <Suspense fallback={<div>Loading...</div>}>
+            <div className="relative h-full overflow-x-auto scroll-cols-tracking ">
+              <ListContainer trackingId={trackingId} />
+            </div>
+          </Suspense>
+        </ErrorBoundary>
+      </HydrateClient>
     </>
   );
+
+  // return (
+  //   <>
+  //     <FiltersTracking />
+  //     <div className="relative h-full overflow-x-auto scroll-cols-tracking ">
+  //       <HydrateClient client={queryClient}>
+  //         <ListContainer trackingId={trackingId} />
+  //       </HydrateClient>
+  //     </div>
+  //   </>
+  // );
 }
