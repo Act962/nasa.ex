@@ -3,6 +3,8 @@ import { orpc } from "@/lib/orpc";
 import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { CreateWorkflowButton } from "./create-workflow";
 import { WorkflowContainer } from "./workflow-container";
+import { Suspense } from "react";
+import { prefetchWorkflows } from "@/features/workflows/server/prefetch";
 
 interface WorkflowPageProps {
   params: Promise<{
@@ -14,20 +16,16 @@ export default async function WorkflowsPage({ params }: WorkflowPageProps) {
   const { trackingId } = await params;
   const queryClient = getQueryClient();
 
-  await queryClient.prefetchQuery(
-    orpc.workflow.list.queryOptions({
-      input: {
-        trackingId,
-      },
-    })
-  );
+  await prefetchWorkflows(queryClient, {
+    trackingId,
+  });
 
   return (
     <div className="container mx-auto mt-16 space-y-8">
       <div className="flex items-center justify-between">
         <div className="max-w-xl">
-          <h2 className="text-2xl font-bold">Automações</h2>
-          <p className="text-muted-foreground text-sm">
+          <h1 className="text-lg md:text-xl font-semibold">Automações</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">
             A automação é um processo que automatiza tarefas repetitivas,
             permitindo que você se concentre em tarefas mais importantes.
           </p>
@@ -37,7 +35,9 @@ export default async function WorkflowsPage({ params }: WorkflowPageProps) {
       </div>
 
       <HydrateClient client={queryClient}>
-        <WorkflowContainer />
+        <Suspense fallback={<div>Loading...</div>}>
+          <WorkflowContainer />
+        </Suspense>
       </HydrateClient>
     </div>
   );
