@@ -426,7 +426,49 @@ model Workflow {
   user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
 
+  nodes Node[]
+  connections Connection[]
+
   @@map("workflows")
 }
 
+enum NodeType {
+  INITIAL
+}
 
+model Node {
+  id String @id @default(cuid())
+  workflowId String @map("workflow_id")
+  name String
+  type NodeType
+  position Json
+  data Json @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt  @map("updated_at")
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  outputConnections Connection[] @relation("FromNode")
+  inputConnections Connection[] @relation("ToNode")
+
+  @@map("nodes")
+}
+
+model Connection {
+  id String @id @default(cuid())
+  workflowId String @map("workflow_id")
+  fromNodeId String @map("from_node_id")
+  toNodeId String @map("to_node_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt  @map("updated_at")
+  fromOutput String @default("main")
+  toInput String @default("main")
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  fromNode Node @relation("FromNode", fields: [fromNodeId], references: [id], onDelete: Cascade)
+  toNode Node @relation("ToNode", fields: [toNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([fromNodeId, toNodeId, fromOutput, toInput])
+  @@map("connections")
+}

@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { NodeType } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -25,6 +26,13 @@ export const createWorkflow = base
         description: input.description,
         trackingId: input.trackingId,
         userId: context.user.id,
+        nodes: {
+          create: {
+            type: NodeType.INITIAL,
+            position: { x: 0, y: 0 },
+            name: NodeType.INITIAL,
+          },
+        },
       },
     });
 

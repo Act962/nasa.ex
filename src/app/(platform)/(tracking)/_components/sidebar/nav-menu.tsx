@@ -18,6 +18,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 const items = [
   {
@@ -59,14 +61,24 @@ const items = [
 ];
 
 export function NavMenu() {
+  const pathname = usePathname();
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Menu</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item, index) => {
+          const isActive = pathname.startsWith(item.url);
+
           return (
             <SidebarMenuItem key={`${item.title}-${index}`}>
-              <SidebarMenuButton tooltip={item.title} asChild>
+              <SidebarMenuButton
+                tooltip={item.title}
+                asChild
+                className={cn(
+                  isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+                )}
+              >
                 <Link href={item.url}>
                   <item.icon />
                   <span> {item.title} </span>
