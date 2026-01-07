@@ -4,6 +4,7 @@ import { ListContainer } from "./_components/kanbam/list-container";
 import { FiltersTracking } from "./_components/filters";
 import { z } from "zod";
 import dayjs from "dayjs";
+import { prefetchStatus } from "@/features/status/server/prefetch";
 
 type TrackingPageProps = {
   params: Promise<{ trackingId: string }>;
@@ -33,18 +34,12 @@ export default async function TrackingPage({
     date_end: dateEnd,
   } = filterSchema.parse(search);
 
-  await queryClient.prefetchQuery(
-    orpc.status.list.queryOptions({
-      input: {
-        trackingId,
-        date_init: dateInit
-          ? dayjs(dateInit).startOf("day").toDate()
-          : undefined,
-        date_end: dateEnd ? dayjs(dateEnd).endOf("day").toDate() : undefined,
-        participant,
-      },
-    })
-  );
+  await prefetchStatus(queryClient, {
+    trackingId,
+    date_init: dateInit ? dayjs(dateInit).startOf("day").toDate() : undefined,
+    date_end: dateEnd ? dayjs(dateEnd).endOf("day").toDate() : undefined,
+    participant,
+  });
 
   return (
     <>
