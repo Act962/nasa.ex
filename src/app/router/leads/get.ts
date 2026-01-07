@@ -30,6 +30,17 @@ export const getLead = base
         trackingId: z.string(),
         createdAt: z.date(),
         updatedAt: z.date(),
+        responsible: z
+          .object({
+            id: z.string(),
+            name: z.string(),
+            email: z.string(),
+            createdAt: z.date(),
+            updatedAt: z.date(),
+            emailVerified: z.boolean(),
+            image: z.string().nullable(),
+          })
+          .nullable(),
 
         // Relacionamento status
         status: z.object({
@@ -63,6 +74,7 @@ export const getLead = base
         include: {
           tracking: true,
           status: true,
+          responsible: true,
         },
       });
 

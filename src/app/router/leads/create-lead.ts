@@ -36,7 +36,7 @@ export const createLead = base
       }),
     })
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, errors, context }) => {
     try {
       const lead = await prisma.$transaction(async (tx) => {
         const existingLead = await tx.lead.findUnique({
@@ -73,6 +73,7 @@ export const createLead = base
             statusId: input.statusId,
             trackingId: input.trackingId,
             order: newOrder,
+            responsibleId: context.user.id,
           },
           select: {
             id: true,

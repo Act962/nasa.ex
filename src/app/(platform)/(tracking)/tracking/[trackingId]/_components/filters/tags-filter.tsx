@@ -15,7 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useTags } from "@/context/tags/hooks/use-tags";
+import { useTags } from "@/features/tags/hooks/use-tags";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -82,7 +82,10 @@ export function TagsFilter() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant={selectedCount > 0 ? "default" : "outline"}>
+        <Button
+          variant={selectedCount > 0 ? "default" : "outline"}
+          className="justify-start"
+        >
           <TagsIcon className="size-4" />
           Tags
           {selectedCount > 0 && (

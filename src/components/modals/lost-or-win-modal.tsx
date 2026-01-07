@@ -24,7 +24,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldError } from "../ui/field";
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
-import { useReasons } from "@/context/reasons/hooks/use-reasons";
+import { useReasons } from "@/features/reasons/hooks/use-reasons";
 import { Skeleton } from "../ui/skeleton";
 import { SelectItem } from "../ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";

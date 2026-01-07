@@ -17,7 +17,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useCreateStatus } from "@/context/status/hooks/use-status";
+import { useCreateStatus } from "@/features/status/hooks/use-status";
 
 const createStatusSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório"),
@@ -84,7 +84,7 @@ export const StatusForm = () => {
                 align="end"
               >
                 <DropdownMenuLabel>Cor do status</DropdownMenuLabel>
-                <div >
+                <div>
                   <SketchPicker
                     width="88%"
                     color={colorSelect}

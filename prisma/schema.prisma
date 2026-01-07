@@ -28,6 +28,8 @@ model User {
   responsibleOnActions    ActionsUserResponsible[]
   actions                 Action[]
   responsibleOnSubActions SubActionUserResponsible[]
+  responsibleOnLeads      Lead[]  @relation("LeadResponsible")
+  worflows Workflow[]
 
   @@unique([email])
   @@map("user")
@@ -114,7 +116,6 @@ model Member {
   @@index([userId])
   @@map("member")
 }
-
 model Invitation {
   id             String       @id @default(cuid())
   organizationId String
@@ -150,6 +151,7 @@ model Tracking {
   tags           Tag[]
   winLossReasons WinLossReason[]
   actions        Action[]
+  workflows      Workflow[]
 
   @@map("tracking")
 }
@@ -248,6 +250,7 @@ model Lead {
   description String?
   statusId    String  @map("status_id")
   trackingId  String  @map("tracking_id")
+  responsibleId String? @map("responsible_id")
   order       Int     @default(0)
 
   currentAction LeadAction @default(ACTIVE) @map("current_action")
@@ -260,6 +263,7 @@ model Lead {
   // Relacionamentos
   status   Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
   tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  responsible User? @relation("LeadResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
 
   leadTags LeadTag[]
   history  LeadHistory[]
@@ -272,6 +276,7 @@ model Lead {
   @@index([createdAt])
   @@index([currentAction])
   @@index([isActive])
+  @@index([responsibleId])
   @@unique([phone, trackingId])
   @@map("leads")
 }
@@ -407,6 +412,21 @@ model SubActions {
   @@index([isDone])
   @@index([finishDate])
   @@map("sub_action")
+}
+
+model Workflow {
+  id         String   @id @default(cuid())
+  name       String
+  description String?
+  userId     String?  @map("user_id")
+  trackingId String   @map("tracking_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt  @map("updated_at")
+
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+
+  @@map("workflows")
 }
 
 

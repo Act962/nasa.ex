@@ -13,7 +13,7 @@ type TrackingPageProps = {
 };
 
 const filterSchema = z.object({
-  participant: z.string().optional(),
+  participant: z.email().optional(),
   tags: z.string().optional(),
   date_init: z.string().optional(),
   date_end: z.string().optional(),
@@ -27,14 +27,21 @@ export default async function TrackingPage({
   const queryClient = getQueryClient();
   const search = await searchParams;
 
-  const { date_init: dateInit, date_end: dateEnd } = filterSchema.parse(search);
+  const {
+    participant,
+    date_init: dateInit,
+    date_end: dateEnd,
+  } = filterSchema.parse(search);
 
   await queryClient.prefetchQuery(
     orpc.status.list.queryOptions({
       input: {
         trackingId,
-        date_init: dateInit ? dayjs(dateInit).toDate() : undefined,
-        date_end: dateEnd ? dayjs(dateEnd).toDate() : undefined,
+        date_init: dateInit
+          ? dayjs(dateInit).startOf("day").toDate()
+          : undefined,
+        date_end: dateEnd ? dayjs(dateEnd).endOf("day").toDate() : undefined,
+        participant,
       },
     })
   );

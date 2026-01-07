@@ -51,23 +51,32 @@ type StatusWithLeads = {
     phone: string | null;
     statusId: string;
     tags: string[];
+    createdAt: Date;
+    responsible: {
+      image: string | null;
+      email: string;
+      name: string;
+    } | null;
   }[];
 };
 
 export function ListContainer({ trackingId }: ListContainerProps) {
   const params = useParams<{ trackingId: string }>();
-  const [dateInit, setDateInit] = useQueryState("date_init");
-  const [dateEnd, setDateEnd] = useQueryState("date_end");
+  const [dateInit] = useQueryState("date_init");
+  const [dateEnd] = useQueryState("date_end");
+  const [participantFilter] = useQueryState("participant");
+
   const { onOpen } = useLostOrWin();
   const { onOpen: onOpenDeleteLead } = useDeletLead();
 
   const queryInput = useMemo(
     () => ({
       trackingId,
-      date_init: dateInit ? dayjs(dateInit).toDate() : undefined,
-      date_end: dateEnd ? dayjs(dateEnd).toDate() : undefined,
+      date_init: dateInit ? dayjs(dateInit).startOf("day").toDate() : undefined,
+      date_end: dateEnd ? dayjs(dateEnd).endOf("day").toDate() : undefined,
+      participant: participantFilter || undefined,
     }),
-    [trackingId, dateInit, dateEnd]
+    [trackingId, dateInit, dateEnd, participantFilter]
   );
 
   const { data } = useSuspenseQuery(

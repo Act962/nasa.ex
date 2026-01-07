@@ -1,16 +1,23 @@
 "use client";
 
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowUpRight, Grip, Mail, Phone, Tag } from "lucide-react";
+import { ArrowUpRight, Grip, Mail, Phone, Tag, User } from "lucide-react";
 // import { CardOptions } from "./card-options";
 // import { useLeads } from "@/hooks/use-lead-modal";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { phoneMask } from "@/utils/format-phone";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import dayjs from "dayjs";
 
 type Lead = {
   id: string;
@@ -20,6 +27,12 @@ type Lead = {
   phone: string | null;
   statusId: string;
   tags: string[];
+  createdAt: Date;
+  responsible: {
+    image: string | null;
+    email: string;
+    name: string;
+  } | null;
 };
 
 export const LeadItem = ({ data }: { data: Lead }) => {
@@ -84,16 +97,16 @@ export const LeadItem = ({ data }: { data: Lead }) => {
       </div>
       <Separator />
       <div className="flex flex-col px-4 gap-1 text-xs text-muted-foreground py-2">
-        <div className="flex flex-row gap-2 items-center">
+        <LeadItemContainer>
           <Mail className="size-3" />
           {data.email || "Email@example.com"}
-        </div>
-        <div className="flex flex-row gap-2 items-center">
+        </LeadItemContainer>
+        <LeadItemContainer>
           <Phone className="size-3" />
           {phoneMask(data.phone) || "(00) 00000-0000"}
-        </div>
+        </LeadItemContainer>
         {data.tags.length > 0 && (
-          <div className="flex flex-row gap-2 items-center">
+          <LeadItemContainer>
             <Tag className="size-3" />
             <div className="flex space-x-0.5">
               {data.tags.slice(0, 2).map((tag) => (
@@ -108,9 +121,39 @@ export const LeadItem = ({ data }: { data: Lead }) => {
                 </Badge>
               )}
             </div>
-          </div>
+          </LeadItemContainer>
         )}
+      </div>
+      <Separator />
+      <div className="flex items-center justify-between bg-secondary px-3 py-2">
+        <span className="text-xs text-muted-foreground">
+          {dayjs(data.createdAt).format("DD/MM/YYYY HH:mm")}
+        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Avatar className="size-4">
+              <AvatarImage
+                src={
+                  data.responsible?.image || "https://github.com/ElFabrica.png"
+                }
+                alt="photo user"
+              />
+              <AvatarFallback>
+                {data.responsible?.name.split(" ")[0][0]}
+              </AvatarFallback>
+            </Avatar>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{data.responsible?.name}</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );
 };
+
+interface LeadItemContainerProps extends React.ComponentProps<"div"> {}
+
+function LeadItemContainer({ ...props }: LeadItemContainerProps) {
+  return <div className="flex flex-row gap-2 items-center" {...props} />;
+}

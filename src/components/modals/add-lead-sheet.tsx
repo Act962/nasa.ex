@@ -33,11 +33,11 @@ import {
   SelectValue,
 } from "../ui/select";
 
-import { useStatus } from "@/context/status/hooks/use-status";
+import { useStatus } from "@/features/status/hooks/use-status";
 import { Skeleton } from "../ui/skeleton";
 
-import { useTags } from "@/context/tags/hooks/use-tags";
-import { useTag } from "@/context/tags/hooks/use-tag";
+import { useTags } from "@/features/tags/hooks/use-tags";
+import { useTag } from "@/features/tags/hooks/use-tag";
 import {
   Tags,
   TagsContent,
