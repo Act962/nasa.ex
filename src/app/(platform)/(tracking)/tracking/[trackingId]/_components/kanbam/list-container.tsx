@@ -32,6 +32,7 @@ import { useLostOrWin } from "@/hooks/use-lost-or-win";
 import { useDeletLead } from "@/hooks/use-delete-lead";
 import { useQueryState } from "nuqs";
 import dayjs from "dayjs";
+import { useSuspenseStatus } from "@/features/status/hooks/use-status";
 
 interface ListContainerProps {
   trackingId: string;
@@ -79,11 +80,8 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     [trackingId, dateInit, dateEnd, participantFilter]
   );
 
-  const { data } = useSuspenseQuery(
-    orpc.status.list.queryOptions({
-      input: queryInput,
-    })
-  );
+  const { data } = useSuspenseStatus(queryInput);
+
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: {

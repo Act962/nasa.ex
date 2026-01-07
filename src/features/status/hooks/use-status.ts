@@ -1,9 +1,34 @@
 "use client";
 
 import { orpc } from "@/lib/orpc";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+
+interface UseSuspenseStatusOptions {
+  trackingId: string;
+  date_init?: Date;
+  date_end?: Date;
+  participant?: string;
+}
+
+export const useSuspenseStatus = ({
+  trackingId,
+  date_init,
+  date_end,
+  participant,
+}: UseSuspenseStatusOptions) => {
+  return useSuspenseQuery(
+    orpc.status.list.queryOptions({
+      input: {
+        trackingId,
+        date_init,
+        date_end,
+        participant,
+      },
+    })
+  );
+};
 
 interface UseCreateStatusOptions {
   trackingId: string;
