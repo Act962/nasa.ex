@@ -2,7 +2,7 @@
 
 import { orpc } from "@/lib/orpc";
 import { createPortal } from "react-dom";
-import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { StatusForm } from "./status-form";
 import { useEffect, useMemo, useState } from "react";
 import { StatusItem } from "./status-item";
@@ -63,6 +63,7 @@ type StatusWithLeads = {
 
 export function ListContainer({ trackingId }: ListContainerProps) {
   const params = useParams<{ trackingId: string }>();
+
   const [dateInit] = useQueryState("date_init");
   const [dateEnd] = useQueryState("date_end");
   const [participantFilter] = useQueryState("participant");
@@ -70,15 +71,26 @@ export function ListContainer({ trackingId }: ListContainerProps) {
   const { onOpen } = useLostOrWin();
   const { onOpen: onOpenDeleteLead } = useDeletLead();
 
-  const queryInput = useMemo(
-    () => ({
+  const queryInput = useMemo(() => {
+    const dateInitParsed = dateInit
+      ? dayjs(dateInit).startOf("day").toDate()
+      : undefined;
+    const dateEndParsed = dateEnd
+      ? dayjs(dateEnd).endOf("day").toDate()
+      : undefined;
+
+    return {
       trackingId,
-      date_init: dateInit ? dayjs(dateInit).startOf("day").toDate() : undefined,
-      date_end: dateEnd ? dayjs(dateEnd).endOf("day").toDate() : undefined,
+      date_init: dateInitParsed,
+      date_end: dateEndParsed,
       participant: participantFilter || undefined,
-    }),
-    [trackingId, dateInit, dateEnd, participantFilter]
-  );
+    };
+  }, [
+    trackingId,
+    dateInit, // ← mantém a string como dependência
+    dateEnd, // ← mantém a string como dependência
+    participantFilter,
+  ]);
 
   const { data } = useSuspenseStatus(queryInput);
 
@@ -109,7 +121,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     statusId: string;
     index: number; // ← Mudamos de 'order' para 'index'
   } | null>(null);
-  const [statusData, setStatusData] = useState(data.status);
+  const [statusData, setStatusData] = useState<StatusWithLeads[]>([]);
 
   const updateColumnOrder = useMutation(
     orpc.status.updateOrder.mutationOptions({
@@ -118,7 +130,15 @@ export function ListContainer({ trackingId }: ListContainerProps) {
       },
       onError: () => {
         toast.error("Erro ao atualizar coluna, tente novamente");
-        setStatusData(data.status);
+        setStatusData(
+          data.status.map((s) => ({
+            ...s,
+            leads: s.leads.map((l) => ({
+              ...l,
+              createdAt: new Date(l.createdAt),
+            })),
+          }))
+        );
       },
     })
   );
@@ -131,7 +151,15 @@ export function ListContainer({ trackingId }: ListContainerProps) {
       onError: () => {
         toast.error("Erro ao atualizar lead, tente novamente mais tarde");
         // Reverte o estado em caso de erro
-        setStatusData(data.status);
+        setStatusData(
+          data.status.map((s) => ({
+            ...s,
+            leads: s.leads.map((l) => ({
+              ...l,
+              createdAt: new Date(l.createdAt),
+            })),
+          }))
+        );
       },
     })
   );
@@ -200,7 +228,15 @@ export function ListContainer({ trackingId }: ListContainerProps) {
       }
 
       // Reverte a posição visual do lead
-      setStatusData(data.status);
+      setStatusData(
+        data.status.map((s) => ({
+          ...s,
+          leads: s.leads.map((l) => ({
+            ...l,
+            createdAt: new Date(l.createdAt),
+          })),
+        }))
+      );
       setOriginalLeadPosition(null);
       return;
     }
@@ -412,8 +448,22 @@ export function ListContainer({ trackingId }: ListContainerProps) {
   }
 
   useEffect(() => {
-    setStatusData(data.status);
-  }, [data.status]);
+    console.log("📊 useEffect disparado - data.status mudou", {
+      statusCount: data.status.length,
+      timestamp: new Date().toISOString(),
+    });
+    if (data.status.length > 0) {
+      setStatusData(
+        data.status.map((s) => ({
+          ...s,
+          leads: s.leads.map((l) => ({
+            ...l,
+            createdAt: new Date(l.createdAt),
+          })),
+        }))
+      );
+    }
+  }, [data.status.length, data.status.map((s) => s.id).join(",")]);
 
   return (
     <DndContext

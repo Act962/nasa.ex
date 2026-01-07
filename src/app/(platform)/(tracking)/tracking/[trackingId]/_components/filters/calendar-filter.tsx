@@ -8,35 +8,32 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CalendarIcon, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { DateRange } from "react-day-picker";
 import dayjs from "dayjs";
 import { pt } from "react-day-picker/locale";
-import { useQueryState } from "nuqs";
+
+import { useStatusParams } from "@/features/status/hooks/use-workflow-params";
+import { FILTERS } from "@/config/constants";
 
 export function CalendarFilter() {
   const [open, setOpen] = useState(false);
-  const [dateInit, setDateInit] = useQueryState("date_init");
-  const [dateEnd, setDateEnd] = useQueryState("date_end");
+  const [params, setParams] = useStatusParams();
 
-  // ✅ Use useMemo para memoizar as datas e evitar criar novos objetos a cada render
-  const initialDateRange = useMemo<DateRange | undefined>(() => {
-    return {
-      from: dateInit ? dayjs(dateInit).toDate() : dayjs().day(0).toDate(),
-      to: dateEnd ? dayjs(dateEnd).toDate() : dayjs().day(6).toDate(),
-    };
-  }, [dateInit, dateEnd]);
-
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(
-    initialDateRange
-  );
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: FILTERS.INIT_DATE,
+    to: FILTERS.END_DATE,
+  });
 
   const handleApply = () => {
-    if (dateRange?.from) {
-      setDateInit(dayjs(dateRange.from).format("YYYY-MM-DD"));
-    }
-    if (dateRange?.to) {
-      setDateEnd(dayjs(dateRange.to).format("YYYY-MM-DD"));
+    console.log(dateRange);
+
+    if (dateRange?.to && dateRange.from) {
+      setParams((prev) => ({
+        ...prev,
+        date_init: dayjs(dateRange.from).startOf("day").toDate(),
+        date_end: dayjs(dateRange.to).endOf("day").toDate(),
+      }));
     }
     setOpen(false);
   };
@@ -74,17 +71,31 @@ export function CalendarFilter() {
     },
   ];
 
-  const isActiveFilter = dateInit && dateEnd;
+  const isActiveFilter =
+    params.date_init !== FILTERS.INIT_DATE &&
+    params.date_end !== FILTERS.END_DATE;
 
   const handleResetFilter = () => {
-    setDateInit(null);
-    setDateEnd(null);
     setDateRange({
-      from: dayjs().toDate(),
-      to: dayjs().toDate(),
+      from: FILTERS.INIT_DATE,
+      to: FILTERS.END_DATE,
     });
+    setParams((prev) => ({
+      ...prev,
+      date_init: FILTERS.INIT_DATE,
+      date_end: FILTERS.END_DATE,
+    }));
     setOpen(false);
   };
+
+  useEffect(() => {
+    if (params.date_init && params.date_end) {
+      setDateRange({
+        from: params.date_init,
+        to: params.date_end,
+      });
+    }
+  }, [params.date_init, params.date_end]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -98,8 +109,8 @@ export function CalendarFilter() {
           {isActiveFilter && (
             <>
               <span className="text-sm text-muted-foreground">
-                {`${dayjs(dateInit).format("DD/MM/YYYY")} - ${dayjs(
-                  dateEnd
+                {`${dayjs(params.date_init).format("DD/MM/YYYY")} - ${dayjs(
+                  params.date_end
                 ).format("DD/MM/YYYY")}`}
               </span>
             </>
