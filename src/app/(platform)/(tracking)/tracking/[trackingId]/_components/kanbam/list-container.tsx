@@ -123,13 +123,12 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     statusId: string;
     index: number; // ← Mudamos de 'order' para 'index'
   } | null>(null);
+
   const initialStatusData = useMemo<StatusWithLeads[]>(() => {
     return data.status.map((s) => ({
       ...s,
-      leads: s.leads.map((l) => ({
-        ...l,
-        createdAt: new Date(l.createdAt),
-      })),
+      // Remova a conversão de Date - SuperJSON já desserializou
+      leads: s.leads,
     }));
   }, [data.status]);
 
