@@ -71,28 +71,30 @@ export function ListContainer({ trackingId }: ListContainerProps) {
   const { onOpen } = useLostOrWin();
   const { onOpen: onOpenDeleteLead } = useDeletLead();
 
-  const queryInput = useMemo(() => {
-    const dateInitParsed = dateInit
-      ? dayjs(dateInit).startOf("day").toDate()
-      : undefined;
-    const dateEndParsed = dateEnd
-      ? dayjs(dateEnd).endOf("day").toDate()
-      : undefined;
+  // const queryInput = useMemo(() => {
+  //   const dateInitParsed = dateInit
+  //     ? dayjs(dateInit).startOf("day").toDate()
+  //     : undefined;
+  //   const dateEndParsed = dateEnd
+  //     ? dayjs(dateEnd).endOf("day").toDate()
+  //     : undefined;
 
-    return {
-      trackingId,
-      date_init: dateInitParsed,
-      date_end: dateEndParsed,
-      participant: participantFilter || undefined,
-    };
-  }, [
+  //   return {
+  //     trackingId,
+  //     date_init: dateInitParsed,
+  //     date_end: dateEndParsed,
+  //     participant: participantFilter || undefined,
+  //   };
+  // }, [
+  //   trackingId,
+  //   dateInit, // ← mantém a string como dependência
+  //   dateEnd, // ← mantém a string como dependência
+  //   participantFilter,
+  // ]);
+
+  const { data } = useSuspenseStatus({
     trackingId,
-    dateInit, // ← mantém a string como dependência
-    dateEnd, // ← mantém a string como dependência
-    participantFilter,
-  ]);
-
-  const { data } = useSuspenseStatus(queryInput);
+  });
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -121,7 +123,18 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     statusId: string;
     index: number; // ← Mudamos de 'order' para 'index'
   } | null>(null);
-  const [statusData, setStatusData] = useState<StatusWithLeads[]>([]);
+  const initialStatusData = useMemo<StatusWithLeads[]>(() => {
+    return data.status.map((s) => ({
+      ...s,
+      leads: s.leads.map((l) => ({
+        ...l,
+        createdAt: new Date(l.createdAt),
+      })),
+    }));
+  }, [data.status]);
+
+  const [statusData, setStatusData] =
+    useState<StatusWithLeads[]>(initialStatusData);
 
   const updateColumnOrder = useMutation(
     orpc.status.updateOrder.mutationOptions({
@@ -447,23 +460,23 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     }
   }
 
-  useEffect(() => {
-    console.log("📊 useEffect disparado - data.status mudou", {
-      statusCount: data.status.length,
-      timestamp: new Date().toISOString(),
-    });
-    if (data.status.length > 0) {
-      setStatusData(
-        data.status.map((s) => ({
-          ...s,
-          leads: s.leads.map((l) => ({
-            ...l,
-            createdAt: new Date(l.createdAt),
-          })),
-        }))
-      );
-    }
-  }, [data.status.length, data.status.map((s) => s.id).join(",")]);
+  // useEffect(() => {
+  //   console.log("📊 useEffect disparado - data.status mudou", {
+  //     statusCount: data.status.length,
+  //     timestamp: new Date().toISOString(),
+  //   });
+  //   if (data.status.length > 0) {
+  //     setStatusData(
+  //       data.status.map((s) => ({
+  //         ...s,
+  //         leads: s.leads.map((l) => ({
+  //           ...l,
+  //           createdAt: new Date(l.createdAt),
+  //         })),
+  //       }))
+  //     );
+  //   }
+  // }, [data.status.length, data.status.map((s) => s.id).join(",")]);
 
   return (
     <DndContext
