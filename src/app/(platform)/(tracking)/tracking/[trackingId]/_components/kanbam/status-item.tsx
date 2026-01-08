@@ -16,7 +16,6 @@ type Lead = {
   phone: string | null;
   statusId: string;
   tags: string[];
-  createdAt: Date;
   responsible: {
     image: string | null;
     email: string;

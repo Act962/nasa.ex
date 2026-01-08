@@ -27,7 +27,6 @@ type Lead = {
   phone: string | null;
   statusId: string;
   tags: string[];
-  createdAt: Date;
   responsible: {
     image: string | null;
     email: string;
@@ -127,7 +126,7 @@ export const LeadItem = ({ data }: { data: Lead }) => {
       <Separator />
       <div className="flex items-center justify-between bg-secondary px-3 py-2">
         <span className="text-xs text-muted-foreground">
-          {dayjs(data.createdAt).format("DD/MM/YYYY HH:mm")}
+          {dayjs().format("DD/MM/YYYY HH:mm")}
         </span>
         <Tooltip>
           <TooltipTrigger asChild>

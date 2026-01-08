@@ -31,12 +31,11 @@ export const listStatus = protectedProcedure
             phone: true,
             statusId: true,
             order: true,
-            createdAt: true,
             responsible: {
               select: {
+                image: true,
                 email: true,
                 name: true,
-                image: true,
               },
             },
             leadTags: {
@@ -54,10 +53,13 @@ export const listStatus = protectedProcedure
           },
           where: {
             currentAction: "ACTIVE",
-            createdAt: {
-              gte: input.date_init,
-              lte: input.date_end,
-            },
+            ...(input.date_init &&
+              input.date_end && {
+                createdAt: {
+                  gte: input.date_init,
+                  lte: input.date_end,
+                },
+              }),
             ...(input.participant && {
               responsible: {
                 email: input.participant,
@@ -74,29 +76,22 @@ export const listStatus = protectedProcedure
       },
     });
 
-    console.log("📊 Raw data:", JSON.stringify(status, null, 2));
-
-    // Mapeie para o formato final de forma explícita
+    // Transforme os dados para o formato desejado
     const formattedStatus = status.map((s) => ({
-      id: s.id,
-      name: s.name,
-      color: s.color,
-      order: s.order,
-      trackingId: s.trackingId,
+      ...s,
       leads: s.leads.map((lead) => ({
         id: lead.id,
         name: lead.name,
         email: lead.email,
         phone: lead.phone,
         statusId: lead.statusId,
-        order: lead.order,
-        createdAt: lead.createdAt, // Deixe como Date
         responsible: lead.responsible,
+        order: lead.order,
         tags: lead.leadTags.map((lt) => lt.tag.name),
       })),
     }));
 
-    console.log("✅ Formatted data:", JSON.stringify(formattedStatus, null, 2));
-
-    return { status: formattedStatus };
+    return {
+      status: formattedStatus,
+    };
   });

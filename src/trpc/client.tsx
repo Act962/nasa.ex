@@ -30,6 +30,7 @@ function getUrl() {
   })();
   return `${base}/api/trpc`;
 }
+
 export function TRPCReactProvider(
   props: Readonly<{
     children: React.ReactNode;
