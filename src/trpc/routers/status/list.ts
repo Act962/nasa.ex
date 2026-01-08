@@ -80,7 +80,7 @@ export const listStatus = protectedProcedure
           statusId: lead.statusId,
           responsible: lead.responsible,
           order: lead.order,
-          createdAt: lead.createdAt,
+          createdAt: lead.createdAt.toISOString(),
           tags: lead.leadTags.map((lt) => lt.tag.name),
         })),
       }));
