@@ -1,4 +1,4 @@
-# N.A.S.A — Plataforma de Tracking de Leads
+# N.A.S.A — Plataforma de Tracking de Leads (Backup)
 
 Uma aplicação web para gestão de organizações, funis de vendas (trackings), estágios (status) e leads, com autenticação, pesquisa avançada e quadro Kanban com arrastar‑e‑soltar.
 
