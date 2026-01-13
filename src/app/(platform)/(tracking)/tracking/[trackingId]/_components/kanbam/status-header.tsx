@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useSidebar } from "@/components/ui/sidebar";
+import { useUpdateStatusName } from "@/features/status/hooks/use-status";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import { getContrastColor } from "@/utils/get-contrast-color";
@@ -49,7 +50,6 @@ export const StatusHeader = ({
   attributes: DraggableAttributes;
   listeners?: SyntheticListenerMap;
 }) => {
-  const queryClient = useQueryClient();
   const form = useForm({
     resolver: zodResolver(updateSatusName),
     defaultValues: {
@@ -58,26 +58,7 @@ export const StatusHeader = ({
   });
   const [colorSelect, setColorSelect] = useState(data.color ?? "#1447e6");
 
-  const updateStatusNameMutation = useMutation(
-    orpc.status.update.mutationOptions({
-      onSuccess: () => {
-        toast.success("Status atualizado com sucesso!");
-
-        queryClient.invalidateQueries({
-          queryKey: orpc.status.list.queryKey({
-            input: {
-              trackingId: data.trackingId,
-            },
-          }),
-        });
-
-        setIsEditing(false);
-      },
-      onError: () => {
-        toast.error("Erro ao atualizar status, tente novamente");
-      },
-    })
-  );
+  const updateStatusNameMutation = useUpdateStatusName();
 
   const [isEditing, setIsEditing] = useState(false);
 
@@ -86,10 +67,17 @@ export const StatusHeader = ({
   };
 
   const onSubmit = (formData: { name: string }) => {
-    updateStatusNameMutation.mutate({
-      name: formData.name,
-      statusId: data.id,
-    });
+    updateStatusNameMutation.mutate(
+      {
+        name: formData.name,
+        statusId: data.id,
+      },
+      {
+        onSuccess: () => {
+          setIsEditing(false);
+        },
+      }
+    );
   };
 
   const onColorChange = (newColor: string) => {
@@ -203,7 +191,14 @@ const ListOption = ({ currentColor, onColorChange }: ListOptionProps) => {
                     <span className="text-sm font-medium">Cores</span>
                     <div className="grid grid-cols-6 gap-x-1.5 gap-y-2 mt-2">
                       {colors.map((color) => (
-                        <div role="button" key={color} className={cn("size-5 rounded-full transition-all border border-transparent flex items-center justify-center hover:border-border", color === currentColor && "border-border")}>
+                        <div
+                          role="button"
+                          key={color}
+                          className={cn(
+                            "size-5 rounded-full transition-all border border-transparent flex items-center justify-center hover:border-border",
+                            color === currentColor && "border-border"
+                          )}
+                        >
                           <div
                             className={`size-3.5 rounded-full transition-transform`}
                             style={{ backgroundColor: color }}

@@ -16,70 +16,74 @@ export const addLeadLast = base
       statusId: z.string(),
     })
   )
-  .output(z.object({ leadName: z.string() }))
+  .output(
+    z.object({
+      leadName: z.string(),
+      trackingId: z.string(),
+    })
+  )
   .handler(async ({ input, errors }) => {
     const { leadId, statusId } = input;
 
-    try {
-      return await prisma.$transaction(async (tx) => {
-        const lead = await tx.lead.findUnique({
-          where: { id: leadId },
-          select: { id: true, statusId: true, order: true, name: true },
-        });
-
-        if (!lead) throw errors.NOT_FOUND;
-
-        const oldStatusId = lead.statusId;
-        const isChangingColumn = oldStatusId !== statusId;
-
-        // Se está mudando de coluna, fecha o espaço na coluna antiga
-        if (isChangingColumn) {
-          await tx.lead.updateMany({
-            where: {
-              statusId: oldStatusId,
-              order: { gt: lead.order },
-            },
-            data: { order: { decrement: 1 } },
-          });
-
-          // Busca o maior order da nova coluna
-          const lastLead = await tx.lead.findFirst({
-            where: { statusId },
-            orderBy: { order: "desc" },
-            select: { order: true },
-          });
-
-          const newOrder = lastLead !== null ? lastLead.order + 1 : 0;
-
-          await tx.lead.update({
-            where: { id: leadId },
-            data: { statusId, order: newOrder },
-          });
-        } else {
-          // Se está na mesma coluna, move para o final
-          const lastLead = await tx.lead.findFirst({
-            where: { statusId, id: { not: leadId } },
-            orderBy: { order: "desc" },
-            select: { order: true },
-          });
-
-          const newOrder = lastLead !== null ? lastLead.order + 1 : 0;
-
-          // Se já é o último, não faz nada
-          if (lead.order === newOrder) {
-            return { leadName: lead.name };
-          }
-
-          await tx.lead.update({
-            where: { id: leadId },
-            data: { order: newOrder },
-          });
-        }
-
-        return { leadName: lead.name };
+    return prisma.$transaction(async (tx) => {
+      const lead = await tx.lead.findUnique({
+        where: { id: leadId },
+        select: {
+          id: true,
+          statusId: true,
+          order: true,
+          name: true,
+          trackingId: true,
+        },
       });
-    } catch (err) {
-      console.error(err);
-      throw errors.INTERNAL_SERVER_ERROR;
-    }
+
+      if (!lead) throw errors.NOT_FOUND;
+
+      const isChangingColumn = lead.statusId !== statusId;
+
+      // Fecha o espaço na coluna antiga
+      if (isChangingColumn) {
+        await tx.lead.updateMany({
+          where: {
+            statusId: lead.statusId,
+            order: { gt: lead.order },
+          },
+          data: { order: { decrement: 1 } },
+        });
+      }
+
+      // Busca o último order da coluna destino
+      const lastLead = await tx.lead.findFirst({
+        where: {
+          statusId,
+          id: { not: leadId },
+        },
+        orderBy: { order: "desc" },
+        select: { order: true },
+      });
+
+      const newOrder = lastLead ? lastLead.order + 1 : 0;
+
+      // Se já está no final da mesma coluna, apenas retorna
+      if (!isChangingColumn && lead.order === newOrder) {
+        return {
+          leadName: lead.name,
+          trackingId: lead.trackingId,
+        };
+      }
+
+      // Move o lead para o final
+      await tx.lead.update({
+        where: { id: leadId },
+        data: {
+          statusId,
+          order: newOrder,
+        },
+      });
+
+      return {
+        leadName: lead.name,
+        trackingId: lead.trackingId,
+      };
+    });
   });

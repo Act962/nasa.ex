@@ -9,11 +9,12 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { orpc } from "@/lib/orpc";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useMoveToLast,
+  userMoveToFirst,
+} from "@/features/leads/hooks/use-lead";
+
 import { Ellipsis } from "lucide-react";
-import { useParams } from "next/navigation";
-import { toast } from "sonner";
 
 interface CardOptionsProps {
   leadId: string;
@@ -21,40 +22,9 @@ interface CardOptionsProps {
 }
 
 export function CardOptions({ leadId, statusId }: CardOptionsProps) {
-  const params = useParams<{ trackingId: string }>();
-  const queryClient = useQueryClient();
+  const moveToFirst = userMoveToFirst();
 
-  const moveToFirst = useMutation(
-    orpc.leads.addToFirst.mutationOptions({
-      onSuccess: (output) => {
-        toast.success(`${output.leadName} movido para o início da coluna`);
-
-        queryClient.invalidateQueries(
-          orpc.status.list.queryOptions({
-            input: {
-              trackingId: params.trackingId,
-            },
-          })
-        );
-      },
-    })
-  );
-
-  const moveToLast = useMutation(
-    orpc.leads.addToLast.mutationOptions({
-      onSuccess: (output) => {
-        toast.success(`${output.leadName} movido para o fim da coluna`);
-
-        queryClient.invalidateQueries(
-          orpc.status.list.queryOptions({
-            input: {
-              trackingId: params.trackingId,
-            },
-          })
-        );
-      },
-    })
-  );
+  const moveToLast = useMoveToLast();
 
   function handleMoveLeadToTop() {
     moveToFirst.mutate({

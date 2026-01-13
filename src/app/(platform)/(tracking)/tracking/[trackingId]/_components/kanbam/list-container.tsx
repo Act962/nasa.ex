@@ -32,7 +32,11 @@ import { useLostOrWin } from "@/hooks/use-lost-or-win";
 import { useDeletLead } from "@/hooks/use-delete-lead";
 import { useQueryState } from "nuqs";
 import dayjs from "dayjs";
-import { useSuspenseStatus } from "@/features/status/hooks/use-status";
+import {
+  useQueryStatus,
+  useUpdateStatusOrder,
+} from "@/features/status/hooks/use-status";
+import { useUpdateOrder } from "@/features/leads/hooks/use-lead";
 
 interface ListContainerProps {
   trackingId: string;
@@ -80,7 +84,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     [trackingId, dateInit, dateEnd, participantFilter]
   );
 
-  const { data } = useSuspenseStatus(queryInput);
+  const { status, isStatusLoading } = useQueryStatus(queryInput);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -109,32 +113,12 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     statusId: string;
     index: number; // ← Mudamos de 'order' para 'index'
   } | null>(null);
-  const [statusData, setStatusData] = useState(data.status);
+  const [statusData, setStatusData] = useState(status);
 
-  const updateColumnOrder = useMutation(
-    orpc.status.updateOrder.mutationOptions({
-      onSuccess: () => {
-        toast.success("Coluna atualizada com sucesso!");
-      },
-      onError: () => {
-        toast.error("Erro ao atualizar coluna, tente novamente");
-        setStatusData(data.status);
-      },
-    })
-  );
+  const updateColumnOrder = useUpdateStatusOrder();
 
-  const updateLeadOrder = useMutation(
-    orpc.leads.updateOrder.mutationOptions({
-      onSuccess: () => {
-        toast.success("Lead atualizada com sucesso!");
-      },
-      onError: () => {
-        toast.error("Erro ao atualizar lead, tente novamente mais tarde");
-        // Reverte o estado em caso de erro
-        setStatusData(data.status);
-      },
-    })
-  );
+  const updateLeadOrder = useUpdateOrder();
+  // setStatusData(status);
 
   function onDragStart(event: DragStartEvent) {
     if (event.active.data.current?.type === "Column") {
@@ -200,7 +184,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
       }
 
       // Reverte a posição visual do lead
-      setStatusData(data.status);
+      setStatusData(status);
       setOriginalLeadPosition(null);
       return;
     }
@@ -412,8 +396,8 @@ export function ListContainer({ trackingId }: ListContainerProps) {
   }
 
   useEffect(() => {
-    setStatusData(data.status);
-  }, [data.status]);
+    setStatusData(status);
+  }, [status]);
 
   return (
     <DndContext

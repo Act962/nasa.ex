@@ -33,13 +33,7 @@ export const StatusForm = () => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [colorSelect, setColorSelect] = useState("");
-  const createStatus = useCreateStatus({
-    trackingId: params.trackingId,
-    onSuccess() {
-      setIsEditing(false);
-      form.reset();
-    },
-  });
+  const createStatus = useCreateStatus();
 
   const toggleEditing = () => {
     setIsEditing((prev) => !prev);
@@ -55,11 +49,19 @@ export const StatusForm = () => {
   };
 
   const onSubmit = (data: CreateStatusSchema) => {
-    createStatus.mutate({
-      name: data.name,
-      trackingId: params.trackingId,
-      color: colorSelect ?? "#1341D0",
-    });
+    createStatus.mutate(
+      {
+        name: data.name,
+        trackingId: params.trackingId,
+        color: colorSelect ?? "#1341D0",
+      },
+      {
+        onSuccess: () => {
+          setIsEditing(false);
+          form.reset();
+        },
+      }
+    );
   };
 
   const isLoading = createStatus.isPending;

@@ -11,7 +11,7 @@ interface LeadFormProps {
 
 export const LeadForm = ({ statusId }: LeadFormProps) => {
   const params = useParams<{ trackingId: string }>();
-  const createLead = useCreateLead({ trackingId: params.trackingId });
+  const createLead = useCreateLead();
 
   const onCreateLead = () => {
     createLead.mutate({

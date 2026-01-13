@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+
 export const updateStatus = base
   .use(requiredAuthMiddleware)
   .route({
@@ -18,6 +19,7 @@ export const updateStatus = base
   )
   .output(
     z.object({
+      trackingId: z.string(),
       statusName: z.string(),
     })
   )
@@ -43,6 +45,7 @@ export const updateStatus = base
     });
 
     return {
+      trackingId: status.trackingId,
       statusName: status.name,
     };
   });

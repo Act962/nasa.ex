@@ -19,6 +19,7 @@ export const createStatus = base
   )
   .output(
     z.object({
+      trackingId: z.string(),
       statusName: z.string(),
     })
   )
@@ -45,5 +46,6 @@ export const createStatus = base
 
     return {
       statusName: status.name,
+      trackingId: status.trackingId,
     };
   });

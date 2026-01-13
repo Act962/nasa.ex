@@ -12,6 +12,29 @@ interface UseSuspenseStatusOptions {
   participant?: string;
 }
 
+export const useQueryStatus = ({
+  trackingId,
+  date_init,
+  date_end,
+  participant,
+}: UseSuspenseStatusOptions) => {
+  const { data, isPending } = useQuery(
+    orpc.status.list.queryOptions({
+      input: {
+        trackingId,
+        date_init,
+        date_end,
+        participant,
+      },
+    })
+  );
+
+  return {
+    status: data?.status ?? [],
+    isStatusLoading: isPending,
+  };
+};
+
 export const useSuspenseStatus = ({
   trackingId,
   date_init,
@@ -30,26 +53,18 @@ export const useSuspenseStatus = ({
   );
 };
 
-interface UseCreateStatusOptions {
-  trackingId: string;
-  onSuccess?: () => void;
-}
-
-export const useCreateStatus = ({
-  trackingId,
-  onSuccess,
-}: UseCreateStatusOptions) => {
+export const useCreateStatus = () => {
   const queryClient = useQueryClient();
 
   return useMutation(
     orpc.status.create.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data) => {
         toast.success("Status criado com sucesso!");
 
         queryClient.invalidateQueries({
           queryKey: orpc.status.list.queryKey({
             input: {
-              trackingId,
+              trackingId: data.trackingId,
             },
           }),
         });
@@ -57,15 +72,36 @@ export const useCreateStatus = ({
         queryClient.invalidateQueries({
           queryKey: orpc.status.listSimple.queryKey({
             input: {
-              trackingId,
+              trackingId: data.trackingId,
             },
           }),
         });
-
-        onSuccess?.();
       },
       onError: () => {
         toast.error("Erro ao criar status, tente novamente");
+      },
+    })
+  );
+};
+
+export const useUpdateStatusName = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.status.update.mutationOptions({
+      onSuccess: (data) => {
+        toast.success("Status atualizado com sucesso!");
+
+        queryClient.invalidateQueries({
+          queryKey: orpc.status.list.queryKey({
+            input: {
+              trackingId: data.trackingId,
+            },
+          }),
+        });
+      },
+      onError: () => {
+        toast.error("Erro ao atualizar status, tente novamente");
       },
     })
   );
@@ -117,3 +153,17 @@ export function useUpdateStatus(trackingId: string) {
     })
   );
 }
+
+export const useUpdateStatusOrder = () => {
+  return useMutation(
+    orpc.status.updateOrder.mutationOptions({
+      onSuccess: () => {
+        toast.success("Coluna atualizada com sucesso!");
+      },
+      onError: () => {
+        toast.error("Erro ao atualizar coluna, tente novamente");
+        // setStatusData(status);
+      },
+    })
+  );
+};
