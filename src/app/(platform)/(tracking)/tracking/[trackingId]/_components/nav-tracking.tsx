@@ -41,7 +41,7 @@ import { useState } from "react";
 import { AddParticipantDialog } from "./add-participant-dialog";
 
 export function NavTracking() {
-  const params = useParams<{ trackingId: string }>();
+  const params = useParams<{ trackingId: string; workflowId: string }>();
   const searchLead = useSearchModal();
   const useLeadSheet = useAddLead();
   const [addMemberDialogIsOpen, setAddMemberDialogIsOpen] = useState(false);
@@ -66,6 +66,7 @@ export function NavTracking() {
             </InputGroupAddon>
           </InputGroup>
         </div>
+
         <div className="flex items-center gap-2">
           {!isPending && data?.participants && data.participants.length > 0 && (
             <div className="flex items-center gap-0.5">
@@ -96,72 +97,77 @@ export function NavTracking() {
               </button>
             </div>
           )}
-          <ButtonGroup>
-            <ButtonGroup className="hidden sm:flex">
-              <Button variant="outline">
-                <Link
-                  href={`/tracking/${params.trackingId}/workflows`}
-                  prefetch
-                >
-                  Automações
-                </Link>
-              </Button>
-              <Button variant="outline">
-                <Link href={`/tracking/${params.trackingId}/settings`} prefetch>
-                  Configurações
-                </Link>
-              </Button>
-              <Button onClick={() => useLeadSheet.setIsOpen(true)}>
-                Novo Lead
-              </Button>
-            </ButtonGroup>
-
-            {/* Mobile */}
+          {!params.workflowId && (
             <ButtonGroup>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label="More Options"
-                    className="sm:hidden"
+              <ButtonGroup className="hidden sm:flex">
+                <Button variant="outline">
+                  <Link
+                    href={`/tracking/${params.trackingId}/workflows`}
+                    prefetch
                   >
-                    <MoreHorizontalIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      onClick={() => useLeadSheet.setIsOpen(true)}
+                    Automações
+                  </Link>
+                </Button>
+                <Button variant="outline">
+                  <Link
+                    href={`/tracking/${params.trackingId}/settings`}
+                    prefetch
+                  >
+                    Configurações
+                  </Link>
+                </Button>
+                <Button onClick={() => useLeadSheet.setIsOpen(true)}>
+                  Novo Lead
+                </Button>
+              </ButtonGroup>
+
+              {/* Mobile */}
+              <ButtonGroup>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label="More Options"
+                      className="sm:hidden"
                     >
-                      <UserRoundPlus />
-                      Lead
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Grid2x2Plus />
-                      Coluna
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem>
-                      <ClockIcon />
-                      Automação
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href={`/tracking/${params.trackingId}/settings`}
-                        prefetch
+                      <MoreHorizontalIcon />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem
+                        onClick={() => useLeadSheet.setIsOpen(true)}
                       >
-                        <CalendarPlusIcon />
-                        Configurações
-                      </Link>
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                        <UserRoundPlus />
+                        Lead
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Grid2x2Plus />
+                        Coluna
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem>
+                        <ClockIcon />
+                        Automação
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href={`/tracking/${params.trackingId}/settings`}
+                          prefetch
+                        >
+                          <CalendarPlusIcon />
+                          Configurações
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </ButtonGroup>
             </ButtonGroup>
-          </ButtonGroup>
+          )}
         </div>
       </div>
 
