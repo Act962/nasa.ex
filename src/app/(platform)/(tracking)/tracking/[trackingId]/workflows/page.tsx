@@ -21,7 +21,7 @@ export default async function WorkflowsPage({ params }: WorkflowPageProps) {
   });
 
   return (
-    <div className="container mx-auto mt-16 space-y-8">
+    <div className="container mx-auto mt-16 space-y-8 px-4">
       <div className="flex items-center justify-between">
         <div className="max-w-xl">
           <h1 className="text-lg md:text-xl font-semibold">Automações</h1>

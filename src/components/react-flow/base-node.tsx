@@ -17,6 +17,7 @@ export function BaseNode({ className, status, ...props }: BaseNodeProps) {
         className
       )}
       tabIndex={0}
+      {...props}
     >
       {props.children}
       {status === "error" && (
