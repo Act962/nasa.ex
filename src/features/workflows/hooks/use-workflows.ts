@@ -74,3 +74,33 @@ export const useUpdateWorkflowName = () => {
     })
   );
 };
+
+export const useUpdateWorkflow = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.workflow.update.updateNodes.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(`Workflow "${data.name}" salvo`);
+        queryClient.invalidateQueries({
+          queryKey: orpc.workflow.list.queryKey({
+            input: {
+              trackingId: data.trackingId,
+            },
+          }),
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: orpc.workflow.getOne.queryKey({
+            input: {
+              workflowId: data.id,
+            },
+          }),
+        });
+      },
+      onError: (error) => {
+        toast.error(`Falha ao atualizar o nome do workflow: ${error.message}`);
+      },
+    })
+  );
+};

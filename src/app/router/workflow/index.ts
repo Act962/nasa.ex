@@ -1,7 +1,7 @@
 import { createWorkflow } from "./create";
 import { getWorkflow } from "./get";
 import { listWorkflows } from "./list";
-import { updateName } from "./update";
+import { updateName, updateNodes } from "./update";
 
 export const workflowRoutes = {
   create: createWorkflow,
@@ -9,5 +9,6 @@ export const workflowRoutes = {
   getOne: getWorkflow,
   update: {
     updateName,
+    updateNodes,
   },
 };

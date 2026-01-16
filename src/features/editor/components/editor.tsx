@@ -23,6 +23,8 @@ import "@xyflow/react/dist/style.css";
 import { Spinner } from "@/components/ui/spinner";
 import { nodeComponents } from "@/config/node-components";
 import { AddNodeButton } from "./add-node-button";
+import { useSetAtom } from "jotai";
+import { editorAtom } from "../store/atoms";
 
 export function Editor({ workflowId }: { workflowId: string }) {
   const { data } = useSuspenseQuery(
@@ -32,6 +34,8 @@ export function Editor({ workflowId }: { workflowId: string }) {
       },
     })
   );
+
+  const setEditor = useSetAtom(editorAtom);
 
   const [nodes, setNodes] = useState<Node[]>(data.nodes);
   const [edges, setEdges] = useState<Edge[]>(data.edges);
@@ -61,7 +65,13 @@ export function Editor({ workflowId }: { workflowId: string }) {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeComponents}
+        onInit={setEditor}
         fitView
+        snapGrid={[10, 10]}
+        snapToGrid
+        // panOnScroll
+        // panOnDrag={false}
+        // selectionOnDrag
       >
         <Background variant={BackgroundVariant.Dots} />
         <MiniMap position="bottom-left" className="bg-background!" />

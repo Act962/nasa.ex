@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { NuqsAdapter } from 'nuqs/adapters/next/app'
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { createQueryClient } from "@/lib/query/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./theme-provider";
+import { Provider } from "jotai";
 
 export function Providers(props: { children: React.ReactNode }) {
   const [queryClient] = useState(() => createQueryClient());
@@ -18,7 +19,7 @@ export function Providers(props: { children: React.ReactNode }) {
         disableTransitionOnChange
       >
         <NuqsAdapter>
-          {props.children}
+          <Provider>{props.children}</Provider>
         </NuqsAdapter>
       </ThemeProvider>
     </QueryClientProvider>
