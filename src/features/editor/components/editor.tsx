@@ -74,9 +74,9 @@ export function Editor({ workflowId }: { workflowId: string }) {
         // selectionOnDrag
       >
         <Background variant={BackgroundVariant.Dots} />
-        <MiniMap position="bottom-left" className="bg-background!" />
+        <MiniMap position="bottom-right" className="bg-background!" />
         <Controls
-          position="bottom-right"
+          position="bottom-left"
           className="bg-background! text-black!"
         />
         <Panel position="top-right">

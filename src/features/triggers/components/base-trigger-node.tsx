@@ -1,8 +1,15 @@
 "use client";
 
-import { type NodeProps, Position, useReactFlow } from "@xyflow/react";
-import { LucideIcon } from "lucide-react";
-import { memo, type ReactNode } from "react";
+import {
+  ConnectionState,
+  type NodeProps,
+  Position,
+  useConnection,
+  useReactFlow,
+  useStore,
+} from "@xyflow/react";
+import { LucideIcon, Plus } from "lucide-react";
+import { memo, useState, type ReactNode } from "react";
 import { WorkflowNode } from "@/components/workflow-node";
 import { BaseNode, BaseNodeContent } from "@/components/react-flow/base-node";
 import Image from "next/image";
@@ -11,6 +18,9 @@ import {
   type NodeStatus,
   NodeStatusIndicator,
 } from "@/components/react-flow/node-status-indicator";
+import { ButtonHandle } from "@/components/react-flow/button-handle";
+import { Button } from "@/components/ui/button";
+import { NodeSelector } from "@/components/node-selector";
 
 interface BaseTriggerNodeProps extends NodeProps {
   icon: LucideIcon | string;
@@ -21,6 +31,10 @@ interface BaseTriggerNodeProps extends NodeProps {
   onSettings?: () => void;
   onDoubleClick?: () => void;
 }
+
+const selector = (connection: ConnectionState) => {
+  return connection.inProgress;
+};
 
 export const BaseTriggerNode = memo(
   ({
@@ -34,6 +48,15 @@ export const BaseTriggerNode = memo(
     onDoubleClick,
   }: BaseTriggerNodeProps) => {
     const { setNodes, setEdges } = useReactFlow();
+    const [openSelector, setOpenSelector] = useState(false);
+    const connectionInProgress = useConnection(selector);
+    const isConnected = useStore((state) =>
+      state.edges.some(
+        (edge) => edge.source === id && edge.sourceHandle === "source-1"
+      )
+    );
+
+    const shouldShowButton = !connectionInProgress && !isConnected;
 
     const handleDelete = () => {
       setNodes((currentNodes) => {
@@ -62,6 +85,7 @@ export const BaseTriggerNode = memo(
           className="rounded-l-2xl"
         >
           <BaseNode
+            status={status}
             onDoubleClick={onDoubleClick}
             className="rounded-l-2xl relative group"
           >
@@ -72,11 +96,30 @@ export const BaseTriggerNode = memo(
                 <Icon className="size-4 text-muted-foreground" />
               )}
               {children}
-              <BaseHandle
+              {/* <BaseHandle
                 id="source-1"
                 type="source"
                 position={Position.Right}
-              />
+              /> */}
+              <NodeSelector
+                open={openSelector}
+                onOpenChange={setOpenSelector}
+                sourceId={id}
+              >
+                <ButtonHandle
+                  id="source-1"
+                  type="source"
+                  position={Position.Right}
+                  showButton={shouldShowButton}
+                >
+                  <Button
+                    className="rounded-[4px] size-4 p-0 has-[>svg]:px-0"
+                    variant="secondary"
+                  >
+                    <Plus className="size-3" />
+                  </Button>
+                </ButtonHandle>
+              </NodeSelector>
             </BaseNodeContent>
           </BaseNode>
         </NodeStatusIndicator>

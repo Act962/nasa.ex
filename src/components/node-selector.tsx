@@ -46,15 +46,17 @@ const executionNodes: NodeTypeOption[] = [
 interface NodeSelectorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  sourceId?: string;
   children: React.ReactNode;
 }
 
 export function NodeSelector({
   open,
   onOpenChange,
+  sourceId,
   children,
 }: NodeSelectorProps) {
-  const { setNodes, getNodes, screenToFlowPosition } = useReactFlow();
+  const { setNodes, getNodes, setEdges, screenToFlowPosition } = useReactFlow();
 
   const handleNodeSelect = useCallback(
     (selection: NodeTypeOption) => {
@@ -70,6 +72,8 @@ export function NodeSelector({
         }
       }
 
+      const newNodeId = createId();
+
       setNodes((nodes) => {
         const hasInitialTrigger = nodes.some(
           (node) => node.type === NodeType.INITIAL
@@ -84,7 +88,7 @@ export function NodeSelector({
         });
 
         const newNode = {
-          id: createId(),
+          id: newNodeId,
           data: {},
           position: flowPostion,
           type: selection.type,
@@ -96,6 +100,21 @@ export function NodeSelector({
 
         return [...nodes, newNode];
       });
+
+      if (sourceId) {
+        setEdges((edges) => {
+          return [
+            ...edges,
+            {
+              id: createId(),
+              source: sourceId,
+              target: newNodeId,
+              sourceHandle: "source-1",
+              targetHandle: "target-1",
+            },
+          ];
+        });
+      }
 
       onOpenChange(false);
     },
