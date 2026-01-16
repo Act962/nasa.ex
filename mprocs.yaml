@@ -1,0 +1,6 @@
+procs:
+  inngest:
+    cmd: ["cmd", "/C", "npm run inngest:dev"]
+
+  next:
+    cmd: ["cmd", "/C", "npm run dev"]
