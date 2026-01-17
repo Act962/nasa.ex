@@ -1,19 +1,32 @@
+import { NonRetriableError } from "inngest";
 import { inngest } from "./client";
+import prisma from "@/lib/prisma";
+import { topologicalSort } from "./utils";
 
-export const helloWorld = inngest.createFunction(
-  { id: "hello-world" },
-  { event: "test/hello.world" },
+export const executeWorkflow = inngest.createFunction(
+  { id: "execute-workflow" },
+  { event: "workflow/execute.workflow" },
   async ({ event, step }) => {
-    await step.sleep("wait-a-moment", "5s");
-    return { message: `Hello ${event.data.email}!` };
-  }
-);
+    const workflowId = event.data.workflowId;
 
-export const helloWorld2 = inngest.createFunction(
-  { id: "hello-world-2" },
-  { event: "test/hello.world-2" },
-  async ({ event, step }) => {
-    await step.sleep("wait-a-moment", "5s");
-    return { message: `Hello ${event.data.email}!` };
-  }
+    if (!workflowId) {
+      throw new NonRetriableError("Workflow ID is required");
+    }
+
+    const sortedNodes = await step.run("prepare-workflow", async () => {
+      const workflow = await prisma.workflow.findUniqueOrThrow({
+        where: {
+          id: workflowId,
+        },
+        include: {
+          nodes: true,
+          connections: true,
+        },
+      });
+
+      return topologicalSort(workflow.nodes, workflow.connections);
+    });
+
+    return { sortedNodes };
+  },
 );

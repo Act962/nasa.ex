@@ -12,7 +12,7 @@ export const useSuspenseWorkflows = (trackingId: string) => {
       input: {
         trackingId,
       },
-    })
+    }),
   );
 };
 
@@ -22,7 +22,7 @@ export const useSuspenseWorkflow = (workflowId: string) => {
       input: {
         workflowId,
       },
-    })
+    }),
   );
 };
 
@@ -41,7 +41,7 @@ export const useCreateWorkflow = () => {
           }),
         });
       },
-    })
+    }),
   );
 };
 
@@ -71,7 +71,7 @@ export const useUpdateWorkflowName = () => {
       onError: (error) => {
         toast.error(`Falha ao atualizar o nome do workflow: ${error.message}`);
       },
-    })
+    }),
   );
 };
 
@@ -101,6 +101,21 @@ export const useUpdateWorkflow = () => {
       onError: (error) => {
         toast.error(`Falha ao atualizar o nome do workflow: ${error.message}`);
       },
-    })
+    }),
+  );
+};
+
+export const useExecuteWorkflow = () => {
+  // const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.workflow.execute.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(`Workflow "${data.name}" executado`);
+      },
+      onError: (error) => {
+        toast.error(`Falha ao executar o workflow: ${error.message}`);
+      },
+    }),
   );
 };
