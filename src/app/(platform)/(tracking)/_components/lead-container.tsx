@@ -14,7 +14,7 @@ export function LeadContainer() {
       input: {
         id: params.leadId,
       },
-    })
+    }),
   );
 
   return (
