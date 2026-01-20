@@ -5,7 +5,11 @@ import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import { MenuToolbar } from "./menu-toolbar";
 
-export function RichtTextEditor() {
+interface RichtTextEditorProps {
+  onChange?: (value: string) => void;
+}
+
+export function RichtTextEditor({ onChange }: RichtTextEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -25,7 +29,7 @@ export function RichtTextEditor() {
 
   return (
     <div className="w-full border rounded-lg overflow-hidden bg-muted/20">
-      <MenuToolbar editor={editor} />
+      <MenuToolbar editor={editor} onChange={onChange} />
 
       <EditorContent editor={editor} />
     </div>

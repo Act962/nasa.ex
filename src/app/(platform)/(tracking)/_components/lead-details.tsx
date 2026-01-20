@@ -7,9 +7,7 @@ import { LeadFull } from "@/types/lead";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ActivityIcon, Book, StickyNote } from "lucide-react";
 import { RichtTextEditor } from "@/app/(platform)/(tracking)/_components/rich-text-editor/editor";
-import { ContainerItemLead } from "./container-item-lead";
-import { TabNotes } from "./tags/lead/notes";
-import { Action } from "@/generated/prisma/client";
+import { TabNotes } from "./notes/notes";
 
 const tabs = [
   {
@@ -39,7 +37,6 @@ const tabs = [
     name: "Ações",
     value: "actions",
     icon: Book,
-
     content: (
       <>
         <span className="text-foreground font-semibold">Surprise!</span>{" "}

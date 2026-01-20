@@ -10,6 +10,7 @@ import { listLead } from "./list";
 import { createLeadWithTags } from "./create-lead-with-tags";
 import { updateLeadAction } from "./update-action";
 import { archiveLead } from "./archive";
+import { listActionsByLead } from "./list-actions";
 
 export const leadRoutes = {
   list: listLead,
@@ -24,4 +25,5 @@ export const leadRoutes = {
   updateOrder: updateLeadOrder,
   updateAction: updateLeadAction,
   archive: archiveLead,
+  listActions: listActionsByLead,
 };

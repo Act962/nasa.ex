@@ -28,9 +28,10 @@ import { Button } from "../../../../../components/ui/button";
 
 interface MenuToolbarProps {
   editor: Editor | null;
+  onChange?: (value: string) => void;
 }
 
-export function MenuToolbar({ editor }: MenuToolbarProps) {
+export function MenuToolbar({ editor, onChange }: MenuToolbarProps) {
   if (!editor) {
     return null;
   }
@@ -66,7 +67,7 @@ export function MenuToolbar({ editor }: MenuToolbarProps) {
               pressed={editorState.isBold}
               onPressedChange={() => editor.chain().focus().toggleBold().run()}
               className={cn(
-                editorState.isBold && "bg-muted text-muted-foreground"
+                editorState.isBold && "bg-muted text-muted-foreground",
               )}
             >
               <Bold />
@@ -84,7 +85,7 @@ export function MenuToolbar({ editor }: MenuToolbarProps) {
                 editor.chain().focus().toggleItalic().run()
               }
               className={cn(
-                editorState.isItalic && "bg-muted text-muted-foreground"
+                editorState.isItalic && "bg-muted text-muted-foreground",
               )}
             >
               <Italic />
@@ -102,7 +103,7 @@ export function MenuToolbar({ editor }: MenuToolbarProps) {
                 editor.chain().focus().toggleStrike().run()
               }
               className={cn(
-                editorState.isStrike && "bg-muted text-muted-foreground"
+                editorState.isStrike && "bg-muted text-muted-foreground",
               )}
             >
               <StrikethroughIcon />
@@ -120,7 +121,7 @@ export function MenuToolbar({ editor }: MenuToolbarProps) {
                 editor.chain().focus().toggleHeading({ level: 1 }).run()
               }
               className={cn(
-                editorState.isHeading && "bg-muted text-muted-foreground"
+                editorState.isHeading && "bg-muted text-muted-foreground",
               )}
             >
               <Heading1Icon />
@@ -138,7 +139,7 @@ export function MenuToolbar({ editor }: MenuToolbarProps) {
                 editor.chain().focus().toggleHeading({ level: 2 }).run()
               }
               className={cn(
-                editorState.isHeading2 && "bg-muted text-muted-foreground"
+                editorState.isHeading2 && "bg-muted text-muted-foreground",
               )}
             >
               <Heading2Icon />
@@ -156,7 +157,7 @@ export function MenuToolbar({ editor }: MenuToolbarProps) {
                 editor.chain().focus().toggleHeading({ level: 3 }).run()
               }
               className={cn(
-                editorState.isHeading3 && "bg-muted text-muted-foreground"
+                editorState.isHeading3 && "bg-muted text-muted-foreground",
               )}
             >
               <Heading3Icon />
@@ -174,7 +175,7 @@ export function MenuToolbar({ editor }: MenuToolbarProps) {
                 editor.chain().focus().toggleBulletList().run()
               }
               className={cn(
-                editorState.isBulletList && "bg-muted text-muted-foreground"
+                editorState.isBulletList && "bg-muted text-muted-foreground",
               )}
             >
               <ListIcon />
@@ -192,7 +193,7 @@ export function MenuToolbar({ editor }: MenuToolbarProps) {
                 editor.chain().focus().toggleOrderedList().run()
               }
               className={cn(
-                editorState.isOrderedList && "bg-muted text-muted-foreground"
+                editorState.isOrderedList && "bg-muted text-muted-foreground",
               )}
             >
               <ListOrdered />
@@ -214,7 +215,7 @@ export function MenuToolbar({ editor }: MenuToolbarProps) {
                 editor.chain().focus().setTextAlign("left").run()
               }
               className={cn(
-                editorState.textAlignLeft && "bg-muted text-muted-foreground"
+                editorState.textAlignLeft && "bg-muted text-muted-foreground",
               )}
             >
               <AlignLeft />
@@ -232,7 +233,7 @@ export function MenuToolbar({ editor }: MenuToolbarProps) {
                 editor.chain().focus().setTextAlign("center").run()
               }
               className={cn(
-                editorState.textAlignCenter && "bg-muted text-muted-foreground"
+                editorState.textAlignCenter && "bg-muted text-muted-foreground",
               )}
             >
               <AlignCenter />
@@ -250,7 +251,7 @@ export function MenuToolbar({ editor }: MenuToolbarProps) {
                 editor.chain().focus().setTextAlign("right").run()
               }
               className={cn(
-                editorState.textAlignRight && "bg-muted text-muted-foreground"
+                editorState.textAlignRight && "bg-muted text-muted-foreground",
               )}
             >
               <AlignRight />
@@ -294,7 +295,9 @@ export function MenuToolbar({ editor }: MenuToolbarProps) {
         </Tooltip>
       </div>
 
-      <Button className="ml-auto">Adicionar nota</Button>
+      <Button className="ml-auto" onClick={() => onChange?.(editor.getHTML())}>
+        Adicionar nota
+      </Button>
     </div>
   );
 }
