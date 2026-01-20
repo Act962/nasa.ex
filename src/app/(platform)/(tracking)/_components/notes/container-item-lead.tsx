@@ -24,8 +24,9 @@ import { SubSectionDuration } from "./sub-section-duration";
 import { TypeAction } from "@/generated/prisma/enums";
 import { ICONS } from "./types";
 import { format } from "date-fns";
+import { SafeContent } from "@/components/rich-text-editor/safe-content";
 
-interface Responsable {
+interface User {
   id: string;
   name: string;
   profile: string | null;
@@ -40,11 +41,11 @@ interface ComtainerItemLeadProps {
   isDone: boolean;
   trackingId: string | null;
   organizationId: string | null;
-  createdBy: string;
+  createdBy: User;
   leadId: string | null;
   startDate: Date | null;
   endDate: Date | null;
-  responsibles: Responsable[];
+  responsibles: User[];
   type: TypeAction;
   createdAt: Date;
 }
@@ -52,6 +53,7 @@ interface ComtainerItemLeadProps {
 export function ContainerItemLead({
   type,
   responsibles,
+  createdBy,
   description,
   title,
   createdAt,
@@ -83,7 +85,7 @@ export function ContainerItemLead({
           </div>
           <span className="text-sm">
             <span className="font-medium">{ICONS[type].title}</span> Criado por
-            <span className="font-medium"> John Marson</span>
+            <span className="font-medium"> {createdBy.name}</span>
           </span>
         </div>
         <div className="flex fle-row items-center gap-3 ">
@@ -118,7 +120,7 @@ function CardDetails({ type, image, description, title }: CardDetailsProps) {
         <div className="flex flex-col gap-2">
           <span className="font-medium">{title}</span>
           <span className="text-sm font-mono text-accent-foreground/60">
-            {description}
+            <SafeContent content={JSON.parse(description || "")} />
           </span>
         </div>
         {image && <img src={image} className="w-full" />}

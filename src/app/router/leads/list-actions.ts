@@ -31,7 +31,12 @@ export const listActionsByLead = base
           type: z.enum(TypeAction),
           trackingId: z.string().nullable(),
           organizationId: z.string().nullable(),
-          createdBy: z.string(),
+          createdBy: z.object({
+            id: z.string(),
+            name: z.string(),
+            profile: z.string().nullable(),
+            email: z.string(),
+          }),
           leadId: z.string().nullable(),
           startDate: z.date().nullable(),
           endDate: z.date().nullable(),
@@ -60,6 +65,7 @@ export const listActionsByLead = base
               user: true,
             },
           },
+          user: true,
         },
       });
       const actionsFormatted = actions.map((action) => ({
@@ -70,6 +76,12 @@ export const listActionsByLead = base
           email: responsible.user.email,
           name: responsible.user.name,
         })),
+        createdBy: {
+          id: action.user.id,
+          name: action.user.name,
+          profile: action.user.image,
+          email: action.user.email,
+        },
       }));
 
       return {

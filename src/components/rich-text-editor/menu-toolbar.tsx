@@ -15,23 +15,19 @@ import {
   StrikethroughIcon,
   Undo,
 } from "lucide-react";
-import { Toggle } from "../../../../../components/ui/toggle";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "../../../../../components/ui/tooltip";
+import { Toggle } from "../ui/toggle";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { useEditorState, type Editor } from "@tiptap/react";
 import { cn } from "@/lib/utils";
-import { Separator } from "../../../../../components/ui/separator";
-import { Button } from "../../../../../components/ui/button";
+import { Separator } from "../ui/separator";
+import { Button } from "../ui/button";
 
 interface MenuToolbarProps {
   editor: Editor | null;
-  onChange?: (value: string) => void;
+  children?: React.ReactNode;
 }
 
-export function MenuToolbar({ editor, onChange }: MenuToolbarProps) {
+export function MenuToolbar({ editor, children }: MenuToolbarProps) {
   if (!editor) {
     return null;
   }
@@ -295,9 +291,7 @@ export function MenuToolbar({ editor, onChange }: MenuToolbarProps) {
         </Tooltip>
       </div>
 
-      <Button className="ml-auto" onClick={() => onChange?.(editor.getHTML())}>
-        Adicionar nota
-      </Button>
+      {children}
     </div>
   );
 }

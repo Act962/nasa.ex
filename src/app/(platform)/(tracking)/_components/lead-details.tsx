@@ -6,8 +6,8 @@ import { LeadInfo } from "./lead-info";
 import { LeadFull } from "@/types/lead";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ActivityIcon, Book, StickyNote } from "lucide-react";
-import { RichtTextEditor } from "@/app/(platform)/(tracking)/_components/rich-text-editor/editor";
-import { TabNotes } from "./notes/notes";
+import { RichtTextEditor } from "@/components/rich-text-editor/editor";
+import { TabNotes } from "./notes";
 
 const tabs = [
   {
@@ -72,7 +72,12 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       name: "Notas",
       value: "notes",
       icon: StickyNote,
-      content: <TabNotes />,
+      content: (
+        <TabNotes
+          leadId={initialData.lead.id}
+          trackingId={initialData.lead.trackingId}
+        />
+      ),
     },
     {
       name: "Ações",
