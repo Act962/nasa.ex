@@ -21,6 +21,8 @@ import { InfoItem } from "./Info-item";
 import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { useRef } from "react";
+import { useEffect } from "react";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
   initialData: LeadFull;
@@ -31,6 +33,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [name, setName] = useState(initialData.lead.name);
   const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
   const { lead } = initialData;
 
   const mutate = useMutationLeadUpdate(lead.id);
@@ -43,6 +46,13 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
     });
     setIsEditingName(false);
   };
+
+  useEffect(() => {
+    if (isEditingName) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [isEditingName]);
 
   return (
     <div
@@ -69,6 +79,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
           <Input
             className="text-center max-w-40 h-8 text-sm"
             value={name}
+            ref={inputRef}
             autoFocus
             onChange={(e) => setName(e.target.value)}
             onBlur={() => handleUpdateName(name)}
@@ -86,7 +97,6 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
             <p className="text-2xl text-center font-medium max-w-40 line-clamp-2">
               {lead.name}
             </p>
-
           </div>
         )}
         <div className="flex items-center justify-items-center gap-3">

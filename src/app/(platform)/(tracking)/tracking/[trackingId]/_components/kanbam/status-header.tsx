@@ -15,18 +15,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useUpdateStatusName } from "@/features/status/hooks/use-status";
-import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { DraggableAttributes } from "@dnd-kit/core";
 import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Grip, MoreHorizontalIcon, Plus } from "lucide-react";
 import { useState } from "react";
 import { SketchPicker } from "react-color";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 
 interface StatusHeaderProps {
@@ -76,7 +73,7 @@ export const StatusHeader = ({
         onSuccess: () => {
           setIsEditing(false);
         },
-      }
+      },
     );
   };
 
@@ -196,7 +193,7 @@ const ListOption = ({ currentColor, onColorChange }: ListOptionProps) => {
                           key={color}
                           className={cn(
                             "size-5 rounded-full transition-all border border-transparent flex items-center justify-center hover:border-border",
-                            color === currentColor && "border-border"
+                            color === currentColor && "border-border",
                           )}
                         >
                           <div
