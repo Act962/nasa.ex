@@ -125,7 +125,6 @@ function CardDetails({
   image,
   description,
   trackingId,
-  title,
   responsibles,
   id,
 }: CardDetailsProps) {
@@ -145,7 +144,7 @@ function CardDetails({
   };
 
   return (
-    <div className="flex flex-col p-8 gap-4">
+    <div className="flex flex-col px-8 py-4 gap-4">
       <div className=" flex flex-row">
         <div className="flex flex-col w-full gap-2">
           {isEditDescription ? (
@@ -166,7 +165,7 @@ function CardDetails({
             >
               <SafeContent
                 content={JSON.parse(description || "")}
-                className="mt-5 block text-sm max-w-none min-h-[125px] focus:outline-none p-4 prose dark:prose-invert marker:text-gray-500 prose-p:my-0 prose-hr:border-gray-400/20"
+                className="block text-sm max-w-none min-h-[125px] focus:outline-none p-4 prose dark:prose-invert marker:text-gray-500 prose-p:my-0 prose-hr:border-gray-400/20"
               />
             </span>
           )}
