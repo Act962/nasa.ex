@@ -36,7 +36,7 @@ const items = [
   },
   {
     title: "Formulários",
-    url: "/tracking/formulario",
+    url: "/form",
     icon: ClipboardType,
     isActive: true,
   },
@@ -76,7 +76,8 @@ export function NavMenu() {
                 tooltip={item.title}
                 asChild
                 className={cn(
-                  isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+                  isActive &&
+                    "bg-sidebar-accent text-sidebar-accent-foreground",
                 )}
               >
                 <Link href={item.url}>
