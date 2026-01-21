@@ -6,15 +6,12 @@ import { Separator } from "@/components/ui/separator";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowUpRight, Grip, Mail, Phone, Tag, User } from "lucide-react";
-// import { CardOptions } from "./card-options";
-// import { useLeads } from "@/hooks/use-lead-modal";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { phoneMask } from "@/utils/format-phone";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import dayjs from "dayjs";
