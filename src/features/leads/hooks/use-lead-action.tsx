@@ -39,3 +39,29 @@ export function useMutationCreateLeadAction({
     }),
   );
 }
+
+interface UseMutationUpdateLeadActionProps {
+  leadId: string;
+}
+
+export function useMutationUpdateLeadAction({
+  leadId,
+}: UseMutationUpdateLeadActionProps) {
+  const queryClient = getQueryClient();
+
+  return useMutation(
+    orpc.leads.updateActionByLead.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.listActions.queryKey({
+            input: { leadId },
+          }),
+        });
+        toast.success(`Ação atualizada com sucesso`);
+      },
+      onError: () => {
+        toast.error(`Erro ao atualizar ação`);
+      },
+    }),
+  );
+}

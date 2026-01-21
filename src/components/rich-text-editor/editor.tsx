@@ -21,7 +21,6 @@ export function RichtTextEditor({
     extensions: editorExtensions,
     content: (() => {
       if (!field) return "";
-
       try {
         return JSON.parse(field);
       } catch {

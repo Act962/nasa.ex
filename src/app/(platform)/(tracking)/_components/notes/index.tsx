@@ -39,7 +39,11 @@ export function TabNotes({ leadId, trackingId }: TabNotesProps) {
       </RichtTextEditor>
       <div className="flex flex-col gap-5">
         {data?.actions.map((action) => (
-          <ContainerItemLead key={action.id} {...action} />
+          <ContainerItemLead
+            key={action.id}
+            {...action}
+            trackingId={trackingId}
+          />
         ))}
       </div>
     </div>
