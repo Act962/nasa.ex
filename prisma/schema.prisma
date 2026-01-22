@@ -30,6 +30,7 @@ model User {
   responsibleOnSubActions SubActionUserResponsible[]
   responsibleOnLeads      Lead[]  @relation("LeadResponsible")
   worflows Workflow[]
+  forms    Form[]
 
   @@unique([email])
   @@map("user")
@@ -152,6 +153,7 @@ model Tracking {
   winLossReasons WinLossReason[]
   actions        Action[]
   workflows      Workflow[]
+  forms          Form[]
 
   @@map("tracking")
 }
@@ -473,4 +475,39 @@ model Connection {
 
   @@unique([fromNodeId, toNodeId, fromOutput, toInput])
   @@map("connections")
+}
+
+model Form {
+  id String @id @default(cuid())
+  userId String @map("user_id")
+  trackingId String @map("tracking_id")
+  name String
+  description String?
+  published Boolean @default(false)
+  content String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt  @map("updated_at")
+
+  visits Int @default(0)
+  submissions Int @default(0)
+
+  createdBy     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+
+  formSubmissions FormSubmission[]
+
+  shareUrl String @unique @map("share_url")
+
+  @@map("forms")
+}
+
+model FormSubmission {
+  id String @id @default(cuid())
+  formId String @map("form_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+  
+  content String
+
+  @@map("form_submissions")
 }
