@@ -31,6 +31,9 @@ model User {
   responsibleOnLeads      Lead[]  @relation("LeadResponsible")
   worflows Workflow[]
   forms    Form[]
+  // conversations ConversationParticipant[]
+  // seenMessages MessageSeen[]
+  // messagesSent Message[] @relation("MessageSender")
 
   @@unique([email])
   @@map("user")
@@ -511,3 +514,61 @@ model FormSubmission {
 
   @@map("form_submissions")
 }
+
+// model Conversation {
+//   id String @id @default(cuid())
+//   createdAt DateTime @default(now()) @map("created_at")
+//   lastmessageAt DateTime @updatedAt  @map("last_message_at")
+//   name String?
+//   isGroup Boolean?
+
+//   messagesIds String[] @map("messages_ids")
+//   messages Message[] @relation("Messages")
+
+//   participants ConversationParticipant[]
+
+//   @@map("conversations")
+// }
+
+// model ConversationParticipant {
+//   id             String   @id @default(cuid())
+//   conversationId String
+//   userId         String
+
+//   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+//   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+//   @@unique([conversationId, userId])
+//   @@map("conversation_participants")
+// }
+
+// model Message {
+//   id String @id @default(cuid())
+//   body String?
+//   image String?
+//   createdAt DateTime @default(now()) @map("created_at")
+
+//   conversationId String
+//   senderId       String
+
+//   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+//   sender        User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+//   seenBy MessageSeen[]
+
+//   @@map("messages")
+// }
+
+
+// model MessageSeen {
+//   id        String   @id @default(cuid())
+//   messageId String
+//   userId    String
+//   seenAt    DateTime @default(now())
+
+//   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+//   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+//   @@unique([messageId, userId])
+//   @@map("message_seen")
+// }

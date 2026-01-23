@@ -3,3 +3,12 @@ ERROR [lib::error] Error: channel closed
 ERROR [lib::error] Error: channel closed
 ERROR [lib::error] Error: channel closed
 ERROR [lib::error] Error: channel closed
+ERROR [portable_pty::win::psuedocon] CreateProcessW `"pwsh.exe -Command \"\"\0"` in cwd `Some("C:\\Users\\Public\\cods\\nasa.ex\0")` failed: O sistema não pode encontrar o arquivo especificado. (os error 2)
+ERROR [lib::app] TODO: Copy deps for duplicate proc.
+ERROR [lib::app] TODO: Copy deps for duplicate proc.
+ERROR [lib::app] TODO: Copy deps for duplicate proc.
+ERROR [lib::app] TODO: Copy deps for duplicate proc.
+ERROR [lib::app] TODO: Copy deps for duplicate proc.
+ERROR [lib::app] TODO: Copy deps for duplicate proc.
+ERROR [lib::error] Error: channel closed
+ERROR [lib::error] Error: channel closed
