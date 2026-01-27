@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, MoreHorizontalIcon } from "lucide-react";
 import Link from "next/link";
 
@@ -12,7 +13,7 @@ export function Header({ conversation }: HeaderProps) {
     <div className="bg-accent-foreground/10 w-full flex border-b sm:px-4 py-3 px-4 lg:px-6 justify-between items-center shadow-sm">
       <div className="flex gap-3 items-center">
         <Link
-          className="lg:hidden block text-sky-500 hover:text-sky-600 transition cursor-pointer"
+          className="lg:hidden block transition cursor-pointer"
           href={`tracking-chat`}
         >
           <ArrowLeftIcon size={24} />
@@ -28,11 +29,12 @@ export function Header({ conversation }: HeaderProps) {
           </div>
         </div>
       </div>
-      <MoreHorizontalIcon
-        size={30}
-        onClick={() => {}}
-        className="text-sky-500 hover:text-sky-600 transition cursor-pointer"
-      />
+      <Button variant="ghost">
+        <MoreHorizontalIcon
+          onClick={() => {}}
+          className="transition cursor-pointer size-4"
+        />
+      </Button>
     </div>
   );
 }

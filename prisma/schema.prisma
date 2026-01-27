@@ -31,9 +31,9 @@ model User {
   responsibleOnLeads      Lead[]  @relation("LeadResponsible")
   worflows Workflow[]
   forms    Form[]
-  // conversations ConversationParticipant[]
-  // seenMessages MessageSeen[]
-  // messagesSent Message[] @relation("MessageSender")
+  conversations ConversationParticipant[]
+  seenMessages MessageSeen[]
+  messagesSent Message[] @relation("MessageSender")
 
   @@unique([email])
   @@map("user")
@@ -100,6 +100,7 @@ model Organization {
   invitations Invitation[]
   trackings   Tracking[]
   tags        Tag[]
+  whatsappInstances WhatsAppInstance[]
   actions     Action[]
 
   @@unique([slug])
@@ -157,6 +158,7 @@ model Tracking {
   actions        Action[]
   workflows      Workflow[]
   forms          Form[]
+  whatsappInstances WhatsAppInstance[]
 
   @@map("tracking")
 }
@@ -269,12 +271,15 @@ model Lead {
   status   Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
   tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   responsible User? @relation("LeadResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
+  conversationId String? @unique @map("conversation_id")
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  
+  @@index([phone])
 
   leadTags LeadTag[]
   history  LeadHistory[]
   actions  Action[]
 
-  @@index([phone])
   @@index([trackingId])
   @@index([statusId])
   @@index([email])
@@ -515,60 +520,115 @@ model FormSubmission {
   @@map("form_submissions")
 }
 
-// model Conversation {
-//   id String @id @default(cuid())
-//   createdAt DateTime @default(now()) @map("created_at")
-//   lastmessageAt DateTime @updatedAt  @map("last_message_at")
-//   name String?
-//   isGroup Boolean?
+model Conversation {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now()) @map("created_at")
+  lastMessageAt DateTime @updatedAt @map("last_message_at")
+  name          String?
+  isGroup       Boolean  @default(false)
+  
+  remoteJid     String   @unique @map("remote_jid")
+  profilePicUrl String?  @map("profile_pic_url")
+  isActive      Boolean  @default(true) @map("is_active")
+  
+  messagesIds   String           @map("messages_ids")
+  messages      Message[]        @relation("Messages")
+  participants  ConversationParticipant[]
+  lead          Lead?
+  
+  @@index([isActive])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+model ConversationParticipant {
+  id             String   @id @default(cuid())
+  conversationId String
+  userId         String
 
-//   messagesIds String[] @map("messages_ids")
-//   messages Message[] @relation("Messages")
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-//   participants ConversationParticipant[]
-
-//   @@map("conversations")
-// }
-
-// model ConversationParticipant {
-//   id             String   @id @default(cuid())
-//   conversationId String
-//   userId         String
-
-//   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-//   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-//   @@unique([conversationId, userId])
-//   @@map("conversation_participants")
-// }
-
-// model Message {
-//   id String @id @default(cuid())
-//   body String?
-//   image String?
-//   createdAt DateTime @default(now()) @map("created_at")
-
-//   conversationId String
-//   senderId       String
-
-//   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-//   sender        User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-
-//   seenBy MessageSeen[]
-
-//   @@map("messages")
-// }
+  @@unique([conversationId, userId])
+  @@map("conversation_participants")
+}
 
 
-// model MessageSeen {
-//   id        String   @id @default(cuid())
-//   messageId String
-//   userId    String
-//   seenAt    DateTime @default(now())
+model Message {
+  id        String    @id @default(cuid())
+  body      String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  
+  messageId        String   @unique @map("message_id")
+  fromMe           Boolean  @default(false) @map("from_me")
+  status           String   @default("pending")
+  
+  mediaUrl         String?  @map("media_url")
+  mediaType        String?  @map("media_type")
+  mediaCaption     String?  @map("media_caption")
+  mimetype         String?
+  fileName         String?  @map("file_name")
+  
+  quotedMessageId  String?  @map("quoted_message_id")
+  quotedMessage    Message? @relation("QuotedMessages", fields: [quotedMessageId], references: [id], onDelete: SetNull)
+  quotes           Message[] @relation("QuotedMessages")
+  
+  conversationId String
+  senderId       String
+  
+  conversation   Conversation @relation("Messages", fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  
+  seenBy MessageSeen[]
+  
+  @@index([conversationId, createdAt])
+  @@index([status])
+  @@index([fromMe])
+  @@map("messages")
+}
 
-//   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-//   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+model MessageSeen {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  seenAt    DateTime @default(now())
 
-//   @@unique([messageId, userId])
-//   @@map("message_seen")
-// }
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@map("message_seen")
+}
+
+enum WhatsAppInstanceStatus {
+  CONNECTED
+  DISCONNECTED
+}
+
+
+model WhatsAppInstance {
+  id              String   @id @default(cuid())
+  instanceName    String   @map("instance_name")
+  instanceId      String   @unique @map("instance_id")
+  apiKey          String   @map("api_key") // Token da Evolution API
+  baseUrl         String   @map("base_url") // URL da sua Evolution API
+  status          WhatsAppInstanceStatus @default(DISCONNECTED)
+  qrCode          String?  @map("qr_code") // Base64 do QR Code
+  phoneNumber     String?  @map("phone_number") // Número conectado
+  profileName     String?  @map("profile_name")
+  profilePicUrl   String?  @map("profile_pic_url")
+  organizationId  String   @map("organization_id")
+  trackingId      String   @map("tracking_id")
+  webhookUrl      String?  @map("webhook_url")
+  isActive        Boolean  @default(true) @map("is_active")
+  lastSyncAt      DateTime? @map("last_sync_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tracking     Tracking     @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  
+  @@unique([instanceName, organizationId])
+  @@index([organizationId])
+  @@index([status])
+  @@map("whatsapp_instances")
+}

@@ -2,9 +2,9 @@ import { ConversationsList } from "@/features/tracking-chat/components/conversat
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="h-full flex min-w-screen">
+    <div className="h-screen flex w-full">
       <ConversationsList />
-      {children}
+      <div className="flex-1">{children}</div>
     </div>
   );
 }
