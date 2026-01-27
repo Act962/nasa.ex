@@ -4,9 +4,10 @@ import Image from "next/image";
 
 interface Message {
   id: string;
-  content: string | null;
-  image: string | null;
-  createdAt: string;
+  body: string | null;
+  mediaUrl: string | null;
+  createdAt: Date;
+  fromMe: boolean;
   sender: {
     id: string;
     name: string;
@@ -18,7 +19,7 @@ interface MessageBoxProps {
 }
 
 export function MessageBox({ data, isLast }: MessageBoxProps) {
-  const isOwn = true;
+  const isOwn = data.fromMe;
   const seenList = [];
 
   const container = cn("flex gap-2 p-4", isOwn && "justify-end");
@@ -28,7 +29,7 @@ export function MessageBox({ data, isLast }: MessageBoxProps) {
   const message = cn(
     "text-sm w-fit overflow-hidden",
     isOwn ? "bg-foreground/10" : "bg-accent-foreground/10",
-    data.image ? "rounded-md" : "rounded-full py-2 px-3",
+    data.mediaUrl ? "rounded-md" : "rounded-full py-2 px-3",
   );
 
   return (
@@ -39,16 +40,16 @@ export function MessageBox({ data, isLast }: MessageBoxProps) {
         </div>
         <div className="text-xs">{format(new Date(data.createdAt), "p")}</div>
         <div className={message}>
-          {data.image ? (
+          {data.mediaUrl ? (
             <Image
               alt="Image"
               height={288}
               width={288}
-              src={data.image}
+              src={data.mediaUrl}
               className="object-cover cursor-pointer hover:scale-110 transition transalate"
             />
           ) : (
-            <div>{data.content}</div>
+            <div>{data.body}</div>
           )}
         </div>
       </div>

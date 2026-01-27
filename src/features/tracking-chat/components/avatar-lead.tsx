@@ -1,9 +1,10 @@
 "use client";
 
+import { Lead } from "@/generated/prisma/client";
 import Image from "next/image";
 
 interface AvatarLeadProps {
-  Lead: any;
+  Lead: Lead;
 }
 
 export function AvatarLead({ Lead }: AvatarLeadProps) {

@@ -1,63 +1,14 @@
-import { LeadAction } from "@/generated/prisma/client";
+"use client";
+
 import { LeadBox } from "./lead-box";
 import { UserRoundPlusIcon } from "lucide-react";
-
-const listLeads = [
-  {
-    name: "Lulano",
-    description: "",
-    id: "1",
-    email: "",
-    phone: "",
-    profile: "",
-    statusId: "",
-    currentAction: LeadAction.ACTIVE,
-    trackingId: "",
-    responsibleId: "",
-    order: 0,
-    isActive: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    closedAt: null,
-  },
-  {
-    name: "Cicrano",
-    description: "",
-    id: "2",
-    email: "",
-    phone: "",
-    profile: "",
-    statusId: "",
-    currentAction: LeadAction.ACTIVE,
-    trackingId: "",
-    responsibleId: "",
-    order: 0,
-    isActive: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    closedAt: null,
-  },
-  {
-    name: "Beltrano",
-    description: "",
-    id: "3",
-    email: "",
-    phone: "",
-    profile: "",
-    statusId: "",
-    trackingId: "",
-    responsibleId: "",
-    currentAction: LeadAction.ACTIVE,
-    order: 0,
-    isActive: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    closedAt: null,
-  },
-];
+import { Button } from "@/components/ui/button";
+import { useQueryConversation } from "../hooks/use-conversation";
 
 export function ConversationsList() {
   const isOpen = true;
+
+  const { data, isLoading } = useQueryConversation("cmjmw5z3q0000t0vamxz21061");
 
   return (
     <aside
@@ -65,13 +16,15 @@ export function ConversationsList() {
     >
       <div className="px-5">
         <div className="flex justify-between mb-4 pt-4">
-          <div className="text-xl font-medium">Tracking Chat</div>
+          <div className="text-lg font-medium">Tracking Chat</div>
           <div className="cursor-pointer">
-            <UserRoundPlusIcon className="w-5 h-5" />
+            <Button variant="ghost" size="sm">
+              <UserRoundPlusIcon className="size-4" />
+            </Button>
           </div>
         </div>
         <div className="flex-col gap-2">
-          {listLeads.map((item) => (
+          {data?.items.map((item) => (
             <LeadBox
               key={item.id}
               item={item}

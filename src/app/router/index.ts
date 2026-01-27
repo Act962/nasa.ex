@@ -3,9 +3,10 @@ import { statusRoutes } from "./status";
 import { trackingRoutes } from "./trackings";
 import { tagsRouter } from "./tags";
 import { reasonsRouter } from "./reasons";
-import { archiveLead } from "./leads/archive";
 import { orgRoutes } from "./org";
 import { workflowRoutes } from "./workflow";
+import { messageRouter } from "./message";
+import { conversationRouter } from "./conversation";
 
 export const router = {
   tracking: trackingRoutes,
@@ -15,4 +16,6 @@ export const router = {
   reasons: reasonsRouter,
   orgs: orgRoutes,
   workflow: workflowRoutes,
+  message: messageRouter,
+  conversation: conversationRouter,
 };

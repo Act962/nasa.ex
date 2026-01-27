@@ -16,7 +16,7 @@ export function Header({ conversation }: HeaderProps) {
           className="lg:hidden block transition cursor-pointer"
           href={`tracking-chat`}
         >
-          <ArrowLeftIcon size={24} />
+          <ArrowLeftIcon className="size-4" />
         </Link>
         <Avatar>
           <AvatarImage src={conversation.avatar} />
