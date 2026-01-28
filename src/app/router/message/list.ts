@@ -22,9 +22,7 @@ export const listMessage = base
     z.object({
       items: z.array(
         z.custom<
-          Message & {
-            sender: { id: string; name: string };
-          }
+          Message & { conversation: { lead: { id: string; name: string } } }
         >(),
       ),
       nextCursor: z.string().optional(),
@@ -52,10 +50,9 @@ export const listMessage = base
           conversationId: input.conversationId,
         },
         include: {
-          sender: {
-            select: {
-              id: true,
-              name: true,
+          conversation: {
+            include: {
+              lead: true,
             },
           },
         },

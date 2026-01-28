@@ -41,22 +41,6 @@ export function ConversationsList() {
               Array.from({ length: 10 }).map((_, index) => (
                 <Skeleton key={index} className="h-16 mt-1" />
               ))}
-            {!isLoading &&
-              data?.items.map((item) => (
-                <LeadBox
-                  key={item.id}
-                  item={item}
-                  lastMessageText="Last nessage ai"
-                />
-              ))}
-            {!isLoading &&
-              data?.items.map((item) => (
-                <LeadBox
-                  key={item.id}
-                  item={item}
-                  lastMessageText="Last nessage ai"
-                />
-              ))}
             {!isLoading && data?.items.length === 0 && (
               <Empty>
                 <EmptyHeader>

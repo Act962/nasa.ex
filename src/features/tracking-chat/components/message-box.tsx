@@ -8,9 +8,11 @@ interface Message {
   mediaUrl: string | null;
   createdAt: Date;
   fromMe: boolean;
-  sender: {
-    id: string;
-    name: string;
+  conversation: {
+    lead: {
+      id: string;
+      name: string;
+    };
   };
 }
 interface MessageBoxProps {
@@ -36,7 +38,7 @@ export function MessageBox({ data, isLast }: MessageBoxProps) {
     <div className={container}>
       <div className={body}>
         <div className="flex items-center gap-1">
-          <div className="text-sm">{data.sender.name}</div>
+          <div className="text-sm">{data.conversation.lead.name}</div>
         </div>
         <div className="text-xs">{format(new Date(data.createdAt), "p")}</div>
         <div className={message}>

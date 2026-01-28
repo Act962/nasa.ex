@@ -1,6 +1,5 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Conversation, Lead } from "@/generated/prisma/client";
 import { format } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";

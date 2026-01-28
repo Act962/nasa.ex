@@ -1,3 +1,4 @@
+import { LeadSource } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 
 interface leadProps {
@@ -32,6 +33,7 @@ export async function saveLead(body: leadProps) {
         name: body.name,
         phone: body.phone,
         trackingId: body.trackingId,
+        source: LeadSource.WHATSAPP,
       },
       update: {
         statusId: status.id,

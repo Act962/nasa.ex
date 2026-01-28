@@ -62,12 +62,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Conversation not found" });
   }
 
+  const phoneFormated = body.message.sender.replace(/\D/g, "");
+
   await saveMessage({
     senderId: body.message.sender,
     messageId: body.message.id,
     trackingId: trackingId,
     conversationId: conversation.id,
-    phone: body.message.sender,
+    phone: phoneFormated,
     fromMe: false,
     body: body.message.text,
     type: body.message.messageType,
