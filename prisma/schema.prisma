@@ -248,17 +248,27 @@ model LeadHistory {
   @@map("lead_history")
 }
 
+enum LeadSource {
+  DEFAULT
+  WHATSAPP
+  FORM
+  AGENDA
+  OTHER
+}
+
 model Lead {
   id          String  @id @default(cuid())
   name        String
   email       String?
   phone       String?
+  document    String?
   profile     String?
   description String?
   statusId    String  @map("status_id")
   trackingId  String  @map("tracking_id")
   responsibleId String? @map("responsible_id")
   order       Int     @default(0)
+  source      LeadSource @default(DEFAULT)
 
   currentAction LeadAction @default(ACTIVE) @map("current_action")
   isActive      Boolean    @default(true) @map("is_active")

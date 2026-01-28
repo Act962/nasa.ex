@@ -9,7 +9,7 @@ export function prefetchWorkflows(queryClient: QueryClient, params: Input) {
   return queryClient.prefetchQuery(
     orpc.workflow.list.queryOptions({
       input: params,
-    })
+    }),
   );
 }
 
@@ -19,6 +19,6 @@ export function prefetchWorkflow(queryClient: QueryClient, workflowId: string) {
       input: {
         workflowId,
       },
-    })
+    }),
   );
 }
