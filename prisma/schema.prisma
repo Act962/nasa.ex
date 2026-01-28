@@ -32,7 +32,6 @@ model User {
   worflows Workflow[]
   forms    Form[]
   seenMessages MessageSeen[]
-  messagesSent Message[] @relation("MessageSender")
 
   @@unique([email])
   @@map("user")
@@ -288,8 +287,9 @@ model Lead {
   leadTags LeadTag[]
   history  LeadHistory[]
   actions  Action[]
+  conversation Conversation[]
 
-  conversation Conversation?
+
 
   @@index([trackingId])
   @@index([statusId])
@@ -542,12 +542,14 @@ model Conversation {
   profilePicUrl String?  @map("profile_pic_url")
   isActive      Boolean  @default(true) @map("is_active")
   
-  messagesIds   String           @map("messages_ids")
-  messages      Message[]        @relation("Messages")
-  leadId String @unique @map("lead_id")
+  leadId String  @map("lead_id")
   lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
   trackingId    String   @map("tracking_id")
   tracking      Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  
+  messages      Message[]        @relation("Messages")
+
+  @@unique([leadId, trackingId])
   
   @@index([isActive])
   @@index([lastMessageAt])
@@ -576,10 +578,9 @@ model Message {
   quotes           Message[] @relation("QuotedMessages")
   
   conversationId String
-  senderId       String
+  senderId       String?
   
   conversation   Conversation @relation("Messages", fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   
   seenBy MessageSeen[]
   
@@ -612,8 +613,8 @@ model WhatsAppInstance {
   id              String   @id @default(cuid())
   instanceName    String   @map("instance_name")
   instanceId      String   @unique @map("instance_id")
-  apiKey          String   @map("api_key") // Token da Evolution API
-  baseUrl         String   @map("base_url") // URL da sua Evolution API
+  apiKey          String   @map("api_key") // Token
+  baseUrl         String   @map("base_url") // URL
   status          WhatsAppInstanceStatus @default(DISCONNECTED)
   qrCode          String?  @map("qr_code") // Base64 do QR Code
   phoneNumber     String?  @map("phone_number") // Número conectado
