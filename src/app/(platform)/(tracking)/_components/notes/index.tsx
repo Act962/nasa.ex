@@ -26,13 +26,18 @@ export function TabNotes({ leadId, trackingId }: TabNotesProps) {
       title: "Tarefa vazia",
       trackingId,
     });
+    setEditor("");
   };
 
   if (isLoading) return <div>Loading...</div>;
   return (
     <div className="w-full space-y-4">
       <h2 className="text-lg font-semibold">Adicione um nova nota</h2>
-      <RichtTextEditor field={editor} onChange={setEditor}>
+      <RichtTextEditor
+        disabled={mutation.isPending}
+        field={editor}
+        onChange={setEditor}
+      >
         <Button className="ml-auto" onClick={onSubmit}>
           Adicionar nota
         </Button>

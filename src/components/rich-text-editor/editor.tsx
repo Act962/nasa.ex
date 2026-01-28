@@ -24,7 +24,7 @@ export function RichtTextEditor({
       try {
         return JSON.parse(field);
       } catch {
-        return "";
+        return undefined;
       }
     })(),
     onUpdate: ({ editor }) => {

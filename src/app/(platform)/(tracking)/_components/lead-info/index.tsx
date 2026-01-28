@@ -54,6 +54,10 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
     }
   }, [isEditingName]);
 
+  useEffect(() => {
+    setName(initialData.lead.name);
+  }, [initialData]);
+
   return (
     <div
       className={cn("w-64 h-full bg-sidebar border-r px-4", className)}
@@ -77,6 +81,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
         </Avatar>
         {isEditingName ? (
           <Input
+            disabled={mutate.isPending}
             className="text-center max-w-40 h-8 text-sm"
             value={name}
             ref={inputRef}

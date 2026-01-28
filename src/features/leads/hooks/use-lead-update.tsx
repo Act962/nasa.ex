@@ -10,11 +10,11 @@ export function useMutationLeadUpdate(leadId: string) {
     orpc.leads.update.mutationOptions({
       onSuccess: () => {
         toast.success(`Lead atualizado com sucesso`);
-        queryClient.invalidateQueries({
-          queryKey: orpc.leads.get.queryKey({
+        queryClient.invalidateQueries(
+          orpc.leads.get.queryOptions({
             input: { id: leadId },
           }),
-        });
+        );
       },
       onError: () => {
         toast.error(`Erro ao atualizar lead`);

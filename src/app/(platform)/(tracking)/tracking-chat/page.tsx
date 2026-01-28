@@ -1,12 +1,5 @@
-import { ConversationsLayout } from "@/features/tracking-chat/components/conversations-layout";
-import { ConversationsPainel } from "@/features/tracking-chat/components/painel";
+import { ConversationsList } from "@/features/tracking-chat/components/conversations-list";
 
-export default function Page() {
-  return (
-    <div>
-      <ConversationsLayout>
-        <ConversationsPainel />
-      </ConversationsLayout>
-    </div>
-  );
+export default async function Page() {
+  return <ConversationsList />;
 }
