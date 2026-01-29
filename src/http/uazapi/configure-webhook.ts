@@ -3,11 +3,17 @@
 import { uazapiFetch } from "./client";
 import { WebhookPayload, WebhookResponse } from "./types";
 
-export async function configureWebhook(
-  token: string,
-  data: WebhookPayload,
-  baseUrl?: string,
-) {
+interface configureWebhookProps {
+  token: string;
+  data: WebhookPayload;
+  baseUrl?: string;
+}
+
+export async function configureWebhook({
+  token,
+  data,
+  baseUrl,
+}: configureWebhookProps) {
   return await uazapiFetch<WebhookResponse>("/webhook", {
     method: "POST",
     token,

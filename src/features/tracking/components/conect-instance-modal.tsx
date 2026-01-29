@@ -17,7 +17,7 @@ import { getInstanceStatus } from "@/http/uazapi/get-instance-status";
 import { Spinner } from "@/components/ui/spinner";
 import { useConnectIntegrationStatus } from "../hooks/use-integration";
 import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
-import { phoneMask } from "@/utils/format-phone";
+import { normalizePhone, phoneMask } from "@/utils/format-phone";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,6 +72,8 @@ export function ConnectModal({
           profilePicUrl: profilePicUrl || "",
           instanceId: instance.instanceId,
           owner: owner || "",
+          token: instance.apiKey,
+          baseUrl: instance.baseUrl,
           status: WhatsAppInstanceStatus.CONNECTED,
         });
       }
@@ -137,13 +139,17 @@ export function ConnectModal({
   const generatePairingCode = useCallback(async () => {
     if (!phone) return;
 
+    const normalizedPhone = normalizePhone(
+      [selectedCountry.ddi, phone].join(""),
+    );
+
     setLoading(true);
     setError(null);
 
     try {
       const result = await connectInstance(
         instance.apiKey,
-        phone,
+        normalizedPhone,
         instance.baseUrl,
       );
 
@@ -156,12 +162,12 @@ export function ConnectModal({
         return;
       }
 
-      if (result.pairingCode) {
-        setPairingCode(result.pairingCode);
+      if (result.instance?.paircode) {
+        setPairingCode(result.instance.paircode);
         setQrcode(null);
         setLastUpdate(new Date());
-      } else if (result.qrcode) {
-        setQrcode(result.qrcode);
+      } else if (result.instance?.qrcode) {
+        setQrcode(result.instance.qrcode);
         setPairingCode(null);
         setLastUpdate(new Date());
       }
@@ -394,7 +400,7 @@ export function ConnectModal({
                     <InputGroupInput
                       value={phoneMask(phone)}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="Enter search query"
+                      placeholder="(00) 00000-0000"
                     />
                   </InputGroup>
                 </div>
