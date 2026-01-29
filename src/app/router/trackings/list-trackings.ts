@@ -14,17 +14,22 @@ export const listTrackings = base
   })
   .input(z.void())
   .handler(async ({ context, errors }) => {
-    const { user, org } = context;
+    try {
+      const { user, org } = context;
 
-    const trackings = await prisma.tracking.findMany({
-      where: {
-        organizationId: org?.id,
-        participants: {
-          some: {
-            userId: user.id,
+      const trackings = await prisma.tracking.findMany({
+        where: {
+          organizationId: org?.id,
+          participants: {
+            some: {
+              userId: user.id,
+            },
           },
         },
-      },
-    });
-    return trackings;
+      });
+      return trackings;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   });

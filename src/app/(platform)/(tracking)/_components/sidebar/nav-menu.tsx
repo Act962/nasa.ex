@@ -6,6 +6,7 @@ import {
   ClipboardType,
   File,
   Kanban,
+  MessageSquareTextIcon,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -38,6 +39,12 @@ const items = [
     title: "Formulários",
     url: "/form",
     icon: ClipboardType,
+    isActive: true,
+  },
+  {
+    title: "Chats",
+    url: "/tracking-chat",
+    icon: MessageSquareTextIcon,
     isActive: true,
   },
   {

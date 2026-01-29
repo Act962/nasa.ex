@@ -2,7 +2,7 @@
 
 import { Conversation, Lead } from "@/generated/prisma/client";
 import { format } from "date-fns";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 import { AvatarLead } from "./avatar-lead";
 
@@ -17,13 +17,14 @@ interface UserBloxProps {
 
 export function LeadBox({ item, lastMessageText }: UserBloxProps) {
   const router = useRouter();
-  const query = useSearchParams();
+  const { conversationId } = useParams();
+  console.log(conversationId);
 
   const handleClick = useCallback(() => {
     router.push(`/tracking-chat/${item.id}`);
   }, [router, item]);
 
-  const selected = item.id === query.get("id");
+  const selected = item.id === conversationId;
   const hasSeen = false;
 
   return (

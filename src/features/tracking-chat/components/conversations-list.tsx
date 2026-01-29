@@ -14,13 +14,48 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { CreateChatDialog } from "./create-chat-dialog";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useQueryTracking } from "@/features/traking/hooks/use-tracking";
 
 export function ConversationsList() {
   const isOpen = true;
   const [open, setOpen] = useState(false);
+  const { trackings, isLoadingTrackings } = useQueryTracking();
+  const [selectedTracking, setSelectedTracking] = useState<string>("");
 
-  const { data, isLoading } = useQueryConversation("cmjmw5z3q0000t0vamxz21061");
+  useEffect(() => {
+    if (!isLoadingTrackings && trackings.length > 0 && !selectedTracking) {
+      setSelectedTracking(trackings[0].id);
+    }
+  }, [trackings, isLoadingTrackings, selectedTracking]);
+  const { data, isLoading } = useQueryConversation(selectedTracking);
+
+  if (isLoading || isLoadingTrackings) {
+    return (
+      <aside
+        className={`fixed inset-y-0 pb-20 lg:pb-0 lg:w-80 lg:block overflow-y-auto border-r border-foreground/10 block w-full left-12 ${isOpen ? "hidden" : "block w-full left-0"}`}
+      >
+        <div className="px-5">
+          <div className="flex justify-between mb-4 pt-4">
+            <div className="text-lg font-medium">Tracking Chat</div>
+          </div>
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: 10 }).map((_, index) => (
+              <Skeleton key={index} className="h-16 mt-1" />
+            ))}
+          </div>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <>
@@ -37,11 +72,27 @@ export function ConversationsList() {
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            {isLoading &&
-              Array.from({ length: 10 }).map((_, index) => (
-                <Skeleton key={index} className="h-16 mt-1" />
-              ))}
-            {!isLoading && data?.items.length === 0 && (
+            <Select
+              onValueChange={(value) => setSelectedTracking(value)}
+              value={selectedTracking}
+              disabled={isLoadingTrackings}
+              defaultValue={trackings[0]?.id}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {trackings.map((tracking) => (
+                    <SelectItem key={tracking.id} value={tracking.id}>
+                      {tracking.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+
+            {data?.items.length === 0 && (
               <Empty>
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
@@ -59,14 +110,13 @@ export function ConversationsList() {
                 </EmptyContent>
               </Empty>
             )}
-            {!isLoading &&
-              data?.items.map((item) => (
-                <LeadBox
-                  key={item.id}
-                  item={item}
-                  lastMessageText="Last nessage ai"
-                />
-              ))}
+            {data?.items.map((item) => (
+              <LeadBox
+                key={item.id}
+                item={item}
+                lastMessageText="Last nessage ai"
+              />
+            ))}
           </div>
         </div>
       </aside>
