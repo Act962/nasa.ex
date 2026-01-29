@@ -7,6 +7,7 @@ import { orgRoutes } from "./org";
 import { workflowRoutes } from "./workflow";
 import { messageRouter } from "./message";
 import { conversationRouter } from "./conversation";
+import { integrationsRouter } from "./integrations";
 
 export const router = {
   tracking: trackingRoutes,
@@ -18,4 +19,5 @@ export const router = {
   workflow: workflowRoutes,
   message: messageRouter,
   conversation: conversationRouter,
+  integrations: integrationsRouter,
 };

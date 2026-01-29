@@ -18,7 +18,6 @@ interface UserBloxProps {
 export function LeadBox({ item, lastMessageText }: UserBloxProps) {
   const router = useRouter();
   const { conversationId } = useParams();
-  console.log(conversationId);
 
   const handleClick = useCallback(() => {
     router.push(`/tracking-chat/${item.id}`);

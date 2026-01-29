@@ -1,5 +1,5 @@
 import "dotenv/config";
-const UAZAPI_BASE_URL = process.env.UAZAPI_BASE_URL!;
+const UAZAPI_BASE_URL = process.env.NEXT_PUBLIC_UAZAPI_BASE_URL!;
 
 interface RequestOptions extends RequestInit {
   body?: any;

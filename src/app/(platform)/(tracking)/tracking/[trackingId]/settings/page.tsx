@@ -4,6 +4,7 @@ import { Participants } from "./tabs/participants";
 import { Reasons } from "./tabs/reasons";
 import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { orpc } from "@/lib/orpc";
+import { ChatSettings } from "@/features/tracking/components";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
@@ -16,13 +17,13 @@ export default async function Page({ params }: SettingTrackingPage) {
   await queryClient.prefetchQuery(
     orpc.tracking.listParticipants.queryOptions({
       input: { trackingId: trackingId },
-    })
+    }),
   );
 
   await queryClient.prefetchQuery(
     orpc.tracking.get.queryOptions({
       input: { trackingId },
-    })
+    }),
   );
 
   const tabs = [
@@ -53,6 +54,15 @@ export default async function Page({ params }: SettingTrackingPage) {
       name: "Motivos de perda",
       value: "reasons_loss",
       content: <Reasons type="LOSS" trackingId={trackingId} />,
+    },
+    {
+      name: "Integrações",
+      value: "integrations",
+      content: (
+        <HydrateClient client={queryClient}>
+          <ChatSettings />
+        </HydrateClient>
+      ),
     },
   ];
 

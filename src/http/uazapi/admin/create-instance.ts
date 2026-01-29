@@ -12,11 +12,13 @@ interface CreateInstanceProps {
   browser?: string;
 }
 
-export async function createInstance(
-  data: CreateInstanceProps,
-  token: string,
-  baseUrl?: string,
-) {
+interface Props {
+  data: CreateInstanceProps;
+  token: string;
+  baseUrl?: string;
+}
+
+export async function createInstance({ data, token, baseUrl }: Props) {
   return await uazapiFetch<CreateInstanceResponse>("/instance/init", {
     method: "POST",
     isAdmin: true,

@@ -140,6 +140,8 @@ export interface ConnectInstanceResponse {
   loggedIn: boolean;
   jid: string | null;
   instance: Instance;
+  qrcode: string;
+  pairingCode: string;
 }
 
 export interface DisconnectInstanceResponse {
