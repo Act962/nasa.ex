@@ -11,19 +11,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Instance } from "./types";
-import { createInstance } from "@/http/uazapi/admin/create-instance";
-import { useCreateIntegration } from "../../hooks/use-integration";
+import { useCreateIntegration } from "../hooks/use-integration";
 import { useParams } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
+import { AlertCircleIcon, CheckCircle2Icon } from "lucide-react";
 
 interface CreateInstanceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (instance: Instance) => void;
-  adminToken?: string;
-  baseUrl?: string;
+  trackingId: string;
 }
 
 function generateId() {
@@ -34,17 +32,13 @@ export function CreateInstanceModal({
   open,
   onOpenChange,
   onCreated,
-  adminToken,
-  baseUrl,
+  trackingId,
 }: CreateInstanceModalProps) {
   const [name, setName] = useState("");
-  const [systemName, setSystemName] = useState("free");
-  const serverUrl = process.env.NEXT_PUBLIC_UAZAPI_BASE_URL;
-  const [token, setToken] = useState("");
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const createInstanceMutation = useCreateIntegration();
+  const createInstanceMutation = useCreateIntegration({ trackingId });
 
   // Reset form when modal opens
   useEffect(() => {
@@ -59,8 +53,6 @@ export function CreateInstanceModal({
 
   const resetForm = () => {
     setName(generateId());
-    setSystemName("free");
-    setToken("");
     setError(null);
     setSuccess(null);
   };
@@ -70,18 +62,17 @@ export function CreateInstanceModal({
     createInstanceMutation.mutate(
       {
         name,
-        systemName,
         trackingId: params.trackingId,
       },
       {
         onSuccess: (data) => {
-          onOpenChange(false);
           onCreated({
             id: data.instance.id,
-            name: data.instance.instanceName,
+            instanceName: data.instance.instanceName,
             baseUrl: data.instance.baseUrl,
-            token: data.instance.apiKey,
+            apiKey: data.instance.apiKey,
             status: data.instance.status,
+            instanceId: data.instance.instanceId,
           });
           resetForm();
         },
@@ -101,14 +92,14 @@ export function CreateInstanceModal({
 
         {success ? (
           <div className="flex flex-col items-center py-8 space-y-4">
-            <CheckCircle2 className="h-16 w-16 text-emerald-500" />
+            <CheckCircle2Icon className="h-16 w-16 text-emerald-500" />
             <p className="text-center text-foreground">{success}</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5 pt-2">
             {error && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                <AlertCircle className="h-4 w-4 shrink-0" />
+                <AlertCircleIcon className="h-4 w-4 shrink-0" />
                 {error}
               </div>
             )}

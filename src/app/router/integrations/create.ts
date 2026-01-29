@@ -1,7 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { createInstance } from "@/http/uazapi/admin/create-instance";
-import { Instance } from "@/http/uazapi/types";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -15,7 +14,7 @@ export const createInstanceUazapi = base
   .input(
     z.object({
       name: z.string(),
-      systemName: z.string(),
+      systemName: z.string().optional(),
       adminField01: z.string().optional(),
       adminField02: z.string().optional(),
       fingerprintProfile: z.string().optional(),

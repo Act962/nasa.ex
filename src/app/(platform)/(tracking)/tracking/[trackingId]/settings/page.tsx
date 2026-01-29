@@ -4,7 +4,7 @@ import { Participants } from "./tabs/participants";
 import { Reasons } from "./tabs/reasons";
 import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { orpc } from "@/lib/orpc";
-import { ChatSettings } from "@/features/tracking/components/chat-settings";
+import { ChatSettings } from "@/features/tracking/components";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
