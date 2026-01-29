@@ -117,7 +117,7 @@ export function ChatSettings() {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <Button onClick={() => setIsCreateOpen(true)}>
+          <Button disabled={!!instance} onClick={() => setIsCreateOpen(true)}>
             <Plus className="size-4" />
             Nova Instância
           </Button>
