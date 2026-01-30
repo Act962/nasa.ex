@@ -127,7 +127,6 @@ export function Footer({ conversationId, lead }: FooterProps) {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log(e.currentTarget.message.value);
     if (!instance.instance) return;
     mutation.mutate({
       body: e.currentTarget.message.value,

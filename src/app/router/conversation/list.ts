@@ -3,9 +3,11 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import z from "zod";
 import { Conversation, Lead } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
+import { Message } from "@/generated/prisma/client";
 
 interface ConversationWithLead extends Conversation {
   lead: Lead;
+  lastMessage: Message;
 }
 
 export const listConversation = base
@@ -35,6 +37,7 @@ export const listConversation = base
           trackingId: input.trackingId,
         },
         include: {
+          messages: true,
           lead: true,
         },
       });
@@ -43,8 +46,16 @@ export const listConversation = base
         throw errors.BAD_REQUEST;
       }
 
+      const newConversations = conversations.map((conversation) => ({
+        ...conversation,
+        messages: conversation.messages.sort(
+          (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+        ),
+        lastMessage: conversation.messages[0],
+      }));
+
       return {
-        items: conversations,
+        items: newConversations,
       };
     } catch (error) {
       throw errors.INTERNAL_SERVER_ERROR;
