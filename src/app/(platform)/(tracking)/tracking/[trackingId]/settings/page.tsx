@@ -58,11 +58,7 @@ export default async function Page({ params }: SettingTrackingPage) {
     {
       name: "Integrações",
       value: "integrations",
-      content: (
-        <HydrateClient client={queryClient}>
-          <ChatSettings />
-        </HydrateClient>
-      ),
+      content: <ChatSettings />,
     },
   ];
 
