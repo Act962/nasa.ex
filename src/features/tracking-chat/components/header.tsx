@@ -2,13 +2,16 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { phoneMask } from "@/utils/format-phone";
 import { ArrowLeftIcon, MoreHorizontalIcon } from "lucide-react";
 import Link from "next/link";
 
 interface HeaderProps {
-  conversation: any;
+  name: string;
+  profile?: string;
+  phone?: string;
 }
-export function Header({ conversation }: HeaderProps) {
+export function Header({ name, profile, phone }: HeaderProps) {
   return (
     <div className="bg-accent-foreground/10 w-full flex border-b sm:px-4 py-3 px-4 lg:px-6 justify-between items-center shadow-sm">
       <div className="flex gap-3 items-center">
@@ -19,14 +22,16 @@ export function Header({ conversation }: HeaderProps) {
           <ArrowLeftIcon className="size-4" />
         </Link>
         <Avatar>
-          <AvatarImage src={conversation.avatar} />
-          <AvatarFallback>CF</AvatarFallback>
+          <AvatarImage src={profile} />
+          <AvatarFallback>{name.slice(0, 2).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div className="flex flex-col">
-          <div>{conversation.name}</div>
-          <div className="text-xs font-light text-foreground/40">
-            {conversation.name}
-          </div>
+          <div>{name}</div>
+          {phone && (
+            <div className="text-xs font-light text-foreground/40">
+              {phoneMask(phone)}
+            </div>
+          )}
         </div>
       </div>
       <Button variant="ghost">

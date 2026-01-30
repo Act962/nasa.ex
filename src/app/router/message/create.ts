@@ -32,6 +32,7 @@ export const createTextMessage = base
           conversationId: input.conversationId,
           body: input.body,
           messageId: response.id,
+          fromMe: true,
         },
         include: {
           conversation: {

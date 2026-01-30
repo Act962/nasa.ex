@@ -23,11 +23,11 @@ interface FooterProps {
   };
 }
 
-type MessagePage = {
+export type MessagePage = {
   items: Message[];
   nextCursor?: string;
 };
-type InfiniteMessages = InfiniteData<MessagePage>;
+export type InfiniteMessages = InfiniteData<MessagePage>;
 export function Footer({ conversationId, lead }: FooterProps) {
   const trackingId = "cmjmw5z3q0000t0vamxz21061";
 
@@ -145,7 +145,11 @@ export function Footer({ conversationId, lead }: FooterProps) {
         onSubmit={handleSubmit}
         className="flex items-center gap-2 lg:gap-4 w-full"
       >
-        <MessageInput name="message" placeholder="Digite sua mensagem..." />
+        <MessageInput
+          autoComplete="off"
+          name="message"
+          placeholder="Digite sua mensagem..."
+        />
         <Button type="submit" className="rounded-full">
           <SendIcon size={18} />
         </Button>
