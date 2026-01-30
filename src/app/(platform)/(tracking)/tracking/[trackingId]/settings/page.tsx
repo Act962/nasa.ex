@@ -1,10 +1,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { General } from "./tabs/general";
-import { Participants } from "./tabs/participants";
-import { Reasons } from "./tabs/reasons";
+import { General } from "@/features/tracking-settings/components/general";
+import { Participants } from "@/features/tracking-settings/components/participants";
+import { Reasons } from "@/features/tracking-settings/components/reasons";
 import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { orpc } from "@/lib/orpc";
-import { ChatSettings } from "@/features/tracking/components";
+import { ChatSettings } from "@/features/tracking-settings/components";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;

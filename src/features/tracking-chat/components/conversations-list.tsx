@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useQueryTracking } from "@/features/tracking/hooks/use-tracking";
+import { useQueryTracking } from "@/features/tracking-settings/hooks/use-tracking";
 
 export function ConversationsList() {
   const isOpen = true;
