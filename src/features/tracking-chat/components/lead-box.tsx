@@ -12,7 +12,7 @@ interface ConversationWithLead extends Conversation {
 
 interface UserBloxProps {
   item: ConversationWithLead;
-  lastMessageText?: string;
+  lastMessageText: string | null;
 }
 
 export function LeadBox({ item, lastMessageText }: UserBloxProps) {
