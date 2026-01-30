@@ -39,10 +39,11 @@ export const connectInstanceUazapi = base
       token,
       baseUrl,
       data: {
-        url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/${instanceId}`,
+        url: `${process.env.NEXT_PUBLIC_APP_URL}/api/chat/webhook?trackingId=${instanceId}`,
         enabled: true,
         events: ["messages", "connection"],
-        action: "update",
+        action: "add",
+        excludeMessages: ["wasSentByApi", "isGroupYes"],
       },
     });
 

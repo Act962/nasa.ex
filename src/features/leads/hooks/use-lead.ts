@@ -1,5 +1,5 @@
 import { orpc } from "@/lib/orpc";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 export const useCreateLead = () => {
@@ -29,7 +29,7 @@ export const useCreateLead = () => {
       onError: () => {
         toast.error("Erro ao criar lead, tente novamente");
       },
-    })
+    }),
   );
 };
 
@@ -46,10 +46,10 @@ export const userMoveToFirst = () => {
             input: {
               trackingId: data.trackingId,
             },
-          })
+          }),
         );
       },
-    })
+    }),
   );
 };
 
@@ -66,10 +66,10 @@ export const useMoveToLast = () => {
             input: {
               trackingId: data.trackingId,
             },
-          })
+          }),
         );
       },
-    })
+    }),
   );
 };
 
@@ -84,6 +84,21 @@ export const useUpdateOrder = () => {
         // Reverte o estado em caso de erro
         // setStatusData(status);
       },
-    })
+    }),
   );
+};
+
+export const useQueryLead = (leadId: string) => {
+  const { data, isLoading } = useQuery(
+    orpc.leads.get.queryOptions({
+      input: {
+        id: leadId,
+      },
+    }),
+  );
+
+  return {
+    data,
+    isLoading,
+  };
 };

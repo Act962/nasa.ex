@@ -22,8 +22,8 @@ async function main() {
   // ========================================
 
   const conversations = [
-    "cmkx0gvd90003jwvabv9m0t34",
-    "cmkx0gvd80002jwvakfgelat9",
+    "cmkyehly40001iwva24j6vtzj",
+    "cmkyehly40001iwva24j6vtzj",
   ];
 
   console.log("💬 Criando conversas...");

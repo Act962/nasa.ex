@@ -6,11 +6,15 @@ import { useParams } from "next/navigation";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Button } from "@/components/ui/button";
+import { EmptyChat } from "./empty-chat";
+import { Spinner } from "@/components/ui/spinner";
+import { ChevronDownIcon } from "lucide-react";
 
 export function Body() {
   const { conversationId } = useParams<{ conversationId: string }>();
   const [hasInitialScrolled, setHasInitialScrolled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(false);
   const [newMessages, setNewMessages] = useState(false);
   const lastItemIdRef = useRef<string | undefined>(undefined);
@@ -21,6 +25,7 @@ export function Body() {
       cursor: pageParam,
       limit: 10,
     }),
+    queryKey: ["message.list", conversationId],
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     select: (data) => ({
@@ -54,13 +59,57 @@ export function Body() {
       const el = scrollRef.current;
 
       if (el) {
+        bottomRef.current?.scrollIntoView({ block: "end" });
         el.scrollTop = el.scrollHeight;
         setHasInitialScrolled(true);
-
         setIsAtBottom(true);
       }
     }
   }, [hasInitialScrolled, data?.pages.length]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const scrollToBottomIfNeeded = () => {
+      if (isAtBottom || !hasInitialScrolled) {
+        requestAnimationFrame(() => {
+          bottomRef.current?.scrollIntoView({ block: "end" });
+        });
+      }
+    };
+
+    function onImageLoad(e: Event) {
+      if (e.target instanceof HTMLImageElement) {
+        scrollToBottomIfNeeded();
+      }
+    }
+
+    el.addEventListener("load", onImageLoad, true);
+
+    const resizeObserver = new ResizeObserver(() => {
+      scrollToBottomIfNeeded();
+    });
+
+    resizeObserver.observe(el);
+
+    const mutationObserver = new MutationObserver(() => {
+      scrollToBottomIfNeeded();
+    });
+
+    mutationObserver.observe(el, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      characterData: true,
+    });
+
+    return () => {
+      resizeObserver.disconnect();
+      el.removeEventListener("load", onImageLoad, true);
+      mutationObserver.disconnect();
+    };
+  }, [isAtBottom, hasInitialScrolled]);
 
   const isNearBottom = (el: HTMLDivElement) =>
     el.scrollHeight - el.scrollTop - el.clientHeight <= 80;
@@ -112,32 +161,53 @@ export function Body() {
 
     if (!el) return;
 
-    el.scrollTop = el.scrollHeight;
+    bottomRef.current?.scrollIntoView({ block: "end" });
 
     setNewMessages(false);
     setIsAtBottom(true);
   };
 
+  const isEmpty = !error && !isLoading && items.length === 0;
+
   return (
     <>
       <div
-        className="flex-1 min-h-0 overflow-y-auto scroll-cols-tracking"
+        className="flex-1 min-h-0 overflow-y-auto scroll-cols-tracking relative"
         ref={scrollRef}
         onScroll={handleScroll}
       >
-        {items.map((message) => (
-          <MessageBox key={message.id} data={message} />
-        ))}
+        {isEmpty ? (
+          <div className="flex items-center justify-center h-full">
+            <EmptyChat
+              title="Nenhuma mensagem"
+              description="inicie o chat enviando uma mensagem"
+            />
+          </div>
+        ) : (
+          items.map((message) => (
+            <MessageBox key={message.id} message={message} />
+          ))
+        )}
+        <div ref={bottomRef}></div>
       </div>
-      {newMessages && !isAtBottom ? (
+      {isFetchingNextPage && (
+        <div className="pointer-events-none absolute top-17 left-0 right-0 z-20 flex items-center justify-center py-2">
+          <div>
+            <Spinner className="size-4" />
+          </div>
+        </div>
+      )}
+      {!isAtBottom && (
         <Button
           type="button"
-          className="absolute bottom-20 right-8 rounded-full"
+          size="icon"
+          variant="secondary"
+          className="absolute bottom-20 right-5 z-20 rounded-full "
           onClick={scrollToBottom}
         >
-          New Messages
+          <ChevronDownIcon />
         </Button>
-      ) : null}
+      )}
     </>
   );
 }
