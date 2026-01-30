@@ -18,7 +18,6 @@ export interface Message {
 
 export function MessageBox({ message }: { message: Message }) {
   const isOwn = message.fromMe;
-  const seenList = [];
 
   const container = cn("flex gap-2 p-4", isOwn && "justify-end");
 
@@ -49,7 +48,7 @@ export function MessageBox({ message }: { message: Message }) {
               className="object-cover cursor-pointer hover:scale-110 transition transalate"
             />
           ) : (
-            <div>{message.body}</div>
+            <div className="whitespace-pre-wrap">{message.body}</div>
           )}
         </div>
       </div>

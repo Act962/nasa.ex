@@ -24,6 +24,7 @@ export const getConversation = base
           id: z.string(),
           name: z.string(),
           phone: z.string().nullable(),
+          profile: z.string().nullable(),
         }),
       }),
     }),

@@ -17,6 +17,7 @@ export const connectInstanceUazapi = base
       profileName: z.string(),
       profilePicUrl: z.string(),
       instanceId: z.string(),
+      trackingId: z.string(),
       owner: z.string(),
       status: z.custom<WhatsAppInstanceStatus>(),
       token: z.string(),
@@ -29,6 +30,7 @@ export const connectInstanceUazapi = base
       profileName,
       profilePicUrl,
       instanceId,
+      trackingId,
       owner,
       status,
       token,
@@ -39,14 +41,13 @@ export const connectInstanceUazapi = base
       token,
       baseUrl,
       data: {
-        url: `${process.env.NEXT_PUBLIC_APP_URL}/api/chat/webhook?trackingId=${instanceId}`,
+        url: `${process.env.NEXT_PUBLIC_APP_URL}/api/chat/webhook?trackingId=${trackingId}`,
         enabled: true,
         events: ["messages", "connection"],
         action: "add",
         excludeMessages: ["wasSentByApi", "isGroupYes"],
       },
     });
-
     await prisma.whatsAppInstance.update({
       where: {
         instanceId: instanceId,

@@ -1,14 +1,73 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MessageBox } from "./message-box";
+import { Message, MessageBox } from "./message-box";
 import { useParams } from "next/navigation";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import {
+  InfiniteData,
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Button } from "@/components/ui/button";
 import { EmptyChat } from "./empty-chat";
 import { Spinner } from "@/components/ui/spinner";
 import { ChevronDownIcon } from "lucide-react";
+import { pusherClient } from "@/lib/pusher";
+import { find } from "lodash";
+import { InfiniteMessages } from "./footer";
+import { LeadAction, LeadSource } from "@/generated/prisma/enums";
+
+interface MessageBodyProps {
+  senderId: string | null;
+  messageId: string;
+  conversationId: string;
+  fromMe: boolean;
+  body: string | null;
+  id: string;
+  createdAt: Date;
+  status: string;
+  mediaUrl: string | null;
+  mediaType: string | null;
+  mediaCaption: string | null;
+  mimetype: string | null;
+  fileName: string | null;
+  quotedMessageId: string | null;
+  conversation: {
+    lead: {
+      trackingId: string;
+      conversationId: string | null;
+      phone: string | null;
+      id: string;
+      createdAt: Date;
+      name: string;
+      isActive: boolean;
+      email: string | null;
+      document: string | null;
+      profile: string | null;
+      description: string | null;
+      statusId: string;
+      responsibleId: string | null;
+      order: number;
+      source: LeadSource;
+      currentAction: LeadAction;
+      updatedAt: Date;
+      closedAt: Date | null;
+    };
+  } & {
+    trackingId: string;
+    id: string;
+    createdAt: Date;
+    name: string | null;
+    lastMessageAt: Date;
+    isGroup: boolean;
+    remoteJid: string;
+    profilePicUrl: string | null;
+    isActive: boolean;
+    leadId: string;
+  };
+}
 
 export function Body() {
   const { conversationId } = useParams<{ conversationId: string }>();
@@ -18,6 +77,7 @@ export function Body() {
   const [isAtBottom, setIsAtBottom] = useState(false);
   const [newMessages, setNewMessages] = useState(false);
   const lastItemIdRef = useRef<string | undefined>(undefined);
+  const queryClient = useQueryClient();
 
   const infinitiOptions = orpc.message.list.infiniteOptions({
     input: (pageParam: string | undefined) => ({
@@ -167,12 +227,62 @@ export function Body() {
     setIsAtBottom(true);
   };
 
+  useEffect(() => {
+    console.log("chegou");
+    pusherClient.subscribe(conversationId);
+    bottomRef.current?.scrollIntoView({ block: "end" });
+
+    pusherClient.bind("message:new", (body: MessageBodyProps) => {
+      queryClient.setQueryData(["message.list", conversationId], (old: any) => {
+        const optimisticMessage: Message = {
+          ...body,
+          body: body.body,
+          conversation: {
+            lead: {
+              name: body.conversation.lead.name || "",
+              id: body.conversation.lead.id,
+            },
+          },
+        };
+        if (!old) {
+          return {
+            pages: [
+              {
+                items: [optimisticMessage],
+                nextCursor: undefined,
+              },
+            ],
+            pageParams: [undefined],
+          } satisfies InfiniteMessages;
+        }
+        const firstPage = old.pages[0] ?? {
+          items: [],
+          nextCursor: undefined,
+        };
+        const updatedFirstPage = {
+          ...firstPage,
+          items: [optimisticMessage, ...firstPage.items],
+        };
+        return {
+          ...old,
+          pages: [updatedFirstPage, ...old.pages.slice(1)],
+        };
+      });
+    });
+
+    return () => {
+      pusherClient.unsubscribe(conversationId);
+      pusherClient.unbind("message:new");
+      bottomRef.current?.scrollIntoView({ block: "end" });
+    };
+  }, [conversationId, queryClient]);
+
   const isEmpty = !error && !isLoading && items.length === 0;
 
   return (
     <>
       <div
-        className="flex-1 min-h-0 overflow-y-auto scroll-cols-tracking relative"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scroll-cols-tracking relative"
         ref={scrollRef}
         onScroll={handleScroll}
       >

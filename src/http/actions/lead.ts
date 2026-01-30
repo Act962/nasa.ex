@@ -35,12 +35,7 @@ export async function saveLead(body: leadProps) {
         trackingId: body.trackingId,
         source: LeadSource.WHATSAPP,
       },
-      update: {
-        statusId: status.id,
-        name: body.name,
-        phone: body.phone,
-        trackingId: body.trackingId,
-      },
+      update: {},
     });
 
     return lead;

@@ -75,6 +75,7 @@ export function ConnectModal({
           token: instance.apiKey,
           baseUrl: instance.baseUrl,
           status: WhatsAppInstanceStatus.CONNECTED,
+          trackingId,
         });
       }
       setIsConnected(true);

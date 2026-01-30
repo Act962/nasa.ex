@@ -18,16 +18,13 @@ interface messageProps {
 export async function saveMessage(message: messageProps) {
   switch (message.type) {
     case "ExtendedTextMessage":
-      await saveTextMessage(message);
-      break;
+      return await saveTextMessage(message);
     case "Conversation":
-      await saveTextMessage(message);
-      break;
+      return await saveTextMessage(message);
     case "ImageMessage":
-      await saveImageMessage(message);
-      break;
+      return await saveImageMessage(message);
     default:
-      break;
+      return null;
   }
 }
 
@@ -50,7 +47,7 @@ export async function saveTextMessage({
   type: TypeMessage;
 }) {
   try {
-    await prisma.message.create({
+    const message = await prisma.message.create({
       data: {
         fromMe: fromMe,
         conversationId: conversationId,
@@ -58,9 +55,18 @@ export async function saveTextMessage({
         messageId: messageId,
         body: body,
       },
+      include: {
+        conversation: {
+          include: {
+            lead: true,
+          },
+        },
+      },
     });
+    return message;
   } catch (e) {
     console.log(e);
+    throw e;
   }
 }
 
@@ -82,7 +88,7 @@ export async function saveImageMessage({
   fromMe: boolean;
 }) {
   try {
-    await prisma.message.create({
+    const message = await prisma.message.create({
       data: {
         body: caption,
         fromMe: fromMe,
@@ -90,7 +96,15 @@ export async function saveImageMessage({
         senderId: senderId,
         messageId: messageId,
       },
+      include: {
+        conversation: {
+          include: {
+            lead: true,
+          },
+        },
+      },
     });
+    return message;
   } catch (e) {
     console.log(e);
   }

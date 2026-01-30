@@ -31,7 +31,6 @@ model User {
   responsibleOnLeads      Lead[]  @relation("LeadResponsible")
   worflows Workflow[]
   forms    Form[]
-  seenMessages MessageSeen[]
 
   @@unique([email])
   @@map("user")
@@ -537,6 +536,7 @@ model Conversation {
   lastMessageAt DateTime @updatedAt @map("last_message_at")
   name          String?
   isGroup       Boolean  @default(false)
+  lastMessageId String?   @map("last_message_id")
   
   remoteJid     String   @unique @map("remote_jid")
   profilePicUrl String?  @map("profile_pic_url")
@@ -549,6 +549,7 @@ model Conversation {
   
   messages      Message[]        @relation("Messages")
 
+  @@index([lastMessageId])
   @@unique([leadId, trackingId])
   
   @@index([isActive])
@@ -566,6 +567,7 @@ model Message {
   messageId        String   @unique @map("message_id")
   fromMe           Boolean  @default(false) @map("from_me")
   status           String   @default("pending")
+  seen             Boolean  @default(false)
   
   mediaUrl         String?  @map("media_url")
   mediaType        String?  @map("media_type")
@@ -579,10 +581,9 @@ model Message {
   
   conversationId String
   senderId       String?
-  
+
   conversation   Conversation @relation("Messages", fields: [conversationId], references: [id], onDelete: Cascade)
   
-  seenBy MessageSeen[]
   
   @@index([conversationId, createdAt])
   @@index([status])
@@ -590,18 +591,7 @@ model Message {
   @@map("messages")
 }
 
-model MessageSeen {
-  id        String   @id @default(cuid())
-  messageId String
-  userId    String
-  seenAt    DateTime @default(now())
 
-  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([messageId, userId])
-  @@map("message_seen")
-}
 
 enum WhatsAppInstanceStatus {
   CONNECTED

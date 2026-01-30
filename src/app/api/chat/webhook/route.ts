@@ -1,3 +1,5 @@
+"use server";
+
 import { type NextRequest, NextResponse } from "next/server";
 import z from "zod";
 import { saveLead } from "@/http/actions/lead";
@@ -5,6 +7,7 @@ import { saveConversation } from "@/http/actions/conversation";
 import { saveMessage } from "@/http/actions/message";
 import { TypeMessage } from "@/http/uazapi/types";
 import { _uuid } from "better-auth";
+import { pusherServer } from "@/lib/pusher";
 
 //Endpoint: https://neglectful-berta-preconceptional.ngrok-free.dev/api/chat/webhook?trackingId=cmjmw5z3q0000t0vamxz21061
 const schema = z.object({
@@ -32,7 +35,6 @@ export async function POST(request: NextRequest) {
   }
 
   const json = await request.json();
-  console.log(json);
   const result = schema.safeParse(json);
 
   if (!result.success) {
@@ -64,7 +66,7 @@ export async function POST(request: NextRequest) {
 
   const phoneFormated = body.message.sender.replace(/\D/g, "");
 
-  await saveMessage({
+  const message = await saveMessage({
     senderId: body.message.sender,
     messageId: body.message.id,
     trackingId: trackingId,
@@ -74,6 +76,16 @@ export async function POST(request: NextRequest) {
     body: body.message.text,
     type: body.message.messageType,
   });
+
+  if (!message) {
+    return NextResponse.json({ error: "Message not found" });
+  }
+
+  try {
+    await pusherServer.trigger(conversation.id, "message:new", message);
+  } catch (e) {
+    console.log(e);
+  }
 
   return NextResponse.json(201, {});
 }
