@@ -16,19 +16,6 @@ export const getConversation = base
       conversationId: z.string(),
     }),
   )
-  .output(
-    z.object({
-      conversation: z.object({
-        id: z.string(),
-        lead: z.object({
-          id: z.string(),
-          name: z.string(),
-          phone: z.string().nullable(),
-          profile: z.string().nullable(),
-        }),
-      }),
-    }),
-  )
   .handler(async ({ input, context }) => {
     try {
       const { conversationId } = input;
@@ -38,6 +25,11 @@ export const getConversation = base
         },
         include: {
           lead: true,
+          tracking: {
+            select: {
+              id: true,
+            },
+          },
         },
       });
 

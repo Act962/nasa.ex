@@ -21,6 +21,7 @@ interface FooterProps {
     name: string;
     phone: string | null;
   };
+  trackingId: string;
 }
 
 export type MessagePage = {
@@ -28,9 +29,7 @@ export type MessagePage = {
   nextCursor?: string;
 };
 export type InfiniteMessages = InfiniteData<MessagePage>;
-export function Footer({ conversationId, lead }: FooterProps) {
-  const trackingId = "cmjmw5z3q0000t0vamxz21061";
-
+export function Footer({ conversationId, lead, trackingId }: FooterProps) {
   const instance = useQueryInstances(trackingId);
 
   const queryClient = useQueryClient();
@@ -127,6 +126,7 @@ export function Footer({ conversationId, lead }: FooterProps) {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    console.log(e.currentTarget.message.value);
     if (!instance.instance) return;
     mutation.mutate({
       body: e.currentTarget.message.value,

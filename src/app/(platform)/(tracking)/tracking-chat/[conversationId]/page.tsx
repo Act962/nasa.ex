@@ -10,7 +10,6 @@ import { redirect, useParams } from "next/navigation";
 
 export default function Page() {
   const { conversationId } = useParams<{ conversationId: string }>();
-
   const { data, isLoading } = useQuery(
     orpc.conversation.get.queryOptions({
       input: {
@@ -41,6 +40,7 @@ export default function Page() {
         />
         <Body />
         <Footer
+          trackingId={data.conversation.tracking.id}
           conversationId={conversationId}
           lead={data?.conversation.lead}
         />
