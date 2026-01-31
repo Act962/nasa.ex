@@ -18,56 +18,8 @@ import { pusherClient } from "@/lib/pusher";
 import { find } from "lodash";
 import { InfiniteMessages } from "./footer";
 import { LeadAction, LeadSource } from "@/generated/prisma/enums";
-
-interface MessageBodyProps {
-  senderId: string | null;
-  messageId: string;
-  conversationId: string;
-  fromMe: boolean;
-  body: string | null;
-  id: string;
-  createdAt: Date;
-  status: string;
-  mediaUrl: string | null;
-  mediaType: string | null;
-  mediaCaption: string | null;
-  mimetype: string | null;
-  fileName: string | null;
-  quotedMessageId: string | null;
-  conversation: {
-    lead: {
-      trackingId: string;
-      conversationId: string | null;
-      phone: string | null;
-      id: string;
-      createdAt: Date;
-      name: string;
-      isActive: boolean;
-      email: string | null;
-      document: string | null;
-      profile: string | null;
-      description: string | null;
-      statusId: string;
-      responsibleId: string | null;
-      order: number;
-      source: LeadSource;
-      currentAction: LeadAction;
-      updatedAt: Date;
-      closedAt: Date | null;
-    };
-  } & {
-    trackingId: string;
-    id: string;
-    createdAt: Date;
-    name: string | null;
-    lastMessageAt: Date;
-    isGroup: boolean;
-    remoteJid: string;
-    profilePicUrl: string | null;
-    isActive: boolean;
-    leadId: string;
-  };
-}
+import { CreatedMessageProps, MessageBodyProps } from "../types";
+import { authClient } from "@/lib/auth-client";
 
 export function Body() {
   const { conversationId } = useParams<{ conversationId: string }>();
@@ -78,6 +30,7 @@ export function Body() {
   const [newMessages, setNewMessages] = useState(false);
   const lastItemIdRef = useRef<string | undefined>(undefined);
   const queryClient = useQueryClient();
+  const session = authClient.useSession();
 
   const infinitiOptions = orpc.message.list.infiniteOptions({
     input: (pageParam: string | undefined) => ({
@@ -228,9 +181,48 @@ export function Body() {
   };
 
   useEffect(() => {
-    console.log("chegou");
     pusherClient.subscribe(conversationId);
     bottomRef.current?.scrollIntoView({ block: "end" });
+
+    pusherClient.bind("message:created", (body: CreatedMessageProps) => {
+      console.log("chegou aqui", body);
+      if (body.currentUserId === session.data?.user.id) return;
+      queryClient.setQueryData(["message.list", conversationId], (old: any) => {
+        const optimisticMessage: Message = {
+          ...body,
+          body: body.body,
+          conversation: {
+            lead: {
+              name: body.conversation.lead.name || "",
+              id: body.conversation.lead.id,
+            },
+          },
+        };
+        if (!old) {
+          return {
+            pages: [
+              {
+                items: [optimisticMessage],
+                nextCursor: undefined,
+              },
+            ],
+            pageParams: [undefined],
+          } satisfies InfiniteMessages;
+        }
+        const firstPage = old.pages[0] ?? {
+          items: [],
+          nextCursor: undefined,
+        };
+        const updatedFirstPage = {
+          ...firstPage,
+          items: [optimisticMessage, ...firstPage.items],
+        };
+        return {
+          ...old,
+          pages: [updatedFirstPage, ...old.pages.slice(1)],
+        };
+      });
+    });
 
     pusherClient.bind("message:new", (body: MessageBodyProps) => {
       queryClient.setQueryData(["message.list", conversationId], (old: any) => {
@@ -273,6 +265,7 @@ export function Body() {
     return () => {
       pusherClient.unsubscribe(conversationId);
       pusherClient.unbind("message:new");
+      pusherClient.unbind("message:created");
       bottomRef.current?.scrollIntoView({ block: "end" });
     };
   }, [conversationId, queryClient]);

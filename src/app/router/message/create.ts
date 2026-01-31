@@ -1,7 +1,9 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { CreatedMessageProps } from "@/features/tracking-chat/types";
 import { sendText } from "@/http/uazapi/send-text";
 import prisma from "@/lib/prisma";
+import { pusherServer } from "@/lib/pusher";
 import z from "zod";
 
 export const createTextMessage = base
@@ -19,7 +21,7 @@ export const createTextMessage = base
       token: z.string(),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context }) => {
     try {
       const response = await sendText(input.token, {
         text: input.body,
@@ -42,6 +44,17 @@ export const createTextMessage = base
           },
         },
       });
+      const messageCreated: CreatedMessageProps = {
+        ...message,
+        currentUserId: context.user.id,
+      };
+      console.log("enviando", messageCreated);
+      await pusherServer.trigger(
+        message.conversationId,
+        "message:created",
+        messageCreated,
+      );
+
       return {
         message: {
           id: message.id,
