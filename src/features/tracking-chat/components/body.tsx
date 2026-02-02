@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Message, MessageBox } from "./message-box";
+import { MessageBox } from "./message-box";
 import { useParams } from "next/navigation";
 import {
   InfiniteData,
@@ -15,11 +15,14 @@ import { EmptyChat } from "./empty-chat";
 import { Spinner } from "@/components/ui/spinner";
 import { ChevronDownIcon } from "lucide-react";
 import { pusherClient } from "@/lib/pusher";
-import { find } from "lodash";
-import { InfiniteMessages } from "./footer";
-import { LeadAction, LeadSource } from "@/generated/prisma/enums";
-import { CreatedMessageProps, MessageBodyProps } from "../types";
+import {
+  CreatedMessageProps,
+  MessageBodyProps,
+  InfiniteMessages,
+  Message,
+} from "../types";
 import { authClient } from "@/lib/auth-client";
+import SendImage from "./send-image";
 
 export function Body() {
   const { conversationId } = useParams<{ conversationId: string }>();
@@ -185,7 +188,6 @@ export function Body() {
     bottomRef.current?.scrollIntoView({ block: "end" });
 
     pusherClient.bind("message:created", (body: CreatedMessageProps) => {
-      console.log("chegou aqui", body);
       if (body.currentUserId === session.data?.user.id) return;
       queryClient.setQueryData(["message.list", conversationId], (old: any) => {
         const optimisticMessage: Message = {
@@ -193,8 +195,8 @@ export function Body() {
           body: body.body,
           conversation: {
             lead: {
-              name: body.conversation.lead.name || "",
-              id: body.conversation.lead.id,
+              name: body.conversation?.lead?.name || "",
+              id: body.conversation?.lead?.id,
             },
           },
         };
@@ -231,8 +233,8 @@ export function Body() {
           body: body.body,
           conversation: {
             lead: {
-              name: body.conversation.lead.name || "",
-              id: body.conversation.lead.id,
+              name: body.conversation?.lead?.name || "",
+              id: body.conversation?.lead?.id,
             },
           },
         };

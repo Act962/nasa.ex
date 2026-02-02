@@ -1,18 +1,20 @@
 "use client";
 
-import { ImageIcon, SendIcon } from "lucide-react";
+import { ImageIcon, SendIcon, UploadIcon } from "lucide-react";
 import { MessageInput } from "./message-input";
 import { Button } from "@/components/ui/button";
-import { useParams } from "next/navigation";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
 import {
-  InfiniteData,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
-import { Message } from "./message-box";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { useMutationTextMessage } from "../hooks/use-messages";
 import { toast } from "sonner";
+import SendImage from "./send-image";
+import { useState } from "react";
+import { Item } from "@/components/ui/item";
 
 interface FooterProps {
   conversationId: string;
@@ -24,135 +26,100 @@ interface FooterProps {
   trackingId: string;
 }
 
-export type MessagePage = {
-  items: Message[];
-  nextCursor?: string;
-};
-export type InfiniteMessages = InfiniteData<MessagePage>;
 export function Footer({ conversationId, lead, trackingId }: FooterProps) {
   const instance = useQueryInstances(trackingId);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [sendImage, setSendImage] = useState(false);
+  const [open, setOpen] = useState(false);
 
-  const queryClient = useQueryClient();
-  const mutation = useMutation(
-    orpc.message.create.mutationOptions({
-      onMutate: async (data) => {
-        await queryClient.cancelQueries({
-          queryKey: ["message.list", conversationId],
-        });
-        const previousData = queryClient.getQueryData<InfiniteMessages>([
-          "message.list",
-          conversationId,
-        ]);
+  const mutation = useMutationTextMessage(conversationId, lead);
 
-        const tempId = `optimistic-${crypto.randomUUID()}`;
-
-        const optimisticMessage: Message = {
-          id: tempId,
-          body: data.body,
-          createdAt: new Date(),
-          fromMe: true,
-          mediaUrl: null,
-          conversation: {
-            lead: {
-              id: lead.id,
-              name: lead.name,
-            },
-          },
-        };
-        queryClient.setQueryData(
-          ["message.list", conversationId],
-          (old: any) => {
-            if (!old) {
-              return {
-                pages: [
-                  {
-                    items: [optimisticMessage],
-                    nextCursor: undefined,
-                  },
-                ],
-                pageParams: [undefined],
-              } satisfies InfiniteMessages;
-            }
-            const firstPage = old.pages[0] ?? {
-              items: [],
-              nextCursor: undefined,
-            };
-            const updatedFirstPage = {
-              ...firstPage,
-              items: [optimisticMessage, ...firstPage.items],
-            };
-            return {
-              ...old,
-              pages: [updatedFirstPage, ...old.pages.slice(1)],
-            };
-          },
-        );
-        return {
-          previousData,
-          tempId,
-        };
-      },
-      onSuccess: (data, _varibalies, context) => {
-        queryClient.setQueryData<InfiniteMessages>(
-          ["message.list", conversationId],
-          (old) => {
-            if (!old) return old;
-
-            const updatePages = old.pages.map((page) => ({
-              ...page,
-              items: page.items.map((message) =>
-                message.id === context?.tempId
-                  ? {
-                      ...data.message,
-                    }
-                  : message,
-              ),
-            }));
-            return { ...old, pages: updatePages };
-          },
-        );
-      },
-      onError(_err, _varibalies, context) {
-        if (context?.previousData) {
-          queryClient.setQueryData(
-            ["message.list", conversationId],
-            context.previousData,
-          );
-        }
-        return toast.error("Erro ao enviar mensagem");
-      },
-    }),
-  );
+  const isDisabled = !instance.instance;
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    console.log(e.currentTarget.elements);
     e.preventDefault();
-    if (!instance.instance) return;
-    mutation.mutate({
-      body: e.currentTarget.message.value,
-      leadPhone: lead.phone!,
-      token: instance.instance.apiKey,
-      conversationId: conversationId,
-    });
+    if (!instance.instance) return toast.error("Instância não encontrada");
 
-    e.currentTarget.reset();
+    const messageValue = (
+      e.currentTarget.elements.namedItem("message") as HTMLInputElement
+    ).value;
+
+    if (messageValue.trim().length > 0) {
+      mutation.mutate({
+        body: messageValue,
+        leadPhone: lead.phone!,
+        token: instance.instance.apiKey,
+        conversationId: conversationId,
+      });
+
+      e.currentTarget.reset();
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      console.log("Arquivo selecionado:", file);
+      setSelectedImage(file);
+      setSendImage(true);
+      setOpen(false);
+    }
   };
 
   return (
-    <div className="py-4 px-4 bg-accent-foreground/10 border-t flex items-center gap-2 lg:gap-4 w-full">
-      <ImageIcon className="" />
+    <>
       <form
+        className="py-4 px-4 bg-accent-foreground/10 border-t flex items-center gap-2 lg:gap-4 w-full"
         onSubmit={handleSubmit}
-        className="flex items-center gap-2 lg:gap-4 w-full"
       >
-        <MessageInput
-          autoComplete="off"
-          name="message"
-          placeholder="Digite sua mensagem..."
-        />
-        <Button type="submit" className="rounded-full">
-          <SendIcon size={18} />
-        </Button>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <ImageIcon className="cursor-pointer" />
+          </PopoverTrigger>
+          <PopoverContent className="w-30 h-fit">
+            <div className="relative w-full h-full cursor-pointer">
+              <div className="relative  flex items-center gap-2">
+                <UploadIcon className="size-4" />
+                <p className="text-sm">Imagem</p>
+                <input
+                  placeholder=""
+                  type="file"
+                  accept="image/*"
+                  className="w-full cursor-pointer opacity-0 absolute"
+                  onChange={handleFileChange}
+                />
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+        <div
+          id="footer-form"
+          className="flex items-center gap-2 lg:gap-4 w-full"
+        >
+          <MessageInput
+            autoComplete="off"
+            name="message"
+            placeholder="Digite sua mensagem..."
+          />
+          <Button type="submit" className="rounded-full" disabled={isDisabled}>
+            <SendIcon size={18} />
+          </Button>
+        </div>
       </form>
-    </div>
+      {sendImage && instance.instance && (
+        <SendImage
+          conversationId={conversationId}
+          lead={lead}
+          file={selectedImage!}
+          onClose={() => {
+            setSendImage(false);
+            setSelectedImage(null);
+          }}
+          leadPhone={lead.phone!}
+          token={instance.instance.apiKey}
+        />
+      )}
+    </>
   );
 }
