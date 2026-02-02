@@ -2,51 +2,59 @@
 
 ## Enpoinst normais
 
-### Enviar mensagem de texto
+### Enviar mídia (imagem, vídeo, áudio ou documento)
 
-const url = 'https://free.uazapi.com/send/text';
-const options = {
-method: 'POST',
-headers: {
-Accept: 'application/json',
-token: '121212',
-'Content-Type': 'application/json'
-},
-body: '{"number":"5511999999999","text":"Olá! Como posso ajudar?"}'
-};
+Envia diferentes tipos de mídia para um contato ou grupo. Suporta URLs ou arquivos base64.
 
-try {
-const response = await fetch(url, options);
-const data = await response.json();
-console.log(data);
-} catch (error) {
-console.error(error);
-}
+Tipos de Mídia Suportados
 
-## Obs
+- image: Imagens (JPG preferencialmente)
+- video: Vídeos (apenas MP4)
+- document: Documentos (PDF, DOCX, XLSX, etc)
+- audio: Áudio comum (MP3 ou OGG)
+- myaudio: Mensagem de voz (alternativa ao PTT)
+- ptt: Mensagem de voz (Push-to-Talk)
+- ptv: Mensagem de vídeo (Push-to-Video)
+- sticker: Figurinha/Sticker
 
-### Enviar mensagem de texto
+## Recursos Específicos
 
-Envia uma mensagem de texto para um contato ou grupo.
+- Upload por URL ou base64
+- Caption/legenda opcional com suporte a placeholders
+- Nome personalizado para documentos (docName)
+- Geração automática de thumbnails
+- Compressão otimizada conforme o tipo
 
-Recursos Específicos
-Preview de links com suporte a personalização automática ou customizada
-Formatação básica do texto
-Substituição automática de placeholders dinâmicos
-Campos Comuns
+## Campos Comuns
+
 Este endpoint suporta todos os campos opcionais comuns documentados na tag "Enviar Mensagem", incluindo: delay, readchat, readmessages, replyid, mentions, forward, track_source, track_id, placeholders e envio para grupos.
 
-Preview de Links
-Preview Automático
-{
-"number": "5511999999999",
-"text": "Confira: https://exemplo.com",
-"linkPreview": true
-}
+## Exemplos Básicos
 
-Fields:
-Request
-Body
+### Imagem Simples
+
+```json
+{
+  "number": "5511999999999",
+  "type": "image",
+  "file": "https://exemplo.com/foto.jpg"
+}
+```
+
+```json
+{
+  "number": "5511999999999",
+  "type": "document",
+  "file": "https://exemplo.com/contrato.pdf",
+  "docName": "Contrato.pdf",
+  "text": "Segue o documento solicitado"
+}
+```
+
+### Request
+
+## Body
+
 number
 string
 required
@@ -54,47 +62,44 @@ ID do chat para o qual a mensagem será enviada. Pode ser um número de telefone
 
 Example: "5511999999999"
 
-text
+type
 string
 required
-Texto da mensagem (aceita placeholders)
+Tipo de mídia (image, video, document, audio, myaudio, ptt, ptv, sticker)
 
-Example: "Olá {{name}}! Como posso ajudar?"
+Valores possíveis: image, video, document, audio, myaudio, ptt, ptv, sticker
+Example: "image"
 
-linkPreview
-boolean
-Ativa/desativa preview de links. Se true, procura automaticamente um link no texto para gerar preview.
-
-Comportamento:
-
-Se apenas linkPreview=true: gera preview automático do primeiro link encontrado no texto
-Se fornecidos campos personalizados (title, description, image): usa os valores fornecidos
-Se campos personalizados parciais: combina com dados automáticos do link como fallback
-Example: true
-
-linkPreviewTitle
+file
 string
-Define um título personalizado para o preview do link
-
-Example: "Título Personalizado"
-
-linkPreviewDescription
-string
-Define uma descrição personalizada para o preview do link
-
-Example: "Descrição personalizada do link"
-
-linkPreviewImage
-string
-URL ou Base64 da imagem para usar no preview do link
+required
+URL ou base64 do arquivo
 
 Example: "https://exemplo.com/imagem.jpg"
 
-linkPreviewLarge
-boolean
-Se true, gera um preview grande com upload da imagem. Se false, gera um preview pequeno sem upload
+text
+string
+Texto descritivo (caption) - aceita placeholders
 
-Example: true
+Example: "Veja esta foto!"
+
+docName
+string
+Nome do arquivo (apenas para documents)
+
+Example: "relatorio.pdf"
+
+thumbnail
+string
+URL ou base64 de thumbnail personalizado para vídeos e documentos
+
+Example: "https://exemplo.com/thumb.jpg"
+
+mimetype
+string
+MIME type do arquivo (opcional, detectado automaticamente)
+
+Example: "application/pdf"
 
 replyid
 string
@@ -122,7 +127,7 @@ Example: true
 
 delay
 integer
-Atraso em milissegundos antes do envio, durante o atraso apacerá 'Digitando...'
+Atraso em milissegundos antes do envio, durante o atraso apacerá 'Digitando...' ou 'Gravando áudio...'
 
 Example: 1000
 
@@ -146,9 +151,9 @@ Example: "msg_123456789"
 
 async
 boolean
-Se true, envia a mensagem de forma assíncrona via fila interna. Útil para alto volume de mensagens.
+Se true, envia a mensagem de forma assíncrona via fila interna
 
-### Response
+## Response
 
 ```json
 {
@@ -204,7 +209,8 @@ Se true, envia a mensagem de forma assíncrona via fila interna. Útil para alto
   "sender_lid": "string",
   "response": {
     "status": "success",
-    "message": "Message sent successfully"
+    "message": "Media sent successfully",
+    "fileUrl": "https://mmg.whatsapp.net/..."
   }
 }
 ```

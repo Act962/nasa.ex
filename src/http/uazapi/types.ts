@@ -282,3 +282,40 @@ export interface SendTextResponse {
     message: string;
   };
 }
+
+export type MediaType =
+  | "image"
+  | "video"
+  | "document"
+  | "audio"
+  | "myaudio"
+  | "ptt"
+  | "ptv"
+  | "sticker";
+
+export interface SendMediaPayload {
+  number: string;
+  type: MediaType;
+  file: string;
+  text?: string;
+  docName?: string;
+  thumbnail?: string;
+  mimetype?: string;
+  replyid?: string;
+  mentions?: string;
+  readchat?: boolean;
+  readmessages?: boolean;
+  delay?: number;
+  forward?: boolean;
+  track_source?: string;
+  track_id?: string;
+  async?: boolean;
+}
+
+export interface SendMediaResponse extends Omit<SendTextResponse, "response"> {
+  response: {
+    status: string;
+    message: string;
+    fileUrl?: string;
+  };
+}
