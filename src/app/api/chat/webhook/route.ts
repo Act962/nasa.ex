@@ -8,23 +8,10 @@ import { saveMessage } from "@/http/actions/message";
 import { TypeMessage } from "@/http/uazapi/types";
 import { _uuid } from "better-auth";
 import { pusherServer } from "@/lib/pusher";
+import prisma from "@/lib/prisma";
+import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 
 //Endpoint: https://neglectful-berta-preconceptional.ngrok-free.dev/api/chat/webhook?trackingId=cmjmw5z3q0000t0vamxz21061
-const schema = z.object({
-  chat: z.object({
-    image: z.string().optional(),
-    imagePreview: z.string().optional(),
-  }),
-  message: z.object({
-    sender: z.string(),
-    id: z.string(),
-    senderName: z.string(),
-    text: z.string().optional(),
-    messageType: z.custom<TypeMessage>(),
-  }),
-  owner: z.string(),
-  token: z.string(),
-});
 
 export async function POST(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -35,57 +22,65 @@ export async function POST(request: NextRequest) {
   }
 
   const json = await request.json();
-  const result = schema.safeParse(json);
+  console.log(json);
 
-  if (!result.success) {
-    return NextResponse.json({ error: result.error });
+  if (json.EventType === "Message") {
+    const lead = await saveLead({
+      name: json.message.senderName,
+      phone: json.message.sender,
+      remoteJid: json.message.id,
+      trackingId: trackingId,
+    });
+
+    if (!lead) {
+      return NextResponse.json({ error: "Lead not found" });
+    }
+
+    const conversation = await saveConversation({
+      remoteJid: json.message.id,
+      trackingId: trackingId,
+      leadId: lead.id,
+    });
+
+    if (!conversation) {
+      return NextResponse.json({ error: "Conversation not found" });
+    }
+
+    const phoneFormated = json.message.sender.replace(/\D/g, "");
+
+    const message = await saveMessage({
+      senderId: json.message.sender,
+      messageId: json.message.id,
+      trackingId: trackingId,
+      conversationId: conversation.id,
+      phone: phoneFormated,
+      fromMe: false,
+      body: json.message.text,
+      type: json.message.messageType,
+    });
+
+    if (!message) {
+      return NextResponse.json({ error: "Message not found" });
+    }
+
+    try {
+      await pusherServer.trigger(conversation.id, "message:new", message);
+    } catch (e) {
+      console.log(e);
+    }
+
+    return NextResponse.json(201, {});
   }
 
-  const body = result.data;
-
-  const lead = await saveLead({
-    name: body.message.senderName,
-    phone: body.message.sender,
-    remoteJid: body.message.id,
-    trackingId: trackingId,
-  });
-
-  if (!lead) {
-    return NextResponse.json({ error: "Lead not found" });
+  if (json.EventType === "connection") {
+    if (json.instance.status === "disconnected") {
+      await prisma.whatsAppInstance.deleteMany({
+        where: {
+          apiKey: json.token,
+        },
+      });
+    }
+    return NextResponse.json(201, {});
   }
-
-  const conversation = await saveConversation({
-    remoteJid: body.message.id,
-    trackingId: trackingId,
-    leadId: lead.id,
-  });
-
-  if (!conversation) {
-    return NextResponse.json({ error: "Conversation not found" });
-  }
-
-  const phoneFormated = body.message.sender.replace(/\D/g, "");
-
-  const message = await saveMessage({
-    senderId: body.message.sender,
-    messageId: body.message.id,
-    trackingId: trackingId,
-    conversationId: conversation.id,
-    phone: phoneFormated,
-    fromMe: false,
-    body: body.message.text,
-    type: body.message.messageType,
-  });
-
-  if (!message) {
-    return NextResponse.json({ error: "Message not found" });
-  }
-
-  try {
-    await pusherServer.trigger(conversation.id, "message:new", message);
-  } catch (e) {
-    console.log(e);
-  }
-
-  return NextResponse.json(201, {});
+  return NextResponse.json(404, {});
 }

@@ -8,10 +8,15 @@ import { ChatSettings } from "@/features/tracking-settings/components";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
+  searchParams: Promise<{ tab?: string }>;
 };
 
-export default async function Page({ params }: SettingTrackingPage) {
+export default async function Page({
+  params,
+  searchParams,
+}: SettingTrackingPage) {
   const { trackingId } = await params;
+  const { tab } = await searchParams;
   const queryClient = getQueryClient();
 
   await queryClient.prefetchQuery(
@@ -57,7 +62,7 @@ export default async function Page({ params }: SettingTrackingPage) {
     },
     {
       name: "Integrações",
-      value: "integrations",
+      value: "instance",
       content: <ChatSettings />,
     },
   ];
@@ -65,7 +70,7 @@ export default async function Page({ params }: SettingTrackingPage) {
   return (
     <div className="w-full">
       <Tabs
-        defaultValue="general"
+        defaultValue={tab || "general"}
         orientation="horizontal"
         className="flex-col sm:flex-row gap-6"
       >
