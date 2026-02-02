@@ -5,7 +5,7 @@ import Image from "next/image";
 import { MessageInput } from "./message-input";
 import { useEffect, useState } from "react";
 import { useMutationImageMessage } from "../hooks/use-messages";
-import { fileToBase64 } from "@/utils/format-base-64";
+import { useConstructUrl } from "@/hooks/use-construct-url";
 
 interface sendImageProps {
   conversationId: string;
@@ -14,7 +14,7 @@ interface sendImageProps {
     name: string;
     phone: string | null;
   };
-  file: File;
+  file: string;
   onClose: () => void;
   leadPhone: string;
   token: string;
@@ -35,11 +35,9 @@ export default function SendImage({
   const handleSendImage = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const base64 = await fileToBase64(file);
-    console.log(base64);
     mutation.mutate({
       body: formData.get("message") as string,
-      mediaUrl: base64,
+      mediaUrl: file,
       conversationId,
       leadPhone,
       token,
@@ -48,10 +46,7 @@ export default function SendImage({
   };
 
   useEffect(() => {
-    const objectUrl = URL.createObjectURL(file);
-    setPreview(objectUrl);
-
-    return () => URL.revokeObjectURL(objectUrl);
+    setPreview(file);
   }, [file]);
 
   return (
@@ -68,12 +63,12 @@ export default function SendImage({
         </Button>
       </div>
       <div className="h-full flex items-center justify-center">
-        <div className="relative w-full h-[80%] ">
+        <div className="relative w-full h-[80%] flex items-center justify-center">
           {preview && (
             <Image
-              src={preview}
-              alt={file.name || "image upload"}
+              src={useConstructUrl(preview)}
               fill
+              alt={file || "image upload"}
               className="object-contain"
             />
           )}

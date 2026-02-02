@@ -321,3 +321,28 @@ export interface SendMediaResponse extends Omit<SendTextResponse, "response"> {
     fileUrl?: string;
   };
 }
+
+export interface DownloadFilePayload {
+  id: string;
+  return_base64?: boolean;
+  generate_mp3?: boolean;
+  return_link?: boolean;
+  transcribe?: boolean;
+  openai_apikey?: string;
+  download_quoted?: boolean;
+}
+
+export interface DownloadFileResponse {
+  fileURL?: string;
+  mimetype: string;
+  base64Data?: string;
+  transcription?: string;
+}
+
+export interface UploadedFile {
+  fileName: string;
+  url: string;
+  fileExtension: string;
+  mimeType: string;
+  fileSize: number; // em bytes
+}

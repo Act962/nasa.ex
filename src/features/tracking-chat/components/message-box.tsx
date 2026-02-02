@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import Image from "next/image";
 import { Message } from "../types";
+import { useConstructUrl } from "@/hooks/use-construct-url";
 
 export function MessageBox({ message }: { message: Message }) {
   const isOwn = message.fromMe;
@@ -29,10 +30,10 @@ export function MessageBox({ message }: { message: Message }) {
           {message.mediaUrl && (
             <Image
               alt="Image"
-              height={288}
+              src={useConstructUrl(message.mediaUrl)}
+              className="object-contain cursor-pointer hover:scale-110 transition transalate max-h-64"
               width={288}
-              src={message.mediaUrl}
-              className="object-cover cursor-pointer hover:scale-110 transition transalate"
+              height={288}
             />
           )}
           {message.body && (
