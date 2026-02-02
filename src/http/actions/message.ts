@@ -13,6 +13,7 @@ interface messageProps {
   fromMe: boolean;
   caption?: string;
   body?: string;
+  mediaUrl?: string;
 }
 
 export async function saveMessage(message: messageProps) {
@@ -77,6 +78,7 @@ export async function saveImageMessage({
   trackingId,
   conversationId,
   phone,
+  mediaUrl,
   fromMe = false,
 }: {
   caption?: string;
@@ -86,11 +88,13 @@ export async function saveImageMessage({
   conversationId: string;
   phone: string;
   fromMe: boolean;
+  mediaUrl?: string;
 }) {
   try {
     const message = await prisma.message.create({
       data: {
         body: caption,
+        mediaUrl: mediaUrl,
         fromMe: fromMe,
         conversationId: conversationId,
         senderId: senderId,

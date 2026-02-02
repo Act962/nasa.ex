@@ -1,4 +1,5 @@
 import { LeadAction, LeadSource } from "@/generated/prisma/enums";
+import { InfiniteData } from "@tanstack/react-query";
 
 export interface MessageBodyProps {
   senderId: string | null;
@@ -53,3 +54,24 @@ export interface MessageBodyProps {
 export interface CreatedMessageProps extends MessageBodyProps {
   currentUserId: string;
 }
+
+export interface Message {
+  id: string;
+  body: string | null;
+  mediaUrl: string | null;
+  createdAt: Date;
+  fromMe: boolean;
+  conversation: {
+    lead: {
+      id: string;
+      name: string;
+    };
+  };
+}
+
+export type MessagePage = {
+  items: Message[];
+  nextCursor?: string;
+};
+
+export type InfiniteMessages = InfiniteData<MessagePage>;

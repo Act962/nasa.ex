@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
       phone,
       fromMe,
       body: json.message.text,
+      mediaUrl: json.message.content.URL,
       type: json.message.messageType,
     });
 

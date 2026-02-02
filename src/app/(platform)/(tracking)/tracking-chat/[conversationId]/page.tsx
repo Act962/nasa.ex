@@ -34,9 +34,9 @@ export default function Page() {
     <div className="lg:ml-80 h-full">
       <div className="h-full flex flex-col relative">
         <Header
-          name={data.conversation.lead.name}
-          profile={data.conversation.lead.profile ?? undefined}
-          phone={data.conversation.lead.phone ?? undefined}
+          name={data.conversation.lead?.name || ""}
+          profile={data.conversation.lead?.profile ?? undefined}
+          phone={data.conversation.lead?.phone ?? undefined}
         />
         <Body />
         <Footer

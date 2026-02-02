@@ -2,7 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { phoneMask } from "@/utils/format-phone";
+import { phoneMaskFull } from "@/utils/format-phone";
 import { ArrowLeftIcon, MoreHorizontalIcon } from "lucide-react";
 import Link from "next/link";
 
@@ -29,7 +29,7 @@ export function Header({ name, profile, phone }: HeaderProps) {
           <div>{name}</div>
           {phone && (
             <div className="text-xs font-light text-foreground/40">
-              {phoneMask(phone)}
+              {phoneMaskFull(phone)}
             </div>
           )}
         </div>

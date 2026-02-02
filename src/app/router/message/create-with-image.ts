@@ -1,39 +1,42 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { CreatedMessageProps } from "@/features/tracking-chat/types";
-import { sendText } from "@/http/uazapi/send-text";
+import { sendMedia } from "@/http/uazapi/send-media";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
+import { stripBase64Prefix } from "@/utils/format-base-64";
 import z from "zod";
 
-export const createTextMessage = base
+export const createMessageWithImage = base
   .use(requiredAuthMiddleware)
   .route({
     method: "POST",
-    path: "/message/create",
-    summary: "Create message",
+    path: "/message/create-with-image",
+    summary: "Create message with image",
   })
   .input(
     z.object({
       conversationId: z.string(),
-      body: z.string(),
+      body: z.string().optional(),
       leadPhone: z.string(),
       token: z.string(),
-      mediaUrl: z.string().optional(),
+      mediaUrl: z.string(),
     }),
   )
   .handler(async ({ input, context }) => {
     try {
-      const response = await sendText(input.token, {
-        text: input.body,
+      const response = await sendMedia(input.token, {
+        file: stripBase64Prefix(input.mediaUrl),
         number: input.leadPhone,
         delay: 2000,
+        type: "image",
       });
 
       const message = await prisma.message.create({
         data: {
           conversationId: input.conversationId,
           body: input.body,
+          mediaUrl: input.mediaUrl,
           messageId: response.id,
           fromMe: true,
         },
@@ -49,7 +52,6 @@ export const createTextMessage = base
         ...message,
         currentUserId: context.user.id,
       };
-      console.log("enviando", messageCreated);
       await pusherServer.trigger(
         message.conversationId,
         "message:created",
@@ -62,7 +64,7 @@ export const createTextMessage = base
           body: message.body,
           createdAt: message.createdAt,
           fromMe: true,
-          mediaUrl: null,
+          mediaUrl: message.mediaUrl,
           conversation: {
             lead: {
               id: message.conversation.lead.id,
