@@ -25,14 +25,12 @@ export async function saveConversation(body: conversationProps) {
           trackingId: body.trackingId,
         },
       },
-      update: {
-        remoteJid: body.remoteJid,
-        trackingId: body.trackingId,
-      },
+      update: {},
       create: {
         leadId: body.leadId,
         remoteJid: body.remoteJid,
         trackingId: body.trackingId,
+        isActive: true,
       },
     });
     return conversation;

@@ -1,15 +1,11 @@
 "use server";
 
 import { type NextRequest, NextResponse } from "next/server";
-import z from "zod";
 import { saveLead } from "@/http/actions/lead";
 import { saveConversation } from "@/http/actions/conversation";
 import { saveMessage } from "@/http/actions/message";
-import { TypeMessage } from "@/http/uazapi/types";
-import { _uuid } from "better-auth";
 import { pusherServer } from "@/lib/pusher";
 import prisma from "@/lib/prisma";
-import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 
 //Endpoint: https://neglectful-berta-preconceptional.ngrok-free.dev/api/chat/webhook?trackingId=cmjmw5z3q0000t0vamxz21061
 
@@ -24,12 +20,19 @@ export async function POST(request: NextRequest) {
   const json = await request.json();
   console.log(json);
 
-  if (json.EventType === "Message") {
+  if (json.EventType === "messages") {
+    const fromMe = json.message.fromMe;
+    const remoteJid = json.message.chatid;
+    const name = fromMe ? json.chat.name : json.message.senderName;
+    const phone = fromMe
+      ? json.chat.phone.replace(/\D/g, "")
+      : json.message.sender.replace(/\D/g, "");
+
     const lead = await saveLead({
-      name: json.message.senderName,
-      phone: json.message.sender,
-      remoteJid: json.message.id,
-      trackingId: trackingId,
+      name,
+      phone,
+      remoteJid,
+      trackingId,
     });
 
     if (!lead) {
@@ -37,8 +40,8 @@ export async function POST(request: NextRequest) {
     }
 
     const conversation = await saveConversation({
-      remoteJid: json.message.id,
-      trackingId: trackingId,
+      remoteJid,
+      trackingId,
       leadId: lead.id,
     });
 
@@ -46,15 +49,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Conversation not found" });
     }
 
-    const phoneFormated = json.message.sender.replace(/\D/g, "");
+    const senderId = fromMe ? json.owner : phone;
 
     const message = await saveMessage({
-      senderId: json.message.sender,
+      senderId,
       messageId: json.message.id,
-      trackingId: trackingId,
+      trackingId,
       conversationId: conversation.id,
-      phone: phoneFormated,
-      fromMe: false,
+      phone,
+      fromMe,
       body: json.message.text,
       type: json.message.messageType,
     });
@@ -66,7 +69,7 @@ export async function POST(request: NextRequest) {
     try {
       await pusherServer.trigger(conversation.id, "message:new", message);
     } catch (e) {
-      console.log(e);
+      console.log("Pusher Error:", e);
     }
 
     return NextResponse.json(201, {});
