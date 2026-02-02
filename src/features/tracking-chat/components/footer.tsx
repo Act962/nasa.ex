@@ -14,7 +14,9 @@ import { useMutationTextMessage } from "../hooks/use-messages";
 import { toast } from "sonner";
 import SendImage from "./send-image";
 import { useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { Item } from "@/components/ui/item";
+import { Uploader } from "@/components/file-uploader/uploader";
 
 interface FooterProps {
   conversationId: string;
@@ -28,9 +30,12 @@ interface FooterProps {
 
 export function Footer({ conversationId, lead, trackingId }: FooterProps) {
   const instance = useQueryInstances(trackingId);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | undefined>(
+    undefined,
+  );
   const [sendImage, setSendImage] = useState(false);
   const [open, setOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const mutation = useMutationTextMessage(conversationId, lead);
 
@@ -57,13 +62,12 @@ export function Footer({ conversationId, lead, trackingId }: FooterProps) {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileChange = (file: string) => {
     if (file) {
-      console.log("Arquivo selecionado:", file);
       setSelectedImage(file);
       setSendImage(true);
       setOpen(false);
+      setIsLoading(false);
     }
   };
 
@@ -82,13 +86,19 @@ export function Footer({ conversationId, lead, trackingId }: FooterProps) {
               <div className="relative  flex items-center gap-2">
                 <UploadIcon className="size-4" />
                 <p className="text-sm">Imagem</p>
-                <input
-                  placeholder=""
-                  type="file"
-                  accept="image/*"
-                  className="w-full cursor-pointer opacity-0 absolute"
-                  onChange={handleFileChange}
-                />
+                <div className="absolute top-0 left-0 w-full h-full opacity-0">
+                  {isLoading ? (
+                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                      <Spinner className="size-3" />
+                    </div>
+                  ) : (
+                    <Uploader
+                      onUpload={handleFileChange}
+                      onUploadStart={() => setIsLoading(true)}
+                      value={selectedImage}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </PopoverContent>
@@ -114,7 +124,7 @@ export function Footer({ conversationId, lead, trackingId }: FooterProps) {
           file={selectedImage!}
           onClose={() => {
             setSendImage(false);
-            setSelectedImage(null);
+            setSelectedImage(undefined);
           }}
           leadPhone={lead.phone!}
           token={instance.instance.apiKey}

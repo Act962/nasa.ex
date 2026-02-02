@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { CreatedMessageProps } from "@/features/tracking-chat/types";
+import { useConstructUrl } from "@/hooks/use-construct-url";
 import { sendMedia } from "@/http/uazapi/send-media";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
@@ -26,7 +27,8 @@ export const createMessageWithImage = base
   .handler(async ({ input, context }) => {
     try {
       const response = await sendMedia(input.token, {
-        file: stripBase64Prefix(input.mediaUrl),
+        file: useConstructUrl(input.mediaUrl),
+        text: input.body,
         number: input.leadPhone,
         delay: 2000,
         type: "image",

@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
   }
 
   const json = await request.json();
-  console.log(json);
 
   if (json.EventType === "messages") {
     const fromMe = json.message.fromMe;
@@ -53,14 +52,15 @@ export async function POST(request: NextRequest) {
 
     const message = await saveMessage({
       senderId,
-      messageId: json.message.id,
       trackingId,
       conversationId: conversation.id,
       phone,
       fromMe,
-      body: json.message.text,
+      body: json.message.text || json.message.content.text,
       mediaUrl: json.message.content.URL,
       type: json.message.messageType,
+      token: json.token,
+      id: json.message.id,
     });
 
     if (!message) {
