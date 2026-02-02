@@ -1,7 +1,7 @@
 "use client";
 
 import { LeadBox } from "./lead-box";
-import { UserPlusIcon, UserRoundPlusIcon } from "lucide-react";
+import { RocketIcon, UserPlusIcon, UserRoundPlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQueryConversation } from "../hooks/use-conversation";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,6 +24,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useQueryTracking } from "@/features/tracking-settings/hooks/use-tracking";
+import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
+import { EmptyChat } from "./empty-chat";
+import Link from "next/link";
 
 export function ConversationsList() {
   const isOpen = true;
@@ -57,6 +60,12 @@ export function ConversationsList() {
     );
   }
 
+  const currentTracking = trackings.find((t) => t.id === selectedTracking);
+  const whatsappInstance = currentTracking?.whatsappInstances?.[0];
+  const noInstance = !whatsappInstance;
+  const instanceDisconnected =
+    whatsappInstance?.status === WhatsAppInstanceStatus.DISCONNECTED;
+
   return (
     <>
       <aside
@@ -65,11 +74,13 @@ export function ConversationsList() {
         <div className="px-5">
           <div className="flex justify-between mb-4 pt-4">
             <div className="text-lg font-medium">Tracking Chat</div>
-            <div className="cursor-pointer">
-              <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-                <UserRoundPlusIcon className="size-4" />
-              </Button>
-            </div>
+            {!noInstance && !instanceDisconnected && (
+              <div className="cursor-pointer">
+                <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+                  <UserRoundPlusIcon className="size-4" />
+                </Button>
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <Select
@@ -92,31 +103,62 @@ export function ConversationsList() {
               </SelectContent>
             </Select>
 
-            {data?.items.length === 0 && (
+            {noInstance || instanceDisconnected ? (
               <Empty>
                 <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <UserPlusIcon />
+                  <EmptyMedia>
+                    <RocketIcon />
                   </EmptyMedia>
-                  <EmptyTitle>Sem conversas</EmptyTitle>
+                  <EmptyTitle>
+                    {noInstance
+                      ? "Nenhuma instância encontrada"
+                      : "Instância desconectada"}
+                  </EmptyTitle>
                   <EmptyDescription>
-                    Nenhuma conversa encontrada
+                    {noInstance
+                      ? "Configure uma instância para iniciar"
+                      : "Conecte a instância para iniciar"}
                   </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
-                  <Button variant="default" onClick={() => setOpen(true)}>
-                    Adicionar conversa
+                  <Button variant="default" asChild>
+                    <Link
+                      href={`/tracking/${selectedTracking}/settings?tab=instance`}
+                    >
+                      Configurar Instância
+                    </Link>
                   </Button>
                 </EmptyContent>
               </Empty>
+            ) : (
+              <>
+                {data?.items.length === 0 && (
+                  <Empty>
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <UserPlusIcon />
+                      </EmptyMedia>
+                      <EmptyTitle>Sem conversas</EmptyTitle>
+                      <EmptyDescription>
+                        Nenhuma conversa encontrada
+                      </EmptyDescription>
+                    </EmptyHeader>
+                    <EmptyContent>
+                      <Button variant="default" onClick={() => setOpen(true)}>
+                        Adicionar conversa
+                      </Button>
+                    </EmptyContent>
+                  </Empty>
+                )}
+                {data?.items.map((item) => (
+                  <LeadBox
+                    key={item.id}
+                    item={item}
+                    lastMessageText={item.lastMessage.body}
+                  />
+                ))}
+              </>
             )}
-            {data?.items.map((item) => (
-              <LeadBox
-                key={item.id}
-                item={item}
-                lastMessageText={item.lastMessage.body}
-              />
-            ))}
           </div>
         </div>
       </aside>

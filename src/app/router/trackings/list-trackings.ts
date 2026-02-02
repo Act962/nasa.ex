@@ -26,6 +26,15 @@ export const listTrackings = base
             },
           },
         },
+        include: {
+          whatsappInstances: {
+            select: {
+              id: true,
+              instanceId: true,
+              status: true,
+            },
+          },
+        },
       });
       return trackings;
     } catch (error) {
