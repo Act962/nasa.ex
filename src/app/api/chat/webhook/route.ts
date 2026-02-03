@@ -152,7 +152,6 @@ export async function POST(request: NextRequest) {
       }
 
       if (!messageData) {
-        console.log(`Unhandle message type: ${messageType}`);
         return NextResponse.json(
           { success: true, warning: "Message type not processed" },
           { status: 201 },

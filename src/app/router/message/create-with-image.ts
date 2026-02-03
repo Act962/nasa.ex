@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { CreatedMessageProps } from "@/features/tracking-chat/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
+import { markReadMessage } from "@/http/uazapi/mark-read-message";
 import { sendMedia } from "@/http/uazapi/send-media";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
@@ -32,6 +33,11 @@ export const createMessageWithImage = base
         number: input.leadPhone,
         delay: 2000,
         type: "image",
+      });
+
+      await markReadMessage(input.token, {
+        number: response.chatid,
+        read: true,
       });
 
       const message = await prisma.message.create({

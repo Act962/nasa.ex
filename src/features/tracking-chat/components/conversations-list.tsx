@@ -154,7 +154,7 @@ export function ConversationsList() {
                   <LeadBox
                     key={item.id}
                     item={item}
-                    lastMessageText={item.lastMessage.body}
+                    lastMessageText={item.lastMessage?.body}
                   />
                 ))}
               </>

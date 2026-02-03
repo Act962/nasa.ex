@@ -346,3 +346,12 @@ export interface UploadedFile {
   mimeType: string;
   fileSize: number; // em bytes
 }
+export interface MarkReadPayload {
+  number: string;
+  read: boolean;
+}
+
+export interface MarkReadResponse {
+  response: string;
+  info: string;
+}

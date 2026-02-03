@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { CreatedMessageProps } from "@/features/tracking-chat/types";
+import { markReadMessage } from "@/http/uazapi/mark-read-message";
 import { sendText } from "@/http/uazapi/send-text";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
@@ -28,6 +29,11 @@ export const createTextMessage = base
         text: input.body,
         number: input.leadPhone,
         delay: 2000,
+      });
+
+      await markReadMessage(input.token, {
+        number: response.chatid,
+        read: true,
       });
 
       const message = await prisma.message.create({
