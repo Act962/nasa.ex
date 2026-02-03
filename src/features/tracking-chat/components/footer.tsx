@@ -1,6 +1,12 @@
 "use client";
 
-import { ImageIcon, SendIcon, UploadIcon } from "lucide-react";
+import {
+  FileIcon,
+  ImageIcon,
+  PlusIcon,
+  SendIcon,
+  UploadIcon,
+} from "lucide-react";
 import { MessageInput } from "./message-input";
 import { Button } from "@/components/ui/button";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
@@ -12,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useMutationTextMessage } from "../hooks/use-messages";
 import { toast } from "sonner";
-import SendImage from "./send-image";
+import SendImage from "./send-file";
 import { useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Item } from "@/components/ui/item";
@@ -32,6 +38,9 @@ export function Footer({ conversationId, lead, trackingId }: FooterProps) {
   const instance = useQueryInstances(trackingId);
   const [selectedImage, setSelectedImage] = useState<string | undefined>(
     undefined,
+  );
+  const [selectedFileType, setSelectedFileType] = useState<"image" | "pdf">(
+    "image",
   );
   const [sendImage, setSendImage] = useState(false);
   const [open, setOpen] = useState(false);
@@ -62,9 +71,10 @@ export function Footer({ conversationId, lead, trackingId }: FooterProps) {
     }
   };
 
-  const handleFileChange = (file: string) => {
+  const handleFileChange = (file: string, fileType: "image" | "pdf") => {
     if (file) {
       setSelectedImage(file);
+      setSelectedFileType(fileType);
       setSendImage(true);
       setOpen(false);
       setIsLoading(false);
@@ -79,12 +89,34 @@ export function Footer({ conversationId, lead, trackingId }: FooterProps) {
       >
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
-            <ImageIcon className="cursor-pointer" />
+            <Button variant="outline" size="icon">
+              <PlusIcon className="cursor-pointer" />
+            </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-30 h-fit">
+          <PopoverContent className="w-fit h-fit p-0">
             <div className="relative w-full h-full cursor-pointer">
-              <div className="relative  flex items-center gap-2">
-                <UploadIcon className="size-4" />
+              <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
+                <FileIcon className="size-4" />
+                <p className="text-sm">Arquivo</p>
+                <div className="absolute top-0 left-0 w-full h-full opacity-0">
+                  {isLoading ? (
+                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                      <Spinner className="size-3" />
+                    </div>
+                  ) : (
+                    <Uploader
+                      onUpload={(file) => handleFileChange(file, "pdf")}
+                      onUploadStart={() => setIsLoading(true)}
+                      value={selectedImage}
+                      fileTypeAccepted="outros"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="relative w-full h-full cursor-pointer">
+              <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
+                <ImageIcon className="size-4" />
                 <p className="text-sm">Imagem</p>
                 <div className="absolute top-0 left-0 w-full h-full opacity-0">
                   {isLoading ? (
@@ -93,9 +125,10 @@ export function Footer({ conversationId, lead, trackingId }: FooterProps) {
                     </div>
                   ) : (
                     <Uploader
-                      onUpload={handleFileChange}
+                      onUpload={(file) => handleFileChange(file, "image")}
                       onUploadStart={() => setIsLoading(true)}
                       value={selectedImage}
+                      fileTypeAccepted="image"
                     />
                   )}
                 </div>
@@ -128,6 +161,7 @@ export function Footer({ conversationId, lead, trackingId }: FooterProps) {
           }}
           leadPhone={lead.phone!}
           token={instance.instance.apiKey}
+          fileType={selectedFileType}
         />
       )}
     </>

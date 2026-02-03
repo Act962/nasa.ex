@@ -59,8 +59,10 @@ export interface Message {
   id: string;
   body: string | null;
   mediaUrl: string | null;
+  mimetype?: string | null;
   createdAt: Date;
   fromMe: boolean;
+  fileName?: string | null;
   conversation: {
     lead: {
       id: string;

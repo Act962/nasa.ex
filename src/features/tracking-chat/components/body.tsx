@@ -22,7 +22,7 @@ import {
   Message,
 } from "../types";
 import { authClient } from "@/lib/auth-client";
-import SendImage from "./send-image";
+import SendImage from "./send-file";
 
 export function Body() {
   const { conversationId } = useParams<{ conversationId: string }>();

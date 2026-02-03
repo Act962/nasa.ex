@@ -22,7 +22,7 @@ interface UploaderState {
   isDeleting: boolean;
   error: boolean;
   objectUrl?: string;
-  fileType: "image" | "video";
+  fileType: "image" | "video" | "outros";
 }
 
 const MAX_SIZE = 1024 * 1024 * 5;
@@ -30,7 +30,7 @@ const MAX_SIZE = 1024 * 1024 * 5;
 interface UploaderProps {
   value?: string;
   onConfirm?: (value: string) => void;
-  fileTypeAccepted?: "image" | "video";
+  fileTypeAccepted?: "image" | "video" | "outros";
   onUpload?: (value: string) => void;
   onUploadStart?: () => void;
 }
@@ -116,8 +116,6 @@ export function Uploader({
 
               onConfirm?.(key);
               onUpload?.(key);
-
-              toast.success("Arquivo enviado com sucesso");
 
               resolve();
             } else {
@@ -292,7 +290,11 @@ export function Uploader({
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept:
-      fileTypeAccepted === "image" ? { "image/*": [] } : { "video/*": [] },
+      fileTypeAccepted === "image"
+        ? { "image/*": [] }
+        : fileTypeAccepted === "outros"
+          ? { "*/*": [] }
+          : { "video/*": [] },
     maxFiles: 1,
     multiple: false,
     maxSize: MAX_SIZE,
