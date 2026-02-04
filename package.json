@@ -113,6 +113,7 @@
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/eslint-plugin-query": "^5.91.2",
+    "@types/dom-speech-recognition": "^0.0.7",
     "@types/node": "^20",
     "@types/pg": "^8.16.0",
     "@types/react": "^19",

@@ -27,7 +27,9 @@ export async function POST(req: Request) {
 
     const { filename, contentType, size, isImage } = validation.data;
 
-    const uniqueKey = `${uuidv4()}-${filename}`;
+    const extention = filename.split(".").pop();
+
+    const uniqueKey = `${uuidv4()}.${extention}`;
 
     const command = new PutObjectCommand({
       Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,

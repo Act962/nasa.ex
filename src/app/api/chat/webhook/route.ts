@@ -101,7 +101,8 @@ export async function POST(request: NextRequest) {
             },
           },
         });
-      } else if (messageType === "ImageMessage") {
+      }
+      if (messageType === "ImageMessage") {
         const image = await downloadFile({
           token: json.token,
           baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
@@ -139,6 +140,110 @@ export async function POST(request: NextRequest) {
             body,
             mediaUrl: key,
             fromMe,
+            conversationId: conversation.id,
+            senderId,
+            messageId,
+          },
+          include: {
+            conversation: {
+              include: { lead: true },
+            },
+          },
+        });
+      }
+      if (messageType === "DocumentMessage") {
+        const document = await downloadFile({
+          token: json.token,
+          baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
+          data: { id: messageId, return_base64: false },
+        });
+
+        let key = null;
+        let mimetype = "";
+        if (document?.fileURL) {
+          try {
+            const documentResponse = await fetch(document.fileURL);
+            if (documentResponse.ok) {
+              const arrayBuffer = await documentResponse.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              mimetype =
+                documentResponse.headers.get("content-type") ||
+                "application/pdf";
+
+              const extension = mimetype.split("/")[1] || "pdf";
+              key = `${uuidv4()}.${extension}`;
+
+              await S3.send(
+                new PutObjectCommand({
+                  Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
+                  Key: key,
+                  Body: buffer,
+                  ContentType: mimetype,
+                }),
+              );
+            }
+          } catch (error) {
+            console.error("Error uploading to S3:", error);
+          }
+        }
+
+        messageData = await prisma.message.create({
+          data: {
+            body,
+            mediaUrl: key,
+            fileName: json.message.content.fileName,
+            fromMe,
+            mimetype,
+            conversationId: conversation.id,
+            senderId,
+            messageId,
+          },
+          include: {
+            conversation: {
+              include: { lead: true },
+            },
+          },
+        });
+      }
+      if (messageType === "AudioMessage") {
+        const audio = await downloadFile({
+          token: json.token,
+          baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
+          data: { id: messageId, return_base64: false, generate_mp3: true },
+        });
+
+        let key = null;
+        let mimetype = "";
+        if (audio?.fileURL) {
+          try {
+            const audioResponse = await fetch(audio.fileURL);
+            if (audioResponse.ok) {
+              const arrayBuffer = await audioResponse.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              mimetype =
+                audioResponse.headers.get("content-type") || "audio/mpeg";
+              const extension = mimetype.split("/")[1] || "mp3";
+              key = `${uuidv4()}.${extension}`;
+
+              await S3.send(
+                new PutObjectCommand({
+                  Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
+                  Key: key,
+                  Body: buffer,
+                  ContentType: mimetype,
+                }),
+              );
+            }
+          } catch (error) {
+            console.error("Error uploading to S3:", error);
+          }
+        }
+
+        messageData = await prisma.message.create({
+          data: {
+            mediaUrl: key,
+            fromMe,
+            mimetype,
             conversationId: conversation.id,
             senderId,
             messageId,

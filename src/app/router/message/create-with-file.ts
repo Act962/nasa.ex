@@ -31,14 +31,12 @@ export const createMessageWithFile = base
       const response = await sendMedia(input.token, {
         file: useConstructUrl(input.mediaUrl),
         text: input.body,
+        docName: input.fileName,
         number: input.leadPhone,
         delay: 2000,
         type: "document",
-      });
-
-      await markReadMessage(input.token, {
-        number: response.chatid,
-        read: true,
+        readchat: true,
+        readmessages: true,
       });
 
       const message = await prisma.message.create({

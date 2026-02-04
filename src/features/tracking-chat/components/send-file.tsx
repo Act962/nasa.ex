@@ -10,7 +10,7 @@ import {
 } from "../hooks/use-messages";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 
-interface sendImageProps {
+interface sendFileProps {
   conversationId: string;
   lead: {
     id: string;
@@ -22,9 +22,10 @@ interface sendImageProps {
   leadPhone: string;
   token: string;
   fileType: "image" | "pdf";
+  fileName?: string;
 }
 
-export default function SendImage({
+export function SendFile({
   conversationId,
   lead,
   file,
@@ -32,7 +33,10 @@ export default function SendImage({
   leadPhone,
   token,
   fileType,
-}: sendImageProps) {
+  fileName,
+}: sendFileProps) {
+  console.log(file);
+  console.log(fileType);
   const [preview, setPreview] = useState<string | null>(null);
 
   const mutation = useMutationImageMessage(conversationId, lead);
@@ -53,7 +57,7 @@ export default function SendImage({
       mutationFile.mutate({
         body: formData.get("message") as string,
         mediaUrl: file,
-        fileName: file.split("-").pop() || "",
+        fileName: fileName || "document",
         mimetype: `application/${fileType}`,
         conversationId,
         leadPhone,
@@ -95,10 +99,10 @@ export default function SendImage({
             <div className="flex flex-col items-center gap-4">
               <div className="size-32 bg-foreground/10 rounded-lg flex items-center justify-center">
                 <span className="text-4xl font-bold uppercase">
-                  {file.split(".").pop()}
+                  {fileName?.split(".").pop()}
                 </span>
               </div>
-              <p className="text-sm font-medium">{file.split("-").pop()}</p>
+              <p className="text-sm font-medium">{fileName}</p>
             </div>
           )}
         </div>

@@ -31,7 +31,7 @@ interface UploaderProps {
   value?: string;
   onConfirm?: (value: string) => void;
   fileTypeAccepted?: "image" | "video" | "outros";
-  onUpload?: (value: string) => void;
+  onUpload?: (value: string, name?: string) => void;
   onUploadStart?: () => void;
 }
 
@@ -115,7 +115,7 @@ export function Uploader({
               }));
 
               onConfirm?.(key);
-              onUpload?.(key);
+              onUpload?.(key, file.name);
 
               resolve();
             } else {

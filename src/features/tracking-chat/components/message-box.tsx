@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Message } from "../types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { FileMessageBox } from "./file-message-box";
+import { AudioMessageBox } from "./audio-message-box";
 
 export function MessageBox({ message }: { message: Message }) {
   const isOwn = message.fromMe;
@@ -42,8 +43,15 @@ export function MessageBox({ message }: { message: Message }) {
               <FileMessageBox
                 mediaUrl={message.mediaUrl}
                 mimetype={message.mimetype}
+                fileName={message.fileName}
               />
             )}
+          {message.mediaUrl && message.mimetype?.startsWith("audio") && (
+            <AudioMessageBox
+              mediaUrl={message.mediaUrl}
+              mimetype={message.mimetype}
+            />
+          )}
           {message.body && (
             <div className="whitespace-pre-wrap py-2 px-3">{message.body}</div>
           )}

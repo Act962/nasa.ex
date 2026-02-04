@@ -6,15 +6,16 @@ import { useEffect, useMemo, useState } from "react";
 interface FileMessageBoxProps {
   mediaUrl: string;
   mimetype: string;
+  fileName?: string | null;
 }
 
-export function FileMessageBox({ mediaUrl, mimetype }: FileMessageBoxProps) {
+export function FileMessageBox({
+  mediaUrl,
+  mimetype,
+  fileName,
+}: FileMessageBoxProps) {
   const formatUrl = useConstructUrl(mediaUrl);
   const [fileSize, setFileSize] = useState<string>("Carregando...");
-  const fileName = useMemo(() => {
-    const parts = mediaUrl.split("-");
-    return parts.length > 5 ? parts.slice(5).join("-") : mediaUrl;
-  }, [mediaUrl]);
 
   useEffect(() => {
     const getFileInfo = async () => {
@@ -64,7 +65,7 @@ export function FileMessageBox({ mediaUrl, mimetype }: FileMessageBoxProps) {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`;
+    a.download = fileName || "document";
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -78,11 +79,14 @@ export function FileMessageBox({ mediaUrl, mimetype }: FileMessageBoxProps) {
           <FileIcon className="w-4 h-4 text-foreground" />
         </div>
         <div className="flex flex-col overflow-hidden">
-          <div className="text-sm font-medium truncate" title={fileName}>
-            {fileName}
+          <div
+            className="text-sm font-medium truncate"
+            title={fileName || "documento"}
+          >
+            {fileName || "documento"}
           </div>
           <span className="text-[10px] text-muted-foreground uppercase font-semibold">
-            {mimetype.split("/")[1]} • {fileSize}
+            {fileName?.split(".").pop() || "doc"} • {fileSize}
           </span>
         </div>
       </div>
