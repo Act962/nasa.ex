@@ -116,6 +116,7 @@ export function CreateInstanceModal({
                 required
                 disabled={createInstanceMutation.isPending}
                 className="h-11 bg-input/50"
+                autoComplete="off"
               />
             </div>
 

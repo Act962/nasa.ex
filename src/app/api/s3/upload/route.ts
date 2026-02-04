@@ -1,6 +1,7 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
-import z, { uuidv4 } from "zod";
+import z from "zod";
+import { v4 as uuidv4 } from "uuid";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { S3 } from "@/lib/s3-client";
 
@@ -26,7 +27,9 @@ export async function POST(req: Request) {
 
     const { filename, contentType, size, isImage } = validation.data;
 
-    const uniqueKey = `${uuidv4()}-${filename}`;
+    const extention = filename.split(".").pop();
+
+    const uniqueKey = `${uuidv4()}.${extention}`;
 
     const command = new PutObjectCommand({
       Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,

@@ -47,7 +47,7 @@ export function RenderUploadedState({
   previewUrl: string;
   isDeleting: boolean;
   handleDelete: () => void;
-  fileType: "image" | "video";
+  fileType: "image" | "video" | "outros";
 }) {
   return (
     <div className=" group">

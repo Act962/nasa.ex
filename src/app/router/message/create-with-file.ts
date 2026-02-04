@@ -2,17 +2,18 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { CreatedMessageProps } from "@/features/tracking-chat/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
+import { markReadMessage } from "@/http/uazapi/mark-read-message";
 import { sendMedia } from "@/http/uazapi/send-media";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import z from "zod";
 
-export const createMessageWithImage = base
+export const createMessageWithFile = base
   .use(requiredAuthMiddleware)
   .route({
     method: "POST",
-    path: "/message/create-with-image",
-    summary: "Create message with image",
+    path: "/message/create-with-file",
+    summary: "Create message with file",
   })
   .input(
     z.object({
@@ -21,6 +22,8 @@ export const createMessageWithImage = base
       leadPhone: z.string(),
       token: z.string(),
       mediaUrl: z.string(),
+      fileName: z.string(),
+      mimetype: z.string(),
     }),
   )
   .handler(async ({ input, context }) => {
@@ -28,9 +31,10 @@ export const createMessageWithImage = base
       const response = await sendMedia(input.token, {
         file: useConstructUrl(input.mediaUrl),
         text: input.body,
+        docName: input.fileName,
         number: input.leadPhone,
         delay: 2000,
-        type: "image",
+        type: "document",
         readchat: true,
         readmessages: true,
       });
@@ -40,9 +44,10 @@ export const createMessageWithImage = base
           conversationId: input.conversationId,
           body: input.body,
           mediaUrl: input.mediaUrl,
-          mimetype: "image/jpeg",
+          mimetype: input.mimetype,
           messageId: response.id,
           fromMe: true,
+          fileName: input.fileName,
         },
         include: {
           conversation: {
@@ -70,6 +75,7 @@ export const createMessageWithImage = base
           fromMe: true,
           mediaUrl: message.mediaUrl,
           mimetype: message.mimetype,
+          fileName: message.fileName,
           conversation: {
             lead: {
               id: message.conversation.lead.id,

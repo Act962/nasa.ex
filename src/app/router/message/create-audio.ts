@@ -5,32 +5,49 @@ import { useConstructUrl } from "@/hooks/use-construct-url";
 import { sendMedia } from "@/http/uazapi/send-media";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
+import { S3 } from "@/lib/s3-client";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import z from "zod";
 
-export const createMessageWithImage = base
+export const createMessageWithAudio = base
   .use(requiredAuthMiddleware)
   .route({
     method: "POST",
-    path: "/message/create-with-image",
-    summary: "Create message with image",
+    path: "/message/create-with-audio",
+    summary: "Create message with audio",
   })
   .input(
     z.object({
       conversationId: z.string(),
-      body: z.string().optional(),
       leadPhone: z.string(),
       token: z.string(),
-      mediaUrl: z.string(),
+      blob: z.instanceof(Blob),
+      nameAudio: z.string(),
+      mimetype: z.string(),
     }),
   )
   .handler(async ({ input, context }) => {
     try {
+      const buffer = Buffer.from(await input.blob.arrayBuffer());
+
+      const presignedResponse = await S3.send(
+        new PutObjectCommand({
+          Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
+          Key: input.nameAudio,
+          Body: buffer,
+          ContentType: input.mimetype,
+        }),
+      );
+
+      if (!presignedResponse) {
+        throw new Error("Falha ao gerar URL presignada");
+      }
+
       const response = await sendMedia(input.token, {
-        file: useConstructUrl(input.mediaUrl),
-        text: input.body,
+        file: useConstructUrl(input.nameAudio),
         number: input.leadPhone,
         delay: 2000,
-        type: "image",
+        type: "myaudio",
         readchat: true,
         readmessages: true,
       });
@@ -38,11 +55,11 @@ export const createMessageWithImage = base
       const message = await prisma.message.create({
         data: {
           conversationId: input.conversationId,
-          body: input.body,
-          mediaUrl: input.mediaUrl,
-          mimetype: "image/jpeg",
+          mediaUrl: input.nameAudio,
+          mimetype: input.mimetype,
           messageId: response.id,
           fromMe: true,
+          fileName: input.nameAudio,
         },
         include: {
           conversation: {
@@ -70,6 +87,7 @@ export const createMessageWithImage = base
           fromMe: true,
           mediaUrl: message.mediaUrl,
           mimetype: message.mimetype,
+          fileName: message.fileName,
           conversation: {
             lead: {
               id: message.conversation.lead.id,

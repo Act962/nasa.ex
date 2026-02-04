@@ -4,10 +4,13 @@ import { DownloadIcon, SendIcon, XIcon } from "lucide-react";
 import Image from "next/image";
 import { MessageInput } from "./message-input";
 import { useEffect, useState } from "react";
-import { useMutationImageMessage } from "../hooks/use-messages";
+import {
+  useMutationFileMessage,
+  useMutationImageMessage,
+} from "../hooks/use-messages";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 
-interface sendImageProps {
+interface sendFileProps {
   conversationId: string;
   lead: {
     id: string;
@@ -18,30 +21,49 @@ interface sendImageProps {
   onClose: () => void;
   leadPhone: string;
   token: string;
+  fileType: "image" | "pdf";
+  fileName?: string;
 }
 
-export default function SendImage({
+export function SendFile({
   conversationId,
   lead,
   file,
   onClose,
   leadPhone,
   token,
-}: sendImageProps) {
+  fileType,
+  fileName,
+}: sendFileProps) {
+  console.log(file);
+  console.log(fileType);
   const [preview, setPreview] = useState<string | null>(null);
 
   const mutation = useMutationImageMessage(conversationId, lead);
+  const mutationFile = useMutationFileMessage(conversationId, lead);
 
-  const handleSendImage = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSend = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    mutation.mutate({
-      body: formData.get("message") as string,
-      mediaUrl: file,
-      conversationId,
-      leadPhone,
-      token,
-    });
+    if (fileType === "image") {
+      mutation.mutate({
+        body: formData.get("message") as string,
+        mediaUrl: file,
+        conversationId,
+        leadPhone,
+        token,
+      });
+    } else {
+      mutationFile.mutate({
+        body: formData.get("message") as string,
+        mediaUrl: file,
+        fileName: fileName || "document",
+        mimetype: `application/${fileType}`,
+        conversationId,
+        leadPhone,
+        token,
+      });
+    }
     onClose();
   };
 
@@ -51,7 +73,7 @@ export default function SendImage({
 
   return (
     <form
-      onSubmit={handleSendImage}
+      onSubmit={handleSend}
       className="w-full flex flex-col absolute bottom-0 top-0 z-50  h-full bg-accent p-4 gap-10"
     >
       <div className="w-full flex justify-between items-center">
@@ -64,13 +86,24 @@ export default function SendImage({
       </div>
       <div className="h-full flex items-center justify-center">
         <div className="relative w-full h-[80%] flex items-center justify-center">
-          {preview && (
-            <Image
-              src={useConstructUrl(preview)}
-              fill
-              alt={file || "image upload"}
-              className="object-contain"
-            />
+          {fileType === "image" ? (
+            preview && (
+              <Image
+                src={useConstructUrl(preview)}
+                fill
+                alt={file || "image upload"}
+                className="object-contain"
+              />
+            )
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className="size-32 bg-foreground/10 rounded-lg flex items-center justify-center">
+                <span className="text-4xl font-bold uppercase">
+                  {fileName?.split(".").pop()}
+                </span>
+              </div>
+              <p className="text-sm font-medium">{fileName}</p>
+            </div>
           )}
         </div>
       </div>
