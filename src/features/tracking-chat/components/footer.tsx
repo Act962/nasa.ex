@@ -107,11 +107,11 @@ export function Footer({ conversationId, lead, trackingId }: FooterProps) {
             <Popover open={open} onOpenChange={setOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="icon">
-                  <PlusIcon className="cursor-pointer" />
+                  <PlusIcon />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-fit h-fit p-0">
-                <div className="relative w-full h-full cursor-pointer">
+                <div className="relative w-full h-full cursor-pointer overflow-hidden">
                   <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
                     <FileIcon className="size-4" />
                     <p className="text-sm">Arquivo</p>
@@ -133,7 +133,7 @@ export function Footer({ conversationId, lead, trackingId }: FooterProps) {
                     </div>
                   </div>
                 </div>
-                <div className="relative w-full h-full cursor-pointer">
+                <div className="relative w-full h-full cursor-pointer overflow-hidden">
                   <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
                     <ImageIcon className="size-4" />
                     <p className="text-sm">Imagem</p>
