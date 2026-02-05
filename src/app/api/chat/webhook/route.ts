@@ -70,6 +70,15 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      try {
+        await pusherServer.trigger(trackingId, "conversation:new", {
+          ...conversation,
+          lead,
+        });
+      } catch (e) {
+        console.error("Pusher Error (conversation:new):", e);
+      }
+
       const senderId = fromMe ? json.owner : phone;
       const messageId = json.message.id;
       const messageType = json.message.messageType;
@@ -265,8 +274,9 @@ export async function POST(request: NextRequest) {
 
       try {
         await pusherServer.trigger(conversation.id, "message:new", messageData);
+        await pusherServer.trigger(trackingId, "message:new", messageData);
       } catch (e) {
-        console.error("Pusher Error:", e);
+        console.error("Pusher Error (message:new):", e);
       }
 
       return NextResponse.json({ success: true }, { status: 201 });

@@ -10,56 +10,36 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({
   adapter,
 });
-const USER_1_ID = "ktvLQ6eAI1oZO9xSdvKCyAQXCBs9ykmT";
-const TRACKING_ID = "cmjmw5z3q0000t0vamxz21061";
-const STATUS_ID = "cmjmw5z3t0002t0va559flygy";
+
+const userId = "ktvLQ6eAI1oZO9xSdvKCyAQXCBs9ykmT";
+const trackingId = "cmjmw5z3q0000t0vamxz21061";
+const statusId = "cmjmw5z3t0002t0va559flygy";
 
 async function main() {
-  console.log("🚀 Iniciando seed de conversas...\n");
+  for (let i = 1; i <= 100; i++) {
+    const phone = `55119${i.toString().padStart(8, "0")}`;
+    const name = `Lead Teste ${i}`;
 
-  // ========================================
-  // 1. CRIAR LEADS
-  // ========================================
-
-  const conversations = [
-    "cmkyehly40001iwva24j6vtzj",
-    "cmkyehly40001iwva24j6vtzj",
-  ];
-
-  console.log("💬 Criando conversas...");
-
-  // ========================================
-  // 3. CRIAR MENSAGENS (10 por conversa)
-  // ========================================
-  console.log("📨 Criando mensagens...");
-
-  for (const conversation of conversations) {
-    const messages = Array.from({ length: 10 }).map((_, index) => {
-      const fromMe = index % 2 === 0;
-
-      return {
-        body: `Mensagem ${index + 1}`,
-        messageId: randomUUID(),
-        fromMe,
-        status: "DELIVERED",
-        conversationId: conversation,
-        senderId: USER_1_ID,
-      };
+    const lead = await prisma.lead.create({
+      data: {
+        name,
+        email: `lead${i}@exemplo.com`,
+        phone,
+        statusId: statusId,
+        trackingId: trackingId,
+        responsibleId: userId,
+        order: i,
+      },
     });
 
-    await prisma.message.createMany({
-      data: messages,
+    await prisma.conversation.create({
+      data: {
+        remoteJid: `${phone}@s.whatsapp.net`,
+        leadId: lead.id,
+        trackingId: trackingId,
+        name: name,
+      },
     });
   }
-
-  // ========================================
-  // 4. RESUMO
-  // ========================================
-  console.log("\n═══════════════════════════════════");
-  console.log("✅ Seed concluído com sucesso!");
-  console.log("═══════════════════════════════════");
-  console.log(`� Mensagens: ${conversations.length * 10}`);
-  console.log("═══════════════════════════════════\n");
 }
-
 main();
