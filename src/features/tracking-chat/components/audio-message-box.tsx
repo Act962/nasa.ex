@@ -81,7 +81,7 @@ export function AudioMessageBox({ mediaUrl, mimetype }: AudioMessageBoxProps) {
         setWaveform(normalizedData);
         await audioContext.close();
       } catch (err) {
-        console.error("Error processing audio waveform:", err);
+        console.error("Error processing audio waveforma:", err);
       }
     };
 
