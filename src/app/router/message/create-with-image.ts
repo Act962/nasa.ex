@@ -1,6 +1,9 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { CreatedMessageProps } from "@/features/tracking-chat/types";
+import {
+  CreatedMessageProps,
+  MessageStatus,
+} from "@/features/tracking-chat/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { sendMedia } from "@/http/uazapi/send-media";
 import prisma from "@/lib/prisma";
@@ -43,6 +46,7 @@ export const createMessageWithImage = base
           mimetype: "image/jpeg",
           messageId: response.id,
           fromMe: true,
+          status: MessageStatus.SENT,
         },
         include: {
           conversation: {
@@ -70,6 +74,7 @@ export const createMessageWithImage = base
           fromMe: true,
           mediaUrl: message.mediaUrl,
           mimetype: message.mimetype,
+          status: message.status,
           conversation: {
             lead: {
               id: message.conversation.lead.id,

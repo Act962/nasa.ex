@@ -1,12 +1,17 @@
+"use client";
+
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import Image from "next/image";
-import { Message } from "../types";
+import { Message, MessageStatus } from "../types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { FileMessageBox } from "./file-message-box";
 import { AudioMessageBox } from "./audio-message-box";
+import { CheckCheckIcon, CheckIcon, LucideIcon } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 
 export function MessageBox({ message }: { message: Message }) {
+  const session = authClient.useSession();
   const isOwn = message.fromMe;
 
   const container = cn("flex gap-2 p-4", isOwn && "justify-end");
@@ -19,15 +24,19 @@ export function MessageBox({ message }: { message: Message }) {
     message.mediaUrl ? "rounded-md" : "rounded-full",
   );
 
+  const name = isOwn
+    ? session.data?.user.name
+    : message.conversation?.lead?.name;
+
+  const IconStatus = IconsStatus[message.status];
+
   return (
     <div className={container}>
       <div className={body}>
         <div className="flex items-center gap-1">
-          <div className="text-sm">{message.conversation?.lead?.name}</div>
+          <div className="text-sm">{name}</div>
         </div>
-        <div className="text-xs">
-          {format(new Date(message.createdAt), "p")}
-        </div>
+
         <div className={messageText}>
           {message.mediaUrl && message.mimetype?.startsWith("image") && (
             <Image
@@ -56,7 +65,16 @@ export function MessageBox({ message }: { message: Message }) {
             <div className="whitespace-pre-wrap py-2 px-3">{message.body}</div>
           )}
         </div>
+        <div className="text-xs flex flex-row items-center gap-1">
+          {format(new Date(message.createdAt), "p")}
+          <IconStatus className="size-3" />
+        </div>
       </div>
     </div>
   );
 }
+
+const IconsStatus: Record<MessageStatus, LucideIcon> = {
+  [MessageStatus.SENT]: CheckIcon,
+  [MessageStatus.SEEN]: CheckCheckIcon,
+};

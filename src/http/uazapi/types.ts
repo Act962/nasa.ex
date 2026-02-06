@@ -355,3 +355,27 @@ export interface MarkReadResponse {
   response: string;
   info: string;
 }
+
+export interface GetContactDetailsPayload {
+  number: string;
+  preview: boolean;
+}
+
+export interface GetContactDetailsResponse {
+  id: string;
+  image: string;
+  imagePreview: string;
+  lead_fullName: string;
+  lead_name: string;
+  lead_tags: string[];
+  name: string;
+  owner: string;
+  phone: string;
+  wa_chatid: string;
+  wa_chatlid: string;
+  wa_common_groups: string;
+  wa_contactName: string;
+  wa_fastid: string;
+  wa_label: string[];
+  wa_name: string;
+}

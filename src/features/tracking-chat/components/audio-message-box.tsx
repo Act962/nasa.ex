@@ -90,14 +90,12 @@ export function AudioMessageBox({ mediaUrl, mimetype }: AudioMessageBoxProps) {
   }, [formatUrl]);
 
   // Render waveform with loading animation
+  // Render waveform
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || waveform.length === 0) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
-    let animationId: number;
-    let startTime = Date.now();
 
     const render = () => {
       const rect = canvas.getBoundingClientRect();
@@ -119,49 +117,26 @@ export function AudioMessageBox({ mediaUrl, mimetype }: AudioMessageBoxProps) {
       const step = barWidth + barGap;
       const centerY = rect.height / 2;
       const color = getComputedStyle(canvas).color || "currentColor";
-      const samples = 35;
 
-      if (waveform.length === 0) {
-        // Loading Animation
-        const time = (Date.now() - startTime) / 200;
-        for (let i = 0; i < samples; i++) {
-          const x = i * step;
-          const wave = Math.sin(time + i * 0.5) * 0.5 + 0.5;
-          const barHeight = 4 + wave * 12;
-          const y = centerY - barHeight / 2;
+      waveform.forEach((value, i) => {
+        const x = i * step;
+        const barHeight = Math.max(4, value * rect.height * 0.8);
+        const y = centerY - barHeight / 2;
 
-          ctx.fillStyle = color;
-          ctx.globalAlpha = 0.2 + wave * 0.3;
+        const progress = currentTime / (duration || 1);
+        const isPlayed = i / waveform.length <= progress;
 
-          const radius = 1.5;
-          ctx.beginPath();
-          ctx.roundRect(x, y, barWidth, barHeight, radius);
-          ctx.fill();
-        }
-        animationId = requestAnimationFrame(render);
-      } else {
-        // Static Waveform with Progress
-        waveform.forEach((value, i) => {
-          const x = i * step;
-          const barHeight = Math.max(4, value * rect.height * 0.8);
-          const y = centerY - barHeight / 2;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = isPlayed ? 1 : 0.3;
 
-          const progress = currentTime / (duration || 1);
-          const isPlayed = i / waveform.length <= progress;
-
-          ctx.fillStyle = color;
-          ctx.globalAlpha = isPlayed ? 1 : 0.3;
-
-          const radius = 1.5;
-          ctx.beginPath();
-          ctx.roundRect(x, y, barWidth, barHeight, radius);
-          ctx.fill();
-        });
-      }
+        const radius = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(x, y, barWidth, barHeight, radius);
+        ctx.fill();
+      });
     };
 
     render();
-    return () => cancelAnimationFrame(animationId);
   }, [waveform, currentTime, duration]);
 
   const togglePlay = () => {

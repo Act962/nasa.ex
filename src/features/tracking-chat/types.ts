@@ -55,6 +55,11 @@ export interface CreatedMessageProps extends MessageBodyProps {
   currentUserId: string;
 }
 
+export enum MessageStatus {
+  SENT = "SENT",
+  SEEN = "SEEN",
+}
+
 export interface Message {
   id: string;
   body: string | null;
@@ -63,6 +68,7 @@ export interface Message {
   createdAt: Date;
   fromMe: boolean;
   fileName?: string | null;
+  status: MessageStatus;
   conversation: {
     lead: {
       id: string;

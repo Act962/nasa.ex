@@ -3,12 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageBox } from "./message-box";
 import { useParams } from "next/navigation";
-import {
-  InfiniteData,
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Button } from "@/components/ui/button";
 import { EmptyChat } from "./empty-chat";
@@ -20,6 +15,7 @@ import {
   MessageBodyProps,
   InfiniteMessages,
   Message,
+  MessageStatus,
 } from "../types";
 import { authClient } from "@/lib/auth-client";
 
@@ -189,9 +185,12 @@ export function Body() {
     pusherClient.bind("message:created", (body: CreatedMessageProps) => {
       if (body.currentUserId === session.data?.user.id) return;
       queryClient.setQueryData(["message.list", conversationId], (old: any) => {
+        if (!old) return old;
+
         const optimisticMessage: Message = {
           ...body,
           body: body.body,
+          status: MessageStatus.SEEN,
           conversation: {
             lead: {
               name: body.conversation?.lead?.name || "",
@@ -199,17 +198,23 @@ export function Body() {
             },
           },
         };
-        if (!old) {
+
+        const exists = old.pages.some((page: any) =>
+          page.items.some((msg: Message) => msg.id === optimisticMessage.id),
+        );
+
+        if (exists) {
           return {
-            pages: [
-              {
-                items: [optimisticMessage],
-                nextCursor: undefined,
-              },
-            ],
-            pageParams: [undefined],
-          } satisfies InfiniteMessages;
+            ...old,
+            pages: old.pages.map((page: any) => ({
+              ...page,
+              items: page.items.map((msg: Message) =>
+                msg.id === optimisticMessage.id ? optimisticMessage : msg,
+              ),
+            })),
+          };
         }
+
         const firstPage = old.pages[0] ?? {
           items: [],
           nextCursor: undefined,
@@ -227,9 +232,12 @@ export function Body() {
 
     pusherClient.bind("message:new", (body: MessageBodyProps) => {
       queryClient.setQueryData(["message.list", conversationId], (old: any) => {
+        if (!old) return old;
+
         const optimisticMessage: Message = {
           ...body,
           body: body.body,
+          status: MessageStatus.SEEN,
           conversation: {
             lead: {
               name: body.conversation?.lead?.name || "",
@@ -237,17 +245,23 @@ export function Body() {
             },
           },
         };
-        if (!old) {
+
+        const exists = old.pages.some((page: any) =>
+          page.items.some((msg: Message) => msg.id === optimisticMessage.id),
+        );
+
+        if (exists) {
           return {
-            pages: [
-              {
-                items: [optimisticMessage],
-                nextCursor: undefined,
-              },
-            ],
-            pageParams: [undefined],
-          } satisfies InfiniteMessages;
+            ...old,
+            pages: old.pages.map((page: any) => ({
+              ...page,
+              items: page.items.map((msg: Message) =>
+                msg.id === optimisticMessage.id ? optimisticMessage : msg,
+              ),
+            })),
+          };
         }
+
         const firstPage = old.pages[0] ?? {
           items: [],
           nextCursor: undefined,
@@ -289,7 +303,10 @@ export function Body() {
           </div>
         ) : (
           items.map((message) => (
-            <MessageBox key={message.id} message={message} />
+            <MessageBox
+              key={message.id}
+              message={{ ...message, status: message.status as MessageStatus }}
+            />
           ))
         )}
         <div ref={bottomRef}></div>
