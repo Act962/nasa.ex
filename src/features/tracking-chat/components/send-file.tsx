@@ -9,6 +9,7 @@ import {
   useMutationImageMessage,
 } from "../hooks/use-messages";
 import { useConstructUrl } from "@/hooks/use-construct-url";
+import { MarkedMessage } from "../types";
 
 interface sendFileProps {
   conversationId: string;
@@ -23,6 +24,7 @@ interface sendFileProps {
   token: string;
   fileType: "image" | "pdf";
   fileName?: string;
+  messageSelected?: MarkedMessage;
 }
 
 export function SendFile({
@@ -34,13 +36,22 @@ export function SendFile({
   token,
   fileType,
   fileName,
+  messageSelected,
 }: sendFileProps) {
   console.log(file);
   console.log(fileType);
   const [preview, setPreview] = useState<string | null>(null);
 
-  const mutation = useMutationImageMessage(conversationId, lead);
-  const mutationFile = useMutationFileMessage(conversationId, lead);
+  const mutation = useMutationImageMessage({
+    conversationId,
+    lead,
+    quotedMessageId: messageSelected?.messageId,
+  });
+  const mutationFile = useMutationFileMessage({
+    conversationId,
+    lead,
+    quotedMessageId: messageSelected?.messageId,
+  });
 
   const handleSend = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -52,6 +63,8 @@ export function SendFile({
         conversationId,
         leadPhone,
         token,
+        id: messageSelected?.id,
+        quotedMessageId: messageSelected?.messageId,
       });
     } else {
       mutationFile.mutate({
@@ -62,6 +75,8 @@ export function SendFile({
         conversationId,
         leadPhone,
         token,
+        id: messageSelected?.id,
+        quotedMessageId: messageSelected?.messageId,
       });
     }
     onClose();

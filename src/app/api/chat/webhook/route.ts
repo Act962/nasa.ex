@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
       }
 
       const senderId = fromMe ? json.owner : phone;
-      const messageId = json.message.id;
+      const messageId = json.message.messageid;
       const messageType = json.message.messageType;
 
       let body = json.message.text || "";
@@ -136,11 +136,24 @@ export async function POST(request: NextRequest) {
       }
 
       let messageData: any = null;
+      const quotedMessage = json.message.quoted;
 
-      if (
-        messageType === "ExtendedTextMessage" ||
-        messageType === "Conversation"
-      ) {
+      let quotedMessageData = null;
+
+      if (quotedMessage) {
+        quotedMessageData =
+          (await prisma.message.findUnique({
+            where: {
+              messageId: quotedMessage,
+            },
+          })) || null;
+
+        if (
+          messageType === "ExtendedTextMessage" ||
+          messageType === "Conversation"
+        ) {
+        }
+
         messageData = await prisma.message.upsert({
           where: { messageId },
           update: {
@@ -153,8 +166,32 @@ export async function POST(request: NextRequest) {
             messageId,
             body,
             status: MessageStatus.SEEN,
+            quotedMessageId: quotedMessageData?.id,
           },
           include: {
+            quotedMessage: true,
+            conversation: {
+              include: { lead: true },
+            },
+          },
+        });
+
+        messageData = await prisma.message.upsert({
+          where: { messageId },
+          update: {
+            status: MessageStatus.SEEN,
+          },
+          create: {
+            fromMe,
+            conversationId: conversation.id,
+            senderId,
+            messageId,
+            body,
+            status: MessageStatus.SEEN,
+            quotedMessageId: quotedMessageData?.id,
+          },
+          include: {
+            quotedMessage: true,
             conversation: {
               include: { lead: true },
             },
@@ -204,11 +241,13 @@ export async function POST(request: NextRequest) {
             fromMe,
             status: MessageStatus.SEEN,
             conversationId: conversation.id,
+            quotedMessageId: quotedMessageData?.id,
             mimetype,
             senderId,
             messageId,
           },
           include: {
+            quotedMessage: true,
             conversation: {
               include: { lead: true },
             },
@@ -256,11 +295,13 @@ export async function POST(request: NextRequest) {
             fromMe,
             mimetype,
             status: MessageStatus.SEEN,
+            quotedMessageId: quotedMessageData?.id,
             conversationId: conversation.id,
             senderId,
             messageId,
           },
           include: {
+            quotedMessage: true,
             conversation: {
               include: { lead: true },
             },
@@ -308,12 +349,14 @@ export async function POST(request: NextRequest) {
             mediaUrl: key,
             fromMe,
             mimetype,
+            quotedMessageId: quotedMessageData?.id,
             status: MessageStatus.SEEN,
             conversationId: conversation.id,
             senderId,
             messageId,
           },
           include: {
+            quotedMessage: true,
             conversation: {
               include: { lead: true },
             },
