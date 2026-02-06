@@ -24,6 +24,8 @@ export const createMessageWithImage = base
       leadPhone: z.string(),
       token: z.string(),
       mediaUrl: z.string(),
+      id: z.string().optional(),
+      quotedMessageId: z.string().optional(),
     }),
   )
   .handler(async ({ input, context }) => {
@@ -36,6 +38,7 @@ export const createMessageWithImage = base
         type: "image",
         readchat: true,
         readmessages: true,
+        replyid: input.quotedMessageId,
       });
 
       const message = await prisma.message.create({
@@ -47,6 +50,7 @@ export const createMessageWithImage = base
           messageId: response.id,
           fromMe: true,
           status: MessageStatus.SENT,
+          quotedMessageId: input.id,
         },
         include: {
           conversation: {
@@ -74,7 +78,9 @@ export const createMessageWithImage = base
           fromMe: true,
           mediaUrl: message.mediaUrl,
           mimetype: message.mimetype,
+          messageId: message.messageId,
           status: message.status,
+          quotedMessageId: message.quotedMessageId,
           conversation: {
             lead: {
               id: message.conversation.lead.id,

@@ -27,6 +27,8 @@ export const createMessageWithFile = base
       mediaUrl: z.string(),
       fileName: z.string(),
       mimetype: z.string(),
+      id: z.string().optional(),
+      quotedMessageId: z.string().optional(),
     }),
   )
   .handler(async ({ input, context }) => {
@@ -40,6 +42,7 @@ export const createMessageWithFile = base
         type: "document",
         readchat: true,
         readmessages: true,
+        replyid: input.quotedMessageId,
       });
 
       const message = await prisma.message.create({
@@ -52,6 +55,7 @@ export const createMessageWithFile = base
           fromMe: true,
           fileName: input.fileName,
           status: MessageStatus.SENT,
+          quotedMessageId: input.id,
         },
         include: {
           conversation: {
@@ -81,6 +85,8 @@ export const createMessageWithFile = base
           mimetype: message.mimetype,
           fileName: message.fileName,
           status: message.status,
+          messageId: message.messageId,
+          quotedMessageId: message.quotedMessageId,
           conversation: {
             lead: {
               id: message.conversation.lead.id,

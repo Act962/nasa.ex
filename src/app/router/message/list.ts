@@ -18,16 +18,7 @@ export const listMessage = base
       cursor: z.string().optional(),
     }),
   )
-  .output(
-    z.object({
-      items: z.array(
-        z.custom<
-          Message & { conversation: { lead: { id: string; name: string } } }
-        >(),
-      ),
-      nextCursor: z.string().optional(),
-    }),
-  )
+
   .handler(async ({ input, context, errors }) => {
     try {
       const conversation = await prisma.conversation.findUnique({
@@ -50,6 +41,15 @@ export const listMessage = base
           conversationId: input.conversationId,
         },
         include: {
+          quotedMessage: {
+            include: {
+              conversation: {
+                include: {
+                  lead: true,
+                },
+              },
+            },
+          },
           conversation: {
             include: {
               lead: true,

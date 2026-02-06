@@ -62,18 +62,33 @@ export enum MessageStatus {
 
 export interface Message {
   id: string;
+  messageId: string;
   body: string | null;
   mediaUrl: string | null;
+  quotedMessageId?: string | null;
   mimetype?: string | null;
   createdAt: Date;
   fromMe: boolean;
   fileName?: string | null;
-  status: MessageStatus;
-  conversation: {
+  status: MessageStatus | string;
+  conversation?: {
     lead: {
       id: string;
       name: string;
     };
+  };
+  quotedMessage?: Message | null;
+}
+
+export interface MarkedMessage {
+  id: string;
+  body: string | null;
+  messageId: string;
+  fromMe: boolean;
+  quotedMessageId?: string | null;
+  lead: {
+    id: string;
+    name: string;
   };
 }
 

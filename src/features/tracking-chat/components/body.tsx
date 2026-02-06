@@ -13,13 +13,18 @@ import { pusherClient } from "@/lib/pusher";
 import {
   CreatedMessageProps,
   MessageBodyProps,
-  InfiniteMessages,
   Message,
   MessageStatus,
 } from "../types";
 import { authClient } from "@/lib/auth-client";
+import { MarkedMessage } from "../types";
 
-export function Body() {
+interface BodyProps {
+  messageSelected: MarkedMessage | undefined;
+  onSelectMessage: (message: MarkedMessage) => void;
+}
+
+export function Body({ messageSelected, onSelectMessage }: BodyProps) {
   const { conversationId } = useParams<{ conversationId: string }>();
   const [hasInitialScrolled, setHasInitialScrolled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -290,7 +295,7 @@ export function Body() {
   return (
     <>
       <div
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scroll-cols-tracking relative"
+        className="flex-1 min-h-0 overflow-y-auto scroll-cols-tracking relative"
         ref={scrollRef}
         onScroll={handleScroll}
       >
@@ -306,6 +311,8 @@ export function Body() {
             <MessageBox
               key={message.id}
               message={{ ...message, status: message.status as MessageStatus }}
+              onSelectMessage={onSelectMessage}
+              messageSelected={messageSelected}
             />
           ))
         )}

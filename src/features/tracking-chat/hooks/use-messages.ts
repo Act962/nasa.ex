@@ -3,14 +3,20 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Message, InfiniteMessages, MessageStatus } from "../types";
 import { toast } from "sonner";
 
-export function useMutationTextMessage(
-  conversationId: string,
+interface UseMutationTextMessageProps {
+  conversationId: string;
+  id?: string;
   lead: {
     id: string;
     name: string;
     phone: string | null;
-  },
-) {
+  };
+}
+
+export function useMutationTextMessage({
+  conversationId,
+  lead,
+}: UseMutationTextMessageProps) {
   const queryClient = useQueryClient();
 
   return useMutation(
@@ -28,7 +34,9 @@ export function useMutationTextMessage(
 
         const optimisticMessage: Message = {
           id: tempId,
+          messageId: tempId,
           body: data.body,
+          quotedMessageId: data.replyId ?? undefined,
           createdAt: new Date(),
           status: MessageStatus.SENT,
           fromMe: true,
@@ -86,6 +94,8 @@ export function useMutationTextMessage(
                   ? {
                       ...data.message,
                       status: MessageStatus.SEEN,
+                      quotedMessageId:
+                        data.message.quotedMessageId ?? undefined,
                     }
                   : message,
               ),
@@ -107,14 +117,21 @@ export function useMutationTextMessage(
   );
 }
 
-export function useMutationImageMessage(
-  conversationId: string,
+interface UseMutationMediaMessageProps {
+  conversationId: string;
   lead: {
     id: string;
     name: string;
     phone: string | null;
-  },
-) {
+  };
+  quotedMessageId?: string | null;
+}
+
+export function useMutationImageMessage({
+  conversationId,
+  lead,
+  quotedMessageId,
+}: UseMutationMediaMessageProps) {
   const queryClient = useQueryClient();
 
   return useMutation(
@@ -132,7 +149,9 @@ export function useMutationImageMessage(
 
         const optimisticMessage: Message = {
           id: tempId,
+          messageId: tempId,
           body: data.body ?? null,
+          quotedMessageId: quotedMessageId ?? undefined,
           createdAt: new Date(),
           fromMe: true,
           mediaUrl: data.mediaUrl ?? null,
@@ -191,6 +210,8 @@ export function useMutationImageMessage(
                   ? {
                       ...data.message,
                       status: MessageStatus.SEEN,
+                      quotedMessageId:
+                        data.message.quotedMessageId ?? undefined,
                     }
                   : message,
               ),
@@ -212,14 +233,11 @@ export function useMutationImageMessage(
   );
 }
 
-export function useMutationFileMessage(
-  conversationId: string,
-  lead: {
-    id: string;
-    name: string;
-    phone: string | null;
-  },
-) {
+export function useMutationFileMessage({
+  conversationId,
+  lead,
+  quotedMessageId,
+}: UseMutationMediaMessageProps) {
   const queryClient = useQueryClient();
 
   return useMutation(
@@ -237,7 +255,9 @@ export function useMutationFileMessage(
 
         const optimisticMessage: Message = {
           id: tempId,
+          messageId: tempId,
           body: data.body ?? null,
+          quotedMessageId: quotedMessageId ?? undefined,
           createdAt: new Date(),
           fromMe: true,
           mediaUrl: data.mediaUrl ?? null,
@@ -297,6 +317,8 @@ export function useMutationFileMessage(
                   ? {
                       ...data.message,
                       status: MessageStatus.SEEN,
+                      quotedMessageId:
+                        data.message.quotedMessageId ?? undefined,
                     }
                   : message,
               ),
@@ -317,14 +339,11 @@ export function useMutationFileMessage(
     }),
   );
 }
-export function useMutationAudioMessage(
-  conversationId: string,
-  lead: {
-    id: string;
-    name: string;
-    phone: string | null;
-  },
-) {
+export function useMutationAudioMessage({
+  conversationId,
+  lead,
+  quotedMessageId,
+}: UseMutationMediaMessageProps) {
   const queryClient = useQueryClient();
 
   return useMutation(
@@ -342,7 +361,9 @@ export function useMutationAudioMessage(
 
         const optimisticMessage: Message = {
           id: tempId,
+          messageId: tempId,
           body: null,
+          quotedMessageId: quotedMessageId ?? undefined,
           createdAt: new Date(),
           fromMe: true,
           mediaUrl: URL.createObjectURL(data.blob),
@@ -402,6 +423,8 @@ export function useMutationAudioMessage(
                   ? {
                       ...data.message,
                       status: MessageStatus.SEEN,
+                      quotedMessageId:
+                        data.message.quotedMessageId ?? undefined,
                     }
                   : message,
               ),
