@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     if (!trackingId) {
       return NextResponse.json(
         { error: "Tracking ID is required" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     if (workflows.length === 0) {
       return NextResponse.json(
         { error: "Workflow not found" },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -44,12 +44,12 @@ export async function POST(req: Request) {
       },
     });
 
-    return workflows;
+    return NextResponse.json(workflows);
   } catch (error) {
     console.error("Error new lead", error);
     return NextResponse.json(
       { error: "Failed to process New Lead" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
