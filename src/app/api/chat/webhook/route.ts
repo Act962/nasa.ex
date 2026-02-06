@@ -6,8 +6,9 @@ import { downloadFile } from "@/http/uazapi/get-file";
 import { S3 } from "@/lib/s3-client";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
+import { MessageStatus } from "@/features/tracking-chat/types";
+import { getContactDetails } from "@/http/uazapi/get-contact-details";
 
-// Endpoint: https://neglectful-berta-preconceptional.ngrok-free.dev/api/chat/webhook?trackingId=cmjmw5z3q0000t0vamxz21061
 export async function POST(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const trackingId = searchParams.get("trackingId");
@@ -40,6 +41,47 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const existingLead = await prisma.lead.findUnique({
+        where: {
+          phone_trackingId: { phone, trackingId },
+        },
+      });
+
+      let key = existingLead?.profile || null;
+
+      if (!existingLead) {
+        try {
+          const profileLead = await getContactDetails({
+            token: json.token,
+            data: { number: phone as string, preview: false },
+          });
+
+          if (profileLead?.image) {
+            const imageResponse = await fetch(profileLead.image);
+            if (imageResponse.ok) {
+              const arrayBuffer = await imageResponse.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              const mimetype =
+                imageResponse.headers.get("content-type") || "image/jpeg";
+
+              const extension = mimetype.split("/")[1] || "jpg";
+              key = `${uuidv4()}.${extension}`;
+
+              await S3.send(
+                new PutObjectCommand({
+                  Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
+                  Key: key,
+                  Body: buffer,
+                  ContentType: mimetype,
+                }),
+              );
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching or uploading profile image:", error);
+        }
+      }
+
       const lead = await prisma.lead.upsert({
         where: {
           phone_trackingId: { phone, trackingId },
@@ -50,8 +92,11 @@ export async function POST(request: NextRequest) {
           phone,
           trackingId,
           source: LeadSource.WHATSAPP,
+          profile: key,
         },
-        update: { name },
+        update: {
+          name,
+        },
       });
 
       const conversation = await prisma.conversation.upsert({
@@ -96,13 +141,18 @@ export async function POST(request: NextRequest) {
         messageType === "ExtendedTextMessage" ||
         messageType === "Conversation"
       ) {
-        messageData = await prisma.message.create({
-          data: {
+        messageData = await prisma.message.upsert({
+          where: { messageId },
+          update: {
+            status: MessageStatus.SEEN,
+          },
+          create: {
             fromMe,
             conversationId: conversation.id,
             senderId,
             messageId,
             body,
+            status: MessageStatus.SEEN,
           },
           include: {
             conversation: {
@@ -119,15 +169,16 @@ export async function POST(request: NextRequest) {
         });
 
         let key = null;
+        let mimetype = "";
         if (image?.fileURL) {
           try {
             const imageResponse = await fetch(image.fileURL);
             if (imageResponse.ok) {
               const arrayBuffer = await imageResponse.arrayBuffer();
               const buffer = Buffer.from(arrayBuffer);
-              const contentType =
+              mimetype =
                 imageResponse.headers.get("content-type") || "image/jpeg";
-              const extension = contentType.split("/")[1] || "jpg";
+              const extension = mimetype.split("/")[1] || "jpg";
               key = `${uuidv4()}.${extension}`;
 
               await S3.send(
@@ -135,7 +186,7 @@ export async function POST(request: NextRequest) {
                   Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
                   Key: key,
                   Body: buffer,
-                  ContentType: contentType,
+                  ContentType: mimetype,
                 }),
               );
             }
@@ -144,12 +195,16 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        messageData = await prisma.message.create({
-          data: {
+        messageData = await prisma.message.upsert({
+          where: { messageId },
+          update: {},
+          create: {
             body,
             mediaUrl: key,
             fromMe,
+            status: MessageStatus.SEEN,
             conversationId: conversation.id,
+            mimetype,
             senderId,
             messageId,
           },
@@ -170,39 +225,37 @@ export async function POST(request: NextRequest) {
         let key = null;
         let mimetype = "";
         if (document?.fileURL) {
-          try {
-            const documentResponse = await fetch(document.fileURL);
-            if (documentResponse.ok) {
-              const arrayBuffer = await documentResponse.arrayBuffer();
-              const buffer = Buffer.from(arrayBuffer);
-              mimetype =
-                documentResponse.headers.get("content-type") ||
-                "application/pdf";
+          const documentResponse = await fetch(document.fileURL);
+          if (documentResponse.ok) {
+            const arrayBuffer = await documentResponse.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            mimetype =
+              documentResponse.headers.get("content-type") || "application/pdf";
 
-              const extension = mimetype.split("/")[1] || "pdf";
-              key = `${uuidv4()}.${extension}`;
+            const extension = mimetype.split("/")[1] || "pdf";
+            key = `${uuidv4()}.${extension}`;
 
-              await S3.send(
-                new PutObjectCommand({
-                  Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
-                  Key: key,
-                  Body: buffer,
-                  ContentType: mimetype,
-                }),
-              );
-            }
-          } catch (error) {
-            console.error("Error uploading to S3:", error);
+            await S3.send(
+              new PutObjectCommand({
+                Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
+                Key: key,
+                Body: buffer,
+                ContentType: mimetype,
+              }),
+            );
           }
         }
 
-        messageData = await prisma.message.create({
-          data: {
+        messageData = await prisma.message.upsert({
+          where: { messageId },
+          update: {},
+          create: {
             body,
             mediaUrl: key,
             fileName: json.message.content.fileName,
             fromMe,
             mimetype,
+            status: MessageStatus.SEEN,
             conversationId: conversation.id,
             senderId,
             messageId,
@@ -248,11 +301,14 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        messageData = await prisma.message.create({
-          data: {
+        messageData = await prisma.message.upsert({
+          where: { messageId },
+          update: {},
+          create: {
             mediaUrl: key,
             fromMe,
             mimetype,
+            status: MessageStatus.SEEN,
             conversationId: conversation.id,
             senderId,
             messageId,

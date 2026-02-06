@@ -1,6 +1,9 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { CreatedMessageProps } from "@/features/tracking-chat/types";
+import {
+  CreatedMessageProps,
+  MessageStatus,
+} from "@/features/tracking-chat/types";
 import { markReadMessage } from "@/http/uazapi/mark-read-message";
 import { sendText } from "@/http/uazapi/send-text";
 import prisma from "@/lib/prisma";
@@ -42,6 +45,7 @@ export const createTextMessage = base
           body: input.body,
           messageId: response.id,
           fromMe: true,
+          status: MessageStatus.SENT,
         },
         include: {
           conversation: {
@@ -55,7 +59,6 @@ export const createTextMessage = base
         ...message,
         currentUserId: context.user.id,
       };
-      console.log("enviando", messageCreated);
       await pusherServer.trigger(
         message.conversationId,
         "message:created",
@@ -69,6 +72,7 @@ export const createTextMessage = base
           createdAt: message.createdAt,
           fromMe: true,
           mediaUrl: null,
+          status: message.status,
           conversation: {
             lead: {
               id: message.conversation.lead.id,

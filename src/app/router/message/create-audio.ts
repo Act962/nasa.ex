@@ -1,6 +1,9 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { CreatedMessageProps } from "@/features/tracking-chat/types";
+import {
+  CreatedMessageProps,
+  MessageStatus,
+} from "@/features/tracking-chat/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { sendMedia } from "@/http/uazapi/send-media";
 import prisma from "@/lib/prisma";
@@ -60,6 +63,7 @@ export const createMessageWithAudio = base
           messageId: response.id,
           fromMe: true,
           fileName: input.nameAudio,
+          status: MessageStatus.SENT,
         },
         include: {
           conversation: {
@@ -88,6 +92,7 @@ export const createMessageWithAudio = base
           mediaUrl: message.mediaUrl,
           mimetype: message.mimetype,
           fileName: message.fileName,
+          status: message.status,
           conversation: {
             lead: {
               id: message.conversation.lead.id,

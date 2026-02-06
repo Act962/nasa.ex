@@ -1,6 +1,6 @@
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Message, InfiniteMessages } from "../types";
+import { Message, InfiniteMessages, MessageStatus } from "../types";
 import { toast } from "sonner";
 
 export function useMutationTextMessage(
@@ -30,6 +30,7 @@ export function useMutationTextMessage(
           id: tempId,
           body: data.body,
           createdAt: new Date(),
+          status: MessageStatus.SENT,
           fromMe: true,
           mediaUrl: data.mediaUrl ?? null,
           conversation: {
@@ -84,6 +85,7 @@ export function useMutationTextMessage(
                 message.id === context?.tempId
                   ? {
                       ...data.message,
+                      status: MessageStatus.SEEN,
                     }
                   : message,
               ),
@@ -135,6 +137,7 @@ export function useMutationImageMessage(
           fromMe: true,
           mediaUrl: data.mediaUrl ?? null,
           mimetype: "image/jpeg",
+          status: MessageStatus.SENT,
           conversation: {
             lead: {
               id: lead.id,
@@ -187,6 +190,7 @@ export function useMutationImageMessage(
                 message.id === context?.tempId
                   ? {
                       ...data.message,
+                      status: MessageStatus.SEEN,
                     }
                   : message,
               ),
@@ -239,6 +243,7 @@ export function useMutationFileMessage(
           mediaUrl: data.mediaUrl ?? null,
           mimetype: data.mimetype,
           fileName: data.fileName,
+          status: MessageStatus.SENT,
           conversation: {
             lead: {
               id: lead.id,
@@ -291,6 +296,7 @@ export function useMutationFileMessage(
                 message.id === context?.tempId
                   ? {
                       ...data.message,
+                      status: MessageStatus.SEEN,
                     }
                   : message,
               ),
@@ -342,6 +348,7 @@ export function useMutationAudioMessage(
           mediaUrl: URL.createObjectURL(data.blob),
           mimetype: data.mimetype,
           fileName: tempId + ".mp3",
+          status: MessageStatus.SENT,
           conversation: {
             lead: {
               id: lead.id,
@@ -394,6 +401,7 @@ export function useMutationAudioMessage(
                 message.id === context?.tempId
                   ? {
                       ...data.message,
+                      status: MessageStatus.SEEN,
                     }
                   : message,
               ),

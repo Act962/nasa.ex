@@ -181,10 +181,11 @@ export function SendAudio({ onSend, onCancel, disabled }: SendAudioProps) {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = "";
+        handleStopRecording();
+        onCancel();
       }
     } else {
-      // If nothing to delete, close the recorder
-      if (onCancel) onCancel();
+      onCancel();
     }
   }
 
@@ -201,8 +202,6 @@ export function SendAudio({ onSend, onCancel, disabled }: SendAudioProps) {
 
   function handleSendAudio() {
     if (!recordedBlob) return;
-
-    console.log("Audio pronto para enviar:", recordedBlob);
 
     if (onSend) {
       onSend(recordedBlob);
