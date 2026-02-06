@@ -7,9 +7,15 @@ import { Header } from "@/features/tracking-chat/components/header";
 import { orpc } from "@/lib/orpc";
 import { useQuery } from "@tanstack/react-query";
 import { redirect, useParams } from "next/navigation";
+import { useState } from "react";
+
+import { MarkedMessage } from "@/features/tracking-chat/types";
 
 export default function Page() {
   const { conversationId } = useParams<{ conversationId: string }>();
+  const [messageSelected, setMessageSelected] = useState<
+    MarkedMessage | undefined
+  >(undefined);
   const { data, isLoading } = useQuery(
     orpc.conversation.get.queryOptions({
       input: {
@@ -39,8 +45,13 @@ export default function Page() {
           phone={data.conversation.lead?.phone ?? undefined}
           leadId={data.conversation.lead.id}
         />
-        <Body />
+        <Body
+          messageSelected={messageSelected}
+          onSelectMessage={setMessageSelected}
+        />
         <Footer
+          messageSelected={messageSelected}
+          closeMessageSelected={() => setMessageSelected(undefined)}
           trackingId={data.conversation.tracking.id}
           conversationId={conversationId}
           lead={data?.conversation.lead}

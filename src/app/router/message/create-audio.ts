@@ -27,6 +27,8 @@ export const createMessageWithAudio = base
       blob: z.instanceof(Blob),
       nameAudio: z.string(),
       mimetype: z.string(),
+      replyId: z.string().optional(),
+      id: z.string().optional(),
     }),
   )
   .handler(async ({ input, context }) => {
@@ -46,6 +48,8 @@ export const createMessageWithAudio = base
         throw new Error("Falha ao gerar URL presignada");
       }
 
+      console.log("replyId: ", input.replyId, "id: ", input.id);
+
       const response = await sendMedia(input.token, {
         file: useConstructUrl(input.nameAudio),
         number: input.leadPhone,
@@ -53,6 +57,7 @@ export const createMessageWithAudio = base
         type: "myaudio",
         readchat: true,
         readmessages: true,
+        replyid: input.replyId,
       });
 
       const message = await prisma.message.create({
@@ -60,10 +65,11 @@ export const createMessageWithAudio = base
           conversationId: input.conversationId,
           mediaUrl: input.nameAudio,
           mimetype: input.mimetype,
-          messageId: response.id,
+          messageId: response.messageid,
           fromMe: true,
           fileName: input.nameAudio,
           status: MessageStatus.SENT,
+          quotedMessageId: input.id,
         },
         include: {
           conversation: {
@@ -93,6 +99,8 @@ export const createMessageWithAudio = base
           mimetype: message.mimetype,
           fileName: message.fileName,
           status: message.status,
+          messageId: message.messageId,
+          quotedMessageId: message.quotedMessageId,
           conversation: {
             lead: {
               id: message.conversation.lead.id,

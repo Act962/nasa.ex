@@ -1,5 +1,5 @@
 import { Input } from "@/components/ui/input";
-import { InputHTMLAttributes } from "react";
+import { forwardRef, InputHTMLAttributes } from "react";
 import { FieldError, FieldValues, UseFormRegister } from "react-hook-form";
 
 interface MessageInputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -7,20 +7,21 @@ interface MessageInputProps extends InputHTMLAttributes<HTMLInputElement> {
   errors?: FieldError;
 }
 
-export function MessageInput({
-  register,
-  errors,
-  ...props
-}: MessageInputProps) {
-  return (
-    <div className="relative w-full">
-      <Input
-        {...props}
-        autoCapitalize={props.id}
-        {...register?.(props.id!, { required: props.required })}
-        placeholder={props.placeholder}
-        className="w-full"
-      />
-    </div>
-  );
-}
+export const MessageInput = forwardRef<HTMLInputElement, MessageInputProps>(
+  ({ register, errors, ...props }, ref) => {
+    return (
+      <div className="relative w-full">
+        <Input
+          {...props}
+          ref={ref}
+          autoCapitalize={props.id}
+          {...register?.(props.id!, { required: props.required })}
+          placeholder={props.placeholder}
+          className="w-full"
+        />
+      </div>
+    );
+  },
+);
+
+MessageInput.displayName = "MessageInput";

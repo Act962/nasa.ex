@@ -24,6 +24,8 @@ export const createTextMessage = base
       leadPhone: z.string(),
       token: z.string(),
       mediaUrl: z.string().optional(),
+      replyId: z.string().optional(),
+      id: z.string().optional(),
     }),
   )
   .handler(async ({ input, context }) => {
@@ -32,6 +34,7 @@ export const createTextMessage = base
         text: input.body,
         number: input.leadPhone,
         delay: 2000,
+        replyid: input.replyId,
       });
 
       await markReadMessage(input.token, {
@@ -43,9 +46,10 @@ export const createTextMessage = base
         data: {
           conversationId: input.conversationId,
           body: input.body,
-          messageId: response.id,
+          messageId: response.messageid,
           fromMe: true,
           status: MessageStatus.SENT,
+          quotedMessageId: input.id,
         },
         include: {
           conversation: {
@@ -71,8 +75,10 @@ export const createTextMessage = base
           body: message.body,
           createdAt: message.createdAt,
           fromMe: true,
+          messageId: message.messageId,
           mediaUrl: null,
           status: message.status,
+          quotedMessageId: message.quotedMessageId,
           conversation: {
             lead: {
               id: message.conversation.lead.id,
