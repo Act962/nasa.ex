@@ -19,6 +19,12 @@ import { useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Uploader } from "@/components/file-uploader/uploader";
 import { SendAudio } from "./send-audio";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface FooterProps {
   conversationId: string;
@@ -107,10 +113,10 @@ export function Footer({ conversationId, lead, trackingId }: FooterProps) {
             <Popover open={open} onOpenChange={setOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="icon">
-                  <PlusIcon className="cursor-pointer" />
+                  <PlusIcon />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-fit h-fit p-0">
+              <PopoverContent className="w-fit p-0 overflow-hidden">
                 <div className="relative w-full h-full cursor-pointer">
                   <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
                     <FileIcon className="size-4" />

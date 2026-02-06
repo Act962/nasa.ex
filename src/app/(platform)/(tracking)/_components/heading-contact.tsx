@@ -24,7 +24,7 @@ export default function HeadingContacts() {
 
   return (
     <>
-      <div className="flex items-center justify-between px-4 py-2 gap-2">
+      <div className="flex items-center justify-between px-4 py-2 gap-2 border-b">
         <div className="flex items-center gap-2">
           <SidebarTrigger />
           <h1 className="hidden sm:block">Leads</h1>
