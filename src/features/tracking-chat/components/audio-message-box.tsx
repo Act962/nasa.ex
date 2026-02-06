@@ -20,6 +20,7 @@ export function AudioMessageBox({ mediaUrl, mimetype }: AudioMessageBoxProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [waveform, setWaveform] = useState<number[]>([]);
+  const [wasPlayingBeforeSeek, setWasPlayingBeforeSeek] = useState(false);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -81,7 +82,7 @@ export function AudioMessageBox({ mediaUrl, mimetype }: AudioMessageBoxProps) {
         setWaveform(normalizedData);
         await audioContext.close();
       } catch (err) {
-        console.error("Error processing audio waveforma:", err);
+        console.error("Error processing audio waveform:", err);
       }
     };
 
@@ -188,6 +189,22 @@ export function AudioMessageBox({ mediaUrl, mimetype }: AudioMessageBoxProps) {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const handleMouseDown = () => {
+    if (isPlaying) {
+      setWasPlayingBeforeSeek(true);
+      audioRef.current?.pause();
+      setIsPlaying(false);
+    } else {
+      setWasPlayingBeforeSeek(false);
+    }
+  };
+  const handleMouseUp = () => {
+    if (wasPlayingBeforeSeek) {
+      audioRef.current?.play();
+      setIsPlaying(true);
+    }
+  };
+
   return (
     <div className="flex items-center gap-2 p-2 bg-secondary/30 rounded-2xl w-[260px] shrink-0 group/card">
       <Button
@@ -221,11 +238,14 @@ export function AudioMessageBox({ mediaUrl, mimetype }: AudioMessageBoxProps) {
             value={currentTime}
             onChange={handleSeek}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
           />
           {waveform.length > 0 && (
             <div
-              className="absolute top-1/2 -translate-y-1/2 -ml-1.5 w-3 h-3 bg-foreground rounded-full shadow-md pointer-events-none transition-opacity opacity-0 group-hover/card:opacity-100"
-              style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}
+              className="absolute top-1/2 -translate-y-1/2  w-3 h-3 bg-foreground rounded-full shadow-md pointer-events-none transition-opacity opacity-70 group-hover/card:opacity-100"
+              style={{ left: `${(currentTime / (duration || 1)) * 90}%` }}
+              onMouseDown={togglePlay}
             />
           )}
         </div>
