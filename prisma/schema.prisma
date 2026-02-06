@@ -453,8 +453,12 @@ model Workflow {
 }
 
 enum NodeType {
+  // Gatilhos
   INITIAL
   MANUAL_TRIGGER
+  NEW_LEAD
+
+  // Execuções
   HTTP_REQUEST
 }
 
@@ -558,6 +562,10 @@ model Conversation {
   @@map("conversations")
 }
 
+enum MessageStatus {
+  SENT
+  SEEN
+}
 
 model Message {
   id        String    @id @default(cuid())
@@ -566,7 +574,7 @@ model Message {
   
   messageId        String   @unique @map("message_id")
   fromMe           Boolean  @default(false) @map("from_me")
-  status           String   @default("pending")
+  status           MessageStatus   @default(SENT)
   seen             Boolean  @default(false)
   
   mediaUrl         String?  @map("media_url")
@@ -591,13 +599,10 @@ model Message {
   @@map("messages")
 }
 
-
-
 enum WhatsAppInstanceStatus {
   CONNECTED
   DISCONNECTED
 }
-
 
 model WhatsAppInstance {
   id              String   @id @default(cuid())
