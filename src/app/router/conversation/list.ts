@@ -32,6 +32,7 @@ export const listConversation = base
   )
   .handler(async ({ input, context, errors }) => {
     try {
+      const limit = input.limit ?? 30;
       const conversations = await prisma.conversation.findMany({
         where: {
           trackingId: input.trackingId,
@@ -40,6 +41,14 @@ export const listConversation = base
           messages: true,
           lead: true,
         },
+        ...(input.cursor
+          ? {
+              cursor: { id: input.cursor },
+              skip: 1,
+            }
+          : {}),
+        take: limit,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       });
 
       if (!conversations) {
@@ -54,8 +63,14 @@ export const listConversation = base
         lastMessage: conversation.messages[0],
       }));
 
+      const nextCursor =
+        conversations.length === limit
+          ? conversations[conversations.length - 1].id
+          : undefined;
+
       return {
         items: newConversations,
+        nextCursor,
       };
     } catch (error) {
       throw errors.INTERNAL_SERVER_ERROR;

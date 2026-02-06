@@ -1,6 +1,9 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { CreatedMessageProps } from "@/features/tracking-chat/types";
+import {
+  CreatedMessageProps,
+  MessageStatus,
+} from "@/features/tracking-chat/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { markReadMessage } from "@/http/uazapi/mark-read-message";
 import { sendMedia } from "@/http/uazapi/send-media";
@@ -48,6 +51,7 @@ export const createMessageWithFile = base
           messageId: response.id,
           fromMe: true,
           fileName: input.fileName,
+          status: MessageStatus.SENT,
         },
         include: {
           conversation: {
@@ -76,6 +80,7 @@ export const createMessageWithFile = base
           mediaUrl: message.mediaUrl,
           mimetype: message.mimetype,
           fileName: message.fileName,
+          status: message.status,
           conversation: {
             lead: {
               id: message.conversation.lead.id,
