@@ -4,7 +4,7 @@ import { NodeType } from "@/generated/prisma/enums";
 import { createId } from "@paralleldrive/cuid2";
 import { useReactFlow } from "@xyflow/react";
 
-import { GlobeIcon, MousePointerIcon } from "lucide-react";
+import { GlobeIcon, MousePointerIcon, UserPlusIcon } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -16,6 +16,12 @@ import {
 import { Separator } from "./ui/separator";
 import { useCallback } from "react";
 import { toast } from "sonner";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "./ui/accordion";
 
 export type NodeTypeOption = {
   type: NodeType;
@@ -27,10 +33,16 @@ export type NodeTypeOption = {
 const triggerNodes: NodeTypeOption[] = [
   {
     type: NodeType.MANUAL_TRIGGER,
-    label: "Trigger manually",
+    label: "Gatilho Manual",
     description:
-      "Runs the flow on clicking a button. Good for getting started quickly",
+      "Executa o fluxo ao clicar em um botão. Bom para começar rapidamente",
     icon: MousePointerIcon,
+  },
+  {
+    type: NodeType.NEW_LEAD,
+    label: "Novo Lead",
+    description: "Executa o fluxo ao criar um novo lead",
+    icon: UserPlusIcon,
   },
 ];
 
@@ -38,7 +50,7 @@ const executionNodes: NodeTypeOption[] = [
   {
     type: NodeType.HTTP_REQUEST,
     label: "HTTP Request",
-    description: "Makes an HTTP request",
+    description: "Faz uma requisição HTTP",
     icon: GlobeIcon,
   },
 ];
@@ -126,78 +138,98 @@ export function NodeSelector({
       <SheetTrigger asChild>{children}</SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>What triggers this workflow?</SheetTitle>
+          <SheetTitle>Automações</SheetTitle>
           <SheetDescription>
-            A trigger is a step that your workflow.
+            Selecione o tipo de automação que deseja adicionar ao fluxo.
           </SheetDescription>
         </SheetHeader>
-        <div>
-          {triggerNodes.map((nodeType) => {
-            const Icon = nodeType.icon;
+        <Accordion
+          type="multiple"
+          defaultValue={["trigger", "execution"]}
+          className="w-full"
+        >
+          <AccordionItem value="trigger">
+            <AccordionTrigger className="px-4 pt-5 hover:no-underline">
+              Gatilhos
+            </AccordionTrigger>
+            <AccordionContent>
+              <div>
+                {triggerNodes.map((nodeType) => {
+                  const Icon = nodeType.icon;
 
-            return (
-              <div
-                key={nodeType.type}
-                className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
-                onClick={() => handleNodeSelect(nodeType)}
-              >
-                <div className="flex items-center gap-6 w-full overflow-hidden">
-                  {typeof Icon === "string" ? (
-                    <img
-                      src={Icon}
-                      alt={nodeType.label}
-                      className="size-5 object-contain rounded-sm"
-                    />
-                  ) : (
-                    <Icon className="size-5" />
-                  )}
-                  <div className="flex flex-col items-start text-left">
-                    <span className="font-medium text-sm">
-                      {nodeType.label}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {nodeType.description}
-                    </span>
-                  </div>
-                </div>
+                  return (
+                    <div
+                      key={nodeType.type}
+                      className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
+                      onClick={() => handleNodeSelect(nodeType)}
+                    >
+                      <div className="flex items-center gap-6 w-full overflow-hidden">
+                        {typeof Icon === "string" ? (
+                          <img
+                            src={Icon}
+                            alt={nodeType.label}
+                            className="size-5 object-contain rounded-sm"
+                          />
+                        ) : (
+                          <Icon className="size-5" />
+                        )}
+                        <div className="flex flex-col items-start text-left">
+                          <span className="font-medium text-sm">
+                            {nodeType.label}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {nodeType.description}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-        <Separator />
-        <div>
-          {executionNodes.map((nodeType) => {
-            const Icon = nodeType.icon;
+            </AccordionContent>
+          </AccordionItem>
+          {/* <Separator /> */}
+          <AccordionItem value="execution">
+            <AccordionTrigger className="px-4 pt-5 hover:no-underline">
+              Execuções
+            </AccordionTrigger>
+            <AccordionContent>
+              <div>
+                {executionNodes.map((nodeType) => {
+                  const Icon = nodeType.icon;
 
-            return (
-              <div
-                key={nodeType.type}
-                className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
-                onClick={() => handleNodeSelect(nodeType)}
-              >
-                <div className="flex items-center gap-6 w-full overflow-hidden">
-                  {typeof Icon === "string" ? (
-                    <img
-                      src={Icon}
-                      alt={nodeType.label}
-                      className="size-5 object-contain rounded-sm"
-                    />
-                  ) : (
-                    <Icon className="size-5" />
-                  )}
-                  <div className="flex flex-col items-start text-left">
-                    <span className="font-medium text-sm">
-                      {nodeType.label}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {nodeType.description}
-                    </span>
-                  </div>
-                </div>
+                  return (
+                    <div
+                      key={nodeType.type}
+                      className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
+                      onClick={() => handleNodeSelect(nodeType)}
+                    >
+                      <div className="flex items-center gap-6 w-full overflow-hidden">
+                        {typeof Icon === "string" ? (
+                          <img
+                            src={Icon}
+                            alt={nodeType.label}
+                            className="size-5 object-contain rounded-sm"
+                          />
+                        ) : (
+                          <Icon className="size-5" />
+                        )}
+                        <div className="flex flex-col items-start text-left">
+                          <span className="font-medium text-sm">
+                            {nodeType.label}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {nodeType.description}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </SheetContent>
     </Sheet>
   );

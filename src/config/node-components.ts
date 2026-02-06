@@ -1,6 +1,7 @@
 import { InitialNode } from "@/components/initial-node";
 import { HttpRequestNode } from "@/features/executions/components/http-request/node";
 import { ManualTriggerNode } from "@/features/triggers/components/manual-trigger/node";
+import { NewLeadTriggerNode } from "@/features/triggers/components/new-lead-trigger/node";
 import { NodeType } from "@/generated/prisma/enums";
 import type { NodeTypes } from "@xyflow/react";
 
@@ -8,6 +9,7 @@ export const nodeComponents = {
   [NodeType.INITIAL]: InitialNode,
   [NodeType.HTTP_REQUEST]: HttpRequestNode,
   [NodeType.MANUAL_TRIGGER]: ManualTriggerNode,
+  [NodeType.NEW_LEAD]: NewLeadTriggerNode,
 } as const satisfies NodeTypes;
 
 export type RegisteredNodeTypes = keyof typeof nodeComponents;
