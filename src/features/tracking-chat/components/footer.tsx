@@ -27,6 +27,12 @@ import { useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Uploader } from "@/components/file-uploader/uploader";
 import { SendAudio } from "./send-audio";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Message, MarkedMessage } from "../types";
 
 interface FooterProps {

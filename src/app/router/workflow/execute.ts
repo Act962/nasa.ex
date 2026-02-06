@@ -9,7 +9,7 @@ export const executeWorkflow = base
   .input(
     z.object({
       id: z.string(),
-    }),
+    })
   )
   .handler(async ({ input, errors }) => {
     const workflow = await prisma.workflow.findUnique({
@@ -28,6 +28,13 @@ export const executeWorkflow = base
       name: "workflow/execute.workflow",
       data: {
         workflowId: input.id,
+        initialData: {
+          lead: {
+            id: "123",
+            name: "Eyshila",
+            email: "eyshila@example.com",
+          },
+        },
       },
     });
 
