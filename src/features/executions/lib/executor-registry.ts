@@ -7,6 +7,7 @@ export const executorRegistry: Record<NodeType, NodeExecutor> = {
   [NodeType.INITIAL]: manualTriggerExecutor,
   [NodeType.MANUAL_TRIGGER]: manualTriggerExecutor,
   [NodeType.HTTP_REQUEST]: httpRequestExecutor,
+  [NodeType.NEW_LEAD]: httpRequestExecutor,
 };
 
 export const getExecutor = (type: NodeType): NodeExecutor => {
