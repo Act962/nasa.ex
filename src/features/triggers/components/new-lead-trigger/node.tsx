@@ -4,7 +4,7 @@ import { NodeProps } from "@xyflow/react";
 import { memo, useState } from "react";
 import { BaseTriggerNode } from "../base-trigger-node";
 import { UserPlusIcon } from "lucide-react";
-import { ManualTriggerDialog } from "./dialog";
+import { NewLeadTriggerDialog } from "./dialog";
 
 export const NewLeadTriggerNode = memo((props: NodeProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -15,7 +15,7 @@ export const NewLeadTriggerNode = memo((props: NodeProps) => {
 
   return (
     <>
-      <ManualTriggerDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <NewLeadTriggerDialog open={dialogOpen} onOpenChange={setDialogOpen} />
       <BaseTriggerNode
         {...props}
         icon={UserPlusIcon}

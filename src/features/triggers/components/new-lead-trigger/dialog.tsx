@@ -12,16 +12,16 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-export const ManualTriggerDialog = ({ open, onOpenChange }: Props) => {
+export const NewLeadTriggerDialog = ({ open, onOpenChange }: Props) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Manual Trigger</DialogTitle>
-          <DialogDescription>Configure the manual trigger</DialogDescription>
+          <DialogTitle>Novo Lead</DialogTitle>
+          <DialogDescription>Configure o novo lead</DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          <p className="text-sm text-muted-foreground">Manual trigger</p>
+          <p className="text-sm text-muted-foreground">Novo Lead</p>
         </div>
       </DialogContent>
     </Dialog>
