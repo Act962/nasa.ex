@@ -460,6 +460,8 @@ enum NodeType {
 
   // Execuções
   HTTP_REQUEST
+  MOVE_LEAD
+  SEND_MESSAGE
 }
 
 model Node {

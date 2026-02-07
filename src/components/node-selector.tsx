@@ -4,7 +4,13 @@ import { NodeType } from "@/generated/prisma/enums";
 import { createId } from "@paralleldrive/cuid2";
 import { useReactFlow } from "@xyflow/react";
 
-import { GlobeIcon, MousePointerIcon, UserPlusIcon } from "lucide-react";
+import {
+  ArrowLeftRightIcon,
+  GlobeIcon,
+  MousePointerIcon,
+  SendIcon,
+  UserPlusIcon,
+} from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -53,6 +59,18 @@ const executionNodes: NodeTypeOption[] = [
     description: "Faz uma requisição HTTP",
     icon: GlobeIcon,
   },
+  {
+    type: NodeType.MOVE_LEAD,
+    label: "Mover Lead",
+    description: "Mova o lead para outra etapa",
+    icon: ArrowLeftRightIcon,
+  },
+  {
+    type: NodeType.SEND_MESSAGE,
+    label: "Enviar Mensagem",
+    description: "Envie uma mensagem para o lead",
+    icon: SendIcon,
+  },
 ];
 
 interface NodeSelectorProps {
@@ -75,7 +93,7 @@ export function NodeSelector({
       if (selection.type === NodeType.MANUAL_TRIGGER) {
         const nodes = getNodes();
         const hasManualTrigger = nodes.some(
-          (node) => node.type === NodeType.MANUAL_TRIGGER
+          (node) => node.type === NodeType.MANUAL_TRIGGER,
         );
 
         if (hasManualTrigger) {
@@ -88,7 +106,7 @@ export function NodeSelector({
 
       setNodes((nodes) => {
         const hasInitialTrigger = nodes.some(
-          (node) => node.type === NodeType.INITIAL
+          (node) => node.type === NodeType.INITIAL,
         );
 
         const centerX = window.innerWidth / 2;
@@ -130,7 +148,7 @@ export function NodeSelector({
 
       onOpenChange(false);
     },
-    [setNodes, getNodes, onOpenChange, screenToFlowPosition]
+    [setNodes, getNodes, onOpenChange, screenToFlowPosition],
   );
 
   return (
