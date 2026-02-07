@@ -1,14 +1,28 @@
 import { NodeExecutor } from "@/features/executions/types";
+import { leadContext } from "@/features/executions/schemas";
+import { NonRetriableError } from "inngest";
 
-type ManualTriggerData = Record<string, unknown>;
+type NewLeadTriggerData = Record<string, unknown>;
 
-export const manualTriggerExecutor: NodeExecutor<ManualTriggerData> = async ({
+export const newLeadTriggerExecutor: NodeExecutor<NewLeadTriggerData> = async ({
   nodeId,
   context,
   step,
 }) => {
-  // TODO: Publish "loading" state for manual trigger
-  const result = await step.run("new-lead-trigger", async () => context);
+  const result = await step.run("new-lead-trigger", async () => {
+    const lead = context.lead;
+
+    const parsedLead = leadContext.safeParse(lead);
+
+    if (!parsedLead.success) {
+      throw new NonRetriableError("Invalid lead data");
+    }
+
+    return {
+      ...context,
+      lead: parsedLead.data,
+    };
+  });
 
   return result;
 };
