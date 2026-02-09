@@ -462,6 +462,7 @@ enum NodeType {
   HTTP_REQUEST
   MOVE_LEAD
   SEND_MESSAGE
+  WAIT
 }
 
 model Node {

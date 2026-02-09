@@ -9,6 +9,7 @@ import {
   GlobeIcon,
   MousePointerIcon,
   SendIcon,
+  TimerIcon,
   UserPlusIcon,
 } from "lucide-react";
 import {
@@ -56,13 +57,13 @@ const triggerNodes: NodeTypeOption[] = [
 ];
 
 const executionNodes: NodeTypeOption[] = [
-  {
-    type: NodeType.HTTP_REQUEST,
-    category: "execution",
-    label: "HTTP Request",
-    description: "Faz uma requisição HTTP",
-    icon: GlobeIcon,
-  },
+  // {
+  //   type: NodeType.HTTP_REQUEST,
+  //   category: "execution",
+  //   label: "HTTP Request",
+  //   description: "Faz uma requisição HTTP",
+  //   icon: GlobeIcon,
+  // },
   {
     type: NodeType.MOVE_LEAD,
     category: "execution",
@@ -76,6 +77,13 @@ const executionNodes: NodeTypeOption[] = [
     label: "Enviar Mensagem",
     description: "Envie uma mensagem para o lead",
     icon: SendIcon,
+  },
+  {
+    type: NodeType.WAIT,
+    category: "execution",
+    label: "Esperar",
+    description: "Espera um tempo antes de continuar",
+    icon: TimerIcon,
   },
 ];
 
@@ -215,7 +223,7 @@ export function NodeSelector({
           {/* <Separator /> */}
           <AccordionItem value="execution">
             <AccordionTrigger className="px-4 pt-5 hover:no-underline">
-              Execuções
+              Ações
             </AccordionTrigger>
             <AccordionContent>
               <div>
