@@ -80,8 +80,6 @@ export async function POST(request: NextRequest) {
         } catch (error) {
           console.error("Error fetching or uploading profile image:", error);
         }
-      }
-      if (!lead) {
         lead = await prisma.lead.create({
           data: {
             statusId: status.id,
@@ -117,6 +115,7 @@ export async function POST(request: NextRequest) {
           trackingId,
           isActive: true,
         },
+
         update: {},
       });
 
@@ -188,6 +187,7 @@ export async function POST(request: NextRequest) {
               const buffer = Buffer.from(arrayBuffer);
               mimetype =
                 imageResponse.headers.get("content-type") || "image/jpeg";
+
               const extension = mimetype.split("/")[1] || "jpg";
               key = `${uuidv4()}.${extension}`;
 

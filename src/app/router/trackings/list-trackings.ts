@@ -32,6 +32,7 @@ export const listTrackings = base
               id: true,
               instanceId: true,
               status: true,
+              apiKey: true,
             },
           },
         },
