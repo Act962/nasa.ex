@@ -11,34 +11,62 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Lead } from "@/generated/prisma/client";
 import { CheckIcon, Search, UserIcon } from "lucide-react";
 import { useState } from "react";
-import { useQueryLeadsByWhats } from "../hooks/use-leads-conversation";
+import { useQueryLeadsWithoutConversation } from "../hooks/use-leads-conversation";
+import { useCreateConversation } from "../hooks/use-conversation";
+import { Spinner } from "@/components/ui/spinner";
 interface CreateChatProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  trackingId: string;
+  token: string;
 }
 
-export function CreateChatDialog({ isOpen, onOpenChange }: CreateChatProps) {
+export function CreateChatDialog({
+  isOpen,
+  onOpenChange,
+  trackingId,
+  token,
+}: CreateChatProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Lead | null>();
-  function toggleSelectCustomer(customer: Lead) {
-    if (selectedCustomer?.id === customer.id) {
-      setSelectedCustomer(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<string[]>([]);
+  function toggleSelectCustomer(phone: string) {
+    if (selectedCustomer?.includes(phone)) {
+      setSelectedCustomer(
+        selectedCustomer.filter((customer) => customer !== phone),
+      );
     } else {
-      setSelectedCustomer(customer);
+      setSelectedCustomer([...selectedCustomer, phone]);
     }
   }
 
-  const { data, isLoading } = useQueryLeadsByWhats();
+  const { customers, isLoading } = useQueryLeadsWithoutConversation(trackingId);
+  const createConversation = useCreateConversation({ trackingId });
 
-  const filteredLeads = data?.leads.filter((customer) => {
+  const filteredLeads = customers?.filter((customer) => {
     return (
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.phone?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
+
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedCustomer) return;
+    const data = {
+      phone: selectedCustomer,
+      trackingId,
+      token,
+    };
+    console.log(data);
+    createConversation.mutate(data, {
+      onSuccess: () => {
+        onOpenChange(false);
+        setSelectedCustomer([]);
+      },
+    });
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -49,7 +77,7 @@ export function CreateChatDialog({ isOpen, onOpenChange }: CreateChatProps) {
             Busque e selecione um cliente para iniciar uma conversa
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -66,8 +94,10 @@ export function CreateChatDialog({ isOpen, onOpenChange }: CreateChatProps) {
               {!isLoading &&
                 filteredLeads?.map((customer) => (
                   <button
+                    disabled={createConversation.isPending || !customer.phone}
+                    type="button"
                     key={customer.id}
-                    onClick={() => toggleSelectCustomer(customer)}
+                    onClick={() => toggleSelectCustomer(customer.phone || "")}
                     className="w-full flex items-start gap-3 rounded-lg border p-3 text-left transition-all hover:border-primary hover:bg-accent"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
@@ -78,13 +108,13 @@ export function CreateChatDialog({ isOpen, onOpenChange }: CreateChatProps) {
                         <span className="font-medium truncate">
                           {customer.name}
                         </span>
-                        {selectedCustomer?.id === customer.id && (
+                        {selectedCustomer?.includes(customer.phone || "") && (
                           <CheckIcon className="h-4 w-4 text-primary ml-auto shrink-0" />
                         )}
                       </div>
-                      {customer.email && (
+                      {customer.phone && (
                         <p className="text-xs text-muted-foreground truncate">
-                          {customer.email}
+                          {customer.phone}
                         </p>
                       )}
                     </div>
@@ -107,19 +137,24 @@ export function CreateChatDialog({ isOpen, onOpenChange }: CreateChatProps) {
               variant="outline"
               className="flex-1 bg-transparent"
               onClick={() => onOpenChange(false)}
+              type="button"
             >
               Cancelar
             </Button>
             <Button
               variant="default"
               className="flex-1"
-              onClick={() => onOpenChange(false)}
-              disabled={!selectedCustomer}
+              type="submit"
+              disabled={!selectedCustomer || createConversation.isPending}
             >
-              Criar Chat
+              {createConversation.isPending ? (
+                <Spinner className="h-4 w-4" />
+              ) : (
+                "Criar Chat"
+              )}
             </Button>
           </DialogFooter>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

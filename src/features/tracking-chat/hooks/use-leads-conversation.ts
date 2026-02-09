@@ -11,3 +11,12 @@ export function useQueryLeadsByWhats() {
   );
   return { data, isLoading };
 }
+
+export function useQueryLeadsWithoutConversation(trackingId: string) {
+  const { data, isLoading } = useQuery(
+    orpc.leads.listLeadWithoutConversation.queryOptions({
+      input: { trackingId },
+    }),
+  );
+  return { customers: data?.customers, isLoading };
+}
