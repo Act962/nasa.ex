@@ -41,15 +41,15 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const existingLead = await prisma.lead.findUnique({
+      let lead = await prisma.lead.findUnique({
         where: {
           phone_trackingId: { phone, trackingId },
         },
       });
 
-      let key = existingLead?.profile || null;
+      let key = lead?.profile || null;
 
-      if (!existingLead) {
+      if (!lead) {
         try {
           const profileLead = await getContactDetails({
             token: json.token,
@@ -81,24 +81,29 @@ export async function POST(request: NextRequest) {
           console.error("Error fetching or uploading profile image:", error);
         }
       }
+      if (!lead) {
+        lead = await prisma.lead.create({
+          data: {
+            statusId: status.id,
+            name,
+            phone,
+            trackingId,
+            source: LeadSource.WHATSAPP,
+            profile: key,
+          },
+        });
 
-      const lead = await prisma.lead.upsert({
-        where: {
-          phone_trackingId: { phone, trackingId },
-        },
-        create: {
-          statusId: status.id,
-          name,
-          phone,
-          trackingId,
-          source: LeadSource.WHATSAPP,
-          profile: key,
-        },
-        update: {
-          name,
-        },
-      });
-
+        await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/lead/new?trackingId=${trackingId}&leadId=${lead.id}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ trackingId }),
+          },
+        );
+      }
       const conversation = await prisma.conversation.upsert({
         where: {
           leadId_trackingId: {
@@ -106,23 +111,14 @@ export async function POST(request: NextRequest) {
             trackingId,
           },
         },
-        update: {},
         create: {
           leadId: lead.id,
           remoteJid,
           trackingId,
           isActive: true,
         },
+        update: {},
       });
-
-      try {
-        await pusherServer.trigger(trackingId, "conversation:new", {
-          ...conversation,
-          lead,
-        });
-      } catch (e) {
-        console.error("Pusher Error (conversation:new):", e);
-      }
 
       const senderId = fromMe ? json.owner : phone;
       const messageId = json.message.messageid;
@@ -147,35 +143,12 @@ export async function POST(request: NextRequest) {
               messageId: quotedMessage,
             },
           })) || null;
+      }
 
-        if (
-          messageType === "ExtendedTextMessage" ||
-          messageType === "Conversation"
-        ) {
-        }
-
-        messageData = await prisma.message.upsert({
-          where: { messageId },
-          update: {
-            status: MessageStatus.SEEN,
-          },
-          create: {
-            fromMe,
-            conversationId: conversation.id,
-            senderId,
-            messageId,
-            body,
-            status: MessageStatus.SEEN,
-            quotedMessageId: quotedMessageData?.id,
-          },
-          include: {
-            quotedMessage: true,
-            conversation: {
-              include: { lead: true },
-            },
-          },
-        });
-
+      if (
+        messageType === "ExtendedTextMessage" ||
+        messageType === "Conversation"
+      ) {
         messageData = await prisma.message.upsert({
           where: { messageId },
           update: {
@@ -370,13 +343,25 @@ export async function POST(request: NextRequest) {
           { status: 201 },
         );
       }
+      await prisma.conversation.update({
+        where: {
+          leadId_trackingId: {
+            leadId: lead.id,
+            trackingId,
+          },
+        },
+        data: {
+          lastMessageId: messageData.id,
+        },
+      });
 
-      try {
-        await pusherServer.trigger(conversation.id, "message:new", messageData);
-        await pusherServer.trigger(trackingId, "message:new", messageData);
-      } catch (e) {
-        console.error("Pusher Error (message:new):", e);
-      }
+      await pusherServer.trigger(trackingId, "conversation:new", {
+        ...conversation,
+        lead,
+      });
+
+      await pusherServer.trigger(conversation.id, "message:new", messageData);
+      await pusherServer.trigger(trackingId, "message:new", messageData);
 
       return NextResponse.json({ success: true }, { status: 201 });
     }
