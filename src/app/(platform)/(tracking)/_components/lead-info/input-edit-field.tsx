@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TypeFieldLead } from "./Info-item";
 import { Input } from "@/components/ui/input";
-import { phoneMask } from "@/utils/format-phone";
+import { phoneMaskFull } from "@/utils/format-phone";
 
 export interface EditingInputComponentProps {
   value: string;
@@ -26,7 +26,7 @@ export const InputEditField = ({
       <Input
         className="h-8 text-xs"
         autoFocus
-        value={type === "phone" ? phoneMask(localValue) : localValue}
+        value={type === "phone" ? phoneMaskFull(localValue) : localValue}
         onChange={(e) => setLocalValue(e.target.value)}
         onBlur={handleSubmit}
       />

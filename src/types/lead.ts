@@ -5,6 +5,7 @@ export interface LeadFull {
     email: string | null;
     phone: string | null;
     description: string | null;
+    profile: string | null;
     statusId: string;
     order: number;
     trackingId: string;
