@@ -1,3 +1,4 @@
+import { Uploader } from "@/components/file-uploader/uploader";
 import {
   Alert,
   AlertAction,
@@ -59,13 +60,13 @@ const textPayloadSchema = z.object({
 
 const imagePayloadSchema = z.object({
   type: z.literal("IMAGE"),
-  imageUrl: z.url("URL inválida"),
+  imageUrl: z.string("URL inválida").min(1, "URL inválida"),
   caption: z.string().optional(),
 });
 
 const documentPayloadSchema = z.object({
   type: z.literal("DOCUMENT"),
-  documentUrl: z.url("URL inválida"),
+  documentUrl: z.string("URL inválida").min(1, "URL inválida"),
   fileName: z.string().min(1, "Nome do arquivo obrigatório"),
   caption: z.string().optional(),
 });
@@ -187,10 +188,10 @@ export const SendMessageDialog = ({
                     name="payload.imageUrl"
                     render={({ field }) => (
                       <Field>
-                        <FieldLabel>URL da imagem</FieldLabel>
-                        <Input
-                          {...field}
-                          placeholder="Digite a URL da imagem"
+                        <FieldLabel>Imagem</FieldLabel>
+                        <Uploader
+                          value={field.value}
+                          onConfirm={field.onChange}
                         />
                       </Field>
                     )}
@@ -215,10 +216,11 @@ export const SendMessageDialog = ({
                     name="payload.documentUrl"
                     render={({ field }) => (
                       <Field>
-                        <FieldLabel>URL do documento</FieldLabel>
-                        <Input
-                          {...field}
-                          placeholder="Digite a URL do documento"
+                        <FieldLabel>Documento</FieldLabel>
+                        <Uploader
+                          value={field.value}
+                          onConfirm={field.onChange}
+                          fileTypeAccepted="outros"
                         />
                       </Field>
                     )}

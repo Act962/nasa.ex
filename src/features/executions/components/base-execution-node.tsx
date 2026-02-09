@@ -52,8 +52,8 @@ export const BaseExecutionNode = memo(
     const connectionInProgress = useConnection(selector);
     const isConnected = useStore((state) =>
       state.edges.some(
-        (edge) => edge.source === id && edge.sourceHandle === "source-1"
-      )
+        (edge) => edge.source === id && edge.sourceHandle === "source-1",
+      ),
     );
 
     const shouldShowButton = !connectionInProgress && !isConnected;
@@ -66,7 +66,7 @@ export const BaseExecutionNode = memo(
 
       setEdges((currentEdges) => {
         const updateEdges = currentEdges.filter(
-          (edge) => edge.source !== id && edge.target !== id
+          (edge) => edge.source !== id && edge.target !== id,
         );
         return updateEdges;
       });
@@ -93,11 +93,6 @@ export const BaseExecutionNode = memo(
                 type="target"
                 position={Position.Left}
               />
-              {/* <BaseHandle
-                id="source-1"
-                type="source"
-                position={Position.Right}
-              /> */}
               <NodeSelector
                 open={openSelector}
                 onOpenChange={setOpenSelector}
@@ -122,7 +117,7 @@ export const BaseExecutionNode = memo(
         </NodeStatusIndicator>
       </WorkflowNode>
     );
-  }
+  },
 );
 
 BaseExecutionNode.displayName = "BaseExecutionNode";
