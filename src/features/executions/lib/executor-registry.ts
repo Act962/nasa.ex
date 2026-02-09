@@ -3,12 +3,16 @@ import { NodeExecutor } from "../types";
 import { manualTriggerExecutor } from "@/features/triggers/components/manual-trigger/executor";
 import { httpRequestExecutor } from "../components/http-request/executor";
 import { newLeadTriggerExecutor } from "@/features/triggers/components/new-lead-trigger/executor";
+import { moveLeadExecutor } from "../components/move-lead/executor";
+import { sendMessageExecutor } from "../components/send-message/executor";
 
 export const executorRegistry: Record<NodeType, NodeExecutor> = {
   [NodeType.INITIAL]: manualTriggerExecutor,
   [NodeType.MANUAL_TRIGGER]: manualTriggerExecutor,
   [NodeType.HTTP_REQUEST]: httpRequestExecutor,
   [NodeType.NEW_LEAD]: newLeadTriggerExecutor,
+  [NodeType.MOVE_LEAD]: moveLeadExecutor,
+  [NodeType.SEND_MESSAGE]: sendMessageExecutor,
 };
 
 export const getExecutor = (type: NodeType): NodeExecutor => {

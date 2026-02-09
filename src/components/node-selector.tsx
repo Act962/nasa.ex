@@ -4,7 +4,13 @@ import { NodeType } from "@/generated/prisma/enums";
 import { createId } from "@paralleldrive/cuid2";
 import { useReactFlow } from "@xyflow/react";
 
-import { GlobeIcon, MousePointerIcon, UserPlusIcon } from "lucide-react";
+import {
+  ArrowLeftRightIcon,
+  GlobeIcon,
+  MousePointerIcon,
+  SendIcon,
+  UserPlusIcon,
+} from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -25,6 +31,7 @@ import {
 
 export type NodeTypeOption = {
   type: NodeType;
+  category: "trigger" | "execution";
   label: string;
   description: string;
   icon: React.ComponentType<{ className?: string }> | string;
@@ -33,6 +40,7 @@ export type NodeTypeOption = {
 const triggerNodes: NodeTypeOption[] = [
   {
     type: NodeType.MANUAL_TRIGGER,
+    category: "trigger",
     label: "Gatilho Manual",
     description:
       "Executa o fluxo ao clicar em um botão. Bom para começar rapidamente",
@@ -40,6 +48,7 @@ const triggerNodes: NodeTypeOption[] = [
   },
   {
     type: NodeType.NEW_LEAD,
+    category: "trigger",
     label: "Novo Lead",
     description: "Executa o fluxo ao criar um novo lead",
     icon: UserPlusIcon,
@@ -49,9 +58,24 @@ const triggerNodes: NodeTypeOption[] = [
 const executionNodes: NodeTypeOption[] = [
   {
     type: NodeType.HTTP_REQUEST,
+    category: "execution",
     label: "HTTP Request",
     description: "Faz uma requisição HTTP",
     icon: GlobeIcon,
+  },
+  {
+    type: NodeType.MOVE_LEAD,
+    category: "execution",
+    label: "Mover Lead",
+    description: "Mova o lead para outra etapa",
+    icon: ArrowLeftRightIcon,
+  },
+  {
+    type: NodeType.SEND_MESSAGE,
+    category: "execution",
+    label: "Enviar Mensagem",
+    description: "Envie uma mensagem para o lead",
+    icon: SendIcon,
   },
 ];
 
@@ -72,14 +96,14 @@ export function NodeSelector({
 
   const handleNodeSelect = useCallback(
     (selection: NodeTypeOption) => {
-      if (selection.type === NodeType.MANUAL_TRIGGER) {
+      if (selection.category === "trigger") {
         const nodes = getNodes();
-        const hasManualTrigger = nodes.some(
-          (node) => node.type === NodeType.MANUAL_TRIGGER
+        const hasTrigger = nodes.some((node) =>
+          triggerNodes.some((tn) => tn.type === node.type),
         );
 
-        if (hasManualTrigger) {
-          toast.error("Only one manual trigger is allowed per wokflow");
+        if (hasTrigger) {
+          toast.error("Apenas um gatilho é permitido por workflow.");
           return;
         }
       }
@@ -88,7 +112,7 @@ export function NodeSelector({
 
       setNodes((nodes) => {
         const hasInitialTrigger = nodes.some(
-          (node) => node.type === NodeType.INITIAL
+          (node) => node.type === NodeType.INITIAL,
         );
 
         const centerX = window.innerWidth / 2;
@@ -130,7 +154,7 @@ export function NodeSelector({
 
       onOpenChange(false);
     },
-    [setNodes, getNodes, onOpenChange, screenToFlowPosition]
+    [setNodes, getNodes, onOpenChange, screenToFlowPosition],
   );
 
   return (
