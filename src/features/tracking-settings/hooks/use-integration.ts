@@ -73,7 +73,7 @@ export const useQueryInstances = (trackingId: string) => {
     }),
   );
 
-  return { instance: data, instanceLoading: isLoading };
+  return { instance: data ?? null, instanceLoading: isLoading };
 };
 
 export const useDeleteIntegration = ({

@@ -2,6 +2,7 @@ import { NodeExecutor } from "@/features/executions/types";
 import { LeadContext } from "../../schemas";
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 type MoveLeadNodeData = {
   trackingId?: string;

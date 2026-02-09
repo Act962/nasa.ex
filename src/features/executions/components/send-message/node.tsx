@@ -3,13 +3,11 @@
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { memo, useState } from "react";
 import { BaseExecutionNode } from "../base-execution-node";
-import { GlobeIcon, SendIcon } from "lucide-react";
+import { SendIcon } from "lucide-react";
 import { SendMessageDialog, SendMessageFormValues } from "./dialog";
 
 type SendMessageNodeData = {
-  endpoint?: string;
-  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-  body?: string;
+  action?: SendMessageFormValues;
 };
 
 type SendMessageNodeType = Node<SendMessageNodeData>;
@@ -30,7 +28,7 @@ export const SendMessageNode = memo((props: NodeProps<SendMessageNodeType>) => {
             ...node,
             data: {
               ...node.data,
-              ...values,
+              action: values,
             },
           };
         }
@@ -41,9 +39,9 @@ export const SendMessageNode = memo((props: NodeProps<SendMessageNodeType>) => {
   };
 
   const nodeData = props.data;
-  // const description = nodeData?.endpoint
-  //   ? `${nodeData.method || "GET"}: ${nodeData.endpoint}`
-  //   : "Not configured";
+  const description = nodeData?.action
+    ? `${nodeData.action.payload.type}`
+    : "Envia uma mensagem ao lead";
 
   return (
     <>
@@ -51,7 +49,7 @@ export const SendMessageNode = memo((props: NodeProps<SendMessageNodeType>) => {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSubmit={handleSubmit}
-        defaultValues={nodeData}
+        defaultValues={nodeData.action}
       />
       <BaseExecutionNode
         {...props}
@@ -59,7 +57,7 @@ export const SendMessageNode = memo((props: NodeProps<SendMessageNodeType>) => {
         icon={SendIcon}
         name="Send Message"
         status={nodeStatus}
-        description={"Send a message to the lead"}
+        description={description}
         onSettings={handleOpenSettings}
         onDoubleClick={handleOpenSettings}
       />
