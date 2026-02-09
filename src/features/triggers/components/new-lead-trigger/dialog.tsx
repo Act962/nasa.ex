@@ -20,8 +20,11 @@ export const NewLeadTriggerDialog = ({ open, onOpenChange }: Props) => {
           <DialogTitle>Novo Lead</DialogTitle>
           <DialogDescription>Configure o novo lead</DialogDescription>
         </DialogHeader>
-        <div className="py-4">
-          <p className="text-sm text-muted-foreground">Novo Lead</p>
+        <div className="py-4 text-center">
+          <p className="text-sm text-muted-foreground">
+            Esta automação será acionada quando um novo lead entrar em contato
+            com a sua empresa.
+          </p>
         </div>
       </DialogContent>
     </Dialog>

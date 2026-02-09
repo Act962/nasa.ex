@@ -45,10 +45,6 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
       throw new NonRetriableError("Conversation not found");
     }
 
-    console.log("DATA", data);
-    console.log("INSTANCE", instance);
-    console.log("CONVERSATION", conversation);
-
     const typeMessage = data.action?.payload.type;
 
     switch (typeMessage) {
