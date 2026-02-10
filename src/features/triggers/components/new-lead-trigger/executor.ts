@@ -21,6 +21,7 @@ export const newLeadTriggerExecutor: NodeExecutor<NewLeadTriggerData> = async ({
     return {
       ...context,
       lead: parsedLead.data,
+      realTime: false,
     };
   });
 

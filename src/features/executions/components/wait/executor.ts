@@ -14,12 +14,16 @@ export const waitExecutor: NodeExecutor<WaitNodeData> = async ({
   step,
   publish,
 }) => {
-  await publish(
-    waitChannel().status({
-      nodeId,
-      status: "loading",
-    }),
-  );
+  const realTime = context.realTime as boolean;
+
+  if (realTime) {
+    await publish(
+      waitChannel().status({
+        nodeId,
+        status: "loading",
+      }),
+    );
+  }
 
   const waitTime =
     data.action?.type === "MINUTES"
@@ -29,23 +33,28 @@ export const waitExecutor: NodeExecutor<WaitNodeData> = async ({
         : data.action?.days + "d";
 
   if (!waitTime) {
-    await publish(
-      waitChannel().status({
-        nodeId,
-        status: "error",
-      }),
-    );
+    if (realTime) {
+      await publish(
+        waitChannel().status({
+          nodeId,
+          status: "error",
+        }),
+      );
+    }
+
     throw new NonRetriableError("Wait time is not defined");
   }
 
   await step.sleep("wait", waitTime);
 
-  await publish(
-    waitChannel().status({
-      nodeId,
-      status: "success",
-    }),
-  );
+  if (realTime) {
+    await publish(
+      waitChannel().status({
+        nodeId,
+        status: "success",
+      }),
+    );
+  }
 
   return context;
 };

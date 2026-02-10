@@ -17,23 +17,27 @@ export const moveLeadExecutor: NodeExecutor<MoveLeadNodeData> = async ({
   publish,
 }) => {
   const result = await step.run("move-lead", async () => {
+    const lead = context.lead as LeadContext;
+    const realTime = context.realTime as boolean;
     try {
-      const lead = context.lead as LeadContext;
-
-      await publish(
-        moveLeadChannel().status({
-          nodeId,
-          status: "loading",
-        }),
-      );
-
-      if (!lead) {
+      if (realTime) {
         await publish(
           moveLeadChannel().status({
             nodeId,
-            status: "error",
+            status: "loading",
           }),
         );
+      }
+
+      if (!lead) {
+        if (realTime) {
+          await publish(
+            moveLeadChannel().status({
+              nodeId,
+              status: "error",
+            }),
+          );
+        }
         throw new NonRetriableError("Lead not found");
       }
 
@@ -44,12 +48,14 @@ export const moveLeadExecutor: NodeExecutor<MoveLeadNodeData> = async ({
       });
 
       if (!tracking) {
-        await publish(
-          moveLeadChannel().status({
-            nodeId,
-            status: "error",
-          }),
-        );
+        if (realTime) {
+          await publish(
+            moveLeadChannel().status({
+              nodeId,
+              status: "error",
+            }),
+          );
+        }
         throw new NonRetriableError("Tracking not found");
       }
 
@@ -60,12 +66,14 @@ export const moveLeadExecutor: NodeExecutor<MoveLeadNodeData> = async ({
       });
 
       if (!status) {
-        await publish(
-          moveLeadChannel().status({
-            nodeId,
-            status: "error",
-          }),
-        );
+        if (realTime) {
+          await publish(
+            moveLeadChannel().status({
+              nodeId,
+              status: "error",
+            }),
+          );
+        }
         throw new NonRetriableError("Status not found");
       }
 
@@ -79,27 +87,31 @@ export const moveLeadExecutor: NodeExecutor<MoveLeadNodeData> = async ({
         },
       });
 
+      if (realTime) {
+        await publish(
+          moveLeadChannel().status({
+            nodeId,
+            status: "success",
+          }),
+        );
+      }
+
       return {
         ...context,
         lead: updatedLead,
       };
     } catch (error) {
-      await publish(
-        moveLeadChannel().status({
-          nodeId,
-          status: "error",
-        }),
-      );
+      if (realTime) {
+        await publish(
+          moveLeadChannel().status({
+            nodeId,
+            status: "error",
+          }),
+        );
+      }
       throw error;
     }
   });
-
-  await publish(
-    moveLeadChannel().status({
-      nodeId,
-      status: "success",
-    }),
-  );
 
   return result;
 };

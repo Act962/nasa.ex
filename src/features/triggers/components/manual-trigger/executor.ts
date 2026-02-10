@@ -55,6 +55,7 @@ export const manualTriggerExecutor: NodeExecutor<ManualTriggerData> = async ({
     return {
       ...context,
       lead,
+      realTime: true,
     };
   });
 

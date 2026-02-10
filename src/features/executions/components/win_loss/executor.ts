@@ -16,23 +16,29 @@ export const winLossExecutor: NodeExecutor<WinLossNodeData> = async ({
   step,
   publish,
 }) => {
+  const realTime = context.realTime as boolean;
+
   await step.run("win_loss", async () => {
     try {
       const lead = context.lead as LeadContext;
-      await publish(
-        winLossChannel().status({
-          nodeId,
-          status: "loading",
-        }),
-      );
-
-      if (!lead) {
+      if (realTime) {
         await publish(
           winLossChannel().status({
             nodeId,
-            status: "error",
+            status: "loading",
           }),
         );
+      }
+
+      if (!lead) {
+        if (realTime) {
+          await publish(
+            winLossChannel().status({
+              nodeId,
+              status: "error",
+            }),
+          );
+        }
         throw new NonRetriableError("Lead not found");
       }
 
@@ -43,12 +49,15 @@ export const winLossExecutor: NodeExecutor<WinLossNodeData> = async ({
       });
 
       if (!reasonExists) {
-        await publish(
-          winLossChannel().status({
-            nodeId,
-            status: "error",
-          }),
-        );
+        if (realTime) {
+          await publish(
+            winLossChannel().status({
+              nodeId,
+              status: "error",
+            }),
+          );
+        }
+
         throw new NonRetriableError("Reason not found");
       }
 
@@ -69,22 +78,27 @@ export const winLossExecutor: NodeExecutor<WinLossNodeData> = async ({
         lead: leadUpdated,
       };
     } catch (error) {
-      await publish(
-        winLossChannel().status({
-          nodeId,
-          status: "error",
-        }),
-      );
+      if (realTime) {
+        await publish(
+          winLossChannel().status({
+            nodeId,
+            status: "error",
+          }),
+        );
+      }
+
       throw error;
     }
   });
 
-  await publish(
-    winLossChannel().status({
-      nodeId,
-      status: "success",
-    }),
-  );
+  if (realTime) {
+    await publish(
+      winLossChannel().status({
+        nodeId,
+        status: "success",
+      }),
+    );
+  }
 
   return context;
 };
