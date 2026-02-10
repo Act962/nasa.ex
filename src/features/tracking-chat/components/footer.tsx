@@ -9,7 +9,8 @@ import {
   StickerIcon,
   XIcon,
 } from "lucide-react";
-import { MessageInput } from "./message-input";
+import pt from "emoji-picker-react/dist/data/emojis-pt.json";
+import EmojiPicker, { Theme } from "emoji-picker-react";
 import { Button } from "@/components/ui/button";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
 import {
@@ -35,6 +36,10 @@ import {
   InputGroupTextarea,
 } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
+import {
+  EmojiData,
+  EmojiStyle,
+} from "emoji-picker-react/dist/types/exposedTypes";
 
 interface FooterProps {
   conversationId: string;
@@ -145,6 +150,8 @@ export function Footer({
 
   const senderName = messageSelected?.fromMe ? "Você" : lead.name;
 
+  console.log(pt);
+
   return (
     <>
       <form
@@ -240,9 +247,16 @@ export function Footer({
                     <StickerIcon className="cursor-pointer size-4" />
                   </PopoverTrigger>
                   <PopoverContent className="w-fit h-fit p-0">
-                    <div className="p-4 text-sm text-muted-foreground">
-                      Em breve...
-                    </div>
+                    <EmojiPicker
+                      searchPlaceholder="Pesquisar emoji"
+                      skinTonesDisabled={true}
+                      previewConfig={{ showPreview: false }}
+                      emojiData={pt as EmojiData}
+                      theme={Theme.DARK}
+                      onEmojiClick={(emoji) =>
+                        setMessage(message + emoji.emoji)
+                      }
+                    />
                   </PopoverContent>
                 </Popover>
               </InputGroupAddon>
@@ -252,7 +266,7 @@ export function Footer({
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Digite sua mensagem"
-                className="resize-none min-h-0 py-2.5 text-sm"
+                className="resize-none min-h-0 py-2.5 text-sm max-h-[200px]"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
