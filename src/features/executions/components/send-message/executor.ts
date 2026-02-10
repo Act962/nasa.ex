@@ -20,23 +20,28 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
   publish,
 }) => {
   const result = await step.run("send-message", async () => {
+    const lead = context.lead as LeadContext;
+    const realTime = context.realTime as boolean;
+
     try {
-      const lead = context.lead as LeadContext;
-
-      await publish(
-        sendMessageChannel().status({
-          nodeId,
-          status: "loading",
-        }),
-      );
-
-      if (!lead) {
+      if (realTime) {
         await publish(
           sendMessageChannel().status({
             nodeId,
-            status: "error",
+            status: "loading",
           }),
         );
+      }
+
+      if (!lead) {
+        if (realTime) {
+          await publish(
+            sendMessageChannel().status({
+              nodeId,
+              status: "error",
+            }),
+          );
+        }
         throw new NonRetriableError("Lead not found");
       }
 
@@ -47,12 +52,15 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
       });
 
       if (!instance) {
-        await publish(
-          sendMessageChannel().status({
-            nodeId,
-            status: "error",
-          }),
-        );
+        if (realTime) {
+          await publish(
+            sendMessageChannel().status({
+              nodeId,
+              status: "error",
+            }),
+          );
+        }
+
         throw new NonRetriableError("Instance not found");
       }
 
@@ -64,12 +72,14 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
       });
 
       if (!conversation) {
-        await publish(
-          sendMessageChannel().status({
-            nodeId,
-            status: "error",
-          }),
-        );
+        if (realTime) {
+          await publish(
+            sendMessageChannel().status({
+              nodeId,
+              status: "error",
+            }),
+          );
+        }
         throw new NonRetriableError("Conversation not found");
       }
 
@@ -106,26 +116,30 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
           break;
       }
 
+      if (realTime) {
+        await publish(
+          sendMessageChannel().status({
+            nodeId,
+            status: "success",
+          }),
+        );
+      }
+
       return {
         ...context,
       };
     } catch (error) {
-      await publish(
-        sendMessageChannel().status({
-          nodeId,
-          status: "error",
-        }),
-      );
+      if (realTime) {
+        await publish(
+          sendMessageChannel().status({
+            nodeId,
+            status: "error",
+          }),
+        );
+      }
       throw error;
     }
   });
-
-  await publish(
-    sendMessageChannel().status({
-      nodeId,
-      status: "success",
-    }),
-  );
 
   return result;
 };
