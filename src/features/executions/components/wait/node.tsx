@@ -5,6 +5,9 @@ import { memo, useState } from "react";
 import { BaseExecutionNode } from "../base-execution-node";
 import { TimerIcon } from "lucide-react";
 import { WaitDialog, WaitFormValues } from "./dialog";
+import { useNodeStatus } from "../../hook/use-node-status";
+import { WAIT_CHANNEL_NAME } from "@/inngest/channels/wait";
+import { fetchWaitRealtimeToken } from "./actions";
 
 type WaitNodeData = {
   action?: WaitFormValues;
@@ -16,7 +19,12 @@ export const WaitNode = memo((props: NodeProps<WaitNodeType>) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { setNodes } = useReactFlow();
 
-  const nodeStatus = "initial";
+  const nodeStatus = useNodeStatus({
+    nodeId: props.id,
+    channel: WAIT_CHANNEL_NAME,
+    topic: "status",
+    refreshToken: fetchWaitRealtimeToken,
+  });
 
   const handleOpenSettings = () => setDialogOpen(true);
 
@@ -42,6 +50,12 @@ export const WaitNode = memo((props: NodeProps<WaitNodeType>) => {
   // const description = nodeData?.endpoint
   //   ? `${nodeData.method || "GET"}: ${nodeData.endpoint}`
   //   : "Not configured";
+  const description =
+    nodeData?.action?.type === "MINUTES"
+      ? `${nodeData.action.minutes} minutos`
+      : nodeData?.action?.type === "HOURS"
+        ? `${nodeData.action.hours} horas`
+        : `${nodeData.action?.days} dias`;
 
   return (
     <>
@@ -57,7 +71,7 @@ export const WaitNode = memo((props: NodeProps<WaitNodeType>) => {
         icon={TimerIcon}
         name="Esperar"
         status={nodeStatus}
-        description="Espera um tempo antes de continuar"
+        description={description}
         onSettings={handleOpenSettings}
         onDoubleClick={handleOpenSettings}
       />

@@ -5,6 +5,9 @@ import { memo, useState } from "react";
 import { BaseExecutionNode } from "../base-execution-node";
 import { SendIcon } from "lucide-react";
 import { SendMessageDialog, SendMessageFormValues } from "./dialog";
+import { useNodeStatus } from "../../hook/use-node-status";
+import { SEND_MESSAGE_CHANNEL_NAME } from "@/inngest/channels/send-message";
+import { fetchSendMessageRealtimeToken } from "./actions";
 
 type SendMessageNodeData = {
   action?: SendMessageFormValues;
@@ -16,7 +19,12 @@ export const SendMessageNode = memo((props: NodeProps<SendMessageNodeType>) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { setNodes } = useReactFlow();
 
-  const nodeStatus = "initial";
+  const nodeStatus = useNodeStatus({
+    nodeId: props.id,
+    channel: SEND_MESSAGE_CHANNEL_NAME,
+    topic: "status",
+    refreshToken: fetchSendMessageRealtimeToken,
+  });
 
   const handleOpenSettings = () => setDialogOpen(true);
 

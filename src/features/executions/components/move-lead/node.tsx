@@ -5,6 +5,9 @@ import { memo, useState } from "react";
 import { BaseExecutionNode } from "../base-execution-node";
 import { ArrowLeftRightIcon } from "lucide-react";
 import { MoveLeadDialog, MoveLeadFormValues } from "./dialog";
+import { useNodeStatus } from "../../hook/use-node-status";
+import { fetchMoveLeadRealtimeToken } from "./actions";
+import { MOVE_LEAD_CHANNEL_NAME } from "@/inngest/channels/move-lead";
 
 type MoveLeadNodeData = {
   trackingId: string;
@@ -17,7 +20,12 @@ export const MoveLeadNode = memo((props: NodeProps<MoveLeadNodeType>) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { setNodes } = useReactFlow();
 
-  const nodeStatus = "initial";
+  const nodeStatus = useNodeStatus({
+    nodeId: props.id,
+    channel: MOVE_LEAD_CHANNEL_NAME,
+    topic: "status",
+    refreshToken: fetchMoveLeadRealtimeToken,
+  });
 
   const handleOpenSettings = () => setDialogOpen(true);
 

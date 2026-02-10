@@ -58,13 +58,13 @@ const triggerNodes: NodeTypeOption[] = [
 ];
 
 const executionNodes: NodeTypeOption[] = [
-  {
-    type: NodeType.HTTP_REQUEST,
-    category: "execution",
-    label: "HTTP Request",
-    description: "Faz uma requisição HTTP",
-    icon: GlobeIcon,
-  },
+  // {
+  //   type: NodeType.HTTP_REQUEST,
+  //   category: "execution",
+  //   label: "HTTP Request",
+  //   description: "Faz uma requisição HTTP",
+  //   icon: GlobeIcon,
+  // },
   {
     type: NodeType.MOVE_LEAD,
     category: "execution",
