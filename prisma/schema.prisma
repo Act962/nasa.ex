@@ -279,14 +279,13 @@ model Lead {
   status   Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
   tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   responsible User? @relation("LeadResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
-  conversationId String? @unique @map("conversation_id")
+  conversation Conversation? 
   
   @@index([phone])
 
   leadTags LeadTag[]
   history  LeadHistory[]
   actions  Action[]
-  conversation Conversation[]
 
 
 
@@ -543,20 +542,21 @@ model Conversation {
   lastMessageAt DateTime @updatedAt @map("last_message_at")
   name          String?
   isGroup       Boolean  @default(false)
-  lastMessageId String?   @map("last_message_id")
   
   remoteJid     String   @unique @map("remote_jid")
   profilePicUrl String?  @map("profile_pic_url")
   isActive      Boolean  @default(true) @map("is_active")
   
-  leadId String  @map("lead_id")
-  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lead   Lead   @relation(fields: [leadId], references: [id])
+  leadId String @unique @map("lead_id")
   trackingId    String   @map("tracking_id")
   tracking      Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  
+
+  lastMessageId String? @unique @map("last_message_id")
+  lastMessage Message? @relation(fields: [lastMessageId], references: [id])
+
   messages      Message[]        @relation("Messages")
 
-  @@index([lastMessageId])
   @@unique([leadId, trackingId])
   
   @@index([isActive])
@@ -589,12 +589,11 @@ model Message {
   quotedMessageId  String?  @map("quoted_message_id")
   quotedMessage    Message? @relation("QuotedMessages", fields: [quotedMessageId], references: [id], onDelete: SetNull)
   quotes           Message[] @relation("QuotedMessages")
-  
-  conversationId String
+  conversationId String 
   senderId       String?
 
   conversation   Conversation @relation("Messages", fields: [conversationId], references: [id], onDelete: Cascade)
-  
+  LastMessage Conversation?
   
   @@index([conversationId, createdAt])
   @@index([status])
@@ -611,7 +610,7 @@ model WhatsAppInstance {
   id              String   @id @default(cuid())
   instanceName    String   @map("instance_name")
   instanceId      String   @unique @map("instance_id")
-  apiKey          String   @map("api_key") // Token
+  apiKey          String @unique  @map("api_key") // Token
   baseUrl         String   @map("base_url") // URL
   status          WhatsAppInstanceStatus @default(DISCONNECTED)
   qrCode          String?  @map("qr_code") // Base64 do QR Code
@@ -629,7 +628,6 @@ model WhatsAppInstance {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   tracking     Tracking     @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   
-  @@unique([instanceName, organizationId])
   @@index([organizationId])
   @@index([status])
   @@map("whatsapp_instances")

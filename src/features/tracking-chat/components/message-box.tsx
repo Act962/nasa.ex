@@ -27,9 +27,8 @@ export function MessageBox({
   const body = cn("flex flex-col gap-2", isOwn && "items-end");
 
   const messageText = cn(
-    "text-sm w-fit overflow-hidden space-y-2",
+    "text-sm w-fit overflow-hidden space-y-2 rounded-md",
     isOwn ? "bg-foreground/10" : "bg-accent-foreground/10",
-    message.mediaUrl ? "rounded-md" : "rounded-full",
   );
 
   const iconMark = cn(

@@ -25,9 +25,7 @@ export const listLeadWithoutConversation = base
       const leads = await prisma.lead.findMany({
         where: {
           trackingId,
-          conversation: {
-            none: {},
-          },
+          conversation: { is: null },
         },
         select: {
           id: true,
