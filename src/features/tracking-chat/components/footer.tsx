@@ -100,6 +100,7 @@ export function Footer({
       mimetype: blob.type,
       conversationId,
       replyId: messageSelected?.messageId || undefined,
+      // replyIdInternal: messageSelected?.messageId || undefined,
       id: messageSelected?.id,
     });
     closeMessageSelected();
@@ -116,6 +117,7 @@ export function Footer({
         token: instance.instance.apiKey,
         conversationId: conversationId,
         replyId: messageSelected?.messageId,
+        replyIdInternal: messageSelected?.id,
         id: messageSelected?.id,
       });
 
