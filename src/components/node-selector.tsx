@@ -10,6 +10,7 @@ import {
   MousePointerIcon,
   SendIcon,
   TimerIcon,
+  Trophy,
   UserPlusIcon,
 } from "lucide-react";
 import {
@@ -84,6 +85,13 @@ const executionNodes: NodeTypeOption[] = [
     label: "Esperar",
     description: "Espera um tempo antes de continuar",
     icon: TimerIcon,
+  },
+  {
+    type: NodeType.WIN_LOSS,
+    category: "execution",
+    label: "Ganho/Perdido",
+    description: "Define se o lead foi ganho ou perdido",
+    icon: Trophy,
   },
 ];
 

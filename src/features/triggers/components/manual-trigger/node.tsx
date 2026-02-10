@@ -1,29 +1,63 @@
 "use client";
 
-import { NodeProps } from "@xyflow/react";
+import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { memo, useState } from "react";
 import { BaseTriggerNode } from "../base-trigger-node";
 import { MousePointerIcon } from "lucide-react";
-import { ManualTriggerDialog } from "./dialog";
+import { ManualTriggerDialog, ManualTriggerFormValues } from "./dialog";
 
-export const ManualTriggerNode = memo((props: NodeProps) => {
-  const [dialogOpen, setDialogOpen] = useState(false);
+type ManualTriggerNodeData = {
+  action?: ManualTriggerFormValues;
+};
 
-  const nodeStatus = "initial";
+type ManualTriggerNodeType = Node<ManualTriggerNodeData>;
 
-  const handleOpenSettings = () => setDialogOpen(true);
+export const ManualTriggerNode = memo(
+  (props: NodeProps<ManualTriggerNodeType>) => {
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const { setNodes } = useReactFlow();
 
-  return (
-    <>
-      <ManualTriggerDialog open={dialogOpen} onOpenChange={setDialogOpen} />
-      <BaseTriggerNode
-        {...props}
-        icon={MousePointerIcon}
-        name="When clicking 'Execute workflow"
-        status={nodeStatus}
-        onSettings={handleOpenSettings}
-        onDoubleClick={handleOpenSettings}
-      />
-    </>
-  );
-});
+    const nodeStatus = "initial";
+
+    const handleOpenSettings = () => setDialogOpen(true);
+
+    const handleSubmit = (values: ManualTriggerFormValues) => {
+      setNodes((nodes) =>
+        nodes.map((node) => {
+          if (node.id === props.id) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                action: values,
+              },
+            };
+          }
+
+          return node;
+        }),
+      );
+    };
+
+    const nodeData = props.data;
+
+    return (
+      <>
+        <ManualTriggerDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          onSubmit={handleSubmit}
+          defaultValues={nodeData.action}
+        />
+        <BaseTriggerNode
+          {...props}
+          icon={MousePointerIcon}
+          name="Ao clicar em 'Executar workflow'"
+          status={nodeStatus}
+          onSettings={handleOpenSettings}
+          onDoubleClick={handleOpenSettings}
+        />
+      </>
+    );
+  },
+);

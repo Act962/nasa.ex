@@ -3,16 +3,16 @@
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { memo, useState } from "react";
 import { BaseExecutionNode } from "../base-execution-node";
-import { SendIcon } from "lucide-react";
-import { SendMessageDialog, SendMessageFormValues } from "./dialog";
+import { TimerIcon, Trophy } from "lucide-react";
+import { WinLossDialog, WinLossFormValues } from "./dialog";
 
-type SendMessageNodeData = {
-  action?: SendMessageFormValues;
+type WinLossNodeData = {
+  action?: WinLossFormValues;
 };
 
-type SendMessageNodeType = Node<SendMessageNodeData>;
+type WinLossNodeType = Node<WinLossNodeData>;
 
-export const SendMessageNode = memo((props: NodeProps<SendMessageNodeType>) => {
+export const WinLossNode = memo((props: NodeProps<WinLossNodeType>) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { setNodes } = useReactFlow();
 
@@ -20,7 +20,7 @@ export const SendMessageNode = memo((props: NodeProps<SendMessageNodeType>) => {
 
   const handleOpenSettings = () => setDialogOpen(true);
 
-  const handleSubmit = (values: SendMessageFormValues) => {
+  const handleSubmit = (values: WinLossFormValues) => {
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id === props.id) {
@@ -39,13 +39,13 @@ export const SendMessageNode = memo((props: NodeProps<SendMessageNodeType>) => {
   };
 
   const nodeData = props.data;
-  const description = nodeData?.action
-    ? `${nodeData.action.payload.type}`
-    : "Envia uma mensagem ao lead";
+  // const description = nodeData?.endpoint
+  //   ? `${nodeData.method || "GET"}: ${nodeData.endpoint}`
+  //   : "Not configured";
 
   return (
     <>
-      <SendMessageDialog
+      <WinLossDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSubmit={handleSubmit}
@@ -54,10 +54,10 @@ export const SendMessageNode = memo((props: NodeProps<SendMessageNodeType>) => {
       <BaseExecutionNode
         {...props}
         id={props.id}
-        icon={SendIcon}
-        name="Enviar Mensagem"
+        icon={Trophy}
+        name="Ganho/Perdido"
         status={nodeStatus}
-        description={description}
+        description="Define se o lead foi ganho ou perdido"
         onSettings={handleOpenSettings}
         onDoubleClick={handleOpenSettings}
       />
@@ -65,4 +65,4 @@ export const SendMessageNode = memo((props: NodeProps<SendMessageNodeType>) => {
   );
 });
 
-SendMessageNode.displayName = "SendMessageNode";
+WinLossNode.displayName = "WinLossNode";
