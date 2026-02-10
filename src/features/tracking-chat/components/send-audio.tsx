@@ -119,7 +119,6 @@ export function SendAudio({ onSend, onCancel, disabled }: SendAudioProps) {
         setRecordedBlob(blob);
         setIsRecording(false);
         setIsPaused(false);
-        console.log(blob);
       };
 
       recorder.start();
