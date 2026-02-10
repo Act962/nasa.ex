@@ -56,9 +56,9 @@ export const MoveLeadNode = memo((props: NodeProps<MoveLeadNodeType>) => {
         {...props}
         id={props.id}
         icon={ArrowLeftRightIcon}
-        name="Move Lead"
+        name="Mover Lead"
         status={nodeStatus}
-        description="Move Lead"
+        description="Altera o status do lead"
         onSettings={handleOpenSettings}
         onDoubleClick={handleOpenSettings}
       />
