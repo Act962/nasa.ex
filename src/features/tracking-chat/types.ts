@@ -19,7 +19,6 @@ export interface MessageBodyProps {
   conversation: {
     lead: {
       trackingId: string;
-      conversationId: string | null;
       phone: string | null;
       id: string;
       createdAt: Date;

@@ -73,6 +73,10 @@ export const createMessageWithAudio = base
         },
         include: {
           conversation: {
+            select: {
+              id: true,
+              name: true,
+            },
             include: {
               lead: true,
             },

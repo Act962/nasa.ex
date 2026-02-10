@@ -38,9 +38,20 @@ export function SendFile({
   fileName,
   messageSelected,
 }: sendFileProps) {
-  console.log(file);
-  console.log(fileType);
   const [preview, setPreview] = useState<string | null>(null);
+
+  async function onCloseMessageSelected() {
+    onClose();
+    const response = await fetch("/api/s3/delete", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        key: file,
+      }),
+    });
+  }
 
   const mutation = useMutationImageMessage({
     conversationId,
@@ -92,7 +103,12 @@ export function SendFile({
       className="w-full flex flex-col absolute bottom-0 top-0 z-50  h-full bg-accent p-4 gap-10"
     >
       <div className="w-full flex justify-between items-center">
-        <Button type="button" variant="ghost" size="icon" onClick={onClose}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onCloseMessageSelected}
+        >
           <XIcon className="size-6 cursor-pointer" />
         </Button>
         <Button type="button" variant="ghost" size="icon" onClick={onClose}>
