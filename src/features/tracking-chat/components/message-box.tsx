@@ -40,7 +40,9 @@ export function MessageBox({
             "text-sm w-fit overflow-hidden space-y-2 rounded-md px-1.5",
             isOwn ? "bg-foreground/10" : "bg-accent-foreground/10",
             message.mimetype?.startsWith("application/pdf") ||
-              (message.mimetype?.startsWith("image/jpeg") && "bg-transparent"),
+              message.mimetype?.startsWith("image/jpeg")
+              ? "bg-transparent px-0"
+              : "",
           )}
         >
           {message.quotedMessage && (
