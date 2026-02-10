@@ -3,8 +3,11 @@
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { memo, useState } from "react";
 import { BaseExecutionNode } from "../base-execution-node";
-import { TimerIcon, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { WinLossDialog, WinLossFormValues } from "./dialog";
+import { useNodeStatus } from "../../hook/use-node-status";
+import { WIN_LOSS_CHANNEL_NAME } from "@/inngest/channels/win-loss";
+import { fetchWinLossRealtimeToken } from "./actions";
 
 type WinLossNodeData = {
   action?: WinLossFormValues;
@@ -16,7 +19,12 @@ export const WinLossNode = memo((props: NodeProps<WinLossNodeType>) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { setNodes } = useReactFlow();
 
-  const nodeStatus = "initial";
+  const nodeStatus = useNodeStatus({
+    nodeId: props.id,
+    channel: WIN_LOSS_CHANNEL_NAME,
+    topic: "status",
+    refreshToken: fetchWinLossRealtimeToken,
+  });
 
   const handleOpenSettings = () => setDialogOpen(true);
 
