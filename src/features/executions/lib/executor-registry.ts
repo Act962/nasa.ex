@@ -7,6 +7,7 @@ import { moveLeadExecutor } from "../components/move-lead/executor";
 import { sendMessageExecutor } from "../components/send-message/executor";
 import { waitExecutor } from "../components/wait/executor";
 import { winLossExecutor } from "../components/win_loss/executor";
+import { tagExecutor } from "../components/tag/executor";
 
 export const executorRegistry: Record<NodeType, NodeExecutor> = {
   [NodeType.INITIAL]: manualTriggerExecutor,
@@ -17,6 +18,7 @@ export const executorRegistry: Record<NodeType, NodeExecutor> = {
   [NodeType.SEND_MESSAGE]: sendMessageExecutor,
   [NodeType.WAIT]: waitExecutor,
   [NodeType.WIN_LOSS]: winLossExecutor,
+  [NodeType.TAG]: tagExecutor,
 };
 
 export const getExecutor = (type: NodeType): NodeExecutor => {

@@ -22,7 +22,7 @@ export const ExecuteWorkflowButton = ({
       disabled={executeWorkflow.isPending}
     >
       <FlaskConicalIcon className="size-4" />
-      Execute workflow
+      Executar workflow
     </Button>
   );
 };

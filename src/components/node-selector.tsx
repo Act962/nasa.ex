@@ -9,6 +9,7 @@ import {
   GlobeIcon,
   MousePointerIcon,
   SendIcon,
+  TagIcon,
   TimerIcon,
   Trophy,
   UserPlusIcon,
@@ -92,6 +93,13 @@ const executionNodes: NodeTypeOption[] = [
     label: "Ganho/Perdido",
     description: "Define se o lead foi ganho ou perdido",
     icon: Trophy,
+  },
+  {
+    type: NodeType.TAG,
+    category: "execution",
+    label: "Tag",
+    description: "Adiciona/remove uma tag",
+    icon: TagIcon,
   },
 ];
 

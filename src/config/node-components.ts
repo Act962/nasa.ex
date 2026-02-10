@@ -2,6 +2,7 @@ import { InitialNode } from "@/components/initial-node";
 import { HttpRequestNode } from "@/features/executions/components/http-request/node";
 import { MoveLeadNode } from "@/features/executions/components/move-lead/node";
 import { SendMessageNode } from "@/features/executions/components/send-message/node";
+import { TagNode } from "@/features/executions/components/tag/node";
 import { WaitNode } from "@/features/executions/components/wait/node";
 import { WinLossNode } from "@/features/executions/components/win_loss/node";
 import { ManualTriggerNode } from "@/features/triggers/components/manual-trigger/node";
@@ -18,6 +19,7 @@ export const nodeComponents = {
   [NodeType.SEND_MESSAGE]: SendMessageNode,
   [NodeType.WAIT]: WaitNode,
   [NodeType.WIN_LOSS]: WinLossNode,
+  [NodeType.TAG]: TagNode,
 } as const satisfies NodeTypes;
 
 export type RegisteredNodeTypes = keyof typeof nodeComponents;
