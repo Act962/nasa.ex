@@ -45,6 +45,9 @@ export async function POST(request: NextRequest) {
         where: {
           phone_trackingId: { phone, trackingId },
         },
+        include: {
+          conversation: true,
+        },
       });
 
       let key = lead?.profile || null;
@@ -88,6 +91,16 @@ export async function POST(request: NextRequest) {
             trackingId,
             source: LeadSource.WHATSAPP,
             profile: key,
+            conversation: {
+              create: {
+                remoteJid,
+                trackingId,
+                isActive: true,
+              },
+            },
+          },
+          include: {
+            conversation: true,
           },
         });
 
@@ -101,23 +114,18 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({ trackingId }),
           },
         );
+      } else {
+        if (!lead.conversation) {
+          await prisma.conversation.create({
+            data: {
+              remoteJid,
+              trackingId,
+              isActive: true,
+              leadId: lead.id,
+            },
+          });
+        }
       }
-      const conversation = await prisma.conversation.upsert({
-        where: {
-          leadId_trackingId: {
-            leadId: lead.id,
-            trackingId,
-          },
-        },
-        create: {
-          leadId: lead.id,
-          remoteJid,
-          trackingId,
-          isActive: true,
-        },
-
-        update: {},
-      });
 
       const senderId = fromMe ? json.owner : phone;
       const messageId = json.message.messageid;
@@ -155,7 +163,7 @@ export async function POST(request: NextRequest) {
           },
           create: {
             fromMe,
-            conversationId: conversation.id,
+            conversationId: lead.conversation?.id!,
             senderId,
             messageId,
             body,
@@ -165,11 +173,12 @@ export async function POST(request: NextRequest) {
           include: {
             quotedMessage: true,
             conversation: {
-              include: { lead: true },
+              include: { lead: true, lastMessage: true },
             },
           },
         });
       }
+
       if (messageType === "ImageMessage") {
         const image = await downloadFile({
           token: json.token,
@@ -213,7 +222,7 @@ export async function POST(request: NextRequest) {
             mediaUrl: key,
             fromMe,
             status: MessageStatus.SEEN,
-            conversationId: conversation.id,
+            conversationId: lead.conversation?.id!,
             quotedMessageId: quotedMessageData?.id,
             mimetype,
             senderId,
@@ -258,10 +267,8 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        messageData = await prisma.message.upsert({
-          where: { messageId },
-          update: {},
-          create: {
+        messageData = await prisma.message.create({
+          data: {
             body,
             mediaUrl: key,
             fileName: json.message.content.fileName,
@@ -269,7 +276,7 @@ export async function POST(request: NextRequest) {
             mimetype,
             status: MessageStatus.SEEN,
             quotedMessageId: quotedMessageData?.id,
-            conversationId: conversation.id,
+            conversationId: lead.conversation?.id!,
             senderId,
             messageId,
           },
@@ -324,7 +331,57 @@ export async function POST(request: NextRequest) {
             mimetype,
             quotedMessageId: quotedMessageData?.id,
             status: MessageStatus.SEEN,
-            conversationId: conversation.id,
+            conversationId: lead.conversation?.id!,
+            senderId,
+            messageId,
+          },
+          include: {
+            quotedMessage: true,
+            conversation: {
+              include: { lead: true },
+            },
+          },
+        });
+      }
+      if (messageType === "StickerMessage") {
+        const document = await downloadFile({
+          token: json.token,
+          baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
+          data: { id: messageId, return_base64: false },
+        });
+        let key = null;
+        let mimetype = "";
+        if (document?.fileURL) {
+          const documentResponse = await fetch(document.fileURL);
+          if (documentResponse.ok) {
+            const arrayBuffer = await documentResponse.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            mimetype =
+              documentResponse.headers.get("content-type") ||
+              "application/webp";
+
+            const extension = mimetype.split("/")[1] || "webp";
+            key = `${uuidv4()}.${extension}`;
+
+            await S3.send(
+              new PutObjectCommand({
+                Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
+                Key: key,
+                Body: buffer,
+                ContentType: mimetype,
+              }),
+            );
+          }
+        }
+
+        messageData = await prisma.message.create({
+          data: {
+            mediaUrl: key,
+            fromMe,
+            status: MessageStatus.SEEN,
+            conversationId: lead.conversation?.id!,
+            quotedMessageId: quotedMessageData?.id,
+            mimetype,
             senderId,
             messageId,
           },
@@ -356,11 +413,15 @@ export async function POST(request: NextRequest) {
       });
 
       await pusherServer.trigger(trackingId, "conversation:new", {
-        ...conversation,
+        ...lead.conversation,
         lead,
       });
 
-      await pusherServer.trigger(conversation.id, "message:new", messageData);
+      await pusherServer.trigger(
+        lead.conversation?.id!,
+        "message:new",
+        messageData,
+      );
       await pusherServer.trigger(trackingId, "message:new", messageData);
 
       return NextResponse.json({ success: true }, { status: 201 });

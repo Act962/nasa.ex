@@ -6,9 +6,11 @@ import {
   MicIcon,
   PlusIcon,
   SendIcon,
+  StickerIcon,
   XIcon,
 } from "lucide-react";
-import { MessageInput } from "./message-input";
+import pt from "emoji-picker-react/dist/data/emojis-pt.json";
+import EmojiPicker, { Theme } from "emoji-picker-react";
 import { Button } from "@/components/ui/button";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
 import {
@@ -27,13 +29,17 @@ import { useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Uploader } from "@/components/file-uploader/uploader";
 import { SendAudio } from "./send-audio";
+import { MarkedMessage } from "../types";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Message, MarkedMessage } from "../types";
+  InputGroup,
+  InputGroupAddon,
+  InputGroupTextarea,
+} from "@/components/ui/input-group";
+import { cn } from "@/lib/utils";
+import {
+  EmojiData,
+  EmojiStyle,
+} from "emoji-picker-react/dist/types/exposedTypes";
 
 interface FooterProps {
   conversationId: string;
@@ -64,6 +70,7 @@ export function Footer({
   );
   const [sendImage, setSendImage] = useState(false);
   const [open, setOpen] = useState(false);
+  const [openSticker, setOpenSticker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const [message, setMessage] = useState("");
@@ -100,6 +107,7 @@ export function Footer({
       mimetype: blob.type,
       conversationId,
       replyId: messageSelected?.messageId || undefined,
+      // replyIdInternal: messageSelected?.messageId || undefined,
       id: messageSelected?.id,
     });
     closeMessageSelected();
@@ -116,6 +124,7 @@ export function Footer({
         token: instance.instance.apiKey,
         conversationId: conversationId,
         replyId: messageSelected?.messageId,
+        replyIdInternal: messageSelected?.id,
         id: messageSelected?.id,
       });
 
@@ -141,14 +150,16 @@ export function Footer({
 
   const senderName = messageSelected?.fromMe ? "Você" : lead.name;
 
+  console.log(pt);
+
   return (
     <>
       <form
-        className="py-4 px-4 bg-accent-foreground/10 border-t flex flex-col items-center gap-4  w-full"
+        className="py-3 px-4 bg-background border-t flex flex-col items-center gap-2 w-full"
         onSubmit={handleSubmit}
       >
         {messageSelected && (
-          <div className="w-full bg-accent flex items-center justify-between p-4 rounded-md border-l-4 border-l-green-400">
+          <div className="w-full bg-accent flex items-center justify-between p-4 rounded-md border-l-4 border-l-green-400 mb-2">
             <div className="flex flex-col">
               <div className="text-sm font-semibold text-green-400">
                 {senderName}
@@ -165,94 +176,133 @@ export function Footer({
             </Button>
           </div>
         )}
-        <div className="w-full flex gap-2 lg:gap-4">
-          {!showAudioRecorder && (
-            <>
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <PlusIcon />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-fit h-fit p-0">
-                  <div className="relative w-full h-full cursor-pointer overflow-hidden">
-                    <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
-                      <FileIcon className="size-4" />
-                      <p className="text-sm">Arquivo</p>
-                      <div className="absolute top-0 left-0 w-full h-full opacity-0">
-                        {isLoading ? (
-                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                            <Spinner className="size-3" />
-                          </div>
-                        ) : (
-                          <Uploader
-                            onUpload={(file, name) =>
-                              handleFileChange(file, "pdf", name)
-                            }
-                            onUploadStart={() => setIsLoading(true)}
-                            value={selectedImage}
-                            fileTypeAccepted="outros"
-                          />
-                        )}
+
+        <div className="w-full h-full flex items-center gap-2 lg:gap-4 relative">
+          {!showAudioRecorder ? (
+            <InputGroup
+              className={cn(
+                "border-0 has-[[data-slot=input-group-control]:focus-visible]:border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 shadow-none bg-accent/50 rounded-2xl px-2",
+                message.includes("\n") || message.length > 60
+                  ? "items-end pb-1.5"
+                  : "items-center",
+              )}
+            >
+              <InputGroupAddon>
+                <Popover open={open} onOpenChange={setOpen}>
+                  <PopoverTrigger asChild>
+                    <PlusIcon className="cursor-pointer size-4" />
+                  </PopoverTrigger>
+                  <PopoverContent className="w-fit h-fit p-0">
+                    <div className="relative w-full h-full cursor-pointer overflow-hidden">
+                      <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
+                        <FileIcon className="size-4" />
+                        <p className="text-sm">Arquivo</p>
+                        <div className="absolute top-0 left-0 w-full h-full opacity-0">
+                          {isLoading ? (
+                            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                              <Spinner className="size-3" />
+                            </div>
+                          ) : (
+                            <Uploader
+                              onUpload={(file, name) =>
+                                handleFileChange(file, "pdf", name)
+                              }
+                              onUploadStart={() => setIsLoading(true)}
+                              value={selectedImage}
+                              fileTypeAccepted="outros"
+                            />
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="relative w-full h-full cursor-pointer overflow-hidden">
-                    <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
-                      <ImageIcon className="size-4" />
-                      <p className="text-sm">Imagem</p>
-                      <div className="absolute top-0 left-0 w-full h-full opacity-0">
-                        {isLoading ? (
-                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                            <Spinner className="size-3" />
-                          </div>
-                        ) : (
-                          <Uploader
-                            onUpload={(file) => handleFileChange(file, "image")}
-                            onUploadStart={() => setIsLoading(true)}
-                            value={selectedImage}
-                            fileTypeAccepted="image"
-                          />
-                        )}
+                    <div className="relative w-full h-full cursor-pointer overflow-hidden">
+                      <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
+                        <ImageIcon className="size-4" />
+                        <p className="text-sm">Imagem</p>
+                        <div className="absolute top-0 left-0 w-full h-full opacity-0">
+                          {isLoading ? (
+                            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                              <Spinner className="size-3" />
+                            </div>
+                          ) : (
+                            <Uploader
+                              onUpload={(file) =>
+                                handleFileChange(file, "image")
+                              }
+                              onUploadStart={() => setIsLoading(true)}
+                              value={selectedImage}
+                              fileTypeAccepted="image"
+                            />
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <div
-                id="footer-form"
-                className="flex items-center gap-2 lg:gap-4 w-full"
-              >
-                <MessageInput
-                  ref={inputRef}
-                  autoComplete="off"
-                  name="message"
-                  placeholder="Digite sua mensagem..."
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                />
+                  </PopoverContent>
+                </Popover>
+              </InputGroupAddon>
+
+              <InputGroupAddon>
+                <Popover open={openSticker} onOpenChange={setOpenSticker}>
+                  <PopoverTrigger asChild>
+                    <StickerIcon className="cursor-pointer size-4" />
+                  </PopoverTrigger>
+                  <PopoverContent className="w-fit h-fit p-0">
+                    <EmojiPicker
+                      searchPlaceholder="Pesquisar emoji"
+                      skinTonesDisabled={true}
+                      previewConfig={{ showPreview: false }}
+                      emojiData={pt as EmojiData}
+                      theme={Theme.DARK}
+                      onEmojiClick={(emoji) =>
+                        setMessage(message + emoji.emoji)
+                      }
+                    />
+                  </PopoverContent>
+                </Popover>
+              </InputGroupAddon>
+
+              <InputGroupTextarea
+                ref={inputRef as any}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Digite sua mensagem"
+                className="resize-none min-h-0 py-2.5 text-sm max-h-[200px]"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (message.trim().length > 0) {
+                      const form = e.currentTarget.closest("form");
+                      if (form) form.requestSubmit();
+                    }
+                  }
+                }}
+              />
+
+              <InputGroupAddon align="inline-end">
                 {message.trim().length > 0 ? (
                   <Button
                     type="submit"
-                    className="rounded-full"
+                    size="icon"
+                    className="rounded-full "
                     disabled={isDisabled}
                   >
-                    <SendIcon size={18} />
+                    <SendIcon className="size-4 " />
                   </Button>
                 ) : (
                   <Button
                     type="button"
-                    className="rounded-full"
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full "
                     disabled={isDisabled}
                     onClick={() => setShowAudioRecorder(true)}
                   >
-                    <MicIcon size={18} />
+                    <MicIcon className="size-4" />
                   </Button>
                 )}
-              </div>
-            </>
-          )}
-          {showAudioRecorder && (
+              </InputGroupAddon>
+            </InputGroup>
+          ) : (
             <SendAudio
               onCancel={() => setShowAudioRecorder(false)}
               onSend={(blob) => {

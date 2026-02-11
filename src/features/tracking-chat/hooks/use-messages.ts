@@ -32,6 +32,8 @@ export function useMutationTextMessage({
 
         const tempId = `optimistic-${crypto.randomUUID()}`;
 
+        console.log(data.replyId);
+
         const optimisticMessage: Message = {
           id: tempId,
           messageId: tempId,

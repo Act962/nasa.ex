@@ -71,18 +71,40 @@ export const createMessageWithAudio = base
           status: MessageStatus.SENT,
           quotedMessageId: input.id,
         },
-        include: {
+        select: {
+          id: true,
+          messageId: true,
+          body: true,
+          createdAt: true,
+          fromMe: true,
+          status: true,
+          mediaUrl: true,
+          mediaType: true,
+          mediaCaption: true,
+          mimetype: true,
+          fileName: true,
+          quotedMessageId: true,
+          conversationId: true,
+          senderId: true,
           conversation: {
-            include: {
-              lead: true,
+            select: {
+              id: true,
+              lead: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
         },
       });
+
       const messageCreated: CreatedMessageProps = {
         ...message,
         currentUserId: context.user.id,
       };
+
       await pusherServer.trigger(
         message.conversationId,
         "message:created",
@@ -90,24 +112,7 @@ export const createMessageWithAudio = base
       );
 
       return {
-        message: {
-          id: message.id,
-          body: message.body,
-          createdAt: message.createdAt,
-          fromMe: true,
-          mediaUrl: message.mediaUrl,
-          mimetype: message.mimetype,
-          fileName: message.fileName,
-          status: message.status,
-          messageId: message.messageId,
-          quotedMessageId: message.quotedMessageId,
-          conversation: {
-            lead: {
-              id: message.conversation.lead.id,
-              name: message.conversation.lead.name,
-            },
-          },
-        },
+        message,
       };
     } catch (e) {
       console.log(e);
