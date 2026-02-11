@@ -178,8 +178,8 @@ export function ToolDetail({ id }: ToolDetailProps) {
                   key={i}
                   className="tool-card rounded-xl p-4 flex items-center gap-4"
                 >
-                  <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                    <feature.icon className="w-5 h-5 text-primary" />
+                  <div className="w-10 h-10 rounded-lg bg-foreground/10 flex items-center justify-center">
+                    <feature.icon className="w-5 h-5 text-foreground" />
                   </div>
                   <p className="text-sm text-foreground">{feature.text}</p>
                 </div>

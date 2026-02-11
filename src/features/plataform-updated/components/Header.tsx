@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Rocket } from "lucide-react";
+import { Menu, Rocket } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import {
