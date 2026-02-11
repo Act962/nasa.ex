@@ -9,6 +9,7 @@ import { manualTriggerChannel } from "./channels/manual-trigger";
 import { moveLeadChannel } from "./channels/move-lead";
 import { sendMessageChannel } from "./channels/send-message";
 import { waitChannel } from "./channels/wait";
+import { tagChannel } from "./channels/tag";
 
 export const executeWorkflow = inngest.createFunction(
   { id: "execute-workflow", retries: 0 },
@@ -19,6 +20,7 @@ export const executeWorkflow = inngest.createFunction(
       manualTriggerChannel(),
       moveLeadChannel(),
       sendMessageChannel(),
+      tagChannel(),
       waitChannel(),
     ],
   },

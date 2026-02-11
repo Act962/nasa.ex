@@ -254,6 +254,13 @@ enum LeadSource {
   OTHER
 }
 
+enum Temperature {
+  COLD
+  WARM
+  HOT
+  VERY_HOT
+}
+
 model Lead {
   id          String  @id @default(cuid())
   name        String
@@ -267,6 +274,7 @@ model Lead {
   responsibleId String? @map("responsible_id")
   order       Int     @default(0)
   source      LeadSource @default(DEFAULT)
+  temperature Temperature @default(COLD)
 
   currentAction LeadAction @default(ACTIVE) @map("current_action")
   isActive      Boolean    @default(true) @map("is_active")
@@ -463,6 +471,8 @@ enum NodeType {
   SEND_MESSAGE
   WAIT
   WIN_LOSS
+  TAG
+  TEMPERATURE
 }
 
 model Node {
