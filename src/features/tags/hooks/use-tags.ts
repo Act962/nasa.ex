@@ -2,7 +2,6 @@ import { orpc } from "@/lib/orpc";
 import { useQuery } from "@tanstack/react-query";
 
 export function useTags({ trackingId }: { trackingId?: string }) {
-
   const { data, isLoading } = useQuery(
     orpc.tags.listTags.queryOptions({
       input: {
@@ -10,7 +9,24 @@ export function useTags({ trackingId }: { trackingId?: string }) {
           trackingId,
         },
       },
-    })
+    }),
+  );
+
+  return {
+    tags: data?.tags || [],
+    isLoadingTags: isLoading,
+  };
+}
+
+export function useQueryTags({ trackingId }: { trackingId?: string }) {
+  const { data, isLoading } = useQuery(
+    orpc.tags.listTags.queryOptions({
+      input: {
+        query: {
+          trackingId,
+        },
+      },
+    }),
   );
 
   return {

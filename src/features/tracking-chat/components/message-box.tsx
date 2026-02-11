@@ -22,22 +22,6 @@ export function MessageBox({
   const session = authClient.useSession();
   const isOwn = message.fromMe;
 
-  const container = cn("group flex gap-2 p-4", isOwn && "justify-end");
-
-  const body = cn("flex flex-col gap-2", isOwn && "items-end");
-
-  const messageText = cn(
-    "text-sm w-fit overflow-hidden space-y-2",
-    isOwn ? "bg-foreground/10" : "bg-accent-foreground/10",
-    message.mediaUrl ? "rounded-md" : "rounded-full",
-  );
-
-  const iconMark = cn(
-    "absolute top-0 -right-10 bottom-0 flex items-center w-fit",
-    isOwn && "-left-10",
-    message.mimetype && "hidden",
-  );
-
   const name = isOwn
     ? session.data?.user.name
     : message.conversation?.lead?.name;
@@ -49,26 +33,31 @@ export function MessageBox({
   const IconStatus = IconsStatus[message.status as MessageStatus];
 
   return (
-    <div className={container}>
-      <div className={body}>
-        {message.quotedMessage && (
-          <div className="flex flex-col bg-foreground/10 border-l-4 border-green-500 p-2 mb-1 rounded text-xs opacity-80 max-w-xs">
-            <span className="font-bold text-green-600">{quotedName}</span>
-            <span className="truncate">{message.quotedMessage.body}</span>
-          </div>
-        )}
+    <div className={cn("group flex gap-2 p-4", isOwn && "justify-end")}>
+      <div className={cn("flex relative flex-col gap-2", isOwn && "items-end")}>
+        <div
+          className={cn(
+            "text-sm w-fit overflow-hidden space-y-2 rounded-md px-1.5",
+            isOwn ? "bg-foreground/10" : "bg-accent-foreground/10",
+            message.mimetype?.startsWith("application/pdf") ||
+              message.mimetype?.startsWith("image/jpeg")
+              ? "bg-transparent px-0"
+              : "",
+          )}
+        >
+          {message.quotedMessage && (
+            <div className="flex flex-col bg-foreground/10 border-l-4 border-green-500 p-2 my-1 rounded text-xs opacity-80 max-w-xs">
+              <span className="font-bold text-green-600">{quotedName}</span>
+              <span className="truncate">{message.quotedMessage.body}</span>
+            </div>
+          )}
 
-        <div className="flex items-center gap-1">
-          <div className="text-sm">{name}</div>
-        </div>
-
-        <div className="relative w-fit">
-          <div className={messageText}>
+          <div className="relative w-fit items-center">
             {message.mediaUrl && message.mimetype?.startsWith("image") && (
               <Image
                 alt="Image"
                 src={useConstructUrl(message.mediaUrl)}
-                className="object-contain cursor-pointer hover:scale-110 transition transalate max-h-64"
+                className="object-contain cursor-pointer max-h-50"
                 width={288}
                 height={288}
               />
@@ -88,16 +77,22 @@ export function MessageBox({
               />
             )}
             {message.body && (
-              <div className="whitespace-pre-wrap py-2 px-3">
+              <div className="whitespace-pre-wrap px-1.5 pt-1">
                 {message.body}
               </div>
             )}
           </div>
-          <div className={iconMark}>
+          <div
+            className={cn(
+              "absolute top-0 -right-10 bottom-0 flex items-center w-fit",
+              isOwn && "-left-10",
+              message.mimetype && "hidden",
+            )}
+          >
             <Button
               variant="ghost"
               size="sm"
-              className="group-hover:block hidden"
+              className="hidden group-hover:block"
               onClick={() =>
                 onSelectMessage({
                   body: message.body,

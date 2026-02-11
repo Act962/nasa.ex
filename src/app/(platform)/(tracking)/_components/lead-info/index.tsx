@@ -23,6 +23,8 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useRef } from "react";
 import { useEffect } from "react";
+import { AvatarFallback } from "@radix-ui/react-avatar";
+import { useConstructUrl } from "@/hooks/use-construct-url";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
   initialData: LeadFull;
@@ -77,7 +79,8 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
 
       <div className="flex flex-col space-y-2 items-center mt-4">
         <Avatar className="size-12">
-          <AvatarImage src={"https://github.com/ElFabrica.png"} />
+          <AvatarImage src={useConstructUrl(lead.profile ?? "")} />
+          <AvatarFallback>{lead.name.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
         {isEditingName ? (
           <Input

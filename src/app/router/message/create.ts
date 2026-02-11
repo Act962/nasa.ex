@@ -25,6 +25,7 @@ export const createTextMessage = base
       token: z.string(),
       mediaUrl: z.string().optional(),
       replyId: z.string().optional(),
+      replyIdInternal: z.string().optional(),
       id: z.string().optional(),
     }),
   )

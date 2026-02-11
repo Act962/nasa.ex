@@ -14,7 +14,7 @@ export const getLead = base
   .input(
     z.object({
       id: z.string(),
-    })
+    }),
   )
   .output(
     z.object({
@@ -25,6 +25,7 @@ export const getLead = base
         email: z.string().nullable(),
         phone: z.string().nullable(),
         description: z.string().nullable(),
+        profile: z.string().nullable(),
         statusId: z.string(),
         order: z.number(),
         trackingId: z.string(),
@@ -63,7 +64,7 @@ export const getLead = base
           updatedAt: z.date(),
         }),
       }),
-    })
+    }),
   )
   .handler(async ({ input, errors }) => {
     try {

@@ -254,6 +254,13 @@ enum LeadSource {
   OTHER
 }
 
+enum Temperature {
+  COLD
+  WARM
+  HOT
+  VERY_HOT
+}
+
 model Lead {
   id          String  @id @default(cuid())
   name        String
@@ -267,6 +274,7 @@ model Lead {
   responsibleId String? @map("responsible_id")
   order       Int     @default(0)
   source      LeadSource @default(DEFAULT)
+  temperature Temperature @default(COLD)
 
   currentAction LeadAction @default(ACTIVE) @map("current_action")
   isActive      Boolean    @default(true) @map("is_active")
@@ -279,14 +287,13 @@ model Lead {
   status   Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
   tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   responsible User? @relation("LeadResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
-  conversationId String? @unique @map("conversation_id")
+  conversation Conversation? 
   
   @@index([phone])
 
   leadTags LeadTag[]
   history  LeadHistory[]
   actions  Action[]
-  conversation Conversation[]
 
 
 
@@ -453,9 +460,19 @@ model Workflow {
 }
 
 enum NodeType {
+  // Gatilhos
   INITIAL
   MANUAL_TRIGGER
+  NEW_LEAD
+
+  // Execuções
   HTTP_REQUEST
+  MOVE_LEAD
+  SEND_MESSAGE
+  WAIT
+  WIN_LOSS
+  TAG
+  TEMPERATURE
 }
 
 model Node {
@@ -536,20 +553,21 @@ model Conversation {
   lastMessageAt DateTime @updatedAt @map("last_message_at")
   name          String?
   isGroup       Boolean  @default(false)
-  lastMessageId String?   @map("last_message_id")
   
   remoteJid     String   @unique @map("remote_jid")
   profilePicUrl String?  @map("profile_pic_url")
   isActive      Boolean  @default(true) @map("is_active")
   
-  leadId String  @map("lead_id")
-  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lead   Lead   @relation(fields: [leadId], references: [id])
+  leadId String @unique @map("lead_id")
   trackingId    String   @map("tracking_id")
   tracking      Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  
+
+  lastMessageId String? @unique @map("last_message_id")
+  lastMessage Message? @relation(fields: [lastMessageId], references: [id])
+
   messages      Message[]        @relation("Messages")
 
-  @@index([lastMessageId])
   @@unique([leadId, trackingId])
   
   @@index([isActive])
@@ -558,6 +576,10 @@ model Conversation {
   @@map("conversations")
 }
 
+enum MessageStatus {
+  SENT
+  SEEN
+}
 
 model Message {
   id        String    @id @default(cuid())
@@ -566,7 +588,7 @@ model Message {
   
   messageId        String   @unique @map("message_id")
   fromMe           Boolean  @default(false) @map("from_me")
-  status           String   @default("pending")
+  status           MessageStatus   @default(SENT)
   seen             Boolean  @default(false)
   
   mediaUrl         String?  @map("media_url")
@@ -578,12 +600,11 @@ model Message {
   quotedMessageId  String?  @map("quoted_message_id")
   quotedMessage    Message? @relation("QuotedMessages", fields: [quotedMessageId], references: [id], onDelete: SetNull)
   quotes           Message[] @relation("QuotedMessages")
-  
-  conversationId String
+  conversationId String 
   senderId       String?
 
   conversation   Conversation @relation("Messages", fields: [conversationId], references: [id], onDelete: Cascade)
-  
+  LastMessage Conversation?
   
   @@index([conversationId, createdAt])
   @@index([status])
@@ -591,19 +612,16 @@ model Message {
   @@map("messages")
 }
 
-
-
 enum WhatsAppInstanceStatus {
   CONNECTED
   DISCONNECTED
 }
 
-
 model WhatsAppInstance {
   id              String   @id @default(cuid())
   instanceName    String   @map("instance_name")
   instanceId      String   @unique @map("instance_id")
-  apiKey          String   @map("api_key") // Token
+  apiKey          String @unique  @map("api_key") // Token
   baseUrl         String   @map("base_url") // URL
   status          WhatsAppInstanceStatus @default(DISCONNECTED)
   qrCode          String?  @map("qr_code") // Base64 do QR Code
@@ -621,7 +639,6 @@ model WhatsAppInstance {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   tracking     Tracking     @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   
-  @@unique([instanceName, organizationId])
   @@index([organizationId])
   @@index([status])
   @@map("whatsapp_instances")

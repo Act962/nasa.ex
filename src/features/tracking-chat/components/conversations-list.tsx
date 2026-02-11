@@ -237,7 +237,12 @@ export function ConversationsList() {
           </div>
         </div>
       </aside>
-      <CreateChatDialog isOpen={open} onOpenChange={setOpen} />
+      <CreateChatDialog
+        trackingId={selectedTracking}
+        token={whatsappInstance?.apiKey!}
+        isOpen={open}
+        onOpenChange={setOpen}
+      />
     </>
   );
 }

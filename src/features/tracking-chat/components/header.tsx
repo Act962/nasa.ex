@@ -2,6 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useConstructUrl } from "@/hooks/use-construct-url";
 import { phoneMaskFull } from "@/utils/format-phone";
 import { ArrowLeftIcon, MoreHorizontalIcon } from "lucide-react";
 import Link from "next/link";
@@ -13,6 +14,7 @@ interface HeaderProps {
   leadId: string;
 }
 export function Header({ name, profile, phone, leadId }: HeaderProps) {
+  const profileUrl = useConstructUrl(profile || "");
   return (
     <div className="bg-accent-foreground/10 w-full flex border-b sm:px-4 py-3 px-4 lg:px-6 justify-between items-center shadow-sm">
       <div className="flex gap-3 items-center">
@@ -22,7 +24,7 @@ export function Header({ name, profile, phone, leadId }: HeaderProps) {
           </Link>
         </Button>
         <Avatar>
-          <AvatarImage src={profile} />
+          <AvatarImage src={profileUrl} />
           <AvatarFallback>{name.slice(0, 2).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div className="flex flex-col">

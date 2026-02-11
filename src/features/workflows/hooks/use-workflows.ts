@@ -105,6 +105,28 @@ export const useUpdateWorkflow = () => {
   );
 };
 
+export const useDeleteWorkflow = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.workflow.delete.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(`Workflow "${data.name}" deletado`);
+        queryClient.invalidateQueries({
+          queryKey: orpc.workflow.list.queryKey({
+            input: {
+              trackingId: data.trackingId,
+            },
+          }),
+        });
+      },
+      onError: (error) => {
+        toast.error(`Falha ao deletar o workflow: ${error.message}`);
+      },
+    }),
+  );
+};
+
 export const useExecuteWorkflow = () => {
   // const queryClient = useQueryClient();
 

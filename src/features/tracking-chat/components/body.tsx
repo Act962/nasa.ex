@@ -18,6 +18,7 @@ import {
 } from "../types";
 import { authClient } from "@/lib/auth-client";
 import { MarkedMessage } from "../types";
+import { cn } from "@/lib/utils";
 
 interface BodyProps {
   messageSelected: MarkedMessage | undefined;
@@ -330,7 +331,10 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
           type="button"
           size="icon"
           variant="secondary"
-          className="absolute bottom-20 right-5 z-20 rounded-full "
+          className={cn(
+            "absolute bottom-20 right-5 z-20 rounded-full ",
+            messageSelected && "bottom-40",
+          )}
           onClick={scrollToBottom}
         >
           <ChevronDownIcon />

@@ -10,16 +10,78 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  useDeleteWorkflow,
   useSuspenseWorkflow,
   useUpdateWorkflow,
   useUpdateWorkflowName,
 } from "@/features/workflows/hooks/use-workflows";
 import { useAtomValue } from "jotai";
-import { SaveIcon } from "lucide-react";
+import { MoreHorizontalIcon, SaveIcon } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { editorAtom } from "../store/atoms";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+export const EditorOptions = ({ workflowId }: { workflowId: string }) => {
+  const { trackingId } = useParams<{ trackingId: string }>();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const deleteWorkflow = useDeleteWorkflow();
+
+  const handleDelete = () => {
+    deleteWorkflow.mutate(
+      { id: workflowId },
+      {
+        onSuccess: () => {
+          setOpen(false);
+          router.push(`/tracking/${trackingId}/workflows`);
+        },
+      },
+    );
+  };
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="icon">
+            <MoreHorizontalIcon className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            variant="destructive"
+            className="cursor-pointer"
+            onClick={() => setOpen(true)}
+          >
+            Deletar
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DeleteWorkflowDialog
+        open={open}
+        onOpenChange={setOpen}
+        onDelete={handleDelete}
+      />
+    </>
+  );
+};
 
 export const EditorSaveButton = ({ workflowId }: { workflowId: string }) => {
   const editor = useAtomValue(editorAtom);
@@ -142,7 +204,43 @@ export const EditorHeader = ({ workflowId }: { workflowId: string }) => {
   return (
     <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4 bg-background">
       <EditorBreadcrumbs workflowId={workflowId} />
-      <EditorSaveButton workflowId={workflowId} />
+      <div className="flex items-center gap-2">
+        <EditorSaveButton workflowId={workflowId} />
+        <EditorOptions workflowId={workflowId} />
+      </div>
     </div>
+  );
+};
+
+interface DeleteWorkflowProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDelete: () => void;
+}
+
+export const DeleteWorkflowDialog = ({
+  open,
+  onOpenChange,
+  onDelete,
+}: DeleteWorkflowProps) => {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Deletar workflow</DialogTitle>
+          <DialogDescription>
+            Tem certeza que deseja deletar este workflow?
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancelar</Button>
+          </DialogClose>
+          <Button variant="destructive" onClick={() => onDelete()}>
+            Deletar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

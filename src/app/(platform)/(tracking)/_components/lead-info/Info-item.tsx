@@ -5,10 +5,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { orpc } from "@/lib/orpc";
-import { getQueryClient } from "@/lib/query/hydration";
-import { normalizePhone, phoneMask } from "@/utils/format-phone";
-import { useMutation } from "@tanstack/react-query";
+import { normalizePhone, phoneMaskFull } from "@/utils/format-phone";
 import { Pencil } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -91,7 +88,9 @@ export function InfoItem({
                 <Tooltip delayDuration={700}>
                   <TooltipTrigger asChild>
                     <span className="text-xs max-w-45 truncate">
-                      {type === "phone" ? phoneMask(value) : getValueField()}
+                      {type === "phone"
+                        ? phoneMaskFull(value)
+                        : getValueField()}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent>

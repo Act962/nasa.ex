@@ -3,6 +3,7 @@ import { pusherClient } from "@/lib/pusher";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { conversationProps, InfiniteConversations } from "../types";
+import { toast } from "sonner";
 
 export function useQueryConversation(trackingId: string) {
   const { data, isLoading } = useQuery(
@@ -90,4 +91,25 @@ export function useInfinityConversation(trackingId: string) {
       pusherClient.unbind("message:new", messageHandler);
     };
   }, [trackingId, queryClient]);
+}
+
+export function useCreateConversation({ trackingId }: { trackingId: string }) {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.conversation.create.mutationOptions({
+      onSuccess: () => {
+        toast.success("Conversa criada com sucesso!");
+        queryClient.invalidateQueries({
+          queryKey: orpc.conversation.list.queryKey({
+            input: { trackingId },
+          }),
+        });
+      },
+      onError: (error) => {
+        toast.error("Erro ao criar conversa!");
+        console.error(error);
+      },
+    }),
+  );
 }

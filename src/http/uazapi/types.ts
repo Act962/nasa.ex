@@ -379,3 +379,16 @@ export interface GetContactDetailsResponse {
   wa_label: string[];
   wa_name: string;
 }
+
+export interface ValidWhatsappPhonePayload {
+  numbers: string[];
+}
+
+export interface ValidWhatsappPhoneResponse {
+  query: string;
+  jid: string;
+  isInWhatsapp: boolean;
+  verifiedName?: string;
+  groupName?: string;
+  error?: string;
+}

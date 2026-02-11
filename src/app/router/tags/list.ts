@@ -18,7 +18,7 @@ export const listTags = base
           trackingId: z.string().optional(),
         })
         .optional(),
-    })
+    }),
   )
   .output(
     z.object({
@@ -27,9 +27,9 @@ export const listTags = base
           id: z.string(),
           name: z.string(),
           color: z.string().nullable().default("#1447e6"),
-        })
+        }),
       ),
-    })
+    }),
   )
   .handler(async ({ input, context, errors }) => {
     try {
@@ -58,17 +58,10 @@ export const listTags = base
         })),
       };
     } catch (error) {
-      // Log do erro para debug (opcional, mas recomendado)
-      console.error("[listTags] Error:", error);
-
-      // Se for um erro conhecido do orpc, repassa
       if (error === errors.BAD_REQUEST || error === errors.UNAUTHORIZED) {
         throw error;
       }
-
-      // Para erros de banco de dados do Prisma
       if (error instanceof Error) {
-        // Erros de conexão do Prisma
         if (
           error.message.includes("connection") ||
           error.message.includes("timeout")
@@ -76,8 +69,6 @@ export const listTags = base
           throw errors.INTERNAL_SERVER_ERROR;
         }
       }
-
-      // Qualquer outro erro não tratado
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });

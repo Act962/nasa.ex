@@ -11,13 +11,7 @@ export const createWorkflow = base
       name: z.string(),
       description: z.string().optional(),
       trackingId: z.cuid(),
-    })
-  )
-  .output(
-    z.object({
-      trackingId: z.string(),
-      trackingName: z.string(),
-    })
+    }),
   )
   .handler(async ({ context, input }) => {
     const workflow = await prisma.workflow.create({
@@ -37,6 +31,7 @@ export const createWorkflow = base
     });
 
     return {
+      id: workflow.id,
       trackingId: workflow.trackingId,
       trackingName: workflow.name,
     };

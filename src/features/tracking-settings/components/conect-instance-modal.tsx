@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, QrCode, Copy, Check, ChevronDownIcon } from "lucide-react";
-import { countries, Instance } from "./types";
+import { Instance } from "./types";
 import { connectInstance } from "@/http/uazapi/connect-instance";
 import { getInstanceStatus } from "@/http/uazapi/get-instance-status";
 import { Spinner } from "@/components/ui/spinner";
@@ -31,6 +31,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { countries } from "@/types/some";
 
 interface ConnectModalProps {
   open: boolean;
