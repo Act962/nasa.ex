@@ -7,7 +7,6 @@ import {
   PlusIcon,
   SendIcon,
   StickerIcon,
-  XIcon,
 } from "lucide-react";
 import pt from "emoji-picker-react/dist/data/emojis-pt.json";
 import EmojiPicker, { Theme } from "emoji-picker-react";
@@ -36,10 +35,8 @@ import {
   InputGroupTextarea,
 } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
-import {
-  EmojiData,
-  EmojiStyle,
-} from "emoji-picker-react/dist/types/exposedTypes";
+import { EmojiData } from "emoji-picker-react/dist/types/exposedTypes";
+import { MessageSelected } from "./message-selected";
 
 interface FooterProps {
   conversationId: string;
@@ -148,10 +145,6 @@ export function Footer({
     }
   };
 
-  const senderName = messageSelected?.fromMe ? "Você" : lead.name;
-
-  console.log(pt);
-
   return (
     <>
       <form
@@ -159,22 +152,10 @@ export function Footer({
         onSubmit={handleSubmit}
       >
         {messageSelected && (
-          <div className="w-full bg-accent flex items-center justify-between p-4 rounded-md border-l-4 border-l-green-400 mb-2">
-            <div className="flex flex-col">
-              <div className="text-sm font-semibold text-green-400">
-                {senderName}
-              </div>
-              <div className="text-sm">{messageSelected.body}</div>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              type="button"
-              onClick={closeMessageSelected}
-            >
-              <XIcon className="size-6" />
-            </Button>
-          </div>
+          <MessageSelected
+            messageSelected={messageSelected}
+            closeMessageSelected={closeMessageSelected}
+          />
         )}
 
         <div className="w-full h-full flex items-center gap-2 lg:gap-4 relative">

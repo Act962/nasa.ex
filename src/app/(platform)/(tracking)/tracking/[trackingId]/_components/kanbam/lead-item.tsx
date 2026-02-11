@@ -15,6 +15,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import dayjs from "dayjs";
+import { useConstructUrl } from "@/hooks/use-construct-url";
 
 type Lead = {
   id: string;
@@ -24,6 +25,7 @@ type Lead = {
   phone: string | null;
   statusId: string;
   tags: string[];
+  profile?: string | null;
   createdAt: Date;
   responsible: {
     image: string | null;
@@ -56,6 +58,8 @@ export const LeadItem = ({ data }: { data: Lead }) => {
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const url = useConstructUrl(data.profile || "");
+
   return (
     <div
       ref={setNodeRef}
@@ -76,10 +80,10 @@ export const LeadItem = ({ data }: { data: Lead }) => {
             {...listeners}
             {...attributes}
           >
-            <AvatarImage
-              src={"https://github.com/ElFabrica.png"}
-              alt="photo user"
-            />
+            <AvatarImage src={url} alt="photo user" />
+            <AvatarFallback className="text-xs bg-foreground/10 ">
+              {data.name.split(" ")[0][0]}
+            </AvatarFallback>
           </Avatar>
           <span className="font-medium text-xs">{data.name}</span>
         </div>

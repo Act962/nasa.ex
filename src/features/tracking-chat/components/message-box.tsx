@@ -4,12 +4,12 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import Image from "next/image";
 import { MarkedMessage, MessageStatus, Message } from "../types";
-import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { FileMessageBox } from "./file-message-box";
 import { AudioMessageBox } from "./audio-message-box";
 import { CheckCheckIcon, CheckIcon, LucideIcon, RedoIcon } from "lucide-react";
+import { QuotedMessage } from "./quoted-message";
 
 export function MessageBox({
   message,
@@ -19,21 +19,18 @@ export function MessageBox({
   messageSelected: MarkedMessage | undefined;
   onSelectMessage: (message: MarkedMessage) => void;
 }) {
-  const session = authClient.useSession();
   const isOwn = message.fromMe;
-
-  const name = isOwn
-    ? session.data?.user.name
-    : message.conversation?.lead?.name;
-
-  const quotedName = message.quotedMessage?.fromMe
-    ? session.data?.user.name
-    : message.quotedMessage?.conversation?.lead?.name;
 
   const IconStatus = IconsStatus[message.status as MessageStatus];
 
   return (
-    <div className={cn("group flex gap-2 p-4", isOwn && "justify-end")}>
+    <div
+      id={`message-${message.id}`}
+      className={cn(
+        "group flex gap-2 p-4 transition-colors duration-500",
+        isOwn && "justify-end",
+      )}
+    >
       <div className={cn("flex relative flex-col gap-2", isOwn && "items-end")}>
         <div
           className={cn(
@@ -45,13 +42,7 @@ export function MessageBox({
               : "",
           )}
         >
-          {message.quotedMessage && (
-            <div className="flex flex-col bg-foreground/10 border-l-4 border-green-500 p-2 my-1 rounded text-xs opacity-80 max-w-xs">
-              <span className="font-bold text-green-600">{quotedName}</span>
-              <span className="truncate">{message.quotedMessage.body}</span>
-            </div>
-          )}
-
+          {message.quotedMessage && <QuotedMessage message={message} />}
           <div className="relative w-fit items-center">
             {message.mediaUrl && message.mimetype?.startsWith("image") && (
               <Image
@@ -86,7 +77,6 @@ export function MessageBox({
             className={cn(
               "absolute top-0 -right-10 bottom-0 flex items-center w-fit",
               isOwn && "-left-10",
-              message.mimetype && "hidden",
             )}
           >
             <Button
@@ -100,6 +90,9 @@ export function MessageBox({
                   messageId: message.messageId,
                   fromMe: message.fromMe,
                   quotedMessageId: message.quotedMessageId,
+                  mediaUrl: message.mediaUrl,
+                  mimetype: message.mimetype,
+                  fileName: message.fileName,
                   lead: {
                     id: message.conversation?.lead?.id || "",
                     name: message.conversation?.lead?.name || "",
