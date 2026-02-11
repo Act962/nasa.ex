@@ -3,6 +3,7 @@ import { Message } from "../types";
 import Image from "next/image";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { Camera, FileIcon, Mic, PlayCircle } from "lucide-react";
+import { toast } from "sonner";
 
 interface QuotedMessageProps {
   message: Message;
@@ -43,6 +44,7 @@ export function QuotedMessage({ message }: QuotedMessageProps) {
       console.warn(
         `Mensagem com ID message-${targetId} não encontrada no DOM.`,
       );
+      toast.error("Mensagem não encontrada");
     }
   };
 
