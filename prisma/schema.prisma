@@ -473,6 +473,7 @@ enum NodeType {
   WIN_LOSS
   TAG
   TEMPERATURE
+  RESPONSIBLE
 }
 
 model Node {

@@ -1,14 +1,17 @@
 "use server";
 
-import { moveLeadChannel } from "@/inngest/channels/move-lead";
+import { temperatureChannel } from "@/inngest/channels/temperature";
 import { inngest } from "@/inngest/client";
 import { getSubscriptionToken, type Realtime } from "@inngest/realtime";
 
-export type MoveLeadToken = Realtime.Token<typeof moveLeadChannel, ["status"]>;
+export type TemperatureToken = Realtime.Token<
+  typeof temperatureChannel,
+  ["status"]
+>;
 
-export async function fetchMoveLeadRealtimeToken(): Promise<MoveLeadToken> {
+export async function fetchTemperatureRealtimeToken(): Promise<TemperatureToken> {
   const token = await getSubscriptionToken(inngest, {
-    channel: moveLeadChannel(),
+    channel: temperatureChannel(),
     topics: ["status"],
   });
 

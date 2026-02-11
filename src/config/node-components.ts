@@ -1,6 +1,7 @@
 import { InitialNode } from "@/components/initial-node";
 import { HttpRequestNode } from "@/features/executions/components/http-request/node";
 import { MoveLeadNode } from "@/features/executions/components/move-lead/node";
+import { ResponsibleNode } from "@/features/executions/components/responsible/node";
 import { SendMessageNode } from "@/features/executions/components/send-message/node";
 import { TagNode } from "@/features/executions/components/tag/node";
 import { TemperatureNode } from "@/features/executions/components/temperature/node";
@@ -22,6 +23,7 @@ export const nodeComponents = {
   [NodeType.WIN_LOSS]: WinLossNode,
   [NodeType.TAG]: TagNode,
   [NodeType.TEMPERATURE]: TemperatureNode,
+  [NodeType.RESPONSIBLE]: ResponsibleNode,
 } as const satisfies NodeTypes;
 
 export type RegisteredNodeTypes = keyof typeof nodeComponents;
