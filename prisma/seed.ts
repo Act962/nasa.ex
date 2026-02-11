@@ -1,6 +1,6 @@
-import { PrismaClient, Prisma } from "@/generated/prisma/client";
+import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { randomUUID } from "crypto";
+import { faker } from "@faker-js/faker";
 import "dotenv/config";
 
 const adapter = new PrismaPg({
@@ -11,21 +11,25 @@ const prisma = new PrismaClient({
   adapter,
 });
 
-const userId = "ktvLQ6eAI1oZO9xSdvKCyAQXCBs9ykmT";
-const trackingId = "cmjmw5z3q0000t0vamxz21061";
-const statusId = "cmjmw5z3t0002t0va559flygy";
+const userId = "w9Q7KqTBaOGHL2CcvFOFlNpUgSaoqKJg";
+const trackingId = "cmlf3qjk80001ywsl6vteyf8o";
+const statusId = "cmlf3qjkg0003ywsl7b9axn32";
+const statusId2 = "cmlf3qjkg0004ywslyqgjf477";
+const statusId3 = "cmlf3qjkh0005ywsl653nwxcj";
 
 async function main() {
-  for (let i = 1; i <= 100; i++) {
-    const phone = `55119${i.toString().padStart(8, "0")}`;
-    const name = `Lead Teste ${i}`;
+  const statusIds = [statusId, statusId2, statusId3];
+
+  for (let i = 1; i <= 5000; i++) {
+    const phone = `956784${i.toString().padStart(8, "0")}`;
+    const randomStatusId = faker.helpers.arrayElement(statusIds);
 
     const lead = await prisma.lead.create({
       data: {
-        name,
-        email: `lead${i}@exemplo.com`,
+        name: faker.person.fullName(),
+        email: faker.internet.email(),
         phone,
-        statusId: statusId,
+        statusId: randomStatusId,
         trackingId: trackingId,
         responsibleId: userId,
         order: i,
@@ -37,7 +41,7 @@ async function main() {
         remoteJid: `${phone}@s.whatsapp.net`,
         leadId: lead.id,
         trackingId: trackingId,
-        name: name,
+        name: lead.name,
       },
     });
   }
