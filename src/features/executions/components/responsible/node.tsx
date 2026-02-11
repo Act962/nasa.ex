@@ -3,32 +3,32 @@
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { memo, useState } from "react";
 import { BaseExecutionNode } from "../base-execution-node";
-import { CircleGaugeIcon } from "lucide-react";
-import { TemperatureDialog, TemperatureFormValues } from "./dialog";
+import { UserRoundPlusIcon } from "lucide-react";
+import { ResponsibleDialog, ResponsibleFormValues } from "./dialog";
 import { useNodeStatus } from "../../hook/use-node-status";
-import { TEMPERATURE_CHANNEL_NAME } from "@/inngest/channels/temperature";
-import { fetchTemperatureRealtimeToken } from "./actions";
+import { RESPONSIBLE_CHANNEL_NAME } from "@/inngest/channels/responsible";
+import { fetchResponsibleRealtimeToken } from "./actions";
 
-type TemperatureNodeData = {
-  action?: TemperatureFormValues;
+type ResponsibleNodeData = {
+  action?: ResponsibleFormValues;
 };
 
-type TemperatureNodeType = Node<TemperatureNodeData>;
+type ResponsibleNodeType = Node<ResponsibleNodeData>;
 
-export const TemperatureNode = memo((props: NodeProps<TemperatureNodeType>) => {
+export const ResponsibleNode = memo((props: NodeProps<ResponsibleNodeType>) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { setNodes } = useReactFlow();
 
   const nodeStatus = useNodeStatus({
     nodeId: props.id,
-    channel: TEMPERATURE_CHANNEL_NAME,
+    channel: RESPONSIBLE_CHANNEL_NAME,
     topic: "status",
-    refreshToken: fetchTemperatureRealtimeToken,
+    refreshToken: fetchResponsibleRealtimeToken,
   });
 
   const handleOpenSettings = () => setDialogOpen(true);
 
-  const handleSubmit = (values: TemperatureFormValues) => {
+  const handleSubmit = (values: ResponsibleFormValues) => {
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id === props.id) {
@@ -47,13 +47,17 @@ export const TemperatureNode = memo((props: NodeProps<TemperatureNodeType>) => {
   };
 
   const nodeData = props.data;
-  // const description = nodeData?.endpoint
-  //   ? `${nodeData.method || "GET"}: ${nodeData.endpoint}`
-  //   : "Not configured";
+  const actionType =
+    nodeData?.action?.type === "REMOVE" ? "Remover" : "Adicionar";
+  const responsibleName = nodeData?.action?.responsible?.name || "";
+
+  const description = responsibleName
+    ? `${actionType}: ${responsibleName}`
+    : "Configurar responsável";
 
   return (
     <>
-      <TemperatureDialog
+      <ResponsibleDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSubmit={handleSubmit}
@@ -62,10 +66,10 @@ export const TemperatureNode = memo((props: NodeProps<TemperatureNodeType>) => {
       <BaseExecutionNode
         {...props}
         id={props.id}
-        icon={CircleGaugeIcon}
-        name="Temperatura"
+        icon={UserRoundPlusIcon}
+        name="Responsável"
         status={nodeStatus}
-        description="Altera a temperatura do lead"
+        description={description}
         onSettings={handleOpenSettings}
         onDoubleClick={handleOpenSettings}
       />
@@ -73,4 +77,4 @@ export const TemperatureNode = memo((props: NodeProps<TemperatureNodeType>) => {
   );
 });
 
-TemperatureNode.displayName = "TemperatureNode";
+ResponsibleNode.displayName = "ResponsibleNode";

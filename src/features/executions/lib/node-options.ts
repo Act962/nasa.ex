@@ -8,6 +8,7 @@ import {
   TimerIcon,
   Trophy,
   UserPlusIcon,
+  UserRoundPlusIcon,
 } from "lucide-react";
 
 export type NodeTypeOption = {
@@ -85,5 +86,12 @@ export const executionNodes: NodeTypeOption[] = [
     label: "Temperatura",
     description: "Altera a temperatura do lead",
     icon: CircleGaugeIcon,
+  },
+  {
+    type: NodeType.RESPONSIBLE,
+    category: "execution",
+    label: "Responsável",
+    description: "Atribui um responsável ao lead",
+    icon: UserRoundPlusIcon,
   },
 ];

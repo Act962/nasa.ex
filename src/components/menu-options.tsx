@@ -71,8 +71,11 @@ export function MenuOptions({
       <ContextMenuTrigger>{children}</ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuGroup>
-          <ContextMenuItem onClick={() => handelOpenSelector(true)}>
-            Adicionar Automação
+          <ContextMenuItem
+            onClick={() => handelOpenSelector(true)}
+            className="cursor-pointer"
+          >
+            Adicionar
           </ContextMenuItem>
           <ContextMenuSub>
             <ContextMenuSubTrigger>Ações</ContextMenuSubTrigger>
@@ -82,6 +85,7 @@ export function MenuOptions({
                   <ContextMenuItem
                     key={nodeType.type}
                     onClick={() => handleNodeSelect(nodeType)}
+                    className="cursor-pointer"
                   >
                     <nodeType.icon className="size-4" />
                     {nodeType.label}
