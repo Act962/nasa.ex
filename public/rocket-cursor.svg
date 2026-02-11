@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <g transform="rotate(45 16 16)">
+    <path d="M16 2C16 2 8 10 8 20C8 24 10 28 16 30C22 28 24 24 24 20C24 10 16 2 16 2Z" fill="url(#rocketGradient)" stroke="#fff" stroke-width="1"/>
+    <ellipse cx="16" cy="16" rx="4" ry="5" fill="#a855f7"/>
+    <ellipse cx="16" cy="16" rx="2.5" ry="3" fill="#1a1a2e"/>
+    <path d="M8 20C6 22 5 26 6 28C8 27 10 24 10 22" fill="#ff6b6b"/>
+    <path d="M24 20C26 22 27 26 26 28C24 27 22 24 22 22" fill="#ff6b6b"/>
+    <path d="M12 28C13 30 15 31 16 32C17 31 19 30 20 28C18 29 14 29 12 28" fill="#ffa500"/>
+  </g>
+  <defs>
+    <linearGradient id="rocketGradient" x1="16" y1="2" x2="16" y2="30">
+      <stop offset="0%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+  </defs>
+</svg>

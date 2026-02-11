@@ -198,3 +198,164 @@
   height: 0;
   pointer-events: none;
 }
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 20px hsl(270 80% 65% / 0.3),
+      0 0 60px hsl(270 80% 65% / 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 30px hsl(270 80% 65% / 0.5),
+      0 0 80px hsl(270 80% 65% / 0.2);
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.animate-twinkle {
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.5s ease-out forwards;
+}
+
+/* Animated border gradient */
+@keyframes border-glow {
+  0%,
+  100% {
+    border-color: hsl(270 80% 55% / 0.6);
+    box-shadow:
+      0 0 20px hsl(270 80% 65% / 0.3),
+      0 0 40px hsl(270 80% 65% / 0.1);
+  }
+  50% {
+    border-color: hsl(220 80% 55% / 0.6);
+    box-shadow:
+      0 0 20px hsl(220 80% 65% / 0.3),
+      0 0 40px hsl(220 80% 65% / 0.1);
+  }
+}
+
+/* Traveling light animation */
+@keyframes light-travel {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Search input glow */
+.search-glow {
+  animation: border-glow 4s ease-in-out infinite;
+  border-width: 2px;
+  transition: box-shadow 0.3s ease;
+  position: relative;
+}
+
+.search-glow::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+
+  background-size: 200% 100%;
+  animation: light-travel 6s linear infinite;
+  pointer-events: none;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  padding: 2px;
+}
+
+.search-glow:focus-within {
+  animation: border-glow 2s ease-in-out infinite;
+  box-shadow:
+    0 0 30px hsl(270 80% 65% / 0.4),
+    0 0 80px hsl(270 80% 65% / 0.15);
+}
+
+/* Rocket cursor for desktop */
+@media (min-width: 768px) {
+  .rocket-cursor {
+    cursor:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 32 32'%3E%3Cg transform='rotate(315 16 16)'%3E%3Cpath d='M16 2C16 2 8 10 8 20C8 24 10 28 16 30C22 28 24 24 24 20C24 10 16 2 16 2Z' fill='%23e2e8f0' stroke='%23fff' stroke-width='1'/%3E%3Cellipse cx='16' cy='16' rx='4' ry='5' fill='%23a855f7'/%3E%3Cellipse cx='16' cy='16' rx='2.5' ry='3' fill='%231a1a2e'/%3E%3Cpath d='M8 20C6 22 5 26 6 28C8 27 10 24 10 22' fill='%23ff6b6b'/%3E%3Cpath d='M24 20C26 22 27 26 26 28C24 27 22 24 22 22' fill='%23ff6b6b'/%3E%3Cpath d='M12 28C13 30 15 31 16 32C17 31 19 30 20 28C18 29 14 29 12 28' fill='%23ffa500'/%3E%3C/g%3E%3C/svg%3E")
+        12 12,
+      auto;
+  }
+}
+
+/* Tool card style */
+.tool-card {
+  background: linear-gradient(
+    135deg,
+    hsl(260 30% 12% / 0.8),
+    hsl(280 30% 10% / 0.6)
+  );
+  backdrop-filter: blur(20px);
+  border: 1px solid hsl(270 50% 40% / 0.2);
+  transition: all 0.3s ease;
+}
+
+.tool-card:hover {
+  border-color: hsl(270 70% 60% / 0.5);
+  box-shadow: 0 0 30px hsl(270 80% 65% / 0.2);
+  transform: translateY(-4px);
+}
+
+/* Galaxy background overlay */
+.galaxy-overlay {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 0%,
+    hsl(240 20% 4% / 0.3) 50%,
+    hsl(240 20% 4% / 0.8) 100%
+  );
+}
