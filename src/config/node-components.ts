@@ -3,6 +3,7 @@ import { HttpRequestNode } from "@/features/executions/components/http-request/n
 import { MoveLeadNode } from "@/features/executions/components/move-lead/node";
 import { SendMessageNode } from "@/features/executions/components/send-message/node";
 import { TagNode } from "@/features/executions/components/tag/node";
+import { TemperatureNode } from "@/features/executions/components/temperature/node";
 import { WaitNode } from "@/features/executions/components/wait/node";
 import { WinLossNode } from "@/features/executions/components/win_loss/node";
 import { ManualTriggerNode } from "@/features/triggers/components/manual-trigger/node";
@@ -20,6 +21,7 @@ export const nodeComponents = {
   [NodeType.WAIT]: WaitNode,
   [NodeType.WIN_LOSS]: WinLossNode,
   [NodeType.TAG]: TagNode,
+  [NodeType.TEMPERATURE]: TemperatureNode,
 } as const satisfies NodeTypes;
 
 export type RegisteredNodeTypes = keyof typeof nodeComponents;

@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { LeadItem } from "./lead-item";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Lead = {
   id: string;
@@ -63,7 +64,7 @@ export const StatusItem = ({ data, index }: StatusItemProps) => {
       className={cn(
         "shrink-0 w-68 h-full flex flex-col select-none",
         isDragging && "z-50",
-        index === 0 && "ml-4"
+        index === 0 && "ml-4",
       )}
     >
       <div className="flex flex-col flex-1 min-h-0 rounded-md bg-muted/80 shadow-md pb-2">
@@ -76,7 +77,7 @@ export const StatusItem = ({ data, index }: StatusItemProps) => {
           <ol
             className={cn(
               "mx-1 px-1 py-0.5 flex flex-col gap-y-2",
-              data.leads.length > 0 ? "mt-2" : "mt-0"
+              data.leads.length > 0 ? "mt-2" : "mt-0",
             )}
           >
             <SortableContext items={data.leads.map((col) => col.id)}>
@@ -87,6 +88,24 @@ export const StatusItem = ({ data, index }: StatusItemProps) => {
           </ol>
         </ScrollArea>
         <LeadForm statusId={data.id} />
+      </div>
+    </li>
+  );
+};
+
+export const StatusItemSkeleton = () => {
+  return (
+    <li className="shrink-0 w-68 h-full flex flex-col select-none">
+      <div className="flex flex-col flex-1 min-h-0 rounded-md bg-muted/80 shadow-md pb-2 ">
+        <Skeleton className="h-10 mx-1 mt-2" />
+        <ScrollArea className="flex-1 min-h-0">
+          <ol className="mx-1 px-1 py-2 flex flex-col gap-y-2">
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+          </ol>
+        </ScrollArea>
+        <Skeleton className="h-10 mx-1 " />
       </div>
     </li>
   );

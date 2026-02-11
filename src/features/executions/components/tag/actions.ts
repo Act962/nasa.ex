@@ -2,13 +2,13 @@
 
 import { inngest } from "@/inngest/client";
 import { getSubscriptionToken, type Realtime } from "@inngest/realtime";
-import { winLossChannel } from "@/inngest/channels/win-loss";
+import { tagChannel } from "@/inngest/channels/tag";
 
-export type WinLossToken = Realtime.Token<typeof winLossChannel, ["status"]>;
+export type TagToken = Realtime.Token<typeof tagChannel, ["status"]>;
 
-export async function fetchWinLossRealtimeToken(): Promise<WinLossToken> {
+export async function fetchTagRealtimeToken(): Promise<TagToken> {
   const token = await getSubscriptionToken(inngest, {
-    channel: winLossChannel(),
+    channel: tagChannel(),
     topics: ["status"],
   });
 

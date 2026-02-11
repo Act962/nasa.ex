@@ -3,32 +3,24 @@
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { memo, useState } from "react";
 import { BaseExecutionNode } from "../base-execution-node";
-import { TagIcon } from "lucide-react";
-import { TagDialog, TagFormValues } from "./dialog";
-import { useNodeStatus } from "../../hook/use-node-status";
-import { TAG_CHANNEL_NAME } from "@/inngest/channels/tag";
-import { fetchTagRealtimeToken } from "./actions";
+import { ArrowLeftRightIcon, CircleGaugeIcon } from "lucide-react";
+import { TemperatureDialog, TemperatureFormValues } from "./dialog";
 
-type TagNodeData = {
-  action?: TagFormValues;
+type TemperatureNodeData = {
+  action?: TemperatureFormValues;
 };
 
-type TagNodeType = Node<TagNodeData>;
+type TemperatureNodeType = Node<TemperatureNodeData>;
 
-export const TagNode = memo((props: NodeProps<TagNodeType>) => {
+export const TemperatureNode = memo((props: NodeProps<TemperatureNodeType>) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { setNodes } = useReactFlow();
 
-  const nodeStatus = useNodeStatus({
-    nodeId: props.id,
-    channel: TAG_CHANNEL_NAME,
-    topic: "status",
-    refreshToken: fetchTagRealtimeToken,
-  });
+  const nodeStatus = "initial";
 
   const handleOpenSettings = () => setDialogOpen(true);
 
-  const handleSubmit = (values: TagFormValues) => {
+  const handleSubmit = (values: TemperatureFormValues) => {
     setNodes((nodes) =>
       nodes.map((node) => {
         if (node.id === props.id) {
@@ -53,7 +45,7 @@ export const TagNode = memo((props: NodeProps<TagNodeType>) => {
 
   return (
     <>
-      <TagDialog
+      <TemperatureDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSubmit={handleSubmit}
@@ -62,10 +54,10 @@ export const TagNode = memo((props: NodeProps<TagNodeType>) => {
       <BaseExecutionNode
         {...props}
         id={props.id}
-        icon={TagIcon}
-        name="Tag"
+        icon={CircleGaugeIcon}
+        name="Temperatura"
         status={nodeStatus}
-        description="Adiciona/remove uma tag"
+        description="Altera a temperatura do lead"
         onSettings={handleOpenSettings}
         onDoubleClick={handleOpenSettings}
       />
@@ -73,4 +65,4 @@ export const TagNode = memo((props: NodeProps<TagNodeType>) => {
   );
 });
 
-TagNode.displayName = "TagNode";
+TemperatureNode.displayName = "TemperatureNode";

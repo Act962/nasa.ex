@@ -472,6 +472,7 @@ enum NodeType {
   WAIT
   WIN_LOSS
   TAG
+  TEMPERATURE
 }
 
 model Node {

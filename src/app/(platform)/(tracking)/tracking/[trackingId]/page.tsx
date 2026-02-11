@@ -3,15 +3,9 @@ import { FiltersTracking } from "./_components/filters";
 
 type TrackingPageProps = {
   params: Promise<{ trackingId: string }>;
-  searchParams: Promise<{
-    [key: string]: string | string[] | undefined;
-  }>;
 };
 
-export default async function TrackingPage({
-  params,
-  searchParams,
-}: TrackingPageProps) {
+export default async function TrackingPage({ params }: TrackingPageProps) {
   const { trackingId } = await params;
 
   return (

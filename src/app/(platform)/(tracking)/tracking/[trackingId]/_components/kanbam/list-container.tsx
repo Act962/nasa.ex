@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { StatusForm } from "./status-form";
 import { useEffect, useMemo, useState } from "react";
-import { StatusItem } from "./status-item";
+import { StatusItem, StatusItemSkeleton } from "./status-item";
 import {
   DndContext,
   DragEndEvent,
@@ -81,7 +81,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
       date_end: dateEnd ? dayjs(dateEnd).endOf("day").toDate() : undefined,
       participant: participantFilter || undefined,
     }),
-    [trackingId, dateInit, dateEnd, participantFilter]
+    [trackingId, dateInit, dateEnd, participantFilter],
   );
 
   const { status, isStatusLoading } = useQueryStatus(queryInput);
@@ -101,10 +101,10 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
   const [activeColumn, setActiveColumn] = useState<StatusWithLeads | null>(
-    null
+    null,
   );
   const [activeLead, setActiveLead] = useState<
     StatusWithLeads["leads"][0] | null
@@ -132,12 +132,12 @@ export function ListContainer({ trackingId }: ListContainerProps) {
 
       // CORREÇÃO: Salva o índice REAL atual do lead no array
       const statusIndex = statusData.findIndex(
-        (status) => status.id === lead.statusId
+        (status) => status.id === lead.statusId,
       );
 
       if (statusIndex !== -1) {
         const leadIndex = statusData[statusIndex].leads.findIndex(
-          (l) => l.id === lead.id
+          (l) => l.id === lead.id,
         );
 
         if (leadIndex !== -1) {
@@ -203,10 +203,10 @@ export function ListContainer({ trackingId }: ListContainerProps) {
       }
 
       const activeColumnIndex = statusData.findIndex(
-        (col) => col.id === activeColumnId
+        (col) => col.id === activeColumnId,
       );
       const overColumnIndex = statusData.findIndex(
-        (col) => col.id === overColumnId
+        (col) => col.id === overColumnId,
       );
 
       const items = arrayMove(statusData, activeColumnIndex, overColumnIndex);
@@ -240,7 +240,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
 
       for (const status of statusData) {
         const leadIndex = status.leads.findIndex(
-          (lead) => lead.id === activeId
+          (lead) => lead.id === activeId,
         );
         if (leadIndex !== -1) {
           newStatusId = status.id;
@@ -290,10 +290,10 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     if (isActiveLead && isOverLead) {
       setStatusData((statuses) => {
         const activeIndex = statuses.findIndex((status) =>
-          status.leads.some((lead) => lead.id === activeId)
+          status.leads.some((lead) => lead.id === activeId),
         );
         const overIndex = statuses.findIndex((status) =>
-          status.leads.some((lead) => lead.id === overId)
+          status.leads.some((lead) => lead.id === overId),
         );
 
         if (activeIndex === -1 || overIndex === -1) return statuses;
@@ -302,10 +302,10 @@ export function ListContainer({ trackingId }: ListContainerProps) {
         const overStatus = statuses[overIndex];
 
         const activeLeadIndex = activeStatus.leads.findIndex(
-          (lead) => lead.id === activeId
+          (lead) => lead.id === activeId,
         );
         const overLeadIndex = overStatus.leads.findIndex(
-          (lead) => lead.id === overId
+          (lead) => lead.id === overId,
         );
 
         // Movendo dentro da mesma coluna
@@ -313,7 +313,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
           const newLeads = arrayMove(
             activeStatus.leads,
             activeLeadIndex,
-            overLeadIndex
+            overLeadIndex,
           );
 
           const newStatuses = [...statuses];
@@ -356,7 +356,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     if (isActiveLead && isOverColumn) {
       setStatusData((statuses) => {
         const activeIndex = statuses.findIndex((status) =>
-          status.leads.some((lead) => lead.id === activeId)
+          status.leads.some((lead) => lead.id === activeId),
         );
         const overIndex = statuses.findIndex((status) => status.id === overId);
 
@@ -366,7 +366,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
         const overStatus = statuses[overIndex];
 
         const activeLeadIndex = activeStatus.leads.findIndex(
-          (lead) => lead.id === activeId
+          (lead) => lead.id === activeId,
         );
 
         // Se já está na mesma coluna, não faz nada
@@ -399,6 +399,19 @@ export function ListContainer({ trackingId }: ListContainerProps) {
     setStatusData(status);
   }, [status]);
 
+  if (isStatusLoading) {
+    return (
+      <div className="grid grid-rows-[1fr_auto] h-full">
+        <ol className="flex gap-x-3 overflow-x-auto ml-4">
+          <StatusItemSkeleton />
+          <StatusItemSkeleton />
+          <StatusItemSkeleton />
+        </ol>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -428,7 +441,7 @@ export function ListContainer({ trackingId }: ListContainerProps) {
             )}
             {activeLead && <LeadItem data={activeLead} />}
           </DragOverlay>,
-          document.body
+          document.body,
         )}
     </DndContext>
   );
