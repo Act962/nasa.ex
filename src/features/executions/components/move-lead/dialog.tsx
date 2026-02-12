@@ -28,8 +28,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useQueryStatus } from "@/features/status/hooks/use-status";
-import { useQueryTrackings } from "@/features/trackings/hooks/use-trackings";
+import {
+  useQueryStatus,
+  useQueryTrackings,
+} from "@/features/trackings/hooks/use-trackings";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckIcon, ChevronsUpDown } from "lucide-react";

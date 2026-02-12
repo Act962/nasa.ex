@@ -24,7 +24,7 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { StatusForm } from "./status-form";
-import { StatusColumn } from "./status-column";
+import { StatusColumn, StatusItemSkeleton } from "./status-column";
 import { Footer } from "./footer";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -221,7 +221,20 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
     }
   }, [status, setColumnList]);
 
-  if (isLoading) return null;
+  if (isLoading) {
+    return (
+      <div className="grid grid-rows-[1fr_auto] h-full">
+        <ol className="flex gap-x-3 overflow-x-auto">
+          <StatusItemSkeleton />
+          <StatusItemSkeleton />
+          <StatusItemSkeleton />
+          <StatusItemSkeleton />
+          <StatusItemSkeleton />
+        </ol>
+        <Footer />
+      </div>
+    );
+  }
   return (
     <DndContext
       sensors={sensors}

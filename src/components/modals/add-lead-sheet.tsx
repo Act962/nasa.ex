@@ -123,11 +123,11 @@ export default function AddLeadSheet({
 
   const onCreateLead = useMutation(
     orpc.leads.createWithTags.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data) => {
         queryClient.invalidateQueries({
-          queryKey: orpc.status.list.queryKey({
+          queryKey: orpc.status.getMany.queryKey({
             input: {
-              trackingId: trackingId!,
+              trackingId: data.lead.trackingId,
             },
           }),
         });
@@ -138,7 +138,7 @@ export default function AddLeadSheet({
       onError: () => {
         toast.error("Erro ao criar lead, tente novamente mais tarde!");
       },
-    })
+    }),
   );
 
   const { status, isLoadingStatus } = useStatus(trackingId ?? "");
@@ -161,7 +161,7 @@ export default function AddLeadSheet({
   const removeTag = (id: string) => {
     setValue(
       "tags",
-      selectedTags.filter((t) => t !== id)
+      selectedTags.filter((t) => t !== id),
     );
   };
 

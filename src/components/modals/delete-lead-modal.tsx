@@ -29,7 +29,7 @@ export function DeletarLeadModal() {
     orpc.leads.archive.mutationOptions({
       onSuccess: ({ lead }) => {
         queryClient.invalidateQueries({
-          queryKey: orpc.status.list.queryKey({
+          queryKey: orpc.status.getMany.queryKey({
             input: {
               trackingId: lead.trackingId,
             },
@@ -41,7 +41,7 @@ export function DeletarLeadModal() {
       onError: () => {
         toast.error("Erro ao deletar lead!");
       },
-    })
+    }),
   );
 
   function onDelete() {

@@ -74,7 +74,7 @@ export const useInfiniteLeadsByStatus = ({
       statusId,
       trackingId,
       cursor: pageParams,
-      limit: 50,
+      limit: 10,
     }),
     context: { cache: true },
     enabled,

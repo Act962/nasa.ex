@@ -11,7 +11,7 @@ export const useCreateLead = () => {
         toast.success("Lead criada com sucesso!");
 
         queryClient.invalidateQueries({
-          queryKey: orpc.status.list.queryKey({
+          queryKey: orpc.status.getMany.queryKey({
             input: { trackingId: data.lead.trackingId },
           }),
         });
@@ -42,7 +42,7 @@ export const userMoveToFirst = () => {
         toast.success(`${data.leadName} movido para o início da coluna`);
 
         queryClient.invalidateQueries(
-          orpc.status.list.queryOptions({
+          orpc.status.getMany.queryOptions({
             input: {
               trackingId: data.trackingId,
             },
@@ -62,7 +62,7 @@ export const useMoveToLast = () => {
         toast.success(`${data.leadName} movido para o fim da coluna`);
 
         queryClient.invalidateQueries(
-          orpc.status.list.queryOptions({
+          orpc.status.getMany.queryOptions({
             input: {
               trackingId: data.trackingId,
             },
@@ -73,20 +73,20 @@ export const useMoveToLast = () => {
   );
 };
 
-export const useUpdateOrder = () => {
-  return useMutation(
-    orpc.leads.updateOrder.mutationOptions({
-      onSuccess: () => {
-        toast.success("Lead atualizada com sucesso!");
-      },
-      onError: () => {
-        toast.error("Erro ao atualizar lead, tente novamente mais tarde");
-        // Reverte o estado em caso de erro
-        // setStatusData(status);
-      },
-    }),
-  );
-};
+// export const useUpdateOrder = () => {
+//   return useMutation(
+//     orpc.leads.updateOrder.mutationOptions({
+//       onSuccess: () => {
+//         toast.success("Lead atualizada com sucesso!");
+//       },
+//       onError: () => {
+//         toast.error("Erro ao atualizar lead, tente novamente mais tarde");
+//         // Reverte o estado em caso de erro
+//         // setStatusData(status);
+//       },
+//     }),
+//   );
+// };
 
 export const useQueryLead = (leadId: string) => {
   const { data, isLoading } = useQuery(

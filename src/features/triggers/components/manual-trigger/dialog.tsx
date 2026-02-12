@@ -30,8 +30,10 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { useLeadSearch } from "@/features/leads/hooks/use-lead-search";
-import { useQueryStatus } from "@/features/status/hooks/use-status";
-import { useQueryTrackings } from "@/features/trackings/hooks/use-trackings";
+import {
+  useQueryStatus,
+  useQueryTrackings,
+} from "@/features/trackings/hooks/use-trackings";
 import { useDebouncedValue } from "@/hooks/use-debouced";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -79,7 +81,7 @@ export const ManualTriggerDialog = ({
   const leadId = form.watch("leadId");
 
   const { trackings, isLoading: isLoadingTrackings } = useQueryTrackings();
-  const { status, isStatusLoading } = useQueryStatus({
+  const { status, isLoading } = useQueryStatus({
     trackingId: trackingId || "",
   });
 
@@ -153,7 +155,7 @@ export const ManualTriggerDialog = ({
                       form.setValue("leadId", "");
                     }}
                     value={field.value}
-                    disabled={!trackingId || isStatusLoading}
+                    disabled={!trackingId || isLoading}
                   >
                     <SelectTrigger>
                       <SelectValue

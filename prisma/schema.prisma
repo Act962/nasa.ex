@@ -206,7 +206,7 @@ model Status {
   id         String   @id @default(cuid())
   name       String
   color      String?  @default("#1447e6")
-  order      Decimal  @db.Decimal(20, 10)
+  order      Decimal  @db.Decimal(20, 10) @default(0)
   trackingId String   @map("tracking_id")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
@@ -272,7 +272,7 @@ model Lead {
   statusId    String  @map("status_id")
   trackingId  String  @map("tracking_id")
   responsibleId String? @map("responsible_id")
-  order      Decimal @default("0") @db.Decimal(20, 10)
+  order      Decimal @db.Decimal(20, 10) @default(0)
   source      LeadSource @default(DEFAULT)
   temperature Temperature @default(COLD)
 

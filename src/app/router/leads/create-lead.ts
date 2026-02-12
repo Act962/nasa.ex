@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { Decimal } from "@prisma/client/runtime/client";
 
 // 🟧 LIST ALL
 export const createLead = base
@@ -19,7 +20,7 @@ export const createLead = base
       description: z.string().optional(),
       statusId: z.string(),
       trackingId: z.string(),
-    })
+    }),
   )
   .output(
     z.object({
@@ -31,10 +32,10 @@ export const createLead = base
         description: z.string().nullable(),
         statusId: z.string(),
         trackingId: z.string(),
-        order: z.number(),
+        // order: z.string(),
         createdAt: z.date(),
       }),
-    })
+    }),
   )
   .handler(async ({ input, errors, context }) => {
     try {
@@ -61,7 +62,13 @@ export const createLead = base
           select: { order: true },
         });
 
-        const newOrder = lastLead !== null ? lastLead.order + 1 : 0;
+        let newOrder: Decimal;
+
+        newOrder = lastLead
+          ? new Decimal(lastLead.order).plus(1)
+          : new Decimal(0);
+
+        // const newOrder = lastLead !== null ? lastLead.order + 1 : 0;
 
         // Cria o novo lead
         return await tx.lead.create({
@@ -83,7 +90,7 @@ export const createLead = base
             description: true,
             statusId: true,
             trackingId: true,
-            order: true,
+            // order: true,
             createdAt: true,
           },
         });

@@ -12,47 +12,6 @@ interface UseSuspenseStatusOptions {
   participant?: string;
 }
 
-export const useQueryStatus = ({
-  trackingId,
-  date_init,
-  date_end,
-  participant,
-}: UseSuspenseStatusOptions) => {
-  const { data, isPending } = useQuery(
-    orpc.status.list.queryOptions({
-      input: {
-        trackingId,
-        date_init,
-        date_end,
-        participant,
-      },
-    }),
-  );
-
-  return {
-    status: data?.status ?? [],
-    isStatusLoading: isPending,
-  };
-};
-
-export const useSuspenseStatus = ({
-  trackingId,
-  date_init,
-  date_end,
-  participant,
-}: UseSuspenseStatusOptions) => {
-  return useSuspenseQuery(
-    orpc.status.list.queryOptions({
-      input: {
-        trackingId,
-        date_init,
-        date_end,
-        participant,
-      },
-    }),
-  );
-};
-
 export const useCreateStatus = () => {
   const queryClient = useQueryClient();
 
@@ -132,7 +91,7 @@ export function useUpdateStatus(trackingId: string) {
         toast.success("Status atualizado com sucesso!");
 
         queryClient.invalidateQueries({
-          queryKey: orpc.status.list.queryKey({
+          queryKey: orpc.status.getMany.queryKey({
             input: {
               trackingId,
             },
@@ -156,7 +115,7 @@ export function useUpdateStatus(trackingId: string) {
 
 export const useUpdateStatusOrder = () => {
   return useMutation(
-    orpc.status.updateOrder.mutationOptions({
+    orpc.status.updateNewOrder.mutationOptions({
       onSuccess: () => {
         toast.success("Coluna atualizada com sucesso!");
       },

@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { Decimal } from "@prisma/client/runtime/client";
 /**
  * 🟢 Adicionar Lead como o primeiro da coluna
  */ export const addLeadFirst = base
@@ -15,13 +16,13 @@ import { z } from "zod";
     z.object({
       leadId: z.string(),
       statusId: z.string(),
-    })
+    }),
   )
   .output(
     z.object({
       leadName: z.string(),
       trackingId: z.string(),
-    })
+    }),
   )
   .handler(async ({ input, errors }) => {
     const { leadId, statusId } = input;
@@ -54,7 +55,7 @@ import { z } from "zod";
       }
 
       // Se já é o primeiro na mesma coluna, apenas retorna
-      if (!isChangingColumn && lead.order === 0) {
+      if (!isChangingColumn && lead.order === new Decimal(0)) {
         return {
           leadName: lead.name,
           trackingId: lead.trackingId,

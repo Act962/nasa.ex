@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { Decimal } from "@prisma/client/runtime/client";
 
 export const addLeadLast = base
   .use(requiredAuthMiddleware)
@@ -14,13 +15,13 @@ export const addLeadLast = base
     z.object({
       leadId: z.string(),
       statusId: z.string(),
-    })
+    }),
   )
   .output(
     z.object({
       leadName: z.string(),
       trackingId: z.string(),
-    })
+    }),
   )
   .handler(async ({ input, errors }) => {
     const { leadId, statusId } = input;
@@ -62,7 +63,13 @@ export const addLeadLast = base
         select: { order: true },
       });
 
-      const newOrder = lastLead ? lastLead.order + 1 : 0;
+      let newOrder: Decimal;
+
+      newOrder = lastLead
+        ? new Decimal(lastLead.order).plus(1)
+        : new Decimal(0);
+
+      // const newOrder = lastLead ? lastLead.order + 1 : 0;
 
       // Se já está no final da mesma coluna, apenas retorna
       if (!isChangingColumn && lead.order === newOrder) {
