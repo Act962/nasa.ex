@@ -36,7 +36,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export function ConversationsList() {
   const { conversationId } = useParams<{ conversationId: string }>();
-  const isOpen = !!conversationId;
   const [open, setOpen] = useState(false);
   const { trackings, isLoadingTrackings } = useQueryTracking();
   const [selectedTracking, setSelectedTracking] = useState<string>("");
@@ -103,10 +102,7 @@ export function ConversationsList() {
   if (isLoading || isLoadingTrackings) {
     return (
       <aside
-        className={cn(
-          "pb-20 lg:pb-0 lg:w-80 lg:block overflow-y-auto border-r border-foreground/10 block w-full",
-          isOpen ? "hidden" : "block w-full",
-        )}
+        className={cn("pb-20 lg:pb-0 lg:block overflow-y-auto block w-full ")}
       >
         <div className="px-5">
           <div className="flex justify-between mb-4 pt-4">
@@ -125,10 +121,7 @@ export function ConversationsList() {
   return (
     <>
       <aside
-        className={cn(
-          "pb-20 lg:pb-0 lg:w-80 lg:block border-r border-foreground/10 block w-full overflow-hidden",
-          isOpen ? "hidden" : "block w-full",
-        )}
+        className={cn("pb-20 lg:pb-0 lg:block block w-full overflow-hidden")}
       >
         <div className="px-5 flex flex-col h-full">
           <div className="flex justify-between mb-4 pt-4">

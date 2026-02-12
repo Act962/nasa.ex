@@ -57,11 +57,13 @@ export function SendFile({
     conversationId,
     lead,
     quotedMessageId: messageSelected?.messageId,
+    messageSelected,
   });
   const mutationFile = useMutationFileMessage({
     conversationId,
     lead,
     quotedMessageId: messageSelected?.messageId,
+    messageSelected,
   });
 
   const handleSend = async (e: React.FormEvent<HTMLFormElement>) => {

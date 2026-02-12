@@ -16,6 +16,7 @@ import dayjs from "dayjs";
 import Link from "next/link";
 import { memo } from "react";
 import { Lead } from "../types";
+import { useConstructUrl } from "@/hooks/use-construct-url";
 
 export const LeadItem = memo(({ data }: { data: Lead }) => {
   const {
@@ -38,6 +39,8 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
     transform: CSS.Transform.toString(transform),
     opacity: isDragging ? 0.5 : 1,
   };
+
+  // const url = useConstructUrl(data.profile || "");
 
   return (
     <div
@@ -62,9 +65,14 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
             {...attributes}
           >
             <AvatarImage
-              src={"https://github.com/ElFabrica.png"}
+              src={
+                "https://avatars.githubusercontent.com/u/142946955?s=130&v=4"
+              }
               alt="photo user"
             />
+            <AvatarFallback className="text-xs bg-foreground/10 ">
+              {data.name.split(" ")[0][0]}
+            </AvatarFallback>
           </Avatar>
           <span className="font-medium text-xs truncate">
             {data.name.split(" ")[0]}

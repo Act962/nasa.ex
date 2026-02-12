@@ -57,10 +57,39 @@ export const createMessageWithFile = base
           status: MessageStatus.SENT,
           quotedMessageId: input.id,
         },
-        include: {
+        select: {
+          id: true,
+          messageId: true,
+          body: true,
+          createdAt: true,
+          fromMe: true,
+          status: true,
+          mediaUrl: true,
+          mediaType: true,
+          mediaCaption: true,
+          mimetype: true,
+          fileName: true,
+          quotedMessageId: true,
+          conversationId: true,
+          senderId: true,
           conversation: {
+            select: {
+              id: true,
+              lead: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          quotedMessage: {
             include: {
-              lead: true,
+              conversation: {
+                include: {
+                  lead: true,
+                },
+              },
             },
           },
         },

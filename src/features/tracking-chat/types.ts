@@ -59,6 +59,9 @@ export interface MarkedMessage {
   messageId: string;
   fromMe: boolean;
   quotedMessageId?: string | null;
+  mediaUrl?: string | null;
+  mimetype?: string | null;
+  fileName?: string | null;
   lead: {
     id: string;
     name: string;

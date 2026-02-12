@@ -89,6 +89,7 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
     if (!el) return;
 
     const scrollToBottomIfNeeded = () => {
+      if (skipAutoScrollRef.current) return;
       if (isAtBottom || !hasInitialScrolled) {
         requestAnimationFrame(() => {
           bottomRef.current?.scrollIntoView({ block: "end" });
@@ -131,6 +132,24 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
   const isNearBottom = (el: HTMLDivElement) =>
     el.scrollHeight - el.scrollTop - el.clientHeight <= 80;
 
+  const skipAutoScrollRef = useRef(false);
+
+  useEffect(() => {
+    const handleManualScroll = () => {
+      skipAutoScrollRef.current = true;
+      setIsAtBottom(false);
+      setNewMessages(false);
+      // Re-enable auto-scroll logic after enough time for the smooth scroll and animation to finish
+      setTimeout(() => {
+        skipAutoScrollRef.current = false;
+      }, 3000);
+    };
+
+    window.addEventListener("manual-scroll-started", handleManualScroll);
+    return () =>
+      window.removeEventListener("manual-scroll-started", handleManualScroll);
+  }, []);
+
   const handleScroll = () => {
     const el = scrollRef.current;
 
@@ -146,7 +165,9 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
       });
     }
 
-    setIsAtBottom(isNearBottom(el));
+    if (!skipAutoScrollRef.current) {
+      setIsAtBottom(isNearBottom(el));
+    }
   };
 
   useEffect(() => {
