@@ -11,17 +11,17 @@ const prisma = new PrismaClient({
   adapter,
 });
 
-const userId = "lglLGTaOXQtZmMWHFluooyGCLxkFVpfu";
-const trackingId = "cmkfzj9w40000uwc11q5wq84i";
-const statusId = "cmkfzj9w70002uwc1vxbmyo5n";
-const statusId2 = "cmkfzj9w80003uwc1jdxscpxu";
-const statusId3 = "cmkfzj9w80004uwc1vhhvxemd";
+const userId = "w9Q7KqTBaOGHL2CcvFOFlNpUgSaoqKJg";
+const trackingId = "cmlf3qjk80001ywsl6vteyf8o";
+const statusId = "cmligywl40000bgsl75hkvhqa";
+const statusId2 = "cmlih39es0001bgsloyvggkcg";
+const statusId3 = "cmljp37ca00012ssld4sb2v5l";
 
 async function main() {
   const statusIds = [statusId, statusId2, statusId3];
 
   for (let i = 1; i <= 5000; i++) {
-    const phone = `732941${i.toString().padStart(8, "0")}`;
+    const phone = `852146${i.toString().padStart(8, "0")}`;
     const randomStatusId = faker.helpers.arrayElement(statusIds);
 
     const lead = await prisma.lead.create({

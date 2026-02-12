@@ -1,9 +1,11 @@
 import { orpc } from "@/lib/orpc";
 import {
   useInfiniteQuery,
+  useMutation,
   useQuery,
   useSuspenseQuery,
 } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export const useQueryTrackings = () => {
   const { data, isLoading } = useQuery(orpc.tracking.list.queryOptions());
@@ -61,9 +63,11 @@ export const useQueryStatus = ({ trackingId }: { trackingId: string }) => {
 export const useInfiniteLeadsByStatus = ({
   statusId,
   trackingId,
+  enabled = true,
 }: {
   statusId: string;
   trackingId: string;
+  enabled?: boolean;
 }) => {
   const query = orpc.leads.listLeadsByStatus.infiniteOptions({
     input: (pageParams: string | undefined) => ({
@@ -73,6 +77,7 @@ export const useInfiniteLeadsByStatus = ({
       limit: 50,
     }),
     context: { cache: true },
+    enabled,
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
@@ -87,4 +92,24 @@ export const useInfiniteLeadsByStatus = ({
     isFetchingNextPage,
     isLoading,
   };
+};
+
+export const useUpdateColumnOrder = () => {
+  return useMutation(
+    orpc.status.updateNewOrder.mutationOptions({
+      onError: () => {
+        toast.error("Erro ao atualizar status");
+      },
+    }),
+  );
+};
+
+export const useUpdateLeadOrder = () => {
+  return useMutation(
+    orpc.leads.updateNewOrder.mutationOptions({
+      onError: () => {
+        toast.error("Erro ao atualizar lead");
+      },
+    }),
+  );
 };

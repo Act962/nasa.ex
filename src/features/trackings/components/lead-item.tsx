@@ -1,13 +1,11 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowUpRight, Grip, Mail, Phone, Tag, User } from "lucide-react";
+import { ArrowUpRight, Grip, Mail, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
 import { phoneMask } from "@/utils/format-phone";
 import {
   Tooltip,
@@ -16,24 +14,10 @@ import {
 } from "@/components/ui/tooltip";
 import dayjs from "dayjs";
 import Link from "next/link";
+import { memo } from "react";
+import { Lead } from "../types";
 
-type Lead = {
-  order: string;
-  id: string;
-  email: string | null;
-  name: string;
-  statusId: string;
-  createdAt: Date;
-  phone: string | null;
-  responsible: {
-    image: string | null;
-    name: string;
-  } | null;
-};
-
-export const LeadItem = ({ data }: { data: Lead }) => {
-  const router = useRouter();
-
+export const LeadItem = memo(({ data }: { data: Lead }) => {
   const {
     attributes,
     listeners,
@@ -59,6 +43,8 @@ export const LeadItem = ({ data }: { data: Lead }) => {
     <div
       ref={setNodeRef}
       style={style}
+      data-lead-id={data.id}
+      data-order={data.order}
       className="border-2 border-transparent hover:border-muted text-sm bg-muted rounded-md shadow-sm group"
     >
       <div className="flex items-center justify-between px-3">
@@ -85,14 +71,15 @@ export const LeadItem = ({ data }: { data: Lead }) => {
             {data.name.split(" ").length > 1 && ` ${data.name.split(" ")[1]}`}
           </span>
         </div>
+
         <Button
-          size={"sm"}
-          variant={"ghost"}
-          className="opacity-0 group-hover:opacity-100 transition-opacity"
+          size="icon-xs"
+          variant="ghost"
+          className="size-7 opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
           asChild
         >
           <Link href={`/contatos/${data.id}`}>
-            <ArrowUpRight className="size-4" />
+            <ArrowUpRight className="size-3.5" />
           </Link>
         </Button>
       </div>
@@ -153,7 +140,7 @@ export const LeadItem = ({ data }: { data: Lead }) => {
       </div>
     </div>
   );
-};
+});
 
 interface LeadItemContainerProps extends React.ComponentProps<"div"> {}
 

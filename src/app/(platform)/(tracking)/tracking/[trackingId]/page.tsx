@@ -1,4 +1,3 @@
-import { ListContainer } from "./_components/kanbam/list-container";
 import { FiltersTracking } from "./_components/filters";
 import { BoardContainer } from "@/features/trackings/components/board-container";
 

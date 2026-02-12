@@ -31,5 +31,10 @@ export const getMany = base
       },
     });
 
-    return status;
+    const ordered = status.map((s) => ({
+      ...s,
+      order: s.order.toString(),
+    }));
+
+    return ordered;
   });

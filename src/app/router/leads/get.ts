@@ -16,58 +16,10 @@ export const getLead = base
       id: z.string(),
     }),
   )
-  .output(
-    z.object({
-      lead: z.object({
-        // Campos do lead
-        id: z.string(),
-        name: z.string(),
-        email: z.string().nullable(),
-        phone: z.string().nullable(),
-        description: z.string().nullable(),
-        profile: z.string().nullable(),
-        statusId: z.string(),
-        trackingId: z.string(),
-        createdAt: z.date(),
-        updatedAt: z.date(),
-        responsible: z
-          .object({
-            id: z.string(),
-            name: z.string(),
-            email: z.string(),
-            createdAt: z.date(),
-            updatedAt: z.date(),
-            emailVerified: z.boolean(),
-            image: z.string().nullable(),
-          })
-          .nullable(),
 
-        // Relacionamento status
-        status: z.object({
-          id: z.string(),
-          name: z.string(),
-          trackingId: z.string(),
-          order: z.number(),
-          color: z.string().nullable(),
-          createdAt: z.date(),
-          updatedAt: z.date(),
-        }),
-
-        // Relacionamento tracking
-        tracking: z.object({
-          id: z.string(),
-          name: z.string(),
-          organizationId: z.string(),
-          description: z.string().nullable(),
-          createdAt: z.date(),
-          updatedAt: z.date(),
-        }),
-      }),
-    }),
-  )
   .handler(async ({ input, errors }) => {
     try {
-      const lead = await prisma.lead.findUnique({
+      const _lead = await prisma.lead.findUnique({
         where: {
           id: input.id,
         },
@@ -117,9 +69,17 @@ export const getLead = base
         },
       });
 
-      if (!lead) {
+      if (!_lead) {
         throw errors.NOT_FOUND;
       }
+
+      const lead = {
+        ..._lead,
+        status: {
+          ..._lead.status,
+          order: _lead.status.order.toString(),
+        },
+      };
 
       return { lead };
     } catch (err) {

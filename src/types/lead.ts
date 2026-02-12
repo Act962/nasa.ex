@@ -7,7 +7,7 @@ export interface LeadFull {
     description: string | null;
     profile: string | null;
     statusId: string;
-    order: number;
+
     trackingId: string;
     createdAt: Date;
     updatedAt: Date;
@@ -15,7 +15,7 @@ export interface LeadFull {
       id: string;
       name: string;
       trackingId: string;
-      order: number;
+      order: string;
       color: string | null;
       createdAt: Date;
       updatedAt: Date;
