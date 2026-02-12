@@ -23,6 +23,12 @@ export function MessageBox({
 
   const IconStatus = IconsStatus[message.status as MessageStatus];
 
+  const isFile =
+    message.mimetype?.startsWith("application/") ||
+    message.mimetype?.startsWith("text/") ||
+    message.mimetype?.startsWith("image/") ||
+    message.mimetype?.startsWith("video/");
+
   return (
     <div
       id={`message-${message.id}`}
@@ -36,10 +42,7 @@ export function MessageBox({
           className={cn(
             "text-sm w-fit overflow-hidden space-y-2 rounded-md px-1.5",
             isOwn ? "bg-foreground/10" : "bg-accent-foreground/10",
-            message.mimetype?.startsWith("application/pdf") ||
-              message.mimetype?.startsWith("image/jpeg")
-              ? "bg-transparent px-0"
-              : "",
+            isFile ? "bg-transparent px-0" : "",
           )}
         >
           {message.quotedMessage && <QuotedMessage message={message} />}
@@ -54,7 +57,8 @@ export function MessageBox({
               />
             )}
             {message.mediaUrl &&
-              message.mimetype?.startsWith("application/pdf") && (
+              (message.mimetype?.startsWith("application/") ||
+                message.mimetype?.startsWith("text/")) && (
                 <FileMessageBox
                   mediaUrl={message.mediaUrl}
                   mimetype={message.mimetype}

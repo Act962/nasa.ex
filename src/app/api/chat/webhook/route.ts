@@ -244,16 +244,14 @@ export async function POST(request: NextRequest) {
         });
 
         let key = null;
-        let mimetype = "";
+        let mimetype = document.mimetype;
         if (document?.fileURL) {
           const documentResponse = await fetch(document.fileURL);
           if (documentResponse.ok) {
             const arrayBuffer = await documentResponse.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
-            mimetype =
-              documentResponse.headers.get("content-type") || "application/pdf";
 
-            const extension = mimetype.split("/")[1] || "pdf";
+            const extension = document.fileURL.split(".").pop() || "pdf";
             key = `${uuidv4()}.${extension}`;
 
             await S3.send(
@@ -349,18 +347,15 @@ export async function POST(request: NextRequest) {
           baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
           data: { id: messageId, return_base64: false },
         });
+        console.log("document", document);
         let key = null;
-        let mimetype = "";
         if (document?.fileURL) {
           const documentResponse = await fetch(document.fileURL);
           if (documentResponse.ok) {
             const arrayBuffer = await documentResponse.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
-            mimetype =
-              documentResponse.headers.get("content-type") ||
-              "application/webp";
 
-            const extension = mimetype.split("/")[1] || "webp";
+            const extension = document.fileURL.split(".").pop() || "webp";
             key = `${uuidv4()}.${extension}`;
 
             await S3.send(
@@ -368,7 +363,7 @@ export async function POST(request: NextRequest) {
                 Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
                 Key: key,
                 Body: buffer,
-                ContentType: mimetype,
+                ContentType: document.mimetype,
               }),
             );
           }
@@ -381,7 +376,7 @@ export async function POST(request: NextRequest) {
             status: MessageStatus.SEEN,
             conversationId: lead.conversation?.id!,
             quotedMessageId: quotedMessageData?.id,
-            mimetype,
+            mimetype: document.mimetype,
             senderId,
             messageId,
           },

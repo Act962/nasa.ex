@@ -83,11 +83,13 @@ export function Footer({
   const mutation = useMutationTextMessage({
     conversationId,
     lead,
+    messageSelected,
   });
   const mutationAudio = useMutationAudioMessage({
     conversationId,
     lead,
     quotedMessageId: messageSelected?.messageId,
+    messageSelected,
   });
 
   const isDisabled = !instance.instance;
@@ -104,7 +106,6 @@ export function Footer({
       mimetype: blob.type,
       conversationId,
       replyId: messageSelected?.messageId || undefined,
-      // replyIdInternal: messageSelected?.messageId || undefined,
       id: messageSelected?.id,
     });
     closeMessageSelected();

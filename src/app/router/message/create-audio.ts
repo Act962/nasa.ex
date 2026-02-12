@@ -97,6 +97,15 @@ export const createMessageWithAudio = base
               },
             },
           },
+          quotedMessage: {
+            include: {
+              conversation: {
+                include: {
+                  lead: true,
+                },
+              },
+            },
+          },
         },
       });
 

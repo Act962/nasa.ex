@@ -1,6 +1,11 @@
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Message, InfiniteMessages, MessageStatus } from "../types";
+import {
+  Message,
+  InfiniteMessages,
+  MessageStatus,
+  MarkedMessage,
+} from "../types";
 import { toast } from "sonner";
 
 interface UseMutationTextMessageProps {
@@ -11,11 +16,13 @@ interface UseMutationTextMessageProps {
     name: string;
     phone: string | null;
   };
+  messageSelected?: MarkedMessage;
 }
 
 export function useMutationTextMessage({
   conversationId,
   lead,
+  messageSelected,
 }: UseMutationTextMessageProps) {
   const queryClient = useQueryClient();
 
@@ -32,8 +39,6 @@ export function useMutationTextMessage({
 
         const tempId = `optimistic-${crypto.randomUUID()}`;
 
-        console.log(data.replyId);
-
         const optimisticMessage: Message = {
           id: tempId,
           messageId: tempId,
@@ -49,6 +54,22 @@ export function useMutationTextMessage({
               name: lead.name,
             },
           },
+          quotedMessage: messageSelected
+            ? {
+                ...messageSelected,
+                mediaUrl: messageSelected.mediaUrl || null,
+                mimetype: messageSelected.mimetype || null,
+                fileName: messageSelected.fileName || null,
+                createdAt: new Date(),
+                status: MessageStatus.SENT,
+                conversation: {
+                  lead: {
+                    id: messageSelected.lead.id,
+                    name: messageSelected.lead.name,
+                  },
+                },
+              }
+            : null,
         };
         queryClient.setQueryData(
           ["message.list", conversationId],
@@ -96,8 +117,6 @@ export function useMutationTextMessage({
                   ? {
                       ...data.message,
                       status: MessageStatus.SEEN,
-                      quotedMessageId:
-                        data.message.quotedMessageId ?? undefined,
                     }
                   : message,
               ),
@@ -127,12 +146,14 @@ interface UseMutationMediaMessageProps {
     phone: string | null;
   };
   quotedMessageId?: string | null;
+  messageSelected?: MarkedMessage;
 }
 
 export function useMutationImageMessage({
   conversationId,
   lead,
   quotedMessageId,
+  messageSelected,
 }: UseMutationMediaMessageProps) {
   const queryClient = useQueryClient();
 
@@ -165,6 +186,25 @@ export function useMutationImageMessage({
               name: lead.name,
             },
           },
+          quotedMessage: messageSelected
+            ? {
+                id: messageSelected.id,
+                messageId: messageSelected.messageId,
+                body: messageSelected.body,
+                fromMe: messageSelected.fromMe,
+                mediaUrl: messageSelected.mediaUrl || null,
+                mimetype: messageSelected.mimetype || null,
+                fileName: messageSelected.fileName || null,
+                createdAt: new Date(),
+                status: MessageStatus.SENT,
+                conversation: {
+                  lead: {
+                    id: messageSelected.lead.id,
+                    name: messageSelected.lead.name,
+                  },
+                },
+              }
+            : null,
         };
         queryClient.setQueryData(
           ["message.list", conversationId],
@@ -212,8 +252,6 @@ export function useMutationImageMessage({
                   ? {
                       ...data.message,
                       status: MessageStatus.SEEN,
-                      quotedMessageId:
-                        data.message.quotedMessageId ?? undefined,
                     }
                   : message,
               ),
@@ -239,6 +277,7 @@ export function useMutationFileMessage({
   conversationId,
   lead,
   quotedMessageId,
+  messageSelected,
 }: UseMutationMediaMessageProps) {
   const queryClient = useQueryClient();
 
@@ -272,6 +311,22 @@ export function useMutationFileMessage({
               name: lead.name,
             },
           },
+          quotedMessage: messageSelected
+            ? {
+                ...messageSelected,
+                mediaUrl: messageSelected.mediaUrl || null,
+                mimetype: messageSelected.mimetype || null,
+                fileName: messageSelected.fileName || null,
+                createdAt: new Date(),
+                status: MessageStatus.SENT,
+                conversation: {
+                  lead: {
+                    id: messageSelected.lead.id,
+                    name: messageSelected.lead.name,
+                  },
+                },
+              }
+            : null,
         };
         queryClient.setQueryData(
           ["message.list", conversationId],
@@ -319,8 +374,6 @@ export function useMutationFileMessage({
                   ? {
                       ...data.message,
                       status: MessageStatus.SEEN,
-                      quotedMessageId:
-                        data.message.quotedMessageId ?? undefined,
                     }
                   : message,
               ),
@@ -345,6 +398,7 @@ export function useMutationAudioMessage({
   conversationId,
   lead,
   quotedMessageId,
+  messageSelected,
 }: UseMutationMediaMessageProps) {
   const queryClient = useQueryClient();
 
@@ -378,6 +432,22 @@ export function useMutationAudioMessage({
               name: lead.name,
             },
           },
+          quotedMessage: messageSelected
+            ? {
+                ...messageSelected,
+                mediaUrl: messageSelected.mediaUrl || null,
+                mimetype: messageSelected.mimetype || null,
+                fileName: messageSelected.fileName || null,
+                createdAt: new Date(),
+                status: MessageStatus.SENT,
+                conversation: {
+                  lead: {
+                    id: messageSelected.lead.id,
+                    name: messageSelected.lead.name,
+                  },
+                },
+              }
+            : null,
         };
         queryClient.setQueryData(
           ["message.list", conversationId],
