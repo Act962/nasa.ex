@@ -272,7 +272,7 @@ model Lead {
   statusId    String  @map("status_id")
   trackingId  String  @map("tracking_id")
   responsibleId String? @map("responsible_id")
-  order      Decimal @db.Decimal(20, 10)
+  order      Decimal @default("0") @db.Decimal(20, 10)
   source      LeadSource @default(DEFAULT)
   temperature Temperature @default(COLD)
 
