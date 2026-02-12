@@ -30,7 +30,6 @@ interface StatusHeaderProps {
   id: string;
   name: string;
   color: string | null;
-  order: number;
   trackingId: string;
 }
 

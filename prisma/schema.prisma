@@ -206,7 +206,7 @@ model Status {
   id         String   @id @default(cuid())
   name       String
   color      String?  @default("#1447e6")
-  order      Int      @default(0)
+  order      Decimal  @db.Decimal(20, 10)
   trackingId String   @map("tracking_id")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
@@ -272,7 +272,7 @@ model Lead {
   statusId    String  @map("status_id")
   trackingId  String  @map("tracking_id")
   responsibleId String? @map("responsible_id")
-  order       Int     @default(0)
+  order      Decimal @db.Decimal(20, 10)
   source      LeadSource @default(DEFAULT)
   temperature Temperature @default(COLD)
 
@@ -288,18 +288,15 @@ model Lead {
   tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   responsible User? @relation("LeadResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
   conversation Conversation? 
-  
-  @@index([phone])
 
   leadTags LeadTag[]
   history  LeadHistory[]
   actions  Action[]
 
-
-
   @@index([trackingId])
-  @@index([statusId])
+  @@index([statusId, order])
   @@index([email])
+  @@index([phone])
   @@index([createdAt])
   @@index([currentAction])
   @@index([isActive])

@@ -26,7 +26,7 @@ export const useQueryStatus = ({
         date_end,
         participant,
       },
-    })
+    }),
   );
 
   return {
@@ -49,7 +49,7 @@ export const useSuspenseStatus = ({
         date_end,
         participant,
       },
-    })
+    }),
   );
 };
 
@@ -61,26 +61,26 @@ export const useCreateStatus = () => {
       onSuccess: (data) => {
         toast.success("Status criado com sucesso!");
 
-        queryClient.invalidateQueries({
-          queryKey: orpc.status.list.queryKey({
+        queryClient.invalidateQueries(
+          orpc.status.getMany.queryOptions({
             input: {
               trackingId: data.trackingId,
             },
           }),
-        });
+        );
 
-        queryClient.invalidateQueries({
-          queryKey: orpc.status.listSimple.queryKey({
+        queryClient.invalidateQueries(
+          orpc.status.listSimple.queryOptions({
             input: {
               trackingId: data.trackingId,
             },
           }),
-        });
+        );
       },
       onError: () => {
         toast.error("Erro ao criar status, tente novamente");
       },
-    })
+    }),
   );
 };
 
@@ -92,18 +92,18 @@ export const useUpdateStatusName = () => {
       onSuccess: (data) => {
         toast.success("Status atualizado com sucesso!");
 
-        queryClient.invalidateQueries({
-          queryKey: orpc.status.list.queryKey({
+        queryClient.invalidateQueries(
+          orpc.status.getMany.queryOptions({
             input: {
               trackingId: data.trackingId,
             },
           }),
-        });
+        );
       },
       onError: () => {
         toast.error("Erro ao atualizar status, tente novamente");
       },
-    })
+    }),
   );
 };
 
@@ -114,7 +114,7 @@ export function useStatus(trackingId: string) {
         trackingId,
       },
       enabled: !!trackingId,
-    })
+    }),
   );
 
   return {
@@ -150,7 +150,7 @@ export function useUpdateStatus(trackingId: string) {
       onError: () => {
         toast.error("Erro ao atualizar status, tente novamente");
       },
-    })
+    }),
   );
 }
 
@@ -164,6 +164,6 @@ export const useUpdateStatusOrder = () => {
         toast.error("Erro ao atualizar coluna, tente novamente");
         // setStatusData(status);
       },
-    })
+    }),
   );
 };

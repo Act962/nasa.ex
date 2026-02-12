@@ -15,6 +15,8 @@ import { createActionByLead } from "./create-action-by-lead";
 import { updateActionByLead } from "./update-action-by-lead";
 import { listLeadByWhats } from "./list-lead-by-whats";
 import { listLeadWithoutConversation } from "./list-without-conversation";
+import { updateNewOrder } from "./update-new-order";
+import { listLeadsByStatus } from "./get-many";
 
 export const leadRoutes = {
   list: listLead,
@@ -34,4 +36,6 @@ export const leadRoutes = {
   updateActionByLead: updateActionByLead,
   listLeadByWhats: listLeadByWhats,
   listLeadWithoutConversation: listLeadWithoutConversation,
+  updateNewOrder: updateNewOrder,
+  listLeadsByStatus,
 };

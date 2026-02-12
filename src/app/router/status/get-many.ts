@@ -1,15 +1,14 @@
+import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
-export const listStatusSimple = base
+export const getMany = base
   .use(requiredAuthMiddleware)
   .route({
     method: "GET",
     path: "/list-status",
-    summary: "List all status without leads",
-    tags: ["Status"],
+    summary: "List status only",
   })
   .input(
     z.object({
@@ -21,15 +20,21 @@ export const listStatusSimple = base
       where: {
         trackingId: input.trackingId,
       },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        order: true,
+      },
       orderBy: {
         order: "asc",
       },
     });
 
-    return {
-      status: status.map((s) => ({
-        ...s,
-        order: s.order.toString(),
-      })),
-    };
+    const ordered = status.map((s) => ({
+      ...s,
+      order: s.order.toString(),
+    }));
+
+    return ordered;
   });
