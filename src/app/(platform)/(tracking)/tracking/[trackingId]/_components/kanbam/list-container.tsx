@@ -3,7 +3,7 @@
 import { orpc } from "@/lib/orpc";
 import { createPortal } from "react-dom";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
-import { StatusForm } from "./status-form";
+import { StatusForm } from "../../../../../../../features/trackings/components/status-form";
 import { useEffect, useMemo, useState } from "react";
 import { StatusItem, StatusItemSkeleton } from "./status-item";
 import {
@@ -27,7 +27,7 @@ import {
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
 import { LeadItem } from "./lead-item";
-import { Footer } from "./footer";
+import { Footer } from "../../../../../../../features/trackings/components/footer";
 import { useLostOrWin } from "@/hooks/use-lost-or-win";
 import { useDeletLead } from "@/hooks/use-delete-lead";
 import { useQueryState } from "nuqs";

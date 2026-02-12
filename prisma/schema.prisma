@@ -272,7 +272,7 @@ model Lead {
   statusId    String  @map("status_id")
   trackingId  String  @map("tracking_id")
   responsibleId String? @map("responsible_id")
-  order       Int     @default(0)
+  order      Decimal @db.Decimal(20, 10)
   source      LeadSource @default(DEFAULT)
   temperature Temperature @default(COLD)
 
@@ -295,9 +295,9 @@ model Lead {
   history  LeadHistory[]
   actions  Action[]
 
-
-
   @@index([trackingId])
+  @@index([statusId, order])
+  @@index([statusId, createdAt])
   @@index([statusId])
   @@index([email])
   @@index([createdAt])

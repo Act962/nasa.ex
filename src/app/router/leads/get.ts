@@ -27,7 +27,6 @@ export const getLead = base
         description: z.string().nullable(),
         profile: z.string().nullable(),
         statusId: z.string(),
-        order: z.number(),
         trackingId: z.string(),
         createdAt: z.date(),
         updatedAt: z.date(),
@@ -72,10 +71,49 @@ export const getLead = base
         where: {
           id: input.id,
         },
-        include: {
-          tracking: true,
-          status: true,
-          responsible: true,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          description: true,
+          profile: true,
+          statusId: true,
+          trackingId: true,
+          createdAt: true,
+          updatedAt: true,
+          responsible: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              createdAt: true,
+              updatedAt: true,
+              emailVerified: true,
+              image: true,
+            },
+          },
+          status: {
+            select: {
+              id: true,
+              name: true,
+              trackingId: true,
+              order: true,
+              color: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+          tracking: {
+            select: {
+              id: true,
+              name: true,
+              organizationId: true,
+              description: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
         },
       });
 

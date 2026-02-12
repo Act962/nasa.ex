@@ -6,7 +6,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -60,7 +59,7 @@ export const StatusForm = () => {
           setIsEditing(false);
           form.reset();
         },
-      }
+      },
     );
   };
 

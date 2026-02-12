@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { LeadForm } from "./lead-form";
+import { LeadForm } from "../../../../../../../features/trackings/components/lead-form";
 import { StatusHeader } from "./status-header";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SortableContext, useSortable } from "@dnd-kit/sortable";

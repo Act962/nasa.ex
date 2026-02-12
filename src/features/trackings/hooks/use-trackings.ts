@@ -1,5 +1,9 @@
 import { orpc } from "@/lib/orpc";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 
 export const useQueryTrackings = () => {
   const { data, isLoading } = useQuery(orpc.tracking.list.queryOptions());
@@ -35,6 +39,52 @@ export const useQueryParticipants = ({
 
   return {
     participants: data?.participants ?? [],
+    isLoading,
+  };
+};
+
+export const useQueryStatus = ({ trackingId }: { trackingId: string }) => {
+  const { data, isLoading } = useQuery(
+    orpc.status.getMany.queryOptions({
+      input: {
+        trackingId,
+      },
+    }),
+  );
+
+  return {
+    status: data ?? [],
+    isLoading,
+  };
+};
+
+export const useInfiniteLeadsByStatus = ({
+  statusId,
+  trackingId,
+}: {
+  statusId: string;
+  trackingId: string;
+}) => {
+  const query = orpc.leads.listLeadsByStatus.infiniteOptions({
+    input: (pageParams: string | undefined) => ({
+      statusId,
+      trackingId,
+      cursor: pageParams,
+      limit: 50,
+    }),
+    context: { cache: true },
+    initialPageParam: undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+  });
+
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useInfiniteQuery(query);
+
+  return {
+    data: data?.pages.flatMap((page) => page.leads) ?? [],
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
     isLoading,
   };
 };
