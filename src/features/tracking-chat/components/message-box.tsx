@@ -72,7 +72,7 @@ export function MessageBox({
               />
             )}
             {message.body && (
-              <div className="whitespace-pre-wrap px-1.5 pt-1">
+              <div className="whitespace-pre-wrap px-1.5 pt-1 ">
                 {message.body}
               </div>
             )}
