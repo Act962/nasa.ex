@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
             trackingId,
             source: LeadSource.WHATSAPP,
             profile: key,
-            order: "0",
+            order: 0,
             conversation: {
               create: {
                 remoteJid,
