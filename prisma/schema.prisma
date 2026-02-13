@@ -552,7 +552,7 @@ model Conversation {
   name          String?
   isGroup       Boolean  @default(false)
   
-  remoteJid     String   @unique @map("remote_jid")
+  remoteJid     String   @map("remote_jid")
   profilePicUrl String?  @map("profile_pic_url")
   isActive      Boolean  @default(true) @map("is_active")
   
@@ -567,6 +567,7 @@ model Conversation {
   messages      Message[]        @relation("Messages")
 
   @@unique([leadId, trackingId])
+  @@unique([remoteJid, trackingId])
   
   @@index([isActive])
   @@index([lastMessageAt])

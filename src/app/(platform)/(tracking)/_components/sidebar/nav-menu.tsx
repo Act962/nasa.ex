@@ -8,7 +8,6 @@ import {
   Kanban,
   MessageSquareTextIcon,
   Users,
-  type LucideIcon,
 } from "lucide-react";
 
 import {
