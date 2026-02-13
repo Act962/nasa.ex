@@ -23,6 +23,7 @@ import {
 } from "../hooks/use-messages";
 import { toast } from "sonner";
 import { SendFile } from "./send-file";
+import { useMessageStore } from "../context/use-message";
 import { useEffect, useRef, useState } from "react";
 
 import { Spinner } from "@/components/ui/spinner";
@@ -58,7 +59,18 @@ export function Footer({
   messageSelected: MarkedMessage | undefined;
   closeMessageSelected: () => void;
 }) {
+  const setInstanceData = useMessageStore((state) => state.setInstance);
   const instance = useQueryInstances(trackingId);
+
+  useEffect(() => {
+    if (instance.instance) {
+      setInstanceData({
+        token: instance.instance.apiKey,
+        baseUrl: instance.instance.baseUrl,
+      });
+    }
+  }, [instance.instance, setInstanceData]);
+
   const [selectedImage, setSelectedImage] = useState<string | undefined>(
     undefined,
   );

@@ -335,6 +335,7 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
               message={{ ...message, status: message.status as MessageStatus }}
               onSelectMessage={onSelectMessage}
               messageSelected={messageSelected}
+              conversationId={conversationId}
             />
           ))
         )}

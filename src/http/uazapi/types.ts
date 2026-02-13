@@ -164,6 +164,12 @@ export interface DeleteInstanceResponse {
   info: string;
 }
 
+export interface DeleteMessageResponse {
+  timestamp: string;
+  ID: string;
+  sender: string;
+}
+
 export type WebhookEvent =
   | "connection"
   | "history"

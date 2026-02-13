@@ -10,16 +10,26 @@ import { FileMessageBox } from "./file-message-box";
 import { AudioMessageBox } from "./audio-message-box";
 import { CheckCheckIcon, CheckIcon, LucideIcon, RedoIcon } from "lucide-react";
 import { QuotedMessage } from "./quoted-message";
+import { SelectedMessageOptions } from "./selected-message-options";
+import { useMutationDeleteMessage } from "../hooks/use-messages";
+
+import { useMessageStore } from "../context/use-message";
 
 export function MessageBox({
   message,
   onSelectMessage,
+  conversationId,
 }: {
   message: Message;
   messageSelected: MarkedMessage | undefined;
   onSelectMessage: (message: MarkedMessage) => void;
+  conversationId: string;
 }) {
   const isOwn = message.fromMe;
+  const token = useMessageStore((state) => state.token);
+  const deleteMessage = useMutationDeleteMessage({
+    conversationId,
+  });
 
   const IconStatus = IconsStatus[message.status as MessageStatus];
 
@@ -29,92 +39,111 @@ export function MessageBox({
     message.mimetype?.startsWith("image/") ||
     message.mimetype?.startsWith("video/");
 
+  const onDeleteMessage = () => {
+    if (!token) return;
+    deleteMessage.mutate({
+      messageId: message.id,
+      token: token,
+      id: message.messageId,
+    });
+  };
+
   return (
-    <div
-      id={`message-${message.id}`}
-      className={cn(
-        "group flex gap-2 p-4 transition-colors duration-500",
-        isOwn && "justify-end",
-      )}
-    >
-      <div className={cn("flex relative flex-col gap-2", isOwn && "items-end")}>
+    <>
+      <SelectedMessageOptions
+        message={message}
+        onSelectMessage={onSelectMessage}
+        onDeleteMessage={onDeleteMessage}
+      >
         <div
+          id={`message-${message.id}`}
           className={cn(
-            "text-sm w-fit overflow-hidden space-y-2 rounded-md px-1.5",
-            isOwn ? "bg-foreground/10" : "bg-accent-foreground/10",
-            isFile ? "bg-transparent px-0" : "",
+            "group flex gap-2 p-4 transition-colors duration-500",
+            isOwn && "justify-end",
           )}
         >
-          {message.quotedMessage && <QuotedMessage message={message} />}
-          <div className="relative w-fit items-center">
-            {message.mediaUrl && message.mimetype?.startsWith("image") && (
-              <Image
-                alt="Image"
-                src={useConstructUrl(message.mediaUrl)}
-                className="object-contain cursor-pointer max-h-50"
-                width={288}
-                height={288}
-              />
-            )}
-            {message.mediaUrl &&
-              (message.mimetype?.startsWith("application/") ||
-                message.mimetype?.startsWith("text/")) && (
-                <FileMessageBox
-                  mediaUrl={message.mediaUrl}
-                  mimetype={message.mimetype}
-                  fileName={message.fileName}
-                />
-              )}
-            {message.mediaUrl && message.mimetype?.startsWith("audio") && (
-              <AudioMessageBox
-                mediaUrl={message.mediaUrl}
-                mimetype={message.mimetype}
-              />
-            )}
-            {message.body && (
-              <div className="whitespace-pre-wrap px-1.5 pt-1 ">
-                {message.body}
-              </div>
-            )}
-          </div>
           <div
-            className={cn(
-              "absolute top-0 -right-10 bottom-0 flex items-center w-fit",
-              isOwn && "-left-10",
-            )}
+            className={cn("flex relative flex-col gap-2", isOwn && "items-end")}
           >
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden group-hover:block"
-              onClick={() =>
-                onSelectMessage({
-                  body: message.body,
-                  id: message.id,
-                  messageId: message.messageId,
-                  fromMe: message.fromMe,
-                  quotedMessageId: message.quotedMessageId,
-                  mediaUrl: message.mediaUrl,
-                  mimetype: message.mimetype,
-                  fileName: message.fileName,
-                  lead: {
-                    id: message.conversation?.lead?.id || "",
-                    name: message.conversation?.lead?.name || "",
-                  },
-                })
-              }
+            <div
+              className={cn(
+                "text-sm w-fit overflow-hidden space-y-2 rounded-md px-1.5",
+                isOwn ? "bg-foreground/10" : "bg-accent-foreground/10",
+                isFile ? "bg-transparent px-0" : "",
+              )}
             >
-              <RedoIcon className="size-4" />
-            </Button>
+              {message.quotedMessage && <QuotedMessage message={message} />}
+              <div className="relative w-fit items-center">
+                {message.mediaUrl && message.mimetype?.startsWith("image") && (
+                  <Image
+                    alt="Image"
+                    src={useConstructUrl(message.mediaUrl)}
+                    className="object-contain cursor-pointer max-h-50"
+                    width={288}
+                    height={288}
+                  />
+                )}
+                {message.mediaUrl &&
+                  (message.mimetype?.startsWith("application/") ||
+                    message.mimetype?.startsWith("text/")) && (
+                    <FileMessageBox
+                      mediaUrl={message.mediaUrl}
+                      mimetype={message.mimetype}
+                      fileName={message.fileName}
+                    />
+                  )}
+                {message.mediaUrl && message.mimetype?.startsWith("audio") && (
+                  <AudioMessageBox
+                    mediaUrl={message.mediaUrl}
+                    mimetype={message.mimetype}
+                  />
+                )}
+                {message.body && (
+                  <div className="whitespace-pre-wrap px-1.5 pt-1 ">
+                    {message.body}
+                  </div>
+                )}
+              </div>
+              <div
+                className={cn(
+                  "absolute top-0 -right-10 bottom-0 flex items-center w-fit",
+                  isOwn && "-left-10",
+                )}
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden group-hover:block"
+                  onClick={() =>
+                    onSelectMessage({
+                      body: message.body,
+                      id: message.id,
+                      messageId: message.messageId,
+                      fromMe: message.fromMe,
+                      quotedMessageId: message.quotedMessageId,
+                      mediaUrl: message.mediaUrl,
+                      mimetype: message.mimetype,
+                      fileName: message.fileName,
+                      lead: {
+                        id: message.conversation?.lead?.id || "",
+                        name: message.conversation?.lead?.name || "",
+                      },
+                    })
+                  }
+                >
+                  <RedoIcon className="size-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="text-xs flex flex-row items-center gap-1">
+              {format(new Date(message.createdAt), "p")}
+              <IconStatus className="size-3" />
+            </div>
           </div>
         </div>
-
-        <div className="text-xs flex flex-row items-center gap-1">
-          {format(new Date(message.createdAt), "p")}
-          <IconStatus className="size-3" />
-        </div>
-      </div>
-    </div>
+      </SelectedMessageOptions>
+    </>
   );
 }
 

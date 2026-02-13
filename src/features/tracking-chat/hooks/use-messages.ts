@@ -517,3 +517,22 @@ export function useMutationAudioMessage({
     }),
   );
 }
+
+export function useMutationDeleteMessage({
+  conversationId,
+}: {
+  conversationId: string;
+}) {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.message.delete.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: ["message.list", conversationId],
+        });
+        toast.success("Mensagem deletada");
+      },
+    }),
+  );
+}
