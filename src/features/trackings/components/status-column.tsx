@@ -1,16 +1,16 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useInfiniteLeadsByStatus } from "../hooks/use-trackings";
 import { LeadItem } from "./lead-item";
 import { cn } from "@/lib/utils";
-import { User } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { LeadForm } from "./lead-form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CSS } from "@dnd-kit/utilities";
 import { StatusHeader } from "./status-header";
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { EMPTY_LEADS, useKanbanStore } from "../lib/kanban-store";
+import { useQueryState } from "nuqs";
+import dayjs from "dayjs";
 
 interface StatusColumnProps {
   status: {
@@ -30,6 +30,9 @@ export function StatusColumn({
   isOverlay,
 }: StatusColumnProps) {
   const { registerColumn } = useKanbanStore();
+  const [dateInit] = useQueryState("date_init");
+  const [dateEnd] = useQueryState("date_end");
+  const [participantFilter] = useQueryState("participant");
   const {
     attributes,
     listeners,
@@ -52,11 +55,21 @@ export function StatusColumn({
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+  const queryInput = useMemo(
+    () => ({
+      dateInit: dateInit ? dayjs(dateInit).startOf("day").toDate() : undefined,
+      dateEnd: dateEnd ? dayjs(dateEnd).endOf("day").toDate() : undefined,
+      participantFilter: participantFilter || undefined,
+    }),
+    [dateInit, dateEnd, participantFilter],
+  );
+
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteLeadsByStatus({
       statusId: status.id,
       trackingId,
       enabled: !isOverlay,
+      ...queryInput,
     });
 
   useEffect(() => {

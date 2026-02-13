@@ -11,6 +11,13 @@ export const useCreateLead = () => {
         toast.success("Lead criada com sucesso!");
 
         queryClient.invalidateQueries({
+          queryKey: [
+            "leads.listLeadsByStatus",
+            data.lead.statusId,
+            data.lead.trackingId,
+          ],
+        });
+        queryClient.invalidateQueries({
           queryKey: orpc.status.getMany.queryKey({
             input: { trackingId: data.lead.trackingId },
           }),

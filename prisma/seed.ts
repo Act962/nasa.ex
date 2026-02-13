@@ -11,11 +11,11 @@ const prisma = new PrismaClient({
   adapter,
 });
 
-const userId = "w9Q7KqTBaOGHL2CcvFOFlNpUgSaoqKJg";
-const trackingId = "cmlf3qjk80001ywsl6vteyf8o";
-const statusId = "cmligywl40000bgsl75hkvhqa";
-const statusId2 = "cmlih39es0001bgsloyvggkcg";
-const statusId3 = "cmljp37ca00012ssld4sb2v5l";
+const userId = "lglLGTaOXQtZmMWHFluooyGCLxkFVpfu";
+const trackingId = "cmkfzj9w40000uwc11q5wq84i";
+const statusId = "cmkfzj9w70002uwc1vxbmyo5n";
+const statusId2 = "cmkfzj9w80004uwc1vhhvxemd";
+const statusId3 = "cmkfzj9w80003uwc1jdxscpxu";
 
 async function main() {
   const statusIds = [statusId, statusId2, statusId3];
@@ -47,3 +47,10 @@ async function main() {
   }
 }
 main();
+
+// async function main() {
+//   await prisma.conversation.deleteMany();
+//   await prisma.lead.deleteMany();
+// }
+
+// main();

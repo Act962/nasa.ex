@@ -16,16 +16,39 @@ export const listLeadsByStatus = base
       trackingId: z.string(),
       cursor: z.string().optional(),
       limit: z.number().min(1).max(100).default(50),
+      dateInit: z.string().optional(),
+      dateEnd: z.string().optional(),
+      participantFilter: z.string().optional(),
     }),
   )
   .handler(async ({ input }) => {
-    const { statusId, trackingId, cursor, limit } = input;
+    const {
+      statusId,
+      trackingId,
+      cursor,
+      limit,
+      dateInit,
+      dateEnd,
+      participantFilter,
+    } = input;
 
     const leads = await prisma.lead.findMany({
       where: {
         statusId,
         trackingId,
         // isActive: true,
+        ...(dateInit &&
+          dateEnd && {
+            createdAt: {
+              gte: new Date(dateInit),
+              lte: new Date(dateEnd),
+            },
+          }),
+        ...(participantFilter && {
+          responsible: {
+            email: participantFilter,
+          },
+        }),
       },
       orderBy: {
         order: "asc",

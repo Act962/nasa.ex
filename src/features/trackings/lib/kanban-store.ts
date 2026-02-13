@@ -87,6 +87,39 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
 
   // Registra ou atualiza os leads de uma coluna (vindo do useInfiniteQuery)
   registerColumn: (columnId, leads) => {
+    // const currentLeads = get().columns[columnId]?.leads;
+
+    // // ❌ Remova esta verificação problemática
+    // // if (currentLeads === leads) return;
+
+    // // ✅ Compare apenas por tamanho E IDs
+    // if (currentLeads && leads) {
+    //   if (currentLeads.length !== leads.length) {
+    //     // Tamanho diferente = atualiza
+    //     set((state) => ({
+    //       columns: {
+    //         ...state.columns,
+    //         [columnId]: { id: columnId, leads },
+    //       },
+    //     }));
+    //     return;
+    //   }
+
+    //   // Mesma quantidade: verifica se todos os IDs são iguais
+    //   const sameIds = currentLeads.every(
+    //     (current, idx) => current.id === leads[idx]?.id,
+    //   );
+
+    //   if (sameIds) return; // Mesmos IDs na mesma ordem = não atualiza
+    // }
+
+    // // Atualiza o store
+    // set((state) => ({
+    //   columns: {
+    //     ...state.columns,
+    //     [columnId]: { id: columnId, leads },
+    //   },
+    // }));
     const currentLeads = get().columns[columnId]?.leads;
 
     // Comparação de referência simples se ambos existirem

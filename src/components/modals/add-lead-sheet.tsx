@@ -125,12 +125,13 @@ export default function AddLeadSheet({
     orpc.leads.createWithTags.mutationOptions({
       onSuccess: (data) => {
         queryClient.invalidateQueries({
-          queryKey: orpc.status.getMany.queryKey({
-            input: {
-              trackingId: data.lead.trackingId,
-            },
-          }),
+          queryKey: [
+            "leads.listLeadsByStatus",
+            data.lead.statusId,
+            data.lead.trackingId,
+          ],
         });
+
         toast.success("Lead criado com sucesso");
         reset();
         onOpenChange(false);
@@ -177,14 +178,13 @@ export default function AddLeadSheet({
   const selectedTagsData = tags?.filter((t) => selectedTags.includes(t.id));
 
   const onSubmit = (data: FormData) => {
-    console.log("FORM DATA:", data);
     onCreateLead.mutate({
       name: data.name,
       phone: data.phone,
       email: data.email,
       description: data.description,
       statusId: data.statusId,
-      trackingId: trackingId!,
+      trackingId: trackingId,
       position: data.position,
       tagIds: selectedTags,
     });
