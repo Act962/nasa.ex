@@ -40,7 +40,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
     opacity: isDragging ? 0.5 : 1,
   };
 
-  // const url = useConstructUrl(data.profile || "");
+  const url = useConstructUrl(data.profile || "");
 
   return (
     <div
@@ -64,12 +64,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
             {...listeners}
             {...attributes}
           >
-            <AvatarImage
-              src={
-                "https://avatars.githubusercontent.com/u/142946955?s=130&v=4"
-              }
-              alt="photo user"
-            />
+            <AvatarImage src={url} alt="photo user" />
             <AvatarFallback className="text-xs bg-foreground/10 ">
               {data.name.split(" ")[0][0]}
             </AvatarFallback>

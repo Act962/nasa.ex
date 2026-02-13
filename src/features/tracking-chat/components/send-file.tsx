@@ -149,11 +149,7 @@ export function SendFile({
           name="message"
           placeholder="Digite sua mensagem..."
         />
-        <Button
-          type="submit"
-          className="rounded-full"
-          disabled={mutation.isPending}
-        >
+        <Button type="submit" className="rounded-full">
           <SendIcon size={18} />
         </Button>
       </div>

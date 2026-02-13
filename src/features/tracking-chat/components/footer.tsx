@@ -266,11 +266,7 @@ export function Footer({
                     type="submit"
                     size="icon"
                     className="rounded-full "
-                    disabled={
-                      isDisabled ||
-                      mutation.isPending ||
-                      mutationAudio.isPending
-                    }
+                    disabled={isDisabled}
                   >
                     <SendIcon className="size-4 " />
                   </Button>
@@ -280,11 +276,7 @@ export function Footer({
                     variant="ghost"
                     size="icon"
                     className="rounded-full"
-                    disabled={
-                      isDisabled ||
-                      mutation.isPending ||
-                      mutationAudio.isPending
-                    }
+                    disabled={isDisabled}
                     onClick={() => setShowAudioRecorder(true)}
                   >
                     <MicIcon className="size-4" />
