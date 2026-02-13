@@ -47,10 +47,3 @@ async function main() {
   }
 }
 main();
-
-// async function main() {
-//   await prisma.conversation.deleteMany();
-//   await prisma.lead.deleteMany();
-// }
-
-// main();

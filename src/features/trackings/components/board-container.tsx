@@ -32,6 +32,9 @@ import { createPortal } from "react-dom";
 import { LeadItem } from "./lead-item";
 import { Decimal } from "@prisma/client/runtime/client";
 import { useKanbanStore } from "../lib/kanban-store";
+import { Lead } from "../types";
+import { useLostOrWin } from "@/hooks/use-lost-or-win";
+import { useDeletLead } from "@/hooks/use-delete-lead";
 
 interface BoardContainerProps {
   trackingId: string;
@@ -59,6 +62,8 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
     moveLeadInColumn,
     moveLeadToColumn,
   } = useKanbanStore();
+  const { onOpen } = useLostOrWin();
+  const { onOpen: onOpenDeleteLead } = useDeletLead();
   const updateColumnOrder = useUpdateColumnOrder();
   const updateLeadOrder = useUpdateLeadOrder();
 
@@ -107,6 +112,25 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
 
     const activeType = active.data.current?.type;
     const overType = over.data.current?.type;
+
+    if (activeType === "Lead" && overType === "FooterButton") {
+      const leadData: Lead = active.data.current?.lead;
+      const footerAction = over.data.current?.action;
+
+      switch (footerAction) {
+        case "ganho":
+          onOpen(leadData.id, "WIN");
+          break;
+        case "perdido":
+          onOpen(leadData.id, "LOSS");
+          break;
+        case "apagar":
+          onOpenDeleteLead({ ...leadData, trackingId });
+          break;
+      }
+
+      return;
+    }
 
     if (activeType === "Column") {
       const activeId = active.id as string;
