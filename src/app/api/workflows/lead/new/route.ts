@@ -63,11 +63,13 @@ export async function POST(req: Request) {
       );
     }
 
-    await sendWorkflowExecution({
-      workflowId: workflows[0].id,
-      initialData: {
-        lead,
-      },
+    workflows.forEach(async (workflow) => {
+      await sendWorkflowExecution({
+        workflowId: workflow.id,
+        initialData: {
+          lead,
+        },
+      });
     });
 
     return NextResponse.json({

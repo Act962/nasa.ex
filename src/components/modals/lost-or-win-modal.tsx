@@ -56,7 +56,14 @@ export function LostOrWinModal() {
 
   const mutation = useMutation(
     orpc.leads.updateAction.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({
+          queryKey: [
+            "leads.listLeadsByStatus",
+            data.lead.statusId,
+            data.lead.trackingId,
+          ],
+        });
         queryClient.invalidateQueries({
           queryKey: orpc.status.getMany.queryKey({
             input: {

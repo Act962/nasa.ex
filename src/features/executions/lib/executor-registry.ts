@@ -10,6 +10,7 @@ import { winLossExecutor } from "../components/win_loss/executor";
 import { tagExecutor } from "../components/tag/executor";
 import { temperatureExecutor } from "../components/temperature/executor";
 import { responsibleExecutor } from "../components/responsible/executor";
+import { moveLeadStatusTriggerExecutor } from "@/features/triggers/components/move-lead-status/executor";
 
 export const executorRegistry: Record<NodeType, NodeExecutor> = {
   [NodeType.INITIAL]: manualTriggerExecutor,
@@ -23,6 +24,7 @@ export const executorRegistry: Record<NodeType, NodeExecutor> = {
   [NodeType.TAG]: tagExecutor,
   [NodeType.TEMPERATURE]: temperatureExecutor,
   [NodeType.RESPONSIBLE]: responsibleExecutor,
+  [NodeType.MOVE_LEAD_STATUS]: moveLeadStatusTriggerExecutor,
 };
 
 export const getExecutor = (type: NodeType): NodeExecutor => {

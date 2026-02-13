@@ -36,7 +36,7 @@ export const listLeadsByStatus = base
       where: {
         statusId,
         trackingId,
-        // isActive: true,
+        currentAction: "ACTIVE",
         ...(dateInit &&
           dateEnd && {
             createdAt: {
