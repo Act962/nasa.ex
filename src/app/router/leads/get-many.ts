@@ -68,6 +68,7 @@ export const listLeadsByStatus = base
         order: true,
         statusId: true,
         createdAt: true,
+        profile: true,
         responsible: {
           select: {
             image: true,

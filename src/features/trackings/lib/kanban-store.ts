@@ -7,6 +7,7 @@ type Lead = {
   id: string;
   email: string | null;
   name: string;
+  profile: string | null;
   statusId: string;
   createdAt: Date;
   phone: string | null;
