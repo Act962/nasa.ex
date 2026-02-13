@@ -124,7 +124,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
         case "perdido":
           onOpen(leadData.id, "LOSS");
           break;
-        case "apagar":
+        case "excluir":
           onOpenDeleteLead({ ...leadData, trackingId });
           break;
       }
