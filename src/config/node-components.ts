@@ -8,6 +8,7 @@ import { TemperatureNode } from "@/features/executions/components/temperature/no
 import { WaitNode } from "@/features/executions/components/wait/node";
 import { WinLossNode } from "@/features/executions/components/win_loss/node";
 import { ManualTriggerNode } from "@/features/triggers/components/manual-trigger/node";
+import { MoveLeadStatusTriggerNode } from "@/features/triggers/components/move-lead-status/node";
 import { NewLeadTriggerNode } from "@/features/triggers/components/new-lead-trigger/node";
 import { NodeType } from "@/generated/prisma/enums";
 import type { NodeTypes } from "@xyflow/react";
@@ -24,6 +25,7 @@ export const nodeComponents = {
   [NodeType.TAG]: TagNode,
   [NodeType.TEMPERATURE]: TemperatureNode,
   [NodeType.RESPONSIBLE]: ResponsibleNode,
+  [NodeType.MOVE_LEAD_STATUS]: MoveLeadStatusTriggerNode,
 } as const satisfies NodeTypes;
 
 export type RegisteredNodeTypes = keyof typeof nodeComponents;

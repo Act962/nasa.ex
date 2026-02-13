@@ -3,6 +3,7 @@ import {
   ArrowLeftRightIcon,
   CircleGaugeIcon,
   MousePointerIcon,
+  MoveHorizontalIcon,
   SendIcon,
   TagIcon,
   TimerIcon,
@@ -34,6 +35,13 @@ export const triggerNodes: NodeTypeOption[] = [
     label: "Novo Lead",
     description: "Executa o fluxo ao criar um novo lead",
     icon: UserPlusIcon,
+  },
+  {
+    type: NodeType.MOVE_LEAD_STATUS,
+    category: "trigger",
+    label: "Mover Lead para Status",
+    description: "Executa o fluxo ao mover um lead para um status",
+    icon: MoveHorizontalIcon,
   },
 ];
 

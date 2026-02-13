@@ -13,7 +13,6 @@ import {
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
-
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -34,6 +33,9 @@ export function DeletarLeadModal() {
               trackingId: lead.trackingId,
             },
           }),
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["leads.listLeadsByStatus", lead.trackingId, lead.statusId],
         });
         toast.success("Lead deletado!");
         onClose();
