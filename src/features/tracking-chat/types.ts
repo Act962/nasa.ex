@@ -68,8 +68,13 @@ export interface MarkedMessage {
   };
 }
 
+export type MessageGroup = {
+  date: string;
+  messages: Message[];
+};
+
 export type MessagePage = {
-  items: Message[];
+  items: MessageGroup[];
   nextCursor?: string;
 };
 

@@ -10,6 +10,13 @@ import { EmptyChat } from "./empty-chat";
 import { Spinner } from "@/components/ui/spinner";
 import { ChevronDownIcon } from "lucide-react";
 import { pusherClient } from "@/lib/pusher";
+import dayjs from "dayjs";
+import calendar from "dayjs/plugin/calendar";
+import "dayjs/locale/pt-br";
+
+dayjs.extend(calendar);
+dayjs.locale("pt-br");
+
 import {
   CreatedMessageProps,
   MessageBodyProps,
@@ -35,19 +42,28 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
   const lastItemIdRef = useRef<string | undefined>(undefined);
   const queryClient = useQueryClient();
   const session = authClient.useSession();
+  const fetchGuardRef = useRef(false);
 
   const infinitiOptions = orpc.message.list.infiniteOptions({
     input: (pageParam: string | undefined) => ({
       conversationId: conversationId,
       cursor: pageParam,
-      limit: 10,
+      limit: 30,
     }),
     queryKey: ["message.list", conversationId],
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     select: (data) => ({
       pages: [...data.pages]
-        .map((p) => ({ ...p, items: [...p.items].reverse() }))
+        .map((p) => ({
+          ...p,
+          items: [...p.items]
+            .map((group) => ({
+              ...group,
+              messages: [...group.messages].reverse(),
+            }))
+            .reverse(),
+        }))
         .reverse(),
       pageParams: [...data.pageParams],
     }),
@@ -68,7 +84,18 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
   });
 
   const items = useMemo(() => {
-    return data?.pages.flatMap((p) => p.items) ?? [];
+    const flattened = data?.pages.flatMap((p) => p.items) ?? [];
+    // Merge consecutive groups with the same date
+    const merged: { date: string; messages: Message[] }[] = [];
+    flattened.forEach((group) => {
+      const last = merged[merged.length - 1];
+      if (last && last.date === group.date) {
+        last.messages = [...last.messages, ...group.messages];
+      } else {
+        merged.push({ ...group });
+      }
+    });
+    return merged;
   }, [data]);
 
   useEffect(() => {
@@ -155,13 +182,28 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
 
     if (!el) return;
 
-    if (el.scrollTop <= 80 && hasNextPage && !isFetching) {
+    if (
+      el.scrollTop <= 80 &&
+      hasNextPage &&
+      !isFetching &&
+      !isFetchingNextPage &&
+      !fetchGuardRef.current
+    ) {
+      fetchGuardRef.current = true;
       const prevScrollHeight = el.scrollHeight;
       const prevScrollTop = el.scrollTop;
-      fetchNextPage().then(() => {
-        const newScrollHeight = el.scrollHeight;
 
-        el.scrollTop = newScrollHeight - prevScrollHeight + prevScrollTop;
+      fetchNextPage().then((result) => {
+        if (result.isError) {
+          fetchGuardRef.current = false;
+          return;
+        }
+
+        requestAnimationFrame(() => {
+          const newScrollHeight = el.scrollHeight;
+          el.scrollTop = newScrollHeight - prevScrollHeight + prevScrollTop;
+          fetchGuardRef.current = false;
+        });
       });
     }
 
@@ -173,7 +215,10 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
   useEffect(() => {
     if (!items.length) return;
 
-    const lastId = items[items.length - 1].id;
+    const lastId =
+      items[items.length - 1].messages[
+        items[items.length - 1].messages.length - 1
+      ].id;
     const prevLastId = lastItemIdRef.current;
 
     const el = scrollRef.current;
@@ -209,8 +254,7 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
     pusherClient.subscribe(conversationId);
     bottomRef.current?.scrollIntoView({ block: "end" });
 
-    pusherClient.bind("message:created", (body: CreatedMessageProps) => {
-      if (body.currentUserId === session.data?.user.id) return;
+    const updateCacheWithNewMessage = (body: MessageBodyProps) => {
       queryClient.setQueryData(["message.list", conversationId], (old: any) => {
         if (!old) return old;
 
@@ -227,7 +271,11 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
         };
 
         const exists = old.pages.some((page: any) =>
-          page.items.some((msg: Message) => msg.id === optimisticMessage.id),
+          page.items.some((group: any) =>
+            group.messages.some(
+              (msg: Message) => msg.id === optimisticMessage.id,
+            ),
+          ),
         );
 
         if (exists) {
@@ -235,73 +283,66 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
             ...old,
             pages: old.pages.map((page: any) => ({
               ...page,
-              items: page.items.map((msg: Message) =>
-                msg.id === optimisticMessage.id ? optimisticMessage : msg,
-              ),
+              items: page.items.map((group: any) => ({
+                ...group,
+                messages: group.messages.map((msg: Message) =>
+                  msg.id === optimisticMessage.id ? optimisticMessage : msg,
+                ),
+              })),
             })),
           };
         }
 
-        const firstPage = old.pages[0] ?? {
-          items: [],
-          nextCursor: undefined,
-        };
-        const updatedFirstPage = {
-          ...firstPage,
-          items: [optimisticMessage, ...firstPage.items],
-        };
+        const today = dayjs().format("YYYY-MM-DD");
+        const firstPage = old.pages[0];
+        const firstGroup = firstPage?.items[0];
+
+        if (firstGroup && firstGroup.date === today) {
+          return {
+            ...old,
+            pages: old.pages.map((page: any, i: number) => {
+              if (i === 0) {
+                return {
+                  ...page,
+                  items: page.items.map((group: any, j: number) => {
+                    if (j === 0) {
+                      return {
+                        ...group,
+                        messages: [optimisticMessage, ...group.messages],
+                      };
+                    }
+                    return group;
+                  }),
+                };
+              }
+              return page;
+            }),
+          };
+        }
+
+        const newGroup = { date: today, messages: [optimisticMessage] };
         return {
           ...old,
-          pages: [updatedFirstPage, ...old.pages.slice(1)],
+          pages: old.pages.map((page: any, i: number) => {
+            if (i === 0) {
+              return {
+                ...page,
+                items: [newGroup, ...page.items],
+              };
+            }
+            return page;
+          }),
         };
       });
+    };
+
+    pusherClient.bind("message:created", (body: CreatedMessageProps) => {
+      if (body.currentUserId === session.data?.user.id) return;
+      updateCacheWithNewMessage(body);
     });
 
     pusherClient.bind("message:new", (body: MessageBodyProps) => {
-      queryClient.setQueryData(["message.list", conversationId], (old: any) => {
-        if (!old) return old;
-
-        const optimisticMessage: Message = {
-          ...body,
-          body: body.body,
-          status: MessageStatus.SEEN,
-          conversation: {
-            lead: {
-              name: body.conversation?.lead?.name || "",
-              id: body.conversation?.lead?.id,
-            },
-          },
-        };
-
-        const exists = old.pages.some((page: any) =>
-          page.items.some((msg: Message) => msg.id === optimisticMessage.id),
-        );
-
-        if (exists) {
-          return {
-            ...old,
-            pages: old.pages.map((page: any) => ({
-              ...page,
-              items: page.items.map((msg: Message) =>
-                msg.id === optimisticMessage.id ? optimisticMessage : msg,
-              ),
-            })),
-          };
-        }
-
-        const firstPage = old.pages[0] ?? {
-          items: [],
-          nextCursor: undefined,
-        };
-        const updatedFirstPage = {
-          ...firstPage,
-          items: [optimisticMessage, ...firstPage.items],
-        };
-        return {
-          ...old,
-          pages: [updatedFirstPage, ...old.pages.slice(1)],
-        };
-      });
+      updateCacheWithNewMessage(body);
     });
 
     return () => {
@@ -310,7 +351,7 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
       pusherClient.unbind("message:created");
       bottomRef.current?.scrollIntoView({ block: "end" });
     };
-  }, [conversationId, queryClient]);
+  }, [conversationId, queryClient, session.data?.user.id]);
 
   const isEmpty = !error && !isLoading && items.length === 0;
 
@@ -329,15 +370,34 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
             />
           </div>
         ) : (
-          items.map((message) => (
-            <MessageBox
-              key={message.id}
-              message={{ ...message, status: message.status as MessageStatus }}
-              onSelectMessage={onSelectMessage}
-              messageSelected={messageSelected}
-              conversationId={conversationId}
-            />
-          ))
+          <div className="flex flex-col gap-2 p-4">
+            {items.map((group, groupIndex) => (
+              <div key={group.date + groupIndex} className="flex flex-col">
+                <div className="flex justify-center my-4 sticky top-2 z-10">
+                  <span className="bg-secondary text-secondary-foreground text-[9px] font-medium px-2 py-1 rounded-md shadow-sm uppercase">
+                    {dayjs(group.date).calendar(null, {
+                      sameDay: "[Hoje]",
+                      lastDay: "[Ontem]",
+                      lastWeek: "dddd",
+                      sameElse: "DD [de] MMMM [de] YYYY",
+                    })}
+                  </span>
+                </div>
+                {group.messages.map((message) => (
+                  <MessageBox
+                    key={message.id}
+                    message={{
+                      ...message,
+                      status: message.status as MessageStatus,
+                    }}
+                    onSelectMessage={onSelectMessage}
+                    messageSelected={messageSelected}
+                    conversationId={conversationId}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         )}
         <div ref={bottomRef}></div>
       </div>
