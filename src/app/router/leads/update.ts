@@ -21,6 +21,7 @@ export const updateLead = base
         description: z.string().optional(),
         statusId: z.string().optional(),
         responsibleId: z.string().optional(),
+        tagIds: z.array(z.string()).optional(),
       })
       .refine(
         (v) =>
@@ -29,12 +30,13 @@ export const updateLead = base
           v.email !== undefined ||
           v.description !== undefined ||
           v.statusId !== undefined ||
-          v.responsibleId !== undefined,
+          v.responsibleId !== undefined ||
+          v.tagIds !== undefined,
         {
           message: "No fields to update",
           path: ["id"],
-        }
-      )
+        },
+      ),
   )
   .output(
     z.object({
@@ -49,7 +51,7 @@ export const updateLead = base
         createdAt: z.date(),
         updatedAt: z.date(),
       }),
-    })
+    }),
   )
   .handler(async ({ input, errors }) => {
     try {
@@ -70,6 +72,14 @@ export const updateLead = base
           description: input.description,
           statusId: input.statusId,
           responsibleId: input.responsibleId,
+          leadTags: input.tagIds
+            ? {
+                deleteMany: {},
+                create: input.tagIds.map((tagId) => ({
+                  tagId,
+                })),
+              }
+            : undefined,
         },
         select: {
           id: true,

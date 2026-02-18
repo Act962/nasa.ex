@@ -37,5 +37,12 @@ export interface LeadFull {
       name: string;
       image: string | null;
     } | null;
+    tags: {
+      id: string;
+      name: string;
+      color: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }[];
   };
 }

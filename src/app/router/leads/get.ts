@@ -66,6 +66,19 @@ export const getLead = base
               updatedAt: true,
             },
           },
+          leadTags: {
+            select: {
+              tag: {
+                select: {
+                  id: true,
+                  name: true,
+                  color: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              },
+            },
+          },
         },
       });
 
@@ -79,6 +92,7 @@ export const getLead = base
           ..._lead.status,
           order: _lead.status.order.toString(),
         },
+        tags: _lead.leadTags.map((leadTag) => leadTag.tag),
       };
 
       return { lead };
