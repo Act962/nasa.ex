@@ -1,5 +1,5 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "./_components/sidebar";
+import { AppSidebar } from "../../../components/sidebar";
 import { HeaderTracking } from "./_components/header-tracking";
 import { currentOrganization } from "@/lib/auth-utils";
 import { EmptyOrganization } from "./_components/empty-organization";
