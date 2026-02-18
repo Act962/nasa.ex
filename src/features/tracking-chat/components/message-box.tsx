@@ -11,7 +11,7 @@ import { AudioMessageBox } from "./audio-message-box";
 import {
   CheckCheckIcon,
   CheckIcon,
-  ChevronDownIcon,
+  EllipsisVerticalIcon,
   LucideIcon,
   RedoIcon,
 } from "lucide-react";
@@ -87,66 +87,57 @@ export function MessageBox({
           >
             <div
               className={cn(
-                "text-sm w-fit overflow-hidden space-y-2 rounded-md px-1.5",
-                isOwn ? "bg-foreground/10" : "bg-accent-foreground/10",
-                isFile ? "bg-transparent px-0" : "",
+                "flex items-center gap-3",
+                isOwn && "flex-row-reverse",
               )}
             >
-              <SelectedMessageDropdown
-                message={message}
-                onSelectMessage={onSelectMessage}
-                onDeleteMessage={onDeleteMessage}
-                onCopyMessage={copyMessage}
-                onChange={setOpen}
-              >
-                <button
-                  className={`absolute top-0.5 right-3.5 z-10 opacity-0  group-hover:opacity-100 transition-opacity duration-500 ${open ? "opacity-100" : ""}`}
-                >
-                  <ChevronDownIcon className="size-3" />
-                </button>
-              </SelectedMessageDropdown>
-              {message.quotedMessage && <QuotedMessage message={message} />}
-              <div className="relative w-fit items-center">
-                {message.mediaUrl && message.mimetype?.startsWith("image") && (
-                  <Image
-                    alt="Image"
-                    src={useConstructUrl(message.mediaUrl)}
-                    className="object-contain cursor-pointer max-h-50"
-                    width={288}
-                    height={288}
-                  />
-                )}
-                {message.mediaUrl &&
-                  (message.mimetype?.startsWith("application/") ||
-                    message.mimetype?.startsWith("text/")) && (
-                    <FileMessageBox
-                      mediaUrl={message.mediaUrl}
-                      mimetype={message.mimetype}
-                      fileName={message.fileName}
-                    />
-                  )}
-                {message.mediaUrl && message.mimetype?.startsWith("audio") && (
-                  <AudioMessageBox
-                    mediaUrl={message.mediaUrl}
-                    mimetype={message.mimetype}
-                  />
-                )}
-                {message.body && (
-                  <div className="whitespace-pre-wrap px-1.5 pt-1 ">
-                    {message.body}
-                  </div>
-                )}
-              </div>
               <div
                 className={cn(
-                  "absolute top-0 -right-10 bottom-0 flex items-center w-fit",
-                  isOwn && "-left-10",
+                  "text-sm w-fit overflow-hidden space-y-2 rounded-md px-1.5",
+                  isOwn ? "bg-foreground/10" : "bg-accent-foreground/10",
+                  isFile ? "bg-transparent px-0" : "",
                 )}
               >
+                {message.quotedMessage && <QuotedMessage message={message} />}
+                <div className="relative w-fit py-1">
+                  {message.mediaUrl &&
+                    message.mimetype?.startsWith("image") && (
+                      <Image
+                        alt="Image"
+                        src={useConstructUrl(message.mediaUrl)}
+                        className="object-contain cursor-pointer max-h-50"
+                        width={288}
+                        height={288}
+                      />
+                    )}
+                  {message.mediaUrl &&
+                    (message.mimetype?.startsWith("application/") ||
+                      message.mimetype?.startsWith("text/")) && (
+                      <FileMessageBox
+                        mediaUrl={message.mediaUrl}
+                        mimetype={message.mimetype}
+                        fileName={message.fileName}
+                      />
+                    )}
+                  {message.mediaUrl &&
+                    message.mimetype?.startsWith("audio") && (
+                      <AudioMessageBox
+                        mediaUrl={message.mediaUrl}
+                        mimetype={message.mimetype}
+                      />
+                    )}
+                  {message.body && (
+                    <div className="whitespace-pre-wrap px-1.5 pt-1 ">
+                      {message.body}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="hidden group-hover:block"
+                  size="icon-sm"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity duration-100"
                   onClick={() =>
                     onSelectMessage({
                       body: message.body,
@@ -166,6 +157,21 @@ export function MessageBox({
                 >
                   <RedoIcon className="size-4" />
                 </Button>
+                <SelectedMessageDropdown
+                  message={message}
+                  onSelectMessage={onSelectMessage}
+                  onDeleteMessage={onDeleteMessage}
+                  onCopyMessage={copyMessage}
+                  onChange={setOpen}
+                >
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className={`opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${open ? "opacity-100" : ""}`}
+                  >
+                    <EllipsisVerticalIcon className="size-3" />
+                  </Button>
+                </SelectedMessageDropdown>
               </div>
             </div>
 
