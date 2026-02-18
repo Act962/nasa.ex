@@ -7,6 +7,7 @@ import {
   MarkedMessage,
 } from "../types";
 import { toast } from "sonner";
+import dayjs from "dayjs";
 
 interface UseMutationTextMessageProps {
   conversationId: string;
@@ -18,6 +19,80 @@ interface UseMutationTextMessageProps {
   };
   messageSelected?: MarkedMessage;
 }
+
+const updateCacheWithOptimisticMessage = (
+  old: any,
+  optimisticMessage: Message,
+) => {
+  const today = dayjs().format("YYYY-MM-DD");
+
+  if (!old) {
+    return {
+      pages: [
+        {
+          items: [{ date: today, messages: [optimisticMessage] }],
+          nextCursor: undefined,
+        },
+      ],
+      pageParams: [undefined],
+    };
+  }
+
+  const firstPage = old.pages[0] ?? {
+    items: [],
+    nextCursor: undefined,
+  };
+  const firstGroup = firstPage.items[0];
+
+  if (firstGroup && firstGroup.date === today) {
+    const updatedFirstPage = {
+      ...firstPage,
+      items: [
+        {
+          ...firstGroup,
+          messages: [optimisticMessage, ...firstGroup.messages],
+        },
+        ...firstPage.items.slice(1),
+      ],
+    };
+    return {
+      ...old,
+      pages: [updatedFirstPage, ...old.pages.slice(1)],
+    };
+  }
+
+  const updatedFirstPage = {
+    ...firstPage,
+    items: [{ date: today, messages: [optimisticMessage] }, ...firstPage.items],
+  };
+  return {
+    ...old,
+    pages: [updatedFirstPage, ...old.pages.slice(1)],
+  };
+};
+
+const updateCacheMessageStatus = (
+  old: InfiniteMessages | undefined,
+  tempId: string,
+  updatedMessage: Message,
+) => {
+  if (!old) return old;
+
+  return {
+    ...old,
+    pages: old.pages.map((page) => ({
+      ...page,
+      items: page.items.map((group) => ({
+        ...group,
+        messages: group.messages.map((m) =>
+          m.id === tempId
+            ? { ...updatedMessage, status: MessageStatus.SEEN }
+            : m,
+        ),
+      })),
+    })),
+  } as InfiniteMessages;
+};
 
 export function useMutationTextMessage({
   conversationId,
@@ -71,61 +146,28 @@ export function useMutationTextMessage({
               }
             : null,
         };
-        queryClient.setQueryData(
-          ["message.list", conversationId],
-          (old: any) => {
-            if (!old) {
-              return {
-                pages: [
-                  {
-                    items: [optimisticMessage],
-                    nextCursor: undefined,
-                  },
-                ],
-                pageParams: [undefined],
-              } satisfies InfiniteMessages;
-            }
-            const firstPage = old.pages[0] ?? {
-              items: [],
-              nextCursor: undefined,
-            };
-            const updatedFirstPage = {
-              ...firstPage,
-              items: [optimisticMessage, ...firstPage.items],
-            };
-            return {
-              ...old,
-              pages: [updatedFirstPage, ...old.pages.slice(1)],
-            };
-          },
+
+        queryClient.setQueryData(["message.list", conversationId], (old: any) =>
+          updateCacheWithOptimisticMessage(old, optimisticMessage),
         );
+
         return {
           previousData,
           tempId,
         };
       },
-      onSuccess: (data, _varibalies, context) => {
+      onSuccess: (data, _variables, context) => {
         queryClient.setQueryData<InfiniteMessages>(
           ["message.list", conversationId],
-          (old) => {
-            if (!old) return old;
-
-            const updatePages = old.pages.map((page) => ({
-              ...page,
-              items: page.items.map((message) =>
-                message.id === context?.tempId
-                  ? {
-                      ...data.message,
-                      status: MessageStatus.SEEN,
-                    }
-                  : message,
-              ),
-            }));
-            return { ...old, pages: updatePages };
-          },
+          (old) =>
+            updateCacheMessageStatus(
+              old,
+              context?.tempId,
+              data.message as Message,
+            ),
         );
       },
-      onError(_err, _varibalies, context) {
+      onError(_err, _variables, context) {
         if (context?.previousData) {
           queryClient.setQueryData(
             ["message.list", conversationId],
@@ -206,61 +248,28 @@ export function useMutationImageMessage({
               }
             : null,
         };
-        queryClient.setQueryData(
-          ["message.list", conversationId],
-          (old: any) => {
-            if (!old) {
-              return {
-                pages: [
-                  {
-                    items: [optimisticMessage],
-                    nextCursor: undefined,
-                  },
-                ],
-                pageParams: [undefined],
-              } satisfies InfiniteMessages;
-            }
-            const firstPage = old.pages[0] ?? {
-              items: [],
-              nextCursor: undefined,
-            };
-            const updatedFirstPage = {
-              ...firstPage,
-              items: [optimisticMessage, ...firstPage.items],
-            };
-            return {
-              ...old,
-              pages: [updatedFirstPage, ...old.pages.slice(1)],
-            };
-          },
+
+        queryClient.setQueryData(["message.list", conversationId], (old: any) =>
+          updateCacheWithOptimisticMessage(old, optimisticMessage),
         );
+
         return {
           previousData,
           tempId,
         };
       },
-      onSuccess: (data, _varibalies, context) => {
+      onSuccess: (data, _variables, context) => {
         queryClient.setQueryData<InfiniteMessages>(
           ["message.list", conversationId],
-          (old) => {
-            if (!old) return old;
-
-            const updatePages = old.pages.map((page) => ({
-              ...page,
-              items: page.items.map((message) =>
-                message.id === context?.tempId
-                  ? {
-                      ...data.message,
-                      status: MessageStatus.SEEN,
-                    }
-                  : message,
-              ),
-            }));
-            return { ...old, pages: updatePages };
-          },
+          (old) =>
+            updateCacheMessageStatus(
+              old,
+              context?.tempId,
+              data.message as Message,
+            ),
         );
       },
-      onError(_err, _varibalies, context) {
+      onError(_err, _variables, context) {
         if (context?.previousData) {
           queryClient.setQueryData(
             ["message.list", conversationId],
@@ -328,61 +337,28 @@ export function useMutationFileMessage({
               }
             : null,
         };
-        queryClient.setQueryData(
-          ["message.list", conversationId],
-          (old: any) => {
-            if (!old) {
-              return {
-                pages: [
-                  {
-                    items: [optimisticMessage],
-                    nextCursor: undefined,
-                  },
-                ],
-                pageParams: [undefined],
-              } satisfies InfiniteMessages;
-            }
-            const firstPage = old.pages[0] ?? {
-              items: [],
-              nextCursor: undefined,
-            };
-            const updatedFirstPage = {
-              ...firstPage,
-              items: [optimisticMessage, ...firstPage.items],
-            };
-            return {
-              ...old,
-              pages: [updatedFirstPage, ...old.pages.slice(1)],
-            };
-          },
+
+        queryClient.setQueryData(["message.list", conversationId], (old: any) =>
+          updateCacheWithOptimisticMessage(old, optimisticMessage),
         );
+
         return {
           previousData,
           tempId,
         };
       },
-      onSuccess: (data, _varibalies, context) => {
+      onSuccess: (data, _variables, context) => {
         queryClient.setQueryData<InfiniteMessages>(
           ["message.list", conversationId],
-          (old) => {
-            if (!old) return old;
-
-            const updatePages = old.pages.map((page) => ({
-              ...page,
-              items: page.items.map((message) =>
-                message.id === context?.tempId
-                  ? {
-                      ...data.message,
-                      status: MessageStatus.SEEN,
-                    }
-                  : message,
-              ),
-            }));
-            return { ...old, pages: updatePages };
-          },
+          (old) =>
+            updateCacheMessageStatus(
+              old,
+              context?.tempId,
+              data.message as Message,
+            ),
         );
       },
-      onError(_err, _varibalies, context) {
+      onError(_err, _variables, context) {
         if (context?.previousData) {
           queryClient.setQueryData(
             ["message.list", conversationId],
@@ -394,6 +370,7 @@ export function useMutationFileMessage({
     }),
   );
 }
+
 export function useMutationAudioMessage({
   conversationId,
   lead,
@@ -449,63 +426,27 @@ export function useMutationAudioMessage({
               }
             : null,
         };
-        queryClient.setQueryData(
-          ["message.list", conversationId],
-          (old: any) => {
-            if (!old) {
-              return {
-                pages: [
-                  {
-                    items: [optimisticMessage],
-                    nextCursor: undefined,
-                  },
-                ],
-                pageParams: [undefined],
-              } satisfies InfiniteMessages;
-            }
-            const firstPage = old.pages[0] ?? {
-              items: [],
-              nextCursor: undefined,
-            };
-            const updatedFirstPage = {
-              ...firstPage,
-              items: [optimisticMessage, ...firstPage.items],
-            };
-            return {
-              ...old,
-              pages: [updatedFirstPage, ...old.pages.slice(1)],
-            };
-          },
+
+        queryClient.setQueryData(["message.list", conversationId], (old: any) =>
+          updateCacheWithOptimisticMessage(old, optimisticMessage),
         );
+
         return {
           previousData,
           tempId,
         };
       },
-      onSuccess: (data, _varibalies, context) => {
+      onSuccess: (data, _variables, context) => {
         queryClient.setQueryData<InfiniteMessages>(
           ["message.list", conversationId],
-          (old) => {
-            if (!old) return old;
-
-            const updatePages = old.pages.map((page) => ({
-              ...page,
-              items: page.items.map((message) =>
-                message.id === context?.tempId
-                  ? {
-                      ...data.message,
-                      status: MessageStatus.SEEN,
-                      quotedMessageId:
-                        data.message.quotedMessageId ?? undefined,
-                    }
-                  : message,
-              ),
-            }));
-            return { ...old, pages: updatePages };
-          },
+          (old) =>
+            updateCacheMessageStatus(old, context?.tempId, {
+              ...data.message,
+              quotedMessageId: data.message.quotedMessageId ?? undefined,
+            } as Message),
         );
       },
-      onError(_err, _varibalies, context) {
+      onError(_err, _variables, context) {
         if (context?.previousData) {
           queryClient.setQueryData(
             ["message.list", conversationId],

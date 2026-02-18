@@ -12,36 +12,33 @@ const prisma = new PrismaClient({
 });
 
 const userId = "lglLGTaOXQtZmMWHFluooyGCLxkFVpfu";
-const trackingId = "cmkfzj9w40000uwc11q5wq84i";
+const trackingId = "cmls7tv23000g6gvaupmz2suy";
 const statusId = "cmkfzj9w70002uwc1vxbmyo5n";
 const statusId2 = "cmkfzj9w80004uwc1vhhvxemd";
 const statusId3 = "cmkfzj9w80003uwc1jdxscpxu";
+const leadId = "cmlscvfzm00017sva12fkvrda";
 
 async function main() {
   const statusIds = [statusId, statusId2, statusId3];
 
-  for (let i = 1; i <= 5000; i++) {
-    const phone = `852146${i.toString().padStart(8, "0")}`;
+  for (let i = 1; i <= 200; i++) {
+    const phone = `23123${i.toString().padStart(8, "0")}`;
     const randomStatusId = faker.helpers.arrayElement(statusIds);
 
-    const lead = await prisma.lead.create({
+    await prisma.message.create({
       data: {
-        name: faker.person.fullName(),
-        email: faker.internet.email(),
-        phone,
-        statusId: randomStatusId,
-        trackingId: trackingId,
-        responsibleId: userId,
-        order: i,
-      },
-    });
-
-    await prisma.conversation.create({
-      data: {
-        remoteJid: `${phone}@s.whatsapp.net`,
-        leadId: lead.id,
-        trackingId: trackingId,
-        name: lead.name,
+        messageId: `${phone}@s.whatsapp.net`,
+        createdAt: faker.date.past({
+          years: 1,
+          refDate: "2026-01-01",
+        }),
+        body: faker.lorem.sentence(),
+        conversation: {
+          connect: {
+            trackingId: trackingId,
+            leadId: leadId,
+          },
+        },
       },
     });
   }
