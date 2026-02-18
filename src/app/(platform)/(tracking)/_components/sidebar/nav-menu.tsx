@@ -48,7 +48,7 @@ const items = [
   },
   {
     title: "Agenda",
-    url: "/tracking/agenda",
+    url: "/agenda",
     icon: Calendar,
     isActive: true,
   },

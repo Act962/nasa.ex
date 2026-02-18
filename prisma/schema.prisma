@@ -99,6 +99,7 @@ model Organization {
   tags        Tag[]
   whatsappInstances WhatsAppInstance[]
   actions     Action[]
+  agendas     Agenda[]
 
   @@unique([slug])
   @@map("organization")
@@ -641,4 +642,41 @@ model WhatsAppInstance {
   @@index([organizationId])
   @@index([status])
   @@map("whatsapp_instances")
+}
+
+model Agenda {
+  id String @id @default(cuid())
+  name String
+  description String?
+  organizationId String @map("organization_id")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt  @map("updated_at")
+  
+  availabilities Availability[]
+  @@map("agenda")
+}
+
+ model Availability {
+  id String @id @default(cuid())
+  day Day
+  fromTime String @map("from_time")
+  toTime String @map("to_time")
+  isActive Boolean @default(true) @map("is_active")
+  agendaId String @map("agenda_id")
+  agenda Agenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt  @map("updated_at")
+  
+  @@map("availability")
+}
+
+enum Day {
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
 }
