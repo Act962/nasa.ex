@@ -17,23 +17,55 @@ import {
 } from "@/components/ui/context-menu";
 import {
   executionNodes,
+  triggerNodes,
   NodeTypeOption,
 } from "@/features/executions/lib/node-options";
+import { toast } from "sonner";
+import { useUpdateWorkflow } from "@/features/workflows/hooks/use-workflows";
+import { PlusIcon, SaveIcon, WorkflowIcon } from "lucide-react";
 
 export function MenuOptions({
   children,
   handelOpenSelector,
+  workflowId,
 }: {
   children: React.ReactNode;
   handelOpenSelector: (open: boolean) => void;
+  workflowId: string;
 }) {
   const editor = useAtomValue(editorAtom);
+  const saveWorkflow = useUpdateWorkflow();
+
+  const handleSave = () => {
+    if (!editor) return;
+
+    const nodes = editor.getNodes();
+    const edges = editor.getEdges();
+
+    saveWorkflow.mutate({
+      id: workflowId,
+      nodes,
+      edges,
+    });
+  };
 
   const handleNodeSelect = useCallback(
     (selection: NodeTypeOption) => {
       if (!editor) return;
+      const { setNodes, getNodes, screenToFlowPosition } = editor;
 
-      const { setNodes, screenToFlowPosition } = editor;
+      if (selection.category === "trigger") {
+        const nodes = getNodes();
+        const hasTrigger = nodes.some((node) =>
+          triggerNodes.some((tn) => tn.type === node.type),
+        );
+
+        if (hasTrigger) {
+          toast.error("Apenas um gatilho é permitido por workflow.");
+          return;
+        }
+      }
+
       const newNodeId = createId();
 
       setNodes((nodes) => {
@@ -75,8 +107,26 @@ export function MenuOptions({
             onClick={() => handelOpenSelector(true)}
             className="cursor-pointer"
           >
+            <PlusIcon />
             Adicionar
           </ContextMenuItem>
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>Gatilhos</ContextMenuSubTrigger>
+            <ContextMenuSubContent>
+              <ContextMenuGroup>
+                {triggerNodes.map((nodeType) => (
+                  <ContextMenuItem
+                    key={nodeType.type}
+                    onClick={() => handleNodeSelect(nodeType)}
+                    className="cursor-pointer"
+                  >
+                    <nodeType.icon className="size-4" />
+                    {nodeType.label}
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuGroup>
+            </ContextMenuSubContent>
+          </ContextMenuSub>
           <ContextMenuSub>
             <ContextMenuSubTrigger>Ações</ContextMenuSubTrigger>
             <ContextMenuSubContent>
@@ -94,6 +144,14 @@ export function MenuOptions({
               </ContextMenuGroup>
             </ContextMenuSubContent>
           </ContextMenuSub>
+          <ContextMenuItem
+            onClick={handleSave}
+            className="cursor-pointer"
+            disabled={saveWorkflow.isPending}
+          >
+            <SaveIcon />
+            Salvar
+          </ContextMenuItem>
         </ContextMenuGroup>
       </ContextMenuContent>
     </ContextMenu>

@@ -35,6 +35,7 @@ import { useKanbanStore } from "../lib/kanban-store";
 import { Lead } from "../types";
 import { useLostOrWin } from "@/hooks/use-lost-or-win";
 import { useDeletLead } from "@/hooks/use-delete-lead";
+import { useParams } from "next/navigation";
 
 interface BoardContainerProps {
   trackingId: string;
@@ -197,6 +198,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
         targetStatusId: targetColumnId,
         beforeId: currentNeighbors.beforeId,
         afterId: currentNeighbors.afterId,
+        trackingId,
       });
     }
   }

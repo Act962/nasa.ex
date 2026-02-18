@@ -70,7 +70,10 @@ export function Editor({ workflowId }: { workflowId: string }) {
   return (
     <>
       <div className="size-full">
-        <MenuOptions handelOpenSelector={setOpenSelector}>
+        <MenuOptions
+          handelOpenSelector={setOpenSelector}
+          workflowId={workflowId}
+        >
           <ReactFlow
             nodes={nodes}
             edges={edges}

@@ -18,6 +18,11 @@ const statusId2 = "cmkfzj9w80004uwc1vhhvxemd";
 const statusId3 = "cmkfzj9w80003uwc1jdxscpxu";
 const leadId = "cmlscvfzm00017sva12fkvrda";
 
+// async function main() {
+//   await prisma.conversation.deleteMany({});
+//   await prisma.lead.deleteMany({});
+// }
+
 async function main() {
   const statusIds = [statusId, statusId2, statusId3];
 

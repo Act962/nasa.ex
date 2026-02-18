@@ -63,14 +63,16 @@ export async function POST(req: Request) {
       );
     }
 
-    workflows.forEach(async (workflow) => {
-      await sendWorkflowExecution({
-        workflowId: workflow.id,
-        initialData: {
-          lead,
-        },
-      });
-    });
+    await Promise.all(
+      workflows.map((workflow) =>
+        sendWorkflowExecution({
+          workflowId: workflow.id,
+          initialData: {
+            lead,
+          },
+        }),
+      ),
+    );
 
     return NextResponse.json({
       success: true,
