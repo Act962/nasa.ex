@@ -31,11 +31,9 @@ import { orpc } from "@/lib/orpc";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { useParams } from "next/navigation";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export function ConversationsList() {
-  const { conversationId } = useParams<{ conversationId: string }>();
   const [open, setOpen] = useState(false);
   const { trackings, isLoadingTrackings } = useQueryTracking();
   const [selectedTracking, setSelectedTracking] = useState<string>("");

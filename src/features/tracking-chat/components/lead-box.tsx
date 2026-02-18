@@ -34,7 +34,7 @@ export function LeadBox({ item, lastMessageText }: UserBloxProps) {
       <AvatarLead Lead={item.lead} />
       <div className="min-w-0 flex-1">
         <div className="focus:outline-none">
-          <div className="flex justify-between items-center mb-1">
+          <div className="flex justify-between items-center mb-1 gap-x-1">
             <p className="text-sm font-medium line-clamp-2">{item.lead.name}</p>
             <p className="text-xs font-light">
               {format(new Date(item.createdAt), "dd/MM/yyyy")}

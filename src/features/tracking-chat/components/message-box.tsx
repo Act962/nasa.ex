@@ -8,12 +8,23 @@ import { Button } from "@/components/ui/button";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { FileMessageBox } from "./file-message-box";
 import { AudioMessageBox } from "./audio-message-box";
-import { CheckCheckIcon, CheckIcon, LucideIcon, RedoIcon } from "lucide-react";
+import {
+  CheckCheckIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  LucideIcon,
+  RedoIcon,
+} from "lucide-react";
 import { QuotedMessage } from "./quoted-message";
-import { SelectedMessageOptions } from "./selected-message-options";
+import {
+  SelectedMessageOptions,
+  SelectedMessageDropdown,
+} from "./selected-message-options";
 import { useMutationDeleteMessage } from "../hooks/use-messages";
 
 import { useMessageStore } from "../context/use-message";
+import { toast } from "sonner";
+import { useState } from "react";
 
 export function MessageBox({
   message,
@@ -30,6 +41,8 @@ export function MessageBox({
   const deleteMessage = useMutationDeleteMessage({
     conversationId,
   });
+
+  const [open, setOpen] = useState(false);
 
   const IconStatus = IconsStatus[message.status as MessageStatus];
 
@@ -48,12 +61,19 @@ export function MessageBox({
     });
   };
 
+  async function copyMessage() {
+    await navigator.clipboard.writeText(message.body || "");
+    toast.success("Mensagem copiada");
+  }
+
   return (
     <>
       <SelectedMessageOptions
         message={message}
         onSelectMessage={onSelectMessage}
         onDeleteMessage={onDeleteMessage}
+        onCopyMessage={copyMessage}
+        onChange={setOpen}
       >
         <div
           id={`message-${message.id}`}
@@ -72,6 +92,19 @@ export function MessageBox({
                 isFile ? "bg-transparent px-0" : "",
               )}
             >
+              <SelectedMessageDropdown
+                message={message}
+                onSelectMessage={onSelectMessage}
+                onDeleteMessage={onDeleteMessage}
+                onCopyMessage={copyMessage}
+                onChange={setOpen}
+              >
+                <button
+                  className={`absolute top-0.5 right-3.5 z-10 opacity-0  group-hover:opacity-100 transition-opacity duration-500 ${open ? "opacity-100" : ""}`}
+                >
+                  <ChevronDownIcon className="size-3" />
+                </button>
+              </SelectedMessageDropdown>
               {message.quotedMessage && <QuotedMessage message={message} />}
               <div className="relative w-fit items-center">
                 {message.mediaUrl && message.mimetype?.startsWith("image") && (
