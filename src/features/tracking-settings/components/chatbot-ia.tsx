@@ -6,19 +6,72 @@ import { Controller, useForm } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Switch } from "@/components/ui/switch";
-import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+} from "@/components/ui/field";
+import { useQueryAiSettings, useUpdateAiSettings } from "../hooks/use-tracking";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useEffect } from "react";
+import { Spinner } from "@/components/spinner";
+import { Button } from "@/components/ui/button";
 
-const schema = z.object({
-  glabalActiveIa: z.boolean(),
+const aiSettingSchema = z.object({
+  assistantName: z.string().optional(),
+  prompt: z.string().min(1, "Preencha um prompt para sua agente"),
+  finishMessage: z.string().optional(),
+  aiEnabled: z.boolean(),
 });
 
-export function ChatBotIa() {
-  const form = useForm<z.infer<typeof schema>>({
-    resolver: zodResolver(schema),
+type AiSettingData = z.infer<typeof aiSettingSchema>;
+
+export function ChatBotIa({ trackingId }: { trackingId: string }) {
+  const { settings, isLoadingSettings } = useQueryAiSettings(trackingId);
+  const form = useForm<AiSettingData>({
+    resolver: zodResolver(aiSettingSchema),
     defaultValues: {
-      glabalActiveIa: false,
+      assistantName: settings?.assistantName ?? "",
+      prompt: settings?.prompt ?? "",
+      finishMessage: settings?.finishSentence ?? "",
+      aiEnabled: settings?.tracking.globalAiActive ?? false,
     },
   });
+
+  const updateAiSettings = useUpdateAiSettings();
+
+  if (isLoadingSettings) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Spinner />
+      </div>
+    );
+  }
+
+  const onSubmit = async (data: AiSettingData) => {
+    console.log("Data", data);
+    // updateAiSettings.mutate({
+    //   aiEnabled: data.aiEnabled,
+    //   assistantName: data.assistantName,
+    //   finishMessage: data.finishMessage,
+    //   prompt: data.prompt,
+    //   trackingId,
+    // });
+
+    updateAiSettings.mutate({
+      aiEnabled: data.aiEnabled,
+      assistantName: data.assistantName,
+      prompt: data.prompt,
+      finishMessage: data.finishMessage,
+      trackingId,
+    });
+  };
+
+  const isSubmitting = updateAiSettings.isPending;
 
   return (
     <div className="space-y-8 pb-10">
@@ -26,7 +79,7 @@ export function ChatBotIa() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <BotIcon className="size-4 " />
-            <h2 className="text-xl font-semibold">Chatbot Ia</h2>
+            <h2 className="text-xl font-semibold">Chatbot IA</h2>
           </div>
           <p className="text-muted-foreground text-sm">
             Personalize seu agente de Ia para respoder de acordo com seu negócio
@@ -44,24 +97,77 @@ export function ChatBotIa() {
           Os campos estão sendo salvos automaticamente
         </AlertDescription>
       </Alert>
-      <div className="col-span-4 space-y-6">
-        <Controller
-          control={form.control}
-          name="glabalActiveIa"
-          defaultValue={form.getValues().glabalActiveIa}
-          render={({ field }) => (
-            <Field>
-              <FieldContent className="flex flex-row">
+
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FieldGroup>
+          <Field orientation="horizontal">
+            <FieldContent>
+              <FieldLabel htmlFor="ia-global">
+                Permitir interação da IA
+              </FieldLabel>
+              <FieldDescription>
+                Habilitar essa função permitirá que a IA interaja com os leads
+                que estiverem ativos
+              </FieldDescription>
+            </FieldContent>
+            <Controller
+              name="aiEnabled"
+              control={form.control}
+              render={({ field, fieldState }) => (
                 <Switch
+                  id="ai-global"
+                  name={field.name}
                   checked={field.value}
+                  disabled={isSubmitting}
                   onCheckedChange={field.onChange}
+                  aria-invalid={fieldState.invalid}
                 />
-                <FieldLabel>Respostas de IA</FieldLabel>
-              </FieldContent>
-            </Field>
-          )}
-        />
-      </div>
+              )}
+            />
+          </Field>
+
+          <FieldSeparator />
+          <Field>
+            <FieldLabel htmlFor="name">Nome da assistente</FieldLabel>
+            <Input
+              id="name"
+              placeholder="John"
+              disabled={isSubmitting}
+              {...form.register("assistantName")}
+            />
+            <FieldDescription>
+              Nome no qual a IA irá se apresentar
+            </FieldDescription>
+          </Field>
+
+          <Field>
+            <FieldLabel>Prompt</FieldLabel>
+            <Textarea
+              className="min-h-52"
+              disabled={isSubmitting}
+              placeholder="Você uma assistente de consultoria..."
+              {...form.register("prompt")}
+            />
+            <FieldDescription>
+              Informe para a IA como ela deve se comunicar
+            </FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel>Finalizar chata quando</FieldLabel>
+            <Input
+              placeholder="Quiente quiser pedir para ser atendido por um humano"
+              disabled={isSubmitting}
+              {...form.register("finishMessage")}
+            />
+          </Field>
+        </FieldGroup>
+        <div className="flex justify-end">
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Spinner />}
+            Salvar
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }

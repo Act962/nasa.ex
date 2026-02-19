@@ -69,7 +69,7 @@ export default async function Page({
     {
       name: "ChatBot AI",
       value: "chatbot-ia",
-      content: <ChatBotIa />,
+      content: <ChatBotIa trackingId={trackingId} />,
     },
   ];
 
@@ -80,7 +80,7 @@ export default async function Page({
         orientation="horizontal"
         className="flex-col sm:flex-row gap-6"
       >
-        <TabsList className="bg-background h-full flex-row sm:flex-col rounded-none p-0 w-full sm:w-1/4 border-b sm:border-b-0 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+        <TabsList className="bg-background h-full flex-row sm:flex-col rounded-none p-0 w-full sm:w-1/4 border-b sm:border-b-0 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 ">
           {tabs.map((tab) => (
             <TabsTrigger
               key={tab.value}
