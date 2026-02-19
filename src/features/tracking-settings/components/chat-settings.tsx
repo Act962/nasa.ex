@@ -108,7 +108,7 @@ export function ChatSettings() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 rounded-2xl">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Zap className="size-4 text-primary animate-pulse" />
+            <Zap className="size-4 " />
             <h2 className="text-xl font-semibold">Painel de Integrações</h2>
           </div>
           <p className="text-muted-foreground text-sm">

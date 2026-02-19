@@ -4,7 +4,8 @@ import { Participants } from "@/features/tracking-settings/components/participan
 import { Reasons } from "@/features/tracking-settings/components/reasons";
 import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { orpc } from "@/lib/orpc";
-import { ChatSettings } from "@/features/tracking-settings/components";
+import { ChatSettings } from "@/features/tracking-settings/components/chat-settings";
+import { ChatBotIa } from "@/features/tracking-settings/components/chatbot-ia";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
@@ -64,6 +65,11 @@ export default async function Page({
       name: "Integrações",
       value: "instance",
       content: <ChatSettings />,
+    },
+    {
+      name: "ChatBot AI",
+      value: "chatbot-ia",
+      content: <ChatBotIa />,
     },
   ];
 

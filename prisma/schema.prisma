@@ -142,6 +142,7 @@ model Tracking {
   description    String?
   organizationId String   @map("organization_id")
   isArchived     Boolean  @default(false) @map("is_archived")
+  globalAiActive Boolean  @default(false) @map("global_ai_active")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -557,7 +558,7 @@ model Conversation {
   profilePicUrl String?  @map("profile_pic_url")
   isActive      Boolean  @default(true) @map("is_active")
   
-  lead   Lead   @relation(fields: [leadId], references: [id])
+  lead   Lead   @relation(fields: [leadId], references: [id] , onDelete: Cascade)
   leadId String @unique @map("lead_id")
   trackingId    String   @map("tracking_id")
   tracking      Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)

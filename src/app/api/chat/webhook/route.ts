@@ -34,6 +34,17 @@ export async function POST(request: NextRequest) {
         where: { trackingId },
       });
 
+      const tracking = await prisma.tracking.findUnique({
+        where: { id: trackingId },
+      });
+
+      if (!tracking) {
+        return NextResponse.json(
+          { error: "Tracking context not found" },
+          { status: 400 },
+        );
+      }
+
       if (!status) {
         return NextResponse.json(
           { error: "Status context not found" },
@@ -126,6 +137,16 @@ export async function POST(request: NextRequest) {
             },
           });
         }
+      }
+
+      if (lead.isActive && tracking.globalAiActive) {
+        await fetch("https://n8n.nasaex.com/webhook/ai-nasa", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({}),
+        });
       }
 
       const senderId = fromMe ? json.owner : phone;
