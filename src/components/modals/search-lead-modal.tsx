@@ -12,10 +12,10 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "../ui/input-group";
-import { Search, UserSearch, X } from "lucide-react";
+import { FilterIcon, Search, UserSearch, X, Check } from "lucide-react";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Pagination,
@@ -37,6 +37,26 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "../ui/empty";
+import {
+  useQueryTrackings,
+  useQueryStatus,
+} from "@/features/trackings/hooks/use-trackings";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Field, FieldLabel } from "@/components/ui/field";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -48,10 +68,34 @@ interface SearchLeadModalProps {
 export function SearchLeadModal({ open, onOpenChange }: SearchLeadModalProps) {
   const router = useRouter();
   const params = useParams<{ trackingId: string }>();
+  const { trackings } = useQueryTrackings();
 
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedTrackingId, setSelectedTrackingId] = useState<string | null>(
+    params.trackingId || null,
+  );
+  const [selectedStatusId, setSelectedStatusId] = useState<string | null>(null);
+
+  const { status: statuses } = useQueryStatus({
+    trackingId: selectedTrackingId ?? "",
+  });
+
   const debouncedSearch = useDebouncedValue(search, 200);
+
+  const handleTrackingSelect = (id: string) => {
+    setSelectedTrackingId((prev) => {
+      const next = prev === id ? null : id;
+      if (next !== prev) setSelectedStatusId(null);
+      return next;
+    });
+    setCurrentPage(1);
+  };
+
+  const handleStatusSelect = (id: string) => {
+    setSelectedStatusId((prev) => (prev === id ? null : id));
+    setCurrentPage(1);
+  };
 
   const handleOnLead = ({ id }: { id: string }) => {
     router.push(`/contatos/${id}`);
@@ -68,12 +112,13 @@ export function SearchLeadModal({ open, onOpenChange }: SearchLeadModalProps) {
     orpc.leads.search.queryOptions({
       input: {
         search: debouncedSearch,
-        trackingId: params.trackingId,
+        trackingId: selectedTrackingId || undefined,
+        statusId: selectedStatusId || undefined,
         limit: ITEMS_PER_PAGE,
         page: currentPage,
       },
       enabled: open,
-    })
+    }),
   );
 
   // Gera números de página visíveis de forma inteligente e responsiva
@@ -169,6 +214,106 @@ export function SearchLeadModal({ open, onOpenChange }: SearchLeadModalProps) {
               <X className="size-4" />
             </InputGroupAddon>
           )}
+          <InputGroupAddon align={"inline-end"}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <FilterIcon className="size-3 cursor-pointer" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-64 p-3 space-y-4">
+                <Field>
+                  <FieldLabel className="text-[10px]  font-bold opacity-50">
+                    Tracking
+                  </FieldLabel>
+                  <Command className="border rounded-md mt-1">
+                    <CommandInput
+                      placeholder="Buscar fluxo..."
+                      className="h-8"
+                    />
+                    <CommandList className="max-h-32">
+                      <CommandEmpty>Nenhum fluxo encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {trackings.map((tracking) => (
+                          <CommandItem
+                            key={tracking.id}
+                            onSelect={() => handleTrackingSelect(tracking.id)}
+                            className="text-xs"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-3 w-3",
+                                selectedTrackingId === tracking.id
+                                  ? "opacity-100"
+                                  : "opacity-0",
+                              )}
+                            />
+                            {tracking.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </Field>
+
+                <Field>
+                  <FieldLabel className="text-[10px] font-bold opacity-50">
+                    Status
+                  </FieldLabel>
+                  <Command className="border rounded-md mt-1">
+                    <CommandInput
+                      placeholder="Buscar status..."
+                      className="h-8"
+                    />
+                    <CommandList className="max-h-32">
+                      {!selectedTrackingId ? (
+                        <CommandEmpty className="text-xs p-4 text-center">
+                          Selecione um fluxo primeiro.
+                        </CommandEmpty>
+                      ) : statuses.length === 0 ? (
+                        <CommandEmpty className="text-xs">
+                          Nenhum status encontrado.
+                        </CommandEmpty>
+                      ) : (
+                        <CommandEmpty>Nenhum status encontrado.</CommandEmpty>
+                      )}
+                      <CommandGroup>
+                        {statuses.map((status) => (
+                          <CommandItem
+                            key={status.id}
+                            onSelect={() => handleStatusSelect(status.id)}
+                            className="text-xs"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-3 w-3",
+                                selectedStatusId === status.id
+                                  ? "opacity-100"
+                                  : "opacity-0",
+                              )}
+                            />
+                            {status.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </Field>
+
+                <div className="pt-2 flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-[10px] h-7"
+                    onClick={() => {
+                      setSelectedTrackingId(null);
+                      setSelectedStatusId(null);
+                    }}
+                  >
+                    Limpar filtros
+                  </Button>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </InputGroupAddon>
         </InputGroup>
         <div className="flex items-center justify-between">
           <span className="text-sm md:text-base">Leads encontrados</span>
@@ -274,7 +419,7 @@ export function SearchLeadModal({ open, onOpenChange }: SearchLeadModalProps) {
                         {pageNum}
                       </PaginationLink>
                     </PaginationItem>
-                  )
+                  ),
                 )}
 
                 <PaginationItem>
