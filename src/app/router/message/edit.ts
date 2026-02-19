@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import z from "zod";
 import { editMessage } from "@/http/uazapi/edit-message";
 import prisma from "@/lib/prisma";
+import { MessageStatus } from "@/generated/prisma/enums";
 
 export const editMessageHandler = base
   .use(requiredAuthMiddleware)
@@ -39,6 +40,7 @@ export const editMessageHandler = base
         data: {
           body: response.content.text,
           messageId: response.messageid,
+          status: MessageStatus.SEEN,
         },
       });
 

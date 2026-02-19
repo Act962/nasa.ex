@@ -15,6 +15,8 @@ import {
 import { MarkedMessage, Message } from "../types";
 import { CopyIcon, PencilIcon, SendIcon, Trash2Icon } from "lucide-react";
 import { useMessageStore } from "../context/use-message";
+import { differenceInMinutes } from "date-fns";
+import { MessageStatus } from "@/generated/prisma/enums";
 
 interface Props {
   message: Message;
@@ -34,6 +36,11 @@ export function SelectedMessageOptions({
   onChange,
 }: Props) {
   const startEditing = useMessageStore((state) => state.startEditing);
+
+  const canEdit =
+    message.fromMe &&
+    differenceInMinutes(new Date(), new Date(message.createdAt)) < 4 &&
+    message.status !== MessageStatus.SENT;
 
   return (
     <ContextMenu modal={false} onOpenChange={onChange}>
@@ -60,12 +67,14 @@ export function SelectedMessageOptions({
 
           {message.fromMe && (
             <>
-              <ContextMenuItem
-                className="flex w-full justify-between"
-                onClick={() => startEditing(message)}
-              >
-                Editar <PencilIcon className="size-4" />
-              </ContextMenuItem>
+              {canEdit && (
+                <ContextMenuItem
+                  className="flex w-full justify-between"
+                  onClick={() => startEditing(message)}
+                >
+                  Editar <PencilIcon className="size-4" />
+                </ContextMenuItem>
+              )}
               <ContextMenuItem
                 className="flex w-full justify-between focus:bg-destructive/10 focus:text-destructive"
                 onClick={onDeleteMessage}
@@ -92,6 +101,10 @@ export function SelectedMessageDropdown({
 }: Props) {
   const startEditing = useMessageStore((state) => state.startEditing);
 
+  const canEdit =
+    message.fromMe &&
+    differenceInMinutes(new Date(), new Date(message.createdAt)) < 4;
+
   return (
     <DropdownMenu onOpenChange={onChange}>
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
@@ -117,12 +130,14 @@ export function SelectedMessageDropdown({
 
           {message.fromMe && (
             <>
-              <DropdownMenuItem
-                className="flex w-full justify-between"
-                onClick={() => startEditing(message)}
-              >
-                Editar <PencilIcon className="size-4" />
-              </DropdownMenuItem>
+              {canEdit && (
+                <DropdownMenuItem
+                  className="flex w-full justify-between"
+                  onClick={() => startEditing(message)}
+                >
+                  Editar <PencilIcon className="size-4" />
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 className="flex w-full justify-between focus:bg-destructive/10 focus:text-destructive"
                 onClick={onDeleteMessage}

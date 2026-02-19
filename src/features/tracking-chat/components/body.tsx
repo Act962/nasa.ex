@@ -376,6 +376,7 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
       text,
       token,
     });
+    setIsEditing(false);
   }
 
   return (

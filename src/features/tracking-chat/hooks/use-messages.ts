@@ -492,7 +492,9 @@ const updateCacheEditedMessage = (
       items: page.items.map((group) => ({
         ...group,
         messages: group.messages.map((m) =>
-          m.messageId === messageId ? { ...m, body: newBody } : m,
+          m.messageId === messageId
+            ? { ...m, body: newBody, status: MessageStatus.SENT }
+            : m,
         ),
       })),
     })),
