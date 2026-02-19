@@ -32,10 +32,17 @@ export async function POST(request: NextRequest) {
 
       const status = await prisma.status.findFirst({
         where: { trackingId },
+        select: {
+          id: true,
+        },
       });
 
       const tracking = await prisma.tracking.findUnique({
         where: { id: trackingId },
+        select: {
+          id: true,
+          globalAiActive: true,
+        },
       });
 
       if (!tracking) {
@@ -139,16 +146,6 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      if (lead.isActive && tracking.globalAiActive) {
-        await fetch("https://n8n.nasaex.com/webhook/ai-nasa", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({}),
-        });
-      }
-
       const senderId = fromMe ? json.owner : phone;
       const messageId = json.message.messageid;
       const messageType = json.message.messageType;
@@ -199,6 +196,22 @@ export async function POST(request: NextRequest) {
             },
           },
         });
+
+        if (lead.isActive && tracking.globalAiActive) {
+          await fetch("https://n8n.nasaex.com/webhook/ai-nasa", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              type: "MESSAGE",
+              text: body,
+              phone: lead.phone,
+              trackingId,
+              leadId: lead.id,
+            }),
+          });
+        }
       }
 
       if (messageType === "ImageMessage") {

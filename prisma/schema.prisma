@@ -158,8 +158,22 @@ model Tracking {
   forms          Form[]
   whatsappInstances WhatsAppInstance[]
   conversations  Conversation[]
+  aiSettings     AiSettings?
 
   @@map("tracking")
+}
+
+model AiSettings {
+  id String @id @default(cuid())
+  prompt String
+  assistantName String? @map("assistant_name")
+  finishSentence String? @map("finish_sentence")
+  isAudioEnabled Boolean @default(false) @map("is_audio_enabled")
+
+  trackingId String @unique
+  tracking Tracking @relation(fields: [trackingId], references: [id])
+
+  @@map("ai_setting")
 }
 
 enum ReasonType {

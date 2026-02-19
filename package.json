@@ -25,6 +25,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.2.2",
     "@inngest/realtime": "^0.4.6",
+    "@openrouter/ai-sdk-provider": "^2.2.3",
     "@orpc/client": "^1.13.4",
     "@orpc/openapi": "^1.13.4",
     "@orpc/server": "^1.13.4",
