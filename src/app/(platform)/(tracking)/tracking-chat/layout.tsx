@@ -19,14 +19,14 @@ export default function Layout({ children }: LayoutProps) {
 
   if (isMobile && !conversationId) {
     return (
-      <div className="h-screen flex w-full">
+      <div className="h-screen flex w-full overflow-hidden">
         <ConversationsList />
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex w-full">
+    <div className="h-screen flex w-full overflow-hidden">
       <ResizablePanelGroup>
         {!isMobile && (
           <>

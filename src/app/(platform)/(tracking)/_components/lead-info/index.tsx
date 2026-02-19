@@ -89,9 +89,9 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
       <div className="flex-1 flex flex-col">
         {/* Profile Section */}
         <div className="flex flex-col items-center space-y-3 pt-2 pb-6 px-4">
-          <Avatar className="size-16 border-2 border-muted shadow-sm">
+          <Avatar className="size-16 border border-muted shadow-sm">
             <AvatarImage src={useConstructUrl(lead.profile ?? "")} />
-            <AvatarFallback className="bg-primary/5 text-primary font-bold text-xl">
+            <AvatarFallback className="bg-primary/5 font-bold text-xl">
               {lead.name.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>

@@ -5,28 +5,17 @@ import { useEffect } from "react";
 import { conversationProps, InfiniteConversations } from "../types";
 import { toast } from "sonner";
 
-export function useQueryConversation(trackingId: string) {
-  const { data, isLoading } = useQuery(
-    orpc.conversation.list.queryOptions({
-      input: {
-        trackingId,
-      },
-    }),
-  );
-
-  return {
-    data,
-    isLoading,
-  };
-}
-
-export function useInfinityConversation(trackingId: string) {
+export function useInfinityConversation(
+  trackingId: string,
+  statusId: string | null,
+  search: string | null,
+) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!trackingId) return;
 
-    const queryKey = ["conversations.list", trackingId];
+    const queryKey = ["conversations.list", trackingId, statusId, search];
 
     const conversationHandler = (body: conversationProps) => {
       queryClient.setQueryData(queryKey, (old: any) => {
@@ -93,7 +82,15 @@ export function useInfinityConversation(trackingId: string) {
   }, [trackingId, queryClient]);
 }
 
-export function useCreateConversation({ trackingId }: { trackingId: string }) {
+export function useCreateConversation({
+  trackingId,
+  statusId,
+  search,
+}: {
+  trackingId: string;
+  statusId: string | null;
+  search: string | null;
+}) {
   const queryClient = useQueryClient();
 
   return useMutation(
@@ -102,7 +99,7 @@ export function useCreateConversation({ trackingId }: { trackingId: string }) {
         toast.success("Conversa criada com sucesso!");
         queryClient.invalidateQueries({
           queryKey: orpc.conversation.list.queryKey({
-            input: { trackingId },
+            input: { trackingId, statusId, search },
           }),
         });
       },

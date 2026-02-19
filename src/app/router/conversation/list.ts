@@ -20,6 +20,8 @@ export const listConversation = base
   .input(
     z.object({
       trackingId: z.string(),
+      statusId: z.string().nullable(),
+      search: z.string().nullable(),
       limit: z.number().min(1).max(100).optional(),
       cursor: z.string().optional(),
     }),
@@ -36,6 +38,19 @@ export const listConversation = base
       const conversations = await prisma.conversation.findMany({
         where: {
           trackingId: input.trackingId,
+          ...(input.statusId && {
+            lead: {
+              statusId: input.statusId,
+            },
+          }),
+          ...(input.search && {
+            lead: {
+              name: {
+                contains: input.search,
+                mode: "insensitive",
+              },
+            },
+          }),
         },
         include: {
           messages: true,

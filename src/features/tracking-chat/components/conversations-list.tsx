@@ -15,14 +15,6 @@ import {
 } from "@/components/ui/empty";
 import { CreateChatDialog } from "./create-chat-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useQueryTracking } from "@/features/tracking-settings/hooks/use-tracking";
 import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import Link from "next/link";
@@ -32,11 +24,15 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { SearchConversations } from "./search-conversaitons";
 
 export function ConversationsList() {
   const [open, setOpen] = useState(false);
   const { trackings, isLoadingTrackings } = useQueryTracking();
   const [selectedTracking, setSelectedTracking] = useState<string>("");
+  const [search, setSearch] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,15 +41,17 @@ export function ConversationsList() {
     }
   }, [trackings, isLoadingTrackings, selectedTracking]);
 
-  useInfinityConversation(selectedTracking);
+  useInfinityConversation(selectedTracking, selectedStatus, search);
 
   const infinitiOptions = orpc.conversation.list.infiniteOptions({
     input: (pageParam: string | undefined) => ({
       trackingId: selectedTracking,
+      statusId: selectedStatus,
+      search: search,
       cursor: pageParam,
-      limit: 10,
+      limit: 15,
     }),
-    queryKey: ["conversations.list", selectedTracking],
+    queryKey: ["conversations.list", selectedTracking, selectedStatus, search],
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
@@ -97,135 +95,109 @@ export function ConversationsList() {
     };
   }, [selectedTracking]);
 
-  if (isLoading || isLoadingTrackings) {
-    return (
-      <aside
-        className={cn("pb-20 lg:pb-0 lg:block overflow-y-auto block w-full ")}
-      >
-        <div className="px-5">
-          <div className="flex justify-between mb-4 pt-4">
-            <div className="text-lg font-medium">Tracking Chat</div>
-          </div>
-          <div className="flex-1 flex flex-col gap-2 min-h-0">
-            {Array.from({ length: 10 }).map((_, index) => (
-              <Skeleton key={index} className="h-16 mt-1" />
-            ))}
-          </div>
-        </div>
-      </aside>
-    );
-  }
-
   return (
     <>
-      <aside
-        className={cn("pb-20 lg:pb-0 lg:block block w-full overflow-hidden")}
-      >
-        <div className="px-5 flex flex-col h-full">
-          <div className="flex justify-between mb-4 pt-4">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="size-4" />
-              <div className="text-lg font-medium">Tracking Chat</div>
-            </div>
-            {!noInstance && !instanceDisconnected && (
-              <div className="cursor-pointer">
-                <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-                  <UserRoundPlusIcon className="size-4" />
-                </Button>
-              </div>
-            )}
+      <aside className="pb-20 lg:pb-0 lg:flex w-full px-5 flex flex-col h-full overflow-hidden">
+        <div className="flex justify-between mb-4 pt-4 shrink-0">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger className="size-4" />
+            <div className="text-lg font-medium">Tracking Chat</div>
           </div>
-          <div className="flex-1 flex flex-col gap-2 min-h-0">
-            <Select
-              onValueChange={(value) => setSelectedTracking(value)}
-              value={selectedTracking}
-              disabled={isLoadingTrackings}
-              defaultValue={trackings[0]?.id}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {trackings.map((tracking) => (
-                    <SelectItem key={tracking.id} value={tracking.id}>
-                      {tracking.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+          {!noInstance && !instanceDisconnected && !isLoadingTrackings && (
+            <div className="cursor-pointer">
+              <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+                <UserRoundPlusIcon className="size-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+        <div className="flex-1 flex flex-col gap-2 min-h-0">
+          <SearchConversations
+            search={search}
+            onSearchChange={setSearch}
+            trackingId={selectedTracking || null}
+            onTrackingChange={(id: string | null) =>
+              setSelectedTracking(id ?? "")
+            }
+            statusId={selectedStatus}
+            onStatusChange={setSelectedStatus}
+          />
 
-            {noInstance || instanceDisconnected ? (
-              <div className="flex-1 overflow-hidden">
+          {isLoading || isLoadingTrackings ? (
+            <div className="flex-1 flex flex-col gap-2 overflow-y-auto mt-2 min-h-0">
+              {Array.from({ length: 10 }).map((_, index) => (
+                <Skeleton key={index} className="h-16 mt-1" />
+              ))}
+            </div>
+          ) : noInstance || instanceDisconnected ? (
+            <div className="flex-1 overflow-hidden">
+              <Empty>
+                <EmptyHeader>
+                  <EmptyMedia>
+                    <RocketIcon />
+                  </EmptyMedia>
+                  <EmptyTitle>
+                    {noInstance
+                      ? "Nenhuma instância encontrada"
+                      : "Instância desconectada"}
+                  </EmptyTitle>
+                  <EmptyDescription>
+                    {noInstance
+                      ? "Configure uma instância para iniciar"
+                      : "Conecte a instância para iniciar"}
+                  </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                  <Button variant="default" asChild>
+                    <Link
+                      href={`/tracking/${selectedTracking}/settings?tab=instance`}
+                    >
+                      Configurar Instância
+                    </Link>
+                  </Button>
+                </EmptyContent>
+              </Empty>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              {items.length === 0 && (
                 <Empty>
                   <EmptyHeader>
-                    <EmptyMedia>
-                      <RocketIcon />
+                    <EmptyMedia variant="icon">
+                      <UserPlusIcon />
                     </EmptyMedia>
-                    <EmptyTitle>
-                      {noInstance
-                        ? "Nenhuma instância encontrada"
-                        : "Instância desconectada"}
-                    </EmptyTitle>
+                    <EmptyTitle>Sem conversas</EmptyTitle>
                     <EmptyDescription>
-                      {noInstance
-                        ? "Configure uma instância para iniciar"
-                        : "Conecte a instância para iniciar"}
+                      Nenhuma conversa encontrada
                     </EmptyDescription>
                   </EmptyHeader>
                   <EmptyContent>
-                    <Button variant="default" asChild>
-                      <Link
-                        href={`/tracking/${selectedTracking}/settings?tab=instance`}
-                      >
-                        Configurar Instância
-                      </Link>
+                    <Button variant="default" onClick={() => setOpen(true)}>
+                      Adicionar conversa
                     </Button>
                   </EmptyContent>
                 </Empty>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col overflow-hidden">
-                {items.length === 0 && (
-                  <Empty>
-                    <EmptyHeader>
-                      <EmptyMedia variant="icon">
-                        <UserPlusIcon />
-                      </EmptyMedia>
-                      <EmptyTitle>Sem conversas</EmptyTitle>
-                      <EmptyDescription>
-                        Nenhuma conversa encontrada
-                      </EmptyDescription>
-                    </EmptyHeader>
-                    <EmptyContent>
-                      <Button variant="default" onClick={() => setOpen(true)}>
-                        Adicionar conversa
-                      </Button>
-                    </EmptyContent>
-                  </Empty>
+              )}
+              <div
+                ref={scrollRef}
+                onScroll={handleScroll}
+                className="overflow-y-auto flex flex-col gap-2 flex-1 pb-4 scroll-cols-tracking min-h-0"
+              >
+                {items.map((item) => (
+                  <LeadBox
+                    key={item.id}
+                    item={item}
+                    lastMessageText={item.lastMessage?.body}
+                  />
+                ))}
+                {isFetchingNextPage && (
+                  <div className="flex justify-center py-4">
+                    <Spinner className="size-4" />
+                  </div>
                 )}
-                <div
-                  ref={scrollRef}
-                  onScroll={handleScroll}
-                  className="overflow-y-auto flex flex-col gap-2 flex-1 pb-4 scroll-cols-tracking"
-                >
-                  {items.map((item) => (
-                    <LeadBox
-                      key={item.id}
-                      item={item}
-                      lastMessageText={item.lastMessage?.body}
-                    />
-                  ))}
-                  {isFetchingNextPage && (
-                    <div className="flex justify-center py-4">
-                      <Spinner className="size-4" />
-                    </div>
-                  )}
-                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </aside>
       <CreateChatDialog

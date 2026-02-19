@@ -13,7 +13,7 @@ import {
   InputGroupInput,
 } from "../ui/input-group";
 import { FilterIcon, Search, UserSearch, X, Check } from "lucide-react";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -44,7 +44,6 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -57,6 +56,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { SearchConversations } from "@/features/tracking-chat/components/search-conversaitons";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -83,7 +83,7 @@ export function SearchLeadModal({ open, onOpenChange }: SearchLeadModalProps) {
 
   const debouncedSearch = useDebouncedValue(search, 200);
 
-  const handleTrackingSelect = (id: string) => {
+  const handleTrackingSelect = (id: string | null) => {
     setSelectedTrackingId((prev) => {
       const next = prev === id ? null : id;
       if (next !== prev) setSelectedStatusId(null);
@@ -92,7 +92,7 @@ export function SearchLeadModal({ open, onOpenChange }: SearchLeadModalProps) {
     setCurrentPage(1);
   };
 
-  const handleStatusSelect = (id: string) => {
+  const handleStatusSelect = (id: string | null) => {
     setSelectedStatusId((prev) => (prev === id ? null : id));
     setCurrentPage(1);
   };
@@ -196,125 +196,17 @@ export function SearchLeadModal({ open, onOpenChange }: SearchLeadModalProps) {
         <DialogHeader className="sr-only">
           <DialogTitle>Buscar Lead</DialogTitle>
         </DialogHeader>
-        <InputGroup className="w-full min-w-full">
-          <InputGroupInput
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Buscar leads..."
-          />
-          <InputGroupAddon>
-            <Search />
-          </InputGroupAddon>
-          {search && (
-            <InputGroupAddon
-              align={"inline-end"}
-              onClick={() => setSearch("")}
-              className="cursor-pointer"
-            >
-              <X className="size-4" />
-            </InputGroupAddon>
-          )}
-          <InputGroupAddon align={"inline-end"}>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <FilterIcon className="size-3 cursor-pointer" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64 p-3 space-y-4">
-                <Field>
-                  <FieldLabel className="text-[10px]  font-bold opacity-50">
-                    Tracking
-                  </FieldLabel>
-                  <Command className="border rounded-md mt-1">
-                    <CommandInput
-                      placeholder="Buscar fluxo..."
-                      className="h-8"
-                    />
-                    <CommandList className="max-h-32">
-                      <CommandEmpty>Nenhum fluxo encontrado.</CommandEmpty>
-                      <CommandGroup>
-                        {trackings.map((tracking) => (
-                          <CommandItem
-                            key={tracking.id}
-                            onSelect={() => handleTrackingSelect(tracking.id)}
-                            className="text-xs"
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-3 w-3",
-                                selectedTrackingId === tracking.id
-                                  ? "opacity-100"
-                                  : "opacity-0",
-                              )}
-                            />
-                            {tracking.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </Field>
 
-                <Field>
-                  <FieldLabel className="text-[10px] font-bold opacity-50">
-                    Status
-                  </FieldLabel>
-                  <Command className="border rounded-md mt-1">
-                    <CommandInput
-                      placeholder="Buscar status..."
-                      className="h-8"
-                    />
-                    <CommandList className="max-h-32">
-                      {!selectedTrackingId ? (
-                        <CommandEmpty className="text-xs p-4 text-center">
-                          Selecione um fluxo primeiro.
-                        </CommandEmpty>
-                      ) : statuses.length === 0 ? (
-                        <CommandEmpty className="text-xs">
-                          Nenhum status encontrado.
-                        </CommandEmpty>
-                      ) : (
-                        <CommandEmpty>Nenhum status encontrado.</CommandEmpty>
-                      )}
-                      <CommandGroup>
-                        {statuses.map((status) => (
-                          <CommandItem
-                            key={status.id}
-                            onSelect={() => handleStatusSelect(status.id)}
-                            className="text-xs"
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-3 w-3",
-                                selectedStatusId === status.id
-                                  ? "opacity-100"
-                                  : "opacity-0",
-                              )}
-                            />
-                            {status.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </Field>
+        <SearchConversations
+          onSearchChange={handleSearchChange}
+          onStatusChange={handleStatusSelect}
+          onTrackingChange={handleTrackingSelect}
+          search={search}
+          statusId={selectedStatusId}
+          trackingId={selectedTrackingId}
+          align="end"
+        />
 
-                <div className="pt-2 flex justify-end">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-[10px] h-7"
-                    onClick={() => {
-                      setSelectedTrackingId(null);
-                      setSelectedStatusId(null);
-                    }}
-                  >
-                    Limpar filtros
-                  </Button>
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </InputGroupAddon>
-        </InputGroup>
         <div className="flex items-center justify-between">
           <span className="text-sm md:text-base">Leads encontrados</span>
           {!isLoading && data && (
