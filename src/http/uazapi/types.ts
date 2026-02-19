@@ -170,6 +170,24 @@ export interface DeleteMessageResponse {
   sender: string;
 }
 
+export interface EditMessagePayload {
+  id: string;
+  text: string;
+}
+
+export interface EditMessageResponse {
+  id: string;
+  messageid: string;
+  content: {
+    text: string;
+    contextInfo: {};
+  };
+  messageTimestamp: number;
+  messageType: string;
+  status: string;
+  owner: string;
+}
+
 export type WebhookEvent =
   | "connection"
   | "history"

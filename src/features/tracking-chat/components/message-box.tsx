@@ -133,7 +133,9 @@ export function MessageBox({
                   )}
                 </div>
               </div>
-              <div>
+              <div
+                className={cn("flex flex-row", !isOwn && "flex-row-reverse")}
+              >
                 <Button
                   variant="ghost"
                   size="icon-sm"

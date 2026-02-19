@@ -13,7 +13,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MarkedMessage, Message } from "../types";
-import { CopyIcon, SendIcon, Trash2Icon } from "lucide-react";
+import { CopyIcon, PencilIcon, SendIcon, Trash2Icon } from "lucide-react";
+import { useMessageStore } from "../context/use-message";
+import { differenceInMinutes } from "date-fns";
+import { MessageStatus } from "@/generated/prisma/enums";
 
 interface Props {
   message: Message;
@@ -32,6 +35,13 @@ export function SelectedMessageOptions({
   onCopyMessage,
   onChange,
 }: Props) {
+  const startEditing = useMessageStore((state) => state.startEditing);
+
+  const canEdit =
+    message.fromMe &&
+    differenceInMinutes(new Date(), new Date(message.createdAt)) < 4 &&
+    message.status !== MessageStatus.SENT;
+
   return (
     <ContextMenu modal={false} onOpenChange={onChange}>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
@@ -54,15 +64,26 @@ export function SelectedMessageOptions({
           >
             Copiar <CopyIcon className="size-4" />
           </ContextMenuItem>
+
           {message.fromMe && (
-            <ContextMenuItem
-              className="flex w-full justify-between"
-              onClick={onDeleteMessage}
-              variant="destructive"
-            >
-              <span className="font-semibold">Deletar</span>
-              <Trash2Icon className="size-4" />
-            </ContextMenuItem>
+            <>
+              {canEdit && (
+                <ContextMenuItem
+                  className="flex w-full justify-between"
+                  onClick={() => startEditing(message)}
+                >
+                  Editar <PencilIcon className="size-4" />
+                </ContextMenuItem>
+              )}
+              <ContextMenuItem
+                className="flex w-full justify-between focus:bg-destructive/10 focus:text-destructive"
+                onClick={onDeleteMessage}
+                variant="destructive"
+              >
+                <span className="font-semibold">Deletar</span>
+                <Trash2Icon className="size-4" />
+              </ContextMenuItem>
+            </>
           )}
         </ContextMenuGroup>
       </ContextMenuContent>
@@ -78,6 +99,12 @@ export function SelectedMessageDropdown({
   onCopyMessage,
   onChange,
 }: Props) {
+  const startEditing = useMessageStore((state) => state.startEditing);
+
+  const canEdit =
+    message.fromMe &&
+    differenceInMinutes(new Date(), new Date(message.createdAt)) < 4;
+
   return (
     <DropdownMenu onOpenChange={onChange}>
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
@@ -100,15 +127,26 @@ export function SelectedMessageDropdown({
           >
             Copiar <CopyIcon className="size-4" />
           </DropdownMenuItem>
+
           {message.fromMe && (
-            <DropdownMenuItem
-              className="flex w-full justify-between focus:bg-destructive/10 focus:text-destructive"
-              onClick={onDeleteMessage}
-              variant="destructive"
-            >
-              <span className="font-semibold">Deletar</span>
-              <Trash2Icon className="size-4" />
-            </DropdownMenuItem>
+            <>
+              {canEdit && (
+                <DropdownMenuItem
+                  className="flex w-full justify-between"
+                  onClick={() => startEditing(message)}
+                >
+                  Editar <PencilIcon className="size-4" />
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                className="flex w-full justify-between focus:bg-destructive/10 focus:text-destructive"
+                onClick={onDeleteMessage}
+                variant="destructive"
+              >
+                <span className="font-semibold">Deletar</span>
+                <Trash2Icon className="size-4" />
+              </DropdownMenuItem>
+            </>
           )}
         </DropdownMenuGroup>
       </DropdownMenuContent>

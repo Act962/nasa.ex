@@ -42,7 +42,11 @@ export function CreateChatDialog({
   }
 
   const { customers, isLoading } = useQueryLeadsWithoutConversation(trackingId);
-  const createConversation = useCreateConversation({ trackingId });
+  const createConversation = useCreateConversation({
+    trackingId,
+    search: null,
+    statusId: null,
+  });
 
   const filteredLeads = customers?.filter((customer) => {
     return (

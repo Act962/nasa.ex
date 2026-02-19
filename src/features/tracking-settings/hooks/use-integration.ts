@@ -40,7 +40,7 @@ export const useConnectIntegrationStatus = (trackingId: string) => {
         });
         queryClient.invalidateQueries({
           queryKey: orpc.conversation.list.queryKey({
-            input: { trackingId: trackingId },
+            input: { trackingId: trackingId, search: null, statusId: null },
           }),
         });
       },
