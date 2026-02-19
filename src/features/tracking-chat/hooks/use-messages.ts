@@ -477,3 +477,96 @@ export function useMutationDeleteMessage({
     }),
   );
 }
+
+const updateCacheEditedMessage = (
+  old: InfiniteMessages | undefined,
+  messageId: string,
+  newBody: string,
+) => {
+  if (!old) return old;
+
+  return {
+    ...old,
+    pages: old.pages.map((page) => ({
+      ...page,
+      items: page.items.map((group) => ({
+        ...group,
+        messages: group.messages.map((m) =>
+          m.messageId === messageId ? { ...m, body: newBody } : m,
+        ),
+      })),
+    })),
+  } as InfiniteMessages;
+};
+
+const updateCacheMessageID = (
+  old: InfiniteMessages | undefined,
+  oldMessageId: string,
+  newMessageId: string,
+) => {
+  if (!old) return old;
+
+  return {
+    ...old,
+    pages: old.pages.map((page) => ({
+      ...page,
+      items: page.items.map((group) => ({
+        ...group,
+        messages: group.messages.map((m) =>
+          m.messageId === oldMessageId ? { ...m, messageId: newMessageId } : m,
+        ),
+      })),
+    })),
+  } as InfiniteMessages;
+};
+
+export function useMutationEditMessage({
+  conversationId,
+}: {
+  conversationId: string;
+}) {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.message.edit.mutationOptions({
+      onMutate: async (data) => {
+        await queryClient.cancelQueries({
+          queryKey: ["message.list", conversationId],
+        });
+
+        const previousData = queryClient.getQueryData<InfiniteMessages>([
+          "message.list",
+          conversationId,
+        ]);
+
+        queryClient.setQueryData<InfiniteMessages>(
+          ["message.list", conversationId],
+          (old) => updateCacheEditedMessage(old, data.id, data.text),
+        );
+
+        return { previousData };
+      },
+      onSuccess: (data, variables) => {
+        queryClient.setQueryData<InfiniteMessages>(
+          ["message.list", conversationId],
+          (old) => updateCacheMessageID(old, variables.id, data.messageid),
+        );
+        toast.success("Mensagem editada");
+      },
+      onError: (_err, _variables, context) => {
+        if (context?.previousData) {
+          queryClient.setQueryData(
+            ["message.list", conversationId],
+            context.previousData,
+          );
+        }
+        toast.error("Erro ao editar mensagem");
+      },
+      onSettled: () => {
+        queryClient.invalidateQueries({
+          queryKey: ["message.list", conversationId],
+        });
+      },
+    }),
+  );
+}

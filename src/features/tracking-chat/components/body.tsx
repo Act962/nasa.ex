@@ -3,7 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageBox } from "./message-box";
 import { useParams } from "next/navigation";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Button } from "@/components/ui/button";
 import { EmptyChat } from "./empty-chat";
@@ -26,6 +30,11 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { MarkedMessage } from "../types";
 import { cn } from "@/lib/utils";
+import { EditMessage } from "./edit-message";
+
+import { useMessageStore } from "../context/use-message";
+import { toast } from "sonner";
+import { useMutationEditMessage } from "../hooks/use-messages";
 
 interface BodyProps {
   messageSelected: MarkedMessage | undefined;
@@ -353,10 +362,32 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
     };
   }, [conversationId, queryClient, session.data?.user.id]);
 
+  const { isEditing, messageToEdit, setIsEditing, cancelEditing, token } =
+    useMessageStore();
+
+  const mutationEdit = useMutationEditMessage({ conversationId });
+
   const isEmpty = !error && !isLoading && items.length === 0;
+
+  function handleEditMessage(text: string, messageId: string) {
+    if (!token) return;
+    mutationEdit.mutate({
+      id: messageId,
+      text,
+      token,
+    });
+  }
 
   return (
     <>
+      {messageToEdit && (
+        <EditMessage
+          isOpen={isEditing}
+          onOpenChange={setIsEditing}
+          initialMessage={messageToEdit}
+          onSave={handleEditMessage}
+        />
+      )}
       <div
         className="flex-1 min-h-0 overflow-y-auto scroll-cols-tracking relative"
         ref={scrollRef}

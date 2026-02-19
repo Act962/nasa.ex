@@ -28,30 +28,9 @@ async function main() {
     const phone = `1234567890${i.toString().padStart(8, "0")}`;
     const randomStatusId = faker.helpers.arrayElement(statusIds);
 
-    await prisma.lead.create({
-      data: {
-        name: faker.person.firstName(),
-        phone: phone,
-        statusId: randomStatusId,
+    await prisma.lead.deleteMany({
+      where: {
         trackingId: trackingId,
-        conversation: {
-          create: {
-            trackingId: trackingId,
-            remoteJid: `${phone}@s.whatsapp.net`,
-            messages: {
-              createMany: {
-                data: {
-                  messageId: `${phone}@s.whatsapp.net`,
-                  createdAt: faker.date.past({
-                    years: 1,
-                    refDate: "2026-01-01",
-                  }),
-                  body: faker.lorem.sentence(),
-                },
-              },
-            },
-          },
-        },
       },
     });
   }
