@@ -14,10 +14,14 @@ export function useMutationLeadUpdate(leadId: string) {
             input: { id: leadId },
           }),
         });
-        toast.success(`Lead atualizado com sucesso`);
+        toast.success(`Lead atualizado com sucesso`, {
+          position: "bottom-right",
+        });
       },
       onError: () => {
-        toast.error(`Erro ao atualizar lead`);
+        toast.error(`Erro ao atualizar lead`, {
+          position: "bottom-right",
+        });
       },
     }),
   );

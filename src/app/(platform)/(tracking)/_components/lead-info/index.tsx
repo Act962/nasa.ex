@@ -19,8 +19,13 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { ActionButton } from "./action-button";
+import { FieldPhone } from "./fields/field-phone";
+import { FieldEmail } from "./fields/field-email";
+import { FieldResponsible } from "./fields/field-responsible";
+import { FieldTags } from "./fields/field-tags";
+import { FieldText } from "./fields/field-text";
 import { InfoItem } from "./Info-item";
-import { phoneMaskFull } from "@/utils/format-phone";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
@@ -61,7 +66,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
   return (
     <div
       className={cn(
-        "w-72 h-full bg-sidebar border-r flex flex-col px-4",
+        "w-72 h-full bg-sidebar border-r flex flex-col px-4 overflow-auto",
         className,
       )}
       {...rest}
@@ -81,10 +86,10 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
         </h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-6">
+      <div className="flex-1 flex flex-col">
         {/* Profile Section */}
-        <div className="flex flex-col items-center space-y-3 pt-2">
-          <Avatar className="size-20 border-2 border-muted shadow-sm">
+        <div className="flex flex-col items-center space-y-3 pt-2 pb-6 px-4">
+          <Avatar className="size-16 border-2 border-muted shadow-sm">
             <AvatarImage src={useConstructUrl(lead.profile ?? "")} />
             <AvatarFallback className="bg-primary/5 text-primary font-bold text-xl">
               {lead.name.charAt(0).toUpperCase()}
@@ -129,67 +134,39 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
         </div>
 
         {/* Details Tabs */}
-        <Tabs defaultValue="info" className="w-full">
-          <TabsList className="w-full grid grid-cols-2 mb-4">
-            <TabsTrigger value="info" className="text-xs h-8">
-              Informações
-            </TabsTrigger>
-            <TabsTrigger value="address" className="text-xs h-8">
-              Endereço
-            </TabsTrigger>
-          </TabsList>
+        <Tabs defaultValue="info" className="flex flex-col h-full">
+          <div className="px-4">
+            <TabsList className="w-full grid grid-cols-2 mb-4">
+              <TabsTrigger value="info" className="text-xs h-8">
+                Informações
+              </TabsTrigger>
+              <TabsTrigger value="address" className="text-xs h-8">
+                Endereço
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent
             value="info"
-            className="space-y-2 animate-in fade-in-50 duration-300 overflow-y-auto"
+            className="mt-0 data-[state=active]:flex flex-col"
           >
-            <div className="space-y-2">
-              <InfoItem
-                type="email"
-                label="E-mail"
-                value={lead.email ?? ""}
-                displayValueOverride={lead.email ?? "Não informado"}
-                fieldKey="email"
-              />
-              <InfoItem
-                type="phone"
-                label="Telefone"
-                value={lead.phone ?? ""}
-                displayValueOverride={phoneMaskFull(lead.phone ?? "")}
-                fieldKey="phone"
-              />
-              <InfoItem
-                type="responsible"
+            <div className="px-4 py-2 space-y-2 pb-10">
+              <FieldEmail label="E-mail" value={lead.email ?? ""} />
+              <FieldPhone label="Telefone" value={lead.phone ?? ""} />
+              <FieldResponsible
                 label="Responsável"
                 value={lead.responsible?.id ?? ""}
-                displayValueOverride={lead.responsible?.name ?? "Não atribuído"}
-                fieldKey="responsibleId"
+                displayName={lead.responsible?.name ?? ""}
                 trackingId={lead.trackingId}
                 loading={isPending}
               />
-              <InfoItem
-                type={null}
-                label="Fluxo / Tracking"
-                value={lead.tracking.name}
-              />
-              <InfoItem
-                type={null}
-                label="Status Atual"
-                value={lead.status.name}
-              />
-              <InfoItem
-                type="tags"
+              <InfoItem label="Fluxo / Tracking" value={lead.tracking.name} />
+              <InfoItem label="Status Atual" value={lead.status.name} />
+              <FieldTags
+                leadId={lead.id}
                 label="Tags"
-                value={lead.tags.map((tag) => tag.id)}
-                renderValue={(value) => (
-                  <ScrollArea className="h-[calc(100vh-200px)]">
-                    <div className="space-y-2">{value}</div>
-                  </ScrollArea>
-                )}
-                displayValueOverride={lead.tags
-                  .map((tag) => tag.name)
-                  .join(", ")}
-                fieldKey="tagIds"
+                value={lead.tags.map((t) => t.id)}
+                displayNames={lead.tags.map((t) => t.name).join(", ")}
                 trackingId={lead.trackingId}
               />
             </div>
@@ -197,53 +174,24 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
 
           <TabsContent
             value="address"
-            className="space-y-5 animate-in fade-in-50 duration-300"
+            className="flex-1 overflow-hidden mt-0 data-[state=active]:flex flex-col"
           >
-            <div className="space-y-4">
-              <InfoItem
-                label="Logradouro"
-                value=""
-                displayValueOverride="Não informado"
-                type="text"
-                fieldKey="street"
-              />
-              <InfoItem
-                label="Cidade"
-                value=""
-                displayValueOverride="Não informado"
-                type="text"
-                fieldKey="city"
-              />
-              <InfoItem
-                label="Estado"
-                value=""
-                displayValueOverride="Não informado"
-                type="text"
-                fieldKey="state"
-              />
-              <InfoItem
-                label="País"
-                value=""
-                displayValueOverride="Brasil"
-                type="text"
-                fieldKey="country"
-              />
-            </div>
+            <ScrollArea className="flex-1 w-full">
+              <div className="px-4 py-2 space-y-4 pb-10">
+                <FieldText label="Logradouro" value="" fieldKey="street" />
+                <FieldText label="Cidade" value="" fieldKey="city" />
+                <FieldText label="Estado" value="" fieldKey="state" />
+                <FieldText
+                  label="País"
+                  value=""
+                  fieldKey="country"
+                  placeholder="Brasil"
+                />
+              </div>
+            </ScrollArea>
           </TabsContent>
         </Tabs>
       </div>
     </div>
-  );
-}
-
-function ActionButton({ icon }: { icon: React.ReactNode }) {
-  return (
-    <Button
-      size="icon-xs"
-      variant="secondary"
-      className="rounded-full bg-secondary/50 hover:bg-secondary h-8 w-8 transition-all hover:scale-105"
-    >
-      {icon}
-    </Button>
   );
 }

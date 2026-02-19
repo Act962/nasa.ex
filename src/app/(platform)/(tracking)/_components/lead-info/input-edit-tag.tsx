@@ -98,7 +98,11 @@ export const InputEditTag = ({
           align="start"
         >
           <Command className="w-full">
-            <CommandInput placeholder="Buscar tag..." className="h-8" />
+            <CommandInput
+              placeholder="Buscar tag..."
+              className="h-8"
+              autoFocus
+            />
             <CommandList>
               <CommandEmpty>Nenhuma tag encontrada.</CommandEmpty>
               <CommandGroup>

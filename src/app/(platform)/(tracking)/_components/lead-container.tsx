@@ -18,7 +18,7 @@ export function LeadContainer() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen min-h-full overflow-hidden">
       <LeadInfo initialData={data} className="hidden sm:block shrink-0" />
       <LeadDetails initialData={data} />
     </div>

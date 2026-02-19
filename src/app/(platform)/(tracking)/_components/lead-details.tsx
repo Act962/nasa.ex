@@ -97,7 +97,7 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
   ];
 
   return (
-    <div className="flex-1 flex flex-col overflow-y-auto">
+    <div className="flex-1 flex flex-col">
       <Sheet>
         <SheetTrigger asChild>
           <Button className="sm:hidden m-4">Lead Info</Button>
