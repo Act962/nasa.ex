@@ -406,7 +406,7 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
             {items.map((group, groupIndex) => (
               <div key={group.date + groupIndex} className="flex flex-col">
                 <div className="flex justify-center my-4 sticky top-2 z-10">
-                  <span className="bg-secondary text-secondary-foreground text-[9px] font-medium px-2 py-1 rounded-md shadow-sm uppercase">
+                  <span className="bg-foreground/10 text-foreground text-[9px] font-medium px-2 py-1 rounded-md shadow-sm uppercase">
                     {dayjs(group.date).calendar(null, {
                       sameDay: "[Hoje]",
                       lastDay: "[Ontem]",

@@ -152,6 +152,10 @@ export async function POST(request: NextRequest) {
       const senderId = fromMe ? json.owner : phone;
       const messageId = json.message.messageid;
       const messageType = json.message.messageType;
+      const messageTimestamp = json.message.messageTimestamp;
+      const createdAt = messageTimestamp
+        ? new Date(messageTimestamp)
+        : new Date();
 
       let body = json.message.text || "";
       if (!body && typeof json.message.content === "string") {
@@ -162,8 +166,10 @@ export async function POST(request: NextRequest) {
 
       let messageData: any = null;
       const quotedMessage = json.message.quoted;
+      const messageEdited = json.message.edited;
 
       let quotedMessageData = null;
+      let editedMessageData = null;
 
       if (quotedMessage) {
         quotedMessageData =
@@ -174,14 +180,30 @@ export async function POST(request: NextRequest) {
           })) || null;
       }
 
+      if (messageEdited) {
+        editedMessageData =
+          (await prisma.message.findUnique({
+            where: {
+              messageId: messageEdited,
+            },
+            select: {
+              id: true,
+              body: true,
+              messageId: true,
+            },
+          })) || null;
+      }
+
       if (
         messageType === "ExtendedTextMessage" ||
         messageType === "Conversation"
       ) {
         messageData = await prisma.message.upsert({
-          where: { messageId },
+          where: { messageId: editedMessageData?.messageId || messageId },
           update: {
             status: MessageStatus.SEEN,
+            body: body || editedMessageData?.body,
+            createdAt,
           },
           create: {
             fromMe,
@@ -191,6 +213,7 @@ export async function POST(request: NextRequest) {
             body,
             status: MessageStatus.SEEN,
             quotedMessageId: quotedMessageData?.id,
+            createdAt,
           },
           include: {
             quotedMessage: true,
@@ -249,6 +272,7 @@ export async function POST(request: NextRequest) {
             mimetype,
             senderId,
             messageId,
+            createdAt,
           },
           include: {
             quotedMessage: true,
@@ -299,6 +323,7 @@ export async function POST(request: NextRequest) {
             conversationId: lead.conversation?.id!,
             senderId,
             messageId,
+            createdAt,
           },
           include: {
             quotedMessage: true,
@@ -354,6 +379,7 @@ export async function POST(request: NextRequest) {
             conversationId: lead.conversation?.id!,
             senderId,
             messageId,
+            createdAt,
           },
           include: {
             quotedMessage: true,
@@ -401,6 +427,7 @@ export async function POST(request: NextRequest) {
             mimetype: document.mimetype,
             senderId,
             messageId,
+            createdAt,
           },
           include: {
             quotedMessage: true,
