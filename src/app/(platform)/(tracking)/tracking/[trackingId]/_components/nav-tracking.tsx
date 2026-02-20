@@ -9,7 +9,6 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -26,8 +25,6 @@ import { DropdownMenu } from "@radix-ui/react-dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import {
   CalendarPlusIcon,
-  CheckIcon,
-  ChevronsUpDown,
   ClockIcon,
   Grid2x2Plus,
   MoreHorizontalIcon,

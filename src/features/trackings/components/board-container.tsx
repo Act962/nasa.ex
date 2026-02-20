@@ -19,7 +19,6 @@ import {
   useUpdateLeadOrder,
 } from "../hooks/use-trackings";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
@@ -35,7 +34,7 @@ import { useKanbanStore } from "../lib/kanban-store";
 import { Lead } from "../types";
 import { useLostOrWin } from "@/hooks/use-lost-or-win";
 import { useDeletLead } from "@/hooks/use-delete-lead";
-import { useParams } from "next/navigation";
+import { NavOptionsTracking } from "./nav-options";
 
 interface BoardContainerProps {
   trackingId: string;
@@ -262,44 +261,47 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
     );
   }
   return (
-    <DndContext
-      sensors={sensors}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onDragOver={onDragOver}
-    >
-      <div className="grid grid-rows-[1fr_auto] h-full">
-        <ol className="flex gap-x-3 overflow-x-auto">
-          <SortableContext items={columnList.map((s) => s.id)}>
-            {columnList.map((s, index) => (
-              <StatusColumn
-                key={s.id}
-                status={s}
-                index={index}
-                trackingId={trackingId}
-              />
-            ))}
-          </SortableContext>
-          <StatusForm />
-          <div className="shrink-0 w-1" />
-        </ol>
-        <Footer />
-      </div>
+    <>
+      <NavOptionsTracking />
+      <DndContext
+        sensors={sensors}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onDragOver={onDragOver}
+      >
+        <div className="grid grid-rows-[1fr_auto] h-full">
+          <ol className="flex gap-x-3 overflow-x-auto">
+            <SortableContext items={columnList.map((s) => s.id)}>
+              {columnList.map((s, index) => (
+                <StatusColumn
+                  key={s.id}
+                  status={s}
+                  index={index}
+                  trackingId={trackingId}
+                />
+              ))}
+            </SortableContext>
+            <StatusForm />
+            <div className="shrink-0 w-1" />
+          </ol>
+          <Footer />
+        </div>
 
-      {typeof window !== "undefined" &&
-        createPortal(
-          <DragOverlay>
-            {activeColumn && (
-              <StatusColumn
-                index={Number(activeColumn.order)}
-                status={activeColumn}
-                trackingId={trackingId}
-              />
-            )}
-            {activeLead && <LeadItem data={activeLead} />}
-          </DragOverlay>,
-          document.body,
-        )}
-    </DndContext>
+        {typeof window !== "undefined" &&
+          createPortal(
+            <DragOverlay>
+              {activeColumn && (
+                <StatusColumn
+                  index={Number(activeColumn.order)}
+                  status={activeColumn}
+                  trackingId={trackingId}
+                />
+              )}
+              {activeLead && <LeadItem data={activeLead} />}
+            </DragOverlay>,
+            document.body,
+          )}
+      </DndContext>
+    </>
   );
 }

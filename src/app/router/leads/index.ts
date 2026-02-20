@@ -17,6 +17,7 @@ import { listLeadByWhats } from "./list-lead-by-whats";
 import { listLeadWithoutConversation } from "./list-without-conversation";
 import { updateNewOrder } from "./update-new-order";
 import { listLeadsByStatus } from "./get-many";
+import { updateManyStatusLead } from "./update-many-status";
 
 export const leadRoutes = {
   list: listLead,
@@ -38,4 +39,5 @@ export const leadRoutes = {
   listLeadWithoutConversation: listLeadWithoutConversation,
   updateNewOrder: updateNewOrder,
   listLeadsByStatus,
+  updateManyStatus: updateManyStatusLead,
 };

@@ -18,7 +18,12 @@ import { memo } from "react";
 import { Lead } from "../types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 
+import { useLeadStore } from "../contexts/use-lead";
+
 export const LeadItem = memo(({ data }: { data: Lead }) => {
+  const { toggleLead, isSelected } = useLeadStore();
+  const selected = isSelected(data.id);
+
   const {
     attributes,
     listeners,
@@ -42,13 +47,21 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
 
   const url = useConstructUrl(data.profile || "");
 
+  const handleSelect = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("a")) return;
+    toggleLead(data);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       data-lead-id={data.id}
       data-order={data.order}
-      className="border-2 border-transparent hover:border-muted text-sm bg-muted rounded-md shadow-sm group"
+      onClick={handleSelect}
+      className={`border-2 text-sm bg-muted rounded-md shadow-sm group cursor-pointer transition-all overflow-hidden ${
+        selected ? "border-primary/50" : "border-transparent hover:border-muted"
+      }`}
     >
       <div className="flex items-center justify-between px-3">
         <div className="flex flex-row items-center gap-2">
@@ -56,6 +69,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
             className="touch-none group-hover:flex active:cursor-grabbing cursor-grab hidden"
             {...listeners}
             {...attributes}
+            onClick={(e) => e.stopPropagation()} // Evita selecionar ao clicar no grid de arrastar
           >
             <Grip className="size-4 " />
           </button>
@@ -80,6 +94,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           variant="ghost"
           className="size-7 opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
           asChild
+          onClick={(e) => e.stopPropagation()}
         >
           <Link href={`/contatos/${data.id}`}>
             <ArrowUpRight className="size-3.5" />
