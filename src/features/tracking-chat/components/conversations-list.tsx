@@ -22,9 +22,9 @@ import { pusherClient } from "@/lib/pusher";
 import { orpc } from "@/lib/orpc";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";
-import { cn } from "@/lib/utils";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SearchConversations } from "./search-conversaitons";
+import { useDebouncedValue } from "@/hooks/use-debounced";
 
 export function ConversationsList() {
   const [open, setOpen] = useState(false);
@@ -32,26 +32,26 @@ export function ConversationsList() {
   const [selectedTracking, setSelectedTracking] = useState<string>("");
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+  const debouncedSearch = useDebouncedValue(search, 500);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!isLoadingTrackings && trackings.length > 0 && !selectedTracking) {
-      setSelectedTracking(trackings[0].id);
-    }
-  }, [trackings, isLoadingTrackings, selectedTracking]);
-
-  useInfinityConversation(selectedTracking, selectedStatus, search);
+  useInfinityConversation(selectedTracking, selectedStatus, debouncedSearch);
 
   const infinitiOptions = orpc.conversation.list.infiniteOptions({
     input: (pageParam: string | undefined) => ({
       trackingId: selectedTracking,
       statusId: selectedStatus,
-      search: search,
+      search: debouncedSearch,
       cursor: pageParam,
       limit: 15,
     }),
-    queryKey: ["conversations.list", selectedTracking, selectedStatus, search],
+    queryKey: [
+      "conversations.list",
+      selectedTracking,
+      selectedStatus,
+      debouncedSearch,
+    ],
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
@@ -85,6 +85,12 @@ export function ConversationsList() {
   const noInstance = !whatsappInstance;
   const instanceDisconnected =
     whatsappInstance?.status === WhatsAppInstanceStatus.DISCONNECTED;
+
+  useEffect(() => {
+    if (!isLoadingTrackings && trackings.length > 0 && !selectedTracking) {
+      setSelectedTracking(trackings[0].id);
+    }
+  }, [trackings, isLoadingTrackings, selectedTracking]);
 
   useEffect(() => {
     if (!selectedTracking) return;

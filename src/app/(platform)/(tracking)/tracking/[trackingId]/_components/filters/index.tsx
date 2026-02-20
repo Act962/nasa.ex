@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Ellipsis, ListFilter } from "lucide-react";
+import { Ellipsis, ListFilter, PlusIcon } from "lucide-react";
 import { TrackingSwitcher } from "./tracking-switcher";
 import { ParticipantsSwitcher } from "./participant-switcher";
 import { Filters } from "./filters";
@@ -15,9 +15,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import AddLeadSheet from "@/components/modals/add-lead-sheet";
+import { useAddLead } from "@/hooks/modal/use-add-lead";
 
 export function FiltersTracking() {
   const { trackingId } = useParams<{ trackingId: string }>();
+  const useLeadSheet = useAddLead();
 
   return (
     <>
@@ -29,6 +32,10 @@ export function FiltersTracking() {
           <CalendarFilter />
         </div>
         <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => useLeadSheet.setIsOpen(true)}>
+            <PlusIcon className="size-4" />
+            Novo Lead
+          </Button>
           <Filters />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -46,6 +53,11 @@ export function FiltersTracking() {
           </DropdownMenu>
         </div>
       </div>
+
+      <AddLeadSheet
+        open={useLeadSheet.isOpen}
+        onOpenChange={useLeadSheet.setIsOpen}
+      />
     </>
   );
 }

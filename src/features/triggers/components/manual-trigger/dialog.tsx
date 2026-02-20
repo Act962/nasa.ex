@@ -34,7 +34,7 @@ import {
   useQueryStatus,
   useQueryTrackings,
 } from "@/features/trackings/hooks/use-trackings";
-import { useDebouncedValue } from "@/hooks/use-debouced";
+import { useDebouncedValue } from "@/hooks/use-debounced";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckIcon, Loader2 } from "lucide-react";
