@@ -24,10 +24,33 @@ export function useTag() {
       onError: () => {
         toast.error("Erro ao criar tag, tente novamente");
       },
-    })
+    }),
   );
 
   return {
     createTag: createTagMutation,
   };
 }
+
+export const syncWhatsappTagsMutation = (trackingId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.tags.syncWhatsappTags.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.tags.listTags.queryKey({
+            input: {
+              query: {
+                trackingId,
+              },
+            },
+          }),
+        });
+        toast.success("Tags sincronizadas com sucesso!");
+      },
+      onError: () => {
+        toast.error("Erro ao sincronizar tags, tente novamente");
+      },
+    }),
+  );
+};

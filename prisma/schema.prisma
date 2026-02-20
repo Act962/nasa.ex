@@ -327,9 +327,11 @@ model Tag {
   name           String
   color          String?  @default("#1447e6")
   organizationId String   @map("organization_id")
-  trackingId     String?  @map("tracking_id") // 👈 Opcional
+  trackingId     String?  @map("tracking_id") 
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
+
+  whatsappId String? @map("whatsapp_id")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   tracking     Tracking?    @relation(fields: [trackingId], references: [id], onDelete: Cascade)

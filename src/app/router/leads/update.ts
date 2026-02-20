@@ -22,6 +22,7 @@ export const updateLead = base
         statusId: z.string().optional(),
         responsibleId: z.string().optional(),
         tagIds: z.array(z.string()).optional(),
+        isConversation: z.boolean().optional().default(false),
       })
       .refine(
         (v) =>
@@ -93,6 +94,8 @@ export const updateLead = base
           updatedAt: true,
         },
       });
+      if (input.isConversation) {
+      }
 
       return { lead };
     } catch (err) {
