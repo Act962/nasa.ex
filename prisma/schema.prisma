@@ -31,6 +31,7 @@ model User {
   responsibleOnLeads      Lead[]  @relation("LeadResponsible")
   worflows Workflow[]
   forms    Form[]
+  leadFiles LeadFile[]
 
   @@unique([email])
   @@map("user")
@@ -306,6 +307,7 @@ model Lead {
 
   leadTags LeadTag[]
   history  LeadHistory[]
+  files    LeadFile[]
   actions  Action[]
 
   @@index([trackingId])
@@ -355,6 +357,23 @@ model LeadTag {
   @@index([leadId])
   @@index([tagId])
   @@map("lead_tags")
+}
+
+model LeadFile {
+  id        String   @id @default(cuid())
+  leadId    String   @map("lead_id")
+  fileUrl   String   @map("file_url")
+  mimeType  String   @map("mime_type")
+  createdAt DateTime @default(now()) @map("created_at")
+  name String
+
+  createdBy String? @map("created_by")
+  creator User? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([createdBy])
+  @@map("lead_files")
 }
 
 model ActionsUserParticipant {
@@ -617,6 +636,7 @@ model Message {
   quotes           Message[] @relation("QuotedMessages")
   conversationId String 
   senderId       String?
+  senderName     String?
 
   conversation   Conversation @relation("Messages", fields: [conversationId], references: [id], onDelete: Cascade)
   LastMessage Conversation?
@@ -658,3 +678,4 @@ model WhatsAppInstance {
   @@index([status])
   @@map("whatsapp_instances")
 }
+

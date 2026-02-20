@@ -2,9 +2,9 @@
 
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { LeadDetails } from "./lead-details";
-import { LeadInfo } from "./lead-info";
 import { orpc } from "@/lib/orpc";
 import { useParams } from "next/navigation";
+import { LeadInfo } from "./lead-info";
 
 export function LeadContainer() {
   const params = useParams<{ leadId: string }>();

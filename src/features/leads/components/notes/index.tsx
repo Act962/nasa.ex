@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { RichtTextEditor } from "../../../../../components/rich-text-editor/editor";
+import { RichtTextEditor } from "../../../../components/rich-text-editor/editor";
 import { ContainerItemLead } from "./container-item-lead";
 import {
   useMutationCreateLeadAction,
