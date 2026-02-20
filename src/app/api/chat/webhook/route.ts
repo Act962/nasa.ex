@@ -157,8 +157,10 @@ export async function POST(request: NextRequest) {
       let body = json.message.text || "";
       if (!body && typeof json.message.content === "string") {
         body = json.message.content;
-      } else if (!body && typeof json.message.content === "object") {
+      } else if (!body && typeof json.message.content.text === "string") {
         body = json.message.content?.text || "";
+      } else if (!body && typeof json.message.content.caption === "string") {
+        body = json.message.content?.caption || "";
       }
 
       let messageData: any = null;
@@ -238,43 +240,51 @@ export async function POST(request: NextRequest) {
       }
 
       if (messageType === "ImageMessage") {
-        const image = await downloadFile({
-          token: json.token,
-          baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
-          data: { id: messageId, return_base64: false },
-        });
-
         let key = null;
         let mimetype = "";
-        if (image?.fileURL) {
-          try {
-            const imageResponse = await fetch(image.fileURL);
-            if (imageResponse.ok) {
-              const arrayBuffer = await imageResponse.arrayBuffer();
-              const buffer = Buffer.from(arrayBuffer);
-              mimetype =
-                imageResponse.headers.get("content-type") || "image/jpeg";
+        if (!editedMessageData) {
+          const image = await downloadFile({
+            token: json.token,
+            baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
+            data: { id: messageId, return_base64: false },
+          });
 
-              const extension = mimetype.split("/")[1] || "jpg";
-              key = `${uuidv4()}.${extension}`;
+          if (image?.fileURL) {
+            try {
+              const imageResponse = await fetch(image.fileURL);
+              if (imageResponse.ok) {
+                const arrayBuffer = await imageResponse.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                mimetype =
+                  imageResponse.headers.get("content-type") || "image/jpeg";
 
-              await S3.send(
-                new PutObjectCommand({
-                  Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
-                  Key: key,
-                  Body: buffer,
-                  ContentType: mimetype,
-                }),
-              );
+                const extension = mimetype.split("/")[1] || "jpg";
+                key = `${uuidv4()}.${extension}`;
+
+                await S3.send(
+                  new PutObjectCommand({
+                    Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
+                    Key: key,
+                    Body: buffer,
+                    ContentType: mimetype,
+                  }),
+                );
+              }
+            } catch (error) {
+              console.error("Error uploading to S3:", error);
             }
-          } catch (error) {
-            console.error("Error uploading to S3:", error);
           }
         }
 
+        console.log("body aqui", body);
+
         messageData = await prisma.message.upsert({
-          where: { messageId },
-          update: {},
+          where: { messageId: editedMessageData?.messageId || messageId },
+          update: {
+            status: MessageStatus.SEEN,
+            body: body || editedMessageData?.body,
+            createdAt,
+          },
           create: {
             body,
             mediaUrl: key,
@@ -296,36 +306,46 @@ export async function POST(request: NextRequest) {
         });
       }
       if (messageType === "DocumentMessage") {
-        const document = await downloadFile({
-          token: json.token,
-          baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
-          data: { id: messageId, return_base64: false },
-        });
-
         let key = null;
-        let mimetype = document.mimetype;
-        if (document?.fileURL) {
-          const documentResponse = await fetch(document.fileURL);
-          if (documentResponse.ok) {
-            const arrayBuffer = await documentResponse.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
+        let mimetype = null;
 
-            const extension = document.fileURL.split(".").pop() || "pdf";
-            key = `${uuidv4()}.${extension}`;
+        if (!editedMessageData) {
+          const document = await downloadFile({
+            token: json.token,
+            baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
+            data: { id: messageId, return_base64: false },
+          });
 
-            await S3.send(
-              new PutObjectCommand({
-                Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
-                Key: key,
-                Body: buffer,
-                ContentType: mimetype,
-              }),
-            );
+          mimetype = document.mimetype;
+
+          if (document?.fileURL) {
+            const documentResponse = await fetch(document.fileURL);
+            if (documentResponse.ok) {
+              const arrayBuffer = await documentResponse.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+
+              const extension = document.fileURL.split(".").pop() || "pdf";
+              key = `${uuidv4()}.${extension}`;
+
+              await S3.send(
+                new PutObjectCommand({
+                  Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
+                  Key: key,
+                  Body: buffer,
+                  ContentType: mimetype,
+                }),
+              );
+            }
           }
         }
-
-        messageData = await prisma.message.create({
-          data: {
+        messageData = await prisma.message.upsert({
+          where: { messageId: editedMessageData?.messageId || messageId },
+          update: {
+            status: MessageStatus.SEEN,
+            body: body || editedMessageData?.body,
+            createdAt,
+          },
+          create: {
             body,
             mediaUrl: key,
             fileName: json.message.content.fileName,

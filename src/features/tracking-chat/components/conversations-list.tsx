@@ -1,7 +1,7 @@
 "use client";
 
 import { LeadBox } from "./lead-box";
-import { RocketIcon, UserPlusIcon, UserRoundPlusIcon } from "lucide-react";
+import { UserPlusIcon, UserRoundPlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useInfinityConversation } from "../hooks/use-conversation";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,12 +17,10 @@ import { CreateChatDialog } from "./create-chat-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryTracking } from "@/features/tracking-settings/hooks/use-tracking";
 import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
-import Link from "next/link";
 import { pusherClient } from "@/lib/pusher";
 import { orpc } from "@/lib/orpc";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";
-import { cn } from "@/lib/utils";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SearchConversations } from "./search-conversaitons";
 
@@ -128,35 +126,6 @@ export function ConversationsList() {
               {Array.from({ length: 10 }).map((_, index) => (
                 <Skeleton key={index} className="h-16 mt-1" />
               ))}
-            </div>
-          ) : noInstance || instanceDisconnected ? (
-            <div className="flex-1 overflow-hidden">
-              <Empty>
-                <EmptyHeader>
-                  <EmptyMedia>
-                    <RocketIcon />
-                  </EmptyMedia>
-                  <EmptyTitle>
-                    {noInstance
-                      ? "Nenhuma instância encontrada"
-                      : "Instância desconectada"}
-                  </EmptyTitle>
-                  <EmptyDescription>
-                    {noInstance
-                      ? "Configure uma instância para iniciar"
-                      : "Conecte a instância para iniciar"}
-                  </EmptyDescription>
-                </EmptyHeader>
-                <EmptyContent>
-                  <Button variant="default" asChild>
-                    <Link
-                      href={`/tracking/${selectedTracking}/settings?tab=instance`}
-                    >
-                      Configurar Instância
-                    </Link>
-                  </Button>
-                </EmptyContent>
-              </Empty>
             </div>
           ) : (
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">

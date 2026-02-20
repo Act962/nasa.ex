@@ -38,6 +38,7 @@ import {
 import { cn } from "@/lib/utils";
 import { EmojiData } from "emoji-picker-react/dist/types/exposedTypes";
 import { MessageSelected } from "./message-selected";
+import { useRouter } from "next/navigation";
 
 interface FooterProps {
   conversationId: string;
@@ -61,6 +62,7 @@ export function Footer({
 }) {
   const setInstanceData = useMessageStore((state) => state.setInstance);
   const instance = useQueryInstances(trackingId);
+  const route = useRouter();
 
   useEffect(() => {
     if (instance.instance) {
@@ -181,85 +183,101 @@ export function Footer({
                   : "items-center",
               )}
             >
-              <InputGroupAddon>
-                <Popover open={open} onOpenChange={setOpen}>
-                  <PopoverTrigger asChild>
-                    <PlusIcon className="cursor-pointer size-4" />
-                  </PopoverTrigger>
-                  <PopoverContent className="w-fit h-fit p-0">
-                    <div className="relative w-full h-full cursor-pointer overflow-hidden">
-                      <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
-                        <FileIcon className="size-4" />
-                        <p className="text-sm">Arquivo</p>
-                        <div className="absolute top-0 left-0 w-full h-full opacity-0">
-                          {isLoading ? (
-                            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                              <Spinner className="size-3" />
+              {!isDisabled ? (
+                <>
+                  <InputGroupAddon>
+                    <Popover open={open} onOpenChange={setOpen}>
+                      <PopoverTrigger asChild>
+                        <PlusIcon className="cursor-pointer size-4" />
+                      </PopoverTrigger>
+                      <PopoverContent className="w-fit h-fit p-0">
+                        <div className="relative w-full h-full cursor-pointer overflow-hidden">
+                          <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4">
+                            <FileIcon className="size-4" />
+                            <p className="text-sm">Arquivo</p>
+                            <div className="absolute top-0 left-0 w-full h-full opacity-0">
+                              {isLoading ? (
+                                <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                  <Spinner className="size-3" />
+                                </div>
+                              ) : (
+                                <Uploader
+                                  onUpload={(file, name) =>
+                                    handleFileChange(file, "pdf", name)
+                                  }
+                                  onUploadStart={() => setIsLoading(true)}
+                                  value={selectedImage}
+                                  fileTypeAccepted="outros"
+                                />
+                              )}
                             </div>
-                          ) : (
-                            <Uploader
-                              onUpload={(file, name) =>
-                                handleFileChange(file, "pdf", name)
-                              }
-                              onUploadStart={() => setIsLoading(true)}
-                              value={selectedImage}
-                              fileTypeAccepted="outros"
-                            />
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                    <div className="relative w-full h-full cursor-pointer overflow-hidden">
-                      <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
-                        <ImageIcon className="size-4" />
-                        <p className="text-sm">Imagem</p>
-                        <div className="absolute top-0 left-0 w-full h-full opacity-0">
-                          {isLoading ? (
-                            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                              <Spinner className="size-3" />
+                        <div className="relative w-full h-full cursor-pointer overflow-hidden">
+                          <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
+                            <ImageIcon className="size-4" />
+                            <p className="text-sm">Imagem</p>
+                            <div className="absolute top-0 left-0 w-full h-full opacity-0">
+                              {isLoading ? (
+                                <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                  <Spinner className="size-3" />
+                                </div>
+                              ) : (
+                                <Uploader
+                                  onUpload={(file) =>
+                                    handleFileChange(file, "image")
+                                  }
+                                  onUploadStart={() => setIsLoading(true)}
+                                  value={selectedImage}
+                                  fileTypeAccepted="image"
+                                />
+                              )}
                             </div>
-                          ) : (
-                            <Uploader
-                              onUpload={(file) =>
-                                handleFileChange(file, "image")
-                              }
-                              onUploadStart={() => setIsLoading(true)}
-                              value={selectedImage}
-                              fileTypeAccepted="image"
-                            />
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </InputGroupAddon>
+                      </PopoverContent>
+                    </Popover>
+                  </InputGroupAddon>
 
-              <InputGroupAddon>
-                <Popover open={openSticker} onOpenChange={setOpenSticker}>
-                  <PopoverTrigger asChild>
-                    <StickerIcon className="cursor-pointer size-4" />
-                  </PopoverTrigger>
-                  <PopoverContent className="w-fit h-fit p-0">
-                    <EmojiPicker
-                      searchPlaceholder="Pesquisar emoji"
-                      skinTonesDisabled={true}
-                      previewConfig={{ showPreview: false }}
-                      emojiData={pt as EmojiData}
-                      theme={Theme.DARK}
-                      onEmojiClick={(emoji) =>
-                        setMessage(message + emoji.emoji)
-                      }
-                    />
-                  </PopoverContent>
-                </Popover>
-              </InputGroupAddon>
+                  <InputGroupAddon>
+                    <Popover open={openSticker} onOpenChange={setOpenSticker}>
+                      <PopoverTrigger asChild>
+                        <StickerIcon className="cursor-pointer size-4" />
+                      </PopoverTrigger>
+                      <PopoverContent className="w-fit h-fit p-0">
+                        <EmojiPicker
+                          searchPlaceholder="Pesquisar emoji"
+                          skinTonesDisabled={true}
+                          previewConfig={{ showPreview: false }}
+                          emojiData={pt as EmojiData}
+                          theme={Theme.DARK}
+                          onEmojiClick={(emoji) =>
+                            setMessage(message + emoji.emoji)
+                          }
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </InputGroupAddon>
+                </>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      route.push(`/tracking/${trackingId}/settings`)
+                    }
+                  >
+                    Conectar instância
+                  </Button>
+                </>
+              )}
 
               <InputGroupTextarea
                 ref={inputRef as any}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Digite sua mensagem"
+                placeholder={isDisabled ? "" : "Digite sua mensagem"}
+                disabled={isDisabled}
                 className="resize-none min-h-0 py-2.5 text-sm max-h-[200px]"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
