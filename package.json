@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && prisma migrate deploy && next build",
+    "dev:setup": "prisma migrate dev && prisma generate && pnpm install",
     "start": "next start",
     "lint": "eslint",
     "inngest:dev": "inngest-cli dev",
