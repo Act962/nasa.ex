@@ -44,7 +44,7 @@ export function TagsFilter() {
           }),
         });
       },
-    })
+    }),
   );
 
   const onCreateTag = (name: string) => {
@@ -123,14 +123,14 @@ export function TagsFilter() {
             </CommandEmpty>
             <CommandGroup>
               {tags.map((tag) => {
-                const isSelected = selectedTags.includes(tag.name);
+                const isSelected = selectedTags.includes(tag.slug);
 
                 return (
                   <CommandItem
                     key={tag.id}
                     value={`${tag.name}-${tag.id}`}
                     className="cursor-pointer"
-                    onSelect={() => handleTagFilter(tag.name)}
+                    onSelect={() => handleTagFilter(tag.slug)}
                   >
                     <Checkbox checked={isSelected} />
                     {tag.name}

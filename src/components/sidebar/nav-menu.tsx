@@ -74,7 +74,8 @@ export function NavMenu() {
       <SidebarGroupLabel>Menu</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item, index) => {
-          const isActive = pathname.startsWith(item.url);
+          const isActive =
+            pathname === item.url || pathname.startsWith(item.url + "/");
 
           return (
             <SidebarMenuItem key={`${item.title}-${index}`}>

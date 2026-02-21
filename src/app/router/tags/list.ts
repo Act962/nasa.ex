@@ -26,7 +26,11 @@ export const listTags = base
         z.object({
           id: z.string(),
           name: z.string(),
+          slug: z.string(),
           color: z.string().nullable().default("#1447e6"),
+          description: z.string().nullable(),
+          icon: z.string().nullable(),
+          type: z.enum(["CUSTOM", "SYSTEM"]),
         }),
       ),
     }),
@@ -38,7 +42,11 @@ export const listTags = base
         select: {
           id: true,
           name: true,
+          slug: true,
           color: true,
+          description: true,
+          icon: true,
+          type: true,
         },
         where: {
           organizationId: context.org.id,

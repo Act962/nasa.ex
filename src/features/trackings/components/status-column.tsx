@@ -33,6 +33,7 @@ export function StatusColumn({
   const [dateInit] = useQueryState("date_init");
   const [dateEnd] = useQueryState("date_end");
   const [participantFilter] = useQueryState("participant");
+  const [tagsFilter] = useQueryState("tags");
   const {
     attributes,
     listeners,
@@ -60,8 +61,9 @@ export function StatusColumn({
       dateInit: dateInit ? dayjs(dateInit).startOf("day").toDate() : undefined,
       dateEnd: dateEnd ? dayjs(dateEnd).endOf("day").toDate() : undefined,
       participantFilter: participantFilter || undefined,
+      tagsFilter: tagsFilter ? tagsFilter.split(",") : undefined,
     }),
-    [dateInit, dateEnd, participantFilter],
+    [dateInit, dateEnd, participantFilter, tagsFilter],
   );
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
