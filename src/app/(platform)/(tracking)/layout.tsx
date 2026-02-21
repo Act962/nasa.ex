@@ -1,8 +1,8 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "../../../components/sidebar";
-import { HeaderTracking } from "./_components/header-tracking";
+import { HeaderTracking } from "../../../features/leads/components/header-tracking";
 import { currentOrganization } from "@/lib/auth-utils";
-import { EmptyOrganization } from "./_components/empty-organization";
+import { EmptyOrganization } from "../../../features/leads/components/empty-organization";
 import { cookies } from "next/headers";
 
 export default async function RouteLayout({

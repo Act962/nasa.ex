@@ -101,6 +101,7 @@ export function SearchConversations({
                     {trackings.map((tracking) => (
                       <CommandItem
                         key={tracking.id}
+                        value={tracking.id}
                         onSelect={() => handleTrackingSelect(tracking.id)}
                         className="text-xs"
                       >

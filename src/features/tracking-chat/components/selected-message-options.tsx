@@ -103,7 +103,8 @@ export function SelectedMessageDropdown({
 
   const canEdit =
     message.fromMe &&
-    differenceInMinutes(new Date(), new Date(message.createdAt)) < 4;
+    differenceInMinutes(new Date(), new Date(message.createdAt)) < 4 &&
+    message.status !== MessageStatus.SENT;
 
   return (
     <DropdownMenu onOpenChange={onChange}>

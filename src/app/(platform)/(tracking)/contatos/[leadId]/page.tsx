@@ -1,5 +1,5 @@
 import { SidebarInset } from "@/components/ui/sidebar";
-import { LeadContainer } from "../../_components/lead-container";
+import { LeadContainer } from "../../../../../features/leads/components/lead-container";
 import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { orpc } from "@/lib/orpc";
 
@@ -17,7 +17,7 @@ export default async function LeadPage({ params }: LeadPageProps) {
       input: {
         id: leadId,
       },
-    })
+    }),
   );
 
   return (
