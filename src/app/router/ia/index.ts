@@ -1,14 +1,15 @@
+import { generateCompose } from "./generate-compose";
 import { generateConversationSummary } from "./generate-conversation-summary";
 import { getAiSettings } from "./get-ai-settings";
 import { updateAiSettings } from "./update-ai-settings";
 
 export const iaRouter = {
   compose: {
-    generate: generateConversationSummary,
+    generate: generateCompose,
   },
   conversation: {
     summary: {
-      generate: {},
+      generate: generateConversationSummary,
     },
   },
   settings: {

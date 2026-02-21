@@ -1,6 +1,5 @@
 "use client";
 
-import AddLeadSheet from "@/components/modals/add-lead-sheet";
 import { SearchLeadModal } from "@/components/modals/search-lead-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,6 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { useAddLead } from "@/hooks/modal/use-add-lead";
 import { useSearchModal } from "@/hooks/modal/use-search-modal";
 import { orpc } from "@/lib/orpc";
 import { DropdownMenu } from "@radix-ui/react-dropdown-menu";
@@ -30,17 +28,16 @@ import {
   MoreHorizontalIcon,
   Plus,
   Search,
-  UserRoundPlus,
 } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { useState } from "react";
 import { AddParticipantDialog } from "./add-participant-dialog";
 
 export function NavTracking() {
   const params = useParams<{ trackingId: string; workflowId: string }>();
+  const pathname = usePathname();
   const searchLead = useSearchModal();
-  const useLeadSheet = useAddLead();
   const [addMemberDialogIsOpen, setAddMemberDialogIsOpen] = useState(false);
   const { data, isPending } = useQuery(
     orpc.tracking.listParticipants.queryOptions({
@@ -49,6 +46,21 @@ export function NavTracking() {
       },
     }),
   );
+
+  const navItems = [
+    {
+      label: "Tracking",
+      href: `/tracking/${params.trackingId}`,
+    },
+    {
+      label: "Automações",
+      href: `/tracking/${params.trackingId}/workflows`,
+    },
+    {
+      label: "Configurações",
+      href: `/tracking/${params.trackingId}/settings`,
+    },
+  ];
 
   return (
     <>
@@ -94,77 +106,62 @@ export function NavTracking() {
               </button>
             </div>
           )}
-          {!params.workflowId && (
-            <ButtonGroup>
-              <ButtonGroup className="hidden sm:flex">
-                <Button variant="outline">
-                  <Link
-                    href={`/tracking/${params.trackingId}/workflows`}
-                    prefetch
-                  >
-                    Automações
+          <ButtonGroup>
+            <ButtonGroup className="hidden sm:flex">
+              {navItems.map((item) => (
+                <Button
+                  key={item.label}
+                  variant="outline"
+                  size="sm"
+                  disabled={item.href === pathname}
+                >
+                  <Link href={item.href} prefetch>
+                    {item.label}
                   </Link>
                 </Button>
-                <Button variant="outline">
-                  <Link
-                    href={`/tracking/${params.trackingId}/settings`}
-                    prefetch
-                  >
-                    Configurações
-                  </Link>
-                </Button>
-                <Button onClick={() => useLeadSheet.setIsOpen(true)}>
-                  Novo Lead
-                </Button>
-              </ButtonGroup>
-
-              {/* Mobile */}
-              <ButtonGroup>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      aria-label="More Options"
-                      className="sm:hidden"
-                    >
-                      <MoreHorizontalIcon />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-52">
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem
-                        onClick={() => useLeadSheet.setIsOpen(true)}
-                      >
-                        <UserRoundPlus />
-                        Lead
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Grid2x2Plus />
-                        Coluna
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem>
-                        <ClockIcon />
-                        Automação
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href={`/tracking/${params.trackingId}/settings`}
-                          prefetch
-                        >
-                          <CalendarPlusIcon />
-                          Configurações
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </ButtonGroup>
+              ))}
             </ButtonGroup>
-          )}
+
+            {/* Mobile */}
+            <ButtonGroup>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label="More Options"
+                    className="sm:hidden"
+                  >
+                    <MoreHorizontalIcon />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem>
+                      <Grid2x2Plus />
+                      Coluna
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem>
+                      <ClockIcon />
+                      Automação
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href={`/tracking/${params.trackingId}/settings`}
+                        prefetch
+                      >
+                        <CalendarPlusIcon />
+                        Configurações
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </ButtonGroup>
+          </ButtonGroup>
         </div>
       </div>
 
@@ -179,11 +176,6 @@ export function NavTracking() {
         participantsIds={
           data?.participants.map((participant) => participant.user.id) || []
         }
-      />
-
-      <AddLeadSheet
-        open={useLeadSheet.isOpen}
-        onOpenChange={useLeadSheet.setIsOpen}
       />
     </>
   );

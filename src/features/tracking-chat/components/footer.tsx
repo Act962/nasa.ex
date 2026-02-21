@@ -6,6 +6,7 @@ import {
   MicIcon,
   PlusIcon,
   SendIcon,
+  SparklesIcon,
   StickerIcon,
 } from "lucide-react";
 import pt from "emoji-picker-react/dist/data/emojis-pt.json";
@@ -38,6 +39,7 @@ import {
 import { cn } from "@/lib/utils";
 import { EmojiData } from "emoji-picker-react/dist/types/exposedTypes";
 import { MessageSelected } from "./message-selected";
+import { ComposeResponse } from "./compose-response";
 import { useRouter } from "next/navigation";
 
 interface FooterProps {
@@ -289,6 +291,10 @@ export function Footer({
                   }
                 }}
               />
+
+              <InputGroupAddon align="inline-end">
+                <ComposeResponse content="" />
+              </InputGroupAddon>
 
               <InputGroupAddon align="inline-end">
                 {message.trim().length > 0 ? (
