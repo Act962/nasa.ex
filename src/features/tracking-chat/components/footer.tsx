@@ -293,7 +293,10 @@ export function Footer({
               />
 
               <InputGroupAddon align="inline-end">
-                <ComposeResponse content="" />
+                <ComposeResponse
+                  conversationId={conversationId}
+                  onResponse={(text) => setMessage(text)}
+                />
               </InputGroupAddon>
 
               <InputGroupAddon align="inline-end">

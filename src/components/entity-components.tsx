@@ -1,6 +1,7 @@
 import { PlusIcon } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
+import { Spinner } from "./ui/spinner";
 
 type EntityHeaderProps = {
   title: string;
@@ -47,6 +48,14 @@ export const EntityHeader = ({
           </Link>
         </Button>
       )}
+    </div>
+  );
+};
+
+export const EntityLoading = () => {
+  return (
+    <div className="flex h-screen items-center justify-center">
+      <Spinner />
     </div>
   );
 };

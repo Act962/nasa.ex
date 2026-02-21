@@ -5,6 +5,7 @@ import { streamText } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { streamToEventIterator } from "@orpc/client";
 import prisma from "@/lib/prisma";
+import ContatosPage from "@/app/(platform)/(tracking)/contatos/page";
 
 const openrouter = createOpenRouter({
   apiKey: process.env.LLM_KEY,
@@ -47,11 +48,15 @@ export const generateCompose = base
       });
     }
 
+    console.log("Conversation", conversation);
+
     const aiSettings = await prisma.aiSettings.findUnique({
       where: {
         trackingId: conversation.trackingId,
       },
     });
+
+    console.log("Passou aqui", aiSettings);
 
     if (!aiSettings) {
       throw errors.NOT_FOUND({
