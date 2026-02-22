@@ -277,8 +277,6 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        console.log("body aqui", body);
-
         messageData = await prisma.message.upsert({
           where: { messageId: editedMessageData?.messageId || messageId },
           update: {
@@ -429,7 +427,6 @@ export async function POST(request: NextRequest) {
           baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
           data: { id: messageId, return_base64: false },
         });
-        console.log("document", document);
         let key = null;
         if (document?.fileURL) {
           const documentResponse = await fetch(document.fileURL);
@@ -534,7 +531,6 @@ export async function POST(request: NextRequest) {
             : WA_COLORS[0];
 
         if (Action.deleted) {
-          console.log("deleting", LabelID);
           await prisma.tag.updateMany({
             where: {
               whatsappId: LabelID,
@@ -580,6 +576,7 @@ export async function POST(request: NextRequest) {
                 whatsappId,
                 organizationId: tracking.organizationId,
                 trackingId,
+                slug: `${Action.name.toLowerCase().replace(/\s/g, "_")}-${whatsappId}`,
               },
             });
           }

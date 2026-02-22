@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { getLabels } from "@/http/uazapi/list-labels";
+import { randomUUID } from "crypto";
 
 export const syncWhatsappTags = base
   .use(requiredAuthMiddleware)
@@ -70,6 +71,7 @@ export const syncWhatsappTags = base
                 organizationId: instance.organizationId,
                 whatsappId: label.id,
                 trackingId: instance.trackingId,
+                slug: `${label.name.toLowerCase()}-${randomUUID()}`,
               },
             });
             syncResult.push(newTag);
