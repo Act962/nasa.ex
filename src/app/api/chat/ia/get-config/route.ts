@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     select: {
       id: true,
       aiSettings: true,
-      whatsappInstances: {
+      whatsappInstance: {
         select: {
           apiKey: true,
           baseUrl: true,

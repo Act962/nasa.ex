@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       },
       select: {
         id: true,
-        whatsappInstances: {
+        whatsappInstance: {
           select: {
             apiKey: true,
             baseUrl: true,
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       },
     });
 
-    if (!tracking) {
+    if (!tracking || !tracking.whatsappInstance) {
       return NextResponse.json(
         {
           status: "error",
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const response = await sendText(tracking.whatsappInstances[0].apiKey, {
+    const response = await sendText(tracking.whatsappInstance.apiKey, {
       text: message,
       number: phone,
       delay: 2000,
