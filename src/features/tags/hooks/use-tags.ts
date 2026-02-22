@@ -34,6 +34,7 @@ export function useQueryTags({ trackingId }: { trackingId?: string }) {
     isLoadingTags: isLoading,
   };
 }
+
 export function useMutationWhatsappTags({
   trackingId,
 }: {
@@ -43,6 +44,7 @@ export function useMutationWhatsappTags({
   return useMutation(
     orpc.leads.updateWhatsappTags.mutationOptions({
       onSuccess: () => {
+        // Invalida a lista de tags global
         queryClient.invalidateQueries({
           queryKey: orpc.tags.listTags.queryKey({
             input: {
@@ -51,6 +53,16 @@ export function useMutationWhatsappTags({
               },
             },
           }),
+        });
+
+        // Invalida a lista de conversas para atualizar as tags do lead na sidebar
+        queryClient.invalidateQueries({
+          queryKey: ["conversations.list"],
+        });
+
+        // Também invalida queries de leads em geral para garantir que detalhes do lead sejam atualizados
+        queryClient.invalidateQueries({
+          queryKey: ["leads", "get"],
         });
       },
     }),
