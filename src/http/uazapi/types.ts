@@ -416,3 +416,37 @@ export interface ValidWhatsappPhoneResponse {
   groupName?: string;
   error?: string;
 }
+
+export interface Label {
+  id: string;
+  name: string;
+  color: number;
+  colorHex: string;
+  created: string;
+  updated: string;
+}
+
+export type ListLabelsResponse = Label[];
+
+export interface EditLabelPayload {
+  labelid: string;
+  name?: string;
+  color?: number;
+  delete?: boolean;
+}
+
+export interface EditLabelResponse {
+  response: string;
+}
+
+export interface ManagementLabelsPayload {
+  number: string;
+  labelids?: string[];
+  add_labelid?: string;
+  remove_labelid?: string;
+}
+
+export interface ManagementLabelsResponse {
+  response: string;
+  editions: string[];
+}

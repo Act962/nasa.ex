@@ -23,6 +23,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SearchConversations } from "./search-conversaitons";
+import { useMessageStore } from "../context/use-message";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 
 export function ConversationsList() {
@@ -80,7 +81,7 @@ export function ConversationsList() {
   };
 
   const currentTracking = trackings.find((t) => t.id === selectedTracking);
-  const whatsappInstance = currentTracking?.whatsappInstances?.[0];
+  const whatsappInstance = currentTracking?.whatsappInstance;
   const noInstance = !whatsappInstance;
   const instanceDisconnected =
     whatsappInstance?.status === WhatsAppInstanceStatus.DISCONNECTED;
@@ -99,6 +100,9 @@ export function ConversationsList() {
       pusherClient.unsubscribe(selectedTracking);
     };
   }, [selectedTracking]);
+
+  const token = trackings.find((t) => t.id === selectedTracking)
+    ?.whatsappInstance?.apiKey;
 
   return (
     <>
@@ -161,6 +165,7 @@ export function ConversationsList() {
               >
                 {items.map((item) => (
                   <LeadBox
+                    token={token}
                     key={item.id}
                     item={item}
                     lastMessageText={item.lastMessage?.body}

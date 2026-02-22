@@ -8,6 +8,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
 import { MessageStatus } from "@/features/tracking-chat/types";
 import { getContactDetails } from "@/http/uazapi/get-contact-details";
+import { WA_COLORS } from "@/utils/whatsapp-utils";
 
 export async function POST(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -512,7 +513,130 @@ export async function POST(request: NextRequest) {
       }
       return NextResponse.json({ success: true }, { status: 200 });
     }
+    if (json.EventType === "labels") {
+      const { LabelID, Action } = json.event;
 
+      if (Action) {
+        const tracking = await prisma.tracking.findUnique({
+          where: { id: trackingId },
+          select: { organizationId: true },
+        });
+
+        if (!tracking) {
+          return NextResponse.json({ success: true }, { status: 200 });
+        }
+
+        const whatsappId = `${LabelID}`;
+
+        const colorHex =
+          Action.color !== undefined
+            ? WA_COLORS[Action.color] || WA_COLORS[0]
+            : WA_COLORS[0];
+
+        if (Action.deleted) {
+          console.log("deleting", LabelID);
+          await prisma.tag.updateMany({
+            where: {
+              whatsappId: LabelID,
+              organizationId: tracking.organizationId,
+            },
+            data: {
+              whatsappId: null,
+            },
+          });
+        } else {
+          const existingTag = await prisma.tag.findFirst({
+            where: {
+              whatsappId,
+              organizationId: tracking.organizationId,
+            },
+          });
+
+          if (existingTag) {
+            await prisma.tag.update({
+              where: { id: existingTag.id },
+              data: {
+                name: Action.name,
+                color: colorHex,
+              },
+            });
+          } else {
+            // Verifica se já existe uma tag com o mesmo nome para evitar violação do unique constraint
+            await prisma.tag.upsert({
+              where: {
+                name_organizationId_trackingId: {
+                  name: Action.name,
+                  organizationId: tracking.organizationId,
+                  trackingId,
+                },
+              },
+              update: {
+                whatsappId,
+                color: colorHex,
+              },
+              create: {
+                name: Action.name,
+                color: colorHex,
+                whatsappId,
+                organizationId: tracking.organizationId,
+                trackingId,
+              },
+            });
+          }
+        }
+      }
+      return NextResponse.json({ success: true }, { status: 200 });
+    }
+    if (json.EventType === "chat_labels") {
+      const remoteJid = json.chat.wa_chatid || json.chat.id;
+      const labels = (json.chat.wa_label as string[]) || [];
+
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          remoteJid,
+          trackingId,
+        },
+        select: {
+          leadId: true,
+        },
+      });
+
+      if (conversation?.leadId) {
+        const whatsappLabelIds = labels
+          .map((l) => l.split(":").pop())
+          .filter(Boolean) as string[];
+
+        const tags = await prisma.tag.findMany({
+          where: {
+            whatsappId: { in: whatsappLabelIds },
+            trackingId,
+          },
+          select: { id: true },
+        });
+
+        const tagIds = tags.map((t) => t.id);
+
+        await prisma.leadTag.deleteMany({
+          where: { leadId: conversation.leadId },
+        });
+
+        if (tagIds.length > 0) {
+          await prisma.leadTag.createMany({
+            data: tagIds.map((tagId) => ({
+              leadId: conversation.leadId,
+              tagId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+
+        await pusherServer.trigger(trackingId, "lead:updated", {
+          leadId: conversation.leadId,
+        });
+      }
+
+      return NextResponse.json({ success: true }, { status: 200 });
+    }
     return NextResponse.json({ error: "Event not handled" }, { status: 404 });
   } catch (error: any) {
     console.error("Webhook Error:", error);

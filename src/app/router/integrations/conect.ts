@@ -22,6 +22,7 @@ export const connectInstanceUazapi = base
       status: z.custom<WhatsAppInstanceStatus>(),
       token: z.string(),
       baseUrl: z.string(),
+      isBusiness: z.boolean().optional(),
     }),
   )
 
@@ -35,6 +36,7 @@ export const connectInstanceUazapi = base
       status,
       token,
       baseUrl,
+      isBusiness,
     } = input;
 
     await configureWebhook({
@@ -43,7 +45,7 @@ export const connectInstanceUazapi = base
       data: {
         url: `${process.env.NEXT_PUBLIC_APP_URL}/api/chat/webhook?trackingId=${trackingId}`,
         enabled: true,
-        events: ["messages", "connection"],
+        events: ["messages", "connection", "labels", "chat_labels"],
         action: "add",
         excludeMessages: ["wasSentByApi", "isGroupYes"],
       },
@@ -57,6 +59,7 @@ export const connectInstanceUazapi = base
         profileName,
         profilePicUrl,
         phoneNumber: owner,
+        isBusiness,
       },
     });
   });

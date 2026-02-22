@@ -20,21 +20,7 @@ export const listTags = base
         .optional(),
     }),
   )
-  .output(
-    z.object({
-      tags: z.array(
-        z.object({
-          id: z.string(),
-          name: z.string(),
-          slug: z.string(),
-          color: z.string().nullable().default("#1447e6"),
-          description: z.string().nullable(),
-          icon: z.string().nullable(),
-          type: z.enum(["CUSTOM", "SYSTEM"]),
-        }),
-      ),
-    }),
-  )
+
   .handler(async ({ input, context, errors }) => {
     try {
       // Query ao banco com tratamento
@@ -44,6 +30,7 @@ export const listTags = base
           name: true,
           slug: true,
           color: true,
+          whatsappId: true,
           description: true,
           icon: true,
           type: true,

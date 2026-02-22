@@ -54,7 +54,15 @@ export const listConversation = base
         },
         include: {
           messages: true,
-          lead: true,
+          lead: {
+            include: {
+              leadTags: {
+                include: {
+                  tag: true,
+                },
+              },
+            },
+          },
         },
         ...(input.cursor
           ? {

@@ -72,14 +72,20 @@ export function useInfinityConversation(
       });
     };
 
+    const leadUpdatedHandler = () => {
+      queryClient.invalidateQueries({ queryKey });
+    };
+
     pusherClient.bind("conversation:new", conversationHandler);
     pusherClient.bind("message:new", messageHandler);
+    pusherClient.bind("lead:updated", leadUpdatedHandler);
 
     return () => {
       pusherClient.unbind("conversation:new", conversationHandler);
       pusherClient.unbind("message:new", messageHandler);
+      pusherClient.unbind("lead:updated", leadUpdatedHandler);
     };
-  }, [trackingId, queryClient]);
+  }, [trackingId, statusId, search, queryClient]);
 }
 
 export function useCreateConversation({
