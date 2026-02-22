@@ -20,17 +20,7 @@ export const listTags = base
         .optional(),
     }),
   )
-  .output(
-    z.object({
-      tags: z.array(
-        z.object({
-          id: z.string(),
-          name: z.string(),
-          color: z.string().nullable().default("#1447e6"),
-        }),
-      ),
-    }),
-  )
+
   .handler(async ({ input, context, errors }) => {
     try {
       // Query ao banco com tratamento
@@ -39,6 +29,7 @@ export const listTags = base
           id: true,
           name: true,
           color: true,
+          whatsappId: true,
         },
         where: {
           organizationId: context.org.id,

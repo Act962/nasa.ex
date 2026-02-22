@@ -438,3 +438,15 @@ export interface EditLabelPayload {
 export interface EditLabelResponse {
   response: string;
 }
+
+export interface ManagementLabelsPayload {
+  number: string;
+  labelids?: string[];
+  add_labelid?: string;
+  remove_labelid?: string;
+}
+
+export interface ManagementLabelsResponse {
+  response: string;
+  editions: string[];
+}

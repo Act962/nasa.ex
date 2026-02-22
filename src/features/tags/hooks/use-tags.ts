@@ -1,5 +1,5 @@
 import { orpc } from "@/lib/orpc";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export function useTags({ trackingId }: { trackingId?: string }) {
   const { data, isLoading } = useQuery(
@@ -33,4 +33,26 @@ export function useQueryTags({ trackingId }: { trackingId?: string }) {
     tags: data?.tags || [],
     isLoadingTags: isLoading,
   };
+}
+export function useMutationWhatsappTags({
+  trackingId,
+}: {
+  trackingId?: string;
+}) {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.leads.updateWhatsappTags.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.tags.listTags.queryKey({
+            input: {
+              query: {
+                trackingId,
+              },
+            },
+          }),
+        });
+      },
+    }),
+  );
 }

@@ -10,6 +10,7 @@ export interface Instance {
   instanceId: string;
   phoneNumber?: string | null;
   profileName?: string | null;
+  isBusiness?: boolean;
 }
 
 export interface CreateInstancePayload {

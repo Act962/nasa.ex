@@ -26,12 +26,14 @@ interface SelectedConversationProps {
   };
   trackingId: string;
   children: React.ReactNode;
+  token?: string | null;
 }
 
 export function SelectedConversationOptions({
   lead,
   trackingId,
   children,
+  token,
 }: SelectedConversationProps) {
   const [showTagModal, setShowTagModal] = useState(false);
 
@@ -48,7 +50,7 @@ export function SelectedConversationOptions({
               className="flex w-full px-3 py-2 cursor-pointer hover:bg-accent/10 rounded-lg text-sm font-medium justify-between"
               onClick={() => setShowTagModal(true)}
             >
-              Etiquetar lead <TagIcon className="size-4 text-emerald-500" />
+              Etiquetar lead <TagIcon className="size-4" />
             </ContextMenuItem>
           </ContextMenuGroup>
         </ContextMenuContent>
@@ -61,48 +63,7 @@ export function SelectedConversationOptions({
           leadId={lead.id}
           trackingId={trackingId}
           initialSelectedTagIds={initialTagIds}
-        />
-      )}
-    </>
-  );
-}
-
-export function SelectedConversationDropdown({
-  lead,
-  trackingId,
-  children,
-}: SelectedConversationProps) {
-  const [showTagModal, setShowTagModal] = useState(false);
-
-  const initialTagIds =
-    lead.leadTags?.map((lt: any) => lt.tag?.id || lt.tagId || lt.id) || [];
-
-  return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          className="w-48 bg-background border-border shadow-2xl rounded-2xl p-1"
-        >
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              className="flex w-full px-3 py-2 cursor-pointer hover:bg-accent/10 rounded-lg text-sm font-medium justify-between"
-              onClick={() => setShowTagModal(true)}
-            >
-              Etiquetar lead <TagIcon className="size-4 text-emerald-500" />
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {showTagModal && (
-        <AddTagLead
-          open={showTagModal}
-          onOpenChange={setShowTagModal}
-          leadId={lead.id}
-          trackingId={trackingId}
-          initialSelectedTagIds={initialTagIds}
+          token={token}
         />
       )}
     </>

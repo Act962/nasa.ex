@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,20 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useTags } from "@/features/tags/hooks/use-tags";
 import {
-  syncWhatsappTagsMutation,
+  useMutationWhatsappTags,
+  useTags,
+} from "@/features/tags/hooks/use-tags";
+import {
+  useSyncWhatsappTagsMutation,
   useTag,
 } from "@/features/tags/hooks/use-tag";
-import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
-import {
-  Plus,
-  Tag as TagIcon,
-  X,
-  Check,
-  Smile,
-  ChevronLeft,
-} from "lucide-react";
+import { Plus, Tag as TagIcon, Check, ArrowLeftRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -32,9 +27,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useMessageStore } from "../context/use-message";
+import { Spinner } from "@/components/ui/spinner";
+import { WhatsappIcon } from "@/features/leads/components/whatsapp";
 
-// WhatsApp Label Colors (Standard 20)
 const WA_COLORS = [
   "#FF8B8B",
   "#74B9FF",
@@ -61,6 +56,7 @@ const WA_COLORS = [
 interface AddTagLeadProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  token?: string | null;
   leadId: string;
   trackingId: string;
   initialSelectedTagIds: string[];
@@ -72,11 +68,12 @@ export function AddTagLead({
   leadId,
   trackingId,
   initialSelectedTagIds,
+  token,
 }: AddTagLeadProps) {
   const { tags, isLoadingTags } = useTags({ trackingId });
   const { createTag } = useTag();
-  const updateMutation = useMutationLeadUpdate(leadId);
-  const syncWhatsappTags = syncWhatsappTagsMutation(trackingId);
+  const updateMutation = useMutationWhatsappTags({ trackingId });
+  const syncWhatsappTags = useSyncWhatsappTagsMutation(trackingId);
 
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
     initialSelectedTagIds,
@@ -85,7 +82,6 @@ export function AddTagLead({
   const [newTagName, setNewTagName] = useState("");
   const [selectedColor, setSelectedColor] = useState(WA_COLORS[0]);
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const { token } = useMessageStore();
 
   const handleToggleTag = (tagId: string) => {
     setSelectedTagIds((prev) =>
@@ -126,18 +122,21 @@ export function AddTagLead({
   }
 
   const handleSave = () => {
+    if (!token) return toast.error("Token não encontrado.");
     updateMutation.mutate(
       {
         id: leadId,
         tagIds: selectedTagIds,
+        apiKey: token,
       },
       {
         onSuccess: () => {
           toast.success("Tags atualizadas com sucesso!");
           onOpenChange(false);
         },
-        onError: () => {
+        onError: (err) => {
           toast.error("Erro ao atualizar tags.");
+          console.error(err);
         },
       },
     );
@@ -152,22 +151,27 @@ export function AddTagLead({
     }
   };
 
+  const tagsOrdened = useMemo(() => {
+    return [...tags].sort((a, b) => a.name.localeCompare(b.name));
+  }, [tags]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="p-0 sm:max-w-[400px] bg-background border-none shadow-2xl overflow-hidden rounded-2xl">
         <DialogHeader className="p-4 flex flex-row items-center gap-4 space-y-0 border-b border-border/10">
-          <DialogTitle className="text-lg font-medium">
-            Etiquetar itens
-          </DialogTitle>
+          <DialogTitle>Etiquetar itens</DialogTitle>
           <Button
-            variant="ghost"
-            className="w-full justify-start gap-4 px-2 h-auto hover:bg-accent/5"
+            variant="outline"
+            size={"xs"}
             onClick={handleSyncWhatsappTags}
+            disabled={syncWhatsappTags.isPending}
           >
-            <div className="size-10 rounded-full bg-accent/20 flex items-center justify-center">
-              <Plus className="size-5 text-accent-foreground" />
-            </div>
-            <span className="text-base font-medium">Sincronizar etiquetas</span>
+            {syncWhatsappTags.isPending ? (
+              <Spinner />
+            ) : (
+              <ArrowLeftRightIcon className="size-4 text-accent-foreground" />
+            )}
+            <span className="text-base font-medium">Sincronizar</span>
           </Button>
         </DialogHeader>
 
@@ -178,6 +182,7 @@ export function AddTagLead({
               <Button
                 variant="ghost"
                 className="w-full justify-start gap-4 px-2 h-auto hover:bg-accent/5"
+                disabled={syncWhatsappTags.isPending}
                 onClick={() => setIsCreating(true)}
               >
                 <div className="size-10 rounded-full bg-accent/20 flex items-center justify-center">
@@ -247,7 +252,7 @@ export function AddTagLead({
 
           <ScrollArea className="flex-1 px-4 pb-4 overflow-y-auto">
             <div className="space-y-1">
-              {tags.map((tag) => (
+              {tagsOrdened.map((tag) => (
                 <div
                   key={tag.id}
                   className="flex items-center justify-between group px-2 py-3 rounded-xl hover:bg-accent/5 cursor-pointer transition-colors"
@@ -261,6 +266,9 @@ export function AddTagLead({
                       <TagIcon className="size-5 text-white fill-white" />
                     </div>
                     <span className="text-base font-medium">{tag.name}</span>
+                    {tag.whatsappId && (
+                      <WhatsappIcon className="size-4 text-[#25D366]" />
+                    )}
                   </div>
                   <Checkbox
                     checked={selectedTagIds.includes(tag.id)}

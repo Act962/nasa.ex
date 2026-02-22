@@ -22,6 +22,7 @@ export const connectInstanceUazapi = base
       status: z.custom<WhatsAppInstanceStatus>(),
       token: z.string(),
       baseUrl: z.string(),
+      isBusiness: z.boolean().optional(),
     }),
   )
 
@@ -35,6 +36,7 @@ export const connectInstanceUazapi = base
       status,
       token,
       baseUrl,
+      isBusiness,
     } = input;
 
     await configureWebhook({
@@ -57,6 +59,7 @@ export const connectInstanceUazapi = base
         profileName,
         profilePicUrl,
         phoneNumber: owner,
+        isBusiness,
       },
     });
   });

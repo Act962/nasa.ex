@@ -157,7 +157,7 @@ model Tracking {
   actions        Action[]
   workflows      Workflow[]
   forms          Form[]
-  whatsappInstances WhatsAppInstance[]
+  whatsappInstance WhatsAppInstance?
   conversations  Conversation[]
   aiSettings     AiSettings?
 
@@ -337,7 +337,6 @@ model Tag {
   tracking     Tracking?    @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   leadTags     LeadTag[]
 
-  // 👈 Importante: nome único por contexto
   @@unique([name, organizationId, trackingId])
   @@index([organizationId])
   @@index([trackingId])
@@ -350,11 +349,9 @@ model LeadTag {
   tagId     String   @map("tag_id")
   createdAt DateTime @default(now()) @map("created_at")
 
-  // Relacionamentos
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
   tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-  // Garantir que a mesma tag não seja adicionada duas vezes ao mesmo lead
   @@unique([leadId, tagId])
   @@index([leadId])
   @@index([tagId])
@@ -666,15 +663,16 @@ model WhatsAppInstance {
   profileName     String?  @map("profile_name")
   profilePicUrl   String?  @map("profile_pic_url")
   organizationId  String   @map("organization_id")
-  trackingId      String   @map("tracking_id")
+  trackingId      String @unique   @map("tracking_id")
   webhookUrl      String?  @map("webhook_url")
   isActive        Boolean  @default(true) @map("is_active")
   lastSyncAt      DateTime? @map("last_sync_at")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
+  isBusiness      Boolean  @default(false) @map("is_business")
   
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  tracking     Tracking     @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  tracking     Tracking     @relation(fields: [trackingId], references: [id])
   
   @@index([organizationId])
   @@index([status])

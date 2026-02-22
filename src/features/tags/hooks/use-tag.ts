@@ -32,7 +32,7 @@ export function useTag() {
   };
 }
 
-export const syncWhatsappTagsMutation = (trackingId: string) => {
+export const useSyncWhatsappTagsMutation = (trackingId: string) => {
   const queryClient = useQueryClient();
   return useMutation(
     orpc.tags.syncWhatsappTags.mutationOptions({
@@ -41,7 +41,7 @@ export const syncWhatsappTagsMutation = (trackingId: string) => {
           queryKey: orpc.tags.listTags.queryKey({
             input: {
               query: {
-                trackingId,
+                trackingId: trackingId,
               },
             },
           }),

@@ -14,9 +14,10 @@ interface ConversationWithLead extends Conversation {
 interface UserBloxProps {
   item: ConversationWithLead;
   lastMessageText: string | null;
+  token?: string | null;
 }
 
-export function LeadBox({ item, lastMessageText }: UserBloxProps) {
+export function LeadBox({ item, lastMessageText, token }: UserBloxProps) {
   const router = useRouter();
   const { conversationId } = useParams();
 
@@ -28,7 +29,11 @@ export function LeadBox({ item, lastMessageText }: UserBloxProps) {
   const hasSeen = false;
 
   return (
-    <SelectedConversationOptions lead={item.lead} trackingId={item.trackingId}>
+    <SelectedConversationOptions
+      lead={item.lead}
+      trackingId={item.trackingId}
+      token={token}
+    >
       <div
         onClick={handleClick}
         className={`w-full relative flex items-center space-x-3 p-3 hover:bg-accent-foreground/5 cursor-pointer rounded-lg transition  ${selected ? "bg-accent-foreground/5" : ""}`}
