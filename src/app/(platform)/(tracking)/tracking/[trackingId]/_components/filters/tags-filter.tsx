@@ -85,6 +85,7 @@ export function TagsFilter() {
         <Button
           variant={selectedCount > 0 ? "default" : "outline"}
           className="justify-start"
+          size="sm"
         >
           <TagsIcon className="size-4" />
           Tags

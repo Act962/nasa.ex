@@ -1,3 +1,5 @@
+import { Temperature } from "@/generated/prisma/enums";
+
 export type Lead = {
   order: string;
   id: string;
@@ -19,4 +21,5 @@ export type Lead = {
       slug: string;
     };
   }[];
+  temperature: Temperature;
 };

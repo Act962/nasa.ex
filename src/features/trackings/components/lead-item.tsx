@@ -121,13 +121,13 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
               {data.leadTags.slice(0, 2).map(({ tag }) => (
                 <Badge
                   key={tag.id}
-                  variant="outline"
+                  // variant="outline"
                   className="px-1 py-0 text-[10px] h-4 font-normal"
-                  style={{
-                    backgroundColor: tag.color ? `${tag.color}15` : undefined,
-                    color: tag.color || undefined,
-                    borderColor: tag.color ? `${tag.color}30` : undefined,
-                  }}
+                  // style={{
+                  //   backgroundColor: tag.color ? `${tag.color}15` : undefined,
+                  //   color: tag.color || undefined,
+                  //   borderColor: tag.color ? `${tag.color}30` : undefined,
+                  // }}
                 >
                   {tag.name}
                 </Badge>

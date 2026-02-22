@@ -63,7 +63,7 @@ export function ParticipantsSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="gap-2">
+        <Button variant="outline" size="sm" className="gap-2">
           {selectedParticipant ? (
             <>
               <Avatar className="size-5">

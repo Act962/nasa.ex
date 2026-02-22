@@ -10,6 +10,7 @@ import {
 import { ListFilter } from "lucide-react";
 import { ParticipantsSwitcher } from "./participant-switcher";
 import { TagsFilter } from "./tags-filter";
+import { TemperatureFilter } from "./temperature-filter";
 import { CalendarFilter } from "./calendar-filter";
 
 export function Filters() {
@@ -31,6 +32,7 @@ export function Filters() {
         <div className="flex flex-col gap-2 px-4">
           <ParticipantsSwitcher />
           <TagsFilter />
+          <TemperatureFilter />
           <CalendarFilter />
         </div>
       </SheetContent>

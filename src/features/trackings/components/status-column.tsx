@@ -34,6 +34,7 @@ export function StatusColumn({
   const [dateEnd] = useQueryState("date_end");
   const [participantFilter] = useQueryState("participant");
   const [tagsFilter] = useQueryState("tags");
+  const [temperatureFilter] = useQueryState("temperature");
   const {
     attributes,
     listeners,
@@ -62,8 +63,11 @@ export function StatusColumn({
       dateEnd: dateEnd ? dayjs(dateEnd).endOf("day").toDate() : undefined,
       participantFilter: participantFilter || undefined,
       tagsFilter: tagsFilter ? tagsFilter.split(",") : undefined,
+      temperatureFilter: temperatureFilter
+        ? temperatureFilter.split(",")
+        : undefined,
     }),
-    [dateInit, dateEnd, participantFilter, tagsFilter],
+    [dateInit, dateEnd, participantFilter, tagsFilter, temperatureFilter],
   );
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =

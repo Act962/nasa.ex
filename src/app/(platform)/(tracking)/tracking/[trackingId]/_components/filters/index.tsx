@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Ellipsis, ListFilter, PlusIcon } from "lucide-react";
+import { Ellipsis, PlusIcon } from "lucide-react";
 import { TrackingSwitcher } from "./tracking-switcher";
 import { ParticipantsSwitcher } from "./participant-switcher";
 import { Filters } from "./filters";
@@ -24,12 +24,14 @@ export function FiltersTracking() {
 
   return (
     <>
-      <div className="flex justify-end sm:justify-between items-center px-4 py-2 gap-2 border-b border-border mb-2">
-        <div className="hidden sm:flex items-center gap-x-2">
-          <TrackingSwitcher />
-          <ParticipantsSwitcher />
-          <TagsFilter />
-          <CalendarFilter />
+      <div className="flex justify-between items-center px-4 py-2 gap-2 border-b border-border mb-2">
+        <div className="flex items-center gap-x-2">
+          <div className="hidden sm:flex items-center gap-x-2">
+            <TrackingSwitcher />
+            <ParticipantsSwitcher />
+            <TagsFilter />
+            <CalendarFilter />
+          </div>
           <Filters />
         </div>
         <div className="flex items-center gap-2">
