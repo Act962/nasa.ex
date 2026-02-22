@@ -33,6 +33,7 @@ import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useState } from "react";
 import { AddParticipantDialog } from "./add-participant-dialog";
+import { cn } from "@/lib/utils";
 
 export function NavTracking() {
   const params = useParams<{ trackingId: string; workflowId: string }>();
@@ -108,18 +109,22 @@ export function NavTracking() {
           )}
           <ButtonGroup>
             <ButtonGroup className="hidden sm:flex">
-              {navItems.map((item) => (
-                <Button
-                  key={item.label}
-                  variant="outline"
-                  size="sm"
-                  disabled={item.href === pathname}
-                >
-                  <Link href={item.href} prefetch>
-                    {item.label}
-                  </Link>
-                </Button>
-              ))}
+              {navItems.map((item) => {
+                const isActive = item.href === pathname;
+
+                return (
+                  <Button
+                    key={item.label}
+                    variant="outline"
+                    size="sm"
+                    className={cn("", isActive && "opacity-60")}
+                  >
+                    <Link href={item.href} prefetch>
+                      {item.label}
+                    </Link>
+                  </Button>
+                );
+              })}
             </ButtonGroup>
 
             {/* Mobile */}
