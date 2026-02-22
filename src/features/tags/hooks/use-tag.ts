@@ -32,6 +32,29 @@ export function useTag() {
   };
 }
 
+export const useCreateTag = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.tags.createTag.mutationOptions({
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.tags.listTags.queryKey({
+            input: {
+              query: {
+                trackingId: data.trackingId ?? "",
+              },
+            },
+          }),
+        });
+        toast.success("Tag criada com sucesso!");
+      },
+      onError: () => {
+        toast.error("Erro ao criar tag, tente novamente");
+      },
+    }),
+  );
+};
+
 export const useSyncWhatsappTagsMutation = (trackingId: string) => {
   const queryClient = useQueryClient();
   return useMutation(

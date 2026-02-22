@@ -7,6 +7,7 @@ import {
   CommandGroup,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "@/components/ui/command";
 import {
   Popover,
@@ -84,15 +85,16 @@ export function TemperatureFilter() {
               })}
             </CommandGroup>
           </CommandList>
+          <CommandSeparator />
           {selectedCount > 0 && (
-            <div className="border-t p-2">
+            <div className="p-2">
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-center text-xs h-8"
+                className="w-full"
                 onClick={clearAll}
               >
-                <XIcon className="mr-1 h-3 w-3" />
+                <XIcon className="size-3" />
                 Limpar filtros
               </Button>
             </div>

@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowUpRight, Grip, Mail, Phone, Tag } from "lucide-react";
+import { ArrowUpRight, Grip, Mail, Phone, RocketIcon, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { phoneMask } from "@/utils/format-phone";
@@ -20,6 +20,13 @@ import { Lead } from "../types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 
 import { useLeadStore } from "../contexts/use-lead";
+
+const TEMP_COLOR = {
+  COLD: "#3498db",
+  WARM: "#f1c40f",
+  HOT: "#e67e22",
+  VERY_HOT: "#e74c3c",
+} as const;
 
 export const LeadItem = memo(({ data }: { data: Lead }) => {
   const { toggleLead, isSelected } = useLeadStore();
@@ -90,17 +97,19 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           </span>
         </div>
 
-        <Button
-          size="icon-xs"
-          variant="ghost"
-          className="size-7 opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
-          asChild
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Link href={`/contatos/${data.id}`}>
-            <ArrowUpRight className="size-3.5" />
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            className="size-7 opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
+            asChild
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Link href={`/contatos/${data.id}`}>
+              <ArrowUpRight className="size-3.5" />
+            </Link>
+          </Button>
+        </div>
       </div>
       <Separator />
       <div className="flex flex-col px-4 gap-1 text-xs text-muted-foreground py-2">
@@ -123,11 +132,6 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
                   key={tag.id}
                   // variant="outline"
                   className="px-1 py-0 text-[10px] h-4 font-normal"
-                  // style={{
-                  //   backgroundColor: tag.color ? `${tag.color}15` : undefined,
-                  //   color: tag.color || undefined,
-                  //   borderColor: tag.color ? `${tag.color}30` : undefined,
-                  // }}
                 >
                   {tag.name}
                 </Badge>
@@ -146,9 +150,17 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
       </div>
       <Separator />
       <div className="flex items-center justify-between bg-secondary px-3 py-2">
-        <span className="text-xs text-muted-foreground">
-          {dayjs(data.createdAt).format("DD/MM/YYYY HH:mm")}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            {dayjs(data.createdAt).format("DD/MM/YYYY HH:mm")}
+          </span>
+          <RocketIcon
+            className="size-3"
+            style={{
+              color: TEMP_COLOR[data.temperature],
+            }}
+          />
+        </div>
         <Tooltip>
           <TooltipTrigger asChild>
             <Avatar className="size-4">
