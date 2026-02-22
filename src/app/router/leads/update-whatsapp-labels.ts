@@ -42,17 +42,25 @@ export const updateWhatsappTagsLead = base
         throw errors.NOT_FOUND;
       }
 
+      // Validar quais tagIds realmente existem no banco de dados para evitar erro de Foreign Key
+      const validTags = await prisma.tag.findMany({
+        where: {
+          id: { in: input.tagIds },
+        },
+        select: { id: true },
+      });
+
+      const validTagIds = validTags.map((t) => t.id);
+
       const lead = await prisma.lead.update({
         where: { id: input.id },
         data: {
-          leadTags: input.tagIds
-            ? {
-                deleteMany: {},
-                create: input.tagIds.map((tagId) => ({
-                  tagId,
-                })),
-              }
-            : undefined,
+          leadTags: {
+            deleteMany: {},
+            create: validTagIds.map((tagId) => ({
+              tagId,
+            })),
+          },
         },
         select: {
           id: true,
@@ -81,7 +89,7 @@ export const updateWhatsappTagsLead = base
         where: {
           whatsappId: { not: null },
           id: {
-            in: input.tagIds,
+            in: validTagIds,
           },
         },
       });
