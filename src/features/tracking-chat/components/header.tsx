@@ -6,15 +6,24 @@ import { useConstructUrl } from "@/hooks/use-construct-url";
 import { phoneMaskFull } from "@/utils/format-phone";
 import { ArrowLeftIcon, MoreHorizontalIcon } from "lucide-react";
 import Link from "next/link";
+import { SummerizeConversation } from "./summerize-conversation";
 
 interface HeaderProps {
   name: string;
   profile?: string;
   phone?: string;
   leadId: string;
+  conversationId: string;
 }
-export function Header({ name, profile, phone, leadId }: HeaderProps) {
+export function Header({
+  name,
+  profile,
+  phone,
+  leadId,
+  conversationId,
+}: HeaderProps) {
   const profileUrl = useConstructUrl(profile || "");
+
   return (
     <div className="bg-accent-foreground/10 w-full flex border-b sm:px-4 py-3 px-4 lg:px-6 justify-between items-center shadow-sm">
       <div className="flex gap-3 items-center">
@@ -36,12 +45,15 @@ export function Header({ name, profile, phone, leadId }: HeaderProps) {
           )}
         </div>
       </div>
-      <Button variant="ghost">
-        <MoreHorizontalIcon
-          onClick={() => {}}
-          className="transition cursor-pointer size-4"
-        />
-      </Button>
+      <div>
+        <SummerizeConversation conversationId={conversationId} />
+        <Button variant="ghost">
+          <MoreHorizontalIcon
+            onClick={() => {}}
+            className="transition cursor-pointer size-4"
+          />
+        </Button>
+      </div>
     </div>
   );
 }

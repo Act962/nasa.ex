@@ -4,7 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowUpRight, Grip, Mail, Phone } from "lucide-react";
+import { ArrowUpRight, Grip, Mail, Phone, Tag } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { phoneMask } from "@/utils/format-phone";
 import {
@@ -113,24 +114,35 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           <Phone className="size-3" />
           {phoneMask(data.phone) || "(00) 00000-0000"}
         </LeadItemContainer>
-        {/* {data.tags.length > 0 && (
+        {data.leadTags && data.leadTags.length > 0 && (
           <LeadItemContainer>
             <Tag className="size-3" />
-            <div className="flex space-x-0.5">
-              {data.tags.slice(0, 2).map((tag) => (
-                <Badge key={tag}>{tag}</Badge>
-              ))}
-              {data.tags.length > 2 && (
+            <div className="flex flex-wrap gap-1">
+              {data.leadTags.slice(0, 2).map(({ tag }) => (
                 <Badge
-                  key={data.tags.length}
-                  className="bg-input rounded-full p-0.5 text-[10px]"
+                  key={tag.id}
+                  // variant="outline"
+                  className="px-1 py-0 text-[10px] h-4 font-normal"
+                  // style={{
+                  //   backgroundColor: tag.color ? `${tag.color}15` : undefined,
+                  //   color: tag.color || undefined,
+                  //   borderColor: tag.color ? `${tag.color}30` : undefined,
+                  // }}
                 >
-                  +{data.tags.length - 2}
+                  {tag.name}
+                </Badge>
+              ))}
+              {data.leadTags.length > 2 && (
+                <Badge
+                  variant="outline"
+                  className="px-1 py-0 text-[10px] h-4 font-normal bg-muted"
+                >
+                  +{data.leadTags.length - 2}
                 </Badge>
               )}
             </div>
           </LeadItemContainer>
-        )} */}
+        )}
       </div>
       <Separator />
       <div className="flex items-center justify-between bg-secondary px-3 py-2">

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Ellipsis, ListFilter } from "lucide-react";
+import { Ellipsis, PlusIcon } from "lucide-react";
 import { TrackingSwitcher } from "./tracking-switcher";
 import { ParticipantsSwitcher } from "./participant-switcher";
 import { Filters } from "./filters";
@@ -15,21 +15,31 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import AddLeadSheet from "@/components/modals/add-lead-sheet";
+import { useAddLead } from "@/hooks/modal/use-add-lead";
 
 export function FiltersTracking() {
   const { trackingId } = useParams<{ trackingId: string }>();
+  const useLeadSheet = useAddLead();
 
   return (
     <>
-      <div className="flex justify-end sm:justify-between items-center px-4 py-2 gap-2 border-b border-border mb-2">
-        <div className="hidden sm:flex items-center gap-x-2">
-          <TrackingSwitcher />
-          <ParticipantsSwitcher />
-          <TagsFilter />
-          <CalendarFilter />
+      <div className="flex justify-between items-center px-4 py-2 gap-2 border-b border-border mb-2">
+        <div className="flex items-center gap-x-2">
+          <div className="hidden sm:flex items-center gap-x-2">
+            <TrackingSwitcher />
+            <ParticipantsSwitcher />
+            <TagsFilter />
+            <CalendarFilter />
+          </div>
+          <Filters />
         </div>
         <div className="flex items-center gap-2">
-          <Filters />
+          <Button size="sm" onClick={() => useLeadSheet.setIsOpen(true)}>
+            <PlusIcon className="size-4" />
+            Novo Lead
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="icon-sm" variant="ghost">
@@ -46,6 +56,11 @@ export function FiltersTracking() {
           </DropdownMenu>
         </div>
       </div>
+
+      <AddLeadSheet
+        open={useLeadSheet.isOpen}
+        onOpenChange={useLeadSheet.setIsOpen}
+      />
     </>
   );
 }

@@ -182,6 +182,11 @@ enum ReasonType {
   LOSS // Perda
 }
 
+enum TagType {
+  CUSTOM
+  SYSTEM
+}
+
 model WinLossReason {
   id         String     @id @default(cuid())
   name       String
@@ -325,7 +330,11 @@ model Lead {
 model Tag {
   id             String   @id @default(cuid())
   name           String
+  slug           String
   color          String?  @default("#1447e6")
+  description    String?
+  icon           String?
+  type           TagType  @default(CUSTOM)
   organizationId String   @map("organization_id")
   trackingId     String?  @map("tracking_id") 
   createdAt      DateTime @default(now()) @map("created_at")
@@ -337,6 +346,8 @@ model Tag {
   tracking     Tracking?    @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   leadTags     LeadTag[]
 
+  // 👈 Importante: nome único por contexto
+  @@unique([slug, organizationId, trackingId])
   @@unique([name, organizationId, trackingId])
   @@index([organizationId])
   @@index([trackingId])

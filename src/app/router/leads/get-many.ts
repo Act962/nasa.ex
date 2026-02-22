@@ -19,6 +19,8 @@ export const listLeadsByStatus = base
       dateInit: z.string().optional(),
       dateEnd: z.string().optional(),
       participantFilter: z.string().optional(),
+      tagsFilter: z.array(z.string()).optional(),
+      temperatureFilter: z.array(z.string()).optional(),
     }),
   )
   .handler(async ({ input }) => {
@@ -30,6 +32,8 @@ export const listLeadsByStatus = base
       dateInit,
       dateEnd,
       participantFilter,
+      tagsFilter,
+      temperatureFilter,
     } = input;
 
     const leads = await prisma.lead.findMany({
@@ -49,6 +53,24 @@ export const listLeadsByStatus = base
             email: participantFilter,
           },
         }),
+        ...(tagsFilter &&
+          tagsFilter.length > 0 && {
+            leadTags: {
+              some: {
+                tag: {
+                  slug: {
+                    in: tagsFilter,
+                  },
+                },
+              },
+            },
+          }),
+        ...(temperatureFilter &&
+          temperatureFilter.length > 0 && {
+            temperature: {
+              in: temperatureFilter as any,
+            },
+          }),
       },
       orderBy: {
         order: "asc",
@@ -68,11 +90,24 @@ export const listLeadsByStatus = base
         order: true,
         statusId: true,
         createdAt: true,
+        temperature: true,
         profile: true,
         responsible: {
           select: {
             image: true,
             name: true,
+          },
+        },
+        leadTags: {
+          select: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+                color: true,
+                slug: true,
+              },
+            },
           },
         },
       },

@@ -4,6 +4,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTracking } from "@/hooks/use-tracking-modal";
@@ -19,13 +20,13 @@ export function TrackingSwitcher() {
   const { data, isPending } = useQuery(orpc.tracking.list.queryOptions());
 
   const curretnTracking = data?.find(
-    (tracking) => tracking.id === params.trackingId
+    (tracking) => tracking.id === params.trackingId,
   );
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline">
+        <Button variant="outline" size="sm">
           {curretnTracking?.name} <ChevronsUpDown className="ml-auto" />
         </Button>
       </DropdownMenuTrigger>
@@ -47,6 +48,7 @@ export function TrackingSwitcher() {
               </Link>
             </DropdownMenuItem>
           ))}
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onOpen} className="cursor-pointer">
           <PlusIcon className="size-4" />
           Adicionar tracking

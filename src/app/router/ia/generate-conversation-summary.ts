@@ -31,6 +31,8 @@ export const generateConversationSummary = base
   .handler(async ({ input, errors }) => {
     const { conversationId, date } = input;
 
+    console.log("Data", date);
+
     const conversation = await prisma.conversation.findUnique({
       where: {
         id: conversationId,
@@ -56,6 +58,8 @@ export const generateConversationSummary = base
       });
     }
 
+    console.log("Conversation", conversation);
+
     const messages = conversation?.messages.map((message) => {
       return {
         body: message.body,
@@ -68,7 +72,7 @@ export const generateConversationSummary = base
 
     if (messages && messages.length > 0) {
       lines = messages.map((message) => {
-        return `${message.fromMe ? "User" : "IA"}: ${message.body}`;
+        return `${message.fromMe ? "Sistema" : "Cliente"}: ${message.body}`;
       });
     }
 
@@ -80,6 +84,8 @@ export const generateConversationSummary = base
       "Responde apenas em portugues.",
       "Estilo: Neutro, especifíco e consistente. Não adicione uma frase de encerramento.",
     ].join("\n");
+
+    console.log("Complid", compiled);
 
     const result = streamText({
       model,

@@ -26,7 +26,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "../ui/pagination";
-import { useDebouncedValue } from "@/hooks/use-debouced";
+import { useDebouncedValue } from "@/hooks/use-debounced";
 import { Skeleton } from "../ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";

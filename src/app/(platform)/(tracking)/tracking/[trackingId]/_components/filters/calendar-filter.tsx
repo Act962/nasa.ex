@@ -28,7 +28,7 @@ export function CalendarFilter() {
   }, [dateInit, dateEnd]);
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
-    initialDateRange
+    initialDateRange,
   );
 
   const handleApply = () => {
@@ -92,6 +92,7 @@ export function CalendarFilter() {
         <Button
           variant={isActiveFilter ? "default" : "outline"}
           className="justify-start"
+          size="sm"
         >
           <CalendarIcon className="size-4" />
           Calendário
@@ -99,7 +100,7 @@ export function CalendarFilter() {
             <>
               <span className="text-sm text-muted-foreground">
                 {`${dayjs(dateInit).format("DD/MM/YYYY")} - ${dayjs(
-                  dateEnd
+                  dateEnd,
                 ).format("DD/MM/YYYY")}`}
               </span>
             </>

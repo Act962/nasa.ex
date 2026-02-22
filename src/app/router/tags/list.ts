@@ -28,8 +28,12 @@ export const listTags = base
         select: {
           id: true,
           name: true,
+          slug: true,
           color: true,
           whatsappId: true,
+          description: true,
+          icon: true,
+          type: true,
         },
         where: {
           organizationId: context.org.id,
