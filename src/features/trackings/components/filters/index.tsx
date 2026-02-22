@@ -30,6 +30,8 @@ export function FiltersTracking() {
             <TrackingSwitcher />
             <ParticipantsSwitcher />
             <TagsFilter />
+            {/* <TemperatureFilter /> */}
+            {/* <WinLossFilter /> */}
             <CalendarFilter />
           </div>
           <Filters />

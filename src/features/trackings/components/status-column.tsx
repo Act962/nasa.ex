@@ -35,6 +35,7 @@ export function StatusColumn({
   const [participantFilter] = useQueryState("participant");
   const [tagsFilter] = useQueryState("tags");
   const [temperatureFilter] = useQueryState("temperature");
+  const [actionFilter] = useQueryState("filter");
   const {
     attributes,
     listeners,
@@ -66,8 +67,16 @@ export function StatusColumn({
       temperatureFilter: temperatureFilter
         ? temperatureFilter.split(",")
         : undefined,
+      actionFilter: actionFilter || "ACTIVE",
     }),
-    [dateInit, dateEnd, participantFilter, tagsFilter, temperatureFilter],
+    [
+      dateInit,
+      dateEnd,
+      participantFilter,
+      tagsFilter,
+      temperatureFilter,
+      actionFilter,
+    ],
   );
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =

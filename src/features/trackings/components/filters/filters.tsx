@@ -11,6 +11,7 @@ import { ListFilter } from "lucide-react";
 import { ParticipantsSwitcher } from "./participant-switcher";
 import { TagsFilter } from "./tags-filter";
 import { TemperatureFilter } from "./temperature-filter";
+import { WinLossFilter } from "./win-loss-filter";
 import { CalendarFilter } from "./calendar-filter";
 
 export function Filters() {
@@ -33,6 +34,7 @@ export function Filters() {
           <ParticipantsSwitcher />
           <TagsFilter />
           <TemperatureFilter />
+          <WinLossFilter />
           <CalendarFilter />
         </div>
       </SheetContent>
