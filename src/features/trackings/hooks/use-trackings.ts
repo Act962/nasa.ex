@@ -67,6 +67,7 @@ export const useInfiniteLeadsByStatus = ({
   dateInit,
   dateEnd,
   participantFilter,
+  tagsFilter,
 }: {
   statusId: string;
   trackingId: string;
@@ -74,6 +75,7 @@ export const useInfiniteLeadsByStatus = ({
   dateInit?: Date;
   dateEnd?: Date;
   participantFilter?: string;
+  tagsFilter?: string[];
 }) => {
   const query = orpc.leads.listLeadsByStatus.infiniteOptions({
     input: (pageParams: string | undefined) => ({
@@ -84,6 +86,7 @@ export const useInfiniteLeadsByStatus = ({
       dateInit: dateInit?.toISOString(),
       dateEnd: dateEnd?.toISOString(),
       participantFilter,
+      tagsFilter,
     }),
     queryKey: [
       "leads.listLeadsByStatus",
@@ -92,6 +95,7 @@ export const useInfiniteLeadsByStatus = ({
       dateInit,
       dateEnd,
       participantFilter,
+      tagsFilter,
     ],
     context: { cache: true },
     enabled,

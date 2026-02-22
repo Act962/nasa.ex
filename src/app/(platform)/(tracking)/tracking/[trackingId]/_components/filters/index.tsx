@@ -30,13 +30,14 @@ export function FiltersTracking() {
           <ParticipantsSwitcher />
           <TagsFilter />
           <CalendarFilter />
+          <Filters />
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={() => useLeadSheet.setIsOpen(true)}>
             <PlusIcon className="size-4" />
             Novo Lead
           </Button>
-          <Filters />
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="icon-sm" variant="ghost">

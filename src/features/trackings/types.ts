@@ -11,4 +11,12 @@ export type Lead = {
     image: string | null;
     name: string;
   } | null;
+  leadTags: {
+    tag: {
+      id: string;
+      name: string;
+      color: string | null;
+      slug: string;
+    };
+  }[];
 };
