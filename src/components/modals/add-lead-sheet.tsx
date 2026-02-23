@@ -99,6 +99,7 @@ export default function AddLeadSheet({
 }: AddLeadSheetProps) {
   const queryClient = useQueryClient();
   const { trackingId } = useParams<{ trackingId: string }>();
+  const { status, isLoadingStatus } = useStatus(trackingId ?? "");
 
   const {
     register,
@@ -115,7 +116,7 @@ export default function AddLeadSheet({
       phone: "",
       email: "",
       description: "",
-      statusId: "",
+      statusId: status[0].id,
       tags: [],
       position: "first",
     },
@@ -142,7 +143,6 @@ export default function AddLeadSheet({
     }),
   );
 
-  const { status, isLoadingStatus } = useStatus(trackingId ?? "");
   const { tags, isLoadingTags } = useTags({ trackingId });
   const { createTag } = useTag();
   const [newTag, setNewTag] = useState("");
@@ -281,7 +281,9 @@ export default function AddLeadSheet({
 
           {/* Status */}
           <div className="flex flex-col gap-y-2">
-            <Label>Status</Label>
+            <Label>
+              Status <span className="text-red-500">*</span>
+            </Label>
 
             {isLoadingStatus ? (
               <Skeleton className="h-10" />

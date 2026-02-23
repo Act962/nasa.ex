@@ -1,4 +1,4 @@
-import { FiltersTracking } from "../../../../../features/trackings/components/filters";
+import { FiltersTracking } from "@/features/trackings/components/filters";
 import { BoardContainer } from "@/features/trackings/components/board-container";
 
 type TrackingPageProps = {
