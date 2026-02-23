@@ -33,6 +33,7 @@ export const listTrackings = base
               instanceId: true,
               status: true,
               apiKey: true,
+              phoneNumber: true,
               isBusiness: true,
             },
           },

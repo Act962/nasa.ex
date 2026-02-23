@@ -25,6 +25,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SearchConversations } from "./search-conversaitons";
 import { useMessageStore } from "../context/use-message";
 import { useDebouncedValue } from "@/hooks/use-debounced";
+import { Instance } from "../types";
 
 export function ConversationsList() {
   const [open, setOpen] = useState(false);
@@ -101,8 +102,13 @@ export function ConversationsList() {
     };
   }, [selectedTracking]);
 
-  const token = trackings.find((t) => t.id === selectedTracking)
-    ?.whatsappInstance?.apiKey;
+  const instance: Instance | undefined = whatsappInstance
+    ? {
+        token: whatsappInstance.apiKey,
+        isBusiness: whatsappInstance.isBusiness,
+        phoneNumber: whatsappInstance.phoneNumber,
+      }
+    : undefined;
 
   return (
     <>
@@ -165,7 +171,7 @@ export function ConversationsList() {
               >
                 {items.map((item) => (
                   <LeadBox
-                    token={token}
+                    instance={instance}
                     key={item.id}
                     item={item}
                     lastMessageText={item.lastMessage?.body}

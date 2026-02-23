@@ -19,7 +19,13 @@ import {
   useSyncWhatsappTagsMutation,
   useTag,
 } from "@/features/tags/hooks/use-tag";
-import { Plus, Tag as TagIcon, Check, ArrowLeftRightIcon } from "lucide-react";
+import {
+  Plus,
+  Tag as TagIcon,
+  Check,
+  ArrowLeftRightIcon,
+  XIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -29,34 +35,13 @@ import {
 } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { WhatsappIcon } from "@/features/leads/components/whatsapp";
-
-const WA_COLORS = [
-  "#FF8B8B",
-  "#74B9FF",
-  "#FFD93D",
-  "#D6B4FC",
-  "#C5D1D8",
-  "#60E6C5",
-  "#F8B4F2",
-  "#E9C46A",
-  "#7096F8",
-  "#E5F27F",
-  "#40C4FF",
-  "#FFC9C5",
-  "#A1E3B9",
-  "#F06292",
-  "#29B6F6",
-  "#8BC34A",
-  "#FFA726",
-  "#B3E5FC",
-  "#9FA8DA",
-  "#9575CD",
-];
+import { WA_COLORS } from "@/utils/whatsapp-utils";
+import { Instance } from "../types";
 
 interface AddTagLeadProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  token?: string | null;
+  instance: Instance;
   leadId: string;
   trackingId: string;
   initialSelectedTagIds: string[];
@@ -68,7 +53,7 @@ export function AddTagLead({
   leadId,
   trackingId,
   initialSelectedTagIds,
-  token,
+  instance,
 }: AddTagLeadProps) {
   const { tags, isLoadingTags } = useTags({ trackingId });
   const { createTag } = useTag();
@@ -98,7 +83,7 @@ export function AddTagLead({
     }
 
     try {
-      await createTag.mutateAsync(
+      createTag.mutate(
         {
           name: newTagName,
           color: selectedColor,
@@ -117,17 +102,24 @@ export function AddTagLead({
   };
 
   function handleSyncWhatsappTags() {
-    if (!token) return toast.error("Token não encontrado.");
-    syncWhatsappTags.mutate({ apikey: token });
+    if (!instance?.token) return toast.error("Token não encontrado.");
+
+    if (!instance?.isBusiness) {
+      return toast.error(
+        "A sincronização de etiquetas só está disponível para contas WhatsApp Business.",
+      );
+    }
+
+    syncWhatsappTags.mutate({ apikey: instance.token });
   }
 
   const handleSave = () => {
-    if (!token) return toast.error("Token não encontrado.");
+    if (!instance?.token) return toast.error("Token não encontrado.");
     updateMutation.mutate(
       {
         id: leadId,
         tagIds: selectedTagIds,
-        apiKey: token,
+        apiKey: instance.token,
       },
       {
         onSuccess: () => {
@@ -151,8 +143,16 @@ export function AddTagLead({
     }
   };
 
-  const tagsOrdened = useMemo(() => {
-    return [...tags].sort((a, b) => a.name.localeCompare(b.name));
+  const refactorTags = useMemo(() => {
+    return tags
+      .map((tag) => ({
+        ...tag,
+        whatsappId:
+          tag.whatsappId?.split(":")[0] === instance.phoneNumber
+            ? tag.whatsappId
+            : null,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [tags]);
 
   return (
@@ -160,19 +160,24 @@ export function AddTagLead({
       <DialogContent className="p-0 sm:max-w-[400px] bg-background border-none shadow-2xl overflow-hidden rounded-2xl">
         <DialogHeader className="p-4 flex flex-row items-center gap-4 space-y-0 border-b border-border/10">
           <DialogTitle>Etiquetar itens</DialogTitle>
-          <Button
-            variant="outline"
-            size={"xs"}
-            onClick={handleSyncWhatsappTags}
-            disabled={syncWhatsappTags.isPending}
-          >
-            {syncWhatsappTags.isPending ? (
-              <Spinner />
-            ) : (
-              <ArrowLeftRightIcon className="size-4 text-accent-foreground" />
-            )}
-            <span className="text-base font-medium">Sincronizar</span>
-          </Button>
+          <div className="relative ">
+            <Button
+              variant="outline"
+              size={"xs"}
+              onClick={handleSyncWhatsappTags}
+              disabled={syncWhatsappTags.isPending}
+            >
+              {syncWhatsappTags.isPending ? (
+                <Spinner />
+              ) : (
+                <ArrowLeftRightIcon className="size-4 text-accent-foreground" />
+              )}
+              <span className="text-sm font-medium">Sincronizar</span>
+            </Button>
+            <span className="text-[8px] font-medium absolute -top-1 -right-5 bg-primary text-primary-foreground rounded-full px-1">
+              Beta
+            </span>
+          </div>
         </DialogHeader>
 
         <div className="flex flex-col max-h-[70vh]">
@@ -234,6 +239,15 @@ export function AddTagLead({
                       autoFocus
                     />
                     <div className="flex items-center gap-2 absolute right-0">
+                      <XIcon
+                        className={cn(
+                          "size-5 cursor-pointer text-red-500 hover:text-red-600",
+                        )}
+                        onClick={() => {
+                          setNewTagName("");
+                          setIsCreating(false);
+                        }}
+                      />
                       <Check
                         className={cn(
                           "size-5 cursor-pointer transition-colors",
@@ -252,7 +266,7 @@ export function AddTagLead({
 
           <ScrollArea className="flex-1 px-4 pb-4 overflow-y-auto">
             <div className="space-y-1">
-              {tagsOrdened.map((tag) => (
+              {refactorTags.map((tag) => (
                 <div
                   key={tag.id}
                   className="flex items-center justify-between group px-2 py-3 rounded-xl hover:bg-accent/5 cursor-pointer transition-colors"
@@ -260,10 +274,10 @@ export function AddTagLead({
                 >
                   <div className="flex items-center gap-4">
                     <div
-                      className="size-10 rounded-full flex items-center justify-center shadow-sm"
+                      className="size-8 rounded-full flex items-center justify-center shadow-sm"
                       style={{ backgroundColor: tag.color || "#ccc" }}
                     >
-                      <TagIcon className="size-5 text-white fill-white" />
+                      <TagIcon className="size-4 text-white fill-white" />
                     </div>
                     <span className="text-base font-medium">{tag.name}</span>
                     {tag.whatsappId && (

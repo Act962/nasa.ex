@@ -100,3 +100,9 @@ export type ConversationPage = {
 };
 
 export type InfiniteConversations = InfiniteData<ConversationPage>;
+
+export interface Instance {
+  token: string;
+  isBusiness: boolean;
+  phoneNumber: string | null;
+}

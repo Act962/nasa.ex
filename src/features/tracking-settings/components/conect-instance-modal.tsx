@@ -351,7 +351,10 @@ export function ConnectModal({
           disabled={loading}
           className="w-full h-11"
         >
-          {loading && qrcode === null && pairingCode === null ? (
+          {loading ||
+          (connectIntegrationStatusMutation.isPending &&
+            qrcode === null &&
+            pairingCode === null) ? (
             <Spinner />
           ) : (
             <QrCode className="h-4 w-4 mr-2" />

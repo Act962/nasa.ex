@@ -253,6 +253,14 @@ export function ChatSettings() {
                           {instance.profileName || "---"}
                         </p>
                       </div>
+                      <div className="mt-2">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">
+                          Whatsapp Business
+                        </Label>
+                        <p className="text-sm font-medium truncate">
+                          {instance.isBusiness ? "Sim" : "Não"}
+                        </p>
+                      </div>
                     </div>
                   </div>
 

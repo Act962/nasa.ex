@@ -7,16 +7,10 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { TagIcon } from "lucide-react";
 import { useState } from "react";
 import { AddTagLead } from "./add-tag-lead";
+import { Instance } from "../types";
 
 interface SelectedConversationProps {
   lead: {
@@ -26,14 +20,14 @@ interface SelectedConversationProps {
   };
   trackingId: string;
   children: React.ReactNode;
-  token?: string | null;
+  instance?: Instance | null;
 }
 
 export function SelectedConversationOptions({
   lead,
   trackingId,
   children,
-  token,
+  instance,
 }: SelectedConversationProps) {
   const [showTagModal, setShowTagModal] = useState(false);
 
@@ -63,7 +57,7 @@ export function SelectedConversationOptions({
           leadId={lead.id}
           trackingId={trackingId}
           initialSelectedTagIds={initialTagIds}
-          token={token}
+          instance={instance!}
         />
       )}
     </>

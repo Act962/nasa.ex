@@ -112,6 +112,7 @@ export const updateWhatsappTagsLead = base
 
           await managementLabels({
             token: input.apiKey,
+            baseUrl: WhatsAppInstance.baseUrl,
             data: {
               number: targetNumber,
               add_labelid: !alreadyHas ? labelId : undefined,

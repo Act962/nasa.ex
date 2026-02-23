@@ -27,6 +27,10 @@ export const syncWhatsappTags = base
         throw errors.NOT_FOUND;
       }
 
+      if (!instance.isBusiness) {
+        throw errors.BAD_REQUEST;
+      }
+
       const labels = await getLabels({
         token: instance.apiKey,
         baseUrl: instance.baseUrl,
@@ -47,7 +51,9 @@ export const syncWhatsappTags = base
       const syncResult = [];
 
       for (const label of labels) {
-        if (!existingWhatsappIds.has(label.id)) {
+        const scopedWhatsappId = `${instance.phoneNumber}:${label.id}`;
+
+        if (!existingWhatsappIds.has(scopedWhatsappId)) {
           const existingByName = existingTags.find(
             (t) =>
               t.name.toLowerCase() === label.name.toLowerCase() &&
@@ -58,7 +64,7 @@ export const syncWhatsappTags = base
             const updated = await prisma.tag.update({
               where: { id: existingByName.id },
               data: {
-                whatsappId: label.id,
+                whatsappId: scopedWhatsappId,
                 color: label.colorHex,
               },
             });
@@ -69,7 +75,7 @@ export const syncWhatsappTags = base
                 name: label.name,
                 color: label.colorHex,
                 organizationId: instance.organizationId,
-                whatsappId: label.id,
+                whatsappId: scopedWhatsappId,
                 trackingId: instance.trackingId,
                 slug: `${label.name.toLowerCase()}-${randomUUID()}`,
               },

@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { AvatarLead } from "./avatar-lead";
 import { SelectedConversationOptions } from "./selected-conversation";
+import { Instance } from "../types";
 
 interface ConversationWithLead extends Conversation {
   lead: Lead & { leadTags?: { tag: { id: string } }[] };
@@ -14,10 +15,10 @@ interface ConversationWithLead extends Conversation {
 interface UserBloxProps {
   item: ConversationWithLead;
   lastMessageText: string | null;
-  token?: string | null;
+  instance?: Instance | null;
 }
 
-export function LeadBox({ item, lastMessageText, token }: UserBloxProps) {
+export function LeadBox({ item, lastMessageText, instance }: UserBloxProps) {
   const router = useRouter();
   const { conversationId } = useParams();
 
@@ -32,7 +33,7 @@ export function LeadBox({ item, lastMessageText, token }: UserBloxProps) {
     <SelectedConversationOptions
       lead={item.lead}
       trackingId={item.trackingId}
-      token={token}
+      instance={instance}
     >
       <div
         onClick={handleClick}

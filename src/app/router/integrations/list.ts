@@ -20,6 +20,17 @@ export const getIntegration = base
       where: {
         trackingId: input.trackingId,
       },
+      select: {
+        id: true,
+        instanceId: true,
+        instanceName: true,
+        profileName: true,
+        status: true,
+        apiKey: true,
+        isBusiness: true,
+        phoneNumber: true,
+        baseUrl: true,
+      },
     });
     return instances;
   });
