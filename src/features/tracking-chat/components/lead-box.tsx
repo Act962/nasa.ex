@@ -9,8 +9,20 @@ import { SelectedConversationOptions } from "./selected-conversation";
 import { Instance } from "../types";
 import { ChevronDownIcon } from "lucide-react";
 
+import { DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ListTags } from "./list-tags";
+
 interface ConversationWithLead extends Conversation {
-  lead: Lead & { leadTags?: { tag: { id: string } }[] };
+  lead: Lead & {
+    leadTags: {
+      tag: {
+        id: string;
+        name: string;
+        color: string | null;
+        slug: string;
+      };
+    }[];
+  };
 }
 
 interface UserBloxProps {
@@ -48,6 +60,11 @@ export function LeadBox({ item, lastMessageText, instance }: UserBloxProps) {
                 {item.lead.name}
               </p>
             </div>
+            {item.lead.leadTags && item.lead.leadTags.length > 0 && (
+              <div className="mb-1">
+                <ListTags tags={item.lead.leadTags} />
+              </div>
+            )}
             {lastMessageText && (
               <p
                 className={`text-xs font-light ${
@@ -63,7 +80,15 @@ export function LeadBox({ item, lastMessageText, instance }: UserBloxProps) {
           <p className="text-[10px] font-light">
             {format(new Date(item.createdAt), "dd/MM")}
           </p>
-          <ChevronDownIcon className="size-4 opacity-0 group-hover:opacity-100" />
+          <DropdownMenuTrigger asChild>
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              <ChevronDownIcon className="size-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </DropdownMenuTrigger>
         </div>
       </div>
     </SelectedConversationOptions>
