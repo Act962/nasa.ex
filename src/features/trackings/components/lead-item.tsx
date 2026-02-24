@@ -4,7 +4,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowUpRight, Grip, Mail, Phone, RocketIcon, Tag } from "lucide-react";
+import {
+  ArrowUpRight,
+  Grip,
+  Mail,
+  Phone,
+  PlusIcon,
+  RocketIcon,
+  Tag,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { phoneMask } from "@/utils/format-phone";
@@ -15,11 +23,17 @@ import {
 } from "@/components/ui/tooltip";
 import dayjs from "dayjs";
 import Link from "next/link";
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Lead } from "../types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 
 import { useLeadStore } from "../contexts/use-lead";
+import { LeadContainer } from "@/features/leads/components/lead-container";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const TEMP_COLOR = {
   COLD: "#3498db",
@@ -123,10 +137,10 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           <Phone className="size-3" />
           {phoneMask(data.phone) || "(00) 00000-0000"}
         </LeadItemContainer>
-        {data.leadTags && data.leadTags.length > 0 && (
-          <LeadItemContainer>
-            <Tag className="size-3" />
-            <div className="flex flex-wrap gap-1">
+        <LeadItemContainer>
+          <Tag className="size-3" />
+          {data.leadTags && data.leadTags.length > 0 && (
+            <>
               {data.leadTags.slice(0, 2).map(({ tag }) => (
                 <Badge
                   key={tag.id}
@@ -144,9 +158,10 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
                   +{data.leadTags.length - 2}
                 </Badge>
               )}
-            </div>
-          </LeadItemContainer>
-        )}
+            </>
+          )}
+          <AddTagsButton leadId={data.id} />
+        </LeadItemContainer>
       </div>
       <Separator />
       <div className="flex items-center justify-between bg-secondary px-3 py-2">
@@ -192,5 +207,37 @@ function LeadItemContainer({ ...props }: LeadItemContainerProps) {
       className="flex flex-row gap-2 items-center min-w-0 truncate"
       {...props}
     />
+  );
+}
+
+function AddTagsButton({ leadId }: { leadId: string }) {
+  const [open, setOpen] = useState(false);
+
+  const handleOpen = () => {
+    setOpen(!open);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={handleClose}>
+      <PopoverTrigger asChild>
+        <Button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleOpen();
+          }}
+          className="size-4 rounded-full"
+          variant="outline"
+        >
+          <PlusIcon className="size-3" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent>
+        <div>Tags</div>
+      </PopoverContent>
+    </Popover>
   );
 }

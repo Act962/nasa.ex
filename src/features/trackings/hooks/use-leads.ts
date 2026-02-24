@@ -18,3 +18,18 @@ export function useMutationUpdateLeads() {
     }),
   );
 }
+
+export const useAddTags = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.leads.addTags.mutationOptions({
+      onSuccess: () => {
+        toast.success("Tags adicionadas com sucesso");
+      },
+      onError: () => {
+        toast.error("Erro ao adicionar tags");
+      },
+    }),
+  );
+};
