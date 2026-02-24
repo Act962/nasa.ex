@@ -12,7 +12,7 @@ import { ChevronDownIcon } from "lucide-react";
 import { DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ListTags } from "./list-tags";
 
-interface ConversationWithLead extends Conversation {
+interface LeadBoxConversation extends Conversation {
   lead: Lead & {
     leadTags: {
       tag: {
@@ -23,10 +23,11 @@ interface ConversationWithLead extends Conversation {
       };
     }[];
   };
+  lastMessage?: any;
 }
 
 interface UserBloxProps {
-  item: ConversationWithLead;
+  item: LeadBoxConversation;
   lastMessageText: string | null;
   instance?: Instance | null;
 }

@@ -25,6 +25,7 @@ interface Props {
   onDeleteMessage: () => void;
   onCopyMessage: () => void;
   onChange: (open: boolean) => void;
+  disabled?: boolean;
 }
 
 export function SelectedMessageOptions({
@@ -34,6 +35,7 @@ export function SelectedMessageOptions({
   onDeleteMessage,
   onCopyMessage,
   onChange,
+  disabled,
 }: Props) {
   const startEditing = useMessageStore((state) => state.startEditing);
 
@@ -44,7 +46,9 @@ export function SelectedMessageOptions({
 
   return (
     <ContextMenu modal={false} onOpenChange={onChange}>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuTrigger disabled={disabled} asChild>
+        {children}
+      </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuGroup>
           <ContextMenuItem

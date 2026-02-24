@@ -25,6 +25,7 @@ import { useMutationDeleteMessage } from "../hooks/use-messages";
 import { useMessageStore } from "../context/use-message";
 import { toast } from "sonner";
 import { useState } from "react";
+import { ImageViewerDialog } from "./image-viewer-dialog";
 
 export function MessageBox({
   message,
@@ -43,6 +44,7 @@ export function MessageBox({
   });
 
   const [open, setOpen] = useState(false);
+  const [showImageViewer, setShowImageViewer] = useState(false);
 
   const IconStatus = IconsStatus[message.status as MessageStatus];
 
@@ -74,6 +76,7 @@ export function MessageBox({
         onDeleteMessage={onDeleteMessage}
         onCopyMessage={copyMessage}
         onChange={setOpen}
+        disabled={showImageViewer}
       >
         <div
           id={`message-${message.id}`}
@@ -102,13 +105,37 @@ export function MessageBox({
                 <div className="relative w-fit py-1">
                   {message.mediaUrl &&
                     message.mimetype?.startsWith("image") && (
-                      <Image
-                        alt="Image"
-                        src={useConstructUrl(message.mediaUrl)}
-                        className="object-contain cursor-pointer max-h-50"
-                        width={288}
-                        height={288}
-                      />
+                      <>
+                        <Image
+                          alt="Image"
+                          src={useConstructUrl(message.mediaUrl)}
+                          className="object-contain cursor-pointer max-h-50 hover:opacity-90 transition-opacity"
+                          width={288}
+                          height={288}
+                          onClick={() => setShowImageViewer(true)}
+                        />
+                        <ImageViewerDialog
+                          open={showImageViewer}
+                          onOpenChange={setShowImageViewer}
+                          message={message}
+                          onReply={() =>
+                            onSelectMessage({
+                              body: message.body,
+                              id: message.id,
+                              messageId: message.messageId,
+                              fromMe: message.fromMe,
+                              quotedMessageId: message.quotedMessageId,
+                              mediaUrl: message.mediaUrl,
+                              mimetype: message.mimetype,
+                              fileName: message.fileName,
+                              lead: {
+                                id: message.conversation?.lead?.id || "",
+                                name: message.conversation?.lead?.name || "",
+                              },
+                            })
+                          }
+                        />
+                      </>
                     )}
                   {message.mediaUrl &&
                     (message.mimetype?.startsWith("application/") ||

@@ -1,14 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import z from "zod";
-import { Conversation, Lead } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
-import { Message } from "@/generated/prisma/client";
-
-interface ConversationWithLead extends Conversation {
-  lead: Lead;
-  lastMessage: Message;
-}
 
 export const listConversation = base
   .use(requiredAuthMiddleware)
@@ -26,12 +19,7 @@ export const listConversation = base
       cursor: z.string().optional(),
     }),
   )
-  .output(
-    z.object({
-      items: z.array(z.custom<ConversationWithLead>()),
-      nextCursor: z.string().optional(),
-    }),
-  )
+
   .handler(async ({ input, context, errors }) => {
     try {
       const limit = input.limit ?? 30;

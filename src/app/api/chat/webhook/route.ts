@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { pusherServer } from "@/lib/pusher";
 import prisma from "@/lib/prisma";
-import { LeadSource } from "@/generated/prisma/enums";
+import { LeadSource, WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import { downloadFile } from "@/http/uazapi/get-file";
 import { S3 } from "@/lib/s3-client";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
@@ -504,8 +504,11 @@ export async function POST(request: NextRequest) {
 
     if (json.EventType === "connection") {
       if (json.instance.status === "disconnected") {
-        await prisma.whatsAppInstance.deleteMany({
+        await prisma.whatsAppInstance.update({
           where: { apiKey: json.token },
+          data: {
+            status: WhatsAppInstanceStatus.DISCONNECTED,
+          },
         });
       }
       return NextResponse.json({ success: true }, { status: 200 });
