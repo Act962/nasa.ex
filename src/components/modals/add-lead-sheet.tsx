@@ -116,7 +116,7 @@ export default function AddLeadSheet({
       phone: "",
       email: "",
       description: "",
-      statusId: status[0].id,
+      statusId: status[0]?.id || "",
       tags: [],
       position: "first",
     },

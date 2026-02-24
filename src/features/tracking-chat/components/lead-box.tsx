@@ -7,6 +7,7 @@ import { useCallback } from "react";
 import { AvatarLead } from "./avatar-lead";
 import { SelectedConversationOptions } from "./selected-conversation";
 import { Instance } from "../types";
+import { ChevronDownIcon } from "lucide-react";
 
 interface ConversationWithLead extends Conversation {
   lead: Lead & { leadTags?: { tag: { id: string } }[] };
@@ -37,7 +38,7 @@ export function LeadBox({ item, lastMessageText, instance }: UserBloxProps) {
     >
       <div
         onClick={handleClick}
-        className={`w-full relative flex items-center space-x-3 p-3 hover:bg-accent-foreground/5 cursor-pointer rounded-lg transition  ${selected ? "bg-accent-foreground/5" : ""}`}
+        className={`w-full group relative flex items-center space-x-3 p-3 hover:bg-accent-foreground/5 cursor-pointer rounded-lg transition  ${selected ? "bg-accent-foreground/5" : ""}`}
       >
         <AvatarLead Lead={item.lead} />
         <div className="min-w-0 flex-1">
@@ -45,9 +46,6 @@ export function LeadBox({ item, lastMessageText, instance }: UserBloxProps) {
             <div className="flex justify-between items-center mb-1 gap-x-1">
               <p className="text-sm font-medium line-clamp-2">
                 {item.lead.name}
-              </p>
-              <p className="text-xs font-light">
-                {format(new Date(item.createdAt), "dd/MM/yyyy")}
               </p>
             </div>
             {lastMessageText && (
@@ -60,6 +58,12 @@ export function LeadBox({ item, lastMessageText, instance }: UserBloxProps) {
               </p>
             )}
           </div>
+        </div>
+        <div className="flex flex-col items-center justify-center">
+          <p className="text-[10px] font-light">
+            {format(new Date(item.createdAt), "dd/MM")}
+          </p>
+          <ChevronDownIcon className="size-4 opacity-0 group-hover:opacity-100" />
         </div>
       </div>
     </SelectedConversationOptions>

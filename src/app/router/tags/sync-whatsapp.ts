@@ -51,9 +51,7 @@ export const syncWhatsappTags = base
       const syncResult = [];
 
       for (const label of labels) {
-        const scopedWhatsappId = `${instance.phoneNumber}:${label.id}`;
-
-        if (!existingWhatsappIds.has(scopedWhatsappId)) {
+        if (!existingWhatsappIds.has(label.id)) {
           const existingByName = existingTags.find(
             (t) =>
               t.name.toLowerCase() === label.name.toLowerCase() &&
@@ -64,7 +62,7 @@ export const syncWhatsappTags = base
             const updated = await prisma.tag.update({
               where: { id: existingByName.id },
               data: {
-                whatsappId: scopedWhatsappId,
+                whatsappId: label.id,
                 color: label.colorHex,
               },
             });
@@ -75,7 +73,7 @@ export const syncWhatsappTags = base
                 name: label.name,
                 color: label.colorHex,
                 organizationId: instance.organizationId,
-                whatsappId: scopedWhatsappId,
+                whatsappId: label.id,
                 trackingId: instance.trackingId,
                 slug: `${label.name.toLowerCase()}-${randomUUID()}`,
               },
