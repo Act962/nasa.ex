@@ -4,7 +4,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowUpRight, Grip, Mail, Phone, RocketIcon, Tag } from "lucide-react";
+import {
+  ArrowUpRight,
+  Grip,
+  Mail,
+  Phone,
+  PlusIcon,
+  RocketIcon,
+  Tag,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { phoneMask } from "@/utils/format-phone";
@@ -15,11 +23,35 @@ import {
 } from "@/components/ui/tooltip";
 import dayjs from "dayjs";
 import Link from "next/link";
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Lead } from "../types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 
 import { useLeadStore } from "../contexts/use-lead";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { useQueryTags } from "@/features/tags/hooks/use-tags";
+import { useParams } from "next/navigation";
+import {
+  useMutation,
+  useQueryClient,
+  InfiniteData,
+} from "@tanstack/react-query";
+import { toast } from "sonner";
+import { orpc } from "@/lib/orpc";
+import { useAddTagsOptimistic } from "../hooks/use-leads";
+import { cn } from "@/lib/utils";
 
 const TEMP_COLOR = {
   COLD: "#3498db",
@@ -123,30 +155,35 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           <Phone className="size-3" />
           {phoneMask(data.phone) || "(00) 00000-0000"}
         </LeadItemContainer>
-        {data.leadTags && data.leadTags.length > 0 && (
-          <LeadItemContainer>
-            <Tag className="size-3" />
-            <div className="flex flex-wrap gap-1">
-              {data.leadTags.slice(0, 2).map(({ tag }) => (
-                <Badge
-                  key={tag.id}
-                  // variant="outline"
-                  className="px-1 py-0 text-[10px] h-4 font-normal"
-                >
-                  {tag.name}
-                </Badge>
-              ))}
-              {data.leadTags.length > 2 && (
-                <Badge
-                  variant="outline"
-                  className="px-1 py-0 text-[10px] h-4 font-normal bg-muted"
-                >
-                  +{data.leadTags.length - 2}
-                </Badge>
-              )}
-            </div>
-          </LeadItemContainer>
-        )}
+        <LeadItemContainer className="items-baseline">
+          <Tag className="size-3" />
+          <div className="flex flex-wrap gap-1">
+            {data.leadTags && data.leadTags.length > 0 && (
+              <>
+                {data.leadTags.slice(0, 8).map((lt) => (
+                  <Badge
+                    key={lt.tag.id}
+                    className="px-1 py-0 text-[10px] h-4 font-normal"
+                  >
+                    {lt.tag.name}
+                  </Badge>
+                ))}
+                {data.leadTags.length > 8 && (
+                  <Badge
+                    variant="outline"
+                    className="px-1 py-0 text-[10px] h-4 font-normal bg-muted"
+                  >
+                    +{data.leadTags.length - 8}
+                  </Badge>
+                )}
+              </>
+            )}
+            <AddTagsButton
+              leadId={data.id}
+              existingTagIds={data.leadTags?.map((lt) => lt.tag.id) || []}
+            />
+          </div>
+        </LeadItemContainer>
       </div>
       <Separator />
       <div className="flex items-center justify-between bg-secondary px-3 py-2">
@@ -186,11 +223,88 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
 
 interface LeadItemContainerProps extends React.ComponentProps<"div"> {}
 
-function LeadItemContainer({ ...props }: LeadItemContainerProps) {
+function LeadItemContainer({ className, ...props }: LeadItemContainerProps) {
   return (
     <div
-      className="flex flex-row gap-2 items-center min-w-0 truncate"
+      className={cn(
+        "flex flex-row gap-2 items-center min-w-0 truncate",
+        className,
+      )}
       {...props}
     />
+  );
+}
+
+function AddTagsButton({
+  leadId,
+  existingTagIds,
+}: {
+  leadId: string;
+  existingTagIds: string[];
+}) {
+  const { trackingId } = useParams<{ trackingId: string }>();
+  const [open, setOpen] = useState(false);
+  const { tags } = useQueryTags({ trackingId });
+
+  const handleOpen = () => {
+    setOpen(!open);
+  };
+
+  const { addTags } = useAddTagsOptimistic({ leadId, trackingId });
+
+  const onSelectTag = (tagId: string) => {
+    addTags.mutate({
+      leadId,
+      tagIds: [tagId],
+    });
+    setOpen(false);
+  };
+
+  const availableTags = tags?.filter((tag) => !existingTagIds.includes(tag.id));
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleOpen();
+          }}
+          className="size-4 rounded-full focus-visible:ring-0"
+          variant="outline"
+        >
+          <PlusIcon className="size-3" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-64 p-0"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Command>
+          <CommandInput placeholder="Adicionar tags..." />
+          <CommandList>
+            <CommandEmpty>
+              <span className="text-sm text-muted-foreground">
+                Nenhuma tag encontrada
+              </span>
+            </CommandEmpty>
+            <CommandGroup>
+              {availableTags?.map((tag) => (
+                <CommandItem
+                  key={tag.id}
+                  value={`${tag.name}-${tag.id}`}
+                  onSelect={() => onSelectTag(tag.id)}
+                  className="cursor-pointer"
+                >
+                  <Tag className="mr-2 h-3.5 w-3.5" />
+                  <span>{tag.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
