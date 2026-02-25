@@ -109,3 +109,18 @@ export const useQueryLead = (leadId: string) => {
     isLoading,
   };
 };
+
+export const useListHistoric = (leadId: string) => {
+  const { data, isLoading } = useQuery(
+    orpc.leads.listHistoric.queryOptions({
+      input: {
+        leadId,
+      },
+    }),
+  );
+
+  return {
+    data,
+    isLoading,
+  };
+};

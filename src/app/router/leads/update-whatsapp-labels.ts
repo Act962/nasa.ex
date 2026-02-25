@@ -3,6 +3,8 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { managementLabels } from "@/http/uazapi/management-labels";
+import { LeadAction } from "@/generated/prisma/enums";
+import { recordLeadHistory } from "./utils/history";
 
 // 🟦 UPDATE
 export const updateWhatsappTagsLead = base
@@ -24,7 +26,7 @@ export const updateWhatsappTagsLead = base
         path: ["id"],
       }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, errors, context }) => {
     try {
       const leadExists = await prisma.lead.findUnique({
         where: { id: input.id },
@@ -52,28 +54,42 @@ export const updateWhatsappTagsLead = base
 
       const validTagIds = validTags.map((t) => t.id);
 
-      const lead = await prisma.lead.update({
-        where: { id: input.id },
-        data: {
-          leadTags: {
-            deleteMany: {},
-            create: validTagIds.map((tagId) => ({
-              tagId,
-            })),
+      const result = await prisma.$transaction(async (tx) => {
+        const lead = await tx.lead.update({
+          where: { id: input.id },
+          data: {
+            leadTags: {
+              deleteMany: {},
+              create: validTagIds.map((tagId) => ({
+                tagId,
+              })),
+            },
           },
-        },
-        select: {
-          id: true,
-          name: true,
-          phone: true,
-          email: true,
-          description: true,
-          statusId: true,
-          trackingId: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+            description: true,
+            statusId: true,
+            trackingId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+        await recordLeadHistory({
+          leadId: input.id,
+          userId: context.user.id,
+          action: LeadAction.ACTIVE,
+          notes: "Tags do lead sincronizadas via WhatsApp",
+          tx,
+        });
+
+        return lead;
       });
+
+      const lead = result;
 
       const WhatsAppInstance = await prisma.whatsAppInstance.findUnique({
         where: {

@@ -32,7 +32,7 @@ export function CreateFile({
   open,
   onOpenChange,
 }: CreateFileProps) {
-  const [name, setName] = useState<string | undefined>(undefined);
+  const [name, setName] = useState<string>("");
   const [file, setFile] = useState<string | null>(null);
 
   function onSubmit() {
@@ -40,10 +40,11 @@ export function CreateFile({
     onConfirm(name, file);
   }
 
-  const onUpload = (key: string, name?: string) => {
+  const onUpload = (key: string, fileName?: string) => {
     setFile(key);
-    if (!name) {
-      setName(name);
+    console.log(name);
+    if (fileName && !name) {
+      setName(fileName);
     }
   };
 

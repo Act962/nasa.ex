@@ -3,6 +3,9 @@ import { base } from "@/app/middlewares/base";
 import { validWhatsappPhone } from "@/http/uazapi/valid-whatsapp-phone";
 import prisma from "@/lib/prisma";
 import z from "zod";
+import { LeadAction } from "@/generated/prisma/enums";
+import { recordLeadHistory } from "../leads/utils/history";
+import { Decimal } from "@prisma/client/runtime/client";
 
 export const createConversation = base
   .use(requiredAuthMiddleware)
@@ -18,7 +21,7 @@ export const createConversation = base
       token: z.string(),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context }) => {
     try {
       const { trackingId, phone, token } = input;
 
@@ -35,7 +38,7 @@ export const createConversation = base
           try {
             if (validPhone.isInWhatsapp) {
               count++;
-              const lead = await prisma.lead.findUnique({
+              let lead = await prisma.lead.findUnique({
                 where: {
                   phone_trackingId: {
                     trackingId,
@@ -66,6 +69,14 @@ export const createConversation = base
                 },
                 update: {},
               });
+
+              await recordLeadHistory({
+                leadId: lead.id,
+                userId: context.user.id,
+                action: LeadAction.ACTIVE,
+                notes: "Conversa iniciada",
+              });
+
               return;
             }
             contactsInvalids.push(validPhone.query);

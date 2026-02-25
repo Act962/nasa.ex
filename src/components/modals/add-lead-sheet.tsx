@@ -144,8 +144,13 @@ export default function AddLeadSheet({
         reset();
         onOpenChange(false);
       },
-      onError: () => {
+      onError: (error) => {
+        if (error.cause === "LEAD_ALREADY_EXISTS") {
+          toast.error(error.message);
+          return;
+        }
         toast.error("Erro ao criar lead, tente novamente mais tarde!");
+        console.error(error);
       },
     }),
   );

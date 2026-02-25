@@ -3,6 +3,8 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/client";
+import { LeadAction } from "@/generated/prisma/enums";
+import { recordLeadHistory } from "./utils/history";
 
 export const addLeadLast = base
   .use(requiredAuthMiddleware)
@@ -23,7 +25,7 @@ export const addLeadLast = base
       trackingId: z.string(),
     }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, errors, context }) => {
     const { leadId, statusId } = input;
 
     return prisma.$transaction(async (tx) => {
@@ -86,6 +88,14 @@ export const addLeadLast = base
           statusId,
           order: newOrder,
         },
+      });
+
+      await recordLeadHistory({
+        leadId,
+        userId: context.user.id,
+        action: LeadAction.ACTIVE,
+        notes: "Lead movido para o final da coluna",
+        tx,
       });
 
       return {

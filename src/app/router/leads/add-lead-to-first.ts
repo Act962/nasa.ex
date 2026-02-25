@@ -3,6 +3,8 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/client";
+import { LeadAction } from "@/generated/prisma/enums";
+import { recordLeadHistory } from "./utils/history";
 /**
  * 🟢 Adicionar Lead como o primeiro da coluna
  */ export const addLeadFirst = base
@@ -24,7 +26,7 @@ import { Decimal } from "@prisma/client/runtime/client";
       trackingId: z.string(),
     }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, errors, context }) => {
     const { leadId, statusId } = input;
 
     return prisma.$transaction(async (tx) => {
@@ -78,6 +80,14 @@ import { Decimal } from "@prisma/client/runtime/client";
           statusId,
           order: 0,
         },
+      });
+
+      await recordLeadHistory({
+        leadId,
+        userId: context.user.id,
+        action: LeadAction.ACTIVE,
+        notes: "Lead movido para o topo da coluna",
+        tx,
       });
 
       return {

@@ -3,6 +3,8 @@ import { base } from "@/app/middlewares/base";
 import { TypeAction } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import z from "zod";
+import { LeadAction } from "@/generated/prisma/enums";
+import { recordLeadHistory } from "./utils/history";
 
 export const updateActionByLead = base
   .use(requiredAuthMiddleware)
@@ -31,31 +33,46 @@ export const updateActionByLead = base
   )
   .handler(async ({ input, errors, context }) => {
     try {
-      const action = await prisma.action.update({
-        where: {
-          id: input.actionId,
-        },
-        data: {
-          title: input.title,
-          leadId: input.leadId,
-          description: input.description,
-          score: input.score,
-          isDone: input.isDone,
-          type: input.type,
-          trackingId: input.trackingId,
-          organizationId: context.session.activeOrganizationId,
-          createdBy: context.user.id,
-          startDate: input.startDate,
-          endDate: input.endDate,
-          responsibles: {
-            create: input.responsibles.map((id) => ({
-              userId: id,
-            })),
+      const result = await prisma.$transaction(async (tx) => {
+        const action = await tx.action.update({
+          where: {
+            id: input.actionId,
           },
-        },
+          data: {
+            title: input.title,
+            leadId: input.leadId,
+            description: input.description,
+            score: input.score,
+            isDone: input.isDone,
+            type: input.type,
+            trackingId: input.trackingId,
+            organizationId: context.session.activeOrganizationId,
+            createdBy: context.user.id,
+            startDate: input.startDate,
+            endDate: input.endDate,
+            responsibles: {
+              deleteMany: {},
+              create: input.responsibles.map((id) => ({
+                userId: id,
+              })),
+            },
+          },
+        });
+
+        if (action.leadId) {
+          await recordLeadHistory({
+            leadId: action.leadId,
+            userId: context.user.id,
+            action: LeadAction.ACTIVE,
+            notes: `Ação atualizada: ${action.title}`,
+            tx,
+          });
+        }
+
+        return { action };
       });
 
-      return { action };
+      return result;
     } catch (error) {
       console.error(error);
       throw errors.INTERNAL_SERVER_ERROR;

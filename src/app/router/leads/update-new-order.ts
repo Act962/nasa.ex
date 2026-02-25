@@ -4,6 +4,8 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { Prisma, Workflow } from "@/generated/prisma/client";
 import { sendWorkflowExecution } from "@/inngest/utils";
+import { LeadAction } from "@/generated/prisma/enums";
+import { recordLeadHistory } from "./utils/history";
 
 export const updateNewOrder = base
   .use(requiredAuthMiddleware)
@@ -20,7 +22,7 @@ export const updateNewOrder = base
       trackingId: z.string(),
     }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, errors, context }) => {
     const { leadId, targetStatusId, beforeId, afterId, trackingId } = input;
 
     const result = await prisma.$transaction(async (tx) => {
@@ -86,6 +88,16 @@ export const updateNewOrder = base
           responsibleId: true,
           isActive: true,
         },
+      });
+
+      await recordLeadHistory({
+        leadId,
+        userId: context.user.id,
+        action: LeadAction.ACTIVE,
+        notes: statusChanged
+          ? "Status do lead alterado via Kanban"
+          : "Posição do lead alterada na coluna",
+        tx,
       });
 
       let workflows: { id: string }[] = [];

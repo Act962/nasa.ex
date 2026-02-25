@@ -2,6 +2,8 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
+import { LeadAction } from "@/generated/prisma/enums";
+import { recordLeadHistory } from "./utils/history";
 
 export const createLeadFile = base
   .use(requiredAuthMiddleware)
@@ -22,17 +24,29 @@ export const createLeadFile = base
   )
   .handler(async ({ input, errors, context }) => {
     try {
-      const leadFile = await prisma.leadFile.create({
-        data: {
+      const result = await prisma.$transaction(async (tx) => {
+        const leadFile = await tx.leadFile.create({
+          data: {
+            leadId: input.leadId,
+            fileUrl: input.fileUrl,
+            mimeType: input.mimeType,
+            name: input.name,
+            createdBy: context.user.id,
+          },
+        });
+
+        await recordLeadHistory({
           leadId: input.leadId,
-          fileUrl: input.fileUrl,
-          mimeType: input.mimeType,
-          name: input.name,
-          createdBy: context.user.id,
-        },
+          userId: context.user.id,
+          action: LeadAction.ACTIVE,
+          notes: `Arquivo adicionado: ${input.name}`,
+          tx,
+        });
+
+        return { leadFile };
       });
 
-      return { leadFile };
+      return result;
     } catch (error) {
       console.error(error);
       throw errors.INTERNAL_SERVER_ERROR;

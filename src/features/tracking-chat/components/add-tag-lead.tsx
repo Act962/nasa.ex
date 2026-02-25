@@ -34,7 +34,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
-import { WhatsappIcon } from "@/features/leads/components/whatsapp";
+import { WhatsappIcon } from "@/components/whatsapp";
 import { WA_COLORS } from "@/utils/whatsapp-utils";
 import { Instance } from "../types";
 

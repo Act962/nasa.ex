@@ -2,6 +2,8 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { LeadAction } from "@/generated/prisma/enums";
+import { recordLeadHistory } from "./utils/history";
 
 // 🟦 UPDATE
 export const updateManyStatusLead = base
@@ -28,7 +30,7 @@ export const updateManyStatusLead = base
       ),
   )
 
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, errors, context }) => {
     try {
       const leadExists = await prisma.lead.findMany({
         where: { id: { in: input.leadsIds } },
@@ -38,15 +40,32 @@ export const updateManyStatusLead = base
         throw errors.NOT_FOUND;
       }
 
-      const lead = await prisma.lead.updateMany({
-        where: { id: { in: input.leadsIds } },
-        data: {
-          statusId: input.statusId,
-          trackingId: input.trackingId,
-        },
+      const result = await prisma.$transaction(async (tx) => {
+        const lead = await tx.lead.updateMany({
+          where: { id: { in: input.leadsIds } },
+          data: {
+            statusId: input.statusId,
+            trackingId: input.trackingId,
+          },
+        });
+
+        // Loop to create history entries for each lead
+        await Promise.all(
+          input.leadsIds.map((leadId) =>
+            recordLeadHistory({
+              leadId,
+              userId: context.user.id,
+              action: LeadAction.ACTIVE,
+              notes: "Status do lead atualizado em lote",
+              tx,
+            }),
+          ),
+        );
+
+        return { lead };
       });
 
-      return { lead };
+      return result;
     } catch (err) {
       console.error(err);
       throw errors.INTERNAL_SERVER_ERROR;

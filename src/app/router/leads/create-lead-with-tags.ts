@@ -3,6 +3,8 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/client";
+import { LeadAction } from "@/generated/prisma/enums";
+import { recordLeadHistory } from "./utils/history";
 
 export const createLeadWithTags = base
   .use(requiredAuthMiddleware)
@@ -33,7 +35,10 @@ export const createLeadWithTags = base
         });
 
         if (existingLead) {
-          throw errors.BAD_REQUEST;
+          throw errors.BAD_REQUEST({
+            message: "Lead já existe",
+            cause: "LEAD_ALREADY_EXISTS",
+          });
         }
 
         // Determinar ordem baseado na posição
@@ -90,6 +95,14 @@ export const createLeadWithTags = base
             skipDuplicates: true,
           });
         }
+
+        await recordLeadHistory({
+          leadId: lead.id,
+          userId: context.user.id,
+          action: LeadAction.ACTIVE,
+          notes: "Lead criado",
+          tx,
+        });
 
         return { lead };
       });
