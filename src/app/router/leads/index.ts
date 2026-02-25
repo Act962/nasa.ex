@@ -21,6 +21,7 @@ import { updateManyStatusLead } from "./update-many-status";
 import { listLeadFiles } from "./list-files";
 import { createLeadFile } from "./create-file";
 import { updateWhatsappTagsLead } from "./update-whatsapp-labels";
+import { addTagsToLead } from "./add-tags";
 
 export const leadRoutes = {
   list: listLead,
@@ -46,4 +47,5 @@ export const leadRoutes = {
   listFiles: listLeadFiles,
   createFile: createLeadFile,
   updateWhatsappTags: updateWhatsappTagsLead,
+  addTags: addTagsToLead,
 };

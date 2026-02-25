@@ -15,11 +15,9 @@ export const addTagsToLead = base
     z.object({
       leadId: z.string(),
       tagIds: z.array(z.string()).min(1),
-    })
+    }),
   )
-  .handler(async ({ input, context, errors }) => {
-    const { org } = context;
-
+  .handler(async ({ input, errors }) => {
     const lead = await prisma.lead.findUnique({
       where: { id: input.leadId },
     });

@@ -114,14 +114,10 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
 
     // Se o tamanho for diferente, com certeza mudou
     if (currentLeads && leads && currentLeads.length === leads.length) {
-      // Verifica se pelo menos o primeiro e o último mudaram (heurística rápida)
-      if (
-        currentLeads[0]?.id === leads[0]?.id &&
-        currentLeads[currentLeads.length - 1]?.id ===
-          leads[leads.length - 1]?.id
-      ) {
-        return;
-      }
+      // Verifica se todos os objetos de lead têm a mesma referência
+      // Se algum objeto mudou (ex: via UI otimista), devemos atualizar o store
+      const isSame = currentLeads.every((l, i) => l === leads[i]);
+      if (isSame) return;
     }
 
     set((state) => ({
