@@ -8,16 +8,23 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { useAddLead } from "@/hooks/use-add-lead-sheet";
 
 import {
   InputGroup,
   InputGroupAddon,
+  InputGroupButton,
   InputGroupInput,
   InputGroupTextarea,
 } from "@/components/ui/input-group";
 
-import { CheckIcon, Mail, Phone, PlusIcon, UserRoundPlus } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  Mail,
+  Phone,
+  PlusIcon,
+  UserRoundPlus,
+} from "lucide-react";
 
 import { Label } from "../ui/label";
 
@@ -50,13 +57,22 @@ import {
   TagsValue,
 } from "../ui/shadcn-io/tags";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FieldError } from "../ui/field";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Spinner } from "../ui/spinner";
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import { countries } from "@/types/some";
+import { normalizePhone, phoneMask } from "@/utils/format-phone";
 
 const schema = z.object({
   name: z.string().min(2, "Nome obrigatório"),
@@ -72,22 +88,6 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-function phoneMask(value: string) {
-  value = value.replace(/\D/g, "");
-
-  if (value.length > 11) value = value.slice(0, 11);
-
-  if (value.length >= 11) {
-    return value
-      .replace(/^(\d{2})(\d)/g, "($1) $2")
-      .replace(/(\d{5})(\d{4})$/, "$1-$2");
-  }
-
-  return value
-    .replace(/^(\d{2})(\d)/g, "($1) $2")
-    .replace(/(\d{4})(\d{4})$/, "$1-$2");
-}
-
 interface AddLeadSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -100,6 +100,7 @@ export default function AddLeadSheet({
   const queryClient = useQueryClient();
   const { trackingId } = useParams<{ trackingId: string }>();
   const { status, isLoadingStatus } = useStatus(trackingId ?? "");
+  const [selectedCountry, setSelectedCountry] = useState(countries[0]);
 
   const {
     register,
@@ -116,11 +117,17 @@ export default function AddLeadSheet({
       phone: "",
       email: "",
       description: "",
-      statusId: status[0]?.id || "",
+      statusId: "",
       tags: [],
       position: "first",
     },
   });
+
+  useEffect(() => {
+    if (status?.[0]?.id) {
+      setValue("statusId", status[0].id);
+    }
+  }, [status]);
 
   const onCreateLead = useMutation(
     orpc.leads.createWithTags.mutationOptions({
@@ -178,9 +185,10 @@ export default function AddLeadSheet({
   const selectedTagsData = tags?.filter((t) => selectedTags.includes(t.id));
 
   const onSubmit = (data: FormData) => {
+    const phone = normalizePhone(selectedCountry.ddi + data.phone);
     onCreateLead.mutate({
       name: data.name,
-      phone: data.phone,
+      phone,
       email: data.email,
       description: data.description,
       statusId: data.statusId,
@@ -232,16 +240,52 @@ export default function AddLeadSheet({
             </Label>
 
             <InputGroup>
+              <InputGroupAddon align="inline-start">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <InputGroupButton
+                      variant="ghost"
+                      className="pr-1.5! text-xs"
+                    >
+                      <img
+                        src={selectedCountry.flag}
+                        alt={selectedCountry.country}
+                        className="w-5 h-4 rounded-sm"
+                      />
+                      <span>{selectedCountry.ddi}</span>
+                      <ChevronDownIcon className="size-3" />
+                    </InputGroupButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="[--radius:0.95rem] max-h-30 overflow-y-auto"
+                  >
+                    <DropdownMenuGroup>
+                      {countries.map((country) => (
+                        <DropdownMenuItem
+                          key={country.code}
+                          onClick={() => setSelectedCountry(country)}
+                        >
+                          <img
+                            src={country.flag}
+                            alt={country.country}
+                            className="w-5 h-4 rounded-sm"
+                          />
+                          <span>{country.ddi}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </InputGroupAddon>
               <InputGroupInput
                 id="phone"
-                placeholder="Telefone"
-                disabled={isCreatingLead}
                 {...register("phone")}
-                onChange={(e) => setValue("phone", phoneMask(e.target.value))}
+                onChange={(e) => {
+                  setValue("phone", phoneMask(e.target.value));
+                }}
+                placeholder="(00) 00000-0000"
               />
-              <InputGroupAddon>
-                <Phone />
-              </InputGroupAddon>
             </InputGroup>
 
             {errors.phone && <FieldError>{errors.phone.message}</FieldError>}
@@ -298,7 +342,7 @@ export default function AddLeadSheet({
                     disabled={isCreatingLead}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecione um status" />
+                      <SelectValue placeholder={"Selecione um status"} />
                     </SelectTrigger>
                     <SelectContent>
                       {status?.map((s) => (

@@ -7,15 +7,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "../ui/input-group";
-import { FilterIcon, Search, UserSearch, X, Check } from "lucide-react";
+import { UserSearch } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Pagination,
@@ -41,21 +36,6 @@ import {
   useQueryTrackings,
   useQueryStatus,
 } from "@/features/trackings/hooks/use-trackings";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Field, FieldLabel } from "@/components/ui/field";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { cn } from "@/lib/utils";
 import { SearchConversations } from "@/features/tracking-chat/components/search-conversaitons";
 
 const ITEMS_PER_PAGE = 6;

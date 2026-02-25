@@ -88,25 +88,22 @@ export function useInfinityConversation(
   }, [trackingId, statusId, search, queryClient]);
 }
 
-export function useCreateConversation({
-  trackingId,
-  statusId,
-  search,
-}: {
-  trackingId: string;
-  statusId: string | null;
-  search: string | null;
-}) {
+export function useCreateConversation({ trackingId }: { trackingId: string }) {
   const queryClient = useQueryClient();
 
   return useMutation(
     orpc.conversation.create.mutationOptions({
-      onSuccess: () => {
-        toast.success("Conversa criada com sucesso!");
+      onSuccess: (data) => {
+        toast.success(data.message);
+        if (data.contactsInvalids && data.contactsInvalids.length > 0) {
+          toast.error(
+            `Os seguintes contatos não estão no whatsapp: ${data.contactsInvalids.join(
+              ", ",
+            )}`,
+          );
+        }
         queryClient.invalidateQueries({
-          queryKey: orpc.conversation.list.queryKey({
-            input: { trackingId, statusId, search },
-          }),
+          queryKey: ["conversations.list", trackingId],
         });
       },
       onError: (error) => {

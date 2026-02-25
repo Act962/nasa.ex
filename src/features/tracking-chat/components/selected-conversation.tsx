@@ -12,11 +12,8 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TagIcon } from "lucide-react";
-import { useState } from "react";
-import { AddTagLead } from "./add-tag-lead";
 import { Instance } from "../types";
 
 export interface SelectedConversationProps {
@@ -28,6 +25,7 @@ export interface SelectedConversationProps {
   trackingId: string;
   children: React.ReactNode;
   instance?: Instance | null;
+  onOpenAddTag?: () => void;
 }
 
 export function SelectedConversationOptions({
@@ -35,12 +33,8 @@ export function SelectedConversationOptions({
   trackingId,
   children,
   instance,
+  onOpenAddTag,
 }: SelectedConversationProps) {
-  const [showTagModal, setShowTagModal] = useState(false);
-
-  const initialTagIds =
-    lead.leadTags?.map((lt: any) => lt.tag?.id || lt.tagId || lt.id) || [];
-
   const MenuItems = ({
     isContextMenu = false,
   }: {
@@ -54,7 +48,7 @@ export function SelectedConversationOptions({
           className="flex w-full px-3 py-2 cursor-pointer hover:bg-accent/10 rounded-lg text-sm font-medium justify-between"
           onClick={(e) => {
             e.stopPropagation();
-            setShowTagModal(true);
+            onOpenAddTag?.();
           }}
         >
           Etiquetar lead <TagIcon className="size-4" />
@@ -64,29 +58,16 @@ export function SelectedConversationOptions({
   };
 
   return (
-    <>
-      <DropdownMenu modal={false}>
-        <ContextMenu modal={false}>
-          <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-          <ContextMenuContent className="w-48 bg-background border-border shadow-xl rounded-xl p-1">
-            <MenuItems isContextMenu />
-          </ContextMenuContent>
-        </ContextMenu>
-        <DropdownMenuContent className="w-48 bg-background border-border shadow-xl rounded-xl p-1">
-          <MenuItems />
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {showTagModal && (
-        <AddTagLead
-          open={showTagModal}
-          onOpenChange={setShowTagModal}
-          leadId={lead.id}
-          trackingId={trackingId}
-          initialSelectedTagIds={initialTagIds}
-          instance={instance!}
-        />
-      )}
-    </>
+    <DropdownMenu modal={false}>
+      <ContextMenu modal={false}>
+        <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+        <ContextMenuContent className="w-48 bg-background border-border shadow-xl rounded-xl p-1">
+          <MenuItems isContextMenu />
+        </ContextMenuContent>
+      </ContextMenu>
+      <DropdownMenuContent className="w-48 bg-background border-border shadow-xl rounded-xl p-1">
+        <MenuItems />
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

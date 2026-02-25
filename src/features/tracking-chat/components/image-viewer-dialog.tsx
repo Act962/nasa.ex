@@ -57,7 +57,7 @@ export function ImageViewerDialog({
 
           <div className="flex items-center gap-1 sm:gap-4">
             <Tooltip>
-              <TooltipTrigger>
+              <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -75,7 +75,7 @@ export function ImageViewerDialog({
             <div className="w-px h-6 bg-white/20 mx-1 hidden sm:block" />
 
             <Tooltip>
-              <TooltipTrigger>
+              <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -93,7 +93,7 @@ export function ImageViewerDialog({
               </TooltipContent>
             </Tooltip>
             <Tooltip>
-              <TooltipTrigger>
+              <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -108,7 +108,7 @@ export function ImageViewerDialog({
               </TooltipContent>
             </Tooltip>
             <Tooltip>
-              <TooltipTrigger>
+              <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"

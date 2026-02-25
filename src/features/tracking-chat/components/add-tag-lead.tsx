@@ -291,11 +291,7 @@ export function AddTagLead({
                   />
                 </div>
               ))}
-              {isLoadingTags && (
-                <div className="p-8 text-center text-muted-foreground">
-                  Carregando etiquetas...
-                </div>
-              )}
+              {isLoadingTags && <Spinner />}
             </div>
           </ScrollArea>
         </div>

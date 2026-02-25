@@ -19,54 +19,68 @@ export const createConversation = base
     }),
   )
   .handler(async ({ input }) => {
-    const { trackingId, phone, token } = input;
+    try {
+      const { trackingId, phone, token } = input;
 
-    const validPhones = await validWhatsappPhone({
-      token,
-      data: { numbers: phone },
-    });
+      const validPhones = await validWhatsappPhone({
+        token,
+        data: { numbers: phone },
+      });
 
-    await Promise.all(
-      validPhones.map(async (validPhone) => {
-        try {
-          if (validPhone.isInWhatsapp) {
-            const lead = await prisma.lead.findUnique({
-              where: {
-                phone_trackingId: {
-                  trackingId,
-                  phone: validPhone.query,
+      let count = 0;
+      const contactsInvalids: string[] = [];
+
+      await Promise.all(
+        validPhones.map(async (validPhone) => {
+          try {
+            if (validPhone.isInWhatsapp) {
+              count++;
+              const lead = await prisma.lead.findUnique({
+                where: {
+                  phone_trackingId: {
+                    trackingId,
+                    phone: validPhone.query,
+                  },
                 },
-              },
-              select: {
-                id: true,
-              },
-            });
+                select: {
+                  id: true,
+                },
+              });
 
-            if (!lead) {
+              if (!lead) {
+                return;
+              }
+
+              await prisma.conversation.upsert({
+                where: {
+                  leadId_trackingId: {
+                    leadId: lead.id,
+                    trackingId,
+                  },
+                },
+                create: {
+                  trackingId,
+                  leadId: lead.id,
+                  remoteJid:
+                    validPhone.jid || `${validPhone.query}@s.whatsapp.net`,
+                },
+                update: {},
+              });
               return;
             }
-
-            await prisma.conversation.upsert({
-              where: {
-                leadId_trackingId: {
-                  leadId: lead.id,
-                  trackingId,
-                },
-              },
-              create: {
-                trackingId,
-                leadId: lead.id,
-                remoteJid:
-                  validPhone.jid || `${validPhone.query}@s.whatsapp.net`,
-              },
-              update: {},
-            });
+            contactsInvalids.push(validPhone.query);
+          } catch (error) {
+            console.error(error);
           }
-        } catch (error) {
-          console.error(error);
-        }
-      }),
-    );
+        }),
+      );
 
-    return { success: true };
+      return {
+        message: `${count} conversas criadas!`,
+        contactsInvalids,
+      };
+    } catch (error) {
+      console.error(error);
+      return { message: `Erro ao criar conversas` };
+    }
   });

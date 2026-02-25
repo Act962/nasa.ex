@@ -1,11 +1,14 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Lead } from "@/features/trackings/types";
+import { PlusIcon } from "lucide-react";
 
 interface listTagsProps {
   tags: Lead["leadTags"];
+  onOpenAddTag?: () => void;
 }
 
-export function ListTags({ tags }: listTagsProps) {
+export function ListTags({ tags, onOpenAddTag }: listTagsProps) {
   return (
     <div className="flex flex-wrap gap-1">
       {tags.slice(0, 2).map(({ tag }) => (
@@ -24,6 +27,16 @@ export function ListTags({ tags }: listTagsProps) {
         >
           +{tags.length - 2}
         </Badge>
+      )}
+      {onOpenAddTag && (
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          className="text-white hover:bg-white/10 h-5"
+          onClick={(e) => [e.stopPropagation(), onOpenAddTag()]}
+        >
+          <PlusIcon className="size-3" />
+        </Button>
       )}
     </div>
   );
