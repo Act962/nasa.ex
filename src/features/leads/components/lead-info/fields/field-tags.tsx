@@ -2,39 +2,28 @@
 
 import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
 import { useEffect, useState } from "react";
-import { InfoItem } from "../Info-item";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { PlusIcon } from "lucide-react";
+import { LeadFull } from "@/types/lead";
+import { toast } from "sonner";
 import { InputEditTag } from "../input-edit-tag";
+import { getContrastColor } from "@/utils/get-contrast-color";
 
 interface FieldTagsProps {
-  label: string;
-  value: string[];
-  displayNames: string;
-  trackingId: string;
-  renderValue?: (value: string[]) => React.ReactNode;
+  tags: LeadFull["lead"]["tags"];
   leadId: string;
+  trackingId: string;
 }
 
-export function FieldTags({
-  label,
-  value,
-  displayNames,
-  trackingId,
-  renderValue,
-  leadId,
-}: FieldTagsProps) {
+export function FieldTags({ tags, leadId, trackingId }: FieldTagsProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [localValue, setLocalValue] = useState(value);
 
   const mutation = useMutationLeadUpdate(leadId);
 
-  useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
-
   const handleSubmit = (newValue: string[]) => {
     setIsEditing(false);
-    const previousValue = localValue;
-    setLocalValue(newValue);
 
     mutation.mutate(
       {
@@ -43,30 +32,57 @@ export function FieldTags({
       },
       {
         onError: () => {
-          setLocalValue(previousValue);
+          toast.error("Erro ao atualizar tags");
         },
       },
     );
   };
 
   return (
-    <InfoItem
-      label={label}
-      value={
-        renderValue ? renderValue(localValue) : displayNames || "Nenhuma tag"
-      }
-      displayValue={displayNames}
-      isEditing={isEditing}
-      onEditClick={() => setIsEditing(true)}
-      editable={true}
-      editComponent={
-        <InputEditTag
-          trackingId={trackingId}
-          selectedTagIds={localValue}
-          onSubmit={handleSubmit}
-          onCancel={() => setIsEditing(false)}
-        />
-      }
-    />
+    <div className="flex flex-col gap-2">
+      <span className="text-xs font-bold text-muted-foreground tracking-tight">
+        Tags:
+      </span>
+      <div className="flex flex-wrap gap-2">
+        {isEditing ? (
+          <InputEditTag
+            onSubmit={handleSubmit}
+            selectedTagIds={tags.map((t) => t.id)}
+            trackingId={trackingId}
+            onCancel={() => setIsEditing(false)}
+          />
+        ) : (
+          <>
+            {tags.map((tag) => (
+              <Badge
+                className="text-xs h-6"
+                style={{
+                  backgroundColor: tag.color || "",
+                  color: getContrastColor(tag.color || ""),
+                }}
+                key={tag.id}
+              >
+                {tag.name}
+              </Badge>
+            ))}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="hover:bg-muted"
+              onClick={() => setIsEditing(true)}
+            >
+              {tags.length === 0 ? (
+                <div className="flex items-center gap-2">
+                  <PlusIcon className="size-4" />
+                  Adicionar tag
+                </div>
+              ) : (
+                <PlusIcon className="size-4" />
+              )}
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
   );
 }

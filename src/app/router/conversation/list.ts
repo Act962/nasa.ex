@@ -59,7 +59,7 @@ export const listConversation = base
             }
           : {}),
         take: limit,
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        orderBy: [{ lastMessageAt: "desc" }, { id: "desc" }],
       });
 
       if (!conversations) {

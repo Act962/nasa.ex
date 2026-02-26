@@ -50,7 +50,6 @@ export function FieldEmail({ label, value }: FieldEmailProps) {
       editable
       editComponent={
         <InputEditField
-          type="email"
           value={localValue}
           onSubmit={handleSubmit}
           onCancel={() => setIsEditing(false)}

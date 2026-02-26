@@ -23,7 +23,7 @@ import { useState } from "react";
 export interface EditingTagComponentProps {
   selectedTagIds: string[];
   onSubmit: (tagIds: string[]) => void;
-  onCancel?: () => void;
+  onCancel: () => void;
   trackingId: string;
 }
 
@@ -47,7 +47,7 @@ export const InputEditTag = ({
 
   const handleSave = () => {
     onSubmit(localTagIds);
-    setOpen(false); // Close popover on save
+    setOpen(false);
   };
 
   return (
@@ -109,6 +109,7 @@ export const InputEditTag = ({
                 {tags.map((tag) => (
                   <CommandItem
                     key={tag.id}
+                    value={tag.id}
                     onSelect={() => handleToggleTag(tag.id)}
                     className="text-xs"
                   >
@@ -122,7 +123,12 @@ export const InputEditTag = ({
                     >
                       <Check className={cn("h-3 w-3")} />
                     </div>
-
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{
+                        backgroundColor: tag.color,
+                      }}
+                    />
                     <span>{tag.name}</span>
                   </CommandItem>
                 ))}

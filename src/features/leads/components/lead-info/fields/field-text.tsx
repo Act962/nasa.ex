@@ -53,7 +53,6 @@ export function FieldText({
       editable
       editComponent={
         <InputEditField
-          type="text"
           value={localValue}
           onSubmit={handleSubmit}
           onCancel={() => setIsEditing(false)}

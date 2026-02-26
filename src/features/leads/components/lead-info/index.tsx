@@ -29,6 +29,11 @@ import { FieldText } from "./fields/field-text";
 import { InfoItem } from "./Info-item";
 import { ListHistoric } from "../list-historic";
 import { WhatsappIcon } from "@/components/whatsapp";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
   initialData: LeadFull;
@@ -101,7 +106,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
             <Avatar className="size-16 border border-muted shadow-sm">
               <AvatarImage src={useConstructUrl(lead.profile ?? "")} />
               <AvatarFallback className="bg-primary/5 font-bold text-xl">
-                {lead.name.charAt(0).toUpperCase()}
+                {lead.name.trim().charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
 
@@ -127,20 +132,35 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
             </div>
 
             <div className="flex items-center gap-2 pt-1">
-              <ActionButton
-                onClick={goToTracking}
-                icon={<WhatsappIcon className="size-4" />}
-              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <ActionButton
+                    onClick={goToTracking}
+                    icon={<WhatsappIcon className="size-4" />}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Conversa</p>
+                </TooltipContent>
+              </Tooltip>
               <ActionButton icon={<Mail className="size-4" />} />
               <ActionButton icon={<Phone className="size-4" />} />
+
               <ListHistoric
                 leadId={lead.id}
                 open={openHistoric}
                 onOpenChange={setOpenHistoric}
               >
-                <ActionButton
-                  icon={<ClipboardClockIcon className="size-4" />}
-                />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ActionButton
+                      icon={<ClipboardClockIcon className="size-4" />}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Histórico</p>
+                  </TooltipContent>
+                </Tooltip>
               </ListHistoric>
             </div>
 
@@ -183,9 +203,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                 <InfoItem label="Status Atual" value={lead.status.name} />
                 <FieldTags
                   leadId={lead.id}
-                  label="Tags"
-                  value={lead.tags.map((t) => t.id)}
-                  displayNames={lead.tags.map((t) => t.name).join(", ")}
+                  tags={lead.tags}
                   trackingId={lead.trackingId}
                 />
               </div>
