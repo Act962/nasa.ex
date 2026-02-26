@@ -1,7 +1,6 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
-import { z } from "zod";
 import { requireOrgMiddleware } from "../../middlewares/org";
 
 export const listLead = base
@@ -12,28 +11,7 @@ export const listLead = base
     path: "/leads",
     summary: "Get all leads",
   })
-  .output(
-    z.object({
-      leads: z.array(
-        z.object({
-          id: z.string(),
-          name: z.string(),
-          phone: z.string().nullable(),
-          email: z.string().nullable(),
-          createdAt: z.date(),
-          tracking: z.object({
-            id: z.string(),
-            name: z.string(),
-          }),
-          status: z.object({
-            id: z.string(),
-            name: z.string(),
-            color: z.string().nullable(),
-          }),
-        })
-      ),
-    })
-  )
+
   .handler(async ({ errors, context }) => {
     try {
       const { org } = context;
@@ -50,6 +28,7 @@ export const listLead = base
           phone: true,
           email: true,
           createdAt: true,
+          profile: true,
           tracking: {
             select: {
               id: true,

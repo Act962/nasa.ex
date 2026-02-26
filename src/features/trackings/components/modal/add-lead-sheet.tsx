@@ -21,12 +21,11 @@ import {
   CheckIcon,
   ChevronDownIcon,
   Mail,
-  Phone,
   PlusIcon,
   UserRoundPlus,
 } from "lucide-react";
 
-import { Label } from "../ui/label";
+import { Label } from "@/components/ui/label";
 
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
@@ -38,10 +37,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../ui/select";
+} from "@/components/ui/select";
 
 import { useStatus } from "@/features/status/hooks/use-status";
-import { Skeleton } from "../ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { useTags } from "@/features/tags/hooks/use-tags";
 import { useTag } from "@/features/tags/hooks/use-tag";
@@ -55,13 +54,13 @@ import {
   TagsList,
   TagsTrigger,
   TagsValue,
-} from "../ui/shadcn-io/tags";
+} from "@/components/ui/shadcn-io/tags";
 
 import { useState, useEffect } from "react";
-import { FieldError } from "../ui/field";
+import { FieldError } from "@/components/ui/field";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { Spinner } from "../ui/spinner";
+import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
 import {
@@ -70,7 +69,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import { countries } from "@/types/some";
 import { normalizePhone, phoneMask } from "@/utils/format-phone";
 

@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import AddLeadSheet from "@/components/modals/add-lead-sheet";
+import AddLeadSheet from "@/features/trackings/components/modal/add-lead-sheet";
 import { useAddLead } from "@/hooks/modal/use-add-lead";
 
 export function FiltersTracking() {

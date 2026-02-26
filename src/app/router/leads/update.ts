@@ -25,6 +25,7 @@ export const updateLead = base
         responsibleId: z.string().optional(),
         tagIds: z.array(z.string()).optional(),
         isConversation: z.boolean().optional().default(false),
+        active: z.boolean().optional().default(false),
       })
       .refine(
         (v) =>
@@ -34,27 +35,13 @@ export const updateLead = base
           v.description !== undefined ||
           v.statusId !== undefined ||
           v.responsibleId !== undefined ||
-          v.tagIds !== undefined,
+          v.tagIds !== undefined ||
+          v.active !== undefined,
         {
           message: "No fields to update",
           path: ["id"],
         },
       ),
-  )
-  .output(
-    z.object({
-      lead: z.object({
-        id: z.string(),
-        name: z.string(),
-        phone: z.string().nullable(),
-        email: z.string().nullable(),
-        description: z.string().nullable(),
-        statusId: z.string(),
-        trackingId: z.string(),
-        createdAt: z.date(),
-        updatedAt: z.date(),
-      }),
-    }),
   )
   .handler(async ({ input, errors, context }) => {
     try {
@@ -76,6 +63,7 @@ export const updateLead = base
             description: input.description,
             statusId: input.statusId,
             responsibleId: input.responsibleId,
+            isActive: input.active,
             leadTags: input.tagIds
               ? {
                   deleteMany: {},
@@ -95,6 +83,7 @@ export const updateLead = base
             trackingId: true,
             createdAt: true,
             updatedAt: true,
+            isActive: true,
           },
         });
 

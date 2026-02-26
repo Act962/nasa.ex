@@ -15,7 +15,7 @@ import { client } from "@/lib/orpc";
 import { useChat } from "@ai-sdk/react";
 import { eventIteratorToStream } from "@orpc/client";
 import { SparklesIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 interface ComposeAssistentProps {
   conversationId: string;
@@ -27,6 +27,7 @@ export function ComposeResponse({
   conversationId,
 }: ComposeAssistentProps) {
   const [content, setContent] = useState("");
+  const contentRef = useRef(content);
   const [open, setOpen] = useState(false);
 
   const {
@@ -44,7 +45,7 @@ export function ComposeResponse({
         return eventIteratorToStream(
           await client.ia.compose.generate(
             {
-              content: content,
+              content: contentRef.current,
               conversationId: conversationId,
             },
             { signal: options.abortSignal },
@@ -64,10 +65,6 @@ export function ComposeResponse({
       .filter((p) => p.type === "text")
       .map((p) => p.text)
       .join("\n\n") ?? "";
-
-  function handleOpenChange(nextOpen: boolean) {
-    console.log(nextOpen);
-  }
 
   function handleGenerate() {
     sendMessage({ text: content });
@@ -89,7 +86,11 @@ export function ComposeResponse({
           <Input
             placeholder="Digite uma mensagem"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setContent(val);
+              contentRef.current = val;
+            }}
           />
           <Button className="ml-auto" onClick={handleGenerate}>
             Gerar

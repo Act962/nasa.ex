@@ -64,6 +64,9 @@ export const generateConversationSummary = base
       return {
         body: message.body,
         fromMe: message.fromMe,
+        senderName: message.fromMe
+          ? message.senderName || "Sistema"
+          : message.senderName || "Cliente",
         createdAt: message.createdAt,
       };
     });
@@ -72,7 +75,7 @@ export const generateConversationSummary = base
 
     if (messages && messages.length > 0) {
       lines = messages.map((message) => {
-        return `${message.fromMe ? "Sistema" : "Cliente"}: ${message.body}`;
+        return `${message.senderName}: ${message.body}`;
       });
     }
 

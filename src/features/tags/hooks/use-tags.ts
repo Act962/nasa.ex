@@ -35,6 +35,62 @@ export function useQueryTags({ trackingId }: { trackingId?: string }) {
   };
 }
 
+export function useDeleteTag() {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.tags.deleteTag.mutationOptions({
+      onSuccess: (data) => {
+        // Invalida a lista de tags global
+        queryClient.invalidateQueries({
+          queryKey: orpc.tags.listTags.queryKey({
+            input: {
+              query: {
+                trackingId: data.trackingId ?? "",
+              },
+            },
+          }),
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: ["conversations.list"],
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: ["leads", "get"],
+        });
+      },
+    }),
+  );
+}
+
+export function useUpdateTag() {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.tags.updateTag.mutationOptions({
+      onSuccess: (data) => {
+        // Invalida a lista de tags global
+        queryClient.invalidateQueries({
+          queryKey: orpc.tags.listTags.queryKey({
+            input: {
+              query: {
+                trackingId: data.trackingId ?? "",
+              },
+            },
+          }),
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: ["conversations.list"],
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: ["leads", "get"],
+        });
+      },
+    }),
+  );
+}
+
 export function useMutationWhatsappTags({
   trackingId,
 }: {

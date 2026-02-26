@@ -5,6 +5,7 @@ import { updateStatus } from "./update";
 // import { updateStatusOrder } from "./update-order";
 import { getMany } from "./get-many";
 import { updateNewOrder } from "./update-new-order";
+import { deleteStatus } from "./delete";
 
 export const statusRoutes = {
   getMany,
@@ -14,4 +15,5 @@ export const statusRoutes = {
   update: updateStatus,
   // updateOrder: updateStatusOrder,
   updateNewOrder,
+  delete: deleteStatus,
 };

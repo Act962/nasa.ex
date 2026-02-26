@@ -36,6 +36,20 @@ export const useCreateTag = () => {
   const queryClient = useQueryClient();
   return useMutation(
     orpc.tags.createTag.mutationOptions({
+      onMutate: async (data) => {
+        const previousData = queryClient.getQueryData([
+          "tags.list",
+          data.trackingId,
+        ]);
+
+        queryClient.setQueryData(["tags.list", data.trackingId], (old: any) => {
+          if (!old) return undefined;
+
+          return [...old, data];
+        });
+
+        return { previousData };
+      },
       onSuccess: (data) => {
         queryClient.invalidateQueries({
           queryKey: orpc.tags.listTags.queryKey({

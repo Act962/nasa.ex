@@ -190,7 +190,7 @@ export const EditorBreadcrumbs = ({ workflowId }: { workflowId: string }) => {
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href={`/tracking/${trackingId}/workflows`}>Workflows</Link>
+            <Link href={`/tracking/${trackingId}/workflows`}>Automações</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />

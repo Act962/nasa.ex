@@ -3,6 +3,7 @@ import {
   useInfiniteQuery,
   useMutation,
   useQuery,
+  useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -128,6 +129,28 @@ export const useUpdateColumnOrder = () => {
     orpc.status.updateNewOrder.mutationOptions({
       onError: () => {
         toast.error("Erro ao atualizar status");
+      },
+    }),
+  );
+};
+
+export const useDeleteStatus = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.status.delete.mutationOptions({
+      onSuccess: (data) => {
+        toast.success("Status deletado com sucesso");
+        queryClient.invalidateQueries(
+          orpc.status.getMany.queryOptions({
+            input: {
+              trackingId: data.trackingId,
+            },
+          }),
+        );
+      },
+      onError: (error) => {
+        toast.error(error.message);
       },
     }),
   );
