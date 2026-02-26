@@ -43,13 +43,6 @@ import {
 } from "@/components/ui/command";
 import { useQueryTags } from "@/features/tags/hooks/use-tags";
 import { useParams } from "next/navigation";
-import {
-  useMutation,
-  useQueryClient,
-  InfiniteData,
-} from "@tanstack/react-query";
-import { toast } from "sonner";
-import { orpc } from "@/lib/orpc";
 import { useAddTagsOptimistic } from "../hooks/use-leads";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +51,13 @@ const TEMP_COLOR = {
   WARM: "#f1c40f",
   HOT: "#e67e22",
   VERY_HOT: "#e74c3c",
+} as const;
+
+const TEMP_TEXT = {
+  COLD: "Frio",
+  WARM: "Quente",
+  HOT: "Muito quente",
+  VERY_HOT: "Extremamente quente",
 } as const;
 
 export const LeadItem = memo(({ data }: { data: Lead }) => {
@@ -190,12 +190,19 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           <span className="text-xs text-muted-foreground">
             {dayjs(data.createdAt).format("DD/MM/YYYY HH:mm")}
           </span>
-          <RocketIcon
-            className="size-3"
-            style={{
-              color: TEMP_COLOR[data.temperature],
-            }}
-          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <RocketIcon
+                className="size-3"
+                style={{
+                  color: TEMP_COLOR[data.temperature],
+                }}
+              />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{TEMP_TEXT[data.temperature]}</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
         <Tooltip>
           <TooltipTrigger asChild>

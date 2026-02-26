@@ -5,8 +5,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuPortal,
+  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -20,11 +22,12 @@ import { getContrastColor } from "@/utils/get-contrast-color";
 import { DraggableAttributes } from "@dnd-kit/core";
 import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Grip, MoreHorizontalIcon, Plus } from "lucide-react";
+import { Grip, MoreHorizontalIcon, Plus, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { SketchPicker } from "react-color";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { useDeleteStatus } from "../hooks/use-trackings";
 
 interface StatusHeaderProps {
   id: string;
@@ -55,6 +58,7 @@ export const StatusHeader = ({
   const [colorSelect, setColorSelect] = useState(data.color ?? "#1447e6");
 
   const updateStatusNameMutation = useUpdateStatusName();
+  const deleteStatusMutation = useDeleteStatus();
 
   const [isEditing, setIsEditing] = useState(false);
 
@@ -85,6 +89,12 @@ export const StatusHeader = ({
     });
   };
 
+  const handleDeleteStatus = () => {
+    deleteStatusMutation.mutate({
+      statusId: data.id,
+    });
+  };
+
   return (
     <div className="pt-2 px-2 text-sm font-medium flex justify-between items-start gap-x-2">
       {isEditing ? (
@@ -110,7 +120,7 @@ export const StatusHeader = ({
           <Button
             variant="ghost"
             size="icon-sm"
-            className="touch-none active:cursor-grabbing cursor-grab"
+            className="touch-none active:cursor-grabbing cursor-grab focus-visible:ring-0"
             {...listeners}
             {...attributes}
           >
@@ -127,7 +137,11 @@ export const StatusHeader = ({
           </span>
         </div>
       )}
-      <ListOption currentColor={colorSelect} onColorChange={onColorChange} />
+      <ListOption
+        currentColor={colorSelect}
+        onColorChange={onColorChange}
+        handleDeleteStatus={handleDeleteStatus}
+      />
     </div>
   );
 };
@@ -135,12 +149,18 @@ export const StatusHeader = ({
 interface ListOptionProps {
   currentColor: string;
   onColorChange: (color: string) => void;
+  handleDeleteStatus: () => void;
 }
 
-const ListOption = ({ currentColor, onColorChange }: ListOptionProps) => {
+const ListOption = ({
+  currentColor,
+  onColorChange,
+  handleDeleteStatus,
+}: ListOptionProps) => {
   const { isMobile } = useSidebar();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [tempColor, setTempColor] = useState(currentColor);
+  const deleteStatusMutation = useDeleteStatus();
 
   const colors = [
     "#FFFFFF",
@@ -233,6 +253,15 @@ const ListOption = ({ currentColor, onColorChange }: ListOptionProps) => {
                 </DropdownMenuSubContent>
               </DropdownMenuPortal>
             </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              className="cursor-pointer"
+              onClick={handleDeleteStatus}
+            >
+              <Trash2Icon className="size-4" />
+              Deletar
+            </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
