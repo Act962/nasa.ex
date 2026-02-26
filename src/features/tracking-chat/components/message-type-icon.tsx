@@ -36,10 +36,7 @@ export function MessageTypeIcon({
   return <FileIcon className={className} />;
 }
 
-export function getMessageTypeName(
-  mimetype?: string | null,
-  fileName?: string | null,
-) {
+export function getMessageTypeName(mimetype?: string | null) {
   if (!mimetype) return null;
 
   if (mimetype.startsWith("image/")) {
@@ -57,5 +54,5 @@ export function getMessageTypeName(
     return "Vídeo";
   }
 
-  return fileName || "Documento";
+  return "Arquivo";
 }

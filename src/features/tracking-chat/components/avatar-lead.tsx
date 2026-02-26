@@ -1,7 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Lead } from "@/generated/prisma/client";
+import type { Lead } from "@/generated/prisma/client";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 
 interface AvatarLeadProps {
@@ -18,7 +18,6 @@ export function AvatarLead({ Lead }: AvatarLeadProps) {
           <AvatarFallback>{Lead.name.slice(0, 2).toUpperCase()}</AvatarFallback>
         </Avatar>
       </div>
-      <span className="absolute block bg-green-500 ring-2 ring-white bottom-0 right-0 w-2 h-2 rounded-full md:w-3 md:h-3"></span>
     </div>
   );
 }

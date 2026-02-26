@@ -1,3 +1,4 @@
+import { LeadSource } from "@/generated/prisma/enums";
 import { InfiniteData } from "@tanstack/react-query";
 
 export interface MessageBodyProps {
@@ -110,13 +111,3 @@ export interface Instance {
   isBusiness: boolean;
   phoneNumber: string | null;
 }
-
-export const colorsByTemperature: Record<
-  string,
-  { color: string; label: string }
-> = {
-  COLD: { color: "#3498db", label: "Frio" },
-  WARM: { color: "#f1c40f", label: "Morno" },
-  HOT: { color: "#e67e22", label: "Quente" },
-  VERY_HOT: { color: "#e74c3c", label: "Muito Quente" },
-};

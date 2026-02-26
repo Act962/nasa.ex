@@ -1,7 +1,7 @@
 "use client";
 
 import { LeadBox } from "./lead-box";
-import { UserPlusIcon, UserRoundPlusIcon } from "lucide-react";
+import { SettingsIcon, UserPlusIcon, UserRoundPlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useInfinityConversation } from "../hooks/use-conversation";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,11 +23,10 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SearchConversations } from "./search-conversaitons";
-import { useMessageStore } from "../context/use-message";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import { Instance } from "../types";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 export function ConversationsList() {
   const { conversationId } = useParams<{ conversationId: string }>();
@@ -37,6 +36,7 @@ export function ConversationsList() {
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search, 500);
+  const router = useRouter();
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -118,6 +118,10 @@ export function ConversationsList() {
       }
     : undefined;
 
+  const pageSettings = selectedTracking
+    ? `/tracking/${selectedTracking}/settings`
+    : "/tracking/";
+
   return (
     <>
       <aside className="pb-20 lg:pb-0 lg:flex w-full px-5 flex flex-col h-full overflow-hidden">
@@ -126,13 +130,22 @@ export function ConversationsList() {
             <SidebarTrigger className="size-4" />
             <div className="text-lg font-medium">Tracking Chat</div>
           </div>
-          {!noInstance && !instanceDisconnected && !isLoadingTrackings && (
-            <div className="cursor-pointer">
-              <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-                <UserRoundPlusIcon className="size-4" />
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center ">
+            {!noInstance && !instanceDisconnected && !isLoadingTrackings && (
+              <div className="cursor-pointer">
+                <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+                  <UserRoundPlusIcon className="size-4" />
+                </Button>
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push(pageSettings)}
+            >
+              <SettingsIcon className="size-4" />
+            </Button>
+          </div>
         </div>
         <div className="flex-1 flex flex-col gap-2 min-h-0">
           <SearchConversations

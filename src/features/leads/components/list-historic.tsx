@@ -52,7 +52,7 @@ export function ListHistoric({
         </SheetHeader>
 
         <ScrollArea className="h-[calc(100vh-120px)] pr-4">
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col ">
             {isLoading ? (
               <div className="flex items-center justify-center py-10">
                 <Spinner />
@@ -71,7 +71,7 @@ export function ListHistoric({
                 const config = ACTION_CONFIG[item.action];
                 const nameUser = item.user ? item.user.name : "Sistema";
                 return (
-                  <Item key={item.id}>
+                  <Item key={item.id} className="flex-row">
                     <ItemContent>
                       <ItemTitle className="flex items-center gap-2">
                         <span
@@ -81,7 +81,7 @@ export function ListHistoric({
                         </span>
                         {config.label}
                       </ItemTitle>
-                      <ItemDescription>
+                      <ItemDescription className="text-xs font-semibold">
                         {item.notes || "Sem notas"}
                       </ItemDescription>
                     </ItemContent>
