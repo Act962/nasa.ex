@@ -79,6 +79,11 @@ export const getLead = base
               },
             },
           },
+          conversation: {
+            select: {
+              id: true,
+            },
+          },
         },
       });
 

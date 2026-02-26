@@ -12,6 +12,7 @@ import { LeadFull } from "@/types/lead";
 import {
   ChevronLeft,
   Circle,
+  ClipboardClockIcon,
   Mail,
   MoreHorizontal,
   Phone,
@@ -27,6 +28,7 @@ import { FieldTags } from "./fields/field-tags";
 import { FieldText } from "./fields/field-text";
 import { InfoItem } from "./Info-item";
 import { ListHistoric } from "../list-historic";
+import { WhatsappIcon } from "@/components/whatsapp";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
   initialData: LeadFull;
@@ -63,6 +65,11 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
   useEffect(() => {
     setName(lead.name);
   }, [lead.name]);
+
+  function goToTracking() {
+    const idConversation = initialData.lead.conversation?.id;
+    router.push(`/tracking-chat/${idConversation ? idConversation : ""}`);
+  }
 
   return (
     <>
@@ -120,7 +127,10 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
             </div>
 
             <div className="flex items-center gap-2 pt-1">
-              <ActionButton icon={<Plus className="size-4" />} />
+              <ActionButton
+                onClick={goToTracking}
+                icon={<WhatsappIcon className="size-4" />}
+              />
               <ActionButton icon={<Mail className="size-4" />} />
               <ActionButton icon={<Phone className="size-4" />} />
               <ListHistoric
@@ -128,7 +138,9 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                 open={openHistoric}
                 onOpenChange={setOpenHistoric}
               >
-                <ActionButton icon={<MoreHorizontal className="size-4" />} />
+                <ActionButton
+                  icon={<ClipboardClockIcon className="size-4" />}
+                />
               </ListHistoric>
             </div>
 

@@ -289,7 +289,7 @@ export default function AddLeadSheet({
                 onChange={(e) => {
                   setValue("phone", phoneMask(e.target.value));
                 }}
-                placeholder="(00) 00000-0000"
+                placeholder="(00) 0000-0000"
               />
             </InputGroup>
 

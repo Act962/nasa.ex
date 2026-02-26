@@ -44,5 +44,11 @@ export interface LeadFull {
       createdAt: Date;
       updatedAt: Date;
     }[];
+    conversation:
+      | {
+          id: string;
+        }
+      | null
+      | undefined;
   };
 }
