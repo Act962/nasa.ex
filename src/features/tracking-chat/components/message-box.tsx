@@ -1,4 +1,5 @@
 "use client";
+import { MessageTypeIcon, getMessageTypeName } from "./message-type-icon";
 
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";

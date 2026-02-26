@@ -68,6 +68,7 @@ export const createMessageWithImage = base
           quotedMessageId: true,
           conversationId: true,
           senderId: true,
+          senderName: true,
           conversation: {
             select: {
               id: true,
@@ -111,6 +112,7 @@ export const createMessageWithImage = base
           messageId: message.messageId,
           status: message.status,
           quotedMessage: message.quotedMessage,
+          senderName: message.senderName,
           conversation: {
             lead: {
               id: message.conversation.lead.id,

@@ -186,6 +186,8 @@ export function ConversationsList() {
                     lastMessage={{
                       body: item.lastMessage?.body,
                       createdAt: item.lastMessage?.createdAt,
+                      mimetype: (item.lastMessage as any)?.mimetype,
+                      fileName: (item.lastMessage as any)?.fileName,
                     }}
                   />
                 ))}

@@ -8,6 +8,7 @@ import {
 } from "../types";
 import { toast } from "sonner";
 import dayjs from "dayjs";
+import { authClient } from "@/lib/auth-client";
 
 interface UseMutationTextMessageProps {
   conversationId: string;
@@ -198,6 +199,7 @@ export function useMutationImageMessage({
   messageSelected,
 }: UseMutationMediaMessageProps) {
   const queryClient = useQueryClient();
+  const { data: session } = authClient.useSession();
 
   return useMutation(
     orpc.message.createWithImage.mutationOptions({
@@ -222,6 +224,7 @@ export function useMutationImageMessage({
           mediaUrl: data.mediaUrl ?? null,
           mimetype: "image/jpeg",
           status: MessageStatus.SENT,
+          senderName: session?.user.name,
           conversation: {
             lead: {
               id: lead.id,
@@ -289,6 +292,7 @@ export function useMutationFileMessage({
   messageSelected,
 }: UseMutationMediaMessageProps) {
   const queryClient = useQueryClient();
+  const { data: session } = authClient.useSession();
 
   return useMutation(
     orpc.message.createWithFile.mutationOptions({
@@ -314,6 +318,7 @@ export function useMutationFileMessage({
           mimetype: data.mimetype,
           fileName: data.fileName,
           status: MessageStatus.SENT,
+          senderName: session?.user.name,
           conversation: {
             lead: {
               id: lead.id,

@@ -6,16 +6,21 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { AvatarLead } from "./avatar-lead";
 import { SelectedConversationOptions } from "./selected-conversation";
-import { Instance } from "../types";
-import { ChevronDownIcon } from "lucide-react";
+import { colorsByTemperature, Instance } from "../types";
+import { ChevronDownIcon, RocketIcon } from "lucide-react";
 
 import { DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ListTags } from "./list-tags";
 import { AddTagLead } from "./add-tag-lead";
 import { WhatsappIcon } from "@/components/whatsapp";
 import { Badge } from "@/components/ui/badge";
+import { MessageTypeIcon, getMessageTypeName } from "./message-type-icon";
 import { useMutationMarkReadMessage } from "../hooks/use-messages";
-import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface LeadBoxConversation extends Conversation {
   lead: Lead & {
@@ -33,7 +38,12 @@ interface LeadBoxConversation extends Conversation {
 
 interface UserBloxProps {
   item: LeadBoxConversation;
-  lastMessage: { body: string | null; createdAt: Date } | null;
+  lastMessage: {
+    body: string | null;
+    createdAt: Date;
+    mimetype?: string | null;
+    fileName?: string | null;
+  } | null;
   instance?: Instance | null;
   unreadCount?: number;
 }
@@ -83,14 +93,25 @@ export function LeadBox({
                 </p>
               </div>
 
-              {lastMessage?.body && (
-                <p
-                  className={`text-xs font-light line-clamp-2 ${
-                    hasSeen ? "text-muted-foreground" : ""
-                  }`}
-                >
-                  {messageBody}
-                </p>
+              {lastMessage && (
+                <div className="flex items-center gap-1">
+                  <MessageTypeIcon
+                    mimetype={lastMessage.mimetype}
+                    className="size-3 text-muted-foreground"
+                  />
+                  <p
+                    className={`text-xs font-light line-clamp-1 ${
+                      hasSeen ? "text-muted-foreground" : ""
+                    }`}
+                  >
+                    {lastMessage.mimetype
+                      ? getMessageTypeName(
+                          lastMessage.mimetype,
+                          lastMessage.fileName,
+                        )
+                      : messageBody}
+                  </p>
+                </div>
               )}
             </div>
             <div className="mb-1">
@@ -120,7 +141,23 @@ export function LeadBox({
                 </Badge>
               ) : null}
             </div>
-            <WhatsappIcon className="h-5  text-green-500 mr-1" />
+            <div className="flex items-center gap-x-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <RocketIcon
+                    className="size-3"
+                    style={{
+                      color: colorsByTemperature[item.lead.temperature].color,
+                    }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{colorsByTemperature[item.lead.temperature].label}</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <WhatsappIcon className="size-3  text-green-500 mr-1" />
+            </div>
           </div>
         </div>
       </SelectedConversationOptions>
