@@ -65,6 +65,8 @@ export function LeadBox({
 
   const initialTagIds = item.lead.leadTags?.map((lt) => lt.tag?.id) || [];
 
+  const messageBody = lastMessage?.body?.split("*")[2] || lastMessage?.body;
+
   return (
     <>
       <SelectedConversationOptions onOpenAddTag={() => setShowTagModal(true)}>
@@ -87,7 +89,7 @@ export function LeadBox({
                     hasSeen ? "text-muted-foreground" : ""
                   }`}
                 >
-                  {lastMessage?.body}
+                  {messageBody}
                 </p>
               )}
             </div>
