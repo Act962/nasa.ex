@@ -139,6 +139,10 @@ export function TagsFilter() {
                       onSelect={() => handleTagFilter(tag.slug)}
                     >
                       <Checkbox checked={isSelected} />
+                      <div
+                        className="size-2 rounded-sm"
+                        style={{ backgroundColor: tag.color }}
+                      />
                       {tag.name}
                     </CommandItem>
                   );

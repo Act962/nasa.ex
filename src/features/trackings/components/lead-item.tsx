@@ -163,6 +163,10 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
                   <Badge
                     key={lt.tag.id}
                     className="px-1 py-0 text-[10px] h-4 font-normal"
+                    style={{
+                      backgroundColor: lt.tag.color || "",
+                      color: "white",
+                    }}
                   >
                     {lt.tag.name}
                   </Badge>
@@ -303,7 +307,10 @@ function AddTagsButton({
                   onSelect={() => onSelectTag(tag.id)}
                   className="cursor-pointer"
                 >
-                  <Tag className="mr-2 h-3.5 w-3.5" />
+                  <Tag
+                    className="mr-2 h-3.5 w-3.5"
+                    style={{ color: tag.color || "", fill: tag.color || "" }}
+                  />
                   <span>{tag.name}</span>
                 </CommandItem>
               ))}
