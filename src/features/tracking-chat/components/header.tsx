@@ -7,6 +7,8 @@ import { phoneMaskFull } from "@/utils/format-phone";
 import { ArrowLeftIcon, MoreHorizontalIcon } from "lucide-react";
 import Link from "next/link";
 import { SummerizeConversation } from "./summerize-conversation";
+import { OptionsHeader } from "./options-header";
+import { useRouter } from "next/navigation";
 
 interface HeaderProps {
   name: string;
@@ -22,7 +24,12 @@ export function Header({
   leadId,
   conversationId,
 }: HeaderProps) {
+  const router = useRouter();
   const profileUrl = useConstructUrl(profile || "");
+
+  const onCloseChat = () => {
+    router.push(`/tracking-chat`);
+  };
 
   return (
     <div className="bg-accent-foreground/10 w-full flex border-b sm:px-4 py-3 px-4 lg:px-6 justify-between items-center shadow-sm">
@@ -45,14 +52,9 @@ export function Header({
           )}
         </div>
       </div>
-      <div>
+      <div className="flex items-center gap-2">
         <SummerizeConversation conversationId={conversationId} />
-        <Button variant="ghost">
-          <MoreHorizontalIcon
-            onClick={() => {}}
-            className="transition cursor-pointer size-4"
-          />
-        </Button>
+        <OptionsHeader onCloseChat={onCloseChat} />
       </div>
     </div>
   );
