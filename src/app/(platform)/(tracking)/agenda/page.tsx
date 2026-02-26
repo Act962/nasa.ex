@@ -8,7 +8,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
-import { NotepadTextIcon } from "lucide-react";
+import { CalendarIcon, NotepadTextIcon } from "lucide-react";
 import Link from "next/link";
 
 export default function Page() {
@@ -19,17 +19,17 @@ export default function Page() {
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
-              <NotepadTextIcon />
+              <CalendarIcon />
             </EmptyMedia>
-            <EmptyTitle>Nenhum formulário ainda</EmptyTitle>
+            <EmptyTitle>Nenhuma agenda ainda</EmptyTitle>
             <EmptyDescription>
-              Em breve você poderá criar formulários para capturar leads.
-              Confira a última versão do app para usar este recurso.
+              Em breve você poderá criar agendas para capturar leads. Confira a
+              última versão do app para usar este recurso.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button asChild>
-              <Link href="https://nasaex.com/app/formulario" target="_blank">
+              <Link href="https://nasaex.com/tracking/agenda" target="_blank">
                 Última versão
               </Link>
             </Button>

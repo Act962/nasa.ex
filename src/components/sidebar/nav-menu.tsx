@@ -28,12 +28,12 @@ const items = [
     icon: Kanban,
     isActive: true,
   },
-  {
-    title: "Propostas",
-    url: "/tracking/proposta",
-    icon: File,
-    isActive: true,
-  },
+  // {
+  //   title: "Propostas",
+  //   url: "/tracking/proposta",
+  //   icon: File,
+  //   isActive: true,
+  // },
   {
     title: "Formulários",
     url: "/form",
@@ -48,7 +48,7 @@ const items = [
   },
   {
     title: "Agenda",
-    url: "/tracking/agenda",
+    url: "/agenda",
     icon: Calendar,
     isActive: true,
   },
@@ -58,12 +58,12 @@ const items = [
     icon: Users,
     isActive: true,
   },
-  {
-    title: "Atividades",
-    url: "/tracking/atividades",
-    icon: BookCheck,
-    isActive: true,
-  },
+  // {
+  //   title: "Atividades",
+  //   url: "/tracking/atividades",
+  //   icon: BookCheck,
+  //   isActive: true,
+  // },
 ];
 
 export function NavMenu() {

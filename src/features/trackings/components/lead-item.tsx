@@ -124,8 +124,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
             </AvatarFallback>
           </Avatar>
           <span className="font-medium text-xs truncate">
-            {data.name.split(" ")[0]}
-            {data.name.split(" ").length > 1 && ` ${data.name.split(" ")[1]}`}
+            {data.name || "Sem nome"}
           </span>
         </div>
 

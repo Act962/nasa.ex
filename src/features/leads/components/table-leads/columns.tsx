@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useConstructUrl } from "@/hooks/use-construct-url";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
@@ -33,6 +34,7 @@ export type LeadWithTrackingAndStatus = {
   email: string | null;
   createdAt: Date;
   phone: string | null;
+  profile: string | null;
   status: {
     name: string;
     id: string;
@@ -62,13 +64,15 @@ export const columns: ColumnDef<LeadWithTrackingAndStatus>[] = [
       );
     },
     cell: ({ row }) => {
+      const url = useConstructUrl(row.original.profile || "");
       return (
         <div className="flex items-center gap-2">
           <Avatar>
+            <AvatarImage src={url} />
             <AvatarFallback>{getInitials(row.original.name)}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col">
-            <p className="font-medium">{row.original.name}</p>
+            <p className="font-medium">{row.original.name || "Sem nome"}</p>
             <p className="text-muted-foreground text-sm">
               {row.original.email}
             </p>
