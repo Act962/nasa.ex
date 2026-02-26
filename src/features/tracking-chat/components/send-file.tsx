@@ -10,6 +10,7 @@ import {
 } from "../hooks/use-messages";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { MarkedMessage } from "../types";
+import { authClient } from "@/lib/auth-client";
 
 interface sendFileProps {
   conversationId: string;
@@ -39,6 +40,7 @@ export function SendFile({
   messageSelected,
 }: sendFileProps) {
   const [preview, setPreview] = useState<string | null>(null);
+  const { data: session } = authClient.useSession();
 
   async function onCloseMessageSelected() {
     onClose();
@@ -69,9 +71,10 @@ export function SendFile({
   const handleSend = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const messageBody = `*${session?.user.name}*\n${formData.get("message") as string}`;
     if (fileType === "image") {
       mutation.mutate({
-        body: formData.get("message") as string,
+        body: messageBody,
         mediaUrl: file,
         conversationId,
         leadPhone,
@@ -81,7 +84,7 @@ export function SendFile({
       });
     } else {
       mutationFile.mutate({
-        body: formData.get("message") as string,
+        body: messageBody,
         mediaUrl: file,
         fileName: fileName || "document",
         mimetype: `application/${fileType}`,

@@ -41,6 +41,7 @@ import { EmojiData } from "emoji-picker-react/dist/types/exposedTypes";
 import { MessageSelected } from "./message-selected";
 import { ComposeResponse } from "./compose-response";
 import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 
 interface FooterProps {
   conversationId: string;
@@ -65,6 +66,7 @@ export function Footer({
   const setInstanceData = useMessageStore((state) => state.setInstance);
   const instance = useQueryInstances(trackingId);
   const route = useRouter();
+  const { data: session } = authClient.useSession();
 
   useEffect(() => {
     if (instance.instance) {
@@ -131,9 +133,11 @@ export function Footer({
     e.preventDefault();
     if (!instance.instance) return toast.error("Instância não encontrada");
 
+    const messageBody = `*${session?.user.name}*\n${message}`;
+
     if (message.trim().length > 0) {
       mutation.mutate({
-        body: message,
+        body: messageBody,
         leadPhone: lead.phone!,
         token: instance.instance.apiKey,
         conversationId: conversationId,

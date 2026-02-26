@@ -82,6 +82,7 @@ export const listMessage = base
       return {
         items: groupedItems,
         nextCursor,
+        remoteJid: conversation.remoteJid,
       };
     } catch (error) {
       throw errors.INTERNAL_SERVER_ERROR;

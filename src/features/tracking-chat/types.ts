@@ -2,6 +2,7 @@ import { InfiniteData } from "@tanstack/react-query";
 
 export interface MessageBodyProps {
   senderId: string | null;
+  senderName?: string | null;
   messageId: string;
   conversationId: string;
   fromMe: boolean;
@@ -36,6 +37,7 @@ export enum MessageStatus {
 export interface Message {
   id: string;
   messageId: string;
+  senderName?: string | null;
   body: string | null;
   mediaUrl: string | null;
   quotedMessageId?: string | null;
@@ -57,6 +59,7 @@ export interface MarkedMessage {
   id: string;
   body: string | null;
   messageId: string;
+  senderName?: string | null;
   fromMe: boolean;
   quotedMessageId?: string | null;
   mediaUrl?: string | null;
@@ -76,6 +79,7 @@ export type MessageGroup = {
 export type MessagePage = {
   items: MessageGroup[];
   nextCursor?: string;
+  remoteJid?: string;
 };
 
 export interface conversationProps {

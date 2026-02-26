@@ -572,3 +572,37 @@ export function useMutationEditMessage({
     }),
   );
 }
+export function useMutationMarkReadMessage() {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.message.markRead.mutationOptions({
+      onSuccess: (_, variables) => {
+        // Optimistically update the unreadCount in all conversation list queries
+        queryClient.setQueriesData(
+          { queryKey: ["conversations.list"] },
+          (old: any) => {
+            if (!old) return old;
+
+            return {
+              ...old,
+              pages: old.pages.map((page: any) => ({
+                ...page,
+                items: page.items.map((item: any) =>
+                  item.id === variables.conversationId
+                    ? { ...item, unreadCount: 0 }
+                    : item,
+                ),
+              })),
+            };
+          },
+        );
+
+        // Also invalidate to be safe and ensure other data is synced
+        queryClient.invalidateQueries({
+          queryKey: ["conversations.list"],
+        });
+      },
+    }),
+  );
+}

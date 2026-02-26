@@ -9,6 +9,7 @@ export function useInfinityConversation(
   trackingId: string,
   statusId: string | null,
   search: string | null,
+  currentConversationId?: string,
 ) {
   const queryClient = useQueryClient();
 
@@ -41,6 +42,7 @@ export function useInfinityConversation(
     };
 
     const messageHandler = (message: any) => {
+      let found = false;
       queryClient.setQueryData(queryKey, (old: any) => {
         if (!old) return old;
 
@@ -53,7 +55,14 @@ export function useInfinityConversation(
                 ...item,
                 lastMessage: message,
                 lastMessageAt: message.createdAt,
+                unreadCount:
+                  message.conversationId === currentConversationId
+                    ? 0
+                    : !message.fromMe
+                      ? (item.unreadCount || 0) + 1
+                      : item.unreadCount,
               };
+              found = true;
               return false;
             }
             return true;
@@ -70,6 +79,10 @@ export function useInfinityConversation(
           pages: newPages,
         };
       });
+
+      if (!found) {
+        queryClient.invalidateQueries({ queryKey });
+      }
     };
 
     const leadUpdatedHandler = () => {
@@ -85,7 +98,7 @@ export function useInfinityConversation(
       pusherClient.unbind("message:new", messageHandler);
       pusherClient.unbind("lead:updated", leadUpdatedHandler);
     };
-  }, [trackingId, statusId, search, queryClient]);
+  }, [trackingId, statusId, search, queryClient, currentConversationId]);
 }
 
 export function useCreateConversation({ trackingId }: { trackingId: string }) {

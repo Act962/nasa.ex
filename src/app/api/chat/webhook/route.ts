@@ -164,6 +164,8 @@ export async function POST(request: NextRequest) {
         body = json.message.content?.caption || "";
       }
 
+      body = fromMe ? `*${name}*\n${body}` : body;
+
       let messageData: any = null;
       const quotedMessage = json.message.quoted;
       const messageEdited = json.message.edited;
@@ -214,6 +216,7 @@ export async function POST(request: NextRequest) {
             status: MessageStatus.SEEN,
             quotedMessageId: quotedMessageData?.id,
             createdAt,
+            senderName: name,
           },
           include: {
             quotedMessage: true,
@@ -295,6 +298,7 @@ export async function POST(request: NextRequest) {
             senderId,
             messageId,
             createdAt,
+            senderName: name,
           },
           include: {
             quotedMessage: true,
@@ -354,6 +358,7 @@ export async function POST(request: NextRequest) {
             quotedMessageId: quotedMessageData?.id,
             conversationId: lead.conversation?.id!,
             senderId,
+            senderName: name,
             messageId,
             createdAt,
           },
@@ -410,6 +415,7 @@ export async function POST(request: NextRequest) {
             status: MessageStatus.SEEN,
             conversationId: lead.conversation?.id!,
             senderId,
+            senderName: name,
             messageId,
             createdAt,
           },
@@ -457,6 +463,7 @@ export async function POST(request: NextRequest) {
             quotedMessageId: quotedMessageData?.id,
             mimetype: document.mimetype,
             senderId,
+            senderName: name,
             messageId,
             createdAt,
           },

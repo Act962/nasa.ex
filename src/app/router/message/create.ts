@@ -52,6 +52,7 @@ export const createTextMessage = base
           status: MessageStatus.SENT,
           quotedMessageId: input.id,
           mimetype: input.mediaUrl ? "image/jpeg" : null,
+          senderName: context.user.name,
         },
         select: {
           id: true,

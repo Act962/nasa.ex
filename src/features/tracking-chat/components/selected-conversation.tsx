@@ -17,22 +17,13 @@ import { TagIcon } from "lucide-react";
 import { Instance } from "../types";
 
 export interface SelectedConversationProps {
-  lead: {
-    id: string;
-    name: string;
-    leadTags?: { tag: { id: string } }[] | any;
-  };
-  trackingId: string;
   children: React.ReactNode;
   instance?: Instance | null;
   onOpenAddTag?: () => void;
 }
 
 export function SelectedConversationOptions({
-  lead,
-  trackingId,
   children,
-  instance,
   onOpenAddTag,
 }: SelectedConversationProps) {
   const MenuItems = ({
@@ -65,7 +56,10 @@ export function SelectedConversationOptions({
           <MenuItems isContextMenu />
         </ContextMenuContent>
       </ContextMenu>
-      <DropdownMenuContent className="w-48 bg-background border-border shadow-xl rounded-xl p-1">
+      <DropdownMenuContent
+        align="start"
+        className="w-48 bg-background border-border shadow-xl rounded-xl p-1"
+      >
         <MenuItems />
       </DropdownMenuContent>
     </DropdownMenu>

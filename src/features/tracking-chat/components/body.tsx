@@ -34,7 +34,10 @@ import { EditMessage } from "./edit-message";
 
 import { useMessageStore } from "../context/use-message";
 import { toast } from "sonner";
-import { useMutationEditMessage } from "../hooks/use-messages";
+import {
+  useMutationEditMessage,
+  useMutationMarkReadMessage,
+} from "../hooks/use-messages";
 
 interface BodyProps {
   messageSelected: MarkedMessage | undefined;
@@ -94,7 +97,6 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
 
   const items = useMemo(() => {
     const flattened = data?.pages.flatMap((p) => p.items) ?? [];
-    // Merge consecutive groups with the same date
     const merged: { date: string; messages: Message[] }[] = [];
     flattened.forEach((group) => {
       const last = merged[merged.length - 1];
@@ -345,19 +347,27 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
       });
     };
 
-    pusherClient.bind("message:created", (body: CreatedMessageProps) => {
-      if (body.currentUserId === session.data?.user.id) return;
+    const messageCreatedHandler = (body: CreatedMessageProps) => {
+      if (
+        body.currentUserId === session.data?.user.id ||
+        body.conversation?.id !== conversationId
+      )
+        return;
       updateCacheWithNewMessage(body);
-    });
+    };
 
-    pusherClient.bind("message:new", (body: MessageBodyProps) => {
+    const messageNewHandler = (body: MessageBodyProps) => {
+      if (body.conversation?.id !== conversationId) return;
       updateCacheWithNewMessage(body);
-    });
+    };
+
+    pusherClient.bind("message:created", messageCreatedHandler);
+    pusherClient.bind("message:new", messageNewHandler);
 
     return () => {
       pusherClient.unsubscribe(conversationId);
-      pusherClient.unbind("message:new");
-      pusherClient.unbind("message:created");
+      pusherClient.unbind("message:new", messageNewHandler);
+      pusherClient.unbind("message:created", messageCreatedHandler);
       bottomRef.current?.scrollIntoView({ block: "end" });
     };
   }, [conversationId, queryClient, session.data?.user.id]);
@@ -366,6 +376,19 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
     useMessageStore();
 
   const mutationEdit = useMutationEditMessage({ conversationId });
+  const markRead = useMutationMarkReadMessage();
+
+  const remoteJid = data?.pages[0].remoteJid;
+
+  useEffect(() => {
+    if (conversationId && remoteJid && token) {
+      markRead.mutate({
+        conversationId,
+        remoteJid,
+        token,
+      });
+    }
+  }, [conversationId, remoteJid, token, items]);
 
   const isEmpty = !error && !isLoading && items.length === 0;
 

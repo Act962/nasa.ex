@@ -51,6 +51,7 @@ export const createMessageWithImage = base
           fromMe: true,
           status: MessageStatus.SENT,
           quotedMessageId: input.id,
+          senderName: context.user.name,
         },
         select: {
           id: true,

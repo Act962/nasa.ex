@@ -26,6 +26,7 @@ import { useMessageStore } from "../context/use-message";
 import { toast } from "sonner";
 import { useState } from "react";
 import { ImageViewerDialog } from "./image-viewer-dialog";
+import { BodyMessage } from "./body-message";
 
 export function MessageBox({
   message,
@@ -124,6 +125,7 @@ export function MessageBox({
                               id: message.id,
                               messageId: message.messageId,
                               fromMe: message.fromMe,
+                              senderName: message.senderName,
                               quotedMessageId: message.quotedMessageId,
                               mediaUrl: message.mediaUrl,
                               mimetype: message.mimetype,
@@ -155,7 +157,7 @@ export function MessageBox({
                     )}
                   {message.body && (
                     <div className="whitespace-pre-wrap px-1.5 pt-1 ">
-                      {message.body}
+                      <BodyMessage message={message} />
                     </div>
                   )}
                 </div>
@@ -173,6 +175,7 @@ export function MessageBox({
                       id: message.id,
                       messageId: message.messageId,
                       fromMe: message.fromMe,
+                      senderName: message.senderName,
                       quotedMessageId: message.quotedMessageId,
                       mediaUrl: message.mediaUrl,
                       mimetype: message.mimetype,

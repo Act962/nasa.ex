@@ -1,7 +1,7 @@
 "use client";
 
 import { Conversation, Lead } from "@/generated/prisma/client";
-import { format } from "date-fns";
+import { format, isToday, isYesterday } from "date-fns";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { AvatarLead } from "./avatar-lead";
@@ -12,6 +12,10 @@ import { ChevronDownIcon } from "lucide-react";
 import { DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ListTags } from "./list-tags";
 import { AddTagLead } from "./add-tag-lead";
+import { WhatsappIcon } from "@/components/whatsapp";
+import { Badge } from "@/components/ui/badge";
+import { useMutationMarkReadMessage } from "../hooks/use-messages";
+import { cn } from "@/lib/utils";
 
 interface LeadBoxConversation extends Conversation {
   lead: Lead & {
@@ -29,18 +33,32 @@ interface LeadBoxConversation extends Conversation {
 
 interface UserBloxProps {
   item: LeadBoxConversation;
-  lastMessageText: string | null;
+  lastMessage: { body: string | null; createdAt: Date } | null;
   instance?: Instance | null;
+  unreadCount?: number;
 }
 
-export function LeadBox({ item, lastMessageText, instance }: UserBloxProps) {
+export function LeadBox({
+  item,
+  lastMessage,
+  instance,
+  unreadCount,
+}: UserBloxProps) {
   const router = useRouter();
   const { conversationId } = useParams();
   const [showTagModal, setShowTagModal] = useState(false);
+  const markRead = useMutationMarkReadMessage();
 
   const handleClick = useCallback(() => {
     router.push(`/tracking-chat/${item.id}`);
-  }, [router, item]);
+    if (unreadCount && unreadCount > 0 && instance?.token) {
+      markRead.mutate({
+        conversationId: item.id,
+        remoteJid: item.remoteJid,
+        token: instance.token,
+      });
+    }
+  }, [router, item, unreadCount, instance, markRead]);
 
   const selected = item.id === conversationId;
   const hasSeen = false;
@@ -49,12 +67,7 @@ export function LeadBox({ item, lastMessageText, instance }: UserBloxProps) {
 
   return (
     <>
-      <SelectedConversationOptions
-        lead={item.lead}
-        trackingId={item.trackingId}
-        instance={instance}
-        onOpenAddTag={() => setShowTagModal(true)}
-      >
+      <SelectedConversationOptions onOpenAddTag={() => setShowTagModal(true)}>
         <div
           onClick={handleClick}
           className={`w-full group relative flex items-center space-x-3 p-3 hover:bg-accent-foreground/5 cursor-pointer rounded-lg transition  ${selected ? "bg-accent-foreground/5" : ""}`}
@@ -67,38 +80,45 @@ export function LeadBox({ item, lastMessageText, instance }: UserBloxProps) {
                   {item.lead.name}
                 </p>
               </div>
-              {item.lead.leadTags && item.lead.leadTags.length > 0 && (
-                <div className="mb-1">
-                  <ListTags
-                    tags={item.lead.leadTags}
-                    onOpenAddTag={() => setShowTagModal(true)}
-                  />
-                </div>
-              )}
-              {lastMessageText && (
+
+              {lastMessage?.body && (
                 <p
-                  className={`text-xs font-light ${
+                  className={`text-xs font-light line-clamp-2 ${
                     hasSeen ? "text-muted-foreground" : ""
                   }`}
                 >
-                  {lastMessageText}
+                  {lastMessage?.body}
                 </p>
               )}
             </div>
+            <div className="mb-1">
+              <ListTags
+                tags={item.lead.leadTags}
+                onOpenAddTag={() => setShowTagModal(true)}
+              />
+            </div>
           </div>
-          <div className="flex flex-col items-center justify-center">
+          <div className="flex flex-col items-end justify-between h-full min-w-[60px] py-1">
             <p className="text-[10px] font-light">
-              {format(new Date(item.createdAt), "dd/MM")}
+              <FormatTime date={lastMessage?.createdAt || item.createdAt} />
             </p>
-            <DropdownMenuTrigger asChild>
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-              >
-                <ChevronDownIcon className="size-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </DropdownMenuTrigger>
+            <div className="flex items-center gap-x-1.5 h-full overflow-hidden">
+              <DropdownMenuTrigger asChild>
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                >
+                  <ChevronDownIcon className="size-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </DropdownMenuTrigger>
+              {unreadCount && unreadCount >= 1 ? (
+                <Badge variant={"secondary"} className="text-[9px] h-5">
+                  {unreadCount}
+                </Badge>
+              ) : null}
+            </div>
+            <WhatsappIcon className="h-5  text-green-500 mr-1" />
           </div>
         </div>
       </SelectedConversationOptions>
@@ -115,4 +135,14 @@ export function LeadBox({ item, lastMessageText, instance }: UserBloxProps) {
       )}
     </>
   );
+}
+
+function FormatTime({ date }: { date: Date }) {
+  if (isToday(date)) {
+    return format(date, "HH:mm");
+  }
+  if (isYesterday(date)) {
+    return "Ontem";
+  }
+  return format(date, "dd/MM/yy");
 }

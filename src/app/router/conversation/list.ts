@@ -72,6 +72,8 @@ export const listConversation = base
           (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
         ),
         lastMessage: conversation.messages[0],
+        unreadCount: conversation.messages.filter((m) => !m.fromMe && !m.seen)
+          .length,
       }));
 
       const nextCursor =

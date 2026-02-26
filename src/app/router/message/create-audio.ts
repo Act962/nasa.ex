@@ -48,8 +48,6 @@ export const createMessageWithAudio = base
         throw new Error("Falha ao gerar URL presignada");
       }
 
-      console.log("replyId: ", input.replyId, "id: ", input.id);
-
       const response = await sendMedia(input.token, {
         file: useConstructUrl(input.nameAudio),
         number: input.leadPhone,
@@ -70,6 +68,7 @@ export const createMessageWithAudio = base
           fileName: input.nameAudio,
           status: MessageStatus.SENT,
           quotedMessageId: input.id,
+          senderName: context.user.name,
         },
         select: {
           id: true,

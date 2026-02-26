@@ -27,7 +27,10 @@ import { useMessageStore } from "../context/use-message";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import { Instance } from "../types";
 
+import { useParams } from "next/navigation";
+
 export function ConversationsList() {
+  const { conversationId } = useParams<{ conversationId: string }>();
   const [open, setOpen] = useState(false);
   const { trackings, isLoadingTrackings } = useQueryTracking();
   const [selectedTracking, setSelectedTracking] = useState<string>("");
@@ -37,7 +40,12 @@ export function ConversationsList() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useInfinityConversation(selectedTracking, selectedStatus, debouncedSearch);
+  useInfinityConversation(
+    selectedTracking,
+    selectedStatus,
+    debouncedSearch,
+    conversationId,
+  );
 
   const infinitiOptions = orpc.conversation.list.infiniteOptions({
     input: (pageParam: string | undefined) => ({
@@ -174,7 +182,11 @@ export function ConversationsList() {
                     instance={instance}
                     key={item.id}
                     item={item}
-                    lastMessageText={item.lastMessage?.body}
+                    unreadCount={(item as any).unreadCount}
+                    lastMessage={{
+                      body: item.lastMessage?.body,
+                      createdAt: item.lastMessage?.createdAt,
+                    }}
                   />
                 ))}
                 {isFetchingNextPage && (

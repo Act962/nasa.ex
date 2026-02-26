@@ -56,6 +56,7 @@ export const createMessageWithFile = base
           fileName: input.fileName,
           status: MessageStatus.SENT,
           quotedMessageId: input.id,
+          senderName: context.user.name,
         },
         select: {
           id: true,
