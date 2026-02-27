@@ -90,114 +90,96 @@ export function LeadBox({
 
   return (
     <>
-      <SelectedConversationOptions onOpenAddTag={() => setShowTagModal(true)}>
-        <div
-          onClick={handleClick}
-          className={`w-full group relative flex items-center space-x-3 p-3 bg-accent-foreground/2 hover:bg-accent-foreground/5 cursor-pointer rounded-lg transition  ${selected ? "bg-accent-foreground/5" : ""}`}
-        >
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-3">
-              <AvatarLead Lead={item.lead} />
-              <div className="focus:outline-none">
-                <div className="flex flex-col justify-between mb-1 gap-x-1">
-                  <p className="text-sm font-medium line-clamp-2">
-                    {item.lead.name}
-                  </p>
-                  <p className="text-[10px] font-light text-muted-foreground line-clamp-1">
-                    {phoneMaskFull(item.lead.phone)}
-                  </p>
-                </div>
-
-                {lastMessage && (
-                  <div className="flex items-center gap-1">
-                    <div>
-                      <MessageTypeIcon
-                        mimetype={lastMessage.mimetype}
-                        className="size-3 text-muted-foreground"
-                      />
-                    </div>
-                    <p
-                      className={`text-xs font-light line-clamp-1 ${
-                        hasSeen ? "text-muted-foreground" : ""
-                      }`}
-                    >
-                      {lastMessage.mimetype
-                        ? getMessageTypeName(lastMessage.mimetype)
-                        : messageBody}
-                    </p>
-                  </div>
-                )}
+      <div
+        onClick={handleClick}
+        className={`w-full group relative flex items-center space-x-3 p-3 bg-accent-foreground/2 hover:bg-accent-foreground/5 cursor-pointer rounded-lg transition  ${selected ? "bg-accent-foreground/5" : ""}`}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3">
+            <AvatarLead Lead={item.lead} />
+            <div className="focus:outline-none">
+              <div className="flex flex-col justify-between mb-1 gap-x-1">
+                <p className="text-sm font-medium line-clamp-2">
+                  {item.lead.name}
+                </p>
+                <p className="text-[10px] font-light text-muted-foreground line-clamp-1">
+                  {phoneMaskFull(item.lead.phone)}
+                </p>
               </div>
-            </div>
-            <div className="mt-1">
-              <ListTags
-                tags={item.lead.leadTags}
-                leadId={item.lead.id}
-                trackingId={item.trackingId}
-              />
-            </div>
-          </div>
-          <div className="flex flex-col items-end justify-between h-full min-w-[60px] py-1">
-            <div className="flex items-center gap-1">
-              <p className="text-[10px] font-light">
-                <FormatTime date={lastMessage?.createdAt || item.createdAt} />
-              </p>
-              <ArrowUpRightIcon className="size-4 text-muted-foreground" />
-            </div>
-            <div className="flex items-center gap-x-1.5 h-full overflow-hidden">
-              <Tooltip>
-                <TooltipTrigger>
-                  <DropdownMenuTrigger asChild>
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                      }}
-                    >
-                      <ChevronDownIcon className="size-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Opções</p>
-                </TooltipContent>
-              </Tooltip>
-              {unreadCount && unreadCount >= 1 ? (
-                <Badge variant={"secondary"} className="text-[9px] h-5">
-                  {unreadCount}
-                </Badge>
-              ) : null}
-            </div>
-            <div className="flex items-center gap-x-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <RocketIcon
-                    className="size-3"
-                    style={{
-                      color: colorsByTemperature[item.lead.temperature].color,
-                    }}
-                  />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{colorsByTemperature[item.lead.temperature].label}</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
+
+              {lastMessage && (
+                <div className="flex items-center gap-1">
                   <div>
-                    <LeadSourceIcon
-                      source={item.lead.source}
-                      className="size-3 mr-1"
+                    <MessageTypeIcon
+                      mimetype={lastMessage.mimetype}
+                      className="size-3 text-muted-foreground"
                     />
                   </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{LeadSourceColors[item.lead.source].label}</p>
-                </TooltipContent>
-              </Tooltip>
+                  <p
+                    className={`text-xs font-light line-clamp-1 ${
+                      hasSeen ? "text-muted-foreground" : ""
+                    }`}
+                  >
+                    {lastMessage.mimetype
+                      ? getMessageTypeName(lastMessage.mimetype)
+                      : messageBody}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
+          <div className="mt-1">
+            <ListTags
+              tags={item.lead.leadTags}
+              leadId={item.lead.id}
+              trackingId={item.trackingId}
+            />
+          </div>
         </div>
-      </SelectedConversationOptions>
+        <div className="flex flex-col items-end justify-between h-full min-w-[60px] py-1">
+          <div className="flex items-center gap-1">
+            <p className="text-[10px] font-light">
+              <FormatTime date={lastMessage?.createdAt || item.createdAt} />
+            </p>
+            <ArrowUpRightIcon className="size-4 text-muted-foreground" />
+          </div>
+          <div className="flex items-center gap-x-1.5 h-full overflow-hidden">
+            {unreadCount && unreadCount >= 1 ? (
+              <Badge variant={"secondary"} className="text-[9px] h-5">
+                {unreadCount}
+              </Badge>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-x-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <RocketIcon
+                  className="size-3"
+                  style={{
+                    color: colorsByTemperature[item.lead.temperature].color,
+                  }}
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{colorsByTemperature[item.lead.temperature].label}</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <LeadSourceIcon
+                    source={item.lead.source}
+                    className="size-3 mr-1"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{LeadSourceColors[item.lead.source].label}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      </div>
     </>
   );
 }
