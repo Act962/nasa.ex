@@ -66,15 +66,6 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
   const isSubmitting = updateAiSettings.isPending;
 
   const onSubmit = async (data: AiSettingData) => {
-    console.log("Data", data);
-    // updateAiSettings.mutate({
-    //   aiEnabled: data.aiEnabled,
-    //   assistantName: data.assistantName,
-    //   finishMessage: data.finishMessage,
-    //   prompt: data.prompt,
-    //   trackingId,
-    // });
-
     updateAiSettings.mutate({
       aiEnabled: data.aiEnabled,
       assistantName: data.assistantName,

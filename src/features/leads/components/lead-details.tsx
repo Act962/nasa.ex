@@ -5,13 +5,12 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { LeadInfo } from "./lead-info";
 import { LeadFull } from "@/types/lead";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ActivityIcon, BookIcon, FileIcon, StickyNoteIcon } from "lucide-react";
+import { FileIcon, StickyNoteIcon } from "lucide-react";
 import { TabNotes } from "./notes";
 import { LeadFiles } from "./lead-files/lead-files";
 
 interface LeadDatailsProps {
   initialData: LeadFull;
-  // actions: Action[];
 }
 
 export function LeadDetails({ initialData }: LeadDatailsProps) {
@@ -33,35 +32,6 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       icon: FileIcon,
       content: <LeadFiles leadId={initialData.lead.id} />,
     },
-    // {
-    //   name: "Atividades",
-    //   value: "activities",
-    //   icon: ActivityIcon,
-    //   content: (
-    //     <div className="w-full">
-    //       <p className="text-sm">
-    //         <span className="text-foreground font-semibold">Surprise!</span>{" "}
-    //         Here&apos;s something unexpected—a fun fact, a quirky tip, or a
-    //         daily challenge. Come back for a new surprise every day!
-    //       </p>
-    //     </div>
-    //   ),
-    // },
-
-    // {
-    //   name: "Ações",
-    //   value: "actions",
-    //   icon: BookIcon,
-    //   content: (
-    //     <div className="w-full">
-    //       <p className="text-sm">
-    //         <span className="text-foreground font-semibold">Surprise!</span>{" "}
-    //         Here&apos;s something unexpected—a fun fact, a quirky tip, or a
-    //         daily challenge. Come back for a new surprise every day!
-    //       </p>
-    //     </div>
-    //   ),
-    // },
   ];
 
   return (

@@ -153,12 +153,10 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                     icon={<WhatsappIcon className="size-4" />}
                   />
                 </TooltipTrigger>
-                <TooltipContent>
-                  <p>Conversa</p>
-                </TooltipContent>
+                <TooltipContent>Conversa</TooltipContent>
               </Tooltip>
               <ActionButton icon={<Mail className="size-4" />} />
-              <ActionButton icon={<Phone className="size-4" />} />
+              {/* <ActionButton icon={<Phone className="size-4" />} /> */}
 
               <Tooltip>
                 <TooltipTrigger asChild onClick={() => setOpenHistoric(true)}>
@@ -166,9 +164,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                     icon={<ClipboardClockIcon className="size-4" />}
                   />
                 </TooltipTrigger>
-                <TooltipContent>
-                  <p>Histórico</p>
-                </TooltipContent>
+                <TooltipContent>Histórico</TooltipContent>
               </Tooltip>
             </div>
 

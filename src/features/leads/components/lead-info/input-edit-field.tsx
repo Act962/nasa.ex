@@ -1,7 +1,6 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
-import { phoneMaskFull } from "@/utils/format-phone";
 import { useState } from "react";
 
 export interface EditingInputComponentProps {
