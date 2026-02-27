@@ -62,7 +62,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
-import { useParams } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,14 +89,15 @@ type FormData = z.infer<typeof schema>;
 interface AddLeadSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  trackingId: string;
 }
 
 export default function AddLeadSheet({
   open,
   onOpenChange,
+  trackingId,
 }: AddLeadSheetProps) {
   const queryClient = useQueryClient();
-  const { trackingId } = useParams<{ trackingId: string }>();
   const { status, isLoadingStatus } = useStatus(trackingId ?? "");
   const [selectedCountry, setSelectedCountry] = useState(countries[0]);
 
@@ -191,7 +191,7 @@ export default function AddLeadSheet({
   const onSubmit = (data: FormData) => {
     const phone = normalizePhone(selectedCountry.ddi + data.phone);
     onCreateLead.mutate({
-      name: data.name,
+      name: data.name.trim(),
       phone,
       email: data.email,
       description: data.description,

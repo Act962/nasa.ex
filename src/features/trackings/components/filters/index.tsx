@@ -60,6 +60,7 @@ export function FiltersTracking() {
       </div>
 
       <AddLeadSheet
+        trackingId={trackingId}
         open={useLeadSheet.isOpen}
         onOpenChange={useLeadSheet.setIsOpen}
       />

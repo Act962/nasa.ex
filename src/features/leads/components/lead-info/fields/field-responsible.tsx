@@ -26,7 +26,7 @@ export function FieldResponsible({
   const [localValue, setLocalValue] = useState(value);
   const [localDisplayName, setLocalDisplayName] = useState(displayName);
 
-  const mutation = useMutationLeadUpdate(leadId);
+  const mutation = useMutationLeadUpdate(leadId, trackingId);
 
   useEffect(() => {
     setLocalValue(value);

@@ -14,13 +14,15 @@ import {
   ChevronDownIcon,
   ClipboardListIcon,
   GlobeIcon,
+  PlusIcon,
   RocketIcon,
+  TagIcon,
   UserIcon,
 } from "lucide-react";
 
 import { DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ListTags } from "./list-tags";
-import { AddTagLead } from "./add-tag-lead";
+import { AddTagLead } from "./add-tag-lead-depreceated";
 import { Badge } from "@/components/ui/badge";
 import { MessageTypeIcon, getMessageTypeName } from "./message-type-icon";
 import { useMutationMarkReadMessage } from "../hooks/use-messages";
@@ -84,8 +86,6 @@ export function LeadBox({
   const selected = item.id === conversationId;
   const hasSeen = false;
 
-  const initialTagIds = item.lead.leadTags?.map((lt) => lt.tag?.id) || [];
-
   const messageBody = lastMessage?.body?.split("*")[2] || lastMessage?.body;
 
   return (
@@ -132,7 +132,8 @@ export function LeadBox({
             <div className="mt-1">
               <ListTags
                 tags={item.lead.leadTags}
-                onOpenAddTag={() => setShowTagModal(true)}
+                leadId={item.lead.id}
+                trackingId={item.trackingId}
               />
             </div>
           </div>
@@ -197,17 +198,6 @@ export function LeadBox({
           </div>
         </div>
       </SelectedConversationOptions>
-
-      {showTagModal && instance && (
-        <AddTagLead
-          open={showTagModal}
-          onOpenChange={setShowTagModal}
-          leadId={item.lead.id}
-          trackingId={item.trackingId}
-          initialSelectedTagIds={initialTagIds}
-          instance={instance}
-        />
-      )}
     </>
   );
 }

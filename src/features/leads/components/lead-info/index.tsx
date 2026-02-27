@@ -29,6 +29,11 @@ import { FieldText } from "./fields/field-text";
 import { InfoItem } from "./Info-item";
 import { ListHistoric } from "../list-historic";
 import { WhatsappIcon } from "@/components/whatsapp";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
   initialData: LeadFull;
@@ -44,15 +49,29 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
   const [name, setName] = useState(lead.name);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const mutate = useMutationLeadUpdate(lead.id);
+  const mutate = useMutationLeadUpdate(lead.id, lead.trackingId);
 
   const handleUpdateName = (newName: string) => {
     if (!newName || newName === lead.name) {
       setIsEditingName(false);
       return;
     }
-    mutate.mutate({ id: lead.id, name: newName });
-    setIsEditingName(false);
+    const name = newName.trim();
+    if (!name) {
+      setIsEditingName(false);
+      return;
+    }
+    mutate.mutate(
+      { id: lead.id, name },
+      {
+        onSuccess: () => {
+          setIsEditingName(false);
+        },
+        onError: () => {
+          setName(lead.name);
+        },
+      },
+    );
   };
 
   useEffect(() => {
@@ -101,7 +120,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
             <Avatar className="size-16 border border-muted shadow-sm">
               <AvatarImage src={useConstructUrl(lead.profile ?? "")} />
               <AvatarFallback className="bg-primary/5 font-bold text-xl">
-                {lead.name.charAt(0).toUpperCase()}
+                {lead.name.trim().charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
 
@@ -127,20 +146,35 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
             </div>
 
             <div className="flex items-center gap-2 pt-1">
-              <ActionButton
-                onClick={goToTracking}
-                icon={<WhatsappIcon className="size-4" />}
-              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <ActionButton
+                    onClick={goToTracking}
+                    icon={<WhatsappIcon className="size-4" />}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Conversa</p>
+                </TooltipContent>
+              </Tooltip>
               <ActionButton icon={<Mail className="size-4" />} />
               <ActionButton icon={<Phone className="size-4" />} />
+
               <ListHistoric
                 leadId={lead.id}
                 open={openHistoric}
                 onOpenChange={setOpenHistoric}
               >
-                <ActionButton
-                  icon={<ClipboardClockIcon className="size-4" />}
-                />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ActionButton
+                      icon={<ClipboardClockIcon className="size-4" />}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Histórico</p>
+                  </TooltipContent>
+                </Tooltip>
               </ListHistoric>
             </div>
 
@@ -170,8 +204,16 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
               className="flex-1 overflow-y-auto min-h-0"
             >
               <div className="px-4 py-2 space-y-2 pb-10">
-                <FieldEmail label="E-mail" value={lead.email ?? ""} />
-                <FieldPhone label="Telefone" value={lead.phone ?? ""} />
+                <FieldEmail
+                  label="E-mail"
+                  value={lead.email ?? ""}
+                  trackingId={lead.trackingId}
+                />
+                <FieldPhone
+                  label="Telefone"
+                  value={lead.phone ?? ""}
+                  trackingId={lead.trackingId}
+                />
                 <FieldResponsible
                   label="Responsável"
                   value={lead.responsible?.id ?? ""}
@@ -183,9 +225,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                 <InfoItem label="Status Atual" value={lead.status.name} />
                 <FieldTags
                   leadId={lead.id}
-                  label="Tags"
-                  value={lead.tags.map((t) => t.id)}
-                  displayNames={lead.tags.map((t) => t.name).join(", ")}
+                  tags={lead.tags}
                   trackingId={lead.trackingId}
                 />
               </div>
@@ -193,14 +233,30 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
 
             <TabsContent value="address" className="flex-1 min-h-0 ">
               <div className="flex-1 overflow-y-auto px-4 py-2 space-y-4 pb-10">
-                <FieldText label="Logradouro" value="" fieldKey="street" />
-                <FieldText label="Cidade" value="" fieldKey="city" />
-                <FieldText label="Estado" value="" fieldKey="state" />
+                <FieldText
+                  label="Logradouro"
+                  value=""
+                  fieldKey="street"
+                  trackingId={lead.trackingId}
+                />
+                <FieldText
+                  label="Cidade"
+                  value=""
+                  fieldKey="city"
+                  trackingId={lead.trackingId}
+                />
+                <FieldText
+                  label="Estado"
+                  value=""
+                  fieldKey="state"
+                  trackingId={lead.trackingId}
+                />
                 <FieldText
                   label="País"
                   value=""
                   fieldKey="country"
                   placeholder="Brasil"
+                  trackingId={lead.trackingId}
                 />
               </div>
             </TabsContent>

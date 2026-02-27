@@ -8,14 +8,12 @@ export interface EditingInputComponentProps {
   value: string;
   onSubmit: (value: string) => void;
   onCancel?: () => void;
-  type: "text" | "phone" | "email";
 }
 
 export const InputEditField = ({
   value,
   onSubmit,
   onCancel,
-  type,
 }: EditingInputComponentProps) => {
   const [localValue, setLocalValue] = useState(value);
 

@@ -11,6 +11,7 @@ interface FieldTextProps {
   value: string;
   fieldKey: string;
   placeholder?: string;
+  trackingId: string;
 }
 
 export function FieldText({
@@ -18,12 +19,13 @@ export function FieldText({
   value,
   fieldKey,
   placeholder = "Não informado",
+  trackingId,
 }: FieldTextProps) {
   const { leadId } = useParams<{ leadId: string }>();
   const [isEditing, setIsEditing] = useState(false);
   const [localValue, setLocalValue] = useState(value);
 
-  const mutation = useMutationLeadUpdate(leadId);
+  const mutation = useMutationLeadUpdate(leadId, trackingId);
 
   useEffect(() => {
     setLocalValue(value);
@@ -53,7 +55,6 @@ export function FieldText({
       editable
       editComponent={
         <InputEditField
-          type="text"
           value={localValue}
           onSubmit={handleSubmit}
           onCancel={() => setIsEditing(false)}

@@ -582,8 +582,16 @@ export function useMutationMarkReadMessage() {
 
   return useMutation(
     orpc.message.markRead.mutationOptions({
-      onSuccess: (_, variables) => {
-        // Optimistically update the unreadCount in all conversation list queries
+      onMutate: async (variables) => {
+        // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+        await queryClient.cancelQueries({ queryKey: ["conversations.list"] });
+
+        // Snapshot all relevant lists
+        const previousLists = queryClient.getQueriesData({
+          queryKey: ["conversations.list"],
+        });
+
+        // Optimistically update to 0 in all lists
         queryClient.setQueriesData(
           { queryKey: ["conversations.list"] },
           (old: any) => {
@@ -603,7 +611,18 @@ export function useMutationMarkReadMessage() {
           },
         );
 
-        // Also invalidate to be safe and ensure other data is synced
+        return { previousLists };
+      },
+      onError: (err, variables, context) => {
+        // Rollback on failure
+        if (context?.previousLists) {
+          context.previousLists.forEach(([key, oldData]) => {
+            queryClient.setQueryData(key, oldData);
+          });
+        }
+      },
+      onSettled: () => {
+        // Sync with server
         queryClient.invalidateQueries({
           queryKey: ["conversations.list"],
         });
