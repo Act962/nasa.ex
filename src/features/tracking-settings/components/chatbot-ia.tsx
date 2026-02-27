@@ -44,6 +44,17 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
 
   const updateAiSettings = useUpdateAiSettings();
 
+  useEffect(() => {
+    if (settings) {
+      form.reset({
+        assistantName: settings.assistantName ?? "",
+        prompt: settings.prompt ?? "",
+        finishMessage: settings.finishSentence ?? "",
+        aiEnabled: settings.tracking.globalAiActive ?? false,
+      });
+    }
+  }, [settings, form]);
+
   if (isLoadingSettings) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -51,6 +62,8 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
       </div>
     );
   }
+
+  const isSubmitting = updateAiSettings.isPending;
 
   const onSubmit = async (data: AiSettingData) => {
     console.log("Data", data);
@@ -70,8 +83,6 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
       trackingId,
     });
   };
-
-  const isSubmitting = updateAiSettings.isPending;
 
   return (
     <div className="space-y-8 pb-10">
