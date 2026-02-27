@@ -10,14 +10,15 @@ import { InputEditPhone } from "../input-edit-phone";
 interface FieldPhoneProps {
   label: string;
   value: string;
+  trackingId: string;
 }
 
-export function FieldPhone({ label, value }: FieldPhoneProps) {
+export function FieldPhone({ label, value, trackingId }: FieldPhoneProps) {
   const { leadId } = useParams<{ leadId: string }>();
   const [isEditing, setIsEditing] = useState(false);
   const [localValue, setLocalValue] = useState(value);
 
-  const mutation = useMutationLeadUpdate(leadId);
+  const mutation = useMutationLeadUpdate(leadId, trackingId);
 
   useEffect(() => {
     setLocalValue(value);

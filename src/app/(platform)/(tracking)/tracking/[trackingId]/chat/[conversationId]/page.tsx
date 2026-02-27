@@ -46,6 +46,7 @@ export default function Page() {
           leadId={data.conversation.lead.id}
           conversationId={conversationId}
           active={data.conversation.lead.isActive}
+          trackingId={data.conversation.trackingId}
         />
         <Body
           messageSelected={messageSelected}

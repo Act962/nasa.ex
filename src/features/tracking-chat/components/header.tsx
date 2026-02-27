@@ -4,18 +4,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { phoneMaskFull } from "@/utils/format-phone";
-import { ArrowLeftIcon, MoreHorizontalIcon, XIcon } from "lucide-react";
+import { ArrowLeftIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { SummerizeConversation } from "./summerize-conversation";
-import { OptionsHeader } from "./options-header";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 
 interface HeaderProps {
@@ -25,6 +19,7 @@ interface HeaderProps {
   leadId: string;
   conversationId: string;
   active: boolean;
+  trackingId: string;
 }
 export function Header({
   name,
@@ -33,11 +28,12 @@ export function Header({
   leadId,
   conversationId,
   active: initialActive,
+  trackingId,
 }: HeaderProps) {
   const router = useRouter();
   const profileUrl = useConstructUrl(profile || "");
   const [active, setActive] = useState(initialActive);
-  const mutationLeadUpdate = useMutationLeadUpdate(leadId);
+  const mutationLeadUpdate = useMutationLeadUpdate(leadId, trackingId);
 
   const onActiveChange = (checked: boolean) => {
     setActive(checked);

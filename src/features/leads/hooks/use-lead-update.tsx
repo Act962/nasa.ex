@@ -2,7 +2,7 @@ import { orpc } from "@/lib/orpc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-export function useMutationLeadUpdate(leadId: string) {
+export function useMutationLeadUpdate(leadId: string, trackingId: string) {
   const queryClient = useQueryClient();
 
   return useMutation(
@@ -13,8 +13,11 @@ export function useMutationLeadUpdate(leadId: string) {
             input: { id: leadId },
           }),
         });
-        toast.success(`Lead atualizado com sucesso`, {
-          position: "bottom-right",
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.list.queryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["conversations.list", trackingId],
         });
       },
       onError: () => {

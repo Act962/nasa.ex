@@ -20,7 +20,7 @@ interface FieldTagsProps {
 export function FieldTags({ tags, leadId, trackingId }: FieldTagsProps) {
   const [isEditing, setIsEditing] = useState(false);
 
-  const mutation = useMutationLeadUpdate(leadId);
+  const mutation = useMutationLeadUpdate(leadId, trackingId);
 
   const handleSubmit = (newValue: string[]) => {
     setIsEditing(false);

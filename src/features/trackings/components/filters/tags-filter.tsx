@@ -174,8 +174,11 @@ export function TagsFilter() {
           </Command>
         </PopoverContent>
       </Popover>
-
-      <TagModal open={open} onOpenChange={setOpen} />
+      <TagModal
+        trackingId={params.trackingId}
+        open={open}
+        onOpenChange={setOpen}
+      />
     </>
   );
 }

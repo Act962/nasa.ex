@@ -35,10 +35,10 @@ import {
 } from "@/features/tags/hooks/use-tags";
 import { TagType } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
+import { getContrastColor } from "@/utils/get-contrast-color";
 import { DEFAULT_UI_COLORS } from "@/utils/whatsapp-utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckIcon, TagIcon, Trash2Icon } from "lucide-react";
-import { useParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -46,6 +46,7 @@ import { z } from "zod";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  trackingId?: string;
 }
 
 const tagSchema = z.object({
@@ -53,7 +54,7 @@ const tagSchema = z.object({
   color: z.string(),
 });
 
-export function TagModal({ open, onOpenChange }: Props) {
+export function TagModal({ open, onOpenChange, trackingId }: Props) {
   const form = useForm<z.infer<typeof tagSchema>>({
     resolver: zodResolver(tagSchema),
     defaultValues: {
@@ -62,7 +63,6 @@ export function TagModal({ open, onOpenChange }: Props) {
     },
   });
 
-  const { trackingId } = useParams<{ trackingId: string }>();
   const { tags, isLoadingTags } = useQueryTags({
     trackingId,
   });
@@ -226,7 +226,10 @@ export function TagItem(tag: TagItemProps) {
       <PopoverTrigger>
         <Badge
           key={tag.id}
-          style={{ backgroundColor: tag.color }}
+          style={{
+            backgroundColor: tag.color,
+            color: getContrastColor(tag.color),
+          }}
           className="cursor-pointer focus-visible:ring-0 outline-none"
         >
           {tag.name}

@@ -9,14 +9,15 @@ import { InputEditField } from "../input-edit-field";
 interface FieldEmailProps {
   label: string;
   value: string;
+  trackingId: string;
 }
 
-export function FieldEmail({ label, value }: FieldEmailProps) {
+export function FieldEmail({ label, value, trackingId }: FieldEmailProps) {
   const { leadId } = useParams<{ leadId: string }>();
   const [isEditing, setIsEditing] = useState(false);
   const [localValue, setLocalValue] = useState(value);
 
-  const mutation = useMutationLeadUpdate(leadId);
+  const mutation = useMutationLeadUpdate(leadId, trackingId);
 
   useEffect(() => {
     setLocalValue(value);
