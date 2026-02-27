@@ -17,7 +17,6 @@ import {
 import { useQueryAiSettings, useUpdateAiSettings } from "../hooks/use-tracking";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useEffect } from "react";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 
@@ -34,26 +33,15 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
   const { settings, isLoadingSettings } = useQueryAiSettings(trackingId);
   const form = useForm<AiSettingData>({
     resolver: zodResolver(aiSettingSchema),
-    defaultValues: {
+    values: {
       assistantName: settings?.assistantName ?? "",
       prompt: settings?.prompt ?? "",
       finishMessage: settings?.finishSentence ?? "",
-      aiEnabled: settings?.tracking.globalAiActive ?? false,
+      aiEnabled: settings?.tracking?.globalAiActive ?? false,
     },
   });
 
   const updateAiSettings = useUpdateAiSettings();
-
-  useEffect(() => {
-    if (settings) {
-      form.reset({
-        assistantName: settings.assistantName ?? "",
-        prompt: settings.prompt ?? "",
-        finishMessage: settings.finishSentence ?? "",
-        aiEnabled: settings.tracking.globalAiActive ?? false,
-      });
-    }
-  }, [settings, form]);
 
   if (isLoadingSettings) {
     return (
@@ -155,7 +143,7 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
             </FieldDescription>
           </Field>
           <Field>
-            <FieldLabel>Finalizar chata quando</FieldLabel>
+            <FieldLabel>Finalizar chat quando</FieldLabel>
             <Input
               placeholder="Quiente quiser pedir para ser atendido por um humano"
               disabled={isSubmitting}
