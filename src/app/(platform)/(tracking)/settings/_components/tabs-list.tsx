@@ -15,6 +15,11 @@ const tabsLink = [
     href: "/members",
     icon: UsersIcon,
   },
+  {
+    label: "Importar",
+    href: "/integration",
+    icon: UsersIcon,
+  },
 ];
 
 export function TabsList() {
