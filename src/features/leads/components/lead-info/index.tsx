@@ -160,22 +160,16 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
               <ActionButton icon={<Mail className="size-4" />} />
               <ActionButton icon={<Phone className="size-4" />} />
 
-              <ListHistoric
-                leadId={lead.id}
-                open={openHistoric}
-                onOpenChange={setOpenHistoric}
-              >
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <ActionButton
-                      icon={<ClipboardClockIcon className="size-4" />}
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Histórico</p>
-                  </TooltipContent>
-                </Tooltip>
-              </ListHistoric>
+              <Tooltip>
+                <TooltipTrigger asChild onClick={() => setOpenHistoric(true)}>
+                  <ActionButton
+                    icon={<ClipboardClockIcon className="size-4" />}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Histórico</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
 
             <div className="flex items-center gap-2 py-1">
@@ -263,6 +257,12 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
           </Tabs>
         </div>
       </div>
+
+      <ListHistoric
+        leadId={lead.id}
+        open={openHistoric}
+        onOpenChange={setOpenHistoric}
+      />
     </>
   );
 }
