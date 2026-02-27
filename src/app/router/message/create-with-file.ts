@@ -38,7 +38,7 @@ export const createMessageWithFile = base
         text: input.body,
         docName: input.fileName,
         number: input.leadPhone,
-        delay: 2000,
+
         type: "document",
         readchat: true,
         readmessages: true,

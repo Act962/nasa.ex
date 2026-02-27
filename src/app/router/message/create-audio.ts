@@ -51,7 +51,6 @@ export const createMessageWithAudio = base
       const response = await sendMedia(input.token, {
         file: useConstructUrl(input.nameAudio),
         number: input.leadPhone,
-        delay: 2000,
         type: "myaudio",
         readchat: true,
         readmessages: true,

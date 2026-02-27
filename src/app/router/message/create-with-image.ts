@@ -34,7 +34,6 @@ export const createMessageWithImage = base
         file: useConstructUrl(input.mediaUrl),
         text: input.body,
         number: input.leadPhone,
-        delay: 2000,
         type: "image",
         readchat: true,
         readmessages: true,

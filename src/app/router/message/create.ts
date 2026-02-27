@@ -34,13 +34,7 @@ export const createTextMessage = base
       const response = await sendText(input.token, {
         text: input.body,
         number: input.leadPhone,
-        delay: 2000,
         replyid: input.replyId,
-      });
-
-      await markReadMessage(input.token, {
-        number: response.chatid,
-        read: true,
       });
 
       const message = await prisma.message.create({
@@ -100,6 +94,11 @@ export const createTextMessage = base
         "message:created",
         messageCreated,
       );
+
+      await markReadMessage(input.token, {
+        number: response.chatid,
+        read: true,
+      });
 
       return {
         message: {
