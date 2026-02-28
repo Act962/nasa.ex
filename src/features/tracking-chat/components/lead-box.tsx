@@ -98,8 +98,8 @@ export function LeadBox({
           <div className="flex items-center gap-3">
             <AvatarLead Lead={item.lead} />
             <div className="focus:outline-none">
-              <div className="flex flex-col justify-between mb-1 gap-x-1">
-                <p className="text-sm font-medium line-clamp-2">
+              <div className="flex flex-col justify-between mb-1 gap-x-1 overflow-hidden">
+                <p className="text-sm font-medium line-clamp-2 truncate">
                   {item.lead.name}
                 </p>
                 <p className="text-[10px] font-light text-muted-foreground line-clamp-1">
