@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { useMemberModal } from "@/hooks/use-member";
 import { authClient } from "@/lib/auth-client";
-import { EllipsisVertical, Plus } from "lucide-react";
+import { Copy, EllipsisVertical, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 interface Members {
@@ -60,6 +60,12 @@ export function InvitationsTab({
   const getInviter = (inviterId: string) => {
     const inviter = members.find((member) => member.userId === inviterId);
     return inviter;
+  };
+
+  const copyInvitationLink = async (invitationId: string) => {
+    const link = `https://orbita.nasaex.com/accept-invitation/${invitationId}`;
+    await navigator.clipboard.writeText(link);
+    toast.success("Link de convite copiado");
   };
 
   const cancelInvitation = async (invitationId: string) => {
@@ -123,7 +129,7 @@ export function InvitationsTab({
                       />
                       <AvatarFallback>
                         {getInviter(invitation.inviterId)?.user.name.split(
-                          " "
+                          " ",
                         )[0][0] || ""}
                       </AvatarFallback>
                     </Avatar>
@@ -142,6 +148,13 @@ export function InvitationsTab({
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Opções</DropdownMenuLabel>
                       <DropdownMenuGroup>
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() => copyInvitationLink(invitation.id)}
+                        >
+                          <Copy className="size-4 mr-2" />
+                          Copiar Link
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           className="cursor-pointer"
                           variant="destructive"

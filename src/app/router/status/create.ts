@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { Decimal } from "@prisma/client/runtime/client";
 
 export const createStatus = base
   .use(requiredAuthMiddleware)
@@ -15,13 +16,13 @@ export const createStatus = base
       name: z.string(),
       color: z.string().optional(),
       trackingId: z.string(),
-    })
+    }),
   )
   .output(
     z.object({
       trackingId: z.string(),
       statusName: z.string(),
-    })
+    }),
   )
   .handler(async ({ input }) => {
     const lastStatus = await prisma.status.findFirst({
@@ -33,14 +34,18 @@ export const createStatus = base
       },
     });
 
-    const order = lastStatus ? lastStatus.order + 1 : 0;
+    let newOrder: Decimal;
+
+    newOrder = lastStatus
+      ? new Decimal(lastStatus.order).plus(1)
+      : new Decimal(0);
 
     const status = await prisma.status.create({
       data: {
         name: input.name,
         color: input.color,
         trackingId: input.trackingId,
-        order,
+        order: newOrder,
       },
     });
 

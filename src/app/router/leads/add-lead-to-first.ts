@@ -2,6 +2,9 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { Decimal } from "@prisma/client/runtime/client";
+import { LeadAction } from "@/generated/prisma/enums";
+import { recordLeadHistory } from "./utils/history";
 /**
  * 🟢 Adicionar Lead como o primeiro da coluna
  */ export const addLeadFirst = base
@@ -15,15 +18,15 @@ import { z } from "zod";
     z.object({
       leadId: z.string(),
       statusId: z.string(),
-    })
+    }),
   )
   .output(
     z.object({
       leadName: z.string(),
       trackingId: z.string(),
-    })
+    }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, errors, context }) => {
     const { leadId, statusId } = input;
 
     return prisma.$transaction(async (tx) => {
@@ -54,7 +57,7 @@ import { z } from "zod";
       }
 
       // Se já é o primeiro na mesma coluna, apenas retorna
-      if (!isChangingColumn && lead.order === 0) {
+      if (!isChangingColumn && lead.order === new Decimal(0)) {
         return {
           leadName: lead.name,
           trackingId: lead.trackingId,
@@ -77,6 +80,14 @@ import { z } from "zod";
           statusId,
           order: 0,
         },
+      });
+
+      await recordLeadHistory({
+        leadId,
+        userId: context.user.id,
+        action: LeadAction.ACTIVE,
+        notes: "Lead movido para o topo da coluna",
+        tx,
       });
 
       return {

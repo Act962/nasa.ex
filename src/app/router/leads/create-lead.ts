@@ -2,6 +2,9 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { Decimal } from "@prisma/client/runtime/client";
+import { LeadAction } from "@/generated/prisma/enums";
+import { recordLeadHistory } from "./utils/history";
 
 // 🟧 LIST ALL
 export const createLead = base
@@ -19,7 +22,7 @@ export const createLead = base
       description: z.string().optional(),
       statusId: z.string(),
       trackingId: z.string(),
-    })
+    }),
   )
   .output(
     z.object({
@@ -31,10 +34,10 @@ export const createLead = base
         description: z.string().nullable(),
         statusId: z.string(),
         trackingId: z.string(),
-        order: z.number(),
+        // order: z.string(),
         createdAt: z.date(),
       }),
-    })
+    }),
   )
   .handler(async ({ input, errors, context }) => {
     try {
@@ -61,10 +64,15 @@ export const createLead = base
           select: { order: true },
         });
 
-        const newOrder = lastLead !== null ? lastLead.order + 1 : 0;
+        let newOrder: Decimal;
 
-        // Cria o novo lead
-        return await tx.lead.create({
+        newOrder = lastLead
+          ? new Decimal(lastLead.order).plus(1)
+          : new Decimal(0);
+
+        // const newOrder = lastLead !== null ? lastLead.order + 1 : 0;
+
+        const newLead = await tx.lead.create({
           data: {
             name: input.name,
             phone: input.phone,
@@ -83,10 +91,20 @@ export const createLead = base
             description: true,
             statusId: true,
             trackingId: true,
-            order: true,
+            // order: true,
             createdAt: true,
           },
         });
+
+        await recordLeadHistory({
+          leadId: newLead.id,
+          userId: context.user.id,
+          action: LeadAction.ACTIVE,
+          notes: "Lead criado",
+          tx,
+        });
+
+        return newLead;
       });
 
       return { lead };

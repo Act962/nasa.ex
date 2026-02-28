@@ -9,11 +9,7 @@ interface FileMessageBoxProps {
   fileName?: string | null;
 }
 
-export function FileMessageBox({
-  mediaUrl,
-  mimetype,
-  fileName,
-}: FileMessageBoxProps) {
+export function FileMessageBox({ mediaUrl, fileName }: FileMessageBoxProps) {
   const formatUrl = useConstructUrl(mediaUrl);
   const [fileSize, setFileSize] = useState<string>("Carregando...");
 
@@ -73,7 +69,7 @@ export function FileMessageBox({
   };
 
   return (
-    <div className="rounded-lg border overflow-hidden">
+    <div className="rounded-lg border overflow-hidden bg-foreground/10">
       <div className="flex items-center gap-3 px-3 py-5 bg-background/50">
         <div className="p-2 bg-secondary/10 rounded-lg">
           <FileIcon className="w-4 h-4 text-foreground" />

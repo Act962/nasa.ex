@@ -4,7 +4,7 @@ import { updateLead } from "./update";
 import { deleteLead } from "./delete";
 import { addLeadFirst } from "./add-lead-to-first";
 import { addLeadLast } from "./add-lead-to-last";
-import { updateLeadOrder } from "./update-order";
+// import { updateLeadOrder } from "./update-order";
 import { getLead } from "./get";
 import { listLead } from "./list";
 import { createLeadWithTags } from "./create-lead-with-tags";
@@ -14,6 +14,16 @@ import { listActionsByLead } from "./list-actions";
 import { createActionByLead } from "./create-action-by-lead";
 import { updateActionByLead } from "./update-action-by-lead";
 import { listLeadByWhats } from "./list-lead-by-whats";
+import { listLeadWithoutConversation } from "./list-without-conversation";
+import { updateNewOrder } from "./update-new-order";
+import { listLeadsByStatus } from "./get-many";
+import { updateManyStatusLead } from "./update-many-status";
+import { listLeadFiles } from "./list-files";
+import { createLeadFile } from "./create-file";
+import { updateWhatsappTagsLead } from "./update-whatsapp-labels";
+import { addTagsToLead } from "./add-tags";
+import { addHistoricLead } from "./add-historic-lead";
+import { listHistoric } from "./list-historic";
 
 export const leadRoutes = {
   list: listLead,
@@ -25,11 +35,21 @@ export const leadRoutes = {
   delete: deleteLead,
   addToFirst: addLeadFirst,
   addToLast: addLeadLast,
-  updateOrder: updateLeadOrder,
+  // updateOrder: updateLeadOrder,
   updateAction: updateLeadAction,
   archive: archiveLead,
   listActions: listActionsByLead,
   createAction: createActionByLead,
   updateActionByLead: updateActionByLead,
   listLeadByWhats: listLeadByWhats,
+  listLeadWithoutConversation: listLeadWithoutConversation,
+  updateNewOrder: updateNewOrder,
+  listLeadsByStatus,
+  updateManyStatus: updateManyStatusLead,
+  listFiles: listLeadFiles,
+  createFile: createLeadFile,
+  updateWhatsappTags: updateWhatsappTagsLead,
+  addTags: addTagsToLead,
+  addHistoricLead: addHistoricLead,
+  listHistoric: listHistoric,
 };

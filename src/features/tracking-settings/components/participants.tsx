@@ -31,6 +31,7 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSuspenseParticipants } from "@/features/trackings/hooks/use-trackings";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/lib/orpc";
 import {
@@ -49,22 +50,20 @@ export function Participants() {
   const [open, setOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [member, setMember] = useState<{ id: string; name: string } | null>(
-    null
+    null,
   );
   const params = useParams<{ trackingId: string }>();
 
-  const { data, isPending } = useSuspenseQuery(
-    orpc.tracking.listParticipants.queryOptions({
-      input: { trackingId: params.trackingId },
-    })
-  );
+  const { data, isPending } = useSuspenseParticipants({
+    trackingId: params.trackingId,
+  });
 
   const currentUser = data.participants.find(
-    (participant) => participant.userId === session?.user.id
+    (participant) => participant.userId === session?.user.id,
   );
 
   const participantsIds = data.participants.map(
-    (participant) => participant.userId
+    (participant) => participant.userId,
   );
 
   return (
@@ -185,12 +184,12 @@ function AddParticipantDialog({
       onError: () => {
         toast.error("Erro ao adicionar participante");
       },
-    })
+    }),
   );
 
   const members =
     organization?.members.filter(
-      (member) => !participantsIds.includes(member.userId)
+      (member) => !participantsIds.includes(member.userId),
     ) || [];
 
   const filteredMembers = members.filter((member) => {
@@ -335,7 +334,7 @@ function RemoveParticipantDialog({
       onError: () => {
         toast.error("Erro ao remover participante");
       },
-    })
+    }),
   );
 
   const onSubmit = () => {

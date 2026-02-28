@@ -19,8 +19,10 @@ import { useState, useTransition } from "react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { Spinner } from "../ui/spinner";
+import { useRouter } from "next/navigation";
 
 export function AddMemberModal() {
+  const router = useRouter();
   const { isOpen, onClose } = useMemberModal();
   const [email, setEmail] = useState("");
   const [isSendInvitation, setIsSendInvitation] = useTransition();
@@ -37,12 +39,13 @@ export function AddMemberModal() {
           setEmail("");
           onClose();
           toast.success("Membro convidado com sucesso!");
+          router.refresh();
         },
         onError: ({ error }) => {
           console.log("Invite:", error);
           toast.error("Erro ao convidar membro.");
         },
-      }
+      },
     );
   };
 

@@ -27,11 +27,14 @@ export const listTrackings = base
           },
         },
         include: {
-          whatsappInstances: {
+          whatsappInstance: {
             select: {
               id: true,
               instanceId: true,
               status: true,
+              apiKey: true,
+              phoneNumber: true,
+              isBusiness: true,
             },
           },
         },

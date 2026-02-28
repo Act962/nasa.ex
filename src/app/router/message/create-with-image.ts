@@ -34,7 +34,6 @@ export const createMessageWithImage = base
         file: useConstructUrl(input.mediaUrl),
         text: input.body,
         number: input.leadPhone,
-        delay: 2000,
         type: "image",
         readchat: true,
         readmessages: true,
@@ -51,11 +50,42 @@ export const createMessageWithImage = base
           fromMe: true,
           status: MessageStatus.SENT,
           quotedMessageId: input.id,
+          senderName: context.user.name,
         },
-        include: {
+        select: {
+          id: true,
+          messageId: true,
+          body: true,
+          createdAt: true,
+          fromMe: true,
+          status: true,
+          mediaUrl: true,
+          mediaType: true,
+          mediaCaption: true,
+          mimetype: true,
+          fileName: true,
+          quotedMessageId: true,
+          conversationId: true,
+          senderId: true,
+          senderName: true,
           conversation: {
+            select: {
+              id: true,
+              lead: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          quotedMessage: {
             include: {
-              lead: true,
+              conversation: {
+                include: {
+                  lead: true,
+                },
+              },
             },
           },
         },
@@ -80,7 +110,8 @@ export const createMessageWithImage = base
           mimetype: message.mimetype,
           messageId: message.messageId,
           status: message.status,
-          quotedMessageId: message.quotedMessageId,
+          quotedMessage: message.quotedMessage,
+          senderName: message.senderName,
           conversation: {
             lead: {
               id: message.conversation.lead.id,

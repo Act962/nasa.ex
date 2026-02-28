@@ -1,6 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { inngest } from "@/inngest/client";
+import { sendWorkflowExecution } from "@/inngest/utils";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -24,10 +24,10 @@ export const executeWorkflow = base
       });
     }
 
-    await inngest.send({
-      name: "workflow/execute.workflow",
-      data: {
-        workflowId: input.id,
+    await sendWorkflowExecution({
+      workflowId: input.id,
+      initialData: {
+        lead: {},
       },
     });
 

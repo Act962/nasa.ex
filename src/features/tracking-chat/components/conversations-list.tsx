@@ -1,7 +1,7 @@
 "use client";
 
 import { LeadBox } from "./lead-box";
-import { RocketIcon, UserPlusIcon, UserRoundPlusIcon } from "lucide-react";
+import { SettingsIcon, UserPlusIcon, UserRoundPlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useInfinityConversation } from "../hooks/use-conversation";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,48 +15,52 @@ import {
 } from "@/components/ui/empty";
 import { CreateChatDialog } from "./create-chat-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useQueryTracking } from "@/features/tracking-settings/hooks/use-tracking";
 import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
-import Link from "next/link";
 import { pusherClient } from "@/lib/pusher";
 import { orpc } from "@/lib/orpc";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";
-import { cn } from "@/lib/utils";
-import { useParams } from "next/navigation";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { SearchConversations } from "./search-conversaitons";
+import { useDebouncedValue } from "@/hooks/use-debounced";
+import { Instance } from "../types";
+
+import { useParams, useRouter } from "next/navigation";
 
 export function ConversationsList() {
   const { conversationId } = useParams<{ conversationId: string }>();
-  const isOpen = !!conversationId;
   const [open, setOpen] = useState(false);
   const { trackings, isLoadingTrackings } = useQueryTracking();
   const [selectedTracking, setSelectedTracking] = useState<string>("");
+  const [search, setSearch] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+  const debouncedSearch = useDebouncedValue(search, 500);
+  const router = useRouter();
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!isLoadingTrackings && trackings.length > 0 && !selectedTracking) {
-      setSelectedTracking(trackings[0].id);
-    }
-  }, [trackings, isLoadingTrackings, selectedTracking]);
-
-  useInfinityConversation(selectedTracking);
+  useInfinityConversation(
+    selectedTracking,
+    selectedStatus,
+    debouncedSearch,
+    conversationId,
+  );
 
   const infinitiOptions = orpc.conversation.list.infiniteOptions({
     input: (pageParam: string | undefined) => ({
       trackingId: selectedTracking,
+      statusId: selectedStatus,
+      search: debouncedSearch,
       cursor: pageParam,
-      limit: 10,
+      limit: 15,
     }),
-    queryKey: ["conversations.list", selectedTracking],
+    queryKey: [
+      "conversations.list",
+      selectedTracking,
+      selectedStatus,
+      debouncedSearch,
+    ],
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
@@ -86,10 +90,16 @@ export function ConversationsList() {
   };
 
   const currentTracking = trackings.find((t) => t.id === selectedTracking);
-  const whatsappInstance = currentTracking?.whatsappInstances?.[0];
+  const whatsappInstance = currentTracking?.whatsappInstance;
   const noInstance = !whatsappInstance;
   const instanceDisconnected =
     whatsappInstance?.status === WhatsAppInstanceStatus.DISCONNECTED;
+
+  useEffect(() => {
+    if (!isLoadingTrackings && trackings.length > 0 && !selectedTracking) {
+      setSelectedTracking(trackings[0].id);
+    }
+  }, [trackings, isLoadingTrackings, selectedTracking]);
 
   useEffect(() => {
     if (!selectedTracking) return;
@@ -100,144 +110,116 @@ export function ConversationsList() {
     };
   }, [selectedTracking]);
 
-  if (isLoading || isLoadingTrackings) {
-    return (
-      <aside
-        className={cn(
-          "pb-20 lg:pb-0 lg:w-80 lg:block overflow-y-auto border-r border-foreground/10 block w-full",
-          isOpen ? "hidden" : "block w-full",
-        )}
-      >
-        <div className="px-5">
-          <div className="flex justify-between mb-4 pt-4">
-            <div className="text-lg font-medium">Tracking Chat</div>
-          </div>
-          <div className="flex-1 flex flex-col gap-2 min-h-0">
-            {Array.from({ length: 10 }).map((_, index) => (
-              <Skeleton key={index} className="h-16 mt-1" />
-            ))}
-          </div>
-        </div>
-      </aside>
-    );
-  }
+  const instance: Instance | undefined = whatsappInstance
+    ? {
+        token: whatsappInstance.apiKey,
+        isBusiness: whatsappInstance.isBusiness,
+        phoneNumber: whatsappInstance.phoneNumber,
+      }
+    : undefined;
+
+  const pageSettings = selectedTracking
+    ? `/tracking/${selectedTracking}/settings`
+    : "/tracking/";
 
   return (
     <>
-      <aside
-        className={cn(
-          "pb-20 lg:pb-0 lg:w-80 lg:block border-r border-foreground/10 block w-full overflow-hidden",
-          isOpen ? "hidden" : "block w-full",
-        )}
-      >
-        <div className="px-5 flex flex-col h-full">
-          <div className="flex justify-between mb-4 pt-4">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="size-4" />
-              <div className="text-lg font-medium">Tracking Chat</div>
-            </div>
-            {!noInstance && !instanceDisconnected && (
+      <aside className="pb-20 lg:pb-0 lg:flex w-full px-5 flex flex-col h-full overflow-hidden">
+        <div className="flex justify-between mb-4 pt-4 shrink-0">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger className="size-4" />
+            <div className="text-lg font-medium">Tracking Chat</div>
+          </div>
+          <div className="flex items-center ">
+            {!noInstance && !instanceDisconnected && !isLoadingTrackings && (
               <div className="cursor-pointer">
                 <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
                   <UserRoundPlusIcon className="size-4" />
                 </Button>
               </div>
             )}
-          </div>
-          <div className="flex-1 flex flex-col gap-2 min-h-0">
-            <Select
-              onValueChange={(value) => setSelectedTracking(value)}
-              value={selectedTracking}
-              disabled={isLoadingTrackings}
-              defaultValue={trackings[0]?.id}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push(pageSettings)}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {trackings.map((tracking) => (
-                    <SelectItem key={tracking.id} value={tracking.id}>
-                      {tracking.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+              <SettingsIcon className="size-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col gap-2 min-h-0">
+          <SearchConversations
+            search={search}
+            onSearchChange={setSearch}
+            trackingId={selectedTracking || null}
+            onTrackingChange={(id: string | null) =>
+              setSelectedTracking(id ?? "")
+            }
+            statusId={selectedStatus}
+            onStatusChange={setSelectedStatus}
+          />
 
-            {noInstance || instanceDisconnected ? (
-              <div className="flex-1 overflow-hidden">
+          {isLoading || isLoadingTrackings ? (
+            <div className="flex-1 flex flex-col gap-2 overflow-y-auto mt-2 min-h-0">
+              {Array.from({ length: 10 }).map((_, index) => (
+                <Skeleton key={index} className="h-16 mt-1" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              {items.length === 0 && (
                 <Empty>
                   <EmptyHeader>
-                    <EmptyMedia>
-                      <RocketIcon />
+                    <EmptyMedia variant="icon">
+                      <UserPlusIcon />
                     </EmptyMedia>
-                    <EmptyTitle>
-                      {noInstance
-                        ? "Nenhuma instância encontrada"
-                        : "Instância desconectada"}
-                    </EmptyTitle>
+                    <EmptyTitle>Sem conversas</EmptyTitle>
                     <EmptyDescription>
-                      {noInstance
-                        ? "Configure uma instância para iniciar"
-                        : "Conecte a instância para iniciar"}
+                      Nenhuma conversa encontrada
                     </EmptyDescription>
                   </EmptyHeader>
                   <EmptyContent>
-                    <Button variant="default" asChild>
-                      <Link
-                        href={`/tracking/${selectedTracking}/settings?tab=instance`}
-                      >
-                        Configurar Instância
-                      </Link>
+                    <Button variant="default" onClick={() => setOpen(true)}>
+                      Adicionar conversa
                     </Button>
                   </EmptyContent>
                 </Empty>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col overflow-hidden">
-                {items.length === 0 && (
-                  <Empty>
-                    <EmptyHeader>
-                      <EmptyMedia variant="icon">
-                        <UserPlusIcon />
-                      </EmptyMedia>
-                      <EmptyTitle>Sem conversas</EmptyTitle>
-                      <EmptyDescription>
-                        Nenhuma conversa encontrada
-                      </EmptyDescription>
-                    </EmptyHeader>
-                    <EmptyContent>
-                      <Button variant="default" onClick={() => setOpen(true)}>
-                        Adicionar conversa
-                      </Button>
-                    </EmptyContent>
-                  </Empty>
+              )}
+              <div
+                ref={scrollRef}
+                onScroll={handleScroll}
+                className="overflow-y-auto flex flex-col gap-2 flex-1 pb-4 scroll-cols-tracking min-h-0"
+              >
+                {items.map((item) => (
+                  <LeadBox
+                    instance={instance}
+                    key={item.id}
+                    item={item}
+                    unreadCount={(item as any).unreadCount}
+                    lastMessage={{
+                      body: item.lastMessage?.body,
+                      createdAt: item.lastMessage?.createdAt,
+                      mimetype: (item.lastMessage as any)?.mimetype,
+                      fileName: (item.lastMessage as any)?.fileName,
+                    }}
+                  />
+                ))}
+                {isFetchingNextPage && (
+                  <div className="flex justify-center py-4">
+                    <Spinner className="size-4" />
+                  </div>
                 )}
-                <div
-                  ref={scrollRef}
-                  onScroll={handleScroll}
-                  className="overflow-y-auto flex flex-col gap-2 flex-1 pb-4 scroll-cols-tracking"
-                >
-                  {items.map((item) => (
-                    <LeadBox
-                      key={item.id}
-                      item={item}
-                      lastMessageText={item.lastMessage?.body}
-                    />
-                  ))}
-                  {isFetchingNextPage && (
-                    <div className="flex justify-center py-4">
-                      <Spinner className="size-4" />
-                    </div>
-                  )}
-                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </aside>
-      <CreateChatDialog isOpen={open} onOpenChange={setOpen} />
+      <CreateChatDialog
+        trackingId={selectedTracking}
+        token={whatsappInstance?.apiKey!}
+        isOpen={open}
+        onOpenChange={setOpen}
+      />
     </>
   );
 }

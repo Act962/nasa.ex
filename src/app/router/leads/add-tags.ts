@@ -3,6 +3,8 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { requireOrgMiddleware } from "../../middlewares/org";
+import { LeadAction } from "@/generated/prisma/enums";
+import { recordLeadHistory } from "./utils/history";
 
 export const addTagsToLead = base
   .use(requiredAuthMiddleware)
@@ -15,11 +17,9 @@ export const addTagsToLead = base
     z.object({
       leadId: z.string(),
       tagIds: z.array(z.string()).min(1),
-    })
+    }),
   )
-  .handler(async ({ input, context, errors }) => {
-    const { org } = context;
-
+  .handler(async ({ input, errors, context }) => {
     const lead = await prisma.lead.findUnique({
       where: { id: input.leadId },
     });
@@ -28,12 +28,24 @@ export const addTagsToLead = base
       throw errors.UNAUTHORIZED;
     }
 
-    const result = await prisma.leadTag.createMany({
-      data: input.tagIds.map((tagId) => ({
+    const result = await prisma.$transaction(async (tx) => {
+      const created = await tx.leadTag.createMany({
+        data: input.tagIds.map((tagId) => ({
+          leadId: input.leadId,
+          tagId,
+        })),
+        skipDuplicates: true,
+      });
+
+      await recordLeadHistory({
         leadId: input.leadId,
-        tagId,
-      })),
-      skipDuplicates: true,
+        userId: context.user.id,
+        action: LeadAction.ACTIVE,
+        notes: "Tags adicionadas ao lead",
+        tx,
+      });
+
+      return created;
     });
 
     return {

@@ -1,8 +1,9 @@
 import { cn } from "@/lib/utils";
-import { ImageIcon, Trash2, UploadIcon, XIcon } from "lucide-react";
+import { FileIcon, ImageIcon, Trash2, UploadIcon, XIcon } from "lucide-react";
 import Image from "next/image";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
+import Link from "next/link";
 
 export function RenderEmptyState({ isDragActive }: { isDragActive: boolean }) {
   return (
@@ -62,12 +63,29 @@ export function RenderUploadedState({
         />
       )} */}
 
-      <Image
-        src={previewUrl}
-        alt="Uploaded file"
-        fill
-        className="object-contain p-2"
-      />
+      {fileType === "image" && (
+        <Image
+          src={previewUrl}
+          alt="Uploaded file"
+          fill
+          className="object-contain p-2"
+        />
+      )}
+
+      {fileType === "outros" && (
+        <div className="flex flex-col items-center justify-center gap-2 text-center">
+          <FileIcon className="size-10 text-muted-foreground" />
+          <p className="text-sm font-medium text-foreground">Arquivo enviado</p>
+          <Link
+            href={previewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-primary underline"
+          >
+            Abrir arquivo
+          </Link>
+        </div>
+      )}
 
       <Button
         variant="destructive"

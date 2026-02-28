@@ -10,6 +10,7 @@ import {
 } from "../hooks/use-messages";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { MarkedMessage } from "../types";
+import { authClient } from "@/lib/auth-client";
 
 interface sendFileProps {
   conversationId: string;
@@ -38,27 +39,42 @@ export function SendFile({
   fileName,
   messageSelected,
 }: sendFileProps) {
-  console.log(file);
-  console.log(fileType);
   const [preview, setPreview] = useState<string | null>(null);
+  const { data: session } = authClient.useSession();
+
+  async function onCloseMessageSelected() {
+    onClose();
+    const response = await fetch("/api/s3/delete", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        key: file,
+      }),
+    });
+  }
 
   const mutation = useMutationImageMessage({
     conversationId,
     lead,
     quotedMessageId: messageSelected?.messageId,
+    messageSelected,
   });
   const mutationFile = useMutationFileMessage({
     conversationId,
     lead,
     quotedMessageId: messageSelected?.messageId,
+    messageSelected,
   });
 
   const handleSend = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const messageBody = `*${session?.user.name}*\n${formData.get("message") as string}`;
     if (fileType === "image") {
       mutation.mutate({
-        body: formData.get("message") as string,
+        body: messageBody,
         mediaUrl: file,
         conversationId,
         leadPhone,
@@ -68,7 +84,7 @@ export function SendFile({
       });
     } else {
       mutationFile.mutate({
-        body: formData.get("message") as string,
+        body: messageBody,
         mediaUrl: file,
         fileName: fileName || "document",
         mimetype: `application/${fileType}`,
@@ -92,7 +108,12 @@ export function SendFile({
       className="w-full flex flex-col absolute bottom-0 top-0 z-50  h-full bg-accent p-4 gap-10"
     >
       <div className="w-full flex justify-between items-center">
-        <Button type="button" variant="ghost" size="icon" onClick={onClose}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onCloseMessageSelected}
+        >
           <XIcon className="size-6 cursor-pointer" />
         </Button>
         <Button type="button" variant="ghost" size="icon" onClick={onClose}>

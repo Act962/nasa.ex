@@ -1,6 +1,6 @@
 import { SidebarInset } from "@/components/ui/sidebar";
 import { UserInfo } from "./_components/user-info";
-import { HeaderTracking } from "../_components/header-tracking";
+import { HeaderTracking } from "../../../../features/leads/components/header-tracking";
 import { TabsList } from "./_components/tabs-list";
 
 export default function Layout({ children }: { children: React.ReactNode }) {

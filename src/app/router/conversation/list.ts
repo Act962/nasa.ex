@@ -1,14 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import z from "zod";
-import { Conversation, Lead } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
-import { Message } from "@/generated/prisma/client";
-
-interface ConversationWithLead extends Conversation {
-  lead: Lead;
-  lastMessage: Message;
-}
 
 export const listConversation = base
   .use(requiredAuthMiddleware)
@@ -20,26 +13,44 @@ export const listConversation = base
   .input(
     z.object({
       trackingId: z.string(),
+      statusId: z.string().nullable(),
+      search: z.string().nullable(),
       limit: z.number().min(1).max(100).optional(),
       cursor: z.string().optional(),
     }),
   )
-  .output(
-    z.object({
-      items: z.array(z.custom<ConversationWithLead>()),
-      nextCursor: z.string().optional(),
-    }),
-  )
+
   .handler(async ({ input, context, errors }) => {
     try {
       const limit = input.limit ?? 30;
       const conversations = await prisma.conversation.findMany({
         where: {
           trackingId: input.trackingId,
+          ...(input.statusId && {
+            lead: {
+              statusId: input.statusId,
+            },
+          }),
+          ...(input.search && {
+            lead: {
+              name: {
+                contains: input.search,
+                mode: "insensitive",
+              },
+            },
+          }),
         },
         include: {
           messages: true,
-          lead: true,
+          lead: {
+            include: {
+              leadTags: {
+                include: {
+                  tag: true,
+                },
+              },
+            },
+          },
         },
         ...(input.cursor
           ? {
@@ -48,7 +59,7 @@ export const listConversation = base
             }
           : {}),
         take: limit,
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        orderBy: [{ lastMessageAt: "desc" }, { id: "desc" }],
       });
 
       if (!conversations) {
@@ -61,6 +72,8 @@ export const listConversation = base
           (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
         ),
         lastMessage: conversation.messages[0],
+        unreadCount: conversation.messages.filter((m) => !m.fromMe && !m.seen)
+          .length,
       }));
 
       const nextCursor =

@@ -13,7 +13,6 @@ import {
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
-
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -29,11 +28,14 @@ export function DeletarLeadModal() {
     orpc.leads.archive.mutationOptions({
       onSuccess: ({ lead }) => {
         queryClient.invalidateQueries({
-          queryKey: orpc.status.list.queryKey({
+          queryKey: orpc.status.getMany.queryKey({
             input: {
               trackingId: lead.trackingId,
             },
           }),
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["leads.listLeadsByStatus", lead.trackingId, lead.statusId],
         });
         toast.success("Lead deletado!");
         onClose();
@@ -41,7 +43,7 @@ export function DeletarLeadModal() {
       onError: () => {
         toast.error("Erro ao deletar lead!");
       },
-    })
+    }),
   );
 
   function onDelete() {

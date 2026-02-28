@@ -52,8 +52,8 @@ export const BaseTriggerNode = memo(
     const connectionInProgress = useConnection(selector);
     const isConnected = useStore((state) =>
       state.edges.some(
-        (edge) => edge.source === id && edge.sourceHandle === "source-1"
-      )
+        (edge) => edge.source === id && edge.sourceHandle === "source-1",
+      ),
     );
 
     const shouldShowButton = !connectionInProgress && !isConnected;
@@ -66,7 +66,7 @@ export const BaseTriggerNode = memo(
 
       setEdges((currentEdges) => {
         const updateEdges = currentEdges.filter(
-          (edge) => edge.source !== id && edge.target !== id
+          (edge) => edge.source !== id && edge.target !== id,
         );
         return updateEdges;
       });
@@ -125,7 +125,7 @@ export const BaseTriggerNode = memo(
         </NodeStatusIndicator>
       </WorkflowNode>
     );
-  }
+  },
 );
 
 BaseTriggerNode.displayName = "BaseTriggerNode";

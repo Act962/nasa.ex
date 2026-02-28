@@ -50,7 +50,7 @@ export default function RootLayout({
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${inter.variable} antialiased`}>
         <Providers>
-          <Toaster position="bottom-right" />
+          <Toaster position="bottom-left" />
           {children}
         </Providers>
       </body>

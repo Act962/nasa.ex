@@ -24,10 +24,70 @@ export function useTag() {
       onError: () => {
         toast.error("Erro ao criar tag, tente novamente");
       },
-    })
+    }),
   );
 
   return {
     createTag: createTagMutation,
   };
 }
+
+export const useCreateTag = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.tags.createTag.mutationOptions({
+      onMutate: async (data) => {
+        const previousData = queryClient.getQueryData([
+          "tags.list",
+          data.trackingId,
+        ]);
+
+        queryClient.setQueryData(["tags.list", data.trackingId], (old: any) => {
+          if (!old) return undefined;
+
+          return [...old, data];
+        });
+
+        return { previousData };
+      },
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.tags.listTags.queryKey({
+            input: {
+              query: {
+                trackingId: data.trackingId ?? "",
+              },
+            },
+          }),
+        });
+        toast.success("Tag criada com sucesso!");
+      },
+      onError: () => {
+        toast.error("Erro ao criar tag, tente novamente");
+      },
+    }),
+  );
+};
+
+export const useSyncWhatsappTagsMutation = (trackingId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.tags.syncWhatsappTags.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.tags.listTags.queryKey({
+            input: {
+              query: {
+                trackingId: trackingId,
+              },
+            },
+          }),
+        });
+        toast.success("Tags sincronizadas com sucesso!");
+      },
+      onError: () => {
+        toast.error("Erro ao sincronizar tags, tente novamente");
+      },
+    }),
+  );
+};

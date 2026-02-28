@@ -38,6 +38,11 @@ export const useConnectIntegrationStatus = (trackingId: string) => {
             input: { trackingId },
           }),
         });
+        queryClient.invalidateQueries({
+          queryKey: orpc.conversation.list.queryKey({
+            input: { trackingId: trackingId, search: null, statusId: null },
+          }),
+        });
       },
       onError: () => {
         toast.error("Erro ao conectar integração!");
@@ -73,7 +78,7 @@ export const useQueryInstances = (trackingId: string) => {
     }),
   );
 
-  return { instance: data, instanceLoading: isLoading };
+  return { instance: data ?? null, instanceLoading: isLoading };
 };
 
 export const useDeleteIntegration = ({

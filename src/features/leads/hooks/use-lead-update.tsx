@@ -1,23 +1,29 @@
 import { orpc } from "@/lib/orpc";
-import { getQueryClient } from "@/lib/query/hydration";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-export function useMutationLeadUpdate(leadId: string) {
-  const queryClient = getQueryClient();
+export function useMutationLeadUpdate(leadId: string, trackingId: string) {
+  const queryClient = useQueryClient();
 
   return useMutation(
     orpc.leads.update.mutationOptions({
       onSuccess: () => {
-        toast.success(`Lead atualizado com sucesso`);
-        queryClient.invalidateQueries(
-          orpc.leads.get.queryOptions({
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.get.queryKey({
             input: { id: leadId },
           }),
-        );
+        });
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.list.queryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["conversations.list", trackingId],
+        });
       },
       onError: () => {
-        toast.error(`Erro ao atualizar lead`);
+        toast.error(`Erro ao atualizar lead`, {
+          position: "bottom-right",
+        });
       },
     }),
   );

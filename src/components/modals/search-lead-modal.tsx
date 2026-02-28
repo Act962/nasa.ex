@@ -7,13 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "../ui/input-group";
-import { Search, UserSearch, X } from "lucide-react";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { UserSearch } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -26,7 +21,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "../ui/pagination";
-import { useDebouncedValue } from "@/hooks/use-debouced";
+import { useDebouncedValue } from "@/hooks/use-debounced";
 import { Skeleton } from "../ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -37,6 +32,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "../ui/empty";
+import {
+  useQueryTrackings,
+  useQueryStatus,
+} from "@/features/trackings/hooks/use-trackings";
+import { SearchConversations } from "@/features/tracking-chat/components/search-conversaitons";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -48,10 +48,34 @@ interface SearchLeadModalProps {
 export function SearchLeadModal({ open, onOpenChange }: SearchLeadModalProps) {
   const router = useRouter();
   const params = useParams<{ trackingId: string }>();
+  const { trackings } = useQueryTrackings();
 
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedTrackingId, setSelectedTrackingId] = useState<string | null>(
+    params.trackingId || null,
+  );
+  const [selectedStatusId, setSelectedStatusId] = useState<string | null>(null);
+
+  const { status: statuses } = useQueryStatus({
+    trackingId: selectedTrackingId ?? "",
+  });
+
   const debouncedSearch = useDebouncedValue(search, 200);
+
+  const handleTrackingSelect = (id: string | null) => {
+    setSelectedTrackingId((prev) => {
+      const next = prev === id ? null : id;
+      if (next !== prev) setSelectedStatusId(null);
+      return next;
+    });
+    setCurrentPage(1);
+  };
+
+  const handleStatusSelect = (id: string | null) => {
+    setSelectedStatusId((prev) => (prev === id ? null : id));
+    setCurrentPage(1);
+  };
 
   const handleOnLead = ({ id }: { id: string }) => {
     router.push(`/contatos/${id}`);
@@ -68,12 +92,13 @@ export function SearchLeadModal({ open, onOpenChange }: SearchLeadModalProps) {
     orpc.leads.search.queryOptions({
       input: {
         search: debouncedSearch,
-        trackingId: params.trackingId,
+        trackingId: selectedTrackingId || undefined,
+        statusId: selectedStatusId || undefined,
         limit: ITEMS_PER_PAGE,
         page: currentPage,
       },
       enabled: open,
-    })
+    }),
   );
 
   // Gera números de página visíveis de forma inteligente e responsiva
@@ -151,25 +176,17 @@ export function SearchLeadModal({ open, onOpenChange }: SearchLeadModalProps) {
         <DialogHeader className="sr-only">
           <DialogTitle>Buscar Lead</DialogTitle>
         </DialogHeader>
-        <InputGroup className="w-full min-w-full">
-          <InputGroupInput
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Buscar leads..."
-          />
-          <InputGroupAddon>
-            <Search />
-          </InputGroupAddon>
-          {search && (
-            <InputGroupAddon
-              align={"inline-end"}
-              onClick={() => setSearch("")}
-              className="cursor-pointer"
-            >
-              <X className="size-4" />
-            </InputGroupAddon>
-          )}
-        </InputGroup>
+
+        <SearchConversations
+          onSearchChange={handleSearchChange}
+          onStatusChange={handleStatusSelect}
+          onTrackingChange={handleTrackingSelect}
+          search={search}
+          statusId={selectedStatusId}
+          trackingId={selectedTrackingId}
+          align="end"
+        />
+
         <div className="flex items-center justify-between">
           <span className="text-sm md:text-base">Leads encontrados</span>
           {!isLoading && data && (
@@ -274,7 +291,7 @@ export function SearchLeadModal({ open, onOpenChange }: SearchLeadModalProps) {
                         {pageNum}
                       </PaginationLink>
                     </PaginationItem>
-                  )
+                  ),
                 )}
 
                 <PaginationItem>

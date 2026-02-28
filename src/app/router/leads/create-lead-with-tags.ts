@@ -2,6 +2,9 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { Decimal } from "@prisma/client/runtime/client";
+import { LeadAction } from "@/generated/prisma/enums";
+import { recordLeadHistory } from "./utils/history";
 
 export const createLeadWithTags = base
   .use(requiredAuthMiddleware)
@@ -16,7 +19,7 @@ export const createLeadWithTags = base
       responsibleId: z.string().optional(),
       position: z.enum(["first", "last"]).default("last"),
       tagIds: z.array(z.string()).optional(),
-    })
+    }),
   )
   .handler(async ({ input, errors, context }) => {
     try {
@@ -32,11 +35,14 @@ export const createLeadWithTags = base
         });
 
         if (existingLead) {
-          throw errors.BAD_REQUEST;
+          throw errors.BAD_REQUEST({
+            message: "Lead já existe",
+            cause: "LEAD_ALREADY_EXISTS",
+          });
         }
 
         // Determinar ordem baseado na posição
-        let newOrder: number;
+        let newOrder: Decimal;
 
         if (input.position === "first") {
           // Incrementar todos os outros
@@ -47,7 +53,7 @@ export const createLeadWithTags = base
             },
             data: { order: { increment: 1 } },
           });
-          newOrder = 0;
+          newOrder = new Decimal(0);
         } else {
           // Buscar último
           const lastLead = await tx.lead.findFirst({
@@ -58,7 +64,9 @@ export const createLeadWithTags = base
             orderBy: { order: "desc" },
             select: { order: true },
           });
-          newOrder = lastLead ? lastLead.order + 1 : 0;
+          newOrder = lastLead
+            ? new Decimal(lastLead.order).plus(1)
+            : new Decimal(0);
         }
 
         const responsibleId = input.responsibleId || context.user.id;
@@ -87,6 +95,14 @@ export const createLeadWithTags = base
             skipDuplicates: true,
           });
         }
+
+        await recordLeadHistory({
+          leadId: lead.id,
+          userId: context.user.id,
+          action: LeadAction.ACTIVE,
+          notes: "Lead criado",
+          tx,
+        });
 
         return { lead };
       });

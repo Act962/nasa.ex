@@ -1,0 +1,26 @@
+"use client";
+
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { LeadDetails } from "./lead-details";
+import { orpc } from "@/lib/orpc";
+import { useParams } from "next/navigation";
+import { LeadInfo } from "./lead-info";
+
+export function LeadContainer() {
+  const params = useParams<{ leadId: string }>();
+
+  const { data } = useSuspenseQuery(
+    orpc.leads.get.queryOptions({
+      input: {
+        id: params.leadId,
+      },
+    }),
+  );
+
+  return (
+    <div className="flex h-screen min-h-full overflow-hidden">
+      <LeadInfo initialData={data} className="hidden sm:block shrink-0" />
+      <LeadDetails initialData={data} />
+    </div>
+  );
+}
