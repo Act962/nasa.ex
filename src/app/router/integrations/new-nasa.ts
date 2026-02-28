@@ -13,7 +13,7 @@ const bubbleApiResponseSchema = z.object({
     }),
     trackings: z.array(z.any()),
     status: z.array(z.any()),
-    leads: z.array(z.any()),
+    leads: z.array(z.any()).optional(),
     tags: z.array(z.any()),
   }),
 });
@@ -43,6 +43,12 @@ const mapColor = (color: string): string => {
       return "#ef4444";
     case "Amarelo ocre":
       return "#d1a110";
+    case "Rosa":
+      return "#ec4899";
+    case "Lilás":
+      return "#a855f7";
+    case "Roxo":
+      return "#7c3aed";
     default:
       return "#1447e6";
   }
@@ -77,7 +83,7 @@ export const newNasaIntegration = base
 
     // 1. Fetch data from Bubble API
     const response = await fetch(
-      "https://nasago.bubbleapps.io/version-test/api/1.1/wf/integration-total",
+      "https://nasago.bubbleapps.io/api/1.1/wf/integration-total",
       {
         method: "POST",
         headers: {
@@ -97,9 +103,88 @@ export const newNasaIntegration = base
       company,
       trackings,
       status: statuses,
-      leads,
       tags: bubbleTags,
     } = result.response;
+
+    // 1.1 Fetch leads from Paginated API
+    let leads: any[] = [];
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const leadsRes = await fetch(
+        "https://nasago.bubbleapps.io/api/1.1/wf/integration-total-leads",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, page }),
+        },
+      );
+
+      if (!leadsRes.ok) {
+        if (page === 1) {
+          throw new Error(
+            `Erro ao buscar leads da API (Página ${page}): ${leadsRes.statusText}`,
+          );
+        }
+        break;
+      }
+
+      const leadsJson = await leadsRes.json();
+      const pageLeads = leadsJson.response?.leads;
+
+      if (Array.isArray(pageLeads) && pageLeads.length > 0) {
+        leads = [...leads, ...pageLeads];
+        page++;
+      } else {
+        hasMore = false;
+      }
+
+      if (page > 500) break; // Safety limit
+    }
+
+    // 1.2 Fetch messages for leads with conversations
+    const messagesByConversation = new Map<string, any[]>();
+    for (const lead of leads) {
+      if (lead.conversation && !messagesByConversation.has(lead.conversation)) {
+        let conversationMessages: any[] = [];
+        let mPage = 0;
+        let mHasMore = true;
+
+        while (mHasMore) {
+          const mRes = await fetch(
+            "https://nasago.bubbleapps.io/api/1.1/wf/integration-total-messages-of-conversations/",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                conversation: lead.conversation,
+                page: mPage,
+              }),
+            },
+          );
+
+          if (!mRes.ok) break;
+
+          const mJson = await mRes.json();
+          const pageMsgs = mJson.response?.messages;
+
+          if (Array.isArray(pageMsgs) && pageMsgs.length > 0) {
+            conversationMessages = [...conversationMessages, ...pageMsgs];
+            mPage++;
+          } else {
+            mHasMore = false;
+          }
+
+          if (mPage > 100) break; // Safety limit per conversation
+        }
+        messagesByConversation.set(lead.conversation, conversationMessages);
+      }
+    }
 
     // 2. Perform database operations in a transaction
     await prisma.$transaction(async (tx) => {
@@ -279,8 +364,6 @@ export const newNasaIntegration = base
           continue;
         }
 
-        console.log({ phone: lead.phone, trackingId: lead.tracking });
-
         const existingByPhone = await tx.lead.findUnique({
           where: {
             phone_trackingId: {
@@ -351,6 +434,52 @@ export const newNasaIntegration = base
                   `Falha ao vincular tag ${tagId} ao lead ${leadRecord.id}`,
                 ),
               );
+          }
+        }
+
+        // 2.5 Upsert Conversation and Messages if lead has a conversation linked
+        if (
+          lead.conversation &&
+          messagesByConversation.has(lead.conversation)
+        ) {
+          const convId = lead.conversation;
+          await tx.conversation.upsert({
+            where: { id: convId },
+            update: {
+              isActive: true,
+              trackingId: lead.tracking,
+            },
+            create: {
+              id: convId,
+              leadId: leadRecord.id,
+              trackingId: lead.tracking,
+              remoteJid: `${lead.phone}@s.whatsapp.net`,
+              isActive: true,
+            },
+          });
+
+          const messages = messagesByConversation.get(convId) || [];
+          for (const msg of messages) {
+            if (!msg.message) continue;
+            await tx.message.upsert({
+              where: { messageId: msg._id },
+              update: {
+                body: msg.message,
+                fromMe: msg.fromMe ?? false,
+                createdAt: msg["Created Date"]
+                  ? new Date(msg["Created Date"])
+                  : new Date(),
+              },
+              create: {
+                messageId: msg._id,
+                body: msg.message,
+                fromMe: msg.fromMe ?? false,
+                conversationId: convId,
+                createdAt: msg["Created Date"]
+                  ? new Date(msg["Created Date"])
+                  : new Date(),
+              },
+            });
           }
         }
       }
