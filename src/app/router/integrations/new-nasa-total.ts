@@ -147,6 +147,7 @@ export const newNasaIntegration = base
       if (page > 500) break; // Safety limit
     }
 
+    /*
     // 1.2 Fetch messages for leads with conversations
     const messagesByConversation = new Map<string, any[]>();
     for (const lead of leads) {
@@ -174,6 +175,7 @@ export const newNasaIntegration = base
         }
       }
     }
+    */
 
     // 2. Perform database operations in a transaction
     await prisma.$transaction(
@@ -432,6 +434,7 @@ export const newNasaIntegration = base
             }
           }
 
+          /*
           // 2.5 Upsert Conversation and Messages if lead has a conversation linked
           if (
             lead.conversation &&
@@ -477,6 +480,7 @@ export const newNasaIntegration = base
               });
             }
           }
+          */
         }
       },
       {
