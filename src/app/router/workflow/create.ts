@@ -10,10 +10,22 @@ export const createWorkflow = base
     z.object({
       name: z.string(),
       description: z.string().optional(),
-      trackingId: z.cuid(),
+      trackingId: z.string(),
     }),
   )
-  .handler(async ({ context, input }) => {
+  .handler(async ({ context, input, errors }) => {
+    const tracking = await prisma.tracking.findUnique({
+      where: {
+        id: input.trackingId,
+      },
+    });
+
+    if (!tracking) {
+      throw errors.BAD_REQUEST({
+        message: "Tracking não encontrado",
+      });
+    }
+
     const workflow = await prisma.workflow.create({
       data: {
         name: input.name,
