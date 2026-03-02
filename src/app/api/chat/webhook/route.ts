@@ -121,6 +121,11 @@ export async function POST(request: NextRequest) {
           },
           include: {
             conversation: true,
+            leadTags: {
+              include: {
+                tag: true,
+              },
+            },
           },
         });
 
