@@ -43,7 +43,7 @@ export const getTagByLead = base
       });
     }
 
-    const tags = lead.leadTags.map((leadTag) => leadTag.tag) || [];
+    const tags = lead.leadTags.map((leadTag) => leadTag.tag);
 
     return {
       leadId: lead.id,

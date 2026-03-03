@@ -162,7 +162,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
         </LeadItemContainer>
         <LeadItemContainer className="items-baseline">
           <Tag className="size-3" />
-          <ListLeadTags leadId={data.id} tags={data.leadTags} />
+          <ListLeadTags leadId={data.id} />
         </LeadItemContainer>
       </div>
       <Separator />
@@ -187,7 +187,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
         </div>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Avatar className="size-4 border-border border">
+            <Avatar className="size-4">
               <AvatarImage
                 src={data.responsible?.image || "/user-placeholder.png"}
                 alt="photo user"
@@ -220,11 +220,8 @@ function LeadItemContainer({ className, ...props }: LeadItemContainerProps) {
   );
 }
 
-function ListLeadTags({ leadId, tags }: { leadId: string; tags: any[] }) {
-  const { tags: leadTags } = useQueryTagByLead(
-    leadId,
-    tags.map((t) => t.tag),
-  );
+function ListLeadTags({ leadId }: { leadId: string }) {
+  const { tags: leadTags } = useQueryTagByLead(leadId);
 
   return (
     <div className="flex flex-wrap gap-1">

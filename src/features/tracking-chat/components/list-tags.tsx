@@ -37,11 +37,8 @@ interface listTagsProps {
   trackingId: string;
 }
 
-export function ListTags({ leadId, trackingId, tags }: listTagsProps) {
-  const { tags: leadTags } = useQueryTagByLead(
-    leadId,
-    tags?.map((t) => t.tag),
-  );
+export function ListTags({ leadId, trackingId }: listTagsProps) {
+  const { tags: leadTags } = useQueryTagByLead(leadId);
 
   return (
     <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
@@ -90,8 +87,6 @@ function TagBadge({
   textColor: string;
   leadId: string;
 }) {
-  const { mutate: removeTag } = useRemoveTagFromLeadOptimistic(leadId);
-
   return (
     <Tooltip>
       <TooltipTrigger asChild>
