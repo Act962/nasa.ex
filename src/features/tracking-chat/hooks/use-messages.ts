@@ -101,6 +101,7 @@ export function useMutationTextMessage({
   messageSelected,
 }: UseMutationTextMessageProps) {
   const queryClient = useQueryClient();
+  const { data: session } = authClient.useSession();
 
   return useMutation(
     orpc.message.create.mutationOptions({
@@ -123,6 +124,7 @@ export function useMutationTextMessage({
           createdAt: new Date(),
           status: MessageStatus.SENT,
           fromMe: true,
+          senderName: session?.user.name,
           mediaUrl: data.mediaUrl ?? null,
           conversation: {
             lead: {

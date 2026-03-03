@@ -99,7 +99,7 @@ export function MessageBox({
               <div
                 className={cn(
                   "text-sm w-fit overflow-hidden space-y-2 rounded-md px-1.5",
-                  isOwn ? "bg-foreground/10" : "bg-accent-foreground/10",
+                  isOwn ? "bg-foreground/5" : "bg-accent-foreground/20",
                   isFile ? "bg-transparent px-0" : "",
                 )}
               >

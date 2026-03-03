@@ -73,7 +73,7 @@ export function SignupForm({
         {
           email: data.email,
           password: data.password,
-          name: data.name,
+          name: data.name.trim(),
           callbackURL: callbackUrl ? callbackUrl : "/tracking",
         },
         {
