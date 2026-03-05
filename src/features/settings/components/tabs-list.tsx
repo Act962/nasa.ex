@@ -1,6 +1,6 @@
 "use client";
 
-import { SettingsIcon, UsersIcon } from "lucide-react";
+import { Building2Icon, SettingsIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -9,6 +9,11 @@ const tabsLink = [
     label: "Geral",
     href: "",
     icon: SettingsIcon,
+  },
+  {
+    label: "Empresa",
+    href: "/company",
+    icon: Building2Icon,
   },
   {
     label: "Membros",
