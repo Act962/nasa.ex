@@ -27,12 +27,14 @@ export function useQueryLeadsWithoutConversation(trackingId: string) {
   return { customers: data?.customers, isLoading };
 }
 
-export const useQueryTagByLead = (leadId: string) => {
-  const { data, isLoading } = useQuery(
-    orpc.tags.getTagByLead.queryOptions({
+export const useQueryTagByLead = (leadId: string, initialTags?: any[]) => {
+  const { data, isLoading } = useQuery({
+    ...orpc.tags.getTagByLead.queryOptions({
       input: { leadId },
     }),
-  );
+    initialData: initialTags ? { leadId, tags: initialTags } : undefined,
+    staleTime: 1000 * 60 * 5, // 5 minutos
+  });
   return {
     tags: data?.tags || [],
     isLoading,

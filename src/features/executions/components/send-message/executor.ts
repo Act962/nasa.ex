@@ -8,6 +8,7 @@ import { sendImageMessage } from "./message/send-image";
 import { sendDocumentMessage } from "./message/send-document";
 import { sendMessageChannel } from "@/inngest/channels/send-message";
 import { normalizePhone } from "@/utils/format-phone";
+import { countries } from "@/types/some";
 
 type SendMessageNodeData = {
   action?: SendMessageFormValues;
@@ -20,6 +21,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
   step,
   publish,
 }) => {
+  console.log("Contexto", context);
   const result = await step.run("send-message", async () => {
     const lead = context.lead as LeadContext;
     const realTime = context.realTime as boolean;
@@ -85,10 +87,14 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
       }
 
       const typeMessage = data.action?.payload.type;
-      const phone =
-        data.action?.target.sendMode === "CUSTOM"
-          ? normalizePhone(data.action.target.phone)
-          : lead.phone;
+      const target = data.action?.target;
+      let phone = lead.phone;
+
+      if (target?.sendMode === "CUSTOM") {
+        const country = countries.find((c) => c.code === target.code);
+        const ddi = country?.ddi.replace(/\D/g, "") || "";
+        phone = ddi + normalizePhone(target.phone);
+      }
 
       switch (typeMessage) {
         case "TEXT":

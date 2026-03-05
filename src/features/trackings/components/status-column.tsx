@@ -58,6 +58,7 @@ export function StatusColumn({
   };
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver>(null);
 
   const queryInput = useMemo(
     () => ({
@@ -91,19 +92,31 @@ export function StatusColumn({
   useEffect(() => {
     if (!scrollRef.current || isOverlay) return;
 
-    const observer = new IntersectionObserver(
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    observerRef.current = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasNextPage) {
+        const entry = entries[0];
+
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
           fetchNextPage();
         }
       },
-      { threshold: 0.5 },
+      { threshold: 0.1 },
     );
 
-    observer.observe(scrollRef.current);
+    if (scrollRef.current) {
+      observerRef.current.observe(scrollRef.current);
+    }
 
-    return () => observer.disconnect();
-  }, [hasNextPage, fetchNextPage, isOverlay]);
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [hasNextPage, fetchNextPage, isOverlay, isFetchingNextPage]);
 
   useEffect(() => {
     if (isOverlay) return;
@@ -155,19 +168,8 @@ export function StatusColumn({
                 {isFetchingNextPage && <Spinner className="size-4" />}
               </div>
             )}
-
-            {/* {leads.length === 0 && !isLoading && (
-              <div className="flex flex-col items-center justify-center py-10 opacity-20 select-none grayscale">
-                <div className="p-3 rounded-full bg-muted mb-2">
-                  <User className="size-8" />
-                </div>
-                <p className="text-xs font-medium">Nenhum lead</p>
-              </div>
-            )} */}
           </ol>
         </ScrollArea>
-
-        {/* <LeadForm statusId={status.id} /> */}
       </div>
     </li>
   );
