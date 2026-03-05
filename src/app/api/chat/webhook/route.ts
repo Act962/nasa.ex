@@ -31,13 +31,6 @@ export async function POST(request: NextRequest) {
 
       const phone = json.chat.phone.replace(/\D/g, "");
 
-      const status = await prisma.status.findFirst({
-        where: { trackingId },
-        select: {
-          id: true,
-        },
-      });
-
       const tracking = await prisma.tracking.findUnique({
         where: { id: trackingId },
         select: {
@@ -49,13 +42,6 @@ export async function POST(request: NextRequest) {
       if (!tracking) {
         return NextResponse.json(
           { error: "Tracking context not found" },
-          { status: 400 },
-        );
-      }
-
-      if (!status) {
-        return NextResponse.json(
-          { error: "Status context not found" },
           { status: 400 },
         );
       }
@@ -107,6 +93,35 @@ export async function POST(request: NextRequest) {
         } catch (error) {
           console.error("Error fetching or uploading profile image:", error);
         }
+
+        const status = await prisma.status.findFirst({
+          where: { trackingId },
+          select: {
+            id: true,
+          },
+          orderBy: {
+            order: "asc",
+          },
+        });
+
+        const firstLead = await prisma.lead.findFirst({
+          where: { statusId: status?.id },
+          select: {
+            order: true,
+          },
+          orderBy: {
+            order: "asc",
+          },
+        });
+        console.log(firstLead);
+
+        if (!status) {
+          return NextResponse.json(
+            { error: "Status context not found" },
+            { status: 400 },
+          );
+        }
+
         lead = await prisma.lead.create({
           data: {
             statusId: status.id,
@@ -115,7 +130,7 @@ export async function POST(request: NextRequest) {
             trackingId,
             source: LeadSource.WHATSAPP,
             profile: key,
-            order: 0,
+            order: Number(firstLead?.order) - 1,
             conversation: {
               create: {
                 remoteJid,

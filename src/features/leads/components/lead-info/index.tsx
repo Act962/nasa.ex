@@ -9,15 +9,7 @@ import { useConstructUrl } from "@/hooks/use-construct-url";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { LeadFull } from "@/types/lead";
-import {
-  ChevronLeft,
-  Circle,
-  ClipboardClockIcon,
-  Mail,
-  MoreHorizontal,
-  Phone,
-  Plus,
-} from "lucide-react";
+import { ChevronLeft, Circle, ClipboardClockIcon, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ActionButton } from "./action-button";
@@ -34,6 +26,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { SelectResponsableField } from "./select-responsable-field";
+import { FieldsStatus } from "./fields/field-status";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
   initialData: LeadFull;
@@ -212,7 +206,12 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                   loading={isPending}
                 />
                 <InfoItem label="Fluxo / Tracking" value={lead.tracking.name} />
-                <InfoItem label="Status Atual" value={lead.status.name} />
+                <FieldsStatus
+                  value={lead.status.name}
+                  trackingId={lead.trackingId}
+                  displayName="Status atual"
+                  statusId={lead.status.id}
+                />
                 <FieldTags
                   leadId={lead.id}
                   tags={lead.tags}

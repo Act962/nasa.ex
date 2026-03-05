@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { EditingInputComponentProps } from "./input-edit-field";
 import { useListTrackingParticipants } from "@/features/users/use-list-tracking-participants";
+import { useState } from "react";
 
 interface EditingDropdownComponentProps extends Omit<
   EditingInputComponentProps,
@@ -19,12 +20,13 @@ interface EditingDropdownComponentProps extends Omit<
   trackingId: string;
 }
 
-export const SelectEditField = ({
+export const SelectResponsableField = ({
   value,
   onSubmit,
   trackingId,
 }: EditingDropdownComponentProps) => {
   const { data } = useListTrackingParticipants(trackingId);
+  const [isOpen, setIsOpen] = useState(false);
 
   const userSelectable = data ? data.participants.flatMap((p) => p.user) : [];
 
@@ -34,14 +36,24 @@ export const SelectEditField = ({
       onSubmit(selectedUser.id);
     }
   };
-
-  const labelSelect =
+  const selectedUser =
     userSelectable.find((user) => user.id === value)?.name ?? "Selecione";
 
+  const hasOnlySelectedOption =
+    userSelectable.length === 1 && userSelectable[0].id === value;
+
   return (
-    <Select value={value} onValueChange={handleChange}>
+    <Select
+      value={value}
+      onValueChange={handleChange}
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (hasOnlySelectedOption) return;
+        setIsOpen(open);
+      }}
+    >
       <SelectTrigger className="w-45" size="sm" autoFocus>
-        <SelectValue>{labelSelect}</SelectValue>
+        <SelectValue>{selectedUser}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>

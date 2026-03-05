@@ -4,7 +4,8 @@ import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { InfoItem } from "../Info-item";
-import { SelectEditField } from "../select-edit-field";
+import { SelectStatusField } from "../select-status-field";
+import { SelectResponsableField } from "../select-responsable-field";
 
 interface FieldResponsibleProps {
   label: string;
@@ -60,7 +61,7 @@ export function FieldResponsible({
       loading={loading}
       editable
       editComponent={
-        <SelectEditField
+        <SelectResponsableField
           trackingId={trackingId}
           value={localValue}
           onSubmit={handleSubmit}
