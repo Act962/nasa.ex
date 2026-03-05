@@ -50,6 +50,7 @@ import {
   useRemoveTagOptimistic,
 } from "../hooks/use-leads";
 import { cn } from "@/lib/utils";
+import { CheckIaLead } from "@/features/tracking-chat/components/check-ia-lead";
 
 const TEMP_COLOR = {
   COLD: "#3498db",
@@ -68,7 +69,6 @@ const TEMP_TEXT = {
 export const LeadItem = memo(({ data }: { data: Lead }) => {
   const router = useRouter();
   const { toggleLead, isSelected } = useLeadStore();
-  const { trackingId } = useParams<{ trackingId: string }>();
   const selected = isSelected(data.id);
 
   const {
@@ -135,23 +135,31 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           </span>
         </div>
 
-        <div className="flex items-center gap-2 ">
+        <div
+          className="flex items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
             onClick={(e) => {
-              e.stopPropagation();
               router.push(`/contatos/${data.id}`);
             }}
           >
             <ArrowUpRight className="size-3.5" />
           </button>
+          <CheckIaLead
+            size={"xs"}
+            active={data.isActive}
+            leadId={data.id}
+            trackingId={data.trackingId}
+          />
         </div>
       </div>
       <Separator />
       <div className="flex flex-col px-4 gap-1 text-xs text-muted-foreground py-2">
         <LeadItemContainer>
           <Mail className="size-3" />
-          <span className="truncate max-w-[160px]">
+          <span className="truncate max-w-40">
             {data.email || "Email@example.com"}
           </span>
         </LeadItemContainer>

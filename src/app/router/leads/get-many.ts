@@ -84,6 +84,7 @@ export const listLeadsByStatus = base
       skip: cursor ? 1 : 0,
       select: {
         id: true,
+        isActive: true,
         name: true,
         email: true,
         phone: true,

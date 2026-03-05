@@ -9,8 +9,7 @@ import Link from "next/link";
 import { SummerizeConversation } from "./summerize-conversation";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
-import { Switch } from "@/components/ui/switch";
+import { CheckIaLead } from "./check-ia-lead";
 
 interface HeaderProps {
   name: string;
@@ -33,15 +32,6 @@ export function Header({
   const router = useRouter();
   const profileUrl = useConstructUrl(profile || "");
   const [active, setActive] = useState(initialActive);
-  const mutationLeadUpdate = useMutationLeadUpdate(leadId, trackingId);
-
-  const onActiveChange = (checked: boolean) => {
-    setActive(checked);
-    mutationLeadUpdate.mutate({
-      id: leadId,
-      active: checked,
-    });
-  };
 
   const onCloseChat = () => {
     router.push(`/tracking-chat`);
@@ -74,10 +64,11 @@ export function Header({
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Switch
-          name="active"
-          checked={active}
-          onCheckedChange={onActiveChange}
+        <CheckIaLead
+          size={"default"}
+          active={active}
+          leadId={leadId}
+          trackingId={trackingId}
         />
         <SummerizeConversation conversationId={conversationId} />
         <Button variant="ghost" size="icon-sm" onClick={onCloseChat}>

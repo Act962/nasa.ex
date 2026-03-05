@@ -3,6 +3,8 @@ import { Temperature } from "@/generated/prisma/enums";
 export type Lead = {
   order: string;
   id: string;
+  trackingId: string;
+  isActive: boolean;
   email: string | null;
   name: string;
   profile: string | null;
