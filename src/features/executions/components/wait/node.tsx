@@ -47,15 +47,13 @@ export const WaitNode = memo((props: NodeProps<WaitNodeType>) => {
   };
 
   const nodeData = props.data;
-  // const description = nodeData?.endpoint
-  //   ? `${nodeData.method || "GET"}: ${nodeData.endpoint}`
-  //   : "Not configured";
-  const description =
-    nodeData?.action?.type === "MINUTES"
-      ? `${nodeData.action.minutes} minutos`
-      : nodeData?.action?.type === "HOURS"
-        ? `${nodeData.action.hours} horas`
-        : `${nodeData.action?.days} dias`;
+  // TODO: Implementar descrição
+  // const description =
+  //   nodeData?.action?.type === "MINUTES"
+  //     ? `${nodeData.action.minutes} minutos`
+  //     : nodeData?.action?.type === "HOURS"
+  //       ? `${nodeData.action.hours} horas`
+  //       : `${nodeData.action?.days} dias`;
 
   return (
     <>
@@ -71,7 +69,7 @@ export const WaitNode = memo((props: NodeProps<WaitNodeType>) => {
         icon={TimerIcon}
         name="Esperar"
         status={nodeStatus}
-        description={description}
+        description={"Esperar até"}
         onSettings={handleOpenSettings}
         onDoubleClick={handleOpenSettings}
       />

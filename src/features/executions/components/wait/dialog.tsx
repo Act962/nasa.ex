@@ -37,15 +37,31 @@ const hoursSchema = z.object({
 
 const daysSchema = z.object({
   type: z.literal("DAYS"),
-  days: z.number(),
-  // hours: z.number(),
-  // minutes: z.number(),
+  days: z.number().min(1, "Mínimo 1 dia"),
+  hours: z.number().min(0).max(23),
+  minutes: z.number().min(0).max(59),
+});
+
+const weeksSchema = z.object({
+  type: z.literal("WEEKS"),
+  weeks: z.number().min(1, "Mínimo 1 semana"),
+  hours: z.number().min(0).max(23),
+  minutes: z.number().min(0).max(59),
+});
+
+const monthsSchema = z.object({
+  type: z.literal("MONTHS"),
+  months: z.number().min(1, "Mínimo 1 mês"),
+  hours: z.number().min(0).max(23),
+  minutes: z.number().min(0).max(59),
 });
 
 const formSchema = z.discriminatedUnion("type", [
   minutesSchema,
   hoursSchema,
   daysSchema,
+  weeksSchema,
+  monthsSchema,
 ]);
 
 export type WaitFormValues = z.infer<typeof formSchema>;
@@ -65,10 +81,13 @@ export const WaitDialog = ({
 }: Props) => {
   const form = useForm<WaitFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: defaultValues ?? {
-      type: "MINUTES",
-      minutes: 5,
-    },
+    defaultValues:
+      defaultValues ??
+      ({
+        type: "MINUTES",
+        minutes: 5,
+        hours: 0,
+      } as any),
   });
 
   const timerType = form.watch("type");
@@ -101,6 +120,8 @@ export const WaitDialog = ({
                       <SelectItem value="MINUTES">Minutos</SelectItem>
                       <SelectItem value="HOURS">Horas</SelectItem>
                       <SelectItem value="DAYS">Dias</SelectItem>
+                      <SelectItem value="WEEKS">Semanas</SelectItem>
+                      <SelectItem value="MONTHS">Meses</SelectItem>
                     </SelectContent>
                   </Select>
                 </Field>
@@ -172,29 +193,195 @@ export const WaitDialog = ({
                     </Field>
                   )}
                 />
-
-                {/* <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <Controller
                     control={form.control}
                     name="hours"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <Field>
                         <FieldLabel>Horas</FieldLabel>
-                        <Input {...field} type="number" />
+                        <Input
+                          type="number"
+                          value={field.value}
+                          min={0}
+                          max={23}
+                          placeholder="00"
+                          onChange={(e) =>
+                            field.onChange(Number(e.target.value))
+                          }
+                        />
+                        {fieldState.error?.message && (
+                          <FieldError>{fieldState.error.message}</FieldError>
+                        )}
                       </Field>
                     )}
                   />
                   <Controller
                     control={form.control}
                     name="minutes"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <Field>
                         <FieldLabel>Minutos</FieldLabel>
-                        <Input {...field} type="number" />
+                        <Input
+                          type="number"
+                          value={field.value}
+                          min={0}
+                          max={59}
+                          placeholder="00"
+                          onChange={(e) =>
+                            field.onChange(Number(e.target.value))
+                          }
+                        />
+                        {fieldState.error?.message && (
+                          <FieldError>{fieldState.error.message}</FieldError>
+                        )}
                       </Field>
                     )}
                   />
-                </div> */}
+                </div>
+              </>
+            )}
+
+            {timerType === "WEEKS" && (
+              <>
+                <Controller
+                  control={form.control}
+                  name="weeks"
+                  render={({ field, fieldState }) => (
+                    <Field>
+                      <FieldLabel>Semanas</FieldLabel>
+                      <Input
+                        type="number"
+                        value={field.value}
+                        min={1}
+                        max={52}
+                        placeholder="3 semanas"
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                      {fieldState.error?.message && (
+                        <FieldError>{fieldState.error.message}</FieldError>
+                      )}
+                    </Field>
+                  )}
+                />
+                <div className="flex items-center gap-2">
+                  <Controller
+                    control={form.control}
+                    name="hours"
+                    render={({ field, fieldState }) => (
+                      <Field>
+                        <FieldLabel>Horas</FieldLabel>
+                        <Input
+                          type="number"
+                          value={field.value}
+                          min={0}
+                          max={23}
+                          placeholder="00"
+                          onChange={(e) =>
+                            field.onChange(Number(e.target.value))
+                          }
+                        />
+                        {fieldState.error?.message && (
+                          <FieldError>{fieldState.error.message}</FieldError>
+                        )}
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    control={form.control}
+                    name="minutes"
+                    render={({ field, fieldState }) => (
+                      <Field>
+                        <FieldLabel>Minutos</FieldLabel>
+                        <Input
+                          type="number"
+                          value={field.value}
+                          min={0}
+                          max={59}
+                          placeholder="00"
+                          onChange={(e) =>
+                            field.onChange(Number(e.target.value))
+                          }
+                        />
+                        {fieldState.error?.message && (
+                          <FieldError>{fieldState.error.message}</FieldError>
+                        )}
+                      </Field>
+                    )}
+                  />
+                </div>
+              </>
+            )}
+
+            {timerType === "MONTHS" && (
+              <>
+                <Controller
+                  control={form.control}
+                  name="months"
+                  render={({ field, fieldState }) => (
+                    <Field>
+                      <FieldLabel>Meses</FieldLabel>
+                      <Input
+                        type="number"
+                        value={field.value}
+                        min={1}
+                        max={12}
+                        placeholder="3 meses"
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                      {fieldState.error?.message && (
+                        <FieldError>{fieldState.error.message}</FieldError>
+                      )}
+                    </Field>
+                  )}
+                />
+
+                <div className="flex items-center gap-2">
+                  <Controller
+                    control={form.control}
+                    name="hours"
+                    render={({ field, fieldState }) => (
+                      <Field>
+                        <FieldLabel>Horas</FieldLabel>
+                        <Input
+                          type="number"
+                          value={field.value}
+                          min={0}
+                          max={23}
+                          placeholder="00"
+                          onChange={(e) =>
+                            field.onChange(Number(e.target.value))
+                          }
+                        />
+                        {fieldState.error?.message && (
+                          <FieldError>{fieldState.error.message}</FieldError>
+                        )}
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    control={form.control}
+                    name="minutes"
+                    render={({ field, fieldState }) => (
+                      <Field>
+                        <FieldLabel>Minutos</FieldLabel>
+                        <Input
+                          type="number"
+                          value={field.value}
+                          min={0}
+                          max={59}
+                          placeholder="00"
+                          onChange={(e) =>
+                            field.onChange(Number(e.target.value))
+                          }
+                        />
+                        {fieldState.error?.message && (
+                          <FieldError>{fieldState.error.message}</FieldError>
+                        )}
+                      </Field>
+                    )}
+                  />
+                </div>
               </>
             )}
           </FieldGroup>
