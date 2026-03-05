@@ -110,7 +110,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
         selected ? "border-primary/50" : "border-transparent hover:border-muted"
       }`}
     >
-      <div className="flex items-center justify-between px-3">
+      <div className="flex items-center justify-between px-3 py-2">
         <div className="flex flex-row items-center gap-2">
           <button
             className="touch-none group-hover:flex active:cursor-grabbing cursor-grab hidden"
@@ -135,19 +135,16 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            className="size-7 opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
-            asChild
+        <div className="flex items-center gap-2 ">
+          <button
+            className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
             onClick={(e) => {
               e.stopPropagation();
               router.push(`/contatos/${data.id}`);
             }}
           >
             <ArrowUpRight className="size-3.5" />
-          </Button>
+          </button>
         </div>
       </div>
       <Separator />
@@ -164,7 +161,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
         </LeadItemContainer>
         <LeadItemContainer className="items-baseline">
           <Tag className="size-3" />
-          <ListLeadTags leadId={data.id} />
+          <ListLeadTags leadId={data.id} tags={data.leadTags} />
         </LeadItemContainer>
       </div>
       <Separator />
@@ -222,8 +219,11 @@ function LeadItemContainer({ className, ...props }: LeadItemContainerProps) {
   );
 }
 
-function ListLeadTags({ leadId }: { leadId: string }) {
-  const { tags: leadTags } = useQueryTagByLead(leadId);
+function ListLeadTags({ leadId, tags }: { leadId: string; tags: any[] }) {
+  const { tags: leadTags } = useQueryTagByLead(
+    leadId,
+    tags.map((t) => t.tag),
+  );
 
   return (
     <div className="flex flex-wrap gap-1">

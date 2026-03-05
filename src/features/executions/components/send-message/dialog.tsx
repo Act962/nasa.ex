@@ -21,7 +21,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   InputGroup,
@@ -53,11 +60,13 @@ import { z } from "zod";
 
 const leadTargetSchema = z.object({
   sendMode: z.literal("LEAD"),
+  code: z.string().optional(),
 });
 
 const customTargetSchema = z.object({
   sendMode: z.literal("CUSTOM"),
-  phone: z.string(),
+  code: z.string().optional(),
+  phone: z.string().min(1, "Telefone inválido"),
 });
 
 const targetSchema = z.discriminatedUnion("sendMode", [
@@ -113,13 +122,14 @@ export const SendMessageDialog = ({
   defaultValues,
 }: Props) => {
   const { trackingId } = useParams<{ trackingId: string }>();
-  const [countrySelected, setCountrySelected] = useState(countries[0]);
+
   const form = useForm<SendMessageFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: defaultValues ?? {
       target: {
         sendMode: "LEAD",
-      },
+        code: countries[0].code,
+      } as SendMessageFormValues["target"],
       payload: {
         type: "TEXT",
         message: "",
@@ -130,6 +140,9 @@ export const SendMessageDialog = ({
   const { instance, instanceLoading } = useQueryInstances(trackingId);
 
   const sendMode = form.watch("target.sendMode");
+  const selectedCode = form.watch("target.code" as any);
+  const countrySelected =
+    countries.find((c) => c.code === selectedCode) || countries[0];
   const messageType = form.watch("payload.type");
 
   const handleSubmit = (values: SendMessageFormValues) => {
@@ -196,6 +209,10 @@ export const SendMessageDialog = ({
                       onCheckedChange={(checked) => {
                         if (checked) {
                           field.onChange("CUSTOM");
+                          form.setValue(
+                            "target.code" as any,
+                            countries[0].code,
+                          );
                         } else {
                           field.onChange("LEAD");
                         }
@@ -211,59 +228,71 @@ export const SendMessageDialog = ({
                 <Controller
                   control={form.control}
                   name="target.phone"
-                  render={({ field }) => (
+                  render={({ field, fieldState }) => (
                     <Field>
-                      <FieldLabel>Número</FieldLabel>
-                      <InputGroup>
-                        <InputGroupAddon>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button
-                                className={cn(
-                                  "text-xs flex items-center hover:bg-accent transition-all px-1 rounded-sm py-1 gap-x-1",
-                                  countrySelected && "bg-accent",
-                                )}
+                      <FieldContent>
+                        <FieldLabel>Número</FieldLabel>
+                        <InputGroup>
+                          <InputGroupAddon>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  className={cn(
+                                    "text-xs flex items-center hover:bg-accent transition-all px-1 rounded-sm py-1 gap-x-1",
+                                    countrySelected && "bg-accent",
+                                  )}
+                                >
+                                  <img
+                                    src={countrySelected.flag}
+                                    alt={countrySelected.country}
+                                    className="size-4 rounded-sm"
+                                  />
+                                  <span>{countrySelected.ddi}</span>
+                                  <ChevronDownIcon className="size-3" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent
+                                align="end"
+                                className="[--radius:0.95rem] max-h-30 overflow-y-auto"
                               >
-                                <img
-                                  src={countrySelected.flag}
-                                  alt={countrySelected.country}
-                                  className="size-4 rounded-sm"
-                                />
-                                <span>{countrySelected.ddi}</span>
-                                <ChevronDownIcon className="size-3" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent
-                              align="end"
-                              className="[--radius:0.95rem] max-h-30 overflow-y-auto"
-                            >
-                              <DropdownMenuGroup>
-                                {countries.map((country) => (
-                                  <DropdownMenuItem
-                                    key={country.code}
-                                    onClick={() => setCountrySelected(country)}
-                                    className="cursor-pointer"
-                                  >
-                                    <img
-                                      src={country.flag}
-                                      alt={country.country}
-                                      className="size-5 rounded-sm"
-                                    />
-                                    <span>{country.ddi}</span>
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuGroup>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </InputGroupAddon>
-                        <InputGroupInput
-                          {...field}
-                          onChange={(e) => {
-                            field.onChange(phoneMask(e.target.value));
-                          }}
-                          placeholder="(00) 0000-0000"
-                        />
-                      </InputGroup>
+                                <DropdownMenuGroup>
+                                  {countries.map((country) => (
+                                    <DropdownMenuItem
+                                      key={country.code}
+                                      onClick={() =>
+                                        form.setValue(
+                                          "target.code" as any,
+                                          country.code,
+                                        )
+                                      }
+                                      className="cursor-pointer"
+                                    >
+                                      <img
+                                        src={country.flag}
+                                        alt={country.country}
+                                        className="size-5 rounded-sm"
+                                      />
+                                      <span>{country.ddi}</span>
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuGroup>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </InputGroupAddon>
+                          <InputGroupInput
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(phoneMask(e.target.value));
+                            }}
+                            placeholder="(00) 0000-0000"
+                          />
+                        </InputGroup>
+                        <FieldError errors={[fieldState.error]} />
+                        <FieldDescription>
+                          O número deve estar na base de leads para que a
+                          mensagem seja enviada.
+                        </FieldDescription>
+                      </FieldContent>
                     </Field>
                   )}
                 />
@@ -273,10 +302,11 @@ export const SendMessageDialog = ({
                 <Controller
                   control={form.control}
                   name="payload.message"
-                  render={({ field }) => (
+                  render={({ field, fieldState }) => (
                     <Field>
                       <FieldLabel>Mensagem</FieldLabel>
                       <Textarea {...field} placeholder="Digite a mensagem" />
+                      <FieldError errors={[fieldState.error]} />
                     </Field>
                   )}
                 />
@@ -287,13 +317,14 @@ export const SendMessageDialog = ({
                   <Controller
                     control={form.control}
                     name="payload.imageUrl"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <Field>
                         <FieldLabel>Imagem</FieldLabel>
                         <Uploader
                           value={field.value}
                           onConfirm={field.onChange}
                         />
+                        <FieldError errors={[fieldState.error]} />
                       </Field>
                     )}
                   />
@@ -315,7 +346,7 @@ export const SendMessageDialog = ({
                   <Controller
                     control={form.control}
                     name="payload.documentUrl"
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                       <Field>
                         <FieldLabel>Documento</FieldLabel>
                         <Uploader
@@ -323,6 +354,7 @@ export const SendMessageDialog = ({
                           onConfirm={field.onChange}
                           fileTypeAccepted="outros"
                         />
+                        <FieldError errors={[fieldState.error]} />
                       </Field>
                     )}
                   />

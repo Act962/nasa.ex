@@ -37,8 +37,11 @@ interface listTagsProps {
   trackingId: string;
 }
 
-export function ListTags({ leadId, trackingId }: listTagsProps) {
-  const { tags: leadTags } = useQueryTagByLead(leadId);
+export function ListTags({ leadId, trackingId, tags }: listTagsProps) {
+  const { tags: leadTags } = useQueryTagByLead(
+    leadId,
+    tags?.map((lt) => lt.tag),
+  );
 
   return (
     <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>

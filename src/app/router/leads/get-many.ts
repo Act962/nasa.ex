@@ -74,9 +74,7 @@ export const listLeadsByStatus = base
             },
           }),
       },
-      orderBy: {
-        order: "asc",
-      },
+      orderBy: [{ order: "asc" }, { id: "asc" }],
       take: limit + 1,
       cursor: cursor
         ? {
