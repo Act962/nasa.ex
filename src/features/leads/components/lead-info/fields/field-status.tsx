@@ -65,7 +65,7 @@ export function FieldsStatus({
           />
         ) : (
           <div className="flex justify-between items-center w-full">
-            {value}
+            <span className={"text-sm font-medium truncate"}>{value}</span>
             <Button
               variant={"ghost"}
               size={"icon-sm"}
