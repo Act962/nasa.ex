@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { requireOrgMiddleware } from "../../middlewares/org";
 import { recordLeadHistory } from "./utils/history";
+import { sendWorkflowExecution } from "@/inngest/utils";
 
 export const addTagsToLead = base
   .use(requiredAuthMiddleware)
@@ -44,8 +45,42 @@ export const addTagsToLead = base
         tx,
       });
 
-      return created;
+      const workflows = await tx.workflow.findMany({
+        where: {
+          trackingId: lead.trackingId,
+          nodes: {
+            some: {
+              type: "LEAD_TAGGED",
+              data: {
+                path: ["action", "tagIds"],
+                array_contains: input.tagIds,
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      return {
+        count: created.count,
+        workflows,
+      };
     });
+
+    if (result.workflows.length > 0) {
+      await Promise.all(
+        result.workflows.map((workflow) =>
+          sendWorkflowExecution({
+            workflowId: workflow.id,
+            initialData: {
+              lead,
+            },
+          }),
+        ),
+      );
+    }
 
     return {
       count: result.count,

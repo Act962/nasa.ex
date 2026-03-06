@@ -7,6 +7,7 @@ import { TagNode } from "@/features/executions/components/tag/node";
 import { TemperatureNode } from "@/features/executions/components/temperature/node";
 import { WaitNode } from "@/features/executions/components/wait/node";
 import { WinLossNode } from "@/features/executions/components/win_loss/node";
+import { LeadTaggedTriggerNode } from "@/features/triggers/components/lead-tagged/node";
 import { ManualTriggerNode } from "@/features/triggers/components/manual-trigger/node";
 import { MoveLeadStatusTriggerNode } from "@/features/triggers/components/move-lead-status/node";
 import { NewLeadTriggerNode } from "@/features/triggers/components/new-lead-trigger/node";
@@ -26,6 +27,7 @@ export const nodeComponents = {
   [NodeType.TEMPERATURE]: TemperatureNode,
   [NodeType.RESPONSIBLE]: ResponsibleNode,
   [NodeType.MOVE_LEAD_STATUS]: MoveLeadStatusTriggerNode,
+  [NodeType.LEAD_TAGGED]: LeadTaggedTriggerNode,
 } as const satisfies NodeTypes;
 
 export type RegisteredNodeTypes = keyof typeof nodeComponents;

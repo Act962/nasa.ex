@@ -22,8 +22,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { InputGroup, InputGroupTextarea } from "@/components/ui/input-group";
 import {
   Popover,
   PopoverContent,
@@ -40,7 +38,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useQueryTags } from "@/features/tags/hooks/use-tags";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Loader2 } from "lucide-react";
+import { Check } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
