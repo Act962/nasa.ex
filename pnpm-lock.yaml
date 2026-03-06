@@ -305,6 +305,9 @@ importers:
       streamdown:
         specifier: ^2.3.0
         version: 2.3.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      swr:
+        specifier: ^2.4.1
+        version: 2.4.1(react@19.2.4)
       tailwind-merge:
         specifier: ^3.5.0
         version: 3.5.0
@@ -7298,8 +7301,8 @@ packages:
   svix@1.84.1:
     resolution: {integrity: sha512-K8DPPSZaW/XqXiz1kEyzSHYgmGLnhB43nQCMeKjWGCUpLIpAMMM8kx3rVVOSm6Bo6EHyK1RQLPT4R06skM/MlQ==}
 
-  swr@2.4.0:
-    resolution: {integrity: sha512-sUlC20T8EOt1pHmDiqueUWMmRRX03W7w5YxovWX7VR2KHEPCTMly85x05vpkP5i6Bu4h44ePSMD9Tc+G2MItFw==}
+  swr@2.4.1:
+    resolution: {integrity: sha512-2CC6CiKQtEwaEeNiqWTAw9PGykW8SR5zZX8MZk6TeAvEAnVS7Visz8WzphqgtQ8v2xz/4Q5K+j+SeMaKXeeQIA==}
     peerDependencies:
       react: ^16.11.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -7774,7 +7777,7 @@ snapshots:
       '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
       ai: 6.0.103(zod@4.3.6)
       react: 19.2.4
-      swr: 2.4.0(react@19.2.4)
+      swr: 2.4.1(react@19.2.4)
       throttleit: 2.1.0
     transitivePeerDependencies:
       - zod
@@ -15998,7 +16001,7 @@ snapshots:
       standardwebhooks: 1.0.0
       uuid: 10.0.0
 
-  swr@2.4.0(react@19.2.4):
+  swr@2.4.1(react@19.2.4):
     dependencies:
       dequal: 2.0.3
       react: 19.2.4

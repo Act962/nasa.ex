@@ -68,7 +68,7 @@ const trackingId = "cmm0zu8ib0000f4sliuby0q77";
 const statusId = "cmm108n8q000jf4sl3ul5jdi8";
 const statusId2 = "cmm0zu8ij0002f4sla8lzvw32";
 
-const organizationCrescerId = "";
+const organizationCrescerId = "zi3o8j5Hpat8SqXoQVAWkYuFRz0fiDWJ";
 
 const statusIds = [statusId, statusId2];
 
@@ -498,6 +498,7 @@ async function main() {
               },
               create: {
                 messageId: msg._id,
+                status: "SEEN",
                 body: msg.message,
                 fromMe: msg.fromMe ?? false,
                 conversationId: newConversationId,
@@ -511,7 +512,7 @@ async function main() {
       }
     },
     {
-      timeout: 60000,
+      timeout: 10000000,
     },
   );
   console.log("Seed completed successfully");
