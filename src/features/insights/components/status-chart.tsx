@@ -66,6 +66,8 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
 
   const totalLeads = chartData.reduce((sum, item) => sum + item.count, 0);
 
+  const maxStatusperGraph = 9;
+
   switch (chartType) {
     case "bar":
       return (
@@ -272,10 +274,12 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
             </RadialBar>
-            <ChartLegend
-              content={<ChartLegendContent nameKey="status" />}
-              className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
-            />
+            {chartData && chartData.length <= 9 && (
+              <ChartLegend
+                content={<ChartLegendContent nameKey="status" />}
+                className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
+              />
+            )}
           </RadialBarChart>
         </ChartContainer>
       );

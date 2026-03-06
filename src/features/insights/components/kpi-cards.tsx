@@ -43,7 +43,7 @@ function KPICard({
   };
 
   const iconStyles = {
-    default: "bg-primary/10 text-primary",
+    default: "bg-muted-foreground/10 text-muted-foreground",
     success: "bg-success/20 text-success",
     warning: "bg-warning/20 text-warning-foreground",
     destructive: "bg-destructive/20 text-destructive",
@@ -93,43 +93,43 @@ export function KPICards({ summary }: KPICardsProps) {
       <KPICard
         title="Total de Leads"
         value={summary.totalLeads.toLocaleString("pt-BR")}
-        icon={<Users className="h-4 w-4" />}
+        icon={<Users className="size-4" />}
       />
       <KPICard
         title="Leads Ativos"
         value={summary.activeLeads.toLocaleString("pt-BR")}
-        icon={<Target className="h-4 w-4" />}
+        icon={<Target className="size-4" />}
         variant="warning"
       />
       <KPICard
         title="Leads Ganhos"
         value={summary.wonLeads.toLocaleString("pt-BR")}
-        icon={<Trophy className="h-4 w-4" />}
+        icon={<Trophy className="size-4" />}
         variant="success"
       />
       <KPICard
         title="Leads Perdidos"
         value={summary.lostLeads.toLocaleString("pt-BR")}
-        icon={<XCircle className="h-4 w-4" />}
+        icon={<XCircle className="size-4" />}
         variant="destructive"
       />
       <KPICard
         title="Taxa de Conversão"
         value={`${summary.conversionRate}%`}
-        icon={<Percent className="h-4 w-4" />}
+        icon={<Percent className="size-4" />}
         variant="success"
       />
       <KPICard
         title="Vendas Este Mês"
         value={summary.soldThisMonth.toLocaleString("pt-BR")}
-        icon={<CalendarDays className="h-4 w-4" />}
+        icon={<CalendarDays className="size-4" />}
         trend={summary.monthGrowthRate}
         trendLabel="vs mês anterior"
       />
       <KPICard
         title="Vendas Mês Passado"
         value={summary.soldLastMonth.toLocaleString("pt-BR")}
-        icon={<CalendarDays className="h-4 w-4" />}
+        icon={<CalendarDays className="size-4" />}
       />
       <KPICard
         title="Crescimento Mensal"

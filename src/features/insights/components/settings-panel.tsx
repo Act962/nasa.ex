@@ -93,7 +93,7 @@ export function SettingsPanel({
                     className="flex items-center gap-2"
                   >
                     {settings.visibleSections[section] ? (
-                      <Eye className="h-4 w-4 text-primary" />
+                      <Eye className="h-4 w-4 text-muted-foreground" />
                     ) : (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
                     )}
@@ -154,10 +154,16 @@ export function SettingsPanel({
           <Separator />
 
           {/* Reset Button */}
-          <Button variant="outline" className="w-full mx-4" onClick={onReset}>
-            <RotateCcw className="size-4" />
-            Restaurar Padrões
-          </Button>
+          <div className="px-4">
+            <Button
+              variant="outline"
+              className="w-full flex-1"
+              onClick={onReset}
+            >
+              <RotateCcw className="size-4" />
+              Restaurar Padrões
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
