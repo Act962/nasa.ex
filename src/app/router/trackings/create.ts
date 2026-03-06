@@ -16,13 +16,13 @@ export const createTracking = base
     z.object({
       name: z.string(),
       description: z.string().optional(),
-    })
+    }),
   )
   .output(
     z.object({
       trackingId: z.string(),
       trackingName: z.string(),
-    })
+    }),
   )
   .handler(async ({ input, context, errors }) => {
     const { user, org } = context;
@@ -84,6 +84,14 @@ export const createTracking = base
                 type: "LOSS",
               },
             ],
+          },
+        },
+        aiSettings: {
+          create: {
+            assistantName: "John",
+            prompt: `Você é a assistente de IA da ${input.name}`,
+            finishSentence:
+              "Quando o cliente quiser conversar com um consultou ou atendente humano",
           },
         },
       },

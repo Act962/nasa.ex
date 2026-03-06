@@ -18,7 +18,7 @@ export const updateLeadAction = base
       action: z.enum(["LOSS", "WIN"]),
       reasonId: z.string(),
       observation: z.string().optional(),
-    })
+    }),
   )
   .handler(async ({ input, errors, context }) => {
     try {
@@ -26,6 +26,11 @@ export const updateLeadAction = base
 
       const leadExists = await prisma.lead.findUnique({
         where: { id: input.leadId },
+        select: {
+          id: true,
+          statusId: true,
+          trackingId: true,
+        },
       });
 
       if (!leadExists) {
@@ -61,6 +66,10 @@ export const updateLeadAction = base
           },
         }),
       ]);
+
+      return {
+        lead: leadExists,
+      };
     } catch (error) {
       throw errors.INTERNAL_SERVER_ERROR;
     }

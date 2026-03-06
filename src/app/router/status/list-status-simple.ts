@@ -14,20 +14,7 @@ export const listStatusSimple = base
   .input(
     z.object({
       trackingId: z.string(),
-    })
-  )
-  .output(
-    z.object({
-      status: z.array(
-        z.object({
-          id: z.string(),
-          name: z.string(),
-          color: z.string().nullable(),
-          order: z.number(),
-          trackingId: z.string(),
-        })
-      ),
-    })
+    }),
   )
   .handler(async ({ input }) => {
     const status = await prisma.status.findMany({
@@ -40,6 +27,9 @@ export const listStatusSimple = base
     });
 
     return {
-      status: status,
+      status: status.map((s) => ({
+        ...s,
+        order: s.order.toString(),
+      })),
     };
   });

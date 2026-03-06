@@ -1,8 +1,9 @@
-import { LeadAction, LeadSource } from "@/generated/prisma/enums";
+import { LeadSource } from "@/generated/prisma/enums";
 import { InfiniteData } from "@tanstack/react-query";
 
 export interface MessageBodyProps {
   senderId: string | null;
+  senderName?: string | null;
   messageId: string;
   conversationId: string;
   fromMe: boolean;
@@ -17,37 +18,11 @@ export interface MessageBodyProps {
   fileName: string | null;
   quotedMessageId: string | null;
   conversation: {
-    lead: {
-      trackingId: string;
-      conversationId: string | null;
-      phone: string | null;
-      id: string;
-      createdAt: Date;
-      name: string;
-      isActive: boolean;
-      email: string | null;
-      document: string | null;
-      profile: string | null;
-      description: string | null;
-      statusId: string;
-      responsibleId: string | null;
-      order: number;
-      source: LeadSource;
-      currentAction: LeadAction;
-      updatedAt: Date;
-      closedAt: Date | null;
-    };
-  } & {
-    trackingId: string;
     id: string;
-    createdAt: Date;
-    name: string | null;
-    lastMessageAt: Date;
-    isGroup: boolean;
-    remoteJid: string;
-    profilePicUrl: string | null;
-    isActive: boolean;
-    leadId: string;
+    lead: {
+      id: string;
+      name: string;
+    };
   };
 }
 
@@ -63,6 +38,7 @@ export enum MessageStatus {
 export interface Message {
   id: string;
   messageId: string;
+  senderName?: string | null;
   body: string | null;
   mediaUrl: string | null;
   quotedMessageId?: string | null;
@@ -84,17 +60,27 @@ export interface MarkedMessage {
   id: string;
   body: string | null;
   messageId: string;
+  senderName?: string | null;
   fromMe: boolean;
   quotedMessageId?: string | null;
+  mediaUrl?: string | null;
+  mimetype?: string | null;
+  fileName?: string | null;
   lead: {
     id: string;
     name: string;
   };
 }
 
+export type MessageGroup = {
+  date: string;
+  messages: Message[];
+};
+
 export type MessagePage = {
-  items: Message[];
+  items: MessageGroup[];
   nextCursor?: string;
+  remoteJid?: string;
 };
 
 export interface conversationProps {
@@ -119,3 +105,9 @@ export type ConversationPage = {
 };
 
 export type InfiniteConversations = InfiniteData<ConversationPage>;
+
+export interface Instance {
+  token: string;
+  isBusiness: boolean;
+  phoneNumber: string | null;
+}

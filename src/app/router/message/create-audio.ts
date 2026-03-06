@@ -48,12 +48,9 @@ export const createMessageWithAudio = base
         throw new Error("Falha ao gerar URL presignada");
       }
 
-      console.log("replyId: ", input.replyId, "id: ", input.id);
-
       const response = await sendMedia(input.token, {
         file: useConstructUrl(input.nameAudio),
         number: input.leadPhone,
-        delay: 2000,
         type: "myaudio",
         readchat: true,
         readmessages: true,
@@ -70,19 +67,51 @@ export const createMessageWithAudio = base
           fileName: input.nameAudio,
           status: MessageStatus.SENT,
           quotedMessageId: input.id,
+          senderName: context.user.name,
         },
-        include: {
+        select: {
+          id: true,
+          messageId: true,
+          body: true,
+          createdAt: true,
+          fromMe: true,
+          status: true,
+          mediaUrl: true,
+          mediaType: true,
+          mediaCaption: true,
+          mimetype: true,
+          fileName: true,
+          quotedMessageId: true,
+          conversationId: true,
+          senderId: true,
           conversation: {
+            select: {
+              id: true,
+              lead: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          quotedMessage: {
             include: {
-              lead: true,
+              conversation: {
+                include: {
+                  lead: true,
+                },
+              },
             },
           },
         },
       });
+
       const messageCreated: CreatedMessageProps = {
         ...message,
         currentUserId: context.user.id,
       };
+
       await pusherServer.trigger(
         message.conversationId,
         "message:created",
@@ -90,24 +119,7 @@ export const createMessageWithAudio = base
       );
 
       return {
-        message: {
-          id: message.id,
-          body: message.body,
-          createdAt: message.createdAt,
-          fromMe: true,
-          mediaUrl: message.mediaUrl,
-          mimetype: message.mimetype,
-          fileName: message.fileName,
-          status: message.status,
-          messageId: message.messageId,
-          quotedMessageId: message.quotedMessageId,
-          conversation: {
-            lead: {
-              id: message.conversation.lead.id,
-              name: message.conversation.lead.name,
-            },
-          },
-        },
+        message,
       };
     } catch (e) {
       console.log(e);
