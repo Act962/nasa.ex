@@ -16,7 +16,7 @@ import {
   useUpdateWorkflowName,
 } from "@/features/workflows/hooks/use-workflows";
 import { useAtomValue } from "jotai";
-import { MoreHorizontalIcon, SaveIcon } from "lucide-react";
+import { MoreHorizontalIcon, SaveIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -57,7 +57,15 @@ export const EditorOptions = ({ workflowId }: { workflowId: string }) => {
 
   return (
     <>
-      <DropdownMenu>
+      <Button
+        size="icon-sm"
+        variant="ghost"
+        className="cursor-pointer"
+        onClick={() => setOpen(true)}
+      >
+        <Trash2Icon className="size-4 text-red-500" />
+      </Button>
+      {/* <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="icon">
             <MoreHorizontalIcon className="size-4" />
@@ -72,7 +80,7 @@ export const EditorOptions = ({ workflowId }: { workflowId: string }) => {
             Deletar
           </DropdownMenuItem>
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu> */}
 
       <DeleteWorkflowDialog
         open={open}
@@ -205,8 +213,8 @@ export const EditorHeader = ({ workflowId }: { workflowId: string }) => {
     <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4 bg-background">
       <EditorBreadcrumbs workflowId={workflowId} />
       <div className="flex items-center gap-2">
-        <EditorSaveButton workflowId={workflowId} />
         <EditorOptions workflowId={workflowId} />
+        <EditorSaveButton workflowId={workflowId} />
       </div>
     </div>
   );
