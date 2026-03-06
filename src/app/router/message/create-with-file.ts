@@ -73,6 +73,7 @@ export const createMessageWithFile = base
           quotedMessageId: true,
           conversationId: true,
           senderId: true,
+          senderName: true,
           conversation: {
             select: {
               id: true,
@@ -117,6 +118,7 @@ export const createMessageWithFile = base
           status: message.status,
           messageId: message.messageId,
           quotedMessageId: message.quotedMessageId,
+          senderName: message.senderName,
           conversation: {
             lead: {
               id: message.conversation.lead.id,

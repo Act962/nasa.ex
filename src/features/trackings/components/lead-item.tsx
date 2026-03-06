@@ -130,13 +130,18 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
               {data.name.split(" ")[0][0]}
             </AvatarFallback>
           </Avatar>
-          <span
-            className="font-medium text-xs truncate"
-            {...listeners}
-            {...attributes}
-          >
-            {data.name || "Sem nome"}
-          </span>
+          <Tooltip>
+            <TooltipTrigger>
+              <span
+                className="font-medium text-xs truncate"
+                {...listeners}
+                {...attributes}
+              >
+                {data.name || "Sem nome"}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{data.name || "Sem nome"}</TooltipContent>
+          </Tooltip>
         </div>
 
         <div

@@ -68,7 +68,7 @@ const trackingId = "cmm0zu8ib0000f4sliuby0q77";
 const statusId = "cmm108n8q000jf4sl3ul5jdi8";
 const statusId2 = "cmm0zu8ij0002f4sla8lzvw32";
 
-const organizationCrescerId = "zi3o8j5Hpat8SqXoQVAWkYuFRz0fiDWJ";
+const organizationBaseId = "Lg2BvdA60IRyvjSOvGEzijzErJOAT9yV";
 
 const statusIds = [statusId, statusId2];
 
@@ -184,7 +184,7 @@ async function main() {
       const user = await tx.user.findUnique({
         where: {
           email,
-          members: { some: { organizationId: organizationCrescerId } },
+          members: { some: { organizationId: organizationBaseId } },
         },
         include: {
           members: true,
@@ -198,7 +198,7 @@ async function main() {
       const upsertedStatusIds = new Set(statuses.map((s) => s._id));
 
       const organization = await tx.organization.findUnique({
-        where: { id: organizationCrescerId },
+        where: { id: organizationBaseId },
       });
 
       if (!organization) {

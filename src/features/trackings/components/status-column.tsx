@@ -146,7 +146,7 @@ export function StatusColumn({
         />
 
         <ScrollArea className="flex-1 min-h-0">
-          <ol className="mx-1 px-1 py-2 flex flex-col gap-y-2">
+          <ol className=" mx-1 px-1 py-2 flex flex-col gap-y-2">
             <SortableContext items={leads.map((l) => l.id)}>
               {isLoading && (
                 <div className="flex flex-col gap-y-3">

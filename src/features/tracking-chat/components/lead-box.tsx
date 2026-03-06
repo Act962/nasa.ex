@@ -67,13 +67,13 @@ export function LeadBox({
 
   const handleClick = useCallback(() => {
     router.push(`/tracking-chat/${item.id}`);
-    if (unreadCount && unreadCount > 0 && instance?.token) {
-      markRead.mutate({
-        conversationId: item.id,
-        remoteJid: item.remoteJid,
-        token: instance.token,
-      });
-    }
+    // if (unreadCount && unreadCount > 0 && instance?.token) {
+    //   markRead.mutate({
+    //     conversationId: item.id,
+    //     remoteJid: item.remoteJid,
+    //     token: instance.token,
+    //   });
+    // }
   }, [router, item, unreadCount, instance, markRead]);
 
   const selected = item.id === conversationId;
@@ -88,13 +88,20 @@ export function LeadBox({
         className={`w-full group relative flex items-center space-x-3 p-3 bg-accent-foreground/2 hover:bg-accent-foreground/5 cursor-pointer rounded-lg transition  ${selected ? "bg-accent-foreground/5" : ""}`}
       >
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 overflow-hidden">
             <AvatarLead Lead={item.lead} />
             <div className="focus:outline-none">
-              <div className="flex flex-col justify-between mb-1 gap-x-1 overflow-hidden">
-                <p className="text-sm font-medium line-clamp-2 truncate">
-                  {item.lead.name}
-                </p>
+              <div className="flex flex-col mb-1 max-w-full truncate">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <p className="text-sm font-medium line-clamp-2">
+                      {item.lead.name}
+                    </p>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{item.lead.name}</p>
+                  </TooltipContent>
+                </Tooltip>
                 <p className="text-[10px] font-light text-muted-foreground line-clamp-1">
                   {phoneMaskFull(item.lead.phone)}
                 </p>
@@ -137,11 +144,11 @@ export function LeadBox({
             <ArrowUpRightIcon className="size-4 text-muted-foreground" />
           </div>
           <div className="flex items-center gap-x-1.5 h-full overflow-hidden">
-            {unreadCount && unreadCount >= 1 ? (
+            {/* {unreadCount && unreadCount >= 1 ? (
               <Badge variant={"secondary"} className="text-[9px] h-5">
                 {unreadCount}
               </Badge>
-            ) : null}
+            ) : null} */}
           </div>
           <div className="flex items-center gap-x-2">
             <Tooltip>

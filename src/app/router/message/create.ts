@@ -35,6 +35,8 @@ export const createTextMessage = base
         text: input.body,
         number: input.leadPhone,
         replyid: input.replyId,
+        readmessages: true,
+        readchat: true,
       });
 
       const message = await prisma.message.create({
@@ -63,6 +65,7 @@ export const createTextMessage = base
           quotedMessageId: true,
           conversationId: true,
           senderId: true,
+          senderName: true,
           conversation: {
             select: {
               id: true,
@@ -95,11 +98,6 @@ export const createTextMessage = base
         messageCreated,
       );
 
-      await markReadMessage(input.token, {
-        number: response.chatid,
-        read: true,
-      });
-
       return {
         message: {
           id: message.id,
@@ -110,6 +108,7 @@ export const createTextMessage = base
           mediaUrl: null,
           status: message.status,
           quotedMessage: message.quotedMessage,
+          senderName: message.senderName,
           conversation: {
             lead: {
               id: message.conversation.lead.id,
