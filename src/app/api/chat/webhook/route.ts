@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (lead.isActive && tracking.globalAiActive) {
-          await fetch("https://n8n.nasaex.com/webhook/ai-nasa", {
+          await fetch(process.env.WEBHOOK_AI_AGENT_N8N!, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

@@ -130,7 +130,11 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
               {data.name.split(" ")[0][0]}
             </AvatarFallback>
           </Avatar>
-          <span className="font-medium text-xs truncate">
+          <span
+            className="font-medium text-xs truncate"
+            {...listeners}
+            {...attributes}
+          >
             {data.name || "Sem nome"}
           </span>
         </div>
@@ -173,7 +177,11 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
         </LeadItemContainer>
       </div>
       <Separator />
-      <div className="flex items-center justify-between bg-secondary px-3 py-2">
+      <div
+        className="flex items-center justify-between bg-secondary px-3 py-2"
+        {...listeners}
+        {...attributes}
+      >
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
             {dayjs(data.createdAt).format("DD/MM/YYYY HH:mm")}

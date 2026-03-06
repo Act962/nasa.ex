@@ -199,7 +199,7 @@ export const WaitDialog = ({
                     name="hours"
                     render={({ field, fieldState }) => (
                       <Field>
-                        <FieldLabel>Horas</FieldLabel>
+                        <FieldLabel>Hora</FieldLabel>
                         <Input
                           type="number"
                           value={field.value}
@@ -221,7 +221,7 @@ export const WaitDialog = ({
                     name="minutes"
                     render={({ field, fieldState }) => (
                       <Field>
-                        <FieldLabel>Minutos</FieldLabel>
+                        <FieldLabel>Minuto</FieldLabel>
                         <Input
                           type="number"
                           value={field.value}
@@ -249,7 +249,7 @@ export const WaitDialog = ({
                   name="weeks"
                   render={({ field, fieldState }) => (
                     <Field>
-                      <FieldLabel>Semanas</FieldLabel>
+                      <FieldLabel>Semana</FieldLabel>
                       <Input
                         type="number"
                         value={field.value}
@@ -270,7 +270,7 @@ export const WaitDialog = ({
                     name="hours"
                     render={({ field, fieldState }) => (
                       <Field>
-                        <FieldLabel>Horas</FieldLabel>
+                        <FieldLabel>Hora</FieldLabel>
                         <Input
                           type="number"
                           value={field.value}
@@ -292,7 +292,7 @@ export const WaitDialog = ({
                     name="minutes"
                     render={({ field, fieldState }) => (
                       <Field>
-                        <FieldLabel>Minutos</FieldLabel>
+                        <FieldLabel>Minuto</FieldLabel>
                         <Input
                           type="number"
                           value={field.value}
@@ -342,7 +342,7 @@ export const WaitDialog = ({
                     name="hours"
                     render={({ field, fieldState }) => (
                       <Field>
-                        <FieldLabel>Horas</FieldLabel>
+                        <FieldLabel>Hora</FieldLabel>
                         <Input
                           type="number"
                           value={field.value}
@@ -364,7 +364,7 @@ export const WaitDialog = ({
                     name="minutes"
                     render={({ field, fieldState }) => (
                       <Field>
-                        <FieldLabel>Minutos</FieldLabel>
+                        <FieldLabel>Minuto</FieldLabel>
                         <Input
                           type="number"
                           value={field.value}

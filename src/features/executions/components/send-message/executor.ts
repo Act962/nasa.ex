@@ -26,6 +26,12 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
     const lead = context.lead as LeadContext;
     const realTime = context.realTime as boolean;
 
+    const variables = {
+      "{{name}}": lead.name,
+      "{{email}}": lead.email,
+      "{{phone}}": lead.phone,
+    };
+
     try {
       if (realTime) {
         await publish(
@@ -98,8 +104,14 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
 
       switch (typeMessage) {
         case "TEXT":
+          let message = data.action?.payload.message || "";
+
+          for (const [key, value] of Object.entries(variables)) {
+            message = message.replace(key, value || "");
+          }
+
           await sendTextMessage({
-            body: data.action?.payload.message || "",
+            body: message,
             conversationId: conversation.id,
             leadPhone: phone,
             token: instance.apiKey,
@@ -107,8 +119,14 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
 
           break;
         case "IMAGE":
+          let caption = data.action?.payload.caption || "";
+
+          for (const [key, value] of Object.entries(variables)) {
+            caption = caption.replace(key, value || "");
+          }
+
           await sendImageMessage({
-            body: data.action?.payload.caption || "",
+            body: caption,
             conversationId: conversation.id,
             leadPhone: phone,
             token: instance.apiKey,
@@ -116,8 +134,14 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
           });
           break;
         case "DOCUMENT":
+          let documentCaption = data.action?.payload.caption || "";
+
+          for (const [key, value] of Object.entries(variables)) {
+            documentCaption = documentCaption.replace(key, value || "");
+          }
+
           await sendDocumentMessage({
-            body: data.action?.payload.caption || "",
+            body: documentCaption,
             conversationId: conversation.id,
             leadPhone: phone,
             token: instance.apiKey,
