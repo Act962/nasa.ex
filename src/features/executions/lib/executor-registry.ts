@@ -11,6 +11,7 @@ import { tagExecutor } from "../components/tag/executor";
 import { temperatureExecutor } from "../components/temperature/executor";
 import { responsibleExecutor } from "../components/responsible/executor";
 import { moveLeadStatusTriggerExecutor } from "@/features/triggers/components/move-lead-status/executor";
+import { leadTaggedTriggerExecutor } from "@/features/triggers/components/lead-tagged/executor";
 
 export const executorRegistry: Record<NodeType, NodeExecutor> = {
   [NodeType.INITIAL]: manualTriggerExecutor,
@@ -25,6 +26,7 @@ export const executorRegistry: Record<NodeType, NodeExecutor> = {
   [NodeType.TEMPERATURE]: temperatureExecutor,
   [NodeType.RESPONSIBLE]: responsibleExecutor,
   [NodeType.MOVE_LEAD_STATUS]: moveLeadStatusTriggerExecutor,
+  [NodeType.LEAD_TAGGED]: leadTaggedTriggerExecutor,
 };
 
 export const getExecutor = (type: NodeType): NodeExecutor => {
