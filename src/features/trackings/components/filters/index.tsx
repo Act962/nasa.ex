@@ -1,19 +1,12 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Ellipsis, PlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { TrackingSwitcher } from "./tracking-switcher";
 import { ParticipantsSwitcher } from "./participant-switcher";
 import { Filters } from "./filters";
 import { TagsFilter } from "./tags-filter";
 import { CalendarFilter } from "./calendar-filter";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import AddLeadSheet from "@/features/trackings/components/modal/add-lead-sheet";
 import { useAddLead } from "@/hooks/modal/use-add-lead";
@@ -30,8 +23,6 @@ export function FiltersTracking() {
             <TrackingSwitcher />
             <ParticipantsSwitcher />
             <TagsFilter />
-            {/* <TemperatureFilter /> */}
-            {/* <WinLossFilter /> */}
             <CalendarFilter />
           </div>
           <Filters />
@@ -41,21 +32,6 @@ export function FiltersTracking() {
             <PlusIcon className="size-4" />
             Novo Lead
           </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="icon-sm" variant="ghost">
-                <Ellipsis className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem role="button" asChild>
-                <Link href={`/tracking/${trackingId}/settings`}>
-                  Configurações
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 

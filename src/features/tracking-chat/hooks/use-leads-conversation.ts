@@ -33,7 +33,7 @@ export const useQueryTagByLead = (leadId: string, initialTags?: any[]) => {
       input: { leadId },
     }),
     initialData: initialTags ? { leadId, tags: initialTags } : undefined,
-    staleTime: 1000 * 60 * 5, // 5 minutos
+    staleTime: 1000 * 60 * 30, // 30 minutos
   });
   return {
     tags: data?.tags || [],
