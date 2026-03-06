@@ -506,6 +506,7 @@ enum NodeType {
   MANUAL_TRIGGER
   NEW_LEAD
   MOVE_LEAD_STATUS
+  
 
   // Execuções
   HTTP_REQUEST
