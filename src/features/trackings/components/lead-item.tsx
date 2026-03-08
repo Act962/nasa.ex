@@ -132,13 +132,15 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           </Avatar>
           <Tooltip>
             <TooltipTrigger>
-              <span
-                className="font-medium text-xs truncate"
-                {...listeners}
-                {...attributes}
-              >
-                {data.name || "Sem nome"}
-              </span>
+              <div className="max-w-40 truncate">
+                <span
+                  className="font-medium text-xs truncate"
+                  {...listeners}
+                  {...attributes}
+                >
+                  {data.name || "Sem nome"}
+                </span>
+              </div>
             </TooltipTrigger>
             <TooltipContent>{data.name || "Sem nome"}</TooltipContent>
           </Tooltip>
@@ -232,7 +234,7 @@ function LeadItemContainer({ className, ...props }: LeadItemContainerProps) {
   return (
     <div
       className={cn(
-        "flex flex-row gap-2 items-center min-w-0 truncate",
+        "flex flex-row gap-2 items-center min-w-0 truncate max-w-full",
         className,
       )}
       {...props}
@@ -247,20 +249,24 @@ function ListLeadTags({ leadId, tags }: { leadId: string; tags: any[] }) {
   );
 
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex flex-wrap gap-1 w-full">
       {leadTags && leadTags.length > 0 && (
         <>
           {leadTags.slice(0, 8).map((tag) => (
-            <Badge
-              key={tag.id}
-              className="px-1 py-0 text-[10px] h-4 font-normal"
-              style={{
-                backgroundColor: tag.color || "",
-                color: "white",
-              }}
-            >
-              {tag.name}
-            </Badge>
+            <Tooltip key={tag.id}>
+              <TooltipTrigger asChild>
+                <Badge
+                  className="px-1 py-0 text-[10px] h-4 font-normal max-w-50 inline-block truncate"
+                  style={{
+                    backgroundColor: tag.color || "",
+                    color: "white",
+                  }}
+                >
+                  {tag.name}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>{tag.name}</TooltipContent>
+            </Tooltip>
           ))}
           {leadTags.length > 8 && (
             <Badge
