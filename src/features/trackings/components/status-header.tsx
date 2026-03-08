@@ -28,6 +28,11 @@ import { SketchPicker } from "react-color";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useDeleteStatus } from "../hooks/use-trackings";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface StatusHeaderProps {
   id: string;
@@ -127,15 +132,20 @@ export const StatusHeader = ({
           >
             <Grip className="size-4" />
           </Button>
-          <span
-            style={{
-              backgroundColor: colorSelect,
-              color: getContrastColor(colorSelect),
-            }}
-            className="rounded-sm px-2 "
-          >
-            {data.name}
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                style={{
+                  backgroundColor: colorSelect,
+                  color: getContrastColor(colorSelect),
+                }}
+                className="rounded-sm px-2 truncate"
+              >
+                {data.name}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{data.name}</TooltipContent>
+          </Tooltip>
           <span className="text-xs text-muted-foreground ml-2">
             {data.leads}
           </span>

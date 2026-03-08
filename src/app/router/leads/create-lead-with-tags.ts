@@ -36,7 +36,7 @@ export const createLeadWithTags = base
 
         if (existingLead) {
           throw errors.BAD_REQUEST({
-            message: "Lead já existe",
+            message: "Lead já existente com este contato",
             cause: "LEAD_ALREADY_EXISTS",
           });
         }
@@ -106,7 +106,10 @@ export const createLeadWithTags = base
 
         return { lead };
       });
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code) {
+        throw err;
+      }
       console.error(err);
       throw errors.INTERNAL_SERVER_ERROR;
     }

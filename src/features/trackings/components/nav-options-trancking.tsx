@@ -1,6 +1,12 @@
 "use client";
 
-import { CircleCheckIcon, CircleIcon, RedoDotIcon, X } from "lucide-react";
+import {
+  CircleCheckIcon,
+  CircleIcon,
+  RedoDotIcon,
+  Trash2Icon,
+  X,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 import { Button } from "@/components/ui/button";
@@ -73,6 +79,10 @@ export function NavOptionsTracking() {
         </Badge>
       </div>
       <div className="flex items-center gap-x-2">
+        {/* <Button variant="destructive" size="sm" className="rounded-md">
+          <Trash2Icon className="size-4" />
+          Deletar Lead
+        </Button> */}
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="secondary" size="sm" className="rounded-md">

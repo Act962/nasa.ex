@@ -34,7 +34,7 @@ import { useKanbanStore } from "../lib/kanban-store";
 import { Lead } from "../types";
 import { useLostOrWin } from "@/hooks/use-lost-or-win";
 import { useDeletLead } from "@/hooks/use-delete-lead";
-import { NavOptionsTracking } from "./nav-options";
+import { NavOptionsTracking } from "./nav-options-trancking";
 
 interface BoardContainerProps {
   trackingId: string;

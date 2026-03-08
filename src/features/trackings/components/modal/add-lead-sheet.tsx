@@ -144,7 +144,7 @@ export default function AddLeadSheet({
         onOpenChange(false);
       },
       onError: (error) => {
-        if (error.cause === "LEAD_ALREADY_EXISTS") {
+        if (error.message === "Lead já existente com este contato") {
           toast.error(error.message);
           return;
         }
