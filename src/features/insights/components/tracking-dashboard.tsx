@@ -59,10 +59,12 @@ export function TrackingDashboard({
 }: TrackingDashboardProps) {
   const {
     trackingId,
+    tagIds,
     dateRange,
     settings,
     setTrackingId,
     setDateRange,
+    toggleTagId,
     toggleSection,
     setChartType,
     resetSettings,
@@ -71,13 +73,14 @@ export function TrackingDashboard({
   // Usando Tanstack Query para fetch dos dados
   const { data, isLoading, isValidating, refresh } = useDashboardData({
     trackingId,
+    tagIds,
     dateRange,
   });
 
   const { trackings } = useQueryListTrackings();
 
   const trackingOptions = [
-    { id: "ALL", name: "Todos os Funis" },
+    { id: "ALL", name: "Todos os Trackings" },
     ...trackings.map((t) => ({ id: t.id, name: t.name })),
   ];
 
@@ -92,9 +95,11 @@ export function TrackingDashboard({
 
       <DashboardFilters
         trackingId={trackingId || "ALL"}
+        tagIds={tagIds}
         dateRange={dateRange}
         trackingOptions={trackingOptions}
         onTrackingChange={(id) => setTrackingId(id === "ALL" ? "" : id)}
+        onTagToggle={toggleTagId}
         onDateRangeChange={setDateRange}
         onRefresh={refresh}
         isLoading={isLoading || isValidating}

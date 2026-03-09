@@ -3,6 +3,7 @@
 import {
   BookCheck,
   Calendar,
+  ChartColumnDecreasingIcon,
   ClipboardType,
   File,
   Kanban,
@@ -58,12 +59,12 @@ const items = [
     icon: Users,
     isActive: true,
   },
-  // {
-  //   title: "Atividades",
-  //   url: "/tracking/atividades",
-  //   icon: BookCheck,
-  //   isActive: true,
-  // },
+  {
+    title: "Insights",
+    url: "/insights",
+    icon: ChartColumnDecreasingIcon,
+    isActive: true,
+  },
 ];
 
 export function NavMenu() {

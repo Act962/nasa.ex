@@ -6,7 +6,7 @@ export function useTags({ trackingId }: { trackingId?: string }) {
     orpc.tags.listTags.queryOptions({
       input: {
         query: {
-          trackingId,
+          trackingId: trackingId === "ALL" ? undefined : trackingId,
         },
       },
     }),
@@ -23,7 +23,7 @@ export function useQueryTags({ trackingId }: { trackingId?: string }) {
     orpc.tags.listTags.queryOptions({
       input: {
         query: {
-          trackingId,
+          trackingId: trackingId === "ALL" ? undefined : trackingId,
         },
       },
     }),
