@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
+import { sendWorkflowExecution } from "@/inngest/utils";
 
 // 🟦 UPDATE
 export const updateLead = base
@@ -26,6 +27,7 @@ export const updateLead = base
         tagIds: z.array(z.string()).optional(),
         isConversation: z.boolean().optional().default(false),
         active: z.boolean().optional().default(false),
+        amount: z.number().optional(),
       })
       .refine(
         (v) =>
@@ -36,7 +38,8 @@ export const updateLead = base
           v.statusId !== undefined ||
           v.responsibleId !== undefined ||
           v.tagIds !== undefined ||
-          v.active !== undefined,
+          v.active !== undefined ||
+          v.amount !== undefined,
         {
           message: "No fields to update",
           path: ["id"],
@@ -64,6 +67,7 @@ export const updateLead = base
             statusId: input.statusId,
             responsibleId: input.responsibleId,
             isActive: input.active,
+            amount: input.amount,
             leadTags: input.tagIds
               ? {
                   deleteMany: {},
@@ -84,6 +88,7 @@ export const updateLead = base
             createdAt: true,
             updatedAt: true,
             isActive: true,
+            responsibleId: true,
           },
         });
 
@@ -95,8 +100,42 @@ export const updateLead = base
           tx,
         });
 
-        return { lead };
+        let workflows;
+        if (input.tagIds) {
+          workflows = await tx.workflow.findMany({
+            where: {
+              trackingId: lead.trackingId,
+              nodes: {
+                some: {
+                  type: "LEAD_TAGGED",
+                  data: {
+                    path: ["action", "tagIds"],
+                    array_contains: input.tagIds,
+                  },
+                },
+              },
+            },
+            select: {
+              id: true,
+            },
+          });
+        }
+
+        return { lead, workflows };
       });
+
+      if (result.workflows && result.workflows.length > 0) {
+        await Promise.all(
+          result.workflows.map((workflow) =>
+            sendWorkflowExecution({
+              workflowId: workflow.id,
+              initialData: {
+                lead: result.lead,
+              },
+            }),
+          ),
+        );
+      }
 
       return result;
     } catch (err) {

@@ -25,6 +25,7 @@ export interface EditingTagComponentProps {
   onSubmit: (tagIds: string[]) => void;
   onCancel: () => void;
   trackingId: string;
+  toggleTag?: (tagId: string) => void;
 }
 
 export const InputEditTag = ({
@@ -32,17 +33,25 @@ export const InputEditTag = ({
   onSubmit,
   onCancel,
   trackingId,
+  toggleTag,
 }: EditingTagComponentProps) => {
   const [localTagIds, setLocalTagIds] = useState<string[]>(selectedTagIds);
   const [open, setOpen] = useState(false);
   const { tags, isLoadingTags } = useTags({ trackingId });
 
+  // Sincroniza localTagIds com selectedTagIds para refletir atualizações otimistas
+  const effectiveTagIds = toggleTag ? selectedTagIds : localTagIds;
+
   const handleToggleTag = (tagId: string) => {
-    setLocalTagIds((prev) =>
-      prev.includes(tagId)
-        ? prev.filter((id) => id !== tagId)
-        : [...prev, tagId],
-    );
+    if (toggleTag) {
+      toggleTag(tagId);
+    } else {
+      setLocalTagIds((prev) =>
+        prev.includes(tagId)
+          ? prev.filter((id) => id !== tagId)
+          : [...prev, tagId],
+      );
+    }
   };
 
   const handleSave = () => {
@@ -60,12 +69,12 @@ export const InputEditTag = ({
               open && "ring-1 ring-ring border-primary",
             )}
           >
-            {localTagIds.length === 0 && (
+            {effectiveTagIds.length === 0 && (
               <span className="text-xs text-muted-foreground px-2 py-0.5">
                 Selecionar tags...
               </span>
             )}
-            {localTagIds.map((tagId) => {
+            {effectiveTagIds.map((tagId) => {
               const tag = tags.find((t) => t.id === tagId);
               if (!tag) return null;
               return (
@@ -116,7 +125,7 @@ export const InputEditTag = ({
                     <div
                       className={cn(
                         "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-secondary",
-                        localTagIds.includes(tag.id)
+                        effectiveTagIds.includes(tag.id)
                           ? "bg-secondary text-secondary"
                           : "opacity-50 [&_svg]:invisible",
                       )}
@@ -140,11 +149,13 @@ export const InputEditTag = ({
 
       <div className="flex justify-end gap-2 mt-1">
         <Button size="sm" variant="ghost" onClick={onCancel}>
-          Cancelar
+          {toggleTag ? "Fechar" : "Cancelar"}
         </Button>
-        <Button size="sm" onClick={handleSave}>
-          Salvar
-        </Button>
+        {!toggleTag && (
+          <Button size="sm" onClick={handleSave}>
+            Salvar
+          </Button>
+        )}
       </div>
     </div>
   );

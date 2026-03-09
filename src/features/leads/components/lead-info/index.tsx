@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/tooltip";
 import { SelectResponsableField } from "./select-responsable-field";
 import { FieldsStatus } from "./fields/field-status";
+import { FieldMoney } from "./fields/field-money";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
   initialData: LeadFull;
@@ -134,7 +135,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                   className="text-xl font-bold line-clamp-2 cursor-pointer"
                   onClick={() => setIsEditingName(true)}
                 >
-                  {lead.name}
+                  {lead.name ?? "Sem nome"}
                 </h1>
               )}
             </div>
@@ -204,6 +205,11 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                   displayName={lead.responsible?.name ?? ""}
                   trackingId={lead.trackingId}
                   loading={isPending}
+                />
+                <FieldMoney
+                  label="Valor"
+                  value={lead.amount}
+                  trackingId={lead.trackingId}
                 />
                 <InfoItem label="Fluxo / Tracking" value={lead.tracking.name} />
                 <FieldsStatus

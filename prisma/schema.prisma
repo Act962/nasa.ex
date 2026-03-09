@@ -296,6 +296,7 @@ model Lead {
   order      Decimal @db.Decimal(20, 10) @default(0)
   source      LeadSource @default(DEFAULT)
   temperature Temperature @default(COLD)
+  amount Decimal @db.Decimal(15, 2) @default(0)
 
   currentAction LeadAction @default(ACTIVE) @map("current_action")
   isActive      Boolean    @default(true) @map("is_active")
@@ -626,6 +627,7 @@ model Conversation {
 enum MessageStatus {
   SENT
   SEEN
+  DELETED
 }
 
 model Message {
