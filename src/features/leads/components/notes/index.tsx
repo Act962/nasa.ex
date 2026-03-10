@@ -31,7 +31,7 @@ export function TabNotes({ leadId, trackingId }: TabNotesProps) {
 
   if (isLoading) return <div>Loading...</div>;
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-4 overflow-y-auto h-full">
       <RichtTextEditor
         disabled={mutation.isPending}
         field={editor}
@@ -50,6 +50,7 @@ export function TabNotes({ leadId, trackingId }: TabNotesProps) {
           />
         ))}
       </div>
+      <div className="h-2" />
     </div>
   );
 }
