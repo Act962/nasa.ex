@@ -25,8 +25,6 @@ export const generateConversationSummary = base
   .handler(async ({ input, errors }) => {
     const { conversationId, dateInit, dateEnd } = input;
 
-    console.log("dateInit", dateInit, "dateEnd", dateEnd);
-
     const conversation = await prisma.conversation.findUnique({
       where: {
         id: conversationId,
@@ -46,8 +44,6 @@ export const generateConversationSummary = base
         },
       },
     });
-
-    console.log("conversation", conversation);
 
     if (!conversation) {
       throw errors.NOT_FOUND({

@@ -19,7 +19,6 @@ import {
 import { useTags } from "@/features/tags/hooks/use-tags";
 import { TagModal } from "@/features/trackings/components/modal/tag-modal";
 import { orpc } from "@/lib/orpc";
-import { cn } from "@/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Plus, SettingsIcon, TagsIcon, XIcon } from "lucide-react";
 import { useParams } from "next/navigation";
@@ -51,6 +50,7 @@ export function TagsFilter() {
   );
 
   const onCreateTag = (name: string) => {
+    if (!params.trackingId) return;
     createTagMutation.mutate({
       name,
       trackingId: params.trackingId,
