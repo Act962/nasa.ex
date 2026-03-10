@@ -37,7 +37,7 @@ export function TabNotes({ leadId, trackingId }: TabNotesProps) {
         field={editor}
         onChange={setEditor}
       >
-        <Button className="ml-auto" onClick={onSubmit}>
+        <Button className="ml-auto" onClick={onSubmit} disabled={!editor}>
           Adicionar nota
         </Button>
       </RichtTextEditor>

@@ -6,7 +6,7 @@ export function useTags({ trackingId }: { trackingId?: string }) {
     orpc.tags.listTags.queryOptions({
       input: {
         query: {
-          trackingId,
+          trackingId: trackingId === "ALL" ? undefined : trackingId,
         },
       },
     }),
@@ -23,7 +23,7 @@ export function useQueryTags({ trackingId }: { trackingId?: string }) {
     orpc.tags.listTags.queryOptions({
       input: {
         query: {
-          trackingId,
+          trackingId: trackingId === "ALL" ? undefined : trackingId,
         },
       },
     }),
@@ -41,13 +41,17 @@ export function useDeleteTag() {
     orpc.tags.deleteTag.mutationOptions({
       onSuccess: (data) => {
         // Invalida a lista de tags global
+        // Invalida a query específica do funil
         queryClient.invalidateQueries({
           queryKey: orpc.tags.listTags.queryKey({
-            input: {
-              query: {
-                trackingId: data.trackingId ?? "",
-              },
-            },
+            input: { query: { trackingId: data.trackingId ?? undefined } },
+          }),
+        });
+
+        // Invalida a query geral da organização (usada no dashboard)
+        queryClient.invalidateQueries({
+          queryKey: orpc.tags.listTags.queryKey({
+            input: { query: { trackingId: undefined } },
           }),
         });
 
@@ -69,13 +73,17 @@ export function useUpdateTag() {
     orpc.tags.updateTag.mutationOptions({
       onSuccess: (data) => {
         // Invalida a lista de tags global
+        // Invalida a query específica do funil
         queryClient.invalidateQueries({
           queryKey: orpc.tags.listTags.queryKey({
-            input: {
-              query: {
-                trackingId: data.trackingId ?? "",
-              },
-            },
+            input: { query: { trackingId: data.trackingId ?? undefined } },
+          }),
+        });
+
+        // Invalida a query geral da organização (usada no dashboard)
+        queryClient.invalidateQueries({
+          queryKey: orpc.tags.listTags.queryKey({
+            input: { query: { trackingId: undefined } },
           }),
         });
 

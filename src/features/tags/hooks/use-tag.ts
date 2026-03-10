@@ -51,18 +51,24 @@ export const useCreateTag = () => {
         return { previousData };
       },
       onSuccess: (data) => {
+        console.log(data);
         queryClient.invalidateQueries({
           queryKey: orpc.tags.listTags.queryKey({
             input: {
               query: {
-                trackingId: data.trackingId ?? "",
+                trackingId:
+                  data.trackingId === null ? undefined : data.trackingId,
               },
             },
           }),
         });
         toast.success("Tag criada com sucesso!");
       },
-      onError: () => {
+      onError: (error) => {
+        if (error.message === "Tag já existe") {
+          toast.error("Tag já existe");
+          return;
+        }
         toast.error("Erro ao criar tag, tente novamente");
       },
     }),

@@ -18,6 +18,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -42,6 +50,8 @@ import { CheckIcon, TagIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { useQueryListTrackings } from "@/features/insights/hooks/use-dashboard";
+import { toast } from "sonner";
 
 interface Props {
   open: boolean;
@@ -55,6 +65,9 @@ const tagSchema = z.object({
 });
 
 export function TagModal({ open, onOpenChange, trackingId }: Props) {
+  const [trackingSelected, setTrackingSelected] = useState<string | undefined>(
+    trackingId,
+  );
   const form = useForm<z.infer<typeof tagSchema>>({
     resolver: zodResolver(tagSchema),
     defaultValues: {
@@ -66,14 +79,20 @@ export function TagModal({ open, onOpenChange, trackingId }: Props) {
   const { tags, isLoadingTags } = useQueryTags({
     trackingId,
   });
+
+  const { trackings } = useQueryListTrackings();
   const createTag = useCreateTag();
 
   const watch = form.watch("name");
 
   const handleCreateTag = (data: z.infer<typeof tagSchema>) => {
+    if (!trackingSelected) {
+      toast("Selecione um tracking");
+      return;
+    }
     createTag.mutate({
       name: data.name,
-      trackingId: trackingId,
+      trackingId: trackingSelected,
       color: data.color,
     });
     form.reset();
@@ -88,8 +107,34 @@ export function TagModal({ open, onOpenChange, trackingId }: Props) {
             Adicione tags para categorizar seus leads.
           </SheetDescription>
         </SheetHeader>
-        <div className="space-y-2">
-          <form onSubmit={form.handleSubmit(handleCreateTag)} className="px-4">
+        <div className="space-y-4 ">
+          {!trackingId && (
+            <div className="px-4 space-y-2">
+              <Label>Selecionar Tracking</Label>
+              <Select
+                disabled={isLoadingTags}
+                value={trackingSelected}
+                onValueChange={setTrackingSelected}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione um tracking" />
+                </SelectTrigger>
+                <SelectContent>
+                  {trackings?.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <form
+            onSubmit={form.handleSubmit(handleCreateTag)}
+            className="px-4 space-y-2"
+          >
+            {!trackingId && <Label>Nova Tag</Label>}
             <InputGroup>
               <InputGroupAddon>
                 <Popover>
@@ -135,9 +180,9 @@ export function TagModal({ open, onOpenChange, trackingId }: Props) {
 
           <Separator className="my-4" />
 
-          <div className="px-4">
+          <div className="px-4 h-full">
             <h3 className="font-medium">Tags cadastradas</h3>
-            <div className="flex items-center flex-wrap gap-2 mt-2 max-h-[calc(100vh-200px)] overflow-y-auto">
+            <div className="flex items-center flex-wrap gap-2 mt-2 overflow-y-auto max-h-[calc(100vh-13rem)]">
               {isLoadingTags &&
                 Array.from({ length: 5 }).map((_, index) => (
                   <Skeleton key={index} className="w-12 h-4" />

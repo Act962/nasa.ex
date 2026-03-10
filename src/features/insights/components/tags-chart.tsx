@@ -275,10 +275,12 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
             </RadialBar>
-            <ChartLegend
-              content={<ChartLegendContent nameKey="tag" />}
-              className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
-            />
+            {chartData && chartData.length <= 9 && (
+              <ChartLegend
+                content={<ChartLegendContent nameKey="tag" />}
+                className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
+              />
+            )}
           </RadialBarChart>
         </ChartContainer>
       );

@@ -5,6 +5,7 @@ import type { ChartType, DashboardSettings, DateRange } from "../types";
 
 interface DashboardState {
   trackingId?: string;
+  tagIds: string[];
   dateRange: DateRange;
   settings: DashboardSettings;
 }
@@ -27,6 +28,7 @@ const defaultSettings: DashboardSettings = {
 
 const defaultState: DashboardState = {
   trackingId: undefined,
+  tagIds: [],
   dateRange: { from: undefined, to: undefined },
   settings: defaultSettings,
 };
@@ -54,6 +56,19 @@ export function setTrackingId(trackingId: string) {
 
 export function setDateRange(dateRange: DateRange) {
   state = { ...state, dateRange };
+  emitChange();
+}
+
+export function setTagIds(tagIds: string[]) {
+  state = { ...state, tagIds };
+  emitChange();
+}
+
+export function toggleTagId(tagId: string) {
+  const newTagIds = state.tagIds.includes(tagId)
+    ? state.tagIds.filter((id) => id !== tagId)
+    : [...state.tagIds, tagId];
+  state = { ...state, tagIds: newTagIds };
   emitChange();
 }
 
@@ -102,6 +117,8 @@ export function useDashboardStore() {
     () => ({
       setTrackingId,
       setDateRange,
+      setTagIds,
+      toggleTagId,
       toggleSection,
       setChartType,
       resetSettings,
@@ -113,9 +130,24 @@ export function useDashboardStore() {
 }
 
 export function useDashboardFilters() {
-  const { trackingId, dateRange, setTrackingId, setDateRange } =
-    useDashboardStore();
-  return { trackingId, dateRange, setTrackingId, setDateRange };
+  const {
+    trackingId,
+    tagIds,
+    dateRange,
+    setTrackingId,
+    setTagIds,
+    toggleTagId,
+    setDateRange,
+  } = useDashboardStore();
+  return {
+    trackingId,
+    tagIds,
+    dateRange,
+    setTrackingId,
+    setTagIds,
+    toggleTagId,
+    setDateRange,
+  };
 }
 
 export function useDashboardSettings() {

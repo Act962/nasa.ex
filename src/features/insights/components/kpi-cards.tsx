@@ -121,14 +121,20 @@ export function KPICards({ summary }: KPICardsProps) {
       />
       <KPICard
         title="Vendas Este Mês"
-        value={summary.soldThisMonth.toLocaleString("pt-BR")}
+        value={summary.soldThisMonth.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        })}
         icon={<CalendarDays className="size-4" />}
         trend={summary.monthGrowthRate}
         trendLabel="vs mês anterior"
       />
       <KPICard
         title="Vendas Mês Passado"
-        value={summary.soldLastMonth.toLocaleString("pt-BR")}
+        value={summary.soldLastMonth.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        })}
         icon={<CalendarDays className="size-4" />}
       />
       <KPICard

@@ -17,12 +17,13 @@ export const getTrackingDashboardReport = base
       trackingId: z.string().optional(),
       startDate: z.string().datetime().optional(),
       endDate: z.string().datetime().optional(),
+      tagIds: z.array(z.string()).optional(),
     }),
   )
   .handler(async ({ input, errors, context }) => {
     try {
       const { org } = context;
-      const { trackingId, startDate, endDate } = input;
+      const { trackingId, startDate, endDate, tagIds } = input;
 
       const dateFilter =
         startDate || endDate
@@ -34,10 +35,22 @@ export const getTrackingDashboardReport = base
             }
           : {};
 
+      const tagFilter =
+        tagIds && tagIds.length > 0
+          ? {
+              leadTags: {
+                some: {
+                  tagId: { in: tagIds },
+                },
+              },
+            }
+          : {};
+
       const baseWhere = {
         ...(trackingId ? { trackingId } : {}),
         tracking: { organizationId: org.id },
         ...dateFilter,
+        ...tagFilter,
       };
 
       const now = new Date();
@@ -71,8 +84,8 @@ export const getTrackingDashboardReport = base
         wonLeads,
         lostLeads,
         activeLeads,
-        soldThisMonth,
-        soldLastMonth,
+        soldThisMonthRes,
+        soldLastMonthRes,
         bySource,
         byStatus,
         byResponsible,
@@ -83,28 +96,32 @@ export const getTrackingDashboardReport = base
         prisma.lead.count({ where: { ...baseWhere, currentAction: "LOST" } }),
         prisma.lead.count({ where: { ...baseWhere, currentAction: "ACTIVE" } }),
 
-        // Vendidos esse mês
-        prisma.leadHistory.count({
+        // Valor Vendido esse mês
+        prisma.lead.aggregate({
           where: {
-            lead: {
-              ...(trackingId ? { trackingId } : {}),
-              tracking: { organizationId: org.id },
+            ...baseWhere,
+            history: {
+              some: {
+                action: "WON",
+                createdAt: { gte: startOfMonth, lte: endOfMonth },
+              },
             },
-            action: "WON",
-            createdAt: { gte: startOfMonth, lte: endOfMonth },
           },
+          _sum: { amount: true },
         }),
 
-        // Vendidos mês passado
-        prisma.leadHistory.count({
+        // Valor Vendido mês passado
+        prisma.lead.aggregate({
           where: {
-            lead: {
-              ...(trackingId ? { trackingId } : {}),
-              tracking: { organizationId: org.id },
+            ...baseWhere,
+            history: {
+              some: {
+                action: "WON",
+                createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
+              },
             },
-            action: "WON",
-            createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
           },
+          _sum: { amount: true },
         }),
 
         // Por canal
@@ -140,6 +157,9 @@ export const getTrackingDashboardReport = base
         }),
       ]);
 
+      const soldThisMonth = Number(soldThisMonthRes._sum.amount || 0);
+      const soldLastMonth = Number(soldLastMonthRes._sum.amount || 0);
+
       // Enriquecer dados
       const statuses = await prisma.status.findMany({
         where: {
@@ -162,9 +182,9 @@ export const getTrackingDashboardReport = base
       });
       const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
-      const tagIds = byTag.map((t) => t.tagId);
+      const topTagIds = byTag.map((t) => t.tagId);
       const tags = await prisma.tag.findMany({
-        where: { id: { in: tagIds } },
+        where: { id: { in: topTagIds } },
         select: { id: true, name: true, color: true },
       });
       const tagMap = Object.fromEntries(tags.map((t) => [t.id, t]));
