@@ -19,6 +19,7 @@ import type { DashboardReport } from "@/features/insights/types";
 import { authClient } from "@/lib/auth-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KPIAtendimentCards } from "./kpi/atendiment-cards";
+import { cn } from "@/lib/utils";
 
 interface TrackingDashboardProps {
   initialData?: DashboardReport;
@@ -144,7 +145,13 @@ export function TrackingDashboard({
           )}
 
           {/* Charts Grid */}
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div
+            className={cn(
+              "grid gap-6 lg:grid-cols-2",
+              organizationIds.length > 1 && "lg:grid-cols-1",
+              organizationIds.length === 0 && "lg:grid-cols-1",
+            )}
+          >
             {settings.visibleSections.byStatus &&
               (isLoading ? (
                 <ChartSkeleton />
@@ -163,7 +170,6 @@ export function TrackingDashboard({
                   />
                 </ChartWrapper>
               ))}
-
             {/* Channel Chart */}
             {settings.visibleSections.byChannel &&
               (isLoading ? (
@@ -183,7 +189,6 @@ export function TrackingDashboard({
                   />
                 </ChartWrapper>
               ))}
-
             {/* Attendant Chart */}
             {settings.visibleSections.byAttendant &&
               (isLoading ? (
@@ -205,7 +210,6 @@ export function TrackingDashboard({
                   />
                 </ChartWrapper>
               ))}
-
             {/* Tags Chart */}
             {settings.visibleSections.topTags &&
               (isLoading ? (
