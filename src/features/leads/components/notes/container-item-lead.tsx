@@ -58,6 +58,7 @@ export function ContainerItemLead({
   title,
   createdAt,
   trackingId,
+  leadId,
 }: ComtainerItemLeadProps) {
   const [toggleDetails, setToggleDetails] = useState(true);
 
@@ -104,7 +105,7 @@ export function ContainerItemLead({
       <Separator className="w-full" />
       <CardDetails
         type={type}
-        {...{ description, title, responsibles, trackingId, id }}
+        {...{ description, title, responsibles, trackingId, id, leadId }}
       />
     </div>
   );
@@ -118,6 +119,7 @@ interface CardDetailsProps {
   title: string;
   trackingId: string;
   id: string;
+  leadId: string | null;
 }
 
 function CardDetails({
@@ -127,12 +129,13 @@ function CardDetails({
   trackingId,
   responsibles,
   id,
+  leadId,
 }: CardDetailsProps) {
   const [isEditDescription, setIsEditDescription] = useState(false);
   const [descriptionEdit, setDescriptionEdit] = useState(description);
 
   const mutationUpdateLeadAction = useMutationUpdateLeadAction({
-    leadId: trackingId,
+    leadId: leadId ?? "",
   });
 
   const onSubmitDescription = () => {
@@ -181,6 +184,7 @@ function CardDetails({
             actionId={id}
             trackingId={trackingId}
             responsibles={responsibles}
+            leadId={leadId}
           />
         )}
         {type === "MEETING" && <SectionMeeting />}
@@ -193,12 +197,18 @@ interface SectionTaskProps {
   responsibles: User[];
   trackingId: string;
   actionId: string;
+  leadId: string | null;
 }
-function SectionTask({ responsibles, trackingId, actionId }: SectionTaskProps) {
+function SectionTask({
+  responsibles,
+  trackingId,
+  actionId,
+  leadId,
+}: SectionTaskProps) {
   const { data: userSelected } = useListTrackingParticipants(trackingId);
 
   const mutationUpdateLeadAction = useMutationUpdateLeadAction({
-    leadId: trackingId,
+    leadId: leadId ?? "",
   });
 
   const onSubmit = (assignedSelected: User) => {

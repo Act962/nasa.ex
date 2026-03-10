@@ -137,7 +137,7 @@ export function TagModal({ open, onOpenChange, trackingId }: Props) {
 
           <div className="px-4">
             <h3 className="font-medium">Tags cadastradas</h3>
-            <div className="flex items-center flex-wrap gap-2 mt-2">
+            <div className="flex items-center flex-wrap gap-2 mt-2 max-h-[calc(100vh-200px)] overflow-y-auto">
               {isLoadingTags &&
                 Array.from({ length: 5 }).map((_, index) => (
                   <Skeleton key={index} className="w-12 h-4" />

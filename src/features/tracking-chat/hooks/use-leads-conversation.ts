@@ -139,9 +139,7 @@ export const useRemoveTagFromLeadOptimistic = (leadId: string) => {
 
         return { previousTags };
       },
-      onSuccess: () => {
-        toast.success("Tag removida com sucesso");
-      },
+      onSuccess: () => {},
       onError: (err, _, context) => {
         const queryKey = orpc.tags.getTagByLead.queryKey({
           input: { leadId },
@@ -160,4 +158,24 @@ export const useRemoveTagFromLeadOptimistic = (leadId: string) => {
       },
     }),
   );
+};
+
+export const useToggleTag = (leadId: string, trackingId?: string) => {
+  const addTag = useAddTagToLeadOptimistic(leadId, trackingId);
+  const removeTag = useRemoveTagFromLeadOptimistic(leadId);
+  const { tags: currentTags } = useQueryTagByLead(leadId);
+
+  const toggleTag = (tagId: string) => {
+    const isTagged = currentTags.some((t: any) => t.id === tagId);
+    if (isTagged) {
+      removeTag.mutate({ leadId, tagIds: [tagId] });
+    } else {
+      addTag.mutate({ leadId, tagIds: [tagId] });
+    }
+  };
+
+  return {
+    toggleTag,
+    isLoading: addTag.isPending || removeTag.isPending,
+  };
 };

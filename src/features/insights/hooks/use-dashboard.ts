@@ -1,7 +1,6 @@
 "use client";
 import { orpc } from "@/lib/orpc";
 import { useQuery } from "@tanstack/react-query";
-import useSWR from "swr";
 
 import type { DashboardReport, DateRange } from "@/features/insights/types";
 import { mockDashboardData } from "@/features/insights/types/mock";

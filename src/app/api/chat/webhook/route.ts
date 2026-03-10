@@ -23,13 +23,14 @@ export async function POST(request: NextRequest) {
 
   try {
     const json = await request.json();
+    console.log(json);
 
     if (json.EventType === "messages") {
       const fromMe = json.message.fromMe;
-      const remoteJid = json.chat.wa_chatid || json.chat.id;
       const name = fromMe ? json.chat.name : json.message.senderName;
 
-      const phone = json.chat.phone.replace(/\D/g, "");
+      const phone = json.message.chatid.split("@")[0];
+      const remoteJid = json.message.chatid;
 
       const tracking = await prisma.tracking.findUnique({
         where: { id: trackingId },
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest) {
         lead = await prisma.lead.create({
           data: {
             statusId: status.id,
-            name,
+            name: name ?? "Sem nome",
             phone,
             trackingId,
             source: LeadSource.WHATSAPP,
@@ -188,8 +189,6 @@ export async function POST(request: NextRequest) {
       } else if (!body && typeof json.message.content.caption === "string") {
         body = json.message.content?.caption || "";
       }
-
-      body = fromMe ? `*${name}*\n${body}` : body;
 
       let messageData: any = null;
       const quotedMessage = json.message.quoted;
@@ -620,7 +619,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true }, { status: 200 });
     }
     if (json.EventType === "chat_labels") {
-      const remoteJid = json.chat.wa_chatid || json.chat.id;
+      const remoteJid = json.message.chatid;
       const labels = (json.chat.wa_label as string[]) || [];
 
       const conversation = await prisma.conversation.findFirst({
