@@ -56,8 +56,6 @@ interface DashboardFiltersProps {
   organizationOptions: { id: string; name: string }[];
   onTagToggle: (tagId: string) => void;
   onDateRangeChange: (range: DateRange) => void;
-  onRefresh: () => void;
-  isLoading?: boolean;
 }
 
 export function DashboardFilters({
@@ -68,11 +66,9 @@ export function DashboardFilters({
   onTrackingChange,
   onTagToggle,
   onDateRangeChange,
-  onRefresh,
   organizationIds,
   organizationOptions,
   onOrganizationToggle,
-  isLoading = false,
 }: DashboardFiltersProps) {
   const { tags: allTags } = useTags({ trackingId });
 
@@ -180,16 +176,6 @@ export function DashboardFilters({
           />
         </div>
       </div>
-
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={onRefresh}
-        disabled={isLoading}
-        className="self-end sm:self-auto"
-      >
-        <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-      </Button>
     </div>
   );
 }
@@ -292,7 +278,10 @@ function OrganizationFilterButton({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-full sm:w-[200px] justify-between">
+        <Button
+          variant="outline"
+          className="w-full sm:w-[200px] justify-between"
+        >
           <span className="truncate">
             {selectedIds.length === 0
               ? "Todas as Empresas"

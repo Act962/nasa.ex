@@ -9,6 +9,10 @@ import {
   XCircle,
   Percent,
   CalendarDays,
+  MessageSquare,
+  MessageCircle,
+  Send,
+  Download,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DashboardSummary } from "@/features/insights/types";
@@ -87,7 +91,7 @@ function KPICard({
   );
 }
 
-export function KPICards({ summary }: KPICardsProps) {
+export function KPIGeneralCards({ summary }: KPICardsProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <KPICard

@@ -9,6 +9,10 @@ export interface DashboardSummary {
   soldThisMonth: number;
   soldLastMonth: number;
   monthGrowthRate: number | null;
+  totalConversations: number;
+  totalMessages: number;
+  sentMessages: number;
+  receivedMessages: number;
 }
 
 export interface StatusData {

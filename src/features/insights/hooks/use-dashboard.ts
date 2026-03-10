@@ -73,7 +73,7 @@ export function useDashboardData({
     });
 
   return {
-    data: report ?? mockDashboardData,
+    data: report ?? mockDashboardData, //Aqui há dados mocados para não querar por enquanto que nn quebre
     error: null,
     isLoading,
     isValidating: isRefetching,

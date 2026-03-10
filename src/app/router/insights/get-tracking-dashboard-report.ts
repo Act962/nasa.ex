@@ -102,6 +102,10 @@ export const getTrackingDashboardReport = base
         byStatus,
         byResponsible,
         byTag,
+        totalConversations,
+        totalMessages,
+        sentMessages,
+        receivedMessages,
       ] = await Promise.all([
         prisma.lead.count({ where: baseWhere }),
         prisma.lead.count({ where: { ...baseWhere, currentAction: "WON" } }),
@@ -166,6 +170,70 @@ export const getTrackingDashboardReport = base
           _count: { id: true },
           orderBy: { _count: { id: "desc" } },
           take: 10,
+        }),
+
+        // Conversas totais
+        prisma.conversation.count({
+          where: {
+            ...(trackingId ? { trackingId } : {}),
+            tracking: {
+              organization: {
+                ...organizationFilter,
+                members: { some: { userId: user.id } },
+              },
+            },
+            ...dateFilter,
+          },
+        }),
+
+        // Mensagens totais
+        prisma.message.count({
+          where: {
+            conversation: {
+              ...(trackingId ? { trackingId } : {}),
+              tracking: {
+                organization: {
+                  ...organizationFilter,
+                  members: { some: { userId: user.id } },
+                },
+              },
+            },
+            ...dateFilter,
+          },
+        }),
+
+        // Mensagens enviadas
+        prisma.message.count({
+          where: {
+            fromMe: true,
+            conversation: {
+              ...(trackingId ? { trackingId } : {}),
+              tracking: {
+                organization: {
+                  ...organizationFilter,
+                  members: { some: { userId: user.id } },
+                },
+              },
+            },
+            ...dateFilter,
+          },
+        }),
+
+        // Mensagens recebidas
+        prisma.message.count({
+          where: {
+            fromMe: false,
+            conversation: {
+              ...(trackingId ? { trackingId } : {}),
+              tracking: {
+                organization: {
+                  ...organizationFilter,
+                  members: { some: { userId: user.id } },
+                },
+              },
+            },
+            ...dateFilter,
+          },
         }),
       ]);
 
@@ -252,6 +320,10 @@ export const getTrackingDashboardReport = base
           soldThisMonth,
           soldLastMonth,
           monthGrowthRate: monthGrowth,
+          totalConversations,
+          totalMessages,
+          sentMessages,
+          receivedMessages,
         },
         byStatus: byStatus.map((row) => ({
           status: statusMap[row.statusId] ?? {

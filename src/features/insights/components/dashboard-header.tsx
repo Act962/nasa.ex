@@ -1,8 +1,10 @@
 "use client";
 
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, RefreshCwIcon } from "lucide-react";
 import { SettingsPanel } from "./settings-panel";
 import type { DashboardSettings, ChartType } from "@/features/insights/types";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface DashboardHeaderProps {
   settings: DashboardSettings;
@@ -14,6 +16,8 @@ interface DashboardHeaderProps {
     type: ChartType,
   ) => void;
   onReset: () => void;
+  onRefresh: () => void;
+  isLoading: boolean;
 }
 
 export function DashboardHeader({
@@ -21,6 +25,8 @@ export function DashboardHeader({
   onToggleSection,
   onChartTypeChange,
   onReset,
+  onRefresh,
+  isLoading,
 }: DashboardHeaderProps) {
   return (
     <div className="flex items-center justify-between">
@@ -37,12 +43,25 @@ export function DashboardHeader({
           </p>
         </div>
       </div>
-      <SettingsPanel
-        settings={settings}
-        onToggleSection={onToggleSection}
-        onChartTypeChange={onChartTypeChange}
-        onReset={onReset}
-      />
+      <div className="space-x-2">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onRefresh}
+          disabled={isLoading}
+          className="self-end sm:self-auto"
+        >
+          <RefreshCwIcon
+            className={cn("h-4 w-4", isLoading && "animate-spin")}
+          />
+        </Button>
+        <SettingsPanel
+          settings={settings}
+          onToggleSection={onToggleSection}
+          onChartTypeChange={onChartTypeChange}
+          onReset={onReset}
+        />
+      </div>
     </div>
   );
 }
