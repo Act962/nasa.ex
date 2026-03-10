@@ -16,7 +16,7 @@ interface TabNotesProps {
 
 export function TabNotes({ leadId, trackingId }: TabNotesProps) {
   const { data, isLoading } = useQueryLeadAction({ leadId });
-  const mutation = useMutationCreateLeadAction({ leadId });
+  const mutation = useMutationCreateLeadAction();
   const [editor, setEditor] = useState<string | undefined>(undefined);
 
   const onSubmit = () => {

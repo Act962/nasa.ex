@@ -135,7 +135,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                   className="text-xl font-bold line-clamp-2 cursor-pointer"
                   onClick={() => setIsEditingName(true)}
                 >
-                  {lead.name ?? "Sem nome"}
+                  {lead.name || "Sem nome"}
                 </h1>
               )}
             </div>
