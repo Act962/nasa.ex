@@ -52,7 +52,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ChevronDownIcon, InfoIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 

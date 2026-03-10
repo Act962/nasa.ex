@@ -29,6 +29,7 @@ import {
 import { SelectResponsableField } from "./select-responsable-field";
 import { FieldsStatus } from "./fields/field-status";
 import { FieldMoney } from "./fields/field-money";
+import { SendMessageSheet } from "../send-message-sheet";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
   initialData: LeadFull;
@@ -150,7 +151,9 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                 </TooltipTrigger>
                 <TooltipContent>Conversa</TooltipContent>
               </Tooltip>
-              <ActionButton icon={<Mail className="size-4" />} />
+              <SendMessageSheet>
+                <ActionButton icon={<Mail className="size-4" />} />
+              </SendMessageSheet>
               {/* <ActionButton icon={<Phone className="size-4" />} /> */}
 
               <Tooltip>

@@ -211,7 +211,7 @@ function AddTagFilterButton({
                   </>
                 ) : (
                   <>
-                    Adicionar Tags
+                    Filtrar por Tags
                     <PlusIcon className="h-3 w-3" />
                   </>
                 )}
