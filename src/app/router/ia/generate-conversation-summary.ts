@@ -55,24 +55,42 @@ export const generateConversationSummary = base
       });
     }
 
-    const messages = conversation?.messages.map((message) => {
+    const messages = conversation.messages.map((message) => {
       return {
         body: message.body,
+        mediaCaption: message.mediaCaption,
+        mediaType: message.mediaType,
         fromMe: message.fromMe,
         senderName: message.fromMe
-          ? message.senderName || "Sistema"
+          ? message.senderName || "Atendente"
           : message.senderName || "Cliente",
         createdAt: message.createdAt,
       };
     });
 
-    console.log("Message", messages);
-
     let lines: string[] = [];
 
     if (messages && messages.length > 0) {
       lines = messages.map((message) => {
-        return `${message.senderName}: ${message.body}`;
+        const role = message.fromMe ? "ATENDENTE" : "CLIENTE";
+
+        let content = message.body?.trim();
+
+        if (!content && message.mediaCaption) {
+          content = message.mediaCaption;
+        }
+
+        if (!content && message.mediaType) {
+          content = `[${message.mediaType}]`;
+        }
+
+        if (!content) {
+          content = "[mensagem vazia]";
+        }
+
+        const time = dayjs(message.createdAt).format("DD/MM/YYYY HH:mm");
+
+        return `[${role}] ${message.senderName} (${time}): ${content}`;
       });
     }
 
@@ -80,10 +98,38 @@ export const generateConversationSummary = base
 
     const system = [
       `
-        - Você é um assistente de suporte ao cliente.
-        - Ajude o cliente dando um resumo das conversas.
-        - Responde apenas em portugues.
-        - Estilo: Neutro, especifíco e consistente. Não adicione uma frase de encerramento.
+       Você é um assistente especializado em análise de conversas de atendimento ao cliente.
+
+      Seu trabalho é analisar uma conversa entre um CLIENTE e um ATENDENTE e gerar um resumo claro e objetivo.
+
+      Regras importantes:
+      - Responda sempre em português.
+      - Não invente informações que não estejam na conversa.
+      - Ignore mensagens curtas sem significado relevante como "ok", "👍", "obrigado".
+      - Seja direto e objetivo.
+      - Não escreva frases de encerramento.
+      - Não explique o que você fez.
+
+      Considere:
+      - CLIENTE: mensagens enviadas pelo cliente
+      - ATENDENTE: mensagens enviadas pela empresa/sistema
+
+      Estrutura obrigatória da resposta:
+
+      Resumo da Conversa:
+      Explique em 2 a 4 frases o contexto geral da conversa.
+
+      Motivo do Contato:
+      Explique qual foi o problema, dúvida ou solicitação do cliente.
+
+      Principais Informações:
+      Liste em tópicos as informações importantes mencionadas.
+
+      Status da Conversa:
+      Explique se o problema foi resolvido, está pendente ou não ficou claro.
+
+      Próximas Ações (se houver):
+      Liste possíveis ações necessárias.
       `,
     ].join("\n");
 
@@ -93,7 +139,7 @@ export const generateConversationSummary = base
       messages: [
         {
           role: "user",
-          content: compiled,
+          content: `Analise a conversa abaixo e gere o resumo solicitado:\n\n${compiled}`,
         },
       ],
       temperature: 0.2,
