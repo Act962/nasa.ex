@@ -32,6 +32,7 @@ export const getLead = base
           profile: true,
           statusId: true,
           trackingId: true,
+          amount: true,
           createdAt: true,
           updatedAt: true,
           responsible: {
@@ -97,6 +98,7 @@ export const getLead = base
           ..._lead.status,
           order: _lead.status.order.toString(),
         },
+        amount: Number(_lead.amount),
         tags: _lead.leadTags.map((leadTag) => leadTag.tag),
       };
 

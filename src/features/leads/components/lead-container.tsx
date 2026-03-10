@@ -5,6 +5,7 @@ import { LeadDetails } from "./lead-details";
 import { orpc } from "@/lib/orpc";
 import { useParams } from "next/navigation";
 import { LeadInfo } from "./lead-info";
+import { EntityLoading } from "@/components/entity-components";
 
 export function LeadContainer() {
   const params = useParams<{ leadId: string }>();
@@ -16,6 +17,8 @@ export function LeadContainer() {
       },
     }),
   );
+
+  if (isLoading) return <EntityLoading />;
 
   if (!data) {
     return <div>Lead não encontrado</div>;

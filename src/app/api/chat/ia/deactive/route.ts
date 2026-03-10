@@ -1,3 +1,4 @@
+import { sendWorkflowExecution } from "@/inngest/utils";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const { leadId } = bodyParsed.data;
+  const { leadId, trackingId } = bodyParsed.data;
 
   const lead = await prisma.lead.findUnique({
     where: {
@@ -42,6 +43,28 @@ export async function POST(request: Request) {
       isActive: false,
     },
   });
+
+  const workflow = await prisma.workflow.findMany({
+    where: {
+      trackingId,
+      nodes: {
+        some: {
+          type: "AI_FINISHED",
+        },
+      },
+    },
+  });
+
+  await Promise.all(
+    workflow.map((workflow) =>
+      sendWorkflowExecution({
+        workflowId: workflow.id,
+        initialData: {
+          lead,
+        },
+      }),
+    ),
+  );
 
   return NextResponse.json({
     status: "success",

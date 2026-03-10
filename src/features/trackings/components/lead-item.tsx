@@ -24,7 +24,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import dayjs from "dayjs";
-import Link from "next/link";
 import { memo, useState } from "react";
 import { Lead } from "../types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
@@ -133,11 +132,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           <Tooltip>
             <TooltipTrigger>
               <div className="max-w-40 truncate">
-                <span
-                  className="font-medium text-xs truncate"
-                  {...listeners}
-                  {...attributes}
-                >
+                <span className="font-medium text-xs truncate">
                   {data.name || "Sem nome"}
                 </span>
               </div>

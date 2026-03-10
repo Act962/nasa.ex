@@ -1,6 +1,7 @@
 import { NodeType } from "@/generated/prisma/enums";
 import {
   ArrowLeftRightIcon,
+  BotIcon,
   CircleGaugeIcon,
   MousePointerIcon,
   MoveHorizontalIcon,
@@ -50,6 +51,13 @@ export const triggerNodes: NodeTypeOption[] = [
     label: "Lead com Tag",
     description: "Executa o fluxo ao adicionar uma tag ao lead",
     icon: TagsIcon,
+  },
+  {
+    type: NodeType.AI_FINISHED,
+    category: "trigger",
+    label: "IA Finalizou o Atendimento",
+    description: "Executa o fluxo ao finalizar um atendimento com IA",
+    icon: BotIcon,
   },
 ];
 
