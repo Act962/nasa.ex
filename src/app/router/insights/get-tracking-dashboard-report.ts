@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { requireOrgMiddleware } from "../../middlewares/org";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 
 export const getTrackingDashboardReport = base
@@ -106,6 +107,7 @@ export const getTrackingDashboardReport = base
         totalMessages,
         sentMessages,
         receivedMessages,
+        ttfrRes,
       ] = await Promise.all([
         prisma.lead.count({ where: baseWhere }),
         prisma.lead.count({ where: { ...baseWhere, currentAction: "WON" } }),
@@ -235,6 +237,43 @@ export const getTrackingDashboardReport = base
             ...dateFilter,
           },
         }),
+
+        // Tempo Médio de Primeira Resposta (TTFR)
+        prisma.$queryRaw<any[]>`
+          SELECT 
+            AVG(EXTRACT(EPOCH FROM (first_outbound - first_inbound))) as avg_ttfr
+          FROM (
+            SELECT 
+              m."conversationId",
+              MIN(CASE WHEN m."from_me" = false THEN m."created_at" END) as first_inbound,
+              MIN(CASE WHEN m."from_me" = true THEN m."created_at" END) as first_outbound
+            FROM "messages" m
+            JOIN "conversations" c ON m."conversationId" = c."id"
+            JOIN "tracking" t ON c."tracking_id" = t."id"
+            JOIN "member" mem ON t."organization_id" = mem."organizationId"
+            WHERE mem."userId" = ${user.id}
+              ${trackingId ? Prisma.sql`AND c."tracking_id" = ${trackingId}` : Prisma.empty}
+              ${
+                organizationIds && organizationIds.length > 0
+                  ? Prisma.sql`AND t."organization_id" IN (${Prisma.join(organizationIds)})`
+                  : Prisma.sql`AND t."organization_id" = ${org.id}`
+              }
+              ${
+                startDate
+                  ? Prisma.sql`AND m."created_at" >= ${new Date(startDate)}`
+                  : Prisma.empty
+              }
+              ${
+                endDate
+                  ? Prisma.sql`AND m."created_at" <= ${new Date(endDate)}`
+                  : Prisma.empty
+              }
+            GROUP BY m."conversationId"
+          ) AS first_msgs
+          WHERE first_inbound IS NOT NULL 
+            AND first_outbound IS NOT NULL 
+            AND first_outbound > first_inbound
+        `,
       ]);
 
       const soldThisMonth = Number(soldThisMonthRes._sum.amount || 0);
@@ -324,6 +363,9 @@ export const getTrackingDashboardReport = base
           totalMessages,
           sentMessages,
           receivedMessages,
+          avgTimeToFirstResponse: ttfrRes?.[0]?.avg_ttfr
+            ? Math.round(Number(ttfrRes[0].avg_ttfr))
+            : null,
         },
         byStatus: byStatus.map((row) => ({
           status: statusMap[row.statusId] ?? {

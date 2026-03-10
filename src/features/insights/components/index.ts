@@ -1,10 +1,10 @@
 export { TrackingDashboard } from "./tracking-dashboard";
-export { KPICards } from "./kpi-general-cards";
+export { KPIGeneralCards } from "./kpi/general-cards";
 export { ChartWrapper } from "./chart-wrapper";
-export { StatusChart } from "./status-chart";
-export { ChannelChart } from "./channel-chart";
-export { AttendantChart } from "./attendant-chart";
-export { TagsChart } from "./tags-chart";
+export { StatusChart } from "./charts/status-chart";
+export { ChannelChart } from "./charts/channel-chart";
+export { AttendantChart } from "./charts/attendant-chart";
+export { TagsChart } from "./charts/tags-chart";
 export { DashboardFilters } from "./dashboard-filters";
 export { DashboardHeader } from "./dashboard-header";
 export { SettingsPanel } from "./settings-panel";

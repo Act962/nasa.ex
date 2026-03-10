@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  CalendarIcon,
-  RefreshCw,
-  PlusIcon,
-  SettingsIcon,
-  TagIcon,
-} from "lucide-react";
+import { CalendarIcon, PlusIcon, SettingsIcon, TagIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -26,7 +20,6 @@ import {
 import { cn } from "@/lib/utils";
 import type { DateRange } from "@/features/insights/types";
 import { useTags } from "@/features/tags/hooks/use-tags";
-import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,

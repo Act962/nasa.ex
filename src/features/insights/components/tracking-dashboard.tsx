@@ -2,24 +2,23 @@
 
 import { DashboardHeader } from "./dashboard-header";
 import { DashboardFilters } from "./dashboard-filters";
-import { KPIGeneralCards } from "./kpi-general-cards";
+import { KPIGeneralCards } from "./kpi/general-cards";
 import { ChartWrapper } from "./chart-wrapper";
-import { StatusChart } from "./status-chart";
-import { ChannelChart } from "./channel-chart";
-import { AttendantChart } from "./attendant-chart";
-import { TagsChart } from "./tags-chart";
+import { StatusChart } from "./charts/status-chart";
+import { ChannelChart } from "./charts/channel-chart";
+import { AttendantChart } from "./charts/attendant-chart";
+import { TagsChart } from "./charts/tags-chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useDashboardStore } from "@/features/insights/hooks/use-dashboard-store";
 import {
   useDashboardData,
   useQueryListAllTrackings,
-  useQueryListTrackings,
 } from "@/features/insights/hooks/use-dashboard";
 import type { DashboardReport } from "@/features/insights/types";
 import { authClient } from "@/lib/auth-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { KPIAtendimentCards } from "./kpi-atendiment-cards";
+import { KPIAtendimentCards } from "./kpi/atendiment-cards";
 
 interface TrackingDashboardProps {
   initialData?: DashboardReport;

@@ -17,7 +17,6 @@ import {
   RadialBar,
   RadialBarChart,
   PolarGrid,
-  PolarRadiusAxis,
   Label,
 } from "recharts";
 import {

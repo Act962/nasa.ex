@@ -13,6 +13,7 @@ export interface DashboardSummary {
   totalMessages: number;
   sentMessages: number;
   receivedMessages: number;
+  avgTimeToFirstResponse: number | null;
 }
 
 export interface StatusData {

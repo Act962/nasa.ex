@@ -9,10 +9,6 @@ import {
   XCircle,
   Percent,
   CalendarDays,
-  MessageSquare,
-  MessageCircle,
-  Send,
-  Download,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DashboardSummary } from "@/features/insights/types";
@@ -91,30 +87,75 @@ function KPICard({
   );
 }
 
-export function KPIAtendimentCards({ summary }: KPICardsProps) {
+export function KPIGeneralCards({ summary }: KPICardsProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <KPICard
-        title="Total de Conversas"
-        value={summary.totalConversations.toLocaleString("pt-BR")}
-        icon={<MessageSquare className="size-4" />}
+        title="Total de Leads"
+        value={summary.totalLeads.toLocaleString("pt-BR")}
+        icon={<Users className="size-4" />}
       />
       <KPICard
-        title="Total de Mensagens"
-        value={summary.totalMessages.toLocaleString("pt-BR")}
-        icon={<MessageCircle className="size-4" />}
+        title="Leads Ativos"
+        value={summary.activeLeads.toLocaleString("pt-BR")}
+        icon={<Target className="size-4" />}
+        variant="warning"
       />
       <KPICard
-        title="Mensagens Enviadas"
-        value={summary.sentMessages.toLocaleString("pt-BR")}
-        icon={<Send className="size-4" />}
+        title="Leads Ganhos"
+        value={summary.wonLeads.toLocaleString("pt-BR")}
+        icon={<Trophy className="size-4" />}
         variant="success"
       />
       <KPICard
-        title="Mensagens Recebidas"
-        value={summary.receivedMessages.toLocaleString("pt-BR")}
-        icon={<Download className="size-4" />}
-        variant="warning"
+        title="Leads Perdidos"
+        value={summary.lostLeads.toLocaleString("pt-BR")}
+        icon={<XCircle className="size-4" />}
+        variant="destructive"
+      />
+      <KPICard
+        title="Taxa de Conversão"
+        value={`${summary.conversionRate}%`}
+        icon={<Percent className="size-4" />}
+        variant="success"
+      />
+      <KPICard
+        title="Vendas Este Mês"
+        value={summary.soldThisMonth.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        })}
+        icon={<CalendarDays className="size-4" />}
+        trend={summary.monthGrowthRate}
+        trendLabel="vs mês anterior"
+      />
+      <KPICard
+        title="Vendas Mês Passado"
+        value={summary.soldLastMonth.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        })}
+        icon={<CalendarDays className="size-4" />}
+      />
+      <KPICard
+        title="Crescimento Mensal"
+        value={
+          summary.monthGrowthRate !== null
+            ? `${summary.monthGrowthRate >= 0 ? "+" : ""}${summary.monthGrowthRate}%`
+            : "N/A"
+        }
+        icon={
+          summary.monthGrowthRate !== null && summary.monthGrowthRate >= 0 ? (
+            <TrendingUp className="h-4 w-4" />
+          ) : (
+            <TrendingDown className="h-4 w-4" />
+          )
+        }
+        variant={
+          summary.monthGrowthRate !== null && summary.monthGrowthRate >= 0
+            ? "success"
+            : "destructive"
+        }
       />
     </div>
   );
