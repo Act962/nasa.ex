@@ -5,6 +5,10 @@ import { getLeadsByTags } from "./get-leads-by-tags";
 import { getSoldThisMonth } from "./get-sold-this-month";
 import { getTrackingDashboardReport } from "./get-tracking-dashboard-report";
 import { getWonLeads } from "./get-won-leads";
+import { createShareInsights } from "./create-share-insights";
+import { listInsightShares } from "./list-insight-shares";
+import { publicOrganizationDashboard } from "./public-organization-dashboard";
+import { deleteInsight } from "./delete-insight";
 
 export const insightsRouter = {
   getTrackingDashboardReport,
@@ -14,4 +18,8 @@ export const insightsRouter = {
   getLeadsByTags,
   getSoldThisMonth,
   getWonLeads,
+  createShareInsights,
+  listInsightShares,
+  publicOrganizationDashboard,
+  deleteInsight,
 };

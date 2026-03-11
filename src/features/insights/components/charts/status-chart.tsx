@@ -27,77 +27,118 @@ import {
   ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import type { ChannelData, ChartType } from "@/features/insights/types";
+import type { StatusData, ChartType } from "@/features/insights/types";
 
-interface ChannelChartProps {
-  data: ChannelData[];
+interface StatusChartProps {
+  data: StatusData[];
   chartType: ChartType;
 }
 
-const CHANNEL_COLORS = [
+const STATUS_COLORS = [
   "hsl(221, 83%, 53%)",
   "hsl(142, 71%, 45%)",
   "hsl(38, 92%, 50%)",
-  "hsl(330, 81%, 60%)",
-  "hsl(173, 80%, 40%)",
-  "hsl(262, 83%, 58%)",
   "hsl(0, 84%, 60%)",
-  "hsl(199, 89%, 48%)",
+  "hsl(262, 83%, 58%)",
+  "hsl(173, 80%, 40%)",
 ];
 
-export function ChannelChart({ data, chartType }: ChannelChartProps) {
+export function StatusChart({ data, chartType }: StatusChartProps) {
   const chartData = data.map((item, index) => ({
-    channel: item.source,
+    status: item.status.name,
     count: item.count,
-    fill: CHANNEL_COLORS[index % CHANNEL_COLORS.length],
+    breakdown: item.breakdown,
+    fill: item.status.color || STATUS_COLORS[index % STATUS_COLORS.length],
   }));
 
   const chartConfig = data.reduce<ChartConfig>(
     (acc, item, index) => ({
       ...acc,
-      [item.source]: {
-        label: item.source,
-        color: CHANNEL_COLORS[index % CHANNEL_COLORS.length],
+      [item.status.name]: {
+        label: item.status.name,
+        color: item.status.color || STATUS_COLORS[index % STATUS_COLORS.length],
       },
     }),
     {
-      count: { label: "Leads" },
+      count: { label: "Quantidade" },
     },
   );
 
   const totalLeads = chartData.reduce((sum, item) => sum + item.count, 0);
 
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="rounded-lg border bg-background p-2 shadow-sm">
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2">
+              <div
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: data.fill }}
+              />
+              <span className="font-bold">{data.status}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">Total:</span>
+                <span className="font-mono font-medium">{data.count}</span>
+              </div>
+              {data.breakdown && data.breakdown.length > 1 && (
+                <div className="mt-1 border-t pt-1">
+                  {data.breakdown.map((item: any, i: number) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-4 text-xs"
+                    >
+                      <span className="text-muted-foreground truncate max-w-[120px]">
+                        {item.name}:
+                      </span>
+                      <span className="font-mono font-medium">{item.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   switch (chartType) {
     case "bar":
       return (
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
-          <BarChart accessibilityLayer data={chartData}>
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="channel"
+          <BarChart
+            accessibilityLayer
+            data={chartData}
+            layout="vertical"
+            margin={{ left: 0, right: 16 }}
+          >
+            <CartesianGrid horizontal={false} />
+            <YAxis
+              dataKey="status"
+              type="category"
               tickLine={false}
               tickMargin={10}
               axisLine={false}
-              tick={{ fontSize: 11 }}
-              interval={0}
-              angle={-45}
-              textAnchor="end"
-              height={70}
+              width={100}
+              tick={{ fontSize: 12 }}
             />
-            <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent hideLabel />}
-            />
-            <Bar dataKey="count" radius={8}>
+            <XAxis type="number" hide />
+            <ChartTooltip cursor={false} content={<CustomTooltip />} />
+            <Bar dataKey="count" radius={4}>
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
               <LabelList
-                position="top"
+                dataKey="count"
+                position="right"
                 offset={8}
                 className="fill-foreground"
-                fontSize={11}
+                fontSize={12}
               />
             </Bar>
           </BarChart>
@@ -113,12 +154,12 @@ export function ChannelChart({ data, chartType }: ChannelChartProps) {
           <PieChart>
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent hideLabel />}
+              content={<CustomTooltip />}
             />
             <Pie
               data={chartData}
               dataKey="count"
-              nameKey="channel"
+              nameKey="status"
               innerRadius={60}
               strokeWidth={5}
             >
@@ -147,7 +188,7 @@ export function ChannelChart({ data, chartType }: ChannelChartProps) {
                           y={(viewBox.cy || 0) + 24}
                           className="fill-muted-foreground"
                         >
-                          Leads
+                          Total
                         </tspan>
                       </text>
                     );
@@ -156,7 +197,7 @@ export function ChannelChart({ data, chartType }: ChannelChartProps) {
               />
             </Pie>
             <ChartLegend
-              content={<ChartLegendContent nameKey="channel" />}
+              content={<ChartLegendContent nameKey="status" />}
               className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
             />
           </PieChart>
@@ -169,21 +210,18 @@ export function ChannelChart({ data, chartType }: ChannelChartProps) {
           <LineChart
             accessibilityLayer
             data={chartData}
-            margin={{ left: 12, right: 12, bottom: 40 }}
+            margin={{ left: 12, right: 12 }}
           >
             <CartesianGrid vertical={false} />
             <XAxis
-              dataKey="channel"
+              dataKey="status"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tick={{ fontSize: 11 }}
-              angle={-45}
-              textAnchor="end"
-              height={70}
+              tick={{ fontSize: 12 }}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+            <ChartTooltip cursor={false} content={<CustomTooltip />} />
             <Line
               dataKey="count"
               type="natural"
@@ -202,34 +240,31 @@ export function ChannelChart({ data, chartType }: ChannelChartProps) {
           <AreaChart
             accessibilityLayer
             data={chartData}
-            margin={{ left: 12, right: 12, bottom: 40 }}
+            margin={{ left: 12, right: 12 }}
           >
             <CartesianGrid vertical={false} />
             <XAxis
-              dataKey="channel"
+              dataKey="status"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tick={{ fontSize: 11 }}
-              angle={-45}
-              textAnchor="end"
-              height={70}
+              tick={{ fontSize: 12 }}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent indicator="line" />}
+              content={<CustomTooltip />}
             />
             <defs>
-              <linearGradient id="fillChannel" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="fillStatus" x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="5%"
-                  stopColor="hsl(142, 71%, 45%)"
+                  stopColor="hsl(221, 83%, 53%)"
                   stopOpacity={0.8}
                 />
                 <stop
                   offset="95%"
-                  stopColor="hsl(142, 71%, 45%)"
+                  stopColor="hsl(221, 83%, 53%)"
                   stopOpacity={0.1}
                 />
               </linearGradient>
@@ -237,9 +272,9 @@ export function ChannelChart({ data, chartType }: ChannelChartProps) {
             <Area
               dataKey="count"
               type="natural"
-              fill="url(#fillChannel)"
+              fill="url(#fillStatus)"
               fillOpacity={0.4}
-              stroke="hsl(142, 71%, 45%)"
+              stroke="hsl(221, 83%, 53%)"
               strokeWidth={2}
             />
           </AreaChart>
@@ -268,17 +303,19 @@ export function ChannelChart({ data, chartType }: ChannelChartProps) {
             />
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent hideLabel nameKey="channel" />}
+              content={<CustomTooltip />}
             />
             <RadialBar dataKey="count" background cornerRadius={10}>
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
             </RadialBar>
-            <ChartLegend
-              content={<ChartLegendContent nameKey="channel" />}
-              className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
-            />
+            {chartData && chartData.length <= 9 && (
+              <ChartLegend
+                content={<ChartLegendContent nameKey="status" />}
+                className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
+              />
+            )}
           </RadialBarChart>
         </ChartContainer>
       );

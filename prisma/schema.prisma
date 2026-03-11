@@ -32,6 +32,7 @@ model User {
   worflows Workflow[]
   forms    Form[]
   leadFiles LeadFile[]
+  insightShares InsightShares[]
 
   @@unique([email])
   @@map("user")
@@ -100,6 +101,7 @@ model Organization {
   tags        Tag[]
   whatsappInstances WhatsAppInstance[]
   actions     Action[]
+  insightShares InsightShares[]
 
   @@unique([slug])
   @@map("organization")
@@ -695,3 +697,17 @@ model WhatsAppInstance {
   @@map("whatsapp_instances")
 }
 
+model InsightShares{
+  id String @id @default(cuid())
+  name String
+  token String @unique @default(cuid()) 
+  organizationId String @map("organization_id")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  filters Json @default("{}") 
+  settings Json @default("{}") 
+  userId String @map("user_id")
+  createdBy User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("insight_shares")
+}

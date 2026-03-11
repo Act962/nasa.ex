@@ -1,5 +1,10 @@
 // Types based on the tracking dashboard API response
 
+export interface BreakdownItem {
+  name: string;
+  count: number;
+}
+
 export interface DashboardSummary {
   totalLeads: number;
   activeLeads: number;
@@ -9,6 +14,11 @@ export interface DashboardSummary {
   soldThisMonth: number;
   soldLastMonth: number;
   monthGrowthRate: number | null;
+  totalConversations: number;
+  totalMessages: number;
+  sentMessages: number;
+  receivedMessages: number;
+  avgTimeToFirstResponse: number | null;
 }
 
 export interface StatusData {
@@ -18,11 +28,13 @@ export interface StatusData {
     color: string | null;
   };
   count: number;
+  breakdown?: BreakdownItem[];
 }
 
 export interface ChannelData {
   source: string;
   count: number;
+  breakdown?: BreakdownItem[];
 }
 
 export interface AttendantData {
@@ -34,6 +46,7 @@ export interface AttendantData {
   isUnassigned: boolean;
   total: number;
   won: number;
+  breakdown?: (BreakdownItem & { won: number })[];
 }
 
 export interface TagData {
@@ -43,6 +56,7 @@ export interface TagData {
     color: string | null;
   };
   count: number;
+  breakdown?: BreakdownItem[];
 }
 
 export interface DashboardReport {

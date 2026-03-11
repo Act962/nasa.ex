@@ -1,8 +1,14 @@
 "use client";
 
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, Link2Icon, RefreshCwIcon } from "lucide-react";
 import { SettingsPanel } from "./settings-panel";
 import type { DashboardSettings, ChartType } from "@/features/insights/types";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { SharingInsights } from "./sharing-insight-modal";
+import { useDashboardStore } from "../hooks/use-dashboard-store";
+import { authClient } from "@/lib/auth-client";
+import { ButtonGroup } from "@/components/ui/button-group";
 
 interface DashboardHeaderProps {
   settings: DashboardSettings;
@@ -14,6 +20,8 @@ interface DashboardHeaderProps {
     type: ChartType,
   ) => void;
   onReset: () => void;
+  onRefresh: () => void;
+  isLoading: boolean;
 }
 
 export function DashboardHeader({
@@ -21,7 +29,12 @@ export function DashboardHeader({
   onToggleSection,
   onChartTypeChange,
   onReset,
+  onRefresh,
+  isLoading,
 }: DashboardHeaderProps) {
+  const store = useDashboardStore();
+  const session = authClient.useSession();
+
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -37,12 +50,48 @@ export function DashboardHeader({
           </p>
         </div>
       </div>
-      <SettingsPanel
-        settings={settings}
-        onToggleSection={onToggleSection}
-        onChartTypeChange={onChartTypeChange}
-        onReset={onReset}
-      />
+      <div className="space-x-2">
+        <ButtonGroup className="sm:block hidden">
+          <SharingInsights
+            filters={{
+              trackingId: store.trackingId,
+              organizationIds:
+                store.organizationIds.length === 0
+                  ? [session.data?.session.activeOrganizationId]
+                  : store.organizationIds,
+              tagIds: store.tagIds,
+              dateRange: store.dateRange,
+            }}
+            settings={settings}
+          >
+            <Button
+              variant="outline"
+              size="icon"
+              disabled={isLoading}
+              className="self-end sm:self-auto"
+            >
+              <Link2Icon className="size-4" />
+            </Button>
+          </SharingInsights>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onRefresh}
+            disabled={isLoading}
+            className="self-end sm:self-auto"
+          >
+            <RefreshCwIcon
+              className={cn("h-4 w-4", isLoading && "animate-spin")}
+            />
+          </Button>
+          <SettingsPanel
+            settings={settings}
+            onToggleSection={onToggleSection}
+            onChartTypeChange={onChartTypeChange}
+            onReset={onReset}
+          />
+        </ButtonGroup>
+      </div>
     </div>
   );
 }

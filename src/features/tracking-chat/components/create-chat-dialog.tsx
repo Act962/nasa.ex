@@ -104,8 +104,8 @@ export function CreateChatDialog({
                       <UserIcon className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium truncate">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-medium line-clamp-1">
                           {customer.name}
                         </span>
                         {selectedCustomer?.includes(customer.phone || "") && (
