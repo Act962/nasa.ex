@@ -49,6 +49,7 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
   const chartData = data.map((item, index) => ({
     tag: item.tag.name,
     count: item.count,
+    breakdown: item.breakdown,
     fill: item.tag.color || TAG_COLORS[index % TAG_COLORS.length],
   }));
 
@@ -66,6 +67,47 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
   );
 
   const totalTags = chartData.reduce((sum, item) => sum + item.count, 0);
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="rounded-lg border bg-background p-2 shadow-sm">
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2 border-b pb-1">
+              <div
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: data.fill }}
+              />
+              <span className="font-bold">{data.tag}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">Total:</span>
+                <span className="font-mono font-medium">{data.count}</span>
+              </div>
+              {data.breakdown && data.breakdown.length > 1 && (
+                <div className="mt-1 border-t pt-1">
+                  {data.breakdown.map((item: any, i: number) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-4 text-xs"
+                    >
+                      <span className="text-muted-foreground truncate max-w-[120px]">
+                        {item.name}:
+                      </span>
+                      <span className="font-mono font-medium">{item.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   switch (chartType) {
     case "bar":
@@ -85,10 +127,7 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
               height={70}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent hideLabel />}
-            />
+            <ChartTooltip cursor={false} content={<CustomTooltip />} />
             <Bar dataKey="count" radius={8}>
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -113,7 +152,7 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
           <PieChart>
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent hideLabel />}
+              content={<CustomTooltip />}
             />
             <Pie
               data={chartData}
@@ -155,10 +194,12 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
                 }}
               />
             </Pie>
-            <ChartLegend
-              content={<ChartLegendContent nameKey="tag" />}
-              className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
-            />
+            {chartData && chartData.length <= 9 && (
+              <ChartLegend
+                content={<ChartLegendContent nameKey="tag" />}
+                className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
+              />
+            )}
           </PieChart>
         </ChartContainer>
       );
@@ -183,7 +224,7 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
               height={70}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+            <ChartTooltip cursor={false} content={<CustomTooltip />} />
             <Line
               dataKey="count"
               type="natural"
@@ -218,7 +259,7 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent indicator="line" />}
+              content={<CustomTooltip />}
             />
             <defs>
               <linearGradient id="fillTags" x1="0" y1="0" x2="0" y2="1">
@@ -268,7 +309,7 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
             />
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent hideLabel nameKey="tag" />}
+              content={<CustomTooltip />}
             />
             <RadialBar dataKey="count" background cornerRadius={10}>
               {chartData.map((entry, index) => (

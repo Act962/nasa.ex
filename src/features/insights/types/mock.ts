@@ -2,14 +2,19 @@ import type { DashboardReport } from "../types";
 
 export const mockDashboardData: DashboardReport = {
   summary: {
-    totalLeads: 1247,
-    activeLeads: 342,
-    wonLeads: 687,
-    lostLeads: 218,
-    conversionRate: 75.91,
-    soldThisMonth: 89,
-    soldLastMonth: 72,
-    monthGrowthRate: 23.61,
+    totalLeads: 0,
+    activeLeads: 0,
+    wonLeads: 0,
+    lostLeads: 0,
+    conversionRate: 0,
+    soldThisMonth: 0,
+    soldLastMonth: 0,
+    monthGrowthRate: 0,
+    totalConversations: 0,
+    totalMessages: 0,
+    sentMessages: 0,
+    receivedMessages: 0,
+    avgTimeToFirstResponse: 0, // seconds
   },
   byStatus: [
     { status: { id: "1", name: "Novo", color: "#3B82F6" }, count: 156 },

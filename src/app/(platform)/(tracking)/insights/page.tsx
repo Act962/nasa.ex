@@ -1,4 +1,4 @@
-import { TrackingDashboard } from "@/features/insights/components";
+import { TrackingDashboard } from "@/features/insights/components/tracking-dashboard";
 
 export default function Page() {
   return (

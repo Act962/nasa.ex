@@ -1,31 +1,67 @@
 import { base } from "@/app/middlewares/base";
-import { requiredAuthMiddleware } from "../../middlewares/auth";
-import { requireOrgMiddleware } from "../../middlewares/org";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 
-export const getTrackingDashboardReport = base
-  .use(requiredAuthMiddleware)
-  .use(requireOrgMiddleware)
+export const publicOrganizationDashboard = base
   .route({
     method: "GET",
-    path: "/reports/insights/dashboard",
-    summary: "Get a full consolidated report for a tracking dashboard",
+    path: "/insights/public/:organizationId/:slug",
+    summary:
+      "Get a public tracking dashboard report by organization and insight slug (no auth required)",
   })
   .input(
     z.object({
-      trackingId: z.string().optional(),
-      organizationIds: z.array(z.string()).optional(),
-      startDate: z.string().datetime().optional(),
-      endDate: z.string().datetime().optional(),
-      tagIds: z.array(z.string()).optional(),
+      organizationId: z.string(),
+      slug: z.string(),
     }),
   )
-  .handler(async ({ input, errors, context }) => {
+  .handler(async ({ input, errors }) => {
     try {
-      const { org, user } = context;
-      const { trackingId, organizationIds, startDate, endDate, tagIds } = input;
+      const { organizationId, slug } = input;
+
+      // Validate the share exists and belongs to the organization
+      const share = await prisma.insightShares.findFirst({
+        where: {
+          token: slug,
+          organizationId,
+        },
+        select: {
+          id: true,
+          name: true,
+          filters: true,
+          settings: true,
+          organizationId: true,
+          organization: {
+            select: {
+              id: true,
+              name: true,
+              logo: true,
+            },
+          },
+        },
+      });
+
+      if (!share) {
+        throw errors.NOT_FOUND;
+      }
+
+      // Extract filters saved on the share
+      const savedFilters = (share.filters ?? {}) as {
+        trackingId?: string;
+        organizationIds?: string[];
+        startDate?: string;
+        endDate?: string;
+        tagIds?: string[];
+      };
+
+      const {
+        trackingId,
+        organizationIds,
+        startDate,
+        endDate,
+        tagIds,
+      } = savedFilters;
 
       const dateFilter =
         startDate || endDate
@@ -48,18 +84,17 @@ export const getTrackingDashboardReport = base
             }
           : {};
 
-      const organizationFilter = organizationIds
-        ? organizationIds.length > 0
+      // Always scope to the organization from the share
+      const organizationFilter =
+        organizationIds && organizationIds.length > 0
           ? { id: { in: organizationIds } }
-          : {}
-        : { id: org.id };
+          : { id: organizationId };
 
       const baseWhere = {
         ...(trackingId ? { trackingId } : {}),
         tracking: {
           organization: {
             ...organizationFilter,
-            members: { some: { userId: user.id } },
           },
         },
         ...dateFilter,
@@ -114,7 +149,6 @@ export const getTrackingDashboardReport = base
         prisma.lead.count({ where: { ...baseWhere, currentAction: "LOST" } }),
         prisma.lead.count({ where: { ...baseWhere, currentAction: "ACTIVE" } }),
 
-        // Valor Vendido esse mês
         prisma.lead.aggregate({
           where: {
             ...baseWhere,
@@ -128,7 +162,6 @@ export const getTrackingDashboardReport = base
           _sum: { amount: true },
         }),
 
-        // Valor Vendido mês passado
         prisma.lead.aggregate({
           where: {
             ...baseWhere,
@@ -142,107 +175,80 @@ export const getTrackingDashboardReport = base
           _sum: { amount: true },
         }),
 
-        // Por canal
         prisma.lead.groupBy({
           by: ["source", "trackingId"],
           where: baseWhere,
           _count: { id: true },
         }),
 
-        // Por status
         prisma.lead.groupBy({
           by: ["statusId", "trackingId"],
           where: baseWhere,
           _count: { id: true },
         }),
 
-        // Por responsável
         prisma.lead.groupBy({
           by: ["responsibleId", "currentAction", "trackingId"],
           where: baseWhere,
           _count: { id: true },
         }),
 
-        // Por tag
         prisma.leadTag.findMany({
-          where: {
-            lead: baseWhere,
-          },
+          where: { lead: baseWhere },
           select: {
             tagId: true,
-            lead: {
-              select: {
-                trackingId: true,
-              },
-            },
+            lead: { select: { trackingId: true } },
           },
         }),
 
-        // Conversas totais
         prisma.conversation.count({
           where: {
             ...(trackingId ? { trackingId } : {}),
             tracking: {
-              organization: {
-                ...organizationFilter,
-                members: { some: { userId: user.id } },
-              },
+              organization: { ...organizationFilter },
             },
             ...dateFilter,
           },
         }),
 
-        // Mensagens totais
         prisma.message.count({
           where: {
             conversation: {
               ...(trackingId ? { trackingId } : {}),
               tracking: {
-                organization: {
-                  ...organizationFilter,
-                  members: { some: { userId: user.id } },
-                },
+                organization: { ...organizationFilter },
               },
             },
             ...dateFilter,
           },
         }),
 
-        // Mensagens enviadas
         prisma.message.count({
           where: {
             fromMe: true,
             conversation: {
               ...(trackingId ? { trackingId } : {}),
               tracking: {
-                organization: {
-                  ...organizationFilter,
-                  members: { some: { userId: user.id } },
-                },
+                organization: { ...organizationFilter },
               },
             },
             ...dateFilter,
           },
         }),
 
-        // Mensagens recebidas
         prisma.message.count({
           where: {
             fromMe: false,
             conversation: {
               ...(trackingId ? { trackingId } : {}),
               tracking: {
-                organization: {
-                  ...organizationFilter,
-                  members: { some: { userId: user.id } },
-                },
+                organization: { ...organizationFilter },
               },
             },
             ...dateFilter,
           },
         }),
 
-        // Tempo Médio de Primeira Resposta (TTFR)
         prisma.$queryRaw<any[]>`
           SELECT 
             AVG(EXTRACT(EPOCH FROM (first_outbound - first_inbound))) as avg_ttfr
@@ -254,24 +260,10 @@ export const getTrackingDashboardReport = base
             FROM "messages" m
             JOIN "conversations" c ON m."conversationId" = c."id"
             JOIN "tracking" t ON c."tracking_id" = t."id"
-            JOIN "member" mem ON t."organization_id" = mem."organizationId"
-            WHERE mem."userId" = ${user.id}
+            WHERE t."organization_id" = ${organizationId}
               ${trackingId ? Prisma.sql`AND c."tracking_id" = ${trackingId}` : Prisma.empty}
-              ${
-                organizationIds && organizationIds.length > 0
-                  ? Prisma.sql`AND t."organization_id" IN (${Prisma.join(organizationIds)})`
-                  : Prisma.sql`AND t."organization_id" = ${org.id}`
-              }
-              ${
-                startDate
-                  ? Prisma.sql`AND m."created_at" >= ${new Date(startDate)}`
-                  : Prisma.empty
-              }
-              ${
-                endDate
-                  ? Prisma.sql`AND m."created_at" <= ${new Date(endDate)}`
-                  : Prisma.empty
-              }
+              ${startDate ? Prisma.sql`AND m."created_at" >= ${new Date(startDate)}` : Prisma.empty}
+              ${endDate ? Prisma.sql`AND m."created_at" <= ${new Date(endDate)}` : Prisma.empty}
             GROUP BY m."conversationId"
           ) AS first_msgs
           WHERE first_inbound IS NOT NULL 
@@ -283,7 +275,6 @@ export const getTrackingDashboardReport = base
       const soldThisMonth = Number(soldThisMonthRes._sum.amount || 0);
       const soldLastMonth = Number(soldLastMonthRes._sum.amount || 0);
 
-      // Enriquecer dados
       const [statuses, trackings] = await Promise.all([
         prisma.status.findMany({
           where: {
@@ -291,10 +282,7 @@ export const getTrackingDashboardReport = base
               ? { trackingId }
               : {
                   tracking: {
-                    organization: {
-                      ...organizationFilter,
-                      members: { some: { userId: user.id } },
-                    },
+                    organization: { ...organizationFilter },
                   },
                 }),
           },
@@ -302,10 +290,7 @@ export const getTrackingDashboardReport = base
         }),
         prisma.tracking.findMany({
           where: {
-            organization: {
-              ...organizationFilter,
-              members: { some: { userId: user.id } },
-            },
+            organization: { ...organizationFilter },
           },
           select: { id: true, name: true },
         }),
@@ -321,13 +306,14 @@ export const getTrackingDashboardReport = base
           byResponsible.map((r) => r.responsibleId).filter(Boolean) as string[],
         ),
       ];
+
       const users = await prisma.user.findMany({
         where: { id: { in: responsibleIds } },
         select: { id: true, name: true, image: true },
       });
       const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
-      // Consolidar status com breakdown
+      // Consolidate by status
       const statusConsolidated: Record<
         string,
         { count: number; breakdown: Record<string, number> }
@@ -343,7 +329,7 @@ export const getTrackingDashboardReport = base
           row._count.id;
       }
 
-      // Consolidar canais com breakdown
+      // Consolidate by channel
       const channelConsolidated: Record<
         string,
         { count: number; breakdown: Record<string, number> }
@@ -359,7 +345,7 @@ export const getTrackingDashboardReport = base
           row._count.id;
       }
 
-      // Consolidar responsáveis com breakdown
+      // Consolidate by responsible
       const responsibleConsolidated: Record<
         string,
         {
@@ -373,9 +359,7 @@ export const getTrackingDashboardReport = base
         const key = row.responsibleId ?? "__unassigned__";
         if (!responsibleConsolidated[key]) {
           responsibleConsolidated[key] = {
-            user: row.responsibleId
-              ? (userMap[row.responsibleId] ?? null)
-              : null,
+            user: row.responsibleId ? (userMap[row.responsibleId] ?? null) : null,
             won: 0,
             total: 0,
             breakdown: {},
@@ -385,17 +369,15 @@ export const getTrackingDashboardReport = base
         if (!responsibleConsolidated[key].breakdown[tName]) {
           responsibleConsolidated[key].breakdown[tName] = { total: 0, won: 0 };
         }
-
         responsibleConsolidated[key].total += row._count.id;
         responsibleConsolidated[key].breakdown[tName].total += row._count.id;
-
         if (row.currentAction === "WON") {
           responsibleConsolidated[key].won += row._count.id;
           responsibleConsolidated[key].breakdown[tName].won += row._count.id;
         }
       }
 
-      // Consolidar tags com breakdown
+      // Consolidate by tag
       const tagConsolidated: Record<
         string,
         { count: number; breakdown: Record<string, number> }
@@ -431,6 +413,11 @@ export const getTrackingDashboardReport = base
           : null;
 
       return {
+        share: {
+          name: share.name,
+          settings: share.settings,
+        },
+        organization: share.organization,
         summary: {
           totalLeads,
           activeLeads,
@@ -452,25 +439,23 @@ export const getTrackingDashboardReport = base
             : null,
         },
         byStatus: Object.entries(statusConsolidated).map(([id, val]) => ({
-          status: statusMap[id] ?? {
-            id,
-            name: "Unknown",
-            color: null,
-          },
+          status: statusMap[id] ?? { id, name: "Unknown", color: null },
           count: val.count,
           breakdown: Object.entries(val.breakdown).map(([name, count]) => ({
             name,
             count,
           })),
         })),
-        byChannel: Object.entries(channelConsolidated).map(([source, val]) => ({
-          source,
-          count: val.count,
-          breakdown: Object.entries(val.breakdown).map(([name, count]) => ({
-            name,
-            count,
-          })),
-        })),
+        byChannel: Object.entries(channelConsolidated).map(
+          ([source, val]) => ({
+            source,
+            count: val.count,
+            breakdown: Object.entries(val.breakdown).map(([name, count]) => ({
+              name,
+              count,
+            })),
+          }),
+        ),
         byAttendant: Object.entries(responsibleConsolidated).map(
           ([key, val]) => ({
             responsible: val.user,
@@ -485,21 +470,13 @@ export const getTrackingDashboardReport = base
           }),
         ),
         topTags: topTagIds.map((id) => ({
-          tag: tagMap[id] ?? {
-            id,
-            name: "Unknown",
-            color: null,
-          },
+          tag: tagMap[id] ?? { id, name: "Unknown", color: null },
           count: tagConsolidated[id].count,
           breakdown: Object.entries(tagConsolidated[id].breakdown).map(
-            ([name, count]) => ({
-              name,
-              count,
-            }),
+            ([name, count]) => ({ name, count }),
           ),
         })),
       };
-
     } catch (error) {
       console.error(error);
       throw errors.INTERNAL_SERVER_ERROR;
