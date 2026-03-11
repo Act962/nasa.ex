@@ -145,13 +145,7 @@ export function TrackingDashboard({
           )}
 
           {/* Charts Grid */}
-          <div
-            className={cn(
-              "grid gap-6 lg:grid-cols-2",
-              organizationIds.length > 1 && "lg:grid-cols-1",
-              organizationIds.length === 0 && "lg:grid-cols-1",
-            )}
-          >
+          <div className={cn("grid gap-6 lg:grid-cols-2")}>
             {settings.visibleSections.byStatus &&
               (isLoading ? (
                 <ChartSkeleton />

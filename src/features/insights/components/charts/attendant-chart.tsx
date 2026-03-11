@@ -49,6 +49,7 @@ export function AttendantChart({ data, chartType }: AttendantChartProps) {
       : item.responsible?.name || "Desconhecido",
     total: item.total,
     won: item.won,
+    breakdown: item.breakdown,
     rate: item.total > 0 ? Math.round((item.won / item.total) * 100) : 0,
     fill: ATTENDANT_COLORS[index % ATTENDANT_COLORS.length],
   }));
@@ -71,6 +72,74 @@ export function AttendantChart({ data, chartType }: AttendantChartProps) {
   const totalLeads = chartData.reduce((sum, item) => sum + item.total, 0);
   const totalWon = chartData.reduce((sum, item) => sum + item.won, 0);
 
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="rounded-lg border bg-background p-2 shadow-sm min-w-[180px]">
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2 border-b pb-1">
+              <div
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: data.fill }}
+              />
+              <span className="font-bold">{data.name}</span>
+            </div>
+            <div className="flex flex-col gap-1.5 text-sm">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">Total:</span>
+                <span className="font-mono font-medium">{data.total}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">Ganhos:</span>
+                <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                  {data.won}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">Conversão:</span>
+                <span className="font-mono font-medium">{data.rate}%</span>
+              </div>
+
+              {data.breakdown && data.breakdown.length > 1 && (
+                <div className="mt-1 flex flex-col gap-1.5 border-t pt-1">
+                  <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+                    Breakdown por Tracking
+                  </span>
+                  {data.breakdown.map((item: any, i: number) => (
+                    <div
+                      key={i}
+                      className="flex flex-col gap-0.5 border-l-2 pl-2 py-0.5 text-[11px]"
+                    >
+                      <span className="font-medium text-foreground truncate max-w-[170px]">
+                        {item.name}
+                      </span>
+                      <div className="flex items-center gap-3 text-muted-foreground">
+                        <span>
+                          Total:{" "}
+                          <span className="text-foreground font-mono">
+                            {item.count}
+                          </span>
+                        </span>
+                        <span>
+                          Ganhos:{" "}
+                          <span className="text-emerald-600 dark:text-emerald-400 font-mono">
+                            {item.won}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   switch (chartType) {
     case "bar":
       return (
@@ -92,30 +161,7 @@ export function AttendantChart({ data, chartType }: AttendantChartProps) {
               tick={{ fontSize: 11 }}
             />
             <XAxis type="number" hide />
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  formatter={(value, name) => (
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="h-2 w-2 rounded-full"
-                        style={{
-                          backgroundColor:
-                            name === "total"
-                              ? "hsl(221, 83%, 53%)"
-                              : "hsl(142, 71%, 45%)",
-                        }}
-                      />
-                      <span className="text-muted-foreground">
-                        {name === "total" ? "Total" : "Ganhos"}:
-                      </span>
-                      <span className="font-mono font-medium">{value}</span>
-                    </div>
-                  )}
-                />
-              }
-            />
+            <ChartTooltip cursor={false} content={<CustomTooltip />} />
             <ChartLegend content={<ChartLegendContent />} />
             <Bar
               dataKey="total"
@@ -146,30 +192,7 @@ export function AttendantChart({ data, chartType }: AttendantChartProps) {
           <PieChart>
             <ChartTooltip
               cursor={false}
-              content={
-                <ChartTooltipContent
-                  formatter={(value, _name, item) => (
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">Total:</span>
-                        <span className="font-mono font-medium">{value}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">Ganhos:</span>
-                        <span className="font-mono font-medium">
-                          {item.payload.won}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">Taxa:</span>
-                        <span className="font-mono font-medium">
-                          {item.payload.rate}%
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                />
-              }
+              content={<CustomTooltip />}
             />
             <Pie
               data={pieData}
@@ -243,7 +266,7 @@ export function AttendantChart({ data, chartType }: AttendantChartProps) {
               height={70}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+            <ChartTooltip cursor={false} content={<CustomTooltip />} />
             <ChartLegend content={<ChartLegendContent />} />
             <Line
               dataKey="total"
@@ -287,7 +310,7 @@ export function AttendantChart({ data, chartType }: AttendantChartProps) {
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent indicator="dot" />}
+              content={<CustomTooltip />}
             />
             <ChartLegend content={<ChartLegendContent />} />
             <defs>
@@ -364,15 +387,7 @@ export function AttendantChart({ data, chartType }: AttendantChartProps) {
             />
             <ChartTooltip
               cursor={false}
-              content={
-                <ChartTooltipContent
-                  hideLabel
-                  nameKey="name"
-                  formatter={(value) => (
-                    <span className="font-mono font-medium">{value}%</span>
-                  )}
-                />
-              }
+              content={<CustomTooltip />}
             />
             <RadialBar dataKey="value" background cornerRadius={10}>
               {radialData.map((entry, index) => (

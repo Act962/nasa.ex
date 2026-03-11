@@ -47,6 +47,7 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
   const chartData = data.map((item, index) => ({
     status: item.status.name,
     count: item.count,
+    breakdown: item.breakdown,
     fill: item.status.color || STATUS_COLORS[index % STATUS_COLORS.length],
   }));
 
@@ -65,7 +66,46 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
 
   const totalLeads = chartData.reduce((sum, item) => sum + item.count, 0);
 
-  const maxStatusperGraph = 9;
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="rounded-lg border bg-background p-2 shadow-sm">
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2">
+              <div
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: data.fill }}
+              />
+              <span className="font-bold">{data.status}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">Total:</span>
+                <span className="font-mono font-medium">{data.count}</span>
+              </div>
+              {data.breakdown && data.breakdown.length > 1 && (
+                <div className="mt-1 border-t pt-1">
+                  {data.breakdown.map((item: any, i: number) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-4 text-xs"
+                    >
+                      <span className="text-muted-foreground truncate max-w-[120px]">
+                        {item.name}:
+                      </span>
+                      <span className="font-mono font-medium">{item.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   switch (chartType) {
     case "bar":
@@ -88,10 +128,7 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
               tick={{ fontSize: 12 }}
             />
             <XAxis type="number" hide />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent indicator="line" />}
-            />
+            <ChartTooltip cursor={false} content={<CustomTooltip />} />
             <Bar dataKey="count" radius={4}>
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -117,7 +154,7 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
           <PieChart>
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent hideLabel />}
+              content={<CustomTooltip />}
             />
             <Pie
               data={chartData}
@@ -184,7 +221,7 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
               tick={{ fontSize: 12 }}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+            <ChartTooltip cursor={false} content={<CustomTooltip />} />
             <Line
               dataKey="count"
               type="natural"
@@ -216,7 +253,7 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent indicator="line" />}
+              content={<CustomTooltip />}
             />
             <defs>
               <linearGradient id="fillStatus" x1="0" y1="0" x2="0" y2="1">
@@ -266,7 +303,7 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
             />
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent hideLabel nameKey="status" />}
+              content={<CustomTooltip />}
             />
             <RadialBar dataKey="count" background cornerRadius={10}>
               {chartData.map((entry, index) => (

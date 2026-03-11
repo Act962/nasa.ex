@@ -144,34 +144,38 @@ export const getTrackingDashboardReport = base
 
         // Por canal
         prisma.lead.groupBy({
-          by: ["source"],
+          by: ["source", "trackingId"],
           where: baseWhere,
           _count: { id: true },
         }),
 
         // Por status
         prisma.lead.groupBy({
-          by: ["statusId"],
+          by: ["statusId", "trackingId"],
           where: baseWhere,
           _count: { id: true },
         }),
 
         // Por responsável
         prisma.lead.groupBy({
-          by: ["responsibleId", "currentAction"],
+          by: ["responsibleId", "currentAction", "trackingId"],
           where: baseWhere,
           _count: { id: true },
         }),
 
         // Por tag
-        prisma.leadTag.groupBy({
-          by: ["tagId"],
+        prisma.leadTag.findMany({
           where: {
             lead: baseWhere,
           },
-          _count: { id: true },
-          orderBy: { _count: { id: "desc" } },
-          take: 10,
+          select: {
+            tagId: true,
+            lead: {
+              select: {
+                trackingId: true,
+              },
+            },
+          },
         }),
 
         // Conversas totais
@@ -280,22 +284,37 @@ export const getTrackingDashboardReport = base
       const soldLastMonth = Number(soldLastMonthRes._sum.amount || 0);
 
       // Enriquecer dados
-      const statuses = await prisma.status.findMany({
-        where: {
-          ...(trackingId
-            ? { trackingId }
-            : {
-                tracking: {
-                  organization: {
-                    ...organizationFilter,
-                    members: { some: { userId: user.id } },
+      const [statuses, trackings] = await Promise.all([
+        prisma.status.findMany({
+          where: {
+            ...(trackingId
+              ? { trackingId }
+              : {
+                  tracking: {
+                    organization: {
+                      ...organizationFilter,
+                      members: { some: { userId: user.id } },
+                    },
                   },
-                },
-              }),
-        },
-        select: { id: true, name: true, color: true },
-      });
+                }),
+          },
+          select: { id: true, name: true, color: true },
+        }),
+        prisma.tracking.findMany({
+          where: {
+            organization: {
+              ...organizationFilter,
+              members: { some: { userId: user.id } },
+            },
+          },
+          select: { id: true, name: true },
+        }),
+      ]);
+
       const statusMap = Object.fromEntries(statuses.map((s) => [s.id, s]));
+      const trackingMap = Object.fromEntries(
+        trackings.map((t) => [t.id, t.name]),
+      );
 
       const responsibleIds = [
         ...new Set(
@@ -308,17 +327,47 @@ export const getTrackingDashboardReport = base
       });
       const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
-      const topTagIds = byTag.map((t) => t.tagId);
-      const tags = await prisma.tag.findMany({
-        where: { id: { in: topTagIds } },
-        select: { id: true, name: true, color: true },
-      });
-      const tagMap = Object.fromEntries(tags.map((t) => [t.id, t]));
+      // Consolidar status com breakdown
+      const statusConsolidated: Record<
+        string,
+        { count: number; breakdown: Record<string, number> }
+      > = {};
+      for (const row of byStatus) {
+        if (!statusConsolidated[row.statusId]) {
+          statusConsolidated[row.statusId] = { count: 0, breakdown: {} };
+        }
+        statusConsolidated[row.statusId].count += row._count.id;
+        const tName = trackingMap[row.trackingId] || "Unknown";
+        statusConsolidated[row.statusId].breakdown[tName] =
+          (statusConsolidated[row.statusId].breakdown[tName] || 0) +
+          row._count.id;
+      }
 
-      // Consolidar responsáveis
+      // Consolidar canais com breakdown
+      const channelConsolidated: Record<
+        string,
+        { count: number; breakdown: Record<string, number> }
+      > = {};
+      for (const row of bySource) {
+        if (!channelConsolidated[row.source]) {
+          channelConsolidated[row.source] = { count: 0, breakdown: {} };
+        }
+        channelConsolidated[row.source].count += row._count.id;
+        const tName = trackingMap[row.trackingId] || "Unknown";
+        channelConsolidated[row.source].breakdown[tName] =
+          (channelConsolidated[row.source].breakdown[tName] || 0) +
+          row._count.id;
+      }
+
+      // Consolidar responsáveis com breakdown
       const responsibleConsolidated: Record<
         string,
-        { user: (typeof users)[0] | null; won: number; total: number }
+        {
+          user: (typeof users)[0] | null;
+          won: number;
+          total: number;
+          breakdown: Record<string, { total: number; won: number }>;
+        }
       > = {};
       for (const row of byResponsible) {
         const key = row.responsibleId ?? "__unassigned__";
@@ -329,12 +378,47 @@ export const getTrackingDashboardReport = base
               : null,
             won: 0,
             total: 0,
+            breakdown: {},
           };
         }
+        const tName = trackingMap[row.trackingId] || "Unknown";
+        if (!responsibleConsolidated[key].breakdown[tName]) {
+          responsibleConsolidated[key].breakdown[tName] = { total: 0, won: 0 };
+        }
+
         responsibleConsolidated[key].total += row._count.id;
-        if (row.currentAction === "WON")
+        responsibleConsolidated[key].breakdown[tName].total += row._count.id;
+
+        if (row.currentAction === "WON") {
           responsibleConsolidated[key].won += row._count.id;
+          responsibleConsolidated[key].breakdown[tName].won += row._count.id;
+        }
       }
+
+      // Consolidar tags com breakdown
+      const tagConsolidated: Record<
+        string,
+        { count: number; breakdown: Record<string, number> }
+      > = {};
+      for (const row of byTag) {
+        if (!tagConsolidated[row.tagId]) {
+          tagConsolidated[row.tagId] = { count: 0, breakdown: {} };
+        }
+        tagConsolidated[row.tagId].count += 1;
+        const tName = trackingMap[row.lead.trackingId] || "Unknown";
+        tagConsolidated[row.tagId].breakdown[tName] =
+          (tagConsolidated[row.tagId].breakdown[tName] || 0) + 1;
+      }
+
+      const topTagIds = Object.keys(tagConsolidated)
+        .sort((a, b) => tagConsolidated[b].count - tagConsolidated[a].count)
+        .slice(0, 10);
+
+      const tags = await prisma.tag.findMany({
+        where: { id: { in: topTagIds } },
+        select: { id: true, name: true, color: true },
+      });
+      const tagMap = Object.fromEntries(tags.map((t) => [t.id, t]));
 
       const closedTotal = wonLeads + lostLeads;
       const monthGrowth =
@@ -367,17 +451,25 @@ export const getTrackingDashboardReport = base
             ? Math.round(Number(ttfrRes[0].avg_ttfr))
             : null,
         },
-        byStatus: byStatus.map((row) => ({
-          status: statusMap[row.statusId] ?? {
-            id: row.statusId,
+        byStatus: Object.entries(statusConsolidated).map(([id, val]) => ({
+          status: statusMap[id] ?? {
+            id,
             name: "Unknown",
             color: null,
           },
-          count: row._count.id,
+          count: val.count,
+          breakdown: Object.entries(val.breakdown).map(([name, count]) => ({
+            name,
+            count,
+          })),
         })),
-        byChannel: bySource.map((row) => ({
-          source: row.source,
-          count: row._count.id,
+        byChannel: Object.entries(channelConsolidated).map(([source, val]) => ({
+          source,
+          count: val.count,
+          breakdown: Object.entries(val.breakdown).map(([name, count]) => ({
+            name,
+            count,
+          })),
         })),
         byAttendant: Object.entries(responsibleConsolidated).map(
           ([key, val]) => ({
@@ -385,17 +477,29 @@ export const getTrackingDashboardReport = base
             isUnassigned: key === "__unassigned__",
             total: val.total,
             won: val.won,
+            breakdown: Object.entries(val.breakdown).map(([name, bVal]) => ({
+              name,
+              count: bVal.total,
+              won: bVal.won,
+            })),
           }),
         ),
-        topTags: byTag.map((row) => ({
-          tag: tagMap[row.tagId] ?? {
-            id: row.tagId,
+        topTags: topTagIds.map((id) => ({
+          tag: tagMap[id] ?? {
+            id,
             name: "Unknown",
             color: null,
           },
-          count: row._count.id,
+          count: tagConsolidated[id].count,
+          breakdown: Object.entries(tagConsolidated[id].breakdown).map(
+            ([name, count]) => ({
+              name,
+              count,
+            }),
+          ),
         })),
       };
+
     } catch (error) {
       console.error(error);
       throw errors.INTERNAL_SERVER_ERROR;
