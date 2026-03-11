@@ -100,7 +100,7 @@ export function TrackingDashboard({
   return (
     <Tabs defaultValue="general">
       <div className="flex flex-col h-full w-full">
-        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b py-4 space-y-4">
+        <div className=" sm:sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b py-4 space-y-4">
           <DashboardHeader
             settings={settings}
             onToggleSection={toggleSection}
