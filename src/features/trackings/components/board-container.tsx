@@ -62,6 +62,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
     moveColumn,
     moveLeadInColumn,
     moveLeadToColumn,
+    sortBy,
   } = useKanbanStore();
   const { onOpen } = useLostOrWin();
   const { onOpen: onOpenDeleteLead } = useDeletLead();
@@ -112,6 +113,9 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
     if (!over) return;
 
     const activeType = active.data.current?.type;
+
+    if (activeType === "Lead" && sortBy !== "order") return;
+
     const overType = over.data.current?.type;
 
     if (activeType === "Lead" && overType === "FooterButton") {

@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { useKanbanStore } from "../lib/kanban-store";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useUpdateStatusName } from "@/features/status/hooks/use-status";
 import { cn } from "@/lib/utils";
@@ -175,6 +176,7 @@ const ListOption = ({
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [tempColor, setTempColor] = useState(currentColor);
   const deleteStatusMutation = useDeleteStatus();
+  const { sortBy, setSortBy } = useKanbanStore();
 
   const colors = [
     "#FFFFFF",
@@ -264,6 +266,22 @@ const ListOption = ({
                       </DropdownMenu>
                     </div>
                   </div>
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Ordenar por</DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem onClick={() => setSortBy("order")}>
+                    {sortBy === "order" && "✓ "}Personalizada (Padrão)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy("createdAt")}>
+                    {sortBy === "createdAt" && "✓ "}Data de criação
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy("updatedAt")}>
+                    {sortBy === "updatedAt" && "✓ "}Última modificação
+                  </DropdownMenuItem>
                 </DropdownMenuSubContent>
               </DropdownMenuPortal>
             </DropdownMenuSub>

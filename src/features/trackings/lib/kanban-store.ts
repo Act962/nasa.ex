@@ -2,6 +2,9 @@ import { Decimal } from "@prisma/client/runtime/client";
 import { create } from "zustand";
 import { arrayMove } from "@dnd-kit/sortable";
 import { Lead } from "../types";
+import { persist } from "zustand/middleware";
+
+type SortBy = "order" | "createdAt" | "updatedAt";
 
 type ColumnState = {
   id: string;
@@ -12,9 +15,11 @@ export const EMPTY_LEADS: Lead[] = [];
 
 type KanbanStore = {
   columns: Record<string, ColumnState>;
+  sortBy: SortBy;
 
   // Ações
   registerColumn: (columnId: string, leads: any[]) => void;
+  setSortBy: (sortBy: SortBy) => void;
   moveLeadInColumn: (
     columnId: string,
     activeId: string,
@@ -40,11 +45,20 @@ type KanbanStore = {
   moveColumn: (activeId: string, overId: string) => void;
 };
 
-export const useKanbanStore = create<KanbanStore>((set, get) => ({
-  columns: {},
-  columnList: [],
+export const useKanbanStore = create<KanbanStore>()(
+  persist(
+    (set, get) => ({
+      columns: {},
+      columnList: [],
+      sortBy: "order",
 
-  setColumnList: (list) => set({ columnList: list }),
+      setSortBy: (sortBy) =>
+        set({
+          sortBy,
+          columns: {}, // limpa cache visual — React Query refaz o fetch
+        }),
+
+      setColumnList: (list) => set({ columnList: list }),
 
   moveColumn: (activeId, overId) => {
     set((state) => {
@@ -216,4 +230,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
 
     return "1000";
   },
+}), {
+  name: "kanban-store",
+  partialize: (state) => ({ sortBy: state.sortBy }),
 }));
