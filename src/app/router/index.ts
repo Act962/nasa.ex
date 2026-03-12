@@ -10,6 +10,7 @@ import { conversationRouter } from "./conversation";
 import { integrationsRouter } from "./integrations";
 import { iaRouter } from "./ia";
 import { insightsRouter } from "./insights";
+import { agendaRouter } from "./agenda";
 
 export const router = {
   tracking: trackingRoutes,
@@ -24,4 +25,5 @@ export const router = {
   integrations: integrationsRouter,
   ia: iaRouter,
   insights: insightsRouter,
+  agenda: agendaRouter,
 };

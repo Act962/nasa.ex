@@ -737,6 +737,7 @@ model Agenda {
   description    String?
   slug           String  
   isActive       Boolean  @default(true)  @map("is_active")
+  slotDuration   Int      @default(30)    @map("slot_duration")
   trackingId     String   @map("tracking_id")
   organizationId String   @map("organization_id")
   createdAt      DateTime @default(now()) @map("created_at")

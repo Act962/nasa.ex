@@ -49,7 +49,7 @@ const items = [
   },
   {
     title: "Agenda",
-    url: "/agenda",
+    url: "/agendas",
     icon: Calendar,
     isActive: true,
   },
