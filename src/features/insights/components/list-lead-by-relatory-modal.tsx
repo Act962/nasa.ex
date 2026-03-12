@@ -37,9 +37,9 @@ export function ListLeadByRelatoryModal({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Crie um novo chat</DialogTitle>
+          <DialogTitle>Leads do relatório</DialogTitle>
           <DialogDescription>
-            Busque e selecione um cliente para iniciar uma conversa
+            Busque e selecione um lead para ver os detalhes
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4">
