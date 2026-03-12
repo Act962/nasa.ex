@@ -50,6 +50,16 @@ export const updateLead = base
     try {
       const leadExists = await prisma.lead.findUnique({
         where: { id: input.id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          statusId: true,
+          trackingId: true,
+          responsibleId: true,
+          isActive: true,
+        },
       });
 
       if (!leadExists) {
@@ -100,7 +110,7 @@ export const updateLead = base
           tx,
         });
 
-        let workflows;
+        let workflows: { id: string }[] = [];
         if (input.tagIds) {
           workflows = await tx.workflow.findMany({
             where: {
@@ -121,6 +131,26 @@ export const updateLead = base
           });
         }
 
+        if (input.statusId) {
+          workflows = await tx.workflow.findMany({
+            where: {
+              trackingId: lead.trackingId,
+              nodes: {
+                some: {
+                  type: "MOVE_LEAD_STATUS",
+                  data: {
+                    path: ["action", "statusId"],
+                    equals: input.statusId,
+                  },
+                },
+              },
+            },
+            select: {
+              id: true,
+            },
+          });
+        }
+
         return { lead, workflows };
       });
 
@@ -131,6 +161,7 @@ export const updateLead = base
               workflowId: workflow.id,
               initialData: {
                 lead: result.lead,
+                previousLead: leadExists,
               },
             }),
           ),

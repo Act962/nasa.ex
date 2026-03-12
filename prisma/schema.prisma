@@ -33,6 +33,8 @@ model User {
   forms    Form[]
   leadFiles LeadFile[]
   insightShares InsightShares[]
+  agendaResponsibles AgendaResponsible[]
+  appointments Appointment[]
 
   @@unique([email])
   @@map("user")
@@ -102,6 +104,7 @@ model Organization {
   whatsappInstances WhatsAppInstance[]
   actions     Action[]
   insightShares InsightShares[]
+  agendas     Agenda[]
 
   @@unique([slug])
   @@map("organization")
@@ -121,6 +124,7 @@ model Member {
   @@index([userId])
   @@map("member")
 }
+
 model Invitation {
   id             String       @id @default(cuid())
   organizationId String
@@ -161,6 +165,7 @@ model Tracking {
   forms          Form[]
   whatsappInstance WhatsAppInstance?
   conversations  Conversation[]
+  agendas        Agenda[]
   aiSettings     AiSettings?
 
   @@map("tracking")
@@ -317,6 +322,7 @@ model Lead {
   history  LeadHistory[]
   files    LeadFile[]
   actions  Action[]
+  appointments Appointment[]
 
   @@index([trackingId])
   @@index([statusId, order])
@@ -710,4 +716,121 @@ model InsightShares{
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("insight_shares")
+}
+// ─────────────────────────────────────────────
+// AGENDA
+// ─────────────────────────────────────────────
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model Agenda {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  slug           String  
+  isActive       Boolean  @default(true)  @map("is_active")
+  trackingId     String   @map("tracking_id")
+  organizationId String   @map("organization_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt      @map("updated_at")
+
+  tracking     Tracking     @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  responsibles    AgendaResponsible[]
+  availabilities  AgendaAvailability[]
+  appointments    Appointment[]
+
+  @@unique([slug, organizationId])
+  @@index([trackingId])
+  @@index([organizationId])
+  @@index([isActive])
+  @@map("agendas")
+}
+
+// Responsáveis pela agenda (um ou mais usuários)
+model AgendaResponsible {
+  id        String   @id @default(cuid())
+  agendaId  String   @map("agenda_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  agenda Agenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([agendaId, userId])
+  @@index([agendaId])
+  @@index([userId])
+  @@map("agenda_responsibles")
+}
+
+// Disponibilidade por dia da semana (ex: Segunda, 8h–12h)
+model AgendaAvailability {
+  id        String    @id @default(cuid())
+  agendaId  String    @map("agenda_id")
+  dayOfWeek DayOfWeek @map("day_of_week")
+  isActive  Boolean   @default(true) @map("is_active")
+
+  agenda    Agenda          @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+  timeSlots AvailabilityTimeSlot[]
+
+  @@unique([agendaId, dayOfWeek])
+  @@index([agendaId])
+  @@map("agenda_availabilities")
+}
+
+// Intervalos de horário dentro de um dia (ex: 8h–12h, 14h–18h)
+model AvailabilityTimeSlot {
+  id             String   @id @default(cuid())
+  availabilityId String   @map("availability_id")
+  startTime      String   @map("start_time") // "08:00"
+  endTime        String   @map("end_time")   // "12:00"
+  order          Int      @default(0)
+
+  availability AgendaAvailability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
+
+  @@index([availabilityId])
+  @@map("availability_time_slots")
+}
+
+// Agendamentos realizados
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+  DONE
+}
+
+model Appointment {
+  id          String            @id @default(cuid())
+  agendaId    String            @map("agenda_id")
+  leadId      String?           @map("lead_id")
+  userId      String?           @map("user_id") // responsável que vai atender
+  title       String?
+  notes       String?
+  startsAt    DateTime          @map("starts_at")
+  endsAt      DateTime          @map("ends_at")
+  status      AppointmentStatus @default(PENDING)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt      @map("updated_at")
+
+  agenda Agenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+  lead   Lead?  @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([agendaId])
+  @@index([leadId])
+  @@index([userId])
+  @@index([startsAt])
+  @@index([status])
+  @@map("appointments")
 }
