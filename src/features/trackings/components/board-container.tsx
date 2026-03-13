@@ -114,8 +114,6 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
 
     const activeType = active.data.current?.type;
 
-    if (activeType === "Lead" && sortBy !== "order") return;
-
     const overType = over.data.current?.type;
 
     if (activeType === "Lead" && overType === "FooterButton") {
@@ -196,6 +194,13 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
       ) {
         return;
       }
+      console.log({
+        leadId: lead.id,
+        targetStatusId: targetColumnId,
+        beforeId: currentNeighbors.beforeId,
+        afterId: currentNeighbors.afterId,
+        trackingId: trackingId,
+      });
 
       updateLeadOrder.mutate({
         leadId: lead.id,
