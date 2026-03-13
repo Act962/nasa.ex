@@ -32,6 +32,7 @@ import type { ChannelData, ChartType } from "@/features/insights/types";
 interface ChannelChartProps {
   data: ChannelData[];
   chartType: ChartType;
+  onClick?: (leadIds?: string[]) => void;
 }
 
 const CHANNEL_COLORS = [
@@ -45,11 +46,12 @@ const CHANNEL_COLORS = [
   "hsl(199, 89%, 48%)",
 ];
 
-export function ChannelChart({ data, chartType }: ChannelChartProps) {
+export function ChannelChart({ data, chartType, onClick }: ChannelChartProps) {
   const chartData = data.map((item, index) => ({
     channel: item.source,
     count: item.count,
     breakdown: item.breakdown,
+    leadIds: item.leadIds,
     fill: CHANNEL_COLORS[index % CHANNEL_COLORS.length],
   }));
 
@@ -113,7 +115,11 @@ export function ChannelChart({ data, chartType }: ChannelChartProps) {
     case "bar":
       return (
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
-          <BarChart accessibilityLayer data={chartData}>
+          <BarChart
+            accessibilityLayer
+            data={chartData}
+            className={onClick ? "cursor-pointer" : ""}
+          >
             <CartesianGrid vertical={false} />
             <XAxis
               dataKey="channel"
@@ -128,7 +134,11 @@ export function ChannelChart({ data, chartType }: ChannelChartProps) {
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
             <ChartTooltip cursor={false} content={<CustomTooltip />} />
-            <Bar dataKey="count" radius={8}>
+            <Bar
+              dataKey="count"
+              radius={8}
+              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
+            >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
@@ -160,6 +170,8 @@ export function ChannelChart({ data, chartType }: ChannelChartProps) {
               nameKey="channel"
               innerRadius={60}
               strokeWidth={5}
+              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
+              className={onClick ? "cursor-pointer" : ""}
             >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -209,6 +221,12 @@ export function ChannelChart({ data, chartType }: ChannelChartProps) {
             accessibilityLayer
             data={chartData}
             margin={{ left: 12, right: 12, bottom: 40 }}
+            onClick={(e: any) => {
+              if (e && e.activePayload && e.activePayload.length > 0) {
+                onClick?.(e.activePayload[0].payload.leadIds);
+              }
+            }}
+            className={onClick ? "cursor-pointer" : ""}
           >
             <CartesianGrid vertical={false} />
             <XAxis
@@ -242,6 +260,12 @@ export function ChannelChart({ data, chartType }: ChannelChartProps) {
             accessibilityLayer
             data={chartData}
             margin={{ left: 12, right: 12, bottom: 40 }}
+            onClick={(e: any) => {
+              if (e && e.activePayload && e.activePayload.length > 0) {
+                onClick?.(e.activePayload[0].payload.leadIds);
+              }
+            }}
+            className={onClick ? "cursor-pointer" : ""}
           >
             <CartesianGrid vertical={false} />
             <XAxis
@@ -309,7 +333,13 @@ export function ChannelChart({ data, chartType }: ChannelChartProps) {
               cursor={false}
               content={<CustomTooltip />}
             />
-            <RadialBar dataKey="count" background cornerRadius={10}>
+            <RadialBar
+              dataKey="count"
+              background
+              cornerRadius={10}
+              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
+              className={onClick ? "cursor-pointer" : ""}
+            >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}

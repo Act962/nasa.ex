@@ -3,6 +3,7 @@
 export interface BreakdownItem {
   name: string;
   count: number;
+  leadIds: string[];
 }
 
 export interface DashboardSummary {
@@ -28,12 +29,14 @@ export interface StatusData {
     color: string | null;
   };
   count: number;
+  leadIds: string[];
   breakdown?: BreakdownItem[];
 }
 
 export interface ChannelData {
   source: string;
   count: number;
+  leadIds: string[];
   breakdown?: BreakdownItem[];
 }
 
@@ -46,6 +49,7 @@ export interface AttendantData {
   isUnassigned: boolean;
   total: number;
   won: number;
+  leadIds: string[];
   breakdown?: (BreakdownItem & { won: number })[];
 }
 
@@ -56,6 +60,7 @@ export interface TagData {
     color: string | null;
   };
   count: number;
+  leadIds: string[];
   breakdown?: BreakdownItem[];
 }
 

@@ -514,7 +514,14 @@ export async function POST(request: NextRequest) {
           },
         },
         data: {
-          lastMessageId: messageData.id,
+          lastMessage: {
+            connect: { id: messageData.id },
+          },
+          lead: {
+            update: {
+              updatedAt: new Date(),
+            },
+          },
         },
       });
 

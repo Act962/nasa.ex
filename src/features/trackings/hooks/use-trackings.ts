@@ -61,6 +61,8 @@ export const useQueryStatus = ({ trackingId }: { trackingId: string }) => {
   };
 };
 
+import { useKanbanStore } from "../lib/kanban-store";
+
 export const useInfiniteLeadsByStatus = ({
   statusId,
   trackingId,
@@ -82,11 +84,15 @@ export const useInfiniteLeadsByStatus = ({
   temperatureFilter?: string[];
   actionFilter?: string;
 }) => {
+  const sortBy = useKanbanStore((state) => state.sortBy);
+
   const query = orpc.leads.listLeadsByStatus.infiniteOptions({
-    input: (pageParams: string | undefined) => ({
+    input: (pageParams: { cursorId?: string; cursorValue?: string } | undefined) => ({
       statusId,
       trackingId,
-      cursor: pageParams,
+      sortBy,
+      cursorId: pageParams?.cursorId,
+      cursorValue: pageParams?.cursorValue,
       limit: 10,
       dateInit: dateInit?.toISOString(),
       dateEnd: dateEnd?.toISOString(),
@@ -99,6 +105,7 @@ export const useInfiniteLeadsByStatus = ({
       "leads.listLeadsByStatus",
       statusId,
       trackingId,
+      sortBy,
       dateInit,
       dateEnd,
       participantFilter,
@@ -109,7 +116,13 @@ export const useInfiniteLeadsByStatus = ({
     context: { cache: true },
     enabled,
     initialPageParam: undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    getNextPageParam: (lastPage) =>
+      lastPage.nextCursorId
+        ? {
+            cursorId: lastPage.nextCursorId,
+            cursorValue: lastPage.nextCursorValue,
+          }
+        : undefined,
   });
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =

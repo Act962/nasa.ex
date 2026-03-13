@@ -8,8 +8,10 @@ import { StatusChart } from "./charts/status-chart";
 import { ChannelChart } from "./charts/channel-chart";
 import { AttendantChart } from "./charts/attendant-chart";
 import { TagsChart } from "./charts/tags-chart";
+import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { ListLeadByRelatoryModal } from "./list-lead-by-relatory-modal";
 import { useDashboardStore } from "@/features/insights/hooks/use-dashboard-store";
 import {
   useDashboardData,
@@ -61,6 +63,16 @@ function KPISkeleton() {
 export function TrackingDashboard({
   initialData: _initialData,
 }: TrackingDashboardProps) {
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleChartClick = (leadIds?: string[]) => {
+    if (leadIds && leadIds.length > 0) {
+      setSelectedLeadIds(leadIds);
+      setIsModalOpen(true);
+    }
+  };
+
   const {
     trackingId,
     organizationIds,
@@ -161,6 +173,7 @@ export function TrackingDashboard({
                   <StatusChart
                     data={data.byStatus}
                     chartType={settings.chartTypes.byStatus}
+                    onClick={handleChartClick}
                   />
                 </ChartWrapper>
               ))}
@@ -180,6 +193,7 @@ export function TrackingDashboard({
                   <ChannelChart
                     data={data.byChannel}
                     chartType={settings.chartTypes.byChannel}
+                    onClick={handleChartClick}
                   />
                 </ChartWrapper>
               ))}
@@ -201,6 +215,7 @@ export function TrackingDashboard({
                   <AttendantChart
                     data={data.byAttendant}
                     chartType={settings.chartTypes.byAttendant}
+                    onClick={handleChartClick}
                   />
                 </ChartWrapper>
               ))}
@@ -220,6 +235,7 @@ export function TrackingDashboard({
                   <TagsChart
                     data={data.topTags}
                     chartType={settings.chartTypes.topTags}
+                    onClick={handleChartClick}
                   />
                 </ChartWrapper>
               ))}
@@ -233,6 +249,12 @@ export function TrackingDashboard({
           <KPIAtendimentCards summary={data.summary} />
         </TabsContent>
       </div>
+
+      <ListLeadByRelatoryModal
+        isOpen={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        leadIds={selectedLeadIds}
+      />
     </Tabs>
   );
 }

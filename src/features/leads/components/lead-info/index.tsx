@@ -29,6 +29,7 @@ import {
 import { SelectResponsableField } from "./select-responsable-field";
 import { FieldsStatus } from "./fields/field-status";
 import { FieldMoney } from "./fields/field-money";
+import { SendMessageSheet } from "../send-message-sheet";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
   initialData: LeadFull;
@@ -40,6 +41,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
   const { lead } = initialData;
 
   const [openHistoric, setOpenHistoric] = useState(false);
+  const [openSendMessage, setOpenSendMessage] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [name, setName] = useState(lead.name);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -258,6 +260,12 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
           </Tabs>
         </div>
       </div>
+      <SendMessageSheet
+        trackingId={lead.trackingId}
+        onSubmit={() => {}}
+        onOpenChange={setOpenSendMessage}
+        open={openSendMessage}
+      />
 
       <ListHistoric
         leadId={lead.id}

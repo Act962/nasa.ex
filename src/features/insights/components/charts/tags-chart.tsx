@@ -32,6 +32,7 @@ import type { TagData, ChartType } from "@/features/insights/types";
 interface TagsChartProps {
   data: TagData[];
   chartType: ChartType;
+  onClick?: (leadIds?: string[]) => void;
 }
 
 const TAG_COLORS = [
@@ -45,11 +46,12 @@ const TAG_COLORS = [
   "hsl(199, 89%, 48%)",
 ];
 
-export function TagsChart({ data, chartType }: TagsChartProps) {
+export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
   const chartData = data.map((item, index) => ({
     tag: item.tag.name,
     count: item.count,
     breakdown: item.breakdown,
+    leadIds: item.leadIds,
     fill: item.tag.color || TAG_COLORS[index % TAG_COLORS.length],
   }));
 
@@ -113,7 +115,11 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
     case "bar":
       return (
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
-          <BarChart accessibilityLayer data={chartData}>
+          <BarChart
+            accessibilityLayer
+            data={chartData}
+            className={onClick ? "cursor-pointer" : ""}
+          >
             <CartesianGrid vertical={false} />
             <XAxis
               dataKey="tag"
@@ -128,7 +134,11 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
             <ChartTooltip cursor={false} content={<CustomTooltip />} />
-            <Bar dataKey="count" radius={8}>
+            <Bar
+              dataKey="count"
+              radius={8}
+              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
+            >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
@@ -160,6 +170,8 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
               nameKey="tag"
               innerRadius={60}
               strokeWidth={5}
+              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
+              className={onClick ? "cursor-pointer" : ""}
             >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -211,6 +223,12 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
             accessibilityLayer
             data={chartData}
             margin={{ left: 12, right: 12, bottom: 40 }}
+            onClick={(e: any) => {
+              if (e && e.activePayload && e.activePayload.length > 0) {
+                onClick?.(e.activePayload[0].payload.leadIds);
+              }
+            }}
+            className={onClick ? "cursor-pointer" : ""}
           >
             <CartesianGrid vertical={false} />
             <XAxis
@@ -244,6 +262,12 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
             accessibilityLayer
             data={chartData}
             margin={{ left: 12, right: 12, bottom: 40 }}
+            onClick={(e: any) => {
+              if (e && e.activePayload && e.activePayload.length > 0) {
+                onClick?.(e.activePayload[0].payload.leadIds);
+              }
+            }}
+            className={onClick ? "cursor-pointer" : ""}
           >
             <CartesianGrid vertical={false} />
             <XAxis
@@ -311,7 +335,13 @@ export function TagsChart({ data, chartType }: TagsChartProps) {
               cursor={false}
               content={<CustomTooltip />}
             />
-            <RadialBar dataKey="count" background cornerRadius={10}>
+            <RadialBar
+              dataKey="count"
+              background
+              cornerRadius={10}
+              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
+              className={onClick ? "cursor-pointer" : ""}
+            >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}

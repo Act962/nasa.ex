@@ -16,9 +16,21 @@ import { ChannelChart } from "@/features/insights/components/charts/channel-char
 import { AttendantChart } from "@/features/insights/components/charts/attendant-chart";
 import { TagsChart } from "@/features/insights/components/charts/tags-chart";
 
-import { BarChart3, Building2, TrendingUp } from "lucide-react";
+import { BarChart3, Building2, CalendarIcon, TrendingUp } from "lucide-react";
 import { ErrorState } from "./error-state";
 import { HeaderSkeleton, KPISkeleton } from "./skeletron";
+import { useState, useEffect } from "react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import type { DateRange } from "@/features/insights/types";
 
 // ─── Skeletons ──────────────────────────────────────────────────────────────
 
@@ -31,11 +43,36 @@ export default function PublicInsightReportPage() {
   const organizationId = params.organizationId;
   const slug = params["insight-slug"];
 
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: undefined,
+    to: undefined,
+  });
+
   const { data, isLoading, isError, refetch } = useQuery(
     orpc.insights.publicOrganizationDashboard.queryOptions({
-      input: { organizationId, slug },
+      input: {
+        organizationId,
+        slug,
+        startDate: dateRange.from?.toISOString(),
+        endDate: dateRange.to?.toISOString(),
+      },
     }),
   );
+
+  useEffect(() => {
+    if (data?.share?.appliedFilters) {
+      const { startDate, endDate } = data.share.appliedFilters as {
+        startDate?: string;
+        endDate?: string;
+      };
+      if (startDate || endDate) {
+        setDateRange({
+          from: startDate ? new Date(startDate) : undefined,
+          to: endDate ? new Date(endDate) : undefined,
+        });
+      }
+    }
+  }, [data?.share?.appliedFilters]);
 
   if (isError) {
     return <ErrorState onRetry={() => refetch()} />;
@@ -128,11 +165,91 @@ export default function PublicInsightReportPage() {
               )}
             </div>
 
-            {/* Badge "Powered by" */}
-            <div className="hidden items-center gap-2 sm:flex">
+            {/* Badge "Powered by" + Calendar Filter */}
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "h-9 justify-start text-left font-normal sm:w-[240px]",
+                      !dateRange.from && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    <span className="truncate">
+                      {dateRange.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, "dd/MM/yy", {
+                              locale: ptBR,
+                            })}{" "}
+                            -{" "}
+                            {format(dateRange.to, "dd/MM/yy", { locale: ptBR })}
+                          </>
+                        ) : (
+                          format(dateRange.from, "dd/MM/yy", { locale: ptBR })
+                        )
+                      ) : (
+                        "Filtrar período"
+                      )}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="range"
+                    defaultMonth={dateRange.from}
+                    selected={{ from: dateRange.from, to: dateRange.to }}
+                    onSelect={(range) =>
+                      setDateRange({ from: range?.from, to: range?.to })
+                    }
+                    numberOfMonths={2}
+                  />
+                  <div className="flex items-center justify-between border-t p-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setDateRange({ from: undefined, to: undefined })
+                      }
+                    >
+                      Limpar
+                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const now = new Date();
+                          const thirtyDaysAgo = new Date(now);
+                          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                          setDateRange({ from: thirtyDaysAgo, to: now });
+                        }}
+                      >
+                        Últimos 30 dias
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const now = new Date();
+                          const ninetyDaysAgo = new Date(now);
+                          ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+                          setDateRange({ from: ninetyDaysAgo, to: now });
+                        }}
+                      >
+                        Últimos 90 dias
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
               <Badge
                 variant="secondary"
-                className="gap-1.5 px-3 py-1 text-xs font-medium"
+                className="hidden gap-1.5 px-3 py-1 text-xs font-medium sm:flex"
               >
                 <TrendingUp className="h-3 w-3" />
                 Relatório público
@@ -267,7 +384,23 @@ export default function PublicInsightReportPage() {
                     ) : (
                       data?.topTags && (
                         <TagsChart
-                          data={data.topTags}
+                          data={[
+                            ...data.topTags,
+                            ...(data.summary.leadsWithoutTags > 0
+                              ? [
+                                  {
+                                    tag: {
+                                      id: "no-tags",
+                                      name: "Sem Tags",
+                                      color: "#94a3b8",
+                                    },
+                                    count: data.summary.leadsWithoutTags,
+                                    leadIds: [],
+                                    breakdown: [],
+                                  },
+                                ]
+                              : []),
+                          ]}
                           chartType={chartTypes.topTags}
                         />
                       )

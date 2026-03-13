@@ -1,6 +1,12 @@
 "use client";
 
-import { LayoutDashboard, Link2Icon, RefreshCwIcon } from "lucide-react";
+import {
+  ExpandIcon,
+  FullscreenIcon,
+  LayoutDashboard,
+  Link2Icon,
+  RefreshCwIcon,
+} from "lucide-react";
 import { SettingsPanel } from "./settings-panel";
 import type { DashboardSettings, ChartType } from "@/features/insights/types";
 import { Button } from "@/components/ui/button";
@@ -9,6 +15,7 @@ import { SharingInsights } from "./sharing-insight-modal";
 import { useDashboardStore } from "../hooks/use-dashboard-store";
 import { authClient } from "@/lib/auth-client";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { useFullscreen } from "@/hooks/use-full-screen";
 
 interface DashboardHeaderProps {
   settings: DashboardSettings;
@@ -34,6 +41,7 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const store = useDashboardStore();
   const session = authClient.useSession();
+  const { isFullscreen, toggleFullscreen } = useFullscreen();
 
   return (
     <div className="flex items-center justify-between">
@@ -90,6 +98,19 @@ export function DashboardHeader({
             onChartTypeChange={onChartTypeChange}
             onReset={onReset}
           />
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleFullscreen}
+            disabled={isLoading}
+            className="self-end sm:self-auto"
+          >
+            {isFullscreen ? (
+              <FullscreenIcon className="h-4 w-4" />
+            ) : (
+              <ExpandIcon className="h-4 w-4" />
+            )}
+          </Button>
         </ButtonGroup>
       </div>
     </div>

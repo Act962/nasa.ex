@@ -31,6 +31,7 @@ import type { AttendantData, ChartType } from "@/features/insights/types";
 interface AttendantChartProps {
   data: AttendantData[];
   chartType: ChartType;
+  onClick?: (leadIds?: string[]) => void;
 }
 
 const ATTENDANT_COLORS = [
@@ -42,7 +43,7 @@ const ATTENDANT_COLORS = [
   "hsl(173, 80%, 40%)",
 ];
 
-export function AttendantChart({ data, chartType }: AttendantChartProps) {
+export function AttendantChart({ data, chartType, onClick }: AttendantChartProps) {
   const chartData = data.map((item, index) => ({
     name: item.isUnassigned
       ? "Não atribuído"
@@ -50,6 +51,7 @@ export function AttendantChart({ data, chartType }: AttendantChartProps) {
     total: item.total,
     won: item.won,
     breakdown: item.breakdown,
+    leadIds: item.leadIds,
     rate: item.total > 0 ? Math.round((item.won / item.total) * 100) : 0,
     fill: ATTENDANT_COLORS[index % ATTENDANT_COLORS.length],
   }));
@@ -149,6 +151,7 @@ export function AttendantChart({ data, chartType }: AttendantChartProps) {
             data={chartData}
             layout="vertical"
             margin={{ left: 0, right: 24 }}
+            className={onClick ? "cursor-pointer" : ""}
           >
             <CartesianGrid horizontal={false} />
             <YAxis
@@ -168,12 +171,14 @@ export function AttendantChart({ data, chartType }: AttendantChartProps) {
               fill="hsl(221, 83%, 53%)"
               radius={4}
               name="total"
+              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
             />
             <Bar
               dataKey="won"
               fill="hsl(142, 71%, 45%)"
               radius={4}
               name="won"
+              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
             />
           </BarChart>
         </ChartContainer>
@@ -200,6 +205,8 @@ export function AttendantChart({ data, chartType }: AttendantChartProps) {
               nameKey="name"
               innerRadius={60}
               strokeWidth={5}
+              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
+              className={onClick ? "cursor-pointer" : ""}
             >
               {pieData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -253,6 +260,12 @@ export function AttendantChart({ data, chartType }: AttendantChartProps) {
             accessibilityLayer
             data={chartData}
             margin={{ left: 12, right: 12, bottom: 40 }}
+            onClick={(e: any) => {
+              if (e && e.activePayload && e.activePayload.length > 0) {
+                onClick?.(e.activePayload[0].payload.leadIds);
+              }
+            }}
+            className={onClick ? "cursor-pointer" : ""}
           >
             <CartesianGrid vertical={false} />
             <XAxis
@@ -295,6 +308,12 @@ export function AttendantChart({ data, chartType }: AttendantChartProps) {
             accessibilityLayer
             data={chartData}
             margin={{ left: 12, right: 12, bottom: 40 }}
+            onClick={(e: any) => {
+              if (e && e.activePayload && e.activePayload.length > 0) {
+                onClick?.(e.activePayload[0].payload.leadIds);
+              }
+            }}
+            className={onClick ? "cursor-pointer" : ""}
           >
             <CartesianGrid vertical={false} />
             <XAxis
@@ -389,7 +408,13 @@ export function AttendantChart({ data, chartType }: AttendantChartProps) {
               cursor={false}
               content={<CustomTooltip />}
             />
-            <RadialBar dataKey="value" background cornerRadius={10}>
+            <RadialBar
+              dataKey="value"
+              background
+              cornerRadius={10}
+              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
+              className={onClick ? "cursor-pointer" : ""}
+            >
               {radialData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}

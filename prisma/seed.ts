@@ -127,9 +127,90 @@
 //   "cmlzf82l2000104kyydcz556z",
 //   "cmm3y4o3p000304lbm9y5klo9",
 // ];
+import { PrismaClient, TagType, Temperature } from "@/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { faker } from "@faker-js/faker";
+
+import "dotenv/config";
+import z from "zod";
+import { createId } from "@paralleldrive/cuid2";
+import { slugify } from "@/utils/create-slug";
+
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const prisma = new PrismaClient({
+  adapter,
+});
+
+const bubbleApiResponseSchema = z.object({
+  status: z.string(),
+  response: z.object({
+    company: z.object({
+      _id: z.string(),
+      Nome_Empresa: z.string(),
+      "Created Date": z.number(),
+    }),
+    trackings: z.array(z.any()),
+    status: z.array(z.any()),
+    leads: z.array(z.any()).optional(),
+    tags: z.array(z.any()),
+  }),
+});
+const mapColor = (color: string): string => {
+  switch (color) {
+    case "Azul":
+      return "#1447e6";
+    case "Laranja":
+      return "#f97316";
+    case "Verde":
+      return "#22c55e";
+    case "Vermelho":
+      return "#ef4444";
+    case "Amarelo ocre":
+      return "#d1a110";
+    case "Rosa":
+      return "#ec4899";
+    case "Lilás":
+      return "#a855f7";
+    case "Roxo":
+      return "#7c3aed";
+    default:
+      return "#1447e6";
+  }
+};
+const mapTemperature = (temp: string): Temperature => {
+  switch (temp) {
+    case "Morno":
+      return "WARM";
+    case "Quente":
+      return "HOT";
+    case "Frio":
+      return "COLD";
+    default:
+      return "COLD";
+  }
+};
+
+const trackingId = "";
+const statusId = "cmmm52ssq000fdcva24esx1m4";
+const statusId2 = "cmmm52ssq000gdcvakvrrt2y4";
+
+const organizationBaseId = "Ca2ELYZdnLFCW0ZoszkADkMcXZj4qOs2";
+
+const statusIds = [statusId, statusId2];
+
+const tagsIds = [
+  "cmm3y3hc7000204lbb7ra8e3h",
+  "cmm3ufl5s000304l4rr115gps",
+  "cmlzf4hzt000004jvoxabb4z9",
+  "cmlzf82l2000104kyydcz556z",
+  "cmm3y4o3p000304lbm9y5klo9",
+];
 
 // async function main() {
-//   // Mapas para manter referência entre IDs do Bubble e novos cuid()
+//   //   Mapas para manter referência entre IDs do Bubble e novos cuid()
 //   const trackingIdMap = new Map<string, string>(); // bubbleId -> cuidId
 //   const statusIdMap = new Map<string, string>(); // bubbleId -> cuidId
 //   const tagIdMap = new Map<string, string>(); // bubbleId -> cuidId
@@ -566,98 +647,140 @@
 //   console.log("Seed completed successfully");
 // }
 
-// // async function main() {
-// //   for (let i = 1; i <= 100; i++) {
-// //     const curentStatus = faker.helpers.arrayElement(statusIds);
-// //     const lead = await prisma.lead.create({
-// //       data: {
-// //         name: faker.person.firstName(),
-// //         phone: faker.phone.number({ style: "international" }),
-// //         statusId: curentStatus,
-// //         trackingId: "cmmm52ssl000cdcvafms0wa27",
-// //       },
-// //     });
+// async function main() {
+//   for (let i = 1; i <= 100; i++) {
+//     const curentStatus = faker.helpers.arrayElement(statusIds);
+//     const lead = await prisma.lead.create({
+//       data: {
+//         name: faker.person.firstName(),
+//         phone: faker.phone.number({ style: "international" }),
+//         statusId: curentStatus,
+//         trackingId: "cmmm52ssl000cdcvafms0wa27",
+//       },
+//     });
 
-// //     const tag = await prisma.tag.create({
-// //       data: {
-// //         name: faker.lorem.slug(),
-// //         color: "#000000",
-// //         trackingId: "cmmm52ssl000cdcvafms0wa27",
-// //         slug: faker.lorem.slug(),
-// //         type: TagType.CUSTOM,
-// //         organizationId: "BLuCZMvTR4uDoSwcV7MVp8LyOPRIyslM",
-// //       },
-// //     });
-// //     await prisma.leadTag.create({
-// //       data: {
-// //         leadId: lead.id,
-// //         tagId: tag.id,
-// //       },
-// //     });
-// //   }
-// // }
+//     const tag = await prisma.tag.create({
+//       data: {
+//         name: faker.lorem.slug(),
+//         color: "#000000",
+//         trackingId: "cmmm52ssl000cdcvafms0wa27",
+//         slug: faker.lorem.slug(),
+//         type: TagType.CUSTOM,
+//         organizationId: "BLuCZMvTR4uDoSwcV7MVp8LyOPRIyslM",
+//       },
+//     });
+//     await prisma.leadTag.create({
+//       data: {
+//         leadId: lead.id,
+//         tagId: tag.id,
+//       },
+//     });
+//   }
+// }
 
-// main().catch((e) => {
-//   console.error(e);
-//   process.exit(1);
-// });
+async function main() {
+  const trackingId = "zn3i405kicmw756x2qv05tlm";
 
-// // for (let i = 1; i <= 100; i++) {
-// //   const randomStatusId = faker.helpers.arrayElement(statusIds);
-// //   const phone = `852146${i.toString().padStart(8, "0")}`;
+  // Buscar os status desse tracking
+  const statuses = await prisma.status.findMany({
+    where: { trackingId },
+  });
 
-// //   const currentLead = await prisma.lead.create({
-// //     data: {
-// //       name: faker.person.firstName(),
-// //       statusId: randomStatusId,
-// //       trackingId,
-// //       phone,
-// //     },
-// //   });
-// //   await prisma.conversation.create({
-// //     data: {
-// //       leadId: currentLead.id,
-// //       remoteJid: `${currentLead.phone}`,
-// //       trackingId,
-// //     },
-// //   });
-// // }
-// // async function main() {
-// //   for (let i = 1; i <= 10000; i++) {
-// //     const phone = `852146${i.toString().padStart(8, "0")}`;
-// //     const randomStatusId = faker.helpers.arrayElement(statusIds);
-// //     const randomTagsIds = faker.helpers.arrayElements(tagsIds, {
-// //       min: 1,
-// //       max: 5,
-// //     });
+  if (statuses.length === 0) {
+    console.log("Nenhum status encontrado para este tracking ID.");
+    return;
+  }
 
-// //     const lead = await prisma.lead.create({
-// //       data: {
-// //         name: faker.person.fullName(),
-// //         email: faker.internet.email(),
-// //         phone,
-// //         statusId: randomStatusId,
-// //         trackingId: trackingId,
-// //         order: i,
-// //         leadTags: {
-// //           create: randomTagsIds.map((tagId) => ({
-// //             tag: {
-// //               connect: {
-// //                 id: tagId,
-// //               },
-// //             },
-// //           })),
-// //         },
-// //       },
-// //     });
+  console.log(`Gerando leads para o tracking ${trackingId}...`);
 
-// //     await prisma.conversation.create({
-// //       data: {
-// //         remoteJid: `${phone}@s.whatsapp.net`,
-// //         leadId: lead.id,
-// //         trackingId: trackingId,
-// //         name: lead.name,
-// //       },
-// //     });
-// //   }
-// // }
+  for (let i = 0; i < 100; i++) {
+    const status = faker.helpers.arrayElement(statuses);
+    const createdAt = faker.date.recent({ days: 30 });
+    const updatedAt = faker.date.between({ from: createdAt, to: new Date() });
+
+    await prisma.lead.create({
+      data: {
+        name: faker.person.fullName(),
+        email: faker.internet.email(),
+        phone: faker.string.numeric(11),
+        temperature: faker.helpers.arrayElement([
+          "COLD",
+          "WARM",
+          "HOT",
+        ]) as Temperature,
+        order: (i * 10).toString(),
+        statusId: status.id,
+        trackingId: trackingId,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+      },
+    });
+  }
+
+  console.log("Seed de leads concluído com sucesso.");
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
+
+// for (let i = 1; i <= 100; i++) {
+//   const randomStatusId = faker.helpers.arrayElement(statusIds);
+//   const phone = `852146${i.toString().padStart(8, "0")}`;
+
+//   const currentLead = await prisma.lead.create({
+//     data: {
+//       name: faker.person.firstName(),
+//       statusId: randomStatusId,
+//       trackingId,
+//       phone,
+//     },
+//   });
+//   await prisma.conversation.create({
+//     data: {
+//       leadId: currentLead.id,
+//       remoteJid: `${currentLead.phone}`,
+//       trackingId,
+//     },
+//   });
+// }
+// async function main() {
+//   for (let i = 1; i <= 10000; i++) {
+//     const phone = `852146${i.toString().padStart(8, "0")}`;
+//     const randomStatusId = faker.helpers.arrayElement(statusIds);
+//     const randomTagsIds = faker.helpers.arrayElements(tagsIds, {
+//       min: 1,
+//       max: 5,
+//     });
+
+//     const lead = await prisma.lead.create({
+//       data: {
+//         name: faker.person.fullName(),
+//         email: faker.internet.email(),
+//         phone,
+//         statusId: randomStatusId,
+//         trackingId: trackingId,
+//         order: i,
+//         leadTags: {
+//           create: randomTagsIds.map((tagId) => ({
+//             tag: {
+//               connect: {
+//                 id: tagId,
+//               },
+//             },
+//           })),
+//         },
+//       },
+//     });
+
+//     await prisma.conversation.create({
+//       data: {
+//         remoteJid: `${phone}@s.whatsapp.net`,
+//         leadId: lead.id,
+//         trackingId: trackingId,
+//         name: lead.name,
+//       },
+//     });
+//   }
+// }
