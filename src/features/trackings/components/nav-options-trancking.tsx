@@ -90,11 +90,11 @@ export function NavOptionsTracking() {
               Mover para
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-[200px] p-0">
+          <PopoverContent align="end" className="w-50 p-0">
             <div className="space-y-1">
               <h3 className="text-sm font-medium px-2 py-1">Trackings</h3>
               <Separator />
-              <ScrollArea className="max-h-[150px] px-1 overflow-y-auto">
+              <ScrollArea className="max-h-37-5 px-1 overflow-y-auto">
                 {trackings.map((tracking) => (
                   <div
                     className="flex items-center gap-x-2 cursor-pointer hover:bg-secondary rounded-md px-2 py-1 text-sm transition-colors"
@@ -114,7 +114,7 @@ export function NavOptionsTracking() {
             <div className="space-y-1 mt-3 pb-1">
               <h3 className="text-sm font-medium px-2 py-1">Status</h3>
               <Separator />
-              <ScrollArea className="max-h-[150px] px-1 overflow-y-auto">
+              <ScrollArea className="max-h-37-5 px-1 overflow-y-auto">
                 {status?.map((s) => {
                   const statusSelected = selectedLeads.every(
                     (lead) => lead.statusId === s.id,

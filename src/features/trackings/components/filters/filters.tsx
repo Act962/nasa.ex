@@ -13,6 +13,7 @@ import { TagsFilter } from "./tags-filter";
 import { TemperatureFilter } from "./temperature-filter";
 import { WinLossFilter } from "./win-loss-filter";
 import { CalendarFilter } from "./calendar-filter";
+import { SorterLead } from "./sort-leads";
 
 export function Filters() {
   return (
@@ -36,6 +37,7 @@ export function Filters() {
           <TemperatureFilter />
           <WinLossFilter />
           <CalendarFilter />
+          <SorterLead />
         </div>
       </SheetContent>
     </Sheet>
