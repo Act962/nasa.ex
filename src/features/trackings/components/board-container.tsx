@@ -120,10 +120,10 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
 
       switch (footerAction) {
         case "ganho":
-          onOpen(leadData.id, "WIN");
+          onOpen({ leadId: leadData.id, trackingId }, "WIN");
           break;
         case "perdido":
-          onOpen(leadData.id, "LOSS");
+          onOpen({ leadId: leadData.id, trackingId }, "LOSS");
           break;
         case "excluir":
           onOpenDeleteLead({ ...leadData, trackingId });

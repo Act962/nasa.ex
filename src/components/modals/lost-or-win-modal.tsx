@@ -23,7 +23,6 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldError } from "../ui/field";
 import { useEffect } from "react";
-import { useParams } from "next/navigation";
 import { useReasons } from "@/features/reasons/hooks/use-reasons";
 import { Skeleton } from "../ui/skeleton";
 import { SelectItem } from "../ui/select";
@@ -39,10 +38,9 @@ const schemaLostOrWinner = z.object({
 type FromLostOrWinner = z.infer<typeof schemaLostOrWinner>;
 
 export function LostOrWinModal() {
-  const { id: leadId, isOpen, onClose, type } = useLostOrWin();
-  const params = useParams<{ trackingId: string }>();
+  const { fields, isOpen, onClose, type } = useLostOrWin();
   const queryClient = useQueryClient();
-  const { reasons, isLoading } = useReasons(params.trackingId, type);
+  const { reasons, isLoading } = useReasons(fields?.trackingId ?? "", type);
 
   const form = useForm({
     resolver: zodResolver(schemaLostOrWinner),
@@ -67,7 +65,14 @@ export function LostOrWinModal() {
         queryClient.invalidateQueries({
           queryKey: orpc.status.getMany.queryKey({
             input: {
-              trackingId: params.trackingId,
+              trackingId: data.lead.trackingId,
+            },
+          }),
+        });
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.get.queryKey({
+            input: {
+              id: data.lead.id,
             },
           }),
         });
@@ -83,10 +88,10 @@ export function LostOrWinModal() {
   );
 
   const onSubmit = (data: FromLostOrWinner) => {
-    if (!leadId) return;
+    if (!fields?.leadId) return;
 
     mutation.mutate({
-      leadId,
+      leadId: fields?.leadId,
       action: isLost ? "LOSS" : "WIN",
       reasonId: data.reasons,
       observation: data.observation,
@@ -127,7 +132,7 @@ export function LostOrWinModal() {
                     <SelectGroup>
                       {isLoading &&
                         Array.from({ length: 5 }).map((_, index) => (
-                          <Skeleton key={index} className="h-10" />
+                          <Skeleton key={index} className="h-10 mt-1" />
                         ))}
                       {!isLoading && reasons?.length === 0 && (
                         <span className="text-sm text-muted-foreground">

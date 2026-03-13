@@ -68,6 +68,8 @@ export function TeamSwitcher() {
     getCurrentOrg();
   }, []);
 
+  const organizationsSorted = organizations?.sort();
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -111,9 +113,9 @@ export function TeamSwitcher() {
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               Empresas
             </DropdownMenuLabel>
-            {organizations?.map((org, index) => (
+            {organizationsSorted?.map((org, index) => (
               <DropdownMenuItem
-                key={org.name}
+                key={org.name + index}
                 className="gap-2 p-2 cursor-pointer"
                 onClick={() =>
                   selectedOrganization({ orgId: org.id, orgSlug: org.slug })

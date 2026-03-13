@@ -30,6 +30,7 @@ import { SelectResponsableField } from "./select-responsable-field";
 import { FieldsStatus } from "./fields/field-status";
 import { FieldMoney } from "./fields/field-money";
 import { SendMessageSheet } from "../send-message-sheet";
+import { FieldWinOrLost } from "./fields/field-win-ow-lost";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
   initialData: LeadFull;
@@ -168,7 +169,8 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
             <div className="flex items-center gap-2 py-1">
               <Circle className="fill-emerald-500 text-emerald-500 size-2" />
               <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-tight">
-                Atividade: {new Date(lead.updatedAt).toLocaleDateString()}
+                Em Atividade desde '':{" "}
+                {new Date(lead.updatedAt).toLocaleDateString()}
               </span>
             </div>
           </div>
@@ -215,10 +217,13 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                 />
                 <InfoItem label="Fluxo / Tracking" value={lead.tracking.name} />
                 <FieldsStatus
-                  value={lead.status.name}
+                  status={lead.status}
                   trackingId={lead.trackingId}
                   displayName="Status atual"
-                  statusId={lead.status.id}
+                />
+                <FieldWinOrLost
+                  displayName="Ganho ou perdido"
+                  lead={{ ...lead, value: lead.currentAction }}
                 />
                 <FieldTags
                   leadId={lead.id}

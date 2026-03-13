@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { LeadDetails } from "./lead-details";
 import { orpc } from "@/lib/orpc";
 import { useParams } from "next/navigation";

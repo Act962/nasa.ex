@@ -1,7 +1,10 @@
+import { LeadAction } from "@/generated/prisma/enums";
+
 export interface LeadFull {
   lead: {
     id: string;
     name: string;
+    currentAction: LeadAction;
     email: string | null;
     phone: string | null;
     description: string | null;

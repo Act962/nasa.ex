@@ -28,6 +28,7 @@ export const getLead = base
           name: true,
           email: true,
           phone: true,
+          currentAction: true,
           description: true,
           profile: true,
           statusId: true,

@@ -3,9 +3,18 @@ import { create } from "zustand";
 type Type = "WIN" | "LOSS";
 
 type lostOwWinStore = {
-  id?: string;
+  fields?: {
+    leadId: string;
+    trackingId: string;
+  };
   isOpen: boolean;
-  onOpen: (id: string, type: Type) => void;
+  onOpen: (
+    fields: {
+      leadId: string;
+      trackingId: string;
+    },
+    type: Type,
+  ) => void;
   onClose: () => void;
   type: Type;
 };
@@ -13,7 +22,13 @@ type lostOwWinStore = {
 export const useLostOrWin = create<lostOwWinStore>((set) => ({
   id: undefined,
   isOpen: false,
-  onOpen: (id: string, type: Type) => set({ isOpen: true, id, type }),
-  onClose: () => set({ isOpen: false, id: undefined }),
+  onOpen: (
+    fields: {
+      leadId: string;
+      trackingId: string;
+    },
+    type: Type,
+  ) => set({ isOpen: true, fields, type }),
+  onClose: () => set({ isOpen: false, fields: undefined }),
   type: "LOSS",
 }));

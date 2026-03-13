@@ -7,29 +7,29 @@ import { SelectStatusField } from "../select-status-field";
 import { PencilIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { Badge } from "@/components/ui/badge";
+import { getContrastColor } from "@/utils/get-contrast-color";
 
 interface FieldsStatusProps {
-  value: string;
+  status: { id: string; name: string; color: string | null };
   displayName: string;
   trackingId: string;
-  statusId: string;
 }
 
 export function FieldsStatus({
-  value,
+  status,
   displayName,
   trackingId,
-  statusId,
 }: FieldsStatusProps) {
   const { leadId } = useParams<{ leadId: string }>();
   const [isEditing, setIsEditing] = useState(false);
-  const [localValue, setLocalValue] = useState(value);
+  const [localValue, setLocalValue] = useState(status.name);
 
   const mutation = useMutationLeadUpdate(leadId, trackingId);
 
   useEffect(() => {
-    setLocalValue(value);
-  }, [value, displayName]);
+    setLocalValue(status.name);
+  }, [status]);
 
   const handleSubmit = (newValue: string) => {
     setIsEditing(false);
@@ -60,12 +60,21 @@ export function FieldsStatus({
             onSubmit={handleSubmit}
             trackingId={trackingId}
             onCancel={() => setIsEditing(false)}
-            value={statusId}
+            value={status.id}
             isLoading={mutation.isPending}
           />
         ) : (
           <div className="flex justify-between items-center w-full">
-            <span className={"text-sm font-medium truncate"}>{value}</span>
+            <span className={"text-sm font-medium truncate"}>
+              <Badge
+                style={{
+                  backgroundColor: status.color!,
+                  color: getContrastColor(status.color!),
+                }}
+              >
+                {status.name}
+              </Badge>
+            </span>
             <Button
               variant={"ghost"}
               size={"icon-sm"}
