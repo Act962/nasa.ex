@@ -6,6 +6,7 @@ import { createTracking } from "./create";
 import { addParticipant } from "./add-participant";
 import { removeParticipant } from "./remove-participant";
 import { listParticipants } from "./list-participants";
+import { listAllTrackings } from "./list-all-trackings";
 
 export const trackingRoutes = {
   list: listTrackings,
@@ -16,4 +17,5 @@ export const trackingRoutes = {
   addParticipant: addParticipant,
   removeParticipant: removeParticipant,
   listParticipants: listParticipants,
+  listAllTrackings,
 };

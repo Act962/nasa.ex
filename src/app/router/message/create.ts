@@ -25,6 +25,7 @@ export const createTextMessage = base
       token: z.string(),
       mediaUrl: z.string().optional(),
       replyId: z.string().optional(),
+      replyIdInternal: z.string().optional(),
       id: z.string().optional(),
     }),
   )
@@ -33,13 +34,9 @@ export const createTextMessage = base
       const response = await sendText(input.token, {
         text: input.body,
         number: input.leadPhone,
-        delay: 2000,
         replyid: input.replyId,
-      });
-
-      await markReadMessage(input.token, {
-        number: response.chatid,
-        read: true,
+        readmessages: true,
+        readchat: true,
       });
 
       const message = await prisma.message.create({
@@ -50,11 +47,43 @@ export const createTextMessage = base
           fromMe: true,
           status: MessageStatus.SENT,
           quotedMessageId: input.id,
+          mimetype: input.mediaUrl ? "image/jpeg" : null,
+          senderName: context.user.name,
         },
-        include: {
+        select: {
+          id: true,
+          messageId: true,
+          body: true,
+          createdAt: true,
+          fromMe: true,
+          status: true,
+          mediaUrl: true,
+          mediaType: true,
+          mediaCaption: true,
+          mimetype: true,
+          fileName: true,
+          quotedMessageId: true,
+          conversationId: true,
+          senderId: true,
+          senderName: true,
           conversation: {
+            select: {
+              id: true,
+              lead: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          quotedMessage: {
             include: {
-              lead: true,
+              conversation: {
+                include: {
+                  lead: true,
+                },
+              },
             },
           },
         },
@@ -78,7 +107,8 @@ export const createTextMessage = base
           messageId: message.messageId,
           mediaUrl: null,
           status: message.status,
-          quotedMessageId: message.quotedMessageId,
+          quotedMessage: message.quotedMessage,
+          senderName: message.senderName,
           conversation: {
             lead: {
               id: message.conversation.lead.id,

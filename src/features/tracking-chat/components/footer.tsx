@@ -6,9 +6,11 @@ import {
   MicIcon,
   PlusIcon,
   SendIcon,
-  XIcon,
+  SparklesIcon,
+  StickerIcon,
 } from "lucide-react";
-import { MessageInput } from "./message-input";
+import pt from "emoji-picker-react/dist/data/emojis-pt.json";
+import EmojiPicker, { Theme } from "emoji-picker-react";
 import { Button } from "@/components/ui/button";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
 import {
@@ -22,12 +24,24 @@ import {
 } from "../hooks/use-messages";
 import { toast } from "sonner";
 import { SendFile } from "./send-file";
+import { useMessageStore } from "../context/use-message";
 import { useEffect, useRef, useState } from "react";
 
 import { Spinner } from "@/components/ui/spinner";
 import { Uploader } from "@/components/file-uploader/uploader";
 import { SendAudio } from "./send-audio";
-import { Message, MarkedMessage } from "../types";
+import { MarkedMessage } from "../types";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupTextarea,
+} from "@/components/ui/input-group";
+import { cn } from "@/lib/utils";
+import { EmojiData } from "emoji-picker-react/dist/types/exposedTypes";
+import { MessageSelected } from "./message-selected";
+import { ComposeResponse } from "./compose-response";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 
 interface FooterProps {
   conversationId: string;
@@ -49,7 +63,20 @@ export function Footer({
   messageSelected: MarkedMessage | undefined;
   closeMessageSelected: () => void;
 }) {
+  const setInstanceData = useMessageStore((state) => state.setInstance);
   const instance = useQueryInstances(trackingId);
+  const route = useRouter();
+  const { data: session } = authClient.useSession();
+
+  useEffect(() => {
+    if (instance.instance) {
+      setInstanceData({
+        token: instance.instance.apiKey,
+        baseUrl: instance.instance.baseUrl,
+      });
+    }
+  }, [instance.instance, setInstanceData]);
+
   const [selectedImage, setSelectedImage] = useState<string | undefined>(
     undefined,
   );
@@ -58,6 +85,7 @@ export function Footer({
   );
   const [sendImage, setSendImage] = useState(false);
   const [open, setOpen] = useState(false);
+  const [openSticker, setOpenSticker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const [message, setMessage] = useState("");
@@ -73,11 +101,13 @@ export function Footer({
   const mutation = useMutationTextMessage({
     conversationId,
     lead,
+    messageSelected,
   });
   const mutationAudio = useMutationAudioMessage({
     conversationId,
     lead,
     quotedMessageId: messageSelected?.messageId,
+    messageSelected,
   });
 
   const isDisabled = !instance.instance;
@@ -103,13 +133,16 @@ export function Footer({
     e.preventDefault();
     if (!instance.instance) return toast.error("Instância não encontrada");
 
+    const messageBody = `*${session?.user.name}*\n${message}`;
+
     if (message.trim().length > 0) {
       mutation.mutate({
-        body: message,
+        body: messageBody,
         leadPhone: lead.phone!,
         token: instance.instance.apiKey,
         conversationId: conversationId,
         replyId: messageSelected?.messageId,
+        replyIdInternal: messageSelected?.id,
         id: messageSelected?.id,
       });
 
@@ -133,120 +166,168 @@ export function Footer({
     }
   };
 
-  const senderName = messageSelected?.fromMe ? "Você" : lead.name;
-
   return (
     <>
       <form
-        className="py-4 px-4 bg-accent-foreground/10 border-t flex flex-col items-center gap-4  w-full"
+        className="py-3 px-4 bg-background border-t flex flex-col items-center gap-2 w-full"
         onSubmit={handleSubmit}
       >
         {messageSelected && (
-          <div className="w-full bg-accent flex items-center justify-between p-4 rounded-md border-l-4 border-l-green-400">
-            <div className="flex flex-col">
-              <div className="text-sm font-semibold text-green-400">
-                {senderName}
-              </div>
-              <div className="text-sm">{messageSelected.body}</div>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              type="button"
-              onClick={closeMessageSelected}
-            >
-              <XIcon className="size-6" />
-            </Button>
-          </div>
+          <MessageSelected
+            messageSelected={messageSelected}
+            closeMessageSelected={closeMessageSelected}
+          />
         )}
-        <div className="w-full flex gap-2 lg:gap-4">
-          {!showAudioRecorder && (
-            <>
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <PlusIcon />
+
+        <div className="w-full h-full flex items-center gap-2 lg:gap-4 relative">
+          {!showAudioRecorder ? (
+            <InputGroup
+              className={cn(
+                "border-0 has-[[data-slot=input-group-control]:focus-visible]:border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 shadow-none bg-accent/50 rounded-2xl px-2",
+                message.includes("\n") || message.length > 60
+                  ? "items-end pb-1.5"
+                  : "items-center",
+              )}
+            >
+              {!isDisabled ? (
+                <>
+                  <InputGroupAddon>
+                    <Popover open={open} onOpenChange={setOpen}>
+                      <PopoverTrigger asChild>
+                        <PlusIcon className="cursor-pointer size-4" />
+                      </PopoverTrigger>
+                      <PopoverContent className="w-fit h-fit p-0">
+                        <div className="relative w-full h-full cursor-pointer overflow-hidden">
+                          <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4">
+                            <FileIcon className="size-4" />
+                            <p className="text-sm">Arquivo</p>
+                            <div className="absolute top-0 left-0 w-full h-full opacity-0">
+                              {isLoading ? (
+                                <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                  <Spinner className="size-3" />
+                                </div>
+                              ) : (
+                                <Uploader
+                                  onUpload={(file, name) =>
+                                    handleFileChange(file, "pdf", name)
+                                  }
+                                  onUploadStart={() => setIsLoading(true)}
+                                  value={selectedImage}
+                                  fileTypeAccepted="outros"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="relative w-full h-full cursor-pointer overflow-hidden">
+                          <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
+                            <ImageIcon className="size-4" />
+                            <p className="text-sm">Imagem</p>
+                            <div className="absolute top-0 left-0 w-full h-full opacity-0">
+                              {isLoading ? (
+                                <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                  <Spinner className="size-3" />
+                                </div>
+                              ) : (
+                                <Uploader
+                                  onUpload={(file) =>
+                                    handleFileChange(file, "image")
+                                  }
+                                  onUploadStart={() => setIsLoading(true)}
+                                  value={selectedImage}
+                                  fileTypeAccepted="image"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </InputGroupAddon>
+
+                  <InputGroupAddon>
+                    <Popover open={openSticker} onOpenChange={setOpenSticker}>
+                      <PopoverTrigger asChild>
+                        <StickerIcon className="cursor-pointer size-4" />
+                      </PopoverTrigger>
+                      <PopoverContent className="w-fit h-fit p-0">
+                        <EmojiPicker
+                          searchPlaceholder="Pesquisar emoji"
+                          skinTonesDisabled={true}
+                          previewConfig={{ showPreview: false }}
+                          emojiData={pt as EmojiData}
+                          theme={Theme.DARK}
+                          onEmojiClick={(emoji) =>
+                            setMessage(message + emoji.emoji)
+                          }
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </InputGroupAddon>
+                </>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      route.push(`/tracking/${trackingId}/settings`)
+                    }
+                  >
+                    Conectar instância
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-fit h-fit p-0">
-                  <div className="relative w-full h-full cursor-pointer overflow-hidden">
-                    <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
-                      <FileIcon className="size-4" />
-                      <p className="text-sm">Arquivo</p>
-                      <div className="absolute top-0 left-0 w-full h-full opacity-0">
-                        {isLoading ? (
-                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                            <Spinner className="size-3" />
-                          </div>
-                        ) : (
-                          <Uploader
-                            onUpload={(file, name) =>
-                              handleFileChange(file, "pdf", name)
-                            }
-                            onUploadStart={() => setIsLoading(true)}
-                            value={selectedImage}
-                            fileTypeAccepted="outros"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="relative w-full h-full cursor-pointer overflow-hidden">
-                    <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 ">
-                      <ImageIcon className="size-4" />
-                      <p className="text-sm">Imagem</p>
-                      <div className="absolute top-0 left-0 w-full h-full opacity-0">
-                        {isLoading ? (
-                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                            <Spinner className="size-3" />
-                          </div>
-                        ) : (
-                          <Uploader
-                            onUpload={(file) => handleFileChange(file, "image")}
-                            onUploadStart={() => setIsLoading(true)}
-                            value={selectedImage}
-                            fileTypeAccepted="image"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <div
-                id="footer-form"
-                className="flex items-center gap-2 lg:gap-4 w-full"
-              >
-                <MessageInput
-                  ref={inputRef}
-                  autoComplete="off"
-                  name="message"
-                  placeholder="Digite sua mensagem..."
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                </>
+              )}
+
+              <InputGroupTextarea
+                ref={inputRef as any}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder={isDisabled ? "" : "Digite sua mensagem"}
+                disabled={isDisabled}
+                className="resize-none min-h-0 py-2.5 text-sm max-h-[200px]"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (message.trim().length > 0) {
+                      const form = e.currentTarget.closest("form");
+                      if (form) form.requestSubmit();
+                    }
+                  }
+                }}
+              />
+
+              <InputGroupAddon align="inline-end">
+                <ComposeResponse
+                  conversationId={conversationId}
+                  onResponse={(text) => setMessage(text)}
                 />
+              </InputGroupAddon>
+
+              <InputGroupAddon align="inline-end">
                 {message.trim().length > 0 ? (
                   <Button
                     type="submit"
-                    className="rounded-full"
+                    size="icon"
+                    className="rounded-full "
                     disabled={isDisabled}
                   >
-                    <SendIcon size={18} />
+                    <SendIcon className="size-4 " />
                   </Button>
                 ) : (
                   <Button
                     type="button"
+                    variant="ghost"
+                    size="icon"
                     className="rounded-full"
                     disabled={isDisabled}
                     onClick={() => setShowAudioRecorder(true)}
                   >
-                    <MicIcon size={18} />
+                    <MicIcon className="size-4" />
                   </Button>
                 )}
-              </div>
-            </>
-          )}
-          {showAudioRecorder && (
+              </InputGroupAddon>
+            </InputGroup>
+          ) : (
             <SendAudio
               onCancel={() => setShowAudioRecorder(false)}
               onSend={(blob) => {

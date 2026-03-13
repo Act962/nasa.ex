@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { createInstance } from "@/http/uazapi/admin/create-instance";
+import { configureWebhook } from "@/http/uazapi/configure-webhook";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -38,6 +39,17 @@ export const createInstanceUazapi = base
       if (!context.session.activeOrganizationId) {
         throw new Error("Organization ID not found");
       }
+
+      await configureWebhook({
+        token: responseData.token,
+        data: {
+          url: `${process.env.NEXT_PUBLIC_APP_URL}/api/chat/webhook?trackingId=${input.trackingId}`,
+          enabled: true,
+          events: ["messages", "connection", "labels", "chat_labels"],
+          action: "add",
+          excludeMessages: ["wasSentByApi", "isGroupYes"],
+        },
+      });
 
       const {
         name,

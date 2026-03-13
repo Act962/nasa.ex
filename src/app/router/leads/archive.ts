@@ -13,21 +13,17 @@ export const archiveLead = base
   })
   .use(requiredAuthMiddleware)
   .input(z.object({ leadId: z.string() }))
-  .output(
-    z.object({
-      lead: z.object({
-        id: z.string(),
-        name: z.string(),
-        trackingId: z.string(),
-      }),
-    })
-  )
   .handler(async ({ input, errors, context }) => {
     try {
       const { id: userId } = context.user;
 
       const leadExists = await prisma.lead.findUnique({
         where: { id: input.leadId },
+        select: {
+          id: true,
+          statusId: true,
+          trackingId: true,
+        },
       });
 
       if (!leadExists) {

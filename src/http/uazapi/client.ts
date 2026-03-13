@@ -36,7 +36,7 @@ export async function uazapiFetch<T>(
     const errorData = await response.json().catch(() => ({}));
     throw new Error(
       errorData.message ||
-        `UAZAPI error: ${response.status} ${response.statusText}`,
+        `UAZAPI error: ${response.status} ${response.statusText}.`,
     );
   }
 

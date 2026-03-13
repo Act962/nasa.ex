@@ -1,10 +1,10 @@
-import Heading from "../_components/heading";
+import Heading from "../../../../features/leads/components/heading";
 
 import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { orpc } from "@/lib/orpc";
 import { SidebarHeader, SidebarInset } from "@/components/ui/sidebar";
-import { HeaderTracking } from "../_components/header-tracking";
-import { TrackingList } from "../_components/tracking-list";
+import { HeaderTracking } from "../../../../features/leads/components/header-tracking";
+import { TrackingList } from "../../../../features/leads/components/tracking-list";
 
 export default async function TrackingPage() {
   const queryClient = getQueryClient();

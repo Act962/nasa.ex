@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +39,14 @@ export default function Page() {
     "pending" | "accepted" | "rejected" | "canceled"
   >("pending");
 
+  const { data: session, isPending } = authClient.useSession();
+
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.push(`/sign-in?callbackUrl=/accept-invitation/${invitationId}`);
+    }
+  }, [session, isPending, invitationId, router]);
+
   const handleAccept = async () => {
     await authClient.organization
       .acceptInvitation({
@@ -46,7 +55,7 @@ export default function Page() {
       .then((res) => {
         if (res.error) {
           setError(
-            res.error.message || "Aconteceu um erro ao aceitar o convite."
+            res.error.message || "Aconteceu um erro ao aceitar o convite.",
           );
         } else {
           setInvitationStatus("accepted");
@@ -64,7 +73,7 @@ export default function Page() {
       .then((res) => {
         if (res.error) {
           setError(
-            res.error.message || "Aconteceu um erro ao recusar o convite."
+            res.error.message || "Aconteceu um erro ao recusar o convite.",
           );
         } else {
           setInvitationStatus("rejected");
@@ -90,7 +99,9 @@ export default function Page() {
 
   return (
     <div className="h-full flex items-center justify-center bg-background">
-      {invitation ? (
+      {isPending ? (
+        <InvitationSkeleton />
+      ) : invitation ? (
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Convite da {invitation?.organizationName}</CardTitle>

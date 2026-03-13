@@ -18,6 +18,7 @@ import { useState, useTransition } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { useQueryState } from "nuqs";
 
 const signInShchema = z.object({
   email: z.email("E-mail inválido"),
@@ -39,6 +40,7 @@ export function LoginForm({
   });
   const [isLoading, setIsLoading] = useTransition();
   const [showPassword, setShowPassword] = useState(false);
+  const [callbackUrl] = useQueryState("callbackUrl");
 
   const onSignIn = (data: SignInSchema) => {
     setIsLoading(async () => {
@@ -46,7 +48,7 @@ export function LoginForm({
         {
           email: data.email,
           password: data.password,
-          callbackURL: "/tracking",
+          callbackURL: callbackUrl ? callbackUrl : "/tracking",
         },
         {
           onSuccess: () => {
@@ -56,7 +58,7 @@ export function LoginForm({
             console.log("Erro ao logar", cxt);
             toast.error("Erro ao tentar entrar!");
           },
-        }
+        },
       );
     });
   };
@@ -64,7 +66,7 @@ export function LoginForm({
   const onSignInWithGoogle = async () => {
     const data = await authClient.signIn.social({
       provider: "google",
-      callbackURL: "/tracking",
+      callbackURL: callbackUrl ? callbackUrl : "/tracking",
       scopes: ["https://www.googleapis.com/auth/drive.file"],
     });
   };
@@ -175,7 +177,10 @@ export function LoginForm({
           </Button>
           <FieldDescription className="text-center">
             Não têm uma conta?{" "}
-            <a href="sign-up" className="underline underline-offset-4">
+            <a
+              href={`/sign-up${callbackUrl ? `?callbackUrl=${callbackUrl}` : ""}`}
+              className="underline underline-offset-4"
+            >
               Cadastrar-se
             </a>
           </FieldDescription>

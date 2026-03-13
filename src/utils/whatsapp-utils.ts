@@ -1,0 +1,45 @@
+export const WA_COLORS = [
+  "#FF8B8B",
+  "#74B9FF",
+  "#FFD93D",
+  "#D6B4FC",
+  "#C5D1D8",
+  "#60E6C5",
+  "#F8B4F2",
+  "#E9C46A",
+  "#7096F8",
+  "#E5F27F",
+  "#40C4FF",
+  "#FFC9C5",
+  "#A1E3B9",
+  "#F06292",
+  "#29B6F6",
+  "#8BC34A",
+  "#FFA726",
+  "#B3E5FC",
+  "#9FA8DA",
+  "#9575CD",
+];
+
+export const DEFAULT_UI_COLORS = [
+  "#F44336", // Red
+  "#E91E63", // Pink
+  "#9C27B0", // Purple
+  "#673AB7", // Deep Purple
+  "#3F51B5", // Indigo
+  "#2196F3", // Blue
+  "#03A9F4", // Light Blue
+  "#00BCD4", // Cyan
+  "#009688", // Teal
+  "#4CAF50", // Green
+  "#8BC34A", // Light Green
+  "#CDDC39", // Lime
+  "#FFEB3B", // Yellow
+  "#FFC107", // Amber
+  "#FF9800", // Orange
+  "#FF5722", // Deep Orange
+  "#795548", // Brown
+  "#9E9E9E", // Grey
+  "#607D8B", // Blue Grey
+  "#000000", // Black
+];

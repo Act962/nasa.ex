@@ -12,9 +12,9 @@ export function BaseNode({ className, status, ...props }: BaseNodeProps) {
   return (
     <div
       className={cn(
-        "bg-card text-card-foreground relative rounded-sm border border-muted-foreground hover:bg-accent",
+        "bg-card text-card-foreground relative rounded-sm border border-muted-foreground hover:bg-accent p-1.5",
         "hover:ring-1",
-        className
+        className,
       )}
       tabIndex={0}
       {...props}
@@ -48,7 +48,7 @@ export function BaseNodeHeader({
         "mx-0 my-0 -mb-1 flex flex-row items-center justify-between gap-2 px-3 py-2",
         // Remove or modify these classes if you modify the padding in the
         // `<BaseNode />` component.
-        className
+        className,
       )}
     />
   );
@@ -90,7 +90,7 @@ export function BaseNodeFooter({ className, ...props }: ComponentProps<"div">) {
       data-slot="base-node-footer"
       className={cn(
         "flex flex-col items-center gap-y-2 border-t px-3 pt-2 pb-3",
-        className
+        className,
       )}
       {...props}
     />

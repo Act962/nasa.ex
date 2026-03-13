@@ -1,6 +1,5 @@
 import { orpc } from "@/lib/orpc";
-import { getQueryClient } from "@/lib/query/hydration";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 interface UseLeadActionProps {
@@ -14,23 +13,36 @@ export function useQueryLeadAction({ leadId }: UseLeadActionProps) {
   return { data, isLoading };
 }
 
-export interface UseMutationCreateLeadActionProps {
-  leadId: string;
-}
-
-export function useMutationCreateLeadAction({
-  leadId,
-}: UseMutationCreateLeadActionProps) {
-  const queryClient = getQueryClient();
+export function useMutationCreateLeadAction() {
+  const queryClient = useQueryClient();
 
   return useMutation(
     orpc.leads.createAction.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data) => {
+        const leadId = data.action.leadId ?? "";
+
         queryClient.invalidateQueries({
           queryKey: orpc.leads.listActions.queryKey({
             input: { leadId },
           }),
         });
+
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.get.queryKey({
+            input: { id: leadId },
+          }),
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.listHistoric.queryKey({
+            input: { leadId },
+          }),
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.list.queryKey(),
+        });
+
         toast.success(`Ação criada com sucesso`);
       },
       onError: () => {
@@ -47,16 +59,35 @@ interface UseMutationUpdateLeadActionProps {
 export function useMutationUpdateLeadAction({
   leadId,
 }: UseMutationUpdateLeadActionProps) {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
 
   return useMutation(
     orpc.leads.updateActionByLead.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data) => {
+        const actualLeadId = data.action.leadId ?? leadId;
+
         queryClient.invalidateQueries({
           queryKey: orpc.leads.listActions.queryKey({
-            input: { leadId },
+            input: { leadId: actualLeadId },
           }),
         });
+
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.get.queryKey({
+            input: { id: actualLeadId },
+          }),
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.listHistoric.queryKey({
+            input: { leadId: actualLeadId },
+          }),
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.list.queryKey(),
+        });
+
         toast.success(`Ação atualizada com sucesso`);
       },
       onError: () => {
