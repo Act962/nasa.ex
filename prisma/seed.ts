@@ -1,3 +1,132 @@
+// import { PrismaClient, TagType, Temperature } from "@/generated/prisma/client";
+// import { PrismaPg } from "@prisma/adapter-pg";
+// import { faker } from "@faker-js/faker";
+
+// import "dotenv/config";
+// import z from "zod";
+
+// const adapter = new PrismaPg({
+//   connectionString: process.env.DATABASE_URL,
+// });
+
+// const prisma = new PrismaClient({
+//   adapter,
+// });
+
+// const userId = "8vapWpBAEoPSaRsYPW6sbhnyfEyXcL3A";
+
+// async function main() {
+//   const user = await prisma.user.findUnique({
+//     where: {
+//       id: userId,
+//     },
+//   });
+
+//   if (!user) {
+//     throw new Error("User not found");
+//   }
+
+//   const organization = await prisma.organization.findMany();
+
+//   if (!organization.length) {
+//     throw new Error("Organization not found");
+//   }
+
+//   await prisma.member.createMany({
+//     data: organization.map((org) => ({
+//       userId,
+//       organizationId: org.id,
+//       role: "admin",
+//       createdAt: new Date(),
+//     })),
+//     skipDuplicates: true,
+//   });
+
+//   const trackings = await prisma.tracking.findMany({
+//     where: {
+//       organizationId: {
+//         in: organization.map((org) => org.id),
+//       },
+//     },
+//   });
+
+//   await prisma.trackingParticipant.createMany({
+//     data: trackings.map((tracking) => ({
+//       trackingId: tracking.id,
+//       userId,
+//       createdAt: new Date(),
+//       role: "ADMIN",
+//     })),
+//     skipDuplicates: true,
+//   });
+// }
+
+// main();
+
+// const bubbleApiResponseSchema = z.object({
+//   status: z.string(),
+//   response: z.object({
+//     company: z.object({
+//       _id: z.string(),
+//       Nome_Empresa: z.string(),
+//       "Created Date": z.number(),
+//     }),
+//     trackings: z.array(z.any()),
+//     status: z.array(z.any()),
+//     leads: z.array(z.any()).optional(),
+//     tags: z.array(z.any()),
+//   }),
+// });
+// const mapColor = (color: string): string => {
+//   switch (color) {
+//     case "Azul":
+//       return "#1447e6";
+//     case "Laranja":
+//       return "#f97316";
+//     case "Verde":
+//       return "#22c55e";
+//     case "Vermelho":
+//       return "#ef4444";
+//     case "Amarelo ocre":
+//       return "#d1a110";
+//     case "Rosa":
+//       return "#ec4899";
+//     case "Lilás":
+//       return "#a855f7";
+//     case "Roxo":
+//       return "#7c3aed";
+//     default:
+//       return "#1447e6";
+//   }
+// };
+// const mapTemperature = (temp: string): Temperature => {
+//   switch (temp) {
+//     case "Morno":
+//       return "WARM";
+//     case "Quente":
+//       return "HOT";
+//     case "Frio":
+//       return "COLD";
+//     default:
+//       return "COLD";
+//   }
+// };
+
+// const trackingId = "";
+// const statusId = "cmmm52ssq000fdcva24esx1m4";
+// const statusId2 = "cmmm52ssq000gdcvakvrrt2y4";
+
+// const organizationBaseId = "SC158DipWUVooPXwMCVfzHWZKxlJA6Cp";
+
+// const statusIds = [statusId, statusId2];
+
+// const tagsIds = [
+//   "cmm3y3hc7000204lbb7ra8e3h",
+//   "cmm3ufl5s000304l4rr115gps",
+//   "cmlzf4hzt000004jvoxabb4z9",
+//   "cmlzf82l2000104kyydcz556z",
+//   "cmm3y4o3p000304lbm9y5klo9",
+// ];
 import { PrismaClient, TagType, Temperature } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { faker } from "@faker-js/faker";

@@ -33,10 +33,20 @@ export const listConversation = base
           }),
           ...(input.search && {
             lead: {
-              name: {
-                contains: input.search,
-                mode: "insensitive",
-              },
+              OR: [
+                {
+                  name: {
+                    contains: input.search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  phone: {
+                    contains: input.search,
+                    mode: "insensitive",
+                  },
+                },
+              ],
             },
           }),
         },

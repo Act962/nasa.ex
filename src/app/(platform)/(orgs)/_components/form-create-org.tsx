@@ -33,7 +33,7 @@ const formCreateOrg = z.object({
     .min(1, "Slug é obrigatório")
     .regex(
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      "Slug deve conter apenas letras minúsculas, números e hífens"
+      "Slug deve conter apenas letras minúsculas, números e hífens",
     ),
   logo: z.string().optional(),
 });
@@ -44,7 +44,7 @@ export function FormCreateOrg() {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     watch,
     setValue,
   } = useForm<FormCreateOrg>({
@@ -95,7 +95,6 @@ export function FormCreateOrg() {
     const { data: checkData } = await authClient.organization.checkSlug({
       slug: data.slug,
     });
-
 
     if (!checkData?.status) {
       toast.error("Este slug já está em uso. Por favor, escolha outro.");
@@ -150,6 +149,7 @@ export function FormCreateOrg() {
                   id="name"
                   placeholder="Acm Distribuidora"
                   {...register("name")}
+                  disabled={isSubmitting}
                 />
                 {errors.name && <FieldError>{errors.name.message}</FieldError>}
               </Field>
@@ -162,6 +162,7 @@ export function FormCreateOrg() {
                     placeholder="acm-distribuidora"
                     {...register("slug")}
                     onChange={handleSlugChange}
+                    disabled={isSubmitting}
                   />
 
                   <Button
@@ -186,6 +187,7 @@ export function FormCreateOrg() {
                   type="file"
                   accept="image/*"
                   onChange={handleLogoChange}
+                  disabled={isSubmitting}
                 />
                 {logo && (
                   <div className="mt-2">
@@ -202,7 +204,9 @@ export function FormCreateOrg() {
             </FieldGroup>
 
             <Field className="w-fit self-end">
-              <Button type="submit">Criar organização</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                Criar organização
+              </Button>
             </Field>
           </FieldSet>
         </form>
