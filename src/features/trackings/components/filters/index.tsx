@@ -10,6 +10,7 @@ import { CalendarFilter } from "./calendar-filter";
 import { useParams } from "next/navigation";
 import AddLeadSheet from "@/features/trackings/components/modal/add-lead-sheet";
 import { useAddLead } from "@/hooks/modal/use-add-lead";
+import { SorterLead } from "./sort-leads";
 
 export function FiltersTracking() {
   const { trackingId } = useParams<{ trackingId: string }>();
@@ -24,6 +25,7 @@ export function FiltersTracking() {
             <ParticipantsSwitcher />
             <TagsFilter />
             <CalendarFilter />
+            <SorterLead />
           </div>
           <Filters />
         </div>

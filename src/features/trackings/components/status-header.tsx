@@ -269,22 +269,7 @@ const ListOption = ({
                 </DropdownMenuSubContent>
               </DropdownMenuPortal>
             </DropdownMenuSub>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>Ordenar por</DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent>
-                  <DropdownMenuItem onClick={() => setSortBy("order")}>
-                    {sortBy === "order" && "✓ "}Personalizada (Padrão)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortBy("createdAt")}>
-                    {sortBy === "createdAt" && "✓ "}Data de criação
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortBy("updatedAt")}>
-                    {sortBy === "updatedAt" && "✓ "}Última modificação
-                  </DropdownMenuItem>
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
+
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"

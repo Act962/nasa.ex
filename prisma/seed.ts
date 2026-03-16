@@ -550,7 +550,7 @@ const tagsIds = [
 // }
 
 async function main() {
-  const trackingId = "cmmnv3esa0001bgvav6vpwb7s";
+  const trackingId = "zn3i405kicmw756x2qv05tlm";
 
   // Buscar os status desse tracking
   const statuses = await prisma.status.findMany({
