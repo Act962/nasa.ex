@@ -9,6 +9,7 @@ import { createShareInsights } from "./create-share-insights";
 import { listInsightShares } from "./list-insight-shares";
 import { publicOrganizationDashboard } from "./public-organization-dashboard";
 import { deleteInsight } from "./delete-insight";
+import { listLeadsAtInsights } from "./list-leads-at-insight";
 
 export const insightsRouter = {
   getTrackingDashboardReport,
@@ -22,4 +23,5 @@ export const insightsRouter = {
   listInsightShares,
   publicOrganizationDashboard,
   deleteInsight,
+  listLeadsAtInsights,
 };

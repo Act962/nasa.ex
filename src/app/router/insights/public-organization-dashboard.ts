@@ -14,11 +14,13 @@ export const publicOrganizationDashboard = base
     z.object({
       organizationId: z.string(),
       slug: z.string(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
     }),
   )
   .handler(async ({ input, errors }) => {
     try {
-      const { organizationId, slug } = input;
+      const { organizationId, slug, startDate: inputStartDate, endDate: inputEndDate } = input;
 
       // Validate the share exists and belongs to the organization
       const share = await prisma.insightShares.findFirst({
@@ -55,20 +57,18 @@ export const publicOrganizationDashboard = base
         tagIds?: string[];
       };
 
-      const {
-        trackingId,
-        organizationIds,
-        startDate,
-        endDate,
-        tagIds,
-      } = savedFilters;
+      const { trackingId, organizationIds, tagIds } =
+        savedFilters;
+
+      const startDate = inputStartDate || savedFilters.startDate;
+      const endDate = inputEndDate || savedFilters.endDate;
 
       const dateFilter =
         startDate || endDate
           ? {
               createdAt: {
-                ...(startDate ? { gte: new Date(startDate) } : {}),
-                ...(endDate ? { lte: new Date(endDate) } : {}),
+                ...(startDate ? { gte: new Date(new Date(startDate).setHours(0, 0, 0, 0)) } : {}),
+                ...(endDate ? { lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)) } : {}),
               },
             }
           : {};
@@ -132,6 +132,7 @@ export const publicOrganizationDashboard = base
         wonLeads,
         lostLeads,
         activeLeads,
+        leadsWithoutTags,
         soldThisMonthRes,
         soldLastMonthRes,
         bySource,
@@ -148,6 +149,7 @@ export const publicOrganizationDashboard = base
         prisma.lead.count({ where: { ...baseWhere, currentAction: "WON" } }),
         prisma.lead.count({ where: { ...baseWhere, currentAction: "LOST" } }),
         prisma.lead.count({ where: { ...baseWhere, currentAction: "ACTIVE" } }),
+        prisma.lead.count({ where: { ...baseWhere, leadTags: { none: {} } } }),
 
         prisma.lead.aggregate({
           where: {
@@ -359,7 +361,9 @@ export const publicOrganizationDashboard = base
         const key = row.responsibleId ?? "__unassigned__";
         if (!responsibleConsolidated[key]) {
           responsibleConsolidated[key] = {
-            user: row.responsibleId ? (userMap[row.responsibleId] ?? null) : null,
+            user: row.responsibleId
+              ? (userMap[row.responsibleId] ?? null)
+              : null,
             won: 0,
             total: 0,
             breakdown: {},
@@ -416,6 +420,10 @@ export const publicOrganizationDashboard = base
         share: {
           name: share.name,
           settings: share.settings,
+          appliedFilters: {
+            startDate,
+            endDate,
+          },
         },
         organization: share.organization,
         summary: {
@@ -423,6 +431,7 @@ export const publicOrganizationDashboard = base
           activeLeads,
           wonLeads,
           lostLeads,
+          leadsWithoutTags,
           conversionRate:
             closedTotal > 0
               ? parseFloat(((wonLeads / closedTotal) * 100).toFixed(2))
@@ -441,39 +450,44 @@ export const publicOrganizationDashboard = base
         byStatus: Object.entries(statusConsolidated).map(([id, val]) => ({
           status: statusMap[id] ?? { id, name: "Unknown", color: null },
           count: val.count,
+          leadIds: [],
           breakdown: Object.entries(val.breakdown).map(([name, count]) => ({
             name,
             count,
+            leadIds: [],
           })),
         })),
-        byChannel: Object.entries(channelConsolidated).map(
-          ([source, val]) => ({
-            source,
-            count: val.count,
-            breakdown: Object.entries(val.breakdown).map(([name, count]) => ({
-              name,
-              count,
-            })),
-          }),
-        ),
+        byChannel: Object.entries(channelConsolidated).map(([source, val]) => ({
+          source,
+          count: val.count,
+          leadIds: [],
+          breakdown: Object.entries(val.breakdown).map(([name, count]) => ({
+            name,
+            count,
+            leadIds: [],
+          })),
+        })),
         byAttendant: Object.entries(responsibleConsolidated).map(
           ([key, val]) => ({
             responsible: val.user,
             isUnassigned: key === "__unassigned__",
             total: val.total,
             won: val.won,
+            leadIds: [],
             breakdown: Object.entries(val.breakdown).map(([name, bVal]) => ({
               name,
               count: bVal.total,
               won: bVal.won,
+              leadIds: [],
             })),
           }),
         ),
         topTags: topTagIds.map((id) => ({
           tag: tagMap[id] ?? { id, name: "Unknown", color: null },
           count: tagConsolidated[id].count,
+          leadIds: [],
           breakdown: Object.entries(tagConsolidated[id].breakdown).map(
-            ([name, count]) => ({ name, count }),
+            ([name, count]) => ({ name, count, leadIds: [] }),
           ),
         })),
       };

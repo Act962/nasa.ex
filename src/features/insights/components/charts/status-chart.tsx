@@ -32,6 +32,7 @@ import type { StatusData, ChartType } from "@/features/insights/types";
 interface StatusChartProps {
   data: StatusData[];
   chartType: ChartType;
+  onClick?: (leadIds?: string[]) => void;
 }
 
 const STATUS_COLORS = [
@@ -43,11 +44,12 @@ const STATUS_COLORS = [
   "hsl(173, 80%, 40%)",
 ];
 
-export function StatusChart({ data, chartType }: StatusChartProps) {
+export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
   const chartData = data.map((item, index) => ({
     status: item.status.name,
     count: item.count,
     breakdown: item.breakdown,
+    leadIds: item.leadIds,
     fill: item.status.color || STATUS_COLORS[index % STATUS_COLORS.length],
   }));
 
@@ -116,6 +118,7 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
             data={chartData}
             layout="vertical"
             margin={{ left: 0, right: 16 }}
+            className={onClick ? "cursor-pointer" : ""}
           >
             <CartesianGrid horizontal={false} />
             <YAxis
@@ -129,7 +132,11 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
             />
             <XAxis type="number" hide />
             <ChartTooltip cursor={false} content={<CustomTooltip />} />
-            <Bar dataKey="count" radius={4}>
+            <Bar
+              dataKey="count"
+              radius={4}
+              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
+            >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
@@ -162,6 +169,8 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
               nameKey="status"
               innerRadius={60}
               strokeWidth={5}
+              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
+              className={onClick ? "cursor-pointer" : ""}
             >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -211,6 +220,12 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
             accessibilityLayer
             data={chartData}
             margin={{ left: 12, right: 12 }}
+            onClick={(e: any) => {
+              if (e && e.activePayload && e.activePayload.length > 0) {
+                onClick?.(e.activePayload[0].payload.leadIds);
+              }
+            }}
+            className={onClick ? "cursor-pointer" : ""}
           >
             <CartesianGrid vertical={false} />
             <XAxis
@@ -241,6 +256,12 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
             accessibilityLayer
             data={chartData}
             margin={{ left: 12, right: 12 }}
+            onClick={(e: any) => {
+              if (e && e.activePayload && e.activePayload.length > 0) {
+                onClick?.(e.activePayload[0].payload.leadIds);
+              }
+            }}
+            className={onClick ? "cursor-pointer" : ""}
           >
             <CartesianGrid vertical={false} />
             <XAxis
@@ -305,7 +326,13 @@ export function StatusChart({ data, chartType }: StatusChartProps) {
               cursor={false}
               content={<CustomTooltip />}
             />
-            <RadialBar dataKey="count" background cornerRadius={10}>
+            <RadialBar
+              dataKey="count"
+              background
+              cornerRadius={10}
+              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
+              className={onClick ? "cursor-pointer" : ""}
+            >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}

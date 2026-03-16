@@ -3,6 +3,52 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
+const sortOptions = z.enum(["order", "createdAt", "updatedAt"]);
+type SortOption = z.infer<typeof sortOptions>;
+
+function buildOrderBy(sortBy: SortOption) {
+  const map: Record<SortOption, object[]> = {
+    order: [{ order: "asc" }, { id: "asc" }],
+    createdAt: [{ createdAt: "desc" }, { id: "asc" }],
+    updatedAt: [{ updatedAt: "desc" }, { id: "asc" }],
+  };
+  return map[sortBy];
+}
+
+function buildCursorWhere(
+  sortBy: SortOption,
+  cursorId?: string,
+  cursorValue?: string,
+) {
+  if (!cursorId || !cursorValue) return {};
+
+  if (sortBy === "createdAt") {
+    return {
+      OR: [
+        { createdAt: { lt: new Date(cursorValue) } },
+        { createdAt: new Date(cursorValue), id: { gt: cursorId } },
+      ],
+    };
+  }
+
+  if (sortBy === "updatedAt") {
+    return {
+      OR: [
+        { updatedAt: { lt: new Date(cursorValue) } },
+        { updatedAt: new Date(cursorValue), id: { gt: cursorId } },
+      ],
+    };
+  }
+
+  // order (Decimal asc)
+  return {
+    OR: [
+      { order: { gt: Number(cursorValue) } },
+      { order: Number(cursorValue), id: { gt: cursorId } },
+    ],
+  };
+}
+
 export const listLeadsByStatus = base
   .use(requiredAuthMiddleware)
   .route({
@@ -14,7 +60,9 @@ export const listLeadsByStatus = base
     z.object({
       statusId: z.string(),
       trackingId: z.string(),
-      cursor: z.string().optional(),
+      sortBy: sortOptions.default("order"),
+      cursorId: z.string().optional(),
+      cursorValue: z.string().optional(),
       limit: z.number().min(1).max(100).default(50),
       dateInit: z.string().optional(),
       dateEnd: z.string().optional(),
@@ -28,7 +76,9 @@ export const listLeadsByStatus = base
     const {
       statusId,
       trackingId,
-      cursor,
+      sortBy,
+      cursorId,
+      cursorValue,
       limit,
       dateInit,
       dateEnd,
@@ -43,6 +93,7 @@ export const listLeadsByStatus = base
         statusId,
         trackingId,
         currentAction: actionFilter || "ACTIVE",
+        ...buildCursorWhere(sortBy, cursorId, cursorValue),
         ...(dateInit &&
           dateEnd && {
             createdAt: {
@@ -74,14 +125,8 @@ export const listLeadsByStatus = base
             },
           }),
       },
-      orderBy: [{ order: "asc" }, { id: "asc" }],
+      orderBy: buildOrderBy(sortBy),
       take: limit + 1,
-      cursor: cursor
-        ? {
-            id: cursor,
-          }
-        : undefined,
-      skip: cursor ? 1 : 0,
       select: {
         id: true,
         isActive: true,
@@ -91,6 +136,7 @@ export const listLeadsByStatus = base
         order: true,
         statusId: true,
         createdAt: true,
+        updatedAt: true,
         temperature: true,
         profile: true,
         responsible: {
@@ -114,11 +160,15 @@ export const listLeadsByStatus = base
       },
     });
 
-    let nextCursor: string | undefined = undefined;
+    let nextCursorId: string | undefined;
+    let nextCursorValue: string | undefined;
 
     if (leads.length > limit) {
-      const nextItem = leads.pop();
-      nextCursor = nextItem?.id;
+      leads.pop();
+      const last = leads[leads.length - 1];
+      nextCursorId = last.id;
+      nextCursorValue =
+        sortBy === "order" ? last.order.toString() : last[sortBy].toISOString();
     }
 
     return {
@@ -126,6 +176,7 @@ export const listLeadsByStatus = base
         ...lead,
         order: lead.order.toString(),
       })),
-      nextCursor,
+      nextCursorId,
+      nextCursorValue,
     };
   });

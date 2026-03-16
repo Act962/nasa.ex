@@ -97,11 +97,12 @@ export const getTrackingDashboardReport = base
         wonLeads,
         lostLeads,
         activeLeads,
+        leadsWithoutTagRaw,
         soldThisMonthRes,
         soldLastMonthRes,
-        bySource,
-        byStatus,
-        byResponsible,
+        allLeadsData,
+        _unusedStatus,
+        _unusedResponsible,
         byTag,
         totalConversations,
         totalMessages,
@@ -113,6 +114,9 @@ export const getTrackingDashboardReport = base
         prisma.lead.count({ where: { ...baseWhere, currentAction: "WON" } }),
         prisma.lead.count({ where: { ...baseWhere, currentAction: "LOST" } }),
         prisma.lead.count({ where: { ...baseWhere, currentAction: "ACTIVE" } }),
+
+        // Leads sem tag
+        prisma.lead.findMany({ where: { ...baseWhere, leadTags: { none: {} } }, select: { id: true } }),
 
         // Valor Vendido esse mês
         prisma.lead.aggregate({
@@ -142,26 +146,15 @@ export const getTrackingDashboardReport = base
           _sum: { amount: true },
         }),
 
-        // Por canal
-        prisma.lead.groupBy({
-          by: ["source", "trackingId"],
+        // Por canal, status e responsável consolidados
+        prisma.lead.findMany({
           where: baseWhere,
-          _count: { id: true },
+          select: { id: true, source: true, statusId: true, responsibleId: true, currentAction: true, trackingId: true },
         }),
 
-        // Por status
-        prisma.lead.groupBy({
-          by: ["statusId", "trackingId"],
-          where: baseWhere,
-          _count: { id: true },
-        }),
-
-        // Por responsável
-        prisma.lead.groupBy({
-          by: ["responsibleId", "currentAction", "trackingId"],
-          where: baseWhere,
-          _count: { id: true },
-        }),
+        // Placeholders para manter os índices do array
+        Promise.resolve(null),
+        Promise.resolve(null),
 
         // Por tag
         prisma.leadTag.findMany({
@@ -172,6 +165,7 @@ export const getTrackingDashboardReport = base
             tagId: true,
             lead: {
               select: {
+                id: true,
                 trackingId: true,
               },
             },
@@ -316,9 +310,11 @@ export const getTrackingDashboardReport = base
         trackings.map((t) => [t.id, t.name]),
       );
 
+      const leadsWithoutTag = leadsWithoutTagRaw.length;
+
       const responsibleIds = [
         ...new Set(
-          byResponsible.map((r) => r.responsibleId).filter(Boolean) as string[],
+          allLeadsData.map((r) => r.responsibleId).filter(Boolean) as string[],
         ),
       ];
       const users = await prisma.user.findMany({
@@ -330,34 +326,14 @@ export const getTrackingDashboardReport = base
       // Consolidar status com breakdown
       const statusConsolidated: Record<
         string,
-        { count: number; breakdown: Record<string, number> }
+        { count: number; breakdown: Record<string, { count: number; leadIds: string[] }>; leadIds: string[] }
       > = {};
-      for (const row of byStatus) {
-        if (!statusConsolidated[row.statusId]) {
-          statusConsolidated[row.statusId] = { count: 0, breakdown: {} };
-        }
-        statusConsolidated[row.statusId].count += row._count.id;
-        const tName = trackingMap[row.trackingId] || "Unknown";
-        statusConsolidated[row.statusId].breakdown[tName] =
-          (statusConsolidated[row.statusId].breakdown[tName] || 0) +
-          row._count.id;
-      }
 
       // Consolidar canais com breakdown
       const channelConsolidated: Record<
         string,
-        { count: number; breakdown: Record<string, number> }
+        { count: number; breakdown: Record<string, { count: number; leadIds: string[] }>; leadIds: string[] }
       > = {};
-      for (const row of bySource) {
-        if (!channelConsolidated[row.source]) {
-          channelConsolidated[row.source] = { count: 0, breakdown: {} };
-        }
-        channelConsolidated[row.source].count += row._count.id;
-        const tName = trackingMap[row.trackingId] || "Unknown";
-        channelConsolidated[row.source].breakdown[tName] =
-          (channelConsolidated[row.source].breakdown[tName] || 0) +
-          row._count.id;
-      }
 
       // Consolidar responsáveis com breakdown
       const responsibleConsolidated: Record<
@@ -366,48 +342,89 @@ export const getTrackingDashboardReport = base
           user: (typeof users)[0] | null;
           won: number;
           total: number;
-          breakdown: Record<string, { total: number; won: number }>;
+          leadIds: string[];
+          breakdown: Record<string, { total: number; won: number; leadIds: string[] }>;
         }
       > = {};
-      for (const row of byResponsible) {
-        const key = row.responsibleId ?? "__unassigned__";
+
+      for (const lead of allLeadsData) {
+        // Status
+        if (lead.statusId) {
+          if (!statusConsolidated[lead.statusId]) {
+            statusConsolidated[lead.statusId] = { count: 0, breakdown: {}, leadIds: [] };
+          }
+          statusConsolidated[lead.statusId].count += 1;
+          statusConsolidated[lead.statusId].leadIds.push(lead.id);
+
+          const tName = trackingMap[lead.trackingId] || "Unknown";
+          if (!statusConsolidated[lead.statusId].breakdown[tName]) {
+            statusConsolidated[lead.statusId].breakdown[tName] = { count: 0, leadIds: [] };
+          }
+          statusConsolidated[lead.statusId].breakdown[tName].count += 1;
+          statusConsolidated[lead.statusId].breakdown[tName].leadIds.push(lead.id);
+        }
+
+        // Channel
+        if (lead.source) {
+          if (!channelConsolidated[lead.source]) {
+            channelConsolidated[lead.source] = { count: 0, breakdown: {}, leadIds: [] };
+          }
+          channelConsolidated[lead.source].count += 1;
+          channelConsolidated[lead.source].leadIds.push(lead.id);
+
+          const tName = trackingMap[lead.trackingId] || "Unknown";
+          if (!channelConsolidated[lead.source].breakdown[tName]) {
+            channelConsolidated[lead.source].breakdown[tName] = { count: 0, leadIds: [] };
+          }
+          channelConsolidated[lead.source].breakdown[tName].count += 1;
+          channelConsolidated[lead.source].breakdown[tName].leadIds.push(lead.id);
+        }
+
+        // Responsible
+        const key = lead.responsibleId ?? "__unassigned__";
         if (!responsibleConsolidated[key]) {
-          responsibleConsolidated[key] = {
-            user: row.responsibleId
-              ? (userMap[row.responsibleId] ?? null)
-              : null,
-            won: 0,
-            total: 0,
-            breakdown: {},
-          };
+             responsibleConsolidated[key] = {
+               user: lead.responsibleId ? (userMap[lead.responsibleId] ?? null) : null,
+               won: 0,
+               total: 0,
+               leadIds: [],
+               breakdown: {},
+             };
         }
-        const tName = trackingMap[row.trackingId] || "Unknown";
+        const tName = trackingMap[lead.trackingId] || "Unknown";
         if (!responsibleConsolidated[key].breakdown[tName]) {
-          responsibleConsolidated[key].breakdown[tName] = { total: 0, won: 0 };
+          responsibleConsolidated[key].breakdown[tName] = { total: 0, won: 0, leadIds: [] };
         }
 
-        responsibleConsolidated[key].total += row._count.id;
-        responsibleConsolidated[key].breakdown[tName].total += row._count.id;
+        responsibleConsolidated[key].total += 1;
+        responsibleConsolidated[key].leadIds.push(lead.id);
+        responsibleConsolidated[key].breakdown[tName].total += 1;
+        responsibleConsolidated[key].breakdown[tName].leadIds.push(lead.id);
 
-        if (row.currentAction === "WON") {
-          responsibleConsolidated[key].won += row._count.id;
-          responsibleConsolidated[key].breakdown[tName].won += row._count.id;
+        if (lead.currentAction === "WON") {
+          responsibleConsolidated[key].won += 1;
+          responsibleConsolidated[key].breakdown[tName].won += 1;
         }
       }
 
       // Consolidar tags com breakdown
       const tagConsolidated: Record<
         string,
-        { count: number; breakdown: Record<string, number> }
+        { count: number; breakdown: Record<string, { count: number; leadIds: string[] }>; leadIds: string[] }
       > = {};
       for (const row of byTag) {
         if (!tagConsolidated[row.tagId]) {
-          tagConsolidated[row.tagId] = { count: 0, breakdown: {} };
+          tagConsolidated[row.tagId] = { count: 0, breakdown: {}, leadIds: [] };
         }
         tagConsolidated[row.tagId].count += 1;
+        tagConsolidated[row.tagId].leadIds.push(row.lead.id);
+
         const tName = trackingMap[row.lead.trackingId] || "Unknown";
-        tagConsolidated[row.tagId].breakdown[tName] =
-          (tagConsolidated[row.tagId].breakdown[tName] || 0) + 1;
+        if (!tagConsolidated[row.tagId].breakdown[tName]) {
+          tagConsolidated[row.tagId].breakdown[tName] = { count: 0, leadIds: [] };
+        }
+        tagConsolidated[row.tagId].breakdown[tName].count += 1;
+        tagConsolidated[row.tagId].breakdown[tName].leadIds.push(row.lead.id);
       }
 
       const topTagIds = Object.keys(tagConsolidated)
@@ -440,6 +457,7 @@ export const getTrackingDashboardReport = base
             closedTotal > 0
               ? parseFloat(((wonLeads / closedTotal) * 100).toFixed(2))
               : 0,
+          leadsWithoutTag,
           soldThisMonth,
           soldLastMonth,
           monthGrowthRate: monthGrowth,
@@ -458,17 +476,21 @@ export const getTrackingDashboardReport = base
             color: null,
           },
           count: val.count,
-          breakdown: Object.entries(val.breakdown).map(([name, count]) => ({
+          leadIds: val.leadIds,
+          breakdown: Object.entries(val.breakdown).map(([name, bVal]) => ({
             name,
-            count,
+            count: bVal.count,
+            leadIds: bVal.leadIds,
           })),
         })),
         byChannel: Object.entries(channelConsolidated).map(([source, val]) => ({
           source,
           count: val.count,
-          breakdown: Object.entries(val.breakdown).map(([name, count]) => ({
+          leadIds: val.leadIds,
+          breakdown: Object.entries(val.breakdown).map(([name, bVal]) => ({
             name,
-            count,
+            count: bVal.count,
+            leadIds: bVal.leadIds,
           })),
         })),
         byAttendant: Object.entries(responsibleConsolidated).map(
@@ -477,27 +499,43 @@ export const getTrackingDashboardReport = base
             isUnassigned: key === "__unassigned__",
             total: val.total,
             won: val.won,
+            leadIds: val.leadIds,
             breakdown: Object.entries(val.breakdown).map(([name, bVal]) => ({
               name,
               count: bVal.total,
               won: bVal.won,
+              leadIds: bVal.leadIds,
             })),
           }),
         ),
-        topTags: topTagIds.map((id) => ({
-          tag: tagMap[id] ?? {
-            id,
-            name: "Unknown",
-            color: null,
-          },
-          count: tagConsolidated[id].count,
-          breakdown: Object.entries(tagConsolidated[id].breakdown).map(
-            ([name, count]) => ({
-              name,
-              count,
-            }),
-          ),
-        })),
+        topTags: [
+          ...topTagIds.map((id) => ({
+            tag: tagMap[id] ?? {
+              id,
+              name: "Unknown",
+              color: null,
+            },
+            count: tagConsolidated[id].count,
+            leadIds: tagConsolidated[id].leadIds,
+            breakdown: Object.entries(tagConsolidated[id].breakdown).map(
+              ([name, bVal]) => ({
+                name,
+                count: bVal.count,
+                leadIds: bVal.leadIds,
+              }),
+            ),
+          })),
+          ...(leadsWithoutTag > 0 ? [{
+            tag: {
+              id: "unassigned",
+              name: "Sem tag",
+              color: "hsl(215, 16%, 47%)",
+            },
+            count: leadsWithoutTag,
+            leadIds: leadsWithoutTagRaw.map(l => l.id),
+            breakdown: [],
+          }] : []),
+        ],
       };
 
     } catch (error) {
