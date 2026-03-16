@@ -13,7 +13,8 @@
 //   adapter,
 // });
 
-// const userId = "8vapWpBAEoPSaRsYPW6sbhnyfEyXcL3A";
+// const userId = "42iJDVudyr0YcUxNiMACYdO6nOwi6NZD";
+// const organizationId = "1763649065560x124190212952162300";
 
 // async function main() {
 //   const user = await prisma.user.findUnique({
@@ -26,38 +27,23 @@
 //     throw new Error("User not found");
 //   }
 
-//   const organization = await prisma.organization.findMany();
-
-//   if (!organization.length) {
-//     throw new Error("Organization not found");
-//   }
-
-//   await prisma.member.createMany({
-//     data: organization.map((org) => ({
-//       userId,
-//       organizationId: org.id,
-//       role: "admin",
-//       createdAt: new Date(),
-//     })),
-//     skipDuplicates: true,
-//   });
-
-//   const trackings = await prisma.tracking.findMany({
+//   const organization = await prisma.organization.findUnique({
 //     where: {
-//       organizationId: {
-//         in: organization.map((org) => org.id),
-//       },
+//       id: organizationId,
 //     },
 //   });
 
-//   await prisma.trackingParticipant.createMany({
-//     data: trackings.map((tracking) => ({
-//       trackingId: tracking.id,
+//   if (!organization) {
+//     throw new Error("Organization not found");
+//   }
+
+//   await prisma.member.create({
+//     data: {
 //       userId,
+//       organizationId,
+//       role: "admin",
 //       createdAt: new Date(),
-//       role: "ADMIN",
-//     })),
-//     skipDuplicates: true,
+//     },
 //   });
 // }
 

@@ -32,25 +32,25 @@ const DAYS = {
   [DayOfWeek.SATURDAY]: "Sábado",
 };
 
-const intervalInSeconds = 15;
-const totalSecondsInDay = 24 * 60 * 60;
-const length = totalSecondsInDay / intervalInSeconds; // 5760 intervalos
-const times = Array.from({ length }, (_, i) => {
-  const totalSeconds = i * intervalInSeconds;
+export function generateTimes(interval = 15) {
+  const times: string[] = [];
 
-  const hours = Math.floor(totalSeconds / 3600)
-    .toString()
-    .padStart(2, "0");
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-    .toString()
-    .padStart(2, "0");
-  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += interval) {
+      const hour = String(h).padStart(2, "0");
+      const minute = String(m).padStart(2, "0");
 
-  return `${hours}:${minutes}:${seconds}`;
-});
+      times.push(`${hour}:${minute}`);
+    }
+  }
+
+  return times;
+}
 
 export function Availability({ agendaId }: AvailabilityProps) {
   const { data } = useSuspenseAvailabilities(agendaId);
+
+  const times = generateTimes(15);
 
   return (
     <Card>
