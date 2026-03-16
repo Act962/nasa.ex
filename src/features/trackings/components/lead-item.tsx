@@ -291,7 +291,7 @@ function AddTagsButton({
 }) {
   const { trackingId } = useParams<{ trackingId: string }>();
   const [open, setOpen] = useState(false);
-  const { tags } = useQueryTags({ trackingId });
+  const { tags } = useQueryTags({ trackingId: "ALL" });
 
   const handleOpen = () => {
     setOpen(!open);

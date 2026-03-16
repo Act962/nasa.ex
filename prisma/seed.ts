@@ -574,7 +574,11 @@ async function main() {
         name: faker.person.fullName(),
         email: faker.internet.email(),
         phone: faker.string.numeric(11),
-        temperature: faker.helpers.arrayElement(["COLD", "WARM", "HOT"]) as Temperature,
+        temperature: faker.helpers.arrayElement([
+          "COLD",
+          "WARM",
+          "HOT",
+        ]) as Temperature,
         order: (i * 10).toString(),
         statusId: status.id,
         trackingId: trackingId,

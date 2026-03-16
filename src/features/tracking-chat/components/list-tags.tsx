@@ -120,7 +120,7 @@ export function AddTagsButton({
   trackingId: string;
 }) {
   const [open, setOpen] = useState(false);
-  const { tags } = useQueryTags({ trackingId });
+  const { tags } = useQueryTags({ trackingId: "ALL" });
   const [openTagModal, setOpenTagModal] = useState(false);
   const { mutate: removeTag } = useRemoveTagFromLeadOptimistic(leadId);
 

@@ -29,7 +29,7 @@ export function TagsFilter() {
   const params = useParams<{ trackingId?: string }>();
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
-  const { tags, isLoadingTags } = useTags({ trackingId: params.trackingId });
+  const { tags, isLoadingTags } = useTags({ trackingId: "ALL" });
   const [search, setSearch] = useState("");
 
   const createTagMutation = useMutation(
