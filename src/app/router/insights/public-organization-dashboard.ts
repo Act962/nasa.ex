@@ -168,7 +168,25 @@ export const publicOrganizationDashboard = base
         prisma.lead.aggregate({
           where: {
             ...baseWhere,
-            currentAction: "ACTIVE",
+
+            history: {
+              some: {
+                action: "ACTIVE",
+              },
+              none: {
+                OR: [
+                  {
+                    action: "WON",
+                  },
+                  {
+                    action: "LOST",
+                  },
+                  {
+                    action: "DELETED",
+                  },
+                ],
+              },
+            },
           },
           _sum: { amount: true },
         }),
@@ -176,7 +194,11 @@ export const publicOrganizationDashboard = base
         prisma.lead.aggregate({
           where: {
             ...baseWhere,
-            currentAction: "WON",
+            history: {
+              some: {
+                action: "WON",
+              },
+            },
           },
           _sum: { amount: true },
         }),
