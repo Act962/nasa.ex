@@ -5,9 +5,10 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { LeadInfo } from "./lead-info";
 import { LeadFull } from "@/types/lead";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileIcon, StickyNoteIcon } from "lucide-react";
+import { EditIcon, FileIcon, StickyNoteIcon } from "lucide-react";
 import { TabNotes } from "./notes";
 import { LeadFiles } from "./lead-files/lead-files";
+import { ObservationLead } from "./observations";
 
 interface LeadDatailsProps {
   initialData: LeadFull;
@@ -16,16 +17,28 @@ interface LeadDatailsProps {
 export function LeadDetails({ initialData }: LeadDatailsProps) {
   const tabs = [
     {
-      name: "Notas",
-      value: "notes",
-      icon: StickyNoteIcon,
+      name: "Observações",
+      value: "observations",
+      icon: EditIcon,
       content: (
-        <TabNotes
+        <ObservationLead
           leadId={initialData.lead.id}
           trackingId={initialData.lead.trackingId}
+          description={initialData.lead.description}
         />
       ),
     },
+    // {
+    //   name: "Notas",
+    //   value: "notes",
+    //   icon: StickyNoteIcon,
+    //   content: (
+    //     <TabNotes
+    //       leadId={initialData.lead.id}
+    //       trackingId={initialData.lead.trackingId}
+    //     />
+    //   ),
+    // },
     {
       name: "Arquivos",
       value: "files",

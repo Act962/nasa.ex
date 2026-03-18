@@ -120,8 +120,8 @@ export function KPIGeneralCards({ summary }: KPICardsProps) {
         variant="success"
       />
       <KPICard
-        title="Vendas Este Mês"
-        value={summary.soldThisMonth.toLocaleString("pt-BR", {
+        title="Valor de leads Ativos"
+        value={summary.soldActiveRes.toLocaleString("pt-BR", {
           style: "currency",
           currency: "BRL",
         })}
@@ -130,8 +130,8 @@ export function KPIGeneralCards({ summary }: KPICardsProps) {
         trendLabel="vs mês anterior"
       />
       <KPICard
-        title="Vendas Mês Passado"
-        value={summary.soldLastMonth.toLocaleString("pt-BR", {
+        title="Valor de leads ganhos"
+        value={summary.soldWinnerRes.toLocaleString("pt-BR", {
           style: "currency",
           currency: "BRL",
         })}

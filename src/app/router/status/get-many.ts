@@ -13,9 +13,24 @@ export const getMany = base
   .input(
     z.object({
       trackingId: z.string(),
+      dateInit: z.string().optional(),
+      dateEnd: z.string().optional(),
+      participantFilter: z.string().optional(),
+      tagsFilter: z.array(z.string()).optional(),
+      temperatureFilter: z.array(z.string()).optional(),
+      actionFilter: z.enum(["ACTIVE", "WON", "LOST", "DELETED"]).optional(),
     }),
   )
   .handler(async ({ input }) => {
+    const {
+      trackingId,
+      dateInit,
+      dateEnd,
+      participantFilter,
+      tagsFilter,
+      temperatureFilter,
+      actionFilter,
+    } = input;
     const result = await prisma.status.findMany({
       where: {
         trackingId: input.trackingId,
@@ -27,7 +42,43 @@ export const getMany = base
         order: true,
         _count: {
           select: {
-            leads: true,
+            leads: {
+              where: {
+                ...(actionFilter
+                  ? { currentAction: actionFilter }
+                  : { currentAction: "ACTIVE" }),
+                ...(dateInit &&
+                  dateEnd && {
+                    createdAt: {
+                      gte: new Date(dateInit),
+                      lte: new Date(dateEnd),
+                    },
+                  }),
+                ...(participantFilter && {
+                  responsible: {
+                    email: participantFilter,
+                  },
+                }),
+                ...(tagsFilter &&
+                  tagsFilter.length > 0 && {
+                    leadTags: {
+                      some: {
+                        tag: {
+                          slug: {
+                            in: tagsFilter,
+                          },
+                        },
+                      },
+                    },
+                  }),
+                ...(temperatureFilter &&
+                  temperatureFilter.length > 0 && {
+                    temperature: {
+                      in: temperatureFilter as any,
+                    },
+                  }),
+              },
+            },
           },
         },
       },

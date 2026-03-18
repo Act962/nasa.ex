@@ -14,6 +14,7 @@ import { Availability } from "./availability";
 import { General } from "./general";
 import { Suspense } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { Workflow } from "./workflow";
 
 interface EditorAgendaProps {
   agendaId: string;
@@ -50,7 +51,7 @@ export function EditorAgenda({ agendaId }: EditorAgendaProps) {
           orientation="vertical"
           className="w-full flex flex-row items-start h-full"
         >
-          <TabsList className="flex flex-col h-full bg-transparent w-1/6">
+          <TabsList className=" sticky top-0 flex flex-col h-full bg-transparent w-1/6">
             {tags.map((tag) => (
               <TabsTrigger
                 key={tag.value}
@@ -75,10 +76,16 @@ export function EditorAgenda({ agendaId }: EditorAgendaProps) {
                   </div>
                 }
               >
-                <Availability agendaId={agendaId} />
+                <Availability
+                  agendaId={agendaId}
+                  availabilities={data.agenda.availabilities}
+                  slotDuration={data.agenda.slotDuration}
+                />
               </Suspense>
             </TabsContent>
-            <TabsContent value="workflow">TESTe</TabsContent>
+            <TabsContent value="workflow">
+              <Workflow />
+            </TabsContent>
           </div>
         </Tabs>
       </div>

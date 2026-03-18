@@ -197,6 +197,8 @@ const trackingId = "";
 const statusId = "cmmm52ssq000fdcva24esx1m4";
 const statusId2 = "cmmm52ssq000gdcvakvrrt2y4";
 
+const organizationBaseId = "Ca2ELYZdnLFCW0ZoszkADkMcXZj4qOs2";
+
 const statusIds = [statusId, statusId2];
 
 const tagsIds = [
@@ -676,98 +678,46 @@ const tagsIds = [
 //   }
 // }
 
-const bubbleLeadsUrl =
-  "https://nasago.bubbleapps.io/api/1.1/wf/integration-total-leads";
-const email = "arthur.fabricyo@gmail.com";
-const organizationBaseId = "SC158DipWUVooPXwMCVfzHWZKxlJA6Cp";
+async function main() {
+  const trackingId = "zn3i405kicmw756x2qv05tlm";
 
-async function fetchBubbleLeads(page = 0): Promise<any[]> {
-  const response = await fetch(bubbleLeadsUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email, page }),
+  // Buscar os status desse tracking
+  const statuses = await prisma.status.findMany({
+    where: { trackingId },
   });
 
-  if (!response.ok) {
-    throw new Error(
-      `Erro ao buscar leads da API (página ${page}): ${response.statusText}`,
-    );
+  if (statuses.length === 0) {
+    console.log("Nenhum status encontrado para este tracking ID.");
+    return;
   }
 
-  const json = await response.json();
-  const leads = json?.response?.leads;
-  if (!Array.isArray(leads)) {
-    return [];
-  }
-  return leads;
-}
+  console.log(`Gerando leads para o tracking ${trackingId}...`);
 
-function normalizePhone(raw: unknown) {
-  if (!raw) return null;
-  const phone = String(raw).replace(/\D/g, "");
-  return phone.length > 0 ? phone : null;
-}
+  for (let i = 0; i < 100; i++) {
+    const status = faker.helpers.arrayElement(statuses);
+    const createdAt = faker.date.recent({ days: 30 });
+    const updatedAt = faker.date.between({ from: createdAt, to: new Date() });
 
-async function main() {
-  console.log("Iniciando atualização de leads via Bubble...");
-
-  let page = 0;
-  let hasMore = true;
-  let updated = 0;
-
-  while (hasMore) {
-    const bubbleLeads = await fetchBubbleLeads(page);
-
-    if (bubbleLeads.length === 0) {
-      hasMore = false;
-      break;
-    }
-
-    for (const bubbleLead of bubbleLeads) {
-      const phone = normalizePhone(bubbleLead.phone);
-      if (!phone) {
-        console.warn(
-          `Ignorando lead sem telefone válido: ${JSON.stringify(bubbleLead)}`,
-        );
-        continue;
-      }
-
-      const existingLead = await prisma.lead.findFirst({
-        where: {
-          phone,
-          tracking: {
-            organizationId: organizationBaseId,
-          },
-        },
-      });
-
-      if (!existingLead) {
-        continue;
-      }
-
-      await prisma.lead.update({
-        where: { id: existingLead.id },
-        data: {
-          description: bubbleLead.observacoes ?? "",
-        },
-      });
-
-      updated++;
-    }
-
-    page += 1;
-
-    if (page >= 500) {
-      console.warn(
-        "Limite de páginas alcançado (500), interrompendo iteração.",
-      );
-      hasMore = false;
-    }
+    await prisma.lead.create({
+      data: {
+        name: faker.person.fullName(),
+        email: faker.internet.email(),
+        phone: faker.string.numeric(11),
+        temperature: faker.helpers.arrayElement([
+          "COLD",
+          "WARM",
+          "HOT",
+        ]) as Temperature,
+        order: (i * 10).toString(),
+        statusId: status.id,
+        trackingId: trackingId,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+      },
+    });
   }
 
-  console.log(`Atualização concluída: ${updated} leads atualizados.`);
+  console.log("Seed de leads concluído com sucesso.");
 }
 
 main().catch((e) => {

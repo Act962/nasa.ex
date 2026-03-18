@@ -12,8 +12,8 @@ export interface DashboardSummary {
   wonLeads: number;
   lostLeads: number;
   conversionRate: number;
-  soldThisMonth: number;
-  soldLastMonth: number;
+  soldActiveRes: number;
+  soldWinnerRes: number;
   monthGrowthRate: number | null;
   totalConversations: number;
   totalMessages: number;

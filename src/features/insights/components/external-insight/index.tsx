@@ -173,7 +173,7 @@ export default function PublicInsightReportPage() {
                     variant="outline"
                     size="sm"
                     className={cn(
-                      "h-9 justify-start text-left font-normal sm:w-[240px]",
+                      "h-9 justify-start text-left font-normal sm:w-60",
                       !dateRange.from && "text-muted-foreground",
                     )}
                   >
@@ -302,7 +302,7 @@ export default function PublicInsightReportPage() {
                   </CardHeader>
                   <CardContent>
                     {isLoading ? (
-                      <Skeleton className="h-[300px] w-full" />
+                      <Skeleton className="h-75 w-full" />
                     ) : (
                       data?.byStatus && (
                         <StatusChart
@@ -328,7 +328,7 @@ export default function PublicInsightReportPage() {
                   </CardHeader>
                   <CardContent>
                     {isLoading ? (
-                      <Skeleton className="h-[300px] w-full" />
+                      <Skeleton className="h-75 w-full" />
                     ) : (
                       data?.byChannel && (
                         <ChannelChart
@@ -354,7 +354,7 @@ export default function PublicInsightReportPage() {
                   </CardHeader>
                   <CardContent>
                     {isLoading ? (
-                      <Skeleton className="h-[300px] w-full" />
+                      <Skeleton className="h-75 w-full" />
                     ) : (
                       data?.byAttendant && (
                         <AttendantChart
@@ -380,7 +380,7 @@ export default function PublicInsightReportPage() {
                   </CardHeader>
                   <CardContent>
                     {isLoading ? (
-                      <Skeleton className="h-[300px] w-full" />
+                      <Skeleton className="h-75 w-full" />
                     ) : (
                       data?.topTags && (
                         <TagsChart

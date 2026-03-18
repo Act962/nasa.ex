@@ -66,7 +66,7 @@ export function HeaderAgenda({ agendaId }: HeaderAgendaProps) {
 
   return (
     <>
-      <div className="sticky h-16 flex items-center justify-between px-4">
+      <div className="sticky top-0 h-16 flex items-center justify-between px-4 bg-background z-10 border-b border-border">
         <div className="flex items-center gap-2">
           <Button size="icon-sm" variant="ghost" asChild>
             <Link href="/agendas">

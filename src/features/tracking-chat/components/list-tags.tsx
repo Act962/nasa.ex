@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/command";
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TagModal } from "@/features/trackings/components/modal/tag-modal";
+import { TagModal } from "@/features/trackings/components/modal/add-tag-sheet";
 
 interface listTagsProps {
   tags?: Lead["leadTags"];
@@ -120,7 +120,7 @@ export function AddTagsButton({
   trackingId: string;
 }) {
   const [open, setOpen] = useState(false);
-  const { tags } = useQueryTags({ trackingId });
+  const { tags } = useQueryTags({ trackingId: "ALL" });
   const [openTagModal, setOpenTagModal] = useState(false);
   const { mutate: removeTag } = useRemoveTagFromLeadOptimistic(leadId);
 

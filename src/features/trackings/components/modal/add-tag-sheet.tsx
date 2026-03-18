@@ -77,7 +77,7 @@ export function TagModal({ open, onOpenChange, trackingId }: Props) {
   });
 
   const { tags, isLoadingTags } = useQueryTags({
-    trackingId,
+    trackingId: "ALL",
   });
 
   const { trackings } = useQueryListTrackings();

@@ -62,35 +62,9 @@ export const getTrackingDashboardReport = base
             members: { some: { userId: user.id } },
           },
         },
-        ...dateFilter,
         ...tagFilter,
+        ...dateFilter,
       };
-
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = new Date(
-        now.getFullYear(),
-        now.getMonth() + 1,
-        0,
-        23,
-        59,
-        59,
-        999,
-      );
-      const startOfLastMonth = new Date(
-        now.getFullYear(),
-        now.getMonth() - 1,
-        1,
-      );
-      const endOfLastMonth = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        0,
-        23,
-        59,
-        59,
-        999,
-      );
 
       const [
         totalLeads,
@@ -98,8 +72,8 @@ export const getTrackingDashboardReport = base
         lostLeads,
         activeLeads,
         leadsWithoutTagRaw,
-        soldThisMonthRes,
-        soldLastMonthRes,
+        soldActiveRes,
+        soldWinnerRes,
         allLeadsData,
         _unusedStatus,
         _unusedResponsible,
@@ -116,18 +90,16 @@ export const getTrackingDashboardReport = base
         prisma.lead.count({ where: { ...baseWhere, currentAction: "ACTIVE" } }),
 
         // Leads sem tag
-        prisma.lead.findMany({ where: { ...baseWhere, leadTags: { none: {} } }, select: { id: true } }),
+        prisma.lead.findMany({
+          where: { ...baseWhere, leadTags: { none: {} } },
+          select: { id: true },
+        }),
 
         // Valor Vendido esse mês
         prisma.lead.aggregate({
           where: {
             ...baseWhere,
-            history: {
-              some: {
-                action: "WON",
-                createdAt: { gte: startOfMonth, lte: endOfMonth },
-              },
-            },
+            currentAction: "ACTIVE",
           },
           _sum: { amount: true },
         }),
@@ -136,12 +108,7 @@ export const getTrackingDashboardReport = base
         prisma.lead.aggregate({
           where: {
             ...baseWhere,
-            history: {
-              some: {
-                action: "WON",
-                createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
-              },
-            },
+            currentAction: "WON",
           },
           _sum: { amount: true },
         }),
@@ -149,7 +116,14 @@ export const getTrackingDashboardReport = base
         // Por canal, status e responsável consolidados
         prisma.lead.findMany({
           where: baseWhere,
-          select: { id: true, source: true, statusId: true, responsibleId: true, currentAction: true, trackingId: true },
+          select: {
+            id: true,
+            source: true,
+            statusId: true,
+            responsibleId: true,
+            currentAction: true,
+            trackingId: true,
+          },
         }),
 
         // Placeholders para manter os índices do array
@@ -274,8 +248,81 @@ export const getTrackingDashboardReport = base
         `,
       ]);
 
-      const soldThisMonth = Number(soldThisMonthRes._sum.amount || 0);
-      const soldLastMonth = Number(soldLastMonthRes._sum.amount || 0);
+      const soldThisMonth = Number(soldActiveRes._sum.amount || 0);
+      const soldLastMonth = Number(soldWinnerRes._sum.amount || 0);
+
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const currentMonthEnd = new Date(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
+      const previousMonthStart = new Date(
+        now.getFullYear(),
+        now.getMonth() - 1,
+        1,
+      );
+      const previousMonthEnd = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
+
+      const baseWhereForAmountGrowth = {
+        ...(trackingId ? { trackingId } : {}),
+        tracking: {
+          organization: {
+            ...organizationFilter,
+            members: { some: { userId: user.id } },
+          },
+        },
+        ...tagFilter,
+      };
+
+      const [amountThisMonthRes, amountLastMonthRes] = await Promise.all([
+        prisma.lead.aggregate({
+          where: {
+            ...baseWhereForAmountGrowth,
+            createdAt: {
+              gte: currentMonthStart,
+              lte: currentMonthEnd,
+            },
+          },
+          _sum: { amount: true },
+        }),
+        prisma.lead.aggregate({
+          where: {
+            ...baseWhereForAmountGrowth,
+            createdAt: {
+              gte: previousMonthStart,
+              lte: previousMonthEnd,
+            },
+          },
+          _sum: { amount: true },
+        }),
+      ]);
+
+      const amountThisMonth = Number(amountThisMonthRes._sum.amount || 0);
+      const amountLastMonth = Number(amountLastMonthRes._sum.amount || 0);
+
+      const monthGrowth =
+        amountLastMonth > 0
+          ? parseFloat(
+              (
+                ((amountThisMonth - amountLastMonth) / amountLastMonth) *
+                100
+              ).toFixed(2),
+            )
+          : null;
 
       // Enriquecer dados
       const [statuses, trackings] = await Promise.all([
@@ -326,13 +373,21 @@ export const getTrackingDashboardReport = base
       // Consolidar status com breakdown
       const statusConsolidated: Record<
         string,
-        { count: number; breakdown: Record<string, { count: number; leadIds: string[] }>; leadIds: string[] }
+        {
+          count: number;
+          breakdown: Record<string, { count: number; leadIds: string[] }>;
+          leadIds: string[];
+        }
       > = {};
 
       // Consolidar canais com breakdown
       const channelConsolidated: Record<
         string,
-        { count: number; breakdown: Record<string, { count: number; leadIds: string[] }>; leadIds: string[] }
+        {
+          count: number;
+          breakdown: Record<string, { count: number; leadIds: string[] }>;
+          leadIds: string[];
+        }
       > = {};
 
       // Consolidar responsáveis com breakdown
@@ -343,7 +398,10 @@ export const getTrackingDashboardReport = base
           won: number;
           total: number;
           leadIds: string[];
-          breakdown: Record<string, { total: number; won: number; leadIds: string[] }>;
+          breakdown: Record<
+            string,
+            { total: number; won: number; leadIds: string[] }
+          >;
         }
       > = {};
 
@@ -351,49 +409,73 @@ export const getTrackingDashboardReport = base
         // Status
         if (lead.statusId) {
           if (!statusConsolidated[lead.statusId]) {
-            statusConsolidated[lead.statusId] = { count: 0, breakdown: {}, leadIds: [] };
+            statusConsolidated[lead.statusId] = {
+              count: 0,
+              breakdown: {},
+              leadIds: [],
+            };
           }
           statusConsolidated[lead.statusId].count += 1;
           statusConsolidated[lead.statusId].leadIds.push(lead.id);
 
           const tName = trackingMap[lead.trackingId] || "Unknown";
           if (!statusConsolidated[lead.statusId].breakdown[tName]) {
-            statusConsolidated[lead.statusId].breakdown[tName] = { count: 0, leadIds: [] };
+            statusConsolidated[lead.statusId].breakdown[tName] = {
+              count: 0,
+              leadIds: [],
+            };
           }
           statusConsolidated[lead.statusId].breakdown[tName].count += 1;
-          statusConsolidated[lead.statusId].breakdown[tName].leadIds.push(lead.id);
+          statusConsolidated[lead.statusId].breakdown[tName].leadIds.push(
+            lead.id,
+          );
         }
 
         // Channel
         if (lead.source) {
           if (!channelConsolidated[lead.source]) {
-            channelConsolidated[lead.source] = { count: 0, breakdown: {}, leadIds: [] };
+            channelConsolidated[lead.source] = {
+              count: 0,
+              breakdown: {},
+              leadIds: [],
+            };
           }
           channelConsolidated[lead.source].count += 1;
           channelConsolidated[lead.source].leadIds.push(lead.id);
 
           const tName = trackingMap[lead.trackingId] || "Unknown";
           if (!channelConsolidated[lead.source].breakdown[tName]) {
-            channelConsolidated[lead.source].breakdown[tName] = { count: 0, leadIds: [] };
+            channelConsolidated[lead.source].breakdown[tName] = {
+              count: 0,
+              leadIds: [],
+            };
           }
           channelConsolidated[lead.source].breakdown[tName].count += 1;
-          channelConsolidated[lead.source].breakdown[tName].leadIds.push(lead.id);
+          channelConsolidated[lead.source].breakdown[tName].leadIds.push(
+            lead.id,
+          );
         }
 
         // Responsible
         const key = lead.responsibleId ?? "__unassigned__";
         if (!responsibleConsolidated[key]) {
-             responsibleConsolidated[key] = {
-               user: lead.responsibleId ? (userMap[lead.responsibleId] ?? null) : null,
-               won: 0,
-               total: 0,
-               leadIds: [],
-               breakdown: {},
-             };
+          responsibleConsolidated[key] = {
+            user: lead.responsibleId
+              ? (userMap[lead.responsibleId] ?? null)
+              : null,
+            won: 0,
+            total: 0,
+            leadIds: [],
+            breakdown: {},
+          };
         }
         const tName = trackingMap[lead.trackingId] || "Unknown";
         if (!responsibleConsolidated[key].breakdown[tName]) {
-          responsibleConsolidated[key].breakdown[tName] = { total: 0, won: 0, leadIds: [] };
+          responsibleConsolidated[key].breakdown[tName] = {
+            total: 0,
+            won: 0,
+            leadIds: [],
+          };
         }
 
         responsibleConsolidated[key].total += 1;
@@ -410,7 +492,11 @@ export const getTrackingDashboardReport = base
       // Consolidar tags com breakdown
       const tagConsolidated: Record<
         string,
-        { count: number; breakdown: Record<string, { count: number; leadIds: string[] }>; leadIds: string[] }
+        {
+          count: number;
+          breakdown: Record<string, { count: number; leadIds: string[] }>;
+          leadIds: string[];
+        }
       > = {};
       for (const row of byTag) {
         if (!tagConsolidated[row.tagId]) {
@@ -421,7 +507,10 @@ export const getTrackingDashboardReport = base
 
         const tName = trackingMap[row.lead.trackingId] || "Unknown";
         if (!tagConsolidated[row.tagId].breakdown[tName]) {
-          tagConsolidated[row.tagId].breakdown[tName] = { count: 0, leadIds: [] };
+          tagConsolidated[row.tagId].breakdown[tName] = {
+            count: 0,
+            leadIds: [],
+          };
         }
         tagConsolidated[row.tagId].breakdown[tName].count += 1;
         tagConsolidated[row.tagId].breakdown[tName].leadIds.push(row.lead.id);
@@ -437,16 +526,6 @@ export const getTrackingDashboardReport = base
       });
       const tagMap = Object.fromEntries(tags.map((t) => [t.id, t]));
 
-      const closedTotal = wonLeads + lostLeads;
-      const monthGrowth =
-        soldLastMonth > 0
-          ? parseFloat(
-              (((soldThisMonth - soldLastMonth) / soldLastMonth) * 100).toFixed(
-                2,
-              ),
-            )
-          : null;
-
       return {
         summary: {
           totalLeads,
@@ -454,12 +533,12 @@ export const getTrackingDashboardReport = base
           wonLeads,
           lostLeads,
           conversionRate:
-            closedTotal > 0
-              ? parseFloat(((wonLeads / closedTotal) * 100).toFixed(2))
+            totalLeads > 0
+              ? parseFloat(((wonLeads / totalLeads) * 100).toFixed(2))
               : 0,
           leadsWithoutTag,
-          soldThisMonth,
-          soldLastMonth,
+          soldActiveRes: soldThisMonth / 100,
+          soldWinnerRes: soldLastMonth / 100,
           monthGrowthRate: monthGrowth,
           totalConversations,
           totalMessages,
@@ -525,19 +604,22 @@ export const getTrackingDashboardReport = base
               }),
             ),
           })),
-          ...(leadsWithoutTag > 0 ? [{
-            tag: {
-              id: "unassigned",
-              name: "Sem tag",
-              color: "hsl(215, 16%, 47%)",
-            },
-            count: leadsWithoutTag,
-            leadIds: leadsWithoutTagRaw.map(l => l.id),
-            breakdown: [],
-          }] : []),
+          ...(leadsWithoutTag > 0
+            ? [
+                {
+                  tag: {
+                    id: "unassigned",
+                    name: "Sem tag",
+                    color: "hsl(215, 16%, 47%)",
+                  },
+                  count: leadsWithoutTag,
+                  leadIds: leadsWithoutTagRaw.map((l) => l.id),
+                  breakdown: [],
+                },
+              ]
+            : []),
         ],
       };
-
     } catch (error) {
       console.error(error);
       throw errors.INTERNAL_SERVER_ERROR;

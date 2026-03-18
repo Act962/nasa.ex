@@ -128,7 +128,7 @@ export function CreateAgendaModal({ open, onOpenChange }: Props) {
               <FieldLabel>Link</FieldLabel>
               <InputGroup>
                 <InputGroupAddon align="inline-start">
-                  <InputGroupText>{url}/</InputGroupText>
+                  <InputGroupText>{url}/.../</InputGroupText>
                 </InputGroupAddon>
                 <InputGroupInput
                   {...form.register("link", {
@@ -138,6 +138,7 @@ export function CreateAgendaModal({ open, onOpenChange }: Props) {
                     },
                   })}
                   disabled={isSubmitting}
+                  className="pl-0!"
                 />
               </InputGroup>
             </Field>

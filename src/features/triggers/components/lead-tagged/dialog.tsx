@@ -88,7 +88,7 @@ export const LeadTaggedTriggerDialog = ({
     name: "conditions",
   });
 
-  const { tags, isLoadingTags } = useTags({ trackingId });
+  const { tags, isLoadingTags } = useTags({ trackingId: "ALL" });
 
   const handleAddCondition = () => {
     if (fields.length >= 5) {

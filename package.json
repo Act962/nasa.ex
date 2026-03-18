@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && next build",
     "dev:setup": "prisma migrate dev && prisma generate && pnpm install",
     "start": "next start",
     "lint": "eslint",
@@ -153,7 +153,15 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "inngest-cli"
+      "inngest-cli",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "protobufjs",
+      "sharp"
     ]
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

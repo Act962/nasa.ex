@@ -118,6 +118,14 @@ export function useCreateConversation({ trackingId }: { trackingId: string }) {
         queryClient.invalidateQueries({
           queryKey: ["conversations.list", trackingId],
         });
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.get.queryKey({
+            input: {
+              id:
+                data.leadIds && data.leadIds?.length > 0 ? data.leadIds[0] : "",
+            },
+          }),
+        });
       },
       onError: (error) => {
         toast.error("Erro ao criar conversa!");

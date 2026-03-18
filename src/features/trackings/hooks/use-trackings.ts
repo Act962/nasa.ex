@@ -46,11 +46,28 @@ export const useQueryParticipants = ({
   };
 };
 
-export const useQueryStatus = ({ trackingId }: { trackingId: string }) => {
+interface UseQueryStatusProps {
+  trackingId: string;
+  enabled?: boolean;
+  dateInit?: Date;
+  dateEnd?: Date;
+  participantFilter?: string;
+  tagsFilter?: string[];
+  temperatureFilter?: string[];
+  actionFilter?: string;
+}
+
+export const useQueryStatus = (props: UseQueryStatusProps) => {
   const { data, isLoading } = useQuery(
     orpc.status.getMany.queryOptions({
       input: {
-        trackingId,
+        trackingId: props.trackingId,
+        dateInit: props.dateInit?.toISOString(),
+        dateEnd: props.dateEnd?.toISOString(),
+        participantFilter: props.participantFilter,
+        tagsFilter: props.tagsFilter,
+        temperatureFilter: props.temperatureFilter,
+        actionFilter: props.actionFilter as any,
       },
     }),
   );
@@ -87,7 +104,9 @@ export const useInfiniteLeadsByStatus = ({
   const sortBy = useKanbanStore((state) => state.sortBy);
 
   const query = orpc.leads.listLeadsByStatus.infiniteOptions({
-    input: (pageParams: { cursorId?: string; cursorValue?: string } | undefined) => ({
+    input: (
+      pageParams: { cursorId?: string; cursorValue?: string } | undefined,
+    ) => ({
       statusId,
       trackingId,
       sortBy,

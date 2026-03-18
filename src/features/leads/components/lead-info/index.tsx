@@ -26,7 +26,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { SelectResponsableField } from "./select-responsable-field";
 import { FieldsStatus } from "./fields/field-status";
 import { FieldMoney } from "./fields/field-money";
 import { SendMessageSheet } from "../send-message-sheet";
@@ -85,6 +84,10 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
   function goToTracking() {
     const idConversation = initialData.lead.conversation?.id;
     router.push(`/tracking-chat/${idConversation ? idConversation : ""}`);
+  }
+
+  function handleOpenSendMessage() {
+    setOpenSendMessage(true);
   }
 
   return (
@@ -152,7 +155,10 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                 </TooltipTrigger>
                 <TooltipContent>Conversa</TooltipContent>
               </Tooltip>
-              <ActionButton icon={<Mail className="size-4" />} />
+              <ActionButton
+                icon={<Mail className="size-4" />}
+                onClick={handleOpenSendMessage}
+              />
               {/* <ActionButton icon={<Phone className="size-4" />} /> */}
 
               <Tooltip>
@@ -262,7 +268,8 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
       </div>
       <SendMessageSheet
         trackingId={lead.trackingId}
-        onSubmit={() => {}}
+        conversationId={lead.conversation?.id!}
+        lead={{ ...lead }}
         onOpenChange={setOpenSendMessage}
         open={openSendMessage}
       />

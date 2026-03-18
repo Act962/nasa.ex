@@ -2,37 +2,30 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import z from "zod";
+import { z } from "zod";
 
-export const getAvailabilities = base
+export const getManyTimeSlots = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .route({
     method: "GET",
-    summary: "Get an agenda availabilities",
+    summary: "List all time slots by availability",
     tags: ["Agenda"],
   })
   .input(
     z.object({
-      agendaId: z.string(),
+      availabilityId: z.string().min(1),
     }),
   )
   .handler(async ({ input }) => {
-    const availabilities = await prisma.agendaAvailability.findMany({
+    const timeslots = await prisma.availabilityTimeSlot.findMany({
       where: {
-        agendaId: input.agendaId,
+        availabilityId: input.availabilityId,
       },
       orderBy: {
-        dayOfWeek: "asc",
-      },
-      include: {
-        timeSlots: {
-          orderBy: {
-            order: "asc",
-          },
-        },
+        order: "asc",
       },
     });
 
-    return { availabilities };
+    return { timeslots };
   });

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  CircleCheckIcon,
-  CircleIcon,
-  RedoDotIcon,
-  Trash2Icon,
-  X,
-} from "lucide-react";
+import { CircleCheckIcon, CircleIcon, RedoDotIcon, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 import { Button } from "@/components/ui/button";
@@ -29,7 +23,9 @@ export function NavOptionsTracking() {
   const { trackings } = useQueryTrackings();
   const { selectedLeads, clearSelection } = useLeadStore();
   const [selectedTrackingId, setSelectedTrackingId] = useState(trackingId);
-  const { status } = useQueryStatus({ trackingId: selectedTrackingId });
+  const { status } = useQueryStatus({
+    trackingId: selectedTrackingId,
+  });
   const mutationUpdate = useMutationUpdateLeads();
 
   useEffect(() => {

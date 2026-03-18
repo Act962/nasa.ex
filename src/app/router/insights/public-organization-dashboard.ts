@@ -20,7 +20,12 @@ export const publicOrganizationDashboard = base
   )
   .handler(async ({ input, errors }) => {
     try {
-      const { organizationId, slug, startDate: inputStartDate, endDate: inputEndDate } = input;
+      const {
+        organizationId,
+        slug,
+        startDate: inputStartDate,
+        endDate: inputEndDate,
+      } = input;
 
       // Validate the share exists and belongs to the organization
       const share = await prisma.insightShares.findFirst({
@@ -57,8 +62,7 @@ export const publicOrganizationDashboard = base
         tagIds?: string[];
       };
 
-      const { trackingId, organizationIds, tagIds } =
-        savedFilters;
+      const { trackingId, organizationIds, tagIds } = savedFilters;
 
       const startDate = inputStartDate || savedFilters.startDate;
       const endDate = inputEndDate || savedFilters.endDate;
@@ -67,8 +71,16 @@ export const publicOrganizationDashboard = base
         startDate || endDate
           ? {
               createdAt: {
-                ...(startDate ? { gte: new Date(new Date(startDate).setHours(0, 0, 0, 0)) } : {}),
-                ...(endDate ? { lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)) } : {}),
+                ...(startDate
+                  ? { gte: new Date(new Date(startDate).setHours(0, 0, 0, 0)) }
+                  : {}),
+                ...(endDate
+                  ? {
+                      lte: new Date(
+                        new Date(endDate).setHours(23, 59, 59, 999),
+                      ),
+                    }
+                  : {}),
               },
             }
           : {};
@@ -135,6 +147,8 @@ export const publicOrganizationDashboard = base
         leadsWithoutTags,
         soldThisMonthRes,
         soldLastMonthRes,
+        amountThisMonthRes,
+        amountLastMonthRes,
         bySource,
         byStatus,
         byResponsible,
@@ -154,11 +168,26 @@ export const publicOrganizationDashboard = base
         prisma.lead.aggregate({
           where: {
             ...baseWhere,
-            history: {
-              some: {
-                action: "WON",
-                createdAt: { gte: startOfMonth, lte: endOfMonth },
-              },
+            currentAction: "ACTIVE",
+          },
+          _sum: { amount: true },
+        }),
+
+        prisma.lead.aggregate({
+          where: {
+            ...baseWhere,
+            currentAction: "WON",
+          },
+          _sum: { amount: true },
+        }),
+
+        // Monthly amount comparison (same as dashboard report logic)
+        prisma.lead.aggregate({
+          where: {
+            ...baseWhere,
+            createdAt: {
+              gte: startOfMonth,
+              lte: endOfMonth,
             },
           },
           _sum: { amount: true },
@@ -167,11 +196,9 @@ export const publicOrganizationDashboard = base
         prisma.lead.aggregate({
           where: {
             ...baseWhere,
-            history: {
-              some: {
-                action: "WON",
-                createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
-              },
+            createdAt: {
+              gte: startOfLastMonth,
+              lte: endOfLastMonth,
             },
           },
           _sum: { amount: true },
@@ -274,8 +301,10 @@ export const publicOrganizationDashboard = base
         `,
       ]);
 
-      const soldThisMonth = Number(soldThisMonthRes._sum.amount || 0);
-      const soldLastMonth = Number(soldLastMonthRes._sum.amount || 0);
+      const soldActiveRes = Number(soldThisMonthRes._sum.amount || 0);
+      const soldWinnerRes = Number(soldLastMonthRes._sum.amount || 0);
+      const amountThisMonth = Number(amountThisMonthRes._sum.amount || 0);
+      const amountLastMonth = Number(amountLastMonthRes._sum.amount || 0);
 
       const [statuses, trackings] = await Promise.all([
         prisma.status.findMany({
@@ -406,13 +435,13 @@ export const publicOrganizationDashboard = base
       });
       const tagMap = Object.fromEntries(tags.map((t) => [t.id, t]));
 
-      const closedTotal = wonLeads + lostLeads;
       const monthGrowth =
-        soldLastMonth > 0
+        amountLastMonth > 0
           ? parseFloat(
-              (((soldThisMonth - soldLastMonth) / soldLastMonth) * 100).toFixed(
-                2,
-              ),
+              (
+                ((amountThisMonth - amountLastMonth) / amountLastMonth) *
+                100
+              ).toFixed(2),
             )
           : null;
 
@@ -433,11 +462,11 @@ export const publicOrganizationDashboard = base
           lostLeads,
           leadsWithoutTags,
           conversionRate:
-            closedTotal > 0
-              ? parseFloat(((wonLeads / closedTotal) * 100).toFixed(2))
+            totalLeads > 0
+              ? parseFloat(((wonLeads / totalLeads) * 100).toFixed(2))
               : 0,
-          soldThisMonth,
-          soldLastMonth,
+          soldActiveRes: soldActiveRes / 100,
+          soldWinnerRes: soldWinnerRes / 100,
           monthGrowthRate: monthGrowth,
           totalConversations,
           totalMessages,

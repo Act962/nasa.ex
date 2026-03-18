@@ -47,6 +47,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 
 export const AgendaList = () => {
   const [open, setOpen] = useState(false);
@@ -140,6 +141,7 @@ interface AgendaItemProps {
     name: string;
     description: string | null;
     isActive: boolean;
+    slotDuration: number;
     slug: string;
   };
   baseUrl: string;
@@ -174,7 +176,10 @@ export function AgendaItem({
       <Link href={`/agendas/${agenda.id}`}>
         <ItemContent>
           <ItemTitle>{agenda.name}</ItemTitle>
-          <ItemDescription>{agenda.description}</ItemDescription>
+          <ItemDescription className="flex flex-col gap-2">
+            {agenda.description}
+            <Badge variant="secondary">{agenda.slotDuration} minutos</Badge>
+          </ItemDescription>
         </ItemContent>
         <ItemActions
           onClick={(e) => {

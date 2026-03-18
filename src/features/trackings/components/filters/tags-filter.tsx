@@ -17,7 +17,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useTags } from "@/features/tags/hooks/use-tags";
-import { TagModal } from "@/features/trackings/components/modal/tag-modal";
+import { TagModal } from "@/features/trackings/components/modal/add-tag-sheet";
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, SettingsIcon, TagsIcon, XIcon } from "lucide-react";
@@ -29,7 +29,7 @@ export function TagsFilter() {
   const params = useParams<{ trackingId?: string }>();
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
-  const { tags, isLoadingTags } = useTags({ trackingId: params.trackingId });
+  const { tags, isLoadingTags } = useTags({ trackingId: "ALL" });
   const [search, setSearch] = useState("");
 
   const createTagMutation = useMutation(
@@ -40,7 +40,7 @@ export function TagsFilter() {
           queryKey: orpc.tags.listTags.queryKey({
             input: {
               query: {
-                trackingId: data.trackingId ?? "",
+                trackingId: data.trackingId ?? "ALL",
               },
             },
           }),

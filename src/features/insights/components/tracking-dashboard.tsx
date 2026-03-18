@@ -35,7 +35,7 @@ function ChartSkeleton() {
         <Skeleton className="h-3 w-48" />
       </CardHeader>
       <CardContent>
-        <Skeleton className="h-[300px] w-full" />
+        <Skeleton className="h-75 w-full" />
       </CardContent>
     </Card>
   );

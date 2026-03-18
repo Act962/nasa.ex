@@ -125,13 +125,13 @@ export async function POST(request: NextRequest) {
 
         lead = await prisma.lead.create({
           data: {
-            statusId: status.id,
             name: name ?? "Sem nome",
+            statusId: status.id,
             phone,
-            trackingId,
+            trackingId: trackingId,
             source: LeadSource.WHATSAPP,
             profile: key,
-            order: Number(firstLead?.order) - 1,
+            order: firstLead ? Number(firstLead.order) - 1 : 0,
             conversation: {
               create: {
                 remoteJid,
@@ -140,6 +140,7 @@ export async function POST(request: NextRequest) {
               },
             },
           },
+
           include: {
             conversation: true,
             leadTags: {

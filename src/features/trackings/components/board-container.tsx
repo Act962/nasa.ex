@@ -25,7 +25,7 @@ import {
 import { StatusForm } from "./status-form";
 import { StatusColumn, StatusItemSkeleton } from "./status-column";
 import { Footer } from "./footer";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 // Removendo importação incorreta de StatusItem
 import { LeadItem } from "./lead-item";
@@ -35,6 +35,8 @@ import { Lead } from "../types";
 import { useLostOrWin } from "@/hooks/use-lost-or-win";
 import { useDeletLead } from "@/hooks/use-delete-lead";
 import { NavOptionsTracking } from "./nav-options-trancking";
+import { useQueryState } from "nuqs";
+import dayjs from "dayjs";
 
 interface BoardContainerProps {
   trackingId: string;
@@ -56,6 +58,33 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
     afterId?: string;
     statusId: string;
   } | null>(null);
+  const [dateInit] = useQueryState("date_init");
+  const [dateEnd] = useQueryState("date_end");
+  const [participantFilter] = useQueryState("participant");
+  const [tagsFilter] = useQueryState("tags");
+  const [temperatureFilter] = useQueryState("temperature");
+  const [actionFilter] = useQueryState("filter");
+
+  const queryInput = useMemo(
+    () => ({
+      dateInit: dateInit ? dayjs(dateInit).startOf("day").toDate() : undefined,
+      dateEnd: dateEnd ? dayjs(dateEnd).endOf("day").toDate() : undefined,
+      participantFilter: participantFilter || undefined,
+      tagsFilter: tagsFilter ? tagsFilter.split(",") : undefined,
+      temperatureFilter: temperatureFilter
+        ? temperatureFilter.split(",")
+        : undefined,
+      actionFilter: actionFilter || "ACTIVE",
+    }),
+    [
+      dateInit,
+      dateEnd,
+      participantFilter,
+      tagsFilter,
+      temperatureFilter,
+      actionFilter,
+    ],
+  );
   const {
     columnList,
     setColumnList,
@@ -248,6 +277,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
 
   const { status, isLoading } = useQueryStatus({
     trackingId: trackingId,
+    ...queryInput,
   });
 
   useEffect(() => {

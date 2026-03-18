@@ -75,7 +75,7 @@ export const TagDialog = ({
   });
 
   const { tags, isLoadingTags } = useQueryTags({
-    trackingId: trackingId,
+    trackingId: "ALL",
   });
 
   const handleSubmit = (values: TagFormValues) => {

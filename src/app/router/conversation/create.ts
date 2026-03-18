@@ -31,6 +31,7 @@ export const createConversation = base
       });
 
       let count = 0;
+      const leadIds: string[] = [];
       const contactsInvalids: string[] = [];
 
       await Promise.all(
@@ -77,6 +78,8 @@ export const createConversation = base
                 notes: "Conversa iniciada",
               });
 
+              leadIds.push(lead.id);
+
               return;
             }
             contactsInvalids.push(validPhone.query);
@@ -89,6 +92,7 @@ export const createConversation = base
       return {
         message: `${count} conversas criadas!`,
         contactsInvalids,
+        leadIds,
       };
     } catch (error) {
       console.error(error);

@@ -34,8 +34,10 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TagModal } from "@/features/trackings/components/modal/tag-modal";
+import { TagModal } from "@/features/trackings/components/modal/add-tag-sheet";
 import { useState } from "react";
+import dayjs from "dayjs";
+import { pt } from "react-day-picker/locale";
 
 interface DashboardFiltersProps {
   trackingId: string;
@@ -74,7 +76,7 @@ export function DashboardFilters({
           onToggle={onOrganizationToggle}
         />
         <Select value={trackingId} onValueChange={onTrackingChange}>
-          <SelectTrigger className="w-full sm:w-[200px]">
+          <SelectTrigger className="w-full sm:w-50">
             <SelectValue placeholder="Selecione um tracking" />
           </SelectTrigger>
           <SelectContent>
@@ -91,7 +93,7 @@ export function DashboardFilters({
             <Button
               variant="outline"
               className={cn(
-                "w-full justify-start text-left font-normal sm:w-[280px]",
+                "w-full justify-start text-left font-normal sm:w-70",
                 !dateRange.from && "text-muted-foreground",
               )}
             >
@@ -112,11 +114,19 @@ export function DashboardFilters({
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
+              locale={pt}
               mode="range"
+              timeZone="America/Sao_Paulo"
               defaultMonth={dateRange.from}
-              selected={{ from: dateRange.from, to: dateRange.to }}
+              selected={{
+                from: dayjs(dateRange.from).startOf("day").toDate(),
+                to: dayjs(dateRange.to).endOf("day").toDate(),
+              }}
               onSelect={(range) =>
-                onDateRangeChange({ from: range?.from, to: range?.to })
+                onDateRangeChange({
+                  from: dayjs(range?.from).startOf("day").toDate(),
+                  to: dayjs(range?.to).endOf("day").toDate(),
+                })
               }
               numberOfMonths={2}
             />
@@ -271,10 +281,7 @@ function OrganizationFilterButton({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className="w-full sm:w-[200px] justify-between"
-        >
+        <Button variant="outline" className="w-full sm:w-50 justify-between">
           <span className="truncate">
             {selectedIds.length === 0
               ? "Todas as Empresas"
