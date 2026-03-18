@@ -109,8 +109,8 @@ export const publicOrganizationDashboard = base
             ...organizationFilter,
           },
         },
-        ...dateFilter,
         ...tagFilter,
+        ...dateFilter,
       };
 
       const now = new Date();
@@ -167,11 +167,18 @@ export const publicOrganizationDashboard = base
 
         prisma.lead.aggregate({
           where: {
-            ...baseWhere,
+            ...(trackingId ? { trackingId } : {}),
+            tracking: {
+              organization: {
+                ...organizationFilter,
+              },
+            },
+            ...tagFilter,
 
             history: {
               some: {
                 action: "ACTIVE",
+                ...(dateFilter ? { createdAt: dateFilter.createdAt } : {}),
               },
               none: {
                 OR: [
@@ -193,10 +200,18 @@ export const publicOrganizationDashboard = base
 
         prisma.lead.aggregate({
           where: {
-            ...baseWhere,
+            ...(trackingId ? { trackingId } : {}),
+            tracking: {
+              organization: {
+                ...organizationFilter,
+              },
+            },
+
+            ...tagFilter,
             history: {
               some: {
                 action: "WON",
+                ...(dateFilter ? { createdAt: dateFilter.createdAt } : {}),
               },
             },
           },

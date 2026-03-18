@@ -128,7 +128,7 @@ export function CreateAgendaModal({ open, onOpenChange }: Props) {
               <FieldLabel>Link</FieldLabel>
               <InputGroup>
                 <InputGroupAddon align="inline-start">
-                  <InputGroupText>{url}/.../</InputGroupText>
+                  <InputGroupText>{url}/agenda/.../</InputGroupText>
                 </InputGroupAddon>
                 <InputGroupInput
                   {...form.register("link", {

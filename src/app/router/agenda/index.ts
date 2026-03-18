@@ -11,6 +11,7 @@ import { deleteTimeSlot } from "./timeslots/delete";
 import { createTimeSlot } from "./timeslots/create";
 import { updateTimeSlot } from "./timeslots/update";
 import { updateAgenda } from "./update";
+import { getPublicAgenda } from "./public/get";
 
 export const agendaRouter = {
   create: createAgenda,
@@ -29,5 +30,8 @@ export const agendaRouter = {
   },
   availabilities: {
     toggleActive: toggleActiveAvailability,
+  },
+  public: {
+    get: getPublicAgenda,
   },
 };

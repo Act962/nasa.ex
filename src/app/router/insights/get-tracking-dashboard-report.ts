@@ -98,10 +98,18 @@ export const getTrackingDashboardReport = base
         // Valor de leads ativos
         prisma.lead.aggregate({
           where: {
-            ...baseWhere,
+            ...(trackingId ? { trackingId } : {}),
+            tracking: {
+              organization: {
+                ...organizationFilter,
+                members: { some: { userId: user.id } },
+              },
+            },
+            ...tagFilter,
             history: {
               some: {
                 action: "ACTIVE",
+                ...(dateFilter ? { createdAt: dateFilter.createdAt } : {}),
               },
               none: {
                 OR: [
@@ -124,10 +132,18 @@ export const getTrackingDashboardReport = base
         // Valor valor de leads vendidos
         prisma.lead.aggregate({
           where: {
-            ...baseWhere,
+            ...(trackingId ? { trackingId } : {}),
+            tracking: {
+              organization: {
+                ...organizationFilter,
+                members: { some: { userId: user.id } },
+              },
+            },
+            ...tagFilter,
             history: {
               some: {
                 action: "WON",
+                ...dateFilter,
               },
             },
           },
