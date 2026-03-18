@@ -16,6 +16,9 @@ export const getManyAgendas = base
       where: {
         organizationId: context.org.id,
       },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
     return { agendas, organization: context.org };

@@ -6,6 +6,8 @@ import {
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+// Agenda
+
 export const useSuspenseAgendas = () => {
   return useSuspenseQuery(orpc.agenda.getMany.queryOptions({}));
 };
@@ -63,6 +65,22 @@ export const useDeleteAgenda = () => {
     orpc.agenda.delete.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries(orpc.agenda.getMany.queryOptions({}));
+      },
+    }),
+  );
+};
+
+export const useUpdateAgenda = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.update.mutationOptions({
+      onSuccess: (data) => {
+        toast.success("Agenda atualizada com sucesso");
+        queryClient.invalidateQueries(orpc.agenda.getMany.queryOptions({}));
+        queryClient.invalidateQueries(
+          orpc.agenda.get.queryOptions({ input: { agendaId: data.agenda.id } }),
+        );
       },
     }),
   );

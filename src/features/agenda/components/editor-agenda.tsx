@@ -3,10 +3,6 @@
 import { useQueryState } from "nuqs";
 import { useSuspenseAgenda } from "../hooks/use-agenda";
 import { HeaderAgenda } from "./header";
-import { Button } from "@/components/ui/button";
-import { Item, ItemContent, ItemTitle } from "@/components/ui/item";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { Tabs, TabsTrigger, TabsList, TabsContent } from "@/components/ui/tabs";
 import { ArrowRightIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -49,9 +45,9 @@ export function EditorAgenda({ agendaId }: EditorAgendaProps) {
           defaultValue={tab}
           onValueChange={setTab}
           orientation="vertical"
-          className="w-full flex flex-row items-start h-full"
+          className="w-full flex flex-col md:flex-row items-start h-full"
         >
-          <TabsList className=" sticky top-0 flex flex-col h-full bg-transparent w-1/6">
+          <TabsList className="sticky top-0 flex flex-col h-full bg-transparent w-full md:w-1/6">
             {tags.map((tag) => (
               <TabsTrigger
                 key={tag.value}
@@ -63,10 +59,10 @@ export function EditorAgenda({ agendaId }: EditorAgendaProps) {
               </TabsTrigger>
             ))}
           </TabsList>
-          <Separator orientation="vertical" className="h-full" />
-          <div className="flex-1">
+
+          <div className="w-full">
             <TabsContent value="general">
-              <General />
+              <General defaultValues={data.agenda} />
             </TabsContent>
             <TabsContent value="availability">
               <Suspense
@@ -84,7 +80,7 @@ export function EditorAgenda({ agendaId }: EditorAgendaProps) {
               </Suspense>
             </TabsContent>
             <TabsContent value="workflow">
-              <Workflow />
+              <Workflow defaultValues={data.agenda} />
             </TabsContent>
           </div>
         </Tabs>
