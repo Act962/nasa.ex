@@ -63,20 +63,7 @@ export function generateTimes(interval = 15) {
 
   return times;
 }
-export function generateTimes(interval = 15) {
-  const times: string[] = [];
 
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += interval) {
-      const hour = String(h).padStart(2, "0");
-      const minute = String(m).padStart(2, "0");
-
-      times.push(`${hour}:${minute}`);
-    }
-  }
-
-  return times;
-}
 
 export function Availability({
   agendaId,
