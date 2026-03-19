@@ -142,7 +142,10 @@ export function StatusColumn({
     >
       <div className="flex flex-col flex-1 min-h-0 rounded-md bg-muted/60  shadow-md ">
         <StatusHeader
-          data={{ ...status, trackingId }}
+          data={useMemo(
+            () => ({ ...status, trackingId }),
+            [status, trackingId],
+          )}
           attributes={attributes}
           listeners={listeners}
         />

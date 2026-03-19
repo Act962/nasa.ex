@@ -32,6 +32,8 @@ type KanbanStore = {
     overId?: string,
   ) => void;
 
+  findLeadColumn: (leadId: string) => string | undefined;
+
   getColumnLeads: (columnId: string) => Lead[];
   calculateMidpoint: (columnId: string, overLeadId?: string) => string;
   getLeadNeighbors: (
@@ -189,6 +191,13 @@ export const useKanbanStore = create<KanbanStore>()(
 
       getColumnLeads: (columnId) =>
         get().columns[columnId]?.leads ?? EMPTY_LEADS,
+
+      findLeadColumn: (leadId) => {
+        const state = get();
+        return Object.keys(state.columns).find((colId) =>
+          state.columns[colId].leads.some((l) => l.id === leadId),
+        );
+      },
 
       calculateMidpoint: (columnId, overLeadId) => {
         const leads = get().getColumnLeads(columnId);

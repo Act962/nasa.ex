@@ -25,7 +25,7 @@ import {
 import { StatusForm } from "./status-form";
 import { StatusColumn, StatusItemSkeleton } from "./status-column";
 import { Footer } from "./footer";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 // Removendo importação incorreta de StatusItem
 import { LeadItem } from "./lead-item";
@@ -85,6 +85,12 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
       actionFilter,
     ],
   );
+
+  const { status, isLoading } = useQueryStatus({
+    trackingId: trackingId,
+    ...queryInput,
+  });
+
   const columnList = useKanbanStore((s) => s.columnList);
   const setColumnList = useKanbanStore((s) => s.setColumnList);
   const moveColumn = useKanbanStore((s) => s.moveColumn);
@@ -97,197 +103,219 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
   const updateColumnOrder = useUpdateColumnOrder();
   const updateLeadOrder = useUpdateLeadOrder();
 
+  const mouseSensor = useSensor(MouseSensor, {
+    activationConstraint: {
+      distance: 10,
+    },
+  });
+  const pointerSensor = useSensor(PointerSensor);
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 250,
+      tolerance: 5,
+    },
+  });
+  const keyboardSensor = useSensor(KeyboardSensor, {
+    coordinateGetter: sortableKeyboardCoordinates,
+  });
+
   const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: {
-        distance: 10,
-      },
-    }),
-    useSensor(PointerSensor),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 250,
-        tolerance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    mouseSensor,
+    pointerSensor,
+    touchSensor,
+    keyboardSensor,
   );
 
   const columnIds = useMemo(() => columnList.map((s) => s.id), [columnList]);
 
-  function onDragStart(event: DragStartEvent) {
-    setIsDragging(true);
-    const type = event.active.data.current?.type;
+  const onDragStart = useCallback(
+    (event: DragStartEvent) => {
+      setIsDragging(true);
+      const type = event.active.data.current?.type;
 
-    if (type === "Column" && event.active.data.current?.column) {
-      setActiveColumn(event.active.data.current.column);
-    }
-
-    if (type === "Lead" && event.active.data.current?.lead) {
-      const lead = event.active.data.current.lead;
-      const neighbors = useKanbanStore
-        .getState()
-        .getLeadNeighbors(lead.statusId, lead.id);
-      setOriginalNeighbors({ ...neighbors, statusId: lead.statusId });
-      setActiveLead(lead);
-    }
-  }
-
-  function onDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-
-    setIsDragging(false);
-    setActiveColumn(null);
-    setActiveLead(null);
-
-    if (!over) return;
-
-    const activeType = active.data.current?.type;
-
-    const overType = over.data.current?.type;
-
-    if (activeType === "Lead" && overType === "FooterButton") {
-      const leadData: Lead = active.data.current?.lead;
-      const footerAction = over.data.current?.action;
-
-      switch (footerAction) {
-        case "ganho":
-          onOpen(leadData.id, "WIN");
-          break;
-        case "perdido":
-          onOpen(leadData.id, "LOSS");
-          break;
-        case "excluir":
-          onOpenDeleteLead({ ...leadData, trackingId });
-          break;
+      if (type === "Column" && event.active.data.current?.column) {
+        setActiveColumn(event.active.data.current.column);
       }
 
-      return;
-    }
-
-    if (activeType === "Column") {
-      const activeId = active.id as string;
-
-      const originalIndex = status.findIndex((s) => s.id === activeId);
-      const newIndex = columnList.findIndex((c) => c.id === activeId);
-
-      if (originalIndex === newIndex) return;
-
-      const prev = columnList[newIndex - 1];
-      const next = columnList[newIndex + 1];
-
-      let newOrder: Decimal;
-
-      if (!prev && next) {
-        newOrder = new Decimal(next.order).minus(1);
-      } else if (prev && !next) {
-        newOrder = new Decimal(prev.order).plus(1);
-      } else if (prev && next) {
-        newOrder = new Decimal(prev.order).plus(next.order).div(2);
-      } else {
-        newOrder = new Decimal(1000);
+      if (type === "Lead" && event.active.data.current?.lead) {
+        const lead = event.active.data.current.lead;
+        const neighbors = useKanbanStore
+          .getState()
+          .getLeadNeighbors(lead.statusId, lead.id);
+        setOriginalNeighbors({ ...neighbors, statusId: lead.statusId });
+        setActiveLead(lead);
       }
+    },
+    [setIsDragging],
+  );
 
-      updateColumnOrder.mutate({
-        id: activeId,
-        order: newOrder.toString(),
-      });
+  const onDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
 
-      return;
-    }
+      setIsDragging(false);
+      setActiveColumn(null);
+      setActiveLead(null);
 
-    if (activeType === "Lead") {
-      const lead = active.data.current?.lead;
+      if (!over) return;
 
-      let targetColumnId: string | null = null;
-      let overLeadId: string | undefined;
+      const activeType = active.data.current?.type;
 
-      if (overType === "Lead") {
-        targetColumnId = over.data.current?.lead.statusId;
-        overLeadId = over.data.current?.lead.id;
-      }
+      const overType = over.data.current?.type;
 
-      if (overType === "Column") {
-        targetColumnId = over.data.current?.column.id;
-      }
+      if (activeType === "Lead" && overType === "FooterButton") {
+        const leadData: Lead = active.data.current?.lead;
+        const footerAction = over.data.current?.action;
 
-      if (!targetColumnId) return;
+        switch (footerAction) {
+          case "ganho":
+            onOpen(leadData.id, "WIN");
+            break;
+          case "perdido":
+            onOpen(leadData.id, "LOSS");
+            break;
+          case "excluir":
+            onOpenDeleteLead({ ...leadData, trackingId });
+            break;
+        }
 
-      const currentNeighbors = useKanbanStore
-        .getState()
-        .getLeadNeighbors(targetColumnId, lead.id);
-
-      if (
-        targetColumnId === originalNeighbors?.statusId &&
-        currentNeighbors.beforeId === originalNeighbors.beforeId &&
-        currentNeighbors.afterId === originalNeighbors.afterId
-      ) {
         return;
       }
-      console.log({
-        leadId: lead.id,
-        targetStatusId: targetColumnId,
-        beforeId: currentNeighbors.beforeId,
-        afterId: currentNeighbors.afterId,
-        trackingId: trackingId,
-      });
 
-      updateLeadOrder.mutate({
-        leadId: lead.id,
-        targetStatusId: targetColumnId,
-        beforeId: currentNeighbors.beforeId,
-        afterId: currentNeighbors.afterId,
-        trackingId,
-      });
-    }
-  }
+      if (activeType === "Column") {
+        const activeId = active.id as string;
 
-  function onDragOver(event: DragOverEvent) {
-    const { active, over } = event;
-    if (!over) return;
+        const originalIndex = status.findIndex((s) => s.id === activeId);
+        const newIndex = columnList.findIndex((c) => c.id === activeId);
 
-    const activeId = active.id as string;
-    const overId = over.id as string;
-    const activeType = active.data.current?.type;
-    const overType = over.data.current?.type;
+        if (originalIndex === newIndex) return;
 
-    if (activeType === "Column" && overType === "Column") {
-      moveColumn(activeId, overId);
-      return;
-    }
+        const prev = columnList[newIndex - 1];
+        const next = columnList[newIndex + 1];
 
-    if (activeType !== "Lead") return;
+        let newOrder: Decimal;
 
-    const activeColumnId = active.data.current?.lead.statusId;
-    const overColumnId =
-      overType === "Lead" ? over.data.current?.lead.statusId : over.id;
+        if (!prev && next) {
+          newOrder = new Decimal(next.order).minus(1);
+        } else if (prev && !next) {
+          newOrder = new Decimal(prev.order).plus(1);
+        } else if (prev && next) {
+          newOrder = new Decimal(prev.order).plus(next.order).div(2);
+        } else {
+          newOrder = new Decimal(1000);
+        }
 
-    if (activeColumnId !== overColumnId) {
-      // MOVE ENTRE COLUNAS VISUALMENTE
-      moveLeadToColumn(
-        activeId,
-        activeColumnId,
-        overColumnId,
-        overType === "Lead" ? overId : undefined,
-      );
-    } else {
-      // REORDENA NA MESMA COLUNA VISUALMENTE
-      moveLeadInColumn(activeColumnId, activeId, overId);
-    }
-  }
+        updateColumnOrder.mutate({
+          id: activeId,
+          order: newOrder.toString(),
+        });
 
-  const { status, isLoading } = useQueryStatus({
-    trackingId: trackingId,
-    ...queryInput,
-  });
+        return;
+      }
+
+      if (activeType === "Lead") {
+        const lead = active.data.current?.lead;
+
+        let targetColumnId: string | null = null;
+        let overLeadId: string | undefined;
+
+        if (overType === "Lead") {
+          targetColumnId = over.data.current?.lead.statusId;
+          overLeadId = over.data.current?.lead.id;
+        }
+
+        if (overType === "Column") {
+          targetColumnId = over.data.current?.column.id;
+        }
+
+        if (!targetColumnId) return;
+
+        const currentNeighbors = useKanbanStore
+          .getState()
+          .getLeadNeighbors(targetColumnId, lead.id);
+
+        if (
+          targetColumnId === originalNeighbors?.statusId &&
+          currentNeighbors.beforeId === originalNeighbors.beforeId &&
+          currentNeighbors.afterId === originalNeighbors.afterId
+        ) {
+          return;
+        }
+        console.log({
+          leadId: lead.id,
+          targetStatusId: targetColumnId,
+          beforeId: currentNeighbors.beforeId,
+          afterId: currentNeighbors.afterId,
+          trackingId: trackingId,
+        });
+
+        updateLeadOrder.mutate({
+          leadId: lead.id,
+          targetStatusId: targetColumnId,
+          beforeId: currentNeighbors.beforeId,
+          afterId: currentNeighbors.afterId,
+          trackingId,
+        });
+      }
+    },
+    [
+      columnList,
+      onOpen,
+      onOpenDeleteLead,
+      originalNeighbors,
+      setIsDragging,
+      status,
+      trackingId,
+      updateColumnOrder,
+      updateLeadOrder,
+    ],
+  );
+
+  const onDragOver = useCallback(
+    (event: DragOverEvent) => {
+      const { active, over } = event;
+      if (!over) return;
+
+      const activeId = active.id as string;
+      const overId = over.id as string;
+      const activeType = active.data.current?.type;
+      const overType = over.data.current?.type;
+
+      if (activeType === "Column" && overType === "Column") {
+        moveColumn(activeId, overId);
+        return;
+      }
+
+      if (activeType !== "Lead") return;
+
+      // Busca a coluna ATUAL do lead no store, não a original
+      const activeColumnId = useKanbanStore.getState().findLeadColumn(activeId);
+      if (!activeColumnId) return;
+
+      const overColumnId =
+        overType === "Lead" ? over.data.current?.lead.statusId : over.id;
+
+      if (activeColumnId !== overColumnId) {
+        moveLeadToColumn(
+          activeId,
+          activeColumnId,
+          overColumnId,
+          overType === "Lead" ? overId : undefined,
+        );
+      } else {
+        moveLeadInColumn(activeColumnId, activeId, overId);
+      }
+    },
+    [moveColumn, moveLeadToColumn, moveLeadInColumn],
+  );
+
+  const isDragging = useKanbanStore((s) => s.isDragging);
 
   useEffect(() => {
-    if (status) {
+    if (status && !isDragging) {
       setColumnList(status);
     }
-  }, [status, setColumnList]);
+  }, [status, setColumnList, isDragging]);
 
   if (isLoading) {
     return (
@@ -338,6 +366,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
                   index={Number(activeColumn.order)}
                   status={activeColumn}
                   trackingId={trackingId}
+                  isOverlay
                 />
               )}
               {activeLead && <LeadItem data={activeLead} />}
