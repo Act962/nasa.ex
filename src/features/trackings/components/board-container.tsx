@@ -85,14 +85,13 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
       actionFilter,
     ],
   );
-  const {
-    columnList,
-    setColumnList,
-    moveColumn,
-    moveLeadInColumn,
-    moveLeadToColumn,
-    sortBy,
-  } = useKanbanStore();
+  const columnList = useKanbanStore((s) => s.columnList);
+  const setColumnList = useKanbanStore((s) => s.setColumnList);
+  const moveColumn = useKanbanStore((s) => s.moveColumn);
+  const moveLeadInColumn = useKanbanStore((s) => s.moveLeadInColumn);
+  const moveLeadToColumn = useKanbanStore((s) => s.moveLeadToColumn);
+  const setIsDragging = useKanbanStore((s) => s.setIsDragging);
+  const sortBy = useKanbanStore((s) => s.sortBy);
   const { onOpen } = useLostOrWin();
   const { onOpen: onOpenDeleteLead } = useDeletLead();
   const updateColumnOrder = useUpdateColumnOrder();
@@ -116,7 +115,10 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
     }),
   );
 
+  const columnIds = useMemo(() => columnList.map((s) => s.id), [columnList]);
+
   function onDragStart(event: DragStartEvent) {
+    setIsDragging(true);
     const type = event.active.data.current?.type;
 
     if (type === "Column" && event.active.data.current?.column) {
@@ -136,6 +138,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event;
 
+    setIsDragging(false);
     setActiveColumn(null);
     setActiveLead(null);
 
@@ -311,7 +314,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
       >
         <div className="grid grid-rows-[1fr_auto] h-full">
           <ol className="flex gap-x-3 overflow-x-auto">
-            <SortableContext items={columnList.map((s) => s.id)}>
+            <SortableContext items={columnIds}>
               {columnList.map((s, index) => (
                 <StatusColumn
                   key={s.id}

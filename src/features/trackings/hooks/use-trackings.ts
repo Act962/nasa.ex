@@ -7,6 +7,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useMemo } from "react";
 
 export const useQueryTrackings = () => {
   const { data, isLoading } = useQuery(orpc.tracking.list.queryOptions());
@@ -72,13 +73,15 @@ export const useQueryStatus = (props: UseQueryStatusProps) => {
     }),
   );
 
+  const status = useMemo(() => data ?? EMPTY_LEADS, [data]);
+
   return {
-    status: data ?? [],
+    status,
     isLoading,
   };
 };
 
-import { useKanbanStore } from "../lib/kanban-store";
+import { EMPTY_LEADS, useKanbanStore } from "../lib/kanban-store";
 
 export const useInfiniteLeadsByStatus = ({
   statusId,
@@ -147,8 +150,13 @@ export const useInfiniteLeadsByStatus = ({
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useInfiniteQuery(query);
 
+  const leads = useMemo(
+    () => data?.pages.flatMap((page) => page.leads) ?? EMPTY_LEADS,
+    [data],
+  );
+
   return {
-    data: data?.pages.flatMap((page) => page.leads) ?? [],
+    data: leads,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,

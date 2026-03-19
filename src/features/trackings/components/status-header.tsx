@@ -176,7 +176,8 @@ const ListOption = ({
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [tempColor, setTempColor] = useState(currentColor);
   const deleteStatusMutation = useDeleteStatus();
-  const { sortBy, setSortBy } = useKanbanStore();
+  const sortBy = useKanbanStore((s) => s.sortBy);
+  const setSortBy = useKanbanStore((s) => s.setSortBy);
 
   const colors = [
     "#FFFFFF",

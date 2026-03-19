@@ -30,7 +30,7 @@ export function StatusColumn({
   trackingId,
   isOverlay,
 }: StatusColumnProps) {
-  const { registerColumn } = useKanbanStore();
+  const registerColumn = useKanbanStore((s) => s.registerColumn);
   const [dateInit] = useQueryState("date_init");
   const [dateEnd] = useQueryState("date_end");
   const [participantFilter] = useQueryState("participant");
@@ -127,6 +127,8 @@ export function StatusColumn({
     (state) => state.columns[status.id]?.leads ?? EMPTY_LEADS,
   );
 
+  const leadIds = useMemo(() => leads.map((l) => l.id), [leads]);
+
   return (
     <li
       ref={setNodeRef}
@@ -147,7 +149,7 @@ export function StatusColumn({
 
         <ScrollArea className="flex-1 min-h-0">
           <ol className=" mx-1 px-1 py-2 flex flex-col gap-y-2">
-            <SortableContext items={leads.map((l) => l.id)}>
+            <SortableContext items={leadIds}>
               {isLoading && (
                 <div className="flex flex-col gap-y-3">
                   {Array.from({ length: 5 }).map((_, i) => (

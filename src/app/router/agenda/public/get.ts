@@ -36,6 +36,13 @@ export const getPublicAgenda = base
             logo: true,
           },
         },
+        availabilities: {
+          select: {
+            id: true,
+            dayOfWeek: true,
+            isActive: true,
+          },
+        },
       },
     });
 

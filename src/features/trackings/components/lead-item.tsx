@@ -24,7 +24,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import dayjs from "dayjs";
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Lead } from "../types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 
@@ -241,7 +241,7 @@ function LeadItemContainer({ className, ...props }: LeadItemContainerProps) {
 function ListLeadTags({ leadId, tags }: { leadId: string; tags: any[] }) {
   const { tags: leadTags } = useQueryTagByLead(
     leadId,
-    tags.map((t) => t.tag),
+    useMemo(() => tags.map((t) => t.tag), [tags]),
   );
 
   return (
