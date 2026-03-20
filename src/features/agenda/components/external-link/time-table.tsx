@@ -10,15 +10,9 @@ interface Props {
   selectedDate: Date;
   orgSlug: string;
   agendaSlug: string;
-  slotDuration: number;
 }
 
-export function TimeTable({
-  selectedDate,
-  orgSlug,
-  agendaSlug,
-  slotDuration,
-}: Props) {
+export function TimeTable({ selectedDate, orgSlug, agendaSlug }: Props) {
   const { locale } = useLocale();
   const { timeSlots, isLoading } = useQueryPublicAgendaTimeSlots({
     orgSlug,

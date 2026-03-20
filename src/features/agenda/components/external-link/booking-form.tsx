@@ -328,7 +328,6 @@ export function BookingForm({ orgSlug, agendaSlug }: BookingFormProps) {
           selectedDate={selectedDate}
           orgSlug={orgSlug}
           agendaSlug={agendaSlug}
-          slotDuration={agenda?.slotDuration as number}
         />
       </CardContent>
     </Card>

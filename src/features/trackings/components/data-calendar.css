@@ -1,0 +1,232 @@
+.rbc-calendar {
+  @apply min-h-[180px];
+  font-family: var(--font-sans);
+  height: 100%;
+  min-height: 600px;
+  color: var(--foreground);
+  border: none !important;
+}
+/* Toolbar */
+.rbc-toolbar {
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 0.5rem;
+}
+@media (min-width: 640px) {
+  .rbc-toolbar {
+    flex-direction: row;
+  }
+}
+.rbc-toolbar-label {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  order: -1;
+}
+@media (min-width: 640px) {
+  .rbc-toolbar-label {
+    order: 0;
+  }
+}
+.rbc-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background-color: color-mix(in srgb, var(--muted) 30%, transparent);
+  padding: 0;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+}
+.rbc-toolbar button {
+  height: 2rem;
+  padding: 0 1rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+  border-radius: calc(var(--radius) - 2px);
+  border: none;
+  background-color: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.rbc-toolbar button:hover {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+/* .rbc-toolbar button:active {
+  transform: scale(0.95);
+} */
+.rbc-toolbar button.rbc-active {
+  background-color: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+/* Month View */
+.rbc-month-view {
+  border-radius: var(--radius) !important;
+  border: 1px solid var(--border) !important;
+  background-color: var(--card) !important;
+  overflow: hidden !important;
+  box-shadow:
+    0 1px 3px 0 rgb(0 0 0 / 0.1),
+    0 1px 2px -1px rgb(0 0 0 / 0.1) !important;
+}
+.rbc-month-header {
+  border-bottom: 1px solid var(--border) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--muted) 20%,
+    transparent
+  ) !important;
+}
+.rbc-header {
+  padding: 1rem 0 !important;
+  font-size: 0.625rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  color: var(--muted-foreground) !important;
+  border: none !important;
+}
+.rbc-month-row {
+  border-bottom: 1px solid var(--border) !important;
+}
+.rbc-month-row:last-child {
+  border-bottom: none !important;
+}
+/* Cells */
+.rbc-day-bg {
+  transition-property: background-color;
+  transition-duration: 200ms;
+  border-right: 1px solid var(--border) !important;
+}
+.rbc-day-bg:last-child {
+  border-right: none !important;
+}
+.rbc-day-bg:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--accent) 30%,
+    transparent
+  ) !important;
+}
+.rbc-today {
+  background-color: color-mix(
+    in srgb,
+    var(--primary) 5%,
+    transparent
+  ) !important;
+}
+.rbc-off-range-bg {
+  background-color: color-mix(
+    in srgb,
+    var(--muted) 40%,
+    transparent
+  ) !important;
+}
+.rbc-date-cell {
+  padding: 0.75rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  padding-right: 1rem !important;
+  padding-top: 1rem !important;
+}
+.rbc-date-cell button {
+  transition-property: color;
+  transition-duration: 200ms;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+}
+.rbc-date-cell button:hover {
+  color: var(--primary) !important;
+}
+.rbc-date-cell.rbc-now button {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  margin-left: auto;
+  margin-right: -0.25rem;
+  margin-top: -0.25rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
+}
+.rbc-off-range {
+  color: color-mix(
+    in srgb,
+    var(--muted-foreground) 40%,
+    transparent
+  ) !important;
+}
+/* Content */
+.rbc-row-content {
+  z-index: 2;
+}
+/* Events */
+.rbc-event {
+  background-color: color-mix(
+    in srgb,
+    var(--primary) 10%,
+    transparent
+  ) !important;
+  color: var(--primary) !important;
+  border-left: 4px solid var(--primary) !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  border-right: none !important;
+  border-radius: 0 0.375rem 0.375rem 0 !important;
+  padding: 0.25rem 0.5rem !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s !important;
+}
+.rbc-event:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--primary) 20%,
+    transparent
+  ) !important;
+  transform: translateX(2px) !important;
+}
+.rbc-event-content {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rbc-show-more {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: var(--primary) !important;
+  background-color: transparent !important;
+  border: none;
+  cursor: pointer;
+  margin-top: 0.25rem !important;
+  margin-left: 0.5rem !important;
+}
+.rbc-show-more:hover {
+  text-decoration: underline;
+}
+.rbc-row-segment {
+  padding: 0.25rem !important;
+}
+
+/* Dark mode overrides for borders */
+.dark .rbc-month-view,
+.dark .rbc-day-bg,
+.dark .rbc-month-row,
+.dark .rbc-month-header {
+  border-color: color-mix(in srgb, var(--border) 40%, transparent) !important;
+}
