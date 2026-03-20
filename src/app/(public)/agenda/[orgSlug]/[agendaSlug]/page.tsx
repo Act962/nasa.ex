@@ -8,7 +8,7 @@ export default async function Page({ params }: Props) {
   const { orgSlug, agendaSlug } = await params;
 
   return (
-    <div className="min-h-screen w-screen flex items-center justify-center">
+    <div className="min-h-screen w-screen flex items-center justify-center p-5">
       <BookingForm agendaSlug={agendaSlug} orgSlug={orgSlug} />
     </div>
   );

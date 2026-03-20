@@ -1,6 +1,7 @@
 import { DayOfWeek } from "@/generated/prisma/enums";
 import { orpc } from "@/lib/orpc";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 interface UseQueryPublicAgendaProps {
   orgSlug: string;
@@ -29,20 +30,20 @@ export const useQueryPublicAgenda = ({
 interface UseQueryPublicAgendaTimeSlotsProps {
   orgSlug: string;
   agendaSlug: string;
-  day: DayOfWeek;
+  date: string;
 }
 
 export const useQueryPublicAgendaTimeSlots = ({
   orgSlug,
   agendaSlug,
-  day,
+  date,
 }: UseQueryPublicAgendaTimeSlotsProps) => {
   const { data, isLoading } = useQuery(
     orpc.agenda.public.getTimeSlots.queryOptions({
       input: {
         orgSlug: orgSlug,
         agendaSlug: agendaSlug,
-        day: day,
+        date: date,
       },
     }),
   );
@@ -51,4 +52,20 @@ export const useQueryPublicAgendaTimeSlots = ({
     timeSlots: data?.timeSlots,
     isLoading,
   };
+};
+
+export const useCreateAppointment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.public.appointment.create.mutationOptions({
+      onSuccess: () => {
+        toast.success("Agendamento realizado com sucesso!");
+      },
+      onError: (error) => {
+        console.error(error);
+        toast.error("Erro ao criar agendamento: " + error.message);
+      },
+    }),
+  );
 };
