@@ -58,9 +58,14 @@ export function NavTracking() {
     //   href: `/tracking/${params.trackingId}/chat`,
     // },
     {
+      label: "Agendamentos",
+      href: `/tracking/${params.trackingId}/appointments`,
+    },
+    {
       label: "Automações",
       href: `/tracking/${params.trackingId}/workflows`,
     },
+
     {
       label: "Configurações",
       href: `/tracking/${params.trackingId}/settings`,

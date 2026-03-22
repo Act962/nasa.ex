@@ -52,7 +52,7 @@ export const createAppointment = base
 
     const startsAt = (dayjs as any).tz(
       `${input.date} ${input.time}`,
-      input.timeZone || "America/Sao_Paulo"
+      input.timeZone || "America/Sao_Paulo",
     );
     const endsAt = startsAt.add(agenda.slotDuration, "minute");
 
@@ -119,6 +119,7 @@ export const createAppointment = base
         title: `Agendamento: ${input.name}`,
         notes: input.notes,
         status: "PENDING",
+        trackingId: agenda.trackingId,
       },
     });
 

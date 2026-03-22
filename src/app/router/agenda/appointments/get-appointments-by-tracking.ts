@@ -17,8 +17,8 @@ export const getAppointmentsByTracking = base
 
     const appointments = await prisma.appointment.findMany({
       where: {
+        trackingId,
         agenda: {
-          trackingId,
           organizationId: context.org.id,
         },
       },

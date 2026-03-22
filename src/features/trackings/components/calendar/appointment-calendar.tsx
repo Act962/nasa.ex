@@ -15,7 +15,7 @@ import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "./data-calendar.css";
 import { useQueryAppointmentsByTrackfing } from "../../hooks/use-trackings";
-import { EventCard } from "./event-card";
+import { AppointmentCard } from "./appointment-card";
 import { Button } from "@/components/ui/button";
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import dayjs from "dayjs";
@@ -57,6 +57,7 @@ export function AppointmentCalendar({ trackingId }: Props) {
     end: appointment.endsAt,
     title: appointment.title,
     id: appointment.id,
+    status: appointment.status,
   }));
 
   return (
@@ -91,7 +92,7 @@ export function AppointmentCalendar({ trackingId }: Props) {
           showMore: (total) => `+ Ver mais (${total})`,
         }}
         components={{
-          eventWrapper: ({ event }) => <EventCard {...event} />,
+          eventWrapper: ({ event }) => <AppointmentCard {...event} />,
           toolbar: () => (
             <CustomToolbar date={value} onNavigate={handleNavigate} />
           ),
