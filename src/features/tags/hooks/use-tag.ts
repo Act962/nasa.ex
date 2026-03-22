@@ -14,7 +14,7 @@ export function useTag() {
           queryKey: orpc.tags.listTags.queryKey({
             input: {
               query: {
-                trackingId: data.trackingId ?? "",
+                trackingId: data.trackingId ?? undefined,
               },
             },
           }),
@@ -39,14 +39,17 @@ export const useCreateTag = () => {
       onMutate: async (data) => {
         const previousData = queryClient.getQueryData([
           "tags.list",
-          data.trackingId,
+          data.trackingId ?? undefined,
         ]);
 
-        queryClient.setQueryData(["tags.list", data.trackingId], (old: any) => {
-          if (!old) return undefined;
+        queryClient.setQueryData(
+          ["tags.list", data.trackingId ?? undefined],
+          (old: any) => {
+            if (!old) return undefined;
 
-          return [...old, data];
-        });
+            return [...old, data];
+          },
+        );
 
         return { previousData };
       },

@@ -6,6 +6,7 @@ import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { orpc } from "@/lib/orpc";
 import { ChatSettings } from "@/features/tracking-settings/components/chat-settings";
 import { ChatBotIa } from "@/features/tracking-settings/components/chatbot-ia";
+import { FlowAttendiment } from "@/features/tracking-settings/components/flow-attendiment";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
@@ -50,6 +51,11 @@ export default async function Page({
           <Participants />
         </HydrateClient>
       ),
+    },
+    {
+      name: "Fluxo de atendimento",
+      value: "flow-attendance",
+      content: <FlowAttendiment trackingId={trackingId} />,
     },
     {
       name: "Motivos de ganho",

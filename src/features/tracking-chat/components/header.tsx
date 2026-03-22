@@ -4,12 +4,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { phoneMaskFull } from "@/utils/format-phone";
-import { ArrowLeftIcon, XIcon } from "lucide-react";
+import { ArrowLeftIcon, CheckIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { SummerizeConversation } from "./summerize-conversation";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { CheckIaLead } from "./check-ia-lead";
+import { StatusFlow } from "@/generated/prisma/enums";
+import { useMutationRodizio } from "../hooks/use-rodizio";
 
 interface HeaderProps {
   name: string;
@@ -19,6 +20,7 @@ interface HeaderProps {
   conversationId: string;
   active: boolean;
   trackingId: string;
+  statusFlow: StatusFlow;
 }
 export function Header({
   name,
@@ -28,13 +30,21 @@ export function Header({
   conversationId,
   active: initialActive,
   trackingId,
+  statusFlow,
 }: HeaderProps) {
   const router = useRouter();
   const profileUrl = useConstructUrl(profile || "");
-  const [active, setActive] = useState(initialActive);
+  const mutation = useMutationRodizio();
 
   const onCloseChat = () => {
     router.push(`/tracking-chat`);
+  };
+
+  const handleFinishLead = () => {
+    mutation.mutate({
+      leadId,
+      trackingId,
+    });
   };
 
   return (
@@ -63,14 +73,21 @@ export function Header({
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
+        <SummerizeConversation conversationId={conversationId} />
         <CheckIaLead
           size={"default"}
-          active={active}
+          active={initialActive}
           leadId={leadId}
           trackingId={trackingId}
         />
-        <SummerizeConversation conversationId={conversationId} />
+        <Button
+          onClick={handleFinishLead}
+          variant={statusFlow === "FINISHED" ? "default" : "outline"}
+          disabled={statusFlow === "FINISHED" || mutation.isPending}
+        >
+          Finalizar <CheckIcon className="size" />
+        </Button>
         <Button variant="ghost" size="icon-sm" onClick={onCloseChat}>
           <XIcon className="size-4" />
         </Button>

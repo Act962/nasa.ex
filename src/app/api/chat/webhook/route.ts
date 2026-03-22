@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { MessageStatus } from "@/features/tracking-chat/types";
 import { getContactDetails } from "@/http/uazapi/get-contact-details";
 import { WA_COLORS } from "@/utils/whatsapp-utils";
+import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 
 export async function POST(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        lead = await prisma.lead.create({
+        const createdLead = await prisma.lead.create({
           data: {
             name: name ?? "Sem nome",
             statusId: status.id,
@@ -150,6 +151,17 @@ export async function POST(request: NextRequest) {
             },
           },
         });
+
+        lead = createdLead;
+        try {
+          if (lead && lead.id) {
+            await prisma.$transaction((tx) =>
+              assignLeadRoundRobin(tx, lead?.id || ""),
+            );
+          }
+        } catch (error) {
+          console.error("Error assigning lead in round robin:", error);
+        }
 
         await fetch(
           `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/lead/new?trackingId=${trackingId}&leadId=${lead.id}`,

@@ -14,7 +14,7 @@ export const listParticipants = base
   .input(
     z.object({
       trackingId: z.string(),
-    })
+    }),
   )
   .output(
     z.object({
@@ -34,9 +34,9 @@ export const listParticipants = base
             name: z.string(),
             image: z.string().nullable(),
           }),
-        })
+        }),
       ),
-    })
+    }),
   )
   .handler(async ({ errors, input }) => {
     const tracking = await prisma.tracking.findUnique({

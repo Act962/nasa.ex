@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/client";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
+import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 
 export const createLeadWithTags = base
   .use(requiredAuthMiddleware)

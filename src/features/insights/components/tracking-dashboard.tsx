@@ -22,6 +22,8 @@ import { authClient } from "@/lib/auth-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KPIAtendimentCards } from "./kpi/atendiment-cards";
 import { cn } from "@/lib/utils";
+import { CirclePlusIcon } from "lucide-react";
+import { AddInsightPerson } from "./add-insight-person";
 
 interface TrackingDashboardProps {
   initialData?: DashboardReport;
@@ -240,6 +242,9 @@ export function TrackingDashboard({
                 </ChartWrapper>
               ))}
           </div>
+          {/* <div className="grid grid-cols-3">
+            <AddInsightPerson />
+          </div> */}
         </TabsContent>
         <TabsContent
           value="atendiment"

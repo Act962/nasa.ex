@@ -47,6 +47,7 @@ export default function Page() {
           conversationId={conversationId}
           active={data.conversation.lead.isActive}
           trackingId={data.conversation.trackingId}
+          statusFlow={data.conversation.lead.statusFlow}
         />
         <Body
           messageSelected={messageSelected}
