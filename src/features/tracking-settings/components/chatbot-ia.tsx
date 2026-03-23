@@ -144,18 +144,18 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
               <div className="flex items-center justify-between">
                 <FieldLabel>Prompt</FieldLabel>
 
-                {/* <Button
+                <Button
                   variant="outline"
                   onClick={() => setOpen(true)}
                   disabled={isSubmitting}
                   size="sm"
                 >
-                  Testar IA
+                  Testar
                   <BotMessageSquare />
-                </Button> */}
+                </Button>
               </div>
               <Textarea
-                className="overflow-y-auto"
+                className="overflow-y-auto max-h-[300px]"
                 disabled={isSubmitting}
                 placeholder="Você uma assistente de consultoria..."
                 {...form.register("prompt")}
