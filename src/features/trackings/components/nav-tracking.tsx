@@ -22,12 +22,16 @@ import { orpc } from "@/lib/orpc";
 import { DropdownMenu } from "@radix-ui/react-dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import {
+  CalendarDaysIcon,
   CalendarPlusIcon,
   ClockIcon,
+  Columns3Icon,
   Grid2x2Plus,
   MoreHorizontalIcon,
   Plus,
   Search,
+  SettingsIcon,
+  ZapIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
@@ -52,6 +56,7 @@ export function NavTracking() {
     {
       label: "Tracking",
       href: `/tracking/${params.trackingId}`,
+      icon: <Columns3Icon />,
     },
     // {
     //   label: "Conversas",
@@ -60,15 +65,18 @@ export function NavTracking() {
     {
       label: "Agendamentos",
       href: `/tracking/${params.trackingId}/appointments`,
+      icon: <CalendarDaysIcon />,
     },
     {
       label: "Automações",
       href: `/tracking/${params.trackingId}/workflows`,
+      icon: <ZapIcon />,
     },
 
     {
       label: "Configurações",
       href: `/tracking/${params.trackingId}/settings`,
+      icon: <SettingsIcon />,
     },
   ];
 
@@ -117,7 +125,7 @@ export function NavTracking() {
             </div>
           )}
           <ButtonGroup>
-            <ButtonGroup className="hidden sm:flex">
+            <ButtonGroup className="hidden lg:flex">
               {navItems.map((item) => {
                 const isActive = item.href === pathname;
 
@@ -144,34 +152,26 @@ export function NavTracking() {
                     variant="outline"
                     size="icon"
                     aria-label="More Options"
-                    className="sm:hidden"
+                    className="lg:hidden"
                   >
                     <MoreHorizontalIcon />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem>
-                      <Grid2x2Plus />
-                      Coluna
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem>
-                      <ClockIcon />
-                      Automação
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href={`/tracking/${params.trackingId}/settings`}
-                        prefetch
+                  {navItems.map((item) => {
+                    return (
+                      <DropdownMenuItem
+                        key={item.label}
+                        asChild
+                        className="cursor-pointer"
                       >
-                        <CalendarPlusIcon />
-                        Configurações
-                      </Link>
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
+                        <Link href={item.href} prefetch>
+                          {item.icon}
+                          {item.label}
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
                 </DropdownMenuContent>
               </DropdownMenu>
             </ButtonGroup>

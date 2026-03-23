@@ -20,7 +20,7 @@ export function FiltersTracking() {
     <>
       <div className="flex justify-between items-center px-4 py-2 gap-2 border-b border-border mb-2">
         <div className="flex items-center gap-x-2">
-          <div className="hidden sm:flex items-center gap-x-2">
+          <div className="hidden md:flex items-center gap-x-2">
             <TrackingSwitcher />
             <ParticipantsSwitcher />
             <TagsFilter />

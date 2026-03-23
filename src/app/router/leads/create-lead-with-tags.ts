@@ -6,6 +6,8 @@ import { Decimal } from "@prisma/client/runtime/client";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
+import { validWhatsappPhone } from "@/http/uazapi/valid-whatsapp-phone";
+import { ValidWhatsappPhoneResponse } from "@/http/uazapi/types";
 
 export const createLeadWithTags = base
   .use(requiredAuthMiddleware)
@@ -20,98 +22,148 @@ export const createLeadWithTags = base
       responsibleId: z.string().optional(),
       position: z.enum(["first", "last"]).default("last"),
       tagIds: z.array(z.string()).optional(),
+      validateNumber: z.boolean().default(false),
     }),
   )
   .handler(async ({ input, errors, context }) => {
-    try {
-      return await prisma.$transaction(async (tx) => {
-        // Verificar se já existe
-        const existingLead = await tx.lead.findUnique({
+    return await prisma.$transaction(async (tx) => {
+      // Verificar se já existe
+      const existingLead = await tx.lead.findUnique({
+        where: {
+          phone_trackingId: {
+            phone: input.phone,
+            trackingId: input.trackingId,
+          },
+        },
+      });
+
+      if (existingLead) {
+        throw errors.BAD_REQUEST({
+          message: "Lead já existente com este contato",
+          cause: "LEAD_ALREADY_EXISTS",
+        });
+      }
+
+      let validatedPhone: ValidWhatsappPhoneResponse[] = [];
+
+      // Validate number
+      if (input.validateNumber) {
+        const tracking = await tx.tracking.findUnique({
           where: {
-            phone_trackingId: {
-              phone: input.phone,
-              trackingId: input.trackingId,
+            id: input.trackingId,
+          },
+          select: {
+            whatsappInstance: {
+              select: {
+                apiKey: true,
+              },
             },
           },
         });
 
-        if (existingLead) {
+        if (!tracking?.whatsappInstance?.apiKey) {
           throw errors.BAD_REQUEST({
-            message: "Lead já existente com este contato",
-            cause: "LEAD_ALREADY_EXISTS",
+            message:
+              "Error: Não é possível validar números de WhatsApp. Confira sua instância",
+            cause: "TRACKING_WITHOUT_API_KEY",
           });
         }
 
-        // Determinar ordem baseado na posição
-        let newOrder: Decimal;
+        validatedPhone = await validWhatsappPhone({
+          token: tracking.whatsappInstance.apiKey,
+          data: { numbers: [input.phone] },
+        });
 
-        if (input.position === "first") {
-          // Incrementar todos os outros
-          await tx.lead.updateMany({
-            where: {
-              statusId: input.statusId,
-              trackingId: input.trackingId,
-            },
-            data: { order: { increment: 1 } },
+        if (!validatedPhone[0].isInWhatsapp) {
+          throw errors.BAD_REQUEST({
+            message: "Número não é válido",
+            cause: "INVALID_PHONE",
           });
-          newOrder = new Decimal(0);
-        } else {
-          // Buscar último
-          const lastLead = await tx.lead.findFirst({
-            where: {
-              statusId: input.statusId,
-              trackingId: input.trackingId,
-            },
-            orderBy: { order: "desc" },
-            select: { order: true },
-          });
-          newOrder = lastLead
-            ? new Decimal(lastLead.order).plus(1)
-            : new Decimal(0);
         }
+      }
 
-        const responsibleId = input.responsibleId || context.user.id;
+      // Determinar ordem baseado na posição
+      let newOrder: Decimal;
 
-        // Criar lead
-        const lead = await tx.lead.create({
-          data: {
-            name: input.name,
-            phone: input.phone,
-            email: input.email,
-            description: input.description,
+      if (input.position === "first") {
+        // Incrementar todos os outros
+        await tx.lead.updateMany({
+          where: {
             statusId: input.statusId,
             trackingId: input.trackingId,
-            order: newOrder,
-            responsibleId,
           },
+          data: { order: { increment: 1 } },
         });
-
-        // Adicionar tags se fornecidas
-        if (input.tagIds && input.tagIds.length > 0) {
-          await tx.leadTag.createMany({
-            data: input.tagIds.map((tagId) => ({
-              leadId: lead.id,
-              tagId,
-            })),
-            skipDuplicates: true,
-          });
-        }
-
-        await recordLeadHistory({
-          leadId: lead.id,
-          userId: context.user.id,
-          action: LeadAction.ACTIVE,
-          notes: "Lead criado",
-          tx,
+        newOrder = new Decimal(0);
+      } else {
+        // Buscar último
+        const lastLead = await tx.lead.findFirst({
+          where: {
+            statusId: input.statusId,
+            trackingId: input.trackingId,
+          },
+          orderBy: { order: "desc" },
+          select: { order: true },
         });
-
-        return { lead };
-      });
-    } catch (err: any) {
-      if (err?.code) {
-        throw err;
+        newOrder = lastLead
+          ? new Decimal(lastLead.order).plus(1)
+          : new Decimal(0);
       }
-      console.error(err);
-      throw errors.INTERNAL_SERVER_ERROR;
-    }
+
+      const responsibleId = input.responsibleId || context.user.id;
+
+      // Criar lead
+      const lead = await tx.lead.create({
+        data: {
+          name: input.name,
+          phone: input.phone,
+          email: input.email,
+          description: input.description,
+          statusId: input.statusId,
+          trackingId: input.trackingId,
+          order: newOrder,
+          responsibleId,
+        },
+      });
+
+      if (input.validateNumber) {
+        await tx.conversation.upsert({
+          where: {
+            leadId_trackingId: {
+              leadId: lead.id,
+              trackingId: input.trackingId,
+            },
+          },
+          create: {
+            leadId: lead.id,
+            trackingId: input.trackingId,
+            remoteJid:
+              validatedPhone[0].jid ||
+              `${validatedPhone[0].query}@s.whatsapp.net`,
+          },
+          update: {},
+        });
+      }
+
+      // Adicionar tags se fornecidas
+      if (input.tagIds && input.tagIds.length > 0) {
+        await tx.leadTag.createMany({
+          data: input.tagIds.map((tagId) => ({
+            leadId: lead.id,
+            tagId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      await recordLeadHistory({
+        leadId: lead.id,
+        userId: context.user.id,
+        action: LeadAction.ACTIVE,
+        notes: "Lead criado",
+        tx,
+      });
+
+      return { lead };
+    });
   });

@@ -71,6 +71,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { countries } from "@/types/some";
 import { normalizePhone, phoneMask } from "@/utils/format-phone";
+import { Switch } from "@/components/ui/switch-variable";
 
 const schema = z.object({
   name: z.string().min(2, "Nome obrigatório"),
@@ -100,6 +101,7 @@ export default function AddLeadSheet({
   const queryClient = useQueryClient();
   const { status, isLoadingStatus } = useStatus(trackingId ?? "");
   const [selectedCountry, setSelectedCountry] = useState(countries[0]);
+  const [validateNumber, setValidateNumber] = useState(true);
 
   const {
     register,
@@ -144,12 +146,7 @@ export default function AddLeadSheet({
         onOpenChange(false);
       },
       onError: (error) => {
-        if (error.message === "Lead já existente com este contato") {
-          toast.error(error.message);
-          return;
-        }
-        toast.error("Erro ao criar lead, tente novamente mais tarde!");
-        console.error(error);
+        toast.error(error.message);
       },
     }),
   );
@@ -199,6 +196,7 @@ export default function AddLeadSheet({
       trackingId: trackingId,
       position: data.position,
       tagIds: selectedTags,
+      validateNumber,
     });
   };
 
@@ -239,18 +237,28 @@ export default function AddLeadSheet({
 
           {/* Telefone */}
           <div className="flex flex-col gap-y-2">
-            <Label htmlFor="phone">
-              Telefone <span className="text-red-500">*</span>
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="phone">
+                Telefone <span className="text-red-500">*</span>
+              </Label>
+              <div className="flex items-center gap-x-2">
+                <Label htmlFor="validateNumber" className="text-xs font-medium">
+                  Validar número
+                </Label>
+                <Switch
+                  id="validateNumber"
+                  checked={validateNumber}
+                  onCheckedChange={setValidateNumber}
+                  className="ml-auto"
+                />
+              </div>
+            </div>
 
             <InputGroup>
               <InputGroupAddon align="inline-start">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <InputGroupButton
-                      variant="ghost"
-                      className="pr-1.5! text-xs"
-                    >
+                    <InputGroupButton variant="ghost" className="text-xs">
                       <img
                         src={selectedCountry.flag}
                         alt={selectedCountry.country}
@@ -289,6 +297,7 @@ export default function AddLeadSheet({
                   setValue("phone", phoneMask(e.target.value));
                 }}
                 placeholder="(00) 0000-0000"
+                className="pl-0"
               />
             </InputGroup>
 

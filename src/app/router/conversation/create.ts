@@ -5,7 +5,6 @@ import prisma from "@/lib/prisma";
 import z from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "../leads/utils/history";
-import { Decimal } from "@prisma/client/runtime/client";
 
 export const createConversation = base
   .use(requiredAuthMiddleware)
