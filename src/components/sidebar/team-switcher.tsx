@@ -37,6 +37,10 @@ export function TeamSwitcher() {
   const { data: organizations } = authClient.useListOrganizations();
   const router = useRouter();
 
+  const organizationsSorted = organizations?.sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+
   const selectedOrganization = async (data: {
     orgId: string;
     orgSlug: string;
@@ -111,7 +115,7 @@ export function TeamSwitcher() {
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               Empresas
             </DropdownMenuLabel>
-            {organizations?.map((org, index) => (
+            {organizationsSorted?.map((org, index) => (
               <DropdownMenuItem
                 key={org.name}
                 className="gap-2 p-2 cursor-pointer"

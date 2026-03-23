@@ -175,9 +175,11 @@ function ItemConsultor({
               <AvatarImage src={consultant.image || undefined} />
               <AvatarFallback>
                 {consultant.name
-                  .split(" ")
+                  ?.split(" ")
+                  .slice(0, 2)
                   .map((n) => n[0])
-                  .join("")}
+                  .join("")
+                  .toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <span>{consultant.name}</span>
@@ -277,7 +279,7 @@ function ModalAddConsultor({
     mutation.mutate(
       {
         trackingId,
-        userId: selectedUser[0],
+        userIds: selectedUser,
       },
       {
         onSuccess: () => {

@@ -25,6 +25,11 @@ export const listTrackingConsultants = base
           include: {
             user: true,
           },
+          orderBy: {
+            user: {
+              name: "asc",
+            },
+          },
         }),
 
         prisma.lead.groupBy({

@@ -39,6 +39,13 @@ export const useCreateTrackingConsultant = () => {
             input: { trackingId: data.trackingId },
           }),
         );
+        queryClient.invalidateQueries(
+          orpc.rodizio.listUsersWithoutConsultants.queryOptions({
+            input: {
+              trackingId: data.trackingId,
+            },
+          }),
+        );
       },
       onError: (error: any) => {
         toast.error(error?.message ?? "Erro ao criar consultor do rod�zio.");
@@ -71,6 +78,11 @@ export const useDeleteTrackingConsultant = (trackingId: string) => {
       onSuccess: () => {
         queryClient.invalidateQueries(
           orpc.rodizio.list.queryOptions({ input: { trackingId } }),
+        );
+        queryClient.invalidateQueries(
+          orpc.rodizio.listUsersWithoutConsultants.queryOptions({
+            input: { trackingId },
+          }),
         );
       },
     }),
