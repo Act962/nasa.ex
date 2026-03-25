@@ -13,6 +13,8 @@ import { insightsRouter } from "./insights";
 import { agendaRouter } from "./agenda";
 import { rodizioRouter } from "./rodizio";
 import { widgetsRouter } from "./widgets";
+import { workspaceRoutes } from "@/features/workspace/server/routes";
+import { actionRoutes } from "@/features/actions/server/routes";
 
 export const router = {
   tracking: trackingRoutes,
@@ -30,4 +32,6 @@ export const router = {
   agenda: agendaRouter,
   rodizio: rodizioRouter,
   widgets: widgetsRouter,
+  workspace: workspaceRoutes,
+  action: actionRoutes,
 };

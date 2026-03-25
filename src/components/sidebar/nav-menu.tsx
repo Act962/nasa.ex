@@ -1,11 +1,10 @@
 "use client";
 
 import {
-  BookCheck,
   Calendar,
   ChartColumnDecreasingIcon,
+  CircleCheckIcon,
   ClipboardType,
-  File,
   Kanban,
   MessageSquareTextIcon,
   Users,
@@ -29,12 +28,12 @@ const items = [
     icon: Kanban,
     isActive: true,
   },
-  // {
-  //   title: "Propostas",
-  //   url: "/tracking/proposta",
-  //   icon: File,
-  //   isActive: true,
-  // },
+  {
+    title: "Atividades",
+    url: "/workspaces",
+    icon: CircleCheckIcon,
+    isActive: true,
+  },
   {
     title: "Formulários",
     url: "/form",

@@ -9,6 +9,7 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { TeamSwitcher } from "./team-switcher";
@@ -18,6 +19,7 @@ import { NavMenu } from "./nav-menu";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
+import { WorkspacesItems } from "./workspaces-items";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { isMobile, setOpenMobile } = useSidebar();
@@ -36,6 +38,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMenu />
+        <SidebarSeparator className="mx-0" />
+        <WorkspacesItems />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
@@ -47,7 +51,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             buttonVariants({
               size: "icon-xs",
               variant: "secondary",
-            })
+            }),
           )}
         >
           <GripVertical className="size-4" />

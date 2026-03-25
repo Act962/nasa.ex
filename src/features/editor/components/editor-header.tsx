@@ -16,17 +16,11 @@ import {
   useUpdateWorkflowName,
 } from "@/features/workflows/hooks/use-workflows";
 import { useAtomValue } from "jotai";
-import { MoreHorizontalIcon, SaveIcon, Trash2Icon } from "lucide-react";
+import { SaveIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { editorAtom } from "../store/atoms";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogClose,

@@ -6,16 +6,13 @@ import {
   AgendaList,
   SkeletonAgendaList,
 } from "@/features/agenda/components/agenda";
+import { WorkspaceContainer } from "@/features/workspace/components/workspaces";
 
 export default function Page() {
   return (
     <div className="h-full w-full">
-      <HeaderTracking title="Agendas" />
-      <AgendaContainer>
-        <Suspense fallback={<SkeletonAgendaList />}>
-          <AgendaList />
-        </Suspense>
-      </AgendaContainer>
+      <HeaderTracking title="Workspaces" />
+      <WorkspaceContainer />
     </div>
   );
 }
