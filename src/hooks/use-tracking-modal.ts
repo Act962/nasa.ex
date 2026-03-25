@@ -6,7 +6,7 @@ type TrackingModalStore = {
   onClose: () => void;
 };
 
-export const duseTracking = create<TrackingModalStore>((set, get) => ({
+export const useTracking = create<TrackingModalStore>((set, get) => ({
   isOpen: false,
   onOpen: () => set({ isOpen: true }),
   onClose: () => set({ isOpen: false }),
