@@ -22,9 +22,22 @@ import {
   Target,
   AlertCircle,
   ArrowUpRight,
+  XIcon,
+  RefreshCwIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useState } from "react";
 
 interface ViewAppointment {
   open: boolean;
@@ -274,6 +287,21 @@ export const ViewAppointment = ({
                 </div>
               </>
             )}
+
+            {/* <div className="h-full flex flex-col justify-end">
+              <div className="flex items-center gap-2 w-full">
+                <DeleteAppointmentDialog>
+                  <Button variant="destructive" size="sm" className="flex-1">
+                    <XIcon />
+                    Cancelar agendamento
+                  </Button>
+                </DeleteAppointmentDialog>
+                <Button size="sm" variant="outline" className="flex-1">
+                  <RefreshCwIcon />
+                  Remarcar agendamento
+                </Button>
+              </div>
+            </div> */}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -285,3 +313,31 @@ export const ViewAppointment = ({
     </Sheet>
   );
 };
+
+export function DeleteAppointmentDialog({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Deletar agendamento</DialogTitle>
+          <DialogDescription>
+            Tem certeza que deseja deletar este agendamento?
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancelar</Button>
+          </DialogClose>
+          <Button variant="destructive">Deletar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

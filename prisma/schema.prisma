@@ -145,6 +145,10 @@ model Invitation {
   @@index([email])
 }
 
+// ─────────────────────────────────────────────
+// TRACKING
+// ─────────────────────────────────────────────
+
 model Tracking {
   id             String   @id @default(cuid())
   name           String
@@ -421,6 +425,11 @@ model LeadFile {
   @@map("lead_files")
 }
 
+// ─────────────────────────────────────────────
+// AÇÕES
+// ─────────────────────────────────────────────
+
+
 model ActionsUserParticipant {
   id        String   @id @default(cuid())
   actionId  String   @map("action_id")
@@ -517,6 +526,10 @@ model SubActions {
   @@map("sub_action")
 }
 
+// ─────────────────────────────────────────────
+// AUTOMAÇÕES
+// ─────────────────────────────────────────────
+
 model Workflow {
   id         String   @id @default(cuid())
   name       String
@@ -593,6 +606,10 @@ model Connection {
   @@map("connections")
 }
 
+// ─────────────────────────────────────────────
+// FORMULÁRIO
+// ─────────────────────────────────────────────
+
 model Form {
   id String @id @default(cuid())
   userId String @map("user_id")
@@ -627,6 +644,10 @@ model FormSubmission {
 
   @@map("form_submissions")
 }
+
+// ─────────────────────────────────────────────
+// CHAT
+// ─────────────────────────────────────────────
 
 model Conversation {
   id            String   @id @default(cuid())
@@ -743,6 +764,7 @@ model InsightShares{
 
   @@map("insight_shares")
 }
+
 // ─────────────────────────────────────────────
 // AGENDA
 // ─────────────────────────────────────────────
@@ -863,6 +885,10 @@ model Appointment {
   @@index([status])
   @@map("appointments")
 }
+
+// ─────────────────────────────────────────────
+// WIDGETS
+// ─────────────────────────────────────────────
 
 enum WidgetType {
   LEADS_BY_TAG

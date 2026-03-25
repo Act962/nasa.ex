@@ -169,3 +169,24 @@ export const useDeleteTimeSlot = () => {
     }),
   );
 };
+
+// Appointments
+
+export const useCancelAppointment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.appointments.cancel.mutationOptions({
+      onSuccess: () => {
+        toast.success("Agendamento cancelado com sucesso");
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.getManyByTracking.queryOptions({
+            input: {
+              trackingId: "",
+            },
+          }),
+        );
+      },
+    }),
+  );
+};
