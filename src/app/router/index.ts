@@ -13,6 +13,7 @@ import { insightsRouter } from "./insights";
 import { agendaRouter } from "./agenda";
 import { rodizioRouter } from "./rodizio";
 import { widgetsRouter } from "./widgets";
+import { formRouter } from "./form";
 
 export const router = {
   tracking: trackingRoutes,
@@ -30,4 +31,5 @@ export const router = {
   agenda: agendaRouter,
   rodizio: rodizioRouter,
   widgets: widgetsRouter,
+  form: formRouter,
 };

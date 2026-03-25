@@ -107,6 +107,7 @@ model Organization {
   insightShares InsightShares[]
   agendas     Agenda[]
   widgets     Widget[]
+  form        Form[]
 
   @@unique([slug])
   @@map("organization")
@@ -612,37 +613,57 @@ model Connection {
 
 model Form {
   id String @id @default(cuid())
+  formId String @unique @default(uuid())
   userId String @map("user_id")
-  trackingId String @map("tracking_id")
+  trackingId String? @map("tracking_id")
+  organizationId String
   name String
   description String?
+  jsonBlock String @default("[]")
   published Boolean @default(false)
   content String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt  @map("updated_at")
+  settingsId String
 
-  visits Int @default(0)
-  submissions Int @default(0)
+  views Int @default(0)
+  responses Int @default(0)
 
   createdBy     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  tracking Tracking? @relation(fields: [trackingId], references: [id], onDelete: Cascade)
 
-  formSubmissions FormSubmission[]
-
+  formSubmissions FormResponses[]
   shareUrl String @unique @map("share_url")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  settings FormSettings @relation(fields: [settingsId], references: [id])
 
   @@map("forms")
 }
 
-model FormSubmission {
+model FormSettings {
+  id String @id @default(cuid())
+  primaryColor String
+  backgroundColor String
+  createdAt DateTime @default(now())
+  updateAt DateTime @default(now()) @updatedAt
+
+  forms Form[]
+
+  @@map("form_settings")
+}
+
+
+
+model FormResponses {
   id String @id @default(cuid())
   formId String @map("form_id")
   createdAt DateTime @default(now()) @map("created_at")
-  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
-  
   content String
+  
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
 
-  @@map("form_submissions")
+  @@map("form_responses")
 }
 
 // ─────────────────────────────────────────────
