@@ -26,3 +26,11 @@ export const useCreateWorkspace = () => {
     }),
   );
 };
+
+export const useSuspenseColumnsByWorkspace = (workspaceId: string) => {
+  return useSuspenseQuery(
+    orpc.workspace.getColumnsByWorkspace.queryOptions({
+      input: { workspaceId },
+    }),
+  );
+};
