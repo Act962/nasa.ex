@@ -3,11 +3,14 @@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusIcon } from "lucide-react";
+import { CalendarIcon, Columns3Icon, ListIcon, PlusIcon } from "lucide-react";
 import { useQueryState } from "nuqs";
-import { DataKanban } from "./data-kanban";
-import { useState } from "react";
+
+import { Activity, useState } from "react";
 import { CreateActionModal } from "./create-action-modal";
+import { DataKanban } from "./data-kanban";
+import { DataTable } from "./data-table";
+import { cn } from "@/lib/utils";
 
 interface Props {
   workspaceId: string;
@@ -22,20 +25,23 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
   return (
     <>
       <Tabs
-        className="flex-1 w-full border rounded-md"
+        className="flex-1 w-full h-full"
         defaultValue={view}
         onValueChange={setView}
       >
-        <div className="h-full flex flex-col overflow-auto p-4">
-          <div className="flex flex-col gap-y-2 lg:flex-row justify-between items-center">
+        <div className="h-full flex flex-col ">
+          <div className="sticky top-0 z-50 bg-background  flex flex-col gap-y-2 lg:flex-row justify-between items-center py-2 px-4 border-b">
             <TabsList className="w-full lg:w-auto ">
-              <TabsTrigger value="list" className="h-8 w-full lg:w-auto ">
+              <TabsTrigger value="list" className="h-8 w-full lg:w-auto">
+                <ListIcon className="size-4" />
                 Lista
               </TabsTrigger>
               <TabsTrigger value="kanban" className="h-8 w-full lg:w-auto">
+                <Columns3Icon className="size-4" />
                 Kanban
               </TabsTrigger>
               <TabsTrigger value="calendar" className="h-8 w-full lg:w-auto">
+                <CalendarIcon className="size-4" />
                 Calendário
               </TabsTrigger>
             </TabsList>
@@ -48,23 +54,24 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
               Nova ação
             </Button>
           </div>
-          <Separator className="my-4" />
-          {/* Add filters */}
-          Filtros
-          <Separator className="my-4" />
-          <>
-            <TabsContent value="list" className="mt-0">
-              Data table
-            </TabsContent>
 
-            <TabsContent value="kanban" className="mt-0">
-              <DataKanban workspaceId={workspaceId} />
-            </TabsContent>
+          <div className="flex-1 overflow-auto">
+            <Activity mode={view === "list" ? "visible" : "hidden"}>
+              <div className="h-full">
+                <DataTable workspaceId={workspaceId} />
+              </div>
+            </Activity>
 
-            <TabsContent value="calendar" className="mt-0">
-              Calendário
-            </TabsContent>
-          </>
+            <Activity mode={view === "kanban" ? "visible" : "hidden"}>
+              <div className="h-full">
+                <DataKanban workspaceId={workspaceId} />
+              </div>
+            </Activity>
+
+            <Activity mode={view === "calendar" ? "visible" : "hidden"}>
+              <div className="h-full">Calendário</div>
+            </Activity>
+          </div>
         </div>
       </Tabs>
       <CreateActionModal

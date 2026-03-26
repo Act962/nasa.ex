@@ -6,7 +6,7 @@ interface Props {
 
 export function WorkspaceBoard({ workspaceId }: Props) {
   return (
-    <div className="h-full w-full p-4 relative overflow-x-auto scroll-cols-tracking">
+    <div className="h-full w-full relative overflow-x-auto scroll-cols-tracking">
       <ActionsViewSwitcher workspaceId={workspaceId} />
     </div>
   );

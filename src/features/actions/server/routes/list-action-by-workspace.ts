@@ -10,38 +10,73 @@ export const listActionByWorkspace = base
   .input(
     z.object({
       workspaceId: z.string(),
+      limit: z.number().optional().default(20),
+      page: z.number().optional().default(1),
     }),
   )
+
   .handler(async ({ input }) => {
-    const action = await prisma.action.findMany({
-      where: {
-        workspaceId: input.workspaceId,
-      },
-      orderBy: {
-        order: "asc",
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        dueDate: true,
-        startDate: true,
-        columnId: true,
-        createdBy: true,
-        participants: {
-          select: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
+    const where = {
+      workspaceId: input.workspaceId,
+    };
+
+    const [actions, total] = await Promise.all([
+      prisma.action.findMany({
+        where,
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: input.limit,
+        skip: (input.page - 1) * input.limit,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          dueDate: true,
+          startDate: true,
+          columnId: true,
+          createdBy: true,
+          priority: true,
+          isDone: true,
+          column: {
+            select: {
+              id: true,
+              name: true,
+              color: true,
+            },
+          },
+          participants: {
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
+                },
               },
             },
           },
+          subActions: {
+            select: {
+              id: true,
+              isDone: true,
+            },
+          },
+          createdAt: true,
         },
-        createdAt: true,
-      },
-    });
+      }),
+      prisma.action.count({
+        where,
+      }),
+    ]);
 
-    return { action };
+    const lastPage = Math.ceil(total / input.limit);
+
+    return {
+      actions,
+      total,
+      page: input.page,
+      limit: input.limit,
+      lastPage,
+    };
   });

@@ -10,13 +10,18 @@ export const listActionByColumn = base
   .input(
     z.object({
       columnId: z.string(),
+      cursor: z.string().nullish(),
+      limit: z.number().min(1).max(100).default(50),
     }),
   )
   .handler(async ({ input }) => {
+    const limit = input.limit;
     const action = await prisma.action.findMany({
       where: {
         columnId: input.columnId,
       },
+      take: limit + 1,
+      cursor: input.cursor ? { id: input.cursor } : undefined,
       orderBy: {
         order: "asc",
       },
@@ -28,6 +33,7 @@ export const listActionByColumn = base
         startDate: true,
         columnId: true,
         createdBy: true,
+        order: true,
         participants: {
           select: {
             user: {
@@ -43,5 +49,11 @@ export const listActionByColumn = base
       },
     });
 
-    return { action };
+    let nextCursor: typeof input.cursor | undefined = undefined;
+    if (action.length > limit) {
+      const nextItem = action.pop();
+      nextCursor = nextItem!.id;
+    }
+
+    return { action, nextCursor };
   });

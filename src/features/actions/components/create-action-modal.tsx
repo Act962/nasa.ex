@@ -35,6 +35,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   workspaceId: string;
+  defaultColumnId?: string;
 }
 
 const formSchema = z.object({
@@ -53,6 +54,7 @@ export const CreateActionModal = ({
   open,
   onOpenChange,
   workspaceId,
+  defaultColumnId,
 }: Props) => {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -63,7 +65,7 @@ export const CreateActionModal = ({
       description: "",
       dueDate: undefined,
       startDate: undefined,
-      columnId: "",
+      columnId: defaultColumnId ?? "",
     },
   });
 
@@ -74,9 +76,9 @@ export const CreateActionModal = ({
 
   useEffect(() => {
     if (columns.length > 0 && !form.getValues("columnId")) {
-      form.setValue("columnId", columns[0].id);
+      form.setValue("columnId", defaultColumnId ?? columns[0].id);
     }
-  }, [columns, form]);
+  }, [columns, defaultColumnId, form]);
 
   const onSubmit = (values: FormValues) => {
     createAction.mutate(values, {
@@ -91,7 +93,7 @@ export const CreateActionModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-125">
         <DialogHeader>
           <DialogTitle>Criar uma nova ação</DialogTitle>
           <DialogDescription>

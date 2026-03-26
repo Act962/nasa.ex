@@ -7,6 +7,7 @@ export interface Action {
   dueDate: Date | null;
   startDate: Date | null;
   createdBy: string;
+  order: string;
   participants: {
     user: {
       id: string;

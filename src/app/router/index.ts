@@ -16,9 +16,12 @@ import { widgetsRouter } from "./widgets";
 import { workspaceRoutes } from "@/features/workspace/server/routes";
 import { actionRoutes } from "@/features/actions/server/routes";
 
+import { columnRoutes } from "./column";
+
 export const router = {
   tracking: trackingRoutes,
   status: statusRoutes,
+  column: columnRoutes,
   leads: leadRoutes,
   tags: tagsRouter,
   reasons: reasonsRouter,

@@ -1,5 +1,12 @@
 import { orpc } from "@/lib/orpc";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useActionKanbanStore, EMPTY_ACTIONS } from "../lib/kanban-store";
 
 export const useCreateTask = () => {
   const queryClient = useQueryClient();
@@ -14,10 +21,14 @@ export const useCreateTask = () => {
           }),
         );
 
+        queryClient.invalidateQueries({
+          queryKey: ["action.listByColumn", data.action.columnId],
+        });
+
         queryClient.invalidateQueries(
-          orpc.action.listByColumn.queryOptions({
+          orpc.action.listByWorkspace.queryOptions({
             input: {
-              columnId: data.action.columnId ?? "",
+              workspaceId: data.action.workspaceId,
             },
           }),
         );
@@ -41,17 +52,95 @@ export const useListActionByColumn = (columnId: string) => {
   };
 };
 
-export const useListActionByWorkspace = (workspaceId: string) => {
+export const useInfiniteActionsByStatus = ({
+  columnId,
+  enabled = true,
+}: {
+  columnId: string;
+  enabled?: boolean;
+}) => {
+  const query = orpc.action.listByColumn.infiniteOptions({
+    input: (cursor: string | undefined) => ({
+      columnId,
+      cursor,
+      limit: 6,
+    }),
+    queryKey: ["action.listByColumn", columnId],
+    enabled,
+    initialPageParam: undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+  });
+
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useInfiniteQuery(query);
+
+  const actions = useMemo(
+    () => data?.pages.flatMap((page) => page.action) ?? EMPTY_ACTIONS,
+    [data],
+  );
+
+  return {
+    data: actions,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  };
+};
+
+interface ListActionByWorkspace {
+  workspaceId: string;
+  limit?: number;
+  page?: number;
+}
+
+export const useListActionByWorkspace = ({
+  workspaceId,
+  limit = 20,
+  page = 1,
+}: ListActionByWorkspace) => {
   const { data, isLoading } = useQuery(
     orpc.action.listByWorkspace.queryOptions({
       input: {
         workspaceId,
+        limit,
+        page,
       },
     }),
   );
 
   return {
-    actions: data?.action ?? [],
+    actions: data?.actions ?? [],
     isLoading,
   };
+};
+
+export const useReorderAction = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.action.reorder.mutationOptions({
+      onSuccess: (data) => {
+        queryClient.invalidateQueries(
+          orpc.workspace.getColumnsByWorkspace.queryOptions({
+            input: {
+              workspaceId: data.action.workspaceId,
+            },
+          }),
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["action.listByColumn"],
+        });
+        queryClient.invalidateQueries(
+          orpc.action.listByWorkspace.queryOptions({
+            input: {
+              workspaceId: data.action.workspaceId,
+            },
+          }),
+        );
+      },
+      onError: (error) => {
+        console.error("Failed to reorder action:", error);
+      },
+    }),
+  );
 };
