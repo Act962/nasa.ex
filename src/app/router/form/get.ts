@@ -26,8 +26,7 @@ export const fetchFormById = base
 
       const form = await prisma.form.findFirst({
         where: {
-          OR: [{ id: id }, { formId: id }],
-          organizationId,
+          id: id,
         },
         include: {
           settings: true,

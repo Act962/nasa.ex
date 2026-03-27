@@ -5,37 +5,42 @@ import z from "zod";
 export const submitResponse = base
   .route({
     method: "POST",
-    path: "/forms/public/:formId/submit",
+    path: "/forms/public/:id/submit",
     summary: "Submit a response to a published form",
   })
   .input(
     z.object({
-      formId: z.string(),
+      id: z.string(),
       response: z.string(),
     }),
   )
-  .handler(async ({ input }) => {
-    const { formId, response } = input;
+  .handler(async ({ input, errors }) => {
+    try {
+      const { id, response } = input;
 
-    await prisma.form.update({
-      where: {
-        formId,
-        published: true,
-      },
-      data: {
-        formSubmissions: {
-          create: {
-            content: response,
+      await prisma.form.update({
+        where: {
+          id,
+          published: true,
+        },
+        data: {
+          formSubmissions: {
+            create: {
+              jsonReponse: response,
+            },
+          },
+          responses: {
+            increment: 1,
           },
         },
-        responses: {
-          increment: 1,
-        },
-      },
-    });
+      });
 
-    return {
-      formId,
-      message: "Response submitted",
-    };
+      return {
+        id,
+        message: "Response submitted",
+      };
+    } catch (error) {
+      console.log(error);
+      throw errors.INTERNAL_SERVER_ERROR();
+    }
   });

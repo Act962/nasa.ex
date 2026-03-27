@@ -12,15 +12,12 @@ export function BuilderDragOverlay() {
 
   useDndMonitor({
     onDragStart: (event) => {
-      console.log("ITEM DRAG", event);
       setDraggedItem(event.active);
     },
     onDragCancel() {
-      console.log("ITEM DRAG CANCEL");
       setDraggedItem(null);
     },
     onDragEnd() {
-      console.log("ITEM DRAG CANCEL");
       setDraggedItem(null);
     },
   });

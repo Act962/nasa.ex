@@ -2,14 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Frown } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-const NotAvaliable = () => {
+export function NotAvaliable() {
   const router = useRouter();
   return (
     <div
       className="h-screen flex flex-col 
-    items-center space-y-4 justify-center"
+    items-center justify-center"
     >
-      <div className="flex-1">
+      <div className="flex-1 flex flex-col justify-center items-center gap-4">
         <Frown size="80px" />
         <h2 className="text-xl font-semibold">
           Este formulário não está mais disponível
@@ -29,11 +29,9 @@ const NotAvaliable = () => {
          text-[20px] text-primary"
         >
           {" "}
-          Formy.ai
+          NasaEx
         </h5>
       </div>
     </div>
   );
-};
-
-export default NotAvaliable;
+}

@@ -12,20 +12,20 @@ export const PublishForm = base
   })
   .input(
     z.object({
-      formId: z.string(),
+      id: z.string(),
       published: z.boolean(),
     }),
   )
   .handler(async ({ input }) => {
-    const { formId, published } = input;
+    const { id, published } = input;
 
     const form = await prisma.form.update({
-      where: { id: formId },
+      where: { id },
       data: { published },
     });
 
     return {
-      message: `Form successfully ${published ? "published" : "unpublished"}`,
+      message: `Formulário ${published ? "publicado" : "despublicado"} com sucesso`,
       published: form.published,
     };
   });

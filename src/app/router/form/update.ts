@@ -7,12 +7,12 @@ export const updateForm = base
   .use(requiredAuthMiddleware)
   .route({
     method: "PATCH",
-    path: "/forms/:formId",
+    path: "/forms/:id",
     summary: "Save (update) form content and metadata",
   })
   .input(
     z.object({
-      formId: z.string(),
+      id: z.string(),
       trackingId: z.string().optional(),
       name: z.string().optional(),
       description: z.string().optional(),
@@ -20,10 +20,10 @@ export const updateForm = base
     }),
   )
   .handler(async ({ input }) => {
-    const { formId, trackingId, name, description, jsonBlock } = input;
+    const { id, trackingId, name, description, jsonBlock } = input;
 
     const form = await prisma.form.update({
-      where: { formId },
+      where: { id },
       data: {
         ...(name && { name }),
         ...(description && { description }),
@@ -33,7 +33,7 @@ export const updateForm = base
     });
 
     return {
-      message: "Form updated successfully",
+      message: "Formulário atualizado com sucesso",
       form,
     };
   });

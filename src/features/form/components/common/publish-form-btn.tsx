@@ -9,16 +9,16 @@ import { useMutationPublishForm } from "../../hooks/use-form";
 
 export function PublishFormBtn() {
   const { formData, setFormData } = useBuilderStore();
-  const formId = formData?.id;
+  const id = formData?.id;
   const mutate = useMutationPublishForm();
 
   const togglePublishState = async () => {
-    if (!formId) return;
+    if (!id) return;
 
     // Toggle published state
     !formData?.published;
     mutate.mutate(
-      { formId, published: !formData?.published },
+      { id, published: !formData?.published },
       {
         onSuccess: (response) => {
           toast.success("formumário publicado!");

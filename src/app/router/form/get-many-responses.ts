@@ -7,18 +7,18 @@ export const getManyResponses = base
   .use(requiredAuthMiddleware)
   .route({
     method: "GET",
-    path: "/forms/:formId/responses",
+    path: "/forms/:id/responses",
     summary: "Fetch all submissions for a given form",
   })
   .input(
     z.object({
-      formId: z.string(),
+      id: z.string(),
     }),
   )
   .handler(async ({ input }) => {
     const form = await prisma.form.findUnique({
       where: {
-        formId: input.formId,
+        id: input.id,
       },
       include: {
         formSubmissions: {

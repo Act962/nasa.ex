@@ -2,11 +2,11 @@ import { FormBlockInstance } from "@/features/form/types";
 import { Button } from "@/components/ui/button";
 import { Link } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import AllReponds from "./AllReponds";
+import AllReponds from "./all-reponds";
 import { useQueryFormResponses } from "../../hooks/use-form";
 
 export function RespondsPage({ formId }: { formId: string }) {
-  const { form } = useQueryFormResponses({ formId });
+  const { form } = useQueryFormResponses({ id: formId });
 
   if (!form) {
     return (

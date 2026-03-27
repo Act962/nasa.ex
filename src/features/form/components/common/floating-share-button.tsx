@@ -9,14 +9,14 @@ export function FloatingShareButton(props: { isSidebarOpen: boolean }) {
   const { formData } = useBuilderStore();
 
   const copyLinkToClipboard = () => {
-    const shareableLink = `${process.env.NEXT_PUBLIC_APP_URL}/public/submit-form/${formData?.id}`;
+    const shareableLink = `${process.env.NEXT_PUBLIC_APP_URL}/submit-form/${formData?.id}`;
     navigator.clipboard
       .writeText(shareableLink)
       .then(() => {
-        toast("Link Copied!");
+        toast("Link copiado!");
       })
       .catch(() => {
-        toast("Failed to copy the link. Please try again.");
+        toast("Falha ao copiar o link. Tente novamente.");
       });
   };
 
@@ -25,7 +25,7 @@ export function FloatingShareButton(props: { isSidebarOpen: boolean }) {
   return (
     <div
       className="fixed bottom-5 z-50 
-      transition-transform  bg-accent
+      transition-transform bg-accent
       duration-500 ease-in-out"
       style={{
         left: isSidebarOpen ? "calc(41% + 150px)" : "41%",

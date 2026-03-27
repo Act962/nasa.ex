@@ -613,7 +613,6 @@ model Connection {
 
 model Form {
   id String @id @default(cuid())
-  formId String @unique @default(uuid())
   userId String @map("user_id")
   trackingId String? @map("tracking_id")
   organizationId String

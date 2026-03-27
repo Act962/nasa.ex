@@ -10,11 +10,10 @@ import { useMutationUpdateForm } from "@/features/form/hooks/use-form";
 export function SaveFormBtn() {
   const { formData, setFormData, blockLayouts } = useBuilderStore();
   const mutation = useMutationUpdateForm();
-  const formId = formData?.id;
+  const id = formData?.id;
 
-  const saveFormData = async () => {
-    console.log("formId", formData);
-    if (!formId) {
+  const saveFormData = () => {
+    if (!id) {
       toast.error("Form ID is required");
       return;
     }
@@ -33,7 +32,7 @@ export function SaveFormBtn() {
 
     mutation.mutate(
       {
-        formId,
+        id,
         name,
         description,
         jsonBlock: jsonBlocks,

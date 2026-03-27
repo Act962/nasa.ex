@@ -47,16 +47,16 @@ export const useQueryFormById = ({ formId }: UseFormByIdOptions) => {
 };
 
 interface UseFormResponsesOptions {
-  formId: string;
+  id: string;
 }
 
-export const useQueryFormResponses = ({ formId }: UseFormResponsesOptions) => {
+export const useQueryFormResponses = ({ id }: UseFormResponsesOptions) => {
   const { data, isLoading, ...query } = useQuery(
     orpc.form.listResponse.queryOptions({
       input: {
-        formId,
+        id,
       },
-      enabled: !!formId,
+      enabled: !!id,
     }),
   );
 
@@ -69,16 +69,16 @@ export const useQueryFormResponses = ({ formId }: UseFormResponsesOptions) => {
 };
 
 interface UsePublicFormOptions {
-  formId: string;
+  id: string;
 }
 
-export const useQueryPublicForm = ({ formId }: UsePublicFormOptions) => {
+export const useQueryPublicForm = ({ id }: UsePublicFormOptions) => {
   const { data, isLoading, ...query } = useQuery(
     orpc.form.getPublic.queryOptions({
       input: {
-        formId,
+        id,
       },
-      enabled: !!formId,
+      enabled: !!id,
     }),
   );
 
@@ -180,7 +180,7 @@ export const useMutationSubmitResponse = () => {
       onSuccess: (data) => {
         queryClient.invalidateQueries({
           queryKey: orpc.form.listResponse.queryKey({
-            input: { formId: data.formId },
+            input: { id: data.id },
           }),
         });
         queryClient.invalidateQueries({

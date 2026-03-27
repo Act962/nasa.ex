@@ -9,8 +9,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronDown, LogInIcon } from "lucide-react";
 
 export function Header() {
   const pathname = usePathname();
@@ -19,17 +17,17 @@ export function Header() {
   const NAV_MENUS = [
     {
       name: "Dashboard",
-      pathname: "/dashboard",
+      pathname: "/form",
       isDisabled: false,
     },
     {
       name: "Builder",
-      pathname: `/dashboard/form/builder/${formId}`,
+      pathname: `/form/builder/${formId}`,
       isDisabled: true,
     },
     {
       name: "Responds",
-      pathname: `/dashboard/form/responds/${formId}`,
+      pathname: `/form/responds/${formId}`,
       isDisabled: true,
     },
     {

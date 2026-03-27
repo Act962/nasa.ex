@@ -12,15 +12,15 @@ export function PublishFormBtn() {
   const { formData, setFormData, handleSelectedLayout } = useBuilderStore();
   const mutation = useMutationPublishForm();
 
-  const formId = formData?.id;
+  const id = formData?.id;
 
   const togglePublishState = async () => {
-    if (!formId) return;
+    if (!id) return;
     const newPublishedState = !formData?.published;
 
     mutation.mutate(
       {
-        formId,
+        id,
         published: newPublishedState,
       },
       {

@@ -184,7 +184,7 @@ function RowLayoutCanvasComponent({
                      text-xs bg-primary text-white 
         text-center w-28 p-1 rounded-b-full shadow-md"
                   >
-                    Drag it here
+                    Arraste aqui
                   </div>
                 </div>
               )}
@@ -278,7 +278,7 @@ function RowLayoutFormComponent({
 
       <Card
         className={cn(
-          `w-full! bg-foreground relative border
+          `w-full! bg-foreground/10 relative border
           shadow-sm
             min-h-[120px]
             max-w-[768px]
@@ -370,7 +370,7 @@ function PlaceHolder() {
           text-center text-primary/80
           "
       >
-        Drag and drop a block here to get started
+        Arraste e solte um bloco aqui para começar
       </p>
     </div>
   );

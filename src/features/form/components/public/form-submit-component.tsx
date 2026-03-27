@@ -9,10 +9,10 @@ import { useMutationSubmitResponse } from "../../hooks/use-form";
 import { Card, CardContent } from "@/components/ui/card";
 
 const FormSubmitComponent = (props: {
-  formId: string;
+  id: string;
   blocks: FormBlockInstance[];
 }) => {
-  const { formId, blocks } = props;
+  const { id, blocks } = props;
   const submitResponse = useMutationSubmitResponse();
 
   const formVals = useRef<{ [key: string]: string }>({});
@@ -61,7 +61,7 @@ const FormSubmitComponent = (props: {
     setIsLoading(true);
     const responseJson = JSON.stringify(formVals.current);
     submitResponse.mutate(
-      { formId, response: responseJson },
+      { id, response: responseJson },
 
       {
         onSuccess: () => {
@@ -94,7 +94,7 @@ const FormSubmitComponent = (props: {
         >
           <div
             className="w-full mb-3
-             bg-white bg-[url(/images/form-bg.jpg)] 
+             bg-foreground/10 bg-[url(/images/form-bg.jpg)] 
              bg-center bg-cover border shadow-sm 
              h-[135px] max-w-[768px]
           rounded-md px-1"
@@ -103,21 +103,21 @@ const FormSubmitComponent = (props: {
           <div className="w-full h-auto">
             {isSubmitted ? (
               <Card
-                className="w-full bg-white border
+                className="w-full bg-foreground/10 border
                shadow-sm min-h-[120px] rounded-md p-0"
               >
                 <CardContent className="px-2 pb-2">
                   <div className="py-4 px-3">
-                    <h1 className="text-4xl font-normal">Thank You</h1>
+                    <h1 className="text-4xl font-normal">Obrigado!</h1>
                     <p className="mt-2 mb-8 text-base">
-                      Got it, We'll notify you with a feedback
+                      Recebemos seu formulário
                     </p>
                     <a
                       href="#"
                       className="outline-none 
                       underline text-sm  text-blue-700"
                     >
-                      Learn more for more information
+                      Saiba mais
                     </a>
                   </div>
                 </CardContent>
@@ -145,7 +145,7 @@ const FormSubmitComponent = (props: {
                       onClick={handleSubmit}
                     >
                       {isLoading && <Loader className="w-4 h-4 animate-spin" />}
-                      Submit
+                      Enviar
                     </Button>
                   </div>
                 </div>
@@ -160,7 +160,7 @@ const FormSubmitComponent = (props: {
           mt-5"
           >
             <p className="text-xs ">Never submit passwords through Formy.ai.</p>
-            <Logo url="#" color="!text-primary" />
+            <Logo url="#" color="text-primary" />
           </div> */}
         </div>
       </div>

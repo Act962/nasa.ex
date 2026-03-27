@@ -5,18 +5,18 @@ import z from "zod";
 export const getPublic = base
   .route({
     method: "GET",
-    path: "/forms/public/:formId",
+    path: "/forms/public/:id",
     summary: "Fetch a published form by its formId (public route)",
   })
   .input(
     z.object({
-      formId: z.string(),
+      id: z.string(),
     }),
   )
   .handler(async ({ input }) => {
     const form = await prisma.form.findFirst({
       where: {
-        formId: input.formId,
+        id: input.id,
         published: true,
       },
       include: {
