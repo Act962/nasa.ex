@@ -18,19 +18,17 @@ export function BuilderBlockProperties() {
     <div className="relative w-[320px]">
       <div
         className="fixed right w-[320px]
-      bg-accent border-l shadow-sm
-      h-screen pb-36 mt-0 scrollbar overflow-auto
-      "
+      bg-background border-l shadow-sm
+      h-screen pb-36 mt-0 scrollbar overflow-auto"
       >
         <div
           className="flex flex-col w-full items-center
-        h-auto min-h-full
-        "
+        h-auto min-h-full"
         >
           <div
             className="w-full flex 
             flex-row items-center
-            bg-accent-foreground/10 pb-2 pt-3 sticky border-b
+            dark:bg-accent pb-2 pt-3 sticky border-b
             border top-0 gap-2 px-2"
           >
             <PreviewDialog />
@@ -41,27 +39,22 @@ export function BuilderBlockProperties() {
           {/* {Layout Property} */}
           {!selectedBlockLayout ? (
             <div
-              className="text-gray-400 gap-1
+              className=" gap-1
              text-center text-[15px] w-full flex flex-col
              items-center
-             justify-center flex-1 h-auto
-            "
+             justify-center flex-1 h-auto"
             >
               <MousePointerClickIcon />
               <p>clique no layout para modificar</p>
             </div>
           ) : (
             <div className="w-full pt-1">
-              <div
-                className="px-2 pt-3 pb-3 border-b
-                border-gray-200
-                "
-              >
+              <div className="px-2 pt-3 pb-3 border-b">
                 <h5
                   className="text-left
                  font-medium text-sm"
                 >
-                  Layout Block Properties
+                  Propriedades do grupo
                 </h5>
 
                 {LayoutPropertyBlock && (

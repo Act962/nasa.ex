@@ -8,13 +8,13 @@ export function Builder(props: { isSidebarOpen: boolean }) {
   return (
     <>
       <BuilderSidebar />
-      <SidebarInset className="p-0 flex-1">
+      <div className="p-0 flex-1">
         <div className="w-full h-full bg-accent">
           <SidebarTrigger className="absolute top-0 z-50 " />
           <BuilderCanvas />
           <FloatingShareButton isSidebarOpen={props.isSidebarOpen} />
         </div>
-      </SidebarInset>
+      </div>
       <BuilderBlockProperties />
     </>
   );

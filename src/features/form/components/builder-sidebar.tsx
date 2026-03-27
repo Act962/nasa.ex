@@ -28,8 +28,8 @@ export function BuilderSidebar({
   const { formData } = useBuilderStore();
 
   return (
-    <Sidebar className="border-r left-12" {...rest}>
-      <SidebarHeader className="bg-accent px-0">
+    <div className="border-r left-12" {...rest}>
+      <div className=" py-4 px-0">
         <header
           className="border-b border-border
               w-full pt-1 pb-2 flex shrink-0 items-center gap-2
@@ -56,10 +56,10 @@ export function BuilderSidebar({
             </Breadcrumb>
           </div>
         </header>
-      </SidebarHeader>
+      </div>
       <SidebarContent
         className="pt-2 
-      px-5 bg-accent"
+      px-5 "
       >
         <Tabs defaultValue="blocks" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-4">
@@ -75,6 +75,6 @@ export function BuilderSidebar({
           </TabsContent>
         </Tabs>
       </SidebarContent>
-    </Sidebar>
+    </div>
   );
 }

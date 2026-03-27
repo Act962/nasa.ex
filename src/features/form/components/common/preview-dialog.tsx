@@ -30,7 +30,7 @@ export function PreviewDialog() {
       >
         <DialogHeader
           className="pt-4 px-4 
-        pb-4 shadow-sm bg-accent"
+        pb-4 shadow-sm bg-background"
         >
           <DialogTitle>Preview Mode</DialogTitle>
         </DialogHeader>
@@ -56,7 +56,7 @@ export function PreviewDialog() {
             >
               <div
                 className="w-full mb-3
-             bg-accent bg-[url(/images/form-bg.jpg)] bg-center bg-cover border shadow-sm h-[135px] max-w-[768px]
+             bg-accent/10 bg-[url(/images/form-bg.jpg)] bg-center bg-cover border shadow-sm h-[135px] max-w-[768px]
           rounded-md px-1"
               />
 
