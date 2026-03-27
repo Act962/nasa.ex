@@ -797,6 +797,8 @@ model Agenda {
   responsibles    AgendaResponsible[]
   availabilities  AgendaAvailability[]
   appointments    Appointment[]
+  publicChatSessions PublicChatSession[]
+  dateOverrides   AgendaDateOverride[]
 
   @@unique([slug, organizationId])
   @@index([trackingId])
@@ -884,6 +886,51 @@ model Appointment {
   @@index([startsAt])
   @@index([status])
   @@map("appointments")
+}
+
+// ─────────────────────────────────────────────
+// CHAT PÚBLICO DE AGENDAMENTO
+// ─────────────────────────────────────────────
+
+// Sessão de chat público — criada quando o cliente abre o chat da agenda.
+// Não requer autenticação. Expira em 24h.
+model PublicChatSession {
+  id            String   @id @default(cuid())
+  agendaId      String   @map("agenda_id")
+  orgSlug       String   @map("org_slug")
+  agendaSlug    String   @map("agenda_slug")
+  appointmentId String?  @map("appointment_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  expiresAt     DateTime @map("expires_at")
+
+  // Auditoria de segurança
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+
+  agenda Agenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+
+  @@index([agendaId])
+  @@index([expiresAt])
+  @@map("public_chat_sessions")
+}
+
+// ─────────────────────────────────────────────
+// EXCEÇÕES DE DATA (bloqueios / disponibilidades pontuais)
+// ─────────────────────────────────────────────
+
+// Bloqueia ou desbloqueia uma data específica, sobrepondo a disponibilidade semanal.
+model AgendaDateOverride {
+  id        String   @id @default(cuid())
+  agendaId  String   @map("agenda_id")
+  date      String   // YYYY-MM-DD
+  isBlocked Boolean  @default(true) @map("is_blocked")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  agenda Agenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+
+  @@unique([agendaId, date])
+  @@index([agendaId])
+  @@map("agenda_date_overrides")
 }
 
 // ─────────────────────────────────────────────
