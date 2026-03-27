@@ -14,14 +14,20 @@ import { updateAgenda } from "./update";
 import { getPublicAgenda } from "./public/get";
 import { getPublicAgendaTimeSlots } from "./public/get-timeslots";
 import { createAppointment } from "./appointments/create";
+import { createAdminAppointment } from "./appointments/create-admin";
 import { getAppointmentsByTracking } from "./appointments/get-appointments-by-tracking";
 import { getAppointment } from "./appointments/get";
 import { cancelAppointment } from "./appointments/cancel";
+import { rescheduleAppointment } from "./appointments/reschedule";
+import { toggleDateOverride } from "./date-overrides/toggle";
+import { getManyDateOverrides } from "./date-overrides/get-many";
+import { getAgendasByTracking } from "./get-by-tracking";
 
 export const agendaRouter = {
   create: createAgenda,
   get: getAgenda,
   getMany: getManyAgendas,
+  getByTracking: getAgendasByTracking,
   duplicate: duplicateAgenda,
   delete: deleteAgenda,
   update: updateAgenda,
@@ -47,5 +53,11 @@ export const agendaRouter = {
     get: getAppointment,
     cancel: cancelAppointment,
     getManyByTracking: getAppointmentsByTracking,
+    createAdmin: createAdminAppointment,
+    reschedule: rescheduleAppointment,
+  },
+  dateOverrides: {
+    toggle: toggleDateOverride,
+    getMany: getManyDateOverrides,
   },
 };

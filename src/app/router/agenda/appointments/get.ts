@@ -20,7 +20,7 @@ export const getAppointment = base
         id: appointmentId,
       },
       include: {
-        agenda: true,
+        agenda: { include: { organization: { select: { slug: true } } } },
         lead: true,
         tracking: true,
         user: true,

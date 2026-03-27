@@ -19,9 +19,10 @@ interface RenderCalendarProps {
     isActive: boolean;
     dayOfWeek: DayOfWeek;
   }[];
+  blockedDates?: string[]; // YYYY-MM-DD
 }
 
-export function RenderCalendar({ availabilities }: RenderCalendarProps) {
+export function RenderCalendar({ availabilities, blockedDates = [] }: RenderCalendarProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -46,7 +47,12 @@ export function RenderCalendar({ availabilities }: RenderCalendarProps) {
       safeAvailabilities.map((a) => [a.dayOfWeek, a.isActive]),
     );
 
+  const blockedDatesSet = new Set(blockedDates);
+
   const isDateUnavailable = (date: DateValue) => {
+    // Verificar bloqueio específico da data
+    if (blockedDatesSet.has(date.toString())) return true;
+
     const jsDay = date.toDate(getLocalTimeZone()).getDay();
 
     const dayMap: DayOfWeek[] = [

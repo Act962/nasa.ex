@@ -320,7 +320,14 @@ export function BookingForm({ orgSlug, agendaSlug }: BookingFormProps) {
 
         <Separator orientation="vertical" className="w-px! h-full" />
 
-        <RenderCalendar availabilities={agenda?.availabilities as any} />
+        <RenderCalendar
+          availabilities={agenda?.availabilities as any}
+          blockedDates={
+            agenda?.dateOverrides
+              ?.filter((d: any) => d.isBlocked)
+              .map((d: any) => d.date) ?? []
+          }
+        />
 
         <Separator orientation="vertical" className="w-px! h-full" />
 
