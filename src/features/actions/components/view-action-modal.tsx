@@ -73,7 +73,11 @@ const PRIORITY_CONFIG: Record<
   ActionPriority,
   { label: string; color: string; dot: string }
 > = {
-  NONE: { label: "Nenhuma", color: "text-muted-foreground", dot: "bg-muted-foreground" },
+  NONE: {
+    label: "Nenhuma",
+    color: "text-muted-foreground",
+    dot: "bg-muted-foreground",
+  },
   LOW: { label: "Baixa", color: "text-emerald-500", dot: "bg-emerald-500" },
   MEDIUM: { label: "Média", color: "text-yellow-500", dot: "bg-yellow-500" },
   HIGH: { label: "Alta", color: "text-orange-500", dot: "bg-orange-500" },
@@ -224,7 +228,9 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   };
 
   const handleToggleResponsible = (userId: string) => {
-    const isResponsible = action?.responsibles.some((r) => r.user.id === userId);
+    const isResponsible = action?.responsibles.some(
+      (r) => r.user.id === userId,
+    );
     if (isResponsible) {
       removeResponsible.mutate(
         { actionId, userId },
@@ -255,7 +261,8 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   const priority = action?.priority ?? "NONE";
   const priorityConfig = PRIORITY_CONFIG[priority as ActionPriority];
 
-  const doneSubActions = action?.subActions?.filter((s) => s.isDone).length ?? 0;
+  const doneSubActions =
+    action?.subActions?.filter((s) => s.isDone).length ?? 0;
   const totalSubActions = action?.subActions?.length ?? 0;
 
   return (
@@ -264,7 +271,7 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
         Visualizar e editar ação
       </DialogDescription>
       <DialogContent
-        className="p-0 sm:max-w-2xl lg:max-w-4xl xl:max-w-5xl bg-background overflow-hidden flex flex-col max-h-[90vh]"
+        className="p-0 sm:max-w-[90%] bg-muted overflow-hidden flex flex-col max-h-[90vh] gap-0"
         showCloseButton={false}
       >
         {/* Header */}
@@ -276,10 +283,14 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
               {isLoading ? <Skeleton className="h-4 w-32" /> : action?.title}
             </span>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center shrink-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="size-8 rounded-full">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 rounded-full"
+                >
                   <EllipsisIcon className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -295,7 +306,11 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
               </DropdownMenuContent>
             </DropdownMenu>
             <DialogClose asChild>
-              <Button variant="ghost" size="icon" className="size-8 rounded-full">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 rounded-full"
+              >
                 <XIcon className="size-4" />
               </Button>
             </DialogClose>
@@ -330,7 +345,9 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      {action?.isDone ? "Marcar como pendente" : "Marcar como concluído"}
+                      {action?.isDone
+                        ? "Marcar como pendente"
+                        : "Marcar como concluído"}
                     </TooltipContent>
                   </Tooltip>
 
@@ -460,7 +477,8 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
                           className="h-7 px-2"
                           onClick={handleAddSubAction}
                           disabled={
-                            !newSubActionTitle.trim() || createSubAction.isPending
+                            !newSubActionTitle.trim() ||
+                            createSubAction.isPending
                           }
                         >
                           <CheckIcon className="size-3.5" />
@@ -474,7 +492,7 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
           </div>
 
           {/* Sidebar */}
-          <div className="w-64 border-l shrink-0 overflow-y-auto bg-muted/20">
+          <div className="w-64 border-l shrink-0 overflow-y-auto bg-muted/80">
             <div className="p-4 space-y-4">
               {isLoading ? (
                 <div className="space-y-4">
@@ -501,7 +519,8 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
                               <div
                                 className="size-2 rounded-full shrink-0"
                                 style={{
-                                  backgroundColor: currentColumn.color ?? "#1447e6",
+                                  backgroundColor:
+                                    currentColumn.color ?? "#1447e6",
                                 }}
                               />
                               <span>{currentColumn.name}</span>
@@ -554,7 +573,10 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
                           <SelectItem key={key} value={key}>
                             <div className="flex items-center gap-2">
                               <div
-                                className={cn("size-2 rounded-full shrink-0", cfg.dot)}
+                                className={cn(
+                                  "size-2 rounded-full shrink-0",
+                                  cfg.dot,
+                                )}
                               />
                               <span className={cfg.color}>{cfg.label}</span>
                             </div>
@@ -600,7 +622,9 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
                               {r.user.name?.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-xs flex-1 truncate">{r.user.name}</span>
+                          <span className="text-xs flex-1 truncate">
+                            {r.user.name}
+                          </span>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -637,14 +661,18 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
                                 <button
                                   key={m.user.id}
                                   className="flex items-center gap-2 w-full rounded-md px-2 py-1.5 hover:bg-muted transition-colors text-left"
-                                  onClick={() => handleToggleResponsible(m.user.id)}
+                                  onClick={() =>
+                                    handleToggleResponsible(m.user.id)
+                                  }
                                   disabled={
                                     addResponsible.isPending ||
                                     removeResponsible.isPending
                                   }
                                 >
                                   <Avatar className="size-6 shrink-0">
-                                    <AvatarImage src={m.user.image ?? undefined} />
+                                    <AvatarImage
+                                      src={m.user.image ?? undefined}
+                                    />
                                     <AvatarFallback className="text-xs">
                                       {m.user.name?.charAt(0).toUpperCase()}
                                     </AvatarFallback>

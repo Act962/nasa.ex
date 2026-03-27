@@ -20,16 +20,20 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import { WorkspacesItems } from "./workspaces-items";
+import { authClient } from "@/lib/auth-client";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { isMobile, setOpenMobile } = useSidebar();
   const pathname = usePathname();
+  const { data: session } = authClient.useSession();
 
   React.useEffect(() => {
     if (isMobile) {
       setOpenMobile(false);
     }
   }, [pathname]);
+
+  const currentOrganization = session?.session.activeOrganizationId;
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -39,7 +43,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <NavMenu />
         <SidebarSeparator className="mx-0" />
-        <WorkspacesItems />
+        {currentOrganization && <WorkspacesItems />}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
