@@ -253,6 +253,12 @@ export const useSuspenseDateAvailabilities = (agendaId: string) => {
   );
 };
 
+export const useQueryDateAvailabilities = (agendaId: string) => {
+  return useQuery(
+    orpc.agenda.dateAvailabilities.getMany.queryOptions({ input: { agendaId } }),
+  );
+};
+
 export const useUpsertDateAvailability = () => {
   const queryClient = useQueryClient();
 

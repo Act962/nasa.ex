@@ -13,8 +13,7 @@ import {
   useDeleteDateAvailability,
   useDeleteDateAvailabilitySlot,
   useDeleteTimeSlot,
-  useSuspenseAvailabilities,
-  useSuspenseDateAvailabilities,
+  useQueryDateAvailabilities,
   useSuspenseDateOverrides,
   useSuspenseTimeSlots,
   useToggleActiveAvailability,
@@ -202,7 +201,7 @@ function DiaMode({
   agendaId: string;
   slotDuration: number;
 }) {
-  const { data } = useSuspenseDateAvailabilities(agendaId);
+  const { data, isLoading } = useQueryDateAvailabilities(agendaId);
   const upsert = useUpsertDateAvailability();
   const deleteDateAvail = useDeleteDateAvailability();
 
@@ -211,9 +210,8 @@ function DiaMode({
   );
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  const configuredDatesSet = new Set(
-    data.dateAvailabilities.map((d) => d.date),
-  );
+  const dateAvailabilities = data?.dateAvailabilities ?? [];
+  const configuredDatesSet = new Set(dateAvailabilities.map((d) => d.date));
 
   const daysInMonth = currentMonth.daysInMonth();
   const firstDayOfWeek = currentMonth.day();
@@ -227,7 +225,7 @@ function DiaMode({
     }
   };
 
-  const selectedAvail = data.dateAvailabilities.find(
+  const selectedAvail = dateAvailabilities.find(
     (d) => d.date === selectedDate,
   );
 
@@ -242,6 +240,14 @@ function DiaMode({
         cur = cur.add(slotDuration, "minute");
       }
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+        Carregando...
+      </div>
+    );
   }
 
   return (
@@ -395,13 +401,11 @@ function DiaMode({
                     </Button>
                   </div>
                 ) : (
-                  <Suspense fallback={null}>
-                    <DateAvailabilitySlots
-                      dateAvailabilityId={selectedAvail.id}
-                      timeSlots={selectedAvail.timeSlots}
-                      slotDuration={slotDuration}
-                    />
-                  </Suspense>
+                  <DateAvailabilitySlots
+                    dateAvailabilityId={selectedAvail.id}
+                    timeSlots={selectedAvail.timeSlots}
+                    slotDuration={slotDuration}
+                  />
                 )}
               </div>
 
@@ -633,15 +637,7 @@ export function Availability({
             </Suspense>
           </>
         ) : (
-          <Suspense
-            fallback={
-              <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-                Carregando...
-              </div>
-            }
-          >
-            <DiaMode agendaId={agendaId} slotDuration={slotDuration} />
-          </Suspense>
+          <DiaMode agendaId={agendaId} slotDuration={slotDuration} />
         )}
       </CardContent>
     </Card>
