@@ -12,9 +12,11 @@ export default function Error() {
         Por favor, tente novamente mais tarde.
       </p>
 
-      <Button className="mt-4" onClick={() => router.push("/")}>
-        Ir para a página inicial
-      </Button>
+      <div className="mt-4 flex items-center gap-2">
+        <Button onClick={() => router.push("/")}>
+          Ir para a página inicial
+        </Button>
+      </div>
     </div>
   );
 }

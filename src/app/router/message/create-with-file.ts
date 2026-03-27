@@ -38,7 +38,7 @@ export const createMessageWithFile = base
         text: input.body,
         docName: input.fileName,
         number: input.leadPhone,
-        delay: 2000,
+
         type: "document",
         readchat: true,
         readmessages: true,
@@ -56,11 +56,42 @@ export const createMessageWithFile = base
           fileName: input.fileName,
           status: MessageStatus.SENT,
           quotedMessageId: input.id,
+          senderName: context.user.name,
         },
-        include: {
+        select: {
+          id: true,
+          messageId: true,
+          body: true,
+          createdAt: true,
+          fromMe: true,
+          status: true,
+          mediaUrl: true,
+          mediaType: true,
+          mediaCaption: true,
+          mimetype: true,
+          fileName: true,
+          quotedMessageId: true,
+          conversationId: true,
+          senderId: true,
+          senderName: true,
           conversation: {
+            select: {
+              id: true,
+              lead: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          quotedMessage: {
             include: {
-              lead: true,
+              conversation: {
+                include: {
+                  lead: true,
+                },
+              },
             },
           },
         },
@@ -87,6 +118,7 @@ export const createMessageWithFile = base
           status: message.status,
           messageId: message.messageId,
           quotedMessageId: message.quotedMessageId,
+          senderName: message.senderName,
           conversation: {
             lead: {
               id: message.conversation.lead.id,

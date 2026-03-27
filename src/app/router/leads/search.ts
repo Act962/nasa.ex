@@ -20,10 +20,10 @@ export const searchLeads = base
       trackingId: z.string().optional(),
       search: z.string().optional(), // busca por nome, email ou telefone
       page: z.number().default(1),
-      limit: z.number().default(20),
+      limit: z.number().max(100).default(20),
       orderBy: z.enum(["createdAt", "updatedAt", "name"]).default("createdAt"),
       order: z.enum(["asc", "desc"]).default("desc"),
-    })
+    }),
   )
   .output(
     z.object({
@@ -34,12 +34,12 @@ export const searchLeads = base
           phone: z.string().nullable(),
           email: z.string().nullable(),
           createdAt: z.date(),
-        })
+        }),
       ),
       total: z.number(),
       page: z.number(),
       totalPages: z.number(),
-    })
+    }),
   )
   .handler(async ({ input, errors, context }) => {
     try {

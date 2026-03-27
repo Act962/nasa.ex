@@ -16,9 +16,20 @@ export const getIntegration = base
     }),
   )
   .handler(async ({ input, context }) => {
-    const instances = await prisma.whatsAppInstance.findFirst({
+    const instances = await prisma.whatsAppInstance.findUnique({
       where: {
         trackingId: input.trackingId,
+      },
+      select: {
+        id: true,
+        instanceId: true,
+        instanceName: true,
+        profileName: true,
+        status: true,
+        apiKey: true,
+        isBusiness: true,
+        phoneNumber: true,
+        baseUrl: true,
       },
     });
     return instances;

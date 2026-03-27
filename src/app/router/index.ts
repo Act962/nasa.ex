@@ -8,6 +8,11 @@ import { workflowRoutes } from "./workflow";
 import { messageRouter } from "./message";
 import { conversationRouter } from "./conversation";
 import { integrationsRouter } from "./integrations";
+import { iaRouter } from "./ia";
+import { insightsRouter } from "./insights";
+import { agendaRouter } from "./agenda";
+import { rodizioRouter } from "./rodizio";
+import { widgetsRouter } from "./widgets";
 
 export const router = {
   tracking: trackingRoutes,
@@ -20,4 +25,9 @@ export const router = {
   message: messageRouter,
   conversation: conversationRouter,
   integrations: integrationsRouter,
+  ia: iaRouter,
+  insights: insightsRouter,
+  agenda: agendaRouter,
+  rodizio: rodizioRouter,
+  widgets: widgetsRouter,
 };

@@ -17,8 +17,6 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
-import { orpc } from "@/lib/orpc";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import { WorkflowIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -35,7 +33,7 @@ export function WorkflowContainer() {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 mb-8">
       {data.workflows.length > 0 ? (
         data.workflows.map((workflow) => (
           <Item key={workflow.id} variant="outline">
@@ -43,7 +41,11 @@ export function WorkflowContainer() {
               <WorkflowIcon className="size-5" />
             </ItemMedia>
             <ItemContent>
-              <ItemTitle>{workflow.name}</ItemTitle>
+              <Link href={`/tracking/${trackingId}/workflows/${workflow.id}`}>
+                <ItemTitle className="hover:underline underline-offset-3">
+                  {workflow.name}
+                </ItemTitle>
+              </Link>
               <ItemDescription>{workflow.description}</ItemDescription>
             </ItemContent>
             <ItemActions>

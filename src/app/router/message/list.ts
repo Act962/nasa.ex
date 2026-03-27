@@ -1,7 +1,8 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import z from "zod";
-import { Message } from "@/generated/prisma/client";
+import dayjs from "dayjs";
+import _ from "lodash";
 import prisma from "@/lib/prisma";
 
 export const listMessage = base
@@ -66,14 +67,22 @@ export const listMessage = base
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       });
 
+      const grouped = _.groupBy(messages, (message) =>
+        dayjs(message.createdAt).format("YYYY-MM-DD"),
+      );
+      const groupedItems = Object.entries(grouped).map(([date, msgs]) => ({
+        date,
+        messages: msgs,
+      }));
       const nextCursor =
         messages.length === limit
           ? messages[messages.length - 1].id
           : undefined;
 
       return {
-        items: messages,
+        items: groupedItems,
         nextCursor,
+        remoteJid: conversation.remoteJid,
       };
     } catch (error) {
       throw errors.INTERNAL_SERVER_ERROR;

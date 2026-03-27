@@ -1,13 +1,19 @@
-import { listStatus } from "./list-status";
+// import { listStatus } from "./list-status";
 import { listStatusSimple } from "./list-status-simple";
 import { createStatus } from "./create";
 import { updateStatus } from "./update";
-import { updateStatusOrder } from "./update-order";
+// import { updateStatusOrder } from "./update-order";
+import { getMany } from "./get-many";
+import { updateNewOrder } from "./update-new-order";
+import { deleteStatus } from "./delete";
 
 export const statusRoutes = {
-  list: listStatus,
+  getMany,
+  // list: listStatus,
   listSimple: listStatusSimple,
   create: createStatus,
   update: updateStatus,
-  updateOrder: updateStatusOrder,
+  // updateOrder: updateStatusOrder,
+  updateNewOrder,
+  delete: deleteStatus,
 };

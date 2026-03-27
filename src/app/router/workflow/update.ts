@@ -9,15 +9,17 @@ export const updateName = base
   .input(
     z.object({
       workflowId: z.string(),
-      name: z.string(),
-    })
+      name: z
+        .string()
+        .min(1, "Nome do workflow deve ter pelo menos 1 caractere"),
+    }),
   )
   .output(
     z.object({
       id: z.string(),
       workflowName: z.string(),
       trackingId: z.string(),
-    })
+    }),
   )
   .handler(async ({ input, errors }) => {
     const workflow = await prisma.workflow.findUnique({
@@ -59,7 +61,7 @@ export const updateNodes = base
           type: z.string().nullish(),
           position: z.object({ x: z.number(), y: z.number() }),
           data: z.record(z.string(), z.any()).optional(),
-        })
+        }),
       ),
       edges: z.array(
         z.object({
@@ -67,9 +69,9 @@ export const updateNodes = base
           target: z.string(),
           sourceHandle: z.string().nullish(),
           targetHandle: z.string().nullish(),
-        })
+        }),
       ),
-    })
+    }),
   )
   .handler(async ({ input, errors }) => {
     const { id, nodes, edges } = input;

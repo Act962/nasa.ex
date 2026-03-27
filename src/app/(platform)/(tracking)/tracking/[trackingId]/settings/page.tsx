@@ -4,7 +4,9 @@ import { Participants } from "@/features/tracking-settings/components/participan
 import { Reasons } from "@/features/tracking-settings/components/reasons";
 import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { orpc } from "@/lib/orpc";
-import { ChatSettings } from "@/features/tracking-settings/components";
+import { ChatSettings } from "@/features/tracking-settings/components/chat-settings";
+import { ChatBotIa } from "@/features/tracking-settings/components/chatbot-ia";
+import { FlowAttendiment } from "@/features/tracking-settings/components/flow-attendiment";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
@@ -51,6 +53,11 @@ export default async function Page({
       ),
     },
     {
+      name: "Fluxo de atendimento",
+      value: "flow-attendance",
+      content: <FlowAttendiment trackingId={trackingId} />,
+    },
+    {
       name: "Motivos de ganho",
       value: "reasons_win",
       content: <Reasons type="WIN" trackingId={trackingId} />,
@@ -65,6 +72,11 @@ export default async function Page({
       value: "instance",
       content: <ChatSettings />,
     },
+    {
+      name: "ChatBot AI",
+      value: "chatbot-ia",
+      content: <ChatBotIa trackingId={trackingId} />,
+    },
   ];
 
   return (
@@ -74,7 +86,7 @@ export default async function Page({
         orientation="horizontal"
         className="flex-col sm:flex-row gap-6"
       >
-        <TabsList className="bg-background h-full flex-row sm:flex-col rounded-none p-0 w-full sm:w-1/4 border-b sm:border-b-0 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+        <TabsList className="bg-background h-full flex-row sm:flex-col rounded-none p-0 w-full sm:w-1/4 border-b sm:border-b-0 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 ">
           {tabs.map((tab) => (
             <TabsTrigger
               key={tab.value}

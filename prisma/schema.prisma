@@ -31,6 +31,11 @@ model User {
   responsibleOnLeads      Lead[]  @relation("LeadResponsible")
   worflows Workflow[]
   forms    Form[]
+  leadFiles LeadFile[]
+  insightShares InsightShares[]
+  agendaResponsibles AgendaResponsible[]
+  appointments Appointment[]
+  trackingConsultants TrackingConsultant[]
 
   @@unique([email])
   @@map("user")
@@ -99,6 +104,9 @@ model Organization {
   tags        Tag[]
   whatsappInstances WhatsAppInstance[]
   actions     Action[]
+  insightShares InsightShares[]
+  agendas     Agenda[]
+  widgets     Widget[]
 
   @@unique([slug])
   @@map("organization")
@@ -118,6 +126,7 @@ model Member {
   @@index([userId])
   @@map("member")
 }
+
 model Invitation {
   id             String       @id @default(cuid())
   organizationId String
@@ -136,12 +145,17 @@ model Invitation {
   @@index([email])
 }
 
+// ─────────────────────────────────────────────
+// TRACKING
+// ─────────────────────────────────────────────
+
 model Tracking {
   id             String   @id @default(cuid())
   name           String
   description    String?
   organizationId String   @map("organization_id")
   isArchived     Boolean  @default(false) @map("is_archived")
+  globalAiActive Boolean  @default(false) @map("global_ai_active")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -155,15 +169,37 @@ model Tracking {
   actions        Action[]
   workflows      Workflow[]
   forms          Form[]
-  whatsappInstances WhatsAppInstance[]
+  whatsappInstance WhatsAppInstance?
   conversations  Conversation[]
+  agendas        Agenda[]
+  appointments   Appointment[]
+  aiSettings     AiSettings?
+  trackingConsultants TrackingConsultant[]
 
   @@map("tracking")
+}
+
+model AiSettings {
+  id String @id @default(cuid())
+  prompt String
+  assistantName String? @map("assistant_name")
+  finishSentence String? @map("finish_sentence")
+  isAudioEnabled Boolean @default(false) @map("is_audio_enabled")
+
+  trackingId String @unique
+  tracking Tracking @relation(fields: [trackingId], references: [id])
+
+  @@map("ai_setting")
 }
 
 enum ReasonType {
   WIN // Ganho
   LOSS // Perda
+}
+
+enum TagType {
+  CUSTOM
+  SYSTEM
 }
 
 model WinLossReason {
@@ -182,6 +218,20 @@ model WinLossReason {
   @@map("win_loss_reasons")
 }
 
+model TrackingConsultant {
+  id         String   @id @default(cuid())
+  trackingId String   @map("tracking_id")
+  userId     String   @map("user_id")
+  maxFlow    Int      @default(0)   @map("max_flow")
+  isActive   Boolean  @default(true)
+
+  tracking Tracking @relation( fields: [trackingId], references: [id], onDelete: Cascade)  
+  user     User     @relation( fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, trackingId])
+  @@map("tracking_consultant")
+}
+
 model TrackingParticipant {
   id         String          @id @default(cuid())
   userId     String          @map("user_id")
@@ -190,7 +240,7 @@ model TrackingParticipant {
   createdAt  DateTime        @default(now()) @map("created_at")
   tracking   Tracking        @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  
   @@unique([userId, trackingId])
   @@map("tracking_participant")
 }
@@ -206,7 +256,7 @@ model Status {
   id         String   @id @default(cuid())
   name       String
   color      String?  @default("#1447e6")
-  order      Int      @default(0)
+  order      Decimal  @db.Decimal(20, 10) @default(0)
   trackingId String   @map("tracking_id")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
@@ -254,6 +304,19 @@ enum LeadSource {
   OTHER
 }
 
+enum Temperature {
+  COLD
+  WARM
+  HOT
+  VERY_HOT
+}
+
+enum StatusFlow {
+  ACTIVE
+  WAITING
+  FINISHED
+} 
+
 model Lead {
   id          String  @id @default(cuid())
   name        String
@@ -265,8 +328,11 @@ model Lead {
   statusId    String  @map("status_id")
   trackingId  String  @map("tracking_id")
   responsibleId String? @map("responsible_id")
-  order       Int     @default(0)
+  order      Decimal @db.Decimal(20, 10) @default(0)
   source      LeadSource @default(DEFAULT)
+  temperature Temperature @default(COLD)
+  amount Decimal @db.Decimal(15, 2) @default(0)
+  statusFlow StatusFlow @default(ACTIVE) @map("status_flow")
 
   currentAction LeadAction @default(ACTIVE) @map("current_action")
   isActive      Boolean    @default(true) @map("is_active")
@@ -279,20 +345,19 @@ model Lead {
   status   Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
   tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   responsible User? @relation("LeadResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
-  conversationId String? @unique @map("conversation_id")
-  
-  @@index([phone])
+
+  conversation Conversation? 
 
   leadTags LeadTag[]
   history  LeadHistory[]
+  files    LeadFile[]
   actions  Action[]
-  conversation Conversation[]
-
-
+  appointments Appointment[]
 
   @@index([trackingId])
-  @@index([statusId])
+  @@index([statusId, order])
   @@index([email])
+  @@index([phone])
   @@index([createdAt])
   @@index([currentAction])
   @@index([isActive])
@@ -304,17 +369,24 @@ model Lead {
 model Tag {
   id             String   @id @default(cuid())
   name           String
+  slug           String
   color          String?  @default("#1447e6")
+  description    String?
+  icon           String?
+  type           TagType  @default(CUSTOM)
   organizationId String   @map("organization_id")
-  trackingId     String?  @map("tracking_id") // 👈 Opcional
+  trackingId     String?  @map("tracking_id") 
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
+
+  whatsappId String? @map("whatsapp_id")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   tracking     Tracking?    @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   leadTags     LeadTag[]
 
   // 👈 Importante: nome único por contexto
+  @@unique([slug, organizationId, trackingId])
   @@unique([name, organizationId, trackingId])
   @@index([organizationId])
   @@index([trackingId])
@@ -327,16 +399,36 @@ model LeadTag {
   tagId     String   @map("tag_id")
   createdAt DateTime @default(now()) @map("created_at")
 
-  // Relacionamentos
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
   tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-  // Garantir que a mesma tag não seja adicionada duas vezes ao mesmo lead
   @@unique([leadId, tagId])
   @@index([leadId])
   @@index([tagId])
   @@map("lead_tags")
 }
+
+model LeadFile {
+  id        String   @id @default(cuid())
+  leadId    String   @map("lead_id")
+  fileUrl   String   @map("file_url")
+  mimeType  String   @map("mime_type")
+  createdAt DateTime @default(now()) @map("created_at")
+  name String
+
+  createdBy String? @map("created_by")
+  creator User? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([createdBy])
+  @@map("lead_files")
+}
+
+// ─────────────────────────────────────────────
+// AÇÕES
+// ─────────────────────────────────────────────
+
 
 model ActionsUserParticipant {
   id        String   @id @default(cuid())
@@ -434,6 +526,10 @@ model SubActions {
   @@map("sub_action")
 }
 
+// ─────────────────────────────────────────────
+// AUTOMAÇÕES
+// ─────────────────────────────────────────────
+
 model Workflow {
   id         String   @id @default(cuid())
   name       String
@@ -453,9 +549,24 @@ model Workflow {
 }
 
 enum NodeType {
+  // Gatilhos
   INITIAL
   MANUAL_TRIGGER
+  NEW_LEAD
+  MOVE_LEAD_STATUS
+  LEAD_TAGGED
+  AI_FINISHED
+  // LEAD_UNTAGGED
+
+  // Execuções
   HTTP_REQUEST
+  MOVE_LEAD
+  SEND_MESSAGE
+  WAIT
+  WIN_LOSS
+  TAG
+  TEMPERATURE
+  RESPONSIBLE
 }
 
 model Node {
@@ -495,6 +606,10 @@ model Connection {
   @@map("connections")
 }
 
+// ─────────────────────────────────────────────
+// FORMULÁRIO
+// ─────────────────────────────────────────────
+
 model Form {
   id String @id @default(cuid())
   userId String @map("user_id")
@@ -530,27 +645,33 @@ model FormSubmission {
   @@map("form_submissions")
 }
 
+// ─────────────────────────────────────────────
+// CHAT
+// ─────────────────────────────────────────────
+
 model Conversation {
   id            String   @id @default(cuid())
   createdAt     DateTime @default(now()) @map("created_at")
   lastMessageAt DateTime @updatedAt @map("last_message_at")
   name          String?
   isGroup       Boolean  @default(false)
-  lastMessageId String?   @map("last_message_id")
   
-  remoteJid     String   @unique @map("remote_jid")
+  remoteJid     String   @map("remote_jid")
   profilePicUrl String?  @map("profile_pic_url")
   isActive      Boolean  @default(true) @map("is_active")
   
-  leadId String  @map("lead_id")
-  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lead   Lead   @relation(fields: [leadId], references: [id] , onDelete: Cascade)
+  leadId String @unique @map("lead_id")
   trackingId    String   @map("tracking_id")
   tracking      Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  
+
+  lastMessageId String? @unique @map("last_message_id")
+  lastMessage Message? @relation(fields: [lastMessageId], references: [id])
+
   messages      Message[]        @relation("Messages")
 
-  @@index([lastMessageId])
   @@unique([leadId, trackingId])
+  @@unique([remoteJid, trackingId])
   
   @@index([isActive])
   @@index([lastMessageAt])
@@ -558,6 +679,11 @@ model Conversation {
   @@map("conversations")
 }
 
+enum MessageStatus {
+  SENT
+  SEEN
+  DELETED
+}
 
 model Message {
   id        String    @id @default(cuid())
@@ -566,7 +692,7 @@ model Message {
   
   messageId        String   @unique @map("message_id")
   fromMe           Boolean  @default(false) @map("from_me")
-  status           String   @default("pending")
+  status           MessageStatus   @default(SENT)
   seen             Boolean  @default(false)
   
   mediaUrl         String?  @map("media_url")
@@ -578,12 +704,12 @@ model Message {
   quotedMessageId  String?  @map("quoted_message_id")
   quotedMessage    Message? @relation("QuotedMessages", fields: [quotedMessageId], references: [id], onDelete: SetNull)
   quotes           Message[] @relation("QuotedMessages")
-  
-  conversationId String
+  conversationId String 
   senderId       String?
+  senderName     String?
 
   conversation   Conversation @relation("Messages", fields: [conversationId], references: [id], onDelete: Cascade)
-  
+  LastMessage Conversation?
   
   @@index([conversationId, createdAt])
   @@index([status])
@@ -591,19 +717,16 @@ model Message {
   @@map("messages")
 }
 
-
-
 enum WhatsAppInstanceStatus {
   CONNECTED
   DISCONNECTED
 }
 
-
 model WhatsAppInstance {
   id              String   @id @default(cuid())
   instanceName    String   @map("instance_name")
   instanceId      String   @unique @map("instance_id")
-  apiKey          String   @map("api_key") // Token
+  apiKey          String @unique  @map("api_key") // Token
   baseUrl         String   @map("base_url") // URL
   status          WhatsAppInstanceStatus @default(DISCONNECTED)
   qrCode          String?  @map("qr_code") // Base64 do QR Code
@@ -611,18 +734,224 @@ model WhatsAppInstance {
   profileName     String?  @map("profile_name")
   profilePicUrl   String?  @map("profile_pic_url")
   organizationId  String   @map("organization_id")
-  trackingId      String   @map("tracking_id")
+  trackingId      String @unique   @map("tracking_id")
   webhookUrl      String?  @map("webhook_url")
   isActive        Boolean  @default(true) @map("is_active")
   lastSyncAt      DateTime? @map("last_sync_at")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
+  isBusiness      Boolean  @default(false) @map("is_business")
   
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  tracking     Tracking     @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  tracking     Tracking     @relation(fields: [trackingId], references: [id])
   
-  @@unique([instanceName, organizationId])
   @@index([organizationId])
   @@index([status])
   @@map("whatsapp_instances")
+}
+
+model InsightShares{
+  id String @id @default(cuid())
+  name String
+  token String @unique @default(cuid()) 
+  organizationId String @map("organization_id")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  filters Json @default("{}") 
+  settings Json @default("{}") 
+  userId String @map("user_id")
+  createdBy User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("insight_shares")
+}
+
+// ─────────────────────────────────────────────
+// AGENDA
+// ─────────────────────────────────────────────
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model Agenda {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  slug           String  
+  isActive       Boolean  @default(true)  @map("is_active")
+  slotDuration   Int      @default(30)    @map("slot_duration")
+  trackingId     String   @map("tracking_id")
+  organizationId String   @map("organization_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt      @map("updated_at")
+
+  tracking     Tracking     @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  responsibles    AgendaResponsible[]
+  availabilities  AgendaAvailability[]
+  appointments    Appointment[]
+  publicChatSessions PublicChatSession[]
+  dateOverrides   AgendaDateOverride[]
+
+  @@unique([slug, organizationId])
+  @@index([trackingId])
+  @@index([organizationId])
+  @@index([isActive])
+  @@map("agendas")
+}
+
+// Responsáveis pela agenda (um ou mais usuários)
+model AgendaResponsible {
+  id        String   @id @default(cuid())
+  agendaId  String   @map("agenda_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  agenda Agenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([agendaId, userId])
+  @@index([agendaId])
+  @@index([userId])
+  @@map("agenda_responsibles")
+}
+
+// Disponibilidade por dia da semana (ex: Segunda, 8h–12h)
+model AgendaAvailability {
+  id        String    @id @default(cuid())
+  agendaId  String    @map("agenda_id")
+  dayOfWeek DayOfWeek @map("day_of_week")
+  isActive  Boolean   @default(true) @map("is_active")
+
+  agenda    Agenda          @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+  timeSlots AvailabilityTimeSlot[]
+
+  @@unique([agendaId, dayOfWeek])
+  @@index([agendaId])
+  @@map("agenda_availabilities")
+}
+
+// Intervalos de horário dentro de um dia (ex: 8h–12h, 14h–18h)
+model AvailabilityTimeSlot {
+  id             String   @id @default(cuid())
+  availabilityId String   @map("availability_id")
+  startTime      String   @map("start_time") // "08:00"
+  endTime        String   @map("end_time")   // "12:00"
+  order          Int      @default(0)
+
+  availability AgendaAvailability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
+
+  @@index([availabilityId])
+  @@map("availability_time_slots")
+}
+
+// Agendamentos realizados
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+  DONE
+}
+
+model Appointment {
+  id          String            @id @default(cuid())
+  title       String?
+  notes       String?
+  startsAt    DateTime          @map("starts_at")
+  endsAt      DateTime          @map("ends_at")
+  status      AppointmentStatus @default(PENDING)
+  agendaId    String            @map("agenda_id")
+  leadId      String?           @map("lead_id")
+  userId      String?           @map("user_id")
+  trackingId  String?           @map("tracking_id")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt      @map("updated_at")
+
+  agenda Agenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+  lead   Lead?  @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tracking Tracking? @relation(fields: [trackingId], references: [id], onDelete: SetNull)
+
+  @@index([agendaId])
+  @@index([leadId])
+  @@index([userId])
+  @@index([startsAt])
+  @@index([status])
+  @@map("appointments")
+}
+
+// ─────────────────────────────────────────────
+// CHAT PÚBLICO DE AGENDAMENTO
+// ─────────────────────────────────────────────
+
+// Sessão de chat público — criada quando o cliente abre o chat da agenda.
+// Não requer autenticação. Expira em 24h.
+model PublicChatSession {
+  id            String   @id @default(cuid())
+  agendaId      String   @map("agenda_id")
+  orgSlug       String   @map("org_slug")
+  agendaSlug    String   @map("agenda_slug")
+  appointmentId String?  @map("appointment_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  expiresAt     DateTime @map("expires_at")
+
+  // Auditoria de segurança
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+
+  agenda Agenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+
+  @@index([agendaId])
+  @@index([expiresAt])
+  @@map("public_chat_sessions")
+}
+
+// ─────────────────────────────────────────────
+// EXCEÇÕES DE DATA (bloqueios / disponibilidades pontuais)
+// ─────────────────────────────────────────────
+
+// Bloqueia ou desbloqueia uma data específica, sobrepondo a disponibilidade semanal.
+model AgendaDateOverride {
+  id        String   @id @default(cuid())
+  agendaId  String   @map("agenda_id")
+  date      String   // YYYY-MM-DD
+  isBlocked Boolean  @default(true) @map("is_blocked")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  agenda Agenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+
+  @@unique([agendaId, date])
+  @@index([agendaId])
+  @@map("agenda_date_overrides")
+}
+
+// ─────────────────────────────────────────────
+// WIDGETS
+// ─────────────────────────────────────────────
+
+enum WidgetType {
+  LEADS_BY_TAG
+}
+
+model Widget {
+  id             String     @id @default(cuid())
+  title          String
+  type           WidgetType
+  config         Json       @default("{}")
+  order          Int        @default(0)
+  organizationId String     @map("organization_id")
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("widgets")
 }

@@ -1,6 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MembersTab } from "./tabs/members-tab";
-import { InvitationsTab } from "./tabs/invitations-tab";
+import { MembersTab } from "@/features/settings/components/tabs/members-tab";
+import { InvitationsTab } from "@/features/settings/components/tabs/invitations-tab";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 

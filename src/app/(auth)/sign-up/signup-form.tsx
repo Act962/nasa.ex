@@ -19,6 +19,8 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useQueryState } from "nuqs";
 
 const signUpSchema = z
   .object({
@@ -40,17 +42,30 @@ export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
+  const [callbackUrl] = useQueryState("callbackUrl");
+  const [emailParam] = useQueryState("email");
+
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<SignUpData>({
     resolver: zodResolver(signUpSchema),
+    defaultValues: {
+      email: emailParam || "",
+    },
   });
   const [isLoading, setIsLoading] = useTransition();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setConfirmPassword] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (emailParam) {
+      setValue("email", emailParam);
+    }
+  }, [emailParam, setValue]);
 
   const onSignUp = (data: SignUpData) => {
     setIsLoading(async () => {
@@ -58,27 +73,27 @@ export function SignupForm({
         {
           email: data.email,
           password: data.password,
-          name: data.name,
-          callbackURL: "/tracking",
+          name: data.name.trim(),
+          callbackURL: callbackUrl ? callbackUrl : "/tracking",
         },
         {
           onSuccess: () => {
             toast.success("Conta criada com succeso");
-            router.push("/tracking");
+            router.push(callbackUrl ? callbackUrl : "/tracking");
           },
           onError: (err) => {
             console.log(err);
             toast.error("Erro ao criar conta");
           },
-        }
+        },
       );
     });
   };
 
   const onSignInWithGoogle = async () => {
-    const data = await authClient.signIn.social({
+    await authClient.signIn.social({
       provider: "google",
-      callbackURL: "/tracking",
+      callbackURL: callbackUrl ? callbackUrl : "/tracking",
       scopes: ["https://www.googleapis.com/auth/drive.file"],
     });
   };
@@ -91,9 +106,9 @@ export function SignupForm({
     >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold">Crie sua conta</h1>
+          <h1 className="text-2xl font-bold">Entrar no NASA</h1>
           <p className="text-muted-foreground text-sm text-balance">
-            Preencha o formulário abaixo para criar sua conta.
+            Preencha o formulário abaixo para atualizar os dados da sua conta.
           </p>
         </div>
         <Field>
@@ -196,10 +211,10 @@ export function SignupForm({
             {isLoading ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                Cadastrando...
+                Atualizando...
               </>
             ) : (
-              "Cadastrar"
+              "Atualizar"
             )}
           </Button>
         </Field>
@@ -225,7 +240,12 @@ export function SignupForm({
             Entrar com Google
           </Button>
           <FieldDescription className="px-6 text-center">
-            Já possui uma conta? <a href="/sign-in">Entrar</a>
+            Já possui uma conta?{" "}
+            <a
+              href={`/sign-in${callbackUrl ? `?callbackUrl=${callbackUrl}` : ""}`}
+            >
+              Entrar
+            </a>
           </FieldDescription>
         </Field>
       </FieldGroup>
