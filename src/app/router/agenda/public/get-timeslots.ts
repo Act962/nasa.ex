@@ -50,6 +50,14 @@ export const getPublicAgendaTimeSlots = base
       });
     }
 
+    // Verificar se a data está bloqueada por override
+    const dateOverride = await prisma.agendaDateOverride.findUnique({
+      where: { agendaId_date: { agendaId: agenda.id, date: input.date } },
+    });
+    if (dateOverride?.isBlocked) {
+      return { timeSlots: [] };
+    }
+
     const requestedDate = dayjs(input.date, "YYYY-MM-DD");
 
     // Correcting day of week mapping if necessary

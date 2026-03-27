@@ -9,8 +9,10 @@ import {
   useCreateTimeSlot,
   useDeleteTimeSlot,
   useSuspenseAvailabilities,
+  useSuspenseDateOverrides,
   useSuspenseTimeSlots,
   useToggleActiveAvailability,
+  useToggleDateOverride,
   useUpdateTimeSlot,
 } from "../hooks/use-agenda";
 import { DayOfWeek } from "@/generated/prisma/enums";
@@ -22,9 +24,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PlusIcon, TrashIcon } from "lucide-react";
+import { BanIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Suspense, useState } from "react";
+import dayjs from "dayjs";
+import "dayjs/locale/pt-br";
+import { cn } from "@/lib/utils";
 
 interface Availability {
   id: string;
@@ -65,6 +70,113 @@ export function generateTimes(interval = 15) {
 }
 
 
+// ─────────────────────────────────────────────
+// CALENDÁRIO DE BLOQUEIOS ESPECÍFICOS
+// ─────────────────────────────────────────────
+function DateOverridesCalendar({ agendaId }: { agendaId: string }) {
+  const { data } = useSuspenseDateOverrides(agendaId);
+  const toggleDateOverride = useToggleDateOverride();
+  const [currentMonth, setCurrentMonth] = useState(() =>
+    dayjs().startOf("month"),
+  );
+
+  const blockedDatesSet = new Set(
+    data.dateOverrides.filter((d) => d.isBlocked).map((d) => d.date),
+  );
+
+  const handleToggle = (date: string) => {
+    const isCurrentlyBlocked = blockedDatesSet.has(date);
+    toggleDateOverride.mutate({
+      agendaId,
+      date,
+      isBlocked: !isCurrentlyBlocked,
+    });
+  };
+
+  const daysInMonth = currentMonth.daysInMonth();
+  const firstDayOfWeek = currentMonth.day();
+  const today = dayjs().format("YYYY-MM-DD");
+
+  return (
+    <div className="mt-6 border-t pt-6">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <p className="font-medium text-sm">Bloqueios de datas específicas</p>
+          <p className="text-xs text-muted-foreground">
+            Clique em uma data para bloqueá-la individualmente (férias, feriados, etc.)
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 text-base"
+            onClick={() => setCurrentMonth(currentMonth.subtract(1, "month"))}
+          >
+            ‹
+          </Button>
+          <span className="text-sm font-medium capitalize w-36 text-center">
+            {currentMonth.locale("pt-br").format("MMMM YYYY")}
+          </span>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 text-base"
+            onClick={() => setCurrentMonth(currentMonth.add(1, "month"))}
+          >
+            ›
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 text-center text-xs">
+        {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
+          <div key={d} className="font-medium text-muted-foreground py-1">
+            {d}
+          </div>
+        ))}
+        {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+          <div key={`e-${i}`} />
+        ))}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const date = currentMonth.date(i + 1).format("YYYY-MM-DD");
+          const isPast = date < today;
+          const isBlocked = blockedDatesSet.has(date);
+
+          return (
+            <button
+              key={date}
+              disabled={isPast || toggleDateOverride.isPending}
+              onClick={() => handleToggle(date)}
+              title={isBlocked ? `Desbloquear ${date}` : `Bloquear ${date}`}
+              className={cn(
+                "relative h-9 w-full rounded-md flex items-center justify-center font-medium transition-colors",
+                isPast && "opacity-30 cursor-not-allowed text-muted-foreground",
+                isBlocked &&
+                  "bg-destructive/15 text-destructive hover:bg-destructive/25 cursor-pointer",
+                !isBlocked &&
+                  !isPast &&
+                  "hover:bg-accent cursor-pointer text-foreground",
+              )}
+            >
+              {i + 1}
+              {isBlocked && (
+                <BanIcon className="absolute top-0.5 right-0.5 size-2.5 text-destructive" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {blockedDatesSet.size > 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {blockedDatesSet.size} data(s) bloqueada(s)
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function Availability({
   agendaId,
   availabilities,
@@ -100,6 +212,15 @@ export function Availability({
               slotDuration={slotDuration}
             />
           ))}
+          <Suspense
+            fallback={
+              <div className="border-t pt-6 text-xs text-muted-foreground">
+                Carregando bloqueios...
+              </div>
+            }
+          >
+            <DateOverridesCalendar agendaId={agendaId} />
+          </Suspense>
         </CardContent>
       </form>
     </Card>

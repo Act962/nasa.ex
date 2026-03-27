@@ -1,6 +1,7 @@
 import { orpc } from "@/lib/orpc";
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -171,6 +172,78 @@ export const useDeleteTimeSlot = () => {
 };
 
 // Appointments
+
+export const useQueryAgendasByTracking = (trackingId: string) => {
+  return useQuery(
+    orpc.agenda.getByTracking.queryOptions({ input: { trackingId } }),
+  );
+};
+
+export const useAdminCreateAppointment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.appointments.createAdmin.mutationOptions({
+      onSuccess: (data) => {
+        toast.success("Agendamento criado com sucesso!");
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.getManyByTracking.queryOptions({
+            input: { trackingId: data.appointment.trackingId ?? "" },
+          }),
+        );
+      },
+      onError: (error) => {
+        toast.error("Erro ao criar agendamento: " + error.message);
+      },
+    }),
+  );
+};
+
+// DateOverrides
+
+export const useSuspenseDateOverrides = (agendaId: string) => {
+  return useSuspenseQuery(
+    orpc.agenda.dateOverrides.getMany.queryOptions({ input: { agendaId } }),
+  );
+};
+
+export const useToggleDateOverride = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.dateOverrides.toggle.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(
+          data.dateOverride.isBlocked ? "Data bloqueada" : "Data desbloqueada",
+        );
+        queryClient.invalidateQueries(
+          orpc.agenda.dateOverrides.getMany.queryOptions({
+            input: { agendaId: data.dateOverride.agendaId },
+          }),
+        );
+      },
+    }),
+  );
+};
+
+export const useRescheduleAppointment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.appointments.reschedule.mutationOptions({
+      onSuccess: (data) => {
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.getManyByTracking.queryOptions({
+            input: { trackingId: data.appointment.trackingId ?? "" },
+          }),
+        );
+      },
+      onError: (error) => {
+        toast.error("Erro ao reagendar: " + error.message);
+      },
+    }),
+  );
+};
 
 export const useCancelAppointment = () => {
   const queryClient = useQueryClient();

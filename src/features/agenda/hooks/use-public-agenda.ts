@@ -38,19 +38,17 @@ export const useQueryPublicAgendaTimeSlots = ({
   agendaSlug,
   date,
 }: UseQueryPublicAgendaTimeSlotsProps) => {
-  const { data, isLoading } = useQuery(
-    orpc.agenda.public.getTimeSlots.queryOptions({
-      input: {
-        orgSlug: orgSlug,
-        agendaSlug: agendaSlug,
-        date: date,
-      },
+  const enabled = !!(orgSlug && agendaSlug && date);
+  const { data, isLoading } = useQuery({
+    ...orpc.agenda.public.getTimeSlots.queryOptions({
+      input: { orgSlug, agendaSlug, date },
     }),
-  );
+    enabled,
+  });
 
   return {
     timeSlots: data?.timeSlots,
-    isLoading,
+    isLoading: enabled ? isLoading : false,
   };
 };
 

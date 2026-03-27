@@ -28,6 +28,7 @@ export const updateLead = base
         isConversation: z.boolean().optional().default(false),
         active: z.boolean().optional().default(false),
         amount: z.number().optional(),
+        trackingId: z.string().optional(),
       })
       .refine(
         (v) =>
@@ -37,6 +38,7 @@ export const updateLead = base
           v.description !== undefined ||
           v.statusId !== undefined ||
           v.responsibleId !== undefined ||
+          v.trackingId !== undefined ||
           v.tagIds !== undefined ||
           v.active !== undefined ||
           v.amount !== undefined,
@@ -75,6 +77,7 @@ export const updateLead = base
             email: input.email,
             description: input.description,
             statusId: input.statusId,
+            trackingId: input.trackingId,
             responsibleId: input.responsibleId,
             isActive: input.active,
             amount: input.amount,

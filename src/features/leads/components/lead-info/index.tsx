@@ -27,6 +27,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { FieldsStatus } from "./fields/field-status";
+import { FieldTracking } from "./fields/field-tracking";
 import { FieldMoney } from "./fields/field-money";
 import { SendMessageSheet } from "../send-message-sheet";
 
@@ -219,7 +220,11 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                   value={lead.amount}
                   trackingId={lead.trackingId}
                 />
-                <InfoItem label="Fluxo / Tracking" value={lead.tracking.name} />
+                <FieldTracking
+                  trackingId={lead.trackingId}
+                  trackingName={lead.tracking.name}
+                  statusId={lead.status.id}
+                />
                 <FieldsStatus
                   value={lead.status.name}
                   trackingId={lead.trackingId}

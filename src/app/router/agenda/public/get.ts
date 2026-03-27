@@ -43,6 +43,12 @@ export const getPublicAgenda = base
             isActive: true,
           },
         },
+        dateOverrides: {
+          select: {
+            date: true,
+            isBlocked: true,
+          },
+        },
       },
     });
 
