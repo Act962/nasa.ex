@@ -72,18 +72,28 @@ export const getPublicAgendaTimeSlots = base
     };
     const dayName = daysMap[requestedDate.day().toString()];
 
-    const timeSlotRanges = await prisma.availabilityTimeSlot.findMany({
-      where: {
-        availability: {
-          agendaId: agenda.id,
-          dayOfWeek: dayName as any,
-          isActive: true,
-        },
-      },
-      orderBy: {
-        order: "asc",
-      },
+    // Check for date-specific availability (overrides weekly schedule)
+    const dateAvailability = await prisma.agendaDateAvailability.findUnique({
+      where: { agendaId_date: { agendaId: agenda.id, date: input.date } },
+      include: { timeSlots: { orderBy: { order: "asc" } } },
     });
+
+    const timeSlotRanges = dateAvailability
+      ? dateAvailability.timeSlots.map((s) => ({
+          id: s.id,
+          startTime: s.startTime,
+          endTime: s.endTime,
+        }))
+      : await prisma.availabilityTimeSlot.findMany({
+          where: {
+            availability: {
+              agendaId: agenda.id,
+              dayOfWeek: dayName as any,
+              isActive: true,
+            },
+          },
+          orderBy: { order: "asc" },
+        });
 
     const appointments = await prisma.appointment.findMany({
       where: {

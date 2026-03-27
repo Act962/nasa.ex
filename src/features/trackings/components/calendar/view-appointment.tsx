@@ -377,9 +377,7 @@ function RescheduleDialog({
   const handleSave = () => {
     if (!selectedTime) return;
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const newStart = dayjs.tz
-      ? (dayjs as any).tz(`${dateStr} ${selectedTime}`, timeZone).toDate()
-      : new Date(`${dateStr}T${selectedTime}:00`);
+    const newStart = new Date(`${dateStr}T${selectedTime}:00`);
     // keep duration = 60min fallback
     const newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
 

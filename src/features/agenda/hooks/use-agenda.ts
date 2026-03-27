@@ -245,6 +245,89 @@ export const useRescheduleAppointment = () => {
   );
 };
 
+// DateAvailabilities (Dia mode)
+
+export const useSuspenseDateAvailabilities = (agendaId: string) => {
+  return useSuspenseQuery(
+    orpc.agenda.dateAvailabilities.getMany.queryOptions({ input: { agendaId } }),
+  );
+};
+
+export const useUpsertDateAvailability = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.dateAvailabilities.upsert.mutationOptions({
+      onSuccess: (data) => {
+        queryClient.invalidateQueries(
+          orpc.agenda.dateAvailabilities.getMany.queryOptions({
+            input: { agendaId: data.dateAvailability.agendaId },
+          }),
+        );
+      },
+      onError: (error) => {
+        toast.error("Erro ao configurar data: " + error.message);
+      },
+    }),
+  );
+};
+
+export const useDeleteDateAvailability = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.dateAvailabilities.delete.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.agenda.dateAvailabilities.getMany.key({}),
+        });
+      },
+    }),
+  );
+};
+
+export const useCreateDateAvailabilitySlot = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.dateAvailabilities.slots.create.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.agenda.dateAvailabilities.getMany.key({}),
+        });
+      },
+    }),
+  );
+};
+
+export const useUpdateDateAvailabilitySlot = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.dateAvailabilities.slots.update.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.agenda.dateAvailabilities.getMany.key({}),
+        });
+      },
+    }),
+  );
+};
+
+export const useDeleteDateAvailabilitySlot = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.dateAvailabilities.slots.delete.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.agenda.dateAvailabilities.getMany.key({}),
+        });
+      },
+    }),
+  );
+};
+
 export const useCancelAppointment = () => {
   const queryClient = useQueryClient();
 

@@ -794,11 +794,12 @@ model Agenda {
   tracking     Tracking     @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  responsibles    AgendaResponsible[]
-  availabilities  AgendaAvailability[]
-  appointments    Appointment[]
-  publicChatSessions PublicChatSession[]
-  dateOverrides   AgendaDateOverride[]
+  responsibles         AgendaResponsible[]
+  availabilities       AgendaAvailability[]
+  appointments         Appointment[]
+  publicChatSessions   PublicChatSession[]
+  dateOverrides        AgendaDateOverride[]
+  dateAvailabilities   AgendaDateAvailability[]
 
   @@unique([slug, organizationId])
   @@index([trackingId])
@@ -886,6 +887,39 @@ model Appointment {
   @@index([startsAt])
   @@index([status])
   @@map("appointments")
+}
+
+// ─────────────────────────────────────────────
+// DISPONIBILIDADE POR DATA ESPECÍFICA
+// ─────────────────────────────────────────────
+
+// Disponibilidade para uma data específica (sobrepõe o semanal)
+model AgendaDateAvailability {
+  id        String   @id @default(cuid())
+  agendaId  String   @map("agenda_id")
+  date      String   // YYYY-MM-DD
+  createdAt DateTime @default(now()) @map("created_at")
+
+  agenda    Agenda                      @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+  timeSlots AgendaDateAvailabilitySlot[]
+
+  @@unique([agendaId, date])
+  @@index([agendaId])
+  @@map("agenda_date_availabilities")
+}
+
+// Intervalos de horário dentro de uma disponibilidade por data específica
+model AgendaDateAvailabilitySlot {
+  id                 String   @id @default(cuid())
+  dateAvailabilityId String   @map("date_availability_id")
+  startTime          String   @map("start_time") // "08:00"
+  endTime            String   @map("end_time")   // "12:00"
+  order              Int      @default(0)
+
+  dateAvailability AgendaDateAvailability @relation(fields: [dateAvailabilityId], references: [id], onDelete: Cascade)
+
+  @@index([dateAvailabilityId])
+  @@map("agenda_date_availability_slots")
 }
 
 // ─────────────────────────────────────────────

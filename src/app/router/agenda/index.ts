@@ -22,6 +22,12 @@ import { rescheduleAppointment } from "./appointments/reschedule";
 import { toggleDateOverride } from "./date-overrides/toggle";
 import { getManyDateOverrides } from "./date-overrides/get-many";
 import { getAgendasByTracking } from "./get-by-tracking";
+import { getManyDateAvailabilities } from "./date-availabilities/get-many";
+import { upsertDateAvailability } from "./date-availabilities/upsert";
+import { deleteDateAvailability } from "./date-availabilities/delete";
+import { createDateAvailabilitySlot } from "./date-availabilities/slots/create";
+import { updateDateAvailabilitySlot } from "./date-availabilities/slots/update";
+import { deleteDateAvailabilitySlot } from "./date-availabilities/slots/delete";
 
 export const agendaRouter = {
   create: createAgenda,
@@ -59,5 +65,15 @@ export const agendaRouter = {
   dateOverrides: {
     toggle: toggleDateOverride,
     getMany: getManyDateOverrides,
+  },
+  dateAvailabilities: {
+    getMany: getManyDateAvailabilities,
+    upsert: upsertDateAvailability,
+    delete: deleteDateAvailability,
+    slots: {
+      create: createDateAvailabilitySlot,
+      update: updateDateAvailabilitySlot,
+      delete: deleteDateAvailabilitySlot,
+    },
   },
 };
