@@ -228,7 +228,7 @@ function TextAreaPropertiesComponent({
 
   return (
     <div className="w-full  pb-4">
-      <div className="w-full flex flex-row items-center justify-between gap-1 bg-accent h-auto p-1 px-2 mb-[10px]">
+      <div className="w-full flex flex-row items-center justify-between gap-1 bg-foreground/10 rounded-md h-auto p-1 px-2 mb-[10px]">
         <span className="text-sm font-medium text-muted-foreground tracking-wider">
           Textarea {positionIndex}
         </span>

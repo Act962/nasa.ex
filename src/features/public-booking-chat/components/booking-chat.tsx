@@ -3,7 +3,12 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SendHorizonalIcon, BotIcon, UserIcon, CalendarCheckIcon } from "lucide-react";
+import {
+  SendHorizonalIcon,
+  BotIcon,
+  UserIcon,
+  CalendarCheckIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -27,7 +32,9 @@ function ConsentBanner({ onAccept }: { onAccept: () => void }) {
         <CalendarCheckIcon className="size-7 text-primary" />
       </div>
       <div>
-        <h2 className="text-lg font-semibold mb-2">Assistente de Agendamento</h2>
+        <h2 className="text-lg font-semibold mb-2">
+          Assistente de Agendamento
+        </h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Para realizar seu agendamento, precisamos coletar seu nome e telefone.
           Esses dados são usados exclusivamente para confirmar e gerenciar seu
@@ -39,7 +46,8 @@ function ConsentBanner({ onAccept }: { onAccept: () => void }) {
         Entendido, iniciar chat
       </Button>
       <p className="text-xs text-muted-foreground">
-        Ao continuar, você concorda com o uso dos seus dados para fins de agendamento.
+        Ao continuar, você concorda com o uso dos seus dados para fins de
+        agendamento.
       </p>
     </div>
   );
@@ -48,21 +56,38 @@ function ConsentBanner({ onAccept }: { onAccept: () => void }) {
 // ─────────────────────────────────────────────
 // BOLHA DE MENSAGEM
 // ─────────────────────────────────────────────
-function MessageBubble({ role, content }: { role: "user" | "assistant"; content: string }) {
+function MessageBubble({
+  role,
+  content,
+}: {
+  role: "user" | "assistant";
+  content: string;
+}) {
   const isUser = role === "user";
   return (
-    <div className={cn("flex gap-2 items-end", isUser ? "flex-row-reverse" : "flex-row")}>
+    <div
+      className={cn(
+        "flex gap-2 items-end",
+        isUser ? "flex-row-reverse" : "flex-row",
+      )}
+    >
       <div
         className={cn(
           "shrink-0 w-7 h-7 rounded-full flex items-center justify-center",
-          isUser ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+          isUser
+            ? "bg-primary text-primary-foreground"
+            : "bg-muted text-muted-foreground",
         )}
       >
-        {isUser ? <UserIcon className="size-3.5" /> : <BotIcon className="size-3.5" />}
+        {isUser ? (
+          <UserIcon className="size-3.5" />
+        ) : (
+          <BotIcon className="size-3.5" />
+        )}
       </div>
       <div
         className={cn(
-          "max-w-[78%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words",
+          "max-w-[78%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word",
           isUser
             ? "rounded-br-sm bg-primary text-primary-foreground"
             : "rounded-bl-sm bg-muted text-foreground",
@@ -99,7 +124,12 @@ function TypingIndicator() {
 // ─────────────────────────────────────────────
 // HEADER DO CHAT
 // ─────────────────────────────────────────────
-function ChatHeader({ agendaName, orgName, orgLogo, isActive }: {
+function ChatHeader({
+  agendaName,
+  orgName,
+  orgLogo,
+  isActive,
+}: {
   agendaName: string;
   orgName: string;
   orgLogo?: string;
@@ -108,7 +138,11 @@ function ChatHeader({ agendaName, orgName, orgLogo, isActive }: {
   return (
     <div className="flex items-center gap-3 p-4 border-b">
       {orgLogo ? (
-        <img src={orgLogo} alt={orgName} className="w-9 h-9 rounded-full object-cover shrink-0" />
+        <img
+          src={orgLogo}
+          alt={orgName}
+          className="w-9 h-9 rounded-full object-cover shrink-0"
+        />
       ) : (
         <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
           <CalendarCheckIcon className="size-4 text-primary" />
@@ -119,8 +153,15 @@ function ChatHeader({ agendaName, orgName, orgLogo, isActive }: {
         <p className="text-xs text-muted-foreground truncate">{orgName}</p>
       </div>
       <div className="ml-auto flex items-center gap-1.5">
-        <span className={cn("w-2 h-2 rounded-full", isActive ? "bg-green-500" : "bg-yellow-400")} />
-        <span className="text-xs text-muted-foreground">{isActive ? "Online" : "Digitando..."}</span>
+        <span
+          className={cn(
+            "w-2 h-2 rounded-full",
+            isActive ? "bg-green-500" : "bg-yellow-400",
+          )}
+        />
+        <span className="text-xs text-muted-foreground">
+          {isActive ? "Online" : "Digitando..."}
+        </span>
       </div>
     </div>
   );
@@ -129,14 +170,24 @@ function ChatHeader({ agendaName, orgName, orgLogo, isActive }: {
 // ─────────────────────────────────────────────
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────
-export function BookingChat({ orgSlug, agendaSlug, agendaName, orgName, orgLogo }: BookingChatProps) {
+export function BookingChat({
+  orgSlug,
+  agendaSlug,
+  agendaName,
+  orgName,
+  orgLogo,
+}: BookingChatProps) {
   const [consented, setConsented] = useState(false);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // AI SDK v6: transport via DefaultChatTransport
   const transport = useMemo(
-    () => new DefaultChatTransport({ api: "/api/public/booking-chat", body: { orgSlug, agendaSlug } }),
+    () =>
+      new DefaultChatTransport({
+        api: "/api/public/booking-chat",
+        body: { orgSlug, agendaSlug },
+      }),
     [orgSlug, agendaSlug],
   );
 
@@ -186,7 +237,12 @@ export function BookingChat({ orgSlug, agendaSlug, agendaName, orgName, orgLogo 
   if (!consented) {
     return (
       <div className="flex flex-col h-full">
-        <ChatHeader agendaName={agendaName} orgName={orgName} orgLogo={orgLogo} isActive={true} />
+        <ChatHeader
+          agendaName={agendaName}
+          orgName={orgName}
+          orgLogo={orgLogo}
+          isActive={true}
+        />
         <div className="flex-1 overflow-y-auto">
           <ConsentBanner onAccept={() => setConsented(true)} />
         </div>
@@ -199,14 +255,20 @@ export function BookingChat({ orgSlug, agendaSlug, agendaName, orgName, orgLogo 
 
   return (
     <div className="flex flex-col h-full">
-      <ChatHeader agendaName={agendaName} orgName={orgName} orgLogo={orgLogo} isActive={!isBusy} />
+      <ChatHeader
+        agendaName={agendaName}
+        orgName={orgName}
+        orgLogo={orgLogo}
+        isActive={!isBusy}
+      />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         {visibleMessages.map((message) => {
-          const textContent = message.parts
-            ?.filter((p) => p.type === "text")
-            .map((p) => (p as { type: "text"; text: string }).text)
-            .join("") ?? "";
+          const textContent =
+            message.parts
+              ?.filter((p) => p.type === "text")
+              .map((p) => (p as { type: "text"; text: string }).text)
+              .join("") ?? "";
 
           if (!textContent) return null;
 
@@ -246,7 +308,11 @@ export function BookingChat({ orgSlug, agendaSlug, agendaName, orgName, orgLogo 
           disabled={isBusy || !input.trim()}
           className="shrink-0 h-10 w-10"
         >
-          {isBusy ? <Spinner className="size-4" /> : <SendHorizonalIcon className="size-4" />}
+          {isBusy ? (
+            <Spinner className="size-4" />
+          ) : (
+            <SendHorizonalIcon className="size-4" />
+          )}
         </Button>
       </div>
     </div>

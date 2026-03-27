@@ -9,11 +9,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-} from "@/components/ui/sidebar";
+import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
 import { FileTextIcon, Home } from "lucide-react";
 import { FormBlockBox } from "@/features/form/components/common/form-block-box";
 import { FormSettings } from "@/features/form/components/common/form-settings";
@@ -28,7 +24,7 @@ export function BuilderSidebar({
   const { formData } = useBuilderStore();
 
   return (
-    <div className="border-r left-12" {...rest}>
+    <div className="border-r left-12 overflow-y-auto pb-12" {...rest}>
       <div className=" py-4 px-0">
         <header
           className="border-b border-border

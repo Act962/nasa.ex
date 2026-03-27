@@ -4,7 +4,7 @@ import { RowLayoutBlock } from "@/features/form/components/common/blocks/row-lay
 import { ParagraphBlock } from "@/features/form/components/common/blocks/paragraph-block";
 import { RadioSelectBlock } from "@/features/form/components/common/blocks/radio-select-block";
 import { StarRatingBlock } from "@/features/form/components/common/blocks/star-rating-block";
-import { TextAreaBlock } from "@/features/form/components/common/text-area-bock";
+import { TextAreaBlock } from "@/features/form/components/common/blocks/text-area-block";
 import { TextFieldBlock } from "@/features/form/components/common/blocks/text-field";
 
 export const FormBlocks: FormBlocksType = {

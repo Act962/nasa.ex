@@ -118,7 +118,9 @@ function TextFieldFormComponent({
   const block = blockInstance as NewInstance;
   const { helperText, label, placeHolder, required } = block.attributes;
 
-  const textColor = settings?.backgroundColor ? getContrastColor(settings.backgroundColor) : undefined;
+  const textColor = settings?.backgroundColor
+    ? getContrastColor(settings.backgroundColor)
+    : undefined;
 
   const [value, setValue] = useState("");
   const [isError, setIsError] = useState(false);
@@ -154,8 +156,10 @@ function TextFieldFormComponent({
         placeholder={placeHolder}
       />
       {helperText && (
-        <p 
-          className={textColor ? "text-[0.8rem]" : "text-[0.8rem] text-muted-foreground"}
+        <p
+          className={
+            textColor ? "text-[0.8rem]" : "text-[0.8rem] text-muted-foreground"
+          }
           style={textColor ? { opacity: 0.8 } : undefined}
         >
           {helperText}
@@ -222,7 +226,7 @@ function TextFieldPropertiesComponent({
   }
   return (
     <div className="w-full  pb-4">
-      <div className="w-full flex flex-row items-center justify-between gap-1 bg-accent h-auto p-1 px-2 mb-[10px]">
+      <div className="w-full flex flex-row items-center justify-between gap-1 bg-foreground/10 rounded-md h-auto p-1 px-2 mb-[10px]">
         <span className="text-sm font-medium text-muted-foreground tracking-wider">
           Campo de texto {positionIndex}
         </span>

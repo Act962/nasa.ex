@@ -97,7 +97,9 @@ function HeadingCanvasFormComponent({
   const block = blockInstance as NewInstance;
   const { level, label, fontSize, fontWeight } = block.attributes;
 
-  const textColor = settings?.backgroundColor ? getContrastColor(settings.backgroundColor) : undefined;
+  const textColor = settings?.backgroundColor
+    ? getContrastColor(settings.backgroundColor)
+    : undefined;
 
   return (
     <div
@@ -159,7 +161,7 @@ function HeadingPropertiesComponent({
 
   return (
     <div className="w-full pb-4">
-      <div className="w-full flex flex-row items-center justify-between gap-1 bg-accent h-auto p-1 px-2 mb-[10px]">
+      <div className="w-full flex flex-row items-center justify-between gap-1 bg-foreground/10 rounded-md h-auto p-1 px-2 mb-[10px]">
         <span className="text-sm font-medium text-muted-foreground tracking-wider">
           Titulo {positionIndex}
         </span>

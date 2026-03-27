@@ -91,7 +91,9 @@ function ParagraphCanvasFormComponent({
   const block = blockInstance as NewInstance;
   const { text, fontSize, fontWeight } = block.attributes;
 
-  const textColor = settings?.backgroundColor ? getContrastColor(settings.backgroundColor) : undefined;
+  const textColor = settings?.backgroundColor
+    ? getContrastColor(settings.backgroundColor)
+    : undefined;
 
   return (
     <div
@@ -138,11 +140,8 @@ function ParagraphPropertiesComponent({
 
   return (
     <div className="w-full pb-4">
-      <div
-        className="w-full flex flex-row items-center justify-between gap-1 bg-accent
-       h-auto p-1 px-2 mb-[10px]"
-      >
-        <span className="text-sm font-medium text-accent tracking-wider">
+      <div className="w-full flex flex-row items-center justify-between gap-1 bg-foreground/10 rounded-md h-auto p-1 px-2 mb-[10px]">
+        <span className="text-sm font-medium text-muted-foreground tracking-wider">
           Parágrafo {positionIndex}
         </span>
         <ChevronDown className="w-4 h-4" />

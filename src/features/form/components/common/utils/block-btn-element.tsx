@@ -44,11 +44,7 @@ export function BlockBtnElement({
         stroke-[0.9]!
           cursor-grab!"
       />
-      <h5
-        className="text-[11.4px]
-          -mt-1"
-        style={{ fontWeight: 500 }}
-      >
+      <h5 className="text-[11.4px] -mt-1" style={{ fontWeight: 500 }}>
         {label}
       </h5>
     </Button>
