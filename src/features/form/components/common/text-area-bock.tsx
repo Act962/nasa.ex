@@ -24,6 +24,8 @@ import { Switch } from "@/components/ui/switch";
 import { useEffect, useState } from "react";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { useForm } from "react-hook-form";
+import { FormSettings } from "@/generated/prisma/client";
+import { getContrastColor } from "@/utils/get-contrast-color";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "TextArea";
@@ -115,21 +117,25 @@ function TextAreaFormComponent({
   handleBlur,
   isError: isSubmitError,
   errorMessage,
+  settings,
 }: {
   blockInstance: FormBlockInstance;
   handleBlur?: HandleBlurFunc;
   isError?: boolean;
   errorMessage?: string;
+  settings?: FormSettings | null;
 }) {
   const block = blockInstance as NewInstance;
   const { label, placeHolder, required, helperText, rows } = block.attributes; // Destructure attributes
+
+  const textColor = settings?.backgroundColor ? getContrastColor(settings.backgroundColor) : undefined;
 
   const [value, setValue] = useState("");
   const [isError, setIsError] = useState(false);
 
   const validateField = (val: string) => {
     if (required) {
-      return val.trim().length > 0; // Validation: Required fields must not be empty.
+      return val.trim().length > 0;
     }
     return true; // If not required, always valid.
   };
@@ -162,7 +168,12 @@ function TextAreaFormComponent({
         }}
       />
       {helperText && (
-        <p className="text-muted-foreground text-[0.8rem]">{helperText}</p>
+        <p 
+          className={textColor ? "text-[0.8rem]" : "text-[0.8rem] text-muted-foreground"}
+          style={textColor ? { opacity: 0.8 } : undefined}
+        >
+          {helperText}
+        </p>
       )}
 
       {isError || isSubmitError ? (

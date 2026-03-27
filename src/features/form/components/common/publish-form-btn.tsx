@@ -47,11 +47,11 @@ export function PublishFormBtn() {
       {mutate.isPending ? (
         <Loader className="w-4 h-4 animate-spin" />
       ) : isPublished ? (
-        "Unpublish"
+        "Despublicar"
       ) : (
         <>
           <Send />
-          Publish
+          Publicar
         </>
       )}
     </Button>

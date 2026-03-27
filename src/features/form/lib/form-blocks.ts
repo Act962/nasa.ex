@@ -1,11 +1,11 @@
 import { FormBlocksType } from "@/features/form/types";
-import { HeadingBlock } from "@/features/form/components/common/heading-block";
-import { RowLayoutBlock } from "@/features/form/components/common/layouts/RowLayout";
-import { ParagraphBlock } from "@/features/form/components/common/paragraph-block";
-import { RadioSelectBlock } from "@/features/form/components/common/radio-select-block";
-import { StarRatingBlock } from "@/features/form/components/common/star-rating-block";
+import { HeadingBlock } from "@/features/form/components/common/blocks/heading-block";
+import { RowLayoutBlock } from "@/features/form/components/common/blocks/row-layout";
+import { ParagraphBlock } from "@/features/form/components/common/blocks/paragraph-block";
+import { RadioSelectBlock } from "@/features/form/components/common/blocks/radio-select-block";
+import { StarRatingBlock } from "@/features/form/components/common/blocks/star-rating-block";
 import { TextAreaBlock } from "@/features/form/components/common/text-area-bock";
-import { TextFieldBlock } from "@/features/form/components/common/text-field";
+import { TextFieldBlock } from "@/features/form/components/common/blocks/text-field";
 
 export const FormBlocks: FormBlocksType = {
   RowLayout: RowLayoutBlock,

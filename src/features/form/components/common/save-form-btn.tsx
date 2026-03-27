@@ -65,7 +65,7 @@ export function SaveFormBtn() {
           }
         },
         onError: (error) => {
-          toast.error(error?.message || "Something went wrong");
+          toast.error(error?.message || "Algo deu errado");
         },
       },
     );
@@ -86,7 +86,7 @@ export function SaveFormBtn() {
       ) : (
         <Save />
       )}
-      Save
+      Salvar
     </Button>
   );
 }

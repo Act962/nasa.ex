@@ -23,6 +23,8 @@ import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Switch } from "@/components/ui/switch";
+import { FormSettings } from "@/generated/prisma/client";
+import { getContrastColor } from "@/utils/get-contrast-color";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "TextField";
@@ -50,15 +52,15 @@ export const TextFieldBlock: ObjectBlockType = {
     id,
     blockType,
     attributes: {
-      label: "Text field",
+      label: "Campo de texto",
       helperText: "",
       required: false,
-      placeHolder: "Enter text",
+      placeHolder: "Digite o texto",
     },
   }),
   blockBtnElement: {
     icon: TextCursorInput,
-    label: "Text field",
+    label: "Campo de texto",
   },
   canvasComponent: TextFieldCanvasComponent,
   formComponent: TextFieldFormComponent,
@@ -105,14 +107,18 @@ function TextFieldFormComponent({
   handleBlur,
   isError: isSubmitError,
   errorMessage,
+  settings,
 }: {
   blockInstance: FormBlockInstance;
   handleBlur?: HandleBlurFunc;
   isError?: boolean;
   errorMessage?: string;
+  settings?: FormSettings | null;
 }) {
   const block = blockInstance as NewInstance;
   const { helperText, label, placeHolder, required } = block.attributes;
+
+  const textColor = settings?.backgroundColor ? getContrastColor(settings.backgroundColor) : undefined;
 
   const [value, setValue] = useState("");
   const [isError, setIsError] = useState(false);
@@ -148,7 +154,12 @@ function TextFieldFormComponent({
         placeholder={placeHolder}
       />
       {helperText && (
-        <p className="text-muted-foreground text-[0.8rem]">{helperText}</p>
+        <p 
+          className={textColor ? "text-[0.8rem]" : "text-[0.8rem] text-muted-foreground"}
+          style={textColor ? { opacity: 0.8 } : undefined}
+        >
+          {helperText}
+        </p>
       )}
 
       {isError || isSubmitError ? (

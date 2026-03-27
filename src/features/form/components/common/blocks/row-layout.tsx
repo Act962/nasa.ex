@@ -12,9 +12,11 @@ import { ChildPropertiesComponentWrapper } from "@/features/form/components/comm
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { allBlockLayouts } from "@/features/form/constants";
+import { getContrastColor } from "@/utils/get-contrast-color";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { FormBlocks } from "@/features/form/lib/form-blocks";
 import { cn } from "@/lib/utils";
+import { FormSettings } from "@/generated/prisma/client";
 import { v4 as uuidv4 } from "uuid";
 import {
   Active,
@@ -43,7 +45,7 @@ export const RowLayoutBlock: ObjectBlockType = {
 
   blockBtnElement: {
     icon: Rows2,
-    label: "Row Layout",
+    label: "Grupo",
   },
 
   canvasComponent: RowLayoutCanvasComponent,
@@ -265,12 +267,16 @@ function RowLayoutFormComponent({
   blockInstance,
   handleBlur,
   formErrors,
+  settings,
 }: {
   blockInstance: FormBlockInstance;
   handleBlur?: HandleBlurFunc;
   formErrors?: FormErrorsType;
+  settings?: FormSettings | null;
 }) {
   const childblocks = blockInstance.childblocks || [];
+
+  const textColor = settings?.backgroundColor ? getContrastColor(settings.backgroundColor) : undefined;
 
   return (
     <div className="max-w-full">
@@ -286,6 +292,7 @@ function RowLayoutFormComponent({
                 `,
           blockInstance.isLocked && "rounded-t-none!",
         )}
+        style={{ color: textColor || undefined }}
       >
         <CardContent className="px-2 pb-2">
           <div className="flex flex-wrap gap-2">
@@ -307,6 +314,7 @@ function RowLayoutFormComponent({
                     handleBlur={handleBlur}
                     isError={!!formErrors?.[childblock.id]}
                     errorMessage={formErrors?.[childblock.id]}
+                    settings={settings}
                   />
                 </div>
               ))}

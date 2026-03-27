@@ -3,7 +3,7 @@
 import { useQueryPublicForm } from "@/features/form/hooks/use-form";
 import { NotAvaliable } from "@/features/form/components/public/not-avaliable";
 import { FormBlockInstance } from "@/features/form/types";
-import FormSubmitComponent from "@/features/form/components/public/form-submit-component";
+import { FormSubmitComponent } from "@/features/form/components/public/form-submit-component";
 import { useParams } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -27,11 +27,6 @@ export default function Page() {
 
   const blocks = JSON.parse(form.jsonBlock) as FormBlockInstance[];
   return (
-    <FormSubmitComponent
-      id={formId}
-      blocks={blocks}
-      settings={form.settings}
-    />
+    <FormSubmitComponent id={formId} blocks={blocks} settings={form.settings} />
   );
 }
-

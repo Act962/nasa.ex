@@ -28,6 +28,7 @@ import {
 import { fontSizeClass, fontWeightClass } from "@/features/form/constants";
 import { Input } from "@/components/ui/input";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
+import { getContrastColor } from "@/utils/get-contrast-color";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "Heading";
@@ -88,15 +89,21 @@ type NewInstance = FormBlockInstance & {
 
 function HeadingCanvasFormComponent({
   blockInstance,
+  settings,
 }: {
   blockInstance: FormBlockInstance;
+  settings?: any;
 }) {
   const block = blockInstance as NewInstance;
   const { level, label, fontSize, fontWeight } = block.attributes;
+
+  const textColor = settings?.backgroundColor ? getContrastColor(settings.backgroundColor) : undefined;
+
   return (
     <div
       className={`w-full text-left
          ${fontSizeClass[fontSize]} ${fontWeightClass[fontWeight]}`}
+      style={{ color: textColor || undefined }}
     >
       {React.createElement(
         `h${level}`, // Dynamically create heading tag based on 'level'

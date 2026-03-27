@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14,11 +14,11 @@ import {
   SidebarContent,
   SidebarHeader,
 } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
 import { FileTextIcon, Home } from "lucide-react";
 import { FormBlockBox } from "@/features/form/components/common/form-block-box";
 import { FormSettings } from "@/features/form/components/common/form-settings";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function BuilderSidebar({
   rest,
@@ -26,8 +26,6 @@ export function BuilderSidebar({
   rest?: React.ComponentProps<typeof Sidebar>;
 }) {
   const { formData } = useBuilderStore();
-
-  const [tab, setTab] = useState<"blocks" | "settings">("blocks");
 
   return (
     <Sidebar className="border-r left-12" {...rest}>
@@ -43,7 +41,7 @@ export function BuilderSidebar({
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/dashboard">Home</BreadcrumbLink>
+                  <BreadcrumbLink href="/form">Home</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
@@ -63,47 +61,19 @@ export function BuilderSidebar({
         className="pt-2 
       px-5 bg-accent"
       >
-        <div className="w-full">
-          <div
-            className="w-full flex flex-row
-           gap-1 h-[39px] rounded-full bg-accent p-1"
-          >
-            <button
-              className={cn(
-                `p-[5px] flex-1 bg-transparent
-                transition-colors
-                ease-in-out rounded-full text-center
-                font-medium text-sm
-                              `,
-                {
-                  "bg-accent-foreground/5": tab === "blocks",
-                },
-              )}
-              onClick={() => setTab("blocks")}
-            >
-              Blocks
-            </button>
-            <button
-              className={cn(
-                `p-[5px] flex-1 bg-transparent
-                transition-colors
-                ease-in-out rounded-full text-center
-                font-medium text-sm
-                              `,
-                {
-                  "bg-accent-foreground/5": tab === "settings",
-                },
-              )}
-              onClick={() => setTab("settings")}
-            >
-              Settings
-            </button>
-          </div>
-          {/* {Form Blocks} */}
-          {tab === "blocks" && <FormBlockBox />}
-          {/* {Form Settings} */}
-          {tab === "settings" && <FormSettings />}
-        </div>
+        <Tabs defaultValue="blocks" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="blocks">Blocos</TabsTrigger>
+            <TabsTrigger value="settings">Configurações</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="blocks" className="mt-0">
+            <FormBlockBox />
+          </TabsContent>
+          <TabsContent value="settings" className="mt-0">
+            <FormSettings />
+          </TabsContent>
+        </Tabs>
       </SidebarContent>
     </Sidebar>
   );

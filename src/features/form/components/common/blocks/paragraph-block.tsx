@@ -29,6 +29,7 @@ import {
 import { z } from "zod";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { Textarea } from "@/components/ui/textarea";
+import { getContrastColor } from "@/utils/get-contrast-color";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "Paragraph";
@@ -60,7 +61,7 @@ export const ParagraphBlock: ObjectBlockType = {
     blockType,
     attributes: {
       label: "Paragraph",
-      text: "Lorem ipsum dolor sit amet,consectetur adipiscing elit. Curabitur quis sem odio. Sed commodo vestibulum leo.",
+      text: "Digite o texto do parágrafo.",
       fontSize: "small",
       fontWeight: "normal",
     },
@@ -82,15 +83,20 @@ type NewInstance = FormBlockInstance & {
 
 function ParagraphCanvasFormComponent({
   blockInstance,
+  settings,
 }: {
   blockInstance: FormBlockInstance;
+  settings?: any;
 }) {
   const block = blockInstance as NewInstance;
   const { text, fontSize, fontWeight } = block.attributes;
 
+  const textColor = settings?.backgroundColor ? getContrastColor(settings.backgroundColor) : undefined;
+
   return (
     <div
       className={`w-full text-left ${fontSizeClass[fontSize]} ${fontWeightClass[fontWeight]}`}
+      style={{ color: textColor || undefined }}
     >
       <p>{text}</p>
     </div>

@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { v4 as uuidv4 } from "uuid";
+import { FormSettings } from "@/generated/prisma/client";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "RadioSelect";
@@ -51,8 +52,8 @@ export const RadioSelectBlock: ObjectBlockType = {
     id,
     blockType,
     attributes: {
-      label: "Select an option",
-      options: ["Option 1", "Option 2"],
+      label: "Selecione uma opção",
+      options: ["Opção 1", "Opção 2"],
       required: false,
     },
   }),
@@ -120,11 +121,13 @@ function RadioSelectFormComponent({
   handleBlur,
   isError: isSubmitError,
   errorMessage,
+  settings,
 }: {
   blockInstance: FormBlockInstance;
   handleBlur?: HandleBlurFunc;
   isError?: boolean;
   errorMessage?: string;
+  settings?: FormSettings | null;
 }) {
   const block = blockInstance as NewInstance;
   const { label, options, required } = block.attributes;
@@ -176,6 +179,10 @@ function RadioSelectFormComponent({
                 className={`cursor-pointer ${
                   isError || isSubmitError ? "border-red-500" : ""
                 }`}
+                style={{
+                  borderColor: settings?.primaryColor || undefined,
+                  color: settings?.primaryColor || undefined,
+                }}
               />
               <Label htmlFor={uniqueId} className="font-normal! cursor-pointer">
                 {option}

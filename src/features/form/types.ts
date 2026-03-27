@@ -37,6 +37,7 @@ export type ObjectBlockType = {
     errorMessage?: string;
     handleBlur?: HandleBlurFunc;
     formErrors?: FormErrorsType;
+    settings?: FormSettings | null;
   }>;
 
   propertiesComponent: React.FC<{
