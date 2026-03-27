@@ -34,6 +34,15 @@ export const listActionByColumn = base
         columnId: true,
         createdBy: true,
         order: true,
+        isDone: true,
+        priority: true,
+        user: {
+          select: {
+            id: true,
+            image: true,
+            name: true,
+          },
+        },
         participants: {
           select: {
             user: {
@@ -43,6 +52,12 @@ export const listActionByColumn = base
                 image: true,
               },
             },
+          },
+        },
+        subActions: {
+          select: {
+            id: true,
+            isDone: true,
           },
         },
         createdAt: true,

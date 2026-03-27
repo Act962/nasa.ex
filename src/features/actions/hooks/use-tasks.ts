@@ -4,6 +4,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  useSuspenseQuery,
 } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useActionKanbanStore, EMPTY_ACTIONS } from "../lib/kanban-store";
@@ -111,6 +112,7 @@ export const useListActionByWorkspace = ({
 
   return {
     actions: data?.actions ?? [],
+    total: data?.total ?? 0,
     isLoading,
   };
 };
@@ -143,4 +145,19 @@ export const useReorderAction = () => {
       },
     }),
   );
+};
+
+export const useQueryAction = (actionId: string) => {
+  const { data, isLoading } = useQuery(
+    orpc.action.get.queryOptions({
+      input: {
+        actionId,
+      },
+    }),
+  );
+
+  return {
+    action: data?.action,
+    isLoading,
+  };
 };

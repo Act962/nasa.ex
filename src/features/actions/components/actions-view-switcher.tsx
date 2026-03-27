@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarIcon, Columns3Icon, ListIcon, PlusIcon } from "lucide-react";
 import { useQueryState } from "nuqs";
 
-import { Activity, useState } from "react";
+import { useState } from "react";
 import { CreateActionModal } from "./create-action-modal";
 import { DataKanban } from "./data-kanban";
 import { DataTable } from "./data-table";
@@ -26,7 +26,7 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
     <>
       <Tabs
         className="flex-1 w-full h-full"
-        defaultValue={view}
+        defaultValue={view || "list"}
         onValueChange={setView}
       >
         <div className="h-full flex flex-col ">
@@ -40,10 +40,6 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
                 <Columns3Icon className="size-4" />
                 Kanban
               </TabsTrigger>
-              <TabsTrigger value="calendar" className="h-8 w-full lg:w-auto">
-                <CalendarIcon className="size-4" />
-                Calendário
-              </TabsTrigger>
             </TabsList>
             <Button
               size="sm"
@@ -56,21 +52,17 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
           </div>
 
           <div className="flex-1 overflow-auto">
-            <Activity mode={view === "list" ? "visible" : "hidden"}>
-              <div className="h-full">
-                <DataTable workspaceId={workspaceId} />
-              </div>
-            </Activity>
+            <div className={cn("h-full", view !== "list" && "hidden")}>
+              <DataTable workspaceId={workspaceId} />
+            </div>
 
-            <Activity mode={view === "kanban" ? "visible" : "hidden"}>
-              <div className="h-full">
-                <DataKanban workspaceId={workspaceId} />
-              </div>
-            </Activity>
+            <div className={cn("h-full", view !== "kanban" && "hidden")}>
+              <DataKanban workspaceId={workspaceId} />
+            </div>
 
-            <Activity mode={view === "calendar" ? "visible" : "hidden"}>
+            <div className={cn("h-full", view !== "calendar" && "hidden")}>
               <div className="h-full">Calendário</div>
-            </Activity>
+            </div>
           </div>
         </div>
       </Tabs>

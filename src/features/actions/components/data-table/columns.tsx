@@ -57,7 +57,7 @@ export const columns: ColumnDef<Action>[] = [
       </Button>
     ),
     cell: ({ row }) => (
-      <div className="font-semibold"> {row.original.title} </div>
+      <div className="font-semibold line-clamp-1"> {row.original.title} </div>
     ),
   },
   {
@@ -152,7 +152,7 @@ export const columns: ColumnDef<Action>[] = [
     cell: ({ row }) => {
       const isDone = row.original.isDone;
       return (
-        <div className="flex items-center">
+        <div className="flex items-center w-full">
           <CheckCircle2Icon
             className={cn("size-4", isDone && "text-green-500")}
           />
@@ -168,7 +168,7 @@ export const columns: ColumnDef<Action>[] = [
       const participants = row.original.participants;
 
       return (
-        <div className="flex -space-x-2">
+        <div className="flex -space-x-2 w-full">
           {participants.slice(0, 6).map((participant) => (
             <Avatar className="size-6" key={participant.user.id}>
               <AvatarImage
@@ -214,7 +214,10 @@ export const columns: ColumnDef<Action>[] = [
     accessorKey: "createdAt",
     header: "Criado em",
     cell: ({ row }) => (
-      <div> {row.original.createdAt.toLocaleDateString()} </div>
+      <div className="w-full">
+        {" "}
+        {row.original.createdAt.toLocaleDateString()}{" "}
+      </div>
     ),
   },
 ];

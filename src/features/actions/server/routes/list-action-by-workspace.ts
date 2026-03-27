@@ -10,8 +10,8 @@ export const listActionByWorkspace = base
   .input(
     z.object({
       workspaceId: z.string(),
-      limit: z.number().optional().default(20),
       page: z.number().optional().default(1),
+      limit: z.number().optional().default(20),
     }),
   )
 
@@ -20,6 +20,8 @@ export const listActionByWorkspace = base
       workspaceId: input.workspaceId,
     };
 
+    console.log("Innput", input);
+
     const [actions, total] = await Promise.all([
       prisma.action.findMany({
         where,
@@ -27,7 +29,7 @@ export const listActionByWorkspace = base
           createdAt: "desc",
         },
         take: input.limit,
-        skip: (input.page - 1) * input.limit,
+        skip: Math.max(0, (input.page - 1) * input.limit),
         select: {
           id: true,
           title: true,

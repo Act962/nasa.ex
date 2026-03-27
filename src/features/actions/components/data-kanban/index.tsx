@@ -62,7 +62,9 @@ const KanbanBoard = ({ workspaceId }: Props) => {
   const mouseSensor = useSensor(MouseSensor, {
     activationConstraint: { distance: 10 },
   });
-  const pointerSensor = useSensor(PointerSensor);
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: { distance: 5 },
+  });
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: { delay: 250, tolerance: 5 },
   });
@@ -78,10 +80,15 @@ const KanbanBoard = ({ workspaceId }: Props) => {
   );
 
   useEffect(() => {
-    if (columnData?.columns && !isDragging) {
+    if (!columnData?.columns || isDragging) return;
+
+    const currentIds = columnList.map((c) => c.id).join(",");
+    const nextIds = columnData.columns.map((c) => c.id).join(",");
+
+    if (currentIds !== nextIds) {
       setColumnList(columnData.columns);
     }
-  }, [columnData, setColumnList, isDragging]);
+  }, [columnData?.columns, setColumnList, isDragging, columnList]);
 
   const columnIds = useMemo(() => columnList.map((c) => c.id), [columnList]);
 
@@ -208,16 +215,6 @@ const KanbanBoard = ({ workspaceId }: Props) => {
     },
     [moveColumn, moveActionToColumn, moveActionInColumn],
   );
-
-  if (isColumnsLoading) {
-    return (
-      <ol className="flex gap-x-3 overflow-x-auto p-4 h-full">
-        <StatusItemSkeleton />
-        <StatusItemSkeleton />
-        <StatusItemSkeleton />
-      </ol>
-    );
-  }
 
   return (
     <DndContext
