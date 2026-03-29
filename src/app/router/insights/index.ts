@@ -1,3 +1,4 @@
+import { getAppsInsights } from "./get-apps-insights";
 import { getLeadCountByTracking } from "./get-lead-count-by-tracking";
 import { getLeadsByAcquisitionChannel } from "./get-leads-by-acquisition-channel";
 import { getLeadsByAttendant } from "./get-leads-by-attendant";
@@ -12,6 +13,7 @@ import { deleteInsight } from "./delete-insight";
 import { listLeadsAtInsights } from "./list-leads-at-insight";
 
 export const insightsRouter = {
+  getAppsInsights,
   getTrackingDashboardReport,
   getLeadsByAcquisitionChannel,
   getLeadCountByTracking,
