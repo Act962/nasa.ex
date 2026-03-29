@@ -554,6 +554,103 @@ export const execute = base
       }
     }
 
+    // ── /pesquisar — Busca universal ──────────────────────────────────────────
+    if (cmd.includes("/pesquisar") || cmd.includes("pesquise") || cmd.includes("pesquisar") || cmd.includes("busque") || cmd.includes("buscar") || cmd.includes("encontre")) {
+      try {
+        // Extract the search term: text after /pesquisar or after action verb
+        const searchTermMatch =
+          command.match(/\/pesquisar\s+(.+)/i) ??
+          command.match(/(?:pesquise|busque|buscar|encontre|pesquisar)\s+(.+)/i);
+        const term = searchTermMatch?.[1]?.replace(/[#/]/g, "").trim() ?? "";
+        const termNorm = term.replace(/_/g, " ").trim();
+
+        if (!termNorm) {
+          return {
+            type: "query_result" as const,
+            title: "Pesquisa",
+            description: "Informe o que deseja pesquisar. Ex: /pesquisar Francisco ou /pesquisar Clientes 2026",
+            appName: "NASA",
+          };
+        }
+
+        const [leads, users, trackings, products] = await Promise.all([
+          // Leads (por nome, e-mail)
+          prisma.lead.findMany({
+            where: {
+              isActive: true,
+              tracking: { organizationId: orgId },
+              OR: [
+                { name: { contains: termNorm, mode: "insensitive" } },
+                { email: { contains: termNorm, mode: "insensitive" } },
+              ],
+            },
+            take: 5,
+            select: { id: true, name: true, email: true },
+          }),
+          // Usuários (membros da org)
+          prisma.member.findMany({
+            where: {
+              organizationId: orgId,
+              user: {
+                OR: [
+                  { name: { contains: termNorm, mode: "insensitive" } },
+                  { email: { contains: termNorm, mode: "insensitive" } },
+                ],
+              },
+            },
+            take: 5,
+            include: { user: { select: { id: true, name: true, email: true } } },
+          }),
+          // Trackings / Pipelines
+          prisma.tracking.findMany({
+            where: {
+              organizationId: orgId,
+              name: { contains: termNorm, mode: "insensitive" },
+            },
+            take: 5,
+            select: { id: true, name: true },
+          }),
+          // Produtos (Forge)
+          prisma.forgeProduct.findMany({
+            where: {
+              organizationId: orgId,
+              name: { contains: termNorm, mode: "insensitive" },
+            },
+            take: 5,
+            select: { id: true, name: true },
+          }),
+        ]);
+
+        const lines: string[] = [];
+        if (leads.length > 0) {
+          lines.push(`👤 Leads: ${leads.map((l) => `${l.name}${l.email ? ` (${l.email})` : ""}`).join(", ")}`);
+        }
+        if (users.length > 0) {
+          lines.push(`🧑‍💼 Usuários: ${users.map((m) => m.user.name ?? m.user.email).join(", ")}`);
+        }
+        if (trackings.length > 0) {
+          lines.push(`📊 Trackings: ${trackings.map((t) => t.name).join(", ")}`);
+        }
+        if (products.length > 0) {
+          lines.push(`📦 Produtos: ${products.map((p) => p.name).join(", ")}`);
+        }
+
+        const total = leads.length + users.length + trackings.length + products.length;
+
+        return {
+          type: "query_result" as const,
+          title: total > 0 ? `${total} resultado(s) para "${termNorm}"` : `Nenhum resultado para "${termNorm}"`,
+          description: total > 0 ? lines.join("\n") : "Tente outro termo. A busca cobre: leads, usuários, trackings e produtos.",
+          url: total > 0 ? "/tracking" : undefined,
+          appName: "NASA",
+          extraData: { leads, users: users.map((m) => m.user), trackings, products },
+        };
+      } catch (err) {
+        console.error("[nasa-command/execute pesquisar]", err);
+        throw errors.INTERNAL_SERVER_ERROR;
+      }
+    }
+
     // ── DEFAULT FALLBACK ──────────────────────────────────────────────────────
     return {
       type: "query_result" as const,

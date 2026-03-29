@@ -85,6 +85,19 @@ export const variableCategories: VariableCategory[] = [
     ],
   },
 
+  // ── Pesquisa Universal ────────────────────────────────────────────────────
+  {
+    emoji: "🔍",
+    label: "Pesquisa",
+    items: [
+      {
+        label: "/pesquisar",
+        value: "/pesquisar",
+        description: "Busca empresas, leads, trackings, e-mails, responsáveis, automações e usuários",
+      },
+    ],
+  },
+
   // ── Automações ────────────────────────────────────────────────────────────
   {
     emoji: "⚡",

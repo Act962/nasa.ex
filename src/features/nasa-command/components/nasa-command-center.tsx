@@ -108,43 +108,73 @@ const recentApps: RecentApp[] = [
 
 const exampleCategories: ExampleCategory[] = [
   {
+    emoji: "🔍",
+    label: "Pesquisa Universal",
+    examples: [
+      '/pesquisar /Francisco_Lima — busca em leads, usuários, e-mails e trackings.',
+      '/pesquisar /Empresa — encontra empresa, responsável e leads relacionados.',
+      '/pesquisar /Automacao — lista automações com esse nome.',
+      '/pesquisar /Clientes_2026 — busca o tracking ou pipeline pelo nome.',
+    ],
+  },
+  {
     emoji: "🔥",
     label: "Forge — Propostas e Contratos",
     examples: [
-      'Crie uma proposta no #forge do produto /PRODUTX para o cliente /Francisco_Lima responsável /Astro com validade /31.03.2026 e me manda /link_proposta_criada aqui.',
-      'Gere um contrato para o cliente /João_Silva referente ao produto /Plano_Pro com assinatura até /amanhã.',
-      'Liste todas as propostas abertas no #forge e me dê um resumo.',
-      'Converta a proposta do /Francisco_Lima em contrato e envie por e-mail.',
+      'Crie uma proposta no #forge do produto /PRODUTX para /Francisco_Lima responsável /Astro com validade /31.03.2026 e me manda /link_proposta_criada.',
+      'Gere um contrato para /João_Silva referente ao /Plano_Pro com assinatura até /amanhã.',
+      'Liste todas as propostas abertas no #forge.',
+      'Crie uma proposta no #forge para /Empresa com o produto /Consultoria e /Responsável /Weydson.',
     ],
   },
   {
     emoji: "📅",
-    label: "Agenda",
+    label: "Agenda — Agendamentos",
     examples: [
-      'Agende uma reunião no #agenda com /Francisco_Lima para /amanhã às 14h sobre o projeto /PRODUTX.',
+      'Agende uma reunião no #agenda com /Contato /Francisco_Lima para /amanhã às 14h sobre /PRODUTX.',
       'Marque um follow-up com /Maria_Costa para /semana_que_vem e me manda /link_agendamento_criado.',
       'Quais são os compromissos de /hoje no #agenda?',
-      'Cancele todas as reuniões do /Astro para /amanhã e reagende para /semana_que_vem.',
+      'Agende reunião no #agenda com /E-mail /Responsável /Astro para /DD.MM.AAAA às /hh:mm:ss.',
     ],
   },
   {
     emoji: "✨",
-    label: "NASA Post",
+    label: "NASA Post — Conteúdo",
     examples: [
-      'Crie um post para Instagram no #nasa-post sobre o lançamento do /PRODUTX com tom profissional.',
+      'Crie um post para #instagram no #nasa-post sobre o lançamento do /PRODUTX com tom profissional.',
       'Gere um carrossel de 5 slides no #nasa-post apresentando os benefícios do /Plano_Pro.',
-      'Escreva uma legenda para LinkedIn anunciando parceria com /Francisco_Lima.',
-      'Crie uma thread no Twitter sobre os resultados do mês e me manda /link_post_criado.',
+      'Escreva uma legenda para #linkedin anunciando parceria com /Empresa /Francisco_Lima.',
+      'Crie uma thread para #tiktok sobre resultados do mês e me manda /link_post_criado.',
     ],
   },
   {
     emoji: "📊",
-    label: "Tracking",
+    label: "Tracking — Leads e Pipeline",
     examples: [
-      'Mova o lead /Francisco_Lima para a etapa "Proposta Enviada" no #tracking.',
-      'Crie um novo tracking chamado "Clientes 2026" no #tracking com as etapas: Prospecção, Contato, Proposta, Fechado.',
-      'Quantos leads estão na etapa "Negociação" no #tracking?',
-      'Adicione uma nota no lead /Maria_Costa dizendo que ela aprovou o orçamento.',
+      '/novo_lead /Francisco_Lima no #tracking com /tag VIP /Temperatura Quente /Responsável /Astro.',
+      '/mover_lead /Maria_Costa para /status_tracking "Proposta Enviada" no #tracking.',
+      'Crie um /Add_tracking chamado "Clientes /YYYY" com etapas: Prospecção, Contato, Proposta, /Ganho, /Perdido.',
+      'Quantos /lead ativos tenho no #tracking com /status_tracking "Negociação"?',
+    ],
+  },
+  {
+    emoji: "⚡",
+    label: "Automações",
+    examples: [
+      'Crie /Add_automacao: quando /novo_lead chegar, /Enviar_mensagem via #whatsapp e /Esperar /tempo_duracao 2h.',
+      'Dispare /gatilho_manual na /Automacao "Boas-vindas" para o /lead /Francisco_Lima.',
+      'Quando /IA_finalizou a análise, /Enviar_mensagem com resultado para /E-mail /Responsável.',
+      'Configure /Assistente_chatbot no #nasachat para responder leads com /tag "Qualificado".',
+    ],
+  },
+  {
+    emoji: "🔌",
+    label: "Integrações",
+    examples: [
+      'Envie mensagem via #whatsapp para /Contato /Francisco_Lima: "Sua proposta está pronta!"',
+      'Poste no #instagram via #nasa-post o conteúdo do /link_post_criado.',
+      'Dispare /Enviar_mensagem pelo #telegram para /Responsável /Astro quando /novo_lead entrar.',
+      'Sincronize /lead /Maria_Costa com #hubspot e atualize /status_tracking para "Integrado".',
     ],
   },
   {
@@ -152,19 +182,22 @@ const exampleCategories: ExampleCategory[] = [
     label: "Consultas Rápidas",
     examples: [
       'Quais são minhas reuniões de /hoje?',
-      'Quantos leads tenho no #tracking no total?',
+      'Quantos /lead tenho no #tracking no total?',
       'Qual é meu saldo de estrelas atual?',
-      'Mostre o resumo de atividades da semana para o /Weydson.',
+      '/pesquisar /Weydson — mostra todos os registros do /Responsável Weydson.',
     ],
   },
 ];
 
 const rotatingExamples = [
+  '/pesquisar /Francisco_Lima — busca em leads, usuários e trackings',
   'Crie uma proposta no #forge para /Francisco_Lima e me manda /link_proposta_criada',
-  'Agende reunião no #agenda com /João_Silva para /amanhã às 14h',
-  'Gere um post para Instagram no #nasa-post sobre o /PRODUTX',
-  'Mova /Maria_Costa para "Proposta Enviada" no #tracking',
-  'Gere um contrato para /Francisco_Lima do produto /Plano_Pro',
+  'Agende reunião no #agenda com /Contato para /amanhã às 14h',
+  'Gere um post no #nasa-post sobre /PRODUTX para #instagram',
+  '/novo_lead /Maria_Costa no #tracking com /tag VIP /Temperatura Quente',
+  '/mover_lead /João_Silva para /status_tracking "Proposta Enviada"',
+  'Crie /Add_automacao: quando /novo_lead chegar /Enviar_mensagem via #whatsapp',
+  'Dispare /gatilho_manual na /Automacao "Boas-vindas" para /lead /Francisco_Lima',
 ];
 
 // ─── Highlight Helper ─────────────────────────────────────────────────────────
