@@ -107,76 +107,112 @@ const recentApps: RecentApp[] = [
 ];
 
 const exampleCategories: ExampleCategory[] = [
+  // ── Criar Tracking ─────────────────────────────────────────────────────────
+  {
+    emoji: "📊",
+    label: "Criar Tracking (Pipeline)",
+    examples: [
+      'Crie um tracking chamado "Atendimento X" no #tracking',
+      'Crie um novo tracking chamado "Clientes 2026" no #tracking',
+      'Crie um tracking chamado "Suporte Técnico" no #tracking',
+      '/Add_tracking "Vendas Enterprise" no #tracking',
+      'Crie um tracking chamado "Parcerias /YYYY" no #tracking',
+    ],
+  },
+  // ── Criar Agenda & Agendamentos ────────────────────────────────────────────
+  {
+    emoji: "📅",
+    label: "Criar Agenda & Agendamentos",
+    examples: [
+      'Agende uma reunião no #agenda com /Francisco_Lima para /amanhã às 14h',
+      'Agende uma reunião no #agenda com /Maria_Costa para /hoje às 10h sobre /PRODUTX',
+      'Marque um follow-up com /João_Silva para /semana_que_vem às 09h e me manda /link_agendamento_criado',
+      'Agende reunião no #agenda com /Contato /Astro para /DD.MM.AAAA às /hh:mm:ss',
+      'Quais são os compromissos de /hoje no #agenda?',
+    ],
+  },
+  // ── Criar & Gerenciar Leads ────────────────────────────────────────────────
+  {
+    emoji: "🎯",
+    label: "Criar & Gerenciar Leads",
+    examples: [
+      'Crie um novo lead chamado "João Pereira" no #tracking',
+      '/novo_lead /Francisco_Lima no #tracking com /tag VIP /Temperatura Quente /Responsável /Astro',
+      '/novo_lead "Empresa ABC" no #tracking com /E-mail contato@abc.com /Responsável /Weydson',
+      '/mover_lead /Maria_Costa para /status_tracking "Proposta Enviada" no #tracking',
+      '/mover_lead /João_Silva para /Ganho no #tracking',
+      'Quantos /lead ativos tenho no #tracking no total?',
+    ],
+  },
+  // ── Empresa & Contatos ─────────────────────────────────────────────────────
+  {
+    emoji: "🏢",
+    label: "Empresa & Contatos",
+    examples: [
+      '/pesquisar /Empresa — busca todos os registros da empresa',
+      '/novo_lead /Empresa "Tech Solutions" /Contato "Ana Lima" /E-mail ana@tech.com no #tracking',
+      '/novo_lead /Empresa "Studio Digital" /Responsável /Astro /tag Agência no #tracking',
+      '/pesquisar "Studio Digital" — busca empresa, leads e responsáveis',
+      'Liste os leads da /Empresa "Tech Solutions" no #tracking',
+    ],
+  },
+  // ── Pesquisa Universal ─────────────────────────────────────────────────────
   {
     emoji: "🔍",
     label: "Pesquisa Universal",
     examples: [
-      '/pesquisar /Francisco_Lima — busca em leads, usuários, e-mails e trackings.',
-      '/pesquisar /Empresa — encontra empresa, responsável e leads relacionados.',
-      '/pesquisar /Automacao — lista automações com esse nome.',
-      '/pesquisar /Clientes_2026 — busca o tracking ou pipeline pelo nome.',
+      '/pesquisar /Francisco_Lima — busca em leads, usuários, e-mails e trackings',
+      '/pesquisar "Atendimento X" — encontra o tracking pelo nome',
+      '/pesquisar /Weydson — todos os registros do /Responsável',
+      '/pesquisar contato@empresa.com — busca lead pelo /E-mail',
+      '/pesquisar "Clientes 2026" — busca tracking, leads e produtos',
     ],
   },
+  // ── Forge ──────────────────────────────────────────────────────────────────
   {
     emoji: "🔥",
     label: "Forge — Propostas e Contratos",
     examples: [
-      'Crie uma proposta no #forge do produto /PRODUTX para /Francisco_Lima responsável /Astro com validade /31.03.2026 e me manda /link_proposta_criada.',
-      'Gere um contrato para /João_Silva referente ao /Plano_Pro com assinatura até /amanhã.',
-      'Liste todas as propostas abertas no #forge.',
-      'Crie uma proposta no #forge para /Empresa com o produto /Consultoria e /Responsável /Weydson.',
+      'Crie uma proposta no #forge para /Francisco_Lima do produto /PRODUTX com validade /amanhã e me manda /link_proposta_criada',
+      'Gere um contrato para /João_Silva referente ao /Plano_Pro com assinatura até /semana_que_vem',
+      'Crie uma proposta no #forge para /Empresa "Tech Solutions" produto /Consultoria /Responsável /Weydson',
+      'Liste todas as propostas abertas no #forge',
     ],
   },
-  {
-    emoji: "📅",
-    label: "Agenda — Agendamentos",
-    examples: [
-      'Agende uma reunião no #agenda com /Contato /Francisco_Lima para /amanhã às 14h sobre /PRODUTX.',
-      'Marque um follow-up com /Maria_Costa para /semana_que_vem e me manda /link_agendamento_criado.',
-      'Quais são os compromissos de /hoje no #agenda?',
-      'Agende reunião no #agenda com /E-mail /Responsável /Astro para /DD.MM.AAAA às /hh:mm:ss.',
-    ],
-  },
+  // ── NASA Post ──────────────────────────────────────────────────────────────
   {
     emoji: "✨",
     label: "NASA Post — Conteúdo",
     examples: [
-      'Crie um post para #instagram no #nasa-post sobre o lançamento do /PRODUTX com tom profissional.',
-      'Gere um carrossel de 5 slides no #nasa-post apresentando os benefícios do /Plano_Pro.',
-      'Escreva uma legenda para #linkedin anunciando parceria com /Empresa /Francisco_Lima.',
-      'Crie uma thread para #tiktok sobre resultados do mês e me manda /link_post_criado.',
+      'Crie um post para #instagram no #nasa-post sobre o lançamento do /PRODUTX',
+      'Gere um carrossel de 5 slides no #nasa-post com os benefícios do /Plano_Pro',
+      'Escreva uma legenda para #linkedin anunciando parceria com /Francisco_Lima e me manda /link_post_criado',
+      'Crie um post para #tiktok sobre os resultados do mês no #nasa-post',
     ],
   },
-  {
-    emoji: "📊",
-    label: "Tracking — Leads e Pipeline",
-    examples: [
-      '/novo_lead /Francisco_Lima no #tracking com /tag VIP /Temperatura Quente /Responsável /Astro.',
-      '/mover_lead /Maria_Costa para /status_tracking "Proposta Enviada" no #tracking.',
-      'Crie um /Add_tracking chamado "Clientes /YYYY" com etapas: Prospecção, Contato, Proposta, /Ganho, /Perdido.',
-      'Quantos /lead ativos tenho no #tracking com /status_tracking "Negociação"?',
-    ],
-  },
+  // ── Automações ─────────────────────────────────────────────────────────────
   {
     emoji: "⚡",
-    label: "Automações",
+    label: "Automações & Gatilhos",
     examples: [
-      'Crie /Add_automacao: quando /novo_lead chegar, /Enviar_mensagem via #whatsapp e /Esperar /tempo_duracao 2h.',
-      'Dispare /gatilho_manual na /Automacao "Boas-vindas" para o /lead /Francisco_Lima.',
-      'Quando /IA_finalizou a análise, /Enviar_mensagem com resultado para /E-mail /Responsável.',
-      'Configure /Assistente_chatbot no #nasachat para responder leads com /tag "Qualificado".',
+      'Crie /Add_automacao: quando /novo_lead chegar, /Enviar_mensagem via #whatsapp e /Esperar /tempo_duracao 2h',
+      'Dispare /gatilho_manual na /Automacao "Boas-vindas" para o /lead /Francisco_Lima',
+      'Quando /IA_finalizou a análise, /Enviar_mensagem com resultado para /E-mail /Responsável',
+      'Configure /Assistente_chatbot no #nasachat para responder leads com /tag "Qualificado"',
     ],
   },
+  // ── Integrações ────────────────────────────────────────────────────────────
   {
     emoji: "🔌",
     label: "Integrações",
     examples: [
       'Envie mensagem via #whatsapp para /Contato /Francisco_Lima: "Sua proposta está pronta!"',
-      'Poste no #instagram via #nasa-post o conteúdo do /link_post_criado.',
-      'Dispare /Enviar_mensagem pelo #telegram para /Responsável /Astro quando /novo_lead entrar.',
-      'Sincronize /lead /Maria_Costa com #hubspot e atualize /status_tracking para "Integrado".',
+      'Poste no #instagram via #nasa-post o conteúdo do /link_post_criado',
+      'Dispare /Enviar_mensagem pelo #telegram para /Responsável /Astro quando /novo_lead entrar',
+      'Sincronize /lead /Maria_Costa com #hubspot e atualize /status_tracking para "Integrado"',
     ],
   },
+  // ── Consultas Rápidas ──────────────────────────────────────────────────────
   {
     emoji: "💡",
     label: "Consultas Rápidas",
@@ -184,20 +220,23 @@ const exampleCategories: ExampleCategory[] = [
       'Quais são minhas reuniões de /hoje?',
       'Quantos /lead tenho no #tracking no total?',
       'Qual é meu saldo de estrelas atual?',
-      '/pesquisar /Weydson — mostra todos os registros do /Responsável Weydson.',
+      'Liste as propostas abertas no #forge',
+      '/pesquisar /Astro — todos os registros do usuário Astro',
     ],
   },
 ];
 
 const rotatingExamples = [
+  'Crie um tracking chamado "Atendimento X" no #tracking',
   '/pesquisar /Francisco_Lima — busca em leads, usuários e trackings',
+  'Agende reunião no #agenda com /Francisco_Lima para /amanhã às 14h',
+  '/novo_lead "João Pereira" no #tracking com /tag VIP /Responsável /Astro',
   'Crie uma proposta no #forge para /Francisco_Lima e me manda /link_proposta_criada',
-  'Agende reunião no #agenda com /Contato para /amanhã às 14h',
+  '/mover_lead /Maria_Costa para /status_tracking "Proposta Enviada" no #tracking',
   'Gere um post no #nasa-post sobre /PRODUTX para #instagram',
-  '/novo_lead /Maria_Costa no #tracking com /tag VIP /Temperatura Quente',
-  '/mover_lead /João_Silva para /status_tracking "Proposta Enviada"',
   'Crie /Add_automacao: quando /novo_lead chegar /Enviar_mensagem via #whatsapp',
-  'Dispare /gatilho_manual na /Automacao "Boas-vindas" para /lead /Francisco_Lima',
+  '/novo_lead /Empresa "Tech Solutions" /Responsável /Weydson /tag Agência no #tracking',
+  '/pesquisar "Atendimento X" — encontra o tracking pelo nome',
 ];
 
 // ─── Highlight Helper ─────────────────────────────────────────────────────────
