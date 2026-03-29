@@ -32,23 +32,17 @@ import { useMutation } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
 import { StarsWidget } from "@/features/stars";
+import {
+  variableCategories,
+  allApps,
+  nasaApps,
+  integrationApps,
+} from "../data/variables";
+import type { VariableCategory, AppItem } from "../data/variables";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type DropdownType = "variable" | "app" | "plus" | null;
-
-interface VariableCategory {
-  emoji: string;
-  label: string;
-  items: { label: string; value: string }[];
-}
-
-interface AppItem {
-  id: string;
-  label: string;
-  color: string;
-  url: string;
-}
 
 interface RecentApp {
   id: string;
@@ -72,85 +66,7 @@ interface ResultData {
 }
 
 // ─── Data ────────────────────────────────────────────────────────────────────
-
-const variableCategories: VariableCategory[] = [
-  {
-    emoji: "📅",
-    label: "Datas",
-    items: [
-      { label: "/hoje", value: "/hoje" },
-      { label: "/amanhã", value: "/amanhã" },
-      { label: "/semana_que_vem", value: "/semana_que_vem" },
-      { label: "/DD.MM.AAAA", value: "/DD.MM.AAAA" },
-    ],
-  },
-  {
-    emoji: "👤",
-    label: "Contatos",
-    items: [
-      { label: "/Francisco_Lima", value: "/Francisco_Lima" },
-      { label: "/João_Silva", value: "/João_Silva" },
-      { label: "/Maria_Costa", value: "/Maria_Costa" },
-    ],
-  },
-  {
-    emoji: "📦",
-    label: "Produtos",
-    items: [
-      { label: "/PRODUTX", value: "/PRODUTX" },
-      { label: "/Plano_Pro", value: "/Plano_Pro" },
-      { label: "/Consultoria", value: "/Consultoria" },
-    ],
-  },
-  {
-    emoji: "👥",
-    label: "Equipe",
-    items: [
-      { label: "/Astro", value: "/Astro" },
-      { label: "/Weydson", value: "/Weydson" },
-    ],
-  },
-  {
-    emoji: "🔗",
-    label: "Links",
-    items: [
-      { label: "/link_proposta_criada", value: "/link_proposta_criada" },
-      { label: "/link_contrato_criado", value: "/link_contrato_criado" },
-      { label: "/link_agendamento_criado", value: "/link_agendamento_criado" },
-      { label: "/link_post_criado", value: "/link_post_criado" },
-    ],
-  },
-];
-
-const appItems: AppItem[] = [
-  { id: "forge", label: "#forge", color: "text-orange-400", url: "/forge" },
-  { id: "agenda", label: "#agenda", color: "text-blue-400", url: "/agendas" },
-  {
-    id: "nasa-post",
-    label: "#nasa-post",
-    color: "text-pink-400",
-    url: "/nasa-post",
-  },
-  {
-    id: "tracking",
-    label: "#tracking",
-    color: "text-green-400",
-    url: "/tracking",
-  },
-  { id: "nbox", label: "#nbox", color: "text-purple-400", url: "/nbox" },
-  {
-    id: "contatos",
-    label: "#contatos",
-    color: "text-yellow-400",
-    url: "/contatos",
-  },
-  {
-    id: "integrations",
-    label: "#integrations",
-    color: "text-cyan-400",
-    url: "/integrations",
-  },
-];
+// variableCategories, nasaApps, integrationApps, allApps são importados de ../data/variables
 
 const recentApps: RecentApp[] = [
   {
@@ -375,9 +291,12 @@ function VariableDropdown({ search, onSelect }: VariableDropdownProps) {
               <button
                 key={item.value}
                 onClick={() => onSelect(item.value)}
-                className="w-full text-left px-4 py-2 text-sm text-purple-300 hover:bg-zinc-800 transition-colors font-mono"
+                className="w-full text-left px-4 py-2 hover:bg-zinc-800 transition-colors"
               >
-                {item.label}
+                <span className="block text-sm text-purple-300 font-mono">{item.label}</span>
+                {item.description && (
+                  <span className="block text-[10px] text-zinc-600 mt-0.5">{item.description}</span>
+                )}
               </button>
             ))}
           </div>
@@ -401,22 +320,25 @@ interface AppDropdownProps {
 
 function AppDropdown({ search, onSelect }: AppDropdownProps) {
   const lower = search.toLowerCase();
-  const filtered = appItems.filter(
-    (a) =>
-      lower === "" ||
-      a.label.toLowerCase().includes(lower) ||
-      a.id.toLowerCase().includes(lower)
-  );
+  const match = (a: AppItem) =>
+    lower === "" ||
+    a.label.toLowerCase().includes(lower) ||
+    a.id.toLowerCase().includes(lower);
 
-  return (
-    <div className="absolute bottom-full left-0 mb-2 w-56 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl overflow-hidden z-50">
-      <div className="px-3 py-2 border-b border-zinc-800">
-        <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-          Apps
-        </p>
-      </div>
-      <div className="max-h-56 overflow-y-auto py-1">
-        {filtered.map((app) => (
+  const filteredNasa = nasaApps.filter(match);
+  const filteredIntegration = integrationApps.filter(match);
+  const totalFiltered = filteredNasa.length + filteredIntegration.length;
+
+  const renderGroup = (items: AppItem[], groupLabel: string) => {
+    if (items.length === 0) return null;
+    return (
+      <div key={groupLabel}>
+        <div className="px-3 py-1.5 flex items-center gap-1.5">
+          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+            {groupLabel}
+          </span>
+        </div>
+        {items.map((app) => (
           <button
             key={app.id}
             onClick={() => onSelect(app.label)}
@@ -425,7 +347,24 @@ function AppDropdown({ search, onSelect }: AppDropdownProps) {
             <span className={app.color}>{app.label}</span>
           </button>
         ))}
-        {filtered.length === 0 && (
+      </div>
+    );
+  };
+
+  return (
+    <div className="absolute bottom-full left-0 mb-2 w-64 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl overflow-hidden z-50">
+      <div className="px-3 py-2 border-b border-zinc-800">
+        <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+          #Apps NASA &amp; Integrações
+        </p>
+      </div>
+      <div className="max-h-72 overflow-y-auto py-1">
+        {renderGroup(filteredNasa, "🚀 NASA Apps")}
+        {filteredNasa.length > 0 && filteredIntegration.length > 0 && (
+          <div className="border-t border-zinc-800 my-1" />
+        )}
+        {renderGroup(filteredIntegration, "🔌 Integrações")}
+        {totalFiltered === 0 && (
           <p className="px-4 py-3 text-sm text-zinc-600">App não encontrado.</p>
         )}
       </div>
