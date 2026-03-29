@@ -106,7 +106,7 @@ function ShareSignersPopover({ signers, contractTitle }: { signers: SignerRow[];
             const mailBody = encodeURIComponent(`Olá ${s.name},\n\nSegue o link para assinatura:\n\n${url}\n\nAtenciosamente.`);
 
             return (
-              <div key={s.token ?? s.id ?? idx} className="rounded-lg border border-border/60 p-3 space-y-2">
+              <div key={s.token ?? idx} className="rounded-lg border border-border/60 p-3 space-y-2">
                 <div className="flex items-center gap-2">
                   {s.signed_at
                     ? <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />

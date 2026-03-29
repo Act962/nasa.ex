@@ -81,7 +81,6 @@ export async function POST(req: NextRequest) {
             "line_items[0][price_data][product_data][name]": description ?? `Proposta #${proposal.number}`,
             "line_items[0][price_data][unit_amount]": String(Math.round(amount * 100)),
             "line_items[0][quantity]": "1",
-            "line_items[0][price_data][currency]": "brl",
           }),
         });
         const stripeData = await priceRes.json();

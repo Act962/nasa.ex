@@ -11,7 +11,7 @@ export const upsertPlatformIntegration = base
   .input(
     z.object({
       platform: z.nativeEnum(IntegrationPlatform),
-      config: z.record(z.string()),
+      config: z.record(z.string(), z.string()),
       isActive: z.boolean().default(true),
     }),
   )
@@ -26,11 +26,11 @@ export const upsertPlatformIntegration = base
       create: {
         organizationId: context.org.id,
         platform: input.platform,
-        config: input.config,
+        config: input.config as Record<string, string>,
         isActive: input.isActive,
       },
       update: {
-        config: input.config,
+        config: input.config as Record<string, string>,
         isActive: input.isActive,
       },
     });

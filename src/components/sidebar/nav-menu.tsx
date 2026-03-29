@@ -4,6 +4,7 @@ import {
   Calendar,
   ChartColumnDecreasingIcon,
   ClipboardType,
+  Home as HomeIcon,
   Kanban,
   LayoutGrid,
   MessageSquareTextIcon,
@@ -23,6 +24,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const items = [
+  { title: "Início",       url: "/home",           icon: HomeIcon },
   { title: "Trackings",    url: "/tracking",      icon: Kanban },
   { title: "Formulários",  url: "/form",           icon: ClipboardType },
   { title: "Chats",        url: "/tracking-chat",  icon: MessageSquareTextIcon },
@@ -42,7 +44,8 @@ export function NavMenu() {
       <SidebarMenu>
         {items.map((item, index) => {
           const isActive =
-            pathname === item.url || pathname.startsWith(item.url + "/");
+            pathname === item.url ||
+            (item.url !== "/home" && pathname.startsWith(item.url + "/"));
 
           return (
             <SidebarMenuItem key={`${item.title}-${index}`}>
