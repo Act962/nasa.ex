@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -18,8 +20,13 @@ import {
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Shield, Users, Clock, Star, Trash2, ChevronDown, ChevronUp,
   Eye, PenLine, Plus, UserX, Lock, CheckCircle2, AlertCircle,
+  UserPlus, Copy, Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -163,6 +170,14 @@ export function PermissionsTab() {
   const [showMatrix, setShowMatrix] = useState(true);
   const [showLogs, setShowLogs] = useState(false);
 
+  // Add member dialog state
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addEmail, setAddEmail] = useState("");
+  const [addName, setAddName] = useState("");
+  const [addRole, setAddRole] = useState<"owner" | "admin" | "member" | "moderador">("member");
+  const [createdPassword, setCreatedPassword] = useState<string | null>(null);
+  const [copiedPassword, setCopiedPassword] = useState(false);
+
   const { data, isLoading } = useQuery({
     ...orpc.permissions.getPermissions.queryOptions(),
   });
@@ -186,6 +201,51 @@ export function PermissionsTab() {
     onSuccess: () => { qc.invalidateQueries(); toast.success("Membro removido"); },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao remover membro"),
   });
+
+  const { mutate: addMember, isPending: isAddingMember } = useMutation({
+    mutationFn: (v: { email: string; name: string; role: "owner" | "admin" | "member" | "moderador" }) =>
+      orpc.permissions.createMember.call(v),
+    onSuccess: (data) => {
+      qc.invalidateQueries();
+      if (data.isNewUser && data.tempPassword) {
+        setCreatedPassword(data.tempPassword);
+      } else {
+        toast.success("Usuário adicionado à organização!");
+        resetAddForm();
+        setAddDialogOpen(false);
+      }
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao adicionar usuário"),
+  });
+
+  function resetAddForm() {
+    setAddEmail("");
+    setAddName("");
+    setAddRole("member");
+    setCreatedPassword(null);
+    setCopiedPassword(false);
+  }
+
+  function handleAddSubmit() {
+    if (!addEmail || !addName) {
+      toast.error("Preencha e-mail e nome");
+      return;
+    }
+    addMember({ email: addEmail, name: addName, role: addRole });
+  }
+
+  function handleCopyPassword() {
+    if (createdPassword) {
+      navigator.clipboard.writeText(createdPassword);
+      setCopiedPassword(true);
+      setTimeout(() => setCopiedPassword(false), 2000);
+    }
+  }
+
+  function handleCloseAfterCreate() {
+    resetAddForm();
+    setAddDialogOpen(false);
+  }
 
   if (isLoading) {
     return (
@@ -247,9 +307,21 @@ export function PermissionsTab() {
           <h3 className="text-base font-semibold flex items-center gap-2">
             <Users className="size-4" /> Participantes ({data?.members.length ?? 0})
           </h3>
-          <span className="text-xs text-muted-foreground">
-            ⭐ {(data?.starsBalance ?? 0).toLocaleString("pt-BR")} stars na conta
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">
+              ⭐ {(data?.starsBalance ?? 0).toLocaleString("pt-BR")} stars na conta
+            </span>
+            {canManage && (
+              <Button
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => { resetAddForm(); setAddDialogOpen(true); }}
+              >
+                <UserPlus className="size-3.5" />
+                Adicionar Usuário
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="rounded-xl border overflow-hidden">
@@ -433,6 +505,130 @@ export function PermissionsTab() {
           </div>
         </div>
       )}
+
+      {/* ── Add User Dialog ───────────────────────────────────────────────── */}
+      <Dialog open={addDialogOpen} onOpenChange={(open) => { if (!open) handleCloseAfterCreate(); }}>
+        <DialogContent className="sm:max-w-[440px]">
+          {!createdPassword ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <UserPlus className="size-5" /> Adicionar Usuário
+                </DialogTitle>
+                <DialogDescription>
+                  Um novo usuário será criado e adicionado à sua organização.
+                  Uma senha temporária será gerada automaticamente.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="add-name">Nome completo</Label>
+                  <Input
+                    id="add-name"
+                    placeholder="Ex: João Silva"
+                    value={addName}
+                    onChange={(e) => setAddName(e.target.value)}
+                    disabled={isAddingMember}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="add-email">E-mail</Label>
+                  <Input
+                    id="add-email"
+                    type="email"
+                    placeholder="usuario@exemplo.com"
+                    value={addEmail}
+                    onChange={(e) => setAddEmail(e.target.value)}
+                    disabled={isAddingMember}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="add-role">Cargo</Label>
+                  <Select
+                    value={addRole}
+                    onValueChange={(v) => setAddRole(v as any)}
+                    disabled={isAddingMember}
+                  >
+                    <SelectTrigger id="add-role">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isMaster && <SelectItem value="owner">Master</SelectItem>}
+                      <SelectItem value="admin">Adm</SelectItem>
+                      <SelectItem value="member">Single</SelectItem>
+                      <SelectItem value="moderador">Moderador</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={handleCloseAfterCreate} disabled={isAddingMember}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleAddSubmit} disabled={isAddingMember || !addEmail || !addName}>
+                  {isAddingMember ? "Adicionando..." : "Adicionar"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="size-5" /> Usuário criado com sucesso!
+                </DialogTitle>
+                <DialogDescription>
+                  O usuário <strong>{addEmail}</strong> foi adicionado à organização.
+                  Compartilhe a senha temporária abaixo com segurança.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2">
+                <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">E-mail</span>
+                    <span className="text-sm font-medium">{addEmail}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Senha temporária</span>
+                    <div className="flex items-center gap-2">
+                      <code className="text-sm font-bold tracking-widest bg-background px-2 py-0.5 rounded border select-all">
+                        {createdPassword}
+                      </code>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7"
+                        onClick={handleCopyPassword}
+                      >
+                        {copiedPassword ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+                  <Lock className="size-3.5 mt-0.5 shrink-0" />
+                  O usuário deverá alterar a senha após o primeiro acesso por razões de segurança.
+                </p>
+
+                <p className="text-xs text-muted-foreground">
+                  Um e-mail com as credenciais foi enviado para <strong>{addEmail}</strong>.
+                </p>
+              </div>
+
+              <DialogFooter>
+                <Button onClick={handleCloseAfterCreate} className="w-full">
+                  Concluir
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
