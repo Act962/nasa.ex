@@ -14,18 +14,19 @@ interface HeaderTrackingProps {
 
 export function HeaderTracking({ title }: HeaderTrackingProps) {
   return (
-    <header className={[
-      // layout
-      "flex h-14 shrink-0 items-center gap-2",
-      // sticky
-      "sticky top-0 z-40",
-      // visual
-      "bg-background/90 backdrop-blur-md",
-      "border-b border-border/50",
-      // sidebar collapse transition
-      "transition-[width,height] ease-linear",
-      "group-has-data-[collapsible=icon]/sidebar-wrapper:h-12",
-    ].join(" ")}
+    <header
+      className={[
+        // layout
+        " sticky top-0 z-50 flex h-14 shrink-0 items-center gap-2",
+        // sticky
+        "sticky top-0 z-40",
+        // visual
+        "bg-background/90 backdrop-blur-md",
+        "border-b border-border/50",
+        // sidebar collapse transition
+        "transition-[width,height] ease-linear",
+        "group-has-data-[collapsible=icon]/sidebar-wrapper:h-12",
+      ].join(" ")}
     >
       {/* ── Left: sidebar trigger + page title ── */}
       <div className="flex items-center gap-2 px-4 flex-1 min-w-0">

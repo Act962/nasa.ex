@@ -197,8 +197,18 @@ export const useDeleteStatus = () => {
 };
 
 export const useUpdateLeadOrder = () => {
+  const queryClient = useQueryClient();
   return useMutation(
     orpc.leads.updateNewOrder.mutationOptions({
+      onSuccess: (data) => {
+        queryClient.invalidateQueries(
+          orpc.status.getMany.queryOptions({
+            input: {
+              trackingId: data.trackingId,
+            },
+          }),
+        );
+      },
       onError: () => {
         toast.error("Erro ao atualizar lead");
       },

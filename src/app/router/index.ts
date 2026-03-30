@@ -13,6 +13,10 @@ import { insightsRouter } from "./insights";
 import { agendaRouter } from "./agenda";
 import { rodizioRouter } from "./rodizio";
 import { widgetsRouter } from "./widgets";
+import { workspaceRoutes } from "@/features/workspace/server/routes";
+import { actionRoutes } from "@/features/actions/server/routes";
+
+import { columnRoutes } from "./column";
 import { platformIntegrationsRouter } from "./integrations-platform";
 import { channelInsightsRouter } from "./channel-insights";
 import { forgeRouter } from "./forge";
@@ -24,6 +28,7 @@ import { nasaCommandRouter } from "./nasa-command";
 export const router = {
   tracking: trackingRoutes,
   status: statusRoutes,
+  column: columnRoutes,
   leads: leadRoutes,
   tags: tagsRouter,
   reasons: reasonsRouter,
@@ -37,6 +42,8 @@ export const router = {
   agenda: agendaRouter,
   rodizio: rodizioRouter,
   widgets: widgetsRouter,
+  workspace: workspaceRoutes,
+  action: actionRoutes,
   platformIntegrations: platformIntegrationsRouter,
   channelInsights: channelInsightsRouter,
   forge: forgeRouter,

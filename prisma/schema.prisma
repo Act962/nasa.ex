@@ -44,6 +44,8 @@ model User {
   nboxFoldersCreated NBoxFolder[] @relation("NBoxFolderCreatedBy")
   nboxItemsCreated   NBoxItem[]   @relation("NBoxItemCreatedBy")
   nasaPostsCreated   NasaPost[]   @relation("NasaPostCreatedBy")
+  workspacesCreated     Workspace[]
+  workspacesMembers     WorkspaceMember[]
 
   @@unique([email])
   @@map("user")
@@ -135,6 +137,7 @@ model Organization {
   nboxItems        NBoxItem[]
   nasaPostBrandConfig NasaPostBrandConfig?
   nasaPosts           NasaPost[]
+  workspaces  Workspace[]
 
   @@unique([slug])
   @@map("organization")
@@ -203,6 +206,7 @@ model Tracking {
   appointments   Appointment[]
   aiSettings     AiSettings?
   trackingConsultants TrackingConsultant[]
+  workspaces     Workspace[]
 
   @@map("tracking")
 }
@@ -460,9 +464,84 @@ model LeadFile {
 }
 
 // ─────────────────────────────────────────────
-// AÇÕES
+// WOKSPACE
 // ─────────────────────────────────────────────
 
+enum WorkspaceMemberRole {
+  OWNER
+  MEMBER
+  VIEWER
+}
+
+enum ActionPriority {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Workspace {
+  id        String  @id @default(cuid())
+  name      String
+  description String?
+  color          String?  @default("#1447e6")
+  icon           String?
+  coverImage     String?
+  isArchived     Boolean @default(false)  @map("is_archived")
+  order          Int      @default(0)
+  
+  organizationId String   @map("organization_id")
+  trackingId     String?  @map("tracking_id")   // opcional
+  createdBy      String   @map("created_by")
+
+  createdAt      DateTime @default(now())        @map("created_at")
+  updatedAt      DateTime @updatedAt             @map("updated_at")
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tracking       Tracking?     @relation(fields: [trackingId],     references: [id], onDelete: SetNull)
+  creator        User          @relation(fields: [createdBy],      references: [id], onDelete: Cascade)
+
+  columns        WorkspaceColumn[]
+  members        WorkspaceMember[]
+  actions        Action[]
+
+  @@index([organizationId])
+  @@index([trackingId])
+  @@index([createdBy])
+  @@index([isArchived])
+  @@map("workspaces")
+}
+
+model WorkspaceColumn {
+  id        String  @id @default(cuid())
+  name      String
+  color     String? @default("#1447e6")
+  order     Decimal @db.Decimal(20, 10) @default(0)
+  workspaceId String  @map("workspace_id")
+
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actions   Action[]
+
+  @@index([workspaceId, order])
+  @@map("workspace_columns")
+}
+
+model WorkspaceMember {
+  id        String            @id @default(cuid())
+  workspaceId String            @map("workspace_id")
+  userId    String            @map("user_id")
+  role      WorkspaceMemberRole @default(MEMBER)
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId],    references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("workspace_members")
+}
 
 model ActionsUserParticipant {
   id        String   @id @default(cuid())
@@ -503,12 +582,20 @@ model Action {
   score          Int        @default(0)
   isDone         Boolean    @default(false) @map("is_done")
   type           TypeAction @default(TASK)
+  priority       ActionPriority  @default(NONE)
+  order          Decimal @db.Decimal(20, 10) @default(0)
+  dueDate        DateTime?  @map("due_date")
+  startDate      DateTime?  @map("start_date")
+  endDate        DateTime?  @map("end_date")
+
+  workspaceId    String     @map("workspace_id")
+  columnId       String?    @map("column_id")
+
   trackingId     String?    @map("tracking_id")
   organizationId String?    @map("organization_id")
   createdBy      String     @map("created_by")
   leadId         String?    @map("lead_id")
-  startDate      DateTime?  @map("start_date")
-  endDate        DateTime?  @map("end_date")
+  
   closedAt       DateTime?  @map("closed_at")
   createdAt      DateTime   @default(now()) @map("created_at")
 
@@ -516,18 +603,21 @@ model Action {
   lead         Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
   tracking     Tracking?     @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  column       WorkspaceColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
 
   participants ActionsUserParticipant[]
   responsibles ActionsUserResponsible[]
   subActions   SubActions[]
 
+  @@index([workspaceId])
+  @@index([columnId])
   @@index([leadId])
   @@index([createdBy])
   @@index([isDone])
-  @@index([type])
-  @@index([startDate])
-  @@index([endDate])
-  @@index([closedAt])
+  @@index([priority])
+  @@index([dueDate])
+  @@index([order])
   @@map("actions")
 }
 

@@ -97,7 +97,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
   const moveLeadInColumn = useKanbanStore((s) => s.moveLeadInColumn);
   const moveLeadToColumn = useKanbanStore((s) => s.moveLeadToColumn);
   const setIsDragging = useKanbanStore((s) => s.setIsDragging);
-  const sortBy = useKanbanStore((s) => s.sortBy);
+
   const { onOpen } = useLostOrWin();
   const { onOpen: onOpenDeleteLead } = useDeletLead();
   const updateColumnOrder = useUpdateColumnOrder();
