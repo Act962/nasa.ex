@@ -6,8 +6,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import dayjs from "dayjs";
 import { CalendarIcon } from "lucide-react";
+import { useLocale } from "react-aria";
+
+// Locales
+import "dayjs/locale/pt-br";
 
 interface DatePickerProps {
   value: Date | undefined;
@@ -22,6 +26,8 @@ export function DatePicker({
   className,
   placeholder = "Selecione uma data",
 }: DatePickerProps) {
+  const { locale } = useLocale();
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -35,7 +41,13 @@ export function DatePicker({
           )}
         >
           <CalendarIcon className="size-4" />
-          {value ? format(value, "PPP") : <span>{placeholder}</span>}
+          {value ? (
+            <span className="capitalize">
+              {dayjs(value).locale(locale).format("MMMM DD, YYYY")}
+            </span>
+          ) : (
+            <span>{placeholder}</span>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0">

@@ -157,12 +157,14 @@ export function KanbanCard({ action }: Props) {
                 )}
               >
                 <CalendarIcon className="size-3 shrink-0" />
-                <span>{dueDateInfo.label}</span>
+                <span className="capitalize">{dueDateInfo.label}</span>
               </div>
             ) : (
               <div className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full">
                 <CalendarIcon className="size-3 shrink-0" />
-                <span>{formatDueDate(action.createdAt).label}</span>
+                <span className="capitalize">
+                  {formatDueDate(action.createdAt).label}
+                </span>
               </div>
             )}
 
@@ -187,15 +189,12 @@ export function KanbanCard({ action }: Props) {
           {action.participants.length > 0 && (
             <div className="flex -space-x-1.5 shrink-0">
               {action.participants.slice(0, 4).map((participant) => (
-                <Avatar
-                  className="size-5 border border-background ring-0"
-                  key={participant.user.id}
-                >
+                <Avatar className="size-5 ring-0" key={participant.user.id}>
                   <AvatarImage
                     src={participant.user.image || ""}
                     alt={participant.user.name}
                   />
-                  <AvatarFallback className="text-[9px] bg-primary/10 text-primary font-semibold">
+                  <AvatarFallback className="text-[9px] bg-background text-primary font-semibold">
                     {participant.user.name[0].toUpperCase()}
                   </AvatarFallback>
                 </Avatar>

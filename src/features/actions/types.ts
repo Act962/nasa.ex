@@ -31,6 +31,14 @@ export interface Action {
       email?: string;
     };
   }[];
+  responsibles: {
+    user: {
+      id: string;
+      name: string;
+      image: string | null;
+      email?: string;
+    };
+  }[];
   subActions: {
     id: string;
     title: string;

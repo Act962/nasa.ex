@@ -16,6 +16,8 @@ import { promoteSubAction } from "./promote-sub-action";
 
 import { getAnalytics } from "./get-analytics";
 import { listRecentActions } from "./list-recent";
+import { addParticipant } from "./add-participant";
+import { removeParticipant } from "./remove-participant";
 
 export const actionRoutes = {
   getAnalytics,
@@ -35,4 +37,6 @@ export const actionRoutes = {
   addSubActionResponsible,
   removeSubActionResponsible,
   promoteSubAction,
+  addParticipant,
+  removeParticipant,
 };

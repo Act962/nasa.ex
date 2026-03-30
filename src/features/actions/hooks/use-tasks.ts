@@ -276,6 +276,48 @@ export const useDeleteSubAction = (actionId: string) => {
   );
 };
 
+export const useAddParticipant = (actionId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.action.addParticipant.mutationOptions({
+      onSuccess: (data) => {
+        queryClient.invalidateQueries(
+          orpc.action.get.queryOptions({ input: { actionId } }),
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["action.listByColumn"],
+        });
+        queryClient.invalidateQueries(
+          orpc.action.listByWorkspace.queryOptions({
+            input: { workspaceId: data.participant.action.workspaceId },
+          }),
+        );
+      },
+    }),
+  );
+};
+
+export const useRemoveParticipant = (actionId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.action.removeParticipant.mutationOptions({
+      onSuccess: (data) => {
+        queryClient.invalidateQueries(
+          orpc.action.get.queryOptions({ input: { actionId } }),
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["action.listByColumn"],
+        });
+        queryClient.invalidateQueries(
+          orpc.action.listByWorkspace.queryOptions({
+            input: { workspaceId: data.participant.action.workspaceId },
+          }),
+        );
+      },
+    }),
+  );
+};
+
 export const useAddResponsible = (actionId: string) => {
   const queryClient = useQueryClient();
   return useMutation(

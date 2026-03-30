@@ -11,6 +11,8 @@ import {
   useAddSubActionResponsible,
   useRemoveSubActionResponsible,
   usePromoteSubAction,
+  useAddParticipant,
+  useRemoveParticipant,
 } from "../hooks/use-tasks";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -41,6 +43,8 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   const deleteSubAction = useDeleteSubAction(actionId);
   const addResponsible = useAddResponsible(actionId);
   const removeResponsible = useRemoveResponsible(actionId);
+  const addParticipant = useAddParticipant(actionId);
+  const removeParticipant = useRemoveParticipant(actionId);
   const addSubActionResponsible = useAddSubActionResponsible(actionId);
   const removeSubActionResponsible = useRemoveSubActionResponsible(actionId);
   const promoteSubAction = usePromoteSubAction(actionId);
@@ -121,18 +125,18 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   };
 
   const handleToggleParticipant = (userId: string) => {
-    const isResponsible = action?.participants.some(
+    const isParticipant = action?.participants.some(
       (r) => r.user.id === userId,
     );
-    if (isResponsible) {
-      removeResponsible.mutate(
+    if (isParticipant) {
+      removeParticipant.mutate(
         { actionId, userId },
-        { onError: () => toast.error("Erro ao remover responsável") },
+        { onError: (error) => toast.error(error.message) },
       );
     } else {
-      addResponsible.mutate(
+      addParticipant.mutate(
         { actionId, userId },
-        { onError: () => toast.error("Erro ao adicionar responsável") },
+        { onError: (error) => toast.error(error.message) },
       );
     }
   };

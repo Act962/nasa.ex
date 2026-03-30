@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusField } from "./status-field";
 import { PriorityField } from "./priority-field";
 import { DateFields } from "./date-fields";
-import { ResponsibleField } from "./responsible-field";
+import { ParticipantsField } from "./participant-field";
 import { InfoFields } from "./info-fields";
 import { Action } from "../../../types";
 
@@ -70,7 +70,7 @@ export function ActionSidebar({
 
         <Separator />
 
-        <ResponsibleField
+        <ParticipantsField
           participants={action?.participants}
           members={members}
           onToggle={onToggleParticipant}

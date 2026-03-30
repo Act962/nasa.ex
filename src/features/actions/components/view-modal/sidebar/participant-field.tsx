@@ -9,7 +9,7 @@ import {
 import { SidebarField } from "./sidebar-field";
 import { Action } from "../../../types";
 
-interface ResponsibleFieldProps {
+interface ParticipantsFieldProps {
   participants?: Action["participants"];
   members: any[];
   onToggle: (userId: string) => void;
@@ -17,30 +17,25 @@ interface ResponsibleFieldProps {
   isRemoving: boolean;
 }
 
-export function ResponsibleField({
+export function ParticipantsField({
   participants = [],
   members,
   onToggle,
   isAdding,
   isRemoving,
-}: ResponsibleFieldProps) {
+}: ParticipantsFieldProps) {
   return (
-    <SidebarField label="Responsáveis">
+    <SidebarField label="Participantes">
       <div className="space-y-1.5">
         {participants.map((r: any) => (
-          <div
-            key={r.user.id}
-            className="flex items-center gap-2 group"
-          >
+          <div key={r.user.id} className="flex items-center gap-2 group">
             <Avatar className="size-6 shrink-0">
               <AvatarImage src={r.user.image ?? undefined} />
               <AvatarFallback className="text-xs">
                 {r.user.name?.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <span className="text-xs flex-1 truncate">
-              {r.user.name}
-            </span>
+            <span className="text-xs flex-1 truncate">{r.user.name}</span>
             <Button
               variant="ghost"
               size="icon"
@@ -81,9 +76,7 @@ export function ResponsibleField({
                     disabled={isAdding || isRemoving}
                   >
                     <Avatar className="size-6 shrink-0">
-                      <AvatarImage
-                        src={m.user.image ?? undefined}
-                      />
+                      <AvatarImage src={m.user.image ?? undefined} />
                       <AvatarFallback className="text-xs">
                         {m.user.name?.charAt(0).toUpperCase()}
                       </AvatarFallback>

@@ -74,12 +74,12 @@ export function SignupForm({
           email: data.email,
           password: data.password,
           name: data.name.trim(),
-          callbackURL: callbackUrl ? callbackUrl : "/tracking",
+          callbackURL: callbackUrl ? callbackUrl : "/home",
         },
         {
           onSuccess: () => {
             toast.success("Conta criada com succeso");
-            router.push(callbackUrl ? callbackUrl : "/tracking");
+            router.push(callbackUrl ? callbackUrl : "/home");
           },
           onError: (err) => {
             console.log(err);
@@ -93,7 +93,7 @@ export function SignupForm({
   const onSignInWithGoogle = async () => {
     await authClient.signIn.social({
       provider: "google",
-      callbackURL: callbackUrl ? callbackUrl : "/tracking",
+      callbackURL: callbackUrl ? callbackUrl : "/home",
       scopes: ["https://www.googleapis.com/auth/drive.file"],
     });
   };
@@ -106,9 +106,9 @@ export function SignupForm({
     >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold">Entrar no NASA</h1>
+          <h1 className="text-2xl font-bold">Crie sua conta</h1>
           <p className="text-muted-foreground text-sm text-balance">
-            Preencha o formulário abaixo para atualizar os dados da sua conta.
+            Preencha os campos abaixo para criar sua conta.
           </p>
         </div>
         <Field>
@@ -211,10 +211,10 @@ export function SignupForm({
             {isLoading ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                Atualizando...
+                Cadastrando...
               </>
             ) : (
-              "Atualizar"
+              "Cadastrar"
             )}
           </Button>
         </Field>

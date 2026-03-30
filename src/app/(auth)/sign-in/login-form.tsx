@@ -48,7 +48,7 @@ export function LoginForm({
         {
           email: data.email,
           password: data.password,
-          callbackURL: callbackUrl ? callbackUrl : "/tracking",
+          callbackURL: callbackUrl ? callbackUrl : "/home",
         },
         {
           onSuccess: () => {
@@ -66,7 +66,7 @@ export function LoginForm({
   const onSignInWithGoogle = async () => {
     const data = await authClient.signIn.social({
       provider: "google",
-      callbackURL: callbackUrl ? callbackUrl : "/tracking",
+      callbackURL: callbackUrl ? callbackUrl : "/home",
       scopes: ["https://www.googleapis.com/auth/drive.file"],
     });
   };
