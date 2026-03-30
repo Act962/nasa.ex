@@ -1,22 +1,23 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
 export const getAgendasByTracking = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "GET",
-    summary: "Get agendas linked to a tracking",
+    summary: "Get agendas linked to a tracking (or all org agendas if no trackingId)",
     tags: ["Agenda"],
   })
-  .input(z.object({ trackingId: z.string().min(1) }))
-  .handler(async ({ input }) => {
+  .input(z.object({ trackingId: z.string().optional() }))
+  .handler(async ({ input, context }) => {
     const agendas = await prisma.agenda.findMany({
-      where: {
-        trackingId: input.trackingId,
-        isActive: true,
-      },
+      where: input.trackingId
+        ? { trackingId: input.trackingId, isActive: true }
+        : { organizationId: context.org.id, isActive: true },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,

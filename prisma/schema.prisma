@@ -137,6 +137,8 @@ model Organization {
   nboxItems        NBoxItem[]
   nasaPostBrandConfig NasaPostBrandConfig?
   nasaPosts           NasaPost[]
+  orgPermissions   OrgPermission[]
+  activityLogs     OrgActivityLog[]
   workspaces  Workspace[]
 
   @@unique([slug])
@@ -1592,4 +1594,41 @@ model NasaPostSlide {
 
   @@index([postId, order])
   @@map("nasa_post_slides")
+}
+// ─── Permissions & Activity ───────────────────────────────────────────────────
+
+model OrgPermission {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           String       // owner(master), admin, member(single), moderador
+  appKey         String       @map("app_key")
+  canView        Boolean      @default(true)  @map("can_view")
+  canCreate      Boolean      @default(true)  @map("can_create")
+  canEdit        Boolean      @default(false) @map("can_edit")
+  canDelete      Boolean      @default(false) @map("can_delete")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt      @map("updated_at")
+
+  @@unique([organizationId, role, appKey])
+  @@index([organizationId])
+  @@map("org_permission")
+}
+
+model OrgActivityLog {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id")
+  userName       String       @map("user_name")
+  userEmail      String       @map("user_email")
+  action         String
+  resource       String?
+  resourceId     String?      @map("resource_id")
+  metadata       Json?
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([organizationId, createdAt])
+  @@index([userId])
+  @@map("org_activity_log")
 }

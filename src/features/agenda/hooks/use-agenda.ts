@@ -183,7 +183,7 @@ export const useQueryAppointmentsByOrg = () => {
   };
 };
 
-export const useQueryAgendasByTracking = (trackingId: string) => {
+export const useQueryAgendasByTracking = (trackingId?: string) => {
   return useQuery(
     orpc.agenda.getByTracking.queryOptions({ input: { trackingId } }),
   );
