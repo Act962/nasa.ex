@@ -44,7 +44,6 @@ model User {
   nboxFoldersCreated NBoxFolder[] @relation("NBoxFolderCreatedBy")
   nboxItemsCreated   NBoxItem[]   @relation("NBoxItemCreatedBy")
   nasaPlannerPostsCreated NasaPlannerPost[] @relation("NasaPlannerPostCreatedBy")
-  nasaPostsCreated   NasaPost[]   @relation("NasaPostCreatedBy")
   workspacesCreated     Workspace[]
   workspacesMembers     WorkspaceMember[]
 
@@ -143,6 +142,7 @@ model Organization {
   userPresences      UserPresence[]
   workspaces  Workspace[]
   form        Form[]
+  workspaceFolders WorkspaceFolder[]
 
   @@unique([slug])
   @@map("organization")
@@ -513,6 +513,14 @@ model Workspace {
   members        WorkspaceMember[]
   actions        Action[]
 
+  backgroundImage    String?  @map("background_image")
+  backgroundColor    String?  @map("background_color")
+  visibility         String   @default("PRIVATE") @map("visibility")
+  archivedAt         DateTime? @map("archived_at")
+  tags               WorkspaceTag[]
+  automations        WorkspaceAutomation[]
+  folderItems        WorkspaceFolderItem[]
+
   @@index([organizationId])
   @@index([trackingId])
   @@index([createdBy])
@@ -616,6 +624,17 @@ model Action {
   participants ActionsUserParticipant[]
   responsibles ActionsUserResponsible[]
   subActions   SubActions[]
+
+  attachments      Json      @default("[]") @map("attachments")
+  links            Json      @default("[]") @map("links")
+  youtubeUrl       String?   @map("youtube_url")
+  coverImage       String?   @map("cover_image")
+  isArchived       Boolean   @default(false) @map("is_archived")
+  isFavorited      Boolean   @default(false) @map("is_favorited")
+  history          Json      @default("[]") @map("history")
+  tags             ActionTag[]
+  mirrorsAsSource  ActionMirror[] @relation("SourceMirror")
+  mirrorOf         ActionMirror?  @relation("MirrorOf")
 
   @@index([workspaceId])
   @@index([columnId])
@@ -1778,4 +1797,95 @@ model UserPresence {
 
   @@unique([userId, organizationId])
   @@map("user_presence")
+}
+
+// ─── Workspace Tags ───────────────────────────────────────────────────────────
+
+model WorkspaceTag {
+  id          String    @id @default(cuid())
+  name        String
+  color       String    @default("#7C3AED")
+  workspaceId String    @map("workspace_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actions     ActionTag[]
+
+  @@index([workspaceId])
+  @@map("workspace_tags")
+}
+
+model ActionTag {
+  actionId  String @map("action_id")
+  tagId     String @map("tag_id")
+
+  action    Action       @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  tag       WorkspaceTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([actionId, tagId])
+  @@index([tagId])
+  @@map("action_tags")
+}
+
+// ─── Workspace Folders ────────────────────────────────────────────────────────
+
+model WorkspaceFolder {
+  id             String   @id @default(cuid())
+  name           String
+  organizationId String   @map("organization_id")
+  order          Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items          WorkspaceFolderItem[]
+
+  @@index([organizationId])
+  @@map("workspace_folders")
+}
+
+model WorkspaceFolderItem {
+  folderId    String @map("folder_id")
+  workspaceId String @map("workspace_id")
+  order       Int    @default(0)
+
+  folder    WorkspaceFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([folderId, workspaceId])
+  @@map("workspace_folder_items")
+}
+
+// ─── Workspace Automations ────────────────────────────────────────────────────
+
+model WorkspaceAutomation {
+  id          String   @id @default(cuid())
+  name        String
+  workspaceId String   @map("workspace_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  trigger     String
+  triggerData Json     @default("{}") @map("trigger_data")
+  conditions  Json     @default("[]") @map("conditions")
+  steps       Json     @default("[]") @map("steps")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("workspace_automations")
+}
+
+// ─── Action Mirror ────────────────────────────────────────────────────────────
+
+model ActionMirror {
+  id             String   @id @default(cuid())
+  sourceActionId String   @map("source_action_id")
+  mirrorActionId String   @unique @map("mirror_action_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  sourceAction Action @relation("SourceMirror", fields: [sourceActionId], references: [id], onDelete: Cascade)
+  mirrorAction Action @relation("MirrorOf", fields: [mirrorActionId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceActionId, mirrorActionId])
+  @@map("action_mirrors")
 }
