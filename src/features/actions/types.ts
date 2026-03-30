@@ -6,6 +6,7 @@ export interface Action {
     id: string;
     name: string;
     image: string | null;
+    email?: string;
   };
   id: string;
   createdAt: Date;
@@ -18,15 +19,21 @@ export interface Action {
   dueDate: Date | null;
   startDate: Date | null;
   createdBy: string;
+  workspaceId: string;
+  workspace?: {
+    name: string;
+  };
   participants: {
     user: {
       id: string;
       name: string;
       image: string | null;
+      email?: string;
     };
   }[];
   subActions: {
     id: string;
+    title: string;
     isDone: boolean;
   }[];
 }

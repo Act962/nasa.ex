@@ -21,6 +21,14 @@ export const removeResponsible = base
           userId: input.userId,
         },
       },
+      include: {
+        action: {
+          select: {
+            id: true,
+            workspaceId: true,
+          },
+        },
+      },
     });
 
     return { responsible };

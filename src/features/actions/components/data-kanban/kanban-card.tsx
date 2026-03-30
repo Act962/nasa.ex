@@ -145,7 +145,7 @@ export function KanbanCard({ action }: Props) {
         <div className="flex items-center justify-between gap-2 px-3 py-2">
           {/* Left: date + sub-actions */}
           <div className="flex items-center gap-2 min-w-0">
-            {dueDateInfo && (
+            {dueDateInfo ? (
               <div
                 className={cn(
                   "flex items-center gap-1 text-[11px]",
@@ -158,6 +158,11 @@ export function KanbanCard({ action }: Props) {
               >
                 <CalendarIcon className="size-3 shrink-0" />
                 <span>{dueDateInfo.label}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full">
+                <CalendarIcon className="size-3 shrink-0" />
+                <span>{formatDueDate(action.createdAt).label}</span>
               </div>
             )}
 

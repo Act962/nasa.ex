@@ -165,7 +165,7 @@ const KanbanBoard = ({ workspaceId }: Props) => {
 
         const newOrder = useActionKanbanStore
           .getState()
-          .calculateMidpoint(targetColumnId, overActionId);
+          .calculateMidpoint(targetColumnId, action.id);
 
         reorderAction.mutate({
           id: action.id,

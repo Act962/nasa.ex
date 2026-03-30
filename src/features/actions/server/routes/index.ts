@@ -11,7 +11,12 @@ import { deleteSubAction } from "./delete-sub-action";
 import { addResponsible } from "./add-responsible";
 import { removeResponsible } from "./remove-responsible";
 
+import { getAnalytics } from "./get-analytics";
+import { listRecentActions } from "./list-recent";
+
 export const actionRoutes = {
+  getAnalytics,
+  listRecent: listRecentActions,
   create: createAction,
   listByColumn: listActionByColumn,
   listByWorkspace: listActionByWorkspace,

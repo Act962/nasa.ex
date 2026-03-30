@@ -4,26 +4,26 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
-export const deleteSubAction = base
+export const updateColumn = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .input(
     z.object({
-      subActionId: z.string(),
+      columnId: z.string(),
+      name: z.string().optional(),
+      color: z.string().optional(),
+      order: z.number().optional(),
     }),
   )
   .handler(async ({ input }) => {
-    const subAction = await prisma.subActions.delete({
-      where: { id: input.subActionId },
-      include: {
-        action: {
-          select: {
-            id: true,
-            workspaceId: true,
-          },
-        },
+    const column = await prisma.workspaceColumn.update({
+      where: { id: input.columnId },
+      data: {
+        name: input.name,
+        color: input.color,
+        order: input.order,
       },
     });
 
-    return { subAction };
+    return { column };
   });

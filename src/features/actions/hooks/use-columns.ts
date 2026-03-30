@@ -50,19 +50,17 @@ export const useDeleteColumn = () => {
   const queryClient = useQueryClient();
 
   return useMutation(
-    orpc.column.delete.mutationOptions({
+    orpc.workspace.deleteColumn.mutationOptions({
       onSuccess: (data) => {
         toast.success("Coluna deletada com sucesso!");
         queryClient.invalidateQueries(
           orpc.workspace.getColumnsByWorkspace.queryOptions({
-            input: {
-              workspaceId: data.workspaceId,
-            },
+            input: { workspaceId: data.column.workspaceId },
           }),
         );
       },
-      onError: () => {
-        toast.error("Erro ao deletar coluna!");
+      onError: (error: any) => {
+        toast.error(error.message || "Erro ao deletar coluna!");
       },
     }),
   );

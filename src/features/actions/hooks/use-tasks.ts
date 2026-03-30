@@ -173,10 +173,15 @@ export const useUpdateAction = () => {
           }),
         );
         queryClient.invalidateQueries({
-          queryKey: ["action.listByColumn", data.action.columnId],
+          queryKey: ["action.listByColumn"],
         });
         queryClient.invalidateQueries(
           orpc.action.listByWorkspace.queryOptions({
+            input: { workspaceId: data.action.workspaceId },
+          }),
+        );
+        queryClient.invalidateQueries(
+          orpc.workspace.getColumnsByWorkspace.queryOptions({
             input: { workspaceId: data.action.workspaceId },
           }),
         );
@@ -191,10 +196,15 @@ export const useDeleteAction = () => {
     orpc.action.delete.mutationOptions({
       onSuccess: (data) => {
         queryClient.invalidateQueries({
-          queryKey: ["action.listByColumn", data.action.columnId],
+          queryKey: ["action.listByColumn"],
         });
         queryClient.invalidateQueries(
           orpc.action.listByWorkspace.queryOptions({
+            input: { workspaceId: data.action.workspaceId },
+          }),
+        );
+        queryClient.invalidateQueries(
+          orpc.workspace.getColumnsByWorkspace.queryOptions({
             input: { workspaceId: data.action.workspaceId },
           }),
         );
@@ -207,9 +217,17 @@ export const useCreateSubAction = (actionId: string) => {
   const queryClient = useQueryClient();
   return useMutation(
     orpc.action.createSubAction.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data) => {
         queryClient.invalidateQueries(
           orpc.action.get.queryOptions({ input: { actionId } }),
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["action.listByColumn"],
+        });
+        queryClient.invalidateQueries(
+          orpc.action.listByWorkspace.queryOptions({
+            input: { workspaceId: data.subAction.action.workspaceId },
+          }),
         );
       },
     }),
@@ -220,9 +238,17 @@ export const useUpdateSubAction = (actionId: string) => {
   const queryClient = useQueryClient();
   return useMutation(
     orpc.action.updateSubAction.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data) => {
         queryClient.invalidateQueries(
           orpc.action.get.queryOptions({ input: { actionId } }),
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["action.listByColumn"],
+        });
+        queryClient.invalidateQueries(
+          orpc.action.listByWorkspace.queryOptions({
+            input: { workspaceId: data.subAction.action.workspaceId },
+          }),
         );
       },
     }),
@@ -233,9 +259,17 @@ export const useDeleteSubAction = (actionId: string) => {
   const queryClient = useQueryClient();
   return useMutation(
     orpc.action.deleteSubAction.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data) => {
         queryClient.invalidateQueries(
           orpc.action.get.queryOptions({ input: { actionId } }),
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["action.listByColumn"],
+        });
+        queryClient.invalidateQueries(
+          orpc.action.listByWorkspace.queryOptions({
+            input: { workspaceId: data.subAction.action.workspaceId },
+          }),
         );
       },
     }),
@@ -246,9 +280,17 @@ export const useAddResponsible = (actionId: string) => {
   const queryClient = useQueryClient();
   return useMutation(
     orpc.action.addResponsible.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data) => {
         queryClient.invalidateQueries(
           orpc.action.get.queryOptions({ input: { actionId } }),
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["action.listByColumn"],
+        });
+        queryClient.invalidateQueries(
+          orpc.action.listByWorkspace.queryOptions({
+            input: { workspaceId: data.responsible.action.workspaceId },
+          }),
         );
       },
     }),
@@ -259,11 +301,27 @@ export const useRemoveResponsible = (actionId: string) => {
   const queryClient = useQueryClient();
   return useMutation(
     orpc.action.removeResponsible.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data) => {
         queryClient.invalidateQueries(
           orpc.action.get.queryOptions({ input: { actionId } }),
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["action.listByColumn"],
+        });
+        queryClient.invalidateQueries(
+          orpc.action.listByWorkspace.queryOptions({
+            input: { workspaceId: data.responsible.action.workspaceId },
+          }),
         );
       },
     }),
   );
+};
+
+export const useQueryActionsAnalytics = () => {
+  return useQuery(orpc.action.getAnalytics.queryOptions());
+};
+
+export const useListRecentActions = (limit = 10) => {
+  return useQuery(orpc.action.listRecent.queryOptions({ input: { limit } }));
 };

@@ -4,40 +4,33 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
-export const addResponsible = base
+export const addWorkspaceMember = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .input(
     z.object({
-      actionId: z.string(),
+      workspaceId: z.string(),
       userId: z.string(),
+      role: z.enum(["OWNER", "MEMBER", "VIEWER"]).optional(),
     }),
   )
   .handler(async ({ input }) => {
-    const responsible = await prisma.actionsUserResponsible.upsert({
+    const member = await prisma.workspaceMember.upsert({
       where: {
-        actionId_userId: {
-          actionId: input.actionId,
+        workspaceId_userId: {
+          workspaceId: input.workspaceId,
           userId: input.userId,
         },
       },
-      create: {
-        actionId: input.actionId,
-        userId: input.userId,
+      update: {
+        role: input.role,
       },
-      update: {},
-      include: {
-        user: {
-          select: { id: true, name: true, image: true, email: true },
-        },
-        action: {
-          select: {
-            id: true,
-            workspaceId: true,
-          },
-        },
+      create: {
+        workspaceId: input.workspaceId,
+        userId: input.userId,
+        role: input.role ?? "MEMBER",
       },
     });
 
-    return { responsible };
+    return { member };
   });

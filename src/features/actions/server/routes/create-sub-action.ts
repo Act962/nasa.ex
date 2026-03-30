@@ -29,6 +29,12 @@ export const createSubAction = base
             },
           },
         },
+        action: {
+          select: {
+            id: true,
+            workspaceId: true,
+          },
+        },
       },
     });
 

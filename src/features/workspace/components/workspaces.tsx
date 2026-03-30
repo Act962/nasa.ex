@@ -5,6 +5,9 @@ import { Suspense, useState } from "react";
 import AnalyticsCard from "./analytics-card";
 import { CreateWorkspaceModal } from "./modals/create-workspace-modal";
 import { useSuspenseWokspaces } from "../hooks/use-workspace";
+import { useQueryActionsAnalytics } from "@/features/actions/hooks/use-tasks";
+import { RecentTasks } from "./recent-tasks";
+import { RecentMembers } from "./recent-members";
 import {
   Item,
   ItemContent,
@@ -40,24 +43,26 @@ export const WorkspaceHeader = () => {
 };
 
 export const WorkspaceAnalytics = () => {
+  const { data, isLoading } = useQueryActionsAnalytics();
+
   return (
     <div className="grid gap-4 md:gap-5 lg:grid-cols-2 xl:grid-cols-3">
       <AnalyticsCard
-        isLoading={false}
-        title="Total Task"
-        value={20}
+        isLoading={isLoading}
+        title="Total Actions"
+        value={data?.total ?? 0}
         type="task"
       />
       <AnalyticsCard
-        isLoading={false}
-        title="Tarefa atrasada"
-        value={42}
+        isLoading={isLoading}
+        title="Ações Atrasadas"
+        value={data?.delayed ?? 0}
         type="project"
       />
       <AnalyticsCard
-        isLoading={false}
-        title="Tarefa concluída"
-        value={0}
+        isLoading={isLoading}
+        title="Ações Concluídas (7 dias)"
+        value={data?.completed ?? 0}
         type="task"
       />
     </div>
@@ -93,8 +98,16 @@ export const WorkspaceContainer = () => {
                 <Workspaces />
               </Suspense>
             </TabsContent>
-            <TabsContent value="tasks">{/* <RecentTasks /> */}</TabsContent>
-            <TabsContent value="members">{/* <RecentMembers /> */}</TabsContent>
+            <TabsContent value="tasks">
+                <Suspense fallback={<div>Carregando...</div>}>
+                    <RecentTasks />
+                </Suspense>
+            </TabsContent>
+            <TabsContent value="members">
+                <Suspense fallback={<div>Carregando...</div>}>
+                    <RecentMembers />
+                </Suspense>
+            </TabsContent>
           </Tabs>
         </div>
       </main>

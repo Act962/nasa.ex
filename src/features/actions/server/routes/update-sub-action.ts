@@ -29,6 +29,12 @@ export const updateSubAction = base
             },
           },
         },
+        action: {
+          select: {
+            id: true,
+            workspaceId: true,
+          },
+        },
       },
     });
 

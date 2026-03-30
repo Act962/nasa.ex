@@ -91,7 +91,7 @@ export const StatusHeader = ({
 
   const onDelete = () => {
     deleteColumnMutation.mutate({
-      id: data.id,
+      columnId: data.id,
     });
   };
 
