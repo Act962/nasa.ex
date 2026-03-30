@@ -10,9 +10,10 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
+import { useOrgRole } from "@/hooks/use-org-role";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { UploadIcon } from "lucide-react";
+import { Lock, UploadIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
@@ -46,6 +47,7 @@ interface Props {
 
 export function FormCompany({ company }: Props) {
   const router = useRouter();
+  const { isSingle } = useOrgRole();
   const form = useForm<FormCompanySchema>({
     resolver: zodResolver(formCompanySchema),
     values: {
@@ -123,19 +125,28 @@ export function FormCompany({ company }: Props) {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)}>
+      {isSingle && (
+        <div className="flex items-center gap-2 mb-4 px-3 py-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm">
+          <Lock className="size-4 shrink-0" />
+          <span>Apenas o Master ou Adm podem editar os dados da empresa.</span>
+        </div>
+      )}
       <FieldGroup>
         <Field>
           <FieldLabel>Logo</FieldLabel>
-          <div {...getRootProps()} className="relative">
+          <div {...(!isSingle ? getRootProps() : {})} className="relative">
             <div
               className={cn(
-                "group/avatar relative size-24 cursor-pointer overflow-hidden rounded-full border border-dashed transition-colors",
-                isDragActive
+                "group/avatar relative size-24 overflow-hidden rounded-full border border-dashed transition-colors",
+                isSingle
+                  ? "cursor-not-allowed opacity-60"
+                  : "cursor-pointer",
+                !isSingle && isDragActive
                   ? "border-primary bg-primary/5"
                   : "border-muted-foreground/25 hover:border-muted-foreground/20",
               )}
             >
-              <input {...getInputProps()} />
+              {!isSingle && <input {...getInputProps()} />}
               {renderContent()}
             </div>
           </div>
@@ -143,14 +154,21 @@ export function FormCompany({ company }: Props) {
 
         <Field>
           <FieldLabel>Nome da Empresa</FieldLabel>
-          <Input placeholder="Ex.: Company LTDA." {...form.register("name")} />
+          <Input
+            placeholder="Ex.: Company LTDA."
+            {...form.register("name")}
+            disabled={isSingle}
+            readOnly={isSingle}
+          />
           <FieldDescription>Insira o nome da sua empresa</FieldDescription>
         </Field>
 
         <FieldSeparator />
-        <Field orientation="horizontal">
-          <Button type="submit">Salvar</Button>
-        </Field>
+        {!isSingle && (
+          <Field orientation="horizontal">
+            <Button type="submit">Salvar</Button>
+          </Field>
+        )}
       </FieldGroup>
     </form>
   );
