@@ -36,6 +36,14 @@ model User {
   agendaResponsibles AgendaResponsible[]
   appointments Appointment[]
   trackingConsultants TrackingConsultant[]
+  forgeProductsCreated  ForgeProduct[]          @relation("ForgeProductCreatedBy")
+  forgeProposalsResp    ForgeProposal[]         @relation("ForgeProposalResponsible")
+  forgeProposalsCreated ForgeProposal[]         @relation("ForgeProposalCreatedBy")
+  forgeContractsCreated ForgeContract[]         @relation("ForgeContractCreatedBy")
+  forgeTemplatesCreated ForgeContractTemplate[] @relation("ForgeTemplateCreatedBy")
+  nboxFoldersCreated NBoxFolder[] @relation("NBoxFolderCreatedBy")
+  nboxItemsCreated   NBoxItem[]   @relation("NBoxItemCreatedBy")
+  nasaPostsCreated   NasaPost[]   @relation("NasaPostCreatedBy")
 
   @@unique([email])
   @@map("user")
@@ -98,15 +106,35 @@ model Organization {
   logo        String?
   createdAt   DateTime
   metadata    String?
+
+  // ── STARS ──────────────────────────────────
+  planId           String?   @map("plan_id")
+  starsBalance     Int       @default(0)       @map("stars_balance")
+  starsCycleStart  DateTime? @map("stars_cycle_start")
+  starsAlertConfig Json      @default("{}") @map("stars_alert_config")
+
   members     Member[]
   invitations Invitation[]
   trackings   Tracking[]
   tags        Tag[]
-  whatsappInstances WhatsAppInstance[]
-  actions     Action[]
-  insightShares InsightShares[]
-  agendas     Agenda[]
-  widgets     Widget[]
+  whatsappInstances    WhatsAppInstance[]
+  actions              Action[]
+  insightShares        InsightShares[]
+  agendas              Agenda[]
+  widgets              Widget[]
+  platformIntegrations PlatformIntegration[]
+  forgeProducts        ForgeProduct[]
+  forgeProposals       ForgeProposal[]
+  forgeContracts       ForgeContract[]
+  forgeTemplates       ForgeContractTemplate[]
+  forgeSettings        ForgeSettings?
+  plan                 Plan?                  @relation(fields: [planId], references: [id], onDelete: SetNull)
+  starTransactions     StarTransaction[]
+  workspaceIntegrations WorkspaceIntegration[]
+  nboxFolders      NBoxFolder[]
+  nboxItems        NBoxItem[]
+  nasaPostBrandConfig NasaPostBrandConfig?
+  nasaPosts           NasaPost[]
 
   @@unique([slug])
   @@map("organization")
@@ -301,6 +329,11 @@ enum LeadSource {
   WHATSAPP
   FORM
   AGENDA
+  INSTAGRAM
+  TIKTOK
+  LINKEDIN
+  GMAIL
+  GOOGLE_MAPS
   OTHER
 }
 
@@ -353,6 +386,7 @@ model Lead {
   files    LeadFile[]
   actions  Action[]
   appointments Appointment[]
+  forgeProposals ForgeProposal[]
 
   @@index([trackingId])
   @@index([statusId, order])
@@ -794,11 +828,12 @@ model Agenda {
   tracking     Tracking     @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  responsibles    AgendaResponsible[]
-  availabilities  AgendaAvailability[]
-  appointments    Appointment[]
-  publicChatSessions PublicChatSession[]
-  dateOverrides   AgendaDateOverride[]
+  responsibles         AgendaResponsible[]
+  availabilities       AgendaAvailability[]
+  appointments         Appointment[]
+  publicChatSessions   PublicChatSession[]
+  dateOverrides        AgendaDateOverride[]
+  dateAvailabilities   AgendaDateAvailability[]
 
   @@unique([slug, organizationId])
   @@index([trackingId])
@@ -889,6 +924,39 @@ model Appointment {
 }
 
 // ─────────────────────────────────────────────
+// DISPONIBILIDADE POR DATA ESPECÍFICA
+// ─────────────────────────────────────────────
+
+// Disponibilidade para uma data específica (sobrepõe o semanal)
+model AgendaDateAvailability {
+  id        String   @id @default(cuid())
+  agendaId  String   @map("agenda_id")
+  date      String   // YYYY-MM-DD
+  createdAt DateTime @default(now()) @map("created_at")
+
+  agenda    Agenda                      @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+  timeSlots AgendaDateAvailabilitySlot[]
+
+  @@unique([agendaId, date])
+  @@index([agendaId])
+  @@map("agenda_date_availabilities")
+}
+
+// Intervalos de horário dentro de uma disponibilidade por data específica
+model AgendaDateAvailabilitySlot {
+  id                 String   @id @default(cuid())
+  dateAvailabilityId String   @map("date_availability_id")
+  startTime          String   @map("start_time") // "08:00"
+  endTime            String   @map("end_time")   // "12:00"
+  order              Int      @default(0)
+
+  dateAvailability AgendaDateAvailability @relation(fields: [dateAvailabilityId], references: [id], onDelete: Cascade)
+
+  @@index([dateAvailabilityId])
+  @@map("agenda_date_availability_slots")
+}
+
+// ─────────────────────────────────────────────
 // CHAT PÚBLICO DE AGENDAMENTO
 // ─────────────────────────────────────────────
 
@@ -934,6 +1002,44 @@ model AgendaDateOverride {
 }
 
 // ─────────────────────────────────────────────
+// INTEGRAÇÕES DE PLATAFORMA
+// ─────────────────────────────────────────────
+
+enum IntegrationPlatform {
+  INSTAGRAM
+  TIKTOK
+  LINKEDIN
+  GMAIL
+  GOOGLE_MAPS
+  META
+  OPENAI
+  ANTHROPIC
+  GEMINI
+  KOMMO
+  RD_STATION
+  PIPEDRIVE
+}
+
+// Armazena credenciais de integração por plataforma/organização.
+// O campo config guarda JSON com campos específicos de cada plataforma
+// (tokens, IDs, secrets), criptografado em produção via variáveis de ambiente.
+model PlatformIntegration {
+  id             String              @id @default(cuid())
+  platform       IntegrationPlatform
+  organizationId String              @map("organization_id")
+  isActive       Boolean             @default(false) @map("is_active")
+  config         Json                @default("{}") // tokens, IDs, secrets
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt      @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, platform])
+  @@index([organizationId])
+  @@map("platform_integrations")
+}
+
+// ─────────────────────────────────────────────
 // WIDGETS
 // ─────────────────────────────────────────────
 
@@ -954,4 +1060,446 @@ model Widget {
 
   @@index([organizationId])
   @@map("widgets")
+}
+
+// ─────────────────────────────────────────────
+// FORGE — Propostas & Contratos
+// ─────────────────────────────────────────────
+
+enum ForgeProposalStatus {
+  RASCUNHO
+  ENVIADA
+  VISUALIZADA
+  PAGA
+  EXPIRADA
+  CANCELADA
+}
+
+enum ForgeContractStatus {
+  ATIVO
+  ENCERRADO
+  CANCELADO
+  PENDENTE_ASSINATURA
+}
+
+enum ForgePaymentGateway {
+  STRIPE
+  ASAAS
+  PAGBANK
+  PAGSEGURO
+  MERCADOPAGO
+  BANCO_DO_BRASIL
+  CAIXA_ECONOMICA
+  PIX
+}
+
+enum ForgeDiscountType {
+  PERCENTUAL
+  FIXO
+}
+
+enum ForgeSecurityLevel {
+  PUBLICO
+  PRIVADO
+  TWO_FA
+}
+
+model ForgeProduct {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  name           String
+  sku            String
+  imageUrl       String?  @map("image_url")
+  unit           String   @default("un")
+  description    String?
+  value          Decimal  @db.Decimal(15, 2)
+  createdById    String   @map("created_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt      @map("updated_at")
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User                  @relation("ForgeProductCreatedBy", fields: [createdById], references: [id])
+  proposalProducts ForgeProposalProduct[]
+
+  @@unique([organizationId, sku])
+  @@index([organizationId])
+  @@map("forge_products")
+}
+
+model ForgeProposal {
+  id              String               @id @default(cuid())
+  organizationId  String               @map("organization_id")
+  title           String
+  number          Int
+  status          ForgeProposalStatus  @default(RASCUNHO)
+  clientId        String?              @map("client_id")
+  responsibleId   String               @map("responsible_id")
+  participants    String[]
+  validUntil      DateTime?            @map("valid_until")
+  description     String?
+  discount        Decimal?             @db.Decimal(15, 2)
+  discountType    ForgeDiscountType?   @map("discount_type")
+  paymentLink     String?              @map("payment_link")
+  paymentGateway  ForgePaymentGateway? @map("payment_gateway")
+  publicToken     String               @unique @default(cuid()) @map("public_token")
+  headerConfig    Json                 @default("{}") @map("header_config")
+  createdById     String               @map("created_by")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt      @map("updated_at")
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client       Lead?                 @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  responsible  User                  @relation("ForgeProposalResponsible", fields: [responsibleId], references: [id])
+  createdBy    User                  @relation("ForgeProposalCreatedBy", fields: [createdById], references: [id])
+  products     ForgeProposalProduct[]
+  contracts    ForgeContract[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+  @@index([clientId])
+  @@index([status])
+  @@map("forge_proposals")
+}
+
+model ForgeProposalProduct {
+  id          String   @id @default(cuid())
+  proposalId  String   @map("proposal_id")
+  productId   String   @map("product_id")
+  quantity    Decimal  @db.Decimal(15, 4) @default(1)
+  unitValue   Decimal  @db.Decimal(15, 2) @map("unit_value")
+  discount    Decimal? @db.Decimal(15, 2)
+  description String?
+  order       Int      @default(0)
+
+  proposal ForgeProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  product  ForgeProduct  @relation(fields: [productId], references: [id])
+
+  @@index([proposalId])
+  @@map("forge_proposal_products")
+}
+
+model ForgeContract {
+  id           String              @id @default(cuid())
+  proposalId   String?             @map("proposal_id")
+  organizationId String            @map("organization_id")
+  number       Int
+  startDate    DateTime            @map("start_date")
+  endDate      DateTime            @map("end_date")
+  value        Decimal             @db.Decimal(15, 2)
+  status       ForgeContractStatus @default(PENDENTE_ASSINATURA)
+  templateId   String?             @map("template_id")
+  content      String?
+  signers      Json                @default("[]")
+  createdById  String              @map("created_by")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt      @map("updated_at")
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  proposal     ForgeProposal?          @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  template     ForgeContractTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  createdBy    User                    @relation("ForgeContractCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId])
+  @@index([proposalId])
+  @@index([status])
+  @@map("forge_contracts")
+}
+
+model ForgeContractTemplate {
+  id               String    @id @default(cuid())
+  organizationId   String    @map("organization_id")
+  name             String
+  content          String
+  defaultStartDate DateTime? @map("default_start_date")
+  defaultEndDate   DateTime? @map("default_end_date")
+  createdById      String    @map("created_by")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt      @map("updated_at")
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User             @relation("ForgeTemplateCreatedBy", fields: [createdById], references: [id])
+  contracts    ForgeContract[]
+
+  @@index([organizationId])
+  @@map("forge_contract_templates")
+}
+
+model ForgeSettings {
+  id                    String             @id @default(cuid())
+  organizationId        String             @unique @map("organization_id")
+  commissionPercentage  Decimal            @db.Decimal(5, 2) @default(0) @map("commission_percentage")
+  letterheadHeader      String?            @map("letterhead_header")
+  letterheadFooter      String?            @map("letterhead_footer")
+  letterheadHeaderImage String?            @map("letterhead_header_image")
+  letterheadFooterImage String?            @map("letterhead_footer_image")
+  logoUrl               String?            @map("logo_url")
+  proposalBgColor       String             @default("#ffffff") @map("proposal_bg_color")
+  proposalBgImage       String?            @map("proposal_bg_image")
+  typographyColor       String             @default("#111111") @map("typography_color")
+  securityLevel         ForgeSecurityLevel @default(PUBLICO) @map("security_level")
+  reminderDaysBefore    Int                @default(3) @map("reminder_days_before")
+  paymentGatewayConfigs Json               @default("{}") @map("payment_gateway_configs")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt      @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("forge_settings")
+}
+
+// ─────────────────────────────────────────────
+// STARS — sistema de moeda interna
+// ─────────────────────────────────────────────
+
+model Plan {
+  id            String   @id @default(cuid())
+  slug          String   @unique // earth | explore | constellation
+  name          String
+  monthlyStars  Int      @map("monthly_stars")
+  priceMonthly  Decimal  @db.Decimal(10, 2) @map("price_monthly")
+  maxUsers      Int      @default(3)       @map("max_users")
+  rolloverPct   Int      @default(30)      @map("rollover_pct") // % máx. de rollover
+  isActive      Boolean  @default(true)    @map("is_active")
+  createdAt     DateTime @default(now())   @map("created_at")
+
+  organizations Organization[]
+
+  @@map("plans")
+}
+
+model StarPackage {
+  id        String   @id @default(cuid())
+  stars     Int
+  priceBrl  Decimal  @db.Decimal(10, 2) @map("price_brl")
+  label     String
+  isActive  Boolean  @default(true)    @map("is_active")
+  createdAt DateTime @default(now())   @map("created_at")
+
+  @@map("star_packages")
+}
+
+model AppStarCost {
+  id           String   @id @default(cuid())
+  appSlug      String   @unique @map("app_slug")
+  monthlyCost  Int      @default(0) @map("monthly_cost") // stars/mês
+  setupCost    Int      @default(0) @map("setup_cost")   // stars na ativação
+  priceBrl     Decimal? @db.Decimal(10, 2) @map("price_brl") // exibição R$
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt       @map("updated_at")
+
+  @@map("app_star_costs")
+}
+
+enum StarTransactionType {
+  PLAN_CREDIT       // crédito mensal do plano
+  TOPUP_PURCHASE    // compra de top-up
+  APP_CHARGE        // débito mensal de integração
+  APP_SETUP         // débito de ativação de integração
+  ROLLOVER          // rollover do ciclo anterior
+  MANUAL_ADJUST     // ajuste manual (admin)
+  REFUND            // estorno
+}
+
+model StarTransaction {
+  id             String              @id @default(cuid())
+  organizationId String              @map("organization_id")
+  type           StarTransactionType
+  amount         Int                 // positivo = crédito, negativo = débito
+  balanceAfter   Int                 @map("balance_after")
+  description    String
+  appSlug        String?             @map("app_slug")
+  packageId      String?             @map("package_id") // ref a StarPackage
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([type])
+  @@map("star_transactions")
+}
+
+model WorkspaceIntegration {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  appSlug        String   @map("app_slug")
+  installedAt    DateTime @default(now()) @map("installed_at")
+  lastChargedAt  DateTime? @map("last_charged_at")
+  isActive       Boolean  @default(true) @map("is_active")
+  config         Json     @default("{}") // credenciais cifradas ou metadata
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, appSlug])
+  @@index([organizationId])
+  @@map("workspace_integrations")
+}
+
+// ─────────────────────────────────────────────
+// N-BOX
+// ─────────────────────────────────────────────
+
+enum NBoxItemType {
+  FILE
+  IMAGE
+  LINK
+  CONTRACT
+  PROPOSAL
+}
+
+model NBoxFolder {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  name           String
+  color          String?
+  parentId       String?      @map("parent_id")
+  createdById    String       @map("created_by_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent         NBoxFolder?  @relation("FolderChildren", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children       NBoxFolder[] @relation("FolderChildren")
+  createdBy      User         @relation("NBoxFolderCreatedBy", fields: [createdById], references: [id])
+  items          NBoxItem[]
+
+  @@index([organizationId])
+  @@index([parentId])
+  @@map("nbox_folders")
+}
+
+model NBoxItem {
+  id               String       @id @default(cuid())
+  organizationId   String       @map("organization_id")
+  folderId         String?      @map("folder_id")
+  type             NBoxItemType
+  name             String
+  url              String?
+  mimeType         String?      @map("mime_type")
+  size             Int?
+  description      String?
+  tags             String[]
+  forgeContractId  String?      @map("forge_contract_id")
+  forgeProposalId  String?      @map("forge_proposal_id")
+  createdById      String       @map("created_by_id")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  folder           NBoxFolder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  createdBy        User         @relation("NBoxItemCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId])
+  @@index([folderId])
+  @@map("nbox_items")
+}
+
+// ─── NASA Post ────────────────────────────────────────────────────────────────
+
+enum NasaPostStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SCHEDULED
+  PUBLISHED
+  FAILED
+}
+
+enum NasaPostType {
+  STATIC
+  CAROUSEL
+  REEL
+  STORY
+}
+
+model NasaPostBrandConfig {
+  id             String   @id @default(cuid())
+  organizationId String   @unique @map("organization_id")
+
+  brandName       String   @map("brand_name")
+  brandSlogan     String?  @map("brand_slogan")
+  website         String?
+
+  icp             String?  @map("icp")
+  swot            Json     @default("{}")
+  positioning     String?
+
+  toneOfVoice     String?  @map("tone_of_voice")
+  keyMessages     String[] @map("key_messages")
+  forbiddenWords  String[] @map("forbidden_words")
+
+  primaryColors   String[] @map("primary_colors")
+  secondaryColors String[] @map("secondary_colors")
+  fonts           Json     @default("{}")
+
+  logoLight       String?  @map("logo_light")
+  logoDark        String?  @map("logo_dark")
+  logoSquare      String?  @map("logo_square")
+  logoHorizontal  String?  @map("logo_horizontal")
+
+  defaultHashtags String[] @map("default_hashtags")
+  defaultCtas     String[] @map("default_ctas")
+  examplePosts    String[] @map("example_posts")
+  showBranding    Boolean  @default(true) @map("show_branding")
+
+  // IA integration keys (stored per-org, never exposed to client)
+  anthropicApiKey String?  @map("anthropic_api_key")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("nasa_post_brand_configs")
+}
+
+model NasaPost {
+  id             String         @id @default(cuid())
+  organizationId String         @map("organization_id")
+  createdById    String         @map("created_by_id")
+
+  type           NasaPostType   @default(STATIC)
+  status         NasaPostStatus @default(DRAFT)
+
+  title          String?
+  caption        String?
+  hashtags       String[]
+  cta            String?
+
+  aiPrompt       String?  @map("ai_prompt")
+  starsSpent     Int      @default(0) @map("stars_spent")
+
+  scheduledAt    DateTime? @map("scheduled_at")
+  publishedAt    DateTime? @map("published_at")
+
+  targetNetworks String[] @map("target_networks")
+  thumbnail      String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User             @relation("NasaPostCreatedBy", fields: [createdById], references: [id])
+  slides       NasaPostSlide[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, scheduledAt])
+  @@map("nasa_posts")
+}
+
+model NasaPostSlide {
+  id      String @id @default(cuid())
+  postId  String @map("post_id")
+  order   Int    @default(0)
+
+  imageKey      String?  @map("image_key")
+  headline      String?
+  subtext       String?
+  overlayConfig Json     @default("{}") @map("overlay_config")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post NasaPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, order])
+  @@map("nasa_post_slides")
 }

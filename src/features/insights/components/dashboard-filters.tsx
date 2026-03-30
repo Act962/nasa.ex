@@ -40,13 +40,15 @@ import dayjs from "dayjs";
 import { pt } from "react-day-picker/locale";
 
 interface DashboardFiltersProps {
-  trackingId: string;
+  trackingId?: string;
   tagIds: string[];
   dateRange: DateRange;
   trackingOptions: { id: string; name: string }[];
   onTrackingChange: (id: string) => void;
   organizationIds: string[];
   onOrganizationToggle: (id: string) => void;
+  showTrackingFilter?: boolean;
+  showTagsFilter?: boolean;
 
   organizationOptions: { id: string; name: string }[];
   onTagToggle: (tagId: string) => void;
@@ -64,6 +66,8 @@ export function DashboardFilters({
   organizationIds,
   organizationOptions,
   onOrganizationToggle,
+  showTrackingFilter = true,
+  showTagsFilter = true,
 }: DashboardFiltersProps) {
   const { tags: allTags } = useTags({ trackingId });
 
@@ -75,7 +79,7 @@ export function DashboardFilters({
           selectedIds={organizationIds}
           onToggle={onOrganizationToggle}
         />
-        <Select value={trackingId} onValueChange={onTrackingChange}>
+        {showTrackingFilter && <Select value={trackingId ?? "ALL"} onValueChange={onTrackingChange}>
           <SelectTrigger className="w-full sm:w-50">
             <SelectValue placeholder="Selecione um tracking" />
           </SelectTrigger>
@@ -86,7 +90,7 @@ export function DashboardFilters({
               </SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </Select>}
 
         <Popover>
           <PopoverTrigger asChild>
@@ -170,14 +174,16 @@ export function DashboardFilters({
           </PopoverContent>
         </Popover>
 
-        <div className="flex flex-wrap items-center gap-1">
-          <AddTagFilterButton
-            allTags={allTags || []}
-            selectedTagIds={tagIds}
-            onTagToggle={onTagToggle}
-            trackingId={trackingId}
-          />
-        </div>
+        {showTagsFilter && (
+          <div className="flex flex-wrap items-center gap-1">
+            <AddTagFilterButton
+              allTags={allTags || []}
+              selectedTagIds={tagIds}
+              onTagToggle={onTagToggle}
+              trackingId={trackingId ?? ""}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

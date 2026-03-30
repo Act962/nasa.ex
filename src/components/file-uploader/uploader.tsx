@@ -78,7 +78,12 @@ export function Uploader({
         });
 
         if (!presignedResponse.ok) {
-          toast.error("Falha ao gerar URL presignada");
+          const errData = await presignedResponse.json().catch(() => ({}));
+          const errMsg =
+            presignedResponse.status === 503
+              ? "Armazenamento S3 não configurado. Preencha as variáveis de ambiente no servidor."
+              : (errData?.error ?? "Falha ao gerar URL presignada");
+          toast.error(errMsg);
           setFileState((prev) => ({
             ...prev,
             uploading: false,

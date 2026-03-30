@@ -25,20 +25,6 @@ export default async function Page({ params }: Props) {
             Formulário
           </span>
         </Button>
-        <div className="relative rounded-full p-[1.5px] overflow-hidden">
-          <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#8b5cf6,#ec4899,#f97316,#8b5cf6)] animate-spin [animation-duration:3s]" />
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="relative z-10 rounded-full gap-1.5 text-xs h-7 px-3 bg-background hover:bg-background/80"
-          >
-            <Link href={`/agenda/${orgSlug}/${agendaSlug}/chat`}>
-              <MessageCircleIcon className="size-3" />
-              Agendar com IA
-            </Link>
-          </Button>
-        </div>
       </div>
 
       <BookingForm agendaSlug={agendaSlug} orgSlug={orgSlug} />

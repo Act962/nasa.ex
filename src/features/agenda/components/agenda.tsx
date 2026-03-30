@@ -22,6 +22,7 @@ import { Switch } from "@/components/ui/switch";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
   ArrowUpRight,
+  CalendarDays,
   CalendarIcon,
   CopyIcon,
   EditIcon,
@@ -29,6 +30,13 @@ import {
   LinkIcon,
   TrashIcon,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AllAppointmentsCalendar } from "./all-appointments-calendar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -251,17 +259,53 @@ export function AgendaItem({
 
 export const AgendaHeader = () => {
   const [open, setOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   return (
     <>
-      <EntityHeader
-        title="Agenda"
-        description="Gerencie seus compromissos"
-        newButtonLabel="Novo compromisso"
-        onNew={() => setOpen(true)}
-      />
+      <div className="flex flex-row items-center justify-between gap-x-4">
+        <div className="flex flex-col">
+          <h1 className="text-lg md:text-xl font-semibold">Agenda</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">
+            Gerencie seus compromissos
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Calendário global — todos os agendamentos da empresa */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setCalendarOpen(true)}
+            title="Ver todos os agendamentos"
+          >
+            <CalendarDays className="size-4" />
+          </Button>
+
+          {/* Novo compromisso */}
+          <Button size="sm" onClick={() => setOpen(true)}>
+            <CalendarIcon className="size-4" />
+            Novo compromisso
+          </Button>
+        </div>
+      </div>
 
       <CreateAgendaModal open={open} onOpenChange={setOpen} />
+
+      {/* Dialog do calendário global — tela cheia */}
+      <Dialog open={calendarOpen} onOpenChange={setCalendarOpen}>
+        <DialogContent className="w-screen h-screen max-w-none max-h-none rounded-none inset-0 translate-x-0 translate-y-0 left-0 top-0 flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="flex-shrink-0 px-6 pt-5 pb-4 border-b">
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+              <CalendarDays className="size-4" />
+              Todos os agendamentos
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <AllAppointmentsCalendar />
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

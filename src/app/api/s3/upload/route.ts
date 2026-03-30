@@ -13,6 +13,21 @@ export const fileUploadSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  // Guard: check required env vars before attempting anything
+  const missingVars: string[] = [];
+  if (!process.env.AWS_ENDPOINT_URL_S3) missingVars.push("AWS_ENDPOINT_URL_S3");
+  if (!process.env.AWS_ACCESS_KEY_ID) missingVars.push("AWS_ACCESS_KEY_ID");
+  if (!process.env.AWS_SECRET_ACCESS_KEY) missingVars.push("AWS_SECRET_ACCESS_KEY");
+  if (!process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES) missingVars.push("NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES");
+
+  if (missingVars.length > 0) {
+    console.error("[s3/upload] Missing env vars:", missingVars.join(", "));
+    return NextResponse.json(
+      { error: "S3 não configurado. Defina as variáveis de ambiente: " + missingVars.join(", ") },
+      { status: 503 },
+    );
+  }
+
   try {
     const body = await req.json();
 
@@ -38,7 +53,7 @@ export async function POST(req: Request) {
       Key: uniqueKey,
     });
     const presignedUrl = await getSignedUrl(S3, command, {
-      expiresIn: 60 * 60, //URL expires in 6 minutes
+      expiresIn: 60 * 60, //URL expires in 1 hour
     });
 
     const response = {
@@ -48,7 +63,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.log(error);
+    console.error("[s3/upload]", error);
     return NextResponse.json(
       { error: "Failed to generate presigned URL" },
       { status: 500 },

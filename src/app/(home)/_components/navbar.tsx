@@ -10,26 +10,24 @@ export function Navbar() {
   const { data: session, isPending } = authClient.useSession();
 
   return (
-    <header className="fixed top-0 w-full z-999999 p-4 flex items-center justify-between">
+    <header className="fixed top-0 w-full z-[99999] px-5 py-3 flex items-center justify-between backdrop-blur-md bg-black/60 border-b border-white/5">
       <Logo />
       <div className="md:ml-auto md:justify-end justify-between w-full flex items-center gap-x-2">
         {isPending && <Spinner />}
         {!session?.user && !isPending && (
           <>
-            <Button variant="outline" asChild className="cursor-pointer">
+            <Button variant="ghost" asChild className="cursor-pointer text-white/70 hover:text-white hover:bg-white/5">
               <Link href="/sign-in">Entrar</Link>
             </Button>
-            <Button asChild className="hidden md:block cursor-pointer">
+            <Button asChild className="hidden md:flex cursor-pointer bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-2 rounded-xl">
               <Link href="/sign-up">Começar gratuitamente</Link>
             </Button>
           </>
         )}
         {session?.user && !isPending && (
-          <>
-            <Button asChild className="cursor-pointer">
-              <Link href="/tracking">Entrar</Link>
-            </Button>
-          </>
+          <Button asChild className="cursor-pointer bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-xl">
+            <Link href="/tracking">Entrar no NASA</Link>
+          </Button>
         )}
         <ModeToggle />
       </div>

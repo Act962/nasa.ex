@@ -173,6 +173,16 @@ export const useDeleteTimeSlot = () => {
 
 // Appointments
 
+export const useQueryAppointmentsByOrg = () => {
+  const { data, isLoading } = useQuery(
+    orpc.agenda.appointments.getManyByOrg.queryOptions({}),
+  );
+  return {
+    appointments: data?.appointments ?? [],
+    isLoading,
+  };
+};
+
 export const useQueryAgendasByTracking = (trackingId: string) => {
   return useQuery(
     orpc.agenda.getByTracking.queryOptions({ input: { trackingId } }),
@@ -190,6 +200,9 @@ export const useAdminCreateAppointment = () => {
           orpc.agenda.appointments.getManyByTracking.queryOptions({
             input: { trackingId: data.appointment.trackingId ?? "" },
           }),
+        );
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.getManyByOrg.queryOptions({}),
         );
       },
       onError: (error) => {
@@ -237,9 +250,101 @@ export const useRescheduleAppointment = () => {
             input: { trackingId: data.appointment.trackingId ?? "" },
           }),
         );
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.getManyByOrg.queryOptions({}),
+        );
       },
       onError: (error) => {
         toast.error("Erro ao reagendar: " + error.message);
+      },
+    }),
+  );
+};
+
+// DateAvailabilities (Dia mode)
+
+export const useSuspenseDateAvailabilities = (agendaId: string) => {
+  return useSuspenseQuery(
+    orpc.agenda.dateAvailabilities.getMany.queryOptions({ input: { agendaId } }),
+  );
+};
+
+export const useQueryDateAvailabilities = (agendaId: string) => {
+  return useQuery(
+    orpc.agenda.dateAvailabilities.getMany.queryOptions({ input: { agendaId } }),
+  );
+};
+
+export const useUpsertDateAvailability = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.dateAvailabilities.upsert.mutationOptions({
+      onSuccess: (data) => {
+        queryClient.invalidateQueries(
+          orpc.agenda.dateAvailabilities.getMany.queryOptions({
+            input: { agendaId: data.dateAvailability.agendaId },
+          }),
+        );
+      },
+      onError: (error) => {
+        toast.error("Erro ao configurar data: " + error.message);
+      },
+    }),
+  );
+};
+
+export const useDeleteDateAvailability = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.dateAvailabilities.delete.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.agenda.dateAvailabilities.getMany.key({}),
+        });
+      },
+    }),
+  );
+};
+
+export const useCreateDateAvailabilitySlot = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.dateAvailabilities.slots.create.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.agenda.dateAvailabilities.getMany.key({}),
+        });
+      },
+    }),
+  );
+};
+
+export const useUpdateDateAvailabilitySlot = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.dateAvailabilities.slots.update.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.agenda.dateAvailabilities.getMany.key({}),
+        });
+      },
+    }),
+  );
+};
+
+export const useDeleteDateAvailabilitySlot = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.dateAvailabilities.slots.delete.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.agenda.dateAvailabilities.getMany.key({}),
+        });
       },
     }),
   );
@@ -254,10 +359,11 @@ export const useCancelAppointment = () => {
         toast.success("Agendamento cancelado com sucesso");
         queryClient.invalidateQueries(
           orpc.agenda.appointments.getManyByTracking.queryOptions({
-            input: {
-              trackingId: "",
-            },
+            input: { trackingId: "" },
           }),
+        );
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.getManyByOrg.queryOptions({}),
         );
       },
     }),

@@ -13,6 +13,13 @@ interface InsightFilter {
   tagIds?: string[];
 }
 
+export const useQueryAppsInsights = (input: InsightFilter) => {
+  const { data, ...query } = useQuery(
+    orpc.insights.getAppsInsights.queryOptions({ input }),
+  );
+  return { appsInsights: data, ...query };
+};
+
 export const useQueryTrackingDashboardReport = (input: InsightFilter) => {
   const { data, ...query } = useQuery(
     orpc.insights.getTrackingDashboardReport.queryOptions({ input }),

@@ -16,6 +16,7 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.64",
     "@ai-sdk/google": "^3.0.43",
     "@ai-sdk/openai": "^3.0.41",
     "@ai-sdk/react": "^3.0.105",
@@ -93,9 +94,11 @@
     "embla-carousel-react": "^8.6.0",
     "emoji-picker-react": "^4.18.0",
     "html-react-parser": "^5.2.17",
+    "html2canvas": "^1.4.1",
     "inngest": "^3.52.4",
     "input-otp": "^1.4.2",
     "jotai": "^2.18.0",
+    "jspdf": "^4.2.1",
     "ky": "^1.14.3",
     "lodash": "^4.17.23",
     "lucide-react": "^0.554.0",
@@ -125,6 +128,7 @@
     "shiki": "^3.23.0",
     "sonner": "^2.0.7",
     "streamdown": "^2.3.0",
+    "stripe": "^21.0.1",
     "tailwind-merge": "^3.5.0",
     "toposort": "^2.0.2",
     "tunnel-rat": "^0.1.2",

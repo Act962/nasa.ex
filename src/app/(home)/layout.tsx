@@ -2,7 +2,6 @@ import { ShootingStars } from "@/components/ui/shooting-stars";
 import { StarsBackground } from "@/components/ui/stars-background";
 import React from "react";
 import { Navbar } from "./_components/navbar";
-import { Footer } from "./_components/footer";
 
 export default function MarketingLayout({
   children,
@@ -10,14 +9,14 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="h-full relative">
+    <div className="relative bg-black min-h-screen overflow-x-hidden">
       <Navbar />
-      <main className="relative h-full flex items-center justify-center z-99999">
-        {children}
-      </main>
-      <Footer />
-      <ShootingStars />
-      <StarsBackground />
+      <main className="relative z-10">{children}</main>
+      {/* Fixed star background */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <ShootingStars />
+        <StarsBackground />
+      </div>
     </div>
   );
 }

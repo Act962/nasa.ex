@@ -4,6 +4,7 @@ import { HeaderTracking } from "../../../features/leads/components/header-tracki
 import { currentOrganization } from "@/lib/auth-utils";
 import { EmptyOrganization } from "../../../features/leads/components/empty-organization";
 import { cookies } from "next/headers";
+import { PlatformProviders } from "@/features/astro/components/platform-providers";
 
 export default async function RouteLayout({
   children,
@@ -15,18 +16,20 @@ export default async function RouteLayout({
   const org = await currentOrganization();
 
   return (
-    <SidebarProvider defaultOpen={defaultOpen}>
-      <AppSidebar />
+    <PlatformProviders>
+      <SidebarProvider defaultOpen={defaultOpen}>
+        <AppSidebar />
 
-      {org && <>{children}</>}
-      {!org && (
-        <SidebarInset>
-          <HeaderTracking />
-          <div className="h-full flex items-center justify-center">
-            <EmptyOrganization />
-          </div>
-        </SidebarInset>
-      )}
-    </SidebarProvider>
+        {org && <>{children}</>}
+        {!org && (
+          <SidebarInset>
+            <HeaderTracking />
+            <div className="h-full flex items-center justify-center">
+              <EmptyOrganization />
+            </div>
+          </SidebarInset>
+        )}
+      </SidebarProvider>
+    </PlatformProviders>
   );
 }

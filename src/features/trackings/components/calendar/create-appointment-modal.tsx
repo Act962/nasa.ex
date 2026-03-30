@@ -41,6 +41,7 @@ import {
   useQueryAgendasByTracking,
   useAdminCreateAppointment,
 } from "@/features/agenda/hooks/use-agenda";
+import { useQueryTrackings } from "@/features/trackings/hooks/use-trackings";
 import { DayOfWeek } from "@/generated/prisma/enums";
 import { countries } from "@/types/some";
 import { normalizePhone, phoneMask } from "@/utils/format-phone";
@@ -58,7 +59,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 interface Props {
   open: boolean;
   onClose: () => void;
-  trackingId: string;
+  /** Quando omitido, exibe step 0 para seleção de tracking */
+  trackingId?: string;
   initialDate?: Date;
 }
 
@@ -112,11 +114,13 @@ export function CreateAppointmentModal({
   useEffect(() => {
     if (open) {
       setSelectedTime("");
+      setSelectedAgendaId("");
+      setResolvedTrackingId(trackingId ?? "");
       form.reset({ name: "", phone: "", code: "55", email: "", notes: "" });
       if (initialDate)
         setSelectedDate(parseDate(dayjs(initialDate).format("YYYY-MM-DD")));
     }
-  }, [open, initialDate]);
+  }, [open, initialDate, trackingId]);
 
   useEffect(() => {
     if (agendas.length === 1) setSelectedAgendaId(agendas[0].id);
@@ -194,6 +198,7 @@ export function CreateAppointmentModal({
 
         <div className="px-6 py-5 flex flex-col gap-6">
           {/* ── Step 1: Agenda ── */}
+          {(!needsTrackingPick || !!resolvedTrackingId) && (
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
@@ -231,6 +236,7 @@ export function CreateAppointmentModal({
               </Select>
             )}
           </div>
+          )}
 
           {/* ── Step 2: Date + Time ── */}
           {showCalendar && (

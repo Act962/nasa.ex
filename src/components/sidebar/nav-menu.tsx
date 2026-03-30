@@ -1,13 +1,14 @@
 "use client";
 
 import {
-  BookCheck,
   Calendar,
   ChartColumnDecreasingIcon,
   ClipboardType,
-  File,
+  Home as HomeIcon,
   Kanban,
+  LayoutGrid,
   MessageSquareTextIcon,
+  Plug2,
   Users,
 } from "lucide-react";
 
@@ -23,48 +24,15 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const items = [
-  {
-    title: "Trackings",
-    url: "/tracking",
-    icon: Kanban,
-    isActive: true,
-  },
-  // {
-  //   title: "Propostas",
-  //   url: "/tracking/proposta",
-  //   icon: File,
-  //   isActive: true,
-  // },
-  {
-    title: "Formulários",
-    url: "/form",
-    icon: ClipboardType,
-    isActive: true,
-  },
-  {
-    title: "Chats",
-    url: "/tracking-chat",
-    icon: MessageSquareTextIcon,
-    isActive: true,
-  },
-  {
-    title: "Agenda",
-    url: "/agendas",
-    icon: Calendar,
-    isActive: true,
-  },
-  {
-    title: "Contatos",
-    url: "/contatos",
-    icon: Users,
-    isActive: true,
-  },
-  {
-    title: "Insights",
-    url: "/insights",
-    icon: ChartColumnDecreasingIcon,
-    isActive: true,
-  },
+  { title: "Início",       url: "/home",           icon: HomeIcon },
+  { title: "Trackings",    url: "/tracking",      icon: Kanban },
+  { title: "Formulários",  url: "/form",           icon: ClipboardType },
+  { title: "Chats",        url: "/tracking-chat",  icon: MessageSquareTextIcon },
+  { title: "Agenda",       url: "/agendas",        icon: Calendar },
+  { title: "Contatos",     url: "/contatos",       icon: Users },
+  { title: "Insights",     url: "/insights",       icon: ChartColumnDecreasingIcon },
+  { title: "Integrações",  url: "/integrations",   icon: Plug2 },
+  { title: "Apps",         url: "/apps",           icon: LayoutGrid },
 ];
 
 export function NavMenu() {
@@ -76,7 +44,8 @@ export function NavMenu() {
       <SidebarMenu>
         {items.map((item, index) => {
           const isActive =
-            pathname === item.url || pathname.startsWith(item.url + "/");
+            pathname === item.url ||
+            (item.url !== "/home" && pathname.startsWith(item.url + "/"));
 
           return (
             <SidebarMenuItem key={`${item.title}-${index}`}>
@@ -84,8 +53,7 @@ export function NavMenu() {
                 tooltip={item.title}
                 asChild
                 className={cn(
-                  isActive &&
-                    "bg-sidebar-accent text-sidebar-accent-foreground",
+                  isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
                 )}
               >
                 <Link href={item.url}>

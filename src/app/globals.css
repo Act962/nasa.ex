@@ -198,3 +198,104 @@
   height: 0;
   pointer-events: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FORGE — Print / PDF styles
+   Applies to: /proposta/[token]  and  /contrato/[token]
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Screen: hide print-only running elements */
+.forge-print-header,
+.forge-print-footer {
+  display: none;
+}
+
+@media print {
+
+  /* ── A4 page with space reserved for running header + footer ────────────── */
+  @page {
+    size: A4 portrait;
+    /* top 24mm  → running header sits here
+       bottom 20mm → running footer sits here */
+    margin: 24mm 14mm 20mm 14mm;
+  }
+
+  /* ── Preserve background colours and images ─────────────────────────────── */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ── Hide interactive / screen-only elements ────────────────────────────── */
+  .forge-pdf-btn,
+  .forge-no-print {
+    display: none !important;
+  }
+
+  /* ── Running header – repeats on every printed page ────────────────────── */
+  .forge-print-header {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    top: -22mm;          /* offset into the @page top margin */
+    left: 0;
+    right: 0;
+    height: 20mm;
+    padding: 0 14mm;
+    box-sizing: border-box;
+    background: white;
+    border-bottom: 0.5pt solid #e5e7eb;
+    z-index: 9999;
+  }
+
+  /* ── Running footer – repeats on every printed page ────────────────────── */
+  .forge-print-footer {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    bottom: -18mm;       /* offset into the @page bottom margin */
+    left: 0;
+    right: 0;
+    height: 16mm;
+    padding: 0 14mm;
+    box-sizing: border-box;
+    background: white;
+    border-top: 0.5pt solid #e5e7eb;
+    font-size: 8pt;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #9ca3af;
+    z-index: 9999;
+  }
+
+  /* ── Block-level elements that must never be split across pages ─────────── */
+  .forge-avoid-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Table rows never orphan */
+  tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Headings stay with the paragraph that follows */
+  h1, h2, h3, h4 {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Images never clip at the page boundary */
+  img {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    max-width: 100% !important;
+  }
+
+  /* Repeat table headers on continuation pages */
+  thead {
+    display: table-header-group;
+  }
+}
