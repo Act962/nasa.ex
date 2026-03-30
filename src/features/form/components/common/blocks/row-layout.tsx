@@ -105,9 +105,6 @@ function RowLayoutCanvasComponent({
       if (!over || !active) return;
       setActiveBlock(null);
 
-      console.log(over, "over");
-      console.log(active, "active");
-
       const isBlockkBtnElement = active?.data?.current?.isBlockBtnElement;
       const isLayout = active.data?.current?.blockType;
 
@@ -116,7 +113,8 @@ function RowLayoutCanvasComponent({
       if (
         isBlockkBtnElement &&
         !allBlockLayouts.includes(isLayout) &&
-        overBlockId === blockInstance.id
+        overBlockId === blockInstance.id &&
+        !blockInstance.isLocked
       ) {
         const blockType = active.data?.current?.blockType;
         const newBlock =
@@ -142,12 +140,7 @@ function RowLayoutCanvasComponent({
       <Card
         ref={droppable.setNodeRef}
         className={cn(
-          `w-full! bg-accent-foreground/10 relative border
-          shadow-sm
-            min-h-[120px]
-            max-w-[768px]
-                rounded-md p-0!
-                `,
+          `w-full! bg-accent-foreground/10 relative border shadow-sm min-h-[120px] max-w-[768px] rounded-md p-0!`,
           blockInstance.isLocked && "rounded-t-none!",
         )}
         onClick={() => {
@@ -155,24 +148,15 @@ function RowLayoutCanvasComponent({
         }}
       >
         <CardContent className="px-2 pb-2">
-          {isSelected && !blockInstance.isLocked && (
-            <div
-              className="
-             w-[5px] absolute left-0
-             top-0 rounded-l-md
-             h-full bg-primary
-              "
-            />
+          {isSelected && (
+            <div className="w-[5px] absolute left-0 top-0 rounded-l-md h-full bg-primary" />
           )}
           {!blockInstance.isLocked && (
             <div
               {...draggable.listeners}
               {...draggable.attributes}
               role="button"
-              className="
-          flex items-center w-full h-[24px]
-          cursor-move justify-center
-          "
+              className="flex items-center w-full h-[24px] cursor-move justify-center"
             >
               <GripHorizontal
                 size="20px"
@@ -198,7 +182,7 @@ function RowLayoutCanvasComponent({
               )}
 
             {!droppable.isOver && childBlocks?.length == 0 ? (
-              <PlaceHolder />
+              <PlaceHolder textColor={textColor} />
             ) : (
               <div
                 className="
@@ -210,9 +194,7 @@ function RowLayoutCanvasComponent({
                 {childBlocks?.map((childBlock) => (
                   <div
                     key={childBlock.id}
-                    className="w-full h-auto flex items-center
-                justify-center gap-1
-                "
+                    className="w-full h-auto flex items-center justify-center gap-1"
                   >
                     <ChildCanvasComponentWrapper
                       blockInstance={childBlock}
@@ -226,7 +208,7 @@ function RowLayoutCanvasComponent({
                         className="bg-transparent!"
                         onClick={(e) => removeChildBlock(e, childBlock.id)}
                       >
-                        <X />
+                        <X style={{ color: textColor || undefined }} />
                       </Button>
                     )}
                   </div>
@@ -237,13 +219,7 @@ function RowLayoutCanvasComponent({
         </CardContent>
 
         {isSelected && !blockInstance.isLocked && (
-          <CardFooter
-            className="flex items-center
-                   gap-3 
-          justify-end
-          border-t py-3
-          "
-          >
+          <CardFooter className="flex items-center gap-3 justify-end border-t py-3">
             <Button
               variant="outline"
               size="icon"
@@ -252,7 +228,7 @@ function RowLayoutCanvasComponent({
                 duplicateBlockLayout(blockInstance.id);
               }}
             >
-              <Copy />
+              <Copy style={{ color: textColor || undefined }} />
             </Button>
 
             <Button
@@ -263,7 +239,7 @@ function RowLayoutCanvasComponent({
                 removeBlockLayout(blockInstance.id);
               }}
             >
-              <Trash2Icon />
+              <Trash2Icon style={{ color: textColor || undefined }} />
             </Button>
           </CardFooter>
         )}
@@ -295,12 +271,7 @@ function RowLayoutFormComponent({
 
       <Card
         className={cn(
-          `w-full! bg-foreground/10 relative border
-          shadow-sm
-            min-h-[120px]
-            max-w-[768px]
-                rounded-md p-0!
-                `,
+          `w-full! bg-foreground/10 relative border shadow-sm min-h-[120px] max-w-[768px] rounded-md p-0!`,
           blockInstance.isLocked && "rounded-t-none!",
         )}
         style={{ color: textColor || undefined }}
@@ -309,9 +280,7 @@ function RowLayoutFormComponent({
           <div className="flex flex-wrap gap-2">
             <div
               className="
-             flex w-full flex-col
-             items-center justify-center gap-4 py-4 px-3
-            "
+             flex w-full flex-col items-center justify-center gap-4 py-4 px-3"
             >
               {childblocks.map((childblock) => (
                 <div
@@ -354,9 +323,7 @@ function RowLayoutPropertiesComponent({
         {childblocks?.map((childblock, index) => (
           <div
             key={childblock.id}
-            className="w-full flex items-center
-          justify-center gap-1 h-auto
-          "
+            className="w-full flex items-center justify-center gap-1 h-auto"
           >
             <ChildPropertiesComponentWrapper
               index={index + 1}
@@ -370,12 +337,13 @@ function RowLayoutPropertiesComponent({
   );
 }
 
-function PlaceHolder() {
+function PlaceHolder({ textColor }: { textColor: string | undefined }) {
   return (
     <div className="flex flex-col items-center justify-center border border-dotted border-muted-foreground rounded-md bg-accent/10 hover:bg-accent/5 w-full h-28 text-foreground font-medium text-base gap-1s">
       <p
+        style={{ color: textColor || undefined }}
         className="
-          text-center text-foreground/80
+          text-center 
           "
       >
         Arraste e solte um bloco aqui para começar
@@ -386,10 +354,6 @@ function PlaceHolder() {
 
 function Border() {
   return (
-    <div
-      className="w-full rounded-t-md
-  min-h-[8px] bg-accent-foreground/10
-    "
-    />
+    <div className="w-full rounded-t-md min-h-[8px] bg-accent-foreground/10" />
   );
 }

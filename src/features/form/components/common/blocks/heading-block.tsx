@@ -149,7 +149,10 @@ function HeadingPropertiesComponent({
   }, [block.attributes, form]);
 
   function setChanges(values: propertiesValidateSchemaType) {
-    if (!parentId) return null;
+    if (!parentId) {
+      console.log("parentId is required");
+      return;
+    }
     updateChildBlock(parentId, block.id, {
       ...block,
       attributes: {

@@ -235,16 +235,18 @@ export function FormSubmitComponent({ id, blocks, settings }: FormSubmitProps) {
               </Card>
             ) : (
               blocks.length > 0 && (
-                <div className="flex flex-col w-full gap-4">
+                <div
+                  className={cn(
+                    "flex flex-col w-full gap-4 p-4 rounded-md",
+                    backgroundImage
+                      ? "bg-white/20 backdrop-blur-md"
+                      : "bg-foreground/10",
+                  )}
+                >
                   {step === 1 && showLeadFields && (
                     <>
                       <Card
-                        className={cn(
-                          "w-full border-none px-4",
-                          backgroundImage
-                            ? "bg-white/20 backdrop-blur-md"
-                            : "bg-foreground/10",
-                        )}
+                        className={cn("w-full border-none px-4")}
                         style={{ color: textColor || undefined }}
                       >
                         <CardContent className="p-0 flex flex-col gap-4">

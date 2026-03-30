@@ -221,12 +221,7 @@ function CanvasBlockLayoutWrapper({
         "
           >
             {bottomCorner.isOver && (
-              <div
-                className="
-             absolute w-full -bottom-[3px] h-[6px]
-             bg-primary rounded-b-md 
-            "
-              />
+              <div className="absolute w-full -bottom-[3px] h-[6px] bg-primary rounded-b-md" />
             )}
           </div>
         )}

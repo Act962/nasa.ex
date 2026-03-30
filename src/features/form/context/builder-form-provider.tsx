@@ -31,6 +31,12 @@ type BuilderActions = {
 
   updateBlockLayout: (id: string, childrenBlocks: FormBlockInstance[]) => void;
 
+  updateAnyBlock: (
+    id: string,
+    updatedBlock: FormBlockInstance,
+    parentId?: string,
+  ) => void;
+
   repositionBlockLayout: (
     activeId: string,
     overId: string,
@@ -77,6 +83,18 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
         },
       };
     });
+  },
+
+  updateAnyBlock: (id, updatedBlock, parentId) => {
+    if (parentId) {
+      get().updateChildBlock(parentId, id, updatedBlock);
+      return;
+    }
+    set((state) => ({
+      blockLayouts: state.blockLayouts.map((block) =>
+        block.id === id ? { ...block, ...updatedBlock } : block,
+      ),
+    }));
   },
 
   setBlockLayouts: (updater) =>

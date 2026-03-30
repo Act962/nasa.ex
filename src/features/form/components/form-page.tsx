@@ -1,7 +1,7 @@
 import { Separator } from "@/components/ui/separator";
 import { CreateForm } from "./create-form";
-import { StatsListWrap } from "./status-list-wrap";
 import { FormList } from "./form-list";
+import StatsCards from "./stats-card";
 
 export function FormPage() {
   return (
@@ -13,14 +13,16 @@ export function FormPage() {
             <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
             <CreateForm />
           </div>
-          <StatsListWrap />
+          <StatsCards />
         </section>
         <div className="mt-10">
           <Separator />
         </div>
         <section className="w-full pt-7 pb-10">
           <div className="w-full flex items-center mb-4">
-            <h5 className="text-xl font-semibold tracking-tight">All Forms</h5>
+            <h5 className="text-xl font-semibold tracking-tight">
+              Todos os forms
+            </h5>
           </div>
           <FormList />
         </section>

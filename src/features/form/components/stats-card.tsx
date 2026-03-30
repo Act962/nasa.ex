@@ -8,9 +8,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Loader } from "lucide-react";
+import { useQueryFormInsights } from "../hooks/use-form";
 
-const StatsCards = (props: { data: any; loading: boolean }) => {
-  const { loading, data } = props;
+const StatsCards = () => {
+  const { data, isLoading } = useQueryFormInsights();
+
   return (
     <div
       className="grid gap-4 
@@ -23,7 +25,7 @@ const StatsCards = (props: { data: any; loading: boolean }) => {
         <CardHeader className="pb-2">
           <CardDescription>Total Forms</CardDescription>
           <CardTitle className="text-4xl">
-            {loading ? (
+            {isLoading ? (
               <Loader className="h-[36px] animate-spin" />
             ) : (
               data?.totalForms || 0
@@ -32,7 +34,7 @@ const StatsCards = (props: { data: any; loading: boolean }) => {
         </CardHeader>
         <CardContent>
           <div className="text-xs text-muted-foreground">
-            All forms created on your account
+            Total de forms criados nesta empresa
           </div>
         </CardContent>
       </Card>
@@ -40,9 +42,9 @@ const StatsCards = (props: { data: any; loading: boolean }) => {
       {/* {Responses} */}
       <Card className="bg-accent/10">
         <CardHeader className="pb-2">
-          <CardDescription>Total Responses</CardDescription>
+          <CardDescription>Total de respostas</CardDescription>
           <CardTitle className="text-4xl">
-            {loading ? (
+            {isLoading ? (
               <Loader className="h-[36px] animate-spin" />
             ) : (
               data?.totalResponses || 0
@@ -51,7 +53,7 @@ const StatsCards = (props: { data: any; loading: boolean }) => {
         </CardHeader>
         <CardContent>
           <div className="text-xs text-muted-foreground">
-            Responses submitted for your forms
+            Total de respostas enviadas para os forms
           </div>
         </CardContent>
       </Card>
@@ -59,9 +61,9 @@ const StatsCards = (props: { data: any; loading: boolean }) => {
       {/* {Conversion Rate} */}
       <Card className="bg-accent/10">
         <CardHeader className="pb-2">
-          <CardDescription>Conversion Rate</CardDescription>
+          <CardDescription>Taxa de conversão</CardDescription>
           <CardTitle className="text-4xl">
-            {loading ? (
+            {isLoading ? (
               <Loader className="h-[36px] animate-spin" />
             ) : (
               <>{data?.conversionRate?.toFixed(1)}%</>
@@ -70,7 +72,7 @@ const StatsCards = (props: { data: any; loading: boolean }) => {
         </CardHeader>
         <CardContent>
           <div className="text-xs text-muted-foreground">
-            % of views that resulted in responses
+            Percentual de visualizações que resultaram em respostas
           </div>
         </CardContent>
       </Card>
@@ -78,9 +80,9 @@ const StatsCards = (props: { data: any; loading: boolean }) => {
       {/* {Engagement Rate} */}
       <Card className="bg-accent/10">
         <CardHeader className="pb-2">
-          <CardDescription>Engagement Rate</CardDescription>
+          <CardDescription>Taxa de engajamento</CardDescription>
           <CardTitle className="text-4xl">
-            {loading ? (
+            {isLoading ? (
               <Loader className="h-[36px] animate-spin" />
             ) : (
               <>{data?.engagementRate?.toFixed(1)}%</>
@@ -89,7 +91,7 @@ const StatsCards = (props: { data: any; loading: boolean }) => {
         </CardHeader>
         <CardContent>
           <div className="text-xs text-muted-foreground">
-            % of forms that received responses
+            Percentual de forms que receberam respostas
           </div>
         </CardContent>
       </Card>

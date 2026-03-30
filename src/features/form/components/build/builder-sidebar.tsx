@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Edit2, X } from "lucide-react";
-import { useMutationUpdateForm } from "../hooks/use-form";
+import { useMutationUpdateForm } from "../../hooks/use-form";
 
 export function BuilderSidebar({
   rest,

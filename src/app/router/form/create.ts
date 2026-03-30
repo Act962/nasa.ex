@@ -31,31 +31,31 @@ export const createForm = base
     }
 
     const jsonBlock = JSON.stringify([
-      {
-        blockType: "RowLayout",
-        attributes: {},
-        isLocked: false,
-        childblocks: [
-          {
-            blockType: "Heading",
-            attributes: {
-              label: name || "Formulário sem título",
-              level: 1,
-              fontSize: "4x-large",
-              fontWeight: "normal",
-            },
-          },
-          {
-            blockType: "Paragraph",
-            attributes: {
-              label: "Paragraph",
-              text: description || "Adicione uma descrição aqui.",
-              fontSize: "small",
-              fontWeight: "normal",
-            },
-          },
-        ],
-      },
+      // {
+      //   blockType: "RowLayout",
+      //   attributes: {},
+      //   isLocked: true,
+      //   childblocks: [
+      //     {
+      //       blockType: "Heading",
+      //       attributes: {
+      //         label: name || "Formulário sem título",
+      //         level: 1,
+      //         fontSize: "4x-large",
+      //         fontWeight: "normal",
+      //       },
+      //     },
+      //     {
+      //       blockType: "Paragraph",
+      //       attributes: {
+      //         label: "Paragraph",
+      //         text: description || "Adicione uma descrição aqui.",
+      //         fontSize: "small",
+      //         fontWeight: "normal",
+      //       },
+      //     },
+      //   ],
+      // },
     ]);
 
     const form = await prisma.form.create({

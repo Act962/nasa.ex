@@ -1,4 +1,4 @@
-import { FormBuilder } from "@/features/form/components/form-builder";
+import { FormBuilder } from "@/features/form/components/build/form-builder";
 
 export default async function Page({
   params,

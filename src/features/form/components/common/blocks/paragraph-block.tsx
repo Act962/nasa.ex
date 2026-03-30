@@ -67,14 +67,13 @@ export const ParagraphBlock: ObjectBlockType = {
     },
   }),
 
-  // Button in the UI that allows the user to add a new block
   blockBtnElement: {
     icon: TextIcon,
     label: "Paragraph",
   },
   canvasComponent: ParagraphCanvasFormComponent,
   formComponent: ParagraphCanvasFormComponent,
-  propertiesComponent: ParagraphPropertiesComponent, // Customizable properties editor
+  propertiesComponent: ParagraphPropertiesComponent,
 };
 
 type NewInstance = FormBlockInstance & {

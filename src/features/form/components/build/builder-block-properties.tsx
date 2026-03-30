@@ -1,11 +1,9 @@
 "use client";
-import React from "react";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { MousePointerClickIcon } from "lucide-react";
 import { FormBlocks } from "@/features/form/lib/form-blocks";
-import { PreviewDialog } from "./common/preview-dialog";
-import { SaveFormBtn } from "./common/save-form-btn";
-import { PublishFormBtn } from "./common/publish-form-btn";
+import { SaveFormBtn } from "../common/save-form-btn";
+import { PublishFormBtn } from "../common/publish-form-btn";
 
 export function BuilderBlockProperties() {
   const { selectedBlockLayout } = useBuilderStore();

@@ -1,7 +1,7 @@
 import { BuilderSidebar } from "./builder-sidebar";
 import { BuilderCanvas } from "./builder-canvas";
-import { BuilderBlockProperties } from "@/features/form/components/builder-block-properties";
-import { FloatingShareButton } from "./common/floating-share-button";
+import { BuilderBlockProperties } from "@/features/form/components/build/builder-block-properties";
+import { FloatingShareButton } from "../common/floating-share-button";
 
 export function Builder(props: { isSidebarOpen: boolean }) {
   return (

@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { DeleteFormModal } from "./delete-form-modal";
 import { Trash2 } from "lucide-react";
+import { ptBR } from "date-fns/locale";
 
 type PropsType = {
   id: string;
@@ -142,6 +143,7 @@ export const FormItem = (props: PropsType) => {
           <span className="text-muted-foreground flex gap-1 text-[13px]">
             {formatDistanceToNowStrict(new Date(createdAt), {
               addSuffix: true,
+              locale: ptBR,
             })}
           </span>
         </div>

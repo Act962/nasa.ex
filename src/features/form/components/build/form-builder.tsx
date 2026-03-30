@@ -2,8 +2,8 @@
 import React, { useState } from "react";
 import { DndContext, MouseSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { useBuilderStore } from "../context/builder-form-provider";
-import { Builder } from "@/features/form/components/builder";
+import { useBuilderStore } from "../../context/builder-form-provider";
+import { Builder } from "@/features/form/components/build/builder";
 import { BuilderDragOverlay } from "@/features/form/components/common/utils/builder-drag-overlay";
 
 import { useEffect } from "react";
