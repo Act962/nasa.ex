@@ -91,7 +91,7 @@ export function CreateAppointmentModal({
   initialDate,
 }: Props) {
   const { data: agendasData, isLoading: isLoadingAgendas } =
-    useQueryAgendasByTracking(trackingId);
+    useQueryAgendasByTracking(trackingId || "");
   const agendas = agendasData?.agendas ?? [];
 
   const [selectedAgendaId, setSelectedAgendaId] = useState<string>("");
@@ -115,7 +115,6 @@ export function CreateAppointmentModal({
     if (open) {
       setSelectedTime("");
       setSelectedAgendaId("");
-      setResolvedTrackingId(trackingId ?? "");
       form.reset({ name: "", phone: "", code: "55", email: "", notes: "" });
       if (initialDate)
         setSelectedDate(parseDate(dayjs(initialDate).format("YYYY-MM-DD")));
@@ -198,7 +197,7 @@ export function CreateAppointmentModal({
 
         <div className="px-6 py-5 flex flex-col gap-6">
           {/* ── Step 1: Agenda ── */}
-          {(!needsTrackingPick || !!resolvedTrackingId) && (
+          {/* {(!needsTrackingPick ) && (
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
@@ -236,7 +235,7 @@ export function CreateAppointmentModal({
               </Select>
             )}
           </div>
-          )}
+          )} */}
 
           {/* ── Step 2: Date + Time ── */}
           {showCalendar && (
