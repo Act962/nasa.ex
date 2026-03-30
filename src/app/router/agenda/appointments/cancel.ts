@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { logActivity } from "@/lib/activity-logger";
 import { z } from "zod";
 
 export const cancelAppointment = base
@@ -43,6 +44,19 @@ export const cancelAppointment = base
       data: {
         status: "CANCELLED",
       },
+    });
+
+    await logActivity({
+      organizationId: context.org.id,
+      userId: context.user.id,
+      userName: context.user.name,
+      userEmail: context.user.email,
+      userImage: (context.user as any).image,
+      appSlug: "spacetime",
+      action: "appointment.cancelled",
+      actionLabel: `Cancelou agendamento "${appointment.title ?? appointmentId}"`,
+      resourceId: appointmentId,
+      metadata: { previousStatus: appointment.status },
     });
 
     return { appointment: updatedAppointment };

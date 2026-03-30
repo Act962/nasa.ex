@@ -16,6 +16,9 @@ import {
   ResponsiveContainer, Cell,
 } from "recharts";
 import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Activity, Users, Clock, Filter, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,21 +64,57 @@ function OnlineBadge() {
     refetchInterval: 30_000,
   });
 
-  if (isLoading) return <Skeleton className="h-6 w-20" />;
+  if (isLoading) return <Skeleton className="h-7 w-28 rounded-full" />;
 
-  return (
+  const count = data?.count ?? 0;
+  const online = data?.online ?? [];
+
+  const badge = (
     <div className={cn(
-      "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border",
-      (data?.count ?? 0) > 0
-        ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800"
+      "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border cursor-pointer select-none transition-colors",
+      count > 0
+        ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800"
         : "bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-900/30",
     )}>
       <span className={cn(
-        "size-2 rounded-full",
-        (data?.count ?? 0) > 0 ? "bg-emerald-500 animate-pulse" : "bg-slate-300"
+        "size-2 rounded-full shrink-0",
+        count > 0 ? "bg-emerald-500 animate-pulse" : "bg-slate-300"
       )} />
-      {data?.count ?? 0} online agora
+      {count} online agora
     </div>
+  );
+
+  if (count === 0) return badge;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>{badge}</PopoverTrigger>
+      <PopoverContent align="end" className="w-64 p-2">
+        <p className="text-xs font-semibold text-muted-foreground px-2 py-1.5">
+          {count} {count === 1 ? "usuário online" : "usuários online"}
+        </p>
+        <div className="space-y-0.5">
+          {online.map((u) => (
+            <div key={u.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted/50">
+              <div className="relative shrink-0">
+                <Avatar className="size-7">
+                  <AvatarImage src={u.userImage ?? ""} alt={u.userName} />
+                  <AvatarFallback className="text-[10px]">{initials(u.userName)}</AvatarFallback>
+                </Avatar>
+                <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-500 border-2 border-background" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium truncate">{u.userName}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{u.userEmail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground px-2 pt-1.5">
+          Ativo nos últimos 5 minutos
+        </p>
+      </PopoverContent>
+    </Popover>
   );
 }
 
