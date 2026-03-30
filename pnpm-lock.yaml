@@ -40,6 +40,9 @@ importers:
       "@dnd-kit/utilities":
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.4)
+      "@google/generative-ai":
+        specifier: ^0.24.1
+        version: 0.24.1
       "@hello-pangea/dnd":
         specifier: ^18.0.1
         version: 18.0.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -166,6 +169,9 @@ importers:
       "@react-types/shared":
         specifier: ^3.33.1
         version: 3.33.1(react@19.2.4)
+      "@smastrom/react-rating":
+        specifier: ^1.5.0
+        version: 1.5.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       "@streamdown/cjk":
         specifier: ^1.0.2
         version: 1.0.2(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(react@19.2.4)(unified@11.0.5)
@@ -2007,6 +2013,13 @@ packages:
       {
         integrity: sha512-XOMO2Hupl0wdd172Y06h6kLpBz6Dv+J4okPLl4LPtzbr8f66WbIoy4ev98EBuZ6ZK4h5ydTN6XneT4QVpD7cdA==,
       }
+
+  "@google/generative-ai@0.24.1":
+    resolution:
+      {
+        integrity: sha512-MqO+MLfM6kjxcKoy0p1wRzG3b4ZZXtPI+z2IE26UogS2Cm/XHO+7gGRBh6gcJsOiIVoH93UwKvW4HdgiOZCy9Q==,
+      }
+    engines: { node: ">=18.0.0" }
 
   "@grpc/grpc-js@1.14.3":
     resolution:
@@ -5771,6 +5784,15 @@ packages:
       {
         integrity: sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg==,
       }
+
+  "@smastrom/react-rating@1.5.0":
+    resolution:
+      {
+        integrity: sha512-7vg3NRgO0tpvEunq8BEWA8qckNSd7x3dVGqaNEfLs3Ow4ibU2EEXJtnd7Yl44xOujWIzXM5Bk2VZm2DVm065Qw==,
+      }
+    peerDependencies:
+      react: ">=18"
+      react-dom: ">=18"
 
   "@smithy/abort-controller@4.2.10":
     resolution:
@@ -14992,6 +15014,8 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
+  "@google/generative-ai@0.24.1": {}
+
   "@grpc/grpc-js@1.14.3":
     dependencies:
       "@grpc/proto-loader": 0.8.0
@@ -18297,6 +18321,11 @@ snapshots:
       "@types/hast": 3.0.4
 
   "@shikijs/vscode-textmate@10.0.2": {}
+
+  "@smastrom/react-rating@1.5.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)":
+    dependencies:
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
 
   "@smithy/abort-controller@4.2.10":
     dependencies:
