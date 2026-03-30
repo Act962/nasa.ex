@@ -27,6 +27,11 @@ import { cn } from "@/lib/utils";
 const items = [
   { title: "Início", url: "/home", icon: HomeIcon },
   { title: "Trackings", url: "/tracking", icon: Kanban },
+  {
+    title: "Workspaces",
+    url: "/workspaces",
+    icon: CircleCheckIcon,
+  },
   { title: "Formulários", url: "/form", icon: ClipboardType },
   { title: "Chats", url: "/tracking-chat", icon: MessageSquareTextIcon },
   { title: "Agenda", url: "/agendas", icon: Calendar },
