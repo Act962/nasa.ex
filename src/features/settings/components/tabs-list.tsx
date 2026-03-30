@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2Icon, SettingsIcon, UsersIcon } from "lucide-react";
+import { Building2Icon, SettingsIcon, UsersIcon, ShieldCheck, FileInput } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -21,9 +21,14 @@ const tabsLink = [
     icon: UsersIcon,
   },
   {
+    label: "Permissões",
+    href: "/permissions",
+    icon: ShieldCheck,
+  },
+  {
     label: "Importar",
     href: "/integration",
-    icon: UsersIcon,
+    icon: FileInput,
   },
 ];
 

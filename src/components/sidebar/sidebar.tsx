@@ -9,6 +9,7 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { TeamSwitcher } from "./team-switcher";
@@ -18,16 +19,21 @@ import { NavMenu } from "./nav-menu";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
+import { WorkspacesItems } from "./workspaces-items";
+import { authClient } from "@/lib/auth-client";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { isMobile, setOpenMobile } = useSidebar();
   const pathname = usePathname();
+  const { data: session } = authClient.useSession();
 
   React.useEffect(() => {
     if (isMobile) {
       setOpenMobile(false);
     }
   }, [pathname]);
+
+  const currentOrganization = session?.session.activeOrganizationId;
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -36,6 +42,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMenu />
+        <SidebarSeparator className="mx-0" />
+        {currentOrganization && <WorkspacesItems />}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
@@ -47,7 +55,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             buttonVariants({
               size: "icon-xs",
               variant: "secondary",
-            })
+            }),
           )}
         >
           <GripVertical className="size-4" />
