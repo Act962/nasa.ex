@@ -20,6 +20,7 @@ import { starsRouter } from "./stars";
 import { nboxRouter } from "./nbox";
 import { nasaPostRouter } from "./nasa-post";
 import { nasaCommandRouter } from "./nasa-command";
+import { permissionsRouter } from "./permissions";
 
 export const router = {
   tracking: trackingRoutes,
@@ -44,4 +45,5 @@ export const router = {
   nbox: nboxRouter,
   nasaPost: nasaPostRouter,
   nasaCommand: nasaCommandRouter,
+  permissions: permissionsRouter,
 };
