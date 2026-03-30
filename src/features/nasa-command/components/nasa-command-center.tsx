@@ -98,10 +98,10 @@ const recentApps: RecentApp[] = [
     icon: <Zap className="w-5 h-5 text-white" />,
   },
   {
-    id: "nasa-post",
-    name: "NASA POST",
+    id: "nasa-planner",
+    name: "NASA PLANNER",
     gradient: "from-pink-500 to-rose-700",
-    url: "/nasa-post",
+    url: "/nasa-planner",
     icon: <Sparkles className="w-5 h-5 text-white" />,
   },
 ];
@@ -179,15 +179,15 @@ const exampleCategories: ExampleCategory[] = [
       'Liste todas as propostas abertas no #forge',
     ],
   },
-  // ── NASA Post ──────────────────────────────────────────────────────────────
+  // ── NASA Planner ──────────────────────────────────────────────────────────────
   {
     emoji: "✨",
-    label: "NASA Post — Conteúdo",
+    label: "NASA Planner — Conteúdo",
     examples: [
-      'Crie um post para #instagram no #nasa-post sobre o lançamento do /PRODUTX',
-      'Gere um carrossel de 5 slides no #nasa-post com os benefícios do /Plano_Pro',
+      'Crie um post para #instagram no #nasa-planner sobre o lançamento do /PRODUTX',
+      'Gere um carrossel de 5 slides no #nasa-planner com os benefícios do /Plano_Pro',
       'Escreva uma legenda para #linkedin anunciando parceria com /Francisco_Lima e me manda /link_post_criado',
-      'Crie um post para #tiktok sobre os resultados do mês no #nasa-post',
+      'Crie um post para #tiktok sobre os resultados do mês no #nasa-planner',
     ],
   },
   // ── Automações ─────────────────────────────────────────────────────────────
@@ -207,7 +207,7 @@ const exampleCategories: ExampleCategory[] = [
     label: "Integrações",
     examples: [
       'Envie mensagem via #whatsapp para /Contato /Francisco_Lima: "Sua proposta está pronta!"',
-      'Poste no #instagram via #nasa-post o conteúdo do /link_post_criado',
+      'Poste no #instagram via #nasa-planner o conteúdo do /link_post_criado',
       'Dispare /Enviar_mensagem pelo #telegram para /Responsável /Astro quando /novo_lead entrar',
       'Sincronize /lead /Maria_Costa com #hubspot e atualize /status_tracking para "Integrado"',
     ],
@@ -233,7 +233,7 @@ const rotatingExamples = [
   '/novo_lead "João Pereira" no #tracking com /tag VIP /Responsável /Astro',
   'Crie uma proposta no #forge para /Francisco_Lima e me manda /link_proposta_criada',
   '/mover_lead /Maria_Costa para /status_tracking "Proposta Enviada" no #tracking',
-  'Gere um post no #nasa-post sobre /PRODUTX para #instagram',
+  'Gere um post no #nasa-planner sobre /PRODUTX para #instagram',
   'Crie /Add_automacao: quando /novo_lead chegar /Enviar_mensagem via #whatsapp',
   '/novo_lead /Empresa "Tech Solutions" /Responsável /Weydson /tag Agência no #tracking',
   '/pesquisar "Atendimento X" — encontra o tracking pelo nome',
@@ -716,7 +716,7 @@ function buildThinkingSteps(cmd: string): string[] {
 
   if (lower.includes("#forge"))       steps.push("Identificando app: Forge");
   if (lower.includes("#agenda"))      steps.push("Identificando app: Agenda");
-  if (lower.includes("#nasa-post"))   steps.push("Identificando app: NASA Post");
+  if (lower.includes("#nasa-planner"))   steps.push("Identificando app: NASA Planner");
   if (lower.includes("#tracking"))    steps.push("Identificando app: Tracking");
 
   const vars = [...cmd.matchAll(/\/([A-Za-zÀ-ÿ0-9_]+)/g)].map((m) => m[1]);
@@ -729,7 +729,7 @@ function buildThinkingSteps(cmd: string): string[] {
   if (lower.includes("proposta"))   steps.push("Criando proposta no Forge...");
   if (lower.includes("contrato"))   steps.push("Criando contrato no Forge...");
   if (lower.includes("reunião") || lower.includes("follow-up") || lower.includes("agende")) steps.push("Criando agendamento...");
-  if (lower.includes("post") || lower.includes("carrossel")) steps.push("Criando post no NASA Post...");
+  if (lower.includes("post") || lower.includes("carrossel")) steps.push("Criando post no NASA Planner...");
   if (lower.includes("tracking") && lower.includes("crie")) steps.push("Criando tracking...");
   if (lower.includes("lead") && lower.includes("crie")) steps.push("Criando lead...");
   if (lower.includes("saldo") || lower.includes("estrelas")) steps.push("Consultando saldo de Stars...");

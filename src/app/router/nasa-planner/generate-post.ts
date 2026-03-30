@@ -7,7 +7,7 @@ import { z } from "zod";
 import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { ORPCError } from "@orpc/server";
-import { NasaPostType, NasaPostStatus, StarTransactionType } from "@/generated/prisma/enums";
+import { NasaPlannerPostType, NasaPlannerPostStatus, StarTransactionType } from "@/generated/prisma/enums";
 
 const STARS_PER_GENERATION = 5;
 
@@ -23,7 +23,7 @@ export const generatePost = base
   )
   .handler(async ({ input, context }) => {
     try {
-      const post = await prisma.nasaPost.findFirst({
+      const post = await prisma.nasaPlannerPost.findFirst({
         where: { id: input.postId, organizationId: context.org.id },
         include: { slides: true },
       });
@@ -31,18 +31,18 @@ export const generatePost = base
         throw new ORPCError("NOT_FOUND", { message: "Post não encontrado" });
       }
 
-      const brand = await prisma.nasaPostBrandConfig.findUnique({
-        where: { organizationId: context.org.id },
+      const brand = await prisma.nasaPlanner.findFirst({
+        where: { id: post.plannerId, organizationId: context.org.id },
       });
 
-      // Resolve Anthropic API key: org key takes priority, fallback to env var
+      // Resolve Anthropic API key: planner key takes priority, fallback to env var
       const anthropicApiKey = brand?.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY;
-      console.log("[NASA Post] generate | key present:", !!anthropicApiKey, "| brand:", !!brand);
+      console.log("[NASA Planner] generate | key present:", !!anthropicApiKey, "| brand:", !!brand);
 
       if (!anthropicApiKey) {
         throw new ORPCError("BAD_REQUEST", {
           message:
-            "Chave da API Anthropic não configurada. Acesse Configurações da Marca → aba IA e insira sua chave.",
+            "Chave da API Anthropic não configurada. Acesse Configurações do Planner → aba IA e insira sua chave.",
         });
       }
 
@@ -55,11 +55,11 @@ export const generatePost = base
           context.org.id,
           STARS_PER_GENERATION,
           StarTransactionType.APP_CHARGE,
-          `NASA Post — geração de conteúdo IA`,
-          "nasa-post",
+          `NASA Planner — geração de conteúdo IA`,
+          "nasa-planner",
         );
       } catch (starErr: any) {
-        console.error("[NASA Post] debitStars error:", starErr?.message);
+        console.error("[NASA Planner] debitStars error:", starErr?.message);
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message: `Erro ao debitar stars: ${starErr?.message ?? "tente novamente"}`,
         });
@@ -75,7 +75,7 @@ export const generatePost = base
     const fonts = brand?.fonts as Record<string, string> | null;
     const brandContext = brand
       ? [
-          `Marca: ${brand.brandName}`,
+          brand.brandName ? `Marca: ${brand.brandName}` : "",
           brand.brandSlogan ? `Slogan: ${brand.brandSlogan}` : "",
           brand.icp ? `Público-alvo (ICP): ${brand.icp}` : "",
           brand.positioning ? `Posicionamento: ${brand.positioning}` : "",
@@ -103,11 +103,11 @@ export const generatePost = base
       : "Nenhuma configuração de marca encontrada.";
 
     const postTypeLabel =
-      post.type === NasaPostType.CAROUSEL
+      post.type === NasaPlannerPostType.CAROUSEL
         ? "carrossel (múltiplos slides)"
-        : post.type === NasaPostType.REEL
+        : post.type === NasaPlannerPostType.REEL
           ? "reel/vídeo"
-          : post.type === NasaPostType.STORY
+          : post.type === NasaPlannerPostType.STORY
             ? "story"
             : "post estático";
 
@@ -167,22 +167,22 @@ INSTRUÇÕES:
 
     for (const modelId of MODEL_FALLBACKS) {
       try {
-        console.log(`[NASA Post] Tentando modelo: ${modelId}`);
+        console.log(`[NASA Planner] Tentando modelo: ${modelId}`);
         const result = await generateText({
           model: anthropic(modelId),
           system: systemPrompt,
           prompt: input.userPrompt,
         });
         text = result.text;
-        console.log(`[NASA Post] Sucesso com modelo: ${modelId}`);
+        console.log(`[NASA Planner] Sucesso com modelo: ${modelId}`);
         break;
       } catch (aiError: any) {
         lastAiError = aiError;
         const msg = String(aiError?.message ?? aiError ?? "");
-        console.error(`[NASA Post] Falhou ${modelId}:`, msg);
+        console.error(`[NASA Planner] Falhou ${modelId}:`, msg);
         // Only retry on model-not-found errors; stop immediately for auth/quota
         if (msg.includes("401") || msg.includes("authentication") || msg.includes("api_key") || msg.includes("invalid_api_key")) {
-          throw new ORPCError("BAD_REQUEST", { message: "Chave de API Anthropic inválida. Verifique em Configurações da Marca → aba IA." });
+          throw new ORPCError("BAD_REQUEST", { message: "Chave de API Anthropic inválida. Verifique em Configurações do Planner → aba IA." });
         }
         if (msg.includes("429") || msg.includes("rate_limit")) {
           throw new ORPCError("BAD_REQUEST", { message: "Limite de requisições da Anthropic atingido. Aguarde alguns minutos." });
@@ -220,7 +220,7 @@ INSTRUÇÕES:
       overlayConfig: object;
     }> = [];
 
-    if (post.type === NasaPostType.CAROUSEL && Array.isArray(parsed.slides)) {
+    if (post.type === NasaPlannerPostType.CAROUSEL && Array.isArray(parsed.slides)) {
       parsed.slides.forEach((s: any, i: number) => {
         slidesData.push({
           order: s.order ?? i + 1,
@@ -241,16 +241,16 @@ INSTRUÇÕES:
     }
 
     // Update post
-    await prisma.nasaPostSlide.deleteMany({ where: { postId: post.id } });
+    await prisma.nasaPlannerPostSlide.deleteMany({ where: { postId: post.id } });
 
-    const updatedPost = await prisma.nasaPost.update({
+    const updatedPost = await prisma.nasaPlannerPost.update({
       where: { id: post.id },
       data: {
         title: parsed.title ?? post.title,
         caption: parsed.caption ?? post.caption,
         hashtags: parsed.hashtags ?? post.hashtags,
         cta: parsed.cta ?? post.cta,
-        status: NasaPostStatus.PENDING_APPROVAL,
+        status: NasaPlannerPostStatus.PENDING_APPROVAL,
         starsSpent: { increment: STARS_PER_GENERATION },
         slides: {
           createMany: { data: slidesData },
@@ -267,7 +267,7 @@ INSTRUÇÕES:
       // Re-throw ORPC errors as-is so the client gets the real message
       if (err instanceof ORPCError) throw err;
       // Log and wrap any other unexpected errors
-      console.error("[NASA Post] Erro inesperado no generate-post:", err?.message ?? err);
+      console.error("[NASA Planner] Erro inesperado no generate-post:", err?.message ?? err);
       throw new ORPCError("INTERNAL_SERVER_ERROR", {
         message: err?.message ? `Erro interno: ${err.message}` : "Erro interno. Tente novamente.",
       });

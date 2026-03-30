@@ -9,7 +9,7 @@ export const ALL_APPS = [
   { key: "chat",         label: "Chat / Atendimento",   icon: "💬" },
   { key: "forge",        label: "Forge / Propostas",    icon: "📄" },
   { key: "spacetime",    label: "SpaceTime / Agenda",   icon: "📅" },
-  { key: "nasa-post",    label: "NASA Post",             icon: "📸" },
+  { key: "nasa-planner", label: "NASA Planner",             icon: "📸" },
   { key: "insights",     label: "Insights",             icon: "📊" },
   { key: "integrations", label: "Integrações",          icon: "🔗" },
   { key: "explorer",     label: "NASA Explorer",        icon: "🚀" },

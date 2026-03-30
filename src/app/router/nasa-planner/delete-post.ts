@@ -9,11 +9,9 @@ export const deletePost = base
   .use(requireOrgMiddleware)
   .input(z.object({ postId: z.string() }))
   .handler(async ({ input, context }) => {
-    const existing = await prisma.nasaPost.findFirst({
+    await prisma.nasaPlannerPost.delete({
       where: { id: input.postId, organizationId: context.org.id },
     });
-    if (!existing) throw new Error("Post não encontrado");
 
-    await prisma.nasaPost.delete({ where: { id: input.postId } });
-    return { success: true };
+    return { ok: true };
   });

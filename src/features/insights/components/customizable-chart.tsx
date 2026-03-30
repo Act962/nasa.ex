@@ -49,7 +49,7 @@ interface CustomizableChartProps {
     total: number; pending: number; confirmed: number;
     done: number; cancelled: number; noShow: number; conversionRate?: number;
   };
-  nasaPost?: { total: number; draft: number; published: number; scheduled: number };
+  nasaPlanner?: { total: number; draft: number; published: number; scheduled: number };
   metaAds?: { spend?: number; roas?: number; leads?: number; clicks?: number; impressions?: number; cpl?: number };
 }
 
@@ -283,7 +283,7 @@ export function CustomizableChart({
   chat,
   forge,
   spacetime,
-  nasaPost,
+  nasaPlanner,
   metaAds,
 }: CustomizableChartProps) {
   const [globalType, setGlobalType] = useState<GlobalChartType>("composed");
@@ -331,12 +331,12 @@ export function CustomizableChart({
         { name: "No-show",    value: spacetime.noShow,    color: "#f97316" },
       ]});
     }
-    if (selectedModules.includes("nasa-post") && nasaPost) {
+    if (selectedModules.includes("nasa-planner") && nasaPlanner) {
       result.push({ id: "nasapost-status", label: "NASA Post — Conteúdo", shortLabel: "Posts", data: [
-        { name: "Total",      value: nasaPost.total,     color: "#ec4899" },
-        { name: "Publicados", value: nasaPost.published, color: "#10b981" },
-        { name: "Agendados",  value: nasaPost.scheduled, color: "#3b82f6" },
-        { name: "Rascunhos",  value: nasaPost.draft,     color: "#94a3b8" },
+        { name: "Total",      value: nasaPlanner.total,     color: "#ec4899" },
+        { name: "Publicados", value: nasaPlanner.published, color: "#10b981" },
+        { name: "Agendados",  value: nasaPlanner.scheduled, color: "#3b82f6" },
+        { name: "Rascunhos",  value: nasaPlanner.draft,     color: "#94a3b8" },
       ]});
     }
     if (selectedModules.includes("integrations") && metaAds?.spend !== undefined) {
@@ -346,7 +346,7 @@ export function CustomizableChart({
       ]});
     }
     return result;
-  }, [selectedModules, tracking, chat, forge, spacetime, nasaPost, metaAds]);
+  }, [selectedModules, tracking, chat, forge, spacetime, nasaPlanner, metaAds]);
 
   // Initialize series with first dataset when datasets load
   const activeSeries: Series[] = seriesList.length > 0

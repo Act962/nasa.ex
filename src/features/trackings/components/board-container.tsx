@@ -37,6 +37,7 @@ import { useDeletLead } from "@/hooks/use-delete-lead";
 import { NavOptionsTracking } from "./nav-options-trancking";
 import { useQueryState } from "nuqs";
 import dayjs from "dayjs";
+import { useLeadSoundAlert } from "@/hooks/use-lead-sound-alert";
 
 interface BoardContainerProps {
   trackingId: string;
@@ -310,6 +311,13 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
   );
 
   const isDragging = useKanbanStore((s) => s.isDragging);
+  const columns = useKanbanStore((s) => s.columns);
+  const totalLeads = useMemo(
+    () => Object.values(columns).reduce((acc, col) => acc + col.leads.length, 0),
+    [columns],
+  );
+
+  useLeadSoundAlert({ trackingId, totalLeads });
 
   useEffect(() => {
     if (status && !isDragging) {

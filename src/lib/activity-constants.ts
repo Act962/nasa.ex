@@ -9,7 +9,7 @@ export const APP_LABELS: Record<string, string> = {
   contacts:      "Contatos",
   settings:      "Configurações",
   integrations:  "Integrações",
-  "nasa-post":   "NASA Post",
+  "nasa-planner": "NASA Planner",
   insights:      "Insights",
   nbox:          "NBox",
   permissions:   "Permissões",

@@ -9,13 +9,15 @@ export const getPosts = base
   .use(requireOrgMiddleware)
   .input(
     z.object({
+      plannerId: z.string(),
       status: z.string().optional(),
       search: z.string().optional(),
     }),
   )
   .handler(async ({ input, context }) => {
-    const posts = await prisma.nasaPost.findMany({
+    const posts = await prisma.nasaPlannerPost.findMany({
       where: {
+        plannerId: input.plannerId,
         organizationId: context.org.id,
         ...(input.status ? { status: input.status as any } : {}),
         ...(input.search
@@ -27,11 +29,9 @@ export const getPosts = base
             }
           : {}),
       },
-      include: {
-        slides: { orderBy: { order: "asc" } },
-        createdBy: { select: { id: true, name: true, image: true } },
-      },
-      orderBy: { updatedAt: "desc" },
+      orderBy: { createdAt: "desc" },
+      include: { slides: { orderBy: { order: "asc" } } },
     });
+
     return { posts };
   });

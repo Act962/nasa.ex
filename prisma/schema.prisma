@@ -43,7 +43,7 @@ model User {
   forgeTemplatesCreated ForgeContractTemplate[] @relation("ForgeTemplateCreatedBy")
   nboxFoldersCreated NBoxFolder[] @relation("NBoxFolderCreatedBy")
   nboxItemsCreated   NBoxItem[]   @relation("NBoxItemCreatedBy")
-  nasaPostsCreated   NasaPost[]   @relation("NasaPostCreatedBy")
+  nasaPlannerPostsCreated NasaPlannerPost[] @relation("NasaPlannerPostCreatedBy")
 
   @@unique([email])
   @@map("user")
@@ -133,8 +133,7 @@ model Organization {
   workspaceIntegrations WorkspaceIntegration[]
   nboxFolders      NBoxFolder[]
   nboxItems        NBoxItem[]
-  nasaPostBrandConfig NasaPostBrandConfig?
-  nasaPosts           NasaPost[]
+  nasaPlanners        NasaPlanner[]
   orgPermissions   OrgPermission[]
   activityLogs     OrgActivityLog[]
   systemActivityLogs SystemActivityLog[]
@@ -1397,9 +1396,9 @@ model NBoxItem {
   @@map("nbox_items")
 }
 
-// ─── NASA Post ────────────────────────────────────────────────────────────────
+// ─── NASA Planner ──────────────────────────────────────────────────────────────
 
-enum NasaPostStatus {
+enum NasaPlannerPostStatus {
   DRAFT
   PENDING_APPROVAL
   APPROVED
@@ -1408,18 +1407,27 @@ enum NasaPostStatus {
   FAILED
 }
 
-enum NasaPostType {
+enum NasaPlannerPostType {
   STATIC
   CAROUSEL
   REEL
   STORY
 }
 
-model NasaPostBrandConfig {
-  id             String   @id @default(cuid())
-  organizationId String   @unique @map("organization_id")
+enum NasaPlannerCardStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
 
-  brandName       String   @map("brand_name")
+model NasaPlanner {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  name           String
+  description    String?
+
+  brandName       String?  @map("brand_name")
   brandSlogan     String?  @map("brand_slogan")
   website         String?
 
@@ -1445,24 +1453,28 @@ model NasaPostBrandConfig {
   examplePosts    String[] @map("example_posts")
   showBranding    Boolean  @default(true) @map("show_branding")
 
-  // IA integration keys (stored per-org, never exposed to client)
   anthropicApiKey String?  @map("anthropic_api_key")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt      @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  posts          NasaPlannerPost[]
+  mindMaps       NasaPlannerMindMap[]
+  calendarShares NasaPlannerCalendarShare[]
 
-  @@map("nasa_post_brand_configs")
+  @@index([organizationId])
+  @@map("nasa_planner")
 }
 
-model NasaPost {
-  id             String         @id @default(cuid())
-  organizationId String         @map("organization_id")
-  createdById    String         @map("created_by_id")
+model NasaPlannerPost {
+  id             String                @id @default(cuid())
+  plannerId      String                @map("planner_id")
+  organizationId String                @map("organization_id")
+  createdById    String                @map("created_by_id")
 
-  type           NasaPostType   @default(STATIC)
-  status         NasaPostStatus @default(DRAFT)
+  type           NasaPlannerPostType   @default(STATIC)
+  status         NasaPlannerPostStatus @default(DRAFT)
 
   title          String?
   caption        String?
@@ -1481,19 +1493,20 @@ model NasaPost {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt      @map("updated_at")
 
-  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy    User             @relation("NasaPostCreatedBy", fields: [createdById], references: [id])
-  slides       NasaPostSlide[]
+  planner   NasaPlanner            @relation(fields: [plannerId], references: [id], onDelete: Cascade)
+  createdBy User                   @relation("NasaPlannerPostCreatedBy", fields: [createdById], references: [id])
+  slides    NasaPlannerPostSlide[]
 
-  @@index([organizationId, status])
-  @@index([organizationId, scheduledAt])
-  @@map("nasa_posts")
+  @@index([plannerId, status])
+  @@index([plannerId, scheduledAt])
+  @@index([organizationId])
+  @@map("nasa_planner_posts")
 }
 
-model NasaPostSlide {
-  id      String @id @default(cuid())
-  postId  String @map("post_id")
-  order   Int    @default(0)
+model NasaPlannerPostSlide {
+  id     String @id @default(cuid())
+  postId String @map("post_id")
+  order  Int    @default(0)
 
   imageKey      String?  @map("image_key")
   headline      String?
@@ -1502,10 +1515,71 @@ model NasaPostSlide {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  post NasaPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post NasaPlannerPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId, order])
-  @@map("nasa_post_slides")
+  @@map("nasa_planner_post_slides")
+}
+
+model NasaPlannerMindMap {
+  id        String  @id @default(cuid())
+  plannerId String  @map("planner_id")
+  name      String
+  template  String? // "mindmap", "gantt", "diagram", "checklist"
+  nodes     Json    @default("[]")
+  edges     Json    @default("[]")
+  viewport  Json    @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  planner NasaPlanner       @relation(fields: [plannerId], references: [id], onDelete: Cascade)
+  cards   NasaPlannerCard[]
+
+  @@index([plannerId])
+  @@map("nasa_planner_mind_maps")
+}
+
+model NasaPlannerCard {
+  id        String @id @default(cuid())
+  mindMapId String @map("mind_map_id")
+  plannerId String @map("planner_id")
+
+  title       String
+  description String?
+  status      NasaPlannerCardStatus @default(PENDING)
+  priority    String                @default("MEDIUM")
+
+  assigneeIds String[]  @map("assignee_ids")
+  dueDate     DateTime? @map("due_date")
+
+  linkedApp String? @map("linked_app")
+  linkedId  String? @map("linked_id")
+  nodeId    String? @map("node_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  mindMap NasaPlannerMindMap @relation(fields: [mindMapId], references: [id], onDelete: Cascade)
+
+  @@index([mindMapId])
+  @@index([plannerId])
+  @@map("nasa_planner_cards")
+}
+
+model NasaPlannerCalendarShare {
+  id        String    @id @default(cuid())
+  plannerId String    @map("planner_id")
+  token     String    @unique @default(cuid())
+  isActive  Boolean   @default(true) @map("is_active")
+  expiresAt DateTime? @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  planner NasaPlanner @relation(fields: [plannerId], references: [id], onDelete: Cascade)
+
+  @@index([plannerId])
+  @@map("nasa_planner_calendar_shares")
 }
 // ─── Permissions & Activity ───────────────────────────────────────────────────
 

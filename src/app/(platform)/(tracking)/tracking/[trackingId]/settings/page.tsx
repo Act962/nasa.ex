@@ -7,6 +7,7 @@ import { orpc } from "@/lib/orpc";
 import { ChatSettings } from "@/features/tracking-settings/components/chat-settings";
 import { ChatBotIa } from "@/features/tracking-settings/components/chatbot-ia";
 import { FlowAttendiment } from "@/features/tracking-settings/components/flow-attendiment";
+import { SoundNotification } from "@/features/tracking-settings/components/sound-notification";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
@@ -76,6 +77,15 @@ export default async function Page({
       name: "ChatBot AI",
       value: "chatbot-ia",
       content: <ChatBotIa trackingId={trackingId} />,
+    },
+    {
+      name: "Notificação sonora",
+      value: "sound-notification",
+      content: (
+        <HydrateClient client={queryClient}>
+          <SoundNotification />
+        </HydrateClient>
+      ),
     },
   ];
 

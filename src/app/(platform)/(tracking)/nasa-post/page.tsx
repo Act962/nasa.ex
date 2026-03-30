@@ -1,10 +1,5 @@
-import { SidebarInset } from "@/components/ui/sidebar";
-import { NasaPostApp } from "@/features/nasa-post/components/nasa-post-app";
+import { redirect } from "next/navigation";
 
-export default function NasaPostPage() {
-  return (
-    <SidebarInset className="overflow-hidden">
-      <NasaPostApp />
-    </SidebarInset>
-  );
+export default function NasaPostLegacyPage() {
+  redirect("/nasa-planner");
 }
