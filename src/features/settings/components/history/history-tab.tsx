@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { authClient } from "@/lib/auth-client";
 import { useOrgRole } from "@/hooks/use-org-role";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -168,10 +167,12 @@ export function HistoryTab() {
         ...(selectedApp !== "all" ? { appSlug: selectedApp } : {}),
         startDate,
         limit: logsLimit,
+        offset: 0,
       },
     }),
     enabled: !isSingle,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000, // refresh every 15s for near real-time
+    staleTime: 5_000,
   });
 
   if (isSingle) {

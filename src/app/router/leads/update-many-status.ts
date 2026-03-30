@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
+import { logActivity } from "@/lib/activity-logger";
 import { z } from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
@@ -64,6 +65,27 @@ export const updateManyStatusLead = base
 
         return { lead };
       });
+
+      // Log activity
+      if (input.statusId && input.trackingId) {
+        const [tracking, newStatus] = await Promise.all([
+          prisma.tracking.findUnique({ where: { id: input.trackingId }, select: { organizationId: true, name: true } }),
+          prisma.status.findUnique({ where: { id: input.statusId }, select: { name: true } }),
+        ]);
+        if (tracking) {
+          await logActivity({
+            organizationId: tracking.organizationId,
+            userId: context.user.id,
+            userName: context.user.name,
+            userEmail: context.user.email,
+            userImage: (context.user as any).image,
+            appSlug: "tracking",
+            action: "lead.moved",
+            actionLabel: `Moveu ${input.leadsIds.length} lead(s) para a coluna "${newStatus?.name ?? input.statusId}"`,
+            metadata: { count: input.leadsIds.length, statusName: newStatus?.name, trackingName: tracking.name },
+          });
+        }
+      }
 
       return result;
     } catch (err) {

@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { logActivity } from "@/lib/activity-logger";
 import { slugify } from "@/lib/utils";
 import z from "zod";
 
@@ -64,7 +65,18 @@ export const createAgenda = base
       },
     });
 
-    return {
-      agenda,
-    };
+    await logActivity({
+      organizationId: context.org.id,
+      userId: context.user.id,
+      userName: context.user.name,
+      userEmail: context.user.email,
+      userImage: (context.user as any).image,
+      appSlug: "spacetime",
+      action: "agenda.created",
+      actionLabel: `Criou a agenda "${agenda.name}"`,
+      resource: agenda.name,
+      resourceId: agenda.id,
+    });
+
+    return { agenda };
   });
