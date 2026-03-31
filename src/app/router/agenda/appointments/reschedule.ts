@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { logActivity } from "@/lib/activity-logger";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
@@ -61,6 +62,21 @@ export const rescheduleAppointment = base
     const updated = await prisma.appointment.update({
       where: { id: input.appointmentId },
       data: { startsAt: newStart, endsAt: newEnd },
+    });
+
+    const fmt = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+    await logActivity({
+      organizationId: context.org.id,
+      userId: context.user.id,
+      userName: context.user.name,
+      userEmail: context.user.email,
+      userImage: (context.user as any).image,
+      appSlug: "spacetime",
+      action: "appointment.rescheduled",
+      actionLabel: `Reagendou agendamento para ${fmt(newStart)}`,
+      resourceId: input.appointmentId,
+      metadata: { oldStart: appointment.startsAt, newStart, newEnd },
     });
 
     return { appointment: updated };

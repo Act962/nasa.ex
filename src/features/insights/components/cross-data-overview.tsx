@@ -39,7 +39,7 @@ interface CrossDataProps {
     done: number;
     conversionRate: number;
   };
-  nasaPost?: {
+  nasaPlanner?: {
     total: number;
     published: number;
   };
@@ -91,7 +91,7 @@ function fmtBRL(n: number) {
 }
 function fmtPct(n: number) { return `${n.toFixed(1)}%`; }
 
-export function CrossDataOverview({ selectedModules, tracking, chat, forge, spacetime, nasaPost, metaAds }: CrossDataProps) {
+export function CrossDataOverview({ selectedModules, tracking, chat, forge, spacetime, nasaPlanner, metaAds }: CrossDataProps) {
   const cards: CrossCardProps[] = [];
 
   // ── Tracking cards ────────────────────────────────────────────────────────
@@ -152,11 +152,11 @@ export function CrossDataOverview({ selectedModules, tracking, chat, forge, spac
   }
 
   // ── NASA Post cards ───────────────────────────────────────────────────────
-  if (selectedModules.includes("nasa-post") && nasaPost) {
+  if (selectedModules.includes("nasa-planner") && nasaPlanner) {
     cards.push({
       label: "Posts publicados",
-      value: fmt(nasaPost.published),
-      sub: `${fmt(nasaPost.total)} criados no período`,
+      value: fmt(nasaPlanner.published),
+      sub: `${fmt(nasaPlanner.total)} criados no período`,
       icon: Sparkles,
       color: "text-pink-600",
       bg: "bg-pink-50 dark:bg-pink-950/40",

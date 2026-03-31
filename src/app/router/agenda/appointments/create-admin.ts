@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { logActivity } from "@/lib/activity-logger";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
@@ -110,6 +111,21 @@ export const createAdminAppointment = base
         status: "CONFIRMED",
         trackingId: agenda.trackingId,
       },
+    });
+
+    // Log activity
+    await logActivity({
+      organizationId: context.org.id,
+      userId: context.user.id,
+      userName: context.user.name,
+      userEmail: context.user.email,
+      userImage: (context.user as any).image,
+      appSlug: "spacetime",
+      action: "appointment.created",
+      actionLabel: `Criou agendamento para ${input.name} em ${input.date} às ${input.time} (${agenda.name})`,
+      resource: input.name,
+      resourceId: appointment.id,
+      metadata: { agendaName: agenda.name, date: input.date, time: input.time, phone: input.phone },
     });
 
     return { success: true, appointment };

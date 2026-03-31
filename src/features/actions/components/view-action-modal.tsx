@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useColumnsByWorkspace,
   useWorkspaceMembers,
+  useUpdateActionFields,
 } from "@/features/workspace/hooks/use-workspace";
 import { toast } from "sonner";
 import { Action } from "../types";
@@ -26,6 +27,10 @@ import { ActionTitle } from "./view-modal/title";
 import { ActionDescription } from "./view-modal/description";
 import { ActionSubActions } from "./view-modal/sub-actions";
 import { ActionSidebar } from "./view-modal/sidebar";
+import { AttachmentsSection } from "./view-modal/attachments-section";
+import { LinksSection } from "./view-modal/links-section";
+import { YoutubeSection } from "./view-modal/youtube-section";
+import { CardActionsMenu } from "./card-actions-menu";
 
 interface Props {
   actionId: string;
@@ -38,6 +43,7 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   const action = (rawAction ?? undefined) as Action | undefined;
   const updateAction = useUpdateAction();
   const deleteAction = useDeleteAction();
+  const updateFields = useUpdateActionFields();
   const createSubAction = useCreateSubAction(actionId);
   const updateSubAction = useUpdateSubAction(actionId);
   const deleteSubAction = useDeleteSubAction(actionId);
@@ -141,6 +147,11 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
     }
   };
 
+  const handleUpdateFields = (data: any) => {
+    if (!action?.id) return;
+    updateFields.mutate({ actionId: action.id, ...data });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTitle className="sr-only">Visualizar e editar ação</DialogTitle>
@@ -152,6 +163,17 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
           workspaceName={action?.workspace?.name}
           actionTitle={action?.title}
           isLoading={isLoading}
+          actionMenu={
+            action ? (
+              <CardActionsMenu
+                actionId={action.id}
+                workspaceId={action.workspaceId}
+                isFavorited={action.isFavorited}
+                isArchived={action.isArchived}
+                onClose={() => onOpenChange(false)}
+              />
+            ) : undefined
+          }
         />
 
         <div className="flex flex-1 overflow-hidden">
@@ -175,6 +197,24 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
                   onDescriptionChange={(description) =>
                     handleUpdateAction({ description })
                   }
+                />
+
+                <AttachmentsSection
+                  attachments={(action?.attachments ?? []) as any}
+                  onUpdate={(attachments) => handleUpdateFields({ attachments })}
+                  disabled={updateFields.isPending}
+                />
+
+                <LinksSection
+                  links={(action?.links ?? []) as any}
+                  onUpdate={(links) => handleUpdateFields({ links })}
+                  disabled={updateFields.isPending}
+                />
+
+                <YoutubeSection
+                  youtubeUrl={action?.youtubeUrl ?? null}
+                  onUpdate={(youtubeUrl) => handleUpdateFields({ youtubeUrl })}
+                  disabled={updateFields.isPending}
                 />
 
                 <ActionSubActions
@@ -202,8 +242,10 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
             columns={columns}
             members={members}
             onUpdateAction={handleUpdateAction}
+            onUpdateFields={handleUpdateFields}
             onToggleParticipant={handleToggleParticipant}
             isUpdating={updateAction.isPending}
+            isUpdatingFields={updateFields.isPending}
             isAddingParticipant={addResponsible.isPending}
             isRemovingParticipant={removeResponsible.isPending}
           />

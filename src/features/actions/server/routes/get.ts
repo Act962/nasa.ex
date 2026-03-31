@@ -86,6 +86,13 @@ export const getAction = base
             name: true,
           },
         },
+        tags: {
+          include: {
+            tag: {
+              select: { id: true, name: true, color: true },
+            },
+          },
+        },
       },
     });
 

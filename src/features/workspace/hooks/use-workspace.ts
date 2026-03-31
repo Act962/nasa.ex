@@ -218,3 +218,223 @@ export const useListRecentMembers = (limit = 10) => {
     orpc.workspace.listRecentMembers.queryOptions({ input: { limit } }),
   );
 };
+
+// ─── Tags ─────────────────────────────────────────────────────────────────────
+
+export const useListTags = (workspaceId: string) => {
+  const { data, isLoading } = useQuery(
+    orpc.workspace.listTags.queryOptions({
+      input: { workspaceId },
+      enabled: !!workspaceId,
+    }),
+  );
+  return { tags: data?.tags ?? [], isLoading };
+};
+
+export const useCreateTag = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.createTag.mutationOptions({
+      onSuccess: (data) => {
+        toast.success("Tag criada!");
+        queryClient.invalidateQueries(
+          orpc.workspace.listTags.queryOptions({ input: { workspaceId: data.tag.workspaceId } }),
+        );
+      },
+      onError: () => toast.error("Erro ao criar tag!"),
+    }),
+  );
+};
+
+export const useUpdateTag = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.updateTag.mutationOptions({
+      onSuccess: (data) => {
+        queryClient.invalidateQueries(
+          orpc.workspace.listTags.queryOptions({ input: { workspaceId: data.tag.workspaceId } }),
+        );
+      },
+      onError: () => toast.error("Erro ao atualizar tag!"),
+    }),
+  );
+};
+
+export const useDeleteTag = (workspaceId?: string) => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.deleteTag.mutationOptions({
+      onSuccess: () => {
+        toast.success("Tag removida!");
+        if (workspaceId) {
+          queryClient.invalidateQueries(
+            orpc.workspace.listTags.queryOptions({ input: { workspaceId } }),
+          );
+        } else {
+          queryClient.invalidateQueries({ queryKey: ["workspace.listTags"] });
+        }
+      },
+      onError: () => toast.error("Erro ao remover tag!"),
+    }),
+  );
+};
+
+export const useAddTagToAction = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.addTagToAction.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["action.get"] });
+        queryClient.invalidateQueries({ queryKey: ["action.listByColumn"] });
+      },
+      onError: () => toast.error("Erro ao adicionar tag!"),
+    }),
+  );
+};
+
+export const useRemoveTagFromAction = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.removeTagFromAction.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["action.get"] });
+        queryClient.invalidateQueries({ queryKey: ["action.listByColumn"] });
+      },
+      onError: () => toast.error("Erro ao remover tag!"),
+    }),
+  );
+};
+
+// ─── Folders ──────────────────────────────────────────────────────────────────
+
+export const useListFolders = () => {
+  return useQuery(orpc.workspace.listFolders.queryOptions({ input: {} }));
+};
+
+export const useCreateFolder = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.createFolder.mutationOptions({
+      onSuccess: () => {
+        toast.success("Pasta criada!");
+        queryClient.invalidateQueries(orpc.workspace.listFolders.queryOptions({ input: {} }));
+      },
+      onError: () => toast.error("Erro ao criar pasta!"),
+    }),
+  );
+};
+
+export const useDeleteFolder = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.deleteFolder.mutationOptions({
+      onSuccess: () => {
+        toast.success("Pasta removida!");
+        queryClient.invalidateQueries(orpc.workspace.listFolders.queryOptions({ input: {} }));
+      },
+      onError: () => toast.error("Erro ao remover pasta!"),
+    }),
+  );
+};
+
+// ─── Automations ──────────────────────────────────────────────────────────────
+
+export const useListAutomations = (workspaceId: string) => {
+  const { data, isLoading } = useQuery(
+    orpc.workspace.listAutomations.queryOptions({
+      input: { workspaceId },
+      enabled: !!workspaceId,
+    }),
+  );
+  return { automations: data?.automations ?? [], isLoading };
+};
+
+export const useCreateAutomation = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.createAutomation.mutationOptions({
+      onSuccess: (data) => {
+        toast.success("Automação criada!");
+        queryClient.invalidateQueries(
+          orpc.workspace.listAutomations.queryOptions({ input: { workspaceId: data.automation.workspaceId } }),
+        );
+      },
+      onError: () => toast.error("Erro ao criar automação!"),
+    }),
+  );
+};
+
+export const useUpdateAutomation = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.updateAutomation.mutationOptions({
+      onSuccess: (data) => {
+        queryClient.invalidateQueries(
+          orpc.workspace.listAutomations.queryOptions({ input: { workspaceId: data.automation.workspaceId } }),
+        );
+      },
+      onError: () => toast.error("Erro ao atualizar automação!"),
+    }),
+  );
+};
+
+export const useDeleteAutomation = (workspaceId?: string) => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.deleteAutomation.mutationOptions({
+      onSuccess: () => {
+        toast.success("Automação removida!");
+        if (workspaceId) {
+          queryClient.invalidateQueries(
+            orpc.workspace.listAutomations.queryOptions({ input: { workspaceId } }),
+          );
+        } else {
+          queryClient.invalidateQueries({ queryKey: ["workspace.listAutomations"] });
+        }
+      },
+      onError: () => toast.error("Erro ao remover automação!"),
+    }),
+  );
+};
+
+// ─── Action Extra Fields ───────────────────────────────────────────────────────
+
+export const useUpdateActionFields = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.updateActionFields.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["action.get"] });
+        queryClient.invalidateQueries({ queryKey: ["action.listByColumn"] });
+      },
+      onError: () => toast.error("Erro ao atualizar ação!"),
+    }),
+  );
+};
+
+export const useCopyAction = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.copyAction.mutationOptions({
+      onSuccess: () => {
+        toast.success("Ação copiada!");
+        queryClient.invalidateQueries({ queryKey: ["action.listByColumn"] });
+      },
+      onError: () => toast.error("Erro ao copiar ação!"),
+    }),
+  );
+};
+
+export const useMoveAction = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.moveAction.mutationOptions({
+      onSuccess: () => {
+        toast.success("Ação movida!");
+        queryClient.invalidateQueries({ queryKey: ["action.listByColumn"] });
+        queryClient.invalidateQueries(orpc.workspace.list.queryOptions());
+      },
+      onError: () => toast.error("Erro ao mover ação!"),
+    }),
+  );
+};

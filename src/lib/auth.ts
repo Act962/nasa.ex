@@ -21,6 +21,51 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
+  databaseHooks: {
+    session: {
+      create: {
+        after: async (session) => {
+          try {
+            // Find all orgs this user belongs to
+            const memberships = await prisma.member.findMany({
+              where: { userId: session.userId },
+              include: { user: true },
+            });
+            for (const m of memberships) {
+              await prisma.systemActivityLog.create({
+                data: {
+                  organizationId: m.organizationId,
+                  userId: session.userId,
+                  userName: m.user.name,
+                  userEmail: m.user.email,
+                  userImage: m.user.image,
+                  appSlug: "auth",
+                  action: "auth.login",
+                  actionLabel: "Realizou login na plataforma",
+                  metadata: { sessionId: session.id },
+                },
+              });
+              // Upsert presence
+              await prisma.userPresence.upsert({
+                where: { userId_organizationId: { userId: session.userId, organizationId: m.organizationId } },
+                update: { lastSeenAt: new Date(), userName: m.user.name, userEmail: m.user.email, userImage: m.user.image },
+                create: {
+                  organizationId: m.organizationId,
+                  userId: session.userId,
+                  userName: m.user.name,
+                  userEmail: m.user.email,
+                  userImage: m.user.image,
+                  lastSeenAt: new Date(),
+                },
+              });
+            }
+          } catch (e) {
+            console.error("[auth hook] login log failed:", e);
+          }
+        },
+      },
+    },
+  },
   plugins: [
     organization({
       async sendInvitationEmail(data) {

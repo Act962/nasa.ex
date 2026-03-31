@@ -153,7 +153,7 @@ export const nasaApps: AppItem[] = [
   { id: "nasachat",     label: "#nasachat",     color: "text-violet-400",  url: "/tracking-chat", group: "nasa" },
   { id: "forge",        label: "#forge",        color: "text-orange-400",  url: "/forge",         group: "nasa" },
   { id: "agenda",       label: "#agenda",       color: "text-blue-400",    url: "/agendas",       group: "nasa" },
-  { id: "nasa-post",    label: "#nasa-post",    color: "text-pink-400",    url: "/nasa-post",     group: "nasa" },
+  { id: "nasa-planner", label: "#nasa-planner", color: "text-pink-400",    url: "/nasa-planner",     group: "nasa" },
   { id: "tracking",     label: "#tracking",     color: "text-green-400",   url: "/tracking",      group: "nasa" },
   { id: "nbox",         label: "#nbox",         color: "text-purple-400",  url: "/nbox",          group: "nasa" },
   { id: "contatos",     label: "#contatos",     color: "text-yellow-400",  url: "/contatos",      group: "nasa" },

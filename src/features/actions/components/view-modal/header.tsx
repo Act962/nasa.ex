@@ -2,14 +2,16 @@ import { ChevronRightIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DialogClose } from "@/components/ui/dialog";
+import { ReactNode } from "react";
 
 interface HeaderProps {
   workspaceName?: string;
   actionTitle?: string;
   isLoading: boolean;
+  actionMenu?: ReactNode;
 }
 
-export function ActionHeader({ workspaceName, actionTitle, isLoading }: HeaderProps) {
+export function ActionHeader({ workspaceName, actionTitle, isLoading, actionMenu }: HeaderProps) {
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
       <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
@@ -19,7 +21,8 @@ export function ActionHeader({ workspaceName, actionTitle, isLoading }: HeaderPr
           {isLoading ? <Skeleton className="h-4 w-32" /> : actionTitle}
         </span>
       </div>
-      <div className="flex items-center shrink-0">
+      <div className="flex items-center gap-1 shrink-0">
+        {actionMenu}
         <DialogClose asChild>
           <Button
             variant="ghost"

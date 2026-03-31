@@ -120,8 +120,8 @@ export const execute = base
       ? "forge"
       : cmd.includes("#agenda")
         ? "agenda"
-        : cmd.includes("#nasa-post")
-          ? "nasa-post"
+        : cmd.includes("#nasa-planner")
+          ? "nasa-planner"
           : cmd.includes("#tracking")
             ? "tracking"
             : cmd.includes("#nbox")
@@ -398,8 +398,8 @@ export const execute = base
       }
     }
 
-    // ── NASA POST — Create post ───────────────────────────────────────────────
-    if (app === "nasa-post" && isCreate) {
+    // ── NASA PLANNER — Create post ───────────────────────────────────────────────
+    if (app === "nasa-planner" && isCreate) {
       try {
         const postType = cmd.includes("carrossel")
           ? "CAROUSEL"
@@ -415,8 +415,20 @@ export const execute = base
             ? ["twitter"]
             : ["instagram"];
 
-        const post = await prisma.nasaPost.create({
+        // Find or create default planner for the org
+        let planner = await prisma.nasaPlanner.findFirst({
+          where: { organizationId: orgId },
+          orderBy: { createdAt: "asc" },
+        });
+        if (!planner) {
+          planner = await prisma.nasaPlanner.create({
+            data: { organizationId: orgId, name: "Planner Principal" },
+          });
+        }
+
+        const post = await prisma.nasaPlannerPost.create({
           data: {
+            plannerId: planner.id,
             organizationId: orgId,
             createdById: context.user.id,
             type: postType as never,
@@ -431,13 +443,13 @@ export const execute = base
 
         return {
           type: "created" as const,
-          title: "Post criado no NASA Post!",
+          title: "Post criado no NASA Planner!",
           description: `${postType === "CAROUSEL" ? "Carrossel" : postType === "REEL" ? "Reel" : postType === "STORY" ? "Story" : "Post"} criado como rascunho para ${networks.join(", ")}.`,
-          url: `/nasa-post`,
-          appName: "NASA Post",
+          url: `/nasa-planner`,
+          appName: "NASA Planner",
         };
       } catch (err) {
-        console.error("[nasa-command/execute nasa-post]", err);
+        console.error("[nasa-command/execute nasa-planner]", err);
         throw errors.INTERNAL_SERVER_ERROR({ message: "Erro interno. Tente novamente." });
       }
     }
@@ -685,7 +697,7 @@ export const execute = base
       type: "query_result" as const,
       title: "Comando processado",
       description:
-        "Não foi possível identificar uma ação específica. Tente usar #app para especificar o destino (ex: #forge, #agenda, #nasa-post, #tracking).",
+        "Não foi possível identificar uma ação específica. Tente usar #app para especificar o destino (ex: #forge, #agenda, #nasa-planner, #tracking).",
       appName: "NASA",
     };
   });

@@ -5,6 +5,8 @@ import { PriorityField } from "./priority-field";
 import { DateFields } from "./date-fields";
 import { ParticipantsField } from "./participant-field";
 import { InfoFields } from "./info-fields";
+import { TagsField } from "./tags-field";
+import { CoverImageField } from "./cover-image-field";
 import { Action } from "../../../types";
 
 interface SidebarProps {
@@ -13,8 +15,10 @@ interface SidebarProps {
   columns: any[];
   members: any[];
   onUpdateAction: (data: any) => void;
+  onUpdateFields?: (data: any) => void;
   onToggleParticipant: (userId: string) => void;
   isUpdating: boolean;
+  isUpdatingFields?: boolean;
   isAddingParticipant: boolean;
   isRemovingParticipant: boolean;
 }
@@ -25,8 +29,10 @@ export function ActionSidebar({
   columns,
   members,
   onUpdateAction,
+  onUpdateFields,
   onToggleParticipant,
   isUpdating,
+  isUpdatingFields,
   isAddingParticipant,
   isRemovingParticipant,
 }: SidebarProps) {
@@ -77,6 +83,24 @@ export function ActionSidebar({
           isAdding={isAddingParticipant}
           isRemoving={isRemovingParticipant}
         />
+
+        {action?.workspaceId && (
+          <>
+            <Separator />
+            <CoverImageField
+              coverImage={action.coverImage ?? null}
+              onUpdate={(url) => onUpdateFields?.({ coverImage: url })}
+              disabled={isUpdatingFields}
+            />
+            <Separator />
+            <TagsField
+              actionId={action.id}
+              workspaceId={action.workspaceId}
+              tags={(action.tags ?? []) as any}
+              disabled={isUpdating}
+            />
+          </>
+        )}
 
         <Separator />
 

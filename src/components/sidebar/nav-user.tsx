@@ -22,6 +22,7 @@ import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { orpc } from "@/lib/orpc";
 
 const ROLE_META: Record<string, { label: string; color: string; bg: string }> = {
   owner:     { label: "Master",    color: "text-violet-700 dark:text-violet-300", bg: "bg-violet-100 dark:bg-violet-900/50" },
@@ -62,6 +63,11 @@ export function NavUser() {
   }
 
   const hanldeLogout = async () => {
+    try {
+      await orpc.activity.logLogout.call({});
+    } catch {
+      // best-effort, don't block logout
+    }
     await authClient.signOut({
       fetchOptions: {
         onRequest: () => {

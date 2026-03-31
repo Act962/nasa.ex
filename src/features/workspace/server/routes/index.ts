@@ -11,6 +11,22 @@ import { deleteColumn } from "./delete-column";
 import { addWorkspaceMember } from "./add-member";
 import { removeWorkspaceMember } from "./remove-member";
 import { listRecentMembers } from "./list-recent-members";
+import { listTags } from "./list-tags";
+import { createTag } from "./create-tag";
+import { updateTag } from "./update-tag";
+import { deleteTag } from "./delete-tag";
+import { addTagToAction } from "./add-tag-to-action";
+import { removeTagFromAction } from "./remove-tag-from-action";
+import { listAutomations } from "./list-automations";
+import { createAutomation } from "./create-automation";
+import { updateAutomation } from "./update-automation";
+import { deleteAutomation } from "./delete-automation";
+import { listFolders } from "./list-folders";
+import { createFolder } from "./create-folder";
+import { deleteFolder } from "./delete-folder";
+import { updateActionFields } from "./update-action-fields";
+import { copyAction } from "./copy-action";
+import { moveAction } from "./move-action";
 
 export const workspaceRoutes = {
   list: listWorkspace,
@@ -26,4 +42,20 @@ export const workspaceRoutes = {
   addMember: addWorkspaceMember,
   removeMember: removeWorkspaceMember,
   listRecentMembers,
+  listTags,
+  createTag,
+  updateTag,
+  deleteTag,
+  addTagToAction,
+  removeTagFromAction,
+  listAutomations,
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+  listFolders,
+  createFolder,
+  deleteFolder,
+  updateActionFields,
+  copyAction,
+  moveAction,
 };

@@ -1,15 +1,15 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarIcon, Columns3Icon, ListIcon, PlusIcon } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Columns3Icon, ListIcon, PlusIcon } from "lucide-react";
 import { useQueryState } from "nuqs";
 
 import { useState } from "react";
 import { CreateActionModal } from "./create-action-modal";
 import { DataKanban } from "./data-kanban";
 import { DataTable } from "./data-table";
+import { FiltersBar, DEFAULT_FILTERS, type FiltersState } from "./filters-bar";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -18,9 +18,8 @@ interface Props {
 
 export function ActionsViewSwitcher({ workspaceId }: Props) {
   const [open, setOpen] = useState(false);
-  const [view, setView] = useQueryState("action-view", {
-    defaultValue: "list",
-  });
+  const [view, setView] = useQueryState("action-view", { defaultValue: "list" });
+  const [filters, setFilters] = useState<FiltersState>(DEFAULT_FILTERS);
 
   return (
     <>
@@ -29,9 +28,10 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
         defaultValue={view || "list"}
         onValueChange={setView}
       >
-        <div className="h-full flex flex-col ">
-          <div className="sticky top-0 z-50 bg-background  flex flex-col gap-y-2 lg:flex-row justify-between items-center py-2 px-4 border-b">
-            <TabsList className="w-full lg:w-auto ">
+        <div className="h-full flex flex-col">
+          {/* Top bar: views + new button */}
+          <div className="sticky top-0 z-50 bg-background flex flex-col gap-y-2 lg:flex-row justify-between items-center py-2 px-4 border-b">
+            <TabsList className="w-full lg:w-auto">
               <TabsTrigger value="list" className="h-8 w-full lg:w-auto">
                 <ListIcon className="size-4" />
                 Lista
@@ -51,6 +51,15 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
             </Button>
           </div>
 
+          {/* Filters bar */}
+          <div className="px-4 py-2 border-b bg-background/80 flex items-center gap-2 flex-wrap">
+            <FiltersBar
+              workspaceId={workspaceId}
+              filters={filters}
+              onFiltersChange={setFilters}
+            />
+          </div>
+
           <div className="flex-1 overflow-auto">
             <div className={cn("h-full", view !== "list" && "hidden")}>
               <DataTable workspaceId={workspaceId} />
@@ -58,10 +67,6 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
 
             <div className={cn("h-full", view !== "kanban" && "hidden")}>
               <DataKanban workspaceId={workspaceId} />
-            </div>
-
-            <div className={cn("h-full", view !== "calendar" && "hidden")}>
-              <div className="h-full">Calendário</div>
             </div>
           </div>
         </div>

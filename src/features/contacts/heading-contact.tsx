@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/input-group";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useSearchModal } from "@/hooks/modal/use-search-modal";
+import { useOrgRole } from "@/hooks/use-org-role";
 import { DownloadCloud, MoreHorizontalIcon, Plus, Search } from "lucide-react";
 import { LeadImportDialog } from "./lead-import-dialog";
 import { useState } from "react";
@@ -24,6 +25,7 @@ import { useState } from "react";
 export default function HeadingContacts() {
   const searchLead = useSearchModal();
   const [modalImportIsOpen, setImportIsModal] = useState(false);
+  const { isSingle } = useOrgRole();
 
   return (
     <>
@@ -44,10 +46,12 @@ export default function HeadingContacts() {
         </InputGroup>
 
         <div className="hidden sm:flex items-center gap-2">
-          <Button variant={"outline"} onClick={() => setImportIsModal(true)}>
-            <DownloadCloud className="size-4" />
-            Importar
-          </Button>
+          {!isSingle && (
+            <Button variant={"outline"} onClick={() => setImportIsModal(true)}>
+              <DownloadCloud className="size-4" />
+              Importar
+            </Button>
+          )}
           <Button>Adicionar novo lead</Button>
         </div>
 
@@ -65,10 +69,12 @@ export default function HeadingContacts() {
           <DropdownMenuContent className="w-40" align="end">
             <DropdownMenuLabel>Ações</DropdownMenuLabel>
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => setImportIsModal(true)}>
-                <DownloadCloud className="size-4" />
-                Importar
-              </DropdownMenuItem>
+              {!isSingle && (
+                <DropdownMenuItem onClick={() => setImportIsModal(true)}>
+                  <DownloadCloud className="size-4" />
+                  Importar
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem>
                 <Plus className="size-4" />
                 Novo lead
@@ -82,10 +88,12 @@ export default function HeadingContacts() {
         open={searchLead.isOpen}
         onOpenChange={searchLead.setIsOpen}
       />
-      <LeadImportDialog
-        onOpenChange={setImportIsModal}
-        open={modalImportIsOpen}
-      />
+      {!isSingle && (
+        <LeadImportDialog
+          onOpenChange={setImportIsModal}
+          open={modalImportIsOpen}
+        />
+      )}
     </>
   );
 }

@@ -43,7 +43,7 @@ model User {
   forgeTemplatesCreated ForgeContractTemplate[] @relation("ForgeTemplateCreatedBy")
   nboxFoldersCreated NBoxFolder[] @relation("NBoxFolderCreatedBy")
   nboxItemsCreated   NBoxItem[]   @relation("NBoxItemCreatedBy")
-  nasaPostsCreated   NasaPost[]   @relation("NasaPostCreatedBy")
+  nasaPlannerPostsCreated NasaPlannerPost[] @relation("NasaPlannerPostCreatedBy")
   workspacesCreated     Workspace[]
   workspacesMembers     WorkspaceMember[]
 
@@ -135,12 +135,14 @@ model Organization {
   workspaceIntegrations WorkspaceIntegration[]
   nboxFolders      NBoxFolder[]
   nboxItems        NBoxItem[]
-  nasaPostBrandConfig NasaPostBrandConfig?
-  nasaPosts           NasaPost[]
+  nasaPlanners        NasaPlanner[]
   orgPermissions   OrgPermission[]
   activityLogs     OrgActivityLog[]
+  systemActivityLogs SystemActivityLog[]
+  userPresences      UserPresence[]
   workspaces  Workspace[]
   form        Form[]
+  workspaceFolders WorkspaceFolder[]
 
   @@unique([slug])
   @@map("organization")
@@ -511,6 +513,14 @@ model Workspace {
   members        WorkspaceMember[]
   actions        Action[]
 
+  backgroundImage    String?  @map("background_image")
+  backgroundColor    String?  @map("background_color")
+  visibility         String   @default("PRIVATE") @map("visibility")
+  archivedAt         DateTime? @map("archived_at")
+  tags               WorkspaceTag[]
+  automations        WorkspaceAutomation[]
+  folderItems        WorkspaceFolderItem[]
+
   @@index([organizationId])
   @@index([trackingId])
   @@index([createdBy])
@@ -614,6 +624,17 @@ model Action {
   participants ActionsUserParticipant[]
   responsibles ActionsUserResponsible[]
   subActions   SubActions[]
+
+  attachments      Json      @default("[]") @map("attachments")
+  links            Json      @default("[]") @map("links")
+  youtubeUrl       String?   @map("youtube_url")
+  coverImage       String?   @map("cover_image")
+  isArchived       Boolean   @default(false) @map("is_archived")
+  isFavorited      Boolean   @default(false) @map("is_favorited")
+  history          Json      @default("[]") @map("history")
+  tags             ActionTag[]
+  mirrorsAsSource  ActionMirror[] @relation("SourceMirror")
+  mirrorOf         ActionMirror?  @relation("MirrorOf")
 
   @@index([workspaceId])
   @@index([columnId])
@@ -1519,9 +1540,9 @@ model NBoxItem {
   @@map("nbox_items")
 }
 
-// ─── NASA Post ────────────────────────────────────────────────────────────────
+// ─── NASA Planner ──────────────────────────────────────────────────────────────
 
-enum NasaPostStatus {
+enum NasaPlannerPostStatus {
   DRAFT
   PENDING_APPROVAL
   APPROVED
@@ -1530,18 +1551,27 @@ enum NasaPostStatus {
   FAILED
 }
 
-enum NasaPostType {
+enum NasaPlannerPostType {
   STATIC
   CAROUSEL
   REEL
   STORY
 }
 
-model NasaPostBrandConfig {
-  id             String   @id @default(cuid())
-  organizationId String   @unique @map("organization_id")
+enum NasaPlannerCardStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
 
-  brandName       String   @map("brand_name")
+model NasaPlanner {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  name           String
+  description    String?
+
+  brandName       String?  @map("brand_name")
   brandSlogan     String?  @map("brand_slogan")
   website         String?
 
@@ -1567,24 +1597,28 @@ model NasaPostBrandConfig {
   examplePosts    String[] @map("example_posts")
   showBranding    Boolean  @default(true) @map("show_branding")
 
-  // IA integration keys (stored per-org, never exposed to client)
   anthropicApiKey String?  @map("anthropic_api_key")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt      @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  posts          NasaPlannerPost[]
+  mindMaps       NasaPlannerMindMap[]
+  calendarShares NasaPlannerCalendarShare[]
 
-  @@map("nasa_post_brand_configs")
+  @@index([organizationId])
+  @@map("nasa_planner")
 }
 
-model NasaPost {
-  id             String         @id @default(cuid())
-  organizationId String         @map("organization_id")
-  createdById    String         @map("created_by_id")
+model NasaPlannerPost {
+  id             String                @id @default(cuid())
+  plannerId      String                @map("planner_id")
+  organizationId String                @map("organization_id")
+  createdById    String                @map("created_by_id")
 
-  type           NasaPostType   @default(STATIC)
-  status         NasaPostStatus @default(DRAFT)
+  type           NasaPlannerPostType   @default(STATIC)
+  status         NasaPlannerPostStatus @default(DRAFT)
 
   title          String?
   caption        String?
@@ -1603,19 +1637,20 @@ model NasaPost {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt      @map("updated_at")
 
-  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy    User             @relation("NasaPostCreatedBy", fields: [createdById], references: [id])
-  slides       NasaPostSlide[]
+  planner   NasaPlanner            @relation(fields: [plannerId], references: [id], onDelete: Cascade)
+  createdBy User                   @relation("NasaPlannerPostCreatedBy", fields: [createdById], references: [id])
+  slides    NasaPlannerPostSlide[]
 
-  @@index([organizationId, status])
-  @@index([organizationId, scheduledAt])
-  @@map("nasa_posts")
+  @@index([plannerId, status])
+  @@index([plannerId, scheduledAt])
+  @@index([organizationId])
+  @@map("nasa_planner_posts")
 }
 
-model NasaPostSlide {
-  id      String @id @default(cuid())
-  postId  String @map("post_id")
-  order   Int    @default(0)
+model NasaPlannerPostSlide {
+  id     String @id @default(cuid())
+  postId String @map("post_id")
+  order  Int    @default(0)
 
   imageKey      String?  @map("image_key")
   headline      String?
@@ -1624,10 +1659,71 @@ model NasaPostSlide {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  post NasaPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post NasaPlannerPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId, order])
-  @@map("nasa_post_slides")
+  @@map("nasa_planner_post_slides")
+}
+
+model NasaPlannerMindMap {
+  id        String  @id @default(cuid())
+  plannerId String  @map("planner_id")
+  name      String
+  template  String? // "mindmap", "gantt", "diagram", "checklist"
+  nodes     Json    @default("[]")
+  edges     Json    @default("[]")
+  viewport  Json    @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  planner NasaPlanner       @relation(fields: [plannerId], references: [id], onDelete: Cascade)
+  cards   NasaPlannerCard[]
+
+  @@index([plannerId])
+  @@map("nasa_planner_mind_maps")
+}
+
+model NasaPlannerCard {
+  id        String @id @default(cuid())
+  mindMapId String @map("mind_map_id")
+  plannerId String @map("planner_id")
+
+  title       String
+  description String?
+  status      NasaPlannerCardStatus @default(PENDING)
+  priority    String                @default("MEDIUM")
+
+  assigneeIds String[]  @map("assignee_ids")
+  dueDate     DateTime? @map("due_date")
+
+  linkedApp String? @map("linked_app")
+  linkedId  String? @map("linked_id")
+  nodeId    String? @map("node_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  mindMap NasaPlannerMindMap @relation(fields: [mindMapId], references: [id], onDelete: Cascade)
+
+  @@index([mindMapId])
+  @@index([plannerId])
+  @@map("nasa_planner_cards")
+}
+
+model NasaPlannerCalendarShare {
+  id        String    @id @default(cuid())
+  plannerId String    @map("planner_id")
+  token     String    @unique @default(cuid())
+  isActive  Boolean   @default(true) @map("is_active")
+  expiresAt DateTime? @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  planner NasaPlanner @relation(fields: [plannerId], references: [id], onDelete: Cascade)
+
+  @@index([plannerId])
+  @@map("nasa_planner_calendar_shares")
 }
 // ─── Permissions & Activity ───────────────────────────────────────────────────
 
@@ -1665,4 +1761,131 @@ model OrgActivityLog {
   @@index([organizationId, createdAt])
   @@index([userId])
   @@map("org_activity_log")
+}
+
+model SystemActivityLog {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id")
+  userName       String       @map("user_name")
+  userEmail      String       @map("user_email")
+  userImage      String?      @map("user_image")
+  appSlug        String       @default("system") @map("app_slug")
+  action         String
+  actionLabel    String       @map("action_label")
+  resource       String?
+  resourceId     String?      @map("resource_id")
+  metadata       Json?
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([organizationId, createdAt])
+  @@index([userId])
+  @@index([appSlug])
+  @@map("system_activity_log")
+}
+
+model UserPresence {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id")
+  userName       String       @map("user_name")
+  userEmail      String       @map("user_email")
+  userImage      String?      @map("user_image")
+  lastSeenAt     DateTime     @default(now()) @map("last_seen_at")
+
+  @@unique([userId, organizationId])
+  @@map("user_presence")
+}
+
+// ─── Workspace Tags ───────────────────────────────────────────────────────────
+
+model WorkspaceTag {
+  id          String    @id @default(cuid())
+  name        String
+  color       String    @default("#7C3AED")
+  workspaceId String    @map("workspace_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actions     ActionTag[]
+
+  @@index([workspaceId])
+  @@map("workspace_tags")
+}
+
+model ActionTag {
+  actionId  String @map("action_id")
+  tagId     String @map("tag_id")
+
+  action    Action       @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  tag       WorkspaceTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([actionId, tagId])
+  @@index([tagId])
+  @@map("action_tags")
+}
+
+// ─── Workspace Folders ────────────────────────────────────────────────────────
+
+model WorkspaceFolder {
+  id             String   @id @default(cuid())
+  name           String
+  organizationId String   @map("organization_id")
+  order          Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items          WorkspaceFolderItem[]
+
+  @@index([organizationId])
+  @@map("workspace_folders")
+}
+
+model WorkspaceFolderItem {
+  folderId    String @map("folder_id")
+  workspaceId String @map("workspace_id")
+  order       Int    @default(0)
+
+  folder    WorkspaceFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([folderId, workspaceId])
+  @@map("workspace_folder_items")
+}
+
+// ─── Workspace Automations ────────────────────────────────────────────────────
+
+model WorkspaceAutomation {
+  id          String   @id @default(cuid())
+  name        String
+  workspaceId String   @map("workspace_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  trigger     String
+  triggerData Json     @default("{}") @map("trigger_data")
+  conditions  Json     @default("[]") @map("conditions")
+  steps       Json     @default("[]") @map("steps")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("workspace_automations")
+}
+
+// ─── Action Mirror ────────────────────────────────────────────────────────────
+
+model ActionMirror {
+  id             String   @id @default(cuid())
+  sourceActionId String   @map("source_action_id")
+  mirrorActionId String   @unique @map("mirror_action_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  sourceAction Action @relation("SourceMirror", fields: [sourceActionId], references: [id], onDelete: Cascade)
+  mirrorAction Action @relation("MirrorOf", fields: [mirrorActionId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceActionId, mirrorActionId])
+  @@map("action_mirrors")
 }

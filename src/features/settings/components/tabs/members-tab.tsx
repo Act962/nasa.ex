@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useMemberModal } from "@/hooks/use-member";
+import { useOrgRole } from "@/hooks/use-org-role";
 import { Plus } from "lucide-react";
 import Image from "next/image";
 
@@ -34,6 +35,7 @@ interface MemberTabsProps {
 
 export function MembersTab({ members }: MemberTabsProps) {
   const { onOpen } = useMemberModal();
+  const { canManage } = useOrgRole();
 
   return (
     <div className="space-y-6">
@@ -45,9 +47,11 @@ export function MembersTab({ members }: MemberTabsProps) {
           </p>
         </div>
 
-        <Button onClick={() => onOpen()}>
-          <Plus className="size-4" /> Adicionar Membro
-        </Button>
+        {canManage && (
+          <Button onClick={() => onOpen()}>
+            <Plus className="size-4" /> Adicionar Membro
+          </Button>
+        )}
       </div>
 
       <div>

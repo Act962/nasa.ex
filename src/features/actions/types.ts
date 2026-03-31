@@ -53,4 +53,19 @@ export interface Action {
       };
     }[];
   }[];
+  // Sprint 2 fields
+  attachments: { name: string; url: string; type?: string }[];
+  links: { title: string; url: string }[];
+  youtubeUrl: string | null;
+  coverImage: string | null;
+  isArchived: boolean;
+  isFavorited: boolean;
+  history: { type: string; userId: string; timestamp: string; changes?: string[] }[];
+  tags: {
+    tag: {
+      id: string;
+      name: string;
+      color: string;
+    };
+  }[];
 }

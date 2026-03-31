@@ -60,7 +60,7 @@ export const generateReport = base
           conversionRate: z.number(),
         })
         .optional(),
-      nasaPost: z
+      nasaPlanner: z
         .object({
           total: z.number(),
           draft: z.number(),
@@ -145,12 +145,12 @@ export const generateReport = base
 - Com lead vinculado: ${fmtN(s.withLead)}`);
     }
 
-    if (input.nasaPost) {
-      const n = input.nasaPost;
+    if (input.nasaPlanner) {
+      const n = input.nasaPlanner;
       const networks = Object.entries(n.byNetwork)
         .map(([net, count]) => `${net}: ${count}`)
         .join(", ");
-      sections.push(`**NASA POST (Conteúdo)**
+      sections.push(`**NASA PLANNER (Conteúdo)**
 - Posts criados: ${fmtN(n.total)}
 - Publicados: ${fmtN(n.published)} | Agendados: ${fmtN(n.scheduled)} | Rascunhos: ${fmtN(n.draft)}
 - Stars consumidas (IA): ${fmtN(n.starsSpent)}

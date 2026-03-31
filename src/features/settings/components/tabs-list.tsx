@@ -1,49 +1,64 @@
 "use client";
 
-import { Building2Icon, SettingsIcon, UsersIcon, ShieldCheck, FileInput } from "lucide-react";
+import { Building2Icon, SettingsIcon, UsersIcon, ShieldCheck, FileInput, Clock } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useOrgRole } from "@/hooks/use-org-role";
 
 const tabsLink = [
   {
     label: "Geral",
     href: "",
     icon: SettingsIcon,
+    singleAllowed: true,
   },
   {
     label: "Empresa",
     href: "/company",
     icon: Building2Icon,
+    singleAllowed: true,   // visible but read-only
   },
   {
     label: "Membros",
     href: "/members",
     icon: UsersIcon,
+    singleAllowed: false,
   },
   {
     label: "Permissões",
     href: "/permissions",
     icon: ShieldCheck,
+    singleAllowed: true,   // can see but can't edit
+  },
+  {
+    label: "Histórico",
+    href: "/history",
+    icon: Clock,
+    singleAllowed: false,
   },
   {
     label: "Importar",
     href: "/integration",
     icon: FileInput,
+    singleAllowed: false,
   },
 ];
 
 export function TabsList() {
   const pathname = usePathname();
+  const { isSingle } = useOrgRole();
 
   const isActive = (href: string) => {
     const fullPath = href ? `/settings${href}` : "/settings";
     return pathname === fullPath;
   };
 
+  const visibleTabs = tabsLink.filter((tab) => !isSingle || tab.singleAllowed);
+
   return (
     <div className="border-b pb-2 pl-4">
       <div className="w-full max-w-7xl mx-auto flex items-center gap-4">
-        {tabsLink.map((tab) => (
+        {visibleTabs.map((tab) => (
           <Link
             key={tab.href}
             href={`/settings${tab.href}`}

@@ -22,9 +22,10 @@ import { channelInsightsRouter } from "./channel-insights";
 import { forgeRouter } from "./forge";
 import { starsRouter } from "./stars";
 import { nboxRouter } from "./nbox";
-import { nasaPostRouter } from "./nasa-post";
+import { nasaPlannerRouter } from "./nasa-planner";
 import { nasaCommandRouter } from "./nasa-command";
 import { permissionsRouter } from "./permissions";
+import { activityRouter } from "./activity";
 import { formRouter } from "./form";
 
 export const router = {
@@ -51,8 +52,9 @@ export const router = {
   forge: forgeRouter,
   stars: starsRouter,
   nbox: nboxRouter,
-  nasaPost: nasaPostRouter,
+  nasaPlanner: nasaPlannerRouter,
   nasaCommand: nasaCommandRouter,
   permissions: permissionsRouter,
+  activity: activityRouter,
   form: formRouter,
 };
