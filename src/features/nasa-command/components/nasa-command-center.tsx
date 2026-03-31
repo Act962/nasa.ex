@@ -28,8 +28,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
+import { IntegrationPlatform } from "@/generated/prisma/enums";
 import { toast } from "sonner";
 import { StarsWidget } from "@/features/stars";
 import {
@@ -695,7 +696,103 @@ function ExampleLibrary({ onSelect }: ExampleLibraryProps) {
 
 // ─── Model Selector ───────────────────────────────────────────────────────────
 
-type ModelType = "claude" | "astro";
+type ModelType = string;
+
+interface ModelOption {
+  id: string;
+  label: string;
+  sublabel: string;
+  icon: React.ReactNode;
+  provider: string;
+}
+
+const PROVIDER_MODELS: Record<string, ModelOption[]> = {
+  [IntegrationPlatform.ANTHROPIC]: [
+    {
+      id: "claude-sonnet-4-5",
+      label: "Claude Sonnet",
+      sublabel: "4.5",
+      icon: <Bot className="w-4 h-4 text-[#D97757]" />,
+      provider: "Anthropic",
+    },
+    {
+      id: "claude-3-5-haiku-latest",
+      label: "Claude Haiku",
+      sublabel: "3.5",
+      icon: <Bot className="w-4 h-4 text-[#D97757]/70" />,
+      provider: "Anthropic",
+    },
+  ],
+  [IntegrationPlatform.OPENAI]: [
+    {
+      id: "gpt-4o",
+      label: "GPT-4o",
+      sublabel: "OpenAI",
+      icon: (
+        <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" />
+        </svg>
+      ),
+      provider: "OpenAI",
+    },
+    {
+      id: "gpt-4o-mini",
+      label: "GPT-4o mini",
+      sublabel: "OpenAI",
+      icon: (
+        <svg className="w-4 h-4 text-emerald-400/70" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" />
+        </svg>
+      ),
+      provider: "OpenAI",
+    },
+  ],
+  [IntegrationPlatform.GEMINI]: [
+    {
+      id: "gemini-2.5-flash-preview-04-17",
+      label: "Gemini 2.5 Flash",
+      sublabel: "Google",
+      icon: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+          <defs>
+            <linearGradient id="gem-g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#4285F4" />
+              <stop offset="50%" stopColor="#EA4335" />
+              <stop offset="100%" stopColor="#FBBC04" />
+            </linearGradient>
+          </defs>
+          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 3l2 5h-4l2-5zm0 12l-2-5h4l-2 5zm-5-5l5-2v4l-5-2zm10 0l-5 2v-4l5 2z" fill="url(#gem-g)" />
+        </svg>
+      ),
+      provider: "Google",
+    },
+    {
+      id: "gemini-1.5-pro",
+      label: "Gemini 1.5 Pro",
+      sublabel: "Google",
+      icon: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+          <defs>
+            <linearGradient id="gem-g2" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#4285F4" />
+              <stop offset="100%" stopColor="#34A853" />
+            </linearGradient>
+          </defs>
+          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 3l2 5h-4l2-5zm0 12l-2-5h4l-2 5zm-5-5l5-2v4l-5-2zm10 0l-5 2v-4l5 2z" fill="url(#gem-g2)" />
+        </svg>
+      ),
+      provider: "Google",
+    },
+  ],
+};
+
+const ASTRO_OPTION: ModelOption = {
+  id: "astro",
+  label: "Astro",
+  sublabel: "NASA Explorer",
+  icon: <Sparkles className="w-4 h-4 text-violet-400" />,
+  provider: "NASA",
+};
 
 interface ModelSelectorProps {
   value: ModelType;
@@ -705,53 +802,72 @@ interface ModelSelectorProps {
 function ModelSelector({ value, onChange }: ModelSelectorProps) {
   const [open, setOpen] = useState(false);
 
+  const { data: integrationsData } = useQuery(
+    orpc.platformIntegrations.getMany.queryOptions({}),
+  );
+
+  const connectedPlatforms = new Set(
+    (integrationsData?.integrations ?? []).map((i) => i.platform),
+  );
+
+  // Build options: always show Astro, then connected AI providers
+  const aiPlatforms = [
+    IntegrationPlatform.ANTHROPIC,
+    IntegrationPlatform.OPENAI,
+    IntegrationPlatform.GEMINI,
+  ];
+
+  const options: ModelOption[] = [ASTRO_OPTION];
+  for (const platform of aiPlatforms) {
+    if (connectedPlatforms.has(platform)) {
+      options.push(...(PROVIDER_MODELS[platform] ?? []));
+    }
+  }
+
+  const selected = options.find((o) => o.id === value) ?? ASTRO_OPTION;
+
   return (
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-1.5 bg-zinc-800 border border-zinc-700/50 rounded-lg px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-700 transition-colors"
       >
-        {value === "claude" ? (
-          <Bot className="w-3.5 h-3.5 text-orange-400" />
-        ) : (
-          <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-        )}
-        {value === "claude" ? "Claude" : "Astro"}
+        {selected.icon}
+        <span>{selected.label}</span>
         <ChevronDown className="w-3 h-3 text-zinc-500" />
       </button>
 
       {open && (
-        <div className="absolute bottom-full right-0 mb-1 w-36 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl overflow-hidden z-50">
-          <button
-            onClick={() => {
-              onChange("claude");
-              setOpen(false);
-            }}
-            className={cn(
-              "w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors",
-              value === "claude"
-                ? "text-white bg-zinc-800"
-                : "text-zinc-400 hover:bg-zinc-800",
-            )}
-          >
-            <Bot className="w-4 h-4 text-orange-400" />
-            Claude
-          </button>
-          <button
-            onClick={() => {
-              onChange("astro");
-              setOpen(false);
-            }}
-            className={cn(
-              "w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors",
-              value === "astro"
-                ? "text-white bg-zinc-800"
-                : "text-zinc-400 hover:bg-zinc-800",
-            )}
-          >
-            <Sparkles className="w-4 h-4 text-violet-400" />
-            Astro
-          </button>
+        <div className="absolute bottom-full right-0 mb-1 w-48 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl overflow-hidden z-50">
+          {options.map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => {
+                onChange(opt.id);
+                setOpen(false);
+              }}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors text-left",
+                value === opt.id
+                  ? "text-white bg-zinc-800"
+                  : "text-zinc-400 hover:bg-zinc-800",
+              )}
+            >
+              {opt.icon}
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-medium leading-tight">{opt.label}</span>
+                <span className="text-[10px] text-zinc-500 leading-tight">{opt.sublabel}</span>
+              </div>
+              {value === opt.id && (
+                <CheckCircle2 className="w-3.5 h-3.5 text-violet-400 ml-auto shrink-0" />
+              )}
+            </button>
+          ))}
+          {options.length === 1 && (
+            <div className="px-3 py-2 text-[10px] text-zinc-600 border-t border-zinc-800">
+              Conecte OpenAI, Anthropic ou Gemini em Integrações para mais modelos.
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1192,7 +1308,7 @@ export function NasaCommandCenter() {
   const [command, setCommand] = useState("");
   const [dropdown, setDropdown] = useState<DropdownType>(null);
   const [dropdownSearch, setDropdownSearch] = useState("");
-  const [model, setModel] = useState<ModelType>("claude");
+  const [model, setModel] = useState<ModelType>("astro");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
