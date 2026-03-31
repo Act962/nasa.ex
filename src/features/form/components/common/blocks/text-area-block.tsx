@@ -157,7 +157,7 @@ function TextAreaFormComponent({
           const isValid = validateField(inputValue);
           setIsError(!isValid); // Set error state based on validation.
           if (handleBlur) {
-            handleBlur(block.id, inputValue);
+            handleBlur(block.id, { value: inputValue });
           }
         }}
       />

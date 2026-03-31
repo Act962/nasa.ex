@@ -26,6 +26,7 @@ export default function Page() {
   }
 
   const blocks = JSON.parse(form.jsonBlock) as FormBlockInstance[];
+
   return (
     <FormSubmitComponent id={formId} blocks={blocks} settings={form.settings} />
   );

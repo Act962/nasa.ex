@@ -161,7 +161,9 @@ function TextFieldFormComponent({
           const isValid = validateField(inputValue);
           setIsError(!isValid); // Set error state based on validation.
           if (handleBlur) {
-            handleBlur(block.id, inputValue);
+            handleBlur(block.id, {
+              value: inputValue,
+            });
           }
         }}
         className={`h-10 ${isError || isSubmitError ? "border-red-500!" : ""}`}
