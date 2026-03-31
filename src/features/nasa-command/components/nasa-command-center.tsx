@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import {
+  EntitySearchField,
+  PlainField,
+  getEntityType,
+} from "./entity-search-field";
 import {
   Send,
   Plus,
@@ -1053,7 +1058,17 @@ interface ResponseCardProps {
 function ResponseCard({ result, onClose, onContinue, onConfirm }: ResponseCardProps) {
   const [copied, setCopied] = useState(false);
   const [contentCopied, setContentCopied] = useState(false);
+  // Stores both the id (for DB lookup) and the display label per field
   const [missingValues, setMissingValues] = useState<Record<string, string>>({});
+  const [missingLabels, setMissingLabels] = useState<Record<string, string>>({});
+
+  const setFieldValue = useCallback(
+    (key: string, id: string, label: string) => {
+      setMissingValues((prev) => ({ ...prev, [key]: id || label }));
+      setMissingLabels((prev) => ({ ...prev, [key]: label }));
+    },
+    [],
+  );
   const fullUrl = `${typeof window !== "undefined" ? window.location.origin : ""}${result.url ?? ""}`;
 
   const handleCopy = () => {
@@ -1086,7 +1101,11 @@ function ResponseCard({ result, onClose, onContinue, onConfirm }: ResponseCardPr
     if (!onContinue) return;
     const extras = Object.entries(missingValues)
       .filter(([, v]) => v.trim())
-      .map(([k, v]) => `/"${k}"="${v}"`)
+      .map(([k, v]) => {
+        // Use the human-readable label in the command so AI/rules can parse it
+        const display = missingLabels[k] ?? v;
+        return `/"${k}"="${display}"`;
+      })
       .join(" ");
     onContinue(extras);
   };
@@ -1154,33 +1173,40 @@ function ResponseCard({ result, onClose, onContinue, onConfirm }: ResponseCardPr
             {result.description}
           </p>
 
-          {/* needs_input: render labeled input fields for each missing field */}
+          {/* needs_input: smart search fields for each missing field */}
           {isNeedsInput && result.missingFields && result.missingFields.length > 0 && (
             <div className="mt-4 space-y-3">
-              <p className="text-xs text-zinc-500">
-                Para continuar, informe:{" "}
-                <span className="text-zinc-300">
-                  {result.missingFields.map((f) => f.label).join(", ")}
-                </span>
-              </p>
-              {result.missingFields.map((field) => (
-                <div key={field.key}>
-                  <label className="block text-xs text-zinc-400 mb-1 font-medium">{field.label}</label>
-                  <input
-                    type="text"
-                    value={missingValues[field.key] ?? ""}
-                    onChange={(e) => setMissingValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
-                    placeholder={field.label}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleContinue(); }}
-                  />
-                </div>
-              ))}
+              {result.missingFields.map((field) => {
+                const entityType = getEntityType(field.key);
+                return (
+                  <div key={field.key}>
+                    <label className="block text-xs text-zinc-400 mb-1.5 font-medium">
+                      {field.label}
+                    </label>
+                    {entityType ? (
+                      <EntitySearchField
+                        fieldKey={field.key}
+                        label={field.label}
+                        entityType={entityType}
+                        value={missingValues[field.key] ?? ""}
+                        onChange={(id, label) => setFieldValue(field.key, id, label)}
+                      />
+                    ) : (
+                      <PlainField
+                        label={field.label}
+                        value={missingValues[field.key] ?? ""}
+                        onChange={(v) => setFieldValue(field.key, "", v)}
+                        onEnter={handleContinue}
+                      />
+                    )}
+                  </div>
+                );
+              })}
               <button
                 onClick={handleContinue}
-                className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors mt-1"
               >
-                Continuar
+                Continuar →
               </button>
             </div>
           )}
