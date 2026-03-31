@@ -65,7 +65,7 @@ export const execute = base
       url: z.string().optional(),
       appName: z.string(),
       extraData: z.any().optional(),
-      resultLinks: z.array(z.object({ label: z.string(), url: z.string() })).optional(),
+      resultLinks: z.array(z.object({ label: z.string(), url: z.string(), explorerCmd: z.string().optional() })).optional(),
       missingFields: z.array(z.object({ key: z.string(), label: z.string() })).optional(),
       partialContext: z.record(z.string(), z.string()).optional(),
       content: z.string().optional(),
@@ -95,7 +95,15 @@ export const execute = base
               ? "nbox"
               : cmd.includes("#contatos")
                 ? "contatos"
-                : null;
+                : cmd.includes("#task")
+                  ? "task"
+                  : cmd.includes("#cosmic")
+                    ? "cosmic"
+                    : cmd.includes("#nasa-chat")
+                      ? "nasa-chat"
+                      : cmd.includes("#stars")
+                        ? "stars"
+                        : null;
 
     // ── Detect action type ────────────────────────────────────────────────────
     const isCreate =
@@ -113,6 +121,12 @@ export const execute = base
     const hasPost        = /\b(post[s]?|conte[úu]do|story|reel|carrossel|legenda|publicaç[aã]o)\b/.test(cmd);
     const hasProduct     = /\b(produto[s]?|product[s]?|servi[çc]o[s]?)\b/.test(cmd);
     const hasWorkspace   = /\b(workspace[s]?|quadro[s]?|board[s]?|painel[s]?)\b/.test(cmd);
+    const hasTask        = /\b(tarefa[s]?|task[s]?|ação|ações|acao|acoes|atividade[s]?)\b/.test(cmd);
+    const hasNBox        = /\b(nbox|n-box|arquivo[s]?|documento[s]?|file[s]?|pasta[s]?|folder[s]?)\b/.test(cmd);
+    const hasCosmic      = /\b(formulário[s]?|formulario[s]?|form[s]?|cosmic)\b/.test(cmd);
+    const hasChat        = /\b(chat[s]?|conversa[s]?|whatsapp|mensage[nm][s]?)\b/.test(cmd);
+    const hasPlannerList = /\b(post[s]?\s+agendado[s]?|conte[uú]do[s]?\s+(desta|da)\s+semana|conte[uú]do\s+planejado|planner)\b/.test(cmd);
+    const hasStarHistory = /\b(histórico|extrato|gast[oei]|como\s+gast)\b/.test(cmd) && /\b(star[s]?|estrela[s]?|crédito[s]?)\b/.test(cmd);
 
     // ── Infer app from keywords when no hashtag is present ───────────────────
     const app = appFromHash ?? (
@@ -122,6 +136,10 @@ export const execute = base
       hasWorkspace ? "workspaces" :
       hasTracking  ? "tracking" :
       hasLead      ? "tracking" :
+      hasTask      ? "task" :
+      hasNBox      ? "nbox" :
+      hasCosmic    ? "cosmic" :
+      hasChat      ? "nasa-chat" :
       null
     );
 
@@ -144,6 +162,23 @@ export const execute = base
     // isWorkspaceQuery: "me traga todos os workspaces", "quais workspaces", "liste os quadros", etc.
     const isWorkspaceImplicitQuery = hasWorkspace && !isCreate;
     const isWorkspaceQuery = hasWorkspace && (isQuery || isWorkspaceImplicitQuery);
+
+    // New app intents
+    const isTaskList   = (hasTask || app === "task") && (isQuery || (!isCreate && hasTask));
+    const isTaskCreate = (hasTask || app === "task") && isCreate;
+    const isNBoxList   = (hasNBox || app === "nbox") && (isQuery || (!isCreate && hasNBox));
+    const isFormList   = (hasCosmic || app === "cosmic") && isQuery && !/\b(resposta[s]?)\b/.test(cmd);
+    const isFormResponses = (hasCosmic || app === "cosmic") && /\b(resposta[s]?|response[s]?)\b/.test(cmd);
+    const isChatList   = (hasChat || app === "nasa-chat") && (isQuery || (!isCreate && hasChat));
+    const isPlannerListQuery = (hasPlannerList || (app === "nasa-planner" && isQuery && !isCreate));
+    const isStarHistoryQuery = hasStarHistory || (app === "stars" && /\b(histórico|extrato)\b/.test(cmd));
+    const isStarPackages = (app === "stars" || /\b(star[s]?|estrela[s]?)\b/.test(cmd)) && /\b(pacote[s]?|comprar|recarregar|package[s]?)\b/.test(cmd);
+
+    // Fallback apps (no schema yet)
+    const hasComments = /\b(comment[s]?|coment[aá]rio[s]?|instagram)\b/.test(cmd);
+    const hasLinnker  = /\b(linnker|link\s+page|bio\s+link|linktr\.ee)\b/.test(cmd);
+    const hasBoost    = /\b(boost|desafio[s]?|meta[s]?|goal[s]?)\b/.test(cmd);
+    const hasNerp     = /\b(nerp|erp)\b/.test(cmd);
 
     // ── Extract /Variables from command ───────────────────────────────────────
     const variableRegex = /\/([A-Za-zÀ-ÿ0-9_\.]+)/g;
@@ -742,25 +777,35 @@ CTA: [chamada para ação]`;
           if (agendaMatch) agendaName = agendaMatch[1].trim();
         }
 
-        // ── Extract date ───────────────────────────────────────────────────
-        const dateStr: string | null = parsedVars["data"] ?? parsedVars["date"] ?? null;
+        // ── Extract date+time — aceita picker unificado /"datetime"="YYYY-MM-DDTHH:mm" ─
+        const datetimeStr: string | null = parsedVars["datetime"] ?? null;
         let dateResolved: Date | null = null;
-        if (dateStr) {
-          dateResolved = parseDate(dateStr);
-        } else if (
-          cmd.includes("amanhã") || cmd.includes("amanha") ||
-          cmd.includes("hoje") || cmd.includes("semana que vem") ||
-          /\d{2}\.\d{2}\.\d{4}/.test(cmd)
-        ) {
-          dateResolved = parseDate(cmd);
-        }
+        let timeStr: string | null = null;
 
-        // ── Extract time ───────────────────────────────────────────────────
-        let timeStr: string | null =
-          parsedVars["horario"] ?? parsedVars["hora"] ?? null;
-        // Normalize natural language time (e.g. "2 horas da tarde" → "14:00")
-        if (timeStr) timeStr = normalizeTimeStr(timeStr) ?? timeStr;
-        if (!timeStr) timeStr = parseTime(cmd);
+        if (datetimeStr) {
+          // Picker retorna "YYYY-MM-DDTHH:mm" — parsear diretamente
+          const dt = new Date(datetimeStr);
+          if (!isNaN(dt.getTime())) {
+            dateResolved = dt;
+            timeStr = `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
+          }
+        } else {
+          // Fallback: campos separados ou linguagem natural
+          const dateStr: string | null = parsedVars["data"] ?? parsedVars["date"] ?? null;
+          if (dateStr) {
+            dateResolved = parseDate(dateStr);
+          } else if (
+            cmd.includes("amanhã") || cmd.includes("amanha") ||
+            cmd.includes("hoje") || cmd.includes("semana que vem") ||
+            /\d{2}\.\d{2}\.\d{4}/.test(cmd)
+          ) {
+            dateResolved = parseDate(cmd);
+          }
+
+          timeStr = parsedVars["horario"] ?? parsedVars["hora"] ?? null;
+          if (timeStr) timeStr = normalizeTimeStr(timeStr) ?? timeStr;
+          if (!timeStr) timeStr = parseTime(cmd);
+        }
 
         // ── Extract leadName ───────────────────────────────────────────────
         let leadName: string | null =
@@ -774,8 +819,8 @@ CTA: [chamada para ação]`;
         // ── Gather ALL missing fields at once ─────────────────────────────
         const missing: Array<{ key: string; label: string }> = [];
         if (!agendaName) missing.push({ key: "agenda", label: "Nome da agenda" });
-        if (!dateResolved && !dateStr) missing.push({ key: "data", label: "Data do agendamento (ex: amanhã, 25/06/2026)" });
-        if (!timeStr) missing.push({ key: "horario", label: "Horário do agendamento (ex: 14h30)" });
+        // Usa um único campo datetime (picker) em vez de data + horário separados
+        if (!dateResolved || !timeStr) missing.push({ key: "datetime", label: "Data e horário do agendamento" });
         if (!leadName) missing.push({ key: "lead", label: "Nome do lead/cliente" });
 
         if (missing.length > 0) {
@@ -787,8 +832,12 @@ CTA: [chamada para ação]`;
             missingFields: missing,
             partialContext: {
               ...(agendaName ? { agenda: agendaName } : {}),
-              ...(dateResolved ? { data: dateResolved.toISOString() } : {}),
-              ...(timeStr ? { horario: timeStr } : {}),
+              // Se já temos data+hora, guarda no campo unificado datetime
+              ...(dateResolved && timeStr
+                ? { datetime: `${dateResolved.toISOString().slice(0, 10)}T${timeStr}` }
+                : dateResolved
+                ? { data: dateResolved.toISOString() }
+                : {}),
               ...(leadName ? { lead: leadName } : {}),
             } as Record<string, string>,
           } satisfies ExecuteOutput;
@@ -947,7 +996,7 @@ CTA: [chamada para ação]`;
         }
 
         // ── Create appointment ─────────────────────────────────────────────
-        const finalDate = dateResolved ?? (dateStr ? parseDate(dateStr) : new Date());
+        const finalDate = dateResolved ?? new Date();
         const finalTime = timeStr ?? "09:00";
         const startsAt = buildDateTime(finalDate, finalTime);
         const endsAt = new Date(startsAt.getTime() + 30 * 60 * 1000);
@@ -1015,18 +1064,37 @@ CTA: [chamada para ação]`;
           },
           orderBy: { startsAt: "asc" },
           take: 15,
-          select: { title: true, startsAt: true, status: true },
+          select: { id: true, title: true, startsAt: true, status: true, agendaId: true },
         });
+
+        const statusLabel: Record<string, string> = {
+          PENDING: "Pendente", CONFIRMED: "Confirmado",
+          CANCELLED: "Cancelado", NO_SHOW: "Não compareceu", DONE: "Finalizado",
+        };
 
         const list = appointments
           .map((a) => {
             const dateStr = a.startsAt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
             const timeStr = a.startsAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+            const status  = statusLabel[a.status] ?? a.status;
             return isToday
-              ? `${timeStr} — ${a.title ?? "Reunião"} (${a.status})`
-              : `${dateStr} às ${timeStr} — ${a.title ?? "Reunião"} (${a.status})`;
+              ? `${timeStr} — ${a.title ?? "Reunião"} (${status})`
+              : `${dateStr} às ${timeStr} — ${a.title ?? "Reunião"} (${status})`;
           })
           .join("\n");
+
+        const resultLinks = appointments.map((a) => {
+          const timeStr = a.startsAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+          const dateStr = a.startsAt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+          const label   = isToday
+            ? `${timeStr} — ${a.title ?? "Reunião"}`
+            : `${dateStr} ${timeStr} — ${a.title ?? "Reunião"}`;
+          return {
+            label,
+            url: `/agendas/${a.agendaId}`,
+            explorerCmd: `Reagendar reunião "${a.title ?? "Reunião"}"`,
+          };
+        });
 
         const rangeLabel = isToday ? "hoje" : "nos próximos 7 dias";
 
@@ -1038,7 +1106,9 @@ CTA: [chamada para ação]`;
           description: appointments.length > 0 ? list : `Você não tem compromissos agendados ${rangeLabel}.`,
           url: "/agendas",
           appName: "Spacetime",
+          starsSpent: STAR_COSTS.query,
           extraData: { appointments },
+          resultLinks,
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute agenda query]", err);
@@ -1443,6 +1513,597 @@ CTA: [chamada para ação]`;
         console.error("[nasa-command/execute workspace-list]", err);
         throw errors.INTERNAL_SERVER_ERROR;
       }
+    }
+
+    // ── TASK — List tasks/actions ─────────────────────────────────────────────
+    if (isTaskList && !isTaskCreate) {
+      try {
+        const filterDone    = /\b(concluída[s]?|concluido[s]?|feita[s]?|done)\b/.test(cmd);
+        const filterPending = /\b(pendente[s]?|aberta[s]?|ativa[s]?|em\s+andamento)\b/.test(cmd);
+        const filterUrgent  = /\b(urgente[s]?|alta\s+prioridade|priorit[aá]ria[s]?)\b/.test(cmd);
+
+        const tasks = await prisma.action.findMany({
+          where: {
+            organizationId: orgId,
+            isArchived: false,
+            ...(filterDone    ? { isDone: true }  : {}),
+            ...(filterPending ? { isDone: false } : {}),
+            ...(filterUrgent  ? { priority: "HIGH" as never } : {}),
+          },
+          orderBy: [{ isDone: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
+          take: 15,
+          select: {
+            id: true,
+            title: true,
+            isDone: true,
+            priority: true,
+            dueDate: true,
+            workspaceId: true,
+            workspace: { select: { id: true, name: true } },
+            responsibles: {
+              take: 1,
+              select: { user: { select: { name: true } } },
+            },
+          },
+        });
+
+        const priorityEmoji: Record<string, string> = {
+          HIGH: "🔴",
+          MEDIUM: "🟡",
+          LOW: "🟢",
+          NONE: "⬜",
+        };
+
+        const resultLinks = tasks.map((t) => {
+          const done   = t.isDone ? "✅" : (priorityEmoji[t.priority ?? "NONE"] ?? "⬜");
+          const due    = t.dueDate ? ` · ${new Date(t.dueDate).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}` : "";
+          const resp   = t.responsibles[0]?.user?.name ? ` · ${t.responsibles[0].user.name}` : "";
+          return {
+            label: `${done} ${t.title}${due}${resp}`,
+            url: `/workspaces/${t.workspace?.id ?? t.workspaceId}`,
+            explorerCmd: `Marcar tarefa "${t.title}" como concluída`,
+          };
+        });
+
+        const filterDesc = filterDone ? " concluídas" : filterPending ? " pendentes" : filterUrgent ? " urgentes" : "";
+
+        const cost = STAR_COSTS.query;
+        await tryDebitStars(cost, "busca de tarefas");
+
+        return {
+          type: "query_result" as const,
+          title: tasks.length > 0
+            ? `${tasks.length} tarefa(s)${filterDesc} encontrada(s)`
+            : `Nenhuma tarefa${filterDesc} encontrada`,
+          description: tasks.length > 0
+            ? "Clique em uma tarefa para abrir o workspace:"
+            : "Nenhuma tarefa encontrada com os filtros aplicados.",
+          url: "/workspaces",
+          appName: "Task",
+          starsSpent: cost,
+          resultLinks: tasks.length > 0 ? resultLinks : undefined,
+          extraData: { tasks },
+        } satisfies ExecuteOutput;
+      } catch (err) {
+        console.error("[nasa-command/execute task-list]", err);
+        throw errors.INTERNAL_SERVER_ERROR;
+      }
+    }
+
+    // ── TASK — Create task ────────────────────────────────────────────────────
+    if (isTaskCreate) {
+      try {
+        const taskTitle =
+          parsedVars["tarefa"] ?? parsedVars["task"] ?? parsedVars["titulo"] ?? null;
+
+        const titleFromCmd = (() => {
+          const m = command.match(/(?:tarefa|task|atividade)\s+["'«»]([^"'«»\n]+)["'«»]/i)
+            ?? command.match(/(?:criar|crie|add|adicionar)\s+(?:tarefa|task|atividade)\s+(.+?)(?:\s+(?:no|em|para|com)\s+|\s*$)/i);
+          return m?.[1]?.trim() ?? null;
+        })();
+
+        const finalTitle = taskTitle ?? titleFromCmd;
+
+        if (!finalTitle) {
+          return {
+            type: "needs_input" as const,
+            title: "Informação necessária",
+            description: "Qual é o título da tarefa?",
+            appName: "Task",
+            missingFields: [{ key: "tarefa", label: "Título da tarefa" }],
+          } satisfies ExecuteOutput;
+        }
+
+        // Find a workspace to attach the task
+        const workspace = await prisma.workspace.findFirst({
+          where: { organizationId: orgId, isArchived: false },
+          orderBy: { order: "asc" },
+          select: { id: true, name: true, columns: { take: 1, orderBy: { order: "asc" }, select: { id: true } } },
+        });
+
+        if (!workspace) {
+          return {
+            type: "error" as const,
+            title: "Sem workspace",
+            description: "Crie um workspace primeiro para poder adicionar tarefas.",
+            appName: "Task",
+          } satisfies ExecuteOutput;
+        }
+
+        const dueDateStr = parsedVars["prazo"] ?? parsedVars["data"] ?? parsedVars["duedate"] ?? null;
+        const dueDate = dueDateStr ? parseDate(dueDateStr) : dateVars.length > 0 ? parseDate(cmd) : null;
+
+        const task = await prisma.action.create({
+          data: {
+            title: finalTitle,
+            workspaceId: workspace.id,
+            columnId: workspace.columns[0]?.id ?? null,
+            organizationId: orgId,
+            createdBy: context.user.id,
+            isDone: false,
+            dueDate,
+          },
+          select: { id: true },
+        });
+
+        const cost = STAR_COSTS.create;
+        await tryDebitStars(cost, `Tarefa "${finalTitle}" criada`);
+
+        return {
+          type: "created" as const,
+          title: "Tarefa criada!",
+          description: `Tarefa "${finalTitle}" adicionada ao workspace "${workspace.name}".${dueDate ? ` Prazo: ${dueDate.toLocaleDateString("pt-BR")}.` : ""}`,
+          url: `/workspaces/${workspace.id}`,
+          appName: "Task",
+          starsSpent: cost,
+        } satisfies ExecuteOutput;
+      } catch (err) {
+        console.error("[nasa-command/execute task-create]", err);
+        throw errors.INTERNAL_SERVER_ERROR;
+      }
+    }
+
+    // ── N-BOX — List files/documents ─────────────────────────────────────────
+    if (isNBoxList) {
+      try {
+        const folderName = parsedVars["pasta"] ?? parsedVars["folder"] ?? null;
+        const typeFilter = /\b(imagem|imagens|image[s]?)\b/.test(cmd)
+          ? "IMAGE"
+          : /\b(link[s]?)\b/.test(cmd)
+            ? "LINK"
+            : /\b(contrato[s]?)\b/.test(cmd)
+              ? "CONTRACT"
+              : /\b(proposta[s]?)\b/.test(cmd)
+                ? "PROPOSAL"
+                : null;
+
+        const folder = folderName
+          ? await prisma.nBoxFolder.findFirst({
+              where: { organizationId: orgId, name: { contains: folderName, mode: "insensitive" } },
+              select: { id: true, name: true },
+            })
+          : null;
+
+        const items = await prisma.nBoxItem.findMany({
+          where: {
+            organizationId: orgId,
+            ...(folder ? { folderId: folder.id } : {}),
+            ...(typeFilter ? { type: typeFilter as never } : {}),
+          },
+          orderBy: { createdAt: "desc" },
+          take: 15,
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            description: true,
+            folder: { select: { id: true, name: true } },
+            createdAt: true,
+          },
+        });
+
+        const typeIcon: Record<string, string> = {
+          FILE: "📄",
+          IMAGE: "🖼️",
+          LINK: "🔗",
+          CONTRACT: "📝",
+          PROPOSAL: "💼",
+        };
+
+        const resultLinks = items.map((item) => ({
+          label: `${typeIcon[item.type] ?? "📄"} ${item.name}${item.folder ? ` · ${item.folder.name}` : ""}`,
+          url: `/nbox${item.folder ? `?folder=${item.folder.id}` : ""}`,
+        }));
+
+        const cost = STAR_COSTS.query;
+        await tryDebitStars(cost, "busca N-Box");
+
+        return {
+          type: "query_result" as const,
+          title: items.length > 0
+            ? `${items.length} arquivo(s) encontrado(s)${folder ? ` em "${folder.name}"` : ""}`
+            : "Nenhum arquivo encontrado",
+          description: items.length > 0
+            ? "Clique para abrir no N-Box:"
+            : `Nenhum arquivo encontrado${folder ? ` na pasta "${folder.name}"` : ""}.`,
+          url: "/nbox",
+          appName: "N-Box",
+          starsSpent: cost,
+          resultLinks: items.length > 0 ? resultLinks : undefined,
+          extraData: { items },
+        } satisfies ExecuteOutput;
+      } catch (err) {
+        console.error("[nasa-command/execute nbox-list]", err);
+        throw errors.INTERNAL_SERVER_ERROR;
+      }
+    }
+
+    // ── COSMIC — List forms ───────────────────────────────────────────────────
+    if (isFormList) {
+      try {
+        const filterPublished = /\b(public[ao]do[s]?|ativ[ao][s]?)\b/.test(cmd);
+        const filterDraft     = /\b(rascunho[s]?|draft[s]?)\b/.test(cmd);
+
+        const forms = await prisma.form.findMany({
+          where: {
+            organizationId: orgId,
+            ...(filterPublished ? { published: true }  : {}),
+            ...(filterDraft     ? { published: false } : {}),
+          },
+          orderBy: { createdAt: "desc" },
+          take: 15,
+          select: { id: true, name: true, description: true, published: true, responses: true, views: true, shareUrl: true },
+        });
+
+        const resultLinks = forms.map((f) => ({
+          label: `${f.published ? "✅" : "📝"} ${f.name} · ${f.responses} resposta(s) · ${f.views} visualização(ões)`,
+          url: `/form/${f.id}`,
+        }));
+
+        const cost = STAR_COSTS.query;
+        await tryDebitStars(cost, "busca de formulários");
+
+        return {
+          type: "query_result" as const,
+          title: forms.length > 0
+            ? `${forms.length} formulário(s) encontrado(s)`
+            : "Nenhum formulário encontrado",
+          description: forms.length > 0
+            ? "Clique para abrir o formulário no Cosmic:"
+            : "Crie seu primeiro formulário no Cosmic.",
+          url: "/form",
+          appName: "Cosmic",
+          starsSpent: cost,
+          resultLinks: forms.length > 0 ? resultLinks : undefined,
+          extraData: { forms },
+        } satisfies ExecuteOutput;
+      } catch (err) {
+        console.error("[nasa-command/execute cosmic-form-list]", err);
+        throw errors.INTERNAL_SERVER_ERROR;
+      }
+    }
+
+    // ── COSMIC — Form responses ───────────────────────────────────────────────
+    if (isFormResponses) {
+      try {
+        const formName = parsedVars["formulario"] ?? parsedVars["form"] ?? parsedVars["formulário"] ?? null;
+        const formNameFromCmd = (() => {
+          const m = command.match(/(?:formulário|form)\s+["'«»]?([^"'«»\n,]+?)["'«»]?(?:\s|$)/i);
+          return m?.[1]?.trim() ?? null;
+        })();
+
+        const resolvedFormName = formName ?? formNameFromCmd;
+
+        const form = resolvedFormName
+          ? await prisma.form.findFirst({
+              where: { organizationId: orgId, name: { contains: resolvedFormName, mode: "insensitive" } },
+              select: { id: true, name: true, responses: true },
+            })
+          : await prisma.form.findFirst({
+              where: { organizationId: orgId },
+              orderBy: { responses: "desc" },
+              select: { id: true, name: true, responses: true },
+            });
+
+        if (!form) {
+          return {
+            type: "query_result" as const,
+            title: "Formulário não encontrado",
+            description: resolvedFormName
+              ? `Não encontrei um formulário com o nome "${resolvedFormName}".`
+              : "Nenhum formulário encontrado na organização.",
+            appName: "Cosmic",
+          } satisfies ExecuteOutput;
+        }
+
+        const recentResponses = await prisma.formResponses.findMany({
+          where: { formId: form.id },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: { id: true, createdAt: true, lead: { select: { name: true } } },
+        });
+
+        const cost = STAR_COSTS.query;
+        await tryDebitStars(cost, `respostas formulário ${form.name}`);
+
+        return {
+          type: "query_result" as const,
+          title: `${form.responses} resposta(s) — ${form.name}`,
+          description: recentResponses.length > 0
+            ? `Últimas respostas:\n${recentResponses.map((r) => `• ${r.lead?.name ?? "Anônimo"} — ${new Date(r.createdAt).toLocaleDateString("pt-BR")}`).join("\n")}`
+            : "Nenhuma resposta ainda.",
+          url: `/form/${form.id}`,
+          appName: "Cosmic",
+          starsSpent: cost,
+          extraData: { form, recentResponses },
+        } satisfies ExecuteOutput;
+      } catch (err) {
+        console.error("[nasa-command/execute cosmic-responses]", err);
+        throw errors.INTERNAL_SERVER_ERROR;
+      }
+    }
+
+    // ── NASA CHAT — List conversations ────────────────────────────────────────
+    if (isChatList) {
+      try {
+        const filterOpen   = /\b(aberta[s]?|ativa[s]?)\b/.test(cmd);
+        const filterClosed = /\b(fechada[s]?|inativa[s]?)\b/.test(cmd);
+
+        const conversations = await prisma.conversation.findMany({
+          where: {
+            trackingId: { not: undefined },
+            tracking: { organizationId: orgId },
+            ...(filterOpen   ? { isActive: true }  : {}),
+            ...(filterClosed ? { isActive: false } : {}),
+          },
+          orderBy: { lastMessageAt: "desc" },
+          take: 15,
+          select: {
+            id: true,
+            name: true,
+            isActive: true,
+            lastMessageAt: true,
+            lead: { select: { name: true, phone: true } },
+            lastMessage: { select: { body: true, fromMe: true } },
+          },
+        });
+
+        const resultLinks = conversations.map((c) => {
+          const contactName = c.lead?.name ?? c.name ?? c.lead?.phone ?? "Desconhecido";
+          const lastMsg = c.lastMessage?.body
+            ? ` · ${c.lastMessage.body.slice(0, 40)}${c.lastMessage.body.length > 40 ? "…" : ""}`
+            : "";
+          const status = c.isActive ? "🟢" : "🔴";
+          const date = new Date(c.lastMessageAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+          return {
+            label: `${status} ${contactName}${lastMsg} · ${date}`,
+            url: `/tracking-chat`,
+          };
+        });
+
+        const cost = STAR_COSTS.query;
+        await tryDebitStars(cost, "busca de conversas");
+
+        const filterDesc = filterOpen ? " abertas" : filterClosed ? " fechadas" : "";
+
+        return {
+          type: "query_result" as const,
+          title: conversations.length > 0
+            ? `${conversations.length} conversa(s)${filterDesc} encontrada(s)`
+            : `Nenhuma conversa${filterDesc} encontrada`,
+          description: conversations.length > 0
+            ? "Clique para abrir no NASA Chat:"
+            : "Nenhuma conversa encontrada no NASA Chat.",
+          url: "/tracking-chat",
+          appName: "NASA Chat",
+          starsSpent: cost,
+          resultLinks: conversations.length > 0 ? resultLinks : undefined,
+          extraData: { conversations },
+        } satisfies ExecuteOutput;
+      } catch (err) {
+        console.error("[nasa-command/execute nasa-chat-list]", err);
+        throw errors.INTERNAL_SERVER_ERROR;
+      }
+    }
+
+    // ── NASA PLANNER — List posts ─────────────────────────────────────────────
+    if (isPlannerListQuery) {
+      try {
+        const filterScheduled = /\b(agendado[s]?|scheduled)\b/.test(cmd);
+        const filterDraft     = /\b(rascunho[s]?|draft[s]?)\b/.test(cmd);
+        const filterPublished = /\b(publicado[s]?|published)\b/.test(cmd);
+
+        const planner = await prisma.nasaPlanner.findFirst({
+          where: { organizationId: orgId },
+          select: { id: true, name: true },
+        });
+
+        if (!planner) {
+          return {
+            type: "query_result" as const,
+            title: "NASA Planner não configurado",
+            description: "Configure seu NASA Planner em /nasa-planner para usar esta funcionalidade.",
+            url: "/nasa-planner",
+            appName: "NASA Planner",
+          } satisfies ExecuteOutput;
+        }
+
+        const statusMap: Record<string, string> = filterScheduled
+          ? { status: "SCHEDULED" }
+          : filterDraft
+            ? { status: "DRAFT" }
+            : filterPublished
+              ? { status: "PUBLISHED" }
+              : {};
+
+        const posts = await prisma.nasaPlannerPost.findMany({
+          where: {
+            plannerId: planner.id,
+            organizationId: orgId,
+            ...(statusMap.status ? { status: statusMap.status as never } : {}),
+          },
+          orderBy: { scheduledAt: "asc" },
+          take: 10,
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            status: true,
+            scheduledAt: true,
+            targetNetworks: true,
+          },
+        });
+
+        const typeEmoji: Record<string, string> = {
+          STATIC: "📸",
+          CAROUSEL: "🎠",
+          REEL: "🎬",
+          STORY: "📱",
+        };
+        const statusLabel: Record<string, string> = {
+          DRAFT: "Rascunho",
+          SCHEDULED: "Agendado",
+          PUBLISHED: "Publicado",
+        };
+
+        const resultLinks = posts.map((p) => {
+          const emoji    = typeEmoji[p.type] ?? "📸";
+          const status   = statusLabel[p.status] ?? p.status;
+          const date     = p.scheduledAt ? ` · ${new Date(p.scheduledAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}` : "";
+          const networks = p.targetNetworks.join(", ");
+          return {
+            label: `${emoji} ${p.title ?? "Sem título"} · ${status}${date} · ${networks}`,
+            url: `/nasa-planner`,
+          };
+        });
+
+        const cost = STAR_COSTS.query;
+        await tryDebitStars(cost, "busca de posts no planner");
+
+        const filterDesc = filterScheduled ? " agendados" : filterDraft ? " em rascunho" : filterPublished ? " publicados" : "";
+
+        return {
+          type: "query_result" as const,
+          title: posts.length > 0
+            ? `${posts.length} post(s)${filterDesc} no ${planner.name}`
+            : `Nenhum post${filterDesc} encontrado`,
+          description: posts.length > 0
+            ? "Clique para abrir no NASA Planner:"
+            : "Crie seu primeiro post no NASA Planner.",
+          url: "/nasa-planner",
+          appName: "NASA Planner",
+          starsSpent: cost,
+          resultLinks: posts.length > 0 ? resultLinks : undefined,
+          extraData: { posts },
+        } satisfies ExecuteOutput;
+      } catch (err) {
+        console.error("[nasa-command/execute planner-list]", err);
+        throw errors.INTERNAL_SERVER_ERROR;
+      }
+    }
+
+    // ── STARS — History ───────────────────────────────────────────────────────
+    if (isStarHistoryQuery) {
+      try {
+        const transactions = await prisma.starTransaction.findMany({
+          where: { organizationId: orgId },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: { id: true, type: true, amount: true, balanceAfter: true, description: true, appSlug: true, createdAt: true },
+        });
+
+        const lines = transactions.map((t) => {
+          const isDebit = (["APP_CHARGE", "APP_SETUP"] as string[]).includes(t.type);
+          const signal = isDebit ? "−" : "+";
+          const date   = new Date(t.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+          return `• ${signal}${t.amount} ⭐ ${t.description} · ${date}`;
+        });
+
+        const cost = STAR_COSTS.query;
+        await tryDebitStars(cost, "histórico de stars");
+
+        return {
+          type: "query_result" as const,
+          title: `Últimas ${transactions.length} transação(ões) de Stars`,
+          description: lines.join("\n") || "Nenhuma transação encontrada.",
+          url: "/settings",
+          appName: "Stars",
+          starsSpent: cost,
+          extraData: { transactions },
+        } satisfies ExecuteOutput;
+      } catch (err) {
+        console.error("[nasa-command/execute star-history]", err);
+        throw errors.INTERNAL_SERVER_ERROR;
+      }
+    }
+
+    // ── STARS — Packages ──────────────────────────────────────────────────────
+    if (isStarPackages) {
+      try {
+        const packages = await prisma.starPackage.findMany({
+          where: { isActive: true },
+          orderBy: { stars: "asc" },
+          select: { id: true, stars: true, priceBrl: true, label: true },
+        });
+
+        const lines = packages.map((p) => `• ${p.stars.toLocaleString("pt-BR")} ⭐ — R$ ${Number(p.priceBrl).toFixed(2)} · ${p.label}`);
+
+        return {
+          type: "query_result" as const,
+          title: "Pacotes de Stars disponíveis",
+          description: lines.join("\n") || "Nenhum pacote disponível no momento.",
+          url: "/settings",
+          appName: "Stars",
+          extraData: { packages },
+        } satisfies ExecuteOutput;
+      } catch (err) {
+        console.error("[nasa-command/execute star-packages]", err);
+        throw errors.INTERNAL_SERVER_ERROR;
+      }
+    }
+
+    // ── COMMENTS — Fallback informativo ──────────────────────────────────────
+    if (hasComments) {
+      return {
+        type: "query_result" as const,
+        title: "Módulo Comments",
+        description: "O módulo Comments (Instagram/Social) ainda está em desenvolvimento. Em breve você poderá gerenciar comentários diretamente pelo Explorer.",
+        url: "/insights",
+        appName: "Comments",
+      } satisfies ExecuteOutput;
+    }
+
+    // ── LINNKER — Fallback informativo ────────────────────────────────────────
+    if (hasLinnker) {
+      return {
+        type: "query_result" as const,
+        title: "Módulo Linnker",
+        description: "O Linnker (Link Pages / Bio Link) está em desenvolvimento. Em breve você poderá criar e gerenciar suas páginas de links pelo Explorer.",
+        url: "/apps",
+        appName: "Linnker",
+      } satisfies ExecuteOutput;
+    }
+
+    // ── BOOST — Fallback informativo ──────────────────────────────────────────
+    if (hasBoost) {
+      return {
+        type: "query_result" as const,
+        title: "Módulo Boost",
+        description: "O Boost (Desafios e Metas) está em desenvolvimento. Em breve você poderá acompanhar seus desafios e metas pelo Explorer.",
+        url: "/apps",
+        appName: "Boost",
+      } satisfies ExecuteOutput;
+    }
+
+    // ── NERP — Fallback informativo ───────────────────────────────────────────
+    if (hasNerp) {
+      return {
+        type: "query_result" as const,
+        title: "Módulo Nerp (ERP)",
+        description: "O Nerp (ERP) está em desenvolvimento. Em breve você poderá consultar itens, pedidos e relatórios financeiros pelo Explorer.",
+        url: "/apps",
+        appName: "Nerp",
+      } satisfies ExecuteOutput;
     }
 
     // ── AI FALLBACK — try to understand via connected AI ─────────────────────

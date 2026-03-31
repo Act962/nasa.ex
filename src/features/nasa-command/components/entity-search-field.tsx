@@ -241,3 +241,45 @@ export function PlainField({ label, value, onChange, placeholder, onEnter }: Pla
     />
   );
 }
+
+// ─── DateTime picker field ────────────────────────────────────────────────────
+
+interface DateTimePickerFieldProps {
+  value: string;         // "YYYY-MM-DDTHH:mm"
+  onChange: (value: string) => void;
+  onConfirm?: () => void;
+}
+
+export function DateTimePickerField({ value, onChange, onConfirm }: DateTimePickerFieldProps) {
+  // Valor mínimo: agora (sem segundos)
+  const minValue = new Date();
+  minValue.setSeconds(0, 0);
+  const min = minValue.toISOString().slice(0, 16);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <input
+        type="datetime-local"
+        value={value}
+        min={min}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter" && onConfirm) onConfirm(); }}
+        className={cn(
+          "w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-lg px-3 py-2",
+          "text-sm text-white focus:outline-none focus:border-violet-500/60 transition-colors",
+          // Estiliza o ícone nativo do datetime-local
+          "[color-scheme:dark]",
+        )}
+      />
+      {value && (
+        <p className="text-[11px] text-zinc-500">
+          {new Date(value).toLocaleDateString("pt-BR", {
+            weekday: "long", day: "2-digit", month: "long", year: "numeric",
+          })}{" "}
+          às{" "}
+          {new Date(value).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+        </p>
+      )}
+    </div>
+  );
+}

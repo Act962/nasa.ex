@@ -252,7 +252,7 @@ export type ExecuteOutput = {
   appName: string;
   extraData?: unknown;
   /** Itens clicáveis exibidos abaixo da descrição (ex: lista de propostas, leads, etc.) */
-  resultLinks?: Array<{ label: string; url: string }>;
+  resultLinks?: Array<{ label: string; url: string; explorerCmd?: string }>;
   missingFields?: Array<{ key: string; label: string }>;
   partialContext?: Record<string, string>;
   content?: string;

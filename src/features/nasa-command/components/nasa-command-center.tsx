@@ -97,6 +97,7 @@ function useVoiceInput(onTranscript: (text: string) => void) {
 import {
   EntitySearchField,
   PlainField,
+  DateTimePickerField,
   getEntityType,
 } from "./entity-search-field";
 import {
@@ -121,6 +122,7 @@ import {
   Lightbulb,
   Mic,
   MicOff,
+  PencilLine,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -150,6 +152,8 @@ interface ExampleCategory {
 interface ResultLink {
   label: string;
   url: string;
+  /** Comando pré-preenchido no Explorer ao clicar no ícone de editar */
+  explorerCmd?: string;
 }
 
 interface ResultData {
@@ -1048,9 +1052,10 @@ interface ResponseCardProps {
   onClose: () => void;
   onContinue?: (extra: string) => void;
   onConfirm?: (key: string, partialContext: Record<string, unknown>) => void;
+  onExplorerCmd?: (cmd: string) => void;
 }
 
-function ResponseCard({ result, onClose, onContinue, onConfirm }: ResponseCardProps) {
+function ResponseCard({ result, onClose, onContinue, onConfirm, onExplorerCmd }: ResponseCardProps) {
   const [copied, setCopied] = useState(false);
   const [contentCopied, setContentCopied] = useState(false);
   // Stores both the id (for DB lookup) and the display label per field
@@ -1168,20 +1173,31 @@ function ResponseCard({ result, onClose, onContinue, onConfirm }: ResponseCardPr
             {result.description}
           </p>
 
-          {/* result_links: lista de itens clicáveis (ex: propostas, leads) */}
+          {/* result_links: lista de itens clicáveis (ex: propostas, reuniões, leads) */}
           {result.resultLinks && result.resultLinks.length > 0 && (
             <div className="mt-3 space-y-1.5">
               {result.resultLinks.map((link, i) => (
-                <a
-                  key={i}
-                  href={link.url}
-                  className="flex items-center justify-between gap-2 w-full bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/50 hover:border-zinc-600 rounded-lg px-3 py-2 transition-all group"
-                >
-                  <span className="text-xs text-zinc-300 group-hover:text-white truncate">
-                    {link.label}
-                  </span>
-                  <ExternalLink className="w-3 h-3 text-zinc-600 group-hover:text-violet-400 shrink-0 transition-colors" />
-                </a>
+                <div key={i} className="flex items-center gap-1.5 group">
+                  <a
+                    href={link.url}
+                    className="flex items-center justify-between gap-2 flex-1 min-w-0 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/50 hover:border-zinc-600 rounded-lg px-3 py-2 transition-all"
+                  >
+                    <span className="text-xs text-zinc-300 group-hover:text-white truncate">
+                      {link.label}
+                    </span>
+                    <ExternalLink className="w-3 h-3 text-zinc-600 group-hover:text-violet-400 shrink-0 transition-colors" />
+                  </a>
+                  {link.explorerCmd && onExplorerCmd && (
+                    <button
+                      type="button"
+                      title="Editar no Explorer"
+                      onClick={() => onExplorerCmd(link.explorerCmd!)}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-800/60 hover:bg-violet-600/30 border border-zinc-700/50 hover:border-violet-500/60 text-zinc-500 hover:text-violet-400 transition-all shrink-0"
+                    >
+                      <PencilLine className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -1191,12 +1207,19 @@ function ResponseCard({ result, onClose, onContinue, onConfirm }: ResponseCardPr
             <div className="mt-4 space-y-3">
               {result.missingFields.map((field) => {
                 const entityType = getEntityType(field.key);
+                const isDatetime  = field.key === "datetime";
                 return (
                   <div key={field.key}>
                     <label className="block text-xs text-zinc-400 mb-1.5 font-medium">
                       {field.label}
                     </label>
-                    {entityType ? (
+                    {isDatetime ? (
+                      <DateTimePickerField
+                        value={missingValues[field.key] ?? ""}
+                        onChange={(v) => setFieldValue(field.key, "", v)}
+                        onConfirm={handleContinue}
+                      />
+                    ) : entityType ? (
                       <EntitySearchField
                         fieldKey={field.key}
                         label={field.label}
@@ -1768,6 +1791,14 @@ export function NasaCommandCenter() {
                     onClose={() => setMessages([])}
                     onContinue={msg.originalCommand ? handleContinue(msg.originalCommand) : undefined}
                     onConfirm={msg.originalCommand ? handleConfirm(msg.originalCommand, msg.result.partialContext ?? {}) : undefined}
+                    onExplorerCmd={(cmd) => {
+                      setCommand(cmd);
+                      // Foca o input para o usuário completar o comando
+                      setTimeout(() => {
+                        const ta = document.querySelector<HTMLTextAreaElement>("textarea");
+                        ta?.focus();
+                      }, 50);
+                    }}
                   />
                 )}
               </div>
