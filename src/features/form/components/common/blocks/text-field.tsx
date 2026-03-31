@@ -163,7 +163,6 @@ function TextFieldFormComponent({
           if (handleBlur) {
             handleBlur(block.id, {
               value: inputValue,
-              meta: {},
             });
           }
         }}

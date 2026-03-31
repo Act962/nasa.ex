@@ -143,7 +143,7 @@ function StarRatingFormComponent({
     setIsError(!isValid);
 
     if (handleBlur) {
-      handleBlur(block.id, newRating?.toString());
+      handleBlur(block.id, { value: newRating?.toString() });
     }
   };
 
