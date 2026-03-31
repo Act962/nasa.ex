@@ -438,3 +438,67 @@ export const useMoveAction = () => {
     }),
   );
 };
+
+// ─── Cross-Company Sharing ────────────────────────────────────────────────────
+
+export const useGetCompanyCode = () => {
+  return useQuery(orpc.workspace.getCompanyCode.queryOptions({ input: {} }));
+};
+
+export const useShareAction = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.shareAction.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(`Card enviado para ${data.targetOrgName}! Aguardando aprovação.`);
+        queryClient.invalidateQueries(orpc.workspace.listOutgoingShares.queryOptions({ input: {} }));
+      },
+      onError: (error: any) => toast.error(error.message || "Erro ao compartilhar card!"),
+    }),
+  );
+};
+
+export const useListIncomingShares = (status?: string) => {
+  const { data, isLoading } = useQuery(
+    orpc.workspace.listIncomingShares.queryOptions({
+      input: { status },
+    }),
+  );
+  return { shares: data?.shares ?? [], isLoading };
+};
+
+export const useListOutgoingShares = (status?: string) => {
+  const { data, isLoading } = useQuery(
+    orpc.workspace.listOutgoingShares.queryOptions({
+      input: { status },
+    }),
+  );
+  return { shares: data?.shares ?? [], isLoading };
+};
+
+export const useApproveShare = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.approveShare.mutationOptions({
+      onSuccess: () => {
+        toast.success("Compartilhamento aprovado! Card copiado para o workspace.");
+        queryClient.invalidateQueries(orpc.workspace.listIncomingShares.queryOptions({ input: {} }));
+        queryClient.invalidateQueries({ queryKey: ["action.listByColumn"] });
+      },
+      onError: (error: any) => toast.error(error.message || "Erro ao aprovar!"),
+    }),
+  );
+};
+
+export const useRejectShare = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.rejectShare.mutationOptions({
+      onSuccess: () => {
+        toast.success("Compartilhamento rejeitado.");
+        queryClient.invalidateQueries(orpc.workspace.listIncomingShares.queryOptions({ input: {} }));
+      },
+      onError: (error: any) => toast.error(error.message || "Erro ao rejeitar!"),
+    }),
+  );
+};

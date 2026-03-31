@@ -11,9 +11,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 import { useOrgRole } from "@/hooks/use-org-role";
+import { useGetCompanyCode } from "@/features/workspace/hooks/use-workspace";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Lock, UploadIcon } from "lucide-react";
+import { Building2Icon, CopyIcon, Lock, UploadIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
@@ -48,6 +49,7 @@ interface Props {
 export function FormCompany({ company }: Props) {
   const router = useRouter();
   const { isSingle } = useOrgRole();
+  const { data: codeData, isLoading: isLoadingCode } = useGetCompanyCode();
   const form = useForm<FormCompanySchema>({
     resolver: zodResolver(formCompanySchema),
     values: {
@@ -161,6 +163,46 @@ export function FormCompany({ company }: Props) {
             readOnly={isSingle}
           />
           <FieldDescription>Insira o nome da sua empresa</FieldDescription>
+        </Field>
+
+        <FieldSeparator />
+
+        {/* Company code for cross-company card sharing */}
+        <Field>
+          <FieldLabel className="flex items-center gap-1.5">
+            <Building2Icon className="size-3.5 text-violet-500" />
+            Código da empresa
+          </FieldLabel>
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/5 border border-violet-200 dark:border-violet-800 min-h-[52px]">
+            {isLoadingCode ? (
+              <div className="flex-1 flex items-center justify-center">
+                <span className="text-xs text-muted-foreground animate-pulse">Gerando código...</span>
+              </div>
+            ) : (
+              <>
+                <code className="font-mono font-bold text-xl tracking-[0.35em] text-violet-600 dark:text-violet-400 flex-1 text-center select-all">
+                  {codeData?.companyCode ?? "—"}
+                </code>
+                {codeData?.companyCode && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-violet-600 hover:text-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/30"
+                    onClick={() => {
+                      navigator.clipboard.writeText(codeData.companyCode!);
+                      toast.success("Código copiado!");
+                    }}
+                  >
+                    <CopyIcon className="size-3.5" />
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+          <FieldDescription>
+            Compartilhe este código com outras empresas para que possam enviar cards para a sua organização.
+          </FieldDescription>
         </Field>
 
         <FieldSeparator />

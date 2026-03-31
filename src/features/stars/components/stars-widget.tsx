@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -59,7 +59,8 @@ export function StarsWidget() {
 
   const { data, isLoading } = useQuery({
     ...orpc.stars.getBalance.queryOptions(),
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
+    staleTime: 0,
   });
 
   // ── Loading ─────────────────────────────────────────────────────────────────
@@ -110,7 +111,7 @@ export function StarsWidget() {
                   </span>
                 </>
               ) : (
-                <span className="text-muted-foreground">0</span>
+                <span className="tabular-nums">{balance.toLocaleString("pt-BR")}</span>
               )}
             </button>
           </PopoverTrigger>

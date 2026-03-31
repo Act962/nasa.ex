@@ -98,8 +98,23 @@ export function AllAppointmentsCalendar() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createInitialDate, setCreateInitialDate] = useState<Date>();
-  const [viewId, setViewId] = useState<string | null>(null);
+  // viewId: qual agendamento está sendo visualizado
+  // viewOpen: controla a animação do Sheet de forma independente
+  // Separar os dois evita que o Radix desmonte abruptamente e deixe overlay bloqueando o calendário
+  const [viewId, setViewId] = useState<string>("");
+  const [viewOpen, setViewOpen] = useState(false);
   const [showMore, setShowMore] = useState<ShowMoreState | null>(null);
+
+  const openAppointment = useCallback((id: string) => {
+    setViewId(id);
+    setViewOpen(true);
+  }, []);
+
+  const closeAppointment = useCallback(() => {
+    setViewOpen(false);
+    // Aguarda a animação de saída do Sheet (~250ms) antes de limpar o id
+    setTimeout(() => setViewId(""), 300);
+  }, []);
 
   const lastClickPos = useRef<{ x: number; y: number }>({ x: 300, y: 300 });
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -126,8 +141,8 @@ export function AllAppointmentsCalendar() {
   };
 
   const handleSelectEvent = useCallback((event: CalendarEvent) => {
-    setViewId(event.id);
-  }, []);
+    openAppointment(event.id);
+  }, [openAppointment]);
 
   const handleShowMore = useCallback((events: CalendarEvent[], date: Date) => {
     setShowMore({ events, date, position: { ...lastClickPos.current } });
@@ -241,8 +256,10 @@ export function AllAppointmentsCalendar() {
           position={showMore.position}
           onClose={() => setShowMore(null)}
           onSelectEvent={(id) => {
-            setViewId(id);
             setShowMore(null);
+            // Pequeno delay para o popup desmontar antes do Sheet abrir,
+            // evitando que o Radix detecte o mesmo clique como "fora do Sheet"
+            setTimeout(() => openAppointment(id), 50);
           }}
         />
       )}
@@ -254,14 +271,12 @@ export function AllAppointmentsCalendar() {
         initialDate={createInitialDate}
       />
 
-      {/* Detalhar agendamento */}
-      {viewId && (
-        <ViewAppointment
-          open={!!viewId}
-          onOpenChange={(o) => { if (!o) setViewId(null); }}
-          appointmentId={viewId}
-        />
-      )}
+      {/* Detalhar agendamento — sempre montado para o Radix animar o fechamento corretamente */}
+      <ViewAppointment
+        open={viewOpen}
+        onOpenChange={(o) => { if (!o) closeAppointment(); }}
+        appointmentId={viewId}
+      />
     </div>
   );
 }

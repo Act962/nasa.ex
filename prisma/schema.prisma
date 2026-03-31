@@ -14,6 +14,7 @@ model User {
   name          String
   email         String
   emailVerified Boolean   @default(false)
+  nickname      String?
   image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now()) @updatedAt
@@ -44,6 +45,7 @@ model User {
   nboxFoldersCreated NBoxFolder[] @relation("NBoxFolderCreatedBy")
   nboxItemsCreated   NBoxItem[]   @relation("NBoxItemCreatedBy")
   nasaPlannerPostsCreated NasaPlannerPost[] @relation("NasaPlannerPostCreatedBy")
+  actionSharesRequested   ActionShare[]     @relation("ShareRequester")
   workspacesCreated     Workspace[]
   workspacesMembers     WorkspaceMember[]
 
@@ -108,6 +110,7 @@ model Organization {
   logo        String?
   createdAt   DateTime
   metadata    String?
+  companyCode String?      @unique @map("company_code")
 
   // ── STARS ──────────────────────────────────
   planId           String?   @map("plan_id")
@@ -143,6 +146,8 @@ model Organization {
   workspaces  Workspace[]
   form        Form[]
   workspaceFolders WorkspaceFolder[]
+  sentShares       ActionShare[]     @relation("SentShares")
+  receivedShares   ActionShare[]     @relation("ReceivedShares")
 
   @@unique([slug])
   @@map("organization")
@@ -635,6 +640,7 @@ model Action {
   tags             ActionTag[]
   mirrorsAsSource  ActionMirror[] @relation("SourceMirror")
   mirrorOf         ActionMirror?  @relation("MirrorOf")
+  sharedFrom       ActionShare[]  @relation("SharedAction")
 
   @@index([workspaceId])
   @@index([columnId])
@@ -1888,4 +1894,34 @@ model ActionMirror {
 
   @@unique([sourceActionId, mirrorActionId])
   @@map("action_mirrors")
+}
+
+// ─── Cross-Company Card Sharing ───────────────────────────────────────────────
+
+model ActionShare {
+  id               String    @id @default(cuid())
+  sourceActionId   String    @map("source_action_id")
+  sourceOrgId      String    @map("source_org_id")
+  targetOrgId      String    @map("target_org_id")
+  targetWorkspaceId String?  @map("target_workspace_id")
+  requestedBy      String    @map("requested_by")
+  message          String?
+  status           String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  approvedBy       String?   @map("approved_by")
+  rejectedBy       String?   @map("rejected_by")
+  approvedAt       DateTime? @map("approved_at")
+  rejectedAt       DateTime? @map("rejected_at")
+  copiedActionId   String?   @map("copied_action_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  sourceAction    Action       @relation("SharedAction", fields: [sourceActionId], references: [id], onDelete: Cascade)
+  sourceOrg       Organization @relation("SentShares", fields: [sourceOrgId], references: [id], onDelete: Cascade)
+  targetOrg       Organization @relation("ReceivedShares", fields: [targetOrgId], references: [id], onDelete: Cascade)
+  requester       User         @relation("ShareRequester", fields: [requestedBy], references: [id])
+
+  @@index([sourceOrgId])
+  @@index([targetOrgId])
+  @@index([status])
+  @@map("action_shares")
 }

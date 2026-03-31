@@ -534,16 +534,11 @@ function MessageBubble({
 
 function AstroHelmetIcon() {
   return (
-    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-      <ellipse cx="20" cy="19" rx="14" ry="15" fill="white" fillOpacity="0.15" />
-      <ellipse cx="20" cy="19" rx="14" ry="15" stroke="white" strokeWidth="1.5" strokeOpacity="0.6" />
-      <ellipse cx="20" cy="20" rx="9" ry="8" fill="white" fillOpacity="0.25" />
-      <ellipse cx="20" cy="20" rx="9" ry="8" stroke="white" strokeWidth="1" strokeOpacity="0.5" />
-      <ellipse cx="15" cy="16" rx="2.5" ry="2" fill="white" fillOpacity="0.4" transform="rotate(-15 15 16)" />
-      <rect x="11" y="31" width="18" height="4" rx="2" fill="white" fillOpacity="0.2" stroke="white" strokeWidth="1" strokeOpacity="0.4" />
-      <circle cx="8" cy="20" r="2" fill="white" fillOpacity="0.2" stroke="white" strokeWidth="1" strokeOpacity="0.4" />
-      <circle cx="32" cy="20" r="2" fill="white" fillOpacity="0.2" stroke="white" strokeWidth="1" strokeOpacity="0.4" />
-    </svg>
+    <img
+      src="/icon-astro.svg"
+      alt="Astro"
+      className="w-full h-full object-contain"
+    />
   );
 }
 

@@ -21,7 +21,7 @@ export const requireUnauth = async () => {
   });
 
   if (session) {
-    redirect("/tracking");
+    redirect("/home");
   }
 };
 

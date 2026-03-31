@@ -8,7 +8,7 @@ import {
   Share2Icon,
   StarIcon,
   ArchiveIcon,
-  FolderInputIcon,
+  Building2Icon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -27,12 +27,13 @@ import {
   useMoveAction,
   useUpdateActionFields,
   useColumnsByWorkspace,
-  useSuspenseWokspaces,
 } from "@/features/workspace/hooks/use-workspace";
+import { ShareActionDialog } from "./share-action-dialog";
 import { cn } from "@/lib/utils";
 
 interface Props {
   actionId: string;
+  actionTitle?: string;
   workspaceId: string;
   isFavorited?: boolean;
   isArchived?: boolean;
@@ -42,23 +43,23 @@ interface Props {
 
 export function CardActionsMenu({
   actionId,
+  actionTitle = "Card",
   workspaceId,
   isFavorited = false,
   isArchived = false,
   onClose,
   className,
 }: Props) {
+  const [shareOpen, setShareOpen] = useState(false);
   const copyAction = useCopyAction();
   const moveAction = useMoveAction();
   const updateFields = useUpdateActionFields();
   const { columns } = useColumnsByWorkspace(workspaceId);
 
-  const handleCopy = () => {
-    copyAction.mutate({ actionId });
-  };
+  const handleCopy = () => copyAction.mutate({ actionId });
 
-  const handleMoveTo = (columnId: string, targetWorkspaceId: string) => {
-    moveAction.mutate({ actionId, columnId, workspaceId: targetWorkspaceId });
+  const handleMoveTo = (columnId: string) => {
+    moveAction.mutate({ actionId, columnId, workspaceId });
   };
 
   const handleToggleFavorite = () => {
@@ -73,90 +74,96 @@ export function CardActionsMenu({
   };
 
   const handleShareLink = () => {
-    const url = `${window.location.origin}/actions/${actionId}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(`${window.location.origin}/actions/${actionId}`);
     toast.success("Link copiado!");
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn("size-7 text-muted-foreground hover:text-foreground", className)}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <MoreHorizontalIcon className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("size-7 text-muted-foreground hover:text-foreground", className)}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontalIcon className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
-        {/* Move to column */}
-        {columns.length > 0 && (
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="gap-2">
-              <MoveRightIcon className="size-3.5" />
-              Mover para
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-44">
-              {columns.map((col: any) => (
-                <DropdownMenuItem
-                  key={col.id}
-                  onClick={() => handleMoveTo(col.id, workspaceId)}
-                  className="gap-2"
-                >
-                  <span
-                    className="size-2 rounded-full shrink-0"
-                    style={{ backgroundColor: col.color || "#888" }}
-                  />
-                  {col.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        )}
+        <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
+          {/* Move to column */}
+          {columns.length > 0 && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="gap-2">
+                <MoveRightIcon className="size-3.5" />
+                Mover para
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-44">
+                {columns.map((col: any) => (
+                  <DropdownMenuItem
+                    key={col.id}
+                    onClick={() => handleMoveTo(col.id)}
+                    className="gap-2"
+                  >
+                    <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: col.color || "#888" }} />
+                    {col.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
 
-        {/* Copy */}
-        <DropdownMenuItem
-          onClick={handleCopy}
-          disabled={copyAction.isPending}
-          className="gap-2"
-        >
-          <CopyIcon className="size-3.5" />
-          Copiar ação
-        </DropdownMenuItem>
+          {/* Copy */}
+          <DropdownMenuItem onClick={handleCopy} disabled={copyAction.isPending} className="gap-2">
+            <CopyIcon className="size-3.5" />
+            Copiar ação
+          </DropdownMenuItem>
 
-        <DropdownMenuSeparator />
+          <DropdownMenuSeparator />
 
-        {/* Share link */}
-        <DropdownMenuItem onClick={handleShareLink} className="gap-2">
-          <Share2Icon className="size-3.5" />
-          Copiar link
-        </DropdownMenuItem>
+          {/* Share link */}
+          <DropdownMenuItem onClick={handleShareLink} className="gap-2">
+            <Share2Icon className="size-3.5" />
+            Copiar link
+          </DropdownMenuItem>
 
-        {/* Favorite */}
-        <DropdownMenuItem
-          onClick={handleToggleFavorite}
-          disabled={updateFields.isPending}
-          className="gap-2"
-        >
-          <StarIcon className={cn("size-3.5", isFavorited && "fill-yellow-400 text-yellow-400")} />
-          {isFavorited ? "Remover favorito" : "Favoritar"}
-        </DropdownMenuItem>
+          {/* Share with another company */}
+          <DropdownMenuItem
+            onClick={() => setShareOpen(true)}
+            className="gap-2 text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30"
+          >
+            <Building2Icon className="size-3.5" />
+            Compartilhar com empresa
+          </DropdownMenuItem>
 
-        <DropdownMenuSeparator />
+          {/* Favorite */}
+          <DropdownMenuItem onClick={handleToggleFavorite} disabled={updateFields.isPending} className="gap-2">
+            <StarIcon className={cn("size-3.5", isFavorited && "fill-yellow-400 text-yellow-400")} />
+            {isFavorited ? "Remover favorito" : "Favoritar"}
+          </DropdownMenuItem>
 
-        {/* Archive */}
-        <DropdownMenuItem
-          onClick={handleToggleArchive}
-          disabled={updateFields.isPending}
-          className={cn("gap-2", !isArchived && "text-destructive focus:text-destructive")}
-        >
-          <ArchiveIcon className="size-3.5" />
-          {isArchived ? "Restaurar" : "Arquivar"}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuSeparator />
+
+          {/* Archive */}
+          <DropdownMenuItem
+            onClick={handleToggleArchive}
+            disabled={updateFields.isPending}
+            className={cn("gap-2", !isArchived && "text-destructive focus:text-destructive")}
+          >
+            <ArchiveIcon className="size-3.5" />
+            {isArchived ? "Restaurar" : "Arquivar"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <ShareActionDialog
+        actionId={actionId}
+        actionTitle={actionTitle}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+      />
+    </>
   );
 }

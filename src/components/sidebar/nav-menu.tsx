@@ -5,7 +5,6 @@ import {
   ChartColumnDecreasingIcon,
   CircleCheckIcon,
   ClipboardType,
-  Home as HomeIcon,
   Kanban,
   LayoutGrid,
   MessageSquareTextIcon,
@@ -24,8 +23,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
+function AstroNavIcon({ className }: { className?: string }) {
+  return (
+    <img
+      src="/icon-astro.svg"
+      alt="Astro"
+      className={cn("w-4 h-4 object-contain", className)}
+    />
+  );
+}
+
 const items = [
-  { title: "Início", url: "/home", icon: HomeIcon },
+  { title: "Início", url: "/home", icon: AstroNavIcon },
   { title: "Trackings", url: "/tracking", icon: Kanban },
   {
     title: "Workspaces",

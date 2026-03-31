@@ -27,6 +27,12 @@ import { deleteFolder } from "./delete-folder";
 import { updateActionFields } from "./update-action-fields";
 import { copyAction } from "./copy-action";
 import { moveAction } from "./move-action";
+import { shareAction } from "./share-action";
+import { listIncomingShares } from "./list-incoming-shares";
+import { listOutgoingShares } from "./list-outgoing-shares";
+import { approveShare } from "./approve-share";
+import { rejectShare } from "./reject-share";
+import { getCompanyCode } from "./get-company-code";
 
 export const workspaceRoutes = {
   list: listWorkspace,
@@ -58,4 +64,10 @@ export const workspaceRoutes = {
   updateActionFields,
   copyAction,
   moveAction,
+  shareAction,
+  listIncomingShares,
+  listOutgoingShares,
+  approveShare,
+  rejectShare,
+  getCompanyCode,
 };

@@ -1,8 +1,10 @@
 "use client";
 
+import { Suspense } from "react";
 import { ActionsViewSwitcher } from "@/features/actions/components/actions-view-switcher";
 import { useWorkspace } from "../hooks/use-workspace";
 import { useConstructUrl } from "@/hooks/use-construct-url";
+import { IncomingSharesPanel } from "./incoming-shares-panel";
 
 interface Props {
   workspaceId: string;
@@ -22,8 +24,13 @@ export function WorkspaceBoard({ workspaceId }: Props) {
           }}
         />
       )}
-      <div className="relative z-10 h-full">
-        <ActionsViewSwitcher workspaceId={workspaceId} />
+      <div className="relative z-10 h-full flex flex-col">
+        <Suspense fallback={null}>
+          <IncomingSharesPanel className="mx-4 mt-3 shrink-0" />
+        </Suspense>
+        <div className="flex-1 min-h-0">
+          <ActionsViewSwitcher workspaceId={workspaceId} />
+        </div>
       </div>
     </div>
   );

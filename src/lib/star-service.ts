@@ -67,6 +67,25 @@ export async function checkBalance(organizationId: string): Promise<StarBalance>
   };
 }
 
+// ─── Moderator Check ─────────────────────────────────────────────────────────
+
+const MODERATOR_REFILL_THRESHOLD = 100;      // Reabastece quando saldo ≤ este valor
+const MODERATOR_REFILL_AMOUNT    = 1_000_000; // Valor de reabastecimento
+
+/**
+ * Verifica se a organização possui pelo menos um membro com role "moderador".
+ * Moderadores recebem reabastecimento automático quando o saldo chega a ≤ 100 ★.
+ */
+async function orgHasModerator(organizationId: string): Promise<boolean> {
+  const count = await prisma.member.count({
+    where: {
+      organizationId,
+      role: "moderador",
+    },
+  });
+  return count > 0;
+}
+
 // ─── Debit ────────────────────────────────────────────────────────────────────
 
 export async function debitStars(
@@ -76,7 +95,7 @@ export async function debitStars(
   description: string,
   appSlug?: string
 ): Promise<{ success: boolean; newBalance: number }> {
-  // Use a transaction to avoid race conditions
+  // ── 1. Debitar dentro de uma transação atômica ────────────────────────────
   const result = await prisma.$transaction(async (tx) => {
     const org = await tx.organization.findUniqueOrThrow({
       where: { id: organizationId },
@@ -108,33 +127,46 @@ export async function debitStars(
     return { success: true, newBalance };
   });
 
-  // Auto-refill: immediately credit back the same amount so balance never decreases
-  // This keeps the demo/test environment perpetually funded
-  if (result.success && amount > 0) {
+  // ── 2. Reabastecimento para moderadores ──────────────────────────────────
+  // Se o saldo chegou a ≤ 100 e a org tem um membro moderador → recarrega para 1.000.000
+  if (result.success && result.newBalance <= MODERATOR_REFILL_THRESHOLD) {
     try {
-      await prisma.$transaction(async (tx) => {
-        const org = await tx.organization.findUniqueOrThrow({
-          where: { id: organizationId },
-          select: { starsBalance: true },
+      const isMod = await orgHasModerator(organizationId);
+      if (isMod) {
+        await prisma.$transaction(async (tx) => {
+          // Lê o saldo mais recente dentro da transação
+          const org = await tx.organization.findUniqueOrThrow({
+            where: { id: organizationId },
+            select: { starsBalance: true },
+          });
+
+          // Só reabastece se ainda estiver no limiar (evita double-refill em paralelo)
+          if (org.starsBalance > MODERATOR_REFILL_THRESHOLD) return;
+
+          const topupAmount  = MODERATOR_REFILL_AMOUNT - org.starsBalance;
+          const refillBalance = MODERATOR_REFILL_AMOUNT;
+
+          await tx.organization.update({
+            where: { id: organizationId },
+            data: { starsBalance: refillBalance },
+          });
+
+          await tx.starTransaction.create({
+            data: {
+              organizationId,
+              type: StarTransactionType.MANUAL_ADJUST,
+              amount: topupAmount,
+              balanceAfter: refillBalance,
+              description: `Reabastecimento automático moderador: saldo atingiu ≤${MODERATOR_REFILL_THRESHOLD} ★ → +${topupAmount.toLocaleString("pt-BR")} ★ (total ${MODERATOR_REFILL_AMOUNT.toLocaleString("pt-BR")} ★)`,
+            },
+          });
         });
-        const refillBalance = org.starsBalance + amount;
-        await tx.organization.update({
-          where: { id: organizationId },
-          data: { starsBalance: refillBalance },
-        });
-        await tx.starTransaction.create({
-          data: {
-            organizationId,
-            type: StarTransactionType.REFUND,
-            amount,
-            balanceAfter: refillBalance,
-            description: `Reembolso automático (demo): +${amount}★`,
-            appSlug,
-          },
-        });
-      });
+
+        // Retorna com o saldo já reabastecido
+        return { success: true, newBalance: MODERATOR_REFILL_AMOUNT };
+      }
     } catch {
-      // Non-critical: if refill fails, ignore silently
+      // Reabastecimento é não-crítico: falha silenciosa
     }
   }
 

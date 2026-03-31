@@ -1,13 +1,110 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+
+// ─── Recent requests (localStorage) ──────────────────────────────────────────
+
+const RECENT_KEY = "nasa-explorer:recent-commands";
+const RECENT_MAX = 8;
+
+function loadRecentCommands(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentCommand(cmd: string): string[] {
+  const trimmed = cmd.trim();
+  if (!trimmed) return loadRecentCommands();
+  const prev = loadRecentCommands().filter((c) => c !== trimmed);
+  const next = [trimmed, ...prev].slice(0, RECENT_MAX);
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch {}
+  return next;
+}
+
+// ─── Voice input hook (Web Speech API) ───────────────────────────────────────
+
+type VoiceState = "idle" | "listening" | "processing" | "unsupported";
+
+function useVoiceInput(onTranscript: (text: string) => void) {
+  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
+  const voiceStateRef = useRef<VoiceState>("idle");
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  const setVoice = (s: VoiceState) => {
+    voiceStateRef.current = s;
+    setVoiceState(s);
+  };
+
+  const isSupported = typeof window !== "undefined" &&
+    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+
+  const startListening = useCallback(() => {
+    if (!isSupported) {
+      setVoice("unsupported");
+      return;
+    }
+    if (voiceStateRef.current === "listening") {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const SpeechRecognitionAPI =
+      (window as unknown as { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition })
+        .SpeechRecognition ??
+      (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition })
+        .webkitSpeechRecognition;
+
+    if (!SpeechRecognitionAPI) return;
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = "pt-BR";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false;
+
+    recognition.onstart = () => setVoice("listening");
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0]?.[0]?.transcript ?? "";
+      setVoice("processing");
+      if (transcript.trim()) {
+        onTranscript(transcript.trim());
+      }
+      setTimeout(() => setVoice("idle"), 400);
+    };
+
+    recognition.onerror = () => setVoice("idle");
+    recognition.onend = () => {
+      // Só reseta se não houve resultado (onresult já gerencia o estado)
+      if (voiceStateRef.current === "listening") setVoice("idle");
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, [isSupported, onTranscript]);
+
+  const stopListening = useCallback(() => {
+    recognitionRef.current?.stop();
+    setVoice("idle");
+  }, []);
+
+  return { voiceState, startListening, stopListening, isSupported };
+}
+import {
+  EntitySearchField,
+  PlainField,
+  getEntityType,
+} from "./entity-search-field";
 import {
   Send,
   Plus,
   ChevronDown,
   ChevronUp,
   Image,
-  LayoutGrid,
   Link2,
   X,
   CheckCircle2,
@@ -16,20 +113,20 @@ import {
   Loader2,
   Bot,
   Sparkles,
-  Zap,
   Search,
   FileText,
-  Calendar,
   BarChart3,
-  MessageSquare,
   Package,
   Users,
   Lightbulb,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
+import { IntegrationPlatform } from "@/generated/prisma/enums";
 import { toast } from "sonner";
 import { StarsWidget } from "@/features/stars";
 import {
@@ -44,199 +141,101 @@ import type { VariableCategory, AppItem } from "../data/variables";
 
 type DropdownType = "variable" | "app" | "plus" | null;
 
-interface RecentApp {
-  id: string;
-  name: string;
-  gradient: string;
-  url: string;
-  icon: React.ReactNode;
-}
-
 interface ExampleCategory {
   emoji: string;
   label: string;
   examples: string[];
 }
 
+interface ResultLink {
+  label: string;
+  url: string;
+}
+
 interface ResultData {
+  type?: "created" | "query_result" | "error" | "needs_input" | "post_generated" | "confirmation_needed";
   title: string;
   description: string;
   url: string;
   appName: string;
+  resultLinks?: ResultLink[];
+  missingFields?: Array<{ key: string; label: string }>;
+  partialContext?: Record<string, unknown>;
+  content?: string;
+  starsSpent?: number;
+  confirmOptions?: Array<{ key: string; label: string; icon?: string }>;
 }
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 // variableCategories, nasaApps, integrationApps, allApps são importados de ../data/variables
 
-const recentApps: RecentApp[] = [
-  {
-    id: "nasachat",
-    name: "NASACHAT",
-    gradient: "from-violet-600 to-purple-800",
-    url: "/tracking-chat",
-    icon: <MessageSquare className="w-5 h-5 text-white" />,
-  },
-  {
-    id: "linnker",
-    name: "LINNKER",
-    gradient: "from-cyan-500 to-blue-700",
-    url: "/integrations",
-    icon: <Link2 className="w-5 h-5 text-white" />,
-  },
-  {
-    id: "spacetime",
-    name: "SPACETIME",
-    gradient: "from-indigo-500 to-violet-700",
-    url: "/agendas",
-    icon: <Calendar className="w-5 h-5 text-white" />,
-  },
-  {
-    id: "forge",
-    name: "FORGE",
-    gradient: "from-orange-500 to-red-700",
-    url: "/forge",
-    icon: <Zap className="w-5 h-5 text-white" />,
-  },
-  {
-    id: "nasa-planner",
-    name: "NASA PLANNER",
-    gradient: "from-pink-500 to-rose-700",
-    url: "/nasa-planner",
-    icon: <Sparkles className="w-5 h-5 text-white" />,
-  },
-];
-
 const exampleCategories: ExampleCategory[] = [
-  // ── Criar Tracking ─────────────────────────────────────────────────────────
-  {
-    emoji: "📊",
-    label: "Criar Tracking (Pipeline)",
-    examples: [
-      'Crie um tracking chamado "Atendimento X" no #tracking',
-      'Crie um novo tracking chamado "Clientes 2026" no #tracking',
-      'Crie um tracking chamado "Suporte Técnico" no #tracking',
-      '/Add_tracking "Vendas Enterprise" no #tracking',
-      'Crie um tracking chamado "Parcerias /YYYY" no #tracking',
-    ],
-  },
-  // ── Criar Agenda & Agendamentos ────────────────────────────────────────────
+  // ── Agendamentos ──────────────────────────────────────────────────────────
   {
     emoji: "📅",
-    label: "Criar Agenda & Agendamentos",
+    label: "Agendamentos",
     examples: [
-      "Agende uma reunião no #agenda com /Francisco_Lima para /amanhã às 14h",
-      "Agende uma reunião no #agenda com /Maria_Costa para /hoje às 10h sobre /PRODUTX",
-      "Marque um follow-up com /João_Silva para /semana_que_vem às 09h e me manda /link_agendamento_criado",
-      "Agende reunião no #agenda com /Contato /Astro para /DD.MM.AAAA às /hh:mm:ss",
-      "Quais são os compromissos de /hoje no #agenda?",
+      "Quero criar um agendamento para amanhã às 14h",
+      "Agende uma reunião com Maria Costa para hoje às 10h",
+      "Marque um follow-up com João Silva para semana que vem às 09h",
+      "Quais são meus compromissos de hoje?",
     ],
   },
-  // ── Criar & Gerenciar Leads ────────────────────────────────────────────────
+  // ── Leads & Pipeline ──────────────────────────────────────────────────────
   {
     emoji: "🎯",
-    label: "Criar & Gerenciar Leads",
+    label: "Leads & Pipeline",
     examples: [
-      'Crie um novo lead chamado "João Pereira" no #tracking',
-      "/novo_lead /Francisco_Lima no #tracking com /tag VIP /Temperatura Quente /Responsável /Astro",
-      '/novo_lead "Empresa ABC" no #tracking com /E-mail contato@abc.com /Responsável /Weydson',
-      '/mover_lead /Maria_Costa para /status_tracking "Proposta Enviada" no #tracking',
-      "/mover_lead /João_Silva para /Ganho no #tracking",
-      "Quantos /lead ativos tenho no #tracking no total?",
+      "Crie um novo lead chamado João Pereira",
+      "Mova o lead Maria Costa para o status Proposta Enviada",
+      "Quantos leads ativos tenho no total?",
+      "Liste os leads do pipeline Vendas",
     ],
   },
-  // ── Empresa & Contatos ─────────────────────────────────────────────────────
-  {
-    emoji: "🏢",
-    label: "Empresa & Contatos",
-    examples: [
-      "/pesquisar /Empresa — busca todos os registros da empresa",
-      '/novo_lead /Empresa "Tech Solutions" /Contato "Ana Lima" /E-mail ana@tech.com no #tracking',
-      '/novo_lead /Empresa "Studio Digital" /Responsável /Astro /tag Agência no #tracking',
-      '/pesquisar "Studio Digital" — busca empresa, leads e responsáveis',
-      'Liste os leads da /Empresa "Tech Solutions" no #tracking',
-    ],
-  },
-  // ── Pesquisa Universal ─────────────────────────────────────────────────────
-  {
-    emoji: "🔍",
-    label: "Pesquisa Universal",
-    examples: [
-      "/pesquisar /Francisco_Lima — busca em leads, usuários, e-mails e trackings",
-      '/pesquisar "Atendimento X" — encontra o tracking pelo nome',
-      "/pesquisar /Weydson — todos os registros do /Responsável",
-      "/pesquisar contato@empresa.com — busca lead pelo /E-mail",
-      '/pesquisar "Clientes 2026" — busca tracking, leads e produtos',
-    ],
-  },
-  // ── Forge ──────────────────────────────────────────────────────────────────
+  // ── Propostas & Contratos ─────────────────────────────────────────────────
   {
     emoji: "🔥",
-    label: "Forge — Propostas e Contratos",
+    label: "Propostas & Contratos",
     examples: [
-      "Crie uma proposta no #forge para /Francisco_Lima do produto /PRODUTX com validade /amanhã e me manda /link_proposta_criada",
-      "Gere um contrato para /João_Silva referente ao /Plano_Pro com assinatura até /semana_que_vem",
-      'Crie uma proposta no #forge para /Empresa "Tech Solutions" produto /Consultoria /Responsável /Weydson',
-      "Liste todas as propostas abertas no #forge",
+      "Crie uma proposta para Maria do Amparo com validade hoje",
+      "Gere um contrato para João Silva referente ao Plano Pro",
+      "Liste todas as propostas abertas",
     ],
   },
-  // ── NASA Planner ──────────────────────────────────────────────────────────────
+  // ── Conteúdo & Posts ──────────────────────────────────────────────────────
   {
     emoji: "✨",
-    label: "NASA Planner — Conteúdo",
+    label: "Conteúdo & Posts",
     examples: [
-      'Crie um post para #instagram no #nasa-planner sobre o lançamento do /PRODUTX',
-      'Gere um carrossel de 5 slides no #nasa-planner com os benefícios do /Plano_Pro',
-      'Escreva uma legenda para #linkedin anunciando parceria com /Francisco_Lima e me manda /link_post_criado',
-      'Crie um post para #tiktok sobre os resultados do mês no #nasa-planner',
+      "Crie um post sobre o lançamento do nosso produto",
+      "Gere uma legenda para Instagram sobre os resultados do mês",
+      "Escreva um carrossel com os benefícios do Plano Pro",
     ],
   },
-  // ── Automações ─────────────────────────────────────────────────────────────
-  {
-    emoji: "⚡",
-    label: "Automações & Gatilhos",
-    examples: [
-      "Crie /Add_automacao: quando /novo_lead chegar, /Enviar_mensagem via #whatsapp e /Esperar /tempo_duracao 2h",
-      'Dispare /gatilho_manual na /Automacao "Boas-vindas" para o /lead /Francisco_Lima',
-      "Quando /IA_finalizou a análise, /Enviar_mensagem com resultado para /E-mail /Responsável",
-      'Configure /Assistente_chatbot no #nasachat para responder leads com /tag "Qualificado"',
-    ],
-  },
-  // ── Integrações ────────────────────────────────────────────────────────────
-  {
-    emoji: "🔌",
-    label: "Integrações",
-    examples: [
-      'Envie mensagem via #whatsapp para /Contato /Francisco_Lima: "Sua proposta está pronta!"',
-      'Poste no #instagram via #nasa-planner o conteúdo do /link_post_criado',
-      'Dispare /Enviar_mensagem pelo #telegram para /Responsável /Astro quando /novo_lead entrar',
-      'Sincronize /lead /Maria_Costa com #hubspot e atualize /status_tracking para "Integrado"',
-    ],
-  },
-  // ── Consultas Rápidas ──────────────────────────────────────────────────────
+  // ── Consultas Rápidas ─────────────────────────────────────────────────────
   {
     emoji: "💡",
     label: "Consultas Rápidas",
     examples: [
-      "Quais são minhas reuniões de /hoje?",
-      "Quantos /lead tenho no #tracking no total?",
       "Qual é meu saldo de estrelas atual?",
-      "Liste as propostas abertas no #forge",
-      "/pesquisar /Astro — todos os registros do usuário Astro",
+      "Quais são minhas reuniões de hoje?",
+      "Liste as propostas abertas",
+      "Quantos leads tenho no total?",
     ],
   },
 ];
 
 const rotatingExamples = [
-  'Crie um tracking chamado "Atendimento X" no #tracking',
-  "/pesquisar /Francisco_Lima — busca em leads, usuários e trackings",
-  "Agende reunião no #agenda com /Francisco_Lima para /amanhã às 14h",
-  '/novo_lead "João Pereira" no #tracking com /tag VIP /Responsável /Astro',
-  "Crie uma proposta no #forge para /Francisco_Lima e me manda /link_proposta_criada",
-  '/mover_lead /Maria_Costa para /status_tracking "Proposta Enviada" no #tracking',
-  'Gere um post no #nasa-planner sobre /PRODUTX para #instagram',
-  'Crie /Add_automacao: quando /novo_lead chegar /Enviar_mensagem via #whatsapp',
-  '/novo_lead /Empresa "Tech Solutions" /Responsável /Weydson /tag Agência no #tracking',
-  '/pesquisar "Atendimento X" — encontra o tracking pelo nome',
+  "Quero criar um agendamento para amanhã às 14h",
+  "Crie uma proposta para Maria do Amparo com validade hoje",
+  "Mova o lead João Silva para o status Proposta Enviada",
+  "Crie um post sobre o lançamento do nosso produto",
+  "Qual é meu saldo de estrelas atual?",
+  "Quantos leads ativos tenho no total?",
+  "Agende uma reunião com Carlos Lima para sexta às 10h",
+  "Gere uma legenda para Instagram sobre os resultados do mês",
+  "Liste as propostas abertas",
+  "Quais são meus compromissos de hoje?",
 ];
 
 // ─── Highlight Helper ─────────────────────────────────────────────────────────
@@ -513,24 +512,20 @@ interface PlusMenuProps {
 
 function PlusMenu({ onClose }: PlusMenuProps) {
   return (
-    <div className="absolute bottom-full left-0 mb-2 w-52 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl overflow-hidden z-50">
+    <div className="absolute bottom-full left-0 mb-2 w-48 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl overflow-hidden z-50">
+      <div className="px-3 py-2 border-b border-zinc-800">
+        <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Anexar</p>
+      </div>
       <button
         onClick={onClose}
-        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors"
       >
         <Image className="w-4 h-4 text-zinc-400" />
-        Arquivos & Fotos
+        Arquivos &amp; Fotos
       </button>
       <button
         onClick={onClose}
-        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors"
-      >
-        <LayoutGrid className="w-4 h-4 text-zinc-400" />
-        Apps
-      </button>
-      <button
-        onClick={onClose}
-        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors"
       >
         <Link2 className="w-4 h-4 text-zinc-400" />
         Links
@@ -604,42 +599,6 @@ function ResultOverlay({ result, onClose }: ResultOverlayProps) {
   );
 }
 
-// ─── Recent Apps ──────────────────────────────────────────────────────────────
-
-function RecentApps() {
-  return (
-    <div className="w-full">
-      <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 text-center">
-        Recentemente
-      </h3>
-      <div className="flex flex-wrap gap-3 justify-center">
-        {recentApps.map((app) => (
-          <a
-            key={app.id}
-            href={app.url}
-            className="flex items-center gap-2.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded-xl px-3 py-2.5 transition-all group hover:bg-zinc-800/80"
-          >
-            <div
-              className={cn(
-                "w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0",
-                app.gradient,
-              )}
-            >
-              {app.icon}
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-white tracking-wide group-hover:text-white transition-colors">
-                {app.name}
-              </p>
-              <p className="text-[10px] text-zinc-600">by NASA®</p>
-            </div>
-          </a>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ─── Example Library ─────────────────────────────────────────────────────────
 
 interface ExampleLibraryProps {
@@ -650,7 +609,7 @@ function ExampleLibrary({ onSelect }: ExampleLibraryProps) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="w-full">
+    <div className="w-full flex flex-col items-center">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider hover:text-zinc-300 transition-colors"
@@ -678,7 +637,7 @@ function ExampleLibrary({ onSelect }: ExampleLibraryProps) {
                 {cat.examples.map((example, i) => (
                   <button
                     key={i}
-                    onClick={() => onSelect(example)}
+                    onClick={() => { onSelect(example); setOpen(false); }}
                     className="w-full text-left text-xs text-zinc-500 hover:text-zinc-200 bg-zinc-900/50 hover:bg-zinc-800/80 border border-zinc-800/80 hover:border-zinc-700 rounded-lg px-3 py-2 transition-all leading-relaxed"
                   >
                     {example}
@@ -693,9 +652,152 @@ function ExampleLibrary({ onSelect }: ExampleLibraryProps) {
   );
 }
 
+// ─── Recent Requests ──────────────────────────────────────────────────────────
+
+interface RecentRequestsProps {
+  onSelect: (cmd: string) => void;
+  recent: string[];
+  onClear: () => void;
+}
+
+function RecentRequests({ onSelect, recent, onClear }: RecentRequestsProps) {
+  if (recent.length === 0) return null;
+
+  return (
+    <div className="w-full flex flex-col items-center gap-3">
+      <div className="flex items-center justify-between w-full max-w-xl">
+        <span className="flex items-center gap-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+          <Search className="w-3.5 h-3.5" />
+          Últimas solicitações
+        </span>
+        <button
+          onClick={onClear}
+          className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors"
+        >
+          Limpar
+        </button>
+      </div>
+      <div className="w-full max-w-xl space-y-1.5">
+        {recent.map((cmd, i) => (
+          <button
+            key={i}
+            onClick={() => onSelect(cmd)}
+            className="w-full text-left flex items-center gap-2.5 bg-zinc-900/40 hover:bg-zinc-800/70 border border-zinc-800/60 hover:border-zinc-700 rounded-lg px-3 py-2 transition-all group"
+          >
+            <BarChart3 className="w-3 h-3 text-zinc-600 group-hover:text-violet-400 shrink-0 transition-colors" />
+            <span className="text-xs text-zinc-500 group-hover:text-zinc-200 truncate transition-colors">
+              {cmd}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Model Selector ───────────────────────────────────────────────────────────
 
-type ModelType = "claude" | "astro";
+type ModelType = string;
+
+interface ModelOption {
+  id: string;
+  label: string;
+  sublabel: string;
+  icon: React.ReactNode;
+  provider: string;
+}
+
+const PROVIDER_MODELS: Record<string, ModelOption[]> = {
+  [IntegrationPlatform.ANTHROPIC]: [
+    {
+      id: "claude-sonnet-4-5",
+      label: "Claude Sonnet",
+      sublabel: "4.5",
+      icon: <Bot className="w-4 h-4 text-[#D97757]" />,
+      provider: "Anthropic",
+    },
+    {
+      id: "claude-3-5-haiku-latest",
+      label: "Claude Haiku",
+      sublabel: "3.5",
+      icon: <Bot className="w-4 h-4 text-[#D97757]/70" />,
+      provider: "Anthropic",
+    },
+  ],
+  [IntegrationPlatform.OPENAI]: [
+    {
+      id: "gpt-4o",
+      label: "GPT-4o",
+      sublabel: "OpenAI",
+      icon: (
+        <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" />
+        </svg>
+      ),
+      provider: "OpenAI",
+    },
+    {
+      id: "gpt-4o-mini",
+      label: "GPT-4o mini",
+      sublabel: "OpenAI",
+      icon: (
+        <svg className="w-4 h-4 text-emerald-400/70" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" />
+        </svg>
+      ),
+      provider: "OpenAI",
+    },
+  ],
+  [IntegrationPlatform.GEMINI]: [
+    {
+      id: "gemini-2.5-flash-preview-04-17",
+      label: "Gemini 2.5 Flash",
+      sublabel: "Google",
+      icon: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+          <defs>
+            <linearGradient id="gem-g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#4285F4" />
+              <stop offset="50%" stopColor="#EA4335" />
+              <stop offset="100%" stopColor="#FBBC04" />
+            </linearGradient>
+          </defs>
+          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 3l2 5h-4l2-5zm0 12l-2-5h4l-2 5zm-5-5l5-2v4l-5-2zm10 0l-5 2v-4l5 2z" fill="url(#gem-g)" />
+        </svg>
+      ),
+      provider: "Google",
+    },
+    {
+      id: "gemini-1.5-pro",
+      label: "Gemini 1.5 Pro",
+      sublabel: "Google",
+      icon: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+          <defs>
+            <linearGradient id="gem-g2" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#4285F4" />
+              <stop offset="100%" stopColor="#34A853" />
+            </linearGradient>
+          </defs>
+          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 3l2 5h-4l2-5zm0 12l-2-5h4l-2 5zm-5-5l5-2v4l-5-2zm10 0l-5 2v-4l5 2z" fill="url(#gem-g2)" />
+        </svg>
+      ),
+      provider: "Google",
+    },
+  ],
+};
+
+const AI_PLATFORMS = [
+  IntegrationPlatform.ANTHROPIC,
+  IntegrationPlatform.OPENAI,
+  IntegrationPlatform.GEMINI,
+] as const;
+
+const PROVIDER_LABELS: Record<string, string> = {
+  [IntegrationPlatform.ANTHROPIC]: "Anthropic",
+  [IntegrationPlatform.OPENAI]: "OpenAI",
+  [IntegrationPlatform.GEMINI]: "Google",
+};
 
 interface ModelSelectorProps {
   value: ModelType;
@@ -705,53 +807,127 @@ interface ModelSelectorProps {
 function ModelSelector({ value, onChange }: ModelSelectorProps) {
   const [open, setOpen] = useState(false);
 
+  const { data: integrationsData } = useQuery(
+    orpc.platformIntegrations.getMany.queryOptions({}),
+  );
+
+  const connectedPlatforms = (integrationsData?.integrations ?? [])
+    .map((i) => i.platform)
+    .filter((p) => AI_PLATFORMS.includes(p as (typeof AI_PLATFORMS)[number]));
+
+  const connectedSet = new Set(connectedPlatforms);
+
+  // Individual model options from connected providers
+  const individualOptions: ModelOption[] = [];
+  for (const platform of AI_PLATFORMS) {
+    if (connectedSet.has(platform)) {
+      individualOptions.push(...(PROVIDER_MODELS[platform] ?? []));
+    }
+  }
+
+  const isAstro = value === "astro";
+  const selectedIndividual = individualOptions.find((o) => o.id === value);
+
   return (
     <div className="relative">
+      {/* Trigger button */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 bg-zinc-800 border border-zinc-700/50 rounded-lg px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-700 transition-colors"
-      >
-        {value === "claude" ? (
-          <Bot className="w-3.5 h-3.5 text-orange-400" />
-        ) : (
-          <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+        className={cn(
+          "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors border",
+          isAstro
+            ? "bg-violet-950/60 border-violet-700/50 text-violet-300 hover:bg-violet-900/60"
+            : "bg-zinc-800 border-zinc-700/50 text-zinc-300 hover:bg-zinc-700",
         )}
-        {value === "claude" ? "Claude" : "Astro"}
-        <ChevronDown className="w-3 h-3 text-zinc-500" />
+      >
+        {isAstro ? (
+          <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+        ) : (
+          selectedIndividual?.icon ?? <Bot className="w-3.5 h-3.5 text-zinc-400" />
+        )}
+        <span>{isAstro ? "Astro" : (selectedIndividual?.label ?? "Modelo")}</span>
+        <ChevronDown className="w-3 h-3 opacity-50" />
       </button>
 
       {open && (
-        <div className="absolute bottom-full right-0 mb-1 w-36 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl overflow-hidden z-50">
+        <div className="absolute bottom-full right-0 mb-1 w-60 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl overflow-hidden z-50">
+
+          {/* ── Astro — opção principal ── */}
           <button
-            onClick={() => {
-              onChange("claude");
-              setOpen(false);
-            }}
+            onClick={() => { onChange("astro"); setOpen(false); }}
             className={cn(
-              "w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors",
-              value === "claude"
-                ? "text-white bg-zinc-800"
-                : "text-zinc-400 hover:bg-zinc-800",
+              "w-full text-left transition-colors",
+              isAstro ? "bg-violet-950/80" : "hover:bg-zinc-800/80",
             )}
           >
-            <Bot className="w-4 h-4 text-orange-400" />
-            Claude
+            <div className="px-3 pt-3 pb-2 flex items-start gap-2.5">
+              <div className="mt-0.5 w-7 h-7 rounded-lg bg-violet-600/20 border border-violet-500/30 flex items-center justify-center shrink-0">
+                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-white">Astro</span>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-violet-600/30 text-violet-300 uppercase tracking-wide">
+                    Recomendado
+                  </span>
+                  {isAstro && <CheckCircle2 className="w-3 h-3 text-violet-400 ml-auto" />}
+                </div>
+                <p className="text-[10px] text-zinc-400 mt-0.5 leading-snug">
+                  Consolida todas as IAs conectadas e direciona cada comando ao modelo mais adequado.
+                </p>
+                {/* Pills das IAs que compõem o Astro */}
+                {connectedPlatforms.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {connectedPlatforms.map((p) => (
+                      <span
+                        key={p}
+                        className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-700/60 text-zinc-400 font-medium"
+                      >
+                        {PROVIDER_LABELS[p] ?? p}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {connectedPlatforms.length === 0 && (
+                  <p className="text-[9px] text-zinc-600 mt-1">
+                    Conecte IAs em Integrações para potencializar o Astro.
+                  </p>
+                )}
+              </div>
+            </div>
           </button>
-          <button
-            onClick={() => {
-              onChange("astro");
-              setOpen(false);
-            }}
-            className={cn(
-              "w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors",
-              value === "astro"
-                ? "text-white bg-zinc-800"
-                : "text-zinc-400 hover:bg-zinc-800",
-            )}
-          >
-            <Sparkles className="w-4 h-4 text-violet-400" />
-            Astro
-          </button>
+
+          {/* ── Separador + modelos individuais ── */}
+          {individualOptions.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 px-3 py-1.5 border-t border-zinc-800">
+                <span className="text-[9px] font-semibold uppercase tracking-widest text-zinc-600">
+                  Modelo específico
+                </span>
+              </div>
+              {individualOptions.map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => { onChange(opt.id); setOpen(false); }}
+                  className={cn(
+                    "w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors text-left",
+                    value === opt.id
+                      ? "text-white bg-zinc-800"
+                      : "text-zinc-400 hover:bg-zinc-800",
+                  )}
+                >
+                  {opt.icon}
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-medium leading-tight">{opt.label}</span>
+                    <span className="text-[10px] text-zinc-500 leading-tight">{opt.sublabel}</span>
+                  </div>
+                  {value === opt.id && (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-violet-400 ml-auto shrink-0" />
+                  )}
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -767,6 +943,7 @@ interface ChatMessage {
   thinking?: string[]; // step labels shown during processing
   result?: ResultData;
   isThinking?: boolean; // still loading
+  originalCommand?: string; // for needs_input re-submission
 }
 
 function buildThinkingSteps(cmd: string): string[] {
@@ -866,15 +1043,28 @@ function UserBubble({ command }: { command: string }) {
 
 // ─── Response Card ────────────────────────────────────────────────────────────
 
-function ResponseCard({
-  result,
-  onClose,
-}: {
+interface ResponseCardProps {
   result: ResultData;
   onClose: () => void;
-}) {
+  onContinue?: (extra: string) => void;
+  onConfirm?: (key: string, partialContext: Record<string, unknown>) => void;
+}
+
+function ResponseCard({ result, onClose, onContinue, onConfirm }: ResponseCardProps) {
   const [copied, setCopied] = useState(false);
-  const fullUrl = `${typeof window !== "undefined" ? window.location.origin : ""}${result.url}`;
+  const [contentCopied, setContentCopied] = useState(false);
+  // Stores both the id (for DB lookup) and the display label per field
+  const [missingValues, setMissingValues] = useState<Record<string, string>>({});
+  const [missingLabels, setMissingLabels] = useState<Record<string, string>>({});
+
+  const setFieldValue = useCallback(
+    (key: string, id: string, label: string) => {
+      setMissingValues((prev) => ({ ...prev, [key]: id || label }));
+      setMissingLabels((prev) => ({ ...prev, [key]: label }));
+    },
+    [],
+  );
+  const fullUrl = `${typeof window !== "undefined" ? window.location.origin : ""}${result.url ?? ""}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(fullUrl).then(() => {
@@ -883,50 +1073,217 @@ function ResponseCard({
     });
   };
 
+  const handleCopyContent = () => {
+    if (!result.content) return;
+    navigator.clipboard.writeText(result.content).then(() => {
+      setContentCopied(true);
+      setTimeout(() => setContentCopied(false), 2000);
+    });
+  };
+
+  const handleDownload = () => {
+    if (!result.content) return;
+    const blob = new Blob([result.content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "post-gerado.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleContinue = () => {
+    if (!onContinue) return;
+    const extras = Object.entries(missingValues)
+      .filter(([, v]) => v.trim())
+      .map(([k, v]) => {
+        // Use the human-readable label in the command so AI/rules can parse it
+        const display = missingLabels[k] ?? v;
+        return `/"${k}"="${display}"`;
+      })
+      .join(" ");
+    onContinue(extras);
+  };
+
+  const handleConfirmOption = (key: string) => {
+    if (onConfirm) {
+      onConfirm(key, result.partialContext ?? {});
+    }
+  };
+
+  const isNeedsInput = result.type === "needs_input";
+  const isPostGenerated = result.type === "post_generated";
+  const isError = result.type === "error";
+  const isConfirmationNeeded = result.type === "confirmation_needed";
+
+  const iconEl = isError ? (
+    <div className="w-9 h-9 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center shrink-0">
+      <X className="w-4 h-4 text-red-400" />
+    </div>
+  ) : isNeedsInput ? (
+    <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
+      <Sparkles className="w-4 h-4 text-amber-400" />
+    </div>
+  ) : isConfirmationNeeded ? (
+    <div className="w-9 h-9 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center shrink-0">
+      <Users className="w-4 h-4 text-violet-400" />
+    </div>
+  ) : (
+    <div className="w-9 h-9 rounded-full bg-linear-to-br from-violet-600 to-purple-800 flex items-center justify-center shrink-0 shadow-lg shadow-violet-900/40">
+      <Sparkles className="w-4 h-4 text-white" />
+    </div>
+  );
+
   return (
     <div className="flex items-start gap-3 py-2">
-      <div className="w-9 h-9 rounded-full bg-linear-to-br from-violet-600 to-purple-800 flex items-center justify-center shrink-0 shadow-lg shadow-violet-900/40">
-        <Sparkles className="w-4 h-4 text-white" />
-      </div>
+      {iconEl}
       <div className="flex-1 min-w-0 bg-zinc-900/80 border border-zinc-700/60 rounded-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-zinc-800/60">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm font-semibold text-white">
-              {result.title}
-            </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {isNeedsInput ? (
+              <span className="text-amber-400 text-sm">⚠️</span>
+            ) : isError ? (
+              <span className="text-red-400 text-sm">✗</span>
+            ) : isConfirmationNeeded ? (
+              <span className="text-violet-400 text-sm">?</span>
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            )}
+            <span className="text-sm font-semibold text-white">{result.title}</span>
+            {(result.starsSpent ?? 0) > 0 && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                −{result.starsSpent} ⭐
+              </span>
+            )}
           </div>
-          <button
-            onClick={onClose}
-            className="text-zinc-600 hover:text-zinc-300 transition-colors"
-          >
+          <button onClick={onClose} className="text-zinc-600 hover:text-zinc-300 transition-colors shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
+
         {/* Body */}
         <div className="px-5 py-4">
           <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-line">
             {result.description}
           </p>
+
+          {/* result_links: lista de itens clicáveis (ex: propostas, leads) */}
+          {result.resultLinks && result.resultLinks.length > 0 && (
+            <div className="mt-3 space-y-1.5">
+              {result.resultLinks.map((link, i) => (
+                <a
+                  key={i}
+                  href={link.url}
+                  className="flex items-center justify-between gap-2 w-full bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/50 hover:border-zinc-600 rounded-lg px-3 py-2 transition-all group"
+                >
+                  <span className="text-xs text-zinc-300 group-hover:text-white truncate">
+                    {link.label}
+                  </span>
+                  <ExternalLink className="w-3 h-3 text-zinc-600 group-hover:text-violet-400 shrink-0 transition-colors" />
+                </a>
+              ))}
+            </div>
+          )}
+
+          {/* needs_input: smart search fields for each missing field */}
+          {isNeedsInput && result.missingFields && result.missingFields.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {result.missingFields.map((field) => {
+                const entityType = getEntityType(field.key);
+                return (
+                  <div key={field.key}>
+                    <label className="block text-xs text-zinc-400 mb-1.5 font-medium">
+                      {field.label}
+                    </label>
+                    {entityType ? (
+                      <EntitySearchField
+                        fieldKey={field.key}
+                        label={field.label}
+                        entityType={entityType}
+                        value={missingValues[field.key] ?? ""}
+                        onChange={(id, label) => setFieldValue(field.key, id, label)}
+                      />
+                    ) : (
+                      <PlainField
+                        label={field.label}
+                        value={missingValues[field.key] ?? ""}
+                        onChange={(v) => setFieldValue(field.key, "", v)}
+                        onEnter={handleContinue}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+              <button
+                onClick={handleContinue}
+                className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors mt-1"
+              >
+                Continuar →
+              </button>
+            </div>
+          )}
+
+          {/* confirmation_needed: show option buttons */}
+          {isConfirmationNeeded && result.confirmOptions && result.confirmOptions.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {result.confirmOptions.map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => handleConfirmOption(opt.key)}
+                  className="flex items-center gap-1.5 bg-transparent border border-violet-500/60 text-violet-300 hover:bg-violet-500/10 hover:border-violet-400 text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* post_generated: show formatted content */}
+          {isPostGenerated && result.content && (
+            <div className="mt-4">
+              <pre className="bg-zinc-800/80 border border-zinc-700/60 rounded-xl px-4 py-3 text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed font-mono overflow-auto max-h-64">
+                {result.content}
+              </pre>
+              <div className="flex items-center gap-2 mt-3">
+                <button
+                  onClick={handleCopyContent}
+                  className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold px-3 py-2 rounded-lg transition-colors border border-zinc-700/50"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  {contentCopied ? "Copiado!" : "Copiar"}
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold px-3 py-2 rounded-lg transition-colors border border-zinc-700/50"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  Baixar .txt
+                </button>
+              </div>
+            </div>
+          )}
         </div>
+
         {/* Actions */}
-        <div className="flex items-center gap-2 px-5 pb-4">
-          <a
-            href={result.url}
-            className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            Abrir no {result.appName}
-          </a>
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold px-4 py-2 rounded-lg transition-colors border border-zinc-700/50"
-          >
-            <Copy className="w-3.5 h-3.5" />
-            {copied ? "Copiado!" : "Copiar link"}
-          </button>
-        </div>
+        {!isNeedsInput && !isConfirmationNeeded && result.url && (
+          <div className="flex items-center gap-2 px-5 pb-4">
+            <a
+              href={result.url}
+              className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Abrir no {result.appName}
+            </a>
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold px-4 py-2 rounded-lg transition-colors border border-zinc-700/50"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              {copied ? "Copiado!" : "Copiar link"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -939,6 +1296,7 @@ interface CommandInputProps {
   setCommand: (v: string) => void;
   loading: boolean;
   onSubmit: () => void;
+  onVoiceTranscript: (text: string) => void;
   model: ModelType;
   setModel: (v: ModelType) => void;
   dropdown: DropdownType;
@@ -954,6 +1312,7 @@ function CommandInput({
   setCommand,
   loading,
   onSubmit,
+  onVoiceTranscript,
   model,
   setModel,
   dropdown,
@@ -961,6 +1320,7 @@ function CommandInput({
   dropdownSearch,
   setDropdownSearch,
 }: CommandInputProps) {
+  const { voiceState, startListening } = useVoiceInput(onVoiceTranscript);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -1068,7 +1428,7 @@ function CommandInput({
             onScroll={syncScroll}
             disabled={loading}
             rows={1}
-            placeholder={`Crie uma proposta no "#forge" do produto "/PRODUTX"...`}
+            placeholder="Fala comandante, quais as ordens?"
             className="relative w-full bg-transparent text-transparent caret-white resize-none outline-none text-sm leading-relaxed placeholder:text-zinc-600 placeholder:font-sans placeholder:text-xs min-h-[48px] max-h-[200px] overflow-y-auto"
             style={{
               caretColor: "white",
@@ -1095,17 +1455,36 @@ function CommandInput({
                 <PlusMenu onClose={() => setDropdown(null)} />
               )}
             </div>
-            <span className="text-[11px] text-zinc-600">
-              Adicione{" "}
-              <kbd className="bg-zinc-800 text-zinc-500 px-1 py-0.5 rounded text-[10px] font-mono">
-                /
-              </kbd>{" "}
-              variáveis e{" "}
-              <kbd className="bg-zinc-800 text-zinc-500 px-1 py-0.5 rounded text-[10px] font-mono">
-                #App
-              </kbd>{" "}
-              para escolher o app
-            </span>
+
+            {/* ── Mic button ── */}
+            <button
+              type="button"
+              onClick={startListening}
+              disabled={loading || voiceState === "unsupported"}
+              title={
+                voiceState === "unsupported"
+                  ? "Navegador não suporta reconhecimento de voz"
+                  : voiceState === "listening"
+                  ? "Ouvindo... clique para parar"
+                  : "Falar comando"
+              }
+              className={cn(
+                "w-7 h-7 flex items-center justify-center rounded-lg border transition-all",
+                voiceState === "listening"
+                  ? "bg-red-500/20 border-red-500/60 text-red-400 animate-pulse"
+                  : voiceState === "processing"
+                  ? "bg-violet-500/20 border-violet-500/60 text-violet-400"
+                  : voiceState === "unsupported"
+                  ? "bg-zinc-800 border-zinc-700/50 text-zinc-600 cursor-not-allowed opacity-40"
+                  : "bg-zinc-800 hover:bg-zinc-700 border-zinc-700/50 text-zinc-400 hover:text-white",
+              )}
+            >
+              {voiceState === "listening" ? (
+                <MicOff className="w-3.5 h-3.5" />
+              ) : (
+                <Mic className="w-3.5 h-3.5" />
+              )}
+            </button>
           </div>
           <div className="flex items-center gap-2">
             <ModelSelector value={model} onChange={setModel} />
@@ -1152,9 +1531,11 @@ function CommandInput({
 interface WelcomeScreenProps {
   onSelect: (e: string) => void;
   commandInputProps: CommandInputProps;
+  recentCommands: string[];
+  onClearRecent: () => void;
 }
 
-function WelcomeScreen({ onSelect, commandInputProps }: WelcomeScreenProps) {
+function WelcomeScreen({ onSelect, commandInputProps, recentCommands, onClearRecent }: WelcomeScreenProps) {
   return (
     <div className="flex flex-col items-center w-full min-h-full px-4 py-10 sm:py-14 select-none">
       <div className="w-full max-w-2xl mx-auto flex flex-col items-center gap-6">
@@ -1162,7 +1543,7 @@ function WelcomeScreen({ onSelect, commandInputProps }: WelcomeScreenProps) {
         <div className="flex flex-col items-center gap-2">
           <NasaLogo className="w-[180px] sm:w-[240px] h-auto opacity-95" />
           <p className="text-[10px] font-bold tracking-[0.35em] text-zinc-500 uppercase">
-            Command Center
+            EXPLORER
           </p>
           <RotatingExample />
         </div>
@@ -1172,15 +1553,17 @@ function WelcomeScreen({ onSelect, commandInputProps }: WelcomeScreenProps) {
           <CommandInput {...commandInputProps} />
         </div>
 
-        {/* 3. Apps recentes */}
-        <div className="w-full">
-          <RecentApps />
-        </div>
-
-        {/* 4. Biblioteca de exemplos */}
-        <div className="w-full">
+        {/* 3. Biblioteca de exemplos */}
+        <div className="w-full flex flex-col items-center">
           <ExampleLibrary onSelect={onSelect} />
         </div>
+
+        {/* 4. Últimas solicitações */}
+        <RecentRequests
+          recent={recentCommands}
+          onSelect={onSelect}
+          onClear={onClearRecent}
+        />
       </div>
     </div>
   );
@@ -1192,10 +1575,12 @@ export function NasaCommandCenter() {
   const [command, setCommand] = useState("");
   const [dropdown, setDropdown] = useState<DropdownType>(null);
   const [dropdownSearch, setDropdownSearch] = useState("");
-  const [model, setModel] = useState<ModelType>("claude");
+  const [model, setModel] = useState<ModelType>("astro");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [recentCommands, setRecentCommands] = useState<string[]>(() => loadRecentCommands());
   const bottomRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   const executeCommand = useMutation(
     orpc.nasaCommand.execute.mutationOptions(),
@@ -1206,17 +1591,16 @@ export function NasaCommandCenter() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSubmit = async () => {
-    if (!command.trim() || loading) return;
-    const userText = command.trim();
+  const submitCommand = useCallback(async (userText: string) => {
+    if (!userText.trim() || loading) return;
     setLoading(true);
     setCommand("");
     setDropdown(null);
+    setRecentCommands(saveRecentCommand(userText));
 
     const thinkingSteps = buildThinkingSteps(userText);
     const msgId = Math.random().toString(36).slice(2);
 
-    // Add user bubble + thinking placeholder
     setMessages((prev) => [
       ...prev,
       { id: msgId + "-user", role: "user", command: userText },
@@ -1225,12 +1609,12 @@ export function NasaCommandCenter() {
         role: "assistant",
         isThinking: true,
         thinking: thinkingSteps,
+        originalCommand: userText,
       },
     ]);
 
     try {
-      const res = await executeCommand.mutateAsync({ command: userText });
-      // Replace thinking with real result
+      const res = await executeCommand.mutateAsync({ command: userText, model });
       setMessages((prev) =>
         prev.map((m) =>
           m.id === msgId + "-think"
@@ -1238,10 +1622,17 @@ export function NasaCommandCenter() {
                 ...m,
                 isThinking: false,
                 result: {
+                  type: res.type,
                   title: res.title,
                   description: res.description,
                   url: res.url ?? "/home",
                   appName: res.appName,
+                  resultLinks: res.resultLinks,
+                  missingFields: res.missingFields,
+                  partialContext: res.partialContext,
+                  content: res.content,
+                  starsSpent: res.starsSpent,
+                  confirmOptions: res.confirmOptions,
                 },
               }
             : m,
@@ -1258,6 +1649,7 @@ export function NasaCommandCenter() {
                 ...m,
                 isThinking: false,
                 result: {
+                  type: "error" as const,
                   title: "Erro",
                   description: message,
                   url: "/home",
@@ -1270,6 +1662,45 @@ export function NasaCommandCenter() {
       toast.error(message);
     } finally {
       setLoading(false);
+      // Atualiza saldo de stars imediatamente após o comando
+      queryClient.invalidateQueries({
+        queryKey: orpc.stars.getBalance.queryOptions().queryKey,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model, queryClient]);
+
+  const handleSubmit = async () => {
+    if (!command.trim() || loading) return;
+    await submitCommand(command.trim());
+  };
+
+  // Chamado pelo hook de voz quando o transcript chega → envia direto
+  const handleVoiceTranscript = useCallback((text: string) => {
+    if (!text.trim() || loading) return;
+    submitCommand(text.trim());
+  }, [loading, submitCommand]);
+
+  // Re-submit with extra /"key"="value" pairs appended to the original command
+  const handleContinue = (originalCommand: string) => (extra: string) => {
+    // Rebuild: original command + partialContext pairs (already parsed server-side) + new fields
+    submitCommand(`${originalCommand} ${extra}`);
+  };
+
+  // Handle confirmation option button clicks
+  // NOTE: originalCommand already contains all /"key"="value" pairs from the previous step.
+  // We only append the NEW decision key — never re-append ctxPairs to avoid duplicates.
+  const handleConfirm = (originalCommand: string, _partialContext: Record<string, unknown>) => (key: string) => {
+    if (key.startsWith("lead_")) {
+      const leadId = key.replace("lead_", "");
+      submitCommand(`${originalCommand} /"lead_id"="${leadId}" /"lead_confirmed"="true"`);
+    } else if (key === "create_new_lead") {
+      submitCommand(`${originalCommand} /"create_new_lead"="true"`);
+    } else if (key.startsWith("status_")) {
+      const statusId = key.replace("status_", "");
+      submitCommand(`${originalCommand} /"status_id"="${statusId}"`);
+    } else {
+      submitCommand(`${originalCommand} /"${key}"="true"`);
     }
   };
 
@@ -1288,6 +1719,7 @@ export function NasaCommandCenter() {
     setCommand,
     loading,
     onSubmit: handleSubmit,
+    onVoiceTranscript: handleVoiceTranscript,
     model,
     setModel,
     dropdown,
@@ -1314,6 +1746,11 @@ export function NasaCommandCenter() {
           <WelcomeScreen
             onSelect={fillExample}
             commandInputProps={commandInputProps}
+            recentCommands={recentCommands}
+            onClearRecent={() => {
+              localStorage.removeItem("nasa-explorer:recent-commands");
+              setRecentCommands([]);
+            }}
           />
         ) : (
           <div className="max-w-3xl mx-auto px-3 sm:px-4 pt-4 pb-4 space-y-2">
@@ -1328,7 +1765,9 @@ export function NasaCommandCenter() {
                 {msg.role === "assistant" && !msg.isThinking && msg.result && (
                   <ResponseCard
                     result={msg.result}
-                    onClose={() => removeMessage(msg.id)}
+                    onClose={() => setMessages([])}
+                    onContinue={msg.originalCommand ? handleContinue(msg.originalCommand) : undefined}
+                    onConfirm={msg.originalCommand ? handleConfirm(msg.originalCommand, msg.result.partialContext ?? {}) : undefined}
                   />
                 )}
               </div>
