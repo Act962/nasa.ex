@@ -5,7 +5,7 @@ import {
   HandleBlurFunc,
   ObjectBlockType,
 } from "@/features/form/types";
-import { ChevronDown, CircleIcon, X } from "lucide-react";
+import { ChevronDown, CircleIcon, TagIcon, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
@@ -26,13 +26,15 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { v4 as uuidv4 } from "uuid";
 import { FormSettings } from "@/generated/prisma/client";
+import { getContrastColor } from "@/utils/get-contrast-color";
+import { TagDropdown } from "./dropdown-select-tag";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "RadioSelect";
 
 type attributesType = {
   label: string;
-  options: string[];
+  options: { value: string; tagId?: string | null }[];
   required: boolean;
 };
 
@@ -41,7 +43,9 @@ type propertiesValidateSchemaType = z.input<typeof propertiesValidateSchema>;
 const propertiesValidateSchema = z.object({
   label: z.string().trim().min(2).max(255),
   required: z.boolean().default(false),
-  options: z.array(z.string().min(1)),
+  options: z.array(
+    z.object({ value: z.string().min(1), tagId: z.string().nullable() }),
+  ),
 });
 
 export const RadioSelectBlock: ObjectBlockType = {
@@ -53,7 +57,10 @@ export const RadioSelectBlock: ObjectBlockType = {
     blockType,
     attributes: {
       label: "Selecione uma opção",
-      options: ["Opção 1", "Opção 2"],
+      options: [
+        { value: "Opção 1", tagId: null },
+        { value: "Opção 2", tagId: null },
+      ],
       required: false,
     },
   }),
@@ -71,15 +78,19 @@ export const RadioSelectBlock: ObjectBlockType = {
 type NewInstance = FormBlockInstance & {
   attributes: attributesType;
 };
-
+//Preview Component
 function RadioSelectCanvasComponent({
   blockInstance,
+  settings,
 }: {
   blockInstance: FormBlockInstance;
+  settings?: FormSettings | null;
 }) {
   const block = blockInstance as NewInstance;
 
   const { label, options, required } = block.attributes;
+
+  const textColor = getContrastColor(settings?.backgroundColor || "");
 
   return (
     <div
@@ -91,6 +102,7 @@ function RadioSelectCanvasComponent({
         className="
      text-base font-normal! mb-2
      "
+        style={{ color: textColor }}
       >
         {label}
         {required && <span className="text-red-500">*</span>}
@@ -103,11 +115,20 @@ function RadioSelectCanvasComponent({
         pointer-events-none
         cursor-default"
       >
-        {options?.map((option: string, index: number) => (
+        {options?.map((option: OptionType, index: number) => (
           <div key={index} className="flex items-center space-x-2">
-            <RadioGroupItem disabled value={option} id={option} />
-            <Label htmlFor={option} className="font-normal!">
-              {option}
+            <RadioGroupItem
+              disabled
+              value={option.value}
+              id={option.value}
+              style={{ borderColor: settings?.primaryColor }}
+            />
+            <Label
+              htmlFor={option.value}
+              className="font-normal!"
+              style={{ color: textColor }}
+            >
+              {option.value}
             </Label>
           </div>
         ))}
@@ -115,7 +136,13 @@ function RadioSelectCanvasComponent({
     </div>
   );
 }
-
+//Form Component
+type OptionType = {
+  value: string;
+  meta?: {
+    tagId?: string | null;
+  };
+};
 function RadioSelectFormComponent({
   blockInstance,
   handleBlur,
@@ -132,7 +159,15 @@ function RadioSelectFormComponent({
   const block = blockInstance as NewInstance;
   const { label, options, required } = block.attributes;
 
-  const [value, setValue] = useState("");
+  const textColor = getContrastColor(settings?.backgroundColor || "");
+
+  const [value, setValue] = useState<{
+    value: string;
+    meta: Record<string, unknown>;
+  }>({
+    value: "",
+    meta: {},
+  });
   const [isError, setIsError] = useState(false);
 
   const validateField = (val: string) => {
@@ -143,49 +178,59 @@ function RadioSelectFormComponent({
   };
 
   return (
-    <div
-      className="flex flex-col
-  gap-3 w-full
-    "
-    >
+    <div className="flex flex-col gap-3 w-full">
       <Label
-        className={`
-     text-base font-normal! mb-2
-       ${isError || isSubmitError ? "text-red-500" : ""}`}
+        className={`text-base font-normal! mb-2 ${isError || isSubmitError ? "text-red-500" : ""}`}
+        style={{ color: textColor }}
       >
         {label}
         {required && <span className="text-red-500">*</span>}
       </Label>
 
       <RadioGroup
-        value={value}
+        value={value.value}
         className="space-y-3"
         onValueChange={(value) => {
-          setValue(value);
+          const option = options.find((option) => option.value === value);
+          setValue({
+            value,
+            meta: { tagId: option?.tagId || null },
+          });
           const isValid = validateField(value);
           setIsError(!isValid);
           if (handleBlur) {
-            handleBlur(block.id, value);
+            handleBlur(block.id, {
+              value,
+              meta: {
+                tagId: option?.tagId || null,
+              },
+            });
           }
         }}
       >
-        {options?.map((option: string, index: number) => {
+        {options?.map((option: OptionType, index: number) => {
           const uniqueId = `option-${uuidv4()}`;
           return (
             <div key={index} className="flex items-center space-x-2">
               <RadioGroupItem
-                value={option}
+                value={option.value}
                 id={uniqueId}
                 className={`cursor-pointer ${
                   isError || isSubmitError ? "border-red-500" : ""
                 }`}
                 style={{
                   borderColor: settings?.primaryColor || undefined,
-                  color: settings?.primaryColor || undefined,
+                  color: textColor || undefined,
                 }}
               />
-              <Label htmlFor={uniqueId} className="font-normal! cursor-pointer">
-                {option}
+              <Label
+                htmlFor={uniqueId}
+                className="font-normal! cursor-pointer"
+                style={{
+                  color: textColor || undefined,
+                }}
+              >
+                {option.value}
               </Label>
             </div>
           );
@@ -194,7 +239,7 @@ function RadioSelectFormComponent({
 
       {isError ? (
         <p className="text-red-500 text-[0.8rem]">
-          {required && value.trim().length === 0
+          {required && value.value.trim().length === 0
             ? "This field is required"
             : ""}
         </p>
@@ -206,7 +251,7 @@ function RadioSelectFormComponent({
     </div>
   );
 }
-
+//Settings Properties Component
 function RadioSelectPropertiesComponent({
   positionIndex,
   parentId,
@@ -226,7 +271,10 @@ function RadioSelectPropertiesComponent({
     defaultValues: {
       label: block.attributes.label,
       required: block.attributes.required,
-      options: block.attributes.options || [],
+      options: block.attributes.options.map((option) => ({
+        value: option.value,
+        tagId: option.tagId,
+      })),
     },
   });
 
@@ -251,6 +299,25 @@ function RadioSelectPropertiesComponent({
       },
     });
   }
+
+  const handleTagSelect = (tag: string | null, index: number) => {
+    const updatedOptions = form.getValues().options.map((option, i) => {
+      if (i === index) {
+        return {
+          ...option,
+          tagId: tag,
+        };
+      }
+      return option;
+    });
+
+    form.setValue("options", updatedOptions);
+
+    setChanges({
+      ...form.getValues(),
+      options: updatedOptions,
+    });
+  };
 
   return (
     <div className="w-full pb-4">
@@ -315,54 +382,63 @@ function RadioSelectPropertiesComponent({
                   justify-between w-full gap-2"
                 >
                   <FormLabel className="text-[13px] font-normal">
-                    Options
+                    Opções
                   </FormLabel>
                   <div className="flex flex-col gap-1">
-                    {field?.value?.map((option: string, index: number) => (
-                      <div
-                        key={index}
-                        className="relative flex items-center
-                      justify-between gap-2
-                        "
-                      >
-                        <Input
-                          value={option}
-                          onChange={(e) => {
-                            const updatedOptions = [...(field.value || [])];
-                            updatedOptions[index] = e.target.value;
-                            field.onChange(updatedOptions);
-                            setChanges({
-                              ...form.getValues(),
-                              options: updatedOptions,
-                            });
-                          }}
-                          className="max-w-[187px]"
-                        />
+                    {field?.value?.map(
+                      (
+                        option: { value: string; tagId: string | null },
+                        index: number,
+                      ) => (
+                        <div
+                          key={index}
+                          className="relative flex items-center justify-between gap-2"
+                        >
+                          <TagDropdown
+                            tagId={option.tagId}
+                            onSelect={(tag) => handleTagSelect(tag, index)}
+                          >
+                            <TagIcon className="text-muted-foreground size-4" />
+                          </TagDropdown>
+                          <Input
+                            value={option.value}
+                            onChange={(e) => {
+                              const updatedOptions = [...(field.value || [])];
+                              updatedOptions[index].value = e.target.value;
+                              field.onChange(updatedOptions);
+                              setChanges({
+                                ...form.getValues(),
+                                options: updatedOptions,
+                              });
+                            }}
+                            className="max-w-[187px]"
+                          />
 
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="
                             p-0 absolute -right-1 -top-1
                             bg-foreground rounded-full
                             w-4 h-4
                           "
-                          onClick={() => {
-                            const updatedOptions = field.value?.filter(
-                              (_, i) => i !== index,
-                            );
-                            field.onChange(updatedOptions);
-                            setChanges({
-                              ...form.getValues(),
-                              options: updatedOptions,
-                            });
-                          }}
-                        >
-                          <X className="w-2.5 h-2.5 text-background" />
-                        </Button>
-                      </div>
-                    ))}
+                            onClick={() => {
+                              const updatedOptions = field.value?.filter(
+                                (_, i) => i !== index,
+                              );
+                              field.onChange(updatedOptions);
+                              setChanges({
+                                ...form.getValues(),
+                                options: updatedOptions,
+                              });
+                            }}
+                          >
+                            <X className="w-2.5 h-2.5 text-background" />
+                          </Button>
+                        </div>
+                      ),
+                    )}
 
                     <FormMessage />
 
@@ -373,8 +449,11 @@ function RadioSelectPropertiesComponent({
                       size="sm"
                       onClick={() => {
                         const currentOptions = field?.value || [];
-                        const newOption = `Option ${currentOptions.length + 1}`;
-                        const updatedOptions = [...currentOptions, newOption];
+                        const newOption = `Opção ${currentOptions.length + 1}`;
+                        const updatedOptions = [
+                          ...currentOptions,
+                          { value: newOption, tagId: null },
+                        ];
                         field.onChange(updatedOptions);
                         setChanges({
                           ...form.getValues(),
@@ -382,7 +461,7 @@ function RadioSelectPropertiesComponent({
                         });
                       }}
                     >
-                      Add Option
+                      Adicionar opção
                     </Button>
                   </div>
                 </div>
@@ -401,7 +480,7 @@ function RadioSelectPropertiesComponent({
                   justify-between w-full gap-2"
                 >
                   <FormLabel className="text-[13px] font-normal">
-                    Required
+                    Obrigatorio
                   </FormLabel>
                   <FormControl>
                     <Switch

@@ -57,7 +57,6 @@ export function CreateChatDialog({
       trackingId,
       token,
     };
-    console.log(data);
     createConversation.mutate(data, {
       onSuccess: () => {
         onOpenChange(false);

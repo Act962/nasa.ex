@@ -20,8 +20,6 @@ export function QuotedMessage({ message }: QuotedMessageProps) {
 
   const quotedName = quotedMessage.fromMe ? sessionName : leadName || "Contato";
 
-  console.log(message.body, message);
-
   const mimetype = quotedMessage.mimetype;
   const isImage = mimetype?.startsWith("image");
   const isVideo = mimetype?.startsWith("video");

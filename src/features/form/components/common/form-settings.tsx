@@ -21,6 +21,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Uploader } from "@/components/file-uploader/uploader";
 import { useConstructUrl } from "@/hooks/use-construct-url";
+import { InfoIcon } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function FormSettings() {
   const { formData, updateSettings } = useBuilderStore();
@@ -134,12 +141,6 @@ export function FormSettings() {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm">Mostrar Nome</span>
-            <Switch
-              checked={settings.showName}
-              onCheckedChange={(checked) =>
-                updateSettings({ showName: checked })
-              }
-            />
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm">Mostrar E-mail</span>
@@ -191,7 +192,24 @@ export function FormSettings() {
             </div>
           </Field>
           <Field>
-            <FieldLabel>Cor de fundo</FieldLabel>
+            <FieldLabel>
+              Cor de fundo{" "}
+              <FieldLabel>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <InfoIcon className="size-4 cursor-pointer text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        A cor de fundo influencia diretamente a cor das letras
+                        para garantir legibilidade.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </FieldLabel>
+            </FieldLabel>
             <div className="flex items-center gap-2">
               <input
                 type="color"

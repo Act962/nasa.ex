@@ -14,7 +14,7 @@ export const getPublic = base
     }),
   )
   .handler(async ({ input }) => {
-    const form = await prisma.form.findFirst({
+    const form = await prisma.form.findUnique({
       where: {
         id: input.id,
         published: true,

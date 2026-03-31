@@ -11,11 +11,26 @@ export type FormBlockType =
   | "Heading"
   | "Paragraph";
 
-export type HandleBlurFunc = (key: string, value: string) => void;
+export type HandleBlurFuncWithTagId = (
+  key: string,
+  value: { value: string; tagId: string | null },
+) => void;
 
 export type FormErrorsType = {
   [key: string]: string;
 };
+
+export type HandleBlurValue =
+  | string
+  | { value: string; tagId: string | null }
+  | Record<string, unknown>; // extensível para o futuro
+
+export type FieldValue = {
+  value: string;
+  meta?: Record<string, unknown>;
+};
+
+export type HandleBlurFunc = (key: string, value: FieldValue) => void;
 
 export type ObjectBlockType = {
   blockCategory: FormCategoryType;
