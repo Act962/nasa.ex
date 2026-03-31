@@ -98,8 +98,19 @@ export function AppointmentCalendar({ trackingId }: Props) {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createInitialDate, setCreateInitialDate] = useState<Date>();
-  const [viewId, setViewId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string>("");
+  const [viewOpen, setViewOpen] = useState(false);
   const [showMore, setShowMore] = useState<ShowMoreState | null>(null);
+
+  const openAppointment = useCallback((id: string) => {
+    setViewId(id);
+    setViewOpen(true);
+  }, []);
+
+  const closeAppointment = useCallback(() => {
+    setViewOpen(false);
+    setTimeout(() => setViewId(""), 300);
+  }, []);
 
   // Capture mouse position for popup placement
   const lastClickPos = useRef<{ x: number; y: number }>({ x: 300, y: 300 });
@@ -129,8 +140,8 @@ export function AppointmentCalendar({ trackingId }: Props) {
 
   // Click on event → open detail sheet
   const handleSelectEvent = useCallback((event: CalendarEvent) => {
-    setViewId(event.id);
-  }, []);
+    openAppointment(event.id);
+  }, [openAppointment]);
 
   // "Mais X" link → open popup
   const handleShowMore = useCallback((events: CalendarEvent[], date: Date) => {
@@ -140,6 +151,12 @@ export function AppointmentCalendar({ trackingId }: Props) {
       position: { ...lastClickPos.current },
     });
   }, []);
+
+  // Handle event selected from popup
+  const handlePopupSelectEvent = useCallback((id: string) => {
+    setShowMore(null);
+    setTimeout(() => openAppointment(id), 50);
+  }, [openAppointment]);
 
   // Drag & drop → persist to DB
   const handleEventDrop = useCallback(
@@ -252,10 +269,7 @@ export function AppointmentCalendar({ trackingId }: Props) {
           date={showMore.date}
           position={showMore.position}
           onClose={() => setShowMore(null)}
-          onSelectEvent={(id) => {
-            setViewId(id);
-            setShowMore(null);
-          }}
+          onSelectEvent={handlePopupSelectEvent}
         />
       )}
 
@@ -267,14 +281,12 @@ export function AppointmentCalendar({ trackingId }: Props) {
         initialDate={createInitialDate}
       />
 
-      {/* Detalhar agendamento */}
-      {viewId && (
-        <ViewAppointment
-          open={!!viewId}
-          onOpenChange={(o) => { if (!o) setViewId(null); }}
-          appointmentId={viewId}
-        />
-      )}
+      {/* Detalhar agendamento — sempre montado para evitar overlay fantasma do Radix */}
+      <ViewAppointment
+        open={viewOpen}
+        onOpenChange={(o) => { if (!o) closeAppointment(); }}
+        appointmentId={viewId}
+      />
     </div>
   );
 }
