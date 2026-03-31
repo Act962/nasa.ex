@@ -101,7 +101,8 @@ export function DayEventsPopup({ events, date, position, onClose, onSelectEvent 
         {events.map((event) => (
           <button
             key={event.id}
-            onClick={() => { onSelectEvent(event.id); onClose(); }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onSelectEvent(event.id); }}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-accent/60 transition-colors text-left group"
           >
             {/* Colored dot */}

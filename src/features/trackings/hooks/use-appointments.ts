@@ -25,13 +25,13 @@ export const useQueryAppointment = ({
 }: {
   appointmentId: string;
 }) => {
-  const { data, isLoading } = useQuery(
-    orpc.agenda.appointments.get.queryOptions({
-      input: {
-        appointmentId,
-      },
+  const { data, isLoading } = useQuery({
+    ...orpc.agenda.appointments.get.queryOptions({
+      input: { appointmentId },
     }),
-  );
+    // Não busca quando appointmentId está vazio (Sheet fechado mas ainda montado)
+    enabled: !!appointmentId,
+  });
 
   return {
     appointment: data?.appointment,
