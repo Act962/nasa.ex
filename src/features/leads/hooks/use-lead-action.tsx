@@ -13,44 +13,44 @@ export function useQueryLeadAction({ leadId }: UseLeadActionProps) {
   return { data, isLoading };
 }
 
-export function useMutationCreateLeadAction() {
-  const queryClient = useQueryClient();
+// export function useMutationCreateLeadAction() {
+//   const queryClient = useQueryClient();
 
-  return useMutation(
-    orpc.leads.createAction.mutationOptions({
-      onSuccess: (data) => {
-        const leadId = data.action.leadId ?? "";
+//   return useMutation(
+//     orpc.leads.createAction.mutationOptions({
+//       onSuccess: (data) => {
+//         const leadId = data.action.leadId ?? "";
 
-        queryClient.invalidateQueries({
-          queryKey: orpc.leads.listActions.queryKey({
-            input: { leadId },
-          }),
-        });
+//         queryClient.invalidateQueries({
+//           queryKey: orpc.leads.listActions.queryKey({
+//             input: { leadId },
+//           }),
+//         });
 
-        queryClient.invalidateQueries({
-          queryKey: orpc.leads.get.queryKey({
-            input: { id: leadId },
-          }),
-        });
+//         queryClient.invalidateQueries({
+//           queryKey: orpc.leads.get.queryKey({
+//             input: { id: leadId },
+//           }),
+//         });
 
-        queryClient.invalidateQueries({
-          queryKey: orpc.leads.listHistoric.queryKey({
-            input: { leadId },
-          }),
-        });
+//         queryClient.invalidateQueries({
+//           queryKey: orpc.leads.listHistoric.queryKey({
+//             input: { leadId },
+//           }),
+//         });
 
-        queryClient.invalidateQueries({
-          queryKey: orpc.leads.list.queryKey(),
-        });
+//         queryClient.invalidateQueries({
+//           queryKey: orpc.leads.list.queryKey(),
+//         });
 
-        toast.success(`Ação criada com sucesso`);
-      },
-      onError: () => {
-        toast.error(`Erro ao criar ação`);
-      },
-    }),
-  );
-}
+//         toast.success(`Ação criada com sucesso`);
+//       },
+//       onError: () => {
+//         toast.error(`Erro ao criar ação`);
+//       },
+//     }),
+//   );
+// }
 
 interface UseMutationUpdateLeadActionProps {
   leadId: string;

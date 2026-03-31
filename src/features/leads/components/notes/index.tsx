@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { RichtTextEditor } from "../../../../components/rich-text-editor/editor";
 import { ContainerItemLead } from "./container-item-lead";
 import {
-  useMutationCreateLeadAction,
+  // useMutationCreateLeadAction,
   useQueryLeadAction,
 } from "@/features/leads/hooks/use-lead-action";
 import { useState } from "react";
@@ -16,28 +16,28 @@ interface TabNotesProps {
 
 export function TabNotes({ leadId, trackingId }: TabNotesProps) {
   const { data, isLoading } = useQueryLeadAction({ leadId });
-  const mutation = useMutationCreateLeadAction();
+  // const mutation = useMutationCreateLeadAction();
   const [editor, setEditor] = useState<string | undefined>(undefined);
 
-  const onSubmit = () => {
-    mutation.mutate({
-      leadId,
-      description: editor,
-      title: "Tarefa vazia",
-      trackingId,
-    });
-    setEditor("");
-  };
+  // const onSubmit = () => {
+  //   mutation.mutate({
+  //     leadId,
+  //     description: editor,
+  //     title: "Tarefa vazia",
+  //     trackingId,
+  //   });
+  //   setEditor("");
+  // };
 
   if (isLoading) return <div>Loading...</div>;
   return (
     <div className="w-full space-y-4 overflow-y-auto h-full">
       <RichtTextEditor
-        disabled={mutation.isPending}
+        // disabled={mutation.isPending}
         field={editor}
         onChange={setEditor}
       >
-        <Button className="ml-auto" onClick={onSubmit} disabled={!editor}>
+        <Button className="ml-auto" onClick={() => {}} disabled={!editor}>
           Adicionar nota
         </Button>
       </RichtTextEditor>

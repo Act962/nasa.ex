@@ -97,8 +97,8 @@ export const getAppsInsights = base
           : 0,
     };
 
-    // ── NASA Post ────────────────────────────────────────────────────────────
-    const posts = await prisma.nasaPost.findMany({
+    // ── NASA Planner ────────────────────────────────────────────────────────────
+    const posts = await prisma.nasaPlannerPost.findMany({
       where: {
         organizationId: { in: orgIds },
         ...(dateFilter ? { createdAt: dateFilter } : {}),
@@ -106,7 +106,7 @@ export const getAppsInsights = base
       select: { id: true, status: true, targetNetworks: true, starsSpent: true, createdAt: true },
     });
 
-    const nasaPostData = {
+    const nasaPlannerData = {
       total:      posts.length,
       draft:      posts.filter((p) => p.status === "DRAFT").length,
       published:  posts.filter((p) => p.status === "PUBLISHED").length,
@@ -157,7 +157,7 @@ export const getAppsInsights = base
     return {
       forge:     forgeData,
       spacetime: spacetimeData,
-      nasaPost:  nasaPostData,
+      nasaPlanner: nasaPlannerData,
       chat:      chatData,
       period:    { startDate: input.startDate, endDate: input.endDate },
     };

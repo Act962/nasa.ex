@@ -94,6 +94,11 @@ export function CreateAppointmentModal({
     useQueryAgendasByTracking(trackingId || "");
   const agendas = agendasData?.agendas ?? [];
 
+  // When no trackingId is provided (e.g. from the global calendar),
+  // the user doesn't need to pick a tracking — we load all org agendas instead.
+  const needsTrackingPick = false; // step 0 removed: agendas load by org when trackingId is absent
+  const [resolvedTrackingId, setResolvedTrackingId] = useState<string>(trackingId ?? "");
+
   const [selectedAgendaId, setSelectedAgendaId] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<CalendarDate>(() =>
     initialDate

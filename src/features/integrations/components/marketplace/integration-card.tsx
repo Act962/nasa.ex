@@ -11,6 +11,7 @@ import type { Integration } from "@/types/integration";
 import { CATEGORY_ICONS } from "@/types/integration";
 import Link from "next/link";
 import { useMarketplace } from "@/features/integrations/context/marketplace-context";
+import { useOrgRole } from "@/hooks/use-org-role";
 import { StarCostBadge } from "@/features/stars";
 
 interface IntegrationCardProps {
@@ -74,6 +75,7 @@ function IntegrationLogo({ icon, name, category }: { icon: string; name: string;
 
 export function IntegrationCard({ integration, onInstall, compact = false }: IntegrationCardProps) {
   const { isInstalled, uninstall } = useMarketplace();
+  const { isSingle } = useOrgRole();
 
   // Merge base status with runtime installed state
   const runtimeInstalled = isInstalled(integration.slug);
@@ -169,7 +171,15 @@ export function IntegrationCard({ integration, onInstall, compact = false }: Int
           )}
 
           <div className="ml-auto flex gap-1.5">
-            {effectiveStatus === "installed" ? (
+            {isSingle ? (
+              /* Single users see a locked state instead of action buttons */
+              <Button variant="outline" size="sm"
+                className="h-7 text-xs gap-1 border-slate-200 text-slate-400 cursor-not-allowed"
+                disabled
+                title="Seu perfil não tem permissão para instalar ou configurar integrações">
+                <Lock className="size-3" /> Sem permissão
+              </Button>
+            ) : effectiveStatus === "installed" ? (
               <>
                 <Button variant="outline" size="sm"
                   className="h-7 text-xs gap-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
@@ -202,7 +212,7 @@ export function IntegrationCard({ integration, onInstall, compact = false }: Int
                 <Plus className="size-3" /> Instalar
               </Button>
             )}
-            {integration.connectUrl && (
+            {!isSingle && integration.connectUrl && (
               <Button variant="ghost" size="icon" className="size-7" asChild>
                 <a href={integration.connectUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="size-3.5" />

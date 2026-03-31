@@ -3,6 +3,7 @@
 import {
   Calendar,
   ChartColumnDecreasingIcon,
+  CircleCheckIcon,
   ClipboardType,
   Home as HomeIcon,
   Kanban,
@@ -24,15 +25,20 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const items = [
-  { title: "Início",       url: "/home",           icon: HomeIcon },
-  { title: "Trackings",    url: "/tracking",      icon: Kanban },
-  { title: "Formulários",  url: "/form",           icon: ClipboardType },
-  { title: "Chats",        url: "/tracking-chat",  icon: MessageSquareTextIcon },
-  { title: "Agenda",       url: "/agendas",        icon: Calendar },
-  { title: "Contatos",     url: "/contatos",       icon: Users },
-  { title: "Insights",     url: "/insights",       icon: ChartColumnDecreasingIcon },
-  { title: "Integrações",  url: "/integrations",   icon: Plug2 },
-  { title: "Apps",         url: "/apps",           icon: LayoutGrid },
+  { title: "Início", url: "/home", icon: HomeIcon },
+  { title: "Trackings", url: "/tracking", icon: Kanban },
+  {
+    title: "Workspaces",
+    url: "/workspaces",
+    icon: CircleCheckIcon,
+  },
+  { title: "Formulários", url: "/form", icon: ClipboardType },
+  { title: "Chats", url: "/tracking-chat", icon: MessageSquareTextIcon },
+  { title: "Agenda", url: "/agendas", icon: Calendar },
+  { title: "Contatos", url: "/contatos", icon: Users },
+  { title: "Insights", url: "/insights", icon: ChartColumnDecreasingIcon },
+  { title: "Integrações", url: "/integrations", icon: Plug2 },
+  { title: "Apps", url: "/apps", icon: LayoutGrid },
 ];
 
 export function NavMenu() {
@@ -53,7 +59,8 @@ export function NavMenu() {
                 tooltip={item.title}
                 asChild
                 className={cn(
-                  isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+                  isActive &&
+                    "bg-sidebar-accent text-sidebar-accent-foreground",
                 )}
               >
                 <Link href={item.url}>

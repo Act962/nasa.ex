@@ -166,7 +166,7 @@ export function SpacetimeSection({ data }: { data: SpacetimeData }) {
 
 // ─── NASA Post Section ───────────────────────────────────────────────────────
 
-interface NasaPostData {
+interface NasaPlannerData {
   total: number;
   draft: number;
   published: number;
@@ -184,7 +184,7 @@ const NETWORK_LABELS: Record<string, { label: string; icon: React.FC<{ className
   tiktok:    { label: "TikTok",    icon: MessageSquare },
 };
 
-export function NasaPostSection({ data }: { data: NasaPostData }) {
+export function NasaPlannerSection({ data }: { data: NasaPlannerData }) {
   const networks = Object.entries(data.byNetwork).sort((a, b) => b[1] - a[1]);
 
   return (

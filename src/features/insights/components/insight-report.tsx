@@ -29,7 +29,7 @@ interface InsightReportProps {
     total: number; pending: number; confirmed: number; done: number;
     cancelled: number; noShow: number; withLead: number; conversionRate: number;
   };
-  nasaPost?: {
+  nasaPlanner?: {
     total: number; draft: number; published: number; scheduled: number;
     starsSpent: number; byNetwork: Record<string, number>;
   };
@@ -186,7 +186,7 @@ export function InsightReport({
   chat,
   forge,
   spacetime,
-  nasaPost,
+  nasaPlanner,
   metaAds,
 }: InsightReportProps) {
   const [report, setReport] = useState<string>("");
@@ -201,7 +201,7 @@ export function InsightReport({
         chat: chat ?? undefined,
         forge: forge ?? undefined,
         spacetime: spacetime ?? undefined,
-        nasaPost: nasaPost ?? undefined,
+        nasaPlanner: nasaPlanner ?? undefined,
         metaAds: metaAds?.spend !== undefined
           ? {
               spend: metaAds.spend ?? 0,
@@ -227,7 +227,7 @@ export function InsightReport({
         chat: "Chat",
         forge: "Forge",
         spacetime: "SpaceTime",
-        "nasa-post": "NASA Post",
+        "nasa-planner": "NASA Planner",
         integrations: "Integrações",
       };
       const moduleNames = selectedModules.map((m) => moduleLabels[m] ?? m);

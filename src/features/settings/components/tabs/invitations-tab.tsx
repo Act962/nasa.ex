@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useMemberModal } from "@/hooks/use-member";
+import { useOrgRole } from "@/hooks/use-org-role";
 import { authClient } from "@/lib/auth-client";
 import { Copy, EllipsisVertical, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -57,6 +58,7 @@ export function InvitationsTab({
   members: Members[];
 }) {
   const { onOpen } = useMemberModal();
+  const { canManage } = useOrgRole();
 
   const getInviter = (inviterId: string) => {
     const inviter = members.find((member) => member.userId === inviterId);
@@ -94,9 +96,11 @@ export function InvitationsTab({
           </p>
         </div>
 
-        <Button onClick={() => onOpen()}>
-          <Plus className="size-4" /> Adicionar Membro
-        </Button>
+        {canManage && (
+          <Button onClick={() => onOpen()}>
+            <Plus className="size-4" /> Adicionar Membro
+          </Button>
+        )}
       </div>
 
       <div>

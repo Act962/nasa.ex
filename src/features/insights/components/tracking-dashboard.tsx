@@ -28,7 +28,7 @@ import { ChannelInsights } from "./channel-insights";
 import { AppSelector, ALL_MODULES } from "./app-selector";
 import type { AppModule } from "./app-selector";
 import { CrossDataOverview } from "./cross-data-overview";
-import { ForgeSection, SpacetimeSection, NasaPostSection, IntegrationsSection } from "./apps-sections";
+import { ForgeSection, SpacetimeSection, NasaPlannerSection, IntegrationsSection } from "./apps-sections";
 import { useQueryAppsInsights } from "@/features/insights/hooks/use-dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -213,11 +213,11 @@ export function TrackingDashboard({
               cancelled: appsInsights.spacetime.cancelled,
               noShow: appsInsights.spacetime.noShow,
             } : undefined}
-            nasaPost={appsInsights?.nasaPost ? {
-              total: appsInsights.nasaPost.total,
-              draft: appsInsights.nasaPost.draft,
-              published: appsInsights.nasaPost.published,
-              scheduled: appsInsights.nasaPost.scheduled,
+            nasaPlanner={appsInsights?.nasaPlanner ? {
+              total: appsInsights.nasaPlanner.total,
+              draft: appsInsights.nasaPlanner.draft,
+              published: appsInsights.nasaPlanner.published,
+              scheduled: appsInsights.nasaPlanner.scheduled,
             } : undefined}
             metaAds={metaInsights?.connected && metaInsights.data ? {
               spend: metaInsights.data.spend,
@@ -242,7 +242,7 @@ export function TrackingDashboard({
             chat={appsInsights?.chat}
             forge={appsInsights?.forge}
             spacetime={appsInsights?.spacetime}
-            nasaPost={appsInsights?.nasaPost}
+            nasaPlanner={appsInsights?.nasaPlanner}
             metaAds={metaInsights?.connected && metaInsights.data ? {
               spend: metaInsights.data.spend,
               roas: metaInsights.data.roas,
@@ -279,9 +279,9 @@ export function TrackingDashboard({
               done: appsInsights.spacetime.done,
               conversionRate: appsInsights.spacetime.conversionRate,
             } : undefined}
-            nasaPost={appsInsights?.nasaPost ? {
-              total: appsInsights.nasaPost.total,
-              published: appsInsights.nasaPost.published,
+            nasaPlanner={appsInsights?.nasaPlanner ? {
+              total: appsInsights.nasaPlanner.total,
+              published: appsInsights.nasaPlanner.published,
             } : undefined}
             metaAds={metaInsights?.connected && metaInsights.data ? {
               spend: metaInsights.data.spend,
@@ -299,8 +299,8 @@ export function TrackingDashboard({
             {selectedModules.includes("spacetime") && appsInsights?.spacetime && (
               <SpacetimeSection data={appsInsights.spacetime} />
             )}
-            {selectedModules.includes("nasa-post") && appsInsights?.nasaPost && (
-              <NasaPostSection data={appsInsights.nasaPost} />
+            {selectedModules.includes("nasa-planner") && appsInsights?.nasaPlanner && (
+              <NasaPlannerSection data={appsInsights.nasaPlanner} />
             )}
             {selectedModules.includes("integrations") && (
               <IntegrationsSection metaAds={metaInsights ?? undefined} />

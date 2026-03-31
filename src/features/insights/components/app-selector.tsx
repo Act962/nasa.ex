@@ -16,7 +16,7 @@ export type AppModule =
   | "chat"
   | "forge"
   | "spacetime"
-  | "nasa-post"
+  | "nasa-planner"
   | "integrations";
 
 export const ALL_MODULES: AppModule[] = [
@@ -24,7 +24,7 @@ export const ALL_MODULES: AppModule[] = [
   "chat",
   "forge",
   "spacetime",
-  "nasa-post",
+  "nasa-planner",
   "integrations",
 ];
 
@@ -76,8 +76,8 @@ export const MODULE_DEFS: ModuleDef[] = [
     border: "border-blue-500",
   },
   {
-    id: "nasa-post",
-    label: "NASA Post",
+    id: "nasa-planner",
+    label: "NASA Planner",
     icon: Sparkles,
     color: "text-pink-600",
     bg: "bg-pink-50 dark:bg-pink-950/40",

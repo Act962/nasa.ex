@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
+import { logActivity } from "@/lib/activity-logger";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/client";
 import { LeadAction } from "@/generated/prisma/enums";
@@ -106,6 +107,27 @@ export const createLead = base
 
         return newLead;
       });
+
+      // Log activity (non-blocking)
+      const tracking = await prisma.tracking.findUnique({
+        where: { id: input.trackingId },
+        select: { organizationId: true, name: true },
+      });
+      if (tracking) {
+        await logActivity({
+          organizationId: tracking.organizationId,
+          userId: context.user.id,
+          userName: context.user.name,
+          userEmail: context.user.email,
+          userImage: (context.user as any).image,
+          appSlug: "tracking",
+          action: "lead.created",
+          actionLabel: `Criou o lead "${input.name}"`,
+          resource: input.name,
+          resourceId: lead.id,
+          metadata: { phone: input.phone, trackingName: tracking.name },
+        });
+      }
 
       return { lead };
     } catch (err) {

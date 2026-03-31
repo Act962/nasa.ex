@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
+import { logActivity } from "@/lib/activity-logger";
 import { z } from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
@@ -169,6 +170,40 @@ export const updateLead = base
             }),
           ),
         );
+      }
+
+      // Log activity for meaningful changes only
+      const tracking = await prisma.tracking.findUnique({
+        where: { id: result.lead.trackingId },
+        select: { organizationId: true, name: true },
+      });
+      if (tracking) {
+        let actionLabel = "";
+        if (input.statusId && input.statusId !== leadExists.statusId) {
+          const newStatus = await prisma.status.findUnique({ where: { id: input.statusId }, select: { name: true } });
+          actionLabel = `Moveu o lead "${result.lead.name}" para a coluna "${newStatus?.name ?? input.statusId}"`;
+        } else if (input.name && input.name !== leadExists.name) {
+          actionLabel = `Renomeou o lead de "${leadExists.name}" para "${input.name}"`;
+        } else if (input.active !== undefined && input.active !== leadExists.isActive) {
+          actionLabel = input.active ? `Ativou o lead "${result.lead.name}"` : `Arquivou o lead "${result.lead.name}"`;
+        } else if (input.amount !== undefined) {
+          actionLabel = `Atualizou o valor do lead "${result.lead.name}"`;
+        } else {
+          actionLabel = `Atualizou o lead "${result.lead.name}"`;
+        }
+        await logActivity({
+          organizationId: tracking.organizationId,
+          userId: context.user.id,
+          userName: context.user.name,
+          userEmail: context.user.email,
+          userImage: (context.user as any).image,
+          appSlug: "tracking",
+          action: input.statusId && input.statusId !== leadExists.statusId ? "lead.moved" : "lead.updated",
+          actionLabel,
+          resource: result.lead.name,
+          resourceId: result.lead.id,
+          metadata: { trackingName: tracking.name },
+        });
       }
 
       return result;

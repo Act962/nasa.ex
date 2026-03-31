@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
+import { logActivity } from "@/lib/activity-logger";
 import { z } from "zod";
 
 // 🟥 DELETE
@@ -25,7 +26,7 @@ export const deleteLead = base
       )
   )
   .output(z.object({ success: z.boolean() }))
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, errors, context }) => {
     try {
       let deletedLead;
 
@@ -40,6 +41,27 @@ export const deleteLead = base
             },
           },
         });
+      }
+
+      if (deletedLead) {
+        const tracking = await prisma.tracking.findUnique({
+          where: { id: deletedLead.trackingId },
+          select: { organizationId: true },
+        });
+        if (tracking) {
+          await logActivity({
+            organizationId: tracking.organizationId,
+            userId: context.user.id,
+            userName: context.user.name,
+            userEmail: context.user.email,
+            userImage: (context.user as any).image,
+            appSlug: "tracking",
+            action: "lead.deleted",
+            actionLabel: `Excluiu o lead "${deletedLead.name}"`,
+            resource: deletedLead.name,
+            resourceId: deletedLead.id,
+          });
+        }
       }
 
       return { success: !!deletedLead };

@@ -6,6 +6,7 @@ import {
   useUpsertPlatformIntegration,
   useDeletePlatformIntegration,
 } from "../hooks/use-integrations";
+import { useOrgRole } from "@/hooks/use-org-role";
 import { IntegrationPlatform } from "@/generated/prisma/enums";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ import {
   Info,
   Link2Off,
   Loader2,
+  Lock,
   Plug,
   ShieldCheck,
 } from "lucide-react";
@@ -393,6 +395,7 @@ function IntegrationCard({
   onConfigure: () => void; onDisconnect: () => void;
 }) {
   const Icon = def.icon;
+  const { isSingle } = useOrgRole();
   return (
     <div className={cn(
       "relative flex flex-col rounded-2xl border-2 p-5 transition-all hover:shadow-md bg-card",
@@ -411,7 +414,11 @@ function IntegrationCard({
       <h3 className="font-semibold text-sm mb-1">{def.label}</h3>
       <p className="text-xs text-muted-foreground leading-relaxed mb-4 flex-1">{def.description}</p>
       <div className="flex gap-2 mt-auto">
-        {def.platform === "WHATSAPP" ? (
+        {isSingle ? (
+          <Button size="sm" variant="outline" className="w-full gap-1.5 text-xs text-slate-400 cursor-not-allowed" disabled>
+            <Lock className="size-3.5" /> Sem permissão
+          </Button>
+        ) : def.platform === "WHATSAPP" ? (
           <Button size="sm" variant="outline" className="w-full gap-1.5 text-xs" asChild>
             <a href={def.docsUrl}><ExternalLink className="size-3.5" />{def.docsLabel}</a>
           </Button>

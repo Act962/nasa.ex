@@ -8,7 +8,9 @@ import {
   useIntegrationPartial,
 } from "@/features/integration/use-intrgration";
 import { authClient } from "@/lib/auth-client";
+import { useOrgRole } from "@/hooks/use-org-role";
 import { toast } from "sonner";
+import { Lock } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -23,7 +25,24 @@ export function MigrationData() {
   const mutation = useIntegrationTotal();
   const mutationPartial = useIntegrationPartial();
   const session = authClient.useSession();
+  const { isSingle } = useOrgRole();
   const [hasImported, setHasImported] = useState(false);
+
+  if (isSingle) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
+        <div className="flex items-center justify-center size-14 rounded-full bg-amber-100 dark:bg-amber-950/40">
+          <Lock className="size-7 text-amber-600 dark:text-amber-400" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold">Acesso Restrito</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Apenas o Master, Adm ou Moderador podem acessar a importação de dados.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     // const imported = localStorage.getItem("nasa_data_imported");

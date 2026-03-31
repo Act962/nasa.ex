@@ -13,17 +13,25 @@ import { insightsRouter } from "./insights";
 import { agendaRouter } from "./agenda";
 import { rodizioRouter } from "./rodizio";
 import { widgetsRouter } from "./widgets";
+import { workspaceRoutes } from "@/features/workspace/server/routes";
+import { actionRoutes } from "@/features/actions/server/routes";
+
+import { columnRoutes } from "./column";
 import { platformIntegrationsRouter } from "./integrations-platform";
 import { channelInsightsRouter } from "./channel-insights";
 import { forgeRouter } from "./forge";
 import { starsRouter } from "./stars";
 import { nboxRouter } from "./nbox";
-import { nasaPostRouter } from "./nasa-post";
+import { nasaPlannerRouter } from "./nasa-planner";
 import { nasaCommandRouter } from "./nasa-command";
+import { permissionsRouter } from "./permissions";
+import { activityRouter } from "./activity";
+import { formRouter } from "./form";
 
 export const router = {
   tracking: trackingRoutes,
   status: statusRoutes,
+  column: columnRoutes,
   leads: leadRoutes,
   tags: tagsRouter,
   reasons: reasonsRouter,
@@ -37,11 +45,16 @@ export const router = {
   agenda: agendaRouter,
   rodizio: rodizioRouter,
   widgets: widgetsRouter,
+  workspace: workspaceRoutes,
+  action: actionRoutes,
   platformIntegrations: platformIntegrationsRouter,
   channelInsights: channelInsightsRouter,
   forge: forgeRouter,
   stars: starsRouter,
   nbox: nboxRouter,
-  nasaPost: nasaPostRouter,
+  nasaPlanner: nasaPlannerRouter,
   nasaCommand: nasaCommandRouter,
+  permissions: permissionsRouter,
+  activity: activityRouter,
+  form: formRouter,
 };
