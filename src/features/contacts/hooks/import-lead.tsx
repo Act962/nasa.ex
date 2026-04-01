@@ -19,6 +19,7 @@ export interface LeadImportItem {
   temperature?: "COLD" | "WARM" | "HOT" | "VERY_HOT";
   source?: "DEFAULT" | "WHATSAPP" | "FORM" | "AGENDA" | "OTHER";
   profile?: string;
+  createdAt?: string;
 }
 
 export interface LeadImportPayload {
@@ -52,6 +53,12 @@ export const LEAD_FIELDS: LeadImportField[] = [
     enumValues: ["DEFAULT", "WHATSAPP", "FORM", "AGENDA", "OTHER"],
   },
   { key: "profile", label: "Perfil", required: false, type: "string" },
+  {
+    key: "createdAt",
+    label: "Data de Entrada",
+    required: false,
+    type: "string",
+  },
 ];
 
 export type ColumnMapping = Record<string, string>; // csvColumn -> leadField key
@@ -91,26 +98,63 @@ function parseCsv(file: File): Promise<ParsedFileResult> {
   });
 }
 
+/**
+ * Converte um valor de célula XLSX para string.
+ * Trata o caso mais comum de datas salvas como serial numérico do Excel
+ * (ex: 45925) e objetos Date entregues quando cellDates: true.
+ */
+function xlsxCellToString(value: unknown): string {
+  // Objeto Date (cellDates: true entrega Date direto em algumas versões)
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return dateToDateString(value, true /* isUTC */);
+  }
+
+  const str = String(value ?? "").trim();
+
+  // String ISO gerada pelo XLSX com raw:false  →  "2024-04-01T00:00:00.000Z"
+  if (/^\d{4}-\d{2}-\d{2}T/.test(str)) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) return dateToDateString(d, true);
+  }
+
+  return str;
+}
+
+function dateToDateString(d: Date, utc: boolean): string {
+  const day = String(utc ? d.getUTCDate() : d.getDate()).padStart(2, "0");
+  const month = String(utc ? d.getUTCMonth() + 1 : d.getMonth() + 1).padStart(
+    2,
+    "0",
+  );
+  const year = utc ? d.getUTCFullYear() : d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 async function parseXlsx(file: File): Promise<ParsedFileResult> {
   const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: "array" });
+
+  // cellDates: true  → XLSX converte seriais de data em objetos Date
+  // raw: false       → fallback: valores formatados como string (inclui datas ISO)
+  const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
-  const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, {
+
+  const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
     defval: "",
+    raw: false,
   });
+
   const headers = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
+
   return {
     headers,
     rows: jsonData.map((r) =>
-      Object.fromEntries(Object.entries(r).map(([k, v]) => [k, String(v)])),
+      Object.fromEntries(
+        Object.entries(r).map(([k, v]) => [k, xlsxCellToString(v)]),
+      ),
     ),
     totalRows: jsonData.length,
   };
-}
-
-export interface LeadImportPayload {
-  leads: LeadImportItem[];
 }
 
 export function buildImportPayload(
@@ -137,7 +181,7 @@ export function buildImportPayload(
 
       return lead;
     })
-    .filter((lead): lead is LeadImportItem => !!lead.name); // garante que name existe
+    .filter((lead): lead is LeadImportItem => !!lead.name);
 
   return { leads };
 }

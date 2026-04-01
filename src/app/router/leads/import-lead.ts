@@ -23,6 +23,7 @@ export const importLeadsBatch = base
             .enum(["DEFAULT", "WHATSAPP", "FORM", "AGENDA", "OTHER"])
             .optional(),
           profile: z.string().optional(),
+          createdAt: z.string().optional(),
         }),
       ),
       trackingId: z.string(),
@@ -142,6 +143,7 @@ export const importLeadsBatch = base
         temperature: lead.temperature ?? "COLD",
         source: lead.source ?? "DEFAULT",
         profile: lead.profile ?? null,
+        createdAt: parseImportDate(lead.createdAt),
         statusId: input.statusId,
         trackingId: input.trackingId,
         responsibleId: context.user.id,
@@ -225,4 +227,40 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
   return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
     arr.slice(i * size, i * size + size),
   );
+}
+
+function parseImportDate(dateStr?: string): Date {
+  if (!dateStr || dateStr.trim() === "") return new Date();
+
+  const cleaned = dateStr.trim().split(" ")[0]; // ignora parte de hora
+
+  // Formato BR: DD/MM/YYYY ou DD-MM-YYYY
+  const brMatch = cleaned.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (brMatch) {
+    const day = parseInt(brMatch[1], 10);
+    const month = parseInt(brMatch[2], 10) - 1; // 0-indexed
+    let year = parseInt(brMatch[3], 10);
+    if (year < 100) year += 2000;
+
+    // Date.UTC garante meia-noite UTC, sem desvio de fuso
+    const ts = Date.UTC(year, month, day);
+    if (!isNaN(ts)) return new Date(ts);
+  }
+
+  // Formato ISO: YYYY-MM-DD ou YYYY/MM/DD
+  const isoMatch = cleaned.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10) - 1;
+    const day = parseInt(isoMatch[3], 10);
+
+    const ts = Date.UTC(year, month, day);
+    if (!isNaN(ts)) return new Date(ts);
+  }
+
+  // Último fallback: deixa o JS tentar (comportamento anterior)
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) return d;
+
+  return new Date();
 }

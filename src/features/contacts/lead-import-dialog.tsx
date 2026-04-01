@@ -166,6 +166,10 @@ export function LeadImportDialog({
         source: "source",
         perfil: "profile",
         profile: "profile",
+        data: "createdAt",
+        datadeentrada: "createdAt",
+        "data de entrada": "createdAt",
+        createdat: "createdAt",
       };
       result.headers.forEach((h) => {
         const key = h
