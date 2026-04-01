@@ -13,11 +13,12 @@ model User {
   id            String    @id @default(cuid())
   name          String
   email         String
-  emailVerified Boolean   @default(false)
-  nickname      String?
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
+  emailVerified   Boolean   @default(false)
+  nickname        String?
+  image           String?
+  isSystemAdmin   Boolean   @default(false) @map("is_system_admin")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
   sessions      Session[]
   accounts      Account[]
 
