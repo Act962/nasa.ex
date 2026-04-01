@@ -242,6 +242,57 @@ export function PlainField({ label, value, onChange, placeholder, onEnter }: Pla
   );
 }
 
+// ─── Textarea field (for description, notes, etc.) ────────────────────────────
+
+interface TextareaFieldProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}
+
+export function TextareaField({ label, value, onChange, placeholder }: TextareaFieldProps) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder ?? label}
+      rows={3}
+      className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60 transition-colors resize-none"
+    />
+  );
+}
+
+// ─── Date-only picker field ───────────────────────────────────────────────────
+
+interface DatePickerFieldProps {
+  value: string; // "YYYY-MM-DD"
+  onChange: (value: string) => void;
+}
+
+export function DatePickerField({ value, onChange }: DatePickerFieldProps) {
+  return (
+    <div className="flex flex-col gap-2">
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn(
+          "w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-lg px-3 py-2",
+          "text-sm text-white focus:outline-none focus:border-violet-500/60 transition-colors [color-scheme:dark]",
+        )}
+      />
+      {value && (
+        <p className="text-[11px] text-zinc-500">
+          {new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR", {
+            weekday: "long", day: "2-digit", month: "long", year: "numeric",
+          })}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ─── DateTime picker field ────────────────────────────────────────────────────
 
 interface DateTimePickerFieldProps {

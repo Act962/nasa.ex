@@ -1595,66 +1595,103 @@ CTA: [chamada para ação]`;
     // ── TASK — Create task ────────────────────────────────────────────────────
     if (isTaskCreate) {
       try {
-        const taskTitle =
-          parsedVars["tarefa"] ?? parsedVars["task"] ?? parsedVars["titulo"] ?? null;
+        // ── Collect all fields from parsedVars ─────────────────────────────
+        const finalTitle =
+          parsedVars["titulo"] ?? parsedVars["tarefa"] ?? parsedVars["task"] ?? parsedVars["card"] ?? parsedVars["demanda"] ?? null;
+        const descricao      = parsedVars["descricao"] ?? parsedVars["description"] ?? null;
+        const workspaceId    = parsedVars["workspace"] ?? null;
+        const colunaId       = parsedVars["coluna"] ?? parsedVars["column"] ?? null;
+        const startDateStr   = parsedVars["startdate"] ?? parsedVars["inicio"] ?? null;
+        const dueDateStr     = parsedVars["duedate"] ?? parsedVars["prazo"] ?? parsedVars["entrega"] ?? null;
+        const responsavelId  = parsedVars["responsavel"] ?? parsedVars["usuario"] ?? parsedVars["participante"] ?? null;
 
-        const titleFromCmd = (() => {
-          const m = command.match(/(?:tarefa|task|atividade)\s+["'«»]([^"'«»\n]+)["'«»]/i)
-            ?? command.match(/(?:criar|crie|add|adicionar)\s+(?:tarefa|task|atividade)\s+(.+?)(?:\s+(?:no|em|para|com)\s+|\s*$)/i);
-          return m?.[1]?.trim() ?? null;
-        })();
+        // ── Gather ALL missing fields at once ──────────────────────────────
+        const missing: Array<{ key: string; label: string }> = [];
+        if (!finalTitle)   missing.push({ key: "titulo",      label: "Nome da tarefa / card" });
+        if (!descricao)    missing.push({ key: "descricao",   label: "Descrição" });
+        if (!workspaceId)  missing.push({ key: "workspace",   label: "Workspace" });
+        if (!colunaId)     missing.push({ key: "coluna",      label: "Status (coluna)" });
+        if (!startDateStr) missing.push({ key: "startdate",   label: "Data de início" });
+        if (!dueDateStr)   missing.push({ key: "duedate",     label: "Data de entrega" });
+        if (!responsavelId) missing.push({ key: "responsavel", label: "Participante" });
 
-        const finalTitle = taskTitle ?? titleFromCmd;
-
-        if (!finalTitle) {
+        if (missing.length > 0) {
           return {
             type: "needs_input" as const,
-            title: "Informação necessária",
-            description: "Qual é o título da tarefa?",
+            title: "Criar tarefa — informações necessárias",
+            description: "Preencha os campos para criar a tarefa:",
             appName: "Demand",
-            missingFields: [{ key: "tarefa", label: "Título da tarefa" }],
+            missingFields: missing,
+            partialContext: {
+              ...(finalTitle    ? { titulo:      finalTitle }    : {}),
+              ...(descricao     ? { descricao }                   : {}),
+              ...(workspaceId   ? { workspace:   workspaceId }   : {}),
+              ...(colunaId      ? { coluna:      colunaId }      : {}),
+              ...(startDateStr  ? { startdate:   startDateStr }  : {}),
+              ...(dueDateStr    ? { duedate:     dueDateStr }    : {}),
+              ...(responsavelId ? { responsavel: responsavelId } : {}),
+            } as Record<string, string>,
           } satisfies ExecuteOutput;
         }
 
-        // Find a workspace to attach the task
+        // ── Resolve workspace ──────────────────────────────────────────────
         const workspace = await prisma.workspace.findFirst({
-          where: { organizationId: orgId, isArchived: false },
-          orderBy: { order: "asc" },
-          select: { id: true, name: true, columns: { take: 1, orderBy: { order: "asc" }, select: { id: true } } },
+          where: { id: workspaceId!, organizationId: orgId, isArchived: false },
+          select: { id: true, name: true },
         });
 
         if (!workspace) {
           return {
             type: "error" as const,
-            title: "Sem workspace",
-            description: "Crie um workspace primeiro para poder adicionar tarefas.",
+            title: "Workspace não encontrado",
+            description: "O workspace selecionado não foi encontrado.",
             appName: "Demand",
           } satisfies ExecuteOutput;
         }
 
-        const dueDateStr = parsedVars["prazo"] ?? parsedVars["data"] ?? parsedVars["duedate"] ?? null;
-        const dueDate = dueDateStr ? parseDate(dueDateStr) : dateVars.length > 0 ? parseDate(cmd) : null;
+        // ── Parse dates ────────────────────────────────────────────────────
+        const startDate = startDateStr ? new Date(`${startDateStr}T00:00:00`) : null;
+        const dueDate   = dueDateStr   ? new Date(`${dueDateStr}T23:59:00`)   : null;
 
+        // ── Create task ────────────────────────────────────────────────────
         const task = await prisma.action.create({
           data: {
-            title: finalTitle,
+            title: finalTitle!,
+            description: descricao ?? null,
             workspaceId: workspace.id,
-            columnId: workspace.columns[0]?.id ?? null,
+            columnId: colunaId ?? null,
             organizationId: orgId,
             createdBy: context.user.id,
             isDone: false,
+            startDate,
             dueDate,
           },
           select: { id: true },
         });
 
+        // ── Add participant ────────────────────────────────────────────────
+        if (responsavelId) {
+          try {
+            await prisma.actionsUserResponsible.create({
+              data: { actionId: task.id, userId: responsavelId },
+            });
+          } catch {
+            // Non-critical
+          }
+        }
+
         const cost = STAR_COSTS.create;
         await tryDebitStars(cost, `Tarefa "${finalTitle}" criada`);
+
+        const details: string[] = [];
+        if (descricao)  details.push(`Descrição: ${descricao.slice(0, 60)}${descricao.length > 60 ? "…" : ""}`);
+        if (startDate)  details.push(`Início: ${startDate.toLocaleDateString("pt-BR")}`);
+        if (dueDate)    details.push(`Entrega: ${dueDate.toLocaleDateString("pt-BR")}`);
 
         return {
           type: "created" as const,
           title: "Tarefa criada!",
-          description: `Tarefa "${finalTitle}" adicionada ao workspace "${workspace.name}".${dueDate ? ` Prazo: ${dueDate.toLocaleDateString("pt-BR")}.` : ""}`,
+          description: `"${finalTitle}" adicionada ao workspace "${workspace.name}".${details.length > 0 ? `\n${details.join(" · ")}` : ""}`,
           url: `/workspaces/${workspace.id}`,
           appName: "Demand",
           starsSpent: cost,

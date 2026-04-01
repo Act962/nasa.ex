@@ -98,6 +98,8 @@ import {
   EntitySearchField,
   PlainField,
   DateTimePickerField,
+  TextareaField,
+  DatePickerField,
   getEntityType,
 } from "./entity-search-field";
 import {
@@ -1206,8 +1208,14 @@ function ResponseCard({ result, onClose, onContinue, onConfirm, onExplorerCmd }:
           {isNeedsInput && result.missingFields && result.missingFields.length > 0 && (
             <div className="mt-4 space-y-3">
               {result.missingFields.map((field) => {
-                const entityType = getEntityType(field.key);
+                const entityType  = getEntityType(field.key);
                 const isDatetime  = field.key === "datetime";
+                const isDateOnly  = field.key === "startdate" || field.key === "duedate";
+                const isTextarea  = field.key === "descricao" || field.key === "description";
+                // workspaceColumn needs the selected workspace id as parentId
+                const parentId    = (field.key === "coluna" || field.key === "column")
+                  ? (missingValues["workspace"] ?? undefined)
+                  : undefined;
                 return (
                   <div key={field.key}>
                     <label className="block text-xs text-zinc-400 mb-1.5 font-medium">
@@ -1219,11 +1227,23 @@ function ResponseCard({ result, onClose, onContinue, onConfirm, onExplorerCmd }:
                         onChange={(v) => setFieldValue(field.key, "", v)}
                         onConfirm={handleContinue}
                       />
+                    ) : isDateOnly ? (
+                      <DatePickerField
+                        value={missingValues[field.key] ?? ""}
+                        onChange={(v) => setFieldValue(field.key, "", v)}
+                      />
+                    ) : isTextarea ? (
+                      <TextareaField
+                        label={field.label}
+                        value={missingValues[field.key] ?? ""}
+                        onChange={(v) => setFieldValue(field.key, "", v)}
+                      />
                     ) : entityType ? (
                       <EntitySearchField
                         fieldKey={field.key}
                         label={field.label}
                         entityType={entityType}
+                        parentId={parentId}
                         value={missingValues[field.key] ?? ""}
                         onChange={(id, label) => setFieldValue(field.key, id, label)}
                       />
