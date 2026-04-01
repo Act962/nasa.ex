@@ -1634,9 +1634,16 @@ CTA: [chamada para ação]`;
           } satisfies ExecuteOutput;
         }
 
-        // ── Resolve workspace ──────────────────────────────────────────────
+        // ── Resolve workspace (by ID or by name) ──────────────────────────
         const workspace = await prisma.workspace.findFirst({
-          where: { id: workspaceId!, organizationId: orgId, isArchived: false },
+          where: {
+            organizationId: orgId,
+            isArchived: false,
+            OR: [
+              { id: workspaceId! },
+              { name: { contains: workspaceId!, mode: "insensitive" } },
+            ],
+          },
           select: { id: true, name: true },
         });
 
@@ -1644,9 +1651,41 @@ CTA: [chamada para ação]`;
           return {
             type: "error" as const,
             title: "Workspace não encontrado",
-            description: "O workspace selecionado não foi encontrado.",
+            description: `Workspace "${workspaceId}" não encontrado. Verifique o nome e tente novamente.`,
             appName: "Demand",
           } satisfies ExecuteOutput;
+        }
+
+        // ── Resolve column (by ID or by name within the workspace) ────────
+        let resolvedColumnId: string | null = null;
+        if (colunaId) {
+          const col = await prisma.workspaceColumn.findFirst({
+            where: {
+              workspaceId: workspace.id,
+              OR: [
+                { id: colunaId },
+                { name: { contains: colunaId, mode: "insensitive" } },
+              ],
+            },
+            select: { id: true },
+          });
+          resolvedColumnId = col?.id ?? null;
+        }
+
+        // ── Resolve responsible (by ID or by name) ────────────────────────
+        let resolvedResponsavelId: string | null = null;
+        if (responsavelId) {
+          const member = await prisma.member.findFirst({
+            where: {
+              organizationId: orgId,
+              OR: [
+                { userId: responsavelId },
+                { user: { name: { contains: responsavelId, mode: "insensitive" } } },
+              ],
+            },
+            select: { userId: true },
+          });
+          resolvedResponsavelId = member?.userId ?? null;
         }
 
         // ── Parse dates ────────────────────────────────────────────────────
@@ -1659,7 +1698,7 @@ CTA: [chamada para ação]`;
             title: finalTitle!,
             description: descricao ?? null,
             workspaceId: workspace.id,
-            columnId: colunaId ?? null,
+            columnId: resolvedColumnId,
             organizationId: orgId,
             createdBy: context.user.id,
             isDone: false,
@@ -1670,10 +1709,10 @@ CTA: [chamada para ação]`;
         });
 
         // ── Add participant ────────────────────────────────────────────────
-        if (responsavelId) {
+        if (resolvedResponsavelId) {
           try {
             await prisma.actionsUserResponsible.create({
-              data: { actionId: task.id, userId: responsavelId },
+              data: { actionId: task.id, userId: resolvedResponsavelId },
             });
           } catch {
             // Non-critical
