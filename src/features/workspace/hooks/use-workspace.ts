@@ -438,8 +438,10 @@ export const useUpdateActionFields = () => {
   const queryClient = useQueryClient();
   return useMutation(
     orpc.workspace.updateActionFields.mutationOptions({
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["action.get"] });
+      onSuccess: (data) => {
+        queryClient.invalidateQueries(
+          orpc.action.get.queryOptions({ input: { actionId: data.action.id } }),
+        );
         queryClient.invalidateQueries({ queryKey: ["action.listByColumn"] });
       },
       onError: () => toast.error("Erro ao atualizar ação!"),
@@ -546,6 +548,28 @@ export const useRejectShare = () => {
       },
       onError: (error: any) =>
         toast.error(error.message || "Erro ao rejeitar!"),
+    }),
+  );
+};
+
+export const useRemoveFileAction = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workspace.removeFileAction.mutationOptions({
+      onSuccess: (data) => {
+        toast.success("Arquivo removido com sucesso!");
+        queryClient.invalidateQueries(
+          orpc.workspace.getColumnsByWorkspace.queryOptions({
+            input: { workspaceId: data.action.workspaceId },
+          }),
+        );
+        queryClient.invalidateQueries(
+          orpc.action.get.queryOptions({ input: { actionId: data.action.id } }),
+        );
+        queryClient.invalidateQueries({ queryKey: ["action.listByColumn"] });
+      },
+      onError: (error: any) =>
+        toast.error(error.message || "Erro ao remover arquivo!"),
     }),
   );
 };

@@ -33,6 +33,7 @@ import { listOutgoingShares } from "./list-outgoing-shares";
 import { approveShare } from "./approve-share";
 import { rejectShare } from "./reject-share";
 import { getCompanyCode } from "./get-company-code";
+import { removeFileAction } from "./remove-file";
 
 export const workspaceRoutes = {
   list: listWorkspace,
@@ -70,4 +71,5 @@ export const workspaceRoutes = {
   approveShare,
   rejectShare,
   getCompanyCode,
+  removeFileAction,
 };

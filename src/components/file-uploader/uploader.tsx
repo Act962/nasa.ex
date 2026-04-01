@@ -29,7 +29,7 @@ const MAX_SIZE = 1024 * 1024 * 5;
 
 interface UploaderProps {
   value?: string;
-  onConfirm?: (value: string) => void;
+  onConfirm?: (value: string, name?: string) => void;
   fileTypeAccepted?: "image" | "video" | "outros";
   onUpload?: (value: string, name?: string) => void;
   onUploadStart?: () => void;
@@ -119,7 +119,7 @@ export function Uploader({
                 key: key,
               }));
 
-              onConfirm?.(key);
+              onConfirm?.(key, file.name);
               onUpload?.(key, file.name);
 
               resolve();
