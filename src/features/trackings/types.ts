@@ -10,6 +10,7 @@ export type Lead = {
   profile: string | null;
   statusId: string;
   createdAt: Date;
+  description: string | null;
   phone: string | null;
   responsible: {
     image: string | null;

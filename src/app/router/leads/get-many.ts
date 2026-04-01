@@ -137,6 +137,7 @@ export const listLeadsByStatus = base
         statusId: true,
         createdAt: true,
         updatedAt: true,
+        description: true,
         temperature: true,
         profile: true,
         responsible: {

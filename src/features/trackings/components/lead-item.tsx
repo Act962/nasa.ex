@@ -24,7 +24,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import dayjs from "dayjs";
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useState, useEffect } from "react";
 import { Lead } from "../types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 
@@ -51,6 +51,10 @@ import {
 import { cn } from "@/lib/utils";
 import { CheckIaLead } from "@/features/tracking-chat/components/check-ia-lead";
 import { getContrastColor } from "@/utils/get-contrast-color";
+import { Textarea } from "@/components/ui/textarea";
+import { useView } from "../contexts/use-view";
+import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
+import { useDebouncedValue } from "@/hooks/use-debounced";
 
 const TEMP_COLOR = {
   COLD: "#3498db",
@@ -70,6 +74,28 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
   const router = useRouter();
   const { toggleLead, isSelected } = useLeadStore();
   const selected = isSelected(data.id);
+  const [description, setDescription] = useState(data.description);
+
+  const debouncedDescription = useDebouncedValue(description, 1000);
+  const mutation = useMutationLeadUpdate(data.id, data.trackingId);
+
+  useEffect(() => {
+    setDescription(data.description);
+  }, [data.description]);
+
+  useEffect(() => {
+    if (
+      debouncedDescription !== undefined &&
+      debouncedDescription !== data.description
+    ) {
+      mutation.mutate({
+        id: data.id,
+        description: debouncedDescription || undefined,
+      });
+    }
+  }, [debouncedDescription, data.id, data.description]);
+
+  const { viewMode } = useView();
 
   const {
     attributes,
@@ -178,6 +204,21 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           <Tag className="size-3" />
           <ListLeadTags leadId={data.id} tags={data.leadTags} />
         </LeadItemContainer>
+        {(data.description || description) && viewMode === "modern" && (
+          <LeadItemContainer
+            className="mt-2"
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            <Textarea
+              value={description || ""}
+              onChange={(e) => setDescription(e.target.value)}
+              className="h-auto text-xs! min-h-[40px] max-h-[60px] resize-none bg-transparent border-transparent! focus:border-transparent! focus:ring-transparent!"
+              placeholder="Descrição..."
+            />
+          </LeadItemContainer>
+        )}
       </div>
       <Separator />
       <div
