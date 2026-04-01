@@ -24,6 +24,16 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { FolderKanbanIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const WorkspaceHeader = () => {
   const [open, setOpen] = useState(false);
@@ -99,14 +109,14 @@ export const WorkspaceContainer = () => {
               </Suspense>
             </TabsContent>
             <TabsContent value="tasks">
-                <Suspense fallback={<div>Carregando...</div>}>
-                    <RecentTasks />
-                </Suspense>
+              <Suspense fallback={<div>Carregando...</div>}>
+                <RecentTasks />
+              </Suspense>
             </TabsContent>
             <TabsContent value="members">
-                <Suspense fallback={<div>Carregando...</div>}>
-                    <RecentMembers />
-                </Suspense>
+              <Suspense fallback={<div>Carregando...</div>}>
+                <RecentMembers />
+              </Suspense>
             </TabsContent>
           </Tabs>
         </div>
@@ -117,42 +127,64 @@ export const WorkspaceContainer = () => {
 
 export const Workspaces = () => {
   const { data } = useSuspenseWokspaces();
+  const [open, setOpen] = useState(false);
 
   const workspaces = data.workspaces;
 
   return (
-    <div className="flex flex-col pt-2">
-      {workspaces.map((workspace) => {
-        return (
-          <Item key={workspace.id} asChild>
-            <Link href={`/workspaces/${workspace.id}`}>
-              <ItemMedia>{workspace.icon}</ItemMedia>
-              <ItemContent>
-                <ItemTitle>{workspace.name}</ItemTitle>
-                <ItemDescription>
-                  {dayjs(workspace.createdAt).format("MMMM DD, YYYY")}
-                </ItemDescription>
-              </ItemContent>
-              <ItemContent className="flex-row items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  Criado por
-                </span>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Avatar>
-                      <AvatarImage src={workspace.creator.image || ""} />
-                      <AvatarFallback>
-                        {workspace.creator.name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </TooltipTrigger>
-                  <TooltipContent>{workspace.creator.name}</TooltipContent>
-                </Tooltip>
-              </ItemContent>
-            </Link>
-          </Item>
-        );
-      })}
-    </div>
+    <>
+      <div className="flex flex-col pt-2">
+        {workspaces.length === 0 && (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FolderKanbanIcon />
+              </EmptyMedia>
+              <EmptyTitle>Nenhum workspace encontrado</EmptyTitle>
+              <EmptyDescription>
+                Crie um workspace para começar
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button onClick={() => setOpen(true)}>Criar workspace</Button>
+            </EmptyContent>
+          </Empty>
+        )}
+
+        {workspaces.map((workspace) => {
+          return (
+            <Item key={workspace.id} asChild>
+              <Link href={`/workspaces/${workspace.id}`}>
+                <ItemMedia>{workspace.icon}</ItemMedia>
+                <ItemContent>
+                  <ItemTitle>{workspace.name}</ItemTitle>
+                  <ItemDescription>
+                    {dayjs(workspace.createdAt).format("MMMM DD, YYYY")}
+                  </ItemDescription>
+                </ItemContent>
+                <ItemContent className="flex-row items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    Criado por
+                  </span>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Avatar>
+                        <AvatarImage src={workspace.creator.image || ""} />
+                        <AvatarFallback>
+                          {workspace.creator.name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </TooltipTrigger>
+                    <TooltipContent>{workspace.creator.name}</TooltipContent>
+                  </Tooltip>
+                </ItemContent>
+              </Link>
+            </Item>
+          );
+        })}
+      </div>
+
+      <CreateWorkspaceModal open={open} onOpenChange={setOpen} />
+    </>
   );
 };

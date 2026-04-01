@@ -4,18 +4,19 @@ import {
   Item,
   ItemContent,
   ItemDescription,
-  ItemHeader,
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
 import { Skeleton } from "@/components/ui/skeleton";
-import dayjs from "dayjs";
-import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Clock } from "lucide-react";
+import { useState } from "react";
+import { ViewActionModal } from "@/features/actions/components/view-action-modal";
 
 export function RecentTasks() {
-  const { data, isLoading } = useListRecentActions(10);
+  const { data, isLoading } = useListRecentActions(7);
+  const [open, setOpen] = useState(false);
+  const [actionId, setActionId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -38,10 +39,17 @@ export function RecentTasks() {
   }
 
   return (
-    <div className="flex flex-col pt-2">
-      {actions.map((action: any) => (
-        <Item key={action.id} asChild>
-          <Link href={`/workspaces/${action.workspace.id}?actionId=${action.id}`}>
+    <>
+      <div className="flex flex-col pt-2">
+        {actions.map((action: any) => (
+          <Item
+            key={action.id}
+            onClick={() => {
+              setActionId(action.id);
+              setOpen(true);
+            }}
+            className="cursor-pointer hover:bg-muted/50 transition-colors duration-100"
+          >
             <ItemMedia>
               {action.isDone ? (
                 <CheckCircle2 className="size-5 text-emerald-500" />
@@ -58,18 +66,24 @@ export function RecentTasks() {
                   </Badge>
                 )}
               </ItemTitle>
-              <ItemDescription>
-                Em {action.workspace.name} • {dayjs(action.createdAt).fromNow()}
-              </ItemDescription>
+              <ItemDescription>Em {action.workspace.name}</ItemDescription>
             </ItemContent>
             <ItemContent className="items-end">
-                <span className="text-xs text-muted-foreground">
-                    Criada por {action.user.name}
-                </span>
+              <span className="text-xs text-muted-foreground">
+                Criada por {action.user.name}
+              </span>
             </ItemContent>
-          </Link>
-        </Item>
-      ))}
-    </div>
+          </Item>
+        ))}
+      </div>
+
+      {actionId && (
+        <ViewActionModal
+          actionId={actionId}
+          open={open}
+          onOpenChange={setOpen}
+        />
+      )}
+    </>
   );
 }
