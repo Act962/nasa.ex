@@ -22,6 +22,7 @@ export const listActionByWorkspace = base
         .optional()
         .default("createdAt"),
       sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
+      isArchived: z.boolean().optional().default(false),
     }),
   )
 
@@ -71,7 +72,7 @@ export const listActionByWorkspace = base
 
     const where: Prisma.ActionWhereInput = {
       workspaceId: input.workspaceId,
-      isArchived: false,
+      isArchived: input.isArchived,
       ...visibilityFilter,
       ...filterWhere,
     };

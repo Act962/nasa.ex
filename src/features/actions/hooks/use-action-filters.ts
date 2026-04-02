@@ -1,5 +1,6 @@
 import {
   parseAsArrayOf,
+  parseAsBoolean,
   parseAsIsoDateTime,
   parseAsString,
   parseAsStringLiteral,
@@ -25,6 +26,7 @@ export interface FiltersState {
   dueDateTo: Date | null;
   sortBy: SortBy;
   sortOrder: SortOrder;
+  showArchived: boolean;
 }
 
 export const DEFAULT_FILTERS: FiltersState = {
@@ -34,6 +36,7 @@ export const DEFAULT_FILTERS: FiltersState = {
   dueDateTo: null,
   sortBy: "createdAt",
   sortOrder: "desc",
+  showArchived: false,
 };
 
 const actionFiltersParsers = {
@@ -43,6 +46,7 @@ const actionFiltersParsers = {
   af_to: parseAsIsoDateTime,
   af_sort: parseAsStringLiteral(SORT_BY_OPTIONS).withDefault("createdAt"),
   af_order: parseAsStringLiteral(SORT_ORDER_OPTIONS).withDefault("desc"),
+  af_archived: parseAsBoolean.withDefault(false),
 };
 
 export function useActionFilters() {
@@ -57,6 +61,7 @@ export function useActionFilters() {
     dueDateTo: params.af_to,
     sortBy: params.af_sort,
     sortOrder: params.af_order,
+    showArchived: params.af_archived,
   };
 
   const setFilters = (next: FiltersState) =>
@@ -67,6 +72,7 @@ export function useActionFilters() {
       af_to: next.dueDateTo,
       af_sort: next.sortBy,
       af_order: next.sortOrder,
+      af_archived: next.showArchived,
     });
 
   const activeCount = [
@@ -74,6 +80,7 @@ export function useActionFilters() {
     filters.tagIds.length > 0,
     filters.dueDateFrom || filters.dueDateTo,
     filters.sortBy !== "createdAt" || filters.sortOrder !== "desc",
+    filters.showArchived,
   ].filter(Boolean).length;
 
   const clearFilters = () => setFilters(DEFAULT_FILTERS);

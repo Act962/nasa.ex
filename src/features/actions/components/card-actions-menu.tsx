@@ -9,6 +9,7 @@ import {
   StarIcon,
   ArchiveIcon,
   Building2Icon,
+  Trash2Icon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -28,7 +29,9 @@ import {
   useUpdateActionFields,
   useColumnsByWorkspace,
 } from "@/features/workspace/hooks/use-workspace";
+import { useDeleteAction } from "../hooks/use-tasks";
 import { ShareActionDialog } from "./share-action-dialog";
+import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -37,6 +40,7 @@ interface Props {
   workspaceId: string;
   isFavorited?: boolean;
   isArchived?: boolean;
+  createdBy?: string;
   onClose?: () => void;
   className?: string;
 }
@@ -47,6 +51,7 @@ export function CardActionsMenu({
   workspaceId,
   isFavorited = false,
   isArchived = false,
+  createdBy,
   onClose,
   className,
 }: Props) {
@@ -54,7 +59,12 @@ export function CardActionsMenu({
   const copyAction = useCopyAction();
   const moveAction = useMoveAction();
   const updateFields = useUpdateActionFields();
+  const deleteAction = useDeleteAction();
   const { columns } = useColumnsByWorkspace(workspaceId);
+  const session = authClient.useSession();
+
+  const canDelete =
+    isArchived && !!createdBy && createdBy === session.data?.user?.id;
 
   const handleCopy = () => copyAction.mutate({ actionId });
 
@@ -73,6 +83,19 @@ export function CardActionsMenu({
     updateFields.mutate({ actionId, isArchived: !isArchived });
     toast.success(isArchived ? "Ação restaurada" : "Ação arquivada");
     if (!isArchived) onClose?.();
+  };
+
+  const handleDelete = () => {
+    deleteAction.mutate(
+      { actionId },
+      {
+        onSuccess: () => {
+          toast.success("Ação excluída permanentemente");
+          onClose?.();
+        },
+        onError: () => toast.error("Erro ao excluir ação"),
+      },
+    );
   };
 
   const handleShareLink = () => {
@@ -187,6 +210,21 @@ export function CardActionsMenu({
             />
             {isArchived ? "Restaurar" : "Arquivar"}
           </DropdownMenuItem>
+
+          {/* Permanent delete — only for archived actions created by current user */}
+          {canDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleDelete}
+                disabled={deleteAction.isPending}
+                className="gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+              >
+                <Trash2Icon className="size-3.5 text-destructive" />
+                Excluir
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

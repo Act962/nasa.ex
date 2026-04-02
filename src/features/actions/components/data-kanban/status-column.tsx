@@ -60,6 +60,9 @@ export function WorkspaceColumn({
         tagIds: filters.tagIds,
         dueDateFrom: filters.dueDateFrom,
         dueDateTo: filters.dueDateTo,
+        sortBy: filters.sortBy,
+        sortOrder: filters.sortOrder,
+        isArchived: filters.showArchived,
       },
     });
 

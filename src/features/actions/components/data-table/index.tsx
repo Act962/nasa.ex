@@ -24,6 +24,7 @@ export const DataTable = ({ workspaceId }: DataTableProps) => {
     dueDateTo: filters.dueDateTo,
     sortBy: filters.sortBy,
     sortOrder: filters.sortOrder,
+    isArchived: filters.showArchived,
   });
 
   return (

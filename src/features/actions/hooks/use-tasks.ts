@@ -64,6 +64,9 @@ export const useInfiniteActionsByStatus = ({
     tagIds?: string[];
     dueDateFrom?: Date | null;
     dueDateTo?: Date | null;
+    sortBy?: "createdAt" | "dueDate" | "priority" | "title";
+    sortOrder?: "asc" | "desc";
+    isArchived?: boolean;
   };
   enabled?: boolean;
 }) => {
@@ -76,6 +79,9 @@ export const useInfiniteActionsByStatus = ({
       tagIds: filters?.tagIds ?? [],
       ...(filters?.dueDateFrom != null && { dueDateFrom: filters.dueDateFrom }),
       ...(filters?.dueDateTo != null && { dueDateTo: filters.dueDateTo }),
+      ...(filters?.sortBy != null && { sortBy: filters.sortBy }),
+      sortOrder: filters?.sortOrder ?? "desc",
+      isArchived: filters?.isArchived ?? false,
     }),
     queryKey: [
       "action.listByColumn",
@@ -84,6 +90,9 @@ export const useInfiniteActionsByStatus = ({
       filters?.tagIds?.join(",") ?? "",
       filters?.dueDateFrom?.toISOString() ?? "",
       filters?.dueDateTo?.toISOString() ?? "",
+      filters?.sortBy ?? "",
+      filters?.sortOrder ?? "",
+      String(filters?.isArchived ?? false),
     ],
     enabled,
     initialPageParam: undefined,
@@ -117,6 +126,7 @@ interface ListActionByWorkspace {
   dueDateTo?: Date | null;
   sortBy?: "createdAt" | "dueDate" | "priority" | "title";
   sortOrder?: "asc" | "desc";
+  isArchived?: boolean;
 }
 
 export const useListActionByWorkspace = ({
@@ -129,6 +139,7 @@ export const useListActionByWorkspace = ({
   dueDateTo = null,
   sortBy = "createdAt",
   sortOrder = "desc",
+  isArchived = false,
 }: ListActionByWorkspace) => {
   const { data, isLoading } = useQuery(
     orpc.action.listByWorkspace.queryOptions({
@@ -142,6 +153,7 @@ export const useListActionByWorkspace = ({
         ...(dueDateTo != null && { dueDateTo }),
         sortBy,
         sortOrder,
+        isArchived,
       },
     }),
   );

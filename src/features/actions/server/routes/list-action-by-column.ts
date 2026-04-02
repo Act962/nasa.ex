@@ -17,6 +17,9 @@ export const listActionByColumn = base
       tagIds: z.array(z.string()).optional().default([]),
       dueDateFrom: z.coerce.date().nullable().optional(),
       dueDateTo: z.coerce.date().nullable().optional(),
+      sortBy: z.enum(["createdAt", "dueDate", "priority", "title"]).optional(),
+      sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
+      isArchived: z.boolean().optional().default(false),
     }),
   )
   .handler(async ({ input, context, errors }) => {
@@ -61,18 +64,20 @@ export const listActionByColumn = base
       }),
     };
 
+    const orderBy: Prisma.ActionOrderByWithRelationInput = input.sortBy
+      ? { [input.sortBy]: input.sortOrder }
+      : { order: "asc" };
+
     const action = await prisma.action.findMany({
       where: {
         columnId: input.columnId,
-        isArchived: false,
+        isArchived: input.isArchived,
         ...visibilityFilter,
         ...filterWhere,
       },
       take: limit + 1,
       cursor: input.cursor ? { id: input.cursor } : undefined,
-      orderBy: {
-        order: "asc",
-      },
+      orderBy,
       select: {
         id: true,
         title: true,

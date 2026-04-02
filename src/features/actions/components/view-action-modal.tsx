@@ -183,6 +183,7 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
                 workspaceId={action.workspaceId}
                 isFavorited={action.isFavorited}
                 isArchived={action.isArchived}
+                createdBy={action.createdBy}
                 onClose={() => onOpenChange(false)}
               />
             ) : undefined

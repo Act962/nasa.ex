@@ -19,7 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { WorkspaceColumn, StatusItemSkeleton } from "./status-column";
+import { WorkspaceColumn } from "./status-column";
 import { KanbanCard } from "./kanban-card";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { Decimal } from "@prisma/client/runtime/client";

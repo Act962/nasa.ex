@@ -6,6 +6,7 @@ import {
   CalendarIcon,
   ArrowUpDownIcon,
   XIcon,
+  ArchiveIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -332,6 +333,17 @@ export function FiltersBar({ workspaceId }: Props) {
           </div>
         </PopoverContent>
       </Popover>
+
+      {/* Archived filter */}
+      <Button
+        variant={filters.showArchived ? "secondary" : "outline"}
+        size="sm"
+        className="h-7 gap-1.5 text-xs"
+        onClick={() => setFilters({ ...filters, showArchived: !filters.showArchived })}
+      >
+        <ArchiveIcon className="size-3" />
+        Arquivados
+      </Button>
 
       {/* Clear all */}
       {activeCount > 0 && (
