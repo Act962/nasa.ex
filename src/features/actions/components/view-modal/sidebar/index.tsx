@@ -96,7 +96,7 @@ export function ActionSidebar({
             <TagsField
               actionId={action.id}
               workspaceId={action.workspaceId}
-              tags={(action.tags ?? []) as any}
+              tags={action.tags ?? []}
               disabled={isUpdating}
             />
           </>
