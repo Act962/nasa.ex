@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { StarIcon } from "./star-icon";
 import {
-  Check, Loader2, ArrowRight, Sparkles, Users, ExternalLink,
+  Loader2, Sparkles, Users, ExternalLink, Zap,
 } from "lucide-react";
 
 interface PlanSelectModalProps {
@@ -37,13 +37,11 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
   const handleChoose = async (plan: typeof plans[number]) => {
     if (loadingId) return;
 
-    // External link CTA
     if (plan.ctaLink) {
       window.open(plan.ctaLink, "_blank");
       return;
     }
 
-    // Gateway CTA — initiate a plan checkout session
     if (plan.ctaGatewayId) {
       setLoadingId(plan.id);
       try {
@@ -62,7 +60,6 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
         if (json.url) {
           window.location.href = json.url;
         } else {
-          console.warn("[PlanSelectModal] Gateway não configurado:", json.error);
           alert("Gateway de pagamento não configurado. Contate o suporte.");
         }
       } finally {
@@ -71,122 +68,135 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
       return;
     }
 
-    // Fallback: contact sales
     window.open("mailto:vendas@nasaex.com.br?subject=Plano " + plan.name, "_blank");
   };
 
+  // Determine grid columns based on plan count
+  const colClass =
+    plans.length <= 1 ? "grid-cols-1 max-w-xs mx-auto" :
+    plans.length === 2 ? "grid-cols-2" :
+    plans.length === 3 ? "grid-cols-3" :
+    "grid-cols-2 sm:grid-cols-3";
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="size-10 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#a855f7] flex items-center justify-center">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#0a0a14] border-white/10">
+        {/* Header */}
+        <DialogHeader className="pb-1">
+          <div className="flex items-start gap-3">
+            <div className="size-10 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#a855f7] flex items-center justify-center shrink-0">
               <Sparkles className="size-5 text-white" />
             </div>
             <div>
-              <DialogTitle className="text-lg">Escolha seu plano</DialogTitle>
-              <p className="text-xs text-muted-foreground">
+              <DialogTitle className="text-base font-bold text-white">
+                Escolha seu plano
+              </DialogTitle>
+              <p className="text-xs text-white/40 mt-0.5 leading-relaxed">
                 Stars são creditados mensalmente e usados para manter integrações ativas
               </p>
             </div>
           </div>
         </DialogHeader>
 
+        {/* Plans grid */}
         {isLoading ? (
-          <div className="grid grid-cols-3 gap-4 py-4">
+          <div className="grid grid-cols-3 gap-3 py-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-64 rounded-xl bg-muted animate-pulse" />
+              <div key={i} className="h-52 rounded-xl bg-white/5 animate-pulse" />
             ))}
           </div>
         ) : plans.length === 0 ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">
+          <div className="py-12 text-center text-sm text-white/40">
             Nenhum plano disponível no momento.
           </div>
         ) : (
-          <div className={cn(
-            "grid gap-4 py-2",
-            plans.length === 1 ? "grid-cols-1 max-w-sm mx-auto" :
-            plans.length === 2 ? "grid-cols-1 sm:grid-cols-2" :
-                                 "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-          )}>
+          <div className={cn("grid gap-3 py-1", colClass)}>
             {plans.map((plan) => {
-              const isLoading = loadingId === plan.id;
+              const busy         = loadingId === plan.id;
               const billingLabel = BILLING_LABEL[plan.billingType] ?? "/mês";
-              const hasCta = !!(plan.ctaLink || plan.ctaGatewayId);
+              const isFree       = plan.priceMonthly === 0;
 
               return (
                 <div
                   key={plan.id}
                   className={cn(
-                    "relative flex flex-col rounded-xl border-2 p-4 transition-all",
+                    "relative flex flex-col rounded-xl border p-4 transition-all",
                     plan.highlighted
-                      ? "border-[#7C3AED] bg-[#7C3AED]/5 shadow-[0_0_20px_rgba(124,58,237,0.15)]"
-                      : "border-border hover:border-[#7C3AED]/40 hover:bg-muted/30"
+                      ? "border-[#7C3AED]/60 bg-[#7C3AED]/8 shadow-[0_0_24px_rgba(124,58,237,.15)]"
+                      : "border-white/10 bg-white/4 hover:border-white/20 hover:bg-white/6"
                   )}
                 >
+                  {/* Popular badge */}
                   {plan.highlighted && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="bg-[#7C3AED] text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                      <span className="bg-[#7C3AED] text-white text-[10px] font-bold px-3 py-0.5 rounded-full whitespace-nowrap shadow-lg">
                         Mais popular
                       </span>
                     </div>
                   )}
 
-                  {/* Plan header */}
-                  <div className="text-center mb-4">
-                    <p className="font-bold text-lg">{plan.name}</p>
-                    {plan.slogan && (
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{plan.slogan}</p>
+                  {/* Plan name */}
+                  <p className="text-sm font-bold text-white text-center mb-3 mt-1">
+                    {plan.name}
+                  </p>
+
+                  {/* Price */}
+                  <div className="text-center mb-3">
+                    {isFree ? (
+                      <div className="text-2xl font-extrabold text-white">
+                        R$ 0
+                        <span className="text-xs text-white/40 font-normal">{billingLabel}</span>
+                      </div>
+                    ) : (
+                      <div>
+                        <span className="text-[11px] text-white/50 font-medium">R$</span>
+                        <span className="text-3xl font-extrabold text-white mx-1 leading-none">
+                          {plan.priceMonthly.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}
+                        </span>
+                        <span className="text-[11px] text-white/40">{billingLabel}</span>
+                      </div>
                     )}
-
-                    <div className="mt-2">
-                      <span className="text-2xl font-extrabold">
-                        R$ {plan.priceMonthly.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}
-                      </span>
-                      <span className="text-xs text-muted-foreground">{billingLabel}</span>
-                    </div>
-
-                    <div className="flex items-center justify-center gap-1 mt-2 text-[11px] font-semibold text-[#7C3AED]">
-                      <StarIcon className="size-3.5" />
-                      {plan.monthlyStars.toLocaleString("pt-BR")} stars/mês
-                    </div>
-
-                    <div className="flex items-center justify-center gap-1 mt-1 text-[11px] text-muted-foreground">
-                      <Users className="size-3" />
-                      {plan.maxUsers >= 999 ? "Usuários ilimitados" : `Até ${plan.maxUsers} usuários`}
-                    </div>
                   </div>
 
-                  {/* Benefits */}
-                  {plan.benefits.length > 0 && (
-                    <ul className="space-y-1.5 flex-1 mb-4">
-                      {plan.benefits.map((benefit, i) => (
-                        <li key={i} className="flex items-start gap-1.5 text-[11px]">
-                          <Check className="size-3 text-emerald-500 shrink-0 mt-0.5" />
-                          {benefit}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  {/* Stars */}
+                  <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                    <StarIcon className="size-3.5 shrink-0" />
+                    <span className={cn(
+                      "text-[12px] font-bold",
+                      plan.highlighted ? "text-[#a78bfa]" : "text-[#7C3AED]"
+                    )}>
+                      {plan.monthlyStars.toLocaleString("pt-BR")} stars/mês
+                    </span>
+                  </div>
+
+                  {/* Users */}
+                  <div className="flex items-center justify-center gap-1.5 mb-4">
+                    <Users className="size-3 text-white/30 shrink-0" />
+                    <span className="text-[11px] text-white/40">
+                      {plan.maxUsers >= 999_999
+                        ? "Usuários ilimitados"
+                        : `Até ${plan.maxUsers} usuários`}
+                    </span>
+                  </div>
 
                   {/* CTA */}
                   <Button
                     size="sm"
                     disabled={!!loadingId}
-                    className={cn(
-                      "w-full mt-auto gap-1.5 font-semibold text-xs",
-                      plan.highlighted
-                        ? "bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
-                        : "bg-foreground text-background hover:bg-foreground/90"
-                    )}
                     onClick={() => handleChoose(plan)}
+                    className={cn(
+                      "w-full mt-auto gap-1.5 font-semibold text-xs rounded-lg h-8",
+                      plan.highlighted
+                        ? "bg-[#7C3AED] hover:bg-[#6D28D9] text-white shadow-lg shadow-[#7C3AED]/20"
+                        : "bg-white/10 hover:bg-white/15 text-white border border-white/10"
+                    )}
                   >
-                    {isLoading ? (
-                      <><Loader2 className="size-3.5 animate-spin" /> Redirecionando...</>
+                    {busy ? (
+                      <><Loader2 className="size-3.5 animate-spin" /> Aguarde...</>
                     ) : plan.ctaLink ? (
-                      <><ExternalLink className="size-3.5" /> {plan.ctaLabel} <ArrowRight className="size-3" /></>
+                      <><ExternalLink className="size-3.5" /> {plan.ctaLabel}</>
                     ) : (
-                      <><Sparkles className="size-3.5" /> {plan.ctaLabel} {hasCta && <ArrowRight className="size-3" />}</>
+                      <><Zap className="size-3.5" /> {plan.ctaLabel}</>
                     )}
                   </Button>
                 </div>
@@ -195,7 +205,8 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
           </div>
         )}
 
-        <p className="text-center text-[11px] text-muted-foreground pb-1">
+        {/* Footer */}
+        <p className="text-center text-[11px] text-white/25 pt-1 pb-0.5">
           🔒 Pagamento seguro — cancele quando quiser, sem multas
         </p>
       </DialogContent>
