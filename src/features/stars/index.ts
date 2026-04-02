@@ -5,3 +5,4 @@ export { StarsLearnCard } from "./components/stars-learn-card";
 export { StarsAlertSettings } from "./components/stars-alert-settings";
 export { PlanSelectModal } from "./components/plan-select-modal";
 export { StarIcon } from "./components/star-icon";
+export { StarDistributionSettings } from "./components/star-distribution-settings";

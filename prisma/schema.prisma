@@ -55,6 +55,7 @@ model User {
   notificationPrefs     UserNotificationPreference[]
   sidebarPrefs          UserSidebarPreference[]
   spacePoints           UserSpacePoint[]
+  memberStarBudgets     MemberStarBudget[]
 
   @@unique([email])
   @@map("user")
@@ -120,10 +121,14 @@ model Organization {
   companyCode String?      @unique @map("company_code")
 
   // ── STARS ──────────────────────────────────
-  planId           String?   @map("plan_id")
-  starsBalance     Int       @default(0)       @map("stars_balance")
-  starsCycleStart  DateTime? @map("stars_cycle_start")
-  starsAlertConfig Json      @default("{}") @map("stars_alert_config")
+  planId                String?   @map("plan_id")
+  starsBalance          Int       @default(0)   @map("stars_balance")
+  starsCycleStart       DateTime? @map("stars_cycle_start")
+  starsAlertConfig      Json      @default("{}") @map("stars_alert_config")
+  starDistributionMode  String    @default("org") @map("star_distribution_mode")
+  // "org"    = pool compartilhado (padrão)
+  // "equal"  = dividido igualmente entre usuários ativos
+  // "custom" = orçamento personalizado por usuário
 
   members     Member[]
   invitations Invitation[]
@@ -143,6 +148,7 @@ model Organization {
   plan                 Plan?                  @relation(fields: [planId], references: [id], onDelete: SetNull)
   starTransactions     StarTransaction[]
   workspaceIntegrations WorkspaceIntegration[]
+  memberStarBudgets    MemberStarBudget[]
   nboxFolders      NBoxFolder[]
   nboxItems        NBoxItem[]
   nasaPlanners        NasaPlanner[]
@@ -1510,6 +1516,24 @@ model WorkspaceIntegration {
   @@unique([organizationId, appSlug])
   @@index([organizationId])
   @@map("workspace_integrations")
+}
+
+// Distribuição de Stars por membro
+model MemberStarBudget {
+  id             String    @id @default(cuid())
+  organizationId String    @map("organization_id")
+  userId         String    @map("user_id")
+  monthlyBudget  Int       @default(0)  @map("monthly_budget")  // stars/mês alocadas ao usuário
+  currentUsage   Int       @default(0)  @map("current_usage")   // uso no ciclo atual
+  cycleStart     DateTime? @map("cycle_start")
+  updatedAt      DateTime  @updatedAt   @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@map("member_star_budgets")
 }
 
 // ─────────────────────────────────────────────

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import { orpc } from "@/lib/orpc";
 import { Button } from "@/components/ui/button";
 import {
   ArrowRight, CheckCircle2, Rocket, Star, Users, Globe, Shield,
@@ -1788,6 +1790,29 @@ function PublicPlanCard({ plan, isLoggedIn }: { plan: typeof PUBLIC_PLANS[number
 }
 
 function PlansPublicSection({ isLoggedIn }: { isLoggedIn: boolean }) {
+  // Fetch plans live from DB (public endpoint, no auth needed)
+  const { data: dbData, isLoading: plansLoading } = useQuery(
+    orpc.public.listPlans.queryOptions()
+  );
+
+  // Map DB plans → PublicPlanCard shape, fall back to hardcoded
+  const plans = (dbData?.plans ?? []).length > 0
+    ? dbData!.plans.map((p) => ({
+        id:           p.slug,
+        name:         p.name,
+        stars:        p.monthlyStars,
+        price:        p.priceMonthly,
+        billingLabel: "/mês",
+        rollover:     p.rolloverPct,
+        highlighted:  p.highlighted,
+        badge:        p.highlighted ? ("MAIS POPULAR" as string | null) : null,
+        slogan:       p.slogan ?? "",
+        benefits:     p.benefits,
+        ctaLabel:     p.ctaLabel,
+        ctaHref:      p.ctaLink ?? "/sign-up",
+      }))
+    : PUBLIC_PLANS;
+
   return (
     <section id="planos" className="py-28 px-4 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
@@ -1830,11 +1855,19 @@ function PlansPublicSection({ isLoggedIn }: { isLoggedIn: boolean }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-          {PUBLIC_PLANS.map((plan) => (
-            <PublicPlanCard key={plan.id} plan={plan} isLoggedIn={isLoggedIn} />
-          ))}
-        </div>
+        {plansLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-72 rounded-xl bg-white/4 animate-pulse border border-white/6" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+            {plans.map((plan) => (
+              <PublicPlanCard key={plan.id} plan={plan} isLoggedIn={isLoggedIn} />
+            ))}
+          </div>
+        )}
 
         <p className="text-center text-white/15 text-xs mt-8">
           🔒 Pagamento seguro via Stripe e PIX (Asaas) · Cancele quando quiser · LGPD Compliant

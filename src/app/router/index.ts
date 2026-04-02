@@ -32,6 +32,7 @@ import { userNotificationsRouter }  from "./user-notifications";
 import { sidebarPrefsRouter }       from "./sidebar-prefs";
 import { spacePointRouter }          from "./space-point";
 import { userRouter }                from "./user";
+import { publicRouter }              from "./public";
 
 export const router = {
   tracking: trackingRoutes,
@@ -67,4 +68,5 @@ export const router = {
   sidebarPrefs: sidebarPrefsRouter,
   spacePoint: spacePointRouter,
   user:       userRouter,
+  public:     publicRouter,
 };
