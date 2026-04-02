@@ -1042,7 +1042,7 @@ const STARS_CARDS = [
     icon: Gift,
     color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20",
     title: "Plano Suit — Gratuito para sempre",
-    desc: "Comece sem pagar nada. O plano Suit inclui o CRM completo, pipeline de vendas e gestão de contatos sem expiração.",
+    desc: "Comece sem pagar nada. CRM completo, pipeline de vendas e usuários ilimitados (30★/usuário). Sem expiração.",
   },
   {
     icon: RefreshCw,
@@ -1182,47 +1182,49 @@ function StarsInfoSection({ isLoggedIn }: { isLoggedIn: boolean }) {
 
 // ─── Plans Public Section (estilo admin PlanCard) ────────────────────────────
 
+// Custo de Star por usuário ativo/mês (regra global)
+const STAR_PER_USER = 30;
+
 const PUBLIC_PLANS = [
   {
     id: "suit", name: "Suit", slogan: "Para quem está dando os primeiros passos",
-    price: 0, billingLabel: "/mês", stars: 0, maxUsers: 3, rollover: 0,
+    price: 0, billingLabel: "/mês", stars: 0, rollover: 0,
     highlighted: false, ctaLabel: "Começar grátis", ctaHref: "/sign-up",
     badge: null,
     benefits: [
       "CRM completo e pipeline de vendas",
-      "Gestão de até 3 usuários",
+      "Usuários ilimitados — 30★ por usuário/mês",
       "Agenda e agendamentos",
       "Proposta e contratos (FORGE)",
       "N.Box — gerenciamento de arquivos",
+      "Compre Stars avulsas para crescer",
       "Suporte por e-mail",
     ],
   },
   {
     id: "earth", name: "Earth", slogan: "Primeiros resultados com automação",
-    price: 197, billingLabel: "/mês", stars: 1000, maxUsers: 5, rollover: 20,
+    price: 197, billingLabel: "/mês", stars: 1000, rollover: 20,
     highlighted: false, ctaLabel: "Assinar Earth", ctaHref: "/sign-up",
     badge: null,
     benefits: [
       "Tudo do Suit, mais:",
       "1.000 Stars mensais",
       "20% de rollover de Stars",
-      "Até 5 usuários",
-      "3 integrações ativas",
+      "Suporta ~26 usuários ativos/mês",
       "Relatórios básicos",
       "Suporte prioritário",
     ],
   },
   {
     id: "explore", name: "Explore", slogan: "Para empresas que automatizam e crescem",
-    price: 397, billingLabel: "/mês", stars: 3000, maxUsers: 15, rollover: 25,
+    price: 397, billingLabel: "/mês", stars: 3000, rollover: 25,
     highlighted: true, ctaLabel: "Assinar Explore", ctaHref: "/sign-up",
     badge: "MAIS POPULAR",
     benefits: [
       "Tudo do Earth, mais:",
       "3.000 Stars mensais",
       "25% de rollover de Stars",
-      "Até 15 usuários",
-      "Integrações ilimitadas",
+      "Suporta ~80 usuários ativos/mês",
       "IA ASTRO completo",
       "NASA Planner + Mind Maps",
       "Space Points gamificado",
@@ -1231,18 +1233,17 @@ const PUBLIC_PLANS = [
   },
   {
     id: "constellation", name: "Constellation", slogan: "Para empresas sem limites",
-    price: 797, billingLabel: "/mês", stars: 20000, maxUsers: 999, rollover: 30,
+    price: 797, billingLabel: "/mês", stars: 20000, rollover: 30,
     highlighted: false, ctaLabel: "Falar com vendas", ctaHref: "mailto:vendas@nasaex.com.br",
     badge: "ENTERPRISE",
     benefits: [
       "Tudo do Explore, mais:",
       "20.000 Stars mensais",
       "30% de rollover de Stars",
-      "Usuários ilimitados",
+      "Suporta ~500+ usuários ativos/mês",
       "Gerente de conta dedicado",
       "SLA customizado",
       "Onboarding personalizado",
-      "Integrações exclusivas",
       "Relatórios avançados",
     ],
   },
@@ -1311,16 +1312,24 @@ function PublicPlanCard({ plan, isLoggedIn }: { plan: typeof PUBLIC_PLANS[number
           </span>
           <span className="text-white/30 text-[9px]">Stars/mês</span>
         </div>
-        <div className="flex flex-col items-center p-2 rounded-lg bg-white/5 border border-white/5">
-          <Users className="w-3.5 h-3.5 text-blue-400 mb-0.5" />
-          <span className="font-semibold text-white">{plan.maxUsers >= 999 ? "∞" : plan.maxUsers}</span>
-          <span className="text-white/30 text-[9px]">Usuários</span>
+        <div className="flex flex-col items-center p-2 rounded-lg bg-violet-500/8 border border-violet-500/20">
+          <Users className="w-3.5 h-3.5 text-violet-400 mb-0.5" />
+          <span className="font-semibold text-violet-300">{STAR_PER_USER}★</span>
+          <span className="text-violet-400/50 text-[9px]">por usuário</span>
         </div>
         <div className="flex flex-col items-center p-2 rounded-lg bg-white/5 border border-white/5">
           <span className="text-base mb-0.5">🔁</span>
           <span className="font-semibold text-white">{plan.rollover}%</span>
           <span className="text-white/30 text-[9px]">Rollover</span>
         </div>
+      </div>
+
+      {/* Usuários ilimitados pill */}
+      <div className="flex items-center gap-1.5 bg-violet-500/8 border border-violet-500/15 rounded-lg px-3 py-2">
+        <Users className="size-3 text-violet-400 shrink-0" />
+        <span className="text-violet-300/80 text-[11px] font-medium">
+          Usuários ilimitados — {STAR_PER_USER}★ por usuário/mês
+        </span>
       </div>
 
       {/* Benefits colapsável — igual ao admin */}
@@ -1396,12 +1405,30 @@ function PlansPublicSection({ isLoggedIn }: { isLoggedIn: boolean }) {
         <h2 className="text-4xl sm:text-5xl font-black text-white text-center mb-3 leading-tight">
           Escolha seu <span className="text-nasa">ponto de partida</span>
         </h2>
-        <p className="text-white/40 text-center text-lg mb-2 max-w-xl mx-auto">
+        <p className="text-white/40 text-center text-lg mb-6 max-w-xl mx-auto">
           De startups a operações enterprise — escale flexível com o Método N.A.S.A.®
         </p>
-        <p className="text-center text-white/20 text-sm mb-14">
-          Todos os apps e integrações disponíveis em qualquer plano — pagando apenas em Stars ★
-        </p>
+
+        {/* Regra de Stars por usuário — destaque */}
+        <div className="max-w-2xl mx-auto mb-12">
+          <div className="flex flex-col sm:flex-row items-center gap-4 bg-gradient-to-r from-violet-950/40 to-blue-950/30 border border-violet-500/25 rounded-2xl px-6 py-5">
+            <div className="text-4xl shrink-0">🚀</div>
+            <div className="text-center sm:text-left">
+              <p className="text-white font-black text-lg leading-tight">
+                Empresas e usuários são <span className="text-violet-300">ilimitados</span>
+              </p>
+              <p className="text-white/50 text-sm mt-1">
+                Não existe limite de usuários em nenhum plano. Cada usuário ativo custa{" "}
+                <span className="text-yellow-400 font-bold">{STAR_PER_USER} ★/mês</span>.
+                Basta ter crédito Star e <span className="text-violet-300 font-semibold">Decole!</span>
+              </p>
+            </div>
+            <div className="shrink-0 text-center bg-violet-600/20 border border-violet-500/30 rounded-xl px-4 py-3">
+              <p className="text-violet-300 font-black text-2xl">{STAR_PER_USER}★</p>
+              <p className="text-white/30 text-[10px]">por usuário/mês</p>
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
           {PUBLIC_PLANS.map((plan) => (
@@ -1628,26 +1655,27 @@ const APP_COSTS: { name: string; cost: number; icon: string }[] = ALL_APPS
   .map((a) => ({ name: a.name, cost: a.cost, icon: a.icon }));
 
 function SimulatorSection({ isLoggedIn }: { isLoggedIn: boolean }) {
-  const [starsNeeded, setStarsNeeded] = useState(2000);
-  const MAX = 20000;
+  const [userCount,  setUserCount]  = useState(5);
+  const [appCount,   setAppCount]   = useState(3);
+  const MAX_USERS = 50;
+  const MAX_APPS  = APP_COSTS.length;
 
-  const pct = (starsNeeded / MAX) * 100;
+  // Total Stars needed = users * cost_per_user + sum of selected apps
+  const userStars = userCount * STAR_PER_USER;
+  const appStars  = APP_COSTS.slice(0, appCount).reduce((s, a) => s + a.cost, 0);
+  const totalStars = userStars + appStars;
+
+  const userPct = (userCount / MAX_USERS) * 100;
+  const appPct  = (appCount  / MAX_APPS)  * 100;
 
   const recommended = SIM_PLANS.reduce((acc, p) => {
-    if (starsNeeded >= p.min) return p;
+    if (totalStars >= p.min) return p;
     return acc;
   }, SIM_PLANS[0]);
 
-  const appsActive = APP_COSTS.filter((_, i) => {
-    let used = 0;
-    for (let j = 0; j <= i; j++) { used += APP_COSTS[j].cost; }
-    return used <= (recommended.stars || starsNeeded);
-  });
-
-  const starsRemaining = Math.max(0, (recommended.stars || 0) - APP_COSTS.slice(0, appsActive.length).reduce((s, a) => s + a.cost, 0));
-  const rolloverNext   = Math.floor(starsRemaining * (recommended.id === "constellation" ? .30 : recommended.id === "explore" ? .25 : recommended.id === "earth" ? .20 : 0));
-
-  const costPerContact = recommended.price === 0 ? 0 : +(recommended.price / 50).toFixed(2);
+  const starsBalance  = recommended.stars - totalStars;
+  const rolloverPct   = recommended.id === "constellation" ? .30 : recommended.id === "explore" ? .25 : recommended.id === "earth" ? .20 : 0;
+  const rolloverNext  = Math.max(0, Math.floor(starsBalance * rolloverPct));
 
   return (
     <section className="py-28 px-4 relative overflow-hidden border-t border-white/5">
@@ -1659,155 +1687,190 @@ function SimulatorSection({ isLoggedIn }: { isLoggedIn: boolean }) {
         <div className="flex justify-center mb-6">
           <div className="inline-flex items-center gap-2 bg-[#7C3AED]/15 border border-[#7C3AED]/30 rounded-full px-5 py-2">
             <BarChart2 className="size-3.5 text-violet-400" />
-            <span className="text-violet-300 text-sm font-semibold tracking-wide">Simulador de Plano</span>
+            <span className="text-violet-300 text-sm font-semibold tracking-wide">Simulador de Stars</span>
           </div>
         </div>
 
         <h2 className="text-4xl sm:text-5xl font-black text-white text-center mb-4 leading-tight">
           Descubra qual plano <span className="text-nasa">faz sentido para você</span>
         </h2>
-        <p className="text-white/40 text-center text-lg mb-16 max-w-xl mx-auto">
-          Arraste o slider para simular quantas Stars você precisa e veja qual plano é mais vantajoso.
+        <p className="text-white/40 text-center text-lg mb-12 max-w-xl mx-auto">
+          Ajuste usuários e integrações — veja o consumo de Stars em tempo real e qual plano cobre sua operação.
         </p>
 
-        {/* Slider */}
-        <div className="nasa-glass rounded-2xl border border-white/8 p-8 mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-white/50 text-sm font-medium">Stars necessárias por mês</p>
-            <div className="flex items-center gap-1.5">
-              <Star className="size-4 text-yellow-400 fill-yellow-400" />
-              <span className="text-white font-black text-xl">
-                {starsNeeded >= 1000
-                  ? `${(starsNeeded / 1000).toFixed(starsNeeded % 1000 === 0 ? 0 : 1)}K`
-                  : starsNeeded}
-              </span>
-              <span className="text-white/30 text-sm">stars</span>
+        {/* Two sliders */}
+        <div className="nasa-glass rounded-2xl border border-white/8 p-6 mb-6 space-y-6">
+          {/* Users slider */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Users className="size-4 text-violet-400" />
+                <p className="text-white/60 text-sm font-medium">Usuários ativos</p>
+              </div>
+              <div className="flex items-center gap-1.5 bg-violet-500/15 border border-violet-500/25 rounded-lg px-3 py-1">
+                <span className="text-violet-300 font-black text-base">{userCount}</span>
+                <span className="text-violet-400/50 text-xs">usuários × {STAR_PER_USER}★</span>
+                <span className="text-yellow-400 font-bold text-sm ml-1">= {userStars}★</span>
+              </div>
+            </div>
+            <input
+              type="range" min={1} max={MAX_USERS} step={1}
+              value={userCount}
+              onChange={(e) => setUserCount(Number(e.target.value))}
+              style={{ "--track-pct": `${userPct}%` } as React.CSSProperties}
+              className="w-full h-1.5 appearance-none rounded-full cursor-pointer outline-none"
+            />
+            <div className="flex justify-between text-[10px] text-white/20 mt-1">
+              <span>1 usuário</span><span>25 usuários</span><span>50 usuários</span>
             </div>
           </div>
 
-          <div className="relative mb-4">
+          {/* Apps slider */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Plug2 className="size-4 text-blue-400" />
+                <p className="text-white/60 text-sm font-medium">Integrações ativas</p>
+              </div>
+              <div className="flex items-center gap-1.5 bg-blue-500/15 border border-blue-500/25 rounded-lg px-3 py-1">
+                <span className="text-blue-300 font-black text-base">{appCount}</span>
+                <span className="text-blue-400/50 text-xs">apps</span>
+                <span className="text-yellow-400 font-bold text-sm ml-1">= {appStars}★</span>
+              </div>
+            </div>
             <input
-              type="range"
-              min={0} max={MAX} step={100}
-              value={starsNeeded}
-              onChange={(e) => setStarsNeeded(Number(e.target.value))}
-              style={{ "--track-pct": `${pct}%` } as React.CSSProperties}
-              className="w-full h-1.5 appearance-none rounded-full cursor-pointer outline-none nasa-slider-glow"
+              type="range" min={0} max={MAX_APPS} step={1}
+              value={appCount}
+              onChange={(e) => setAppCount(Number(e.target.value))}
+              style={{ "--track-pct": `${appPct}%` } as React.CSSProperties}
+              className="w-full h-1.5 appearance-none rounded-full cursor-pointer outline-none"
             />
+            <div className="flex justify-between text-[10px] text-white/20 mt-1">
+              <span>0 apps</span><span>{Math.floor(MAX_APPS/2)} apps</span><span>{MAX_APPS} apps</span>
+            </div>
           </div>
 
-          {/* Plan markers */}
-          <div className="flex justify-between text-[10px] text-white/25 mt-1">
-            <span>Suit (0)</span>
-            <span>Earth (1K)</span>
-            <span>Explore (3K)</span>
-            <span>Constellation (20K)</span>
+          {/* Total Stars needed */}
+          <div className="flex items-center justify-between bg-white/4 rounded-xl px-4 py-3 border border-white/6">
+            <div className="flex items-center gap-2 text-white/50 text-sm">
+              <Star className="size-3.5 text-yellow-400" />
+              Total de Stars necessárias
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-white/30 text-xs">{userStars}★ usuários + {appStars}★ apps =</span>
+              <span className="text-yellow-400 font-black text-xl">{totalStars.toLocaleString("pt-BR")} ★</span>
+            </div>
           </div>
         </div>
 
         {/* Result */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Recommended plan card */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Recommended plan */}
           <div className={cn("rounded-2xl border p-6 transition-all", recommended.bgClass, recommended.border)}>
+            <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-1">Plano recomendado</p>
             <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-1">Plano recomendado</p>
-                <p className="text-white font-black text-2xl">{recommended.label}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-white font-black text-2xl">
-                  {recommended.price === 0 ? (
-                    <span className="text-emerald-400">Grátis</span>
-                  ) : (
-                    <>R$ {recommended.price}<span className="text-white/30 text-sm font-normal">/mês</span></>
-                  )}
-                </p>
-              </div>
+              <p className="text-white font-black text-3xl">{recommended.label}</p>
+              <p className="text-white font-black text-2xl">
+                {recommended.price === 0
+                  ? <span className="text-emerald-400">Grátis</span>
+                  : <>R$ {recommended.price}<span className="text-white/30 text-sm font-normal">/mês</span></>}
+              </p>
             </div>
 
             <div className="grid grid-cols-3 gap-3 mb-4">
               {[
-                { label: "Stars/mês", value: recommended.stars >= 1000 ? `${recommended.stars / 1000}K` : recommended.stars === 0 ? "—" : recommended.stars, icon: Star },
-                { label: "Custo/contato", value: costPerContact === 0 ? "R$ 0" : `R$ ${costPerContact}`, icon: Users },
-                { label: "Rollover", value: recommended.id === "constellation" ? "30%" : recommended.id === "explore" ? "25%" : recommended.id === "earth" ? "20%" : "0%", icon: RefreshCw },
-              ].map(({ label, value, icon: Icon }) => (
+                { label: "Stars/mês",  value: recommended.stars === 0 ? "—" : recommended.stars >= 1000 ? `${recommended.stars/1000}K` : String(recommended.stars) },
+                { label: "Saldo livre",value: starsBalance >= 0 ? `+${starsBalance.toLocaleString("pt-BR")}★` : `${starsBalance.toLocaleString("pt-BR")}★` },
+                { label: "Rollover",   value: recommended.id === "constellation" ? "30%" : recommended.id === "explore" ? "25%" : recommended.id === "earth" ? "20%" : "0%" },
+              ].map(({ label, value }) => (
                 <div key={label} className="bg-white/5 rounded-xl p-3 text-center">
-                  <div className="text-white font-black text-base">{value}</div>
+                  <div className={cn("font-black text-base", label === "Saldo livre" && starsBalance < 0 ? "text-red-400" : "text-white")}>{value}</div>
                   <div className="text-white/30 text-[10px] mt-0.5">{label}</div>
                 </div>
               ))}
             </div>
 
-            {recommended.price > 0 && (
+            {starsBalance < 0 ? (
+              <div className="bg-red-500/10 border border-red-500/25 rounded-xl p-3 text-center">
+                <p className="text-red-400 text-[11px] font-semibold">
+                  ⚠️ Faltam {Math.abs(starsBalance).toLocaleString("pt-BR")} ★ — considere o plano acima ou compre Stars avulsas
+                </p>
+              </div>
+            ) : (
               <div className="bg-black/20 rounded-xl p-3 text-center">
                 <p className="text-white/40 text-[11px]">
-                  Stars restantes no fim do mês:
-                  <span className="text-yellow-400 font-bold ml-1">{starsRemaining.toLocaleString("pt-BR")} ★</span>
-                  {" "}→ rollover de
+                  Rollover para o próximo mês:
                   <span className="text-emerald-400 font-bold ml-1">{rolloverNext.toLocaleString("pt-BR")} ★</span>
-                  {" "}para o próximo ciclo
                 </p>
               </div>
             )}
           </div>
 
-          {/* Apps you can activate */}
-          <div className="nasa-glass rounded-2xl border border-white/8 p-6">
-            <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-4">
-              Integrações ativáveis com {recommended.label}
+          {/* Breakdown */}
+          <div className="nasa-glass rounded-2xl border border-white/8 p-6 space-y-3">
+            <p className="text-white/40 text-xs font-medium uppercase tracking-wider">
+              Detalhamento do consumo
             </p>
-            <div className="space-y-2">
-              {APP_COSTS.map((app, i) => {
-                const active = appsActive.find((a) => a.name === app.name);
-                return (
-                  <div
-                    key={app.name}
-                    className={cn(
-                      "flex items-center justify-between rounded-xl px-3 py-2 text-xs transition-all",
-                      active ? "bg-white/5 border border-white/8" : "opacity-30"
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>{app.icon}</span>
-                      <span className={active ? "text-white/70" : "text-white/30"}>{app.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-yellow-400/70">{app.cost} ★/mês</span>
-                      {active ? (
-                        <CheckCircle2 className="size-3.5 text-emerald-400" />
-                      ) : (
-                        <Lock className="size-3 text-white/20" />
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+
+            {/* Users */}
+            <div className="flex items-center justify-between bg-violet-500/8 border border-violet-500/15 rounded-xl px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <Users className="size-3.5 text-violet-400 shrink-0" />
+                <span className="text-white/70 text-xs">{userCount} usuário{userCount !== 1 ? "s" : ""} × {STAR_PER_USER}★</span>
+              </div>
+              <span className="text-violet-300 font-bold text-xs">{userStars} ★/mês</span>
+            </div>
+
+            {/* Apps list */}
+            {APP_COSTS.slice(0, appCount).map((app) => (
+              <div key={app.name} className="flex items-center justify-between bg-white/4 border border-white/6 rounded-xl px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-base leading-none">{app.icon}</span>
+                  <span className="text-white/60 text-xs">{app.name}</span>
+                </div>
+                <span className="text-yellow-400/70 text-xs font-semibold">{app.cost} ★/mês</span>
+              </div>
+            ))}
+
+            {appCount === 0 && (
+              <p className="text-white/20 text-xs text-center py-2">Nenhuma integração selecionada</p>
+            )}
+
+            <div className="border-t border-white/8 pt-3 flex items-center justify-between">
+              <span className="text-white/40 text-xs font-semibold">Total</span>
+              <span className="text-yellow-400 font-black text-base">{totalStars} ★/mês</span>
             </div>
           </div>
         </div>
 
-        {/* All plans comparison mini */}
+        {/* All plans comparison */}
         <div className="nasa-glass rounded-2xl border border-white/8 p-6">
-          <p className="text-white/30 text-xs font-medium uppercase tracking-widest mb-5 text-center">Comparativo rápido</p>
+          <p className="text-white/30 text-xs font-medium uppercase tracking-widest mb-5 text-center">Qual plano cobre sua operação?</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {SIM_PLANS.map((p) => {
-              const isRec = p.id === recommended.id;
+              const isRec     = p.id === recommended.id;
+              const covers    = p.stars >= totalStars;
+              const maxUsers  = p.stars > 0 ? Math.floor(p.stars / STAR_PER_USER) : 0;
               return (
                 <div key={p.id} className={cn(
                   "rounded-xl p-4 text-center border transition-all",
-                  isRec ? `${p.bgClass} ${p.border} scale-[1.03]` : "border-white/5 opacity-50"
+                  isRec ? `${p.bgClass} ${p.border} scale-[1.03]` : covers ? "border-white/8 opacity-70" : "border-white/4 opacity-35"
                 )}>
-                  <p className="text-white font-bold text-sm mb-1">{p.label}</p>
-                  <p className="text-white font-black text-lg">
+                  <p className="text-white font-bold text-sm mb-0.5">{p.label}</p>
+                  <p className="text-white font-black text-base">
                     {p.price === 0 ? <span className="text-emerald-400">Grátis</span> : `R$ ${p.price}`}
                   </p>
-                  <p className="text-white/30 text-[10px]">
-                    {p.stars === 0 ? "sem stars" : `${p.stars >= 1000 ? p.stars / 1000 + "K" : p.stars} stars/mês`}
+                  <p className="text-white/30 text-[10px] mt-0.5">
+                    {p.stars === 0 ? "sem stars" : `${p.stars >= 1000 ? p.stars/1000+"K" : p.stars} ★/mês`}
+                  </p>
+                  <p className="text-violet-400/70 text-[10px]">
+                    {p.stars > 0 ? `~${maxUsers} usuários` : "0 usuários"}
                   </p>
                   {isRec && (
-                    <div className="mt-2 text-[10px] font-bold" style={{ color: p.color }}>
-                      ← Recomendado
-                    </div>
+                    <div className="mt-1.5 text-[10px] font-bold" style={{ color: p.color }}>✓ Recomendado</div>
+                  )}
+                  {!covers && p.stars > 0 && !isRec && (
+                    <div className="mt-1.5 text-[10px] text-white/20">Insuficiente</div>
                   )}
                 </div>
               );

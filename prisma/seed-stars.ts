@@ -82,12 +82,13 @@ const APP_CATALOG = [
 ];
 
 async function main() {
-  // ── Plans ──────────────────────────────────────────────────────────────────
+  // ── Plans — usuários ilimitados em todos os planos ────────────────────────
+  // maxUsers = 999999 = ilimitado; custo por usuário = 30★/mês (user-seat)
   const plans = [
-    { slug: "suit",         name: "Suit",         monthlyStars: 0,     priceMonthly: 0,   maxUsers: 3,   rolloverPct: 0  },
-    { slug: "earth",        name: "Earth",        monthlyStars: 1000,  priceMonthly: 197, maxUsers: 5,   rolloverPct: 20 },
-    { slug: "explore",      name: "Explore",      monthlyStars: 3000,  priceMonthly: 397, maxUsers: 15,  rolloverPct: 25 },
-    { slug: "constellation",name: "Constellation",monthlyStars: 20000, priceMonthly: 797, maxUsers: 999, rolloverPct: 30 },
+    { slug: "suit",         name: "Suit",         monthlyStars: 0,     priceMonthly: 0,   maxUsers: 999999, rolloverPct: 0  },
+    { slug: "earth",        name: "Earth",        monthlyStars: 1000,  priceMonthly: 197, maxUsers: 999999, rolloverPct: 20 },
+    { slug: "explore",      name: "Explore",      monthlyStars: 3000,  priceMonthly: 397, maxUsers: 999999, rolloverPct: 25 },
+    { slug: "constellation",name: "Constellation",monthlyStars: 20000, priceMonthly: 797, maxUsers: 999999, rolloverPct: 30 },
   ];
 
   for (const plan of plans) {
@@ -116,6 +117,16 @@ async function main() {
   }
 
   // ── App star costs ─────────────────────────────────────────────────────────
+  // Custo por usuário ativo/mês (regra global)
+  await prisma.appStarCost.upsert({
+    where:  { appSlug: "user-seat" },
+    update: { monthlyCost: 30, displayName: "Usuário Ativo", iconEmoji: "👤", category: "platform",
+              description: "Cada usuário ativo custa 30★/mês. Usuários ilimitados em qualquer plano.", isPublic: false },
+    create: { appSlug: "user-seat", monthlyCost: 30, setupCost: 0,
+              displayName: "Usuário Ativo", iconEmoji: "👤", category: "platform",
+              description: "Cada usuário ativo custa 30★/mês. Usuários ilimitados em qualquer plano.", isPublic: false },
+  });
+
   for (const app of APP_CATALOG) {
     await prisma.appStarCost.upsert({
       where:  { appSlug: app.appSlug },
