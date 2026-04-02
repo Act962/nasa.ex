@@ -10,6 +10,10 @@ export const getColumnsByWorkspace = base
   .input(
     z.object({
       workspaceId: z.string().min(1, "Workspace é obrigatório"),
+      participantIds: z.array(z.string()).optional().default([]),
+      tagIds: z.array(z.string()).optional().default([]),
+      dueDateFrom: z.coerce.date().nullable().optional(),
+      dueDateTo: z.coerce.date().nullable().optional(),
     }),
   )
   .handler(async ({ input, context, errors }) => {
@@ -46,17 +50,27 @@ export const getColumnsByWorkspace = base
             actions: {
               where: {
                 isArchived: false,
+                ...(input.participantIds.length > 0 && {
+                  participants: {
+                    some: { userId: { in: input.participantIds } },
+                  },
+                }),
+                ...(input.tagIds.length > 0 && {
+                  tags: { some: { tagId: { in: input.tagIds } } },
+                }),
+                ...((input.dueDateFrom || input.dueDateTo) && {
+                  dueDate: {
+                    ...(input.dueDateFrom && { gte: input.dueDateFrom }),
+                    ...(input.dueDateTo && { lte: input.dueDateTo }),
+                  },
+                }),
                 ...(isMember
                   ? {
                       OR: [
-                        {
-                          createdBy: context.user.id,
-                        },
+                        { createdBy: context.user.id },
                         {
                           participants: {
-                            some: {
-                              userId: context.user.id,
-                            },
+                            some: { userId: context.user.id },
                           },
                         },
                       ],

@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import {
-  FilterIcon,
   UserIcon,
   TagIcon,
   CalendarIcon,
@@ -25,19 +23,24 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
-import { useListTags, useWorkspaceMembers } from "@/features/workspace/hooks/use-workspace";
+import { useState } from "react";
+import { type DateRange } from "react-day-picker";
+import { pt } from "react-day-picker/locale";
+import dayjs from "dayjs";
+import {
+  useListTags,
+  useWorkspaceMembers,
+} from "@/features/workspace/hooks/use-workspace";
+import { useActionFilters } from "../hooks/use-action-filters";
 
-export interface FiltersState {
-  participantIds: string[];
-  tagIds: string[];
-  dueDateFrom: Date | null;
-  dueDateTo: Date | null;
-  sortBy: "createdAt" | "dueDate" | "priority" | "title";
-  sortOrder: "asc" | "desc";
-}
+const DATE_INTERVALS = [
+  { label: "Hoje",         from: () => dayjs().toDate(),                  to: () => dayjs().toDate() },
+  { label: "Semana",       from: () => dayjs().day(0).toDate(),           to: () => dayjs().day(6).toDate() },
+  { label: "Mês",          from: () => dayjs().startOf("month").toDate(), to: () => dayjs().endOf("month").toDate() },
+  { label: "Ano",          from: () => dayjs().startOf("year").toDate(),  to: () => dayjs().endOf("year").toDate() },
+  { label: "Últimos 7d",   from: () => dayjs().subtract(6, "day").toDate(), to: () => dayjs().toDate() },
+  { label: "Últimos 30d",  from: () => dayjs().subtract(29, "day").toDate(), to: () => dayjs().toDate() },
+];
 
 const SORT_OPTIONS = [
   { value: "createdAt", label: "Data de criação" },
@@ -48,44 +51,59 @@ const SORT_OPTIONS = [
 
 interface Props {
   workspaceId: string;
-  filters: FiltersState;
-  onFiltersChange: (filters: FiltersState) => void;
 }
 
-export const DEFAULT_FILTERS: FiltersState = {
-  participantIds: [],
-  tagIds: [],
-  dueDateFrom: null,
-  dueDateTo: null,
-  sortBy: "createdAt",
-  sortOrder: "desc",
-};
-
-export function FiltersBar({ workspaceId, filters, onFiltersChange }: Props) {
+export function FiltersBar({ workspaceId }: Props) {
   const { tags } = useListTags(workspaceId);
   const { members } = useWorkspaceMembers(workspaceId);
+  const { filters, setFilters, activeCount, clearFilters } = useActionFilters();
 
-  const activeCount = [
-    filters.participantIds.length > 0,
-    filters.tagIds.length > 0,
-    filters.dueDateFrom || filters.dueDateTo,
-    filters.sortBy !== "createdAt" || filters.sortOrder !== "desc",
-  ].filter(Boolean).length;
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [pendingRange, setPendingRange] = useState<DateRange | undefined>(
+    undefined,
+  );
 
-  const clearAll = () => onFiltersChange(DEFAULT_FILTERS);
+  const handleCalendarOpen = (open: boolean) => {
+    if (open) {
+      setPendingRange({
+        from: filters.dueDateFrom ?? undefined,
+        to: filters.dueDateTo ?? undefined,
+      });
+    }
+    setCalendarOpen(open);
+  };
+
+  const handleApplyDate = () => {
+    setFilters({
+      ...filters,
+      dueDateFrom: pendingRange?.from
+        ? dayjs(pendingRange.from).startOf("day").toDate()
+        : null,
+      dueDateTo: pendingRange?.to
+        ? dayjs(pendingRange.to).endOf("day").toDate()
+        : null,
+    });
+    setCalendarOpen(false);
+  };
+
+  const handleResetDate = () => {
+    setPendingRange(undefined);
+    setFilters({ ...filters, dueDateFrom: null, dueDateTo: null });
+    setCalendarOpen(false);
+  };
 
   const toggleParticipant = (id: string) => {
     const ids = filters.participantIds.includes(id)
       ? filters.participantIds.filter((x) => x !== id)
       : [...filters.participantIds, id];
-    onFiltersChange({ ...filters, participantIds: ids });
+    setFilters({ ...filters, participantIds: ids });
   };
 
   const toggleTag = (id: string) => {
     const ids = filters.tagIds.includes(id)
       ? filters.tagIds.filter((x) => x !== id)
       : [...filters.tagIds, id];
-    onFiltersChange({ ...filters, tagIds: ids });
+    setFilters({ ...filters, tagIds: ids });
   };
 
   return (
@@ -95,14 +113,18 @@ export function FiltersBar({ workspaceId, filters, onFiltersChange }: Props) {
         <Popover>
           <PopoverTrigger asChild>
             <Button
-              variant={filters.participantIds.length > 0 ? "secondary" : "outline"}
+              variant={
+                filters.participantIds.length > 0 ? "secondary" : "outline"
+              }
               size="sm"
               className="h-7 gap-1.5 text-xs"
             >
               <UserIcon className="size-3" />
               Participantes
               {filters.participantIds.length > 0 && (
-                <Badge className="h-4 min-w-4 px-1 text-[10px]">{filters.participantIds.length}</Badge>
+                <Badge className="h-4 min-w-4 px-1 text-[10px]">
+                  {filters.participantIds.length}
+                </Badge>
               )}
             </Button>
           </PopoverTrigger>
@@ -121,10 +143,16 @@ export function FiltersBar({ workspaceId, filters, onFiltersChange }: Props) {
                   >
                     <Avatar className="size-5">
                       <AvatarImage src={m.user.image || ""} />
-                      <AvatarFallback className="text-[9px]">{m.user.name[0]}</AvatarFallback>
+                      <AvatarFallback className="text-[9px]">
+                        {m.user.name[0]}
+                      </AvatarFallback>
                     </Avatar>
-                    <span className="flex-1 text-xs text-left truncate">{m.user.name}</span>
-                    {active && <span className="text-primary text-xs font-bold">✓</span>}
+                    <span className="flex-1 text-xs text-left truncate">
+                      {m.user.name}
+                    </span>
+                    {active && (
+                      <span className="text-primary text-xs font-bold">✓</span>
+                    )}
                   </button>
                 );
               })}
@@ -145,7 +173,9 @@ export function FiltersBar({ workspaceId, filters, onFiltersChange }: Props) {
               <TagIcon className="size-3" />
               Etiquetas
               {filters.tagIds.length > 0 && (
-                <Badge className="h-4 min-w-4 px-1 text-[10px]">{filters.tagIds.length}</Badge>
+                <Badge className="h-4 min-w-4 px-1 text-[10px]">
+                  {filters.tagIds.length}
+                </Badge>
               )}
             </Button>
           </PopoverTrigger>
@@ -162,9 +192,14 @@ export function FiltersBar({ workspaceId, filters, onFiltersChange }: Props) {
                     onClick={() => toggleTag(tag.id)}
                     className="flex items-center gap-2 w-full p-1.5 rounded-md hover:bg-muted transition-colors"
                   >
-                    <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
+                    <span
+                      className="size-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: tag.color }}
+                    />
                     <span className="flex-1 text-xs text-left">{tag.name}</span>
-                    {active && <span className="text-primary text-xs font-bold">✓</span>}
+                    {active && (
+                      <span className="text-primary text-xs font-bold">✓</span>
+                    )}
                   </button>
                 );
               })}
@@ -174,47 +209,65 @@ export function FiltersBar({ workspaceId, filters, onFiltersChange }: Props) {
       )}
 
       {/* Date range filter */}
-      <Popover>
+      <Popover open={calendarOpen} onOpenChange={handleCalendarOpen}>
         <PopoverTrigger asChild>
           <Button
-            variant={(filters.dueDateFrom || filters.dueDateTo) ? "secondary" : "outline"}
+            variant={
+              filters.dueDateFrom || filters.dueDateTo ? "secondary" : "outline"
+            }
             size="sm"
             className="h-7 gap-1.5 text-xs"
           >
             <CalendarIcon className="size-3" />
-            {filters.dueDateFrom || filters.dueDateTo
-              ? `${filters.dueDateFrom ? format(filters.dueDateFrom, "dd/MM", { locale: ptBR }) : "..."} – ${filters.dueDateTo ? format(filters.dueDateTo, "dd/MM", { locale: ptBR }) : "..."}`
-              : "Calendário"}
+            Calendário
+            {(filters.dueDateFrom || filters.dueDateTo) && (
+              <span className="text-muted-foreground">
+                {`${filters.dueDateFrom ? dayjs(filters.dueDateFrom).format("DD/MM") : "..."} – ${filters.dueDateTo ? dayjs(filters.dueDateTo).format("DD/MM") : "..."}`}
+              </span>
+            )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <div className="p-3 border-b">
-            <p className="text-xs font-medium">Período de prazo</p>
-          </div>
-          <Calendar
-            mode="range"
-            selected={{ from: filters.dueDateFrom ?? undefined, to: filters.dueDateTo ?? undefined }}
-            onSelect={(range) =>
-              onFiltersChange({
-                ...filters,
-                dueDateFrom: range?.from ?? null,
-                dueDateTo: range?.to ?? null,
-              })
-            }
-            locale={ptBR}
-          />
-          {(filters.dueDateFrom || filters.dueDateTo) && (
-            <div className="p-2 border-t">
+        <PopoverContent
+          align="start"
+          className="p-0 border rounded-lg shadow-sm w-fit flex overflow-hidden"
+        >
+          <div className="hidden md:flex flex-col gap-0.5 border-r border-border w-36 px-2 py-2">
+            {DATE_INTERVALS.map((interval) => (
               <Button
+                key={interval.label}
                 variant="ghost"
                 size="sm"
-                className="h-7 text-xs w-full"
-                onClick={() => onFiltersChange({ ...filters, dueDateFrom: null, dueDateTo: null })}
+                className="justify-start text-xs"
+                onClick={() =>
+                  setPendingRange({ from: interval.from(), to: interval.to() })
+                }
               >
-                Limpar datas
+                {interval.label}
+              </Button>
+            ))}
+          </div>
+          <div className="bg-background">
+            <Calendar
+              mode="range"
+              defaultMonth={pendingRange?.from}
+              selected={pendingRange}
+              onSelect={setPendingRange}
+              numberOfMonths={2}
+              locale={pt}
+              timeZone="America/Sao_Paulo"
+              className="border-none"
+            />
+            <div className="flex justify-end gap-2 p-2 border-t">
+              {(filters.dueDateFrom || filters.dueDateTo) && (
+                <Button variant="outline" size="sm" onClick={handleResetDate}>
+                  Resetar
+                </Button>
+              )}
+              <Button size="sm" onClick={handleApplyDate}>
+                Aplicar
               </Button>
             </div>
-          )}
+          </div>
         </PopoverContent>
       </Popover>
 
@@ -222,7 +275,11 @@ export function FiltersBar({ workspaceId, filters, onFiltersChange }: Props) {
       <Popover>
         <PopoverTrigger asChild>
           <Button
-            variant={(filters.sortBy !== "createdAt" || filters.sortOrder !== "desc") ? "secondary" : "outline"}
+            variant={
+              filters.sortBy !== "createdAt" || filters.sortOrder !== "desc"
+                ? "secondary"
+                : "outline"
+            }
             size="sm"
             className="h-7 gap-1.5 text-xs"
           >
@@ -232,17 +289,25 @@ export function FiltersBar({ workspaceId, filters, onFiltersChange }: Props) {
         </PopoverTrigger>
         <PopoverContent className="w-52 p-3 space-y-3" align="start">
           <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Ordenar por</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              Ordenar por
+            </p>
             <Select
               value={filters.sortBy}
-              onValueChange={(v) => onFiltersChange({ ...filters, sortBy: v as any })}
+              onValueChange={(v) =>
+                setFilters({ ...filters, sortBy: v as typeof filters.sortBy })
+              }
             >
               <SelectTrigger className="h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {SORT_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                  <SelectItem
+                    key={opt.value}
+                    value={opt.value}
+                    className="text-xs"
+                  >
                     {opt.label}
                   </SelectItem>
                 ))}
@@ -258,7 +323,7 @@ export function FiltersBar({ workspaceId, filters, onFiltersChange }: Props) {
                   variant={filters.sortOrder === o ? "default" : "outline"}
                   size="sm"
                   className="flex-1 h-7 text-xs"
-                  onClick={() => onFiltersChange({ ...filters, sortOrder: o })}
+                  onClick={() => setFilters({ ...filters, sortOrder: o })}
                 >
                   {o === "asc" ? "Crescente" : "Decrescente"}
                 </Button>
@@ -274,7 +339,7 @@ export function FiltersBar({ workspaceId, filters, onFiltersChange }: Props) {
           variant="ghost"
           size="sm"
           className="h-7 gap-1 text-xs text-muted-foreground hover:text-destructive"
-          onClick={clearAll}
+          onClick={clearFilters}
         >
           <XIcon className="size-3" />
           Limpar ({activeCount})

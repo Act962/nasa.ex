@@ -28,7 +28,8 @@ import { useReorderAction } from "../../hooks/use-tasks";
 import { useActionKanbanStore } from "../../lib/kanban-store";
 import { Action } from "../../types";
 import { useUpdateColumnOrder } from "../../hooks/use-columns";
-import { useSuspenseColumnsByWorkspace } from "@/features/workspace/hooks/use-workspace";
+import { useColumnsByWorkspace } from "@/features/workspace/hooks/use-workspace";
+import { useActionFilters } from "../../hooks/use-action-filters";
 
 interface Props {
   workspaceId: string;
@@ -43,8 +44,14 @@ export const DataKanban = ({ workspaceId }: Props) => {
 };
 
 const KanbanBoard = ({ workspaceId }: Props) => {
-  const { data: columnData, isLoading: isColumnsLoading } =
-    useSuspenseColumnsByWorkspace(workspaceId);
+  const { filters } = useActionFilters();
+  const { columns: fetchedColumns, isLoading: isColumnsLoading } =
+    useColumnsByWorkspace(workspaceId, {
+      participantIds: filters.participantIds,
+      tagIds: filters.tagIds,
+      dueDateFrom: filters.dueDateFrom,
+      dueDateTo: filters.dueDateTo,
+    });
   const reorderAction = useReorderAction();
   const reorderColumn = useUpdateColumnOrder();
 
@@ -80,15 +87,15 @@ const KanbanBoard = ({ workspaceId }: Props) => {
   );
 
   useEffect(() => {
-    if (!columnData?.columns || isDragging) return;
+    if (!fetchedColumns.length || isDragging) return;
 
     const currentIds = columnList.map((c) => c.id).join(",");
-    const nextIds = columnData.columns.map((c) => c.id).join(",");
+    const nextIds = fetchedColumns.map((c) => c.id).join(",");
 
     if (currentIds !== nextIds) {
-      setColumnList(columnData.columns);
+      setColumnList(fetchedColumns);
     }
-  }, [columnData?.columns, setColumnList, isDragging, columnList]);
+  }, [fetchedColumns, setColumnList, isDragging, columnList]);
 
   const columnIds = useMemo(() => columnList.map((c) => c.id), [columnList]);
 
@@ -174,7 +181,7 @@ const KanbanBoard = ({ workspaceId }: Props) => {
         });
       }
     },
-    [columnData, columnList, reorderAction, reorderColumn, setIsDragging],
+    [columnList, reorderAction, reorderColumn, setIsDragging],
   );
 
   const onDragOver = useCallback(
