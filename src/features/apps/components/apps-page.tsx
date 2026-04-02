@@ -20,6 +20,7 @@ import {
   Rocket,
   Flame,
   PanelLeft,
+  PanelLeftIcon,
 } from "lucide-react";
 import { StarsWidget } from "@/features/stars";
 import { SpacePointWidget } from "@/features/space-point";
@@ -28,11 +29,7 @@ import {
   useSetSidebarPref,
   isItemVisible,
 } from "@/hooks/use-sidebar-prefs";
-import {
-  useSidebarPrefs,
-  useSetSidebarPref,
-  isItemVisible,
-} from "@/hooks/use-sidebar-prefs";
+
 import { SIDEBAR_NAV_ITEMS, APP_TO_SIDEBAR_KEY } from "@/lib/sidebar-items";
 import { useSuspenseWokspaces } from "@/features/workspace/hooks/use-workspace";
 import { Suspense } from "react";
