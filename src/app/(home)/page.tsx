@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -151,6 +151,41 @@ const STYLES = `
   .nasa-star-pop   { animation: nasaStarPop .6s cubic-bezier(.34,1.56,.64,1) forwards; }
   .nasa-level-up   { animation: nasaLevelUp 2.5s ease-in-out infinite; }
   .nasa-slider-glow{ animation: nasaSliderGlow 3s ease-in-out infinite; }
+
+  @keyframes nasaWave {
+    0%,100% { transform: scaleY(1); }
+    50%     { transform: scaleY(2.5); }
+  }
+  @keyframes nasaPopIn {
+    from { opacity:0; transform:scale(.85) translateY(6px); }
+    to   { opacity:1; transform:scale(1) translateY(0); }
+  }
+  @keyframes nasaTypingDot {
+    0%,80%,100% { transform: scale(0); opacity:.3; }
+    40%         { transform: scale(1);  opacity:1; }
+  }
+  @keyframes nasaDataFlow {
+    0%   { stroke-dashoffset: 60; opacity:0; }
+    20%  { opacity:1; }
+    100% { stroke-dashoffset: 0;  opacity:1; }
+  }
+  @keyframes nasaFadeRight {
+    from { opacity:0; transform:translateX(-8px); }
+    to   { opacity:1; transform:translateX(0); }
+  }
+  @keyframes nasaBarRise {
+    from { transform: scaleY(0); opacity:0; }
+    to   { transform: scaleY(1); opacity:1; }
+  }
+
+  .nasa-pop-in    { animation: nasaPopIn .4s cubic-bezier(.34,1.56,.64,1) forwards; }
+  .nasa-fade-right{ animation: nasaFadeRight .4s ease-out forwards; }
+  .bar-rise       { animation: nasaBarRise .6s ease-out forwards; }
+  .wave-bar       { animation: nasaWave 1.1s ease-in-out infinite; }
+
+  .dot-bounce-1 { animation: nasaTypingDot 1.2s ease-in-out infinite; }
+  .dot-bounce-2 { animation: nasaTypingDot 1.2s ease-in-out .2s infinite; }
+  .dot-bounce-3 { animation: nasaTypingDot 1.2s ease-in-out .4s infinite; }
 
   .plan-card-highlight {
     background: linear-gradient(145deg, rgba(124,58,237,.12) 0%, rgba(168,85,247,.06) 100%);
@@ -896,42 +931,224 @@ function AppsSection() {
   );
 }
 
+// ─── ASTRO Animated Chat Mock ─────────────────────────────────────────────────
+
+type AstroStep = "idle" | "audio" | "thinking" | "agenda" | "proposal_cmd" | "thinking2" | "proposal";
+
+function AstroAnimatedMock() {
+  const [step, setStep] = useState<AstroStep>("idle");
+
+  useEffect(() => {
+    const timeline: Array<{ from: AstroStep; to: AstroStep; delay: number }> = [
+      { from: "idle", to: "audio", delay: 1200 },
+      { from: "audio", to: "thinking", delay: 1800 },
+      { from: "thinking", to: "agenda", delay: 2000 },
+      { from: "agenda", to: "proposal_cmd", delay: 2800 },
+      { from: "proposal_cmd", to: "thinking2", delay: 1500 },
+      { from: "thinking2", to: "proposal", delay: 2200 },
+    ];
+
+    let t: ReturnType<typeof setTimeout>;
+    let cur = 0;
+
+    function run() {
+      const entry = timeline[cur];
+      t = setTimeout(() => {
+        setStep(entry.to);
+        cur++;
+        if (cur < timeline.length) {
+          run();
+        } else {
+          // loop: reset after 4 s
+          t = setTimeout(() => {
+            setStep("idle");
+            cur = 0;
+            run();
+          }, 4000);
+        }
+      }, entry.delay);
+    }
+
+    run();
+    return () => clearTimeout(t);
+  }, []);
+
+  const show = (s: AstroStep) => step === s || (
+    s === "audio" && ["audio","thinking","agenda","proposal_cmd","thinking2","proposal"].includes(step)
+  );
+
+  const showThinking = step === "thinking";
+  const showThinking2 = step === "thinking2";
+  const showAgenda = ["agenda","proposal_cmd","thinking2","proposal"].includes(step);
+  const showProposalCmd = ["proposal_cmd","thinking2","proposal"].includes(step);
+  const showProposal = step === "proposal";
+
+  return (
+    <MacWindow title="ASTRO — Assistente de IA">
+      <div className="p-3 space-y-2 bg-[#0d0a1a] overflow-hidden" style={{ minHeight: 320 }}>
+        {/* Welcome */}
+        <div className="bg-[#7C3AED]/10 border border-[#7C3AED]/20 rounded-xl rounded-tl-sm p-3 nasa-pop-in">
+          <p className="text-white/70 text-xs leading-relaxed">
+            👋 Olá! Sou o <strong className="text-[#a78bfa]">ASTRO</strong>. Como posso ajudar hoje?
+          </p>
+        </div>
+
+        {/* User: audio message */}
+        {show("audio") && (
+          <div className="flex justify-end nasa-pop-in">
+            <div className="bg-white/6 border border-white/10 rounded-xl rounded-tr-sm p-3 flex items-center gap-2">
+              <div className="flex items-end gap-[2px] h-4">
+                {[1,2,3,4,5,3,2].map((h, i) => (
+                  <div
+                    key={i}
+                    className="w-[3px] rounded-full bg-[#a78bfa] wave-bar"
+                    style={{ height: `${h * 3}px`, animationDelay: `${i * 0.12}s` }}
+                  />
+                ))}
+              </div>
+              <span className="text-white/50 text-[10px]">0:04</span>
+            </div>
+          </div>
+        )}
+
+        {/* ASTRO thinking 1 */}
+        {showThinking && (
+          <div className="nasa-pop-in">
+            <div className="bg-[#7C3AED]/10 border border-[#7C3AED]/20 rounded-xl rounded-tl-sm p-3 inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#a78bfa] dot-bounce-1" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#a78bfa] dot-bounce-2" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#a78bfa] dot-bounce-3" />
+            </div>
+          </div>
+        )}
+
+        {/* Agenda created */}
+        {showAgenda && (
+          <div className="bg-[#7C3AED]/10 border border-[#7C3AED]/20 rounded-xl rounded-tl-sm p-3 nasa-pop-in">
+            <p className="text-[#a78bfa] text-[10px] font-semibold mb-1.5">✅ Agenda criada com sucesso</p>
+            <div className="bg-black/30 rounded-lg p-2 space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                <span className="text-white/60 text-[10px]">Reunião com João · Amanhã 14h</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" />
+                <span className="text-white/60 text-[10px]">Follow-up proposta · Sex 10h</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* User: proposal command */}
+        {showProposalCmd && (
+          <div className="flex justify-end nasa-pop-in">
+            <div className="bg-white/6 border border-white/10 rounded-xl rounded-tr-sm p-3 max-w-[80%]">
+              <p className="text-white/60 text-xs">Gera uma proposta para o João — R$2.400/mês</p>
+            </div>
+          </div>
+        )}
+
+        {/* ASTRO thinking 2 */}
+        {showThinking2 && (
+          <div className="nasa-pop-in">
+            <div className="bg-[#7C3AED]/10 border border-[#7C3AED]/20 rounded-xl rounded-tl-sm p-3 inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#a78bfa] dot-bounce-1" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#a78bfa] dot-bounce-2" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#a78bfa] dot-bounce-3" />
+            </div>
+          </div>
+        )}
+
+        {/* Proposal created */}
+        {showProposal && (
+          <div className="bg-[#7C3AED]/10 border border-[#7C3AED]/20 rounded-xl rounded-tl-sm p-3 nasa-pop-in">
+            <p className="text-[#a78bfa] text-[10px] font-semibold mb-2">📄 Proposta gerada — pronta para enviar</p>
+            <div className="bg-black/30 rounded-lg p-2.5 border border-white/8">
+              <p className="text-white/70 text-[10px] font-medium mb-1">Proposta Comercial — João Silva</p>
+              <p className="text-white/40 text-[9px] leading-relaxed">Plano NASA Explore · 3 usuários · WhatsApp + CRM + Insights</p>
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-emerald-400 text-[10px] font-bold">R$ 2.400/mês</span>
+                <span className="bg-emerald-500/20 text-emerald-400 text-[9px] px-2 py-0.5 rounded-full border border-emerald-500/30">Pronta p/ envio</span>
+              </div>
+            </div>
+            <div className="mt-2 flex gap-1.5">
+              {["📤 Enviar por WhatsApp", "📋 Copiar link"].map((l) => (
+                <div key={l} className="bg-[#7C3AED]/20 border border-[#7C3AED]/30 rounded-full px-2 py-1 text-[9px] text-[#c4b5fd]">{l}</div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </MacWindow>
+  );
+}
+
+// ─── AI Model Logos ───────────────────────────────────────────────────────────
+function AiModelBadge({ name, color, letter }: { name: string; color: string; letter: string }) {
+  return (
+    <div className="flex items-center gap-2 bg-white/4 border border-white/8 rounded-xl px-3 py-2">
+      <div
+        className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-black shrink-0"
+        style={{ background: color }}
+      >
+        {letter}
+      </div>
+      <span className="text-white/60 text-xs font-medium">{name}</span>
+    </div>
+  );
+}
+
 function AstroSection() {
   return (
-    <section className="py-24 px-4">
+    <section className="py-24 px-4 relative">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#7C3AED]/4 to-transparent pointer-events-none" />
       <div className="max-w-6xl mx-auto">
+        {/* Section header */}
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 bg-[#7C3AED]/12 border border-[#7C3AED]/30 rounded-full px-5 py-2 mb-6">
+            <Bot className="size-3.5 text-[#a78bfa]" />
+            <span className="text-[#c4b5fd] text-sm font-medium">IA nativa no NASA</span>
+          </div>
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white mb-5">
+            Conheça o <span className="text-nasa">ASTRO</span>
+          </h2>
+          <p className="text-white/45 text-xl max-w-2xl mx-auto">
+            A maior IA de vendas do Brasil — une os melhores modelos do mundo em um único assistente nativo.
+          </p>
+        </div>
+
         <div className="relative rounded-3xl border border-[#7C3AED]/25 overflow-hidden nasa-glass p-8 md:p-12">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-[#7C3AED]/12 blur-[120px] pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full bg-[#a855f7]/8 blur-[80px] pointer-events-none" />
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-[#7C3AED]/10 blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full bg-[#a855f7]/7 blur-[80px] pointer-events-none" />
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#7C3AED]/50 to-transparent" />
 
-          <div className="relative z-10 flex flex-col lg:flex-row items-center gap-12">
-            {/* Left */}
-            <div className="flex-1 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 bg-[#7C3AED]/15 border border-[#7C3AED]/30 rounded-full px-4 py-1.5 mb-6">
-                <Bot className="size-3.5 text-[#a78bfa]" />
-                <span className="text-[#c4b5fd] text-sm font-medium">IA nativa no NASA</span>
+          <div className="relative z-10 flex flex-col lg:flex-row items-start gap-12">
+            {/* Left col */}
+            <div className="flex-1">
+              {/* AI model logos */}
+              <p className="text-white/30 text-xs uppercase tracking-widest font-medium mb-3">Movido por</p>
+              <div className="flex flex-wrap gap-2 mb-8">
+                <AiModelBadge name="Claude · Anthropic" color="#D97757" letter="C" />
+                <AiModelBadge name="Gemini · Google" color="#4285F4" letter="G" />
+                <AiModelBadge name="GPT-4o · OpenAI" color="#10A37F" letter="O" />
               </div>
-              <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
-                Conheça o <span className="text-nasa">ASTRO</span>
-              </h2>
-              <p className="text-white/50 text-lg mb-8 leading-relaxed max-w-lg">
-                Seu assistente de Inteligência Artificial que domina o Método NASA de ponta a ponta.
-                Instala integrações, sugere ações e guia seu time para fechar mais negócios.
-              </p>
-              <ul className="space-y-3.5 mb-8">
+
+              <ul className="space-y-4 mb-8">
                 {[
-                  "Instala integrações por texto ou voz",
-                  "Conhece todo o Método N.A.S.A.® e guia o usuário",
-                  "Sugere ações baseadas nos seus dados reais",
-                  "Navega pela plataforma e cria atalhos inteligentes",
+                  { icon: "🎙️", text: "Envia áudio e o ASTRO entende, cria agenda e proposta automaticamente" },
+                  { icon: "📄", text: "Gera propostas comerciais personalizadas em segundos" },
+                  { icon: "📅", text: "Agenda reuniões e follow-ups direto no calendário" },
+                  { icon: "🔌", text: "Instala integrações por comando de voz ou texto" },
+                  { icon: "🧭", text: "Conhece o Método N.A.S.A.® e guia seu time passo a passo" },
+                  { icon: "📊", text: "Sugere ações baseadas nos seus dados reais de pipeline" },
                 ].map((item) => (
-                  <li key={item} className="flex items-center gap-3 text-white/65">
-                    <CheckCircle2 className="size-4 text-[#a78bfa] shrink-0" />
-                    <span className="text-sm">{item}</span>
+                  <li key={item.text} className="flex items-start gap-3 text-white/65">
+                    <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                    <span className="text-sm leading-relaxed">{item.text}</span>
                   </li>
                 ))}
               </ul>
+
               <Button
                 asChild
                 className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-7 py-5 rounded-xl card-hover nasa-glow-sm"
@@ -943,57 +1160,208 @@ function AstroSection() {
               </Button>
             </div>
 
-            {/* Right: ASTRO chat mock */}
-            <div className="w-full lg:w-96 shrink-0 nasa-float-d2">
-              <MacWindow title="ASTRO — Assistente de IA">
-                <div className="p-3 space-y-2.5 bg-[#0d0a1a]" style={{ minHeight: 280 }}>
-                  <div className="bg-[#7C3AED]/10 border border-[#7C3AED]/20 rounded-xl rounded-tl-sm p-3">
-                    <p className="text-white/70 text-xs leading-relaxed">
-                      👋 Olá! Sou o <strong className="text-[#a78bfa]">ASTRO</strong>, seu assistente de vendas.
-                      Como posso ajudar sua equipe hoje?
-                    </p>
-                  </div>
-                  <div className="flex justify-end">
-                    <div className="bg-white/6 border border-white/10 rounded-xl rounded-tr-sm p-3 max-w-[80%]">
-                      <p className="text-white/60 text-xs">Quero instalar o Telegram no meu painel</p>
-                    </div>
-                  </div>
-                  <div className="bg-[#7C3AED]/10 border border-[#7C3AED]/20 rounded-xl rounded-tl-sm p-3">
-                    <p className="text-white/70 text-xs leading-relaxed">
-                      🚀 <strong className="text-[#a78bfa]">Telegram</strong> foi habilitado no seu NASA!
-                      Acesse a página da integração e insira o token do seu bot. Cada empresa tem suas próprias credenciais.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["⚙️ Inserir credenciais", "📊 Ver Insights", "🔗 Como criar bot?"].map((label) => (
-                      <div key={label} className="bg-[#7C3AED]/15 border border-[#7C3AED]/30 rounded-full px-2.5 py-1 text-[10px] text-[#c4b5fd] cursor-pointer hover:bg-[#7C3AED]/25 transition-colors">
-                        {label}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex justify-end">
-                    <div className="bg-white/6 border border-white/10 rounded-xl rounded-tr-sm p-3 max-w-[80%]">
-                      <p className="text-white/60 text-xs">Me explique o Método NASA</p>
-                    </div>
-                  </div>
-                  <div className="bg-[#7C3AED]/10 border border-[#7C3AED]/20 rounded-xl rounded-tl-sm p-3">
-                    <p className="text-white/70 text-xs leading-relaxed">
-                      💡 O <strong className="text-[#a78bfa]">Método N.A.S.A.®</strong> tem 4 etapas:
-                      <br />N — <span className="text-white/50">Necessidade</span> (Chat & Pipeline)
-                      <br />A — <span className="text-white/50">Análise</span> (Insights)
-                      <br />S — <span className="text-white/50">Sistematização</span> (Integrações)
-                      <br />A — <span className="text-white/50">Ação</span> (FORGE)
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["🎯 N — Necessidade", "📊 A — Análise", "⚡ S — Sistematizar", "🔥 A — Ação"].map((label) => (
-                      <div key={label} className="bg-[#7C3AED]/15 border border-[#7C3AED]/30 rounded-full px-2.5 py-1 text-[10px] text-[#c4b5fd] cursor-pointer hover:bg-[#7C3AED]/25 transition-colors">
-                        {label}
-                      </div>
-                    ))}
-                  </div>
+            {/* Right col: animated chat mock */}
+            <div className="w-full lg:w-[420px] shrink-0">
+              <AstroAnimatedMock />
+              {/* Live indicator */}
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="nasa-ping absolute inline-flex h-full w-full rounded-full bg-[#a78bfa] opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#7C3AED]" />
+                </span>
+                <span className="text-white/30 text-[10px] font-medium">Demonstração ao vivo</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Insights Feature Section ─────────────────────────────────────────────────
+
+function InsightsAnimatedMock() {
+  const [animKey, setAnimKey] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setAnimKey((k) => k + 1), 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  const channels = [
+    { name: "Meta Ads", color: "#1877F2", value: 82, roas: "4.2x", cpl: "R$18" },
+    { name: "Google Ads", color: "#4285F4", value: 67, roas: "3.1x", cpl: "R$24" },
+    { name: "TikTok Ads", color: "#69C9D0", value: 45, roas: "2.4x", cpl: "R$31" },
+    { name: "Orgânico", color: "#a78bfa", value: 30, roas: "∞", cpl: "R$0" },
+  ];
+
+  return (
+    <MacWindow title="NASA Insights — Tráfego Pago">
+      <div className="bg-[#0d0a1a] p-4">
+        {/* KPI row */}
+        <div className="grid grid-cols-4 gap-2 mb-4">
+          {[
+            { label: "Impressões", value: "142K", delta: "+18%", up: true },
+            { label: "Cliques", value: "8.3K", delta: "+12%", up: true },
+            { label: "CPL médio", value: "R$21", delta: "-9%", up: true },
+            { label: "ROAS", value: "3.8x", delta: "+0.4", up: true },
+          ].map((kpi) => (
+            <div key={kpi.label} className="bg-white/4 rounded-xl p-2.5 border border-white/6">
+              <p className="text-white/35 text-[8px] font-medium mb-0.5">{kpi.label}</p>
+              <p className="text-white text-sm font-black">{kpi.value}</p>
+              <p className={cn("text-[9px] font-semibold", kpi.up ? "text-emerald-400" : "text-red-400")}>{kpi.delta}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Bar chart */}
+        <div className="bg-black/30 rounded-xl p-3 border border-white/6 mb-3">
+          <p className="text-white/40 text-[9px] font-medium uppercase tracking-wider mb-3">Performance por canal</p>
+          <div className="space-y-2.5">
+            {channels.map((ch, i) => (
+              <div key={`${ch.name}-${animKey}`} className="flex items-center gap-2">
+                <div className="w-[70px] text-[9px] text-white/50 shrink-0 text-right">{ch.name}</div>
+                <div className="flex-1 bg-white/5 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bar-rise"
+                    style={{
+                      width: `${ch.value}%`,
+                      background: ch.color,
+                      transformOrigin: "left",
+                      animationDelay: `${i * 0.12}s`,
+                    }}
+                  />
                 </div>
-              </MacWindow>
+                <div className="flex gap-2 shrink-0">
+                  <span className="text-[9px] text-emerald-400 font-bold w-8 text-right">{ch.roas}</span>
+                  <span className="text-[9px] text-white/40 w-8 text-right">{ch.cpl}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end gap-4 mt-2 pt-2 border-t border-white/5">
+            <span className="text-[8px] text-emerald-400 font-medium">ROAS</span>
+            <span className="text-[8px] text-white/35 font-medium">CPL</span>
+          </div>
+        </div>
+
+        {/* Data flow arrow */}
+        <div className="flex items-center gap-1.5 justify-center">
+          {[
+            { logo: "f", color: "#1877F2", label: "Meta" },
+            { logo: "G", color: "#4285F4", label: "Google" },
+          ].map((src) => (
+            <div key={src.label} className="flex items-center gap-1">
+              <div
+                className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[9px] font-black"
+                style={{ background: src.color }}
+              >
+                {src.logo}
+              </div>
+              <span className="text-white/30 text-[8px]">{src.label}</span>
+            </div>
+          ))}
+          <div className="flex-1 mx-1 h-px bg-gradient-to-r from-[#4285F4]/50 via-[#7C3AED]/70 to-[#a78bfa]/50 relative">
+            <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-[#a78bfa] text-[8px]">→</div>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-5 h-5 rounded-md bg-[#7C3AED]/30 border border-[#7C3AED]/50 flex items-center justify-center">
+              <BarChart2 className="size-2.5 text-[#a78bfa]" />
+            </div>
+            <span className="text-white/50 text-[8px] font-semibold">NASA Insights</span>
+          </div>
+        </div>
+      </div>
+    </MacWindow>
+  );
+}
+
+function InsightsFeatureSection({ isLoggedIn }: { isLoggedIn: boolean }) {
+  return (
+    <section className="py-24 px-4 relative">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#1877F2]/3 to-transparent pointer-events-none" />
+      <div className="max-w-6xl mx-auto">
+        {/* Section header */}
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 bg-[#7C3AED]/12 border border-[#7C3AED]/30 rounded-full px-5 py-2 mb-6">
+            <BarChart2 className="size-3.5 text-[#a78bfa]" />
+            <span className="text-[#c4b5fd] text-sm font-medium">Tráfego pago unificado</span>
+          </div>
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white mb-5">
+            NASA <span className="text-nasa">Insights</span>
+          </h2>
+          <p className="text-white/45 text-xl max-w-2xl mx-auto">
+            Todos os dados do seu tráfego pago em um único painel. Meta, Google, TikTok — tudo integrado ao seu CRM.
+          </p>
+        </div>
+
+        <div className="relative rounded-3xl border border-[#7C3AED]/25 overflow-hidden nasa-glass p-8 md:p-12">
+          <div className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full bg-[#4285F4]/6 blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-72 h-72 rounded-full bg-[#1877F2]/6 blur-[80px] pointer-events-none" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#7C3AED]/50 to-transparent" />
+
+          <div className="relative z-10 flex flex-col lg:flex-row items-start gap-12">
+            {/* Left: animated mock */}
+            <div className="w-full lg:w-[440px] shrink-0">
+              <InsightsAnimatedMock />
+              {/* Source badges */}
+              <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
+                {[
+                  { name: "Meta Ads", color: "#1877F2" },
+                  { name: "Google Ads", color: "#4285F4" },
+                  { name: "TikTok Ads", color: "#69C9D0" },
+                ].map((s) => (
+                  <div key={s.name} className="flex items-center gap-1.5 bg-white/4 border border-white/8 rounded-full px-2.5 py-1">
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }} />
+                    <span className="text-white/40 text-[9px] font-medium">{s.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: features */}
+            <div className="flex-1">
+              <ul className="space-y-4 mb-8">
+                {[
+                  { icon: "📊", text: "ROAS, CPL, CPC, impressões e conversões por canal em tempo real" },
+                  { icon: "🎯", text: "Atribua cada lead ao anúncio que o gerou — funil completo" },
+                  { icon: "🤖", text: "ASTRO analisa os dados e sugere onde investir mais orçamento" },
+                  { icon: "🔁", text: "Dados fluem direto para o pipeline — nenhum lead se perde" },
+                  { icon: "📈", text: "Comparativo entre períodos com alertas de queda de performance" },
+                  { icon: "🔗", text: "Integração nativa com Meta Business, Google Ads e TikTok Ads" },
+                ].map((item) => (
+                  <li key={item.text} className="flex items-start gap-3 text-white/65">
+                    <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                    <span className="text-sm leading-relaxed">{item.text}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Mini stat cards */}
+              <div className="grid grid-cols-2 gap-3 mb-8">
+                {[
+                  { label: "Redução de CPL", value: "até 40%", color: "text-emerald-400", bg: "bg-emerald-400/8 border-emerald-400/20" },
+                  { label: "ROAS médio", value: "3.8×", color: "text-[#a78bfa]", bg: "bg-[#7C3AED]/10 border-[#7C3AED]/20" },
+                  { label: "Canais integrados", value: "3 plats.", color: "text-[#4285F4]", bg: "bg-[#4285F4]/8 border-[#4285F4]/20" },
+                  { label: "Atualização", value: "Em tempo real", color: "text-yellow-400", bg: "bg-yellow-400/8 border-yellow-400/20" },
+                ].map((stat) => (
+                  <div key={stat.label} className={cn("rounded-xl p-3 border", stat.bg)}>
+                    <p className="text-white/40 text-[10px] font-medium mb-0.5">{stat.label}</p>
+                    <p className={cn("font-black text-sm", stat.color)}>{stat.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                asChild
+                className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-7 py-5 rounded-xl card-hover nasa-glow-sm"
+              >
+                <Link href={isLoggedIn ? "/insights" : "/sign-up"}>
+                  Ver meu painel de Insights
+                  <ArrowRight className="size-4 ml-2" />
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -2254,6 +2622,7 @@ export default function HomePage() {
       <NasaMethodSection />
       <AppsSection />
       <AstroSection />
+      <InsightsFeatureSection isLoggedIn={isLoggedIn} />
       <IntegrationsMarquee />
       <StarsInfoSection isLoggedIn={isLoggedIn} />
       <PlansPublicSection isLoggedIn={isLoggedIn} />
