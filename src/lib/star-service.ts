@@ -116,7 +116,8 @@ export async function debitStars(
   amount: number,
   type: StarTransactionType,
   description: string,
-  appSlug?: string
+  appSlug?: string,
+  userId?: string,             // opcional: rastreia consumo individual do usuário
 ): Promise<{ success: boolean; newBalance: number }> {
   // ── 1. Debitar dentro de uma transação atômica ────────────────────────────
   const result = await prisma.$transaction(async (tx) => {
@@ -146,6 +147,21 @@ export async function debitStars(
         appSlug,
       },
     });
+
+    // ── Incrementar currentUsage por usuário (se informado) ─────────────────
+    if (userId) {
+      await tx.memberStarBudget.upsert({
+        where: { organizationId_userId: { organizationId, userId } },
+        update: { currentUsage: { increment: amount } },
+        create: {
+          id:             `${organizationId}-${userId}`,
+          organizationId,
+          userId,
+          monthlyBudget:  0,
+          currentUsage:   amount,
+        },
+      });
+    }
 
     return { success: true, newBalance };
   });

@@ -217,7 +217,7 @@ export const execute = base
     // ─── Helper: debit stars safely ───────────────────────────────────────────
     async function tryDebitStars(cost: number, description: string): Promise<void> {
       try {
-        await debitStars(orgId, cost, StarTransactionType.APP_CHARGE, `NASA Explorer — ${description}`, "nasa-explorer");
+        await debitStars(orgId, cost, StarTransactionType.APP_CHARGE, `NASA Explorer — ${description}`, "nasa-explorer", context.user.id);
       } catch {
         // Non-critical, don't block the response
       }
