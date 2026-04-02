@@ -18,7 +18,6 @@ import {
   Link2,
   Clock,
   Rocket,
-  Flame,
   PanelLeft,
   PanelLeftIcon,
 } from "lucide-react";
@@ -30,7 +29,7 @@ import {
   isItemVisible,
 } from "@/hooks/use-sidebar-prefs";
 
-import { SIDEBAR_NAV_ITEMS, APP_TO_SIDEBAR_KEY } from "@/lib/sidebar-items";
+import { SIDEBAR_NAV_ITEMS } from "@/lib/sidebar-items";
 import { useSuspenseWokspaces } from "@/features/workspace/hooks/use-workspace";
 import { Suspense } from "react";
 

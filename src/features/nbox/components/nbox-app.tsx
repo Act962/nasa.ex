@@ -99,7 +99,8 @@ interface NBoxItem {
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
@@ -111,14 +112,31 @@ const PLAN_LABELS: Record<string, string> = {
 
 // ─── File Icon ────────────────────────────────────────────────────────────────
 
-function FileTypeIcon({ type, mimeType, className }: { type: NBoxItemType; mimeType?: string | null; className?: string }) {
+function FileTypeIcon({
+  type,
+  mimeType,
+  className,
+}: {
+  type: NBoxItemType;
+  mimeType?: string | null;
+  className?: string;
+}) {
   const cls = cn("shrink-0", className);
-  if (type === "IMAGE") return <ImageIcon className={cn(cls, "text-pink-500")} />;
-  if (type === "LINK") return <Link2Icon className={cn(cls, "text-blue-500")} />;
-  if (type === "CONTRACT") return <FilePenIcon className={cn(cls, "text-emerald-600")} />;
-  if (type === "PROPOSAL") return <FileContractIcon className={cn(cls, "text-purple-600")} />;
-  if (mimeType?.includes("pdf")) return <FileTextIcon className={cn(cls, "text-red-500")} />;
-  if (mimeType?.includes("spreadsheet") || mimeType?.includes("excel") || mimeType?.includes("csv"))
+  if (type === "IMAGE")
+    return <ImageIcon className={cn(cls, "text-pink-500")} />;
+  if (type === "LINK")
+    return <Link2Icon className={cn(cls, "text-blue-500")} />;
+  if (type === "CONTRACT")
+    return <FilePenIcon className={cn(cls, "text-emerald-600")} />;
+  if (type === "PROPOSAL")
+    return <FileContractIcon className={cn(cls, "text-purple-600")} />;
+  if (mimeType?.includes("pdf"))
+    return <FileTextIcon className={cn(cls, "text-red-500")} />;
+  if (
+    mimeType?.includes("spreadsheet") ||
+    mimeType?.includes("excel") ||
+    mimeType?.includes("csv")
+  )
     return <FileSpreadsheetIcon className={cn(cls, "text-green-600")} />;
   return <FileIcon className={cn(cls, "text-slate-400")} />;
 }
@@ -129,18 +147,25 @@ function StorageBar() {
   const { storage } = useNBoxStorage();
   if (!storage) return null;
   const pct = Math.min(100, (storage.usedBytes / storage.limitBytes) * 100);
-  const color = pct > 90 ? "bg-red-500" : pct > 70 ? "bg-yellow-500" : "bg-primary";
+  const color =
+    pct > 90 ? "bg-red-500" : pct > 70 ? "bg-yellow-500" : "bg-primary";
   return (
     <div className="px-3 py-3 border-t space-y-1.5">
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span className="flex items-center gap-1"><HardDriveIcon className="size-3" /> Armazenamento</span>
+        <span className="flex items-center gap-1">
+          <HardDriveIcon className="size-3" /> Armazenamento
+        </span>
         <span>{pct.toFixed(1)}%</span>
       </div>
       <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-        <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${pct}%` }} />
+        <div
+          className={cn("h-full rounded-full transition-all", color)}
+          style={{ width: `${pct}%` }}
+        />
       </div>
       <p className="text-[10px] text-muted-foreground">
-        {formatBytes(storage.usedBytes)} / {PLAN_LABELS[storage.planSlug] ?? formatBytes(storage.limitBytes)}
+        {formatBytes(storage.usedBytes)} /{" "}
+        {PLAN_LABELS[storage.planSlug] ?? formatBytes(storage.limitBytes)}
       </p>
     </div>
   );
@@ -172,7 +197,9 @@ function FolderTreeItem({
       <div
         className={cn(
           "group flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-colors",
-          isSelected ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/60",
+          isSelected
+            ? "bg-primary/10 text-primary font-medium"
+            : "hover:bg-muted/60",
         )}
         style={{ paddingLeft: `${8 + depth * 14}px` }}
         onClick={() => onSelect(folder.id)}
@@ -180,12 +207,22 @@ function FolderTreeItem({
         {children.length > 0 ? (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded(!expanded);
+            }}
             className="text-muted-foreground hover:text-foreground"
           >
-            <ChevronRightIcon className={cn("size-3 transition-transform", expanded && "rotate-90")} />
+            <ChevronRightIcon
+              className={cn(
+                "size-3 transition-transform",
+                expanded && "rotate-90",
+              )}
+            />
           </button>
-        ) : <span className="size-3" />}
+        ) : (
+          <span className="size-3" />
+        )}
         {expanded ? (
           <FolderOpenIcon className="size-3.5 shrink-0 text-yellow-500" />
         ) : (
@@ -195,35 +232,46 @@ function FolderTreeItem({
         <button
           type="button"
           className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-destructive/10 hover:text-destructive transition-all"
-          onClick={(e) => { e.stopPropagation(); onDelete(folder.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(folder.id);
+          }}
         >
           <TrashIcon className="size-3" />
         </button>
       </div>
-      {expanded && children.map((child) => (
-        <FolderTreeItem
-          key={child.id}
-          folder={child}
-          depth={depth + 1}
-          allFolders={allFolders}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          onDelete={onDelete}
-        />
-      ))}
+      {expanded &&
+        children.map((child) => (
+          <FolderTreeItem
+            key={child.id}
+            folder={child}
+            depth={depth + 1}
+            allFolders={allFolders}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            onDelete={onDelete}
+          />
+        ))}
     </div>
   );
 }
 
 // ─── Item Card (Grid) ─────────────────────────────────────────────────────────
 
-function ItemCardGrid({ item, onDelete }: { item: NBoxItem; onDelete: (id: string) => void }) {
+function ItemCardGrid({
+  item,
+  onDelete,
+}: {
+  item: NBoxItem;
+  onDelete: (id: string) => void;
+}) {
   const s3Url = useConstructUrl(item.url ?? "");
   const isS3Key = !!item.url && !item.url.startsWith("http");
   const resolvedUrl = item.url ? (isS3Key ? s3Url : item.url) : null;
 
   const isImagePreview =
-    (item.type === "IMAGE" || (item.type === "FILE" && item.mimeType?.startsWith("image/"))) &&
+    (item.type === "IMAGE" ||
+      (item.type === "FILE" && item.mimeType?.startsWith("image/"))) &&
     resolvedUrl;
 
   return (
@@ -231,15 +279,25 @@ function ItemCardGrid({ item, onDelete }: { item: NBoxItem; onDelete: (id: strin
       {/* Thumbnail or icon */}
       <div className="h-28 bg-muted/30 flex items-center justify-center overflow-hidden">
         {isImagePreview ? (
-          <img src={resolvedUrl!} alt={item.name} className="w-full h-full object-cover" />
+          <img
+            src={resolvedUrl!}
+            alt={item.name}
+            className="w-full h-full object-cover"
+          />
         ) : (
-          <FileTypeIcon type={item.type} mimeType={item.mimeType} className="size-10 opacity-60" />
+          <FileTypeIcon
+            type={item.type}
+            mimeType={item.mimeType}
+            className="size-10 opacity-60"
+          />
         )}
       </div>
 
       {/* Info */}
       <div className="px-3 py-2.5">
-        <p className="text-xs font-medium truncate leading-tight">{item.name}</p>
+        <p className="text-xs font-medium truncate leading-tight">
+          {item.name}
+        </p>
         <p className="text-[10px] text-muted-foreground mt-0.5">
           {item.size ? formatBytes(item.size) : item.type.toLowerCase()}
         </p>
@@ -256,14 +314,26 @@ function ItemCardGrid({ item, onDelete }: { item: NBoxItem; onDelete: (id: strin
           <DropdownMenuContent align="end">
             {resolvedUrl && (
               <DropdownMenuItem asChild>
-                <a href={resolvedUrl} target="_blank" rel="noopener noreferrer" download={item.type !== "LINK"}>
-                  {item.type === "LINK" ? <ExternalLinkIcon className="size-3.5" /> : <DownloadIcon className="size-3.5" />}
+                <a
+                  href={resolvedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download={item.type !== "LINK"}
+                >
+                  {item.type === "LINK" ? (
+                    <ExternalLinkIcon className="size-3.5" />
+                  ) : (
+                    <DownloadIcon className="size-3.5" />
+                  )}
                   {item.type === "LINK" ? "Abrir link" : "Baixar"}
                 </a>
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={() => onDelete(item.id)}>
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => onDelete(item.id)}
+            >
               <TrashIcon className="size-3.5" /> Excluir
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -275,13 +345,20 @@ function ItemCardGrid({ item, onDelete }: { item: NBoxItem; onDelete: (id: strin
 
 // ─── Item Row (List) ──────────────────────────────────────────────────────────
 
-function ItemRowList({ item, onDelete }: { item: NBoxItem; onDelete: (id: string) => void }) {
+function ItemRowList({
+  item,
+  onDelete,
+}: {
+  item: NBoxItem;
+  onDelete: (id: string) => void;
+}) {
   const s3Url = useConstructUrl(item.url ?? "");
   const isS3Key = !!item.url && !item.url.startsWith("http");
   const resolvedUrl = item.url ? (isS3Key ? s3Url : item.url) : null;
 
   const isImagePreview =
-    (item.type === "IMAGE" || (item.type === "FILE" && item.mimeType?.startsWith("image/"))) &&
+    (item.type === "IMAGE" ||
+      (item.type === "FILE" && item.mimeType?.startsWith("image/"))) &&
     resolvedUrl;
 
   return (
@@ -289,14 +366,26 @@ function ItemRowList({ item, onDelete }: { item: NBoxItem; onDelete: (id: string
       {/* Thumbnail for images, icon otherwise */}
       <div className="size-9 shrink-0 rounded-lg overflow-hidden bg-muted/40 flex items-center justify-center">
         {isImagePreview ? (
-          <img src={resolvedUrl!} alt={item.name} className="w-full h-full object-cover" />
+          <img
+            src={resolvedUrl!}
+            alt={item.name}
+            className="w-full h-full object-cover"
+          />
         ) : (
-          <FileTypeIcon type={item.type} mimeType={item.mimeType} className="size-5" />
+          <FileTypeIcon
+            type={item.type}
+            mimeType={item.mimeType}
+            className="size-5"
+          />
         )}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{item.name}</p>
-        {item.description && <p className="text-xs text-muted-foreground truncate">{item.description}</p>}
+        {item.description && (
+          <p className="text-xs text-muted-foreground truncate">
+            {item.description}
+          </p>
+        )}
       </div>
       <div className="shrink-0 flex items-center gap-3 text-xs text-muted-foreground">
         <span>{item.size ? formatBytes(item.size) : "—"}</span>
@@ -311,14 +400,26 @@ function ItemRowList({ item, onDelete }: { item: NBoxItem; onDelete: (id: string
         <DropdownMenuContent align="end">
           {resolvedUrl && (
             <DropdownMenuItem asChild>
-              <a href={resolvedUrl} target="_blank" rel="noopener noreferrer" download={item.type !== "LINK"}>
-                {item.type === "LINK" ? <ExternalLinkIcon className="size-3.5" /> : <DownloadIcon className="size-3.5" />}
+              <a
+                href={resolvedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={item.type !== "LINK"}
+              >
+                {item.type === "LINK" ? (
+                  <ExternalLinkIcon className="size-3.5" />
+                ) : (
+                  <DownloadIcon className="size-3.5" />
+                )}
                 {item.type === "LINK" ? "Abrir link" : "Baixar"}
               </a>
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={() => onDelete(item.id)}>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => onDelete(item.id)}
+          >
             <TrashIcon className="size-3.5" /> Excluir
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -342,47 +443,56 @@ function UploadModal({
   const { earn } = useSpacePointCtx();
   const [uploading, setUploading] = useState(false);
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (!acceptedFiles.length) return;
-    setUploading(true);
-    for (const file of acceptedFiles) {
-      try {
-        // Get presigned URL
-        const isImage = file.type.startsWith("image/");
-        const res = await fetch("/api/s3/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            filename: file.name,
-            contentType: file.type,
+  const onDrop = useCallback(
+    async (acceptedFiles: File[]) => {
+      if (!acceptedFiles.length) return;
+      setUploading(true);
+      for (const file of acceptedFiles) {
+        try {
+          // Get presigned URL
+          const isImage = file.type.startsWith("image/");
+          const res = await fetch("/api/s3/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              filename: file.name,
+              contentType: file.type,
+              size: file.size,
+              isImage,
+            }),
+          });
+          const { presignedUrl, key } = await res.json();
+          const url = presignedUrl;
+
+          // Upload to S3
+          await fetch(url, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type },
+          });
+
+          // Create item
+          const itemType: NBoxItemType = isImage
+            ? NBoxItemType.IMAGE
+            : NBoxItemType.FILE;
+          await createItem.mutateAsync({
+            folderId,
+            type: itemType,
+            name: file.name,
+            url: key,
+            mimeType: file.type,
             size: file.size,
-            isImage,
-          }),
-        });
-        const { presignedUrl, key } = await res.json();
-        const url = presignedUrl;
-
-        // Upload to S3
-        await fetch(url, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-
-        // Create item
-        const itemType: NBoxItemType = isImage ? NBoxItemType.IMAGE : NBoxItemType.FILE;
-        await createItem.mutateAsync({
-          folderId,
-          type: itemType,
-          name: file.name,
-          url: key,
-          mimeType: file.type,
-          size: file.size,
-        });
-      } catch (e) {
-        toast.error(`Erro ao enviar ${file.name}`);
+          });
+        } catch (e) {
+          toast.error(`Erro ao enviar ${file.name}`);
+        }
       }
-    }
-    setUploading(false);
-    earn("upload_nbox", "Upload de arquivo no N.Box 📁");
-    onClose();
-  }, [createItem, folderId, earn]);
+      setUploading(false);
+      earn("upload_nbox", "Upload de arquivo no N.Box 📁");
+      onClose();
+    },
+    [createItem, folderId, earn],
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -410,7 +520,9 @@ function UploadModal({
           {...getRootProps()}
           className={cn(
             "border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors",
-            isDragActive ? "border-primary bg-primary/5" : "border-border hover:border-primary/40",
+            isDragActive
+              ? "border-primary bg-primary/5"
+              : "border-border hover:border-primary/40",
             uploading && "opacity-50 cursor-not-allowed",
           )}
         >
@@ -419,11 +531,17 @@ function UploadModal({
           {uploading ? (
             <p className="text-sm text-muted-foreground">Enviando...</p>
           ) : isDragActive ? (
-            <p className="text-sm font-medium text-primary">Solte os arquivos aqui</p>
+            <p className="text-sm font-medium text-primary">
+              Solte os arquivos aqui
+            </p>
           ) : (
             <>
-              <p className="text-sm font-medium">Arraste ou clique para selecionar</p>
-              <p className="text-xs text-muted-foreground mt-1">Imagens, PDFs, documentos — até 50 MB</p>
+              <p className="text-sm font-medium">
+                Arraste ou clique para selecionar
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Imagens, PDFs, documentos — até 50 MB
+              </p>
             </>
           )}
         </div>
@@ -457,7 +575,9 @@ function NewLinkModal({
       url: url.trim(),
       description: description.trim() || undefined,
     });
-    setName(""); setUrl(""); setDescription("");
+    setName("");
+    setUrl("");
+    setDescription("");
     onClose();
   };
 
@@ -470,12 +590,29 @@ function NewLinkModal({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          <Input placeholder="Nome do link *" value={name} onChange={(e) => setName(e.target.value)} />
-          <Input placeholder="URL (https://...) *" value={url} onChange={(e) => setUrl(e.target.value)} />
-          <Input placeholder="Descrição (opcional)" value={description} onChange={(e) => setDescription(e.target.value)} />
+          <Input
+            placeholder="Nome do link *"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <Input
+            placeholder="URL (https://...) *"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+          <Input
+            placeholder="Descrição (opcional)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
           <div className="flex gap-2 justify-end pt-2">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={!name.trim() || !url.trim() || createItem.isPending}>
+            <Button variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={!name.trim() || !url.trim() || createItem.isPending}
+            >
               Salvar
             </Button>
           </div>
@@ -498,12 +635,24 @@ function NewFolderModal({
 }) {
   const createFolder = useCreateNBoxFolder();
   const [name, setName] = useState("");
-  const COLORS = ["#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#EF4444", "#EC4899", "#6B7280"];
+  const COLORS = [
+    "#F59E0B",
+    "#10B981",
+    "#3B82F6",
+    "#8B5CF6",
+    "#EF4444",
+    "#EC4899",
+    "#6B7280",
+  ];
   const [color, setColor] = useState(COLORS[0]);
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
-    await createFolder.mutateAsync({ name: name.trim(), parentId: parentId ?? undefined, color });
+    await createFolder.mutateAsync({
+      name: name.trim(),
+      parentId: parentId ?? undefined,
+      color,
+    });
     setName("");
     onClose();
   };
@@ -517,21 +666,34 @@ function NewFolderModal({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          <Input placeholder="Nome da pasta *" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          <Input
+            placeholder="Nome da pasta *"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+          />
           <div className="flex items-center gap-2 flex-wrap">
             {COLORS.map((c) => (
               <button
                 key={c}
                 type="button"
-                className={cn("size-6 rounded-full transition-all", color === c && "ring-2 ring-offset-2 ring-foreground")}
+                className={cn(
+                  "size-6 rounded-full transition-all",
+                  color === c && "ring-2 ring-offset-2 ring-foreground",
+                )}
                 style={{ backgroundColor: c }}
                 onClick={() => setColor(c)}
               />
             ))}
           </div>
           <div className="flex gap-2 justify-end pt-2">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={!name.trim() || createFolder.isPending}>
+            <Button variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={!name.trim() || createFolder.isPending}
+            >
               Criar
             </Button>
           </div>
@@ -554,7 +716,10 @@ export function NBoxApp() {
   const [deleteFolderId, setDeleteFolderId] = useState<string | null>(null);
 
   const { folders, isLoading: foldersLoading } = useNBoxFolders();
-  const { items, isLoading: itemsLoading } = useNBoxItems({ folderId: selectedFolderId, search: search || undefined });
+  const { items, isLoading: itemsLoading } = useNBoxItems({
+    folderId: selectedFolderId,
+    search: search || undefined,
+  });
   const deleteItem = useDeleteNBoxItem();
   const deleteFolder = useDeleteNBoxFolder();
 
@@ -576,7 +741,6 @@ export function NBoxApp() {
 
   return (
     <div className="flex h-svh min-h-0 overflow-hidden">
-
       {/* ── Left Sidebar ── */}
       <aside className="w-56 shrink-0 flex flex-col border-r bg-sidebar">
         {/* Header */}
@@ -595,7 +759,9 @@ export function NBoxApp() {
             onClick={() => setSelectedFolderId(null)}
             className={cn(
               "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors",
-              selectedFolderId === null ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/60",
+              selectedFolderId === null
+                ? "bg-primary/10 text-primary font-medium"
+                : "hover:bg-muted/60",
             )}
           >
             <HardDriveIcon className="size-3.5 shrink-0 text-muted-foreground" />
@@ -604,17 +770,24 @@ export function NBoxApp() {
 
           <div className="pt-2 pb-1 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
             <span>Pastas</span>
-            <button onClick={() => setFolderOpen(true)} className="hover:text-primary transition-colors">
+            <button
+              onClick={() => setFolderOpen(true)}
+              className="hover:text-primary transition-colors"
+            >
               <PlusIcon className="size-3" />
             </button>
           </div>
 
           {foldersLoading ? (
             <div className="space-y-1 px-1">
-              {[1,2,3].map((i) => <Skeleton key={i} className="h-6 w-full" />)}
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-6 w-full" />
+              ))}
             </div>
           ) : rootFolders.length === 0 ? (
-            <p className="text-xs text-muted-foreground px-3 py-2">Nenhuma pasta</p>
+            <p className="text-xs text-muted-foreground px-3 py-2">
+              Nenhuma pasta
+            </p>
           ) : (
             rootFolders.map((folder) => (
               <FolderTreeItem
@@ -633,11 +806,19 @@ export function NBoxApp() {
           <div className="pt-3 pb-1 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
             Forge
           </div>
-          <Link href="/forge?tab=contracts" className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm hover:bg-muted/60 transition-colors">
-            <FilePenIcon className="size-3.5 shrink-0 text-emerald-600" /> Contratos
+          <Link
+            href="/forge?tab=contracts"
+            className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm hover:bg-muted/60 transition-colors"
+          >
+            <FilePenIcon className="size-3.5 shrink-0 text-emerald-600" />{" "}
+            Contratos
           </Link>
-          <Link href="/forge?tab=proposals" className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm hover:bg-muted/60 transition-colors">
-            <FileContractIcon className="size-3.5 shrink-0 text-purple-600" /> Propostas
+          <Link
+            href="/forge?tab=proposals"
+            className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm hover:bg-muted/60 transition-colors"
+          >
+            <FileContractIcon className="size-3.5 shrink-0 text-purple-600" />{" "}
+            Propostas
           </Link>
         </div>
 
@@ -647,18 +828,22 @@ export function NBoxApp() {
 
       {/* ── Main Content ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-
         {/* Toolbar */}
         <div className="flex items-center gap-3 px-6 py-3 border-b bg-background shrink-0">
           {/* Breadcrumb */}
           <div className="flex items-center gap-1 text-sm text-muted-foreground flex-1 min-w-0">
-            <button onClick={() => setSelectedFolderId(null)} className="hover:text-foreground transition-colors">
+            <button
+              onClick={() => setSelectedFolderId(null)}
+              className="hover:text-foreground transition-colors"
+            >
               N-Box
             </button>
             {selectedFolder && (
               <>
                 <ChevronRightIcon className="size-3.5 shrink-0" />
-                <span className="text-foreground font-medium truncate">{selectedFolder.name}</span>
+                <span className="text-foreground font-medium truncate">
+                  {selectedFolder.name}
+                </span>
               </>
             )}
           </div>
@@ -678,13 +863,19 @@ export function NBoxApp() {
           <div className="flex gap-0.5 border border-border rounded-lg p-0.5">
             <button
               onClick={() => setViewMode("grid")}
-              className={cn("p-1.5 rounded-md transition-colors", viewMode === "grid" ? "bg-muted" : "hover:bg-muted/50")}
+              className={cn(
+                "p-1.5 rounded-md transition-colors",
+                viewMode === "grid" ? "bg-muted" : "hover:bg-muted/50",
+              )}
             >
               <GridIcon className="size-3.5" />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={cn("p-1.5 rounded-md transition-colors", viewMode === "list" ? "bg-muted" : "hover:bg-muted/50")}
+              className={cn(
+                "p-1.5 rounded-md transition-colors",
+                viewMode === "list" ? "bg-muted" : "hover:bg-muted/50",
+              )}
             >
               <ListIcon className="size-3.5" />
             </button>
@@ -694,7 +885,11 @@ export function NBoxApp() {
           <Button size="sm" variant="outline" onClick={() => setLinkOpen(true)}>
             <Link2Icon className="size-3.5" /> Link
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setFolderOpen(true)}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setFolderOpen(true)}
+          >
             <FolderIcon className="size-3.5" /> Pasta
           </Button>
           <Button size="sm" onClick={() => setUploadOpen(true)}>
@@ -705,22 +900,42 @@ export function NBoxApp() {
         {/* File area */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {itemsLoading ? (
-            <div className={cn("gap-4", viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5" : "flex flex-col")}>
-              {[1,2,3,4,5,6].map((i) => (
-                <Skeleton key={i} className={viewMode === "grid" ? "h-40 rounded-xl" : "h-14 rounded-xl"} />
+            <div
+              className={cn(
+                "gap-4",
+                viewMode === "grid"
+                  ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+                  : "flex flex-col",
+              )}
+            >
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Skeleton
+                  key={i}
+                  className={
+                    viewMode === "grid" ? "h-40 rounded-xl" : "h-14 rounded-xl"
+                  }
+                />
               ))}
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-20 text-center">
               <BoxIcon className="size-14 text-muted-foreground/20 mb-4" />
               <p className="text-base font-semibold text-muted-foreground">
-                {search ? "Nenhum resultado encontrado" : "Esta pasta está vazia"}
+                {search
+                  ? "Nenhum resultado encontrado"
+                  : "Esta pasta está vazia"}
               </p>
               <p className="text-sm text-muted-foreground/60 mt-1">
-                {search ? "Tente outro termo de busca" : "Envie arquivos ou adicione links"}
+                {search
+                  ? "Tente outro termo de busca"
+                  : "Envie arquivos ou adicione links"}
               </p>
               {!search && (
-                <Button size="sm" className="mt-4" onClick={() => setUploadOpen(true)}>
+                <Button
+                  size="sm"
+                  className="mt-4"
+                  onClick={() => setUploadOpen(true)}
+                >
                   <UploadIcon className="size-3.5" /> Enviar arquivos
                 </Button>
               )}
@@ -728,13 +943,21 @@ export function NBoxApp() {
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {items.map((item) => (
-                <ItemCardGrid key={item.id} item={item} onDelete={setDeleteItemId} />
+                <ItemCardGrid
+                  key={item.id}
+                  item={item}
+                  onDelete={setDeleteItemId}
+                />
               ))}
             </div>
           ) : (
             <div className="flex flex-col gap-2">
               {items.map((item) => (
-                <ItemRowList key={item.id} item={item} onDelete={setDeleteItemId} />
+                <ItemRowList
+                  key={item.id}
+                  item={item}
+                  onDelete={setDeleteItemId}
+                />
               ))}
             </div>
           )}
@@ -742,20 +965,40 @@ export function NBoxApp() {
       </div>
 
       {/* ── Modals ── */}
-      <UploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} folderId={selectedFolderId} />
-      <NewLinkModal open={linkOpen} onClose={() => setLinkOpen(false)} folderId={selectedFolderId} />
-      <NewFolderModal open={folderOpen} onClose={() => setFolderOpen(false)} parentId={selectedFolderId} />
+      <UploadModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        folderId={selectedFolderId}
+      />
+      <NewLinkModal
+        open={linkOpen}
+        onClose={() => setLinkOpen(false)}
+        folderId={selectedFolderId}
+      />
+      <NewFolderModal
+        open={folderOpen}
+        onClose={() => setFolderOpen(false)}
+        parentId={selectedFolderId}
+      />
 
       {/* Delete item confirm */}
-      <AlertDialog open={!!deleteItemId} onOpenChange={(o) => !o && setDeleteItemId(null)}>
+      <AlertDialog
+        open={!!deleteItemId}
+        onOpenChange={(o) => !o && setDeleteItemId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir item?</AlertDialogTitle>
-            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDeleteItem}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -763,7 +1006,10 @@ export function NBoxApp() {
       </AlertDialog>
 
       {/* Delete folder confirm */}
-      <AlertDialog open={!!deleteFolderId} onOpenChange={(o) => !o && setDeleteFolderId(null)}>
+      <AlertDialog
+        open={!!deleteFolderId}
+        onOpenChange={(o) => !o && setDeleteFolderId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir pasta?</AlertDialogTitle>
@@ -773,7 +1019,10 @@ export function NBoxApp() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteFolder} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDeleteFolder}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Excluir pasta
             </AlertDialogAction>
           </AlertDialogFooter>

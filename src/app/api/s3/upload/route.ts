@@ -17,13 +17,19 @@ export async function POST(req: Request) {
   const missingVars: string[] = [];
   if (!process.env.AWS_ENDPOINT_URL_S3) missingVars.push("AWS_ENDPOINT_URL_S3");
   if (!process.env.AWS_ACCESS_KEY_ID) missingVars.push("AWS_ACCESS_KEY_ID");
-  if (!process.env.AWS_SECRET_ACCESS_KEY) missingVars.push("AWS_SECRET_ACCESS_KEY");
-  if (!process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES) missingVars.push("NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES");
+  if (!process.env.AWS_SECRET_ACCESS_KEY)
+    missingVars.push("AWS_SECRET_ACCESS_KEY");
+  if (!process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES)
+    missingVars.push("NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES");
 
   if (missingVars.length > 0) {
     console.error("[s3/upload] Missing env vars:", missingVars.join(", "));
     return NextResponse.json(
-      { error: "S3 não configurado. Defina as variáveis de ambiente: " + missingVars.join(", ") },
+      {
+        error:
+          "S3 não configurado. Defina as variáveis de ambiente: " +
+          missingVars.join(", "),
+      },
       { status: 503 },
     );
   }
@@ -41,6 +47,14 @@ export async function POST(req: Request) {
     }
 
     const { filename, contentType, size, isImage } = validation.data;
+
+    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+    if (size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: "Tamanho do arquivo não permitido. O limite máximo é de 20MB." },
+        { status: 413 },
+      );
+    }
 
     const extention = filename.split(".").pop();
 

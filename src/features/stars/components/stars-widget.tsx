@@ -6,7 +6,9 @@ import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
-  Popover, PopoverContent, PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover";
 import { StarIcon } from "./star-icon";
 import { StarsPurchaseModal } from "./stars-purchase-modal";
@@ -18,10 +20,13 @@ import { Plus, TrendingUp, AlertTriangle, Zap, Sparkles } from "lucide-react";
 function ConsumedBar({ consumed, total }: { consumed: number; total: number }) {
   const pct = total > 0 ? Math.min(100, (consumed / total) * 100) : 0;
   const color =
-    pct >= 95 ? "bg-red-500"
-    : pct >= 80 ? "bg-amber-500"
-    : pct >= 60 ? "bg-yellow-400"
-    : "bg-[#7C3AED]";
+    pct >= 95
+      ? "bg-red-500"
+      : pct >= 80
+        ? "bg-amber-500"
+        : pct >= 60
+          ? "bg-yellow-400"
+          : "bg-[#7C3AED]";
 
   return (
     <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
@@ -35,17 +40,25 @@ function ConsumedBar({ consumed, total }: { consumed: number; total: number }) {
 
 // ─── Plan badge ───────────────────────────────────────────────────────────────
 
-function PlanBadge({ planSlug, planName }: { planSlug: string; planName: string }) {
+function PlanBadge({
+  planSlug,
+  planName,
+}: {
+  planSlug: string;
+  planName: string;
+}) {
   const colors: Record<string, string> = {
-    earth:         "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-    explore:       "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+    earth: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    explore: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
     constellation: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
   };
   return (
-    <span className={cn(
-      "text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide",
-      colors[planSlug] ?? "bg-muted text-muted-foreground"
-    )}>
+    <span
+      className={cn(
+        "text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide",
+        colors[planSlug] ?? "bg-muted text-muted-foreground",
+      )}
+    >
       {planName}
     </span>
   );
@@ -55,7 +68,7 @@ function PlanBadge({ planSlug, planName }: { planSlug: string; planName: string 
 
 export function StarsWidget() {
   const [purchaseOpen, setPurchaseOpen] = useState(false);
-  const [planOpen, setPlanOpen]         = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     ...orpc.stars.getBalance.queryOptions(),
@@ -68,21 +81,20 @@ export function StarsWidget() {
     return <div className="h-8 w-32 rounded-lg bg-muted/60 animate-pulse" />;
   }
 
-  const balance         = data?.balance         ?? 0;
+  const balance = data?.balance ?? 0;
   const planMonthlyStars = data?.planMonthlyStars ?? 0;
-  const planName        = data?.planName        ?? "";
-  const planSlug        = data?.planSlug        ?? "free";
+  const planName = data?.planName ?? "";
+  const planSlug = data?.planSlug ?? "free";
 
-  const hasPlan   = planSlug !== "free" && planMonthlyStars > 0;
-  const consumed  = hasPlan ? Math.max(0, planMonthlyStars - balance) : 0;
-  const pctUsed   = hasPlan ? (consumed / planMonthlyStars) * 100 : 0;
-  const isLow     = hasPlan && pctUsed >= 80;
+  const hasPlan = planSlug !== "free" && planMonthlyStars > 0;
+  const consumed = hasPlan ? Math.max(0, planMonthlyStars - balance) : 0;
+  const pctUsed = hasPlan ? (consumed / planMonthlyStars) * 100 : 0;
+  const isLow = hasPlan && pctUsed >= 80;
   const isCritical = hasPlan && pctUsed >= 95;
 
   return (
     <>
       <div className="flex items-center gap-2">
-
         {/* ── Stars counter pill ── */}
         <Popover>
           <PopoverTrigger asChild>
@@ -92,14 +104,15 @@ export function StarsWidget() {
                 isCritical
                   ? "border-red-400/50 bg-red-500/10 text-red-500 hover:bg-red-500/15"
                   : isLow
-                  ? "border-amber-400/50 bg-amber-500/10 text-amber-500 hover:bg-amber-500/15"
-                  : "border-border/60 bg-background hover:bg-muted/60 text-foreground"
+                    ? "border-amber-400/50 bg-amber-500/10 text-amber-500 hover:bg-amber-500/15"
+                    : "border-border/60 bg-background hover:bg-muted/60 text-foreground",
               )}
             >
-              {isCritical || isLow
-                ? <AlertTriangle className="size-3.5 shrink-0" />
-                : <StarIcon className="size-3.5 shrink-0" />
-              }
+              {isCritical || isLow ? (
+                <AlertTriangle className="size-3.5 shrink-0" />
+              ) : (
+                <StarIcon className="size-3.5 shrink-0" />
+              )}
               {hasPlan ? (
                 <>
                   <span className="tabular-nums">
@@ -111,19 +124,26 @@ export function StarsWidget() {
                   </span>
                 </>
               ) : (
-                <span className="tabular-nums">{balance.toLocaleString("pt-BR")}</span>
+                <span className="tabular-nums">
+                  {balance.toLocaleString("pt-BR")}
+                </span>
               )}
             </button>
           </PopoverTrigger>
 
-          <PopoverContent align="end" className="w-72 p-0 overflow-hidden shadow-xl border-border/60">
+          <PopoverContent
+            align="end"
+            className="w-72 p-0 overflow-hidden shadow-xl border-border/60"
+          >
             {/* Header */}
             <div className="px-4 py-3 border-b bg-gradient-to-br from-[#7C3AED]/8 to-transparent">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Stars consumidas
                 </p>
-                {hasPlan && <PlanBadge planSlug={planSlug} planName={planName} />}
+                {hasPlan && (
+                  <PlanBadge planSlug={planSlug} planName={planName} />
+                )}
               </div>
 
               {hasPlan ? (
@@ -138,7 +158,8 @@ export function StarsWidget() {
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Saldo restante: <strong>{balance.toLocaleString("pt-BR")} ★</strong>
+                    Saldo restante:{" "}
+                    <strong>{balance.toLocaleString("pt-BR")} ★</strong>
                   </p>
                 </>
               ) : (
@@ -155,10 +176,16 @@ export function StarsWidget() {
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-[11px] text-muted-foreground">
                     <span>Consumo do ciclo</span>
-                    <span className={cn(
-                      "font-semibold",
-                      isCritical ? "text-red-500" : isLow ? "text-amber-500" : "text-foreground"
-                    )}>
+                    <span
+                      className={cn(
+                        "font-semibold",
+                        isCritical
+                          ? "text-red-500"
+                          : isLow
+                            ? "text-amber-500"
+                            : "text-foreground",
+                      )}
+                    >
                       {Math.round(pctUsed)}%
                     </span>
                   </div>
@@ -187,7 +214,9 @@ export function StarsWidget() {
               {hasPlan && (
                 <div className="grid grid-cols-2 gap-2 text-center">
                   <div className="rounded-lg bg-muted/40 px-2 py-1.5">
-                    <p className="text-[10px] text-muted-foreground">Restante</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Restante
+                    </p>
                     <p className="text-sm font-semibold flex items-center justify-center gap-0.5">
                       <StarIcon className="size-3" />
                       {balance.toLocaleString("pt-BR")}
@@ -232,8 +261,8 @@ export function StarsWidget() {
               planSlug === "earth"
                 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                 : planSlug === "explore"
-                ? "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                : "border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                  ? "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                  : "border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400",
             )}
           >
             {planName}
@@ -244,13 +273,16 @@ export function StarsWidget() {
             className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-dashed border-[#7C3AED]/50 bg-[#7C3AED]/5 text-[#7C3AED] text-xs font-semibold hover:bg-[#7C3AED]/10 transition-all"
           >
             <Sparkles className="size-3.5 shrink-0" />
-            Adquirir um plano
+            <span className="hidden sm:block">Adquirir um plano</span>
           </button>
         )}
       </div>
 
-      <StarsPurchaseModal open={purchaseOpen} onClose={() => setPurchaseOpen(false)} />
-      <PlanSelectModal    open={planOpen}     onClose={() => setPlanOpen(false)} />
+      <StarsPurchaseModal
+        open={purchaseOpen}
+        onClose={() => setPurchaseOpen(false)}
+      />
+      <PlanSelectModal open={planOpen} onClose={() => setPlanOpen(false)} />
     </>
   );
 }

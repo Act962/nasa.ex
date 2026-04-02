@@ -21,7 +21,9 @@ function saveRecentCommand(cmd: string): string[] {
   if (!trimmed) return loadRecentCommands();
   const prev = loadRecentCommands().filter((c) => c !== trimmed);
   const next = [trimmed, ...prev].slice(0, RECENT_MAX);
-  try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch {}
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {}
   return next;
 }
 
@@ -39,7 +41,8 @@ function useVoiceInput(onTranscript: (text: string) => void) {
     setVoiceState(s);
   };
 
-  const isSupported = typeof window !== "undefined" &&
+  const isSupported =
+    typeof window !== "undefined" &&
     ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
 
   const startListening = useCallback(() => {
@@ -53,10 +56,17 @@ function useVoiceInput(onTranscript: (text: string) => void) {
     }
 
     const SpeechRecognitionAPI =
-      (window as unknown as { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition })
-        .SpeechRecognition ??
-      (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition })
-        .webkitSpeechRecognition;
+      (
+        window as unknown as {
+          SpeechRecognition?: typeof SpeechRecognition;
+          webkitSpeechRecognition?: typeof SpeechRecognition;
+        }
+      ).SpeechRecognition ??
+      (
+        window as unknown as {
+          webkitSpeechRecognition?: typeof SpeechRecognition;
+        }
+      ).webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) return;
 
@@ -141,6 +151,7 @@ import {
   integrationApps,
 } from "../data/variables";
 import type { VariableCategory, AppItem } from "../data/variables";
+import { HeaderTracking } from "@/features/leads/components/header-tracking";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -160,7 +171,13 @@ interface ResultLink {
 }
 
 interface ResultData {
-  type?: "created" | "query_result" | "error" | "needs_input" | "post_generated" | "confirmation_needed";
+  type?:
+    | "created"
+    | "query_result"
+    | "error"
+    | "needs_input"
+    | "post_generated"
+    | "confirmation_needed";
   title: string;
   description: string;
   url: string;
@@ -521,7 +538,9 @@ function PlusMenu({ onClose }: PlusMenuProps) {
   return (
     <div className="absolute bottom-full left-0 mb-2 w-48 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl overflow-hidden z-50">
       <div className="px-3 py-2 border-b border-zinc-800">
-        <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Anexar</p>
+        <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+          Anexar
+        </p>
       </div>
       <button
         onClick={onClose}
@@ -562,7 +581,7 @@ function ResultOverlay({ result, onClose }: ResultOverlayProps) {
       <div className="bg-zinc-900 border border-zinc-700/60 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         <div className="p-6">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center shrink-0 mt-0.5">
               <CheckCircle2 className="w-5 h-5 text-green-400" />
             </div>
             <div className="flex-1 min-w-0">
@@ -644,7 +663,10 @@ function ExampleLibrary({ onSelect }: ExampleLibraryProps) {
                 {cat.examples.map((example, i) => (
                   <button
                     key={i}
-                    onClick={() => { onSelect(example); setOpen(false); }}
+                    onClick={() => {
+                      onSelect(example);
+                      setOpen(false);
+                    }}
                     className="w-full text-left text-xs text-zinc-500 hover:text-zinc-200 bg-zinc-900/50 hover:bg-zinc-800/80 border border-zinc-800/80 hover:border-zinc-700 rounded-lg px-3 py-2 transition-all leading-relaxed"
                   >
                     {example}
@@ -737,7 +759,11 @@ const PROVIDER_MODELS: Record<string, ModelOption[]> = {
       label: "GPT-4o",
       sublabel: "OpenAI",
       icon: (
-        <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
+        <svg
+          className="w-4 h-4 text-emerald-400"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
           <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" />
         </svg>
       ),
@@ -748,7 +774,11 @@ const PROVIDER_MODELS: Record<string, ModelOption[]> = {
       label: "GPT-4o mini",
       sublabel: "OpenAI",
       icon: (
-        <svg className="w-4 h-4 text-emerald-400/70" viewBox="0 0 24 24" fill="currentColor">
+        <svg
+          className="w-4 h-4 text-emerald-400/70"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
           <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" />
         </svg>
       ),
@@ -769,7 +799,10 @@ const PROVIDER_MODELS: Record<string, ModelOption[]> = {
               <stop offset="100%" stopColor="#FBBC04" />
             </linearGradient>
           </defs>
-          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 3l2 5h-4l2-5zm0 12l-2-5h4l-2 5zm-5-5l5-2v4l-5-2zm10 0l-5 2v-4l5 2z" fill="url(#gem-g)" />
+          <path
+            d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 3l2 5h-4l2-5zm0 12l-2-5h4l-2 5zm-5-5l5-2v4l-5-2zm10 0l-5 2v-4l5 2z"
+            fill="url(#gem-g)"
+          />
         </svg>
       ),
       provider: "Google",
@@ -786,7 +819,10 @@ const PROVIDER_MODELS: Record<string, ModelOption[]> = {
               <stop offset="100%" stopColor="#34A853" />
             </linearGradient>
           </defs>
-          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 3l2 5h-4l2-5zm0 12l-2-5h4l-2 5zm-5-5l5-2v4l-5-2zm10 0l-5 2v-4l5 2z" fill="url(#gem-g2)" />
+          <path
+            d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 3l2 5h-4l2-5zm0 12l-2-5h4l-2 5zm-5-5l5-2v4l-5-2zm10 0l-5 2v-4l5 2z"
+            fill="url(#gem-g2)"
+          />
         </svg>
       ),
       provider: "Google",
@@ -850,18 +886,24 @@ function ModelSelector({ value, onChange }: ModelSelectorProps) {
         {isAstro ? (
           <Sparkles className="w-3.5 h-3.5 text-violet-400" />
         ) : (
-          selectedIndividual?.icon ?? <Bot className="w-3.5 h-3.5 text-zinc-400" />
+          (selectedIndividual?.icon ?? (
+            <Bot className="w-3.5 h-3.5 text-zinc-400" />
+          ))
         )}
-        <span>{isAstro ? "Astro" : (selectedIndividual?.label ?? "Modelo")}</span>
+        <span>
+          {isAstro ? "Astro" : (selectedIndividual?.label ?? "Modelo")}
+        </span>
         <ChevronDown className="w-3 h-3 opacity-50" />
       </button>
 
       {open && (
         <div className="absolute bottom-full right-0 mb-1 w-60 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl overflow-hidden z-50">
-
           {/* ── Astro — opção principal ── */}
           <button
-            onClick={() => { onChange("astro"); setOpen(false); }}
+            onClick={() => {
+              onChange("astro");
+              setOpen(false);
+            }}
             className={cn(
               "w-full text-left transition-colors",
               isAstro ? "bg-violet-950/80" : "hover:bg-zinc-800/80",
@@ -873,14 +915,19 @@ function ModelSelector({ value, onChange }: ModelSelectorProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-white">Astro</span>
+                  <span className="text-xs font-semibold text-white">
+                    Astro
+                  </span>
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-violet-600/30 text-violet-300 uppercase tracking-wide">
                     Recomendado
                   </span>
-                  {isAstro && <CheckCircle2 className="w-3 h-3 text-violet-400 ml-auto" />}
+                  {isAstro && (
+                    <CheckCircle2 className="w-3 h-3 text-violet-400 ml-auto" />
+                  )}
                 </div>
                 <p className="text-[10px] text-zinc-400 mt-0.5 leading-snug">
-                  Consolida todas as IAs conectadas e direciona cada comando ao modelo mais adequado.
+                  Consolida todas as IAs conectadas e direciona cada comando ao
+                  modelo mais adequado.
                 </p>
                 {/* Pills das IAs que compõem o Astro */}
                 {connectedPlatforms.length > 0 && (
@@ -915,7 +962,10 @@ function ModelSelector({ value, onChange }: ModelSelectorProps) {
               {individualOptions.map((opt) => (
                 <button
                   key={opt.id}
-                  onClick={() => { onChange(opt.id); setOpen(false); }}
+                  onClick={() => {
+                    onChange(opt.id);
+                    setOpen(false);
+                  }}
                   className={cn(
                     "w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors text-left",
                     value === opt.id
@@ -925,8 +975,12 @@ function ModelSelector({ value, onChange }: ModelSelectorProps) {
                 >
                   {opt.icon}
                   <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-medium leading-tight">{opt.label}</span>
-                    <span className="text-[10px] text-zinc-500 leading-tight">{opt.sublabel}</span>
+                    <span className="text-xs font-medium leading-tight">
+                      {opt.label}
+                    </span>
+                    <span className="text-[10px] text-zinc-500 leading-tight">
+                      {opt.sublabel}
+                    </span>
                   </div>
                   {value === opt.id && (
                     <CheckCircle2 className="w-3.5 h-3.5 text-violet-400 ml-auto shrink-0" />
@@ -957,11 +1011,12 @@ function buildThinkingSteps(cmd: string): string[] {
   const lower = cmd.toLowerCase();
   const steps: string[] = ["Analisando o comando..."];
 
-  if (lower.includes("#forge"))        steps.push("Identificando app: Forge");
-  if (lower.includes("#agenda"))       steps.push("Identificando app: Agenda");
-  if (lower.includes("#nasa-planner")) steps.push("Identificando app: NASA Planner");
-  if (lower.includes("#nasa-post"))    steps.push("Identificando app: NASA Post");
-  if (lower.includes("#tracking"))     steps.push("Identificando app: Tracking");
+  if (lower.includes("#forge")) steps.push("Identificando app: Forge");
+  if (lower.includes("#agenda")) steps.push("Identificando app: Agenda");
+  if (lower.includes("#nasa-planner"))
+    steps.push("Identificando app: NASA Planner");
+  if (lower.includes("#nasa-post")) steps.push("Identificando app: NASA Post");
+  if (lower.includes("#tracking")) steps.push("Identificando app: Tracking");
 
   const vars = [...cmd.matchAll(/\/([A-Za-zÀ-ÿ0-9_]+)/g)].map((m) => m[1]);
   vars.forEach((v) => {
@@ -976,14 +1031,28 @@ function buildThinkingSteps(cmd: string): string[] {
     }
   });
 
-  if (lower.includes("proposta"))   steps.push("Criando proposta no Forge...");
-  if (lower.includes("contrato"))   steps.push("Criando contrato no Forge...");
-  if (lower.includes("reunião") || lower.includes("follow-up") || lower.includes("agende")) steps.push("Criando agendamento...");
-  if (lower.includes("post") || lower.includes("carrossel")) steps.push("Criando post no NASA Planner...");
-  if (lower.includes("tracking") && lower.includes("crie")) steps.push("Criando tracking...");
-  if (lower.includes("lead") && lower.includes("crie")) steps.push("Criando lead...");
-  if (lower.includes("saldo") || lower.includes("estrelas")) steps.push("Consultando saldo de Stars...");
-  if (lower.includes("quantos") || lower.includes("quais") || lower.includes("liste")) steps.push("Buscando dados...");
+  if (lower.includes("proposta")) steps.push("Criando proposta no Forge...");
+  if (lower.includes("contrato")) steps.push("Criando contrato no Forge...");
+  if (
+    lower.includes("reunião") ||
+    lower.includes("follow-up") ||
+    lower.includes("agende")
+  )
+    steps.push("Criando agendamento...");
+  if (lower.includes("post") || lower.includes("carrossel"))
+    steps.push("Criando post no NASA Planner...");
+  if (lower.includes("tracking") && lower.includes("crie"))
+    steps.push("Criando tracking...");
+  if (lower.includes("lead") && lower.includes("crie"))
+    steps.push("Criando lead...");
+  if (lower.includes("saldo") || lower.includes("estrelas"))
+    steps.push("Consultando saldo de Stars...");
+  if (
+    lower.includes("quantos") ||
+    lower.includes("quais") ||
+    lower.includes("liste")
+  )
+    steps.push("Buscando dados...");
 
   steps.push("Finalizando...");
   return steps;
@@ -1002,7 +1071,7 @@ function ThinkingDisplay({ steps }: { steps: string[] }) {
 
   return (
     <div className="flex items-start gap-3 py-2">
-      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center shrink-0 shadow-lg shadow-violet-900/40">
+      <div className="w-9 h-9 rounded-full bg-linear-to-br from-violet-600 to-purple-800 flex items-center justify-center shrink-0 shadow-lg shadow-violet-900/40">
         <Sparkles className="w-4 h-4 text-white" />
       </div>
       <div className="flex-1 min-w-0 bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-4 py-3">
@@ -1058,12 +1127,22 @@ interface ResponseCardProps {
   onExplorerCmd?: (cmd: string) => void;
 }
 
-function ResponseCard({ result, onClose, onContinue, onConfirm, onExplorerCmd }: ResponseCardProps) {
+function ResponseCard({
+  result,
+  onClose,
+  onContinue,
+  onConfirm,
+  onExplorerCmd,
+}: ResponseCardProps) {
   const [copied, setCopied] = useState(false);
   const [contentCopied, setContentCopied] = useState(false);
   // Stores both the id (for DB lookup) and the display label per field
-  const [missingValues, setMissingValues] = useState<Record<string, string>>({});
-  const [missingLabels, setMissingLabels] = useState<Record<string, string>>({});
+  const [missingValues, setMissingValues] = useState<Record<string, string>>(
+    {},
+  );
+  const [missingLabels, setMissingLabels] = useState<Record<string, string>>(
+    {},
+  );
 
   const setFieldValue = useCallback(
     (key: string, id: string, label: string) => {
@@ -1091,7 +1170,9 @@ function ResponseCard({ result, onClose, onContinue, onConfirm, onExplorerCmd }:
 
   const handleDownload = () => {
     if (!result.content) return;
-    const blob = new Blob([result.content], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([result.content], {
+      type: "text/plain;charset=utf-8",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -1158,14 +1239,19 @@ function ResponseCard({ result, onClose, onContinue, onConfirm, onExplorerCmd }:
             ) : (
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             )}
-            <span className="text-sm font-semibold text-white">{result.title}</span>
+            <span className="text-sm font-semibold text-white">
+              {result.title}
+            </span>
             {(result.starsSpent ?? 0) > 0 && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
                 −{result.starsSpent} ⭐
               </span>
             )}
           </div>
-          <button onClick={onClose} className="text-zinc-600 hover:text-zinc-300 transition-colors shrink-0">
+          <button
+            onClick={onClose}
+            className="text-zinc-600 hover:text-zinc-300 transition-colors shrink-0"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -1206,82 +1292,91 @@ function ResponseCard({ result, onClose, onContinue, onConfirm, onExplorerCmd }:
           )}
 
           {/* needs_input: smart search fields for each missing field */}
-          {isNeedsInput && result.missingFields && result.missingFields.length > 0 && (
-            <div className="mt-4 space-y-3">
-              {result.missingFields.map((field) => {
-                const entityType  = getEntityType(field.key);
-                const isDatetime  = field.key === "datetime";
-                const isDateOnly  = field.key === "startdate" || field.key === "duedate";
-                const isTextarea  = field.key === "descricao" || field.key === "description";
-                // workspaceColumn needs the selected workspace id as parentId
-                const parentId    = (field.key === "coluna" || field.key === "column")
-                  ? (missingValues["workspace"] ?? undefined)
-                  : undefined;
-                return (
-                  <div key={field.key}>
-                    <label className="block text-xs text-zinc-400 mb-1.5 font-medium">
-                      {field.label}
-                    </label>
-                    {isDatetime ? (
-                      <DateTimePickerField
-                        value={missingValues[field.key] ?? ""}
-                        onChange={(v) => setFieldValue(field.key, "", v)}
-                        onConfirm={handleContinue}
-                      />
-                    ) : isDateOnly ? (
-                      <DatePickerField
-                        value={missingValues[field.key] ?? ""}
-                        onChange={(v) => setFieldValue(field.key, "", v)}
-                      />
-                    ) : isTextarea ? (
-                      <TextareaField
-                        label={field.label}
-                        value={missingValues[field.key] ?? ""}
-                        onChange={(v) => setFieldValue(field.key, "", v)}
-                      />
-                    ) : entityType ? (
-                      <EntitySearchField
-                        fieldKey={field.key}
-                        label={field.label}
-                        entityType={entityType}
-                        parentId={parentId}
-                        value={missingValues[field.key] ?? ""}
-                        onChange={(id, label) => setFieldValue(field.key, id, label)}
-                      />
-                    ) : (
-                      <PlainField
-                        label={field.label}
-                        value={missingValues[field.key] ?? ""}
-                        onChange={(v) => setFieldValue(field.key, "", v)}
-                        onEnter={handleContinue}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-              <button
-                onClick={handleContinue}
-                className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors mt-1"
-              >
-                Continuar →
-              </button>
-            </div>
-          )}
+          {isNeedsInput &&
+            result.missingFields &&
+            result.missingFields.length > 0 && (
+              <div className="mt-4 space-y-3">
+                {result.missingFields.map((field) => {
+                  const entityType = getEntityType(field.key);
+                  const isDatetime = field.key === "datetime";
+                  const isDateOnly =
+                    field.key === "startdate" || field.key === "duedate";
+                  const isTextarea =
+                    field.key === "descricao" || field.key === "description";
+                  // workspaceColumn needs the selected workspace id as parentId
+                  const parentId =
+                    field.key === "coluna" || field.key === "column"
+                      ? (missingValues["workspace"] ?? undefined)
+                      : undefined;
+                  return (
+                    <div key={field.key}>
+                      <label className="block text-xs text-zinc-400 mb-1.5 font-medium">
+                        {field.label}
+                      </label>
+                      {isDatetime ? (
+                        <DateTimePickerField
+                          value={missingValues[field.key] ?? ""}
+                          onChange={(v) => setFieldValue(field.key, "", v)}
+                          onConfirm={handleContinue}
+                        />
+                      ) : isDateOnly ? (
+                        <DatePickerField
+                          value={missingValues[field.key] ?? ""}
+                          onChange={(v) => setFieldValue(field.key, "", v)}
+                        />
+                      ) : isTextarea ? (
+                        <TextareaField
+                          label={field.label}
+                          value={missingValues[field.key] ?? ""}
+                          onChange={(v) => setFieldValue(field.key, "", v)}
+                        />
+                      ) : entityType ? (
+                        <EntitySearchField
+                          fieldKey={field.key}
+                          label={field.label}
+                          entityType={entityType}
+                          parentId={parentId}
+                          value={missingValues[field.key] ?? ""}
+                          onChange={(id, label) =>
+                            setFieldValue(field.key, id, label)
+                          }
+                        />
+                      ) : (
+                        <PlainField
+                          label={field.label}
+                          value={missingValues[field.key] ?? ""}
+                          onChange={(v) => setFieldValue(field.key, "", v)}
+                          onEnter={handleContinue}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+                <button
+                  onClick={handleContinue}
+                  className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors mt-1"
+                >
+                  Continuar →
+                </button>
+              </div>
+            )}
 
           {/* confirmation_needed: show option buttons */}
-          {isConfirmationNeeded && result.confirmOptions && result.confirmOptions.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {result.confirmOptions.map((opt) => (
-                <button
-                  key={opt.key}
-                  onClick={() => handleConfirmOption(opt.key)}
-                  className="flex items-center gap-1.5 bg-transparent border border-violet-500/60 text-violet-300 hover:bg-violet-500/10 hover:border-violet-400 text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
+          {isConfirmationNeeded &&
+            result.confirmOptions &&
+            result.confirmOptions.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {result.confirmOptions.map((opt) => (
+                  <button
+                    key={opt.key}
+                    onClick={() => handleConfirmOption(opt.key)}
+                    className="flex items-center gap-1.5 bg-transparent border border-violet-500/60 text-violet-300 hover:bg-violet-500/10 hover:border-violet-400 text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
           {/* post_generated: show formatted content */}
           {isPostGenerated && result.content && (
@@ -1480,122 +1575,122 @@ function CommandInput({
           padding: 1,
         }}
       >
-      <div className="relative bg-zinc-900 rounded-[calc(1rem-1px)] overflow-visible transition-all">
-        {/* Text area with highlight */}
-        <div className="relative px-12 pt-4 pb-2">
-          <div
-            ref={highlightRef}
-            aria-hidden="true"
-            className="absolute inset-0 px-12 pt-4 pb-2 text-sm leading-relaxed pointer-events-none overflow-hidden whitespace-pre-wrap break-words"
-            style={{
-              fontSize: "0.875rem",
-              lineHeight: "1.625",
-              wordBreak: "break-word",
-            }}
-            dangerouslySetInnerHTML={{ __html: highlightedHTML + "\u200b" }}
-          />
-          <textarea
-            ref={textareaRef}
-            value={command}
-            onChange={handleTextChange}
-            onKeyDown={handleKeyDown}
-            onScroll={syncScroll}
-            disabled={loading}
-            rows={1}
-            placeholder="Fala comandante, quais as ordens?"
-            className="relative w-full bg-transparent text-transparent caret-white resize-none outline-none text-sm leading-relaxed placeholder:text-zinc-600 placeholder:font-sans placeholder:text-xs min-h-[48px] max-h-[200px] overflow-y-auto"
-            style={{
-              caretColor: "white",
-              fontSize: "0.875rem",
-              lineHeight: "1.625",
-              wordBreak: "break-word",
-            }}
-          />
-        </div>
-
-        {/* Bottom toolbar */}
-        <div className="flex items-center justify-between px-3 py-2 border-t border-zinc-800/60">
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <button
-                onClick={() =>
-                  setDropdown((d) => (d === "plus" ? null : "plus"))
-                }
-                className="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/50 text-zinc-400 hover:text-white transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-              {dropdown === "plus" && (
-                <PlusMenu onClose={() => setDropdown(null)} />
-              )}
-            </div>
-
-            {/* ── Mic button ── */}
-            <button
-              type="button"
-              onClick={startListening}
-              disabled={loading || voiceState === "unsupported"}
-              title={
-                voiceState === "unsupported"
-                  ? "Navegador não suporta reconhecimento de voz"
-                  : voiceState === "listening"
-                  ? "Ouvindo... clique para parar"
-                  : "Falar comando"
-              }
-              className={cn(
-                "w-7 h-7 flex items-center justify-center rounded-lg border transition-all",
-                voiceState === "listening"
-                  ? "bg-red-500/20 border-red-500/60 text-red-400 animate-pulse"
-                  : voiceState === "processing"
-                  ? "bg-violet-500/20 border-violet-500/60 text-violet-400"
-                  : voiceState === "unsupported"
-                  ? "bg-zinc-800 border-zinc-700/50 text-zinc-600 cursor-not-allowed opacity-40"
-                  : "bg-zinc-800 hover:bg-zinc-700 border-zinc-700/50 text-zinc-400 hover:text-white",
-              )}
-            >
-              {voiceState === "listening" ? (
-                <MicOff className="w-3.5 h-3.5" />
-              ) : (
-                <Mic className="w-3.5 h-3.5" />
-              )}
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <ModelSelector value={model} onChange={setModel} />
-            <button
-              onClick={onSubmit}
-              disabled={!command.trim() || loading}
-              className={cn(
-                "w-8 h-8 flex items-center justify-center rounded-lg transition-all",
-                command.trim() && !loading
-                  ? "bg-white text-black hover:bg-zinc-100"
-                  : "bg-zinc-800 text-zinc-600 cursor-not-allowed",
-              )}
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-3.5 h-3.5" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Dropdowns */}
-        {dropdown === "variable" && (
-          <div className="absolute left-3 bottom-full mb-1 z-50">
-            <VariableDropdown
-              search={dropdownSearch}
-              onSelect={insertVariable}
+        <div className="relative bg-zinc-900 rounded-[calc(1rem-1px)] overflow-visible transition-all">
+          {/* Text area with highlight */}
+          <div className="relative px-12 pt-4 pb-2">
+            <div
+              ref={highlightRef}
+              aria-hidden="true"
+              className="absolute inset-0 px-12 pt-4 pb-2 text-sm leading-relaxed pointer-events-none overflow-hidden whitespace-pre-wrap break-words"
+              style={{
+                fontSize: "0.875rem",
+                lineHeight: "1.625",
+                wordBreak: "break-word",
+              }}
+              dangerouslySetInnerHTML={{ __html: highlightedHTML + "\u200b" }}
+            />
+            <textarea
+              ref={textareaRef}
+              value={command}
+              onChange={handleTextChange}
+              onKeyDown={handleKeyDown}
+              onScroll={syncScroll}
+              disabled={loading}
+              rows={1}
+              placeholder="Fala comandante, quais as ordens?"
+              className="relative w-full bg-transparent text-transparent caret-white resize-none outline-none text-sm leading-relaxed placeholder:text-zinc-600 placeholder:font-sans placeholder:text-xs min-h-[48px] max-h-[200px] overflow-y-auto"
+              style={{
+                caretColor: "white",
+                fontSize: "0.875rem",
+                lineHeight: "1.625",
+                wordBreak: "break-word",
+              }}
             />
           </div>
-        )}
-        {dropdown === "app" && (
-          <div className="absolute left-3 bottom-full mb-1 z-50">
-            <AppDropdown search={dropdownSearch} onSelect={insertVariable} />
+
+          {/* Bottom toolbar */}
+          <div className="flex items-center justify-between px-3 py-2 border-t border-zinc-800/60">
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <button
+                  onClick={() =>
+                    setDropdown((d) => (d === "plus" ? null : "plus"))
+                  }
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/50 text-zinc-400 hover:text-white transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                {dropdown === "plus" && (
+                  <PlusMenu onClose={() => setDropdown(null)} />
+                )}
+              </div>
+
+              {/* ── Mic button ── */}
+              <button
+                type="button"
+                onClick={startListening}
+                disabled={loading || voiceState === "unsupported"}
+                title={
+                  voiceState === "unsupported"
+                    ? "Navegador não suporta reconhecimento de voz"
+                    : voiceState === "listening"
+                      ? "Ouvindo... clique para parar"
+                      : "Falar comando"
+                }
+                className={cn(
+                  "w-7 h-7 flex items-center justify-center rounded-lg border transition-all",
+                  voiceState === "listening"
+                    ? "bg-red-500/20 border-red-500/60 text-red-400 animate-pulse"
+                    : voiceState === "processing"
+                      ? "bg-violet-500/20 border-violet-500/60 text-violet-400"
+                      : voiceState === "unsupported"
+                        ? "bg-zinc-800 border-zinc-700/50 text-zinc-600 cursor-not-allowed opacity-40"
+                        : "bg-zinc-800 hover:bg-zinc-700 border-zinc-700/50 text-zinc-400 hover:text-white",
+                )}
+              >
+                {voiceState === "listening" ? (
+                  <MicOff className="w-3.5 h-3.5" />
+                ) : (
+                  <Mic className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <ModelSelector value={model} onChange={setModel} />
+              <button
+                onClick={onSubmit}
+                disabled={!command.trim() || loading}
+                className={cn(
+                  "w-8 h-8 flex items-center justify-center rounded-lg transition-all",
+                  command.trim() && !loading
+                    ? "bg-white text-black hover:bg-zinc-100"
+                    : "bg-zinc-800 text-zinc-600 cursor-not-allowed",
+                )}
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Dropdowns */}
+          {dropdown === "variable" && (
+            <div className="absolute left-3 bottom-full mb-1 z-50">
+              <VariableDropdown
+                search={dropdownSearch}
+                onSelect={insertVariable}
+              />
+            </div>
+          )}
+          {dropdown === "app" && (
+            <div className="absolute left-3 bottom-full mb-1 z-50">
+              <AppDropdown search={dropdownSearch} onSelect={insertVariable} />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1604,8 +1699,8 @@ function CommandInput({
 // ─── Space Background ────────────────────────────────────────────────────────
 
 const STARS = Array.from({ length: 160 }, (_, i) => ({
-  x: ((i * 1_234_567 + 89) % 9_973) / 9_973 * 100,
-  y: ((i * 7_654_321 + 31) % 9_973) / 9_973 * 100,
+  x: (((i * 1_234_567 + 89) % 9_973) / 9_973) * 100,
+  y: (((i * 7_654_321 + 31) % 9_973) / 9_973) * 100,
   r: i % 7 === 0 ? 1.4 : i % 3 === 0 ? 0.9 : 0.5,
   o: 0.12 + (i % 9) * 0.09,
 }));
@@ -1617,7 +1712,13 @@ function StarField() {
         <div
           key={i}
           className="absolute rounded-full bg-white"
-          style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.r * 2, height: s.r * 2, opacity: s.o }}
+          style={{
+            left: `${s.x}%`,
+            top: `${s.y}%`,
+            width: s.r * 2,
+            height: s.r * 2,
+            opacity: s.o,
+          }}
         />
       ))}
     </div>
@@ -1633,7 +1734,12 @@ interface WelcomeScreenProps {
   onClearRecent: () => void;
 }
 
-function WelcomeScreen({ onSelect, commandInputProps, recentCommands, onClearRecent }: WelcomeScreenProps) {
+function WelcomeScreen({
+  onSelect,
+  commandInputProps,
+  recentCommands,
+  onClearRecent,
+}: WelcomeScreenProps) {
   const [mouse, setMouse] = useState({ x: -999, y: -999 });
 
   useEffect(() => {
@@ -1698,7 +1804,9 @@ export function NasaCommandCenter() {
   const [model, setModel] = useState<ModelType>("astro");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [recentCommands, setRecentCommands] = useState<string[]>(() => loadRecentCommands());
+  const [recentCommands, setRecentCommands] = useState<string[]>(() =>
+    loadRecentCommands(),
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -1711,84 +1819,90 @@ export function NasaCommandCenter() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const submitCommand = useCallback(async (userText: string) => {
-    if (!userText.trim() || loading) return;
-    setLoading(true);
-    setCommand("");
-    setDropdown(null);
-    setRecentCommands(saveRecentCommand(userText));
+  const submitCommand = useCallback(
+    async (userText: string) => {
+      if (!userText.trim() || loading) return;
+      setLoading(true);
+      setCommand("");
+      setDropdown(null);
+      setRecentCommands(saveRecentCommand(userText));
 
-    const thinkingSteps = buildThinkingSteps(userText);
-    const msgId = Math.random().toString(36).slice(2);
+      const thinkingSteps = buildThinkingSteps(userText);
+      const msgId = Math.random().toString(36).slice(2);
 
-    setMessages((prev) => [
-      ...prev,
-      { id: msgId + "-user", role: "user", command: userText },
-      {
-        id: msgId + "-think",
-        role: "assistant",
-        isThinking: true,
-        thinking: thinkingSteps,
-        originalCommand: userText,
-      },
-    ]);
+      setMessages((prev) => [
+        ...prev,
+        { id: msgId + "-user", role: "user", command: userText },
+        {
+          id: msgId + "-think",
+          role: "assistant",
+          isThinking: true,
+          thinking: thinkingSteps,
+          originalCommand: userText,
+        },
+      ]);
 
-    try {
-      const res = await executeCommand.mutateAsync({ command: userText, model });
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === msgId + "-think"
-            ? {
-                ...m,
-                isThinking: false,
-                result: {
-                  type: res.type,
-                  title: res.title,
-                  description: res.description,
-                  url: res.url ?? "/home",
-                  appName: res.appName,
-                  resultLinks: res.resultLinks,
-                  missingFields: res.missingFields,
-                  partialContext: res.partialContext,
-                  content: res.content,
-                  starsSpent: res.starsSpent,
-                  confirmOptions: res.confirmOptions,
-                },
-              }
-            : m,
-        ),
-      );
-    } catch (err: unknown) {
-      const message =
-        (err as { message?: string })?.message ??
-        "Erro ao processar o comando.";
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === msgId + "-think"
-            ? {
-                ...m,
-                isThinking: false,
-                result: {
-                  type: "error" as const,
-                  title: "Erro",
-                  description: message,
-                  url: "/home",
-                  appName: "NASA",
-                },
-              }
-            : m,
-        ),
-      );
-      toast.error(message);
-    } finally {
-      setLoading(false);
-      // Atualiza saldo de stars imediatamente após o comando
-      queryClient.invalidateQueries({
-        queryKey: orpc.stars.getBalance.queryOptions().queryKey,
-      });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [model, queryClient]);
+      try {
+        const res = await executeCommand.mutateAsync({
+          command: userText,
+          model,
+        });
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msgId + "-think"
+              ? {
+                  ...m,
+                  isThinking: false,
+                  result: {
+                    type: res.type,
+                    title: res.title,
+                    description: res.description,
+                    url: res.url ?? "/home",
+                    appName: res.appName,
+                    resultLinks: res.resultLinks,
+                    missingFields: res.missingFields,
+                    partialContext: res.partialContext,
+                    content: res.content,
+                    starsSpent: res.starsSpent,
+                    confirmOptions: res.confirmOptions,
+                  },
+                }
+              : m,
+          ),
+        );
+      } catch (err: unknown) {
+        const message =
+          (err as { message?: string })?.message ??
+          "Erro ao processar o comando.";
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msgId + "-think"
+              ? {
+                  ...m,
+                  isThinking: false,
+                  result: {
+                    type: "error" as const,
+                    title: "Erro",
+                    description: message,
+                    url: "/home",
+                    appName: "NASA",
+                  },
+                }
+              : m,
+          ),
+        );
+        toast.error(message);
+      } finally {
+        setLoading(false);
+        // Atualiza saldo de stars imediatamente após o comando
+        queryClient.invalidateQueries({
+          queryKey: orpc.stars.getBalance.queryOptions().queryKey,
+        });
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [model, queryClient],
+  );
 
   const handleSubmit = async () => {
     if (!command.trim() || loading) return;
@@ -1796,10 +1910,13 @@ export function NasaCommandCenter() {
   };
 
   // Chamado pelo hook de voz quando o transcript chega → envia direto
-  const handleVoiceTranscript = useCallback((text: string) => {
-    if (!text.trim() || loading) return;
-    submitCommand(text.trim());
-  }, [loading, submitCommand]);
+  const handleVoiceTranscript = useCallback(
+    (text: string) => {
+      if (!text.trim() || loading) return;
+      submitCommand(text.trim());
+    },
+    [loading, submitCommand],
+  );
 
   // Re-submit with extra /"key"="value" pairs appended to the original command
   const handleContinue = (originalCommand: string) => (extra: string) => {
@@ -1810,19 +1927,23 @@ export function NasaCommandCenter() {
   // Handle confirmation option button clicks
   // NOTE: originalCommand already contains all /"key"="value" pairs from the previous step.
   // We only append the NEW decision key — never re-append ctxPairs to avoid duplicates.
-  const handleConfirm = (originalCommand: string, _partialContext: Record<string, unknown>) => (key: string) => {
-    if (key.startsWith("lead_")) {
-      const leadId = key.replace("lead_", "");
-      submitCommand(`${originalCommand} /"lead_id"="${leadId}" /"lead_confirmed"="true"`);
-    } else if (key === "create_new_lead") {
-      submitCommand(`${originalCommand} /"create_new_lead"="true"`);
-    } else if (key.startsWith("status_")) {
-      const statusId = key.replace("status_", "");
-      submitCommand(`${originalCommand} /"status_id"="${statusId}"`);
-    } else {
-      submitCommand(`${originalCommand} /"${key}"="true"`);
-    }
-  };
+  const handleConfirm =
+    (originalCommand: string, _partialContext: Record<string, unknown>) =>
+    (key: string) => {
+      if (key.startsWith("lead_")) {
+        const leadId = key.replace("lead_", "");
+        submitCommand(
+          `${originalCommand} /"lead_id"="${leadId}" /"lead_confirmed"="true"`,
+        );
+      } else if (key === "create_new_lead") {
+        submitCommand(`${originalCommand} /"create_new_lead"="true"`);
+      } else if (key.startsWith("status_")) {
+        const statusId = key.replace("status_", "");
+        submitCommand(`${originalCommand} /"status_id"="${statusId}"`);
+      } else {
+        submitCommand(`${originalCommand} /"${key}"="true"`);
+      }
+    };
 
   const removeMessage = (id: string) => {
     setMessages((prev) => prev.filter((m) => m.id !== id));
@@ -1849,20 +1970,13 @@ export function NasaCommandCenter() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#050510] relative overflow-hidden" style={{ cursor: "url('/cursors/rocket.svg') 6 4, auto" }}>
+    <div
+      className="h-full flex flex-col bg-[#050510] relative overflow-hidden"
+      style={{ cursor: "url('/cursors/rocket.svg') 6 4, auto" }}
+    >
       <StarField />
       {/* ── Top bar: always visible ── */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800/60 bg-[#050510]/95 backdrop-blur shrink-0 relative z-10">
-        {hasMessages ? (
-          <NasaLogo className="w-[100px] sm:w-[130px] h-auto opacity-70" />
-        ) : (
-          <div /> /* spacer in welcome mode so StarsWidget stays right */
-        )}
-        <div className="flex items-center gap-2">
-          <SpacePointWidget />
-          <StarsWidget />
-        </div>
-      </div>
+      <HeaderTracking title="Home" />
 
       {/* ── Scrollable content ── */}
       <div className="flex-1 overflow-y-auto relative z-10">
@@ -1890,13 +2004,27 @@ export function NasaCommandCenter() {
                   <ResponseCard
                     result={msg.result}
                     onClose={() => setMessages([])}
-                    onContinue={msg.originalCommand ? handleContinue(msg.originalCommand) : undefined}
-                    onConfirm={msg.originalCommand ? handleConfirm(msg.originalCommand, msg.result.partialContext ?? {}) : undefined}
+                    onContinue={
+                      msg.originalCommand
+                        ? handleContinue(msg.originalCommand)
+                        : undefined
+                    }
+                    onConfirm={
+                      msg.originalCommand
+                        ? handleConfirm(
+                            msg.originalCommand,
+                            msg.result.partialContext ?? {},
+                          )
+                        : undefined
+                    }
                     onExplorerCmd={(cmd) => {
                       setCommand(cmd);
                       // Foca o input para o usuário completar o comando
                       setTimeout(() => {
-                        const ta = document.querySelector<HTMLTextAreaElement>("textarea");
+                        const ta =
+                          document.querySelector<HTMLTextAreaElement>(
+                            "textarea",
+                          );
                         ta?.focus();
                       }, 50);
                     }}
