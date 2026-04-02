@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 
 export const listActionByColumn = base
@@ -12,6 +13,10 @@ export const listActionByColumn = base
       columnId: z.string(),
       cursor: z.string().nullish(),
       limit: z.number().min(1).max(100).default(50),
+      participantIds: z.array(z.string()).optional().default([]),
+      tagIds: z.array(z.string()).optional().default([]),
+      dueDateFrom: z.coerce.date().nullable().optional(),
+      dueDateTo: z.coerce.date().nullable().optional(),
     }),
   )
   .handler(async ({ input, context, errors }) => {
@@ -32,26 +37,36 @@ export const listActionByColumn = base
 
     const isMember = member.role === "member";
 
+    const visibilityFilter: Prisma.ActionWhereInput = isMember
+      ? {
+          OR: [
+            { createdBy: context.user.id },
+            { participants: { some: { userId: context.user.id } } },
+          ],
+        }
+      : {};
+
+    const filterWhere: Prisma.ActionWhereInput = {
+      ...(input.participantIds.length > 0 && {
+        participants: { some: { userId: { in: input.participantIds } } },
+      }),
+      ...(input.tagIds.length > 0 && {
+        tags: { some: { tagId: { in: input.tagIds } } },
+      }),
+      ...((input.dueDateFrom || input.dueDateTo) && {
+        dueDate: {
+          ...(input.dueDateFrom && { gte: input.dueDateFrom }),
+          ...(input.dueDateTo && { lte: input.dueDateTo }),
+        },
+      }),
+    };
+
     const action = await prisma.action.findMany({
       where: {
         columnId: input.columnId,
         isArchived: false,
-        ...(isMember
-          ? {
-              OR: [
-                {
-                  createdBy: context.user.id,
-                },
-                {
-                  participants: {
-                    some: {
-                      userId: context.user.id,
-                    },
-                  },
-                },
-              ],
-            }
-          : {}),
+        ...visibilityFilter,
+        ...filterWhere,
       },
       take: limit + 1,
       cursor: input.cursor ? { id: input.cursor } : undefined,

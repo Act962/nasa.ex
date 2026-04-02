@@ -9,7 +9,7 @@ import { useState } from "react";
 import { CreateActionModal } from "./create-action-modal";
 import { DataKanban } from "./data-kanban";
 import { DataTable } from "./data-table";
-import { FiltersBar, DEFAULT_FILTERS, type FiltersState } from "./filters-bar";
+import { FiltersBar } from "./filters-bar";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -19,7 +19,6 @@ interface Props {
 export function ActionsViewSwitcher({ workspaceId }: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useQueryState("action-view", { defaultValue: "list" });
-  const [filters, setFilters] = useState<FiltersState>(DEFAULT_FILTERS);
 
   return (
     <>
@@ -53,11 +52,7 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
 
           {/* Filters bar */}
           <div className="px-4 py-2 border-b bg-background/80 flex items-center gap-2 flex-wrap">
-            <FiltersBar
-              workspaceId={workspaceId}
-              filters={filters}
-              onFiltersChange={setFilters}
-            />
+            <FiltersBar workspaceId={workspaceId} />
           </div>
 
           <div className="flex-1 overflow-auto">

@@ -1,6 +1,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEffect, useMemo, useRef } from "react";
 import { useInfiniteActionsByStatus } from "../../hooks/use-tasks";
+import { useActionFilters } from "../../hooks/use-action-filters";
 import { KanbanCard } from "./kanban-card";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
@@ -50,9 +51,16 @@ export function WorkspaceColumn({
   const scrollRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
+  const { filters } = useActionFilters();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useInfiniteActionsByStatus({
       columnId: id,
+      filters: {
+        participantIds: filters.participantIds,
+        tagIds: filters.tagIds,
+        dueDateFrom: filters.dueDateFrom,
+        dueDateTo: filters.dueDateTo,
+      },
     });
 
   useEffect(() => {
