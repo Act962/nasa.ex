@@ -99,7 +99,7 @@ export function ForgePage() {
           </div>
         </SheetContent>
       </Sheet>
-      </div>
+    </div>
     </ToastProvider>
   );
 }
