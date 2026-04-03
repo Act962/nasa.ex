@@ -6,7 +6,8 @@ import { updateOrgPlan }       from "./update-org-plan";
 import { adminUpdateMemberRole } from "./update-member-role";
 import { updateMemberCargo }   from "./update-member-cargo";
 import { setSystemAdmin }      from "./set-system-admin";
-import { listPlans }           from "./list-plans";
+import { listPlans as listPlansLegacy } from "./list-plans";
+import { listPlans, createPlan, updatePlan, deletePlan, togglePlanActive } from "./plans";
 import { listTransactions }    from "./list-transactions";
 import { listUsers }           from "./list-users";
 import { getUser }             from "./get-user";
@@ -24,6 +25,7 @@ import { adminRemoveMember }   from "./remove-member";
 import { adminUpdateMember }   from "./update-member";
 import { listPlatformAssets, setPlatformAsset, deletePlatformAsset, listSpaceLevels, updateSpaceLevel } from "./assets";
 import { listGatewayConfigs, setGatewayConfig, deleteGatewayConfig, toggleGatewayActive, listStarsPayments } from "./payments";
+import { listOrgDistributions, setOrgDistribution, setOrgMemberBudget } from "./star-distribution";
 
 export const adminRouter = {
   getDashboard,
@@ -61,4 +63,13 @@ export const adminRouter = {
   deleteGatewayConfig,
   toggleGatewayActive,
   listStarsPayments,
+  // Plans CRUD
+  createPlan,
+  updatePlan,
+  deletePlan,
+  togglePlanActive,
+  // Star distribution
+  listOrgDistributions,
+  setOrgDistribution,
+  setOrgMemberBudget,
 };

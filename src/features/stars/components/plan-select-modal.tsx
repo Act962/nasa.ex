@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { StarIcon } from "./star-icon";
 import {
-  Check, Loader2, CreditCard, Rocket, Users, ArrowRight, Sparkles,
+  Loader2, Sparkles, Users, ExternalLink, Zap,
 } from "lucide-react";
 
 interface PlanSelectModalProps {
@@ -18,45 +18,14 @@ interface PlanSelectModalProps {
   onClose: () => void;
 }
 
-const PLAN_FEATURES: Record<string, string[]> = {
-  earth: [
-    "500 ★ Stars por mês",
-    "Até 3 usuários",
-    "Chat IA (ASTRO)",
-    "Integrações básicas",
-    "Suporte por e-mail",
-  ],
-  explore: [
-    "2.000 ★ Stars por mês",
-    "Até 10 usuários",
-    "Chat IA (ASTRO) avançado",
-    "Todas as integrações",
-    "Suporte prioritário",
-    "Relatórios avançados",
-  ],
-  constellation: [
-    "Stars ilimitados",
-    "Usuários ilimitados",
-    "Gerente de conta dedicado",
-    "SLA customizado",
-    "Integrações exclusivas",
-    "Onboarding personalizado",
-  ],
-};
-
-const PLAN_ICONS: Record<string, string> = {
-  earth: "🌍",
-  explore: "🚀",
-  constellation: "✨",
-};
-
-const PLAN_HIGHLIGHT: Record<string, boolean> = {
-  explore: true,
+const BILLING_LABEL: Record<string, string> = {
+  monthly: "/mês",
+  annual:  "/ano",
+  weekly:  "/sem",
 };
 
 export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     ...orpc.stars.listPlans.queryOptions(),
@@ -65,151 +34,169 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
 
   const plans = data?.plans ?? [];
 
-  const handleChoose = async (planSlug: string) => {
-    if (planSlug === "constellation") {
-      // Constellation = fale com vendas
-      window.open("mailto:vendas@nasaex.com.br?subject=Plano Constellation", "_blank");
+  const handleChoose = async (plan: typeof plans[number]) => {
+    if (loadingId) return;
+
+    if (plan.ctaLink) {
+      window.open(plan.ctaLink, "_blank");
       return;
     }
 
-    setLoading(true);
-    try {
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          priceId:  getPriceId(planSlug),
-          mode:     "subscription",
-          itemType: "plan",
-          itemSlug: planSlug,
-        }),
-      });
-
-      const json = await res.json();
-      if (json.url) {
-        window.location.href = json.url;
-      } else {
-        // Fallback: se Stripe não estiver configurado, simula seleção
-        console.warn("[PlanSelectModal] Stripe não configurado:", json.error);
-        alert("Gateway de pagamento não configurado neste ambiente. Configure STRIPE_SECRET_KEY.");
+    if (plan.ctaGatewayId) {
+      setLoadingId(plan.id);
+      try {
+        const res = await fetch("/api/stripe/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            planId:   plan.id,
+            planSlug: plan.slug,
+            mode:     "subscription",
+            itemType: "plan",
+            itemSlug: plan.slug,
+          }),
+        });
+        const json = await res.json();
+        if (json.url) {
+          window.location.href = json.url;
+        } else {
+          alert("Gateway de pagamento não configurado. Contate o suporte.");
+        }
+      } finally {
+        setLoadingId(null);
       }
-    } finally {
-      setLoading(false);
+      return;
     }
+
+    window.open("mailto:vendas@nasaex.com.br?subject=Plano " + plan.name, "_blank");
   };
+
+  // Determine grid columns based on plan count
+  const colClass =
+    plans.length <= 1 ? "grid-cols-1 max-w-xs mx-auto" :
+    plans.length === 2 ? "grid-cols-2" :
+    plans.length === 3 ? "grid-cols-3" :
+    "grid-cols-2 sm:grid-cols-3";
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="size-10 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#a855f7] flex items-center justify-center">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#0a0a14] border-white/10">
+        {/* Header */}
+        <DialogHeader className="pb-1">
+          <div className="flex items-start gap-3">
+            <div className="size-10 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#a855f7] flex items-center justify-center shrink-0">
               <Sparkles className="size-5 text-white" />
             </div>
             <div>
-              <DialogTitle className="text-lg">Escolha seu plano</DialogTitle>
-              <p className="text-xs text-muted-foreground">
+              <DialogTitle className="text-base font-bold text-white">
+                Escolha seu plano
+              </DialogTitle>
+              <p className="text-xs text-white/40 mt-0.5 leading-relaxed">
                 Stars são creditados mensalmente e usados para manter integrações ativas
               </p>
             </div>
           </div>
         </DialogHeader>
 
+        {/* Plans grid */}
         {isLoading ? (
-          <div className="grid grid-cols-3 gap-4 py-4">
+          <div className="grid grid-cols-3 gap-3 py-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-64 rounded-xl bg-muted animate-pulse" />
+              <div key={i} className="h-52 rounded-xl bg-white/5 animate-pulse" />
             ))}
           </div>
+        ) : plans.length === 0 ? (
+          <div className="py-12 text-center text-sm text-white/40">
+            Nenhum plano disponível no momento.
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
+          <div className={cn("grid gap-3 py-1", colClass)}>
             {plans.map((plan) => {
-              const isHighlight = PLAN_HIGHLIGHT[plan.slug];
-              const isConstellation = plan.slug === "constellation";
-              const features = PLAN_FEATURES[plan.slug] ?? [];
+              const busy         = loadingId === plan.id;
+              const billingLabel = BILLING_LABEL[plan.billingType] ?? "/mês";
+              const isFree       = plan.priceMonthly === 0;
 
               return (
                 <div
-                  key={plan.slug}
+                  key={plan.id}
                   className={cn(
-                    "relative flex flex-col rounded-xl border-2 p-4 transition-all cursor-pointer",
-                    isHighlight
-                      ? "border-[#7C3AED] bg-[#7C3AED]/5 shadow-[0_0_20px_rgba(124,58,237,0.15)]"
-                      : "border-border hover:border-[#7C3AED]/40 hover:bg-muted/30",
-                    selected === plan.slug && "ring-2 ring-[#7C3AED] ring-offset-2"
+                    "relative flex flex-col rounded-xl border p-4 transition-all",
+                    plan.highlighted
+                      ? "border-[#7C3AED]/60 bg-[#7C3AED]/8 shadow-[0_0_24px_rgba(124,58,237,.15)]"
+                      : "border-white/10 bg-white/4 hover:border-white/20 hover:bg-white/6"
                   )}
-                  onClick={() => setSelected(plan.slug)}
                 >
-                  {isHighlight && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="bg-[#7C3AED] text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                  {/* Popular badge */}
+                  {plan.highlighted && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                      <span className="bg-[#7C3AED] text-white text-[10px] font-bold px-3 py-0.5 rounded-full whitespace-nowrap shadow-lg">
                         Mais popular
                       </span>
                     </div>
                   )}
 
-                  {/* Plan header */}
-                  <div className="text-center mb-4">
-                    <div className="text-3xl mb-1.5">{PLAN_ICONS[plan.slug]}</div>
-                    <p className="font-bold text-lg">{plan.name}</p>
+                  {/* Plan name */}
+                  <p className="text-sm font-bold text-white text-center mb-3 mt-1">
+                    {plan.name}
+                  </p>
 
-                    {isConstellation ? (
-                      <p className="text-sm text-muted-foreground mt-1">Sob consulta</p>
+                  {/* Price */}
+                  <div className="text-center mb-3">
+                    {isFree ? (
+                      <div className="text-2xl font-extrabold text-white">
+                        R$ 0
+                        <span className="text-xs text-white/40 font-normal">{billingLabel}</span>
+                      </div>
                     ) : (
-                      <div className="mt-1">
-                        <span className="text-2xl font-extrabold">
-                          R$ {plan.priceMonthly.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}
+                      <div>
+                        <span className="text-[11px] text-white/50 font-medium">R$</span>
+                        <span className="text-3xl font-extrabold text-white mx-1 leading-none">
+                          {plan.priceMonthly.toLocaleString("pt-BR", { minimumFractionDigits: 0 })}
                         </span>
-                        <span className="text-xs text-muted-foreground">/mês</span>
+                        <span className="text-[11px] text-white/40">{billingLabel}</span>
                       </div>
                     )}
-
-                    {!isConstellation && (
-                      <div className="flex items-center justify-center gap-1 mt-2 text-[11px] font-semibold text-[#7C3AED]">
-                        <StarIcon className="size-3.5" />
-                        {plan.monthlyStars.toLocaleString("pt-BR")} stars/mês
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-center gap-1 mt-1 text-[11px] text-muted-foreground">
-                      <Users className="size-3" />
-                      {plan.maxUsers >= 999 ? "Ilimitado" : `Até ${plan.maxUsers} usuários`}
-                    </div>
                   </div>
 
-                  {/* Features */}
-                  <ul className="space-y-1.5 flex-1">
-                    {features.map((f) => (
-                      <li key={f} className="flex items-start gap-1.5 text-[11px]">
-                        <Check className="size-3 text-emerald-500 shrink-0 mt-0.5" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
+                  {/* Stars */}
+                  <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                    <StarIcon className="size-3.5 shrink-0" />
+                    <span className={cn(
+                      "text-[12px] font-bold",
+                      plan.highlighted ? "text-[#a78bfa]" : "text-[#7C3AED]"
+                    )}>
+                      {plan.monthlyStars.toLocaleString("pt-BR")} stars/mês
+                    </span>
+                  </div>
+
+                  {/* Users */}
+                  <div className="flex items-center justify-center gap-1.5 mb-4">
+                    <Users className="size-3 text-white/30 shrink-0" />
+                    <span className="text-[11px] text-white/40">
+                      {plan.maxUsers >= 999_999
+                        ? "Usuários ilimitados"
+                        : `Até ${plan.maxUsers} usuários`}
+                    </span>
+                  </div>
 
                   {/* CTA */}
                   <Button
                     size="sm"
-                    disabled={loading}
+                    disabled={!!loadingId}
+                    onClick={() => handleChoose(plan)}
                     className={cn(
-                      "w-full mt-4 gap-1.5 font-semibold text-xs",
-                      isHighlight
-                        ? "bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
-                        : isConstellation
-                        ? "bg-gradient-to-r from-[#7C3AED] to-[#a855f7] text-white"
-                        : "bg-foreground text-background hover:bg-foreground/90"
+                      "w-full mt-auto gap-1.5 font-semibold text-xs rounded-lg h-8",
+                      plan.highlighted
+                        ? "bg-[#7C3AED] hover:bg-[#6D28D9] text-white shadow-lg shadow-[#7C3AED]/20"
+                        : "bg-white/10 hover:bg-white/15 text-white border border-white/10"
                     )}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleChoose(plan.slug);
-                    }}
                   >
-                    {loading && selected === plan.slug ? (
-                      <><Loader2 className="size-3.5 animate-spin" /> Redirecionando...</>
-                    ) : isConstellation ? (
-                      <><Sparkles className="size-3.5" /> Falar com vendas</>
+                    {busy ? (
+                      <><Loader2 className="size-3.5 animate-spin" /> Aguarde...</>
+                    ) : plan.ctaLink ? (
+                      <><ExternalLink className="size-3.5" /> {plan.ctaLabel}</>
                     ) : (
-                      <><CreditCard className="size-3.5" /> Assinar agora <ArrowRight className="size-3" /></>
+                      <><Zap className="size-3.5" /> {plan.ctaLabel}</>
                     )}
                   </Button>
                 </div>
@@ -218,20 +205,11 @@ export function PlanSelectModal({ open, onClose }: PlanSelectModalProps) {
           </div>
         )}
 
-        {/* Security note */}
-        <p className="text-center text-[11px] text-muted-foreground pb-1">
-          🔒 Pagamento seguro via <strong>Stripe</strong> — cancele quando quiser, sem multas
+        {/* Footer */}
+        <p className="text-center text-[11px] text-white/25 pt-1 pb-0.5">
+          🔒 Pagamento seguro — cancele quando quiser, sem multas
         </p>
       </DialogContent>
     </Dialog>
   );
-}
-
-// Helper local — resolve price ID sem chamar o servidor
-function getPriceId(planSlug: string): string {
-  const map: Record<string, string> = {
-    earth:        process.env.NEXT_PUBLIC_STRIPE_PRICE_EARTH    ?? "price_earth_placeholder",
-    explore:      process.env.NEXT_PUBLIC_STRIPE_PRICE_EXPLORE  ?? "price_explore_placeholder",
-  };
-  return map[planSlug] ?? "price_placeholder";
 }

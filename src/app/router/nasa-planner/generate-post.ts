@@ -57,6 +57,7 @@ export const generatePost = base
           StarTransactionType.APP_CHARGE,
           `NASA Planner — geração de conteúdo IA`,
           "nasa-planner",
+          context.user.id,
         );
       } catch (starErr: any) {
         console.error("[NASA Planner] debitStars error:", starErr?.message);

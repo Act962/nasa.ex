@@ -8,6 +8,9 @@ import { listPlans } from "./list-plans";
 import { createCheckoutSession } from "./create-checkout-session";
 import { listActiveGateways } from "./list-active-gateways";
 import { createGatewayCheckout } from "./create-gateway-checkout";
+import { getStarDistribution } from "./get-distribution";
+import { setStarDistribution } from "./set-distribution";
+import { setMemberBudget } from "./set-member-budget";
 
 export const starsRouter = {
   getBalance: getStarBalance,
@@ -20,4 +23,7 @@ export const starsRouter = {
   createCheckoutSession,
   listActiveGateways,
   createGatewayCheckout,
+  getDistribution: getStarDistribution,
+  setDistribution: setStarDistribution,
+  setMemberBudget,
 };

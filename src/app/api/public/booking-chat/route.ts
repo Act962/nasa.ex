@@ -12,7 +12,12 @@ import {
   makeGetAvailableSlotsTool,
   makeListMyAppointmentsTool,
 } from "@/features/public-booking-chat/lib/booking-agent";
+import { debitStars } from "@/lib/star-service";
+import { StarTransactionType } from "@/generated/prisma/client";
 import dayjs from "dayjs";
+
+// ─── Custo em Stars por mensagem do chat público ──────────────────────────────
+const STARS_PER_BOOKING_MESSAGE = 1; // 1 ★ por interação com a IA
 
 // ─────────────────────────────────────────────
 // RATE LIMITING — simples, por IP
@@ -95,13 +100,25 @@ export async function POST(request: NextRequest) {
     select: {
       id: true,
       name: true,
-      organization: { select: { name: true } },
+      organization: { select: { id: true, name: true } },
     },
   });
 
   if (!agenda) {
     return NextResponse.json({ error: "Agenda não encontrada ou inativa." }, { status: 404 });
   }
+
+  // ── Debitar 1 ★ por mensagem processada pela IA ──────────────────────────
+  // Não-crítico: falha silenciosa para não bloquear o chat do cliente final
+  debitStars(
+    agenda.organization.id,
+    STARS_PER_BOOKING_MESSAGE,
+    StarTransactionType.APP_CHARGE,
+    `Chat de agendamento — ${agenda.name} (${orgSlug}/${agendaSlug})`,
+    "booking-chat",
+  ).catch(() => {
+    // Ignora erro de saldo insuficiente ou falha de DB
+  });
 
   // Criar ou renovar sessão de chat público
   const userAgent = headersList.get("user-agent") ?? undefined;
