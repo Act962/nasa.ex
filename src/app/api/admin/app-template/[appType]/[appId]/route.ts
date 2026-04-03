@@ -3,8 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
 interface RouteParams {
-  appType: string;
-  appId: string;
+  params: Promise<{ appType: string; appId: string }>;
 }
 
 async function getOrgIdForApp(appType: string, appId: string): Promise<string | null> {
@@ -32,7 +31,7 @@ async function getOrgIdForApp(appType: string, appId: string): Promise<string | 
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: RouteParams }
+  { params }: RouteParams
 ) {
   try {
     const session = await auth.api.getSession({ headers: request.headers });
@@ -42,7 +41,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    const { appType, appId } = params;
+    const { appType, appId } = await params;
 
     // Verificar permissão: isSystemAdmin OU moderador da organização dona do app
     if (!user.isSystemAdmin) {
