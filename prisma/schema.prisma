@@ -214,6 +214,8 @@ model Tracking {
   organizationId String   @map("organization_id")
   isArchived     Boolean  @default(false) @map("is_archived")
   globalAiActive Boolean  @default(false) @map("global_ai_active")
+  isTemplate     Boolean  @default(false) @map("is_template")
+  templateMarkedByModerator Boolean @default(false) @map("template_marked_by_moderator")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -519,7 +521,9 @@ model Workspace {
   coverImage     String?
   isArchived     Boolean @default(false)  @map("is_archived")
   order          Int      @default(0)
-  
+  isTemplate     Boolean  @default(false) @map("is_template")
+  templateMarkedByModerator Boolean @default(false) @map("template_marked_by_moderator")
+
   organizationId String   @map("organization_id")
   trackingId     String?  @map("tracking_id")   // opcional
   createdBy      String   @map("created_by")
@@ -1313,6 +1317,8 @@ model ForgeProposal {
   paymentGateway  ForgePaymentGateway? @map("payment_gateway")
   publicToken     String               @unique @default(cuid()) @map("public_token")
   headerConfig    Json                 @default("{}") @map("header_config")
+  isTemplate      Boolean              @default(false) @map("is_template")
+  templateMarkedByModerator Boolean    @default(false) @map("template_marked_by_moderator")
   createdById     String               @map("created_by")
   createdAt       DateTime             @default(now()) @map("created_at")
   updatedAt       DateTime             @updatedAt      @map("updated_at")
@@ -1360,6 +1366,8 @@ model ForgeContract {
   templateId   String?             @map("template_id")
   content      String?
   signers      Json                @default("[]")
+  isTemplate   Boolean             @default(false) @map("is_template")
+  templateMarkedByModerator Boolean @default(false) @map("template_marked_by_moderator")
   createdById  String              @map("created_by")
   createdAt    DateTime            @default(now()) @map("created_at")
   updatedAt    DateTime            @updatedAt      @map("updated_at")
@@ -2228,3 +2236,28 @@ model StarsPayment {
   @@index([status])
   @@map("stars_payment")
 }
+
+/// Customizable popup templates for achievements and stars rewards
+model AchievementPopupTemplate {
+  id                String   @id @default(cuid())
+  name              String   // e.g., "Parabéns Lua", "Conquista Especial"
+  type              String   // "achievement" | "stars_reward" | "level_up"
+  title             String   // e.g., "Parabéns você chegou na Lua"
+  message           String   // e.g., "Você completou um grande feito"
+  primaryColor      String   @default("#7a1fe7")   // Hex color for primary elements
+  accentColor       String   @default("#a855f7")   // Hex color for accents
+  backgroundColor   String   @default("#1a0a3d")   // Card background
+  textColor         String   @default("#ffffff")   // Main text color
+  iconUrl           String?  // Optional custom icon/badge URL
+  enableConfetti    Boolean  @default(true)        // Enable confetti animation
+  enableSound       Boolean  @default(true)        // Enable success sound
+  dismissDuration   Int      @default(5000)        // Auto-dismiss in milliseconds
+  customJson        Json     @default("{}")        // Store additional customization
+  isActive          Boolean  @default(true)        @map("is_active")
+  createdAt         DateTime @default(now())       @map("created_at")
+  updatedAt         DateTime @updatedAt            @map("updated_at")
+
+  @@index([type])
+  @@map("achievement_popup_template")
+}
+
