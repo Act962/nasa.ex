@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useForgeProposals, useDeleteForgeProposal, useUpdateForgeProposal } from "../../hooks/use-forge";
+import { useAppTemplate } from "@/features/admin/hooks/use-app-template";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Plus, FileText, User, Calendar, Share2, Pencil, Trash2, Eye,
-  MoreHorizontal, Send, ScanEye, CheckCircle2, Clock, XCircle, FilePlus2,
+  MoreHorizontal, Send, ScanEye, CheckCircle2, Clock, XCircle, FilePlus2, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -78,10 +79,12 @@ export function ProposalsTab() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [generateContract, setGenerateContract] = useState<GenerateContractState | null>(null);
+  const [templateToggling, setTemplateToggling] = useState<string | null>(null);
 
   const { data, isLoading } = useForgeProposals(statusFilter !== "ALL" ? { status: statusFilter } : {});
   const deleteProposal = useDeleteForgeProposal();
   const updateProposal = useUpdateForgeProposal();
+  const { toggleTemplate } = useAppTemplate();
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -92,6 +95,18 @@ export function ProposalsTab() {
       toast.error("Erro ao remover proposta");
     } finally {
       setDeleteId(null);
+    }
+  };
+
+  const handleTemplateToggle = async (proposalId: string, isTemplate: boolean) => {
+    setTemplateToggling(proposalId);
+    try {
+      await toggleTemplate("forge-proposal", proposalId, !isTemplate);
+      toast.success(isTemplate ? "Padrão desmarcado" : "Proposta marcada como padrão");
+    } catch {
+      toast.error("Erro ao marcar como padrão");
+    } finally {
+      setTemplateToggling(null);
     }
   };
 
@@ -266,6 +281,18 @@ export function ProposalsTab() {
                           >
                             <FilePlus2 className="size-3.5 shrink-0" />
                             Gerar Contrato
+                          </DropdownMenuItem>
+
+                          <DropdownMenuSeparator />
+
+                          {/* Template toggle */}
+                          <DropdownMenuItem
+                            className="gap-2 cursor-pointer text-xs text-[#7C3AED] focus:text-[#7C3AED]"
+                            onClick={() => handleTemplateToggle(p.id, p.isTemplate ?? false)}
+                            disabled={templateToggling === p.id}
+                          >
+                            <Sparkles className="size-3.5 shrink-0" />
+                            {p.isTemplate ? "Desmarcar como padrão" : "Marcar como padrão"}
                           </DropdownMenuItem>
 
                           <DropdownMenuSeparator />

@@ -7,6 +7,7 @@ import {
   useForgeTemplates,
   useDeleteForgeTemplate,
 } from "../../hooks/use-forge";
+import { useAppTemplate } from "@/features/admin/hooks/use-app-template";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,7 +38,7 @@ import {
 import {
   Plus, FileCheck2, Pencil, Trash2, Users,
   BookText, Calendar, AlignLeft,
-  Eye, Share2, Copy, MessageCircle, Mail, CheckCircle2, Clock,
+  Eye, Share2, Copy, MessageCircle, Mail, CheckCircle2, Clock, Sparkles,
 } from "lucide-react";
 import {
   Popover,
@@ -302,9 +303,11 @@ export function ContractsTab() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [templateToggling, setTemplateToggling] = useState<string | null>(null);
 
   const { data, isLoading } = useForgeContracts(statusFilter !== "ALL" ? { status: statusFilter } : {});
   const deleteContract = useDeleteForgeContract();
+  const { toggleTemplate } = useAppTemplate();
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -315,6 +318,18 @@ export function ContractsTab() {
       toast.error("Erro ao remover contrato");
     } finally {
       setDeleteId(null);
+    }
+  };
+
+  const handleTemplateToggle = async (contractId: string, isTemplate: boolean) => {
+    setTemplateToggling(contractId);
+    try {
+      await toggleTemplate("forge-contract", contractId, !isTemplate);
+      toast.success(isTemplate ? "Padrão desmarcado" : "Contrato marcado como padrão");
+    } catch {
+      toast.error("Erro ao marcar como padrão");
+    } finally {
+      setTemplateToggling(null);
     }
   };
 
@@ -422,6 +437,14 @@ export function ContractsTab() {
                           signers={signers as SignerRow[]}
                           contractTitle={c.proposal?.title ?? `Contrato #${String(c.number).padStart(4, "0")}`}
                         />
+                        <Button
+                          size="icon" variant="ghost" className="size-7"
+                          onClick={() => handleTemplateToggle(c.id, c.isTemplate ?? false)}
+                          disabled={templateToggling === c.id}
+                          title={c.isTemplate ? "Desmarcar como padrão" : "Marcar como padrão"}
+                        >
+                          <Sparkles className={cn("size-3.5", c.isTemplate && "text-[#7C3AED]")} />
+                        </Button>
                         <Button
                           size="icon" variant="ghost" className="size-7"
                           onClick={() => { setEditingId(c.id); setFormOpen(true); }}

@@ -11,6 +11,7 @@ import { MembersTab } from "./tabs/members-tab";
 import { LabelsTab } from "./tabs/labels-tab";
 import { AutomationsTab } from "./tabs/automations-tab";
 import { DangerZoneTab } from "./tabs/danger-zone-tab";
+import { TemplatesTab } from "./tabs/templates-tab";
 
 interface Props {
   workspaceId: string;
@@ -40,6 +41,7 @@ export function WorkspaceSettingsModal({ workspaceId, open, onOpenChange }: Prop
               <TabsTrigger value="members"><Users className="size-4 mr-2" />Participantes</TabsTrigger>
               <TabsTrigger value="labels"><TagIcon className="size-4 mr-2" />Etiquetas</TabsTrigger>
               <TabsTrigger value="automations"><ZapIcon className="size-4 mr-2" />Automações</TabsTrigger>
+              <TabsTrigger value="templates">✨ Padrões</TabsTrigger>
               <TabsTrigger value="danger"><AlertTriangle className="size-4 mr-2" />Zona de Perigo</TabsTrigger>
             </TabsList>
 
@@ -58,6 +60,9 @@ export function WorkspaceSettingsModal({ workspaceId, open, onOpenChange }: Prop
               </TabsContent>
               <TabsContent value="automations" className="mt-0 focus-visible:outline-none">
                 <AutomationsTab workspaceId={workspaceId} />
+              </TabsContent>
+              <TabsContent value="templates" className="mt-0 focus-visible:outline-none">
+                <TemplatesTab workspaceId={workspaceId} />
               </TabsContent>
               <TabsContent value="danger" className="mt-0 focus-visible:outline-none">
                 <DangerZoneTab workspace={workspace} onDeleted={() => onOpenChange(false)} />
