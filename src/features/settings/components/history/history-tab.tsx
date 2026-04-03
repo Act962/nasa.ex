@@ -382,30 +382,49 @@ export function HistoryTab() {
             </div>
           ) : (
             <>
+              {/* Header row */}
+              <div className="hidden sm:grid grid-cols-[minmax(150px,1fr),150px,1fr,180px] gap-4 px-4 py-2 bg-muted/30 text-xs font-semibold text-muted-foreground sticky top-0">
+                <div>Usuário</div>
+                <div>App</div>
+                <div>Alteração</div>
+                <div className="text-right">Data e Horário</div>
+              </div>
+
               {logs.map((log) => {
                 const memberInfo = members.find((m) => m.id === log.userId);
                 const appLabel = APP_LABELS[log.appSlug] ?? log.appSlug;
                 return (
-                  <div key={log.id} className="flex items-start gap-3 px-4 py-3 hover:bg-muted/10 transition-colors">
-                    <Avatar className="size-8 shrink-0">
-                      <AvatarImage src={log.userImage ?? ""} alt={log.userName} />
-                      <AvatarFallback className="text-xs">{initials(log.userName)}</AvatarFallback>
-                    </Avatar>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-semibold">{log.userName}</span>
+                  <div key={log.id} className="grid grid-cols-1 sm:grid-cols-[minmax(150px,1fr),150px,1fr,180px] gap-4 items-center px-4 py-3 hover:bg-muted/10 transition-colors">
+                    {/* Usuário */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Avatar className="size-7 shrink-0">
+                        <AvatarImage src={log.userImage ?? ""} alt={log.userName} />
+                        <AvatarFallback className="text-[10px]">{initials(log.userName)}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold truncate">{log.userName}</p>
                         {memberInfo && <RoleBadge role={memberInfo.role} />}
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                          {appLabel}
-                        </span>
                       </div>
-                      <p className="text-xs text-foreground/80 mt-0.5 leading-relaxed">{log.actionLabel}</p>
                     </div>
 
-                    <span className="text-[11px] text-muted-foreground shrink-0 whitespace-nowrap">
-                      {formatDate(log.createdAt)}
-                    </span>
+                    {/* App */}
+                    <div>
+                      <span className="text-[11px] px-2 py-1 rounded bg-muted text-muted-foreground inline-block">
+                        {appLabel}
+                      </span>
+                    </div>
+
+                    {/* Alteração */}
+                    <div>
+                      <p className="text-xs text-foreground/80 leading-relaxed">{log.actionLabel}</p>
+                    </div>
+
+                    {/* Data e Horário */}
+                    <div className="text-right">
+                      <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                        {formatDate(log.createdAt)}
+                      </span>
+                    </div>
                   </div>
                 );
               })}
