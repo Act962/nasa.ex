@@ -171,8 +171,8 @@ export function HistoryTab() {
       },
     }),
     enabled: !isSingle,
-    refetchInterval: 15_000, // refresh every 15s for near real-time
-    staleTime: 5_000,
+    refetchInterval: 5_000, // refresh every 5s for near real-time
+    staleTime: 0, // always consider data stale
   });
 
   if (isSingle) {
