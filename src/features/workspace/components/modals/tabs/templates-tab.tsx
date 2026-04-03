@@ -10,7 +10,7 @@ interface TemplatesTabProps {
 
 export function TemplatesTab({ workspaceId }: TemplatesTabProps) {
   const { data: workspace } = useQuery(
-    orpc.workspace.get.queryOptions({ input: { id: workspaceId } })
+    orpc.workspace.get.queryOptions({ input: { workspaceId } })
   );
 
   if (!workspace) {
