@@ -62,7 +62,7 @@ export function WorkspaceSettingsModal({ workspaceId, open, onOpenChange }: Prop
                 <AutomationsTab workspaceId={workspaceId} />
               </TabsContent>
               <TabsContent value="templates" className="mt-0 focus-visible:outline-none">
-                <TemplatesTab workspaceId={workspaceId} />
+                <TemplatesTab workspace={workspace} workspaceId={workspaceId} />
               </TabsContent>
               <TabsContent value="danger" className="mt-0 focus-visible:outline-none">
                 <DangerZoneTab workspace={workspace} onDeleted={() => onOpenChange(false)} />

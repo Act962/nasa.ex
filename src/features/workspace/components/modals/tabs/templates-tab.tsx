@@ -1,21 +1,13 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
 import { AppTemplateToggle } from "@/features/admin/components/app-template-toggle";
 
 interface TemplatesTabProps {
+  workspace: any;
   workspaceId: string;
 }
 
-export function TemplatesTab({ workspaceId }: TemplatesTabProps) {
-  const { data: workspace } = useQuery(
-    orpc.workspace.get.queryOptions({ input: { workspaceId } })
-  );
-
-  if (!workspace) {
-    return <div className="text-muted-foreground">Carregando...</div>;
-  }
+export function TemplatesTab({ workspace, workspaceId }: TemplatesTabProps) {
 
   return (
     <div className="w-full space-y-6">
