@@ -15,11 +15,7 @@ const StatsCards = () => {
 
   return (
     <div
-      className="grid gap-4 
-        sm:grid-cols-2 
-        md:grid-cols-4 
-          lg:grid-cols-2
-           xl:grid-cols-4"
+      className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4"
     >
       <Card className="bg-accent/10">
         <CardHeader className="pb-2">
