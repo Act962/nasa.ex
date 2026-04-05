@@ -182,10 +182,12 @@ export function AchievementPopup({ data, onDismiss }: AchievementPopupProps) {
 
   const handleElementClick = (el: LayoutElement) => (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (el.isHide) {
+    // "hide" type element always closes popup
+    if (el.type === "hide" || el.isHide) {
       handleDismiss();
       return;
     }
+    // Elements with href navigate
     if (el.href) {
       if ((el.hrefTarget ?? "_blank") === "_self") {
         window.location.href = el.href;
@@ -195,7 +197,10 @@ export function AchievementPopup({ data, onDismiss }: AchievementPopupProps) {
       handleDismiss();
       return;
     }
-    handleDismiss();
+    // "link" type without href just dismisses
+    if (el.type === "link") {
+      handleDismiss();
+    }
   };
 
   const sysVars: Record<string, string> = {
@@ -320,6 +325,70 @@ export function AchievementPopup({ data, onDismiss }: AchievementPopupProps) {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={el.imageUrl} alt={el.label} className="w-full h-auto object-contain" />
                   </div>
+                );
+              }
+              // "hide" element renders as a visual close button
+              if (el.type === "hide") {
+                return (
+                  <button
+                    key={el.id}
+                    className="absolute pointer-events-auto select-none cursor-pointer hover:opacity-80 active:scale-95 transition-all"
+                    style={{
+                      left: `${el.x}%`,
+                      top: `${el.y}%`,
+                      transform: "translate(-50%, -50%)",
+                      width: el.boxWidth ? `${el.boxWidth}%` : undefined,
+                      fontSize: `${el.fontSize ?? 14}px`,
+                      color: el.color ?? "#ffffff",
+                      fontFamily: "var(--font-bungee), sans-serif",
+                      background: "rgba(239,68,68,0.2)",
+                      border: "1.5px solid rgba(239,68,68,0.6)",
+                      borderRadius: "8px",
+                      padding: "4px 14px",
+                      textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+                      whiteSpace: "nowrap",
+                      boxSizing: "border-box",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                    }}
+                    onClick={handleElementClick(el)}
+                  >
+                    ✕ Fechar
+                  </button>
+                );
+              }
+              // "link" element renders as a visual link button
+              if (el.type === "link") {
+                return (
+                  <button
+                    key={el.id}
+                    className="absolute pointer-events-auto select-none cursor-pointer hover:opacity-80 active:scale-95 transition-all"
+                    style={{
+                      left: `${el.x}%`,
+                      top: `${el.y}%`,
+                      transform: "translate(-50%, -50%)",
+                      width: el.boxWidth ? `${el.boxWidth}%` : undefined,
+                      fontSize: `${el.fontSize ?? 14}px`,
+                      color: el.color ?? "#ffffff",
+                      fontFamily: "var(--font-bungee), sans-serif",
+                      background: "rgba(139,92,246,0.2)",
+                      border: "1.5px solid rgba(139,92,246,0.6)",
+                      borderRadius: "8px",
+                      padding: "4px 14px",
+                      textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+                      whiteSpace: "nowrap",
+                      boxSizing: "border-box",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                    }}
+                    onClick={handleElementClick(el)}
+                  >
+                    {el.href ? "↗ Ver mais" : "Ver mais"}
+                  </button>
                 );
               }
               return (

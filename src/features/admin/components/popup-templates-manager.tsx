@@ -155,8 +155,6 @@ function TemplatePreview({ template, globalPatterns = [] }: { template: PopupTem
     if (el.type === "name") return template.name;
     if (el.type === "title") return template.title;
     if (el.type === "message") return template.message;
-    if (el.type === "hide") return "Fechar";
-    if (el.type === "link") return "Ver mais";
     return "";
   };
 
@@ -213,6 +211,54 @@ function TemplatePreview({ template, globalPatterns = [] }: { template: PopupTem
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={el.imageUrl} alt={el.label ?? ""} className="w-full h-auto object-contain" />
+                </div>
+              );
+            }
+            if (el.type === "hide") {
+              return (
+                <div
+                  key={el.id}
+                  className="absolute pointer-events-none select-none"
+                  style={{
+                    left: `${el.x}%`,
+                    top: `${el.y}%`,
+                    transform: "translate(-50%, -50%)",
+                    fontSize: `${el.fontSize ?? 12}px`,
+                    color: el.color ?? template.textColor,
+                    fontFamily: "var(--font-bungee), sans-serif",
+                    background: "rgba(239,68,68,0.2)",
+                    border: "1.5px solid rgba(239,68,68,0.6)",
+                    borderRadius: "6px",
+                    padding: "3px 12px",
+                    whiteSpace: "nowrap",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  ✕ Fechar
+                </div>
+              );
+            }
+            if (el.type === "link") {
+              return (
+                <div
+                  key={el.id}
+                  className="absolute pointer-events-none select-none"
+                  style={{
+                    left: `${el.x}%`,
+                    top: `${el.y}%`,
+                    transform: "translate(-50%, -50%)",
+                    fontSize: `${el.fontSize ?? 12}px`,
+                    color: el.color ?? template.textColor,
+                    fontFamily: "var(--font-bungee), sans-serif",
+                    background: "rgba(139,92,246,0.2)",
+                    border: "1.5px solid rgba(139,92,246,0.6)",
+                    borderRadius: "6px",
+                    padding: "3px 12px",
+                    whiteSpace: "nowrap",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  ↗ Ver mais
                 </div>
               );
             }

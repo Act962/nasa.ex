@@ -861,13 +861,47 @@ export function PopupTemplateModal({
                       borderRadius: "4px",
                     }}
                   >
-                    <span className="pointer-events-none select-none">
-                      {el.type === "name"    && (template.name    || "Nome")}
-                      {el.type === "title"   && (template.title   || "Título")}
-                      {el.type === "message" && (template.message || "Mensagem")}
-                      {el.type === "hide"    && "[ Hide ]"}
-                      {el.type === "link"    && "[ Link ]"}
-                    </span>
+                    {el.type === "hide" ? (
+                      <span
+                        className="pointer-events-none select-none flex items-center justify-center gap-1"
+                        style={{
+                          background: "rgba(239,68,68,0.18)",
+                          border: "1px solid rgba(239,68,68,0.5)",
+                          borderRadius: "6px",
+                          padding: "2px 10px",
+                          color: el.color ?? "#ffffff",
+                          fontSize: `${((el.fontSize ?? 12) / 768) * 100}cqw`,
+                          fontFamily: "var(--font-bungee), sans-serif",
+                          width: "100%",
+                          display: "flex",
+                        }}
+                      >
+                        ✕ Fechar
+                      </span>
+                    ) : el.type === "link" ? (
+                      <span
+                        className="pointer-events-none select-none flex items-center justify-center gap-1"
+                        style={{
+                          background: "rgba(139,92,246,0.18)",
+                          border: "1px solid rgba(139,92,246,0.5)",
+                          borderRadius: "6px",
+                          padding: "2px 10px",
+                          color: el.color ?? "#ffffff",
+                          fontSize: `${((el.fontSize ?? 12) / 768) * 100}cqw`,
+                          fontFamily: "var(--font-bungee), sans-serif",
+                          width: "100%",
+                          display: "flex",
+                        }}
+                      >
+                        ↗ Ver mais
+                      </span>
+                    ) : (
+                      <span className="pointer-events-none select-none">
+                        {el.type === "name"    && (template.name    || "Nome")}
+                        {el.type === "title"   && (template.title   || "Título")}
+                        {el.type === "message" && (template.message || "Mensagem")}
+                      </span>
+                    )}
                     {/* Resize handles */}
                     {isSelected && RESIZE_HANDLES.map((h) => (
                       <div
@@ -1027,51 +1061,36 @@ export function PopupTemplateModal({
                     </div>
                   )}
 
-                  {/* Link + Hide — shared for all element types */}
-                  <div className="w-full flex items-center gap-1 mt-1 ml-[6.5rem]">
-                    <input
-                      type="url"
-                      value={el.href ?? ""}
-                      onChange={(e) =>
-                        setLayoutElements(layoutElements.map((item) =>
-                          item.id === el.id ? { ...item, href: e.target.value || undefined } : item
-                        ))
-                      }
-                      placeholder="Link (ex: /ranking)"
-                      className="flex-1 bg-zinc-800 border border-zinc-700 rounded text-white text-[10px] px-2 py-1 focus:outline-none focus:border-violet-500/60"
-                      disabled={isLoading}
-                    />
-                    <select
-                      value={el.hrefTarget ?? "_blank"}
-                      onChange={(e) =>
-                        setLayoutElements(layoutElements.map((item) =>
-                          item.id === el.id ? { ...item, hrefTarget: e.target.value } : item
-                        ))
-                      }
-                      className="bg-zinc-800 border border-zinc-700 rounded text-white text-[10px] px-1 py-1 focus:outline-none focus:border-violet-500/60"
-                      disabled={isLoading || !el.href}
-                    >
-                      <option value="_blank">↗ nova aba</option>
-                      <option value="_self">→ mesma aba</option>
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setLayoutElements(layoutElements.map((item) =>
-                          item.id === el.id ? { ...item, isHide: !item.isHide } : item
-                        ))
-                      }
-                      title="Fechar popup ao clicar"
-                      className={`shrink-0 px-2 py-1 text-[10px] rounded transition-all ${
-                        el.isHide
-                          ? "bg-red-600 text-white"
-                          : "bg-zinc-700 text-zinc-400 hover:bg-zinc-600 hover:text-white"
-                      }`}
-                      disabled={isLoading}
-                    >
-                      ✕ fechar
-                    </button>
-                  </div>
+                  {/* Link — for non-hide elements */}
+                  {el.type !== "hide" && (
+                    <div className="w-full flex items-center gap-1 mt-1 ml-[6.5rem]">
+                      <input
+                        type="url"
+                        value={el.href ?? ""}
+                        onChange={(e) =>
+                          setLayoutElements(layoutElements.map((item) =>
+                            item.id === el.id ? { ...item, href: e.target.value || undefined } : item
+                          ))
+                        }
+                        placeholder="Link (ex: /ranking)"
+                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded text-white text-[10px] px-2 py-1 focus:outline-none focus:border-violet-500/60"
+                        disabled={isLoading}
+                      />
+                      <select
+                        value={el.hrefTarget ?? "_blank"}
+                        onChange={(e) =>
+                          setLayoutElements(layoutElements.map((item) =>
+                            item.id === el.id ? { ...item, hrefTarget: e.target.value } : item
+                          ))
+                        }
+                        className="bg-zinc-800 border border-zinc-700 rounded text-white text-[10px] px-1 py-1 focus:outline-none focus:border-violet-500/60"
+                        disabled={isLoading || !el.href}
+                      >
+                        <option value="_blank">↗ nova aba</option>
+                        <option value="_self">→ mesma aba</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
