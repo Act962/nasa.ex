@@ -1,3 +1,5 @@
+"use client";
+
 import { Separator } from "@/components/ui/separator";
 import { CreateForm } from "./create-form";
 import { FormList } from "./form-list";

@@ -686,6 +686,268 @@ ___________________________          ___________________________
   }
 }
 
+// ─── FORM PATTERNS ────────────────────────────────────────────────────────────
+
+async function seedForms(orgId: string, userId: string) {
+  // ── 1. Captação de Leads ───────────────────────────────────────────────────
+  const existing1 = await prisma.form.findFirst({
+    where: { organizationId: orgId, name: "Captação de Leads" },
+  });
+
+  if (!existing1) {
+    const blocks1 = JSON.stringify([
+      {
+        id: "row-lead-1",
+        blockType: "RowLayout",
+        isLocked: false,
+        attributes: {},
+        childblocks: [
+          {
+            id: "heading-lead-1",
+            blockType: "Heading",
+            attributes: { label: "Fale com nosso time", level: 1, fontSize: "4x-large", fontWeight: "bold" },
+          },
+          {
+            id: "para-lead-1",
+            blockType: "Paragraph",
+            attributes: { label: "Paragraph", text: "Preencha o formulário abaixo e entraremos em contato em até 24h.", fontSize: "small", fontWeight: "normal" },
+          },
+        ],
+      },
+      {
+        id: "row-lead-2",
+        blockType: "RowLayout",
+        isLocked: false,
+        attributes: {},
+        childblocks: [
+          {
+            id: "field-nome",
+            blockType: "TextField",
+            attributes: { label: "Nome completo", helperText: "", required: true, placeHolder: "Digite seu nome" },
+          },
+        ],
+      },
+      {
+        id: "row-lead-3",
+        blockType: "RowLayout",
+        isLocked: false,
+        attributes: {},
+        childblocks: [
+          {
+            id: "field-email",
+            blockType: "TextField",
+            attributes: { label: "E-mail", helperText: "", required: true, placeHolder: "seu@email.com" },
+          },
+          {
+            id: "field-phone",
+            blockType: "TextField",
+            attributes: { label: "Telefone / WhatsApp", helperText: "", required: false, placeHolder: "(00) 00000-0000" },
+          },
+        ],
+      },
+      {
+        id: "row-lead-4",
+        blockType: "RowLayout",
+        isLocked: false,
+        attributes: {},
+        childblocks: [
+          {
+            id: "field-empresa",
+            blockType: "TextField",
+            attributes: { label: "Empresa", helperText: "", required: false, placeHolder: "Nome da empresa" },
+          },
+        ],
+      },
+      {
+        id: "row-lead-5",
+        blockType: "RowLayout",
+        isLocked: false,
+        attributes: {},
+        childblocks: [
+          {
+            id: "radio-como",
+            blockType: "RadioSelect",
+            attributes: {
+              label: "Como nos conheceu?",
+              required: false,
+              options: [
+                { value: "Google", tagId: null },
+                { value: "Indicação", tagId: null },
+                { value: "Redes sociais", tagId: null },
+                { value: "Evento", tagId: null },
+                { value: "Outro", tagId: null },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        id: "row-lead-6",
+        blockType: "RowLayout",
+        isLocked: false,
+        attributes: {},
+        childblocks: [
+          {
+            id: "textarea-mensagem",
+            blockType: "TextArea",
+            attributes: { label: "Mensagem", helperText: "Conte um pouco sobre seu desafio.", required: false, placeHolder: "Como podemos ajudar?", rows: 4 },
+          },
+        ],
+      },
+    ]);
+
+    await prisma.form.create({
+      data: {
+        name: "Captação de Leads",
+        description: "Formulário modelo para capturar leads qualificados com nome, e-mail, empresa e origem do contato.",
+        userId,
+        organizationId: orgId,
+        jsonBlock: blocks1,
+        content: blocks1,
+        published: true,
+        isTemplate: true,
+        templateMarkedByModerator: true,
+        shareUrl: `tpl-leads-${orgId}`,
+        settings: {
+          create: {
+            primaryColor: "#673ab7",
+            backgroundColor: "#f0ebf8",
+          },
+        },
+      },
+    });
+
+    console.log("✅ Form 'Captação de Leads' criado");
+  } else {
+    console.log("⏭  Form 'Captação de Leads' já existe");
+  }
+
+  // ── 2. Pesquisa de Satisfação ──────────────────────────────────────────────
+  const existing2 = await prisma.form.findFirst({
+    where: { organizationId: orgId, name: "Pesquisa de Satisfação" },
+  });
+
+  if (!existing2) {
+    const blocks2 = JSON.stringify([
+      {
+        id: "row-nps-1",
+        blockType: "RowLayout",
+        isLocked: false,
+        attributes: {},
+        childblocks: [
+          {
+            id: "heading-nps-1",
+            blockType: "Heading",
+            attributes: { label: "Como foi sua experiência?", level: 1, fontSize: "4x-large", fontWeight: "bold" },
+          },
+          {
+            id: "para-nps-1",
+            blockType: "Paragraph",
+            attributes: { label: "Paragraph", text: "Sua opinião é muito importante para continuarmos melhorando.", fontSize: "small", fontWeight: "normal" },
+          },
+        ],
+      },
+      {
+        id: "row-nps-2",
+        blockType: "RowLayout",
+        isLocked: false,
+        attributes: {},
+        childblocks: [
+          {
+            id: "star-satisfacao",
+            blockType: "StarRating",
+            attributes: { label: "Avalie seu atendimento", helperText: "1 = Péssimo · 5 = Excelente", maxStars: 5, required: true },
+          },
+        ],
+      },
+      {
+        id: "row-nps-3",
+        blockType: "RowLayout",
+        isLocked: false,
+        attributes: {},
+        childblocks: [
+          {
+            id: "radio-indicaria",
+            blockType: "RadioSelect",
+            attributes: {
+              label: "Você nos indicaria para um amigo ou colega?",
+              required: true,
+              options: [
+                { value: "Com certeza", tagId: null },
+                { value: "Provavelmente sim", tagId: null },
+                { value: "Talvez", tagId: null },
+                { value: "Provavelmente não", tagId: null },
+                { value: "Não indicaria", tagId: null },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        id: "row-nps-4",
+        blockType: "RowLayout",
+        isLocked: false,
+        attributes: {},
+        childblocks: [
+          {
+            id: "radio-melhorar",
+            blockType: "RadioSelect",
+            attributes: {
+              label: "O que poderíamos melhorar?",
+              required: false,
+              options: [
+                { value: "Tempo de resposta", tagId: null },
+                { value: "Qualidade do serviço", tagId: null },
+                { value: "Comunicação", tagId: null },
+                { value: "Preço", tagId: null },
+                { value: "Nada, estou satisfeito", tagId: null },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        id: "row-nps-5",
+        blockType: "RowLayout",
+        isLocked: false,
+        attributes: {},
+        childblocks: [
+          {
+            id: "textarea-comentario",
+            blockType: "TextArea",
+            attributes: { label: "Comentário adicional", helperText: "Opcional.", required: false, placeHolder: "Deixe seu comentário aqui...", rows: 4 },
+          },
+        ],
+      },
+    ]);
+
+    await prisma.form.create({
+      data: {
+        name: "Pesquisa de Satisfação",
+        description: "Formulário modelo para medir NPS e satisfação do cliente com avaliação por estrelas e questões de múltipla escolha.",
+        userId,
+        organizationId: orgId,
+        jsonBlock: blocks2,
+        content: blocks2,
+        published: true,
+        isTemplate: true,
+        templateMarkedByModerator: true,
+        shareUrl: `tpl-nps-${orgId}`,
+        settings: {
+          create: {
+            primaryColor: "#0ea5e9",
+            backgroundColor: "#e0f2fe",
+          },
+        },
+      },
+    });
+
+    console.log("✅ Form 'Pesquisa de Satisfação' criado");
+  } else {
+    console.log("⏭  Form 'Pesquisa de Satisfação' já existe");
+  }
+}
+
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -701,6 +963,7 @@ async function main() {
   await seedWorkspaces(org.id, user.id);
   await seedProposals(org.id, user.id);
   await seedContracts(org.id, user.id);
+  await seedForms(org.id, user.id);
 
   console.log("\n✅ Seed de padrões NASA concluído!");
 }
