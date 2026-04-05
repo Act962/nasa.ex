@@ -6,6 +6,7 @@ import { ArrowLeft, Star } from "lucide-react";
 import { OrgStarsForm } from "@/features/admin/components/org-stars-form";
 import { OrgPlanForm } from "@/features/admin/components/org-plan-form";
 import { OrgMembersTable } from "@/features/admin/components/org-members-table";
+import { OrgActivityLog } from "@/features/admin/components/org-activity-log";
 
 export default async function OrgDetailPage({ params }: { params: Promise<{ orgId: string }> }) {
   await requireAdminSession();
@@ -75,6 +76,9 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ orgI
 
       {/* Members */}
       <OrgMembersTable members={org.members} orgId={org.id} orgName={org.name} />
+
+      {/* Activity log */}
+      <OrgActivityLog orgId={org.id} members={org.members} />
 
       {/* Transaction history */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
