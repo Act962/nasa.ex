@@ -43,7 +43,7 @@ export function FormList() {
               createdAt={form.createdAt}
               responses={form.responses}
               views={form.views}
-              backgroundColor={form.settings.backgroundColor}
+              backgroundColor={form.settings?.backgroundColor}
             />
           ))}
         </div>
