@@ -32,6 +32,9 @@ interface PopupTemplateData {
   customJson?: {
     svgPattern?: string;
     mascotUrl?: string;
+    mascotX?: number;
+    mascotY?: number;
+    mascotSize?: number;
     layoutElements?: LayoutElement[];
     patternUrlOverrides?: Record<string, string>;
     customPatterns?: { id: string; url: string; label: string }[];
@@ -149,7 +152,10 @@ export function AchievementPopup({ data, onDismiss }: AchievementPopupProps) {
   const tpl = data.template;
   const patternUrl = tpl ? resolvePatternUrl(tpl.customJson) : null;
   const layoutElements = tpl?.customJson?.layoutElements ?? [];
-  const mascotUrl = tpl?.customJson?.mascotUrl ?? null;
+  const mascotUrl  = tpl?.customJson?.mascotUrl ?? null;
+  const mascotX    = (tpl?.customJson?.mascotX    as number | undefined) ?? 15;
+  const mascotY    = (tpl?.customJson?.mascotY    as number | undefined) ?? 80;
+  const mascotSize = (tpl?.customJson?.mascotSize as number | undefined) ?? 28;
   const hasTemplate = !!tpl && (!!patternUrl || layoutElements.length > 0);
 
   const sysVars: Record<string, string> = {
@@ -239,9 +245,18 @@ export function AchievementPopup({ data, onDismiss }: AchievementPopupProps) {
 
             {/* Mascot */}
             {mascotUrl && (
-              <div className="absolute left-0 top-0 w-[30%] h-full flex items-end justify-center pb-2 pointer-events-none">
+              <div
+                className="absolute pointer-events-none"
+                style={{
+                  left: `${mascotX}%`,
+                  top: `${mascotY}%`,
+                  width: `${mascotSize}%`,
+                  transform: "translate(-50%, -50%)",
+                  filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.5))",
+                }}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={mascotUrl} alt="mascote" className="h-[85%] w-auto object-contain" />
+                <img src={mascotUrl} alt="mascote" className="w-full h-auto object-contain" />
               </div>
             )}
 

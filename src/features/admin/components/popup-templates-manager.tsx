@@ -120,7 +120,10 @@ function TemplatePreview({ template }: { template: PopupTemplate }) {
     template.accentColor,
     template.textColor,
   );
-  const mascotUrl = cj?.mascotUrl as string | undefined;
+  const mascotUrl  = cj?.mascotUrl  as string | undefined;
+  const mascotX    = (cj?.mascotX   as number | undefined) ?? 15;
+  const mascotY    = (cj?.mascotY   as number | undefined) ?? 80;
+  const mascotSize = (cj?.mascotSize as number | undefined) ?? 28;
   const layoutElements = (cj?.layoutElements as LayoutElement[] | undefined) ?? [];
   const prizeValue = cj?.prizeValue as string | undefined;
 
@@ -144,9 +147,18 @@ function TemplatePreview({ template }: { template: PopupTemplate }) {
           <img src={patternUrl} alt="padrão" className="absolute inset-0 w-full h-full object-cover" />
         )}
         {mascotUrl && (
-          <div className="absolute left-0 top-0 w-[30%] h-full flex items-end justify-center pb-2 pointer-events-none">
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              left: `${mascotX}%`,
+              top: `${mascotY}%`,
+              width: `${mascotSize}%`,
+              transform: "translate(-50%, -50%)",
+              filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))",
+            }}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={mascotUrl} alt="mascote" className="h-[85%] w-auto object-contain" />
+            <img src={mascotUrl} alt="mascote" className="w-full h-auto object-contain" />
           </div>
         )}
         {layoutElements.filter((el) => el.visible).map((el) => {

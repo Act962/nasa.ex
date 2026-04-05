@@ -215,6 +215,15 @@ export function PopupTemplateModal({
   const [mascotUrl, setMascotUrl] = useState<string>(
     (initialTemplate.customJson?.mascotUrl as string) ?? ""
   );
+  const [mascotX, setMascotX] = useState<number>(
+    (initialTemplate.customJson?.mascotX as number) ?? 15
+  );
+  const [mascotY, setMascotY] = useState<number>(
+    (initialTemplate.customJson?.mascotY as number) ?? 80
+  );
+  const [mascotSize, setMascotSize] = useState<number>(
+    (initialTemplate.customJson?.mascotSize as number) ?? 28
+  );
   const [popupFunction, setPopupFunction] = useState<string>(
     (initialTemplate.customJson?.popupFunction as string) ?? "STAR"
   );
@@ -287,6 +296,9 @@ export function PopupTemplateModal({
         ...(template.customJson ?? {}),
         svgPattern,
         mascotUrl,
+        mascotX,
+        mascotY,
+        mascotSize,
         popupFunction,
         prizeValue,
         layoutElements,
@@ -295,7 +307,7 @@ export function PopupTemplateModal({
       },
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [template, svgPattern, mascotUrl, layoutElements, customPatterns, patternUrlOverrides]);
+  }, [template, svgPattern, mascotUrl, mascotX, mascotY, mascotSize, layoutElements, customPatterns, patternUrlOverrides]);
 
   const SVG_PATTERNS = [...DEFAULT_SVG_PATTERNS, ...globalPatterns, ...customPatterns].map((p) => ({
     ...p,
@@ -360,16 +372,19 @@ export function PopupTemplateModal({
 
     const preview = e.currentTarget as HTMLElement;
     const rect = preview.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
 
-    setLayoutElements(
-      layoutElements.map((el) =>
-        el.id === draggingElement
-          ? { ...el, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) }
-          : el
-      )
-    );
+    if (draggingElement === "__mascot__") {
+      setMascotX(x);
+      setMascotY(y);
+    } else {
+      setLayoutElements(
+        layoutElements.map((el) =>
+          el.id === draggingElement ? { ...el, x, y } : el
+        )
+      );
+    }
     setDraggingElement(null);
   };
 
@@ -414,6 +429,9 @@ export function PopupTemplateModal({
         ...(template.customJson ?? {}),
         svgPattern,
         mascotUrl,
+        mascotX,
+        mascotY,
+        mascotSize,
         popupFunction,
         prizeValue,
         layoutElements,
@@ -742,11 +760,23 @@ export function PopupTemplateModal({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={colorizedPatternUrl} alt="padrão" className="absolute inset-0 w-full h-full object-cover" />
               )}
-              {/* Mascot area (left ~30%) */}
+              {/* Mascot — draggable */}
               {mascotUrl && (
-                <div className="absolute left-0 top-0 w-[30%] h-full flex items-end justify-center pb-2 pointer-events-none">
+                <div
+                  draggable
+                  onDragStart={(e) => handleElementDragStart(e, "__mascot__")}
+                  className="absolute cursor-move"
+                  style={{
+                    left: `${mascotX}%`,
+                    top: `${mascotY}%`,
+                    width: `${mascotSize}%`,
+                    transform: "translate(-50%, -50%)",
+                    opacity: draggingElement === "__mascot__" ? 0.4 : 1,
+                    filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.5))",
+                  }}
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={mascotUrl} alt="mascote" className="h-[85%] w-auto object-contain" />
+                  <img src={mascotUrl} alt="mascote" className="w-full h-auto object-contain pointer-events-none" />
                 </div>
               )}
               {/* Draggable elements */}
@@ -799,6 +829,53 @@ export function PopupTemplateModal({
                 );
               })}
             </div>
+
+            {/* Mascot controls */}
+            {mascotUrl && (
+              <div className="mt-3 flex items-center gap-2">
+                <span className="w-24 shrink-0 px-2 py-1 text-xs rounded bg-emerald-700/60 text-emerald-200 text-left truncate">
+                  Mascote
+                </span>
+                <div className="flex items-center gap-1 flex-1">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={mascotUrl} alt="mascote" className="w-6 h-6 object-contain rounded border border-zinc-700 shrink-0" />
+                  <button
+                    type="button"
+                    onClick={() => setMascotSize((s) => Math.max(5, s - 5))}
+                    className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
+                    disabled={isLoading}
+                  >−</button>
+                  <input
+                    type="number"
+                    min={5}
+                    max={100}
+                    value={mascotSize}
+                    onChange={(e) => setMascotSize(Math.max(5, Math.min(100, Number(e.target.value))))}
+                    className="w-12 bg-zinc-800 border border-zinc-700 rounded text-white text-xs text-center px-1 py-1 focus:outline-none focus:border-violet-500/60"
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMascotSize((s) => Math.min(100, s + 5))}
+                    className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
+                    disabled={isLoading}
+                  >+</button>
+                  <span className="text-zinc-500 text-xs">%</span>
+                  <span className="text-zinc-600 text-xs ml-2">
+                    x:{Math.round(mascotX)}% y:{Math.round(mascotY)}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setMascotX(15); setMascotY(80); setMascotSize(28); }}
+                    className="ml-auto text-[10px] px-2 py-1 bg-zinc-700 hover:bg-zinc-600 text-zinc-400 hover:text-white rounded transition-all"
+                    disabled={isLoading}
+                    title="Resetar posição e tamanho"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Element controls */}
             <div className="mt-3 space-y-2">
