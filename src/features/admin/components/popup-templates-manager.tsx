@@ -215,6 +215,7 @@ function TemplatePreview({ template, globalPatterns = [] }: { template: PopupTem
               );
             }
             if (el.type === "hide") {
+              const sz = (el.fontSize ?? 22) * 2.6;
               return (
                 <div
                   key={el.id}
@@ -223,18 +224,20 @@ function TemplatePreview({ template, globalPatterns = [] }: { template: PopupTem
                     left: `${el.x}%`,
                     top: `${el.y}%`,
                     transform: "translate(-50%, -50%)",
-                    fontSize: `${el.fontSize ?? 12}px`,
-                    color: el.color ?? template.textColor,
-                    fontFamily: "var(--font-bungee), sans-serif",
-                    background: "rgba(239,68,68,0.2)",
-                    border: "1.5px solid rgba(239,68,68,0.6)",
-                    borderRadius: "6px",
-                    padding: "3px 12px",
-                    whiteSpace: "nowrap",
+                    width: `${sz}px`,
+                    height: `${sz}px`,
+                    borderRadius: "50%",
+                    background: `${template.accentColor}33`,
+                    border: `2px solid ${el.color ?? template.accentColor}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: el.color ?? "#ffffff",
+                    fontSize: `${el.fontSize ?? 22}px`,
                     boxSizing: "border-box",
                   }}
                 >
-                  ✕ Fechar
+                  ✕
                 </div>
               );
             }

@@ -252,7 +252,7 @@ export function PopupTemplateModal({
       { id: "name",    type: "name",    label: "Nome",      x: 60, y: 20, visible: true,  fontSize: 20, color: "#ffffff", boxWidth: 35, boxHeight: 12 },
       { id: "title",   type: "title",   label: "Título",    x: 60, y: 40, visible: true,  fontSize: 14, color: "#ffffff", boxWidth: 35, boxHeight: 10 },
       { id: "message", type: "message", label: "Mensagem",  x: 60, y: 65, visible: true,  fontSize: 11, color: "#ffffff", boxWidth: 40, boxHeight: 22 },
-      { id: "hide",    type: "hide",    label: "Hide",      x: 80, y: 88, visible: false, fontSize: 11, color: "#ffffff", boxWidth: 15, boxHeight:  8 },
+      { id: "hide",    type: "hide",    label: "Hide",      x: 92, y: 12, visible: false, fontSize: 22, color: "#ffffff" },
       { id: "link",    type: "link",    label: "Link",      x: 80, y: 96, visible: false, fontSize: 11, color: "#ffffff", boxWidth: 15, boxHeight:  8 },
     ]
   );
@@ -833,6 +833,40 @@ export function PopupTemplateModal({
                   );
                 }
                 const isSelected = selectedId === el.id;
+                const circleSize = `${((el.fontSize ?? 22) * 2.6 / 768) * 100}cqw`;
+                if (el.type === "hide") {
+                  return (
+                    <div
+                      key={el.id}
+                      draggable
+                      onDragStart={(e) => handleElementDragStart(e, el.id)}
+                      onClick={(e) => { e.stopPropagation(); setSelectedId(el.id); }}
+                      className="absolute cursor-move"
+                      style={{
+                        left: `${el.x}%`,
+                        top: `${el.y}%`,
+                        width: circleSize,
+                        height: circleSize,
+                        transform: "translate(-50%, -50%)",
+                        opacity: draggingElement === el.id ? 0.5 : 1,
+                        borderRadius: "50%",
+                        background: isSelected ? `${template.accentColor}55` : `${template.accentColor}33`,
+                        border: isSelected
+                          ? `2px solid ${template.accentColor}`
+                          : `2px solid ${el.color ?? template.accentColor}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: el.color ?? "#ffffff",
+                        fontSize: `${((el.fontSize ?? 22) / 768) * 100}cqw`,
+                        boxSizing: "border-box",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span className="pointer-events-none select-none leading-none">✕</span>
+                    </div>
+                  );
+                }
                 return (
                   <div
                     key={el.id}
@@ -861,24 +895,7 @@ export function PopupTemplateModal({
                       borderRadius: "4px",
                     }}
                   >
-                    {el.type === "hide" ? (
-                      <span
-                        className="pointer-events-none select-none flex items-center justify-center gap-1"
-                        style={{
-                          background: "rgba(239,68,68,0.18)",
-                          border: "1px solid rgba(239,68,68,0.5)",
-                          borderRadius: "6px",
-                          padding: "2px 10px",
-                          color: el.color ?? "#ffffff",
-                          fontSize: `${((el.fontSize ?? 12) / 768) * 100}cqw`,
-                          fontFamily: "var(--font-bungee), sans-serif",
-                          width: "100%",
-                          display: "flex",
-                        }}
-                      >
-                        ✕ Fechar
-                      </span>
-                    ) : el.type === "link" ? (
+                    {el.type === "link" ? (
                       <span
                         className="pointer-events-none select-none flex items-center justify-center gap-1"
                         style={{

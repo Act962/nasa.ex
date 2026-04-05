@@ -327,8 +327,9 @@ export function AchievementPopup({ data, onDismiss }: AchievementPopupProps) {
                   </div>
                 );
               }
-              // "hide" element renders as a visual close button
+              // "hide" element renders as a circular ✕ button
               if (el.type === "hide") {
+                const sz = `${(el.fontSize ?? 22) * 2.6}px`;
                 return (
                   <button
                     key={el.id}
@@ -337,25 +338,23 @@ export function AchievementPopup({ data, onDismiss }: AchievementPopupProps) {
                       left: `${el.x}%`,
                       top: `${el.y}%`,
                       transform: "translate(-50%, -50%)",
-                      width: el.boxWidth ? `${el.boxWidth}%` : undefined,
-                      fontSize: `${el.fontSize ?? 14}px`,
-                      color: el.color ?? "#ffffff",
-                      fontFamily: "var(--font-bungee), sans-serif",
-                      background: "rgba(239,68,68,0.2)",
-                      border: "1.5px solid rgba(239,68,68,0.6)",
-                      borderRadius: "8px",
-                      padding: "4px 14px",
-                      textShadow: "0 1px 3px rgba(0,0,0,0.6)",
-                      whiteSpace: "nowrap",
-                      boxSizing: "border-box",
+                      width: sz,
+                      height: sz,
+                      borderRadius: "50%",
+                      background: `${tpl?.accentColor ?? "#a855f7"}33`,
+                      border: `2px solid ${el.color ?? tpl?.accentColor ?? "#a855f7"}`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      gap: "6px",
+                      color: el.color ?? "#ffffff",
+                      fontSize: `${el.fontSize ?? 22}px`,
+                      boxSizing: "border-box",
+                      flexShrink: 0,
+                      padding: 0,
                     }}
                     onClick={handleElementClick(el)}
                   >
-                    ✕ Fechar
+                    ✕
                   </button>
                 );
               }
