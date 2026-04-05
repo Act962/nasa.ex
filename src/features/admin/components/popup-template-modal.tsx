@@ -1,7 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Check } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { X, Check, Pencil, Upload } from "lucide-react";
+
+interface LayoutElement {
+  id: string;
+  type: "name" | "title" | "message" | "hide" | "link";
+  label: string;
+  x: number;
+  y: number;
+  visible: boolean;
+  fontSize?: number;
+  color?: string;
+}
 
 interface PopupTemplate {
   id?: string;
@@ -29,8 +40,16 @@ interface PopupTemplateModalProps {
   isLoading?: boolean;
 }
 
-const SVG_PATTERNS = [
+const DEFAULT_SVG_PATTERNS = [
   { id: "padrao", label: "Padrão NASA", url: "/popup-patterns/padrao.svg" },
+];
+
+const POPUP_FUNCTIONS = [
+  { value: "STAR", label: "STAR" },
+  { value: "SPACE_POINT", label: "SPACE POINT" },
+  { value: "NOTIFICATIONS", label: "NOTIFICAÇÕES" },
+  { value: "GUIDED_TOUR", label: "TOUR GUIADO" },
+  { value: "APP_ACTIONS", label: "AÇÕES EM APLICATIVOS" },
 ];
 
 export function PopupTemplateModal({
@@ -48,7 +67,107 @@ export function PopupTemplateModal({
   const [mascotUrl, setMascotUrl] = useState<string>(
     (initialTemplate.customJson?.mascotUrl as string) ?? ""
   );
+  const [popupFunction, setPopupFunction] = useState<string>(
+    (initialTemplate.customJson?.popupFunction as string) ?? "STAR"
+  );
+  const [prizeValue, setPrizeValue] = useState<string>(
+    (initialTemplate.customJson?.prizeValue as string) ?? ""
+  );
   const [mascots, setMascots] = useState<{ key: string; url: string; label: string }[]>([]);
+  const [layoutElements, setLayoutElements] = useState<LayoutElement[]>(
+    (initialTemplate.customJson?.layoutElements as LayoutElement[]) ?? [
+      { id: "name", type: "name", label: "Nome", x: 10, y: 10, visible: true, fontSize: 18, color: "#ffffff" },
+      { id: "title", type: "title", label: "Título", x: 10, y: 50, visible: true, fontSize: 14, color: "#ffffff" },
+      { id: "message", type: "message", label: "Mensagem", x: 10, y: 90, visible: true, fontSize: 11, color: "#ffffff" },
+      { id: "hide", type: "hide", label: "Hide", x: 80, y: 90, visible: false, fontSize: 11, color: "#ffffff" },
+      { id: "link", type: "link", label: "Link", x: 80, y: 110, visible: false, fontSize: 11, color: "#ffffff" },
+    ]
+  );
+  const [draggingElement, setDraggingElement] = useState<string | null>(null);
+  const [colorizedPatternUrl, setColorizedPatternUrl] = useState<string | null>(null);
+  const svgCacheRef = useRef<Record<string, string>>({});
+  const blobUrlRef = useRef<string | null>(null);
+
+  const applyColorsToSvg = useCallback(async (patternUrl: string) => {
+    try {
+      if (!svgCacheRef.current[patternUrl]) {
+        const res = await fetch(patternUrl);
+        svgCacheRef.current[patternUrl] = await res.text();
+      }
+      let svg = svgCacheRef.current[patternUrl];
+      // Replace known base colors with template colors
+      svg = svg
+        .replace(/#7a1fe7/gi, template.primaryColor)
+        .replace(/#29125b/gi, template.primaryColor + "88")
+        .replace(/#1a0a3d/gi, template.backgroundColor)
+        .replace(/#ff00ff/gi, template.accentColor)
+        .replace(/#fff2e6/gi, template.textColor);
+
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+      const blob = new Blob([svg], { type: "image/svg+xml" });
+      blobUrlRef.current = URL.createObjectURL(blob);
+      setColorizedPatternUrl(blobUrlRef.current);
+    } catch {
+      setColorizedPatternUrl(patternUrl);
+    }
+  }, [template.primaryColor, template.backgroundColor, template.accentColor, template.textColor]);
+
+  useEffect(() => {
+    const pat = SVG_PATTERNS.find((p) => p.id === svgPattern);
+    if (pat) {
+      applyColorsToSvg(pat.url);
+    } else {
+      setColorizedPatternUrl(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [svgPattern, template.primaryColor, template.backgroundColor, template.accentColor, template.textColor, applyColorsToSvg]);
+  const [customPatterns, setCustomPatterns] = useState<{ id: string; label: string; url: string }[]>(
+    (initialTemplate.customJson?.customPatterns as { id: string; label: string; url: string }[]) ?? []
+  );
+  const [patternUrlOverrides, setPatternUrlOverrides] = useState<Record<string, string>>(
+    (initialTemplate.customJson?.patternUrlOverrides as Record<string, string>) ?? {}
+  );
+  const [editingPatternId, setEditingPatternId] = useState<string | null>(null);
+  const [uploadingPattern, setUploadingPattern] = useState(false);
+
+  const SVG_PATTERNS = [...DEFAULT_SVG_PATTERNS, ...customPatterns].map((p) => ({
+    ...p,
+    url: patternUrlOverrides[p.id] ?? p.url,
+  }));
+
+  const handlePatternUpload = async (file: File, replaceId?: string) => {
+    setUploadingPattern(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "popup-patterns");
+      const res = await fetch("/api/upload-local", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro no upload");
+      const url = `${window.location.origin}${data.url}?t=${Date.now()}`;
+      if (replaceId) {
+        const isDefault = DEFAULT_SVG_PATTERNS.some((p) => p.id === replaceId);
+        if (isDefault) {
+          setPatternUrlOverrides((prev) => ({ ...prev, [replaceId]: url }));
+        } else {
+          setCustomPatterns((prev) =>
+            prev.map((p) => p.id === replaceId ? { ...p, url } : p)
+          );
+        }
+        setSvgPattern(replaceId);
+      } else {
+        const newId = `custom-${Date.now()}`;
+        const newPattern = { id: newId, label: file.name.replace(/\.[^.]+$/, ""), url };
+        setCustomPatterns((prev) => [...prev, newPattern]);
+        setSvgPattern(newId);
+      }
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setUploadingPattern(false);
+      setEditingPatternId(null);
+    }
+  };
 
   // Fetch uploaded mascots
   useEffect(() => {
@@ -58,9 +177,50 @@ export function PopupTemplateModal({
       .catch(() => {});
   }, []);
 
+  const handleElementDragStart = (e: React.DragEvent, elementId: string) => {
+    setDraggingElement(elementId);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handlePreviewDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handlePreviewDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!draggingElement) return;
+
+    const preview = e.currentTarget as HTMLElement;
+    const rect = preview.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+    setLayoutElements(
+      layoutElements.map((el) =>
+        el.id === draggingElement
+          ? { ...el, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) }
+          : el
+      )
+    );
+    setDraggingElement(null);
+  };
+
+  const toggleElementVisibility = (elementId: string) => {
+    setLayoutElements(
+      layoutElements.map((el) =>
+        el.id === elementId ? { ...el, visible: !el.visible } : el
+      )
+    );
+  };
+
   const handleSave = async () => {
     if (!template.name || !template.title) {
       alert("Por favor, preencha o nome e título do template");
+      return;
+    }
+    if (popupFunction === "SPACE_POINT" && !prizeValue) {
+      alert("Por favor, preencha o campo de Prêmio");
       return;
     }
     const merged: PopupTemplate = {
@@ -69,6 +229,11 @@ export function PopupTemplateModal({
         ...(template.customJson ?? {}),
         svgPattern,
         mascotUrl,
+        popupFunction,
+        prizeValue,
+        layoutElements,
+        customPatterns,
+        patternUrlOverrides,
       },
     };
     await onSave(merged);
@@ -118,6 +283,23 @@ export function PopupTemplateModal({
             </select>
           </div>
 
+          {/* Popup Function */}
+          <div>
+            <label className="block text-sm font-medium text-zinc-300 mb-2">Função</label>
+            <select
+              value={popupFunction}
+              onChange={(e) => setPopupFunction(e.target.value)}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500/60"
+              disabled={isLoading}
+            >
+              {POPUP_FUNCTIONS.map((fn) => (
+                <option key={fn.value} value={fn.value}>
+                  {fn.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-zinc-300 mb-2">Título</label>
@@ -141,9 +323,41 @@ export function PopupTemplateModal({
             />
           </div>
 
+          {/* Prize Value - Conditional */}
+          {popupFunction === "SPACE_POINT" && (
+            <div>
+              <label className="block text-sm font-medium text-zinc-300 mb-2">Prêmio</label>
+              <input
+                type="text"
+                value={prizeValue}
+                onChange={(e) => setPrizeValue(e.target.value)}
+                placeholder="Ex: 10 STARS"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500/60"
+                disabled={isLoading}
+              />
+            </div>
+          )}
+
           {/* SVG Pattern */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Padrão do Banner</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-zinc-300">Padrão do Banner</label>
+              <label className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs cursor-pointer transition-all ${uploadingPattern ? "opacity-50 pointer-events-none" : "bg-zinc-700 hover:bg-zinc-600 text-zinc-300"}`}>
+                <Upload className="w-3 h-3" />
+                {uploadingPattern ? "Enviando..." : "Novo padrão"}
+                <input
+                  type="file"
+                  accept="image/svg+xml,image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  disabled={isLoading || uploadingPattern}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handlePatternUpload(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {/* No pattern option */}
               <button
@@ -160,19 +374,41 @@ export function PopupTemplateModal({
               </button>
 
               {SVG_PATTERNS.map((p) => (
-                <button
+                <div
                   key={p.id}
-                  type="button"
-                  onClick={() => setSvgPattern(p.id)}
-                  className={`relative border-2 rounded-xl p-2 flex flex-col items-center gap-2 transition-all ${
+                  className={`relative border-2 rounded-xl p-2 flex flex-col items-center gap-2 transition-all cursor-pointer ${
                     svgPattern === p.id ? "border-violet-500 bg-violet-600/10" : "border-zinc-700 hover:border-zinc-600"
                   }`}
+                  onClick={() => setSvgPattern(p.id)}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={p.url} alt={p.label} className="w-full h-16 object-cover rounded-lg" />
-                  <span className="text-xs text-zinc-300">{p.label}</span>
+                  <span className="text-xs text-zinc-300 truncate w-full text-center">{p.label}</span>
                   {svgPattern === p.id && <Check className="absolute top-1.5 right-1.5 w-4 h-4 text-violet-400" />}
-                </button>
+                  {/* Edit button */}
+                  <label
+                    className="absolute bottom-1.5 right-1.5 w-6 h-6 bg-zinc-800/90 hover:bg-violet-600 rounded-md flex items-center justify-center cursor-pointer transition-colors"
+                    title="Substituir imagem"
+                    onClick={(e) => { e.stopPropagation(); setEditingPatternId(p.id); }}
+                  >
+                    <Pencil className="w-3 h-3 text-white" />
+                    {editingPatternId === p.id && (
+                      <input
+                        type="file"
+                        accept="image/svg+xml,image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        autoFocus
+                        disabled={isLoading || uploadingPattern}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handlePatternUpload(file, p.id);
+                          e.target.value = "";
+                        }}
+                        onBlur={() => setEditingPatternId(null)}
+                      />
+                    )}
+                  </label>
+                </div>
               ))}
             </div>
           </div>
@@ -288,59 +524,158 @@ export function PopupTemplateModal({
 
           {/* Preview */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-3">Prévia</label>
-            {selectedPattern ? (
-              <div className="relative w-full rounded-xl overflow-hidden" style={{ aspectRatio: "768/391" }}>
-                {/* SVG pattern background */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={selectedPattern.url} alt="padrão" className="absolute inset-0 w-full h-full object-cover" />
-                {/* Overlay content */}
-                <div className="absolute inset-0 flex items-center">
-                  {/* Mascot area (left ~30%) */}
-                  <div className="w-[30%] h-full flex items-end justify-center pb-2">
-                    {mascotUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={mascotUrl} alt="mascote" className="h-[85%] w-auto object-contain" />
-                    ) : (
-                      <div className="w-24 h-24 rounded-xl bg-white/10 border-2 border-dashed border-white/30 flex items-center justify-center text-white/40 text-xs">
-                        Mascote
-                      </div>
-                    )}
-                  </div>
-                  {/* Text area (right ~55%) */}
-                  <div className="w-[55%] px-4 space-y-2">
-                    <p style={{ color: template.accentColor }} className="text-xs font-bold uppercase tracking-wider">
-                      {template.type === "achievement" ? "Conquista" : template.type === "stars_reward" ? "Recompensa" : "Novo Nível"}
-                    </p>
-                    <p style={{ color: template.textColor }} className="text-xl font-bold leading-tight">
-                      {template.title || "Título do popup"}
-                    </p>
-                    <p style={{ color: template.textColor }} className="text-xs opacity-80 leading-snug">
-                      {template.message || "Mensagem do popup"}
-                    </p>
+            <label className="block text-sm font-medium text-zinc-300 mb-3">Prévia (Arraste os elementos)</label>
+            <div
+              className="relative w-full rounded-xl overflow-hidden"
+              style={{
+                aspectRatio: "768/391",
+                containerType: "inline-size",
+                background: colorizedPatternUrl ? "transparent" : "transparent",
+              }}
+              onDragOver={handlePreviewDragOver}
+              onDrop={handlePreviewDrop}
+            >
+              {colorizedPatternUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={colorizedPatternUrl} alt="padrão" className="absolute inset-0 w-full h-full object-cover" />
+              )}
+              {/* Mascot area (left ~30%) */}
+              {mascotUrl && (
+                <div className="absolute left-0 top-0 w-[30%] h-full flex items-end justify-center pb-2 pointer-events-none">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={mascotUrl} alt="mascote" className="h-[85%] w-auto object-contain" />
+                </div>
+              )}
+              {/* Draggable elements */}
+              {layoutElements.map((el) => (
+                <div
+                  key={el.id}
+                  draggable={el.visible}
+                  onDragStart={(e) => handleElementDragStart(e, el.id)}
+                  className={`absolute cursor-move px-2 py-1 rounded transition-all ${
+                    el.visible
+                      ? "bg-white/10 border border-white/30 hover:bg-white/20"
+                      : "hidden"
+                  }`}
+                  style={{
+                    left: `${el.x}%`,
+                    top: `${el.y}%`,
+                    opacity: draggingElement === el.id ? 0.5 : 1,
+                    color: el.color ?? template.textColor,
+                    fontFamily: "var(--font-bungee), sans-serif",
+                    fontSize: `${((el.fontSize ?? 12) / 768) * 100}cqw`,
+                    transform: "translate(-50%, -50%)",
+                    textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+                  }}
+                >
+                  {el.type === "name" && (template.name || "Nome")}
+                  {el.type === "title" && (template.title || "Título")}
+                  {el.type === "message" && (template.message || "Mensagem").substring(0, 30)}
+                  {el.type === "hide" && "[ Hide ]"}
+                  {el.type === "link" && "[ Link ]"}
+                </div>
+              ))}
+            </div>
+
+            {/* Element controls */}
+            <div className="mt-3 space-y-2">
+              {layoutElements.map((el) => (
+                <div key={el.id} className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleElementVisibility(el.id)}
+                    className={`w-24 shrink-0 px-2 py-1 text-xs rounded transition-all text-left ${
+                      el.visible
+                        ? "bg-violet-600 text-white"
+                        : "bg-zinc-700 text-zinc-400 hover:bg-zinc-600"
+                    }`}
+                    disabled={isLoading}
+                  >
+                    {el.label}
+                  </button>
+                  <div className="flex items-center gap-1 flex-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setLayoutElements(layoutElements.map((e) =>
+                          e.id === el.id ? { ...e, fontSize: Math.max(8, (e.fontSize ?? 12) - 1) } : e
+                        ))
+                      }
+                      className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
+                      disabled={isLoading}
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      min={8}
+                      max={72}
+                      value={el.fontSize ?? 12}
+                      onChange={(e) =>
+                        setLayoutElements(layoutElements.map((item) =>
+                          item.id === el.id
+                            ? { ...item, fontSize: Math.max(8, Math.min(72, Number(e.target.value))) }
+                            : item
+                        ))
+                      }
+                      className="w-12 bg-zinc-800 border border-zinc-700 rounded text-white text-xs text-center px-1 py-1 focus:outline-none focus:border-violet-500/60"
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setLayoutElements(layoutElements.map((e) =>
+                          e.id === el.id ? { ...e, fontSize: Math.min(72, (e.fontSize ?? 12) + 1) } : e
+                        ))
+                      }
+                      className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
+                      disabled={isLoading}
+                    >
+                      +
+                    </button>
+                    <span className="text-zinc-500 text-xs">px</span>
+                    <input
+                      type="color"
+                      value={el.color ?? "#ffffff"}
+                      onChange={(e) =>
+                        setLayoutElements(layoutElements.map((item) =>
+                          item.id === el.id ? { ...item, color: e.target.value } : item
+                        ))
+                      }
+                      className="w-7 h-7 rounded cursor-pointer border border-zinc-700 bg-zinc-800 shrink-0"
+                      title={`Cor de ${el.label}`}
+                      disabled={isLoading}
+                    />
                   </div>
                 </div>
+              ))}
+            </div>
+
+            {/* System Variables */}
+            <div className="mt-4">
+              <p className="text-xs font-medium text-zinc-400 mb-2">Variáveis do sistema <span className="text-zinc-600">(clique para copiar)</span></p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "Nome do usuário",         value: "{{nome_usuario}}" },
+                  { label: "Qtd. de Stars",            value: "{{quantidade_stars}}" },
+                  { label: "Nome do plano",            value: "{{nome_plano}}" },
+                  { label: "Qtd. de Space Points",     value: "{{quantidade_space_points}}" },
+                  { label: "Nova conquista",           value: "{{nova_conquista}}" },
+                  { label: "Meu ranking",              value: "{{meu_ranking}}" },
+                ].map((v) => (
+                  <button
+                    key={v.value}
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText(v.value).catch(() => {})}
+                    title={`Copiar ${v.value}`}
+                    className="px-2 py-1 bg-zinc-800 hover:bg-violet-600/20 border border-zinc-700 hover:border-violet-500/50 text-zinc-300 hover:text-violet-300 text-xs rounded-lg transition-all font-mono"
+                  >
+                    {v.label}
+                  </button>
+                ))}
               </div>
-            ) : (
-              <div
-                className="rounded-lg p-4 text-center text-sm"
-                style={{
-                  backgroundColor: template.backgroundColor,
-                  borderColor: template.primaryColor,
-                  borderWidth: "1px",
-                }}
-              >
-                <p style={{ color: template.accentColor }} className="text-xs font-semibold mb-1 uppercase">
-                  {template.type}
-                </p>
-                <p style={{ color: template.textColor }} className="font-bold mb-2">
-                  {template.title || "Título"}
-                </p>
-                <p style={{ color: template.textColor }} className="text-xs opacity-90">
-                  {template.message || "Mensagem"}
-                </p>
-              </div>
-            )}
+              <p className="text-[10px] text-zinc-600 mt-1.5">Use nas mensagens, ex: <span className="text-zinc-500">Parabéns, {`{{nome_usuario}}`}! Você ganhou {`{{quantidade_stars}}`}⭐</span></p>
+            </div>
           </div>
         </div>
 

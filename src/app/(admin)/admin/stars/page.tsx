@@ -1,9 +1,8 @@
 import { requireAdminSession } from "@/lib/admin-utils";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
-import { Star, History, Sliders, Sparkles } from "lucide-react";
+import { Star, History, Sliders } from "lucide-react";
 import { StarsDistributionAdmin } from "@/features/admin/components/stars-distribution-admin";
-import { PopupTemplatesManager } from "@/features/admin/components/popup-templates-manager";
 
 interface SearchParams { orgId?: string; type?: string; page?: string; tab?: string }
 
@@ -25,12 +24,6 @@ export default async function StarsPage({ searchParams }: { searchParams: Promis
   const filterOrg  = params.orgId ?? "";
   const page       = Number(params.page ?? 1);
   const limit      = 30;
-
-  // Fetch popup templates
-  const popupTemplates = await prisma.achievementPopupTemplate.findMany({
-    where: { isActive: true },
-    orderBy: { createdAt: "desc" },
-  });
 
   type TxRow = {
     id: string; type: string; amount: number; balanceAfter: number;
@@ -111,17 +104,6 @@ export default async function StarsPage({ searchParams }: { searchParams: Promis
         >
           <Sliders className="size-4" />
           Distribuição
-        </Link>
-        <Link
-          href="?tab=popups"
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            tab === "popups"
-              ? "bg-zinc-700 text-white shadow-sm"
-              : "text-zinc-400 hover:text-white"
-          }`}
-        >
-          <Sparkles className="size-4" />
-          Popups
         </Link>
       </div>
 
@@ -224,10 +206,6 @@ export default async function StarsPage({ searchParams }: { searchParams: Promis
         <StarsDistributionAdmin />
       )}
 
-      {/* ── Tab: Popups ────────────────────────────────────────────────── */}
-      {tab === "popups" && (
-        <PopupTemplatesManager templates={popupTemplates} />
-      )}
     </div>
   );
 }

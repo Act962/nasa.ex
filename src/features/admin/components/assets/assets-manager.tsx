@@ -1,14 +1,15 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import {
-  Upload, Trash2, Pencil, Check, X, Search, ImageIcon, Rocket, Puzzle, Palette, Bot,
+  Upload, Trash2, Pencil, Check, X, Search, ImageIcon, Rocket, Puzzle, Palette, Bot, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PopupTemplatesManager } from "@/features/admin/components/popup-templates-manager";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Level {
@@ -472,7 +473,7 @@ function MascoteTab({ assetsMap, onAssetChange }: {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-type Tab = "selos" | "apps" | "integrations" | "platform" | "mascote";
+type Tab = "selos" | "apps" | "integrations" | "platform" | "mascote" | "popups";
 
 export function AssetsManager({ levels, apps, integrations, platformKeys, assetsMap: initialMap }: Props) {
   const [tab, setTab]         = useState<Tab>("selos");
@@ -494,6 +495,7 @@ export function AssetsManager({ levels, apps, integrations, platformKeys, assets
     { key: "integrations", label: "Integrações",  icon: ImageIcon, count: integrations.length },
     { key: "platform",     label: "Plataforma",   icon: Palette,   count: platformKeys.length },
     { key: "mascote",      label: "Mascote",      icon: Bot,       count: MASCOT_SLOTS.length },
+    { key: "popups",       label: "Popups",       icon: Sparkles },
   ];
 
   return (
@@ -549,6 +551,25 @@ export function AssetsManager({ levels, apps, integrations, platformKeys, assets
       {tab === "mascote" && (
         <MascoteTab assetsMap={assetsMap} onAssetChange={handleAssetChange} />
       )}
+      {tab === "popups" && (
+        <PopupsTab />
+      )}
     </div>
   );
+}
+
+// ── Popups tab ─────────────────────────────────────────────────────────────────
+function PopupsTab() {
+  const [templates, setTemplates] = useState<unknown[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/admin/popup-templates")
+      .then((r) => r.json())
+      .then((data) => { setTemplates(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-zinc-400 text-sm py-6 text-center">Carregando...</div>;
+  return <PopupTemplatesManager templates={templates as Parameters<typeof PopupTemplatesManager>[0]["templates"]} />;
 }

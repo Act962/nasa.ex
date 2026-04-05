@@ -36,6 +36,126 @@ const typeLabels = {
   level_up: "Novo Nível",
 };
 
+const DEFAULT_SVG_PATTERNS: Record<string, string> = {
+  padrao: "/popup-patterns/padrao.svg",
+};
+
+function resolvePatternUrl(customJson: Record<string, unknown> | undefined): string | null {
+  if (!customJson) return null;
+  const svgPattern = customJson.svgPattern as string | undefined;
+  if (!svgPattern) return null;
+
+  const overrides = customJson.patternUrlOverrides as Record<string, string> | undefined;
+  if (overrides?.[svgPattern]) return overrides[svgPattern];
+
+  const customs = customJson.customPatterns as { id: string; url: string }[] | undefined;
+  const custom = customs?.find((p) => p.id === svgPattern);
+  if (custom) return custom.url;
+
+  return DEFAULT_SVG_PATTERNS[svgPattern] ?? null;
+}
+
+interface LayoutElement {
+  id: string;
+  type: "name" | "title" | "message" | "hide" | "link";
+  x: number;
+  y: number;
+  visible: boolean;
+  fontSize?: number;
+  color?: string;
+}
+
+function TemplatePreview({ template }: { template: PopupTemplate }) {
+  const cj = template.customJson as Record<string, unknown> | undefined;
+  const patternUrl = resolvePatternUrl(cj);
+  const mascotUrl = cj?.mascotUrl as string | undefined;
+  const layoutElements = (cj?.layoutElements as LayoutElement[] | undefined) ?? [];
+  const prizeValue = cj?.prizeValue as string | undefined;
+
+  const elementText = (el: LayoutElement): string => {
+    if (el.type === "name") return template.name;
+    if (el.type === "title") return template.title;
+    if (el.type === "message") return template.message;
+    if (el.type === "hide") return "Fechar";
+    if (el.type === "link") return "Ver mais";
+    return "";
+  };
+
+  if (patternUrl || layoutElements.length > 0) {
+    return (
+      <div
+        className="relative w-full rounded-lg overflow-hidden bg-zinc-800"
+        style={{ aspectRatio: "768/391", containerType: "inline-size" }}
+      >
+        {patternUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={patternUrl} alt="padrão" className="absolute inset-0 w-full h-full object-cover" />
+        )}
+        {mascotUrl && (
+          <div className="absolute left-0 top-0 w-[30%] h-full flex items-end justify-center pb-2 pointer-events-none">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={mascotUrl} alt="mascote" className="h-[85%] w-auto object-contain" />
+          </div>
+        )}
+        {layoutElements.filter((el) => el.visible).map((el) => (
+          <div
+            key={el.id}
+            className="absolute pointer-events-none select-none"
+            style={{
+              left: `${el.x}%`,
+              top: `${el.y}%`,
+              transform: "translate(-50%, -50%)",
+              fontSize: `${((el.fontSize ?? 12) / 768) * 100}cqw`,
+              color: el.color ?? template.textColor,
+              fontFamily: "var(--font-bungee), sans-serif",
+              textShadow: "0 1px 3px rgba(0,0,0,0.7)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {elementText(el)}
+          </div>
+        ))}
+        {prizeValue && (
+          <div
+            className="absolute bottom-[8%] left-1/2 pointer-events-none select-none"
+            style={{
+              transform: "translateX(-50%)",
+              fontFamily: "var(--font-bungee), sans-serif",
+              fontSize: `${(24 / 768) * 100}cqw`,
+              color: template.accentColor,
+              textShadow: "0 2px 6px rgba(0,0,0,0.7)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {prizeValue}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="rounded-lg p-4 text-center text-sm"
+      style={{
+        backgroundColor: template.backgroundColor,
+        borderColor: template.primaryColor,
+        borderWidth: "2px",
+      }}
+    >
+      <p style={{ color: template.accentColor }} className="text-xs font-semibold mb-1 uppercase">
+        {typeLabels[template.type]}
+      </p>
+      <p style={{ color: template.textColor, fontFamily: "var(--font-bungee), sans-serif" }} className="font-bold mb-2">
+        {template.title}
+      </p>
+      <p style={{ color: template.textColor }} className="text-xs opacity-90">
+        {template.message}
+      </p>
+    </div>
+  );
+}
+
 const emptyTemplate: PopupTemplate = {
   name: "",
   type: "achievement",
@@ -145,58 +265,7 @@ export function PopupTemplatesManager({ templates: initialTemplates }: PopupTemp
             className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-4 hover:border-zinc-700 transition-colors animate-slide-down"
           >
             {/* Card Preview */}
-            {(template.customJson as Record<string, unknown> | undefined)?.svgPattern ? (
-              <div className="relative w-full rounded-lg overflow-hidden" style={{ aspectRatio: "768/391" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/popup-patterns/${(template.customJson as Record<string, unknown>).svgPattern}.svg`}
-                  alt="padrão"
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-[30%] h-full flex items-end justify-center pb-1">
-                    {(template.customJson as Record<string, unknown>).mascotUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={(template.customJson as Record<string, unknown>).mascotUrl as string}
-                        alt="mascote"
-                        className="h-[80%] w-auto object-contain"
-                      />
-                    ) : null}
-                  </div>
-                  <div className="w-[55%] px-2 space-y-0.5">
-                    <p style={{ color: template.accentColor }} className="text-[8px] font-bold uppercase">
-                      {typeLabels[template.type]}
-                    </p>
-                    <p style={{ color: template.textColor }} className="text-xs font-bold leading-tight">
-                      {template.title}
-                    </p>
-                    <p style={{ color: template.textColor }} className="text-[9px] opacity-80">
-                      {template.message}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div
-                className="rounded-lg p-4 text-center text-sm group"
-                style={{
-                  backgroundColor: template.backgroundColor,
-                  borderColor: template.primaryColor,
-                  borderWidth: "2px",
-                }}
-              >
-                <p style={{ color: template.accentColor }} className="text-xs font-semibold mb-1 uppercase group-hover:animate-pulse-scale transition-all">
-                  {typeLabels[template.type]}
-                </p>
-                <p style={{ color: template.textColor }} className="font-bold mb-2 group-hover:scale-110 transition-transform duration-300">
-                  {template.title}
-                </p>
-                <p style={{ color: template.textColor }} className="text-xs opacity-90">
-                  {template.message}
-                </p>
-              </div>
-            )}
+            <TemplatePreview template={template} />
 
             {/* Info */}
             <div className="text-xs text-zinc-400 space-y-1">

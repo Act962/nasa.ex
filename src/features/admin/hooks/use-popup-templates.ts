@@ -18,6 +18,7 @@ interface PopupTemplate {
   enableSound: boolean;
   dismissDuration: number;
   isActive?: boolean;
+  customJson?: Record<string, unknown>;
 }
 
 export function usePopupTemplates(initialTemplates: PopupTemplate[]) {
@@ -37,7 +38,7 @@ export function usePopupTemplates(initialTemplates: PopupTemplate[]) {
       if (!response.ok) throw new Error("Failed to update template");
 
       const updated = await response.json();
-      setTemplates(templates.map(t => t.id === id ? updated : t));
+      setTemplates(prev => prev.map(t => t.id === id ? updated : t));
       toast.success("Template atualizado com sucesso!");
       return updated;
     } catch (error) {
@@ -57,7 +58,7 @@ export function usePopupTemplates(initialTemplates: PopupTemplate[]) {
 
       if (!response.ok) throw new Error("Failed to delete template");
 
-      setTemplates(templates.filter(t => t.id !== id));
+      setTemplates(prev => prev.filter(t => t.id !== id));
       toast.success("Template deletado com sucesso!");
     } catch (error) {
       toast.error("Erro ao deletar template");
@@ -79,7 +80,7 @@ export function usePopupTemplates(initialTemplates: PopupTemplate[]) {
       if (!response.ok) throw new Error("Failed to create template");
 
       const created = await response.json();
-      setTemplates([...templates, created]);
+      setTemplates(prev => [...prev, created]);
       toast.success("Template criado com sucesso!");
       return created;
     } catch (error) {
