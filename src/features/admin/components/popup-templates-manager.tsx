@@ -41,7 +41,10 @@ const DEFAULT_SVG_PATTERNS: Record<string, string> = {
   padrao: "/popup-patterns/padrao.svg",
 };
 
-function resolvePatternUrl(customJson: Record<string, unknown> | undefined): string | null {
+function resolvePatternUrl(
+  customJson: Record<string, unknown> | undefined,
+  globalPatterns: { id: string; url: string }[] = [],
+): string | null {
   if (!customJson) return null;
   const svgPattern = customJson.svgPattern as string | undefined;
   if (!svgPattern) return null;
@@ -52,6 +55,9 @@ function resolvePatternUrl(customJson: Record<string, unknown> | undefined): str
   const customs = customJson.customPatterns as { id: string; url: string }[] | undefined;
   const custom = customs?.find((p) => p.id === svgPattern);
   if (custom) return custom.url;
+
+  const global = globalPatterns.find((p) => p.id === svgPattern);
+  if (global) return global.url;
 
   return DEFAULT_SVG_PATTERNS[svgPattern] ?? null;
 }
@@ -112,9 +118,9 @@ function useColorizedSvg(
   return colorizedUrl;
 }
 
-function TemplatePreview({ template }: { template: PopupTemplate }) {
+function TemplatePreview({ template, globalPatterns = [] }: { template: PopupTemplate; globalPatterns?: { id: string; label: string; url: string }[] }) {
   const cj = template.customJson as Record<string, unknown> | undefined;
-  const rawPatternUrl = resolvePatternUrl(cj);
+  const rawPatternUrl = resolvePatternUrl(cj, globalPatterns);
   const patternUrl = useColorizedSvg(
     rawPatternUrl,
     template.primaryColor,
@@ -463,7 +469,7 @@ export function PopupTemplatesManager({ templates: initialTemplates }: PopupTemp
             }`}
           >
             {/* Card Preview */}
-            <TemplatePreview template={displayTemplate} />
+            <TemplatePreview template={displayTemplate} globalPatterns={globalPatterns} />
 
             {/* Info */}
             <div className="text-xs text-zinc-400 space-y-1">
@@ -575,7 +581,7 @@ export function PopupTemplatesManager({ templates: initialTemplates }: PopupTemp
               <X className="w-4 h-4" />
               Fechar prévia
             </button>
-            <TemplatePreview template={previewTemplate} />
+            <TemplatePreview template={previewTemplate} globalPatterns={globalPatterns} />
             <p className="text-center text-zinc-500 text-xs mt-2">{previewTemplate.name}</p>
           </div>
         </div>,
