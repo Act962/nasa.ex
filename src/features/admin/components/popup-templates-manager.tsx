@@ -58,12 +58,15 @@ function resolvePatternUrl(customJson: Record<string, unknown> | undefined): str
 
 interface LayoutElement {
   id: string;
-  type: "name" | "title" | "message" | "hide" | "link";
+  type: "name" | "title" | "message" | "hide" | "link" | "image";
+  label?: string;
   x: number;
   y: number;
   visible: boolean;
   fontSize?: number;
   color?: string;
+  imageUrl?: string;
+  imageSize?: number;
 }
 
 function useColorizedSvg(
@@ -146,24 +149,44 @@ function TemplatePreview({ template }: { template: PopupTemplate }) {
             <img src={mascotUrl} alt="mascote" className="h-[85%] w-auto object-contain" />
           </div>
         )}
-        {layoutElements.filter((el) => el.visible).map((el) => (
-          <div
-            key={el.id}
-            className="absolute pointer-events-none select-none"
-            style={{
-              left: `${el.x}%`,
-              top: `${el.y}%`,
-              transform: "translate(-50%, -50%)",
-              fontSize: `${((el.fontSize ?? 12) / 768) * 100}cqw`,
-              color: el.color ?? template.textColor,
-              fontFamily: "var(--font-bungee), sans-serif",
-              textShadow: "0 1px 3px rgba(0,0,0,0.7)",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {elementText(el)}
-          </div>
-        ))}
+        {layoutElements.filter((el) => el.visible).map((el) => {
+          if (el.type === "image" && el.imageUrl) {
+            return (
+              <div
+                key={el.id}
+                className="absolute pointer-events-none select-none"
+                style={{
+                  left: `${el.x}%`,
+                  top: `${el.y}%`,
+                  width: `${el.imageSize ?? 20}%`,
+                  transform: "translate(-50%, -50%)",
+                  filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))",
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={el.imageUrl} alt={el.label ?? ""} className="w-full h-auto object-contain" />
+              </div>
+            );
+          }
+          return (
+            <div
+              key={el.id}
+              className="absolute pointer-events-none select-none"
+              style={{
+                left: `${el.x}%`,
+                top: `${el.y}%`,
+                transform: "translate(-50%, -50%)",
+                fontSize: `${((el.fontSize ?? 12) / 768) * 100}cqw`,
+                color: el.color ?? template.textColor,
+                fontFamily: "var(--font-bungee), sans-serif",
+                textShadow: "0 1px 3px rgba(0,0,0,0.7)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {elementText(el)}
+            </div>
+          );
+        })}
         {prizeValue && (
           <div
             className="absolute bottom-[8%] left-1/2 pointer-events-none select-none"

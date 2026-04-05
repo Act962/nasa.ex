@@ -5,13 +5,15 @@ import { X, Check, Pencil, Upload } from "lucide-react";
 
 interface LayoutElement {
   id: string;
-  type: "name" | "title" | "message" | "hide" | "link";
+  type: "name" | "title" | "message" | "hide" | "link" | "image";
   label: string;
   x: number;
   y: number;
   visible: boolean;
   fontSize?: number;
   color?: string;
+  imageUrl?: string;
+  imageSize?: number; // percentage of container width (for image type)
 }
 
 interface PopupTemplate {
@@ -379,6 +381,24 @@ export function PopupTemplateModal({
     );
   };
 
+  const removeElement = (elementId: string) => {
+    setLayoutElements((prev) => prev.filter((el) => el.id !== elementId));
+  };
+
+  const addImageElement = (mascot: { key: string; url: string; label: string }) => {
+    const newEl: LayoutElement = {
+      id: `image-${mascot.key}-${Date.now()}`,
+      type: "image",
+      label: mascot.label,
+      x: 50,
+      y: 50,
+      visible: true,
+      imageUrl: mascot.url,
+      imageSize: 20,
+    };
+    setLayoutElements((prev) => [...prev, newEl]);
+  };
+
   const handleSave = async () => {
     if (!template.name || !template.title) {
       alert("Por favor, preencha o nome e título do template");
@@ -578,17 +598,17 @@ export function PopupTemplateModal({
             </div>
           </div>
 
-          {/* Mascot */}
+          {/* Mascot (fixed position, left area) */}
           <div>
             <label className="block text-sm font-medium text-zinc-300 mb-2">
               Mascote{" "}
               <span className="text-zinc-500 font-normal text-xs">
-                (faça upload em /admin/ativos → aba Mascote)
+                (posição fixa esquerda — faça upload em /admin/padrão visual → Elementos)
               </span>
             </label>
             {mascots.length === 0 ? (
               <p className="text-xs text-zinc-500 bg-zinc-800 rounded-lg px-3 py-2">
-                Nenhum mascote cadastrado. Acesse <strong className="text-zinc-400">/admin/ativos</strong> → aba <strong className="text-zinc-400">Mascote</strong> para fazer upload.
+                Nenhum elemento cadastrado. Acesse <strong className="text-zinc-400">/admin/padrão visual</strong> → aba <strong className="text-zinc-400">Elementos</strong> para fazer upload.
               </p>
             ) : (
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
@@ -613,13 +633,49 @@ export function PopupTemplateModal({
                     }`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={m.url} alt={m.label} className="w-full h-full object-cover" />
+                    <img src={m.url} alt={m.label} className="w-full h-full object-contain" />
                     {mascotUrl === m.url && <Check className="absolute top-0.5 right-0.5 w-3 h-3 text-violet-400 drop-shadow" />}
                   </button>
                 ))}
               </div>
             )}
           </div>
+
+          {/* Elements — add as draggable to preview */}
+          {mascots.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
+                Elementos arrastáveis{" "}
+                <span className="text-zinc-500 font-normal text-xs">(clique para adicionar na Prévia)</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {mascots.map((m) => {
+                  const alreadyAdded = layoutElements.some(
+                    (el) => el.type === "image" && el.imageUrl === m.url
+                  );
+                  return (
+                    <button
+                      key={m.key}
+                      type="button"
+                      onClick={() => !alreadyAdded && addImageElement(m)}
+                      disabled={isLoading || alreadyAdded}
+                      title={alreadyAdded ? `${m.label} já adicionado` : `Adicionar ${m.label} à prévia`}
+                      className={`relative flex items-center gap-2 px-2 py-1.5 rounded-xl border-2 transition-all ${
+                        alreadyAdded
+                          ? "border-emerald-500/50 bg-emerald-600/10 opacity-60 cursor-default"
+                          : "border-zinc-700 hover:border-violet-500 bg-zinc-800 hover:bg-violet-600/10 cursor-pointer"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={m.url} alt={m.label} className="w-7 h-7 object-contain rounded" />
+                      <span className="text-xs text-zinc-300">{m.label}</span>
+                      {alreadyAdded && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Colors */}
           <ColorPalette
@@ -694,34 +750,54 @@ export function PopupTemplateModal({
                 </div>
               )}
               {/* Draggable elements */}
-              {layoutElements.map((el) => (
-                <div
-                  key={el.id}
-                  draggable={el.visible}
-                  onDragStart={(e) => handleElementDragStart(e, el.id)}
-                  className={`absolute cursor-move px-2 py-1 rounded transition-all ${
-                    el.visible
-                      ? "bg-white/10 border border-white/30 hover:bg-white/20"
-                      : "hidden"
-                  }`}
-                  style={{
-                    left: `${el.x}%`,
-                    top: `${el.y}%`,
-                    opacity: draggingElement === el.id ? 0.5 : 1,
-                    color: el.color ?? template.textColor,
-                    fontFamily: "var(--font-bungee), sans-serif",
-                    fontSize: `${((el.fontSize ?? 12) / 768) * 100}cqw`,
-                    transform: "translate(-50%, -50%)",
-                    textShadow: "0 1px 3px rgba(0,0,0,0.6)",
-                  }}
-                >
-                  {el.type === "name" && (template.name || "Nome")}
-                  {el.type === "title" && (template.title || "Título")}
-                  {el.type === "message" && (template.message || "Mensagem").substring(0, 30)}
-                  {el.type === "hide" && "[ Hide ]"}
-                  {el.type === "link" && "[ Link ]"}
-                </div>
-              ))}
+              {layoutElements.map((el) => {
+                if (!el.visible) return null;
+                if (el.type === "image" && el.imageUrl) {
+                  return (
+                    <div
+                      key={el.id}
+                      draggable
+                      onDragStart={(e) => handleElementDragStart(e, el.id)}
+                      className="absolute cursor-move"
+                      style={{
+                        left: `${el.x}%`,
+                        top: `${el.y}%`,
+                        width: `${el.imageSize ?? 20}%`,
+                        opacity: draggingElement === el.id ? 0.4 : 1,
+                        transform: "translate(-50%, -50%)",
+                        filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))",
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={el.imageUrl} alt={el.label} className="w-full h-auto object-contain pointer-events-none" />
+                    </div>
+                  );
+                }
+                return (
+                  <div
+                    key={el.id}
+                    draggable
+                    onDragStart={(e) => handleElementDragStart(e, el.id)}
+                    className="absolute cursor-move px-2 py-1 rounded transition-all bg-white/10 border border-white/30 hover:bg-white/20"
+                    style={{
+                      left: `${el.x}%`,
+                      top: `${el.y}%`,
+                      opacity: draggingElement === el.id ? 0.5 : 1,
+                      color: el.color ?? template.textColor,
+                      fontFamily: "var(--font-bungee), sans-serif",
+                      fontSize: `${((el.fontSize ?? 12) / 768) * 100}cqw`,
+                      transform: "translate(-50%, -50%)",
+                      textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+                    }}
+                  >
+                    {el.type === "name" && (template.name || "Nome")}
+                    {el.type === "title" && (template.title || "Título")}
+                    {el.type === "message" && (template.message || "Mensagem").substring(0, 30)}
+                    {el.type === "hide" && "[ Hide ]"}
+                    {el.type === "link" && "[ Link ]"}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Element controls */}
@@ -731,69 +807,131 @@ export function PopupTemplateModal({
                   <button
                     type="button"
                     onClick={() => toggleElementVisibility(el.id)}
-                    className={`w-24 shrink-0 px-2 py-1 text-xs rounded transition-all text-left ${
+                    className={`w-24 shrink-0 px-2 py-1 text-xs rounded transition-all text-left truncate ${
                       el.visible
                         ? "bg-violet-600 text-white"
                         : "bg-zinc-700 text-zinc-400 hover:bg-zinc-600"
                     }`}
                     disabled={isLoading}
+                    title={el.label}
                   >
                     {el.label}
                   </button>
-                  <div className="flex items-center gap-1 flex-1">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setLayoutElements(layoutElements.map((e) =>
-                          e.id === el.id ? { ...e, fontSize: Math.max(8, (e.fontSize ?? 12) - 1) } : e
-                        ))
-                      }
-                      className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
-                      disabled={isLoading}
-                    >
-                      −
-                    </button>
-                    <input
-                      type="number"
-                      min={8}
-                      max={72}
-                      value={el.fontSize ?? 12}
-                      onChange={(e) =>
-                        setLayoutElements(layoutElements.map((item) =>
-                          item.id === el.id
-                            ? { ...item, fontSize: Math.max(8, Math.min(72, Number(e.target.value))) }
-                            : item
-                        ))
-                      }
-                      className="w-12 bg-zinc-800 border border-zinc-700 rounded text-white text-xs text-center px-1 py-1 focus:outline-none focus:border-violet-500/60"
-                      disabled={isLoading}
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setLayoutElements(layoutElements.map((e) =>
-                          e.id === el.id ? { ...e, fontSize: Math.min(72, (e.fontSize ?? 12) + 1) } : e
-                        ))
-                      }
-                      className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
-                      disabled={isLoading}
-                    >
-                      +
-                    </button>
-                    <span className="text-zinc-500 text-xs">px</span>
-                    <input
-                      type="color"
-                      value={el.color ?? "#ffffff"}
-                      onChange={(e) =>
-                        setLayoutElements(layoutElements.map((item) =>
-                          item.id === el.id ? { ...item, color: e.target.value } : item
-                        ))
-                      }
-                      className="w-7 h-7 rounded cursor-pointer border border-zinc-700 bg-zinc-800 shrink-0"
-                      title={`Cor de ${el.label}`}
-                      disabled={isLoading}
-                    />
-                  </div>
+
+                  {el.type === "image" ? (
+                    /* Image element controls */
+                    <div className="flex items-center gap-1 flex-1">
+                      {el.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={el.imageUrl} alt={el.label} className="w-6 h-6 object-contain rounded border border-zinc-700 shrink-0" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLayoutElements(layoutElements.map((e) =>
+                            e.id === el.id ? { ...e, imageSize: Math.max(5, (e.imageSize ?? 20) - 5) } : e
+                          ))
+                        }
+                        className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
+                        disabled={isLoading}
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        min={5}
+                        max={100}
+                        value={el.imageSize ?? 20}
+                        onChange={(e) =>
+                          setLayoutElements(layoutElements.map((item) =>
+                            item.id === el.id
+                              ? { ...item, imageSize: Math.max(5, Math.min(100, Number(e.target.value))) }
+                              : item
+                          ))
+                        }
+                        className="w-12 bg-zinc-800 border border-zinc-700 rounded text-white text-xs text-center px-1 py-1 focus:outline-none focus:border-violet-500/60"
+                        disabled={isLoading}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLayoutElements(layoutElements.map((e) =>
+                            e.id === el.id ? { ...e, imageSize: Math.min(100, (e.imageSize ?? 20) + 5) } : e
+                          ))
+                        }
+                        className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
+                        disabled={isLoading}
+                      >
+                        +
+                      </button>
+                      <span className="text-zinc-500 text-xs">%</span>
+                      <button
+                        type="button"
+                        onClick={() => removeElement(el.id)}
+                        className="ml-auto w-6 h-6 bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 rounded text-xs flex items-center justify-center"
+                        disabled={isLoading}
+                        title="Remover elemento"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    /* Text element controls */
+                    <div className="flex items-center gap-1 flex-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLayoutElements(layoutElements.map((e) =>
+                            e.id === el.id ? { ...e, fontSize: Math.max(8, (e.fontSize ?? 12) - 1) } : e
+                          ))
+                        }
+                        className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
+                        disabled={isLoading}
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        min={8}
+                        max={72}
+                        value={el.fontSize ?? 12}
+                        onChange={(e) =>
+                          setLayoutElements(layoutElements.map((item) =>
+                            item.id === el.id
+                              ? { ...item, fontSize: Math.max(8, Math.min(72, Number(e.target.value))) }
+                              : item
+                          ))
+                        }
+                        className="w-12 bg-zinc-800 border border-zinc-700 rounded text-white text-xs text-center px-1 py-1 focus:outline-none focus:border-violet-500/60"
+                        disabled={isLoading}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLayoutElements(layoutElements.map((e) =>
+                            e.id === el.id ? { ...e, fontSize: Math.min(72, (e.fontSize ?? 12) + 1) } : e
+                          ))
+                        }
+                        className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
+                        disabled={isLoading}
+                      >
+                        +
+                      </button>
+                      <span className="text-zinc-500 text-xs">px</span>
+                      <input
+                        type="color"
+                        value={el.color ?? "#ffffff"}
+                        onChange={(e) =>
+                          setLayoutElements(layoutElements.map((item) =>
+                            item.id === el.id ? { ...item, color: e.target.value } : item
+                          ))
+                        }
+                        className="w-7 h-7 rounded cursor-pointer border border-zinc-700 bg-zinc-800 shrink-0"
+                        title={`Cor de ${el.label}`}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

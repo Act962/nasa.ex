@@ -7,13 +7,15 @@ import { cn } from "@/lib/utils";
 
 interface LayoutElement {
   id: string;
-  type: "name" | "title" | "message" | "hide" | "link";
+  type: "name" | "title" | "message" | "hide" | "link" | "image";
   label: string;
   x: number;
   y: number;
   visible: boolean;
   fontSize?: number;
   color?: string;
+  imageUrl?: string;
+  imageSize?: number;
 }
 
 interface PopupTemplateData {
@@ -244,34 +246,54 @@ export function AchievementPopup({ data, onDismiss }: AchievementPopupProps) {
             )}
 
             {/* Layout elements */}
-            {layoutElements.filter((el) => el.visible).map((el) => (
-              <div
-                key={el.id}
-                className="absolute pointer-events-none select-none"
-                style={{
-                  left: `${el.x}%`,
-                  top: `${el.y}%`,
-                  transform: "translate(-50%, -50%)",
-                  fontSize: `${el.fontSize ?? 14}px`,
-                  color: el.color ?? tpl?.textColor ?? "#ffffff",
-                  fontFamily: "var(--font-bungee), sans-serif",
-                  textShadow: "0 1px 4px rgba(0,0,0,0.6)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {el.type === "hide" || el.type === "link" ? (
-                  <button
-                    className="pointer-events-auto underline opacity-80 hover:opacity-100"
-                    style={{ fontFamily: "inherit", fontSize: "inherit", color: "inherit" }}
-                    onClick={(e) => { e.stopPropagation(); handleDismiss(); }}
+            {layoutElements.filter((el) => el.visible).map((el) => {
+              if (el.type === "image" && el.imageUrl) {
+                return (
+                  <div
+                    key={el.id}
+                    className="absolute pointer-events-none select-none"
+                    style={{
+                      left: `${el.x}%`,
+                      top: `${el.y}%`,
+                      width: `${el.imageSize ?? 20}%`,
+                      transform: "translate(-50%, -50%)",
+                      filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))",
+                    }}
                   >
-                    {elementValue(el)}
-                  </button>
-                ) : (
-                  elementValue(el)
-                )}
-              </div>
-            ))}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={el.imageUrl} alt={el.label} className="w-full h-auto object-contain" />
+                  </div>
+                );
+              }
+              return (
+                <div
+                  key={el.id}
+                  className="absolute pointer-events-none select-none"
+                  style={{
+                    left: `${el.x}%`,
+                    top: `${el.y}%`,
+                    transform: "translate(-50%, -50%)",
+                    fontSize: `${el.fontSize ?? 14}px`,
+                    color: el.color ?? tpl?.textColor ?? "#ffffff",
+                    fontFamily: "var(--font-bungee), sans-serif",
+                    textShadow: "0 1px 4px rgba(0,0,0,0.6)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {el.type === "hide" || el.type === "link" ? (
+                    <button
+                      className="pointer-events-auto underline opacity-80 hover:opacity-100"
+                      style={{ fontFamily: "inherit", fontSize: "inherit", color: "inherit" }}
+                      onClick={(e) => { e.stopPropagation(); handleDismiss(); }}
+                    >
+                      {elementValue(el)}
+                    </button>
+                  ) : (
+                    elementValue(el)
+                  )}
+                </div>
+              );
+            })}
 
             {/* Prize value */}
             {tpl?.customJson?.prizeValue && (

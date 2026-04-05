@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import {
-  Upload, Trash2, Pencil, Check, X, Search, ImageIcon, Rocket, Puzzle, Palette, Bot, Sparkles,
+  Upload, Trash2, Pencil, Check, X, Search, ImageIcon, Rocket, Puzzle, Palette, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PopupTemplatesManager } from "@/features/admin/components/popup-templates-manager";
@@ -420,21 +420,22 @@ function PlatformTab({ platformKeys, assetsMap, onAssetChange }: {
   );
 }
 
-// ── Mascote tab ───────────────────────────────────────────────────────────────
+// ── Elementos tab ─────────────────────────────────────────────────────────────
 const MASCOT_SLOTS = Array.from({ length: 8 }, (_, i) => ({
   key: `popup:mascot:${i + 1}`,
-  label: `Mascote ${i + 1}`,
+  label: `Elemento ${i + 1}`,
 }));
 
-function MascoteTab({ assetsMap, onAssetChange }: {
+function ElementosTab({ assetsMap, onAssetChange }: {
   assetsMap: Record<string, string>;
   onAssetChange: (key: string, url: string | null) => void;
 }) {
   return (
     <div className="space-y-4">
       <div className="bg-violet-600/10 border border-violet-500/20 rounded-xl px-4 py-3 text-sm text-zinc-300">
-        Faça upload de imagens <span className="text-white font-semibold">1:1 (quadradas)</span> do mascote NASA.
-        Elas aparecerão nos banners de popup de conquistas e recompensas Stars.
+        Faça upload de imagens <span className="text-white font-semibold">1:1 (quadradas)</span> de elementos visuais.
+        Eles poderão ser arrastados e posicionados livremente nos banners de popup em{" "}
+        <strong className="text-zinc-300">Editar/Novo Template → Prévia</strong>.
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {MASCOT_SLOTS.map(({ key, label }) => {
@@ -444,10 +445,10 @@ function MascoteTab({ assetsMap, onAssetChange }: {
               <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700 flex items-center justify-center">
                 {url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={url} alt={label} className="w-full h-full object-cover" />
+                  <img src={url} alt={label} className="w-full h-full object-contain" />
                 ) : (
                   <div className="flex flex-col items-center gap-1 text-zinc-600">
-                    <Bot className="w-8 h-8" />
+                    <ImageIcon className="w-8 h-8" />
                     <p className="text-[10px]">Vazio</p>
                   </div>
                 )}
@@ -459,7 +460,7 @@ function MascoteTab({ assetsMap, onAssetChange }: {
               <UploadButton
                 assetKey={key}
                 currentUrl={url}
-                label="Enviar 1:1"
+                label="Enviar imagem"
                 size="md"
                 onUploaded={(k, u) => onAssetChange(k, u)}
                 onDeleted={(k) => onAssetChange(k, null)}
@@ -473,7 +474,7 @@ function MascoteTab({ assetsMap, onAssetChange }: {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-type Tab = "selos" | "apps" | "integrations" | "platform" | "mascote" | "popups";
+type Tab = "selos" | "apps" | "integrations" | "platform" | "elementos" | "popups";
 
 export function AssetsManager({ levels, apps, integrations, platformKeys, assetsMap: initialMap }: Props) {
   const [tab, setTab]         = useState<Tab>("selos");
@@ -494,7 +495,7 @@ export function AssetsManager({ levels, apps, integrations, platformKeys, assets
     { key: "apps",         label: "Apps",         icon: Puzzle,    count: apps.length },
     { key: "integrations", label: "Integrações",  icon: ImageIcon, count: integrations.length },
     { key: "platform",     label: "Plataforma",   icon: Palette,   count: platformKeys.length },
-    { key: "mascote",      label: "Mascote",      icon: Bot,       count: MASCOT_SLOTS.length },
+    { key: "elementos",     label: "Elementos",    icon: ImageIcon, count: MASCOT_SLOTS.length },
     { key: "popups",       label: "Popups",       icon: Sparkles },
   ];
 
@@ -548,8 +549,8 @@ export function AssetsManager({ levels, apps, integrations, platformKeys, assets
       {tab === "platform" && (
         <PlatformTab platformKeys={platformKeys} assetsMap={assetsMap} onAssetChange={handleAssetChange} />
       )}
-      {tab === "mascote" && (
-        <MascoteTab assetsMap={assetsMap} onAssetChange={handleAssetChange} />
+      {tab === "elementos" && (
+        <ElementosTab assetsMap={assetsMap} onAssetChange={handleAssetChange} />
       )}
       {tab === "popups" && (
         <PopupsTab />
