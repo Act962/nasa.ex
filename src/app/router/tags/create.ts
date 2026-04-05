@@ -1,5 +1,6 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -60,6 +61,19 @@ export const createTag = base
           organizationId: context.org.id,
           trackingId: input.trackingId,
         },
+      });
+
+      await logActivity({
+        organizationId: context.org.id,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "tracking",
+        action: "tag.created",
+        actionLabel: `Criou a tag "${tag.name}"`,
+        resource: tag.name,
+        resourceId: tag.id,
       });
 
       return {

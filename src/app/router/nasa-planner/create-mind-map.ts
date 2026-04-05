@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -31,6 +32,20 @@ export const createMindMap = base
         nodes: initialNodes as any,
         edges: initialEdges as any,
       },
+    });
+
+    await logActivity({
+      organizationId: context.org.id,
+      userId: context.user.id,
+      userName: context.user.name,
+      userEmail: context.user.email,
+      userImage: (context.user as any).image,
+      appSlug: "nasa-planner",
+      action: "planner.mindmap.created",
+      actionLabel: `Criou o mapa "${mindMap.name}" no planner`,
+      resource: mindMap.name,
+      resourceId: mindMap.id,
+      metadata: { template: input.template },
     });
 
     return { mindMap };

@@ -10,6 +10,7 @@ import { MessageStatus } from "@/features/tracking-chat/types";
 import { getContactDetails } from "@/http/uazapi/get-contact-details";
 import { WA_COLORS } from "@/utils/whatsapp-utils";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
+import { logActivity } from "@/lib/activity-logger";
 
 export async function POST(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -153,6 +154,29 @@ export async function POST(request: NextRequest) {
         });
 
         lead = createdLead;
+
+        // Log system activity for new lead via WhatsApp
+        try {
+          const tracking = await prisma.tracking.findUnique({
+            where: { id: trackingId },
+            select: { name: true, organizationId: true },
+          });
+          if (tracking) {
+            await logActivity({
+              organizationId: tracking.organizationId,
+              userId: "system",
+              userName: "Sistema",
+              userEmail: "sistema@nasa",
+              appSlug: "tracking",
+              action: "lead.arrived",
+              actionLabel: `Um lead chegou no tracking "${tracking.name}" via WhatsApp (${lead.name ?? phone})`,
+              resource: lead.name ?? phone,
+              resourceId: lead.id,
+              metadata: { phone, trackingName: tracking.name, source: "WHATSAPP" },
+            });
+          }
+        } catch {}
+
         try {
           if (lead && lead.id) {
             await prisma.$transaction((tx) =>
