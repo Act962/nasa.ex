@@ -750,10 +750,9 @@ export function PopupTemplateModal({
             <label className="block text-sm font-medium text-zinc-300 mb-3">Prévia (Arraste os elementos)</label>
             <div
               ref={previewRef}
-              className="relative w-full rounded-xl overflow-hidden"
+              className="relative w-full rounded-xl overflow-hidden [container-type:inline-size]"
               style={{
                 aspectRatio: "768/391",
-                containerType: "inline-size",
                 background: "transparent",
               }}
               onDragOver={handlePreviewDragOver}

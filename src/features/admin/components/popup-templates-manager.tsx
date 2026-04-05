@@ -147,8 +147,8 @@ function TemplatePreview({ template, globalPatterns = [] }: { template: PopupTem
   if (rawPatternUrl || layoutElements.length > 0) {
     return (
       <div
-        className="relative w-full rounded-lg overflow-hidden"
-        style={{ aspectRatio: "768/391", containerType: "inline-size", background: "transparent" }}
+        className="relative w-full rounded-lg overflow-hidden [container-type:inline-size]"
+        style={{ aspectRatio: "768/391", background: "transparent" }}
       >
         {patternUrl && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -188,30 +188,38 @@ function TemplatePreview({ template, globalPatterns = [] }: { template: PopupTem
               </div>
             );
           }
-          return (
-            <div
-              key={el.id}
-              className="absolute pointer-events-none select-none"
-              style={{
-                left: `${el.x}%`,
-                top: `${el.y}%`,
-                transform: "translate(-50%, -50%)",
-                width: el.boxWidth ? `${el.boxWidth}%` : undefined,
-                minHeight: el.boxHeight ? `${el.boxHeight}%` : undefined,
-                fontSize: `${((el.fontSize ?? 12) / 768) * 100}cqw`,
-                color: el.color ?? template.textColor,
-                fontFamily: "var(--font-bungee), sans-serif",
-                textShadow: "0 1px 3px rgba(0,0,0,0.7)",
-                whiteSpace: el.boxWidth ? "normal" : "nowrap",
-                wordBreak: "break-word",
-                overflow: "hidden",
-                boxSizing: "border-box",
-                padding: "2px 6px",
-              }}
-            >
-              {elementText(el)}
-            </div>
-          );
+          {
+            const DEFAULT_WIDTHS: Record<string, number> = {
+              name: 35, title: 40, message: 50, hide: 15, link: 15,
+            };
+            const w = el.boxWidth ?? DEFAULT_WIDTHS[el.type] ?? 40;
+            const h = el.boxHeight;
+            return (
+              <div
+                key={el.id}
+                className="absolute pointer-events-none select-none"
+                style={{
+                  left: `${el.x}%`,
+                  top: `${el.y}%`,
+                  transform: "translate(-50%, -50%)",
+                  width: `${w}%`,
+                  minHeight: h ? `${h}%` : undefined,
+                  fontSize: `${((el.fontSize ?? 12) / 768) * 100}cqw`,
+                  color: el.color ?? template.textColor,
+                  fontFamily: "var(--font-bungee), sans-serif",
+                  textShadow: "0 1px 3px rgba(0,0,0,0.7)",
+                  whiteSpace: "normal",
+                  wordBreak: "break-word",
+                  overflow: "hidden",
+                  boxSizing: "border-box",
+                  padding: "2px 6px",
+                  lineHeight: 1.2,
+                }}
+              >
+                {elementText(el)}
+              </div>
+            );
+          }
         })}
         {prizeValue && (
           <div
