@@ -33,6 +33,8 @@ import { sidebarPrefsRouter }       from "./sidebar-prefs";
 import { spacePointRouter }          from "./space-point";
 import { userRouter }                from "./user";
 import { publicRouter }              from "./public";
+import { plansRouter }               from "./plans";
+import { paymentRouter }             from "./payment";
 
 export const router = {
   tracking: trackingRoutes,
@@ -69,4 +71,6 @@ export const router = {
   spacePoint: spacePointRouter,
   user:       userRouter,
   public:     publicRouter,
+  plans:      plansRouter,
+  payment:    paymentRouter,
 };

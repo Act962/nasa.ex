@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -18,6 +19,19 @@ export const deleteCard = base
 
     await prisma.nasaPlannerCard.delete({
       where: { id: input.cardId },
+    });
+
+    await logActivity({
+      organizationId: context.org.id,
+      userId: context.user.id,
+      userName: context.user.name,
+      userEmail: context.user.email,
+      userImage: (context.user as any).image,
+      appSlug: "nasa-planner",
+      action: "planner.card.deleted",
+      actionLabel: `Excluiu o card "${existing.title}" do planner`,
+      resource: existing.title,
+      resourceId: input.cardId,
     });
 
     return { ok: true };

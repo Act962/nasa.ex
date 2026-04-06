@@ -28,9 +28,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { AppTemplateToggle } from "@/features/admin/components/app-template-toggle";
 
 export function FormSettings() {
   const { formData, updateSettings } = useBuilderStore();
+  const formId = formData?.id;
   const { trackings } = useQueryTrackings();
   const { status } = useQueryStatus({
     trackingId: formData?.settings?.trackingId || "",
@@ -305,6 +307,22 @@ export function FormSettings() {
           </Field>
         </div>
       </section>
+      {/* ─── Padrão NASA ────────────────────────────────── */}
+      {formId && (
+        <>
+          <Separator />
+          <section>
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3">
+              Moderação
+            </h3>
+            <AppTemplateToggle
+              appId={formId}
+              appType="form"
+              isTemplate={formData?.isTemplate ?? false}
+            />
+          </section>
+        </>
+      )}
     </div>
   );
 }

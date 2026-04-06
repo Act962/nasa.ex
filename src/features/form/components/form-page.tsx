@@ -2,6 +2,7 @@ import { Separator } from "@/components/ui/separator";
 import { CreateForm } from "./create-form";
 import { FormList } from "./form-list";
 import StatsCards from "./stats-card";
+import { FormPatterns } from "./form-patterns";
 
 export function FormPage() {
   return (
@@ -15,6 +16,7 @@ export function FormPage() {
           </div>
           <StatsCards />
         </section>
+        <FormPatterns />
         <div className="mt-10">
           <Separator />
         </div>

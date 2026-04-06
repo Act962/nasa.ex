@@ -7,6 +7,12 @@ import { HeartbeatProvider } from "@/components/heartbeat-provider";
 import { SpacePointProvider } from "@/features/space-point";
 import { TourProvider } from "@/features/tour/context";
 import { TourOverlay } from "@/features/tour/overlay";
+import { useGlobalShortcuts } from "@/features/admin/components/shortcuts-client";
+
+function GlobalShortcutsRegistrar() {
+  useGlobalShortcuts();
+  return null;
+}
 
 export function PlatformProviders({ children }: { children: ReactNode }) {
   return (
@@ -14,6 +20,7 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
       <MarketplaceProvider>
         <SpacePointProvider>
           {children}
+          <GlobalShortcutsRegistrar />
           <AstroAgent />
           <TourOverlay />
           <HeartbeatProvider />

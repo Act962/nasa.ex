@@ -17,18 +17,19 @@ import Link from "next/link";
 // ─── Shared type ─────────────────────────────────────────────────────────────
 
 export interface PlanDetail {
-  id:          string;
-  name:        string;
-  slogan?:     string | null;
-  price:       number;
-  stars:       number;
-  rollover:    number;
-  highlighted: boolean;
-  badge?:      string | null;
-  benefits:    string[];
-  ctaLabel:    string;
-  ctaHref?:    string | null;
+  id:           string;
+  name:         string;
+  slogan?:      string | null;
+  price:        number;
+  stars:        number;
+  rollover:     number;
+  highlighted:  boolean;
+  badge?:       string | null;
+  benefits:     string[];
+  ctaLabel:     string;
+  ctaHref?:     string | null;
   starPerUser?: number;
+  planSlug?:    string; // slug usado para pré-selecionar no PlanPurchaseModal
 }
 
 const DEFAULT_STAR_PER_USER = 30;
@@ -40,11 +41,15 @@ export function PlanDetailModal({
   open,
   onClose,
   isLoggedIn,
+  isCurrentPlan,
+  onPurchase,
 }: {
-  plan:       PlanDetail | null;
-  open:       boolean;
-  onClose:    () => void;
-  isLoggedIn?: boolean;
+  plan:           PlanDetail | null;
+  open:           boolean;
+  onClose:        () => void;
+  isLoggedIn?:    boolean;
+  isCurrentPlan?: boolean;
+  onPurchase?:    () => void;
 }) {
   const [showBenefits, setShowBenefits] = useState(true);
 
@@ -204,15 +209,26 @@ export function PlanDetailModal({
           <div className="border-t border-white/8" />
 
           {/* CTA */}
-          <Button
-            asChild
-            className={cn("w-full font-bold text-sm rounded-2xl py-5", ctaClass)}
-          >
-            <Link href={isLoggedIn ? "/home" : (plan.ctaHref ?? "/sign-up")}>
-              {plan.ctaLabel}
+          {isLoggedIn && isCurrentPlan ? (
+            <Button disabled className={cn("w-full font-bold text-sm rounded-2xl py-5 opacity-60", ctaClass)}>
+              Plano atual
+            </Button>
+          ) : isLoggedIn ? (
+            <Button
+              onClick={() => { onClose(); onPurchase?.(); }}
+              className={cn("w-full font-bold text-sm rounded-2xl py-5", ctaClass)}
+            >
+              Adquirir plano
               <ArrowRight className="size-4 ml-2" />
-            </Link>
-          </Button>
+            </Button>
+          ) : (
+            <Button asChild className={cn("w-full font-bold text-sm rounded-2xl py-5", ctaClass)}>
+              <Link href={plan.ctaHref ?? "/sign-up"}>
+                {plan.ctaLabel}
+                <ArrowRight className="size-4 ml-2" />
+              </Link>
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

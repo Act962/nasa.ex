@@ -3,6 +3,7 @@ import { z } from "zod";
 import { base } from "../../middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { requireOrgMiddleware } from "../../middlewares/org";
+import { logActivity } from "@/lib/activity-logger";
 
 export const createTracking = base
   .use(requiredAuthMiddleware)
@@ -95,6 +96,19 @@ export const createTracking = base
           },
         },
       },
+    });
+
+    await logActivity({
+      organizationId: org.id,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      userImage: (user as any).image,
+      appSlug: "tracking",
+      action: "tracking.created",
+      actionLabel: `Criou o tracking "${tracking.name}"`,
+      resource: tracking.name,
+      resourceId: tracking.id,
     });
 
     return {

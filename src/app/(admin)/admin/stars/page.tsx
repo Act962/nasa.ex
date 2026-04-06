@@ -205,6 +205,7 @@ export default async function StarsPage({ searchParams }: { searchParams: Promis
       {tab === "distribution" && (
         <StarsDistributionAdmin />
       )}
+
     </div>
   );
 }

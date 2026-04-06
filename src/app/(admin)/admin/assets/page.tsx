@@ -51,8 +51,8 @@ export default async function AssetsPage() {
           <ImageIcon className="w-5 h-5 text-violet-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-white">Biblioteca de Ativos</h1>
-          <p className="text-sm text-zinc-400">Gerencie ícones, selos e imagens de marca da plataforma</p>
+          <h1 className="text-xl font-bold text-white">Padrão Visual</h1>
+          <p className="text-sm text-zinc-400">Gerencie ícones, selos, imagens de marca e popups da plataforma</p>
         </div>
       </div>
 

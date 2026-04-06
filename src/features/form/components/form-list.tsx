@@ -20,10 +20,7 @@ export function FormList() {
     <>
       {isLoading && (
         <div
-          className="grid gap-4 grid-cols-2
-        md:grid-cols-5
-           lg:grid-cols-3
-           xl:grid-cols-5"
+          className="grid gap-4 grid-cols-2 md:grid-cols-5 lg:grid-cols-3 xl:grid-cols-5"
         >
           <Skeleton className="w-full h-40" />
           <Skeleton className="w-full h-40" />
@@ -34,11 +31,7 @@ export function FormList() {
       )}
       {forms && (
         <div
-          className="grid gap-4 grid-cols-2
-        md:grid-cols-5
-           lg:grid-cols-3
-           xl:grid-cols-5
-           "
+          className="grid gap-4 grid-cols-2 md:grid-cols-5 lg:grid-cols-3 xl:grid-cols-5"
         >
           {forms?.map((form: any) => (
             <FormItem
@@ -50,7 +43,7 @@ export function FormList() {
               createdAt={form.createdAt}
               responses={form.responses}
               views={form.views}
-              backgroundColor={form.settings.backgroundColor}
+              backgroundColor={form.settings?.backgroundColor}
             />
           ))}
         </div>

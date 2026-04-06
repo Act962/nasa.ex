@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Flame, Settings } from "lucide-react";
+import { ToastProvider } from "@/contexts/toast-context";
 import { ForgeDashboard } from "./dashboard/forge-dashboard";
 import { ProductsTab } from "./products/products-tab";
 import { ProposalsTab } from "./proposals/proposals-tab";
@@ -22,7 +23,8 @@ export function ForgePage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
-    <div className="h-full w-full flex flex-col">
+    <ToastProvider>
+      <div className="h-full w-full flex flex-col">
       {/* Top header */}
       <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b shrink-0">
         <div className="flex items-center gap-2.5">
@@ -98,5 +100,6 @@ export function ForgePage() {
         </SheetContent>
       </Sheet>
     </div>
+    </ToastProvider>
   );
 }

@@ -56,6 +56,9 @@ model User {
   sidebarPrefs          UserSidebarPreference[]
   spacePoints           UserSpacePoint[]
   memberStarBudgets     MemberStarBudget[]
+  paymentEntriesCreated PaymentEntry[] @relation("PaymentEntryCreatedBy")
+  paymentAccess         PaymentAccess[] @relation("PaymentAccessUser")
+  paymentAccessGranted  PaymentAccess[] @relation("PaymentAccessAuthorizer")
 
   @@unique([email])
   @@map("user")
@@ -165,6 +168,14 @@ model Organization {
   spacePoints      UserSpacePoint[]
   spacePointPrizes SpacePointRankingPrize[]
 
+  // NASA Payment
+  paymentBankAccounts PaymentBankAccount[]
+  paymentCategories   PaymentCategory[]
+  paymentCostCenters  PaymentCostCenter[]
+  paymentContacts     PaymentContact[]
+  paymentEntries      PaymentEntry[]
+  paymentAccess       PaymentAccess[]
+
   @@unique([slug])
   @@map("organization")
 }
@@ -213,7 +224,10 @@ model Tracking {
   description    String?
   organizationId String   @map("organization_id")
   isArchived     Boolean  @default(false) @map("is_archived")
+  archivedAt     DateTime? @map("archived_at")
   globalAiActive Boolean  @default(false) @map("global_ai_active")
+  isTemplate     Boolean  @default(false) @map("is_template")
+  templateMarkedByModerator Boolean @default(false) @map("template_marked_by_moderator")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -519,7 +533,9 @@ model Workspace {
   coverImage     String?
   isArchived     Boolean @default(false)  @map("is_archived")
   order          Int      @default(0)
-  
+  isTemplate     Boolean  @default(false) @map("is_template")
+  templateMarkedByModerator Boolean @default(false) @map("template_marked_by_moderator")
+
   organizationId String   @map("organization_id")
   trackingId     String?  @map("tracking_id")   // opcional
   createdBy      String   @map("created_by")
@@ -801,6 +817,9 @@ model Form {
 
   views Int @default(0)
   responses Int @default(0)
+
+  isTemplate Boolean @default(false) @map("is_template")
+  templateMarkedByModerator Boolean @default(false) @map("template_marked_by_moderator")
 
   createdBy     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   formSubmissions FormResponses[]
@@ -1316,6 +1335,8 @@ model ForgeProposal {
   paymentGateway  ForgePaymentGateway? @map("payment_gateway")
   publicToken     String               @unique @default(cuid()) @map("public_token")
   headerConfig    Json                 @default("{}") @map("header_config")
+  isTemplate      Boolean              @default(false) @map("is_template")
+  templateMarkedByModerator Boolean    @default(false) @map("template_marked_by_moderator")
   createdById     String               @map("created_by")
   createdAt       DateTime             @default(now()) @map("created_at")
   updatedAt       DateTime             @updatedAt      @map("updated_at")
@@ -1363,6 +1384,8 @@ model ForgeContract {
   templateId   String?             @map("template_id")
   content      String?
   signers      Json                @default("[]")
+  isTemplate   Boolean             @default(false) @map("is_template")
+  templateMarkedByModerator Boolean @default(false) @map("template_marked_by_moderator")
   createdById  String              @map("created_by")
   createdAt    DateTime            @default(now()) @map("created_at")
   updatedAt    DateTime            @updatedAt      @map("updated_at")
@@ -2231,3 +2254,211 @@ model StarsPayment {
   @@index([status])
   @@map("stars_payment")
 }
+
+// ─────────────────────────────────────────────
+// NASA PAYMENT
+// ─────────────────────────────────────────────
+
+enum FinancialEntryStatus {
+  PENDING    // Pendente
+  PARTIAL    // Pago Parcial
+  PAID       // Pago
+  OVERDUE    // Vencido
+  CANCELLED  // Cancelado
+}
+
+enum FinancialEntryType {
+  RECEIVABLE  // Conta a Receber
+  PAYABLE     // Conta a Pagar
+}
+
+enum PaymentAccountType {
+  CHECKING  // Conta Corrente
+  SAVINGS   // Poupança
+  CASH      // Caixa físico
+  DIGITAL   // Carteira digital
+}
+
+enum FinancialCategoryType {
+  REVENUE   // Receita
+  EXPENSE   // Despesa
+  COST      // Custo
+}
+
+model PaymentBankAccount {
+  id             String             @id @default(cuid())
+  organizationId String             @map("organization_id")
+  name           String
+  bankName       String?            @map("bank_name")
+  bankCode       String?            @map("bank_code")
+  agency         String?
+  account        String?
+  type           PaymentAccountType @default(CHECKING)
+  balance        Int                @default(0)     // em centavos
+  isActive       Boolean            @default(true)  @map("is_active")
+  isDefault      Boolean            @default(false) @map("is_default")
+  color          String?            @default("#1E90FF")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt      @map("updated_at")
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entries        PaymentEntry[]
+
+  @@index([organizationId])
+  @@map("payment_bank_accounts")
+}
+
+model PaymentCategory {
+  id             String                @id @default(cuid())
+  organizationId String                @map("organization_id")
+  name           String
+  type           FinancialCategoryType
+  color          String?               @default("#1E90FF")
+  icon           String?
+  parentId       String?               @map("parent_id")
+  isActive       Boolean               @default(true) @map("is_active")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt      @map("updated_at")
+
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent         PaymentCategory?   @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children       PaymentCategory[]  @relation("CategoryHierarchy")
+  entries        PaymentEntry[]
+
+  @@index([organizationId])
+  @@map("payment_categories")
+}
+
+model PaymentCostCenter {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  name           String
+  description    String?
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt      @map("updated_at")
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entries        PaymentEntry[]
+
+  @@index([organizationId])
+  @@map("payment_cost_centers")
+}
+
+model PaymentContact {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  name           String
+  document       String?  // CPF ou CNPJ
+  email          String?
+  phone          String?
+  contactType    String   @default("BOTH") @map("contact_type") // CUSTOMER, SUPPLIER, BOTH
+  notes          String?
+  isActive       Boolean  @default(true) @map("is_active")
+  creditLimit    Int      @default(0)    @map("credit_limit") // em centavos
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt      @map("updated_at")
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entries        PaymentEntry[]
+
+  @@index([organizationId])
+  @@map("payment_contacts")
+}
+
+model PaymentAccess {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  organizationId String   @map("organization_id")
+  passwordHash   String   @map("password_hash")
+  isAuthorized   Boolean  @default(false) @map("is_authorized")
+  phone          String?  // para envio de PIN via WhatsApp
+  authorizedById String?  @map("authorized_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt      @map("updated_at")
+
+  user           User         @relation("PaymentAccessUser",        fields: [userId],         references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  authorizedBy   User?        @relation("PaymentAccessAuthorizer",  fields: [authorizedById], references: [id])
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@map("payment_access")
+}
+
+model PaymentEntry {
+  id             String               @id @default(cuid())
+  organizationId String               @map("organization_id")
+  type           FinancialEntryType
+  status         FinancialEntryStatus @default(PENDING)
+
+  description    String
+  amount         Int                  // em centavos
+  paidAmount     Int                  @default(0) @map("paid_amount") // em centavos
+  dueDate        DateTime             @map("due_date")
+  paidAt         DateTime?            @map("paid_at")
+  competenceDate DateTime?            @map("competence_date")
+
+  documentNumber String?  @map("document_number")
+  notes          String?
+  attachmentUrl  String?  @map("attachment_url")
+
+  categoryId    String?  @map("category_id")
+  costCenterId  String?  @map("cost_center_id")
+  contactId     String?  @map("contact_id")
+  accountId     String?  @map("account_id")
+
+  // Parcelamento
+  installmentTotal   Int?    @map("installment_total")
+  installmentCurrent Int?    @map("installment_current")
+  installmentGroupId String? @map("installment_group_id")
+
+  // Recorrência
+  isRecurring    Boolean @default(false) @map("is_recurring")
+  recurrenceType String? @map("recurrence_type") // daily, weekly, monthly, yearly
+
+  createdById   String?  @map("created_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt      @map("updated_at")
+
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category       PaymentCategory?    @relation(fields: [categoryId], references: [id])
+  costCenter     PaymentCostCenter?  @relation(fields: [costCenterId], references: [id])
+  contact        PaymentContact?     @relation(fields: [contactId], references: [id])
+  account        PaymentBankAccount? @relation(fields: [accountId], references: [id])
+  createdBy      User?               @relation("PaymentEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([type])
+  @@index([status])
+  @@index([dueDate])
+  @@index([contactId])
+  @@index([categoryId])
+  @@index([installmentGroupId])
+  @@map("payment_entries")
+}
+
+/// Customizable popup templates for achievements and stars rewards
+model AchievementPopupTemplate {
+  id                String   @id @default(cuid())
+  name              String   // e.g., "Parabéns Lua", "Conquista Especial"
+  type              String   // "achievement" | "stars_reward" | "level_up"
+  title             String   // e.g., "Parabéns você chegou na Lua"
+  message           String   // e.g., "Você completou um grande feito"
+  primaryColor      String   @default("#7a1fe7")   // Hex color for primary elements
+  accentColor       String   @default("#a855f7")   // Hex color for accents
+  backgroundColor   String   @default("#1a0a3d")   // Card background
+  textColor         String   @default("#ffffff")   // Main text color
+  iconUrl           String?  // Optional custom icon/badge URL
+  enableConfetti    Boolean  @default(true)        // Enable confetti animation
+  enableSound       Boolean  @default(true)        // Enable success sound
+  dismissDuration   Int      @default(5000)        // Auto-dismiss in milliseconds
+  customJson        Json     @default("{}")        // Store additional customization
+  isActive          Boolean  @default(true)        @map("is_active")
+  createdAt         DateTime @default(now())       @map("created_at")
+  updatedAt         DateTime @updatedAt            @map("updated_at")
+
+  @@index([type])
+  @@map("achievement_popup_template")
+}
+

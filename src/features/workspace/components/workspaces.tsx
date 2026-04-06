@@ -33,6 +33,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { FolderKanbanIcon } from "lucide-react";
+import { PatternsSection } from "@/features/admin/components/patterns-section";
 import { Button } from "@/components/ui/button";
 
 export const WorkspaceHeader = () => {
@@ -183,6 +184,11 @@ export const Workspaces = () => {
           );
         })}
       </div>
+
+      <PatternsSection
+        appType="workspace"
+        redirectPath={(id) => `/workspaces/${id}`}
+      />
 
       <CreateWorkspaceModal open={open} onOpenChange={setOpen} />
     </>

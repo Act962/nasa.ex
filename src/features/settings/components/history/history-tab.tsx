@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { useOrgRole } from "@/hooks/use-org-role";
@@ -142,11 +142,11 @@ export function HistoryTab() {
   const [showChart, setShowChart] = useState(true);
   const [logsLimit, setLogsLimit] = useState(50);
 
-  // Date range from period
-  const startDate = (() => {
+  // Date range from period — memoized so the query key stays stable between renders
+  const startDate = useMemo(() => {
     const days = period === "7d" ? 7 : period === "30d" ? 30 : 90;
     return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-  })();
+  }, [period]);
 
   // Stats query (for chart)
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -171,8 +171,8 @@ export function HistoryTab() {
       },
     }),
     enabled: !isSingle,
-    refetchInterval: 15_000, // refresh every 15s for near real-time
-    staleTime: 5_000,
+    refetchInterval: 5_000, // refresh every 5s for near real-time
+    staleTime: 0, // always consider data stale
   });
 
   if (isSingle) {
@@ -386,24 +386,39 @@ export function HistoryTab() {
                 const memberInfo = members.find((m) => m.id === log.userId);
                 const appLabel = APP_LABELS[log.appSlug] ?? log.appSlug;
                 return (
-                  <div key={log.id} className="flex items-start gap-3 px-4 py-3 hover:bg-muted/10 transition-colors">
-                    <Avatar className="size-8 shrink-0">
+                  <div key={log.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/10 transition-colors min-w-0">
+                    {/* Avatar */}
+                    <Avatar className="size-7 shrink-0">
                       <AvatarImage src={log.userImage ?? ""} alt={log.userName} />
-                      <AvatarFallback className="text-xs">{initials(log.userName)}</AvatarFallback>
+                      <AvatarFallback className="text-[10px]">{initials(log.userName)}</AvatarFallback>
                     </Avatar>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-semibold">{log.userName}</span>
-                        {memberInfo && <RoleBadge role={memberInfo.role} />}
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                          {appLabel}
-                        </span>
-                      </div>
-                      <p className="text-xs text-foreground/80 mt-0.5 leading-relaxed">{log.actionLabel}</p>
-                    </div>
+                    {/* Nome */}
+                    <span className="text-xs font-semibold shrink-0 max-w-[100px] truncate">
+                      {log.userName}
+                    </span>
 
-                    <span className="text-[11px] text-muted-foreground shrink-0 whitespace-nowrap">
+                    {/* Role */}
+                    {memberInfo && <RoleBadge role={memberInfo.role} />}
+
+                    {/* Separator */}
+                    <span className="text-muted-foreground/30 shrink-0">·</span>
+
+                    {/* App */}
+                    <span className="text-[11px] px-2 py-0.5 rounded bg-muted text-muted-foreground shrink-0 whitespace-nowrap">
+                      {appLabel}
+                    </span>
+
+                    {/* Separator */}
+                    <span className="text-muted-foreground/30 shrink-0">·</span>
+
+                    {/* Ação */}
+                    <span className="text-xs text-foreground/80 flex-1 truncate">
+                      {log.actionLabel}
+                    </span>
+
+                    {/* Data */}
+                    <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0 ml-auto pl-2">
                       {formatDate(log.createdAt)}
                     </span>
                   </div>

@@ -150,7 +150,9 @@ export const execute = base
       /\b(agendamento|agendar|agenda[re]|reuni[aã]o|compromisso|hor[aá]rio|marqu[ae]|marcar)\b/.test(cmd) ||
       /\b(quero|preciso|desejo)\b.*\b(agend|reuni|comprom)\w*/i.test(cmd);
     const isMoveLead      = /\b(mov[ae]|mover|transferi[rr]|mudar)\b/.test(cmd) && hasLead;
-    const isProposal      = hasProposal && isCreate;
+    // Guard "how to" questions from triggering create actions
+    const isHowTo = /\b(como|how|tutorial|passo\s+a\s+passo|explique|o\s+que\s+[eé]|ajuda|help|dica[s]?)\b/.test(cmd);
+    const isProposal      = hasProposal && isCreate && !isHowTo;
     // isProposalQuery: detecção explícita de lista/consulta OU contexto implícito
     // (ex: "me traga todas as propostas", "quero as propostas", "propostas abertas")
     const isProposalImplicitQuery =
@@ -158,7 +160,7 @@ export const execute = base
       /\b(todas?|todos?|minhas?|meus?|abertas?|pendentes?|enviadas?|pagas?|canceladas?)\b/.test(cmd);
     const isProposalQuery = hasProposal && (isQuery || isProposalImplicitQuery);
     const isLeadQuery     = hasLead && isQuery;
-    const isLeadCreate    = hasLead && isCreate && !isMoveLead;
+    const isLeadCreate    = hasLead && isCreate && !isMoveLead && !isHowTo;
     const isTrackingQuery = hasTracking && isQuery;
     const isPost          = hasPost && isCreate;
     // isWorkspaceQuery: "me traga todos os workspaces", "quais workspaces", "liste os quadros", etc.
@@ -1195,12 +1197,17 @@ CTA: [chamada para ação]`;
     }
 
     // ── TRACKING — Create tracking ────────────────────────────────────────────
-    if (
+    // Requires explicit intent to create the tracking itself, not just "how to create X in tracking"
+    const isTrackingCreate =
       app === "tracking" &&
       isCreate &&
       !hasLead &&
-      !cmd.includes("/novo_lead")
-    ) {
+      !cmd.includes("/novo_lead") &&
+      // Must be directly creating a tracking/pipeline/funil, not asking "how to" or "como"
+      !/\b(como|how|tutorial|passo\s+a\s+passo|explique|o\s+que\s+[eé]|ajuda|help|dica[s]?)\b/.test(cmd) &&
+      // Must not be asking about creating something else inside tracking (automação, workflow, tag, etc.)
+      !/\b(automação|automacao|workflow|fluxo|tag|status|agenda|lead|consultor|integração)\b/.test(cmd);
+    if (isTrackingCreate) {
       try {
         const trackingName = extractTrackingName(command);
         const tracking = await prisma.tracking.create({
@@ -1245,7 +1252,7 @@ CTA: [chamada para ação]`;
     }
 
     // ── TRACKING — Create lead ────────────────────────────────────────────────
-    if ((app === "tracking" || isLeadCreate) && isCreate && hasLead) {
+    if ((app === "tracking" || isLeadCreate) && isCreate && hasLead && !isHowTo) {
       try {
         const firstTracking = await prisma.tracking.findFirst({
           where: { organizationId: orgId },
@@ -2189,6 +2196,140 @@ CTA: [chamada para ação]`;
         url: "/apps",
         appName: "Nerp",
       } satisfies ExecuteOutput;
+    }
+
+    // ── HOW-TO / FAQ — responde perguntas informativas antes do AI fallback ───
+    if (isHowTo) {
+      // Tracking — automações / workflows
+      if (/\b(automação|automacao|workflow|fluxo)\b/.test(cmd) && /\b(tracking|pipeline|funil)\b/.test(cmd)) {
+        return {
+          type: "query_result" as const,
+          title: "Como criar uma Automação no Tracking",
+          description: "Acesse Tracking → [selecione o funil] → Configurações → Automações → Novo Workflow. Defina um gatilho (ex: Novo lead, Lead movido), adicione as ações desejadas (enviar mensagem, mover lead, atribuir responsável) e salve.",
+          url: "/tracking",
+          appName: "Tracking",
+        } satisfies ExecuteOutput;
+      }
+      // Tracking — criar funil / tracking
+      if (/\b(tracking|pipeline|funil)\b/.test(cmd) && !/\b(automação|automacao|workflow|lead|tag|status|agenda)\b/.test(cmd)) {
+        return {
+          type: "query_result" as const,
+          title: "Como criar um Tracking",
+          description: "Acesse Tracking → clique em \"+ Criar novo Tracking\" → preencha nome e descrição → clique em Salvar. Após criado, configure os status (colunas), tags e automações.",
+          url: "/tracking",
+          appName: "Tracking",
+        } satisfies ExecuteOutput;
+      }
+      // Tracking — status / estágios
+      if (/\b(status|estágio|estagio|coluna)\b/.test(cmd) && /\b(tracking|pipeline|funil)\b/.test(cmd)) {
+        return {
+          type: "query_result" as const,
+          title: "Como configurar Status no Tracking",
+          description: "Acesse Tracking → [selecione o funil] → Configurações → Status. Clique em \"Novo Status\", defina nome e cor, e arraste para reordenar. Cada status é uma coluna do seu pipeline.",
+          url: "/tracking",
+          appName: "Tracking",
+        } satisfies ExecuteOutput;
+      }
+      // Tracking — tags
+      if (/\b(tag|etiqueta)\b/.test(cmd) && /\b(tracking|pipeline|funil|lead)\b/.test(cmd)) {
+        return {
+          type: "query_result" as const,
+          title: "Como criar Tags no Tracking",
+          description: "Acesse Tracking → [selecione o funil] → Configurações → Tags. Clique em \"Nova Tag\", defina nome, cor e ícone. As tags podem ser aplicadas a leads manualmente ou via automação.",
+          url: "/tracking",
+          appName: "Tracking",
+        } satisfies ExecuteOutput;
+      }
+      // Workspace — criação
+      if (/\b(workspace|quadro|board|projeto)\b/.test(cmd)) {
+        return {
+          type: "query_result" as const,
+          title: "Como criar um Workspace",
+          description: "Acesse Workspace → clique em \"Novo Workspace\" → preencha nome, ícone e cor → clique em Salvar. Após criado, configure as colunas e convide membros.",
+          url: "/workspaces",
+          appName: "Workspace",
+        } satisfies ExecuteOutput;
+      }
+      // Workspace — automações
+      if (/\b(automação|automacao|workflow)\b/.test(cmd) && /\b(workspace|quadro|board)\b/.test(cmd)) {
+        return {
+          type: "query_result" as const,
+          title: "Como criar Automações no Workspace",
+          description: "Acesse Workspace → [abra o workspace] → Configurações → Automações → Nova Automação. Defina o gatilho, condições e ações (ex: mover card, notificar membros).",
+          url: "/workspaces",
+          appName: "Workspace",
+        } satisfies ExecuteOutput;
+      }
+      // FORGE — proposta
+      if (/\b(proposta)\b/.test(cmd)) {
+        return {
+          type: "query_result" as const,
+          title: "Como criar uma Proposta no FORGE",
+          description: "Acesse FORGE → Propostas → \"Nova Proposta\" → preencha título, cliente, adicione produtos e defina desconto → Salvar. Para enviar ao cliente, mude o status para \"Enviada\" e copie o link público.",
+          url: "/forge",
+          appName: "FORGE",
+        } satisfies ExecuteOutput;
+      }
+      // FORGE — contrato
+      if (/\b(contrato)\b/.test(cmd)) {
+        return {
+          type: "query_result" as const,
+          title: "Como criar um Contrato no FORGE",
+          description: "Acesse FORGE → Contratos → \"Novo Contrato\" (ou gere a partir de uma proposta via ··· → Gerar Contrato). Preencha datas, valor, adicione os assinantes com nome e e-mail, escreva o conteúdo e salve. Compartilhe os links individuais de assinatura.",
+          url: "/forge",
+          appName: "FORGE",
+        } satisfies ExecuteOutput;
+      }
+      // Agenda
+      if (/\b(agenda|agendamento|calendário|calendario|horário|horario)\b/.test(cmd)) {
+        return {
+          type: "query_result" as const,
+          title: "Como criar uma Agenda",
+          description: "Acesse Tracking → [selecione o funil] → Configurações → Agendas → \"Nova Agenda\". Preencha nome, slug e duração do slot. Configure os dias/horários disponíveis na aba Disponibilidade. O link público fica disponível para os clientes agendarem.",
+          url: "/agenda",
+          appName: "Agendas",
+        } satisfies ExecuteOutput;
+      }
+      // Stars
+      if (/\b(star[s]?|estrela[s]?|crédito[s]?)\b/.test(cmd)) {
+        return {
+          type: "query_result" as const,
+          title: "O que são Stars",
+          description: "Stars são os créditos de IA da plataforma NASA. Cada ação de IA (chat com IA, agendamento inteligente) consome Stars. Configure a distribuição em Admin → Stars. Os modos são: Pool compartilhado, Divisão igual ou Orçamento por usuário.",
+          url: "/admin/stars",
+          appName: "Stars",
+        } satisfies ExecuteOutput;
+      }
+      // Padrões NASA
+      if (/\b(padrão|padrões|template|modelo)\b/.test(cmd)) {
+        return {
+          type: "query_result" as const,
+          title: "Como usar Padrões NASA",
+          description: "Padrões NASA são configurações prontas para Tracking, Workspace, Propostas e Contratos. Acesse a seção desejada (ex: Trackings), role até \"Padrões NASA disponíveis\" no final da página e clique em \"Usar\" para criar uma cópia com todas as configurações.",
+          url: "/tracking",
+          appName: "Padrões NASA",
+        } satisfies ExecuteOutput;
+      }
+      // Lead
+      if (/\b(lead|contato|cliente)\b/.test(cmd)) {
+        return {
+          type: "query_result" as const,
+          title: "Como criar um Lead",
+          description: "Acesse Tracking → [selecione o funil] → clique em \"+ Novo Lead\" em qualquer coluna do pipeline. Preencha nome, e-mail, telefone e selecione o status inicial. O lead aparecerá no Kanban para gerenciamento.",
+          url: "/tracking",
+          appName: "Tracking",
+        } satisfies ExecuteOutput;
+      }
+      // Integração
+      if (/\b(integração|integracao|integrar|conectar)\b/.test(cmd)) {
+        return {
+          type: "query_result" as const,
+          title: "Como configurar Integrações",
+          description: "Acesse Menu → Integrações → encontre a integração desejada → clique em \"Instalar\". Após instalar, clique em \"Configurar\" e insira as credenciais da sua conta naquela plataforma (API Key, Token ou Webhook).",
+          url: "/integrations",
+          appName: "Integrações",
+        } satisfies ExecuteOutput;
+      }
     }
 
     // ── AI FALLBACK — try to understand via connected AI ─────────────────────

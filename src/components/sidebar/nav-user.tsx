@@ -1,6 +1,7 @@
 "use client";
 
-import { BadgeCheck, Bell, ChevronsUpDown, LogOut } from "lucide-react";
+import { useState } from "react";
+import { BadgeCheck, Bell, ChevronsUpDown, LogOut, Keyboard } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -23,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/lib/orpc";
+import { ShortcutsDialog } from "@/components/shortcuts-dialog";
 
 const ROLE_META: Record<string, { label: string; color: string; bg: string }> =
   {
@@ -69,6 +71,7 @@ export function NavUser() {
   const { data: session, isPending } = authClient.useSession();
   const { data: activeOrg } = authClient.useActiveOrganization();
   const router = useRouter();
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   // Resolve current user's role in active org
   const currentRole =
@@ -209,6 +212,14 @@ export function NavUser() {
                 <Bell />
                 Preferências de Notificações
               </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => setShortcutsOpen(true)}
+                className="cursor-pointer"
+              >
+                <Keyboard />
+                Atalhos
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -222,6 +233,7 @@ export function NavUser() {
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
+      <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
     </SidebarMenu>
   );
 }
