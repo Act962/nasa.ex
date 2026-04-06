@@ -688,7 +688,7 @@ interface AppDef {
   sidebarKey?: string; // chave no SIDEBAR_NAV_ITEMS
 }
 
-const APPS: AppDef[] = [
+export const APPS: AppDef[] = [
   {
     id: "comments",
     name: "COMMENTS",

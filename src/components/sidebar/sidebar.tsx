@@ -27,6 +27,7 @@ import { WorkspacesItems } from "./workspaces-items";
 import { authClient } from "@/lib/auth-client";
 import { useTour } from "@/features/tour/context";
 import { NASA_TOUR_STEPS } from "@/features/tour/steps";
+import Link from "next/link";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { isMobile, setOpenMobile } = useSidebar();
@@ -66,12 +67,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <span>Tour Guiado</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          {/* <SidebarMenuItem>
-            <SidebarMenuButton tooltip={"Ajuda"}>
-              <CircleQuestionMarkIcon className="size-4" />
-              <span>Ajuda</span>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip={"Suporte"} asChild>
+              <Link href="/support">
+                <CircleQuestionMarkIcon className="size-4" />
+                <span>Suporte</span>
+              </Link>
             </SidebarMenuButton>
-          </SidebarMenuItem> */}
+          </SidebarMenuItem>
         </SidebarMenu>
         <NavUser />
       </SidebarFooter>
