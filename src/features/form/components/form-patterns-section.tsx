@@ -40,7 +40,7 @@ function FormPatternCard({
 }) {
   return (
     <div className="w-full h-auto cursor-pointer rounded-xl border-2 border-violet-500/40 hover:border-violet-500/70 transition-colors overflow-hidden" onClick={() => onPreview(template)}>
-      <div className="w-full relative flex items-center justify-center overflow-hidden h-[150px] rounded-t-xl bg-linear-to-b from-primary/10 to-primary/10">
+      <div className="w-full relative flex items-center justify-center overflow-hidden h-[150px] bg-linear-to-b from-primary/10 to-primary/10">
         <button
           onClick={(e) => { e.stopPropagation(); onUse(template); }}
           disabled={duplicating === template.id}
@@ -52,23 +52,19 @@ function FormPatternCard({
           Usar
         </button>
         <div className="w-36 absolute bottom-0 flex items-center flex-col px-4 pt-6 h-32 rounded-t-xl bg-white shadow-lg">
-          <h5 className="text-sm font-medium mb-1 text-center text-gray-400 truncate block w-[200px]">
+          <h5 className="text-sm font-medium mb-1 text-center text-gray-400 truncate block w-full px-2">
             {template.name}
           </h5>
           {[0, 1, 2].map((i) => (
-            <div key={i} className="flex items-center gap-1 mb-2">
+            <div key={i} className="flex items-center gap-1 mb-2 w-full">
               <Skeleton className="h-3 w-3 rounded-full shrink-0" />
-              <Skeleton className="h-[11px] w-[75px]" />
+              <Skeleton className="h-[11px] flex-1" />
             </div>
           ))}
         </div>
       </div>
-      <div className="w-full py-0">
-        <div className="flex w-full items-center justify-between py-1">
-          <span className="text-sm flex items-center gap-1 font-medium truncate">
-            {template.name}
-          </span>
-        </div>
+      <div className="w-full px-3 py-2 text-center">
+        <p className="text-sm font-semibold truncate">{template.name}</p>
         {template.description && (
           <p className="text-xs text-muted-foreground truncate">{template.description}</p>
         )}
