@@ -344,20 +344,33 @@ async function getNextContractNumber(orgId: string): Promise<number> {
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
 
+function unlockBlocks(blocks: any[]): any[] {
+  return blocks.map((block) => ({
+    ...block,
+    isLocked: false,
+    childblocks: block.childblocks ? unlockBlocks(block.childblocks) : undefined,
+  }));
+}
+
 async function duplicateForm(templateId: string, orgId: string, userId: string) {
   const tpl = await prisma.form.findUnique({ where: { id: templateId } });
   if (!tpl) return NextResponse.json({ error: "Padrão não encontrado" }, { status: 404 });
+
+  let blocks: any[] = [];
+  try { blocks = JSON.parse(tpl.jsonBlock); } catch {}
+  const unlockedJson = JSON.stringify(unlockBlocks(blocks));
 
   const created = await prisma.form.create({
     data: {
       name: tpl.name,
       description: tpl.description,
-      jsonBlock: tpl.jsonBlock,
-      content: tpl.content,
+      jsonBlock: unlockedJson,
+      content: unlockedJson,
       published: false,
       organizationId: orgId,
       userId,
       shareUrl: `${orgId}-${Date.now()}`,
+      settings: { create: { primaryColor: "#673ab7", backgroundColor: "#f0ebf8" } },
     },
   });
 
