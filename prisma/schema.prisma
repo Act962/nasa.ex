@@ -56,6 +56,8 @@ model User {
   sidebarPrefs          UserSidebarPreference[]
   spacePoints           UserSpacePoint[]
   memberStarBudgets     MemberStarBudget[]
+  actionTimers          ActionTimer[]
+
 
   @@unique([email])
   @@map("user")
@@ -658,6 +660,8 @@ model Action {
   mirrorsAsSource  ActionMirror[] @relation("SourceMirror")
   mirrorOf         ActionMirror?  @relation("MirrorOf")
   sharedFrom       ActionShare[]  @relation("SharedAction")
+  timers           ActionTimer[]
+
 
   @@index([workspaceId])
   @@index([columnId])
@@ -698,6 +702,24 @@ model SubActions {
   @@index([finishDate])
   @@map("sub_action")
 }
+
+model ActionTimer {
+  id        String    @id @default(cuid())
+  actionId  String    @map("action_id")
+  userId    String    @map("user_id")
+  startedAt DateTime  @default(now()) @map("started_at")
+  stoppedAt DateTime? @map("stopped_at")
+  duration  Int       @default(0) // Cache do tempo em segundos
+
+  action Action @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([actionId])
+  @@index([userId])
+  @@index([stoppedAt])
+  @@map("action_timers")
+}
+
 
 // ─────────────────────────────────────────────
 // AUTOMAÇÕES

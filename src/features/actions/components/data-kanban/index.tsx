@@ -51,6 +51,7 @@ const KanbanBoard = ({ workspaceId }: Props) => {
       tagIds: filters.tagIds,
       dueDateFrom: filters.dueDateFrom,
       dueDateTo: filters.dueDateTo,
+      showArchived: filters.showArchived,
     });
   const reorderAction = useReorderAction();
   const reorderColumn = useUpdateColumnOrder();
@@ -96,6 +97,11 @@ const KanbanBoard = ({ workspaceId }: Props) => {
       setColumnList(fetchedColumns);
     }
   }, [fetchedColumns, setColumnList, isDragging, columnList]);
+
+  const actionsCountMap = useMemo(
+    () => Object.fromEntries(fetchedColumns.map((c) => [c.id, c.actionsCount])),
+    [fetchedColumns],
+  );
 
   const columnIds = useMemo(() => columnList.map((c) => c.id), [columnList]);
 
@@ -237,6 +243,7 @@ const KanbanBoard = ({ workspaceId }: Props) => {
               <WorkspaceColumn
                 key={column.id}
                 {...column}
+                actionsCount={actionsCountMap[column.id] ?? column.actionsCount}
                 workspaceId={workspaceId}
               />
             ))}

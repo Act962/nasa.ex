@@ -51,6 +51,7 @@ interface ColumnFilters {
   tagIds?: string[];
   dueDateFrom?: Date | null;
   dueDateTo?: Date | null;
+  showArchived?: boolean;
 }
 
 export const useSuspenseColumnsByWorkspace = (workspaceId: string) => {
@@ -73,6 +74,7 @@ export const useColumnsByWorkspace = (
         tagIds: filters?.tagIds ?? [],
         ...(filters?.dueDateFrom != null && { dueDateFrom: filters.dueDateFrom }),
         ...(filters?.dueDateTo != null && { dueDateTo: filters.dueDateTo }),
+        showArchived: filters?.showArchived ?? false,
       },
       enabled: !!workspaceId,
       placeholderData: keepPreviousData,

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { TimerSync } from "@/features/actions/components/timer-sync";
+
 
 const ModalCreateTracking = dynamic(
   () =>
@@ -48,7 +50,9 @@ export function ModalProvider() {
 
   return (
     <>
+      <TimerSync />
       <LostOrWinModal />
+
       <ModalCreateTracking />
       <DeletarLeadModal />
       <AddMemberModal />

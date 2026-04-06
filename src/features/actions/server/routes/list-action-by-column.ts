@@ -114,6 +114,20 @@ export const listActionByColumn = base
             isDone: true,
           },
         },
+        timers: {
+          where: {
+            stoppedAt: null,
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+        },
         tags: {
           select: {
             tag: {

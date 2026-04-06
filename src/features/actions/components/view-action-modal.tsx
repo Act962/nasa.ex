@@ -32,6 +32,8 @@ import { AttachmentsSection } from "./view-modal/attachments-section";
 import { LinksSection } from "./view-modal/links-section";
 import { YoutubeSection } from "./view-modal/youtube-section";
 import { CardActionsMenu } from "./card-actions-menu";
+import { TimerAction } from "./timer-action";
+
 
 interface Props {
   actionId: string;
@@ -43,7 +45,6 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   const { action: rawAction, isLoading } = useQueryAction(actionId);
   const action = (rawAction ?? undefined) as Action | undefined;
   const updateAction = useUpdateAction();
-  const deleteAction = useDeleteAction();
   const updateFields = useUpdateActionFields();
   const createSubAction = useCreateSubAction(actionId);
   const updateSubAction = useUpdateSubAction(actionId);
@@ -188,7 +189,18 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
               />
             ) : undefined
           }
+          timerControl={
+            action && (
+              <TimerAction
+                actionId={action.id}
+                timers={action.timers}
+                participants={action.participants}
+                responsibles={action.responsibles}
+              />
+            )
+          }
         />
+
 
         <div className="flex flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6 space-y-6 min-w-0">
@@ -219,7 +231,9 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
                     handleUpdateFields({ attachments })
                   }
                   onRemove={handleRemoveFile}
-                  disabled={updateFields.isPending || removeFileAction.isPending}
+                  disabled={
+                    updateFields.isPending || removeFileAction.isPending
+                  }
                 />
 
                 <LinksSection

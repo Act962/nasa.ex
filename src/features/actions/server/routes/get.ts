@@ -96,6 +96,20 @@ export const getAction = base
             },
           },
         },
+        timers: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+          orderBy: {
+            startedAt: "desc",
+          },
+        },
       },
     });
 

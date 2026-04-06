@@ -1,6 +1,21 @@
 import { ActionPriority } from "@/generated/prisma/enums";
 import { Decimal } from "@prisma/client/runtime/client";
 
+export interface ActionTimer {
+  id: string;
+  actionId: string;
+  userId: string;
+  startedAt: Date;
+  stoppedAt: Date | null;
+  duration: number;
+  user?: {
+    id: string;
+    name: string;
+    image: string | null;
+  };
+}
+
+
 export interface Action {
   user: {
     id: string;
@@ -74,4 +89,6 @@ export interface Action {
       color: string;
     };
   }[];
+  timers: ActionTimer[];
 }
+

@@ -14,6 +14,7 @@ export const getColumnsByWorkspace = base
       tagIds: z.array(z.string()).optional().default([]),
       dueDateFrom: z.coerce.date().nullable().optional(),
       dueDateTo: z.coerce.date().nullable().optional(),
+      showArchived: z.boolean().optional().default(false),
     }),
   )
   .handler(async ({ input, context, errors }) => {
@@ -49,7 +50,7 @@ export const getColumnsByWorkspace = base
           select: {
             actions: {
               where: {
-                isArchived: false,
+                ...(!input.showArchived && { isArchived: false }),
                 ...(input.participantIds.length > 0 && {
                   participants: {
                     some: { userId: { in: input.participantIds } },

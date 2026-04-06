@@ -13,6 +13,10 @@ import { removeResponsible } from "./remove-responsible";
 import { addSubActionResponsible } from "./add-sub-action-responsible";
 import { removeSubActionResponsible } from "./remove-sub-action-responsible";
 import { promoteSubAction } from "./promote-sub-action";
+import { startTimer } from "./start-timer";
+import { stopTimer } from "./stop-timer";
+import { getActiveTimer } from "./get-active-timer";
+
 
 import { getAnalytics } from "./get-analytics";
 import { listRecentActions } from "./list-recent";
@@ -39,4 +43,7 @@ export const actionRoutes = {
   promoteSubAction,
   addParticipant,
   removeParticipant,
+  startTimer,
+  stopTimer,
+  getActiveTimer,
 };
