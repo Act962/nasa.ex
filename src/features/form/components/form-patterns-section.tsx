@@ -39,8 +39,8 @@ function FormPatternCard({
   duplicating: string | null;
 }) {
   return (
-    <div className="w-full h-auto cursor-pointer" onClick={() => onPreview(template)}>
-      <div className="w-full relative flex items-center justify-center overflow-hidden h-[150px] rounded-t-xl border bg-linear-to-b from-primary/10 to-primary/10">
+    <div className="w-full h-auto cursor-pointer rounded-xl border-2 border-violet-500/40 hover:border-violet-500/70 transition-colors overflow-hidden" onClick={() => onPreview(template)}>
+      <div className="w-full relative flex items-center justify-center overflow-hidden h-[150px] rounded-t-xl bg-linear-to-b from-primary/10 to-primary/10">
         <button
           onClick={(e) => { e.stopPropagation(); onUse(template); }}
           disabled={duplicating === template.id}
@@ -188,10 +188,10 @@ export function FormPatternsSection() {
 
   return (
     <>
-      <div className="mt-8 border-t pt-6">
+      <div className="mt-8 border-2 border-violet-500/50 rounded-xl p-5">
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="w-4 h-4 text-violet-500" />
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          <h3 className="text-sm font-semibold text-violet-400 uppercase tracking-wide">
             Padrões NASA disponíveis
           </h3>
         </div>
