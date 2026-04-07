@@ -28,12 +28,18 @@ import { ChannelInsights } from "./channel-insights";
 import { AppSelector, ALL_MODULES } from "./app-selector";
 import type { AppModule } from "./app-selector";
 import { CrossDataOverview } from "./cross-data-overview";
-import { ForgeSection, SpacetimeSection, NasaPlannerSection, IntegrationsSection } from "./apps-sections";
+import {
+  ForgeSection,
+  SpacetimeSection,
+  NasaPlannerSection,
+  IntegrationsSection,
+} from "./apps-sections";
 import { useQueryAppsInsights } from "@/features/insights/hooks/use-dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { CustomizableChart } from "./customizable-chart";
 import { InsightReport } from "./insight-report";
+import { HeaderTracking } from "@/features/leads/components/header-tracking";
 
 interface TrackingDashboardProps {
   initialData?: DashboardReport;
@@ -77,7 +83,8 @@ export function TrackingDashboard({
 }: TrackingDashboardProps) {
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedModules, setSelectedModules] = useState<AppModule[]>(ALL_MODULES);
+  const [selectedModules, setSelectedModules] =
+    useState<AppModule[]>(ALL_MODULES);
 
   const handleChartClick = (leadIds?: string[]) => {
     if (leadIds && leadIds.length > 0) {
@@ -122,7 +129,9 @@ export function TrackingDashboard({
   // Meta Ads — only when integrations module is selected
   const { data: metaInsights } = useQuery(
     selectedModules.includes("integrations")
-      ? orpc.channelInsights.meta.queryOptions({ input: { datePreset: "last_30d", level: "account" } })
+      ? orpc.channelInsights.meta.queryOptions({
+          input: { datePreset: "last_30d", level: "account" },
+        })
       : { queryKey: ["meta-disabled"], queryFn: () => null, enabled: false },
   );
 
@@ -142,7 +151,8 @@ export function TrackingDashboard({
   return (
     <Tabs defaultValue="general">
       <div className="flex flex-col h-full w-full">
-        <div className="sm:sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b py-4 space-y-4">
+        <HeaderTracking title="Insights" />
+        <div className="sm:sticky top-10 z-10 bg-background/95 backdrop-blur-sm border-b py-4 space-y-4 px-2 sm:px-6">
           <DashboardHeader
             settings={settings}
             onToggleSection={toggleSection}
@@ -153,11 +163,14 @@ export function TrackingDashboard({
           />
 
           {/* App Selector */}
-          <AppSelector selected={selectedModules} onChange={setSelectedModules} />
+          <AppSelector
+            selected={selectedModules}
+            onChange={setSelectedModules}
+          />
 
           {/* Filters — tracking/tags only when tracking module selected */}
           <DashboardFilters
-            trackingId={showTrackingFilters ? (trackingId || "ALL") : undefined}
+            trackingId={showTrackingFilters ? trackingId || "ALL" : undefined}
             organizationIds={organizationIds}
             tagIds={showTrackingFilters ? tagIds : []}
             dateRange={dateRange}
@@ -170,217 +183,357 @@ export function TrackingDashboard({
             showTrackingFilter={showTrackingFilters}
             showTagsFilter={showTrackingFilters}
           />
-          <TabsList>
+          <TabsList className="overflow-x-auto w-full justify-start">
             <TabsTrigger value="general">Visão Geral</TabsTrigger>
-            {showTrackingFilters && <TabsTrigger value="tracking">📊 Tracking</TabsTrigger>}
-            {selectedModules.includes("chat") && <TabsTrigger value="atendiment">💬 Atendimento</TabsTrigger>}
-            {selectedModules.includes("integrations") && <TabsTrigger value="channels">📡 Canais</TabsTrigger>}
+            {showTrackingFilters && (
+              <TabsTrigger value="tracking">📊 Tracking</TabsTrigger>
+            )}
+            {selectedModules.includes("chat") && (
+              <TabsTrigger value="atendiment">💬 Atendimento</TabsTrigger>
+            )}
+            {selectedModules.includes("integrations") && (
+              <TabsTrigger value="channels">📡 Canais</TabsTrigger>
+            )}
           </TabsList>
         </div>
 
-        {/* ── VISÃO GERAL CRUZADA ──────────────────────────────────────────── */}
-        <TabsContent value="general" className="flex-1 overflow-y-auto pt-6 space-y-8">
-          {/* Customizable Chart — full width between tabs and CrossDataOverview */}
-          <CustomizableChart
-            selectedModules={selectedModules}
-            tracking={data?.summary ? {
-              totalLeads: data.summary.totalLeads,
-              wonLeads: data.summary.wonLeads,
-              activeLeads: data.summary.activeLeads,
-            } : undefined}
-            chat={appsInsights?.chat ? {
-              totalConversations: appsInsights.chat.totalConversations,
-              totalMessages: appsInsights.chat.totalMessages,
-              attendedConversations: appsInsights.chat.attendedConversations,
-              unattendedConversations: appsInsights.chat.unattendedConversations,
-            } : undefined}
-            forge={appsInsights?.forge ? {
-              totalProposals: appsInsights.forge.totalProposals,
-              rascunho: appsInsights.forge.rascunho,
-              enviadas: appsInsights.forge.enviadas,
-              visualizadas: appsInsights.forge.visualizadas,
-              pagas: appsInsights.forge.pagas,
-              expiradas: appsInsights.forge.expiradas,
-              canceladas: appsInsights.forge.canceladas,
-              revenueTotal: appsInsights.forge.revenueTotal,
-              revenuePipeline: appsInsights.forge.revenuePipeline,
-            } : undefined}
-            spacetime={appsInsights?.spacetime ? {
-              total: appsInsights.spacetime.total,
-              pending: appsInsights.spacetime.pending,
-              confirmed: appsInsights.spacetime.confirmed,
-              done: appsInsights.spacetime.done,
-              cancelled: appsInsights.spacetime.cancelled,
-              noShow: appsInsights.spacetime.noShow,
-            } : undefined}
-            nasaPlanner={appsInsights?.nasaPlanner ? {
-              total: appsInsights.nasaPlanner.total,
-              draft: appsInsights.nasaPlanner.draft,
-              published: appsInsights.nasaPlanner.published,
-              scheduled: appsInsights.nasaPlanner.scheduled,
-            } : undefined}
-            metaAds={metaInsights?.connected && metaInsights.data ? {
-              spend: metaInsights.data.spend,
-              roas: metaInsights.data.roas,
-              leads: metaInsights.data.leads,
-              clicks: metaInsights.data.clicks,
-              impressions: metaInsights.data.impressions,
-            } : undefined}
-          />
+        <div className="px-2 sm:px-6">
+          {/* ── VISÃO GERAL CRUZADA ──────────────────────────────────────────── */}
+          <TabsContent
+            value="general"
+            className="flex-1 overflow-y-auto pt-6 space-y-8 "
+          >
+            {/* Customizable Chart — full width between tabs and CrossDataOverview */}
+            <CustomizableChart
+              selectedModules={selectedModules}
+              tracking={
+                data?.summary
+                  ? {
+                      totalLeads: data.summary.totalLeads,
+                      wonLeads: data.summary.wonLeads,
+                      activeLeads: data.summary.activeLeads,
+                    }
+                  : undefined
+              }
+              chat={
+                appsInsights?.chat
+                  ? {
+                      totalConversations: appsInsights.chat.totalConversations,
+                      totalMessages: appsInsights.chat.totalMessages,
+                      attendedConversations:
+                        appsInsights.chat.attendedConversations,
+                      unattendedConversations:
+                        appsInsights.chat.unattendedConversations,
+                    }
+                  : undefined
+              }
+              forge={
+                appsInsights?.forge
+                  ? {
+                      totalProposals: appsInsights.forge.totalProposals,
+                      rascunho: appsInsights.forge.rascunho,
+                      enviadas: appsInsights.forge.enviadas,
+                      visualizadas: appsInsights.forge.visualizadas,
+                      pagas: appsInsights.forge.pagas,
+                      expiradas: appsInsights.forge.expiradas,
+                      canceladas: appsInsights.forge.canceladas,
+                      revenueTotal: appsInsights.forge.revenueTotal,
+                      revenuePipeline: appsInsights.forge.revenuePipeline,
+                    }
+                  : undefined
+              }
+              spacetime={
+                appsInsights?.spacetime
+                  ? {
+                      total: appsInsights.spacetime.total,
+                      pending: appsInsights.spacetime.pending,
+                      confirmed: appsInsights.spacetime.confirmed,
+                      done: appsInsights.spacetime.done,
+                      cancelled: appsInsights.spacetime.cancelled,
+                      noShow: appsInsights.spacetime.noShow,
+                    }
+                  : undefined
+              }
+              nasaPlanner={
+                appsInsights?.nasaPlanner
+                  ? {
+                      total: appsInsights.nasaPlanner.total,
+                      draft: appsInsights.nasaPlanner.draft,
+                      published: appsInsights.nasaPlanner.published,
+                      scheduled: appsInsights.nasaPlanner.scheduled,
+                    }
+                  : undefined
+              }
+              metaAds={
+                metaInsights?.connected && metaInsights.data
+                  ? {
+                      spend: metaInsights.data.spend,
+                      roas: metaInsights.data.roas,
+                      leads: metaInsights.data.leads,
+                      clicks: metaInsights.data.clicks,
+                      impressions: metaInsights.data.impressions,
+                    }
+                  : undefined
+              }
+            />
 
-          {/* AI Report + PDF Download */}
-          <InsightReport
-            selectedModules={selectedModules}
-            period={{ startDate: appsInput.startDate, endDate: appsInput.endDate }}
-            orgName={organizatins[0]?.name ?? "Minha Empresa"}
-            tracking={data?.summary ? {
-              totalLeads: data.summary.totalLeads,
-              wonLeads: data.summary.wonLeads,
-              activeLeads: data.summary.activeLeads,
-              conversionRate: data.summary.conversionRate,
-            } : undefined}
-            chat={appsInsights?.chat}
-            forge={appsInsights?.forge}
-            spacetime={appsInsights?.spacetime}
-            nasaPlanner={appsInsights?.nasaPlanner}
-            metaAds={metaInsights?.connected && metaInsights.data ? {
-              spend: metaInsights.data.spend,
-              roas: metaInsights.data.roas,
-              leads: metaInsights.data.leads,
-              clicks: metaInsights.data.clicks,
-              impressions: metaInsights.data.impressions,
-              ctr: metaInsights.data.ctr,
-              cpl: metaInsights.data.cpl,
-            } : undefined}
-          />
+            {/* AI Report + PDF Download */}
+            <InsightReport
+              selectedModules={selectedModules}
+              period={{
+                startDate: appsInput.startDate,
+                endDate: appsInput.endDate,
+              }}
+              orgName={organizatins[0]?.name ?? "Minha Empresa"}
+              tracking={
+                data?.summary
+                  ? {
+                      totalLeads: data.summary.totalLeads,
+                      wonLeads: data.summary.wonLeads,
+                      activeLeads: data.summary.activeLeads,
+                      conversionRate: data.summary.conversionRate,
+                    }
+                  : undefined
+              }
+              chat={appsInsights?.chat}
+              forge={appsInsights?.forge}
+              spacetime={appsInsights?.spacetime}
+              nasaPlanner={appsInsights?.nasaPlanner}
+              metaAds={
+                metaInsights?.connected && metaInsights.data
+                  ? {
+                      spend: metaInsights.data.spend,
+                      roas: metaInsights.data.roas,
+                      leads: metaInsights.data.leads,
+                      clicks: metaInsights.data.clicks,
+                      impressions: metaInsights.data.impressions,
+                      ctr: metaInsights.data.ctr,
+                      cpl: metaInsights.data.cpl,
+                    }
+                  : undefined
+              }
+            />
 
-          <CrossDataOverview
-            selectedModules={selectedModules}
-            tracking={data?.summary ? {
-              totalLeads: data.summary.totalLeads,
-              wonLeads: data.summary.wonLeads,
-              conversionRate: data.summary.conversionRate,
-              activeLeads: data.summary.activeLeads,
-            } : undefined}
-            chat={appsInsights?.chat ? {
-              totalConversations: appsInsights.chat.totalConversations,
-              totalMessages: appsInsights.chat.totalMessages,
-              attendedConversations: appsInsights.chat.attendedConversations,
-              attendanceRate: appsInsights.chat.attendanceRate,
-            } : undefined}
-            forge={appsInsights?.forge ? {
-              totalProposals: appsInsights.forge.totalProposals,
-              pagas: appsInsights.forge.pagas,
-              revenueTotal: appsInsights.forge.revenueTotal,
-              revenuePipeline: appsInsights.forge.revenuePipeline,
-            } : undefined}
-            spacetime={appsInsights?.spacetime ? {
-              total: appsInsights.spacetime.total,
-              done: appsInsights.spacetime.done,
-              conversionRate: appsInsights.spacetime.conversionRate,
-            } : undefined}
-            nasaPlanner={appsInsights?.nasaPlanner ? {
-              total: appsInsights.nasaPlanner.total,
-              published: appsInsights.nasaPlanner.published,
-            } : undefined}
-            metaAds={metaInsights?.connected && metaInsights.data ? {
-              spend: metaInsights.data.spend,
-              roas: metaInsights.data.roas,
-              leads: metaInsights.data.leads,
-              cpl: metaInsights.data.cpl,
-            } : undefined}
-          />
+            <CrossDataOverview
+              selectedModules={selectedModules}
+              tracking={
+                data?.summary
+                  ? {
+                      totalLeads: data.summary.totalLeads,
+                      wonLeads: data.summary.wonLeads,
+                      conversionRate: data.summary.conversionRate,
+                      activeLeads: data.summary.activeLeads,
+                    }
+                  : undefined
+              }
+              chat={
+                appsInsights?.chat
+                  ? {
+                      totalConversations: appsInsights.chat.totalConversations,
+                      totalMessages: appsInsights.chat.totalMessages,
+                      attendedConversations:
+                        appsInsights.chat.attendedConversations,
+                      attendanceRate: appsInsights.chat.attendanceRate,
+                    }
+                  : undefined
+              }
+              forge={
+                appsInsights?.forge
+                  ? {
+                      totalProposals: appsInsights.forge.totalProposals,
+                      pagas: appsInsights.forge.pagas,
+                      revenueTotal: appsInsights.forge.revenueTotal,
+                      revenuePipeline: appsInsights.forge.revenuePipeline,
+                    }
+                  : undefined
+              }
+              spacetime={
+                appsInsights?.spacetime
+                  ? {
+                      total: appsInsights.spacetime.total,
+                      done: appsInsights.spacetime.done,
+                      conversionRate: appsInsights.spacetime.conversionRate,
+                    }
+                  : undefined
+              }
+              nasaPlanner={
+                appsInsights?.nasaPlanner
+                  ? {
+                      total: appsInsights.nasaPlanner.total,
+                      published: appsInsights.nasaPlanner.published,
+                    }
+                  : undefined
+              }
+              metaAds={
+                metaInsights?.connected && metaInsights.data
+                  ? {
+                      spend: metaInsights.data.spend,
+                      roas: metaInsights.data.roas,
+                      leads: metaInsights.data.leads,
+                      cpl: metaInsights.data.cpl,
+                    }
+                  : undefined
+              }
+            />
 
-          {/* App-specific sections */}
-          <div className="space-y-8">
-            {selectedModules.includes("forge") && appsInsights?.forge && (
-              <ForgeSection data={appsInsights.forge} />
-            )}
-            {selectedModules.includes("spacetime") && appsInsights?.spacetime && (
-              <SpacetimeSection data={appsInsights.spacetime} />
-            )}
-            {selectedModules.includes("nasa-planner") && appsInsights?.nasaPlanner && (
-              <NasaPlannerSection data={appsInsights.nasaPlanner} />
-            )}
-            {selectedModules.includes("integrations") && (
-              <IntegrationsSection metaAds={metaInsights ?? undefined} />
-            )}
-          </div>
-
-          <WidgetList organizationIds={organizationIds} />
-        </TabsContent>
-
-        {/* ── TRACKING ─────────────────────────────────────────────────────── */}
-        {showTrackingFilters && (
-          <TabsContent value="tracking" className="flex-1 overflow-y-auto pt-6 space-y-6">
-            {settings.visibleSections.summary && (
-              <section>
-                <h2 className="mb-4 text-lg font-semibold">Leads & Pipeline</h2>
-                {isLoading ? <KPISkeleton /> : <KPIGeneralCards summary={data.summary} />}
-              </section>
-            )}
-            <div className={cn("grid gap-6 lg:grid-cols-2")}>
-              {settings.visibleSections.byStatus && (isLoading ? <ChartSkeleton /> : (
-                <ChartWrapper title="Leads por Status" description="Distribuição por status atual"
-                  chartType={settings.chartTypes.byStatus}
-                  onChartTypeChange={(type) => setChartType("byStatus", type)}
-                  isVisible={settings.visibleSections.byStatus}
-                  onVisibilityToggle={() => toggleSection("byStatus")}>
-                  <StatusChart data={data.byStatus} chartType={settings.chartTypes.byStatus} onClick={handleChartClick} />
-                </ChartWrapper>
-              ))}
-              {settings.visibleSections.byChannel && (isLoading ? <ChartSkeleton /> : (
-                <ChartWrapper title="Leads por Canal" description="Origem dos leads por canal"
-                  chartType={settings.chartTypes.byChannel}
-                  onChartTypeChange={(type) => setChartType("byChannel", type)}
-                  isVisible={settings.visibleSections.byChannel}
-                  onVisibilityToggle={() => toggleSection("byChannel")}>
-                  <ChannelChart data={data.byChannel} chartType={settings.chartTypes.byChannel} onClick={handleChartClick} />
-                </ChartWrapper>
-              ))}
-              {settings.visibleSections.byAttendant && (isLoading ? <ChartSkeleton /> : (
-                <ChartWrapper title="Performance por Atendente" description="Total de leads e conversões por responsável"
-                  chartType={settings.chartTypes.byAttendant}
-                  onChartTypeChange={(type) => setChartType("byAttendant", type)}
-                  isVisible={settings.visibleSections.byAttendant}
-                  onVisibilityToggle={() => toggleSection("byAttendant")}>
-                  <AttendantChart data={data.byAttendant} chartType={settings.chartTypes.byAttendant} onClick={handleChartClick} />
-                </ChartWrapper>
-              ))}
-              {settings.visibleSections.topTags && (isLoading ? <ChartSkeleton /> : (
-                <ChartWrapper title="Top Tags" description="Tags mais utilizadas nos leads"
-                  chartType={settings.chartTypes.topTags}
-                  onChartTypeChange={(type) => setChartType("topTags", type)}
-                  isVisible={settings.visibleSections.topTags}
-                  onVisibilityToggle={() => toggleSection("topTags")}>
-                  <TagsChart data={data.topTags} chartType={settings.chartTypes.topTags} onClick={handleChartClick} />
-                </ChartWrapper>
-              ))}
+            {/* App-specific sections */}
+            <div className="space-y-8">
+              {selectedModules.includes("forge") && appsInsights?.forge && (
+                <ForgeSection data={appsInsights.forge} />
+              )}
+              {selectedModules.includes("spacetime") &&
+                appsInsights?.spacetime && (
+                  <SpacetimeSection data={appsInsights.spacetime} />
+                )}
+              {selectedModules.includes("nasa-planner") &&
+                appsInsights?.nasaPlanner && (
+                  <NasaPlannerSection data={appsInsights.nasaPlanner} />
+                )}
+              {selectedModules.includes("integrations") && (
+                <IntegrationsSection metaAds={metaInsights ?? undefined} />
+              )}
             </div>
-          </TabsContent>
-        )}
 
-        {/* ── ATENDIMENTO ───────────────────────────────────────────────────── */}
-        {selectedModules.includes("chat") && (
-          <TabsContent value="atendiment" className="flex-1 overflow-y-auto pt-6 space-y-6">
-            <h2 className="mb-4 text-lg font-semibold">Atendimento</h2>
-            <KPIAtendimentCards summary={data.summary} />
+            <WidgetList organizationIds={organizationIds} />
           </TabsContent>
-        )}
 
-        {/* ── CANAIS ────────────────────────────────────────────────────────── */}
-        {selectedModules.includes("integrations") && (
-          <TabsContent value="channels" className="flex-1 overflow-y-auto pt-6">
-            <ChannelInsights />
-          </TabsContent>
-        )}
+          {/* ── TRACKING ─────────────────────────────────────────────────────── */}
+          {showTrackingFilters && (
+            <TabsContent
+              value="tracking"
+              className="flex-1 overflow-y-auto pt-6 space-y-6"
+            >
+              {settings.visibleSections.summary && (
+                <section>
+                  <h2 className="mb-4 text-lg font-semibold">
+                    Leads & Pipeline
+                  </h2>
+                  {isLoading ? (
+                    <KPISkeleton />
+                  ) : (
+                    <KPIGeneralCards summary={data.summary} />
+                  )}
+                </section>
+              )}
+              <div className={cn("grid gap-6 lg:grid-cols-2")}>
+                {settings.visibleSections.byStatus &&
+                  (isLoading ? (
+                    <ChartSkeleton />
+                  ) : (
+                    <ChartWrapper
+                      title="Leads por Status"
+                      description="Distribuição por status atual"
+                      chartType={settings.chartTypes.byStatus}
+                      onChartTypeChange={(type) =>
+                        setChartType("byStatus", type)
+                      }
+                      isVisible={settings.visibleSections.byStatus}
+                      onVisibilityToggle={() => toggleSection("byStatus")}
+                    >
+                      <StatusChart
+                        data={data.byStatus}
+                        chartType={settings.chartTypes.byStatus}
+                        onClick={handleChartClick}
+                      />
+                    </ChartWrapper>
+                  ))}
+                {settings.visibleSections.byChannel &&
+                  (isLoading ? (
+                    <ChartSkeleton />
+                  ) : (
+                    <ChartWrapper
+                      title="Leads por Canal"
+                      description="Origem dos leads por canal"
+                      chartType={settings.chartTypes.byChannel}
+                      onChartTypeChange={(type) =>
+                        setChartType("byChannel", type)
+                      }
+                      isVisible={settings.visibleSections.byChannel}
+                      onVisibilityToggle={() => toggleSection("byChannel")}
+                    >
+                      <ChannelChart
+                        data={data.byChannel}
+                        chartType={settings.chartTypes.byChannel}
+                        onClick={handleChartClick}
+                      />
+                    </ChartWrapper>
+                  ))}
+                {settings.visibleSections.byAttendant &&
+                  (isLoading ? (
+                    <ChartSkeleton />
+                  ) : (
+                    <ChartWrapper
+                      title="Performance por Atendente"
+                      description="Total de leads e conversões por responsável"
+                      chartType={settings.chartTypes.byAttendant}
+                      onChartTypeChange={(type) =>
+                        setChartType("byAttendant", type)
+                      }
+                      isVisible={settings.visibleSections.byAttendant}
+                      onVisibilityToggle={() => toggleSection("byAttendant")}
+                    >
+                      <AttendantChart
+                        data={data.byAttendant}
+                        chartType={settings.chartTypes.byAttendant}
+                        onClick={handleChartClick}
+                      />
+                    </ChartWrapper>
+                  ))}
+                {settings.visibleSections.topTags &&
+                  (isLoading ? (
+                    <ChartSkeleton />
+                  ) : (
+                    <ChartWrapper
+                      title="Top Tags"
+                      description="Tags mais utilizadas nos leads"
+                      chartType={settings.chartTypes.topTags}
+                      onChartTypeChange={(type) =>
+                        setChartType("topTags", type)
+                      }
+                      isVisible={settings.visibleSections.topTags}
+                      onVisibilityToggle={() => toggleSection("topTags")}
+                    >
+                      <TagsChart
+                        data={data.topTags}
+                        chartType={settings.chartTypes.topTags}
+                        onClick={handleChartClick}
+                      />
+                    </ChartWrapper>
+                  ))}
+              </div>
+            </TabsContent>
+          )}
+
+          {/* ── ATENDIMENTO ───────────────────────────────────────────────────── */}
+          {selectedModules.includes("chat") && (
+            <TabsContent
+              value="atendiment"
+              className="flex-1 overflow-y-auto pt-6 space-y-6"
+            >
+              <h2 className="mb-4 text-lg font-semibold">Atendimento</h2>
+              <KPIAtendimentCards summary={data.summary} />
+            </TabsContent>
+          )}
+
+          {/* ── CANAIS ────────────────────────────────────────────────────────── */}
+          {selectedModules.includes("integrations") && (
+            <TabsContent
+              value="channels"
+              className="flex-1 overflow-y-auto pt-6"
+            >
+              <ChannelInsights />
+            </TabsContent>
+          )}
+        </div>
       </div>
 
-      <ListLeadByRelatoryModal
-        isOpen={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        leadIds={selectedLeadIds}
-      />
+      <div className="px-2 sm:px-6">
+        <ListLeadByRelatoryModal
+          isOpen={isModalOpen}
+          onOpenChange={setIsModalOpen}
+          leadIds={selectedLeadIds}
+        />
+      </div>
     </Tabs>
   );
 }

@@ -38,7 +38,7 @@ export function ActionSidebar({
 }: SidebarProps) {
   if (isLoading) {
     return (
-      <div className="w-64 border-l shrink-0 overflow-y-auto bg-muted/80">
+      <div className="h-full overflow-y-auto bg-muted/80">
         <div className="p-4 space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="space-y-1.5">
@@ -52,7 +52,7 @@ export function ActionSidebar({
   }
 
   return (
-    <div className="w-64 border-l shrink-0 overflow-y-auto bg-muted/80">
+    <div className="h-full overflow-y-auto bg-muted/80">
       <div className="p-4 space-y-4">
         <StatusField
           value={action?.columnId ?? ""}

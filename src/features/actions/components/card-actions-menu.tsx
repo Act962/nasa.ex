@@ -33,6 +33,7 @@ import { useDeleteAction } from "../hooks/use-tasks";
 import { ShareActionDialog } from "./share-action-dialog";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   actionId: string;
@@ -62,6 +63,7 @@ export function CardActionsMenu({
   const deleteAction = useDeleteAction();
   const { columns } = useColumnsByWorkspace(workspaceId);
   const session = authClient.useSession();
+  const isMobile = useIsMobile();
 
   const canDelete =
     isArchived && !!createdBy && createdBy === session.data?.user?.id;

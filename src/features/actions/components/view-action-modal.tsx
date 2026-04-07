@@ -23,15 +23,15 @@ import {
 } from "@/features/workspace/hooks/use-workspace";
 import { toast } from "sonner";
 import { Action } from "../types";
-import { ActionHeader } from "./view-modal/header";
+import { ActionHeader } from "./view-modal/action-header";
 import { ActionTitle } from "./view-modal/title";
 import { ActionDescription } from "./view-modal/description";
 import { ActionSubActions } from "./view-modal/sub-actions";
-import { ActionSidebar } from "./view-modal/sidebar";
 import { AttachmentsSection } from "./view-modal/attachments-section";
 import { LinksSection } from "./view-modal/links-section";
 import { YoutubeSection } from "./view-modal/youtube-section";
 import { CardActionsMenu } from "./card-actions-menu";
+import { ActionSidebar } from "./view-modal/sidebar";
 
 interface Props {
   actionId: string;
@@ -167,9 +167,9 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTitle className="sr-only">Visualizar e editar ação</DialogTitle>
+      <DialogTitle className="sr-only ">Visualizar e editar ação</DialogTitle>
       <DialogContent
-        className="p-0 sm:max-w-[90%] bg-muted overflow-hidden flex flex-col max-h-[90vh] gap-0"
+        className="p-0  sm:max-w-[90%] bg-muted overflow-hidden flex flex-col max-h-[90vh] gap-0"
         showCloseButton={false}
       >
         <ActionHeader
@@ -199,12 +199,24 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
               </div>
             ) : (
               <>
-                <ActionTitle
-                  action={action}
-                  onToggleDone={handleToggleDone}
-                  onUpdateTitle={(title) => handleUpdateAction({ title })}
-                  isUpdating={updateAction.isPending}
-                />
+                <div className="flex items-center justify-between">
+                  <ActionTitle
+                    action={action}
+                    onToggleDone={handleToggleDone}
+                    onUpdateTitle={(title) => handleUpdateAction({ title })}
+                    isUpdating={updateAction.isPending}
+                    isLoading={isLoading}
+                    columns={columns}
+                    members={members}
+                    onUpdateAction={handleUpdateAction}
+                    onUpdateFields={handleUpdateFields}
+                    onToggleParticipant={handleToggleParticipant}
+                    isUpdatingAction={updateAction.isPending}
+                    isUpdatingFields={updateFields.isPending}
+                    isAddingParticipant={addResponsible.isPending}
+                    isRemovingParticipant={removeResponsible.isPending}
+                  />
+                </div>
 
                 <ActionDescription
                   description={action?.description}
@@ -219,7 +231,9 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
                     handleUpdateFields({ attachments })
                   }
                   onRemove={handleRemoveFile}
-                  disabled={updateFields.isPending || removeFileAction.isPending}
+                  disabled={
+                    updateFields.isPending || removeFileAction.isPending
+                  }
                 />
 
                 <LinksSection
@@ -252,20 +266,21 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
               </>
             )}
           </div>
-
-          <ActionSidebar
-            action={action}
-            isLoading={isLoading}
-            columns={columns}
-            members={members}
-            onUpdateAction={handleUpdateAction}
-            onUpdateFields={handleUpdateFields}
-            onToggleParticipant={handleToggleParticipant}
-            isUpdating={updateAction.isPending}
-            isUpdatingFields={updateFields.isPending}
-            isAddingParticipant={addResponsible.isPending}
-            isRemovingParticipant={removeResponsible.isPending}
-          />
+          <div className="sm:block hidden">
+            <ActionSidebar
+              action={action}
+              isLoading={isLoading}
+              columns={columns}
+              members={members}
+              onUpdateAction={handleUpdateAction}
+              onUpdateFields={handleUpdateFields}
+              onToggleParticipant={handleToggleParticipant}
+              isUpdating={updateAction.isPending}
+              isUpdatingFields={updateFields.isPending}
+              isAddingParticipant={addResponsible.isPending}
+              isRemovingParticipant={removeResponsible.isPending}
+            />
+          </div>
         </div>
       </DialogContent>
     </Dialog>

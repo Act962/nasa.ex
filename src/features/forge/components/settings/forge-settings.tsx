@@ -4,16 +4,40 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForgeSettings, useUpdateForgeSettings } from "../../hooks/use-forge";
+import {
+  useForgeSettings,
+  useUpdateForgeSettings,
+} from "../../hooks/use-forge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Percent, Palette, ImageIcon, CreditCard, Eye, EyeOff, ChevronDown, ChevronUp, CheckCircle2, Upload, Link2, X, Shield, Bell } from "lucide-react";
+import {
+  Percent,
+  Palette,
+  ImageIcon,
+  CreditCard,
+  Eye,
+  EyeOff,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
+  Upload,
+  Link2,
+  X,
+  Shield,
+  Bell,
+} from "lucide-react";
 import { Uploader } from "@/components/file-uploader/uploader";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { cn } from "@/lib/utils";
@@ -24,7 +48,13 @@ interface GatewayDef {
   id: string;
   label: string;
   logo: string;
-  fields: { key: string; label: string; placeholder: string; secret?: boolean; hint?: string }[];
+  fields: {
+    key: string;
+    label: string;
+    placeholder: string;
+    secret?: boolean;
+    hint?: string;
+  }[];
   docUrl?: string;
 }
 
@@ -34,7 +64,13 @@ const GATEWAYS: GatewayDef[] = [
     label: "Asaas",
     logo: "🏦",
     fields: [
-      { key: "apiKey", label: "API Key", placeholder: "$aas_...", secret: true, hint: "Encontre em Configurações → Integrações → API dentro do Asaas" },
+      {
+        key: "apiKey",
+        label: "API Key",
+        placeholder: "$aas_...",
+        secret: true,
+        hint: "Encontre em Configurações → Integrações → API dentro do Asaas",
+      },
       { key: "env", label: "Ambiente", placeholder: "sandbox ou production" },
     ],
     docUrl: "https://docs.asaas.com",
@@ -44,8 +80,18 @@ const GATEWAYS: GatewayDef[] = [
     label: "Stripe",
     logo: "💳",
     fields: [
-      { key: "secretKey", label: "Secret Key", placeholder: "sk_live_...", secret: true, hint: "Painel Stripe → Developers → API Keys" },
-      { key: "publicKey", label: "Publishable Key", placeholder: "pk_live_..." },
+      {
+        key: "secretKey",
+        label: "Secret Key",
+        placeholder: "sk_live_...",
+        secret: true,
+        hint: "Painel Stripe → Developers → API Keys",
+      },
+      {
+        key: "publicKey",
+        label: "Publishable Key",
+        placeholder: "pk_live_...",
+      },
     ],
     docUrl: "https://stripe.com/docs",
   },
@@ -54,7 +100,13 @@ const GATEWAYS: GatewayDef[] = [
     label: "Mercado Pago",
     logo: "🛒",
     fields: [
-      { key: "accessToken", label: "Access Token", placeholder: "APP_USR-...", secret: true, hint: "Painel MP → Seu negócio → Configurações → Credenciais" },
+      {
+        key: "accessToken",
+        label: "Access Token",
+        placeholder: "APP_USR-...",
+        secret: true,
+        hint: "Painel MP → Seu negócio → Configurações → Credenciais",
+      },
     ],
     docUrl: "https://www.mercadopago.com.br/developers",
   },
@@ -63,8 +115,17 @@ const GATEWAYS: GatewayDef[] = [
     label: "PagBank",
     logo: "🏧",
     fields: [
-      { key: "token", label: "Token de Integração", placeholder: "...", secret: true },
-      { key: "email", label: "Email da conta PagBank", placeholder: "email@empresa.com" },
+      {
+        key: "token",
+        label: "Token de Integração",
+        placeholder: "...",
+        secret: true,
+      },
+      {
+        key: "email",
+        label: "Email da conta PagBank",
+        placeholder: "email@empresa.com",
+      },
     ],
   },
   {
@@ -72,8 +133,16 @@ const GATEWAYS: GatewayDef[] = [
     label: "PIX",
     logo: "🔑",
     fields: [
-      { key: "pixKey", label: "Chave PIX", placeholder: "CPF, CNPJ, email ou chave aleatória" },
-      { key: "pixName", label: "Nome do recebedor", placeholder: "Nome que aparece no PIX" },
+      {
+        key: "pixKey",
+        label: "Chave PIX",
+        placeholder: "CPF, CNPJ, email ou chave aleatória",
+      },
+      {
+        key: "pixName",
+        label: "Nome do recebedor",
+        placeholder: "Nome que aparece no PIX",
+      },
     ],
   },
   {
@@ -115,7 +184,9 @@ function S3ImageField({
             onClick={() => setMode("upload")}
             className={cn(
               "flex items-center gap-1 px-2.5 py-1 transition-colors",
-              mode === "upload" ? "bg-[#7C3AED] text-white" : "text-muted-foreground hover:bg-muted",
+              mode === "upload"
+                ? "bg-[#7C3AED] text-white"
+                : "text-muted-foreground hover:bg-muted",
             )}
           >
             <Upload className="size-3" /> Upload
@@ -125,7 +196,9 @@ function S3ImageField({
             onClick={() => setMode("url")}
             className={cn(
               "flex items-center gap-1 px-2.5 py-1 transition-colors",
-              mode === "url" ? "bg-[#7C3AED] text-white" : "text-muted-foreground hover:bg-muted",
+              mode === "url"
+                ? "bg-[#7C3AED] text-white"
+                : "text-muted-foreground hover:bg-muted",
             )}
           >
             <Link2 className="size-3" /> URL
@@ -166,7 +239,9 @@ function S3ImageField({
                 src={previewUrl}
                 alt={label}
                 className="max-h-full max-w-full object-contain p-2"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }}
               />
             </div>
           )}
@@ -191,10 +266,17 @@ function GatewayCard({
 }) {
   const [open, setOpen] = useState(false);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
-  const isConfigured = gateway.fields.some((f) => config[f.key] && config[f.key].trim() !== "");
+  const isConfigured = gateway.fields.some(
+    (f) => config[f.key] && config[f.key].trim() !== "",
+  );
 
   return (
-    <div className={cn("border rounded-xl overflow-hidden transition-all", isConfigured ? "border-[#7C3AED]/40 bg-[#7C3AED]/3" : "border-border")}>
+    <div
+      className={cn(
+        "border rounded-xl overflow-hidden transition-all",
+        isConfigured ? "border-[#7C3AED]/40 bg-[#7C3AED]/3" : "border-border",
+      )}
+    >
       <button
         type="button"
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors text-left"
@@ -207,13 +289,22 @@ function GatewayCard({
             <CheckCircle2 className="size-2.5" /> Configurado
           </Badge>
         )}
-        {open ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
+        {open ? (
+          <ChevronUp className="size-4 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="size-4 text-muted-foreground" />
+        )}
       </button>
 
       {open && (
         <div className="px-4 pb-4 space-y-3 border-t bg-card">
           {gateway.docUrl && (
-            <a href={gateway.docUrl} target="_blank" rel="noopener noreferrer" className="inline-block text-xs text-[#7C3AED] hover:underline mt-3">
+            <a
+              href={gateway.docUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block text-xs text-[#7C3AED] hover:underline mt-3"
+            >
               📖 Ver documentação {gateway.label} →
             </a>
           )}
@@ -232,13 +323,21 @@ function GatewayCard({
                   <button
                     type="button"
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowSecrets((p) => ({ ...p, [f.key]: !p[f.key] }))}
+                    onClick={() =>
+                      setShowSecrets((p) => ({ ...p, [f.key]: !p[f.key] }))
+                    }
                   >
-                    {showSecrets[f.key] ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    {showSecrets[f.key] ? (
+                      <EyeOff className="size-3.5" />
+                    ) : (
+                      <Eye className="size-3.5" />
+                    )}
                   </button>
                 )}
               </div>
-              {f.hint && <p className="text-[11px] text-muted-foreground">{f.hint}</p>}
+              {f.hint && (
+                <p className="text-[11px] text-muted-foreground">{f.hint}</p>
+              )}
             </div>
           ))}
         </div>
@@ -273,7 +372,9 @@ export function ForgeSettingsPanel() {
   const [footerImageKey, setFooterImageKey] = useState("");
 
   // Payment gateway configs
-  const [gatewayConfigs, setGatewayConfigs] = useState<Record<string, Record<string, string>>>({});
+  const [gatewayConfigs, setGatewayConfigs] = useState<
+    Record<string, Record<string, string>>
+  >({});
 
   const form = useForm<FormData>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -302,12 +403,21 @@ export function ForgeSettingsPanel() {
       setLogoKey(s.logoUrl ?? "");
       setHeaderImageKey(s.letterheadHeaderImage ?? "");
       setFooterImageKey(s.letterheadFooterImage ?? "");
-      const configs = s.paymentGatewayConfigs as Record<string, Record<string, string>>;
-      setGatewayConfigs(typeof configs === "object" && configs !== null ? configs : {});
+      const configs = s.paymentGatewayConfigs as Record<
+        string,
+        Record<string, string>
+      >;
+      setGatewayConfigs(
+        typeof configs === "object" && configs !== null ? configs : {},
+      );
     }
   }, [data]);
 
-  const handleGatewayChange = (gatewayId: string, field: string, value: string) => {
+  const handleGatewayChange = (
+    gatewayId: string,
+    field: string,
+    value: string,
+  ) => {
     setGatewayConfigs((prev) => ({
       ...prev,
       [gatewayId]: { ...(prev[gatewayId] ?? {}), [field]: value },
@@ -335,12 +445,18 @@ export function ForgeSettingsPanel() {
     }
   };
 
-  if (isLoading) return (
-    <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">Carregando...</div>
-  );
+  if (isLoading)
+    return (
+      <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">
+        Carregando...
+      </div>
+    );
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form
+      onSubmit={form.handleSubmit(onSubmit)}
+      className="space-y-6 px-4 pb-4"
+    >
       {/* Comissões */}
       <Card>
         <CardHeader className="pb-3">
@@ -353,11 +469,16 @@ export function ForgeSettingsPanel() {
             <Label>Percentual de comissão (%)</Label>
             <Input
               {...form.register("commissionPercentage")}
-              type="number" step="0.01" min="0" max="100"
-              className="max-w-xs" placeholder="0.00"
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              className="max-w-xs"
+              placeholder="0.00"
             />
             <p className="text-xs text-muted-foreground">
-              Calculado sobre o valor pago das propostas para exibir comissões no painel.
+              Calculado sobre o valor pago das propostas para exibir comissões
+              no painel.
             </p>
           </div>
         </CardContent>
@@ -367,7 +488,8 @@ export function ForgeSettingsPanel() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <ImageIcon className="size-4 text-[#7C3AED]" /> Timbrado & Identidade Visual
+            <ImageIcon className="size-4 text-[#7C3AED]" /> Timbrado &
+            Identidade Visual
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -431,9 +553,14 @@ export function ForgeSettingsPanel() {
                   {...form.register("proposalBgColor")}
                   className="w-10 h-9 rounded border cursor-pointer p-0.5"
                 />
-                <Input {...form.register("proposalBgColor")} className="flex-1 font-mono text-xs" />
+                <Input
+                  {...form.register("proposalBgColor")}
+                  className="flex-1 font-mono text-xs"
+                />
               </div>
-              <p className="text-[11px] text-muted-foreground">Cor de fundo da proposta pública.</p>
+              <p className="text-[11px] text-muted-foreground">
+                Cor de fundo da proposta pública.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label>Cor da tipografia</Label>
@@ -443,9 +570,14 @@ export function ForgeSettingsPanel() {
                   {...form.register("typographyColor")}
                   className="w-10 h-9 rounded border cursor-pointer p-0.5"
                 />
-                <Input {...form.register("typographyColor")} className="flex-1 font-mono text-xs" />
+                <Input
+                  {...form.register("typographyColor")}
+                  className="flex-1 font-mono text-xs"
+                />
               </div>
-              <p className="text-[11px] text-muted-foreground">Cor do texto na proposta pública.</p>
+              <p className="text-[11px] text-muted-foreground">
+                Cor do texto na proposta pública.
+              </p>
             </div>
           </div>
           {/* Live preview swatch */}
@@ -457,7 +589,9 @@ export function ForgeSettingsPanel() {
             }}
           >
             <p className="font-bold text-base">Preview: PROPOSTA Nº 0001</p>
-            <p className="mt-1 opacity-80">Nome do cliente · Válida até 30/12/2026</p>
+            <p className="mt-1 opacity-80">
+              Nome do cliente · Válida até 30/12/2026
+            </p>
             <p className="font-black text-lg mt-2">Total: R$ 2.500,00</p>
           </div>
         </CardContent>
@@ -467,19 +601,23 @@ export function ForgeSettingsPanel() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <CreditCard className="size-4 text-[#7C3AED]" /> Gateways de Pagamento
+            <CreditCard className="size-4 text-[#7C3AED]" /> Gateways de
+            Pagamento
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            Configure as credenciais dos gateways para gerar links de pagamento diretamente nas propostas.
+            Configure as credenciais dos gateways para gerar links de pagamento
+            diretamente nas propostas.
           </p>
           {GATEWAYS.map((gw) => (
             <GatewayCard
               key={gw.id}
               gateway={gw}
               config={gatewayConfigs[gw.id] ?? {}}
-              onChange={(field, value) => handleGatewayChange(gw.id, field, value)}
+              onChange={(field, value) =>
+                handleGatewayChange(gw.id, field, value)
+              }
             />
           ))}
         </CardContent>
@@ -497,15 +635,26 @@ export function ForgeSettingsPanel() {
             <Label>Quem pode visualizar propostas públicas</Label>
             <Select
               value={form.watch("securityLevel")}
-              onValueChange={(v) => form.setValue("securityLevel", v as "PUBLICO" | "PRIVADO" | "TWO_FA")}
+              onValueChange={(v) =>
+                form.setValue(
+                  "securityLevel",
+                  v as "PUBLICO" | "PRIVADO" | "TWO_FA",
+                )
+              }
             >
               <SelectTrigger className="max-w-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="PUBLICO">Público — qualquer um com o link</SelectItem>
-                <SelectItem value="PRIVADO">Privado — apenas logados</SelectItem>
-                <SelectItem value="TWO_FA">2FA — confirmação por email</SelectItem>
+                <SelectItem value="PUBLICO">
+                  Público — qualquer um com o link
+                </SelectItem>
+                <SelectItem value="PRIVADO">
+                  Privado — apenas logados
+                </SelectItem>
+                <SelectItem value="TWO_FA">
+                  2FA — confirmação por email
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -524,16 +673,24 @@ export function ForgeSettingsPanel() {
             <Label>Dias antes para aviso de vencimento</Label>
             <Input
               {...form.register("reminderDaysBefore")}
-              type="number" min="0" max="30" className="max-w-xs"
+              type="number"
+              min="0"
+              max="30"
+              className="max-w-xs"
             />
             <p className="text-xs text-muted-foreground">
-              Notifica o responsável quando proposta ou contrato estiver prestes a vencer.
+              Notifica o responsável quando proposta ou contrato estiver prestes
+              a vencer.
             </p>
           </div>
         </CardContent>
       </Card>
 
-      <Button type="submit" disabled={update.isPending} className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white">
+      <Button
+        type="submit"
+        disabled={update.isPending}
+        className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
+      >
         {update.isPending ? "Salvando..." : "Salvar Configurações"}
       </Button>
     </form>

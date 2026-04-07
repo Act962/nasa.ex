@@ -138,7 +138,7 @@ export function IntegrationsMarketplace() {
             </div>
 
             {/* Stats */}
-            <div className="flex md:flex-col gap-3 shrink-0">
+            <div className="flex md:flex-col gap-3 shrink-0 overflow-x-auto">
               {stats.map(({ label, value, icon: Icon }) => (
                 <div
                   key={label}

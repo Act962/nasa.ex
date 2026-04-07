@@ -29,24 +29,22 @@ export const CalendarHeader = ({
     .map((part) => part.value);
 
   return (
-    <div className="flex items-center pb-4">
+    <div className="flex items-center pb-2 tiny:pb-4">
       <VisuallyHidden>
         <h2>{calendarProps["aria-label"]}</h2>
       </VisuallyHidden>
-
-      <h2 className="capitalize font-semibold">
+      <h2 className="capitalize font-semibold text-sm tiny:text-base">
         {monthName}{" "}
-        <span className="text-muted-foreground text-sm font-medium">
+        <span className="text-muted-foreground text-xs tiny:text-sm font-medium">
           {year}
         </span>
       </h2>
-
-      <div className="flex items-center gap-2 ml-auto">
+      <div className="flex items-center gap-1 tiny:gap-2 ml-auto">
         <CalendarButton {...prevButtonProps} side="left">
-          <ChevronLeftIcon className="size-4" />
+          <ChevronLeftIcon className="size-3.5 tiny:size-4" />
         </CalendarButton>
         <CalendarButton {...nextButtonProps} side="right">
-          <ChevronRightIcon className="size-4" />
+          <ChevronRightIcon className="size-3.5 tiny:size-4" />
         </CalendarButton>
       </div>
     </div>
