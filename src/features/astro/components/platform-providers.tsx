@@ -14,7 +14,29 @@ function GlobalShortcutsRegistrar() {
   return null;
 }
 
+import { usePathname, useParams } from "next/navigation";
+
 export function PlatformProviders({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const params = useParams();
+
+  const isTrackingChatPage =
+    pathname.includes("tracking-chat") && params.conversationId;
+
+  if (isTrackingChatPage) {
+    return (
+      <TourProvider>
+        <MarketplaceProvider>
+          <SpacePointProvider>
+            {children}
+            <TourOverlay />
+            <HeartbeatProvider />
+          </SpacePointProvider>
+        </MarketplaceProvider>
+      </TourProvider>
+    );
+  }
+
   return (
     <TourProvider>
       <MarketplaceProvider>

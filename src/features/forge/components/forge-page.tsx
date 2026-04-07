@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/sheet";
 import { StarsWidget } from "@/features/stars";
 import { SpacePointWidget } from "@/features/space-point";
+import { HeaderTracking } from "@/features/leads/components/header-tracking";
 
 export function ForgePage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -26,19 +27,22 @@ export function ForgePage() {
     <ToastProvider>
       <div className="h-full w-full flex flex-col">
       {/* Top header */}
+      <HeaderTracking title="Forge" />
       <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-[#7C3AED] flex items-center justify-center shadow-sm">
             <Flame className="size-5 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-black tracking-tight leading-tight">FORGE</h1>
-            <p className="text-xs text-muted-foreground">Propostas comerciais & contratos</p>
+            <h1 className="text-lg font-black tracking-tight leading-tight">
+              FORGE
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Propostas comerciais & contratos
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <SpacePointWidget />
-          <StarsWidget />
           <Button
             size="icon"
             variant="ghost"
@@ -53,8 +57,8 @@ export function ForgePage() {
 
       {/* Tabs */}
       <Tabs defaultValue="dashboard" className="flex-1 flex flex-col min-h-0">
-        <div className="px-6 pt-4 border-b shrink-0">
-          <TabsList className="h-9">
+        <div className="px-6 pt-4 shrink-0 overflow-x-auto ">
+          <TabsList className="h-9 ">
             <TabsTrigger value="dashboard" className="text-xs gap-1.5">
               📊 Painel
             </TabsTrigger>
@@ -88,15 +92,16 @@ export function ForgePage() {
 
       {/* Settings Sheet */}
       <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-xl overflow-y-auto"
+        >
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Settings className="size-4" /> Configurações do FORGE
             </SheetTitle>
           </SheetHeader>
-          <div className="mt-6">
-            <ForgeSettingsPanel />
-          </div>
+          <ForgeSettingsPanel />
         </SheetContent>
       </Sheet>
     </div>

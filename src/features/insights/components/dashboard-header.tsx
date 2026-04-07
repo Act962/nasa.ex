@@ -50,9 +50,7 @@ export function DashboardHeader({
           <LayoutDashboard className="size-4 text-foreground" />
         </div>
         <div>
-          <h1 className="text-2xl font-medium tracking-tight">
-            Dashboard de Tracking
-          </h1>
+          <h1 className="text-2xl font-medium tracking-tight">Insights</h1>
           <p className="text-sm text-muted-foreground">
             Acompanhe suas métricas de leads e conversões em tempo real
           </p>

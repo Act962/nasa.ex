@@ -9,6 +9,7 @@ import { SpacePointWidget } from "@/features/space-point";
 import { APPS, type AppDef } from "./apps-data";
 import { AppCard, ComingSoonModal } from "./app-card";
 import { PersonalizarMenu } from "./personalizar-menu";
+import { HeaderTracking } from "@/features/leads/components/header-tracking";
 
 // ─── Filter Bar ───────────────────────────────────────────────────────────────
 
@@ -67,15 +68,16 @@ export function AppsPage() {
           <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-[#7C3AED]/3 blur-2xl" />
         </div>
 
+        <HeaderTracking title="Apps" />
         <div className="relative px-6 py-10 mx-auto">
-          <div className="flex items-center justify-end gap-2 mb-4">
-            <SpacePointWidget />
-            <StarsWidget />
-          </div>
           <div className="flex items-center gap-2 mb-1">
             <div className="flex gap-1">
               {["#7C3AED", "#a855f7", "#c084fc"].map((c, i) => (
-                <div key={i} className="w-2 h-2 rounded-full" style={{ backgroundColor: c }} />
+                <div
+                  key={i}
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: c }}
+                />
               ))}
             </div>
             <span className="text-xs text-muted-foreground font-medium tracking-widest uppercase">

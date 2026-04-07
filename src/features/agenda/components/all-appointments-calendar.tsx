@@ -40,7 +40,13 @@ import { toast } from "sonner";
 // ─── Localizer ────────────────────────────────────────────────────────────────
 
 const locales = { "pt-BR": ptBR };
-const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales,
+});
 
 const DnDCalendar = withDragAndDrop<CalendarEvent>(Calendar);
 
@@ -63,11 +69,11 @@ interface ShowMoreState {
 // ─── Status colours ───────────────────────────────────────────────────────────
 
 const statusChipColors: Record<string, string> = {
-  PENDING:   "bg-yellow-100 border-l-yellow-500 text-yellow-800",
+  PENDING: "bg-yellow-100 border-l-yellow-500 text-yellow-800",
   CONFIRMED: "bg-green-100  border-l-green-500  text-green-800",
   CANCELLED: "bg-red-100    border-l-red-500    text-red-800",
-  NO_SHOW:   "bg-red-100    border-l-red-500    text-red-800",
-  DONE:      "bg-blue-100   border-l-blue-500   text-blue-800",
+  NO_SHOW: "bg-red-100    border-l-red-500    text-red-800",
+  DONE: "bg-blue-100   border-l-blue-500   text-blue-800",
 };
 const defaultChip = "bg-slate-100 border-l-slate-400 text-slate-800";
 
@@ -140,9 +146,12 @@ export function AllAppointmentsCalendar() {
     setCreateOpen(true);
   };
 
-  const handleSelectEvent = useCallback((event: CalendarEvent) => {
-    openAppointment(event.id);
-  }, [openAppointment]);
+  const handleSelectEvent = useCallback(
+    (event: CalendarEvent) => {
+      openAppointment(event.id);
+    },
+    [openAppointment],
+  );
 
   const handleShowMore = useCallback((events: CalendarEvent[], date: Date) => {
     setShowMore({ events, date, position: { ...lastClickPos.current } });
@@ -151,9 +160,10 @@ export function AllAppointmentsCalendar() {
   const handleEventDrop = useCallback(
     ({ event, start }: EventInteractionArgs<CalendarEvent>) => {
       const ev = event;
-      const newStart = start instanceof Date ? start : new Date(start as string);
+      const newStart =
+        start instanceof Date ? start : new Date(start as string);
       const originalStart = new Date(ev.start);
-      const originalEnd   = new Date(ev.end);
+      const originalEnd = new Date(ev.end);
       const duration = originalEnd.getTime() - originalStart.getTime();
 
       const movedStart = new Date(newStart);
@@ -171,11 +181,11 @@ export function AllAppointmentsCalendar() {
             {
               appointmentId: ev.id,
               startsAt: movedStart.toISOString(),
-              endsAt:   movedEnd.toISOString(),
+              endsAt: movedEnd.toISOString(),
             },
             {
               onSuccess: () => resolve(),
-              onError:   (e) => reject(e),
+              onError: (e) => reject(e),
             },
           );
         }),
@@ -190,10 +200,10 @@ export function AllAppointmentsCalendar() {
   );
 
   const events: CalendarEvent[] = appointments.map((a) => ({
-    start:  new Date(a.startsAt),
-    end:    new Date(a.endsAt),
-    title:  a.title,
-    id:     a.id,
+    start: new Date(a.startsAt),
+    end: new Date(a.endsAt),
+    title: a.title,
+    id: a.id,
     status: a.status,
   }));
 
@@ -220,18 +230,18 @@ export function AllAppointmentsCalendar() {
             loc?.format(date, "EEE", culture) ?? "",
         }}
         messages={{
-          today:           "Hoje",
-          previous:        "Anterior",
-          next:            "Próximo",
-          month:           "Mês",
-          week:            "Semana",
-          day:             "Dia",
-          agenda:          "Agenda",
-          date:            "Data",
-          time:            "Hora",
-          event:           "Evento",
+          today: "Hoje",
+          previous: "Anterior",
+          next: "Próximo",
+          month: "Mês",
+          week: "Semana",
+          day: "Dia",
+          agenda: "Agenda",
+          date: "Data",
+          time: "Hora",
+          event: "Evento",
           noEventsInRange: "Nenhum evento neste período",
-          showMore:        (total) => `+ ${total} mais`,
+          showMore: (total) => `+ ${total} mais`,
         }}
         components={{
           event: ({ event }) => <EventChip event={event} />,
@@ -274,7 +284,9 @@ export function AllAppointmentsCalendar() {
       {/* Detalhar agendamento — sempre montado para o Radix animar o fechamento corretamente */}
       <ViewAppointment
         open={viewOpen}
-        onOpenChange={(o) => { if (!o) closeAppointment(); }}
+        onOpenChange={(o) => {
+          if (!o) closeAppointment();
+        }}
         appointmentId={viewId}
       />
     </div>
@@ -289,33 +301,47 @@ interface CalendarToolbarProps {
   onNewAppointment: () => void;
 }
 
-function CalendarToolbar({ date, onNavigate, onNewAppointment }: CalendarToolbarProps) {
+function CalendarToolbar({
+  date,
+  onNavigate,
+  onNewAppointment,
+}: CalendarToolbarProps) {
   const { locale } = useLocale();
   return (
-    <div className="flex mb-4 gap-x-2 items-center w-full justify-between">
-      <div className="flex gap-x-2 items-center">
-        <Button onClick={() => onNavigate("PREV")} variant="outline" size="icon-sm">
-          <ChevronLeftIcon className="size-4" />
-        </Button>
-        <div className="flex items-center border border-input rounded-md px-3 py-2 h-8 justify-center capitalize min-w-36">
-          <CalendarIcon className="size-4 mr-2 flex-shrink-0" />
-          <p className="text-sm font-medium">
-            {dayjs(date).locale(locale).format("MMMM YYYY")}
-          </p>
+    <div className="flex mb-4 gap-x-2 items-center w-full justify-center sm:justify-between">
+      <div className="flex gap-2 items-center flex-col sm:flex-row ">
+        <div className="flex gap-x-2 items-center ">
+          <Button
+            onClick={() => onNavigate("PREV")}
+            variant="outline"
+            size="icon-sm"
+          >
+            <ChevronLeftIcon className="size-4" />
+          </Button>
+          <div className="flex items-center border border-input rounded-md px-3 py-2 h-8 justify-center capitalize min-w-36">
+            <CalendarIcon className="size-4 mr-2 shrink-0" />
+            <p className="text-sm font-medium">
+              {dayjs(date).locale(locale).format("MMMM YYYY")}
+            </p>
+          </div>
+          <Button
+            onClick={() => onNavigate("NEXT")}
+            variant="outline"
+            size="icon-sm"
+          >
+            <ChevronRightIcon className="size-4" />
+          </Button>
         </div>
-        <Button onClick={() => onNavigate("NEXT")} variant="outline" size="icon-sm">
-          <ChevronRightIcon className="size-4" />
+
+        <Button
+          onClick={onNewAppointment}
+          size="sm"
+          className="flex items-center gap-1"
+        >
+          <PlusIcon className="size-4" />
+          Novo compromisso
         </Button>
       </div>
-
-      <Button
-        onClick={onNewAppointment}
-        size="sm"
-        className="flex items-center gap-1"
-      >
-        <PlusIcon className="size-4" />
-        Novo compromisso
-      </Button>
     </div>
   );
 }

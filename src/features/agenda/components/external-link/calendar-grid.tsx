@@ -35,16 +35,16 @@ export function CalendarGrid({
 
   return (
     <table {...gridProps} cellPadding={0} className="flex-1">
-      <thead {...headerProps} className="text-sm font-medium">
+      <thead {...headerProps} className="text-[10px] tiny:text-xs sm:text-sm font-medium">
         <tr>
           {weekDays.map((day, index) => (
-            <th key={index} className="font-normal!">
+            <th key={index} className="px-1 font-normal!">
               {day}
             </th>
           ))}
         </tr>
       </thead>
-      <tbody className="calendar--body border-spacing-[0_28px]">
+      <tbody className="calendar--body border-spacing-[0_2px] tiny:border-spacing-[0_4px] sm:border-spacing-[0_28px]">
         {Array.from({ length: weeksInMonth }, (_, weekIndex) => (
           <tr key={weekIndex}>
             {state
