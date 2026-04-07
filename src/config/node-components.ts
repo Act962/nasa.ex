@@ -1,4 +1,5 @@
 import { InitialNode } from "@/components/initial-node";
+import { FilterLeadNode } from "@/features/executions/components/filter-lead/node";
 import { HttpRequestNode } from "@/features/executions/components/http-request/node";
 import { MoveLeadNode } from "@/features/executions/components/move-lead/node";
 import { ResponsibleNode } from "@/features/executions/components/responsible/node";
@@ -30,6 +31,7 @@ export const nodeComponents = {
   [NodeType.MOVE_LEAD_STATUS]: MoveLeadStatusTriggerNode,
   [NodeType.LEAD_TAGGED]: LeadTaggedTriggerNode,
   [NodeType.AI_FINISHED]: AiFinishedTriggerNode,
+  [NodeType.FILTER_LEAD]: FilterLeadNode,
 } as const satisfies NodeTypes;
 
 export type RegisteredNodeTypes = keyof typeof nodeComponents;

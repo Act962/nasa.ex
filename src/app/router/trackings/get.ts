@@ -15,7 +15,7 @@ export const getTracking = base
   .input(
     z.object({
       trackingId: z.string(),
-    })
+    }),
   )
   .output(
     z.object({
@@ -26,8 +26,9 @@ export const getTracking = base
         updatedAt: z.date(),
         organizationId: z.string(),
         description: z.string().nullable(),
+        isTemplate: z.boolean(),
       }),
-    })
+    }),
   )
   .handler(async ({ input, errors }) => {
     const tracking = await prisma.tracking.findUnique({

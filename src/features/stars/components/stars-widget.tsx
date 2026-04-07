@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/popover";
 import { StarIcon } from "./star-icon";
 import { StarsPurchaseModal } from "./stars-purchase-modal";
-import { PlanSelectModal } from "./plan-select-modal";
+import { PlanPurchaseModal } from "./plan-purchase-modal";
 import { Plus, TrendingUp, AlertTriangle, Zap, Sparkles } from "lucide-react";
 
 // ─── Consumed bar ─────────────────────────────────────────────────────────────
@@ -278,11 +278,8 @@ export function StarsWidget() {
         )}
       </div>
 
-      <StarsPurchaseModal
-        open={purchaseOpen}
-        onClose={() => setPurchaseOpen(false)}
-      />
-      <PlanSelectModal open={planOpen} onClose={() => setPlanOpen(false)} />
+      <StarsPurchaseModal open={purchaseOpen} onClose={() => setPurchaseOpen(false)} />
+      <PlanPurchaseModal  open={planOpen}     onClose={() => setPlanOpen(false)} currentPlanSlug={planSlug} />
     </>
   );
 }

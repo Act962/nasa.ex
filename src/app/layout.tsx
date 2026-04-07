@@ -1,7 +1,7 @@
 import "../lib/orpc.server"; // for pre-rendering
 
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Bungee } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 
@@ -10,6 +10,12 @@ import { Providers } from "@/components/providers";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+});
+
+const bungee = Bungee({
+  variable: "--font-bungee",
+  subsets: ["latin"],
+  weight: "400",
 });
 
 // 1918 x 850
@@ -51,7 +57,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body className={`${inter.variable} antialiased`}>
+      <body className={`${inter.variable} ${bungee.variable} antialiased`}>
         <Providers>
           <Toaster position="bottom-left" />
           {children}

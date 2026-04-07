@@ -33,6 +33,8 @@ const proposalShape = z.object({
   paymentGateway: z.string().nullable(),
   publicToken: z.string(),
   headerConfig: z.any(),
+  isTemplate: z.boolean(),
+  templateMarkedByModerator: z.boolean(),
   createdById: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),

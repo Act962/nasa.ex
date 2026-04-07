@@ -39,15 +39,12 @@ interface Message {
 const GREETING: Message = {
   id: "greeting",
   role: "astro",
-  text: "Olá! Sou o **ASTRO** 👨‍🚀 Seu assistente inteligente do NASA.\n\nPosso te ajudar a instalar integrações, entender o **Método NASA**, configurar ferramentas e guiar sua operação comercial. Como posso ajudar?",
+  text: "Olá! Sou o **ASTRO** 👨‍🚀 Seu assistente inteligente do NASA.\n\nConheço toda a plataforma: Tracking, FORGE, Workspace, Agendas, Stars, Padrões NASA e muito mais. Como posso ajudar?",
   quickReplies: [
-    { label: "🔌 Instalar integração", value: "quero instalar uma integração" },
     { label: "🚀 Método NASA", value: "o que é o método nasa" },
-    { label: "📊 Como usar o FORGE?", value: "como usar o forge" },
-    {
-      label: "📋 Ver todas funcionalidades",
-      value: "quais são as funcionalidades",
-    },
+    { label: "📋 Ver todas funcionalidades", value: "quais são as funcionalidades" },
+    { label: "🔌 Instalar integração", value: "quero instalar uma integração" },
+    { label: "⭐ O que são Stars?", value: "o que são stars" },
   ],
 };
 
@@ -110,15 +107,11 @@ function buildAstroResponse(
       {
         id: id(),
         role: "astro",
-        text: `Vou te guiar para habilitar **${pendingInstall.name}** no NASA! 🚀\n\n${pendingInstall.description}\n\nApós habilitar, você precisará acessar a página da integração e inserir as credenciais da **sua conta** ${pendingInstall.name}.\n\nClique em **Confirmar** para habilitar.`,
+        text: `Vou te guiar para habilitar **${pendingInstall.name}** no NASA! 🚀\n\n${pendingInstall.description}\n\nApós habilitar, acesse a página da integração e insira as credenciais da **sua conta** ${pendingInstall.name}.\n\nClique em **Confirmar** para habilitar.`,
         integration: pendingInstall,
         quickReplies: [
           { label: "✅ Confirmar", value: `__install:${pendingInstall.slug}` },
-          {
-            label: "📖 Ver detalhes",
-            value: `detalhes ${pendingInstall.name}`,
-            link: `/integrations/${pendingInstall.slug}`,
-          },
+          { label: "📖 Ver detalhes", value: `detalhes ${pendingInstall.name}`, link: `/integrations/${pendingInstall.slug}` },
           { label: "❌ Cancelar", value: "cancelar" },
         ],
       },
@@ -127,11 +120,8 @@ function buildAstroResponse(
 
   // ── Método NASA ────────────────────────────────────────────────────────────
   if (
-    q.includes("método nasa") ||
-    q.includes("metodo nasa") ||
-    q.includes("metodologia") ||
-    q.includes("processo de vendas") ||
-    q.includes("necessidade") ||
+    q.includes("método nasa") || q.includes("metodo nasa") ||
+    q.includes("metodologia") || q.includes("processo de vendas") ||
     q.includes("sistematização") ||
     (q.includes("método") && recentContext.includes("nasa"))
   ) {
@@ -139,60 +129,112 @@ function buildAstroResponse(
       {
         id: id(),
         role: "astro",
-        text: "O **Método NASA** estrutura todo o processo comercial em 4 etapas: 🚀\n\n**N — Necessidade**\nEntenda o que o cliente precisa. Use o **Chat** para capturar leads e o **Tracking** para qualificá-los no pipeline.\n\n**A — Análise**\nAnalise o mercado e o perfil do cliente. Use **Insights** com dashboards e métricas em tempo real.\n\n**S — Sistematização**\nOrganize ferramentas e processos. Configure **Integrações**, **automações** e fluxos no Tracking.\n\n**A — Ação**\nExecute com propostas e contratos. Use o **FORGE** para enviar propostas, gerar contratos e fechar negócios.\n\n💡 Qual etapa você quer aprofundar?",
+        text: "O **Método NASA** estrutura todo o processo comercial em 4 etapas: 🚀\n\n**N — Necessidade**\nEntenda o que o cliente precisa. Use o **Chat** para capturar leads e o **Tracking** para qualificá-los.\n\n**A — Análise**\nAnalise o perfil e comportamento. Use **Insights** com dashboards em tempo real.\n\n**S — Sistematização**\nOrganize processos. Configure **Integrações**, **Automações**, **Agendas** e **Workspace**.\n\n**A — Ação**\nExecute com velocidade. Use o **FORGE** para enviar propostas, gerar contratos e fechar negócios.\n\n💡 Qual etapa você quer aprofundar?",
         quickReplies: [
-          {
-            label: "🎯 N — Necessidade (Chat)",
-            value: "como usar o chat",
-            link: "/chat",
-          },
-          {
-            label: "📊 A — Análise (Insights)",
-            value: "como usar insights",
-            link: "/insights",
-          },
-          {
-            label: "⚙️ S — Sistematizar (Integrações)",
-            value: "quero instalar uma integração",
-            link: "/integrations",
-          },
-          {
-            label: "🔥 A — Ação (FORGE)",
-            value: "como usar o forge",
-            link: "/forge",
-          },
+          { label: "🎯 N — Chat & Leads", value: "como usar o chat", link: "/chat" },
+          { label: "📊 A — Insights", value: "como usar insights", link: "/insights" },
+          { label: "⚙️ S — Workspace", value: "como usar workspace", link: "/workspaces" },
+          { label: "🔥 A — FORGE", value: "como usar o forge", link: "/forge" },
         ],
       },
     ];
   }
 
-  // ── Configure credentials / settings ──────────────────────────────────────
+  // ── Stars ──────────────────────────────────────────────────────────────────
   if (
-    q.includes("credenci") || // covers "credencial" and "credenciais"
-    q.includes("configurar integração") ||
-    q.includes("configurar agora") ||
-    q.includes("como configuro") ||
-    q.includes("como configur") ||
-    q.includes("setup") ||
-    q.includes("ativar integração")
+    q.includes("star") || q.includes("estrela") || q.includes("crédito") ||
+    q.includes("saldo de star") || q.includes("stars")
   ) {
-    if (lastInstalledIntegration) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "⭐ **Stars** são os créditos da plataforma NASA!\n\nCada funcionalidade de IA (chat com IA, agendamento por IA, geração de conteúdo) consome Stars. Elas funcionam como \"combustível\" para os recursos inteligentes.\n\n**Como funcionam:**\n• Seu plano define o saldo mensal de Stars\n• Cada organização tem seu próprio saldo\n• Admin pode distribuir Stars entre usuários\n• Pode ser por pool compartilhado, divisão igual ou orçamento individual\n\n**Modos de distribuição:**\n• **Pool da org** — todos compartilham o saldo\n• **Igual** — dividido igualmente entre membros ativos\n• **Personalizado** — cada membro tem seu orçamento\n\n📍 Acesse: **Menu → Admin → Stars**",
+        quickReplies: [
+          { label: "⭐ Ver saldo de Stars", value: "ver saldo stars", link: "/admin/stars" },
+          { label: "📦 Ver planos", value: "quais são os planos", link: "/plans" },
+          { label: "🏆 Space Points", value: "o que são space points" },
+        ],
+      },
+    ];
+  }
+
+  // ── Space Points ───────────────────────────────────────────────────────────
+  if (
+    q.includes("space point") || q.includes("ponto") || q.includes("gamificação") ||
+    q.includes("ranking") || q.includes("premiação") || q.includes("recompensa")
+  ) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "🏆 **Space Points** é o sistema de gamificação do NASA!\n\nMembros acumulam pontos ao realizar ações dentro da plataforma (fechar leads, completar tarefas, etc.).\n\n**Como funciona:**\n• Administrador configura as **regras de pontuação** (ex: fechar lead = 50 pts)\n• Membros veem seus pontos em tempo real\n• **Ranking** mostra os melhores da equipe\n• Admin pode definir **prêmios** para o pódio\n\n**Configuração:**\n📍 **Admin → Space Points → Regras**\n\nÉ uma excelente forma de motivar a equipe comercial! 🚀",
+        quickReplies: [
+          { label: "🏆 Ver ranking", value: "ver ranking space points", link: "/space-points" },
+          { label: "⭐ O que são Stars?", value: "o que são stars" },
+          { label: "👥 Gerenciar membros", value: "como gerenciar membros" },
+        ],
+      },
+    ];
+  }
+
+  // ── Planos / Plans ─────────────────────────────────────────────────────────
+  if (
+    q.includes("plano") || q.includes("plan") || q.includes("assinatura") ||
+    q.includes("upgrade") || q.includes("preço") || q.includes("mensalidade")
+  ) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "📦 O NASA oferece diferentes **planos de assinatura** com níveis de recursos e Stars mensais.\n\nCada plano define:\n• Quantidade de **Stars** mensais (créditos de IA)\n• Número máximo de **usuários**\n• Percentual de **rollover** (Stars não usadas passam para o próximo mês)\n• Acesso a funcionalidades avançadas\n\n💡 Quanto maior o plano, mais Stars e usuários disponíveis.\n\n📍 Acesse: **Menu → Planos** (página inicial) ou fale com o administrador.",
+        quickReplies: [
+          { label: "📦 Ver planos", value: "ver planos", link: "/plans" },
+          { label: "⭐ O que são Stars?", value: "o que são stars" },
+          { label: "🚀 Funcionalidades", value: "quais são as funcionalidades" },
+        ],
+      },
+    ];
+  }
+
+  // ── Padrões NASA / Templates ───────────────────────────────────────────────
+  if (
+    q.includes("padrão") || q.includes("padrões") || q.includes("template") ||
+    q.includes("modelo") || q.includes("exemplo") || q.includes("pré-configurado")
+  ) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "✨ **Padrões NASA** são configurações prontas criadas pela NASA para você começar rápido!\n\nDisponíveis para:\n• **Tracking** — funis de vendas completos (status, tags, automações, agendas)\n• **Workspace** — quadros ágeis com colunas e automações prontas\n• **Propostas** — modelos de proposta com produtos\n• **Contratos** — contratos com cláusulas e variáveis dinâmicas\n\n**Como usar:**\n1. Acesse a seção desejada (ex: Trackings)\n2. Role até **Padrões NASA disponíveis** no final\n3. Clique em **Usar** — tudo é copiado para sua conta\n\n💡 Ótimo para novos usuários que querem começar sem configurar tudo do zero!",
+        quickReplies: [
+          { label: "📊 Padrões de Tracking", value: "como usar tracking", link: "/tracking" },
+          { label: "📋 Padrões de Workspace", value: "como usar workspace", link: "/workspaces" },
+          { label: "🔥 Padrões FORGE", value: "como usar o forge", link: "/forge" },
+          { label: "⚙️ Admin de Padrões", value: "admin padrões", link: "/admin/patterns" },
+        ],
+      },
+    ];
+  }
+
+  // ── Workspace ──────────────────────────────────────────────────────────────
+  if (
+    q.includes("workspace") || q.includes("quadro") || q.includes("kanban") ||
+    q.includes("projeto") || q.includes("tarefa") || q.includes("ação") ||
+    q.includes("task") || q.includes("board")
+  ) {
+    if (
+      q.includes("automação") || q.includes("automatizar") || q.includes("workspace automation")
+    ) {
       return [
         {
           id: id(),
           role: "astro",
-          text: `Para conectar o **${lastInstalledIntegration.name}** ao NASA, você precisará inserir suas próprias credenciais da conta que você já possui nessa plataforma. 🔑\n\nO NASA fornece o caminho — as credenciais são suas:\n\n1. Acesse a **página da integração** (botão abaixo)\n2. Clique em **Configurar**\n3. Insira os dados da sua conta ${lastInstalledIntegration.name} (Token, API Key ou Webhook)\n4. Salve — cada empresa do seu painel tem suas próprias credenciais\n\n💡 Essas informações são obtidas diretamente no painel da ${lastInstalledIntegration.name}.`,
+          text: "⚙️ **Automações do Workspace** executam ações automáticas baseadas em gatilhos!\n\nExemplos:\n• Mover card para coluna quando responsável é atribuído\n• Notificar membros ao concluir uma ação\n• Alertar quando ação está atrasada\n\n**Como criar:**\n📍 **Workspace → [abra o workspace] → Configurações → Automações → Nova Automação**\n\nDefina o **gatilho**, as **condições** e as **ações** a executar.",
           quickReplies: [
-            {
-              label: `⚙️ Abrir ${lastInstalledIntegration.name}`,
-              value: `abrir ${lastInstalledIntegration.name}`,
-              link: `/integrations/${lastInstalledIntegration.slug}`,
-            },
-            { label: "❓ O que é API Key?", value: "o que é api key" },
-            {
-              label: "🔌 Instalar outra integração",
-              value: "quero instalar uma integração",
-            },
+            { label: "📋 Abrir Workspace", value: "abrir workspace", link: "/workspaces" },
+            { label: "✨ Usar padrão Workspace", value: "padrões nasa" },
+            { label: "⚙️ Automações Tracking", value: "como criar automação tracking" },
           ],
         },
       ];
@@ -201,48 +243,442 @@ function buildAstroResponse(
       {
         id: id(),
         role: "astro",
-        text: "O NASA oferece o caminho para conectar ferramentas — as credenciais são **suas próprias contas** em cada plataforma. 🔑\n\nCada empresa no seu painel pode ter credenciais diferentes para a mesma integração.\n\n📍 Para configurar: **Menu → Integrações → selecione a integração → Configurar**\n\nQual integração você quer conectar?",
+        text: "📋 O **Workspace** é o gerenciador de projetos e tarefas do NASA!\n\nFuncionalidades:\n• **Quadro Kanban** com colunas personalizáveis\n• **Ações** (tarefas) com responsáveis, datas, prioridade e subtarefas\n• **Tags** para categorizar ações\n• **Automações** para mover e notificar automaticamente\n• **Membros** com diferentes permissões\n• **Padrões NASA** com modelos prontos\n\n**Tipos de ação:** Tarefa, Ação, Reunião, Nota\n**Prioridades:** Nenhuma, Baixa, Média, Alta, Urgente\n\n📍 Acesse: **Menu → Workspace**",
         quickReplies: [
-          {
-            label: "🔌 Ver Integrações",
-            value: "listar integrações",
-            link: "/integrations",
-          },
-          {
-            label: "💬 Configurar WhatsApp",
-            value: "configurar whatsapp",
-            link: "/integrations/whatsapp-business",
-          },
-          {
-            label: "📷 Configurar Instagram",
-            value: "configurar instagram",
-            link: "/integrations/instagram-dm",
-          },
+          { label: "📋 Abrir Workspace", value: "abrir workspace", link: "/workspaces" },
+          { label: "✨ Usar padrão Workspace", value: "padrões nasa" },
+          { label: "⚙️ Automações do Workspace", value: "como criar automação workspace" },
+          { label: "🚀 Método NASA", value: "o que é o método nasa" },
+        ],
+      },
+    ];
+  }
+
+  // ── Configure credentials / settings ──────────────────────────────────────
+  if (
+    q.includes("credenci") || q.includes("configurar integração") ||
+    q.includes("configurar agora") || q.includes("como configuro") ||
+    q.includes("como configur") || q.includes("setup") || q.includes("ativar integração")
+  ) {
+    if (lastInstalledIntegration) {
+      return [
+        {
+          id: id(),
+          role: "astro",
+          text: `Para conectar o **${lastInstalledIntegration.name}** ao NASA, insira as credenciais da sua conta nessa plataforma. 🔑\n\n1. Acesse a **página da integração** (botão abaixo)\n2. Clique em **Configurar**\n3. Insira Token, API Key ou Webhook da sua conta ${lastInstalledIntegration.name}\n4. Salve — cada empresa tem suas próprias credenciais\n\n💡 As credenciais são obtidas diretamente no painel da ${lastInstalledIntegration.name}.`,
+          quickReplies: [
+            { label: `⚙️ Abrir ${lastInstalledIntegration.name}`, value: `abrir ${lastInstalledIntegration.name}`, link: `/integrations/${lastInstalledIntegration.slug}` },
+            { label: "❓ O que é API Key?", value: "o que é api key" },
+            { label: "🔌 Instalar outra", value: "quero instalar uma integração" },
+          ],
+        },
+      ];
+    }
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "O NASA oferece o caminho para conectar ferramentas — as credenciais são **suas próprias contas** em cada plataforma. 🔑\n\nCada empresa no seu painel pode ter credenciais diferentes para a mesma integração.\n\n📍 Para configurar: **Menu → Integrações → selecione a integração → Configurar**",
+        quickReplies: [
+          { label: "🔌 Ver Integrações", value: "listar integrações", link: "/integrations" },
+          { label: "💬 Configurar WhatsApp", value: "configurar whatsapp", link: "/integrations/whatsapp-business" },
+          { label: "📷 Configurar Instagram", value: "configurar instagram", link: "/integrations/instagram-dm" },
         ],
       },
     ];
   }
 
   // ── API Key / Token / Webhook ──────────────────────────────────────────────
+  if (q.includes("api key") || q.includes("token") || q.includes("webhook") || q.includes("o que é api")) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "**API Key** é uma chave da sua conta em outra plataforma que autoriza o NASA a se comunicar com ela. 🔑\n\n1. Acesse o painel da plataforma (ex: Meta Business Suite, Google Cloud Console)\n2. Localize a seção **API**, **Desenvolvedor** ou **Integrações**\n3. Gere e copie sua chave\n4. Cole no campo de configuração da integração no NASA\n\n💡 Cada empresa do seu painel pode ter tokens diferentes para a mesma ferramenta.",
+        quickReplies: [
+          { label: "🔌 Ir para Integrações", value: "listar integrações", link: "/integrations" },
+          { label: "💬 Configurar WhatsApp", value: "configurar whatsapp" },
+          { label: "🚀 Voltar ao início", value: "início" },
+        ],
+      },
+    ];
+  }
+
+  // ── FORGE — detalhes específicos ───────────────────────────────────────────
+  if (q.includes("como enviar proposta") || q.includes("enviar proposta")) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "📄 **Como enviar uma proposta no FORGE:**\n\n1. Acesse **FORGE → Propostas**\n2. Clique em **Nova Proposta**\n3. Preencha título, cliente, produtos e valores\n4. Defina desconto (percentual ou fixo) se necessário\n5. Salve e mude o status para **Enviada**\n6. Copie o **link público** (ícone compartilhar) e envie ao cliente\n\n💡 O cliente acessa o link sem precisar de login e pode visualizar a proposta. Quando visualizado, o status muda automaticamente para **Visualizada**.",
+        quickReplies: [
+          { label: "🔥 Abrir FORGE", value: "abrir forge", link: "/forge" },
+          { label: "📋 Criar contrato após proposta", value: "como gerar contrato" },
+          { label: "💳 Configurar pagamento", value: "configurar pagamento forge" },
+        ],
+      },
+    ];
+  }
+
+  if (q.includes("como gerar contrato") || q.includes("gerar contrato") || q.includes("contrato a partir")) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "📋 **Como gerar um contrato a partir de uma proposta:**\n\n1. Acesse **FORGE → Propostas**\n2. No card da proposta, clique em **···** (mais opções)\n3. Selecione **Gerar Contrato**\n4. Preencha datas, valor e adicione os **assinantes** (nome + e-mail)\n5. Escreva o conteúdo ou use um **Padrão de contrato**\n6. Salve e compartilhe os links de assinatura\n\n💡 Cada assinante recebe um **link individual** para assinar eletronicamente. Você pode enviar por **WhatsApp** ou **e-mail** diretamente pelo sistema.",
+        quickReplies: [
+          { label: "🔥 Abrir FORGE", value: "abrir forge", link: "/forge" },
+          { label: "📄 Padrões de contrato", value: "padrões nasa" },
+          { label: "🔗 Enviar para assinatura", value: "como assinar contrato" },
+        ],
+      },
+    ];
+  }
+
+  if (q.includes("assinar contrato") || q.includes("assinatura") || q.includes("assinar")) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "✍️ **Assinatura eletrônica no FORGE:**\n\nO cliente assina pelo **link individual** gerado para ele:\n\n1. No contrato, clique em **compartilhar** (ícone ao lado do contrato)\n2. Você verá todos os assinantes com seus links\n3. Envie por **WhatsApp** ou **E-mail** diretamente pela tela\n4. O cliente acessa o link e assina sem precisar de conta\n5. Quando assinar, o status do contrato atualiza automaticamente\n\n💡 Você acompanha em tempo real quem assinou e quem ainda não assinou.",
+        quickReplies: [
+          { label: "🔥 Abrir FORGE", value: "abrir forge", link: "/forge" },
+          { label: "📋 Criar contrato", value: "como gerar contrato" },
+          { label: "📄 Padrões de contrato", value: "padrões nasa" },
+        ],
+      },
+    ];
+  }
+
+  if (q.includes("produto") || q.includes("produto forge") || q.includes("catálogo")) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "📦 **Produtos no FORGE:**\n\nAntes de criar propostas, cadastre seus produtos/serviços:\n\n📍 **FORGE → Produtos → Novo Produto**\n\nCampos:\n• **Nome** e **SKU** (código único)\n• **Valor** unitário\n• **Unidade** (un, hr, mês, projeto...)\n• **Descrição** do produto\n\nNa proposta, adicione os produtos do catálogo e defina quantidade, valor e desconto por item.",
+        quickReplies: [
+          { label: "🔥 Abrir FORGE", value: "abrir forge", link: "/forge" },
+          { label: "📨 Criar proposta", value: "como enviar proposta" },
+          { label: "✨ Padrões NASA FORGE", value: "padrões nasa" },
+        ],
+      },
+    ];
+  }
+
+  if (q.includes("configurar pagamento forge") || q.includes("gateway de pagamento") || q.includes("link de pagamento")) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "💳 **Gateways de Pagamento no FORGE:**\n\nVocê pode adicionar links de pagamento nas propostas:\n\n📍 **FORGE → ⚙️ Configurações → Gateways de Pagamento**\n\nGateways suportados:\n• Stripe\n• Asaas\n• PagBank\n• PagSeguro\n• Mercado Pago\n• Banco do Brasil\n• Caixa Econômica\n• PIX\n\nApós configurar, ao criar uma proposta você pode anexar um link de pagamento e o cliente paga diretamente pela proposta.",
+        quickReplies: [
+          { label: "🔥 Abrir FORGE", value: "abrir forge", link: "/forge" },
+          { label: "💳 Instalar Stripe", value: "instalar stripe" },
+          { label: "💳 Instalar Asaas", value: "instalar asaas" },
+        ],
+      },
+    ];
+  }
+
+  // ── FORGE geral ────────────────────────────────────────────────────────────
+  if (q.includes("forge") || q.includes("proposta") || q.includes("contrato")) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "🔥 O **FORGE** é o módulo comercial completo do NASA!\n\n**Propostas:**\n• Criar com produtos, descontos e validade\n• Link público para o cliente visualizar\n• Status: Rascunho → Enviada → Visualizada → Paga\n\n**Contratos:**\n• Gerados a partir de propostas ou do zero\n• Assinatura eletrônica individual por link\n• Envio por WhatsApp ou e-mail\n\n**Produtos:** Catálogo com SKU, valor e unidade\n**Padrões:** Modelos prontos de proposta e contrato\n\n📍 Acesse: **Menu → FORGE**",
+        quickReplies: [
+          { label: "🔥 Abrir FORGE", value: "abrir forge", link: "/forge" },
+          { label: "📨 Enviar proposta", value: "como enviar proposta" },
+          { label: "📋 Gerar contrato", value: "como gerar contrato" },
+          { label: "✨ Padrões FORGE", value: "padrões nasa" },
+        ],
+      },
+    ];
+  }
+
+  // ── Tracking — detalhes específicos ───────────────────────────────────────
+  if (q.includes("como criar automação") || q.includes("criar workflow") || q.includes("automação tracking") || q.includes("workflow tracking")) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "🤖 **Automações (Workflows) no Tracking:**\n\nCrie fluxos automáticos para seus leads!\n\n📍 **Tracking → [seu funil] → Configurações → Automações → Novo Workflow**\n\n**Gatilhos disponíveis:**\n• Novo lead criado\n• Lead movido de status\n• Lead recebe tag\n• IA finalizou atendimento\n\n**Ações disponíveis:**\n• Enviar mensagem WhatsApp\n• Mover lead para status\n• Atribuir responsável\n• Aplicar tag ou temperatura\n• Marcar como ganho/perdido\n• Aguardar X horas/dias\n• Disparar webhook HTTP\n\n💡 Combine gatilhos e ações para criar fluxos complexos!",
+        quickReplies: [
+          { label: "📊 Abrir Tracking", value: "abrir tracking", link: "/tracking" },
+          { label: "💬 Integrar WhatsApp", value: "instalar whatsapp business" },
+          { label: "✨ Usar padrão com workflows", value: "padrões nasa" },
+        ],
+      },
+    ];
+  }
+
+  if (q.includes("status do tracking") || q.includes("estágio") || q.includes("coluna do tracking") || q.includes("configurar funil")) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "🎯 **Configurando os Status do Tracking:**\n\nOs status são as colunas do seu funil de vendas (Kanban).\n\n📍 **Tracking → [seu funil] → Configurações → Status**\n\nVocê pode:\n• Criar novos status com nome e cor\n• Reordenar por drag & drop\n• Cada tracking tem seus próprios status\n\n**Exemplo de funil B2B:**\nProspecção → Qualificação → Proposta → Negociação → Fechado\n\n💡 Use **Padrões NASA** para ter um funil completo pronto em segundos!",
+        quickReplies: [
+          { label: "📊 Abrir Tracking", value: "abrir tracking", link: "/tracking" },
+          { label: "✨ Usar padrão de funil", value: "padrões nasa" },
+          { label: "🤖 Criar automação", value: "como criar automação tracking" },
+        ],
+      },
+    ];
+  }
+
+  if (q.includes("consultor") || q.includes("atribuir lead") || q.includes("responsável lead")) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "👤 **Consultores e Atribuição de Leads no Tracking:**\n\nVocê pode definir consultores responsáveis por leads:\n\n📍 **Tracking → [funil] → Configurações → Consultores**\n\n• Adicione membros como consultores do funil\n• Defina **limite máximo** de leads por consultor\n• Atribua leads manualmente pelo card\n• Use automações para **atribuição automática**\n\n💡 Quando um lead é atribuído a um consultor, ele aparece na fila dele e fica visível no dashboard de performance.",
+        quickReplies: [
+          { label: "📊 Abrir Tracking", value: "abrir tracking", link: "/tracking" },
+          { label: "👥 Gerenciar membros", value: "como gerenciar membros" },
+          { label: "🤖 Automação de atribuição", value: "como criar automação tracking" },
+        ],
+      },
+    ];
+  }
+
+  if (q.includes("tag") || q.includes("etiqueta")) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "🏷️ **Tags no NASA:**\n\nTags servem para categorizar e filtrar leads no Tracking.\n\n📍 **Tracking → [funil] → Configurações → Tags**\n\n• Crie tags com nome, cor, ícone e descrição\n• Aplique tags aos leads manualmente ou por automação\n• Filtre leads por tag no Kanban\n• Widgets de Insights podem exibir leads por tag\n\n**Dica:** Use tags como \"Quente\", \"Follow-up\", \"Decisor\", \"Enterprise\" para qualificar oportunidades rapidamente.",
+        quickReplies: [
+          { label: "📊 Abrir Tracking", value: "abrir tracking", link: "/tracking" },
+          { label: "🤖 Criar automação com tag", value: "como criar automação tracking" },
+          { label: "✨ Padrão com tags prontas", value: "padrões nasa" },
+        ],
+      },
+    ];
+  }
+
+  if (q.includes("ia do tracking") || q.includes("assistente de vendas") || q.includes("ia de atendimento") || q.includes("configurar ia") || q.includes("ai settings")) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "🤖 **IA de Atendimento no Tracking:**\n\nCada funil pode ter um assistente de IA configurado para atender leads no chat!\n\n📍 **Tracking → [funil] → Configurações → IA**\n\n**Configurações:**\n• **Nome do assistente** (ex: \"Nora\", \"Max\")\n• **Prompt** — instrução de como a IA deve se comportar\n• **Frase de encerramento** — mensagem final antes de transferir para humano\n\n💡 A IA qualifica o lead antes de passá-lo para um consultor, economizando tempo da equipe!\n\nUse **Padrões NASA** que já vêm com IA pré-configurada.",
+        quickReplies: [
+          { label: "📊 Abrir Tracking", value: "abrir tracking", link: "/tracking" },
+          { label: "⭐ Ver saldo de Stars (IA consome)", value: "o que são stars" },
+          { label: "✨ Padrão com IA configurada", value: "padrões nasa" },
+        ],
+      },
+    ];
+  }
+
+  // ── Tracking / Pipeline / Leads geral ─────────────────────────────────────
   if (
-    q.includes("api key") ||
-    q.includes("token") ||
-    q.includes("webhook") ||
-    q.includes("o que é api")
+    q.includes("tracking") || q.includes("lead") ||
+    q.includes("pipeline") || q.includes("funil") || q.includes("oportunidade") ||
+    q.includes("crm") || q.includes("kanban de venda")
   ) {
     return [
       {
         id: id(),
         role: "astro",
-        text: "**API Key** é uma chave da sua conta em outra plataforma que autoriza o NASA a se comunicar com ela. 🔑\n\nO NASA não gera essas credenciais — você as obtém diretamente na plataforma que deseja integrar:\n\n1. Acesse o painel/configurações da plataforma (ex: Meta Business Suite, Google Cloud Console, Telegram BotFather)\n2. Localize a seção **API**, **Desenvolvedor** ou **Integrações**\n3. Gere e copie sua chave ou token\n4. Cole no campo de configuração da integração no NASA\n\n💡 Cada empresa do seu painel no NASA pode ter tokens diferentes para a mesma ferramenta.",
+        text: "📊 O **Tracking** é o CRM de vendas do NASA!\n\n**Funcionalidades:**\n• Pipeline visual (Kanban) com colunas personalizáveis\n• Múltiplos funis por organização\n• Tags, temperatura e origem de leads\n• Consultores com limite de leads\n• Histórico completo de interações\n• **IA de atendimento** por funil\n• Workflows de automação\n• Integração com Chat e Agenda\n\n📍 Acesse: **Menu → Trackings**",
         quickReplies: [
-          {
-            label: "🔌 Ir para Integrações",
-            value: "listar integrações",
-            link: "/integrations",
-          },
-          { label: "💬 Configurar WhatsApp", value: "configurar whatsapp" },
-          { label: "🚀 Voltar ao início", value: "início" },
+          { label: "📊 Abrir Tracking", value: "abrir tracking", link: "/tracking" },
+          { label: "🤖 Criar automação", value: "como criar automação tracking" },
+          { label: "🤖 Configurar IA do funil", value: "ia do tracking" },
+          { label: "✨ Usar padrão de funil", value: "padrões nasa" },
+        ],
+      },
+    ];
+  }
+
+  // ── Agenda — detalhes específicos ──────────────────────────────────────────
+  if (q.includes("chat de agendamento") || q.includes("chat público") || q.includes("chatbot de agenda")) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "💬 **Chat de Agendamento:**\n\nAntes de confirmar o horário, o cliente passa por um **chat de IA** que coleta informações!\n\nComo funciona:\n1. Cliente acessa o link público da agenda\n2. Inicia um chat com a IA (configurada por você)\n3. A IA coleta nome, telefone e motivo\n4. O cliente escolhe o horário disponível\n5. Agendamento confirmado — lead criado no Tracking\n\n📍 Configure a IA: **Tracking → [funil] → Agendas → [agenda] → Configurações**\n\n⭐ O chat de IA consome **Stars**.",
+        quickReplies: [
+          { label: "📅 Abrir Agendas", value: "abrir agendas", link: "/agenda" },
+          { label: "⭐ O que são Stars?", value: "o que são stars" },
+          { label: "🤖 Configurar IA", value: "ia do tracking" },
+        ],
+      },
+    ];
+  }
+
+  if (q.includes("horário disponível") || q.includes("bloquear data") || q.includes("disponibilidade agenda")) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "📅 **Configurando Disponibilidade da Agenda:**\n\n📍 **Tracking → [funil] → Agendas → [agenda] → Disponibilidade**\n\n**Disponibilidade semanal:**\n• Ative os dias da semana (Seg–Dom)\n• Defina os horários de início e fim\n• Adicione múltiplos intervalos por dia\n\n**Bloqueios específicos:**\n• Bloqueie datas pontuais (feriados, folgas)\n• Configure disponibilidade especial para uma data\n\n**Duração do slot:** Configure em minutos (ex: 30min, 1h) nas configurações da agenda.",
+        quickReplies: [
+          { label: "📅 Abrir Agendas", value: "abrir agendas", link: "/agenda" },
+          { label: "💬 Chat de agendamento", value: "chat de agendamento" },
+          { label: "✨ Padrão com agenda", value: "padrões nasa" },
+        ],
+      },
+    ];
+  }
+
+  // ── Agenda geral ───────────────────────────────────────────────────────────
+  if (
+    q.includes("agenda") || q.includes("agendamento") ||
+    q.includes("calendário") || q.includes("horário") ||
+    q.includes("reunião") || q.includes("appointment")
+  ) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "📅 O módulo de **Agendas** permite criar calendários de agendamento online!\n\n**Funcionalidades:**\n• Link público para clientes agendarem\n• **Chat de IA** antes do agendamento (coleta informações)\n• Disponibilidade por dia da semana + horários\n• Bloqueio de datas específicas\n• Duração do slot configurável\n• Integração com Tracking (cria lead automaticamente)\n• Múltiplos responsáveis por agenda\n\n📍 Acesse: **Tracking → [funil] → Configurações → Agendas**\n\n⭐ O chat de IA pré-agendamento consome Stars.",
+        quickReplies: [
+          { label: "📅 Abrir Agendas", value: "abrir agendas", link: "/agenda" },
+          { label: "💬 Chat de agendamento", value: "chat de agendamento" },
+          { label: "📅 Configurar disponibilidade", value: "horário disponível" },
+          { label: "✨ Padrão com agenda", value: "padrões nasa" },
+        ],
+      },
+    ];
+  }
+
+  // ── Chat / Atendimento ─────────────────────────────────────────────────────
+  if (
+    q.includes("chat") || q.includes("atendimento") ||
+    q.includes("conversa") || q.includes("inbox") || q.includes("mensagem")
+  ) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "💬 O **Chat** é o inbox unificado de atendimento do NASA!\n\n**Funcionalidades:**\n• Todas as conversas em um único lugar\n• WhatsApp, Instagram, Facebook, Telegram\n• IA de atendimento por funil\n• Distribuição automática para consultores\n• Histórico completo de interações\n• Captura automática de leads no Tracking\n• Envio de arquivos e mídias\n\n📍 Acesse: **Menu → Chats**\n\n💡 Esta é a etapa **N (Necessidade)** do Método NASA.",
+        quickReplies: [
+          { label: "💬 Abrir Chat", value: "abrir chat", link: "/chat" },
+          { label: "📱 Instalar WhatsApp", value: "instalar whatsapp business" },
+          { label: "📷 Instalar Instagram DM", value: "instalar instagram dm" },
+          { label: "🚀 Método NASA", value: "o que é o método nasa" },
+        ],
+      },
+    ];
+  }
+
+  // ── Insights / Analytics ───────────────────────────────────────────────────
+  if (
+    q.includes("insight") || q.includes("relatório") || q.includes("dashboard") ||
+    q.includes("métrica") || q.includes("análise") || q.includes("performance")
+  ) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "📊 O módulo de **Insights** traz dashboards e relatórios em tempo real!\n\n**Você visualiza:**\n• Performance do pipeline de vendas\n• Leads por origem e canal\n• Taxa de conversão por etapa\n• Métricas de chat e atendimento\n• Relatórios de propostas FORGE\n• Ranking de consultores\n\n💡 É a etapa **A (Análise)** do Método NASA — onde você toma decisões baseadas em dados.\n\n📍 Acesse: **Menu → Insights**",
+        quickReplies: [
+          { label: "📊 Abrir Insights", value: "abrir insights", link: "/insights" },
+          { label: "🔌 Integrar Google Analytics", value: "instalar analytics" },
+          { label: "🚀 Método NASA — Análise", value: "o que é o método nasa" },
+        ],
+      },
+    ];
+  }
+
+  // ── Automação geral ────────────────────────────────────────────────────────
+  if (
+    q.includes("automação") || q.includes("automation") ||
+    q.includes("fluxo automático") || q.includes("automatizar")
+  ) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "⚙️ O NASA tem dois tipos de **Automação**:\n\n**1. Workflows no Tracking**\nFluxos para leads: mover estágio, enviar mensagem, atribuir consultor, disparar webhook.\n📍 Tracking → [funil] → Configurações → Automações\n\n**2. Automações no Workspace**\nRegras para tarefas: mover card, notificar membros, alertar atraso.\n📍 Workspace → [projeto] → Configurações → Automações\n\nAmbas funcionam com **gatilhos** → **condições** → **ações**.",
+        quickReplies: [
+          { label: "🤖 Automação no Tracking", value: "como criar automação tracking" },
+          { label: "📋 Automação no Workspace", value: "como criar automação workspace" },
+          { label: "🔌 Integrar Zapier/Make", value: "instalar zapier" },
+          { label: "✨ Padrões com automações", value: "padrões nasa" },
+        ],
+      },
+    ];
+  }
+
+  // ── Membros / Organização / Permissões ─────────────────────────────────────
+  if (
+    q.includes("membro") || q.includes("usuário") || q.includes("equipe") ||
+    q.includes("permissão") || q.includes("convite") || q.includes("convidar") ||
+    q.includes("organização") || q.includes("admin")
+  ) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "👥 **Gerenciamento de Membros e Organização:**\n\n**Funções (roles):**\n• **Owner** — controle total\n• **Admin** — gerencia membros e configurações\n• **Moderador** — pode criar Padrões NASA\n• **Member** — acesso padrão\n\n**Como convidar:**\n📍 **Configurações da Org → Membros → Convidar**\n\n**Admin:**\n📍 **Menu → Admin** — painel administrativo com:\n• Gerenciamento de membros e roles\n• Configuração de Stars e distribuição\n• Space Points e rankings\n• Padrões NASA (templates)\n• Logs de atividade",
+        quickReplies: [
+          { label: "⚙️ Abrir Admin", value: "abrir admin", link: "/admin" },
+          { label: "⭐ Configurar Stars", value: "o que são stars" },
+          { label: "🏆 Space Points", value: "o que são space points" },
+        ],
+      },
+    ];
+  }
+
+  // ── NBox (arquivos/documentos) ─────────────────────────────────────────────
+  if (
+    q.includes("nbox") || q.includes("arquivo") || q.includes("documento") ||
+    q.includes("pasta") || q.includes("storage") || q.includes("armazenamento")
+  ) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "📁 O **NBox** é o sistema de armazenamento de arquivos e documentos do NASA!\n\n**Funcionalidades:**\n• Organização em **pastas**\n• Upload de qualquer tipo de arquivo\n• Compartilhamento entre membros da organização\n• Associação de arquivos a leads\n\n📍 Acesse: **Menu → NBox**\n\n💡 Ótimo para centralizar contratos, apresentações, mídias e materiais comerciais usados pela equipe.",
+        quickReplies: [
+          { label: "📁 Abrir NBox", value: "abrir nbox", link: "/nbox" },
+          { label: "🔥 FORGE (contratos)", value: "como gerar contrato" },
+          { label: "🚀 Funcionalidades", value: "quais são as funcionalidades" },
+        ],
+      },
+    ];
+  }
+
+  // ── NASA Planner ───────────────────────────────────────────────────────────
+  if (
+    q.includes("planner") || q.includes("nasa planner") ||
+    q.includes("planejador") || q.includes("conteúdo") || q.includes("post")
+  ) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "📅 O **NASA Planner** é o planejador de conteúdo e tarefas estratégicas!\n\nVocê pode:\n• Criar posts e planejamentos com data e hora\n• Organizar iniciativas por período\n• Visualizar calendário de conteúdo\n• Colaborar com a equipe no planejamento\n\n📍 Acesse: **Menu → NASA Planner**",
+        quickReplies: [
+          { label: "📅 Abrir NASA Planner", value: "abrir nasa planner", link: "/nasa-planner" },
+          { label: "📋 Workspace (tarefas)", value: "como usar workspace" },
+          { label: "🚀 Funcionalidades", value: "quais são as funcionalidades" },
+        ],
+      },
+    ];
+  }
+
+  // ── Funcionalidades gerais / Sobre o NASA ──────────────────────────────────
+  if (
+    q.includes("funcionalidade") || q.includes("recurso") ||
+    q.includes("sobre o nasa") || q.includes("o que faz") ||
+    q.includes("início") || q.includes("inicio") || q.includes("ajuda")
+  ) {
+    return [
+      {
+        id: id(),
+        role: "astro",
+        text: "🚀 O **NASA** é uma plataforma completa de CRM e automação comercial!\n\n**Módulos principais:**\n• **Tracking** — CRM, pipeline, leads, IA de atendimento\n• **FORGE** — propostas, contratos, assinatura eletrônica\n• **Workspace** — gestão de projetos e tarefas\n• **Agendas** — agendamento online com chat de IA\n• **Chat** — inbox unificado de atendimento\n• **Insights** — dashboards e relatórios\n• **NBox** — armazenamento de arquivos\n• **Stars** — créditos de IA\n• **Space Points** — gamificação\n• **Padrões NASA** — templates prontos\n• **Integrações** — +107 apps conectados\n\n🚀 Tudo estruturado pelo **Método NASA** (N-A-S-A).",
+        quickReplies: [
+          { label: "🚀 Método NASA", value: "o que é o método nasa" },
+          { label: "✨ Padrões NASA", value: "padrões nasa" },
+          { label: "🔥 FORGE", value: "como usar o forge" },
+          { label: "⭐ Stars", value: "o que são stars" },
         ],
       },
     ];
@@ -265,37 +701,26 @@ function buildAstroResponse(
     ["formulário", "forms"],
     ["analítica", "analytics"],
     ["analytics", "analytics"],
-    ["documento", "documents"],
     ["assinatura digital", "documents"],
-    ["workflow", "workflow"],
+    ["workflow integration", "workflow"],
     ["ligação", "calls"],
     ["telefon", "calls"],
     ["crm externo", "crm_customization"],
     ["videoconferência", "productivity"],
-    ["suporte", "live_chat"],
+    ["suporte ao vivo", "live_chat"],
     ["chat ao vivo", "live_chat"],
-    ["segmento", "industry"],
+    ["segmento de", "industry"],
   ] as [string, string][]) {
     if (q.includes(keyword)) {
-      const list = integrations
-        .filter((i) => i.category === category)
-        .slice(0, 5);
-      const listText = list
-        .map((i) => `• **${i.name}** — ${i.description.slice(0, 60)}...`)
-        .join("\n");
+      const list = integrations.filter((i) => i.category === category).slice(0, 5);
+      const listText = list.map((i) => `• **${i.name}** — ${i.description.slice(0, 60)}...`).join("\n");
       msgs.push({
         id: id(),
         role: "astro",
         text: `Integrações de **${CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS]}** disponíveis:\n\n${listText}`,
         quickReplies: [
-          ...list.slice(0, 3).map((i) => ({
-            label: `Instalar ${i.name}`,
-            value: `instalar ${i.name}`,
-          })),
-          {
-            label: "🔌 Ver todas as categorias",
-            value: "quero instalar uma integração",
-          },
+          ...list.slice(0, 3).map((i) => ({ label: `Instalar ${i.name}`, value: `instalar ${i.name}` })),
+          { label: "🔌 Ver todas as categorias", value: "quero instalar uma integração" },
         ],
       });
       return msgs;
@@ -303,13 +728,7 @@ function buildAstroResponse(
   }
 
   // ── Generic install intent ─────────────────────────────────────────────────
-  if (
-    q.includes("instalar") ||
-    q.includes("install") ||
-    q.includes("integração") ||
-    q.includes("integrar")
-  ) {
-    // Strip the verb prefix before searching so "instalar telegram" finds "Telegram"
+  if (q.includes("instalar") || q.includes("install") || q.includes("integração") || q.includes("integrar")) {
     const searchTerm = q.replace(/^(instalar|install|integrar)\s+/i, "").trim();
     const found = findIntegration(searchTerm) || findIntegration(q);
     if (found) {
@@ -320,19 +739,9 @@ function buildAstroResponse(
           text: `Encontrei **${found.name}**! 🎯\n\n${found.description}`,
           integration: found,
           quickReplies: [
-            {
-              label: `✅ Instalar ${found.name}`,
-              value: `__install:${found.slug}`,
-            },
-            {
-              label: "📖 Ver detalhes",
-              value: `detalhes ${found.name}`,
-              link: `/integrations/${found.slug}`,
-            },
-            {
-              label: "🔍 Ver outras opções",
-              value: "quero instalar uma integração",
-            },
+            { label: `✅ Instalar ${found.name}`, value: `__install:${found.slug}` },
+            { label: "📖 Ver detalhes", value: `detalhes ${found.name}`, link: `/integrations/${found.slug}` },
+            { label: "🔍 Ver outras opções", value: "quero instalar uma integração" },
           ],
         },
       ];
@@ -344,258 +753,27 @@ function buildAstroResponse(
         role: "astro",
         text: "Temos integrações em diversas categorias! 🔌 Qual área você precisa integrar?",
         quickReplies: [
-          {
-            label: "💬 Mensageiros (WhatsApp, Telegram...)",
-            value: "instalar mensageiro",
-          },
-          {
-            label: "🛒 E-commerce (Shopify, Nuvemshop...)",
-            value: "instalar ecommerce",
-          },
-          {
-            label: "📣 Marketing (RD Station, Mailchimp...)",
-            value: "instalar marketing",
-          },
-          {
-            label: "💳 Pagamentos (Stripe, Asaas...)",
-            value: "instalar pagamento",
-          },
-          {
-            label: "🤖 Chatbots (Typebot, ManyChat...)",
-            value: "instalar chatbot",
-          },
-          {
-            label: "🔌 Todas as integrações",
-            value: "listar integrações",
-            link: "/integrations",
-          },
-        ],
-      },
-    ];
-  }
-
-  // ── FORGE ─────────────────────────────────────────────────────────────────
-  if (
-    q.includes("forge") ||
-    q.includes("proposta") ||
-    q.includes("contrato") ||
-    q.includes("pagamento link")
-  ) {
-    return [
-      {
-        id: id(),
-        role: "astro",
-        text: "O **FORGE** é o módulo de propostas e contratos do NASA! 🔥\n\nCom ele você pode:\n• Criar propostas com produtos e valores\n• Gerar links de pagamento\n• Criar e assinar contratos eletronicamente\n• Configurar modelos (padrões) de contrato\n• Alterar status: Enviada, Visualizada, Paga, Expirada\n\n📍 Acesse: **Menu → FORGE**",
-        quickReplies: [
-          { label: "🔥 Abrir FORGE", value: "abrir forge", link: "/forge" },
-          {
-            label: "💳 Configurar gateway de pagamento",
-            value: "configurar pagamento forge",
-          },
-          {
-            label: "📄 Criar padrão de contrato",
-            value: "criar padrão contrato",
-          },
-          { label: "📨 Como enviar proposta?", value: "como enviar proposta" },
-        ],
-      },
-    ];
-  }
-
-  // ── Tracking / Pipeline / Leads ────────────────────────────────────────────
-  if (
-    q.includes("tracking") ||
-    q.includes("lead") ||
-    q.includes("pipeline") ||
-    q.includes("funil") ||
-    q.includes("oportunidade")
-  ) {
-    return [
-      {
-        id: id(),
-        role: "astro",
-        text: "O **Tracking** é o CRM de vendas do NASA! 📊\n\nFuncionalidades:\n• Pipeline visual de leads (Kanban)\n• Múltiplos funis de vendas\n• Atribuição de leads a consultores\n• Automações por estágio\n• Histórico de interações\n\n📍 Acesse: **Menu → Trackings**",
-        quickReplies: [
-          {
-            label: "📊 Abrir Tracking",
-            value: "abrir tracking",
-            link: "/tracking",
-          },
-          {
-            label: "🤖 Criar automação de lead",
-            value: "como criar automação",
-          },
-          {
-            label: "🔌 Integrar WhatsApp ao CRM",
-            value: "instalar whatsapp business",
-          },
-          { label: "🚀 Método NASA", value: "o que é o método nasa" },
-        ],
-      },
-    ];
-  }
-
-  // ── Automação ─────────────────────────────────────────────────────────────
-  if (
-    q.includes("automação") ||
-    q.includes("automation") ||
-    q.includes("workflow") ||
-    q.includes("fluxo")
-  ) {
-    return [
-      {
-        id: id(),
-        role: "astro",
-        text: "As **Automações** do NASA funcionam por Workflows! ⚙️\n\nVocê pode criar fluxos que:\n• Movem leads entre estágios automaticamente\n• Enviam mensagens ao entrar em um estágio\n• Atribuem leads a consultores\n• Disparam webhooks e notificações\n• Enviam e-mail ou WhatsApp automaticamente\n\n📍 Acesse: **Menu → Tracking → [selecione o funil] → Automações**",
-        quickReplies: [
-          { label: "🔌 Integrar Zapier/Make", value: "instalar zapier" },
-          {
-            label: "💬 Enviar WhatsApp automático",
-            value: "instalar whatsapp business",
-          },
-          { label: "📧 Automatizar e-mail", value: "instalar marketing" },
-          {
-            label: "⚙️ Ver Integrações",
-            value: "listar integrações",
-            link: "/integrations",
-          },
-        ],
-      },
-    ];
-  }
-
-  // ── Insights / Analytics ──────────────────────────────────────────────────
-  if (
-    q.includes("insight") ||
-    q.includes("relatório") ||
-    q.includes("dashboard") ||
-    q.includes("métrica") ||
-    q.includes("análise")
-  ) {
-    return [
-      {
-        id: id(),
-        role: "astro",
-        text: "O módulo de **Insights** traz dashboards e relatórios em tempo real! 📊\n\nVocê visualiza:\n• Performance do pipeline de vendas\n• Leads por origem e canal\n• Taxa de conversão por etapa\n• Métricas de chat e atendimento\n• Relatórios de propostas (FORGE)\n\n📍 Acesse: **Menu → Insights**",
-        quickReplies: [
-          {
-            label: "📊 Abrir Insights",
-            value: "abrir insights",
-            link: "/insights",
-          },
-          {
-            label: "🔌 Integrar Google Analytics",
-            value: "instalar analytics",
-          },
-          { label: "🚀 Método NASA — Análise", value: "o que é o método nasa" },
-        ],
-      },
-    ];
-  }
-
-  // ── Agenda / Agendamentos ──────────────────────────────────────────────────
-  if (
-    q.includes("agenda") ||
-    q.includes("agendamento") ||
-    q.includes("calendário") ||
-    q.includes("horário")
-  ) {
-    return [
-      {
-        id: id(),
-        role: "astro",
-        text: "O módulo de **Agendas** permite configurar calendários online! 📅\n\nFuncionalidades:\n• Link público para agendamento de reuniões\n• Configuração de horários disponíveis e bloqueios\n• Integração com Google Calendar\n• Chat de atendimento pré-agenda\n• Múltiplos tipos de agendamento\n\n📍 Acesse: **Menu → Agendas**",
-        quickReplies: [
-          {
-            label: "📅 Abrir Agendas",
-            value: "abrir agendas",
-            link: "/agenda",
-          },
-          {
-            label: "📅 Integrar Google Calendar",
-            value: "instalar google workspace",
-          },
-          { label: "🔗 Integrar Calendly", value: "instalar calendly" },
-        ],
-      },
-    ];
-  }
-
-  // ── Chat / Atendimento ────────────────────────────────────────────────────
-  if (
-    q.includes("chat") ||
-    q.includes("atendimento") ||
-    q.includes("conversa") ||
-    q.includes("inbox")
-  ) {
-    return [
-      {
-        id: id(),
-        role: "astro",
-        text: "O módulo de **Chat** é o seu inbox unificado de atendimento! 💬\n\nFuncionalidades:\n• Todas as conversas em um único lugar\n• WhatsApp, Instagram, Facebook, Telegram\n• Distribuição automática para consultores\n• Histórico completo de interações\n• Captura automática de leads\n\n📍 Acesse: **Menu → Chats**\n\n💡 Esta é a etapa **N (Necessidade)** do Método NASA — onde você identifica o que o cliente precisa.",
-        quickReplies: [
-          { label: "💬 Abrir Chat", value: "abrir chat", link: "/chat" },
-          {
-            label: "📱 Instalar WhatsApp Business",
-            value: "instalar whatsapp business",
-          },
-          { label: "📷 Instalar Instagram DM", value: "instalar instagram dm" },
-          { label: "🚀 Método NASA", value: "o que é o método nasa" },
-        ],
-      },
-    ];
-  }
-
-  // ── Funcionalidades gerais ─────────────────────────────────────────────────
-  if (
-    q.includes("funcionalidade") ||
-    q.includes("recurso") ||
-    q.includes("o que é") ||
-    q.includes("sobre o nasa") ||
-    q.includes("início") ||
-    q.includes("inicio")
-  ) {
-    return [
-      {
-        id: id(),
-        role: "astro",
-        text: "O **NASA** é uma plataforma completa de CRM e automação comercial! 🚀\n\nPrincipais módulos:\n• **Tracking** — pipeline de leads e CRM\n• **FORGE** — propostas e contratos\n• **Agendas** — agendamentos online\n• **Chat** — atendimento unificado\n• **Insights** — relatórios e dashboards\n• **Integrações** — +107 apps conectados\n\n🚀 Tudo estruturado pelo **Método NASA** (N-A-S-A).",
-        quickReplies: [
-          { label: "🚀 Método NASA", value: "o que é o método nasa" },
-          { label: "📊 FORGE", value: "como usar o forge", link: "/forge" },
-          { label: "📅 Agendas", value: "como usar agendas", link: "/agenda" },
-          {
-            label: "🔌 Integrações",
-            value: "listar integrações",
-            link: "/integrations",
-          },
+          { label: "💬 Mensageiros (WhatsApp, Telegram...)", value: "instalar mensageiro" },
+          { label: "🛒 E-commerce (Shopify, Nuvemshop...)", value: "instalar ecommerce" },
+          { label: "📣 Marketing (RD Station, Mailchimp...)", value: "instalar marketing" },
+          { label: "💳 Pagamentos (Stripe, Asaas...)", value: "instalar pagamento" },
+          { label: "🤖 Chatbots (Typebot, ManyChat...)", value: "instalar chatbot" },
+          { label: "🔌 Todas as integrações", value: "listar integrações", link: "/integrations" },
         ],
       },
     ];
   }
 
   // ── List integrations ──────────────────────────────────────────────────────
-  if (
-    q.includes("listar") ||
-    q.includes("lista") ||
-    q.includes("todas") ||
-    q.includes("marketplace")
-  ) {
+  if (q.includes("listar") || q.includes("lista") || q.includes("todas") || q.includes("marketplace")) {
     return [
       {
         id: id(),
         role: "astro",
         text: `Temos **${integrations.length} integrações** disponíveis em 19 categorias no Marketplace! 🔌\n\nDigite o nome de uma integração para instalá-la ou acesse o Marketplace para navegar por todas.`,
         quickReplies: [
-          {
-            label: "🏪 Abrir Marketplace",
-            value: "abrir marketplace",
-            link: "/integrations",
-          },
-          {
-            label: "💬 WhatsApp Business",
-            value: "instalar whatsapp business",
-          },
+          { label: "🏪 Abrir Marketplace", value: "abrir marketplace", link: "/integrations" },
+          { label: "💬 WhatsApp Business", value: "instalar whatsapp business" },
           { label: "📣 RD Station", value: "instalar rd station" },
           { label: "💳 Stripe", value: "instalar stripe" },
         ],
@@ -604,35 +782,23 @@ function buildAstroResponse(
   }
 
   // ── Cancel ─────────────────────────────────────────────────────────────────
-  if (
-    q.includes("cancelar") ||
-    q.includes("não quero") ||
-    q.includes("deixa pra lá")
-  ) {
+  if (q.includes("cancelar") || q.includes("não quero") || q.includes("deixa pra lá")) {
     return [
       {
         id: id(),
         role: "astro",
         text: "Tudo bem! 😊 Fico por aqui quando precisar.",
         quickReplies: [
-          {
-            label: "🔌 Instalar integração",
-            value: "quero instalar uma integração",
-          },
+          { label: "🔌 Instalar integração", value: "quero instalar uma integração" },
           { label: "🚀 Método NASA", value: "o que é o método nasa" },
-          {
-            label: "❓ Funcionalidades",
-            value: "quais são as funcionalidades",
-          },
+          { label: "❓ Funcionalidades", value: "quais são as funcionalidades" },
         ],
       },
     ];
   }
 
   // ── Integration detail / context-aware fallback ────────────────────────────
-  const cleanQ = q
-    .replace(/^(instalar|install|integrar|configurar|detalhes?)\s+/i, "")
-    .trim();
+  const cleanQ = q.replace(/^(instalar|install|integrar|configurar|detalhes?)\s+/i, "").trim();
   const found = findIntegration(cleanQ) || findIntegration(q);
   if (found) {
     return [
@@ -642,15 +808,8 @@ function buildAstroResponse(
         text: `Encontrei **${found.name}**! 🎯\n\n${found.description}`,
         integration: found,
         quickReplies: [
-          {
-            label: `✅ Instalar ${found.name}`,
-            value: `__install:${found.slug}`,
-          },
-          {
-            label: "📖 Ver detalhes",
-            value: `detalhes ${found.name}`,
-            link: `/integrations/${found.slug}`,
-          },
+          { label: `✅ Instalar ${found.name}`, value: `__install:${found.slug}` },
+          { label: "📖 Ver detalhes", value: `detalhes ${found.name}`, link: `/integrations/${found.slug}` },
           { label: "🔍 Ver outras integrações", value: "listar integrações" },
         ],
       },
@@ -662,15 +821,12 @@ function buildAstroResponse(
     {
       id: id(),
       role: "astro",
-      text: "Hmm, não entendi muito bem. 🤔 Posso te ajudar com:\n• Instalação de integrações (+107 apps)\n• **Método NASA** (N-A-S-A) de vendas\n• Configurações do FORGE\n• Automações e workflows\n• Navegação pela plataforma\n\nComo posso ajudar?",
+      text: "Hmm, não entendi muito bem. 🤔 Posso te ajudar com:\n\n• **Tracking** — CRM e pipeline de vendas\n• **FORGE** — propostas e contratos\n• **Workspace** — gestão de tarefas\n• **Agendas** — agendamento online\n• **Stars** — créditos de IA\n• **Padrões NASA** — templates prontos\n• **Integrações** — +107 apps\n• **Método NASA** — metodologia comercial\n\nComo posso ajudar?",
       quickReplies: [
-        {
-          label: "🔌 Instalar integração",
-          value: "quero instalar uma integração",
-        },
         { label: "🚀 Método NASA", value: "o que é o método nasa" },
-        { label: "📊 Funcionalidades", value: "quais são as funcionalidades" },
-        { label: "🔥 FORGE", value: "como usar o forge" },
+        { label: "✨ Padrões NASA", value: "padrões nasa" },
+        { label: "🔌 Instalar integração", value: "quero instalar uma integração" },
+        { label: "📋 Todas funcionalidades", value: "quais são as funcionalidades" },
       ],
     },
   ];

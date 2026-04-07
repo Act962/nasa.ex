@@ -1575,38 +1575,39 @@ function CommandInput({
           padding: 1,
         }}
       >
-        <div className="relative bg-zinc-900 rounded-[calc(1rem-1px)] overflow-visible transition-all">
-          {/* Text area with highlight */}
-          <div className="relative px-12 pt-4 pb-2">
-            <div
-              ref={highlightRef}
-              aria-hidden="true"
-              className="absolute inset-0 px-12 pt-4 pb-2 text-sm leading-relaxed pointer-events-none overflow-hidden whitespace-pre-wrap break-words"
-              style={{
-                fontSize: "0.875rem",
-                lineHeight: "1.625",
-                wordBreak: "break-word",
-              }}
-              dangerouslySetInnerHTML={{ __html: highlightedHTML + "\u200b" }}
-            />
-            <textarea
-              ref={textareaRef}
-              value={command}
-              onChange={handleTextChange}
-              onKeyDown={handleKeyDown}
-              onScroll={syncScroll}
-              disabled={loading}
-              rows={1}
-              placeholder="Fala comandante, quais as ordens?"
-              className="relative w-full bg-transparent text-transparent caret-white resize-none outline-none text-sm leading-relaxed placeholder:text-zinc-600 placeholder:font-sans placeholder:text-xs min-h-[48px] max-h-[200px] overflow-y-auto"
-              style={{
-                caretColor: "white",
-                fontSize: "0.875rem",
-                lineHeight: "1.625",
-                wordBreak: "break-word",
-              }}
-            />
-          </div>
+      <div className="relative bg-zinc-900 rounded-[calc(1rem-1px)] overflow-visible transition-all">
+        {/* Text area with highlight */}
+        <div className="relative px-12 pt-4 pb-2">
+          <div
+            ref={highlightRef}
+            aria-hidden="true"
+            className="absolute inset-0 px-12 pt-4 pb-2 text-sm leading-relaxed pointer-events-none overflow-hidden whitespace-pre-wrap break-words"
+            style={{
+              fontSize: "0.875rem",
+              lineHeight: "1.625",
+              wordBreak: "break-word",
+            }}
+            dangerouslySetInnerHTML={{ __html: highlightedHTML + "\u200b" }}
+          />
+          <textarea
+            ref={textareaRef}
+            data-nasa-command
+            value={command}
+            onChange={handleTextChange}
+            onKeyDown={handleKeyDown}
+            onScroll={syncScroll}
+            disabled={loading}
+            rows={1}
+            placeholder="Fala comandante, quais as ordens?"
+            className="relative w-full bg-transparent text-transparent caret-white resize-none outline-none text-sm leading-relaxed placeholder:text-zinc-600 placeholder:font-sans placeholder:text-xs min-h-[48px] max-h-[200px] overflow-y-auto"
+            style={{
+              caretColor: "white",
+              fontSize: "0.875rem",
+              lineHeight: "1.625",
+              wordBreak: "break-word",
+            }}
+          />
+        </div>
 
           {/* Bottom toolbar */}
           <div className="flex items-center justify-between px-3 py-2 border-t border-zinc-800/60">
@@ -1804,11 +1805,13 @@ export function NasaCommandCenter() {
   const [model, setModel] = useState<ModelType>("astro");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [recentCommands, setRecentCommands] = useState<string[]>(() =>
-    loadRecentCommands(),
-  );
+  const [recentCommands, setRecentCommands] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    setRecentCommands(loadRecentCommands());
+  }, []);
 
   const executeCommand = useMutation(
     orpc.nasaCommand.execute.mutationOptions(),

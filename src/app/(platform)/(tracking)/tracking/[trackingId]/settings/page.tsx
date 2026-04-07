@@ -8,7 +8,8 @@ import { ChatSettings } from "@/features/tracking-settings/components/chat-setti
 import { ChatBotIa } from "@/features/tracking-settings/components/chatbot-ia";
 import { FlowAttendiment } from "@/features/tracking-settings/components/flow-attendiment";
 import { SoundNotification } from "@/features/tracking-settings/components/sound-notification";
-import { Personalization } from "@/features/tracking-settings/components/personalization";
+import { TemplateSettings } from "@/features/tracking-settings/components/template-settings";
+import { ToastProvider } from "@/contexts/toast-context";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
@@ -89,39 +90,41 @@ export default async function Page({
       ),
     },
     {
-      name: "Personalização",
-      value: "personalization",
-      content: <Personalization />,
+      name: "Padrões NASA",
+      value: "templates",
+      content: <TemplateSettings trackingId={trackingId} />,
     },
   ];
 
   return (
-    <div className="w-full">
-      <Tabs
-        defaultValue={tab || "general"}
-        orientation="horizontal"
-        className="flex-col sm:flex-row gap-6"
-      >
-        <TabsList className="bg-background h-full flex-row sm:flex-col rounded-none p-0 w-full sm:w-1/4 border-b sm:border-b-0 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 ">
-          {tabs.map((tab) => (
-            <TabsTrigger
-              key={tab.value}
-              value={tab.value}
-              className="bg-background data-[state=active]:border-primary dark:data-[state=active]:border-primary h-full w-auto sm:w-full justify-start rounded-none border-0 border-b-2 sm:border-l-2 sm:border-b-0 border-transparent data-[state=active]:shadow-none sm:py-3 whitespace-nowrap px-4 first:pl-0 sm:first:pl-4"
-            >
-              {tab.name}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+    <ToastProvider>
+      <div className="w-full">
+        <Tabs
+          defaultValue={tab || "general"}
+          orientation="horizontal"
+          className="flex-col sm:flex-row gap-6"
+        >
+          <TabsList className="bg-background h-full flex-row sm:flex-col rounded-none p-0 w-full sm:w-1/4 border-b sm:border-b-0 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 ">
+            {tabs.map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="bg-background data-[state=active]:border-primary dark:data-[state=active]:border-primary h-full w-auto sm:w-full justify-start rounded-none border-0 border-b-2 sm:border-l-2 sm:border-b-0 border-transparent data-[state=active]:shadow-none sm:py-3 whitespace-nowrap px-4 first:pl-0 sm:first:pl-4"
+              >
+                {tab.name}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-        <div className="px-4 w-full py-4">
-          {tabs.map((tab) => (
-            <TabsContent key={tab.value} value={tab.value}>
-              {tab.content}
-            </TabsContent>
-          ))}
-        </div>
-      </Tabs>
-    </div>
+          <div className="px-4 w-full py-4">
+            {tabs.map((tab) => (
+              <TabsContent key={tab.value} value={tab.value}>
+                {tab.content}
+              </TabsContent>
+            ))}
+          </div>
+        </Tabs>
+      </div>
+    </ToastProvider>
   );
 }

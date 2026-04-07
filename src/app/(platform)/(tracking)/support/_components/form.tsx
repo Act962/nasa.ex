@@ -34,8 +34,8 @@ import {
   FieldError,
   FieldDescription,
 } from "@/components/ui/field";
-import { APPS } from "@/features/apps/components/apps-page";
 import { cn } from "@/lib/utils";
+import { APPS } from "@/features/apps/components/apps-data";
 
 const supportSchema = z.object({
   appId: z.string().min(1, "Selecione o aplicativo"),
@@ -125,7 +125,7 @@ export function SupportForm() {
   }
 
   return (
-    <Card className="mx-auto max-w-2xl border-white/10 bg-white/5 shadow-2xl backdrop-blur-md">
+    <Card className="mx-auto max-w-2xl shadow-2xl backdrop-blur-md">
       <CardHeader>
         <div className="flex items-center gap-3 mb-2">
           <div className="bg-primary/20 p-2 rounded-lg">
@@ -189,7 +189,7 @@ export function SupportForm() {
                   {...field}
                   id="improvement"
                   placeholder="Descreva detalhadamente a melhoria ou funcionalidade que você gostaria de ver..."
-                  className="min-h-[140px] bg-background/50 border-white/10 focus:border-primary/50 resize-none transition-all focus:min-h-[200px]"
+                  className="min-h-35 bg-background/50 border-white/10 focus:border-primary/50 resize-none transition-all focus:min-h-50"
                 />
               )}
             />

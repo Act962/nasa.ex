@@ -100,7 +100,7 @@ export function CardActionsMenu({
 
   const handleShareLink = () => {
     navigator.clipboard.writeText(
-      `${window.location.origin}/actions/${actionId}`,
+      `${window.location.origin}/workspaces/${workspaceId}?actionId=${actionId}`,
     );
     toast.success("Link copiado!");
   };

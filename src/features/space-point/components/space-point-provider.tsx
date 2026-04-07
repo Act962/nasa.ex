@@ -7,6 +7,21 @@ import { toast } from "sonner";
 import { AchievementPopup, type AchievementData } from "./achievement-popup";
 import { useEarnSpacePoints, useSpacePoint } from "../hooks/use-space-point";
 
+interface PopupTemplateData {
+  name: string;
+  title: string;
+  message: string;
+  primaryColor: string;
+  accentColor: string;
+  backgroundColor: string;
+  textColor: string;
+  enableConfetti: boolean;
+  enableSound: boolean;
+  dismissDuration: number;
+  customJson?: Record<string, unknown>;
+  type: string;
+}
+
 interface SpacePointCtx {
   earn: (action: string, description?: string, metadata?: Record<string, unknown>) => Promise<void>;
 }
@@ -15,8 +30,19 @@ export const useSpacePointCtx = () => useContext(SpacePointContext);
 
 export function SpacePointProvider({ children }: { children: React.ReactNode }) {
   const [achievement, setAchievement] = useState<AchievementData | null>(null);
+  const [popupTemplates, setPopupTemplates] = useState<PopupTemplateData[]>([]);
   const { mutateAsync: earnMutation } = useEarnSpacePoints();
   const { data: sp } = useSpacePoint();
+
+  useEffect(() => {
+    fetch("/api/admin/popup-templates")
+      .then((r) => r.json())
+      .then((data) => Array.isArray(data) && setPopupTemplates(data))
+      .catch(() => {});
+  }, []);
+
+  const getTemplate = (type: string): PopupTemplateData | undefined =>
+    popupTemplates.find((t) => t.type === type) ?? popupTemplates[0];
   const prevProgressRef   = useRef<number | null>(null);
   const notifiedNearRef   = useRef(false);
   const dailyLoginFired   = useRef(false);
@@ -34,6 +60,7 @@ export function SpacePointProvider({ children }: { children: React.ReactNode }) 
 
       if (result.newSeals.length > 0) {
         const seal = result.newSeals[result.newSeals.length - 1];
+        const tpl = getTemplate("level_up");
         setAchievement({
           type:        "level_up",
           title:       `Você chegou a ${seal.name}!`,
@@ -41,6 +68,14 @@ export function SpacePointProvider({ children }: { children: React.ReactNode }) 
           badgeNumber: seal.badgeNumber,
           badgeUrl:    seal.badgeUrl,
           planetEmoji: seal.planetEmoji,
+          template:    tpl as AchievementData["template"],
+          vars: {
+            nova_conquista:          seal.name,
+            quantidade_stars:        String(result.awarded ?? 0),
+            quantidade_space_points: String(sp?.totalPoints ?? 0),
+            nome_plano:              sp?.currentLevel?.name ?? "",
+            meu_ranking:             "",
+          },
         });
       } else {
         toast(`+${result.awarded} pts ✨`, { duration: 2500 });

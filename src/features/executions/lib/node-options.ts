@@ -3,6 +3,7 @@ import {
   ArrowLeftRightIcon,
   BotIcon,
   CircleGaugeIcon,
+  FunnelIcon,
   MousePointerIcon,
   MoveHorizontalIcon,
   SendIcon,
@@ -117,5 +118,12 @@ export const executionNodes: NodeTypeOption[] = [
     label: "Responsável",
     description: "Atribui um responsável ao lead",
     icon: UserRoundPlusIcon,
+  },
+  {
+    type: NodeType.FILTER_LEAD,
+    category: "execution",
+    label: "Filtrar Leads",
+    description: "Filtra leads com base em critérios",
+    icon: FunnelIcon,
   },
 ];

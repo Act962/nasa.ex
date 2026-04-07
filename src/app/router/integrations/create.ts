@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { createInstance } from "@/http/uazapi/admin/create-instance";
 import { configureWebhook } from "@/http/uazapi/configure-webhook";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -71,6 +72,20 @@ export const createInstanceUazapi = base
           createdAt: new Date(),
           organizationId: context.session.activeOrganizationId,
         },
+      });
+
+      await logActivity({
+        organizationId: context.session.activeOrganizationId,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "integrations",
+        action: "integration.whatsapp.created",
+        actionLabel: `Criou a integração WhatsApp "${name}"`,
+        resource: name,
+        resourceId: instance.id,
+        metadata: { trackingId: input.trackingId },
       });
 
       return { instance };

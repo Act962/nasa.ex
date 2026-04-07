@@ -24,12 +24,7 @@ export function FormList() {
   return (
     <>
       {isLoading && (
-        <div
-          className="grid gap-4 grid-cols-2
-        md:grid-cols-5
-           lg:grid-cols-3
-           xl:grid-cols-5"
-        >
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-5 lg:grid-cols-3 xl:grid-cols-5">
           <Skeleton className="w-full h-40" />
           <Skeleton className="w-full h-40" />
           <Skeleton className="w-full h-40" />

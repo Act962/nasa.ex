@@ -1,6 +1,6 @@
 import { requireAdminSession } from "@/lib/admin-utils";
 import prisma from "@/lib/prisma";
-import { NotificationCenter } from "@/features/admin/components/notification-center";
+import { NotificationCenterV2 } from "@/features/admin/components/notification-center-v2";
 
 export default async function NotificationsPage() {
   await requireAdminSession();
@@ -30,7 +30,7 @@ export default async function NotificationsPage() {
         <p className="text-sm text-zinc-400 mt-1">{total} notificações enviadas</p>
       </div>
 
-      <NotificationCenter
+      <NotificationCenterV2
         notifications={notifications.map((n) => ({
           ...n,
           targetId: n.targetId ?? null,

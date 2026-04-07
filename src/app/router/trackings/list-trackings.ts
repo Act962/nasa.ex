@@ -20,6 +20,7 @@ export const listTrackings = base
       const trackings = await prisma.tracking.findMany({
         where: {
           organizationId: org?.id,
+          isArchived: false,
           participants: {
             some: {
               userId: user.id,

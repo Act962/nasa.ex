@@ -1,13 +1,29 @@
 "use client";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth-client";
+import { orpc } from "@/lib/orpc";
 import { Logo } from "./logo";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ModeToggle } from "@/components/mode-toggle";
+import { PlanPurchaseModal } from "@/features/stars/components/plan-purchase-modal";
+import { Sparkles } from "lucide-react";
 
 export function Navbar() {
   const { data: session, isPending } = authClient.useSession();
+  const isLoggedIn = !!session?.user && !isPending;
+
+  const [purchaseOpen, setPurchaseOpen] = useState(false);
+
+  const { data: balanceData } = useQuery({
+    ...orpc.stars.getBalance.queryOptions(),
+    enabled: isLoggedIn,
+  });
+
+  const planName = balanceData?.planName;
+  const planSlug = balanceData?.planSlug;
 
   return (
     <header className="fixed top-0 w-full z-[99999] px-5 py-3 flex items-center justify-between backdrop-blur-md bg-black/60 border-b border-white/5">
@@ -28,6 +44,7 @@ export function Navbar() {
       </nav>
       <div className="md:ml-auto md:justify-end justify-between w-full flex items-center gap-x-2">
         {isPending && <Spinner />}
+
         {!session?.user && !isPending && (
           <>
             <Button variant="ghost" asChild className="cursor-pointer text-white/70 hover:text-white hover:bg-white/5">
@@ -38,18 +55,35 @@ export function Navbar() {
             </Button>
           </>
         )}
+
         {session?.user && !isPending && (
           <>
-            <Button variant="ghost" asChild className="hidden md:flex cursor-pointer text-white/50 hover:text-white hover:bg-white/5">
-              <Link href="/#planos">Planos</Link>
-            </Button>
+            {/* Plan name button — opens PlanPurchaseModal */}
+            {planName && (
+              <Button
+                variant="ghost"
+                onClick={() => setPurchaseOpen(true)}
+                className="hidden md:flex cursor-pointer items-center gap-1.5 text-white/50 hover:text-white hover:bg-white/5 text-sm font-medium rounded-xl"
+              >
+                <Sparkles className="size-3.5 text-violet-400" />
+                {planName}
+              </Button>
+            )}
+
             <Button asChild className="cursor-pointer bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-xl">
               <Link href="/tracking">Entrar no NASA</Link>
             </Button>
           </>
         )}
+
         <ModeToggle />
       </div>
+
+      <PlanPurchaseModal
+        open={purchaseOpen}
+        onClose={() => setPurchaseOpen(false)}
+        currentPlanSlug={planSlug}
+      />
     </header>
   );
 }
