@@ -98,9 +98,9 @@ export function SupportForm() {
 
   if (isSuccess) {
     return (
-      <Card className="mx-auto max-w-2xl border-primary/20 bg-primary/5 backdrop-blur-sm animate-in fade-in zoom-in duration-500">
+      <Card className="mx-auto max-w-2xl border-primary/20 bg-primary/10 backdrop-blur-sm animate-in fade-in zoom-in duration-500">
         <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="mb-4 rounded-full bg-primary/20 p-3">
+          <div className="mb-4 rounded-full bg-primary/15 p-3">
             <CheckCircle2 className="h-12 w-12 text-primary" />
           </div>
           <CardTitle className="mb-2 text-2xl">Sugestão Enviada!</CardTitle>
@@ -152,19 +152,19 @@ export function SupportForm() {
                 <Select onValueChange={field.onChange} value={field.value}>
                   <SelectTrigger
                     id="appId"
-                    className="w-full bg-background/50 border-white/10 focus:border-primary/50 transition-colors h-11"
+                    className="w-full bg-muted/30 border-border focus:border-primary/50 transition-colors h-11"
                   >
                     <SelectValue placeholder="Selecione o app que deseja melhorar" />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-950 border-white/10">
+                  <SelectContent className="bg-popover border-border">
                     {APPS.map((app) => (
                       <SelectItem
                         key={app.id}
                         value={app.id}
-                        className="focus:bg-primary/20 focus:text-primary transition-colors"
+                        className="focus:bg-primary/10 focus:text-primary transition-colors cursor-pointer"
                       >
                         <div className="flex items-center gap-3 py-1">
-                          <div className="h-6 w-6 overflow-hidden rounded-md flex items-center justify-center bg-white/5 border border-white/10">
+                          <div className="h-6 w-6 overflow-hidden rounded-md flex items-center justify-center bg-muted border border-border">
                             <app.icon />
                           </div>
                           <span className="font-medium">{app.name}</span>
@@ -189,7 +189,7 @@ export function SupportForm() {
                   {...field}
                   id="improvement"
                   placeholder="Descreva detalhadamente a melhoria ou funcionalidade que você gostaria de ver..."
-                  className="min-h-35 bg-background/50 border-white/10 focus:border-primary/50 resize-none transition-all focus:min-h-50"
+                  className="min-h-35 bg-muted/30 border-border focus:border-primary/50 resize-none transition-all focus:min-h-50"
                 />
               )}
             />
@@ -211,8 +211,8 @@ export function SupportForm() {
                 <div className="flex flex-col gap-4">
                   <div
                     className={cn(
-                      "group relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-white/10 bg-white/5 p-8 transition-all hover:border-primary/50 hover:bg-primary/5",
-                      preview && "border-primary/40 bg-primary/5 p-4",
+                      "group relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/30 p-8 transition-all hover:border-primary/50 hover:bg-primary/5",
+                      preview && "border-primary/40 bg-muted/50 p-4",
                     )}
                   >
                     <input
@@ -223,14 +223,14 @@ export function SupportForm() {
                     />
 
                     {preview ? (
-                      <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-white/10 shadow-lg">
+                      <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-border shadow-lg">
                         <img
                           src={preview}
                           alt="Preview"
                           className="h-full w-full object-cover"
                         />
-                        <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-center bg-linear-to-t from-black/80 to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100 z-20">
-                          <p className="text-sm font-medium text-white">
+                        <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-center bg-linear-to-t from-background/90 to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100 z-20">
+                          <p className="text-sm font-medium text-foreground">
                             Clique ou arraste para trocar
                           </p>
                         </div>
@@ -250,11 +250,11 @@ export function SupportForm() {
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-3 text-center">
-                        <div className="rounded-full bg-primary/10 p-4 text-primary group-hover:scale-110 transition-transform">
-                          <ImageIcon className="h-8 w-8" />
+                        <div className="rounded-full bg-muted p-4 text-foreground group-hover:scale-110 transition-transform">
+                          <ImageIcon className="text-foreground h-8 w-8" />
                         </div>
                         <div>
-                          <p className="text-base font-semibold text-white/90">
+                          <p className="text-base font-semibold text-foreground/90">
                             Anexar Screenshot
                           </p>
                           <p className="text-sm text-muted-foreground mt-1 text-balance">
@@ -275,7 +275,7 @@ export function SupportForm() {
 
           <Button
             type="submit"
-            className="w-full py-7 text-lg font-bold"
+            className="w-full py-7 text-sm sm:text-lg font-bold"
             disabled={isSubmitting}
           >
             {isSubmitting ? (

@@ -1,6 +1,14 @@
 "use client";
 
-import { Building2Icon, SettingsIcon, UsersIcon, ShieldCheck, FileInput, Clock, Bell } from "lucide-react";
+import {
+  Building2Icon,
+  SettingsIcon,
+  UsersIcon,
+  ShieldCheck,
+  FileInput,
+  Clock,
+  Bell,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useOrgRole } from "@/hooks/use-org-role";
@@ -16,7 +24,7 @@ const tabsLink = [
     label: "Empresa",
     href: "/company",
     icon: Building2Icon,
-    singleAllowed: true,   // visible but read-only
+    singleAllowed: true, // visible but read-only
   },
   {
     label: "Membros",
@@ -28,7 +36,7 @@ const tabsLink = [
     label: "Permissões",
     href: "/permissions",
     icon: ShieldCheck,
-    singleAllowed: true,   // can see but can't edit
+    singleAllowed: true, // can see but can't edit
   },
   {
     label: "Histórico",
@@ -63,7 +71,7 @@ export function TabsList() {
 
   return (
     <div className="border-b pb-2 pl-4">
-      <div className="w-full max-w-7xl mx-auto flex items-center gap-4">
+      <div className="w-full flex max-w-7xl mx-auto items-center gap-4 overflow-x-auto">
         {visibleTabs.map((tab) => (
           <Link
             key={tab.href}
