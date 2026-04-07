@@ -17,8 +17,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusIcon, Trash2Icon } from "lucide-react";
+import { Check, PlusIcon, Trash2Icon } from "lucide-react";
+import { useParams } from "next/navigation";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { Badge } from "@/components/ui/badge";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Spinner } from "@/components/ui/spinner";
+import { useQueryStatus } from "@/features/trackings/hooks/use-trackings";
+import { useQueryTags } from "@/features/tags/hooks/use-tags";
+import { cn } from "@/lib/utils";
 import z from "zod";
 
 // ---------------------------------------------------------------------------
@@ -29,12 +48,12 @@ const filterConditionSchema = z.discriminatedUnion("field", [
   z.object({
     field: z.literal("status"),
     operator: z.enum(["is", "is_not"]),
-    value: z.string().min(1, "Informe um status"),
+    value: z.array(z.string()).min(1, "Selecione ao menos um status"),
   }),
   z.object({
     field: z.literal("tag"),
     operator: z.enum(["contains", "not_contains"]),
-    value: z.string().min(1, "Informe uma tag"),
+    value: z.array(z.string()).min(1, "Selecione ao menos uma tag"),
   }),
   z.object({
     field: z.literal("value"),
@@ -98,7 +117,7 @@ const OPERATOR_OPTIONS: Record<
 const DEFAULT_CONDITION: FilterCondition = {
   field: "status",
   operator: "is",
-  value: "",
+  value: [],
 };
 
 const getDefaultOperator = (field: FilterCondition["field"]): string =>
@@ -121,6 +140,12 @@ export const FilterNodeDialog = ({
   onSubmit,
   defaultValues,
 }: Props) => {
+  const { trackingId } = useParams<{ trackingId: string }>();
+  const { status, isLoading: isLoadingStatus } = useQueryStatus({
+    trackingId: trackingId || "",
+  });
+  const { tags, isLoadingTags } = useQueryTags({ trackingId: "ALL" });
+
   const form = useForm<FilterLeadFormValues>({
     resolver: zodResolver(filterNodeFormSchema),
     defaultValues: defaultValues ?? {
@@ -141,7 +166,7 @@ export const FilterNodeDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[540px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Filtro</DialogTitle>
           <DialogDescription>
@@ -203,7 +228,9 @@ export const FilterNodeDialog = ({
                             );
                             form.setValue(
                               `conditions.${index}.value` as never,
-                              "" as never,
+                              (newField === "status" || newField === "tag"
+                                ? []
+                                : "") as never,
                             );
                           }}
                           value={field.value}
@@ -251,16 +278,157 @@ export const FilterNodeDialog = ({
                       control={form.control}
                       render={({ field, fieldState }) => (
                         <div className="flex flex-1 flex-col gap-1">
-                          <Input
-                            {...field}
-                            placeholder={
-                              currentField === "value" ? "0.00" : "Valor..."
-                            }
-                            type={currentField === "value" ? "number" : "text"}
-                            className={
-                              fieldState.error ? "border-destructive" : ""
-                            }
-                          />
+                          {currentField === "status" ||
+                          currentField === "tag" ? (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  className="w-full justify-start h-auto min-h-10 py-2 px-3"
+                                >
+                                  <div className="flex flex-wrap gap-1">
+                                    {Array.isArray(field.value) &&
+                                    field.value.length > 0 ? (
+                                      <>
+                                        {field.value.slice(0, 3).map((id) => {
+                                          const label =
+                                            currentField === "status"
+                                              ? status.find((s) => s.id === id)
+                                                  ?.name
+                                              : tags.find((t) => t.id === id)
+                                                  ?.name;
+                                          const color =
+                                            currentField === "status"
+                                              ? status.find((s) => s.id === id)
+                                                  ?.color
+                                              : tags.find((t) => t.id === id)
+                                                  ?.color;
+
+                                          return (
+                                            <Badge
+                                              key={id}
+                                              variant="secondary"
+                                              className="font-normal"
+                                              style={
+                                                color
+                                                  ? {
+                                                      backgroundColor: color,
+                                                      color: "#fff",
+                                                    }
+                                                  : undefined
+                                              }
+                                            >
+                                              {label || id}
+                                            </Badge>
+                                          );
+                                        })}
+                                        {field.value.length > 3 && (
+                                          <Badge
+                                            variant="outline"
+                                            className="font-normal"
+                                          >
+                                            +{field.value.length - 3}
+                                          </Badge>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span className="text-muted-foreground">
+                                        {currentField === "status"
+                                          ? "Selecione os status..."
+                                          : "Selecione as tags..."}
+                                      </span>
+                                    )}
+                                  </div>
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="p-0" align="start">
+                                <Command>
+                                  <CommandInput
+                                    placeholder={
+                                      currentField === "status"
+                                        ? "Pesquisar status..."
+                                        : "Pesquisar tag..."
+                                    }
+                                  />
+                                  <CommandList>
+                                    {isLoadingStatus || isLoadingTags ? (
+                                      <div className="flex items-center justify-center p-4">
+                                        <Spinner />
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <CommandEmpty>
+                                          Nenhum resultado encontrado.
+                                        </CommandEmpty>
+                                        <CommandGroup>
+                                          {(currentField === "status"
+                                            ? status
+                                            : tags
+                                          ).map((item) => {
+                                            const isSelected = Array.isArray(
+                                              field.value,
+                                            )
+                                              ? field.value.includes(item.id)
+                                              : false;
+                                            return (
+                                              <CommandItem
+                                                key={item.id}
+                                                value={`${item.id}-${item.name}`}
+                                                onSelect={() => {
+                                                  const current = Array.isArray(
+                                                    field.value,
+                                                  )
+                                                    ? field.value
+                                                    : [];
+                                                  const next = isSelected
+                                                    ? current.filter(
+                                                        (id) => id !== item.id,
+                                                      )
+                                                    : [...current, item.id];
+                                                  field.onChange(next);
+                                                }}
+                                              >
+                                                <div
+                                                  className={cn(
+                                                    "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                                    isSelected
+                                                      ? "bg-primary text-primary-foreground"
+                                                      : "opacity-50 [&_svg]:invisible",
+                                                  )}
+                                                >
+                                                  <Check className="h-4 w-4" />
+                                                </div>
+                                                <span>{item.name}</span>
+                                              </CommandItem>
+                                            );
+                                          })}
+                                        </CommandGroup>
+                                      </>
+                                    )}
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          ) : (
+                            <Input
+                              {...field}
+                              placeholder={
+                                currentField === "value" ? "0.00" : "Valor..."
+                              }
+                              type={
+                                currentField === "value" ? "number" : "text"
+                              }
+                              className={
+                                fieldState.error ? "border-destructive" : ""
+                              }
+                              value={
+                                typeof field.value === "string"
+                                  ? field.value
+                                  : ""
+                              }
+                            />
+                          )}
                           {fieldState.error && (
                             <span className="text-xs text-destructive">
                               {fieldState.error.message}
