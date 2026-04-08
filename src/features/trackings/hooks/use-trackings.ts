@@ -73,7 +73,7 @@ export const useQueryStatus = (props: UseQueryStatusProps) => {
     }),
   );
 
-  const status = useMemo(() => data ?? EMPTY_LEADS, [data]);
+  const status = useMemo(() => data ?? [], [data]);
 
   return {
     status,

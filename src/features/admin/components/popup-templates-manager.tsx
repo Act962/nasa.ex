@@ -7,6 +7,8 @@ import { Trash2, Edit2, Plus, Eye, X, Upload, ImageIcon } from "lucide-react";
 import { createPortal } from "react-dom";
 import { PopupTemplateModal } from "./popup-template-modal";
 import { useConfirm } from "@/features/admin/hooks/use-confirm";
+import { useConstructUrl } from "@/hooks/use-construct-url";
+import { ACCEPT_IMAGE_TYPES, isAllowedImageType } from "@/lib/upload-utils";
 import "@/features/admin/styles/animations.css";
 
 interface PopupTemplate {
@@ -104,7 +106,9 @@ function useColorizedSvg(
     const run = async () => {
       try {
         if (!cacheRef.current[patternUrl]) {
-          const res = await fetch(patternUrl);
+          const res = await fetch(
+            `/api/s3/proxy-svg?url=${encodeURIComponent(patternUrl)}`,
+          );
           cacheRef.current[patternUrl] = await res.text();
         }
         if (cancelled) return;
@@ -472,30 +476,61 @@ export function PopupTemplatesManager({
       .catch(() => {});
   }, []);
 
+  const getS3Url = useConstructUrl;
+
   const handleBannerUpload = async (file: File) => {
     setUploadingBanner(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("folder", "popup-patterns");
-      const res = await fetch("/api/upload-local", {
+      // 1. Obter URL presignada
+      const presignedResponse = await fetch("/api/s3/upload", {
         method: "POST",
-        body: fd,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+          isImage: true,
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro no upload");
-      const url = `${window.location.origin}${data.url}`;
+
+      if (!presignedResponse.ok) {
+        const errData = await presignedResponse.json().catch(() => ({}));
+        throw new Error(errData?.error ?? "Falha ao gerar URL presignada");
+      }
+
+      const { presignedUrl, key } = await presignedResponse.json();
+
+      // 2. Upload para o S3
+      const uploadResponse = await fetch(presignedUrl, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Falha ao subir arquivo para o storage");
+      }
+
+      // 3. Salvar o padrão no banco de dados local
+      const url = getS3Url(key);
       const id = `global-${Date.now()}`;
       const label = file.name.replace(/\.[^.]+$/, "");
+
       const saveRes = await fetch("/api/admin/banner-patterns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, label, url }),
       });
+
       const updated = await saveRes.json();
-      if (Array.isArray(updated)) setGlobalPatterns(updated);
+      if (Array.isArray(updated)) {
+        setGlobalPatterns(updated);
+        toast.success("Banner enviado com sucesso!");
+      }
     } catch (e) {
-      alert((e as Error).message);
+      toast.error((e as Error).message);
     } finally {
       setUploadingBanner(false);
     }
@@ -629,12 +664,18 @@ export function PopupTemplatesManager({
               {uploadingBanner ? "Enviando..." : "Novo padrão"}
               <input
                 type="file"
-                accept="image/svg+xml,image/png,image/jpeg,image/webp"
+                accept={ACCEPT_IMAGE_TYPES}
                 className="hidden"
                 disabled={uploadingBanner}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) handleBannerUpload(f);
+                  if (f) {
+                    if (!isAllowedImageType(f)) {
+                      alert("Por favor, envie apenas arquivos SVG.");
+                      return;
+                    }
+                    handleBannerUpload(f);
+                  }
                   e.target.value = "";
                 }}
               />
@@ -655,7 +696,7 @@ export function PopupTemplatesManager({
                   <img
                     src={p.url}
                     alt={p.label}
-                    className="w-full aspect-[768/391] object-cover"
+                    className="w-full aspect-768/391 object-cover"
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
                     <button
@@ -718,7 +759,6 @@ export function PopupTemplatesManager({
                   {template.enableSound ? "✓" : "✗"}
                 </p>
               </div>
-
               {/* Actions */}
               <div className="flex gap-2 pt-2 border-t border-zinc-800">
                 <button

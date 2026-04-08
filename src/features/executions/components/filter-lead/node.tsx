@@ -5,9 +5,9 @@ import { memo, useState } from "react";
 import { BaseExecutionNode } from "../base-execution-node";
 import { FunnelIcon, GlobeIcon } from "lucide-react";
 import { FilterLeadFormValues, FilterNodeDialog } from "./dialog";
-// import { useNodeStatus } from "../../hook/use-node-status";
-// import { HTTP_REQUEST_CHANNEL_NAME } from "@/inngest/channels/http-request";
-// import { fetchFilterLeadRealtimeToken } from "./actions";
+import { useNodeStatus } from "../../hook/use-node-status";
+import { FILTER_LEAD_CHANNEL_NAME } from "@/inngest/channels/filter-lead";
+import { fetchFilterLeadRealtimeToken } from "./actions";
 
 type FilterLeadNodeData = {
   action?: FilterLeadFormValues;
@@ -19,7 +19,12 @@ export const FilterLeadNode = memo((props: NodeProps<FilterLeadNodeType>) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { setNodes } = useReactFlow();
 
-  const nodeStatus = "initial";
+  const nodeStatus = useNodeStatus({
+    nodeId: props.id,
+    channel: FILTER_LEAD_CHANNEL_NAME,
+    topic: "status",
+    refreshToken: fetchFilterLeadRealtimeToken,
+  });
 
   const handleOpenSettings = () => setDialogOpen(true);
 
@@ -31,7 +36,7 @@ export const FilterLeadNode = memo((props: NodeProps<FilterLeadNodeType>) => {
             ...node,
             data: {
               ...node.data,
-              ...values,
+              action: values,
             },
           };
         }
