@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requireAdminMiddleware } from "@/app/middlewares/admin";
 import prisma from "@/lib/prisma";
+import { invalidateOrgRules } from "@/lib/rules-cache";
 import { z } from "zod";
 import { DEFAULT_RULES } from "./defaults";
 import { ensureLevelsSeed, getBadgeUrlMap, resolveBadgeUrl } from "./utils";
@@ -108,6 +109,7 @@ export const adminCreateOrgRule = base
   .handler(async ({ input }) => {
     const { orgId, ...data } = input;
     const created = await prisma.spacePointRule.create({ data: { orgId, ...data, cooldownHours: data.cooldownHours ?? null, popupTemplateId: data.popupTemplateId ?? null } });
+    invalidateOrgRules(orgId);
     return { success: true, id: created.id };
   });
 
@@ -118,7 +120,8 @@ export const adminUpdateOrgRule = base
   .output(z.object({ success: z.boolean() }))
   .handler(async ({ input }) => {
     const { id, ...data } = input;
-    await prisma.spacePointRule.update({ where: { id }, data });
+    const updated = await prisma.spacePointRule.update({ where: { id }, data, select: { orgId: true } });
+    invalidateOrgRules(updated.orgId);
     return { success: true };
   });
 

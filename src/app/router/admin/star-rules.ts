@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requireAdminMiddleware } from "@/app/middlewares/admin";
 import prisma from "@/lib/prisma";
+import { invalidateOrgRules } from "@/lib/rules-cache";
 import { z } from "zod";
 
 export const DEFAULT_STAR_RULES = [
@@ -125,6 +126,7 @@ export const adminCreateStarRule = base
   .handler(async ({ input }) => {
     const { orgId, ...data } = input;
     const created = await prisma.starRule.create({ data: { orgId, ...data, cooldownHours: data.cooldownHours ?? null, popupTemplateId: data.popupTemplateId ?? null } });
+    invalidateOrgRules(orgId);
     return { success: true, id: created.id };
   });
 
@@ -140,6 +142,7 @@ export const adminUpdateStarRule = base
   .output(z.object({ success: z.boolean() }))
   .handler(async ({ input }) => {
     const { id, ...data } = input;
-    await prisma.starRule.update({ where: { id }, data });
+    const updated = await prisma.starRule.update({ where: { id }, data, select: { orgId: true } });
+    invalidateOrgRules(updated.orgId);
     return { success: true };
   });

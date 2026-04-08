@@ -4,6 +4,9 @@ import {
   createContext, useCallback, useContext, useRef, useState, useEffect,
 } from "react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { pusherClient } from "@/lib/pusher";
+import { authClient } from "@/lib/auth-client";
 import { AchievementPopup, type AchievementData } from "./achievement-popup";
 import { useEarnSpacePoints, useSpacePoint } from "../hooks/use-space-point";
 
@@ -34,6 +37,8 @@ export function SpacePointProvider({ children }: { children: React.ReactNode }) 
   const [popupTemplates, setPopupTemplates] = useState<PopupTemplateData[]>([]);
   const { mutateAsync: earnMutation } = useEarnSpacePoints();
   const { data: sp } = useSpacePoint();
+  const { data: session } = authClient.useSession();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     fetch("/api/popup-templates")
@@ -41,6 +46,75 @@ export function SpacePointProvider({ children }: { children: React.ReactNode }) 
       .then((data) => Array.isArray(data) && setPopupTemplates(data))
       .catch(() => {});
   }, []);
+
+  // ── Pusher listener: real-time points updates ────────────────────────────
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+
+    const channel = pusherClient.subscribe(`private-user-${userId}`);
+    channel.bind("points:updated", (data: {
+      spAwarded: number; starsDebited: number; totalSP: number;
+      popupTemplateId: string | null; newSeals: { name: string; badgeNumber: number; planetEmoji: string; badgeUrl: string }[];
+      action: string;
+    }) => {
+      // Invalidar cache TanStack Query
+      queryClient.invalidateQueries({ queryKey: ["spacePoint"] });
+
+      const isPenalty = data.spAwarded < 0;
+
+      // Popup template especifico
+      if (data.popupTemplateId && popupTemplates.length > 0) {
+        const tpl = popupTemplates.find((t) => t.id === data.popupTemplateId);
+        if (tpl) {
+          setAchievement({
+            type: "achievement",
+            title: isPenalty ? "Penalidade aplicada" : `+${data.spAwarded} pts`,
+            message: isPenalty
+              ? `${Math.abs(data.spAwarded)} SPs debitados.`
+              : `+${data.spAwarded} Space Points conquistados!`,
+            template: tpl as AchievementData["template"],
+            vars: {
+              nova_conquista: data.action,
+              quantidade_space_points: String(data.totalSP),
+              quantidade_stars: String(data.starsDebited),
+              nome_plano: sp?.currentLevel?.name ?? "",
+              meu_ranking: "",
+            },
+          });
+          return;
+        }
+      }
+
+      // New seals
+      if (data.newSeals.length > 0) {
+        const seal = data.newSeals[data.newSeals.length - 1]!;
+        setAchievement({
+          type: "level_up",
+          title: `Voce chegou a ${seal.name}!`,
+          message: `Parabens! Voce desbloqueou ${seal.planetEmoji} ${seal.name}.`,
+          badgeNumber: seal.badgeNumber,
+          badgeUrl: seal.badgeUrl,
+          planetEmoji: seal.planetEmoji,
+        });
+      } else if (data.spAwarded !== 0) {
+        if (isPenalty) {
+          toast.error(`${data.spAwarded} pts`, { duration: 3500 });
+        } else {
+          toast(`+${data.spAwarded} pts`, { duration: 2500 });
+        }
+      }
+
+      if (data.starsDebited > 0) {
+        toast(`-${data.starsDebited} Stars`, { duration: 2000 });
+      }
+    });
+
+    return () => {
+      channel.unbind_all();
+      pusherClient.unsubscribe(`private-user-${userId}`);
+    };
+  }, [session?.user?.id, popupTemplates, queryClient, sp]);
 
   const getTemplate = (type: string): PopupTemplateData | undefined =>
     popupTemplates.find((t) => t.type === type) ?? popupTemplates[0];
