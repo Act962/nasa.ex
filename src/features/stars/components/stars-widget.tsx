@@ -265,7 +265,7 @@ export function StarsWidget() {
                   : "border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400",
             )}
           >
-            {planName}
+            <span className="hidden sm:block">{planName}</span>
           </button>
         ) : (
           <button
@@ -278,8 +278,15 @@ export function StarsWidget() {
         )}
       </div>
 
-      <StarsPurchaseModal open={purchaseOpen} onClose={() => setPurchaseOpen(false)} />
-      <PlanPurchaseModal  open={planOpen}     onClose={() => setPlanOpen(false)} currentPlanSlug={planSlug} />
+      <StarsPurchaseModal
+        open={purchaseOpen}
+        onClose={() => setPurchaseOpen(false)}
+      />
+      <PlanPurchaseModal
+        open={planOpen}
+        onClose={() => setPlanOpen(false)}
+        currentPlanSlug={planSlug}
+      />
     </>
   );
 }

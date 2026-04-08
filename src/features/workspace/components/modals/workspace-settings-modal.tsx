@@ -48,8 +48,8 @@ export function WorkspaceSettingsModal({
   return (
     <ToastProvider>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[80%] max-h-[90vh] h-[90vh] p-0 flex flex-col gap-0 overflow-hidden">
-          <DialogHeader className="px-6 py-4 border-b shrink-0">
+        <DialogContent className="sm:max-w-[90vw] w-[90vw] max-h-[90vh] h-[90vh] p-0 flex flex-col gap-0 overflow-hidden">
+          <DialogHeader className="px-3 sm:px-6 py-4 border-b shrink-0">
             <DialogTitle className="text-xl font-semibold">
               Configurações
             </DialogTitle>
@@ -61,8 +61,8 @@ export function WorkspaceSettingsModal({
               onValueChange={setView}
               className="flex-1 flex flex-col overflow-hidden"
             >
-              <div className="w-full overflow-x-auto">
-                <TabsList className="mx-8 mt-4 h-auto">
+              <div className="w-full overflow-x-auto px-3 sm:px-6">
+                <TabsList className="mt-4 h-auto">
                   <TabsTrigger value="general">
                     <Settings className="size-4 mr-2" />
                     Geral
@@ -91,7 +91,7 @@ export function WorkspaceSettingsModal({
                 </TabsList>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8">
+              <div className="flex-1 overflow-y-auto p-3 sm:p-8">
                 <TabsContent
                   value="general"
                   className="mt-0 focus-visible:outline-none"

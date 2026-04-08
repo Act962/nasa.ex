@@ -117,7 +117,7 @@ export function ColumnsTab({ workspaceId }: { workspaceId: string }) {
   if (isLoading) return <div>Carregando colunas...</div>;
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-y-4">
         <div>
           <h3 className="text-lg font-medium text-center sm:text-start">
