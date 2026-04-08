@@ -1,7 +1,7 @@
 "use client";
 
 import { orpc } from "@/lib/orpc";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 export function useSupport() {
@@ -32,4 +32,14 @@ export const useCreateSupportTicket = () => {
       },
     }),
   );
+};
+
+export const useListSupportTickets = (page = 1, take = 10) => {
+  const { data, isLoading } = useQuery(
+    orpc.support.listSupportTickets.queryOptions({
+      input: { page, take },
+    }),
+  );
+
+  return { data, isLoading };
 };
