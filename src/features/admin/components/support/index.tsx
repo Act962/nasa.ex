@@ -22,7 +22,9 @@ import { ptBR } from "date-fns/locale";
 import { APPS } from "@/features/apps/components/apps-data";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useListSupportTickets } from "@/features/support/hooks/use-support";
+import { useState } from "react";
+import { ViewSupportSheet } from "./view-support-sheet";
+import { useListSupportTickets } from "@/features/admin/hooks/use-suport";
 
 function ImageLink({ imageUrl }: { imageUrl: string }) {
   const fullUrl = useConstructUrl(imageUrl);
@@ -42,6 +44,8 @@ function ImageLink({ imageUrl }: { imageUrl: string }) {
 export function SupportPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const pageParam = searchParams.get("page");
   const page = pageParam ? Number(pageParam) : 1;
@@ -125,7 +129,14 @@ export function SupportPage() {
                   const AppIcon = appInfo?.icon;
 
                   return (
-                    <TableRow key={ticket.id}>
+                    <TableRow
+                      key={ticket.id}
+                      className="cursor-pointer hover:bg-muted/40 transition-colors"
+                      onClick={() => {
+                        setSelectedTicket(ticket);
+                        setIsSheetOpen(true);
+                      }}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {AppIcon ? (
@@ -161,7 +172,9 @@ export function SupportPage() {
 
                       <TableCell>
                         {ticket.imageUrl ? (
-                          <ImageLink imageUrl={ticket.imageUrl} />
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <ImageLink imageUrl={ticket.imageUrl} />
+                          </div>
                         ) : (
                           <span className="text-xs text-muted-foreground font-medium px-2">
                             —
@@ -239,6 +252,12 @@ export function SupportPage() {
           </div>
         )}
       </div>
+
+      <ViewSupportSheet
+        open={isSheetOpen}
+        onOpenChange={setIsSheetOpen}
+        ticket={selectedTicket}
+      />
     </div>
   );
 }

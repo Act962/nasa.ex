@@ -33,13 +33,3 @@ export const useCreateSupportTicket = () => {
     }),
   );
 };
-
-export const useListSupportTickets = (page = 1, take = 10) => {
-  const { data, isLoading } = useQuery(
-    orpc.support.listSupportTickets.queryOptions({
-      input: { page, take },
-    }),
-  );
-
-  return { data, isLoading };
-};
