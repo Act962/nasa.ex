@@ -18,7 +18,9 @@ interface Props {
 
 export function ActionsViewSwitcher({ workspaceId }: Props) {
   const [open, setOpen] = useState(false);
-  const [view, setView] = useQueryState("action-view", { defaultValue: "list" });
+  const [view, setView] = useQueryState("action-view", {
+    defaultValue: "list",
+  });
 
   return (
     <>
@@ -40,6 +42,11 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
                 Kanban
               </TabsTrigger>
             </TabsList>
+          </div>
+
+          {/* Filters bar */}
+          <div className="px-4 py-2 border-b bg-background/80 flex items-center justify-between gap-2 flex-wrap">
+            <FiltersBar workspaceId={workspaceId} />
             <Button
               size="sm"
               className="w-full lg:w-auto"
@@ -48,11 +55,6 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
               <PlusIcon className="size-4" />
               Nova ação
             </Button>
-          </div>
-
-          {/* Filters bar */}
-          <div className="px-4 py-2 border-b bg-background/80 flex items-center gap-2 flex-wrap">
-            <FiltersBar workspaceId={workspaceId} />
           </div>
 
           <div className="flex-1 overflow-auto">

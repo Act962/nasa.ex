@@ -63,22 +63,21 @@ interface Tracking {
 }
 
 function TrackingCard({ tracking }: { tracking: Tracking }) {
-  const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // const [open, setOpen] = useState(false);
+  // const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const deleteTracking = useDeleteTracking();
+  // const deleteTracking = useDeleteTracking();
 
-  const handleDeleteTracking = () => {
-    deleteTracking.mutate(
-      { trackingId: tracking.id },
-      {
-        onSuccess: () => {
-          setShowDeleteConfirm(false);
-        },
-      },
-    );
-  };
+  // const handleDeleteTracking = () => {
+  //   deleteTracking.mutate(
+  //     { trackingId: tracking.id },
+  //     {
+  //       onSuccess: () => {
+  //         setShowDeleteConfirm(false);
+  //       },
+  //     },
+  //   );
+  // };
 
   return (
     <>
@@ -94,7 +93,7 @@ function TrackingCard({ tracking }: { tracking: Tracking }) {
                     : "Sem descrição"}
                 </CardDescription>
               </div>
-              <div onClick={(e) => e.preventDefault()}>
+              {/* <div onClick={(e) => e.preventDefault()}>
                 <DropdownMenu open={open} onOpenChange={setOpen}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -115,7 +114,7 @@ function TrackingCard({ tracking }: { tracking: Tracking }) {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
+              </div> */}
             </div>
           </CardHeader>
           <CardContent>
@@ -128,7 +127,7 @@ function TrackingCard({ tracking }: { tracking: Tracking }) {
         </Card>
       </Link>
 
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      {/* <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Deletar tracking?</AlertDialogTitle>
@@ -152,7 +151,7 @@ function TrackingCard({ tracking }: { tracking: Tracking }) {
             </AlertDialogAction>
           </div>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog> */}
     </>
   );
 }

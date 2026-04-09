@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -15,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useDeleteTracking } from "@/features/trackings/hooks/use-trackings";
 import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 
 interface TrackingDangerZoneProps {
   trackingId: string;
@@ -24,6 +24,9 @@ export function TrackingDangerZone({ trackingId }: TrackingDangerZoneProps) {
   const router = useRouter();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const deleteTracking = useDeleteTracking();
+  const [role, setRole] = useState<
+    "owner" | "admin" | "moderador" | "member" | null
+  >(null);
 
   const handleConfirm = () => {
     deleteTracking.mutate(
@@ -36,6 +39,20 @@ export function TrackingDangerZone({ trackingId }: TrackingDangerZoneProps) {
       },
     );
   };
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      const { data } = await authClient.organization.getActiveMemberRole();
+
+      if (data) {
+        setRole(data.role);
+      }
+    };
+
+    fetchRole();
+  }, []);
+
+  const canDelete = ["owner", "admin", "moderador"].includes(role || "");
 
   return (
     <>
@@ -55,7 +72,7 @@ export function TrackingDangerZone({ trackingId }: TrackingDangerZoneProps) {
           <Button
             variant="destructive"
             onClick={() => setShowDeleteConfirm(true)}
-            disabled={deleteTracking.isPending}
+            disabled={deleteTracking.isPending || !canDelete}
             className="w-full sm:w-auto gap-2"
           >
             <Trash2 className="size-4" />
