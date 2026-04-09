@@ -33,7 +33,7 @@ function ImageLink({ imageUrl }: { imageUrl: string }) {
       href={fullUrl}
       target="_blank"
       rel="noreferrer"
-      className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors bg-primary/10 w-fit px-2 py-1 rounded-md"
+      className="flex items-center gap-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors bg-secondary w-fit px-2 py-1 rounded-md"
     >
       <ImageIcon className="size-3" />
       Ver Anexo
@@ -82,7 +82,7 @@ export function SupportPage() {
       </div>
 
       <div className="space-y-4">
-        <div className="border border-border/50 rounded-2xl overflow-hidden bg-card">
+        <div className="dark text-foreground border border-border rounded-2xl overflow-hidden bg-card">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -114,7 +114,7 @@ export function SupportPage() {
                     className="h-40 text-center text-muted-foreground"
                   >
                     <div className="flex flex-col items-center justify-center space-y-3">
-                      <div className="p-3 bg-muted/40 rounded-full">
+                      <div className="p-3 bg-muted rounded-full">
                         <LifeBuoy className="size-8 stroke-1 text-muted-foreground/60" />
                       </div>
                       <p className="text-sm font-medium">
@@ -131,7 +131,7 @@ export function SupportPage() {
                   return (
                     <TableRow
                       key={ticket.id}
-                      className="cursor-pointer hover:bg-muted/40 transition-colors"
+                      className="cursor-pointer transition-colors"
                       onClick={() => {
                         setSelectedTicket(ticket);
                         setIsSheetOpen(true);
@@ -140,7 +140,7 @@ export function SupportPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {AppIcon ? (
-                            <div className="p-1.5 bg-muted rounded-md border border-border/50 w-10 h-10">
+                            <div className="p-1.5 bg-muted rounded-md border border-border w-10 h-10">
                               <AppIcon />
                             </div>
                           ) : null}
@@ -195,16 +195,16 @@ export function SupportPage() {
                           variant={
                             ticket.status === "PENDING"
                               ? "secondary"
-                              : "default"
+                              : ticket.status === "IN_PROGRESS"
+                              ? "default"
+                              : ticket.status === "RESOLVED"
+                              ? "outline"
+                              : "destructive"
                           }
                           className={
-                            ticket.status === "PENDING"
-                              ? "bg-muted text-muted-foreground border-transparent"
-                              : ticket.status === "IN_PROGRESS"
-                                ? "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border-blue-500/20"
-                                : ticket.status === "RESOLVED"
-                                  ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20"
-                                  : "bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/20"
+                            ticket.status === "RESOLVED"
+                              ? "bg-accent text-accent-foreground border-border"
+                              : ""
                           }
                         >
                           {statusMap[ticket.status] || ticket.status}

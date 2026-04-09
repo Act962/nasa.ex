@@ -93,8 +93,8 @@ export function ViewSupportSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex flex-col sm:max-w-md w-full p-0 gap-0">
-        <SheetHeader className="px-6 py-4 border-b border-border/50 bg-muted/20">
+      <SheetContent className="dark text-foreground flex flex-col sm:max-w-md w-full p-0 gap-0">
+        <SheetHeader className="px-6 py-4 border-b border-border bg-muted/40">
           <div className="flex items-center justify-between gap-4 pr-6">
             <SheetTitle className="text-lg">Detalhes da Solicitação</SheetTitle>
             <DropdownMenu>
@@ -110,7 +110,7 @@ export function ViewSupportSheet({
                   <ChevronDown className="size-3 opacity-50" />
                 </Badge>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="dark text-foreground">
                 {Object.entries(statusMap).map(([key, value]) => (
                   <DropdownMenuItem
                     key={key}
@@ -137,8 +137,8 @@ export function ViewSupportSheet({
               <Label className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">
                 Autor da Solicitação
               </Label>
-              <div className="flex items-center gap-3 bg-muted/30 p-3 rounded-lg border border-border/50">
-                <Avatar className="size-10 border border-border/50">
+              <div className="flex items-center gap-3 bg-muted/10 p-3 rounded-lg border border-border">
+                <Avatar className="size-10 border border-border">
                   <AvatarFallback className="bg-foreground/5 text-foreground text-xs font-medium">
                     {ticket.user?.name ? getInitials(ticket.user.name) : "??"}
                   </AvatarFallback>
@@ -162,11 +162,11 @@ export function ViewSupportSheet({
                 </Label>
                 <div className="flex items-center gap-2">
                   {AppIcon ? (
-                    <div className="p-1.5 bg-muted rounded-md border border-border/50 text-foreground/80 [&>svg]:size-4">
+                    <div className="p-1.5 bg-card rounded-md border border-border text-foreground/40 [&>svg]:size-4">
                       <AppIcon />
                     </div>
                   ) : (
-                    <div className="p-1.5 bg-muted rounded-md border border-border/50">
+                    <div className="p-1.5 bg-card rounded-md border border-border">
                       <AppWindow className="size-4 text-foreground/80" />
                     </div>
                   )}
@@ -196,7 +196,7 @@ export function ViewSupportSheet({
               <Label className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">
                 Descrição da Sugestão / Melhoria
               </Label>
-              <div className="bg-muted/30 p-4 rounded-lg border border-border/50 text-sm leading-relaxed whitespace-pre-wrap">
+              <div className="bg-muted/10 p-4 rounded-lg border border-border text-sm leading-relaxed whitespace-pre-wrap">
                 {ticket.improvement}
               </div>
             </div>
@@ -210,7 +210,7 @@ export function ViewSupportSheet({
               {ticket.imageUrl ? (
                 <ImagePreview imageUrl={ticket.imageUrl} />
               ) : (
-                <div className="flex flex-col items-center justify-center p-6 border border-dashed border-border/60 rounded-lg bg-muted/20">
+                <div className="flex flex-col items-center justify-center p-6 border border-dashed border-border rounded-lg bg-muted/10">
                   <ImageIcon className="size-8 text-muted-foreground/30 mb-2" />
                   <span className="text-sm text-muted-foreground font-medium">
                     Nenhum anexo fornecido

@@ -8,6 +8,7 @@ import { InfoFields } from "./info-fields";
 import { TagsField } from "./tags-field";
 import { CoverImageField } from "./cover-image-field";
 import { Action } from "../../../types";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface SidebarProps {
   action?: Action;
@@ -52,7 +53,7 @@ export function ActionSidebar({
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-muted/80">
+    <ScrollArea className="h-full border-l bg-muted/80">
       <div className="p-4 space-y-4">
         <StatusField
           value={action?.columnId ?? ""}
@@ -109,6 +110,6 @@ export function ActionSidebar({
           createdAt={action?.createdAt ? new Date(action.createdAt) : undefined}
         />
       </div>
-    </div>
+    </ScrollArea>
   );
 }
