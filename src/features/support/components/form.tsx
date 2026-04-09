@@ -1,5 +1,7 @@
 "use client";
 
+import { S3 } from "@/lib/s3-client";
+import { v4 as uuidv4 } from "uuid";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -36,13 +38,15 @@ import {
 } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 import { APPS } from "@/features/apps/components/apps-data";
+import { useCreateSupportTicket } from "../hooks/use-support";
+import { Uploader } from "@/components/file-uploader/uploader";
 
 const supportSchema = z.object({
   appId: z.string().min(1, "Selecione o aplicativo"),
   improvement: z
     .string()
     .min(10, "Descreva a melhoria com pelo menos 10 caracteres"),
-  image: z.any().optional(),
+  imageUrl: z.string().optional(),
 });
 
 type SupportValues = z.infer<typeof supportSchema>;
@@ -50,7 +54,7 @@ type SupportValues = z.infer<typeof supportSchema>;
 export function SupportForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
+  const createTicket = useCreateSupportTicket();
 
   const {
     control,
@@ -67,33 +71,25 @@ export function SupportForm() {
 
   const onSubmit = async (data: SupportValues) => {
     setIsSubmitting(true);
-    // Simulating API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    console.log("Support request sent:", data);
-    setIsSubmitting(false);
-    setIsSuccess(true);
 
-    // Reset after some time or on manual click
-  };
-
-  const handleImageChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    onChange: (val: any) => void,
-  ) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onChange(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    try {
+      await createTicket.mutateAsync(
+        {
+          appId: data.appId,
+          improvement: data.improvement,
+          imageUrl: data.imageUrl,
+        },
+        {
+          onSuccess: () => {
+            setIsSuccess(true);
+          },
+        }
+      );
+    } catch (e) {
+      console.error("Erro no envio:", e);
+    } finally {
+      setIsSubmitting(false);
     }
-  };
-
-  const removeImage = (onChange: (val: any) => void) => {
-    setPreview(null);
-    onChange(undefined);
   };
 
   if (isSuccess) {
@@ -114,7 +110,6 @@ export function SupportForm() {
             onClick={() => {
               setIsSuccess(false);
               reset();
-              setPreview(null);
             }}
           >
             Enviar outra sugestão
@@ -205,69 +200,15 @@ export function SupportForm() {
           <Field>
             <FieldLabel>Print da Tela (Opcional)</FieldLabel>
             <Controller
-              name="image"
+              name="imageUrl"
               control={control}
-              render={({ field: { onChange } }) => (
+              render={({ field }) => (
                 <div className="flex flex-col gap-4">
-                  <div
-                    className={cn(
-                      "group relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/30 p-8 transition-all hover:border-primary/50 hover:bg-primary/5",
-                      preview && "border-primary/40 bg-muted/50 p-4",
-                    )}
-                  >
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="absolute inset-0 cursor-pointer opacity-0 z-10"
-                      onChange={(e) => handleImageChange(e, onChange)}
-                    />
-
-                    {preview ? (
-                      <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-border shadow-lg">
-                        <img
-                          src={preview}
-                          alt="Preview"
-                          className="h-full w-full object-cover"
-                        />
-                        <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-center bg-linear-to-t from-background/90 to-transparent p-4 opacity-0 transition-opacity group-hover:opacity-100 z-20">
-                          <p className="text-sm font-medium text-foreground">
-                            Clique ou arraste para trocar
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-2 right-2 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-30"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            removeImage(onChange);
-                          }}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-3 text-center">
-                        <div className="rounded-full bg-muted p-4 text-foreground group-hover:scale-110 transition-transform">
-                          <ImageIcon className="text-foreground h-8 w-8" />
-                        </div>
-                        <div>
-                          <p className="text-base font-semibold text-foreground/90">
-                            Anexar Screenshot
-                          </p>
-                          <p className="text-sm text-muted-foreground mt-1 text-balance">
-                            Arraste uma imagem ou clique para selecionar
-                            <br />
-                            <span className="text-xs opacity-50">
-                              PNG, JPG ou WEBP (Max. 5MB)
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <Uploader
+                    value={field.value}
+                    onConfirm={field.onChange}
+                    fileTypeAccepted="image"
+                  />
                 </div>
               )}
             />
@@ -276,9 +217,9 @@ export function SupportForm() {
           <Button
             type="submit"
             className="w-full py-7 text-sm sm:text-lg font-bold"
-            disabled={isSubmitting}
+            disabled={isSubmitting || createTicket.isPending}
           >
-            {isSubmitting ? (
+            {isSubmitting || createTicket.isPending ? (
               <>
                 <Loader2 className="mr-3 h-6 w-6 animate-spin" />
                 Enviando Sugestão...

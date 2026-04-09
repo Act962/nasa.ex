@@ -59,6 +59,8 @@ model User {
   paymentEntriesCreated PaymentEntry[] @relation("PaymentEntryCreatedBy")
   paymentAccess         PaymentAccess[] @relation("PaymentAccessUser")
   paymentAccessGranted  PaymentAccess[] @relation("PaymentAccessAuthorizer")
+  supportTickets SupportTicket[]
+
 
   @@unique([email])
   @@map("user")
@@ -2462,3 +2464,27 @@ model AchievementPopupTemplate {
   @@map("achievement_popup_template")
 }
 
+// Enum para os status do ticket
+enum SupportStatus {
+  PENDING      // Aguardando análise
+  IN_PROGRESS  // Sendo desenvolvido/analisado
+  RESOLVED     // Concluído/Implementado
+  REJECTED     // Rejeitado/Não aplicável
+}
+
+model SupportTicket {
+  id          String        @id @default(cuid())
+  appId       String        @map("app_id")
+  improvement String        @db.Text
+  imageUrl    String?       @map("image_url")
+  status      SupportStatus @default(PENDING)
+  userId      String        @map("user_id")
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("support_tickets")
+}
