@@ -51,7 +51,17 @@ export const listConversation = base
           }),
         },
         include: {
-          messages: true,
+          lastMessage: true,
+          _count: {
+            select: {
+              messages: {
+                where: {
+                  seen: false,
+                  fromMe: false,
+                },
+              },
+            },
+          },
           lead: {
             include: {
               leadTags: {
@@ -76,16 +86,13 @@ export const listConversation = base
         throw errors.BAD_REQUEST;
       }
 
-      const newConversations = conversations.map((conversation) => ({
-        ...conversation,
-        messages: conversation.messages.sort(
-          (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-        ),
-        lastMessage: conversation.messages[0],
-        unreadCount: 0,
-        // unreadCount: conversation.messages.filter((m) => !m.fromMe && !m.seen)
-        //   .length,
-      }));
+      const newConversations = conversations.map((conversation) => {
+        const { _count, ...rest } = conversation;
+        return {
+          ...rest,
+          unreadCount: _count.messages,
+        };
+      });
 
       const nextCursor =
         conversations.length === limit

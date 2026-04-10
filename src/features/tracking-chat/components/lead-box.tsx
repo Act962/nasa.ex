@@ -47,7 +47,7 @@ interface UserBloxProps {
   item: LeadBoxConversation;
   lastMessage: {
     body: string | null;
-    createdAt: Date;
+    createdAt: Date | undefined;
     mimetype?: string | null;
     fileName?: string | null;
   } | null;
@@ -70,17 +70,17 @@ export function LeadBox({
 
   const handleClick = useCallback(() => {
     router.push(trackingId ? `${item.id}` : `/tracking-chat/${item.id}`);
-    // if (unreadCount && unreadCount > 0 && instance?.token) {
-    //   markRead.mutate({
-    //     conversationId: item.id,
-    //     remoteJid: item.remoteJid,
-    //     token: instance.token,
-    //   });
-    // }
+    if (unreadCount && unreadCount > 0 && instance?.token) {
+      markRead.mutate({
+        conversationId: item.id,
+        remoteJid: item.remoteJid,
+        token: instance.token,
+      });
+    }
   }, [router, item, unreadCount, instance, markRead]);
 
   const selected = item.id === conversationId;
-  const hasSeen = false;
+  const hasSeen = !unreadCount || unreadCount === 0;
 
   const messageBody = lastMessage?.body?.split("*")[2] || lastMessage?.body;
 
@@ -147,11 +147,14 @@ export function LeadBox({
             <ArrowUpRightIcon className="size-4 text-muted-foreground" />
           </div>
           <div className="flex items-center gap-x-1.5 h-full overflow-hidden">
-            {/* {unreadCount && unreadCount >= 1 ? (
-              <Badge variant={"secondary"} className="text-[9px] h-5">
+            {unreadCount && unreadCount >= 1 ? (
+              <Badge
+                variant={"secondary"}
+                className="text-[9px] h-5 bg-green-500 hover:bg-green-600 text-white border-none"
+              >
                 {unreadCount}
               </Badge>
-            ) : null} */}
+            ) : null}
           </div>
           <div className="flex items-center gap-x-2">
             <Tooltip>
