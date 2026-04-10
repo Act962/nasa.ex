@@ -44,6 +44,7 @@ const DATE_INTERVALS = [
 ];
 
 const SORT_OPTIONS = [
+  { value: "order", label: "Nenhum" },
   { value: "createdAt", label: "Data de criação" },
   { value: "dueDate", label: "Prazo" },
   { value: "priority", label: "Prioridade" },
@@ -277,7 +278,7 @@ export function FiltersBar({ workspaceId }: Props) {
         <PopoverTrigger asChild>
           <Button
             variant={
-              filters.sortBy !== "createdAt" || filters.sortOrder !== "desc"
+              filters.sortBy !== "order" || filters.sortOrder !== "asc"
                 ? "secondary"
                 : "outline"
             }

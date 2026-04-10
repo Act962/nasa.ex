@@ -8,6 +8,7 @@ import {
 } from "nuqs";
 
 export const SORT_BY_OPTIONS = [
+  "order",
   "createdAt",
   "dueDate",
   "priority",
@@ -34,8 +35,8 @@ export const DEFAULT_FILTERS: FiltersState = {
   tagIds: [],
   dueDateFrom: null,
   dueDateTo: null,
-  sortBy: "createdAt",
-  sortOrder: "desc",
+  sortBy: "order",
+  sortOrder: "asc",
   showArchived: false,
 };
 
@@ -44,8 +45,8 @@ const actionFiltersParsers = {
   af_tags: parseAsArrayOf(parseAsString).withDefault([]),
   af_from: parseAsIsoDateTime,
   af_to: parseAsIsoDateTime,
-  af_sort: parseAsStringLiteral(SORT_BY_OPTIONS).withDefault("createdAt"),
-  af_order: parseAsStringLiteral(SORT_ORDER_OPTIONS).withDefault("desc"),
+  af_sort: parseAsStringLiteral(SORT_BY_OPTIONS).withDefault("order"),
+  af_order: parseAsStringLiteral(SORT_ORDER_OPTIONS).withDefault("asc"),
   af_archived: parseAsBoolean.withDefault(false),
 };
 
@@ -79,7 +80,7 @@ export function useActionFilters() {
     filters.participantIds.length > 0,
     filters.tagIds.length > 0,
     filters.dueDateFrom || filters.dueDateTo,
-    filters.sortBy !== "createdAt" || filters.sortOrder !== "desc",
+    filters.sortBy !== "order" || filters.sortOrder !== "asc",
     filters.showArchived,
   ].filter(Boolean).length;
 

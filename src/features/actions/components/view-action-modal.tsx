@@ -44,7 +44,6 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   const { action: rawAction, isLoading } = useQueryAction(actionId);
   const action = (rawAction ?? undefined) as Action | undefined;
   const updateAction = useUpdateAction();
-  const deleteAction = useDeleteAction();
   const updateFields = useUpdateActionFields();
   const createSubAction = useCreateSubAction(actionId);
   const updateSubAction = useUpdateSubAction(actionId);

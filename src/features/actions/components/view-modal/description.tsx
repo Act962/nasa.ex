@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 import { RichtTextEditor } from "@/components/rich-text-editor/editor";
+import { Button } from "@/components/ui/button";
 
 interface DescriptionProps {
   description?: string | null;
@@ -32,6 +33,11 @@ export function ActionDescription({
       <RichtTextEditor
         field={description ?? undefined}
         onChange={handleChange}
+        // children={
+        //   <div className="ml-auto">
+        //     <Button onClick={() => handleChange("Criação da IA")}>IA</Button>
+        //   </div>
+        // }
       />
     </div>
   );

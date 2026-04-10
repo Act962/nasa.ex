@@ -17,7 +17,7 @@ export const listActionByColumn = base
       tagIds: z.array(z.string()).optional().default([]),
       dueDateFrom: z.coerce.date().nullable().optional(),
       dueDateTo: z.coerce.date().nullable().optional(),
-      sortBy: z.enum(["createdAt", "dueDate", "priority", "title"]).optional(),
+      sortBy: z.enum(["order", "createdAt", "dueDate", "priority", "title"]).optional(),
       sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
       isArchived: z.boolean().optional().default(false),
     }),
