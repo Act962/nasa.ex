@@ -16,6 +16,7 @@ export const deleteWorkspace = base
     // Check for actions
     const hasActions = await prisma.action.findFirst({
       where: { workspaceId: input.workspaceId },
+      select: { id: true },
     });
 
     if (hasActions) {

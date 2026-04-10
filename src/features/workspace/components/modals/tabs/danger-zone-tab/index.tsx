@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useDeleteWorkspace } from "@/features/workspace/hooks/use-workspace";
+import { DeleteWorkspaceConfirmDialog } from "./confirm-dialog";
+import { useRouter } from "next/navigation";
 
 interface Props {
   workspace: any;
@@ -9,23 +12,25 @@ interface Props {
 }
 
 export function DangerZoneTab({ workspace, onDeleted }: Props) {
+  const router = useRouter();
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const deleteWorkspace = useDeleteWorkspace();
 
   const handleDelete = () => {
-    if (
-      confirm(
-        "Tem certeza que deseja deletar este workspace? Esta ação é irreversível.",
-      )
-    ) {
-      deleteWorkspace.mutate(
-        { workspaceId: workspace.id },
-        { onSuccess: onDeleted },
-      );
-    }
+    deleteWorkspace.mutate(
+      { workspaceId: workspace.id },
+      {
+        onSuccess: () => {
+          onDeleted();
+          setIsConfirmOpen(false);
+          router.replace("/workspaces");
+        },
+      },
+    );
   };
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div className="p-4 border border-destructive/20 bg-destructive/5 rounded-lg space-y-4">
         <div>
           <h3 className="text-lg font-medium text-destructive">
@@ -38,13 +43,20 @@ export function DangerZoneTab({ workspace, onDeleted }: Props) {
         </div>
         <Button
           variant="destructive"
-          onClick={handleDelete}
-          disabled={deleteWorkspace.isPending}
+          onClick={() => setIsConfirmOpen(true)}
           className="w-full sm:w-auto"
         >
-          {deleteWorkspace.isPending ? "Deletando..." : "Deletar"}
+          Deletar Workspace
         </Button>
       </div>
+
+      <DeleteWorkspaceConfirmDialog
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleDelete}
+        workspaceName={workspace.name}
+        isLoading={deleteWorkspace.isPending}
+      />
     </div>
   );
 }

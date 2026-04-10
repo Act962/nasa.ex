@@ -11,7 +11,12 @@ interface HeaderProps {
   actionMenu?: ReactNode;
 }
 
-export function ActionHeader({ workspaceName, actionTitle, isLoading, actionMenu }: HeaderProps) {
+export function ActionHeader({
+  workspaceName,
+  actionTitle,
+  isLoading,
+  actionMenu,
+}: HeaderProps) {
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
       <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
@@ -24,11 +29,7 @@ export function ActionHeader({ workspaceName, actionTitle, isLoading, actionMenu
       <div className="flex items-center gap-1 shrink-0">
         {actionMenu}
         <DialogClose asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 rounded-full"
-          >
+          <Button variant="ghost" size="icon" className="size-8 rounded-full">
             <XIcon className="size-4" />
           </Button>
         </DialogClose>
