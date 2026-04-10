@@ -28,7 +28,22 @@ export const removeParticipant = base
       throw errors.NOT_FOUND({ message: "Ação não encontrada" });
     }
 
-    if (action.createdBy !== context.user.id) {
+    const callerOrgMember = await prisma.member.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: context.user.id,
+          organizationId: context.org.id,
+        },
+      },
+    });
+
+    const isActionCreator = action.createdBy === context.user.id;
+    const isOrgPrivileged =
+      callerOrgMember?.role === "owner" ||
+      callerOrgMember?.role === "admin" ||
+      callerOrgMember?.role === "moderador";
+
+    if (!isActionCreator && !isOrgPrivileged) {
       throw errors.FORBIDDEN({
         message: "Você não tem permissão para remover um participante",
       });
@@ -36,7 +51,7 @@ export const removeParticipant = base
 
     if (action.createdBy === input.userId) {
       throw errors.BAD_REQUEST({
-        message: "Você não pode remover a si mesmo como participante",
+        message: "O criador da ação não pode ser removido dos participantes",
       });
     }
 

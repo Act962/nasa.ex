@@ -1,7 +1,14 @@
 import { useRef, useState, type KeyboardEvent } from "react";
-import { CheckIcon, PlusIcon } from "lucide-react";
+import { CheckIcon, ListTodo, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Action } from "../../types";
 import { SubActionItem } from "./sub-action-item";
 
@@ -117,34 +124,8 @@ export function ActionSubActions({
 
       {/* List */}
       <div className="space-y-1">
-        {subActions.map((sub) => {
-          return (
-            <SubActionItem
-              key={sub.id}
-              sub={sub}
-              members={members}
-              minDate={minDate}
-              maxDate={maxDate}
-              isExpanded={expandedId === sub.id}
-              isEditingTitle={editingTitleId === sub.id}
-              onToggleExpand={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
-              onEditTitleStart={() => setEditingTitleId(sub.id)}
-              onEditTitleEnd={() => setEditingTitleId(null)}
-              onToggle={onToggle}
-              onDelete={onDelete}
-              onUpdate={onUpdate}
-              onAddResponsible={onAddResponsible}
-              onRemoveResponsible={onRemoveResponsible}
-              onPromote={onPromote}
-              isUpdating={isUpdating}
-              isDeleting={isDeleting}
-            />
-          );
-        })}
-
-        {/* Add new sub-action inline */}
         {addingSubAction && (
-          <div className="flex items-center gap-2 px-2 py-1">
+          <div className="flex items-center gap-2 py-1">
             <div className="size-4 shrink-0" />
             <Input
               ref={subActionInputRef}
@@ -170,6 +151,35 @@ export function ActionSubActions({
             </Button>
           </div>
         )}
+
+        {subActions.map((sub) => {
+          return (
+            <SubActionItem
+              key={sub.id}
+              sub={sub}
+              members={members}
+              minDate={minDate}
+              maxDate={maxDate}
+              isExpanded={expandedId === sub.id}
+              isEditingTitle={editingTitleId === sub.id}
+              onToggleExpand={() =>
+                setExpandedId(expandedId === sub.id ? null : sub.id)
+              }
+              onEditTitleStart={() => setEditingTitleId(sub.id)}
+              onEditTitleEnd={() => setEditingTitleId(null)}
+              onToggle={onToggle}
+              onDelete={onDelete}
+              onUpdate={onUpdate}
+              onAddResponsible={onAddResponsible}
+              onRemoveResponsible={onRemoveResponsible}
+              onPromote={onPromote}
+              isUpdating={isUpdating}
+              isDeleting={isDeleting}
+            />
+          );
+        })}
+
+        {/* Add new sub-action inline */}
       </div>
     </div>
   );

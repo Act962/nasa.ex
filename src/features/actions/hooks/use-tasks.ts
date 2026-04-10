@@ -206,6 +206,7 @@ export const useQueryAction = (actionId: string) => {
 
   return {
     action: data?.action,
+    hasAccess: data?.hasAccess,
     isLoading,
   };
 };

@@ -66,7 +66,7 @@ export function LabelsTab({ workspaceId }: { workspaceId: string }) {
     );
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h3 className="text-lg font-medium">Etiquetas</h3>
         <p className="text-sm text-muted-foreground">

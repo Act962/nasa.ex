@@ -12,7 +12,7 @@ export const getAction = base
       actionId: z.string(),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context }) => {
     const action = await prisma.action.findUnique({
       where: {
         id: input.actionId,
@@ -99,5 +99,34 @@ export const getAction = base
       },
     });
 
-    return { action };
+    if (!action) return { action: null, hasAccess: false };
+
+    // 1. Is participant?
+    const isParticipant = action.participants.some(
+      (p) => p.userId === context.user.id,
+    );
+
+    // 2. Is workspace owner?
+    const workspaceMember = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: action.workspaceId,
+          userId: context.user.id,
+        },
+      },
+    });
+    const isWorkspaceOwner = workspaceMember?.role === "OWNER";
+
+    // 3. Is organization owner/admin?
+    const orgMember = (context.org.members as any[]).find(
+      (m: any) => m.userId === context.user.id,
+    );
+    const canSeeByOrg =
+      orgMember?.role === "owner" ||
+      orgMember?.role === "admin" ||
+      orgMember?.role === "moderador";
+
+    const hasAccess = isParticipant || isWorkspaceOwner || canSeeByOrg;
+
+    return { action, hasAccess };
   });
