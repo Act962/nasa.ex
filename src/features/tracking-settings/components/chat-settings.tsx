@@ -43,10 +43,19 @@ import { orpc } from "@/lib/orpc";
 import { Lock } from "lucide-react";
 
 // ── Popup plano necessário ────────────────────────────────────────────────────
-function NoPlanPopup({ open, onClose }: { open: boolean; onClose: () => void }) {
+function NoPlanPopup({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div
         className="bg-background border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl space-y-4"
         onClick={(e) => e.stopPropagation()}
@@ -58,7 +67,9 @@ function NoPlanPopup({ open, onClose }: { open: boolean; onClose: () => void }) 
           <div>
             <h3 className="text-base font-bold">Plano necessário</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Para conectar instâncias de WhatsApp é necessário ter um plano ativo. Fale com o administrador da plataforma para contratar um plano.
+              Para conectar instâncias de WhatsApp é necessário ter um plano
+              ativo. Fale com o administrador da plataforma para contratar um
+              plano.
             </p>
           </div>
         </div>
@@ -82,11 +93,16 @@ export function ChatSettings() {
     ...orpc.stars.getBalance.queryOptions(),
     staleTime: 60_000,
   });
-  const hasPlan = balance ? balance.planSlug !== "free" && balance.planMonthlyStars > 0 : true; // optimistic while loading
+  const hasPlan = balance
+    ? balance.planSlug !== "free" && balance.planMonthlyStars > 0
+    : true; // optimistic while loading
   const [showNoPlan, setShowNoPlan] = useState(false);
 
   const handleCreateClick = () => {
-    if (!hasPlan) { setShowNoPlan(true); return; }
+    // if (!hasPlan) {
+    //   setShowNoPlan(true);
+    //   return;
+    // }
     setIsCreateOpen(true);
   };
 
@@ -204,11 +220,7 @@ export function ChatSettings() {
                 carregar as existentes.
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCreateClick}
-            >
+            <Button variant="outline" size="sm" onClick={handleCreateClick}>
               {!hasPlan && <Lock className="size-3.5" />}
               Criar primeira instância
             </Button>
