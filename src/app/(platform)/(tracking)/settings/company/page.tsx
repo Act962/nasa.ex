@@ -1,4 +1,4 @@
-import { FormCompany } from "@/features/settings/components/form-compnay";
+import { CompanySettingsClient } from "@/features/settings/components/company/company-settings-client";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
@@ -9,11 +9,11 @@ export default async function CompanySettings() {
 
   return (
     <div className="py-4 px-5">
-      <FormCompany
+      <CompanySettingsClient
         company={{
           id: organization?.id!,
           name: organization?.name!,
-          logo: organization?.logo!,
+          logo: organization?.logo ?? undefined,
         }}
       />
     </div>

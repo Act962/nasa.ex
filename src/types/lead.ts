@@ -9,6 +9,7 @@ export interface LeadFull {
     statusId: string;
     amount: number;
     trackingId: string;
+    orgProjectId: string | null;
     createdAt: Date;
     updatedAt: Date;
     status: {

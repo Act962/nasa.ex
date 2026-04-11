@@ -22,6 +22,20 @@ import { updateCard } from "./update-card";
 import { deleteCard } from "./delete-card";
 import { createCalendarShare } from "./create-calendar-share";
 import { getCalendarShare } from "./get-calendar-share";
+import { createCampaign } from "./create-campaign";
+import { listCampaigns } from "./list-campaigns";
+import { getCampaign } from "./get-campaign";
+import { updateCampaign } from "./update-campaign";
+import { deleteCampaign } from "./delete-campaign";
+import { createCampaignEvent } from "./create-campaign-event";
+import { updateCampaignEvent } from "./update-campaign-event";
+import { deleteCampaignEvent } from "./delete-campaign-event";
+import { createCampaignTask } from "./create-campaign-task";
+import { updateCampaignTask } from "./update-campaign-task";
+import { createCampaignBrandAsset } from "./create-campaign-brand-asset";
+import { deleteCampaignBrandAsset } from "./delete-campaign-brand-asset";
+import { getCampaignCalendar } from "./get-campaign-calendar";
+import { getPublicCalendar } from "./get-public-calendar";
 
 export const nasaPlannerRouter = {
   planners: {
@@ -57,5 +71,29 @@ export const nasaPlannerRouter = {
   calendar: {
     share: createCalendarShare,
     getShare: getCalendarShare,
+  },
+  campaigns: {
+    list: listCampaigns,
+    get: getCampaign,
+    create: createCampaign,
+    update: updateCampaign,
+    delete: deleteCampaign,
+  },
+  campaignEvents: {
+    create: createCampaignEvent,
+    update: updateCampaignEvent,
+    delete: deleteCampaignEvent,
+  },
+  campaignTasks: {
+    create: createCampaignTask,
+    update: updateCampaignTask,
+  },
+  campaignBrandAssets: {
+    create: createCampaignBrandAsset,
+    delete: deleteCampaignBrandAsset,
+  },
+  campaignCalendar: {
+    get: getCampaignCalendar,
+    getPublic: getPublicCalendar,
   },
 };

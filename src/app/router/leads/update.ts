@@ -30,6 +30,7 @@ export const updateLead = base
         active: z.boolean().optional().default(false),
         amount: z.number().optional(),
         trackingId: z.string().optional(),
+        orgProjectId: z.string().nullable().optional(),
       })
       .refine(
         (v) =>
@@ -42,7 +43,8 @@ export const updateLead = base
           v.trackingId !== undefined ||
           v.tagIds !== undefined ||
           v.active !== undefined ||
-          v.amount !== undefined,
+          v.amount !== undefined ||
+          v.orgProjectId !== undefined,
         {
           message: "No fields to update",
           path: ["id"],
@@ -79,6 +81,7 @@ export const updateLead = base
             description: input.description,
             statusId: input.statusId,
             trackingId: input.trackingId,
+            orgProjectId: input.orgProjectId,
             responsibleId: input.responsibleId,
             isActive: input.active,
             amount: input.amount,

@@ -3,10 +3,9 @@
   "configurations": [
     {
       "name": "Next.js Dev Server",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3001,
-      "autoPort": true
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [".claude/start-dev.sh"],
+      "port": 3000
     }
   ]
 }

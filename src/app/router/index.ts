@@ -35,6 +35,7 @@ import { userRouter }                from "./user";
 import { publicRouter }              from "./public";
 import { plansRouter }               from "./plans";
 import { paymentRouter }             from "./payment";
+import { orgProjectsRouter }         from "./org-projects";
 
 export const router = {
   tracking: trackingRoutes,
@@ -73,4 +74,5 @@ export const router = {
   public:     publicRouter,
   plans:      plansRouter,
   payment:    paymentRouter,
+  orgProjects: orgProjectsRouter,
 };

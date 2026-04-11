@@ -59,6 +59,9 @@ model User {
   paymentEntriesCreated PaymentEntry[] @relation("PaymentEntryCreatedBy")
   paymentAccess         PaymentAccess[] @relation("PaymentAccessUser")
   paymentAccessGranted  PaymentAccess[] @relation("PaymentAccessAuthorizer")
+  nasaCampaignPlannersCreated NasaCampaignPlanner[] @relation("NasaCampaignPlannerCreatedBy")
+  nasaCampaignOnboardingsResponsible NasaCampaignOnboarding[] @relation("NasaCampaignOnboardingResponsible")
+  nasaCampaignTasksAssigned NasaCampaignTask[] @relation("NasaCampaignTaskAssignee")
 
   @@unique([email])
   @@map("user")
@@ -177,6 +180,22 @@ model Organization {
   paymentEntries      PaymentEntry[]
   paymentAccess       PaymentAccess[]
 
+  // NASA Campaign Planner
+  nasaCampaignPlanners NasaCampaignPlanner[]
+
+  // Projetos / Clientes
+  orgProjects OrgProject[]
+
+  // Marca / Brand
+  brandSlogan         String?  @map("brand_slogan")
+  brandWebsite        String?  @map("brand_website")
+  brandIcp            String?  @map("brand_icp")
+  brandPositioning    String?  @map("brand_positioning")
+  brandVoiceTone      String?  @map("brand_voice_tone")
+  brandVisual         Json     @default("{}") @map("brand_visual")
+  brandAiInstructions String?  @map("brand_ai_instructions")
+  brandSwot           Json     @default("{}") @map("brand_swot")
+
   @@unique([slug])
   @@map("organization")
 }
@@ -224,6 +243,7 @@ model Tracking {
   name           String
   description    String?
   organizationId String   @map("organization_id")
+  orgProjectId   String?  @map("org_project_id")
   isArchived     Boolean  @default(false) @map("is_archived")
   archivedAt     DateTime? @map("archived_at")
   globalAiActive Boolean  @default(false) @map("global_ai_active")
@@ -234,6 +254,7 @@ model Tracking {
 
   // Relacionamentos
   organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orgProject     OrgProject?           @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
   participants   TrackingParticipant[]
   status         Status[]
   leads          Lead[]
@@ -408,6 +429,7 @@ model Lead {
   statusId    String  @map("status_id")
   trackingId  String  @map("tracking_id")
   responsibleId String? @map("responsible_id")
+  orgProjectId  String? @map("org_project_id")
   order      Decimal @db.Decimal(20, 10) @default(0)
   source      LeadSource @default(DEFAULT)
   temperature Temperature @default(COLD)
@@ -425,6 +447,7 @@ model Lead {
   status   Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
   tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   responsible User? @relation("LeadResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
+  orgProject OrgProject? @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
 
   conversation Conversation? 
 
@@ -539,6 +562,7 @@ model Workspace {
 
   organizationId String   @map("organization_id")
   trackingId     String?  @map("tracking_id")   // opcional
+  orgProjectId   String?  @map("org_project_id")
   createdBy      String   @map("created_by")
 
   createdAt      DateTime @default(now())        @map("created_at")
@@ -546,6 +570,7 @@ model Workspace {
 
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   tracking       Tracking?     @relation(fields: [trackingId],     references: [id], onDelete: SetNull)
+  orgProject     OrgProject?   @relation(fields: [orgProjectId],   references: [id], onDelete: SetNull)
   creator        User          @relation(fields: [createdBy],      references: [id], onDelete: Cascade)
 
   columns        WorkspaceColumn[]
@@ -649,7 +674,8 @@ model Action {
   organizationId String?    @map("organization_id")
   createdBy      String     @map("created_by")
   leadId         String?    @map("lead_id")
-  
+  orgProjectId   String?    @map("org_project_id")
+
   closedAt       DateTime?  @map("closed_at")
   createdAt      DateTime   @default(now()) @map("created_at")
 
@@ -657,6 +683,7 @@ model Action {
   lead         Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
   tracking     Tracking?     @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  orgProject   OrgProject?   @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
   workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   column       WorkspaceColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
 
@@ -1103,10 +1130,13 @@ model Appointment {
   createdAt   DateTime          @default(now()) @map("created_at")
   updatedAt   DateTime          @updatedAt      @map("updated_at")
 
-  agenda Agenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
-  lead   Lead?  @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
-  tracking Tracking? @relation(fields: [trackingId], references: [id], onDelete: SetNull)
+  orgProjectId String?           @map("org_project_id")
+
+  agenda     Agenda     @relation(fields: [agendaId],     references: [id], onDelete: Cascade)
+  lead       Lead?      @relation(fields: [leadId],       references: [id], onDelete: SetNull)
+  user       User?      @relation(fields: [userId],       references: [id], onDelete: SetNull)
+  tracking   Tracking?  @relation(fields: [trackingId],   references: [id], onDelete: SetNull)
+  orgProject OrgProject? @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
 
   @@index([agendaId])
   @@index([leadId])
@@ -1342,12 +1372,16 @@ model ForgeProposal {
   createdAt       DateTime             @default(now()) @map("created_at")
   updatedAt       DateTime             @updatedAt      @map("updated_at")
 
+  orgProjectId String?              @map("org_project_id")
+
   organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   client       Lead?                 @relation(fields: [clientId], references: [id], onDelete: SetNull)
   responsible  User                  @relation("ForgeProposalResponsible", fields: [responsibleId], references: [id])
   createdBy    User                  @relation("ForgeProposalCreatedBy", fields: [createdById], references: [id])
   products     ForgeProposalProduct[]
   contracts    ForgeContract[]
+  campaignPlanners NasaCampaignPlanner[]
+  orgProject   OrgProject?           @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, number])
   @@index([organizationId])
@@ -1616,6 +1650,7 @@ model NBoxItem {
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   folder           NBoxFolder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
   createdBy        User         @relation("NBoxItemCreatedBy", fields: [createdById], references: [id])
+  campaignBrandAssets NasaCampaignBrandAsset[]
 
   @@index([organizationId])
   @@index([folderId])
@@ -1684,10 +1719,14 @@ model NasaPlanner {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt      @map("updated_at")
 
+  orgProjectId   String?  @map("org_project_id")
+
   organization   Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orgProject     OrgProject?               @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
   posts          NasaPlannerPost[]
   mindMaps       NasaPlannerMindMap[]
   calendarShares NasaPlannerCalendarShare[]
+  campaignPlanners NasaCampaignPlanner[]
 
   @@index([organizationId])
   @@map("nasa_planner")
@@ -2458,6 +2497,228 @@ model PaymentEntry {
   @@index([categoryId])
   @@index([installmentGroupId])
   @@map("payment_entries")
+}
+
+// ─── ORG PROJECTS / CLIENTES ────────────────────────────────────────────────
+
+model OrgProject {
+  id             String    @id @default(cuid())
+  organizationId String    @map("organization_id")
+  name           String
+  avatar         String?
+  type           String    @default("client") // "project" | "client" | "entity" | custom
+  description    String?
+  color          String?   @default("#7c3aed")
+  isActive       Boolean   @default(true)  @map("is_active")
+
+  // Marca / Brand
+  slogan           String?
+  website          String?
+  icp              String?
+  positioning      String?
+  voiceTone        String?  @map("voice_tone")
+  visual           Json     @default("{}")
+  aiInstructions   String?  @map("ai_instructions")
+  swot             Json     @default("{}")
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt      @map("updated_at")
+
+  organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leads             Lead[]
+  trackings         Tracking[]
+  actions           Action[]
+  workspaces        Workspace[]
+  appointments      Appointment[]
+  forgeProposals    ForgeProposal[]
+  nasaPlanners      NasaPlanner[]
+  campaignPlanners  NasaCampaignPlanner[]
+
+  @@index([organizationId])
+  @@map("org_projects")
+}
+
+// ─── NASA Campaign Planner ──────────────────────────────────────────────────
+
+enum NasaCampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum NasaCampaignEventType {
+  TRAINING
+  STRATEGIC_MEETING
+  REVIEW
+  KICKOFF
+  PRESENTATION
+  DEADLINE
+}
+
+enum NasaCampaignEventStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum NasaCampaignBrandAssetType {
+  LOGO
+  COLOR_PALETTE
+  FONT
+  LINK
+  DOCUMENT
+  IMAGE
+  VIDEO
+}
+
+enum NasaCampaignTaskStatus {
+  PENDING
+  IN_PROGRESS
+  REVIEW
+  COMPLETED
+  BLOCKED
+}
+
+enum NasaCampaignTaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model NasaCampaignPlanner {
+  id             String               @id @default(cuid())
+  organizationId String               @map("organization_id")
+  userId         String               @map("user_id")
+  plannerId      String?              @map("planner_id")
+  forgeProposalId String?             @map("forge_proposal_id")
+  orgProjectId   String?              @map("org_project_id")
+  title          String
+  description    String?
+  status         NasaCampaignStatus   @default(DRAFT)
+  companyCode    String?              @unique @map("company_code")
+  startDate      DateTime?            @map("start_date")
+  endDate        DateTime?            @map("end_date")
+  clientName     String?              @map("client_name")
+  clientLogo     String?              @map("client_logo")
+  color          String?              @default("#7c3aed")
+  metadata       Json                 @default("{}")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt      @map("updated_at")
+  deletedAt      DateTime?            @map("deleted_at")
+
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User                 @relation("NasaCampaignPlannerCreatedBy", fields: [userId], references: [id])
+  planner        NasaPlanner?         @relation(fields: [plannerId], references: [id], onDelete: SetNull)
+  forgeProposal  ForgeProposal?       @relation(fields: [forgeProposalId], references: [id], onDelete: SetNull)
+  orgProject     OrgProject?          @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
+
+  onboarding     NasaCampaignOnboarding?
+  events         NasaCampaignEvent[]
+  brandAssets    NasaCampaignBrandAsset[]
+  tasks          NasaCampaignTask[]
+  publicAccess   NasaCampaignPublicAccess?
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([companyCode])
+  @@map("nasa_campaign_planners")
+}
+
+model NasaCampaignOnboarding {
+  id                 String              @id @default(cuid())
+  campaignPlannerId  String              @unique @map("campaign_planner_id")
+  stage              String              @default("forge_pending")
+  forgeCompletedAt   DateTime?           @map("forge_completed_at")
+  onboardingStartedAt DateTime?          @map("onboarding_started_at")
+  notes              String?
+  responsibleUserId  String?             @map("responsible_user_id")
+  metadata           Json                @default("{}")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt      @map("updated_at")
+
+  campaignPlanner    NasaCampaignPlanner @relation(fields: [campaignPlannerId], references: [id], onDelete: Cascade)
+  responsibleUser    User?               @relation("NasaCampaignOnboardingResponsible", fields: [responsibleUserId], references: [id])
+
+  @@map("nasa_campaign_onboardings")
+}
+
+model NasaCampaignEvent {
+  id                 String                  @id @default(cuid())
+  campaignPlannerId  String                  @map("campaign_planner_id")
+  eventType          NasaCampaignEventType   @map("event_type")
+  title              String
+  description        String?
+  scheduledAt        DateTime                @map("scheduled_at")
+  durationMinutes    Int                     @default(60) @map("duration_minutes")
+  participants       Json                    @default("[]")
+  meetingLink        String?                 @map("meeting_link")
+  status             NasaCampaignEventStatus @default(SCHEDULED)
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt      @map("updated_at")
+
+  campaignPlanner    NasaCampaignPlanner     @relation(fields: [campaignPlannerId], references: [id], onDelete: Cascade)
+
+  @@index([campaignPlannerId])
+  @@index([scheduledAt])
+  @@map("nasa_campaign_events")
+}
+
+model NasaCampaignBrandAsset {
+  id                 String                     @id @default(cuid())
+  campaignPlannerId  String                     @map("campaign_planner_id")
+  nboxItemId         String?                    @map("nbox_item_id")
+  assetType          NasaCampaignBrandAssetType @map("asset_type")
+  name               String
+  url                String?
+  filePath           String?                    @map("file_path")
+  metadata           Json                       @default("{}")
+  createdAt          DateTime                   @default(now()) @map("created_at")
+
+  campaignPlanner    NasaCampaignPlanner        @relation(fields: [campaignPlannerId], references: [id], onDelete: Cascade)
+  nboxItem           NBoxItem?                  @relation(fields: [nboxItemId], references: [id], onDelete: SetNull)
+
+  @@index([campaignPlannerId])
+  @@map("nasa_campaign_brand_assets")
+}
+
+model NasaCampaignTask {
+  id                 String                   @id @default(cuid())
+  campaignPlannerId  String                   @map("campaign_planner_id")
+  title              String
+  description        String?
+  assignedTo         String?                  @map("assigned_to")
+  priority           NasaCampaignTaskPriority @default(MEDIUM)
+  status             NasaCampaignTaskStatus   @default(PENDING)
+  dueDate            DateTime?                @map("due_date")
+  tags               Json                     @default("[]")
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt      @map("updated_at")
+
+  campaignPlanner    NasaCampaignPlanner      @relation(fields: [campaignPlannerId], references: [id], onDelete: Cascade)
+  assignee           User?                    @relation("NasaCampaignTaskAssignee", fields: [assignedTo], references: [id])
+
+  @@index([campaignPlannerId])
+  @@map("nasa_campaign_tasks")
+}
+
+model NasaCampaignPublicAccess {
+  id                 String              @id @default(cuid())
+  campaignPlannerId  String              @unique @map("campaign_planner_id")
+  accessCode         String              @unique @map("access_code")
+  isActive           Boolean             @default(true) @map("is_active")
+  allowedViews       Json                @default("[\"calendar\"]") @map("allowed_views")
+  expiresAt          DateTime?           @map("expires_at")
+  lastAccessedAt     DateTime?           @map("last_accessed_at")
+  createdAt          DateTime            @default(now()) @map("created_at")
+
+  campaignPlanner    NasaCampaignPlanner @relation(fields: [campaignPlannerId], references: [id], onDelete: Cascade)
+
+  @@index([accessCode])
+  @@map("nasa_campaign_public_access")
 }
 
 /// Customizable popup templates for achievements and stars rewards

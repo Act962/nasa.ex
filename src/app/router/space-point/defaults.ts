@@ -80,6 +80,14 @@ export const DEFAULT_RULES = [
   { action: "penalty_proposal_error",       label: "⚠️ Proposta enviada com erro de dados",       points: -10,  cooldownHours: null, category: "penalty" },
   { action: "penalty_contract_cancelled",   label: "⚠️ Contrato cancelado por inadimplência",     points: -30,  cooldownHours: null, category: "penalty" },
   { action: "penalty_lead_lost_nofollowup", label: "⚠️ Lead marcado como perdido sem follow-up",  points: -15,  cooldownHours: null, category: "penalty" },
+  // ── CAMPAIGN PLANNER ─────────────────────────────────────────────────────
+  { action: "create_campaign_planner",      label: "Criar Planejamento de Campanha",               points: 100,  cooldownHours: null, category: "campaign" },
+  { action: "create_campaign_event",        label: "Agendar Evento de Campanha",                   points: 20,   cooldownHours: null, category: "campaign" },
+  { action: "upload_brand_asset",           label: "Salvar Material de Marca",                     points: 15,   cooldownHours: null, category: "campaign" },
+  { action: "create_campaign_task",         label: "Criar Demanda no Planejamento",                points: 10,   cooldownHours: null, category: "campaign" },
+  { action: "complete_campaign_onboarding", label: "Concluir Onboarding de Campanha",              points: 200,  cooldownHours: null, category: "campaign" },
+  { action: "share_campaign_calendar",      label: "Compartilhar Calendário da Campanha",          points: 25,   cooldownHours: null, category: "campaign" },
+  { action: "complete_campaign",            label: "Concluir Campanha",                            points: 300,  cooldownHours: null, category: "campaign" },
 ];
 
 export const CATEGORY_LABEL: Record<string, string> = {
@@ -87,6 +95,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   forge:       "Forge",
   automation:  "Workflows & Automações",
   planner:     "NASA Planner",
+  campaign:    "NASA Campaign Planner",
   ai:          "NASA Command (IA)",
   agenda:      "Agenda",
   workspace:   "Workspace",

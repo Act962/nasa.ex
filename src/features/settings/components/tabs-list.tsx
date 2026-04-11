@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2Icon, SettingsIcon, UsersIcon, ShieldCheck, FileInput, Clock, Bell } from "lucide-react";
+import { Building2Icon, SettingsIcon, UsersIcon, ShieldCheck, FileInput, Clock, Bell, FolderIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useOrgRole } from "@/hooks/use-org-role";
@@ -17,6 +17,12 @@ const tabsLink = [
     href: "/company",
     icon: Building2Icon,
     singleAllowed: true,   // visible but read-only
+  },
+  {
+    label: "Projetos/Clientes",
+    href: "/projects",
+    icon: FolderIcon,
+    singleAllowed: true,
   },
   {
     label: "Membros",

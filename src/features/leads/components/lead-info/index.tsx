@@ -29,6 +29,7 @@ import {
 import { FieldsStatus } from "./fields/field-status";
 import { FieldTracking } from "./fields/field-tracking";
 import { FieldMoney } from "./fields/field-money";
+import { FieldProject } from "./fields/field-project";
 import { SendMessageSheet } from "../send-message-sheet";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
@@ -224,6 +225,10 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                   trackingId={lead.trackingId}
                   trackingName={lead.tracking.name}
                   statusId={lead.status.id}
+                />
+                <FieldProject
+                  trackingId={lead.trackingId}
+                  orgProjectId={lead.orgProjectId}
                 />
                 <FieldsStatus
                   value={lead.status.name}

@@ -32,6 +32,7 @@ export const getLead = base
           profile: true,
           statusId: true,
           trackingId: true,
+          orgProjectId: true,
           amount: true,
           createdAt: true,
           updatedAt: true,
