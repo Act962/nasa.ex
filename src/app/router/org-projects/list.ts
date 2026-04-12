@@ -30,5 +30,8 @@ export const listOrgProjects = base
       },
       orderBy: { createdAt: "desc" },
     });
+
+    // Include brand fields in each project so callers can use them
+    // (slogan, icp, positioning, voiceTone, visual, aiInstructions, swot are already on the model)
     return { projects };
   });

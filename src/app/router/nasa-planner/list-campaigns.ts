@@ -10,6 +10,7 @@ export const listCampaigns = base
   .input(
     z.object({
       status: z.string().optional(),
+      plannerId: z.string().optional(),
     }).optional(),
   )
   .handler(async ({ input, context }) => {
@@ -18,6 +19,7 @@ export const listCampaigns = base
         organizationId: context.org.id,
         deletedAt: null,
         ...(input?.status ? { status: input.status as any } : {}),
+        ...(input?.plannerId ? { plannerId: input.plannerId } : {}),
       },
       include: {
         onboarding: true,

@@ -36,6 +36,7 @@ import { createCampaignBrandAsset } from "./create-campaign-brand-asset";
 import { deleteCampaignBrandAsset } from "./delete-campaign-brand-asset";
 import { getCampaignCalendar } from "./get-campaign-calendar";
 import { getPublicCalendar } from "./get-public-calendar";
+import { generateCampaignBrief } from "./generate-campaign-brief";
 
 export const nasaPlannerRouter = {
   planners: {
@@ -78,6 +79,7 @@ export const nasaPlannerRouter = {
     create: createCampaign,
     update: updateCampaign,
     delete: deleteCampaign,
+    generateBrief: generateCampaignBrief,
   },
   campaignEvents: {
     create: createCampaignEvent,

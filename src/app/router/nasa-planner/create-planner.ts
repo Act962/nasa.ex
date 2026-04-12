@@ -13,6 +13,9 @@ export const createPlanner = base
       name: z.string().min(1, "Nome é obrigatório"),
       description: z.string().optional(),
       brandName: z.string().optional(),
+      orgProjectId: z.string().optional(),
+      clientOrgId: z.string().optional(),
+      clientOrgName: z.string().optional(),
     }),
   )
   .handler(async ({ input, context }) => {
@@ -21,7 +24,10 @@ export const createPlanner = base
         organizationId: context.org.id,
         name: input.name,
         description: input.description,
-        brandName: input.brandName,
+        brandName: input.brandName ?? input.clientOrgName,
+        orgProjectId: input.orgProjectId,
+        clientOrgId: input.clientOrgId,
+        clientOrgName: input.clientOrgName,
       },
     });
 

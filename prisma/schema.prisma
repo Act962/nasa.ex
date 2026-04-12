@@ -1234,6 +1234,7 @@ enum IntegrationPlatform {
   LINKEDIN
   GMAIL
   GOOGLE_MAPS
+  GOOGLE_CALENDAR
   META
   OPENAI
   ANTHROPIC
@@ -1241,6 +1242,8 @@ enum IntegrationPlatform {
   KOMMO
   RD_STATION
   PIPEDRIVE
+  HUGGING_FACE
+  POLLINATIONS
 }
 
 // Armazena credenciais de integração por plataforma/organização.
@@ -1715,6 +1718,8 @@ model NasaPlanner {
   showBranding    Boolean  @default(true) @map("show_branding")
 
   anthropicApiKey String?  @map("anthropic_api_key")
+  clientOrgId    String?  @map("client_org_id")
+  clientOrgName  String?  @map("client_org_name")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt      @map("updated_at")
@@ -1755,12 +1760,19 @@ model NasaPlannerPost {
   targetNetworks String[] @map("target_networks")
   thumbnail      String?
 
+  orgProjectId    String?  @map("org_project_id")
+  clientOrgName   String?  @map("client_org_name")
+  campaignId      String?  @map("campaign_id")
+  referenceLinks  String[] @default([]) @map("reference_links")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt      @map("updated_at")
 
-  planner   NasaPlanner            @relation(fields: [plannerId], references: [id], onDelete: Cascade)
-  createdBy User                   @relation("NasaPlannerPostCreatedBy", fields: [createdById], references: [id])
-  slides    NasaPlannerPostSlide[]
+  planner    NasaPlanner             @relation(fields: [plannerId], references: [id], onDelete: Cascade)
+  createdBy  User                    @relation("NasaPlannerPostCreatedBy", fields: [createdById], references: [id])
+  orgProject OrgProject?             @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
+  campaign   NasaCampaignPlanner?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  slides     NasaPlannerPostSlide[]
 
   @@index([plannerId, status])
   @@index([plannerId, scheduledAt])
@@ -2533,6 +2545,7 @@ model OrgProject {
   forgeProposals    ForgeProposal[]
   nasaPlanners      NasaPlanner[]
   campaignPlanners  NasaCampaignPlanner[]
+  nasaPlannerPosts  NasaPlannerPost[]
 
   @@index([organizationId])
   @@map("org_projects")
@@ -2598,6 +2611,7 @@ model NasaCampaignPlanner {
   orgProjectId   String?              @map("org_project_id")
   title          String
   description    String?
+  campaignType   String?              @map("campaign_type")
   status         NasaCampaignStatus   @default(DRAFT)
   companyCode    String?              @unique @map("company_code")
   startDate      DateTime?            @map("start_date")
@@ -2621,6 +2635,7 @@ model NasaCampaignPlanner {
   brandAssets    NasaCampaignBrandAsset[]
   tasks          NasaCampaignTask[]
   publicAccess   NasaCampaignPublicAccess?
+  posts          NasaPlannerPost[]
 
   @@index([organizationId])
   @@index([userId])
@@ -2655,10 +2670,12 @@ model NasaCampaignEvent {
   scheduledAt        DateTime                @map("scheduled_at")
   durationMinutes    Int                     @default(60) @map("duration_minutes")
   participants       Json                    @default("[]")
-  meetingLink        String?                 @map("meeting_link")
-  status             NasaCampaignEventStatus @default(SCHEDULED)
-  createdAt          DateTime                @default(now()) @map("created_at")
-  updatedAt          DateTime                @updatedAt      @map("updated_at")
+  meetingLink          String?                 @map("meeting_link")
+  status               NasaCampaignEventStatus @default(SCHEDULED)
+  linkedActionId       String?                 @map("linked_action_id")
+  linkedAppointmentId  String?                 @map("linked_appointment_id")
+  createdAt            DateTime                @default(now()) @map("created_at")
+  updatedAt            DateTime                @updatedAt      @map("updated_at")
 
   campaignPlanner    NasaCampaignPlanner     @relation(fields: [campaignPlannerId], references: [id], onDelete: Cascade)
 

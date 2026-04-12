@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeftIcon, BrainCircuitIcon, FileImageIcon,
-  LayoutGridIcon, CalendarIcon, SettingsIcon, AlertCircleIcon,
+  LayoutGridIcon, CalendarIcon, AlertCircleIcon, RocketIcon,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { DashboardTab } from "./tabs/dashboard-tab";
 import { PostsTab } from "./tabs/posts-tab";
 import { MindMapsTab } from "./tabs/mind-maps-tab";
 import { CalendarTab } from "./tabs/calendar-tab";
-import { SettingsTab } from "./tabs/settings-tab";
+import { CampaignsTab } from "./tabs/campaigns-tab";
 
 const TAB_TRIGGER_CLASS =
   "rounded-none border-b-2 border-transparent data-[state=active]:border-violet-600 data-[state=active]:text-violet-600 data-[state=active]:bg-transparent px-3 py-2 text-sm";
@@ -59,6 +59,9 @@ export function NasaPlannerApp({ plannerId }: { plannerId: string }) {
         <div className="border-b px-6 shrink-0">
           <TabsList className="h-10 rounded-none bg-transparent p-0 gap-1">
             <TabsTrigger value="dashboard" className={TAB_TRIGGER_CLASS}>Dashboard</TabsTrigger>
+            <TabsTrigger value="campaigns" className={TAB_TRIGGER_CLASS}>
+              <RocketIcon className="size-3.5 mr-1.5" />Campanhas
+            </TabsTrigger>
             <TabsTrigger value="posts" className={TAB_TRIGGER_CLASS}>
               <FileImageIcon className="size-3.5 mr-1.5" />Posts
             </TabsTrigger>
@@ -66,16 +69,16 @@ export function NasaPlannerApp({ plannerId }: { plannerId: string }) {
               <LayoutGridIcon className="size-3.5 mr-1.5" />Mapas Mentais
             </TabsTrigger>
             <TabsTrigger value="calendar" className={TAB_TRIGGER_CLASS}>
-              <CalendarIcon className="size-3.5 mr-1.5" />Calendário
-            </TabsTrigger>
-            <TabsTrigger value="settings" className={TAB_TRIGGER_CLASS}>
-              <SettingsIcon className="size-3.5 mr-1.5" />Configurações
+              <CalendarIcon className="size-3.5 mr-1.5" />Calendário de Ações
             </TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="dashboard" className="flex-1 min-h-0 overflow-auto mt-0">
           <DashboardTab plannerId={plannerId} />
+        </TabsContent>
+        <TabsContent value="campaigns" className="flex-1 min-h-0 overflow-hidden mt-0">
+          <CampaignsTab plannerId={plannerId} />
         </TabsContent>
         <TabsContent value="posts" className="flex-1 min-h-0 overflow-hidden mt-0">
           <PostsTab plannerId={plannerId} />
@@ -85,9 +88,6 @@ export function NasaPlannerApp({ plannerId }: { plannerId: string }) {
         </TabsContent>
         <TabsContent value="calendar" className="flex-1 min-h-0 overflow-hidden mt-0">
           <CalendarTab plannerId={plannerId} />
-        </TabsContent>
-        <TabsContent value="settings" className="flex-1 min-h-0 overflow-hidden mt-0">
-          <SettingsTab plannerId={plannerId} />
         </TabsContent>
       </Tabs>
     </div>

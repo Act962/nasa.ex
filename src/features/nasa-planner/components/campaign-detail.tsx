@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   RocketIcon, BuildingIcon, CalendarIcon, ClockIcon, CheckSquareIcon,
   ImageIcon, PlusIcon, Trash2Icon, ExternalLinkIcon, ArrowLeftIcon,
-  BadgeCheckIcon, CopyIcon, CheckIcon,
+  BadgeCheckIcon, CopyIcon, CheckIcon, LayoutDashboardIcon, CalendarDaysIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { useQuery } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
 import {
   useCampaign,
   useCreateCampaignEvent, useDeleteCampaignEvent,
@@ -26,6 +29,20 @@ import {
 } from "../hooks/use-campaign-planner";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+function buildGoogleCalendarUrl(title: string, scheduledAt: string, durationMinutes: number, description?: string, location?: string) {
+  const start = new Date(scheduledAt);
+  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: title,
+    dates: `${fmt(start)}/${fmt(end)}`,
+    ...(description ? { details: description } : {}),
+    ...(location ? { location } : {}),
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   DRAFT:     { label: "Rascunho",  color: "bg-zinc-500" },
@@ -77,8 +94,30 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   const [taskOpen, setTaskOpen] = useState(false);
   const [assetOpen, setAssetOpen] = useState(false);
   const [eventForm, setEventForm] = useState({ eventType: "KICKOFF", title: "", scheduledAt: "", durationMinutes: 60, meetingLink: "" });
+  const [eventWorkspaceId, setEventWorkspaceId] = useState("");
+  const [eventColumnId, setEventColumnId] = useState("");
+  const [reflectInAgenda, setReflectInAgenda] = useState(false);
+
+  const { data: workspacesData } = useQuery({
+    ...orpc.workspace.list.queryOptions({ input: {} }),
+    enabled: eventOpen || taskOpen,
+  });
+  const workspaces = workspacesData?.workspaces ?? [];
+
+  const { data: columnsData } = useQuery({
+    ...orpc.workspace.getColumnsByWorkspace.queryOptions({ input: { workspaceId: eventWorkspaceId } }),
+    enabled: !!eventWorkspaceId,
+  });
+  const columns = columnsData?.columns ?? [];
   const [taskForm, setTaskForm] = useState({ title: "", description: "", priority: "MEDIUM", dueDate: "" });
+  const [taskWorkspaceId, setTaskWorkspaceId] = useState("");
+  const [taskColumnId, setTaskColumnId] = useState("");
   const [assetForm, setAssetForm] = useState({ assetType: "LOGO", name: "", url: "" });
+
+  const { data: taskColumnsData } = useQuery({
+    ...orpc.workspace.getColumnsByWorkspace.queryOptions({ input: { workspaceId: taskWorkspaceId } }),
+    enabled: !!taskWorkspaceId,
+  });
 
   const handleCopyCode = () => {
     if (!campaign?.companyCode) return;
@@ -90,16 +129,37 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
 
   const handleAddEvent = async () => {
     if (!eventForm.title || !eventForm.scheduledAt) return;
-    await createEvent.mutateAsync({ campaignId, ...eventForm, eventType: eventForm.eventType as any });
+    const result = await createEvent.mutateAsync({
+      campaignId,
+      ...eventForm,
+      eventType: eventForm.eventType as any,
+      workspaceId: eventWorkspaceId || undefined,
+      columnId: eventColumnId || undefined,
+      reflectInAgenda,
+    });
+    if (result.linkedActionId) toast.success("Card criado no Workspace ✓");
+    if (result.linkedAppointmentId) toast.success("Ação adicionada à Agenda ✓");
     setEventOpen(false);
     setEventForm({ eventType: "KICKOFF", title: "", scheduledAt: "", durationMinutes: 60, meetingLink: "" });
+    setEventWorkspaceId(""); setEventColumnId(""); setReflectInAgenda(false);
   };
+
+  const taskColumns = taskColumnsData?.columns ?? [];
 
   const handleAddTask = async () => {
     if (!taskForm.title) return;
-    await createTask.mutateAsync({ campaignId, ...taskForm, priority: taskForm.priority as any, dueDate: taskForm.dueDate || undefined });
+    const result = await createTask.mutateAsync({
+      campaignId,
+      ...taskForm,
+      priority: taskForm.priority as any,
+      dueDate: taskForm.dueDate || undefined,
+      workspaceId: taskWorkspaceId || undefined,
+      columnId: taskColumnId || undefined,
+    });
+    if ((result as any).linkedActionId) toast.success("Card criado no Workspace ✓");
     setTaskOpen(false);
     setTaskForm({ title: "", description: "", priority: "MEDIUM", dueDate: "" });
+    setTaskWorkspaceId(""); setTaskColumnId("");
   };
 
   const handleAddAsset = async () => {
@@ -191,18 +251,18 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
       <div className="flex-1 px-6 py-4">
         <Tabs defaultValue="events">
           <TabsList className="mb-4">
-            <TabsTrigger value="events" className="gap-1.5"><CalendarIcon className="size-3.5" /> Eventos ({campaign.events?.length ?? 0})</TabsTrigger>
-            <TabsTrigger value="tasks" className="gap-1.5"><CheckSquareIcon className="size-3.5" /> Tarefas ({campaign.tasks?.length ?? 0})</TabsTrigger>
+            <TabsTrigger value="events" className="gap-1.5"><CalendarIcon className="size-3.5" /> Ações ({campaign.events?.length ?? 0})</TabsTrigger>
+            <TabsTrigger value="tasks" className="gap-1.5"><CheckSquareIcon className="size-3.5" /> Sub-ações ({campaign.tasks?.length ?? 0})</TabsTrigger>
             <TabsTrigger value="brand" className="gap-1.5"><ImageIcon className="size-3.5" /> Marca ({campaign.brandAssets?.length ?? 0})</TabsTrigger>
           </TabsList>
 
           {/* Events */}
           <TabsContent value="events" className="space-y-3">
             <div className="flex justify-end">
-              <Button size="sm" onClick={() => setEventOpen(true)} className="gap-1"><PlusIcon className="size-3.5" /> Adicionar Evento</Button>
+              <Button size="sm" onClick={() => setEventOpen(true)} className="gap-1"><PlusIcon className="size-3.5" /> Adicionar Ação</Button>
             </div>
             {(campaign.events ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhum evento cadastrado.</p>
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma ação cadastrada.</p>
             ) : (
               <div className="space-y-2">
                 {campaign.events.map((ev: any) => (
@@ -234,10 +294,10 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
           {/* Tasks */}
           <TabsContent value="tasks" className="space-y-3">
             <div className="flex justify-end">
-              <Button size="sm" onClick={() => setTaskOpen(true)} className="gap-1"><PlusIcon className="size-3.5" /> Adicionar Tarefa</Button>
+              <Button size="sm" onClick={() => setTaskOpen(true)} className="gap-1"><PlusIcon className="size-3.5" /> Adicionar Sub-ação</Button>
             </div>
             {(campaign.tasks ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma tarefa cadastrada.</p>
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma sub-ação cadastrada.</p>
             ) : (
               <div className="space-y-2">
                 {campaign.tasks.map((task: any) => (
@@ -299,10 +359,11 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
       </div>
 
       {/* Add Event Dialog */}
-      <Dialog open={eventOpen} onOpenChange={setEventOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Adicionar Evento</DialogTitle></DialogHeader>
+      <Dialog open={eventOpen} onOpenChange={(v) => { setEventOpen(v); if (!v) { setEventWorkspaceId(""); setEventColumnId(""); setReflectInAgenda(false); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Adicionar Ação</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            {/* Basic fields */}
             <div className="space-y-1.5">
               <Label>Tipo</Label>
               <Select value={eventForm.eventType} onValueChange={(v) => setEventForm((f) => ({ ...f, eventType: v }))}>
@@ -324,9 +385,72 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                 <Input type="number" value={eventForm.durationMinutes} onChange={(e) => setEventForm((f) => ({ ...f, durationMinutes: +e.target.value }))} />
               </div>
             </div>
+
+            {/* Meeting link + Google Calendar */}
             <div className="space-y-1.5">
               <Label>Link da Reunião</Label>
-              <Input value={eventForm.meetingLink} onChange={(e) => setEventForm((f) => ({ ...f, meetingLink: e.target.value }))} placeholder="https://..." />
+              <div className="flex gap-2">
+                <Input
+                  value={eventForm.meetingLink}
+                  onChange={(e) => setEventForm((f) => ({ ...f, meetingLink: e.target.value }))}
+                  placeholder="https://meet.google.com/..."
+                  className="flex-1"
+                />
+                {eventForm.title && eventForm.scheduledAt && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 gap-1.5 text-xs"
+                    onClick={() => window.open(buildGoogleCalendarUrl(eventForm.title, eventForm.scheduledAt, eventForm.durationMinutes, undefined, eventForm.meetingLink || undefined), "_blank")}
+                  >
+                    <CalendarDaysIcon className="size-3.5" />
+                    Google Calendar
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Workspace + Column */}
+            <div className="border rounded-lg p-3 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <LayoutDashboardIcon className="size-4 text-muted-foreground" />
+                Refletir no Workspace
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Workspace</Label>
+                  <Select value={eventWorkspaceId || "__none__"} onValueChange={(v) => { setEventWorkspaceId(v === "__none__" ? "" : v); setEventColumnId(""); }}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Nenhum</SelectItem>
+                      {workspaces.map((w: any) => (
+                        <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Status / Coluna</Label>
+                  <Select value={eventColumnId} onValueChange={setEventColumnId} disabled={!eventWorkspaceId}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                    <SelectContent>
+                      {columns.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Reflect in Agenda */}
+            <div className="flex items-center justify-between border rounded-lg px-3 py-2.5">
+              <div className="flex items-center gap-2 text-sm">
+                <CalendarIcon className="size-4 text-muted-foreground" />
+                <span>Refletir na Agenda</span>
+              </div>
+              <Switch checked={reflectInAgenda} onCheckedChange={setReflectInAgenda} />
             </div>
           </div>
           <DialogFooter>
@@ -341,7 +465,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
       {/* Add Task Dialog */}
       <Dialog open={taskOpen} onOpenChange={setTaskOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Adicionar Tarefa</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Adicionar Sub-ação</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Título *</Label>
@@ -369,9 +493,42 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                 <Input type="date" value={taskForm.dueDate} onChange={(e) => setTaskForm((f) => ({ ...f, dueDate: e.target.value }))} />
               </div>
             </div>
+
+            {/* Workspace + Column */}
+            <div className="border rounded-lg p-3 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <LayoutDashboardIcon className="size-4 text-muted-foreground" />
+                Refletir no Workspace
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Workspace</Label>
+                  <Select value={taskWorkspaceId || "__none__"} onValueChange={(v) => { setTaskWorkspaceId(v === "__none__" ? "" : v); setTaskColumnId(""); }}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Nenhum</SelectItem>
+                      {workspaces.map((w: any) => (
+                        <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Status / Coluna</Label>
+                  <Select value={taskColumnId} onValueChange={setTaskColumnId} disabled={!taskWorkspaceId}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                    <SelectContent>
+                      {taskColumns.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTaskOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setTaskOpen(false); setTaskWorkspaceId(""); setTaskColumnId(""); }}>Cancelar</Button>
             <Button onClick={handleAddTask} disabled={!taskForm.title || createTask.isPending}>
               {createTask.isPending ? "Salvando..." : "Adicionar"}
             </Button>

@@ -31,14 +31,20 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   ExternalLink,
+  Globe,
   Info,
+  Key,
   Link2Off,
   Loader2,
   Lock,
   Plug,
+  RefreshCw,
   ShieldCheck,
+  Sparkles,
+  ToggleRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -52,7 +58,7 @@ interface FieldDef {
   hint?: string;
 }
 
-interface PlatformDef {
+export interface PlatformDef {
   platform: IntegrationPlatform | "WHATSAPP";
   label: string;
   description: string;
@@ -65,7 +71,80 @@ interface PlatformDef {
   docsLabel: string;
   steps: string[];
   category: "messaging" | "social" | "maps" | "email" | "ads" | "crm" | "ai";
+  visualGuide?: boolean;
 }
+
+// ─── Google Calendar Visual Steps ─────────────────────────────────────────────
+
+export const GC_VISUAL_STEPS = [
+  {
+    step: 1,
+    icon: Globe,
+    color: "from-blue-500 to-blue-600",
+    title: "Criar projeto no Cloud Console",
+    description: 'Acesse console.cloud.google.com → clique em "Selecionar projeto" → "Novo projeto"',
+    mockup: (
+      <div className="mt-2 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-2 text-[10px] space-y-1">
+        <div className="flex items-center gap-1.5 bg-[#1a73e8] text-white rounded px-2 py-0.5 w-fit font-medium">
+          <span className="text-[9px]">≡</span> Google Cloud
+        </div>
+        <div className="flex gap-1 items-center text-blue-700 dark:text-blue-300">
+          <span className="bg-blue-100 dark:bg-blue-900 px-1.5 py-0.5 rounded border border-blue-300 dark:border-blue-700">Selecionar projeto ▾</span>
+          <span className="text-muted-foreground">→</span>
+          <span className="bg-white dark:bg-blue-900 px-1.5 py-0.5 rounded border border-blue-300 dark:border-blue-700">+ Novo projeto</span>
+        </div>
+      </div>
+    ),
+  },
+  {
+    step: 2,
+    icon: ToggleRight,
+    color: "from-green-500 to-green-600",
+    title: "Ativar a Google Calendar API",
+    description: 'APIs e Serviços → Biblioteca → pesquise "Google Calendar API" → Ativar',
+    mockup: (
+      <div className="mt-2 rounded-md border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/40 p-2 text-[10px] space-y-1">
+        <div className="text-green-700 dark:text-green-300 font-medium">Google Calendar API</div>
+        <div className="flex items-center gap-2">
+          <div className="bg-[#1a73e8] text-white rounded px-2 py-0.5 font-medium">ATIVAR</div>
+          <span className="text-muted-foreground">← clique aqui</span>
+        </div>
+      </div>
+    ),
+  },
+  {
+    step: 3,
+    icon: Key,
+    color: "from-violet-500 to-violet-600",
+    title: "Criar ID do cliente OAuth 2.0",
+    description: 'Credenciais → + Criar credenciais → ID do cliente OAuth → tipo "Aplicativo da Web"',
+    mockup: (
+      <div className="mt-2 rounded-md border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/40 p-2 text-[10px] space-y-1">
+        <div className="text-violet-700 dark:text-violet-300">Tipo de aplicativo:</div>
+        <div className="flex gap-1">
+          <span className="bg-violet-100 dark:bg-violet-900 px-1.5 py-0.5 rounded border-2 border-violet-400 text-violet-700 dark:text-violet-300 font-medium">● Aplicativo da Web</span>
+        </div>
+        <div className="text-muted-foreground">URIs: http://localhost</div>
+      </div>
+    ),
+  },
+  {
+    step: 4,
+    icon: RefreshCw,
+    color: "from-orange-500 to-orange-600",
+    title: "Gerar Refresh Token via OAuth Playground",
+    description: 'Acesse developers.google.com/oauthplayground → insira seu Client ID/Secret → escopo calendar.events',
+    mockup: (
+      <div className="mt-2 rounded-md border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/40 p-2 text-[10px] space-y-1">
+        <div className="text-orange-700 dark:text-orange-300 font-medium">OAuth 2.0 Playground</div>
+        <div className="bg-white dark:bg-orange-950 border border-orange-200 dark:border-orange-700 rounded px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+          https://www.googleapis.com/auth/calendar.events
+        </div>
+        <div className="bg-[#1a73e8] text-white rounded px-2 py-0.5 w-fit">Exchange tokens →</div>
+      </div>
+    ),
+  },
+];
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 
@@ -97,6 +176,11 @@ const GmailIcon = ({ className }: { className?: string }) => (
 const GoogleMapsIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
     <path d="M12 0C7.802 0 4 3.403 4 7.602 4 11.8 7.469 16.812 12 24c4.531-7.188 8-12.2 8-16.398C20 3.403 16.199 0 12 0zm0 11a3 3 0 110-6 3 3 0 010 6z" />
+  </svg>
+);
+const GoogleCalendarIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M18.316 5.684H24v12.632h-5.684zM5.684 24h12.632v-5.684H5.684zm12.632-18.316V0H6.316C5.006 0 3.947 1.059 3.947 2.368v15.948L0 19.74 3.947 24v-.013h.013v.013H17.37c1.311 0 2.368-1.059 2.368-2.368V18.32H5.684V5.684h12.632zM21.61 0h-3.292v5.684H24V2.39C24 1.07 22.93 0 21.61 0zm-15.926 8.842H4.737v1.579h1.947v-.79h.79V8.842zm3.158 6.632c0 .432-.353.79-.79.79s-.79-.358-.79-.79V12c0-.432.353-.79.79-.79s.79.358.79.79v3.474zm0-6.632h-.79v1.579h1.58v-.79h.79V8.842H8.842zm3.158 6.632c0 .432-.353.79-.79.79s-.79-.358-.79-.79V12c0-.432.353-.79.79-.79s.79.358.79.79v3.474zm0-6.632h-.79v1.579h1.58v-.79h.79V8.842h-1.58zm3.159 6.632c0 .432-.353.79-.79.79s-.79-.358-.79-.79V12c0-.432.353-.79.79-.79s.79.358.79.79v3.474zm0-6.632h-.79v1.579H16V8.842h-1.58z"/>
   </svg>
 );
 const MetaIcon = ({ className }: { className?: string }) => (
@@ -134,10 +218,20 @@ const PipedriveIcon = ({ className }: { className?: string }) => (
     <path d="M21.385.029C19.654-.206 17.49.683 15.99 2.075c-1.78 1.63-2.641 3.899-2.641 6.21 0 4.08 2.88 7.336 6.959 7.336.6 0 1.2-.06 1.77-.18.15 3.51-1.89 6.089-5.399 6.089-1.471 0-2.581-.451-3.571-1.05L4.921 24l.36-.72 5.849-3.24c-2.07-1.71-3.3-4.17-3.3-6.87C7.83 6.03 12.3 0 18.72 0c.9 0 1.8.03 2.665.029zm-4.214 4.77c-1.65 0-2.909 1.319-2.909 2.969s1.26 2.97 2.909 2.97c1.651 0 2.91-1.32 2.91-2.97s-1.259-2.97-2.91-2.97z" />
   </svg>
 );
+const HuggingFaceIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-.75 6.75a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm3 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm-4.5 6.75c0-1.5 1.5-3 4.5-3s4.5 1.5 4.5 3c0 1.875-2.016 3-4.5 3s-4.5-1.125-4.5-3zm-2.25-4.5a1.125 1.125 0 110 2.25 1.125 1.125 0 010-2.25zm10.5 0a1.125 1.125 0 110 2.25 1.125 1.125 0 010-2.25z"/>
+  </svg>
+);
+const PollinationsIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2a2 2 0 012 2c0 .74-.4 1.38-1 1.73V8h2a6 6 0 016 6v2a6 6 0 01-6 6H9a6 6 0 01-6-6v-2a6 6 0 016-6h2V5.73A2 2 0 0110 4a2 2 0 012-2zm-3 8a4 4 0 00-4 4v2a4 4 0 004 4h6a4 4 0 004-4v-2a4 4 0 00-4-4H9zm1 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm4 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3z"/>
+  </svg>
+);
 
 // ─── Platform Definitions ─────────────────────────────────────────────────────
 
-const PLATFORM_DEFS: PlatformDef[] = [
+export const PLATFORM_DEFS: PlatformDef[] = [
   // ── Messaging ──────────────────────────
   {
     platform: "WHATSAPP",
@@ -270,6 +364,28 @@ const PLATFORM_DEFS: PlatformDef[] = [
       { key: "placeId", label: "Place ID (Google Business)", placeholder: "ChIJ..." },
     ],
   },
+  {
+    platform: IntegrationPlatform.GOOGLE_CALENDAR,
+    label: "Google Calendar",
+    description: "Crie e sincronize eventos de campanhas diretamente no Google Calendar. Ao adicionar um evento em 'Planejar Campanha', o link será gerado automaticamente.",
+    color: "text-[#4285F4]", bgColor: "bg-[#4285F4]/10", borderColor: "border-[#4285F4]/30",
+    icon: GoogleCalendarIcon,
+    docsUrl: "https://console.cloud.google.com/", docsLabel: "Google Cloud Console",
+    category: "maps",
+    visualGuide: true,
+    steps: [
+      "Acesse console.cloud.google.com e ative a 'Google Calendar API'",
+      "Crie um ID de Cliente OAuth 2.0 do tipo 'Aplicativo da Web'",
+      "Use o OAuth Playground (oauth2.googleapis.com/tokeninfo) para gerar um Refresh Token com escopo calendar.events",
+      "Cole o Client ID, Client Secret e Refresh Token abaixo",
+    ],
+    fields: [
+      { key: "clientId", label: "Client ID", placeholder: "123456-xxxx.apps.googleusercontent.com" },
+      { key: "clientSecret", label: "Client Secret", placeholder: "GOCSPX-xxxxxxxx", type: "password" },
+      { key: "refreshToken", label: "Refresh Token", placeholder: "1//0xxxxxxx...", type: "password", hint: "Escopo necessário: https://www.googleapis.com/auth/calendar.events" },
+      { key: "calendarId", label: "Calendar ID (opcional)", placeholder: "primary ou email@gmail.com", hint: "Deixe em branco para usar o calendário principal" },
+    ],
+  },
   // ── AI ─────────────────────────────────
   {
     platform: IntegrationPlatform.OPENAI,
@@ -322,6 +438,40 @@ const PLATFORM_DEFS: PlatformDef[] = [
     fields: [
       { key: "apiKey", label: "API Key", placeholder: "AIzaSy...", type: "password", hint: "aistudio.google.com/app/apikey" },
     ],
+  },
+  {
+    platform: IntegrationPlatform.HUGGING_FACE,
+    label: "Hugging Face",
+    description: "Gere imagens gratuitamente com modelos open-source como FLUX.1-schnell. Use sua chave gratuita do Hugging Face para geração de imagens no NASA Planner.",
+    color: "text-[#FF9A00]", bgColor: "bg-[#FF9A00]/10", borderColor: "border-[#FF9A00]/30",
+    icon: HuggingFaceIcon,
+    docsUrl: "https://huggingface.co/settings/tokens", docsLabel: "Hugging Face Tokens",
+    category: "ai",
+    steps: [
+      "Acesse huggingface.co e crie uma conta gratuita",
+      "Vá em Settings > Access Tokens > New token",
+      "Crie um token com permissão 'read' (gratuito)",
+      "Cole a chave abaixo — será usada para geração de imagens no NASA Planner",
+    ],
+    fields: [
+      { key: "apiKey", label: "Access Token", placeholder: "hf_xxxxxxxxxx", type: "password", hint: "huggingface.co/settings/tokens — plano gratuito disponível" },
+    ],
+  },
+  {
+    platform: IntegrationPlatform.POLLINATIONS,
+    label: "Pollinations.ai",
+    description: "Geração de imagens 100% gratuita e sem necessidade de chave de API. Usa modelos como FLUX para criar imagens para posts no NASA Planner automaticamente.",
+    color: "text-[#22c55e]", bgColor: "bg-[#22c55e]/10", borderColor: "border-[#22c55e]/30",
+    icon: PollinationsIcon,
+    docsUrl: "https://pollinations.ai", docsLabel: "Pollinations.ai",
+    category: "ai",
+    steps: [
+      "Nenhuma configuração necessária!",
+      "Pollinations.ai é totalmente gratuito e não exige chave de API",
+      "Basta ativar a integração — imagens serão geradas automaticamente",
+      "Usa o modelo FLUX para imagens de alta qualidade",
+    ],
+    fields: [],
   },
   // ── CRM ────────────────────────────────
   {
@@ -443,7 +593,7 @@ function IntegrationCard({
 
 // ─── Config Dialog ────────────────────────────────────────────────────────────
 
-function ConfigDialog({
+export function ConfigDialog({
   def, existing, open, onClose, onSave, isSaving,
 }: {
   def: PlatformDef; existing: Record<string, string>; open: boolean;
@@ -454,7 +604,29 @@ function ConfigDialog({
     def.fields.forEach((f) => { init[f.key] = existing[f.key] ?? ""; });
     return init;
   });
+  const [astroOpen, setAstroOpen] = useState(false);
+  const [astroGuide, setAstroGuide] = useState<string | null>(null);
+  const [astroLoading, setAstroLoading] = useState(false);
   const Icon = def.icon;
+
+  async function handleGenerateGuide() {
+    setAstroLoading(true);
+    setAstroGuide(null);
+    try {
+      const res = await fetch("/api/ai/generate-guide", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ integration: def.label }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro desconhecido");
+      setAstroGuide(data.guide);
+    } catch (e: any) {
+      setAstroGuide(`❌ ${e.message}`);
+    } finally {
+      setAstroLoading(false);
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -468,37 +640,99 @@ function ConfigDialog({
         </DialogHeader>
 
         {def.steps.length > 0 && (
-          <div className="bg-muted/50 rounded-xl p-4">
-            <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
-              <Info className="size-3.5" /> Como obter as credenciais
-            </p>
-            <ol className="space-y-1.5">
-              {def.steps.map((step, i) => (
-                <li key={i} className="flex gap-2 text-xs text-muted-foreground">
-                  <span className="shrink-0 w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold mt-0.5">{i + 1}</span>
-                  {step}
-                </li>
-              ))}
-            </ol>
-            <a href={def.docsUrl} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-primary hover:underline mt-3">
-              <ExternalLink className="size-3" />{def.docsLabel}
-            </a>
+          <div className="rounded-xl border border-border overflow-hidden">
+            {/* Header */}
+            <div className="bg-muted/60 px-4 py-3 flex items-center justify-between">
+              <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Info className="size-3.5 text-muted-foreground" /> Como obter as credenciais
+              </p>
+              {def.visualGuide && (
+                <button
+                  type="button"
+                  onClick={() => { setAstroOpen((v) => !v); if (!astroGuide && !astroOpen) handleGenerateGuide(); }}
+                  className="flex items-center gap-1.5 text-[11px] font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors"
+                >
+                  <Sparkles className="size-3.5" />
+                  Gerar com Astro
+                  <ChevronDown className={cn("size-3.5 transition-transform", astroOpen && "rotate-180")} />
+                </button>
+              )}
+            </div>
+
+            {/* Visual step cards (Google Calendar) */}
+            {def.visualGuide ? (
+              <div className="p-4 space-y-3">
+                {GC_VISUAL_STEPS.map((s) => {
+                  const StepIcon = s.icon;
+                  return (
+                    <div key={s.step} className="flex gap-3">
+                      <div className={cn("shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br flex items-center justify-center text-white shadow-sm mt-0.5", s.color)}>
+                        <StepIcon className="size-3.5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-foreground">{s.step}. {s.title}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{s.description}</p>
+                        {s.mockup}
+                      </div>
+                    </div>
+                  );
+                })}
+                <a href={def.docsUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-primary hover:underline pt-1">
+                  <ExternalLink className="size-3" />{def.docsLabel}
+                </a>
+              </div>
+            ) : (
+              <div className="p-4">
+                <ol className="space-y-1.5">
+                  {def.steps.map((step, i) => (
+                    <li key={i} className="flex gap-2 text-xs text-muted-foreground">
+                      <span className="shrink-0 w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold mt-0.5">{i + 1}</span>
+                      {step}
+                    </li>
+                  ))}
+                </ol>
+                <a href={def.docsUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-primary hover:underline mt-3">
+                  <ExternalLink className="size-3" />{def.docsLabel}
+                </a>
+              </div>
+            )}
+
+            {/* Astro-generated guide */}
+            {def.visualGuide && astroOpen && (
+              <div className="border-t border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20 px-4 py-3">
+                {astroLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-violet-600 dark:text-violet-400">
+                    <Loader2 className="size-3.5 animate-spin" /> Astro está gerando o guia...
+                  </div>
+                ) : astroGuide ? (
+                  <div className="text-xs text-foreground whitespace-pre-wrap leading-relaxed">{astroGuide}</div>
+                ) : null}
+              </div>
+            )}
           </div>
         )}
 
-        <div className="space-y-4">
-          {def.fields.map((field) => (
-            <div key={field.key} className="space-y-1.5">
-              <Label htmlFor={field.key} className="text-sm font-medium">{field.label}</Label>
-              <Input id={field.key} type={field.type ?? "text"} placeholder={field.placeholder}
-                value={values[field.key] ?? ""}
-                onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                autoComplete="off" />
-              {field.hint && <p className="text-[11px] text-muted-foreground">{field.hint}</p>}
-            </div>
-          ))}
-        </div>
+        {def.fields.length > 0 ? (
+          <div className="space-y-4">
+            {def.fields.map((field) => (
+              <div key={field.key} className="space-y-1.5">
+                <Label htmlFor={field.key} className="text-sm font-medium">{field.label}</Label>
+                <Input id={field.key} type={field.type ?? "text"} placeholder={field.placeholder}
+                  value={values[field.key] ?? ""}
+                  onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                  autoComplete="off" />
+                {field.hint && <p className="text-[11px] text-muted-foreground">{field.hint}</p>}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300">
+            <CheckCircle2 className="size-4 shrink-0 mt-0.5 text-emerald-500" />
+            <span>Nenhuma credencial necessária. Clique em <strong>Ativar integração</strong> para conectar.</span>
+          </div>
+        )}
 
         <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border text-xs text-muted-foreground">
           <ShieldCheck className="size-4 shrink-0 text-green-500 mt-0.5" />
@@ -507,9 +741,13 @@ function ConfigDialog({
 
         <div className="flex gap-2 pt-1">
           <Button variant="outline" onClick={onClose} className="flex-1" disabled={isSaving}>Cancelar</Button>
-          <Button onClick={() => onSave(values)} disabled={isSaving || !Object.values(values).some(v => v.trim())} className="flex-1 gap-1.5">
+          <Button
+            onClick={() => onSave(values)}
+            disabled={isSaving || (def.fields.length > 0 && !Object.values(values).some(v => v.trim()))}
+            className="flex-1 gap-1.5"
+          >
             {isSaving ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-            Salvar integração
+            {def.fields.length === 0 ? "Ativar integração" : "Salvar integração"}
           </Button>
         </div>
       </DialogContent>
@@ -519,7 +757,7 @@ function ConfigDialog({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-const CATEGORY_META: Record<string, { label: string; order: number }> = {
+export const CATEGORY_META: Record<string, { label: string; order: number }> = {
   messaging: { label: "💬 Mensagens & Chat", order: 1 },
   ads:       { label: "📊 Anúncios & Marketing", order: 2 },
   social:    { label: "📱 Redes Sociais", order: 3 },

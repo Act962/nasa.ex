@@ -9,7 +9,15 @@ async function resolveApiKey(orgId: string): Promise<string | null> {
   // 1. Env var (configurado no servidor)
   if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY;
 
-  // 2. Chave configurada em qualquer Planner da organização
+  // 2. Chave configurada em Integrações (PlatformIntegration)
+  const integration = await prisma.platformIntegration.findFirst({
+    where: { organizationId: orgId, platform: "ANTHROPIC", isActive: true },
+    select: { config: true },
+  });
+  const integrationKey = (integration?.config as Record<string, string> | null)?.apiKey;
+  if (integrationKey) return integrationKey;
+
+  // 3. Chave configurada em qualquer Planner da organização
   const planner = await prisma.nasaPlanner.findFirst({
     where: { organizationId: orgId, anthropicApiKey: { not: null } },
     select: { anthropicApiKey: true },
@@ -68,7 +76,7 @@ Responda APENAS com um JSON válido no seguinte formato (sem markdown, sem expli
 
   try {
     const { text } = await generateText({
-      model: anthropic("claude-3-5-haiku-20241022"),
+      model: anthropic("claude-haiku-4-5-20251001"),
       prompt,
       maxTokens: 1500,
     });
@@ -78,15 +86,17 @@ Responda APENAS com um JSON válido no seguinte formato (sem markdown, sem expli
 
     return NextResponse.json({ brand });
   } catch (error: any) {
-    console.error("[extract-brand] error:", error);
-    if (error?.status === 401) {
+    const msg = error?.message ?? String(error);
+    const status = error?.status ?? error?.statusCode;
+    console.error("[extract-brand] error status=%s message=%s", status, msg, error);
+    if (status === 401 || msg?.includes("401")) {
       return NextResponse.json(
-        { error: "Chave da API Anthropic inválida. Verifique em Planner → aba IA." },
+        { error: "Chave da API Anthropic inválida. Verifique em Integrações → Anthropic." },
         { status: 400 }
       );
     }
     return NextResponse.json(
-      { error: "Erro ao extrair informações da marca. Tente novamente." },
+      { error: `Erro ao extrair informações da marca: ${msg}` },
       { status: 500 }
     );
   }

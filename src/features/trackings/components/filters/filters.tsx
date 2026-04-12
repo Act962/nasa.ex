@@ -14,6 +14,7 @@ import { TemperatureFilter } from "./temperature-filter";
 import { WinLossFilter } from "./win-loss-filter";
 import { CalendarFilter } from "./calendar-filter";
 import { SorterLead } from "./sort-leads";
+import { ProjectsFilter } from "./projects-filter";
 
 export function Filters() {
   return (
@@ -33,6 +34,7 @@ export function Filters() {
 
         <div className="flex flex-col gap-2 px-4">
           <ParticipantsSwitcher />
+          <ProjectsFilter />
           <TagsFilter />
           <TemperatureFilter />
           <WinLossFilter />

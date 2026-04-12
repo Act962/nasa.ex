@@ -30,6 +30,7 @@ export function OrgRulesTab({ orgId }: { orgId: string }) {
   const { mutateAsync: updateRule } = useAdminUpdateRule();
   const { mutateAsync: createRule, isPending: creating } = useAdminCreateRule();
   const [expandedRule, setExpandedRule] = useState<string | null>(null);
+  const [editingPoints, setEditingPoints] = useState<Record<string, string>>({});
   const [showCreate, setShowCreate]     = useState(false);
   const [newAction, setNewAction]       = useState("");
   const [newLabel, setNewLabel]         = useState("");

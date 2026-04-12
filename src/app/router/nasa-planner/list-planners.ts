@@ -11,10 +11,12 @@ export const listPlanners = base
       where: { organizationId: context.org.id },
       orderBy: { createdAt: "desc" },
       include: {
+        orgProject: { select: { id: true, name: true, color: true, type: true } },
         _count: {
           select: {
             posts: true,
             mindMaps: true,
+            campaignPlanners: { where: { deletedAt: null } },
           },
         },
       },

@@ -70,6 +70,7 @@ export const listLeadsByStatus = base
       tagsFilter: z.array(z.string()).optional(),
       temperatureFilter: z.array(z.string()).optional(),
       actionFilter: z.enum(["ACTIVE", "WON", "LOST", "DELETED"]).optional(),
+      projectsFilter: z.array(z.string()).optional(),
     }),
   )
   .handler(async ({ input }) => {
@@ -86,6 +87,7 @@ export const listLeadsByStatus = base
       tagsFilter,
       temperatureFilter,
       actionFilter,
+      projectsFilter,
     } = input;
 
     const leads = await prisma.lead.findMany({
@@ -122,6 +124,12 @@ export const listLeadsByStatus = base
           temperatureFilter.length > 0 && {
             temperature: {
               in: temperatureFilter as any,
+            },
+          }),
+        ...(projectsFilter &&
+          projectsFilter.length > 0 && {
+            orgProjectId: {
+              in: projectsFilter,
             },
           }),
       },

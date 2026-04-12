@@ -84,6 +84,7 @@ const schema = z.object({
   position: z.enum(["first", "last"], {
     error: "Selecione uma posição",
   }),
+  orgProjectId: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -102,6 +103,7 @@ export default function AddLeadSheet({
   const queryClient = useQueryClient();
   const { earn } = useSpacePointCtx();
   const { status, isLoadingStatus } = useStatus(trackingId ?? "");
+  const { data: projects = [], isLoading: isLoadingProjects } = orpc.orgProjects.list.useQuery();
   const [selectedCountry, setSelectedCountry] = useState(countries[0]);
   const [validateNumber, setValidateNumber] = useState(true);
 
@@ -123,6 +125,7 @@ export default function AddLeadSheet({
       statusId: "",
       tags: [],
       position: "first",
+      orgProjectId: "",
     },
   });
 
@@ -200,6 +203,7 @@ export default function AddLeadSheet({
       position: data.position,
       tagIds: selectedTags,
       validateNumber,
+      orgProjectId: data.orgProjectId || undefined,
     });
   };
 
@@ -374,6 +378,39 @@ export default function AddLeadSheet({
 
             {errors.statusId && (
               <FieldError>{errors.statusId.message}</FieldError>
+            )}
+          </div>
+
+          {/* Projetos/Clientes */}
+          <div className="flex flex-col gap-y-2">
+            <Label>Projetos/Clientes</Label>
+
+            {isLoadingProjects ? (
+              <Skeleton className="h-10" />
+            ) : (
+              <Controller
+                name="orgProjectId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={isCreatingLead}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione um projeto/cliente (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sem projeto</SelectItem>
+                      {projects?.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             )}
           </div>
 

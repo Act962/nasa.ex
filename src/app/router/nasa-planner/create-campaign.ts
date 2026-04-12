@@ -31,6 +31,7 @@ export const createCampaign = base
       endDate: z.string().optional(),
       color: z.string().optional(),
       orgProjectId: z.string().optional(),
+      campaignType: z.string().optional(),
     }),
   )
   .handler(async ({ input, context }) => {
@@ -75,6 +76,7 @@ export const createCampaign = base
         description: input.description ?? null,
         clientName: input.clientName ?? null,
         orgProjectId: input.orgProjectId ?? null,
+        campaignType: input.campaignType ?? null,
         companyCode,
         startDate: input.startDate ? new Date(input.startDate) : null,
         endDate: input.endDate ? new Date(input.endDate) : null,
