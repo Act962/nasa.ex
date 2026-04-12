@@ -20,10 +20,14 @@ import { orpc } from "@/lib/orpc";
 import { FolderOpen, XIcon } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 export function ProjectsFilter() {
   const [open, setOpen] = useState(false);
-  const { data: projects = [], isLoading: isLoadingProjects } = orpc.orgProjects.list.useQuery();
+  const { data: projectsData, isLoading: isLoadingProjects } = useQuery(
+    orpc.orgProjects.list.queryOptions({ input: {} })
+  );
+  const projects = projectsData?.projects ?? [];
   const [search, setSearch] = useState("");
 
   const [projectFilter, setProjectFilter] = useQueryState("projects");
