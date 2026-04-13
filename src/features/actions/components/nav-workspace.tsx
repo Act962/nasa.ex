@@ -66,7 +66,7 @@ export function NavWorkspace() {
 
   return (
     <nav className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 flex items-center justify-between w-full max-w-2xl bg-background border rounded-lg px-4 py-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
-      <div className="flex items-center gap-x-3">
+      <div className="flex items-center gap-x-2">
         <Button
           variant="ghost"
           size="icon"
@@ -99,59 +99,63 @@ export function NavWorkspace() {
                 Workspaces
               </h3>
               <Separator />
-              <ScrollArea className="h-40">
-                <div className="space-y-1 p-1">
-                  {workspaces.map((w) => (
-                    <div
-                      className={cn(
-                        "flex items-center gap-x-2 cursor-pointer hover:bg-accent rounded-md px-3 py-2 text-sm transition-colors",
-                        w.id === selectedWorkspaceId && "bg-accent",
-                      )}
-                      key={w.id}
-                      onClick={() => setSelectedWorkspaceId(w.id)}
-                    >
-                      {w.id === selectedWorkspaceId ? (
-                        <CircleCheckIcon className="size-4 text-primary" />
-                      ) : (
-                        <CircleIcon className="size-4 text-muted-foreground/30" />
-                      )}
-                      <span className="font-medium">{w.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
+              <div className="h-full overflow-y-auto">
+                <ScrollArea className="max-h-30">
+                  <div className="p-1">
+                    {workspaces.map((w) => (
+                      <div
+                        className={cn(
+                          "flex items-center gap-x-2 cursor-pointer hover:bg-accent rounded-md px-3 py-2 text-sm transition-colors",
+                          w.id === selectedWorkspaceId && "bg-accent",
+                        )}
+                        key={w.id}
+                        onClick={() => setSelectedWorkspaceId(w.id)}
+                      >
+                        {w.id === selectedWorkspaceId ? (
+                          <CircleCheckIcon className="size-4 text-primary" />
+                        ) : (
+                          <CircleIcon className="size-4 text-muted-foreground/30" />
+                        )}
+                        <span className="font-medium">{w.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
 
               <h3 className="text-[10px] font-bold text-muted-foreground uppercase px-2 py-1 tracking-wider mt-2">
                 Colunas de Destino
               </h3>
               <Separator />
-              <ScrollArea className="h-40">
-                <div className="space-y-1 p-1">
-                  {isLoadingColumns && (
-                    <div className="text-center py-4 text-xs text-muted-foreground">
-                      Carregando colunas...
-                    </div>
-                  )}
-                  {!isLoadingColumns && columns.length === 0 && (
-                    <div className="text-center py-4 text-xs text-muted-foreground">
-                      Nenhuma coluna encontrada
-                    </div>
-                  )}
-                  {columns?.map((col: any) => (
-                    <div
-                      className="flex items-center gap-x-2 cursor-pointer hover:bg-accent rounded-md px-3 py-2 text-sm transition-colors"
-                      key={col.id}
-                      onClick={() => handleMoveToColumn(col.id)}
-                    >
-                      <span
-                        className="size-2 rounded-full shrink-0"
-                        style={{ backgroundColor: col.color || "#888" }}
-                      />
-                      <span className="font-medium">{col.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
+              <div className=" max-h-40 overflow-y-auto">
+                <ScrollArea className="h-full">
+                  <div className=" p-1">
+                    {isLoadingColumns && (
+                      <div className="text-center py-4 text-xs text-muted-foreground">
+                        Carregando colunas...
+                      </div>
+                    )}
+                    {!isLoadingColumns && columns.length === 0 && (
+                      <div className="text-center py-4 text-xs text-muted-foreground">
+                        Nenhuma coluna encontrada
+                      </div>
+                    )}
+                    {columns?.map((col: any) => (
+                      <div
+                        className="flex items-center gap-x-2 cursor-pointer hover:bg-accent rounded-md px-3 py-2 text-sm transition-colors"
+                        key={col.id}
+                        onClick={() => handleMoveToColumn(col.id)}
+                      >
+                        <span
+                          className="size-2 rounded-full shrink-0"
+                          style={{ backgroundColor: col.color || "#888" }}
+                        />
+                        <span className="font-medium">{col.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
             </div>
           </PopoverContent>
         </Popover>
