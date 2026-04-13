@@ -9,7 +9,7 @@ import { ExternalLink, Keyboard } from "lucide-react";
 
 function Key({ label }: { label: string }) {
   return (
-    <kbd className="inline-flex items-center justify-center min-w-[1.75rem] h-7 px-2 rounded-md text-xs font-mono font-medium bg-zinc-800 text-zinc-200 border border-zinc-700 shadow-sm">
+    <kbd className="inline-flex items-center justify-center min-w-7 h-7 px-2 rounded-md text-xs font-mono font-medium bg-zinc-800 text-zinc-200 border border-zinc-700 shadow-sm">
       {label}
     </kbd>
   );
