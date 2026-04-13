@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
+import { inngest } from "@/inngest/client";
 
 export const submitResponse = base
   .route({
@@ -127,6 +128,28 @@ export const submitResponse = base
           },
         });
       });
+
+      // Verificar se este form faz parte de um processo de onboarding
+      try {
+        const onboardingProcess = await prisma.clientOnboardingProcess.findFirst({
+          where: { OR: [{ brandFormId: id }, { onboardingFormId: id }] },
+          select: { id: true, brandFormId: true },
+        });
+        if (onboardingProcess) {
+          await inngest.send({
+            name: "onboarding/form.submitted",
+            data: {
+              formId: id,
+              onboardingProcessId: onboardingProcess.id,
+              isBrandForm: onboardingProcess.brandFormId === id,
+            },
+          });
+        }
+      } catch (inngestErr) {
+        console.error("[form/submit] Inngest send error:", inngestErr);
+        // não bloqueia o submit do form
+      }
+
       return {
         id,
         message: "Response submitted",

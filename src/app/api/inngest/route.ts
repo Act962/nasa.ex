@@ -8,6 +8,8 @@ import { detectOverdue } from "@/inngest/functions/crons/detect-overdue";
 import { detectChatTimeout } from "@/inngest/functions/crons/detect-chat-timeout";
 import { checkStreaks } from "@/inngest/functions/crons/check-streaks";
 import { checkMilestones } from "@/inngest/functions/crons/check-milestones";
+import { onProposalPaid } from "@/inngest/functions/on-proposal-paid";
+import { onOnboardingFormsCompleted } from "@/inngest/functions/on-onboarding-forms-completed";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -20,5 +22,7 @@ export const { GET, POST, PUT } = serve({
     detectChatTimeout,
     checkStreaks,
     checkMilestones,
+    onProposalPaid,
+    onOnboardingFormsCompleted,
   ],
 });

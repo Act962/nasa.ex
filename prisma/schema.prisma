@@ -186,6 +186,9 @@ model Organization {
   // Projetos / Clientes
   orgProjects OrgProject[]
 
+  // Client Onboarding
+  clientOnboardingProcesses ClientOnboardingProcess[]
+
   // Marca / Brand
   brandSlogan         String?  @map("brand_slogan")
   brandWebsite        String?  @map("brand_website")
@@ -458,6 +461,7 @@ model Lead {
   appointments Appointment[]
   forgeProposals ForgeProposal[]
   formResponses FormResponses[]
+  clientOnboardingProcesses ClientOnboardingProcess[]
 
   @@index([trackingId])
   @@index([statusId, order])
@@ -855,6 +859,9 @@ model Form {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   settings FormSettings?
+
+  onboardingBrandForms      ClientOnboardingProcess[] @relation("OnboardingBrandForm")
+  onboardingOnboardingForms ClientOnboardingProcess[] @relation("OnboardingOnboardingForm")
 
   @@map("forms")
 }
@@ -1385,6 +1392,7 @@ model ForgeProposal {
   contracts    ForgeContract[]
   campaignPlanners NasaCampaignPlanner[]
   orgProject   OrgProject?           @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
+  clientOnboardingProcess ClientOnboardingProcess?
 
   @@unique([organizationId, number])
   @@index([organizationId])
@@ -1732,6 +1740,7 @@ model NasaPlanner {
   mindMaps       NasaPlannerMindMap[]
   calendarShares NasaPlannerCalendarShare[]
   campaignPlanners NasaCampaignPlanner[]
+  clientOnboardingProcesses ClientOnboardingProcess[]
 
   @@index([organizationId])
   @@map("nasa_planner")
@@ -2546,6 +2555,7 @@ model OrgProject {
   nasaPlanners      NasaPlanner[]
   campaignPlanners  NasaCampaignPlanner[]
   nasaPlannerPosts  NasaPlannerPost[]
+  clientOnboardingProcesses ClientOnboardingProcess[]
 
   @@index([organizationId])
   @@map("org_projects")
@@ -2636,6 +2646,7 @@ model NasaCampaignPlanner {
   tasks          NasaCampaignTask[]
   publicAccess   NasaCampaignPublicAccess?
   posts          NasaPlannerPost[]
+  clientOnboardingProcesses ClientOnboardingProcess[]
 
   @@index([organizationId])
   @@index([userId])
@@ -2736,6 +2747,56 @@ model NasaCampaignPublicAccess {
 
   @@index([accessCode])
   @@map("nasa_campaign_public_access")
+}
+
+// ─── Client Onboarding Journey ─────────────────────────────────────────────
+
+enum ClientOnboardingStage {
+  PAYMENT_CONFIRMED
+  FORMS_SENT
+  BRAND_FORM_DONE
+  ONBOARDING_DONE
+  KICKOFF_SCHEDULED
+  CAMPAIGN_CREATED
+  ACTIVE
+}
+
+model ClientOnboardingProcess {
+  id               String                @id @default(cuid())
+  organizationId   String                @map("organization_id")
+  orgProjectId     String?               @map("org_project_id")
+  proposalId       String?  @unique       @map("proposal_id")
+  leadId           String?               @map("lead_id")
+  plannerId        String?               @map("planner_id")
+  campaignId       String?               @map("campaign_id")
+  brandFormId      String?               @map("brand_form_id")
+  onboardingFormId String?               @map("onboarding_form_id")
+  clientPortalCode String  @unique       @map("client_portal_code")
+  kickoffLink      String?               @map("kickoff_link")
+  stage            ClientOnboardingStage @default(PAYMENT_CONFIRMED)
+
+  paymentConfirmedAt DateTime? @map("payment_confirmed_at")
+  formsSentAt        DateTime? @map("forms_sent_at")
+  brandFormDoneAt    DateTime? @map("brand_form_done_at")
+  onboardingDoneAt   DateTime? @map("onboarding_done_at")
+  campaignCreatedAt  DateTime? @map("campaign_created_at")
+  activatedAt        DateTime? @map("activated_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orgProject     OrgProject?          @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
+  proposal       ForgeProposal?       @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  lead           Lead?                @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  planner        NasaPlanner?         @relation(fields: [plannerId], references: [id], onDelete: SetNull)
+  campaign       NasaCampaignPlanner? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  brandForm      Form?                @relation("OnboardingBrandForm",      fields: [brandFormId],      references: [id], onDelete: SetNull)
+  onboardingForm Form?                @relation("OnboardingOnboardingForm", fields: [onboardingFormId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([clientPortalCode])
+  @@map("client_onboarding_processes")
 }
 
 /// Customizable popup templates for achievements and stars rewards

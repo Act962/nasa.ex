@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
+import { inngest } from "@/inngest/client";
 
 const proposalProductShape = z.object({
   id: z.string(),
@@ -291,6 +292,31 @@ export const updateForgeProposal = base
           }
         }
       });
+
+      // Disparar automação de onboarding quando proposta for paga
+      if (input.status === "PAGA") {
+        try {
+          const updated = await prisma.forgeProposal.findUnique({
+            where: { id: input.id },
+            select: { id: true, organizationId: true, clientId: true, orgProjectId: true },
+          });
+          if (updated) {
+            await inngest.send({
+              name: "onboarding/proposal.paid",
+              data: {
+                proposalId: updated.id,
+                organizationId: updated.organizationId,
+                leadId: updated.clientId,
+                orgProjectId: updated.orgProjectId,
+              },
+            });
+          }
+        } catch (inngestErr) {
+          console.error("[forge/proposals] Inngest send error:", inngestErr);
+          // não bloqueia — onboarding é best-effort
+        }
+      }
+
       return { ok: true };
     } catch (err) {
       console.error("[forge/proposals update]", err);
