@@ -7,6 +7,7 @@ import { ParticipantsField } from "./participant-field";
 import { InfoFields } from "./info-fields";
 import { TagsField } from "./tags-field";
 import { CoverImageField } from "./cover-image-field";
+import { OrgProjectField } from "./org-project-field";
 import { Action } from "../../../types";
 
 interface SidebarProps {
@@ -54,6 +55,12 @@ export function ActionSidebar({
   return (
     <div className="w-64 border-l shrink-0 overflow-y-auto bg-muted/80">
       <div className="p-4 space-y-4">
+        <OrgProjectField
+          value={action?.orgProjectId}
+          onValueChange={(orgProjectId) => onUpdateAction({ orgProjectId })}
+          disabled={isUpdating}
+        />
+
         <StatusField
           value={action?.columnId ?? ""}
           columns={columns}

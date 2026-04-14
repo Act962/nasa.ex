@@ -49,6 +49,7 @@ const KanbanBoard = ({ workspaceId }: Props) => {
     useColumnsByWorkspace(workspaceId, {
       participantIds: filters.participantIds,
       tagIds: filters.tagIds,
+      projectIds: filters.projectIds,
       dueDateFrom: filters.dueDateFrom,
       dueDateTo: filters.dueDateTo,
     });

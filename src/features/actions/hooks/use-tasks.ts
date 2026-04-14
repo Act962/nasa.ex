@@ -62,6 +62,7 @@ export const useInfiniteActionsByStatus = ({
   filters?: {
     participantIds?: string[];
     tagIds?: string[];
+    projectIds?: string[];
     dueDateFrom?: Date | null;
     dueDateTo?: Date | null;
     sortBy?: "createdAt" | "dueDate" | "priority" | "title";
@@ -77,6 +78,7 @@ export const useInfiniteActionsByStatus = ({
       limit: 6,
       participantIds: filters?.participantIds ?? [],
       tagIds: filters?.tagIds ?? [],
+      projectIds: filters?.projectIds ?? [],
       ...(filters?.dueDateFrom != null && { dueDateFrom: filters.dueDateFrom }),
       ...(filters?.dueDateTo != null && { dueDateTo: filters.dueDateTo }),
       ...(filters?.sortBy != null && { sortBy: filters.sortBy }),
@@ -88,6 +90,7 @@ export const useInfiniteActionsByStatus = ({
       columnId,
       filters?.participantIds?.join(",") ?? "",
       filters?.tagIds?.join(",") ?? "",
+      filters?.projectIds?.join(",") ?? "",
       filters?.dueDateFrom?.toISOString() ?? "",
       filters?.dueDateTo?.toISOString() ?? "",
       filters?.sortBy ?? "",
@@ -122,6 +125,7 @@ interface ListActionByWorkspace {
   page?: number;
   participantIds?: string[];
   tagIds?: string[];
+  projectIds?: string[];
   dueDateFrom?: Date | null;
   dueDateTo?: Date | null;
   sortBy?: "createdAt" | "dueDate" | "priority" | "title";
@@ -135,6 +139,7 @@ export const useListActionByWorkspace = ({
   page = 1,
   participantIds = [],
   tagIds = [],
+  projectIds = [],
   dueDateFrom = null,
   dueDateTo = null,
   sortBy = "createdAt",
@@ -149,6 +154,7 @@ export const useListActionByWorkspace = ({
         page,
         participantIds,
         tagIds,
+        projectIds,
         ...(dueDateFrom != null && { dueDateFrom }),
         ...(dueDateTo != null && { dueDateTo }),
         sortBy,

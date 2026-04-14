@@ -15,6 +15,7 @@ export const listActionByColumn = base
       limit: z.number().min(1).max(100).default(50),
       participantIds: z.array(z.string()).optional().default([]),
       tagIds: z.array(z.string()).optional().default([]),
+      projectIds: z.array(z.string()).optional().default([]),
       dueDateFrom: z.coerce.date().nullable().optional(),
       dueDateTo: z.coerce.date().nullable().optional(),
       sortBy: z.enum(["createdAt", "dueDate", "priority", "title"]).optional(),
@@ -55,6 +56,9 @@ export const listActionByColumn = base
       }),
       ...(input.tagIds.length > 0 && {
         tags: { some: { tagId: { in: input.tagIds } } },
+      }),
+      ...(input.projectIds.length > 0 && {
+        orgProjectId: { in: input.projectIds },
       }),
       ...((input.dueDateFrom || input.dueDateTo) && {
         dueDate: {

@@ -15,6 +15,7 @@ export const listActionByWorkspace = base
       limit: z.number().optional().default(20),
       participantIds: z.array(z.string()).optional().default([]),
       tagIds: z.array(z.string()).optional().default([]),
+      projectIds: z.array(z.string()).optional().default([]),
       dueDateFrom: z.coerce.date().nullable().optional(),
       dueDateTo: z.coerce.date().nullable().optional(),
       sortBy: z
@@ -57,6 +58,9 @@ export const listActionByWorkspace = base
       }),
       ...(input.tagIds.length > 0 && {
         tags: { some: { tagId: { in: input.tagIds } } },
+      }),
+      ...(input.projectIds.length > 0 && {
+        orgProjectId: { in: input.projectIds },
       }),
       ...((input.dueDateFrom || input.dueDateTo) && {
         dueDate: {
