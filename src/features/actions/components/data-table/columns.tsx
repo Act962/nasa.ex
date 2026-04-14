@@ -6,6 +6,11 @@ import { getContrastColor } from "@/utils/get-contrast-color";
 import { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDownIcon, CheckCircle2Icon } from "lucide-react";
 import { CardActionsMenu } from "../card-actions-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export type Action = {
   id: string;
@@ -61,10 +66,16 @@ export const columns: ColumnDef<Action>[] = [
       </Button>
     ),
     cell: ({ row }) => (
-      <div className="font-semibold line-clamp-1 hover:underline underline-offset-4 ">
-        {" "}
-        {row.original.title}{" "}
-      </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="font-semibold line-clamp-1 hover:underline underline-offset-4 ">
+            {row.original.title.substring(0, 40).concat("...")}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{row.original.title}</p>
+        </TooltipContent>
+      </Tooltip>
     ),
   },
   {

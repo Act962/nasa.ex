@@ -1,10 +1,11 @@
-import { Temperature } from "@/generated/prisma/enums";
+import { Temperature, LeadAction } from "@/generated/prisma/enums";
 
 export type Lead = {
   order: string;
   id: string;
   trackingId: string;
   isActive: boolean;
+  currentAction: LeadAction;
   email: string | null;
   name: string;
   profile: string | null;
@@ -26,3 +27,4 @@ export type Lead = {
   }[];
   temperature: Temperature;
 };
+

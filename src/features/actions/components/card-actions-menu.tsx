@@ -10,6 +10,8 @@ import {
   ArchiveIcon,
   Building2Icon,
   Trash2Icon,
+  FolderKanbanIcon,
+  PlusIcon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -31,9 +33,9 @@ import {
 } from "@/features/workspace/hooks/use-workspace";
 import { useDeleteAction } from "../hooks/use-tasks";
 import { ShareActionDialog } from "./share-action-dialog";
+import { MoveActionWorkspaceDialog } from "./move-action-workspace";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   actionId: string;
@@ -57,13 +59,14 @@ export function CardActionsMenu({
   className,
 }: Props) {
   const [shareOpen, setShareOpen] = useState(false);
+  const [moveWorkspaceOpen, setMoveWorkspaceOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const copyAction = useCopyAction();
   const moveAction = useMoveAction();
   const updateFields = useUpdateActionFields();
   const deleteAction = useDeleteAction();
   const { columns } = useColumnsByWorkspace(workspaceId);
   const session = authClient.useSession();
-  const isMobile = useIsMobile();
 
   const canDelete =
     isArchived && !!createdBy && createdBy === session.data?.user?.id;
@@ -150,6 +153,14 @@ export function CardActionsMenu({
                     {col.name}
                   </DropdownMenuItem>
                 ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setMoveWorkspaceOpen(true)}
+                  className="gap-2"
+                >
+                  <FolderKanbanIcon className="size-3.5" />
+                  Mover de workspace
+                </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
           )}
@@ -235,6 +246,13 @@ export function CardActionsMenu({
         actionTitle={actionTitle}
         open={shareOpen}
         onOpenChange={setShareOpen}
+      />
+      <MoveActionWorkspaceDialog
+        actionId={actionId}
+        actionTitle={actionTitle}
+        currentWorkspaceId={workspaceId}
+        open={moveWorkspaceOpen}
+        onOpenChange={setMoveWorkspaceOpen}
       />
     </>
   );

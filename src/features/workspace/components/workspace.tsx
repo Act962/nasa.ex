@@ -5,6 +5,7 @@ import { ActionsViewSwitcher } from "@/features/actions/components/actions-view-
 import { useWorkspace } from "../hooks/use-workspace";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { IncomingSharesPanel } from "./incoming-shares-panel";
+import { NavWorkspace } from "@/features/actions/components/nav-workspace";
 
 interface Props {
   workspaceId: string;
@@ -32,6 +33,7 @@ export function WorkspaceBoard({ workspaceId }: Props) {
           <ActionsViewSwitcher workspaceId={workspaceId} />
         </div>
       </div>
+      <NavWorkspace />
     </div>
   );
 }
