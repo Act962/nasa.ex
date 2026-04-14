@@ -15,9 +15,9 @@ import {
   BarChart2,
   Zap,
 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface TopOrg {
@@ -136,19 +136,20 @@ function AdjustModal({
   totalPoints: number;
   onClose: () => void;
 }) {
-  const [amount, setAmount] = useState(0);
+  const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const { mutateAsync, isPending } = useAdminAdjust();
 
   const handleSubmit = async () => {
-    if (amount === 0) return toast.error("Insira um valor diferente de 0");
+    const numAmount = parseInt(amount) || 0;
+    if (numAmount === 0) return toast.error("Insira um valor diferente de 0");
     await mutateAsync({
       userId,
       orgId,
-      points: amount,
+      points: numAmount,
       description:
         reason ||
-        (amount > 0
+        (numAmount > 0
           ? "Pontos adicionados pelo admin"
           : "Pontos removidos pelo admin"),
     });
@@ -175,7 +176,7 @@ function AdjustModal({
           <input
             type="number"
             value={amount}
-            onChange={(e) => setAmount(parseInt(e.target.value) || 0)}
+            onChange={(e) => setAmount(e.target.value)}
             className="w-full text-sm bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
           />
         </div>
@@ -198,7 +199,9 @@ function AdjustModal({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isPending || amount === 0}
+            disabled={
+              isPending || amount.trim() === "" || parseInt(amount) === 0
+            }
             className="flex-1 text-sm py-2 rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
           >
             {isPending ? "..." : "Confirmar"}
@@ -503,14 +506,24 @@ function OrgPanel({ orgId, orgName }: { orgId: string; orgName: string }) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-800/50">
         <p className="text-sm font-semibold text-white">{orgName}</p>
         <div className="flex gap-1 bg-zinc-900 rounded-lg p-0.5">
-          {([
-            { key: "users", icon: Users,    label: "Usuários" },
-            { key: "rules", icon: Settings, label: "Regras"   },
-          ] as const).map(({ key, icon: Icon, label }) => (
-            <button key={key} onClick={() => setTab(key)}
-              className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-                tab === key ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white")}>
-              <Icon className="w-3 h-3" />{label}
+          {(
+            [
+              { key: "users", icon: Users, label: "Usuários" },
+              { key: "rules", icon: Settings, label: "Regras" },
+            ] as const
+          ).map(({ key, icon: Icon, label }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                tab === key
+                  ? "bg-violet-600 text-white"
+                  : "text-zinc-400 hover:text-white",
+              )}
+            >
+              <Icon className="w-3 h-3" />
+              {label}
             </button>
           ))}
         </div>
@@ -526,7 +539,10 @@ function OrgPanel({ orgId, orgName }: { orgId: string; orgName: string }) {
   );
 }
 
-interface Props { topOrgs: TopOrg[]; allOrgs: OrgOption[] }
+interface Props {
+  topOrgs: TopOrg[];
+  allOrgs: OrgOption[];
+}
 
 export function SpacePointsAdminClient({ topOrgs, allOrgs }: Props) {
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
@@ -571,7 +587,9 @@ export function SpacePointsAdminClient({ topOrgs, allOrgs }: Props) {
                     />
                   </div>
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-violet-900 flex items-center justify-center text-[9px] text-white font-bold shrink-0">{org.orgName[0]}</div>
+                  <div className="w-6 h-6 rounded-full bg-violet-900 flex items-center justify-center text-[9px] text-white font-bold shrink-0">
+                    {org.orgName[0]}
+                  </div>
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-white truncate">
