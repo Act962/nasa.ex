@@ -17,6 +17,7 @@ import { EntriesTable } from "./entries/entries-table";
 import { CashflowTab } from "./cashflow/cashflow-tab";
 import { ContactsTab } from "./contacts/contacts-tab";
 import { PaymentSettings } from "./settings/payment-settings";
+import { HeaderTracking } from "@/features/leads/components/header-tracking";
 
 export function PaymentPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -24,19 +25,22 @@ export function PaymentPage() {
   return (
     <div className="h-full w-full flex flex-col">
       {/* Header */}
+      <HeaderTracking title="Payment" />
       <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-[#1E90FF] flex items-center justify-center shadow-sm">
             <Landmark className="size-5 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-black tracking-tight leading-tight">PAYMENT</h1>
-            <p className="text-xs text-muted-foreground">Gestão financeira completa</p>
+            <h1 className="text-lg font-black tracking-tight leading-tight">
+              PAYMENT
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Gestão financeira completa
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <SpacePointWidget />
-          <StarsWidget />
           <Button
             size="icon"
             variant="ghost"
@@ -51,7 +55,7 @@ export function PaymentPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="dashboard" className="flex-1 flex flex-col min-h-0">
-        <div className="px-6 pt-4 border-b shrink-0">
+        <div className="px-6 pt-4 shrink-0 w-full overflow-x-auto">
           <TabsList className="h-9">
             <TabsTrigger value="dashboard" className="text-xs gap-1.5">
               📊 Painel
@@ -92,7 +96,10 @@ export function PaymentPage() {
 
       {/* Settings Sheet */}
       <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-lg overflow-y-auto"
+        >
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Settings className="size-4" /> Configurações do Payment

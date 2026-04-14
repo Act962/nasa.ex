@@ -13,6 +13,7 @@ import { tagChannel } from "./channels/tag";
 import { responsibleChannel } from "./channels/responsible";
 import { temperatureChannel } from "./channels/temperature";
 import { winLossChannel } from "./channels/win-loss";
+import { filterLeadChannel } from "./channels/filter-lead";
 
 export const executeWorkflow = inngest.createFunction(
   { id: "execute-workflow", retries: 0 },
@@ -28,6 +29,7 @@ export const executeWorkflow = inngest.createFunction(
       responsibleChannel(),
       temperatureChannel(),
       winLossChannel(),
+      filterLeadChannel(),
     ],
   },
   async ({ event, step, publish }) => {

@@ -1577,11 +1577,11 @@ function CommandInput({
       >
       <div className="relative bg-zinc-900 rounded-[calc(1rem-1px)] overflow-visible transition-all">
         {/* Text area with highlight */}
-        <div className="relative px-12 pt-4 pb-2">
+        <div className="relative px-4 pt-4 pb-2">
           <div
             ref={highlightRef}
             aria-hidden="true"
-            className="absolute inset-0 px-12 pt-4 pb-2 text-sm leading-relaxed pointer-events-none overflow-hidden whitespace-pre-wrap break-words"
+            className="absolute inset-0 pl-12 pr-4 pt-4 pb-2 text-sm leading-relaxed pointer-events-none overflow-hidden whitespace-pre-wrap break-words"
             style={{
               fontSize: "0.875rem",
               lineHeight: "1.625",

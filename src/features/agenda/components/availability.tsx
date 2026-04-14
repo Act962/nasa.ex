@@ -75,9 +75,7 @@ export function generateTimes(interval = 15) {
   const times: string[] = [];
   for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += interval) {
-      times.push(
-        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
-      );
+      times.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
     }
   }
   return times;
@@ -225,9 +223,7 @@ function DiaMode({
     }
   };
 
-  const selectedAvail = dateAvailabilities.find(
-    (d) => d.date === selectedDate,
-  );
+  const selectedAvail = dateAvailabilities.find((d) => d.date === selectedDate);
 
   // Generate preview slots for the selected date
   const previewSlots: string[] = [];
@@ -279,7 +275,10 @@ function DiaMode({
 
           <div className="grid grid-cols-7 gap-1 text-center text-xs mb-1">
             {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
-              <div key={d} className="font-medium text-muted-foreground py-1 text-[11px]">
+              <div
+                key={d}
+                className="font-medium text-muted-foreground py-1 text-[11px]"
+              >
                 {d}
               </div>
             ))}
@@ -302,7 +301,8 @@ function DiaMode({
                   onClick={() => handleClickDate(date)}
                   className={cn(
                     "relative h-8 w-full rounded-md flex flex-col items-center justify-center text-xs font-medium transition-colors",
-                    isPast && "opacity-30 cursor-not-allowed text-muted-foreground",
+                    isPast &&
+                      "opacity-30 cursor-not-allowed text-muted-foreground",
                     isSelected && "bg-primary text-primary-foreground",
                     !isSelected && !isPast && "hover:bg-accent cursor-pointer",
                   )}
@@ -328,7 +328,8 @@ function DiaMode({
 
         <p className="mt-3 text-xs text-muted-foreground">
           Clique em uma data para configurar horários específicos. Datas com{" "}
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary align-middle mx-0.5" /> possuem configuração.
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary align-middle mx-0.5" />{" "}
+          possuem configuração.
         </p>
       </div>
 
@@ -351,7 +352,9 @@ function DiaMode({
               <div className="flex items-center gap-2">
                 <CalendarDaysIcon className="size-4 text-muted-foreground" />
                 <span className="font-semibold text-sm">
-                  {dayjs(selectedDate).locale("pt-br").format("dddd, DD/MM/YYYY")}
+                  {dayjs(selectedDate)
+                    .locale("pt-br")
+                    .format("dddd, DD/MM/YYYY")}
                 </span>
               </div>
               {selectedAvail && (
@@ -360,7 +363,9 @@ function DiaMode({
                   variant="ghost"
                   className="h-7 text-xs text-destructive hover:text-destructive"
                   onClick={() => {
-                    deleteDateAvail.mutate({ dateAvailabilityId: selectedAvail.id });
+                    deleteDateAvail.mutate({
+                      dateAvailabilityId: selectedAvail.id,
+                    });
                     setSelectedDate(null);
                   }}
                   disabled={deleteDateAvail.isPending}
@@ -445,7 +450,12 @@ function DateAvailabilitySlots({
   slotDuration,
 }: {
   dateAvailabilityId: string;
-  timeSlots: { id: string; startTime: string; endTime: string; order: number }[];
+  timeSlots: {
+    id: string;
+    startTime: string;
+    endTime: string;
+    order: number;
+  }[];
   slotDuration: number;
 }) {
   const times = generateTimes(slotDuration);
@@ -515,9 +525,7 @@ function DateAvailabilitySlots({
                 size="icon"
                 variant="ghost"
                 className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={() =>
-                  createSlot.mutate({ dateAvailabilityId })
-                }
+                onClick={() => createSlot.mutate({ dateAvailabilityId })}
                 disabled={createSlot.isPending}
               >
                 <PlusIcon className="size-3.5" />
@@ -578,7 +586,7 @@ export function Availability({
   return (
     <Card className="bg-transparent">
       <CardHeader>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4 flex-col sm:flex-row">
           <div>
             <CardTitle>Disponibilidade</CardTitle>
             <CardDescription>
@@ -616,7 +624,7 @@ export function Availability({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 overflow-x-auto">
         {mode === "semanal" ? (
           <>
             {sortedAvailabilities.map((availability) => (

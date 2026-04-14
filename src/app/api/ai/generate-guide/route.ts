@@ -60,7 +60,7 @@ Seja específico, direto, sem textos longos. Use emojis para tornar visual. Máx
     const { text } = await generateText({
       model: anthropic("claude-haiku-4-5-20251001"),
       prompt,
-      maxTokens: 600,
+      maxOutputTokens: 600,
     });
 
     return NextResponse.json({ guide: text });

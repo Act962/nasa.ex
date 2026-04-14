@@ -202,7 +202,7 @@ export function ConversationsList() {
                     item={item}
                     unreadCount={(item as any).unreadCount}
                     lastMessage={{
-                      body: item.lastMessage?.body,
+                      body: item.lastMessage?.body || null,
                       createdAt: item.lastMessage?.createdAt,
                       mimetype: (item.lastMessage as any)?.mimetype,
                       fileName: (item.lastMessage as any)?.fileName,

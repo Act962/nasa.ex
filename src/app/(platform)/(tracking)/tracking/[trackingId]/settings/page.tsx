@@ -10,6 +10,7 @@ import { FlowAttendiment } from "@/features/tracking-settings/components/flow-at
 import { SoundNotification } from "@/features/tracking-settings/components/sound-notification";
 import { TemplateSettings } from "@/features/tracking-settings/components/template-settings";
 import { ToastProvider } from "@/contexts/toast-context";
+import { TrackingDangerZone } from "@/features/tracking-settings/components/danger-zone";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
@@ -93,6 +94,11 @@ export default async function Page({
       name: "Padrões NASA",
       value: "templates",
       content: <TemplateSettings trackingId={trackingId} />,
+    },
+    {
+      name: "Zona de Perigo",
+      value: "danger-zone",
+      content: <TrackingDangerZone trackingId={trackingId} />,
     },
   ];
 

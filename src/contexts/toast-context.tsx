@@ -8,6 +8,7 @@ export interface ToastMessage {
   message: string;
   type: ToastType;
   duration?: number;
+  onClose?: () => void;
 }
 
 interface ToastContextType {
@@ -37,7 +38,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
       return id;
     },
-    []
+    [],
   );
 
   const removeToast = useCallback((id: string) => {

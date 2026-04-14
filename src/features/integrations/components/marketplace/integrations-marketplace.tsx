@@ -118,7 +118,9 @@ export function IntegrationsMarketplace() {
                 Integre mensageiros, gateways de pagamento, chatbots, e-commerce e muito mais para automatizar sua operação comercial.
               </p>
             </div>
-            <div className="flex md:flex-col gap-3 shrink-0">
+
+            {/* Stats */}
+            <div className="flex md:flex-col gap-3 shrink-0 overflow-x-auto">
               {stats.map(({ label, value, icon: Icon }) => (
                 <div key={label} className="flex items-center gap-2.5 bg-white/5 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/10">
                   <Icon className="size-4 text-[#a78bfa]" />

@@ -27,6 +27,7 @@ import { deleteFolder } from "./delete-folder";
 import { updateActionFields } from "./update-action-fields";
 import { copyAction } from "./copy-action";
 import { moveAction } from "./move-action";
+import { moveActions } from "./move-actions";
 import { shareAction } from "./share-action";
 import { listIncomingShares } from "./list-incoming-shares";
 import { listOutgoingShares } from "./list-outgoing-shares";
@@ -65,6 +66,7 @@ export const workspaceRoutes = {
   updateActionFields,
   copyAction,
   moveAction,
+  moveActions,
   shareAction,
   listIncomingShares,
   listOutgoingShares,

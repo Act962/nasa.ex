@@ -21,7 +21,7 @@ export const updateProjectBrand = base
     icp:            z.string().nullable().optional(),
     positioning:    z.string().nullable().optional(),
     voiceTone:      z.string().nullable().optional(),
-    visual:         z.record(z.any()).optional(),
+    visual:         z.record(z.string(), z.any()).optional(),
     aiInstructions: z.string().nullable().optional(),
     swot:           SwotSchema.optional(),
   }))

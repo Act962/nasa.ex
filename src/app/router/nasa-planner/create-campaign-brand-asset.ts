@@ -16,7 +16,7 @@ export const createCampaignBrandAsset = base
       url: z.string().optional(),
       filePath: z.string().optional(),
       nboxItemId: z.string().optional(),
-      metadata: z.record(z.any()).optional(),
+      metadata: z.record(z.string(), z.any()).optional(),
     }),
   )
   .handler(async ({ input, context }) => {

@@ -78,7 +78,7 @@ Responda APENAS com um JSON válido no seguinte formato (sem markdown, sem expli
     const { text } = await generateText({
       model: anthropic("claude-haiku-4-5-20251001"),
       prompt,
-      maxTokens: 1500,
+      maxOutputTokens: 1500,
     });
 
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();

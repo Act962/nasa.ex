@@ -1,7 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { BadgeCheck, Bell, ChevronsUpDown, LogOut, Keyboard } from "lucide-react";
+import {
+  BadgeCheck,
+  Bell,
+  ChevronsUpDown,
+  LogOut,
+  Keyboard,
+  PaletteIcon,
+  SunIcon,
+  MoonIcon,
+  LaptopIcon,
+} from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -10,7 +20,11 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuPortal,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -25,6 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/lib/orpc";
 import { ShortcutsDialog } from "@/components/shortcuts-dialog";
+import { useTheme } from "next-themes";
 
 const ROLE_META: Record<string, { label: string; color: string; bg: string }> =
   {
@@ -70,6 +85,7 @@ export function NavUser() {
   const { isMobile } = useSidebar();
   const { data: session, isPending } = authClient.useSession();
   const { data: activeOrg } = authClient.useActiveOrganization();
+  const { setTheme } = useTheme();
   const router = useRouter();
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
@@ -213,6 +229,38 @@ export function NavUser() {
                 Preferências de Notificações
               </DropdownMenuItem>
 
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <PaletteIcon />
+                  Tema
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent sideOffset={8}>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => setTheme("light")}
+                    >
+                      <SunIcon />
+                      Claro
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => setTheme("dark")}
+                    >
+                      <MoonIcon />
+                      Escuro
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => setTheme("system")}
+                    >
+                      <LaptopIcon />
+                      Sistema
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+
               <DropdownMenuItem
                 onClick={() => setShortcutsOpen(true)}
                 className="cursor-pointer"
@@ -221,6 +269,7 @@ export function NavUser() {
                 Atalhos
               </DropdownMenuItem>
             </DropdownMenuGroup>
+
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"

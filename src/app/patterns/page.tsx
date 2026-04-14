@@ -74,14 +74,14 @@ export default async function PatternsPage() {
           <TabsContent value="forge-proposal" className="space-y-4">
             <div>
               <h2 className="text-lg font-semibold text-white mb-4">Padrões de Proposta</h2>
-              <AppTemplatesGallery appType="forgeProposal" organizationId={organizationId} />
+              <AppTemplatesGallery appType="forge-proposal" organizationId={organizationId} />
             </div>
           </TabsContent>
 
           <TabsContent value="forge-contract" className="space-y-4">
             <div>
               <h2 className="text-lg font-semibold text-white mb-4">Padrões de Contrato</h2>
-              <AppTemplatesGallery appType="forgeContract" organizationId={organizationId} />
+              <AppTemplatesGallery appType="forge-contract" organizationId={organizationId} />
             </div>
           </TabsContent>
 

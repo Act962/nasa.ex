@@ -13,7 +13,7 @@ import { responsibleExecutor } from "../components/responsible/executor";
 import { moveLeadStatusTriggerExecutor } from "@/features/triggers/components/move-lead-status/executor";
 import { leadTaggedTriggerExecutor } from "@/features/triggers/components/lead-tagged/executor";
 import { aiFinishedTriggerExecutor } from "@/features/triggers/components/ai-finished/executor";
-import { filterLeadExecutor } from "../components/filter-lead/executer";
+import { filterLeadExecutor } from "../components/filter-lead/executor";
 
 export const executorRegistry: Record<NodeType, NodeExecutor> = {
   [NodeType.INITIAL]: manualTriggerExecutor,

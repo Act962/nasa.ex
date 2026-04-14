@@ -8,15 +8,42 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Action } from "../../types";
+import { ButtonSidebarSheet } from "./button-sidebar-sheet";
 
 interface TitleProps {
   action?: Action;
   onToggleDone: () => void;
   onUpdateTitle: (title: string) => void;
   isUpdating: boolean;
+  // Sidebar props
+  isLoading: boolean;
+  columns: any[];
+  members: any[];
+  onUpdateAction: (data: any) => void;
+  onUpdateFields?: (data: any) => void;
+  onToggleParticipant: (userId: string) => void;
+  isUpdatingAction: boolean;
+  isUpdatingFields?: boolean;
+  isAddingParticipant: boolean;
+  isRemovingParticipant: boolean;
 }
 
-export function ActionTitle({ action, onToggleDone, onUpdateTitle, isUpdating }: TitleProps) {
+export function ActionTitle({
+  action,
+  onToggleDone,
+  onUpdateTitle,
+  isUpdating,
+  isLoading,
+  columns,
+  members,
+  onUpdateAction,
+  onUpdateFields,
+  onToggleParticipant,
+  isUpdatingAction,
+  isUpdatingFields,
+  isAddingParticipant,
+  isRemovingParticipant,
+}: TitleProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(action?.title ?? "");
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -42,48 +69,64 @@ export function ActionTitle({ action, onToggleDone, onUpdateTitle, isUpdating }:
   };
 
   return (
-    <div className="flex items-start gap-3">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            onClick={onToggleDone}
-            className="mt-1 shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-            disabled={isUpdating}
-          >
-            {action?.isDone ? (
-              <CircleCheckIcon className="size-5 text-emerald-500" />
-            ) : (
-              <CircleDashedIcon className="size-5" />
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>
-          {action?.isDone
-            ? "Marcar como pendente"
-            : "Marcar como concluído"}
-        </TooltipContent>
-      </Tooltip>
+    <div className="flex items-center justify-between w-full">
+      <div className="flex items-start gap-3">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onToggleDone}
+              className="mt-1 shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+              disabled={isUpdating}
+            >
+              {action?.isDone ? (
+                <CircleCheckIcon className="size-5 text-emerald-500" />
+              ) : (
+                <CircleDashedIcon className="size-5" />
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {action?.isDone ? "Marcar como pendente" : "Marcar como concluído"}
+          </TooltipContent>
+        </Tooltip>
 
-      {editingTitle ? (
-        <Input
-          ref={titleInputRef}
-          value={titleValue}
-          onChange={(e) => setTitleValue(e.target.value)}
-          onBlur={handleTitleSave}
-          onKeyDown={handleTitleKeyDown}
-          className="text-xl font-semibold h-auto border-none shadow-none p-0 focus-visible:ring-0 bg-transparent"
+        {editingTitle ? (
+          <Input
+            ref={titleInputRef}
+            value={titleValue}
+            onChange={(e) => setTitleValue(e.target.value)}
+            onBlur={handleTitleSave}
+            onKeyDown={handleTitleKeyDown}
+            className="text-xl font-semibold h-auto border-none shadow-none p-0 focus-visible:ring-0 bg-transparent"
+          />
+        ) : (
+          <h2
+            className={cn(
+              "text-xl font-semibold cursor-pointer hover:bg-muted/50 rounded px-1 -ml-1 transition-colors leading-tight",
+              action?.isDone && "line-through text-muted-foreground",
+            )}
+            onClick={handleTitleClick}
+          >
+            {action?.title}
+          </h2>
+        )}
+      </div>
+
+      <div className="sm:hidden">
+        <ButtonSidebarSheet
+          action={action}
+          isLoading={isLoading}
+          columns={columns}
+          members={members}
+          onUpdateAction={onUpdateAction}
+          onUpdateFields={onUpdateFields}
+          onToggleParticipant={onToggleParticipant}
+          isUpdating={isUpdatingAction}
+          isUpdatingFields={isUpdatingFields}
+          isAddingParticipant={isAddingParticipant}
+          isRemovingParticipant={isRemovingParticipant}
         />
-      ) : (
-        <h2
-          className={cn(
-            "text-xl font-semibold cursor-pointer hover:bg-muted/50 rounded px-1 -ml-1 transition-colors leading-tight",
-            action?.isDone && "line-through text-muted-foreground",
-          )}
-          onClick={handleTitleClick}
-        >
-          {action?.title}
-        </h2>
-      )}
+      </div>
     </div>
   );
 }

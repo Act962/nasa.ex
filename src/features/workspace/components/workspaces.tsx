@@ -93,17 +93,19 @@ export const WorkspaceContainer = () => {
             defaultValue="projects"
             className="w-full border rounded-lg p-2"
           >
-            <TabsList className=" justify-start border-0 w-fit">
-              <TabsTrigger className="py-2" value="projects">
-                Projetos
-              </TabsTrigger>
-              <TabsTrigger className="py-2" value="tasks">
-                Ações recentes
-              </TabsTrigger>
-              <TabsTrigger className="py-2" value="members">
-                Membros recentes
-              </TabsTrigger>
-            </TabsList>
+            <div className="w-full overflow-x-auto">
+              <TabsList className=" justify-start border-0 w-fit">
+                <TabsTrigger className="py-2" value="projects">
+                  Projetos
+                </TabsTrigger>
+                <TabsTrigger className="py-2" value="tasks">
+                  Ações recentes
+                </TabsTrigger>
+                <TabsTrigger className="py-2" value="members">
+                  Membros recentes
+                </TabsTrigger>
+              </TabsList>
+            </div>
             <TabsContent value="projects">
               <Suspense fallback={<div>Carregando...</div>}>
                 <Workspaces />

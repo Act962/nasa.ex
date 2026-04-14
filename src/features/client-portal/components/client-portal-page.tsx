@@ -171,7 +171,7 @@ export function ClientPortalPage({ clientCode }: { clientCode: string }) {
                       <ClockIcon className="size-4 shrink-0 text-muted-foreground" />
                     )}
                     <span className="text-sm flex-1">{STAGE_LABELS[stage]?.label}</span>
-                    {ts && <span className="text-xs text-muted-foreground">{fmt(ts as string)}</span>}
+                    {ts && <span className="text-xs text-muted-foreground">{fmt(ts)}</span>}
                   </div>
                 );
               })}

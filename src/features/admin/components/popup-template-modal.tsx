@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { X, Check, Pencil, Upload } from "lucide-react";
+import { useConstructUrl } from "@/hooks/use-construct-url";
+import { ACCEPT_IMAGE_TYPES, isAllowedImageType } from "@/lib/upload-utils";
 
 interface LayoutElement {
   id: string;
@@ -16,26 +18,31 @@ interface LayoutElement {
   imageSize?: number;
   boxWidth?: number;
   boxHeight?: number;
-  href?: string;       // URL to open when element is clicked
+  href?: string; // URL to open when element is clicked
   hrefTarget?: string; // "_blank" | "_self"
-  isHide?: boolean;    // closes popup when clicked
+  isHide?: boolean; // closes popup when clicked
 }
 
 const RESIZE_HANDLES = [
-  { id: "nw", left: "0%",   top: "0%",   cursor: "nw-resize" },
-  { id: "n",  left: "50%",  top: "0%",   cursor: "n-resize"  },
-  { id: "ne", left: "100%", top: "0%",   cursor: "ne-resize" },
-  { id: "w",  left: "0%",   top: "50%",  cursor: "w-resize"  },
-  { id: "e",  left: "100%", top: "50%",  cursor: "e-resize"  },
-  { id: "sw", left: "0%",   top: "100%", cursor: "sw-resize" },
-  { id: "s",  left: "50%",  top: "100%", cursor: "s-resize"  },
+  { id: "nw", left: "0%", top: "0%", cursor: "nw-resize" },
+  { id: "n", left: "50%", top: "0%", cursor: "n-resize" },
+  { id: "ne", left: "100%", top: "0%", cursor: "ne-resize" },
+  { id: "w", left: "0%", top: "50%", cursor: "w-resize" },
+  { id: "e", left: "100%", top: "50%", cursor: "e-resize" },
+  { id: "sw", left: "0%", top: "100%", cursor: "sw-resize" },
+  { id: "s", left: "50%", top: "100%", cursor: "s-resize" },
   { id: "se", left: "100%", top: "100%", cursor: "se-resize" },
 ] as const;
 
 const HANDLE_SIGNS: Record<string, [number, number]> = {
-  nw: [-1, -1], n: [0, -1], ne: [1, -1],
-  w:  [-1,  0],              e: [1,  0],
-  sw: [-1,  1], s: [0,  1], se: [1,  1],
+  nw: [-1, -1],
+  n: [0, -1],
+  ne: [1, -1],
+  w: [-1, 0],
+  e: [1, 0],
+  sw: [-1, 1],
+  s: [0, 1],
+  se: [1, 1],
 };
 
 interface PopupTemplate {
@@ -72,18 +79,71 @@ const DEFAULT_SVG_PATTERNS = [
 
 const COLOR_PRESETS = [
   // NASA / Space
-  { label: "NASA Purple",  primary: "#7a1fe7", accent: "#a855f7", bg: "#1a0a3d", text: "#ffffff" },
-  { label: "Deep Space",   primary: "#3b82f6", accent: "#60a5fa", bg: "#0f172a", text: "#e2e8f0" },
-  { label: "Nebula",       primary: "#ec4899", accent: "#f472b6", bg: "#1e0533", text: "#fce7f3" },
-  { label: "Aurora",       primary: "#10b981", accent: "#34d399", bg: "#022c22", text: "#d1fae5" },
-  { label: "Solar Flare",  primary: "#f59e0b", accent: "#fbbf24", bg: "#1c1100", text: "#fef3c7" },
-  { label: "Red Planet",   primary: "#ef4444", accent: "#f87171", bg: "#1f0707", text: "#fee2e2" },
-  { label: "Ice Giant",    primary: "#06b6d4", accent: "#22d3ee", bg: "#042330", text: "#cffafe" },
-  { label: "Midnight",     primary: "#6366f1", accent: "#818cf8", bg: "#0f0f23", text: "#e0e7ff" },
+  {
+    label: "NASA Purple",
+    primary: "#7a1fe7",
+    accent: "#a855f7",
+    bg: "#1a0a3d",
+    text: "#ffffff",
+  },
+  {
+    label: "Deep Space",
+    primary: "#3b82f6",
+    accent: "#60a5fa",
+    bg: "#0f172a",
+    text: "#e2e8f0",
+  },
+  {
+    label: "Nebula",
+    primary: "#ec4899",
+    accent: "#f472b6",
+    bg: "#1e0533",
+    text: "#fce7f3",
+  },
+  {
+    label: "Aurora",
+    primary: "#10b981",
+    accent: "#34d399",
+    bg: "#022c22",
+    text: "#d1fae5",
+  },
+  {
+    label: "Solar Flare",
+    primary: "#f59e0b",
+    accent: "#fbbf24",
+    bg: "#1c1100",
+    text: "#fef3c7",
+  },
+  {
+    label: "Red Planet",
+    primary: "#ef4444",
+    accent: "#f87171",
+    bg: "#1f0707",
+    text: "#fee2e2",
+  },
+  {
+    label: "Ice Giant",
+    primary: "#06b6d4",
+    accent: "#22d3ee",
+    bg: "#042330",
+    text: "#cffafe",
+  },
+  {
+    label: "Midnight",
+    primary: "#6366f1",
+    accent: "#818cf8",
+    bg: "#0f0f23",
+    text: "#e0e7ff",
+  },
 ];
 
 interface ColorPaletteProps {
-  values: { primaryColor: string; accentColor: string; backgroundColor: string; textColor: string };
+  values: {
+    primaryColor: string;
+    accentColor: string;
+    backgroundColor: string;
+    textColor: string;
+  };
   onChange: (field: string, value: string) => void;
   disabled?: boolean;
 }
@@ -92,24 +152,26 @@ function ColorPalette({ values, onChange, disabled }: ColorPaletteProps) {
   const [openPicker, setOpenPicker] = useState<string | null>(null);
 
   const fields = [
-    { label: "Cor Primária",  field: "primaryColor",     key: "primary" as const },
-    { label: "Cor Acento",    field: "accentColor",      key: "accent"  as const },
-    { label: "Cor Fundo",     field: "backgroundColor",  key: "bg"      as const },
-    { label: "Cor Texto",     field: "textColor",        key: "text"    as const },
+    { label: "Cor Primária", field: "primaryColor", key: "primary" as const },
+    { label: "Cor Acento", field: "accentColor", key: "accent" as const },
+    { label: "Cor Fundo", field: "backgroundColor", key: "bg" as const },
+    { label: "Cor Texto", field: "textColor", key: "text" as const },
   ];
 
-  const applyPreset = (preset: typeof COLOR_PRESETS[0]) => {
-    onChange("primaryColor",    preset.primary);
-    onChange("accentColor",     preset.accent);
+  const applyPreset = (preset: (typeof COLOR_PRESETS)[0]) => {
+    onChange("primaryColor", preset.primary);
+    onChange("accentColor", preset.accent);
     onChange("backgroundColor", preset.bg);
-    onChange("textColor",       preset.text);
+    onChange("textColor", preset.text);
   };
 
   return (
     <div className="space-y-4">
       {/* Presets */}
       <div>
-        <label className="block text-sm font-medium text-zinc-300 mb-2">Paletas de cores</label>
+        <label className="block text-sm font-medium text-zinc-300 mb-2">
+          Paletas de cores
+        </label>
         <div className="flex flex-wrap gap-2">
           {COLOR_PRESETS.map((p) => (
             <button
@@ -122,10 +184,16 @@ function ColorPalette({ values, onChange, disabled }: ColorPaletteProps) {
             >
               <span className="flex gap-0.5">
                 {[p.primary, p.accent, p.bg, p.text].map((c, i) => (
-                  <span key={i} className="w-3 h-3 rounded-full border border-white/10" style={{ backgroundColor: c }} />
+                  <span
+                    key={i}
+                    className="w-3 h-3 rounded-full border border-white/10"
+                    style={{ backgroundColor: c }}
+                  />
                 ))}
               </span>
-              <span className="text-[10px] text-zinc-400 group-hover:text-white transition-colors">{p.label}</span>
+              <span className="text-[10px] text-zinc-400 group-hover:text-white transition-colors">
+                {p.label}
+              </span>
             </button>
           ))}
         </div>
@@ -138,66 +206,97 @@ function ColorPalette({ values, onChange, disabled }: ColorPaletteProps) {
           const isOpen = openPicker === field;
           return (
             <div key={field} className="relative">
-              <label className="block text-sm font-medium text-zinc-300 mb-2">{label}</label>
+              <label className="block text-sm font-medium text-zinc-300 mb-2">
+                {label}
+              </label>
               <button
                 type="button"
                 disabled={disabled}
                 onClick={() => setOpenPicker(isOpen ? null : field)}
                 className="w-full flex items-center gap-2 bg-zinc-800 border border-zinc-700 hover:border-violet-500/60 rounded-lg px-3 py-2 transition-all"
               >
-                <span className="w-5 h-5 rounded-md border border-white/20 shrink-0" style={{ backgroundColor: value }} />
-                <span className="text-sm text-white font-mono flex-1 text-left">{value}</span>
+                <span
+                  className="w-5 h-5 rounded-md border border-white/20 shrink-0"
+                  style={{ backgroundColor: value }}
+                />
+                <span className="text-sm text-white font-mono flex-1 text-left">
+                  {value}
+                </span>
               </button>
 
               {isOpen && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setOpenPicker(null)} />
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setOpenPicker(null)}
+                  />
                   <div className="absolute z-50 top-full left-0 mt-1 w-64 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-3 space-y-3">
-                  {/* Native color picker */}
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={value}
-                      onChange={(e) => onChange(field, e.target.value)}
-                      className="w-10 h-10 rounded-lg cursor-pointer border border-zinc-700 bg-zinc-800"
-                    />
-                    <input
-                      type="text"
-                      value={value}
-                      onChange={(e) => /^#[0-9a-fA-F]{0,6}$/.test(e.target.value) && onChange(field, e.target.value)}
-                      className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:border-violet-500/60"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setOpenPicker(null)}
-                      className="text-zinc-500 hover:text-white transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+                    {/* Native color picker */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={value}
+                        onChange={(e) => onChange(field, e.target.value)}
+                        className="w-10 h-10 rounded-lg cursor-pointer border border-zinc-700 bg-zinc-800"
+                      />
+                      <input
+                        type="text"
+                        value={value}
+                        onChange={(e) =>
+                          /^#[0-9a-fA-F]{0,6}$/.test(e.target.value) &&
+                          onChange(field, e.target.value)
+                        }
+                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:border-violet-500/60"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setOpenPicker(null)}
+                        className="text-zinc-500 hover:text-white transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
 
-                  {/* Swatches per field */}
-                  <div>
-                    <p className="text-[10px] text-zinc-500 mb-1.5">Sugestões</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {[
-                        "#7a1fe7","#a855f7","#3b82f6","#06b6d4","#10b981",
-                        "#f59e0b","#ef4444","#ec4899","#6366f1","#ffffff",
-                        "#e2e8f0","#fbbf24","#34d399","#f472b6","#818cf8",
-                        "#1a0a3d","#0f172a","#022c22","#042330","#000000",
-                      ].map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          title={c}
-                          onClick={() => onChange(field, c)}
-                          className={`w-6 h-6 rounded-md border-2 transition-all hover:scale-110 ${value === c ? "border-white" : "border-transparent hover:border-white/40"}`}
-                          style={{ backgroundColor: c }}
-                        />
-                      ))}
+                    {/* Swatches per field */}
+                    <div>
+                      <p className="text-[10px] text-zinc-500 mb-1.5">
+                        Sugestões
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          "#7a1fe7",
+                          "#a855f7",
+                          "#3b82f6",
+                          "#06b6d4",
+                          "#10b981",
+                          "#f59e0b",
+                          "#ef4444",
+                          "#ec4899",
+                          "#6366f1",
+                          "#ffffff",
+                          "#e2e8f0",
+                          "#fbbf24",
+                          "#34d399",
+                          "#f472b6",
+                          "#818cf8",
+                          "#1a0a3d",
+                          "#0f172a",
+                          "#022c22",
+                          "#042330",
+                          "#000000",
+                        ].map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            title={c}
+                            onClick={() => onChange(field, c)}
+                            className={`w-6 h-6 rounded-md border-2 transition-all hover:scale-110 ${value === c ? "border-white" : "border-transparent hover:border-white/40"}`}
+                            style={{ backgroundColor: c }}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
                 </>
               )}
             </div>
@@ -232,66 +331,136 @@ export function PopupTemplateModal({
     setTemplate(next);
   }, []);
   const [svgPattern, setSvgPattern] = useState<string>(
-    (initialTemplate.customJson?.svgPattern as string) ?? ""
+    (initialTemplate.customJson?.svgPattern as string) ?? "",
   );
   const [popupFunction, setPopupFunction] = useState<string>(
-    (initialTemplate.customJson?.popupFunction as string) ?? "STAR"
+    (initialTemplate.customJson?.popupFunction as string) ?? "STAR",
   );
   const [clickUrl, setClickUrl] = useState<string>(
-    (initialTemplate.customJson?.clickUrl as string) ?? ""
+    (initialTemplate.customJson?.clickUrl as string) ?? "",
   );
   const [clickUrlTarget, setClickUrlTarget] = useState<string>(
-    (initialTemplate.customJson?.clickUrlTarget as string) ?? "_blank"
+    (initialTemplate.customJson?.clickUrlTarget as string) ?? "_blank",
   );
   const [prizeValue, setPrizeValue] = useState<string>(
-    (initialTemplate.customJson?.prizeValue as string) ?? ""
+    (initialTemplate.customJson?.prizeValue as string) ?? "",
   );
-  const [mascots, setMascots] = useState<{ key: string; url: string; label: string }[]>([]);
+  const [mascots, setMascots] = useState<
+    { key: string; url: string; label: string }[]
+  >([]);
   const [layoutElements, setLayoutElements] = useState<LayoutElement[]>(
     (initialTemplate.customJson?.layoutElements as LayoutElement[]) ?? [
-      { id: "name",    type: "name",    label: "Nome",      x: 60, y: 20, visible: true,  fontSize: 20, color: "#ffffff", boxWidth: 35, boxHeight: 12 },
-      { id: "title",   type: "title",   label: "Título",    x: 60, y: 40, visible: true,  fontSize: 14, color: "#ffffff", boxWidth: 35, boxHeight: 10 },
-      { id: "message", type: "message", label: "Mensagem",  x: 60, y: 65, visible: true,  fontSize: 11, color: "#ffffff", boxWidth: 40, boxHeight: 22 },
-      { id: "hide",    type: "hide",    label: "Hide",      x: 92, y: 12, visible: false, fontSize: 22, color: "#ffffff" },
-      { id: "link",    type: "link",    label: "Link",      x: 80, y: 96, visible: false, fontSize: 11, color: "#ffffff", boxWidth: 15, boxHeight:  8 },
-    ]
+      {
+        id: "name",
+        type: "name",
+        label: "Nome",
+        x: 60,
+        y: 20,
+        visible: true,
+        fontSize: 20,
+        color: "#ffffff",
+        boxWidth: 35,
+        boxHeight: 12,
+      },
+      {
+        id: "title",
+        type: "title",
+        label: "Título",
+        x: 60,
+        y: 40,
+        visible: true,
+        fontSize: 14,
+        color: "#ffffff",
+        boxWidth: 35,
+        boxHeight: 10,
+      },
+      {
+        id: "message",
+        type: "message",
+        label: "Mensagem",
+        x: 60,
+        y: 65,
+        visible: true,
+        fontSize: 11,
+        color: "#ffffff",
+        boxWidth: 40,
+        boxHeight: 22,
+      },
+      {
+        id: "hide",
+        type: "hide",
+        label: "Hide",
+        x: 92,
+        y: 12,
+        visible: false,
+        fontSize: 22,
+        color: "#ffffff",
+      },
+      {
+        id: "link",
+        type: "link",
+        label: "Link",
+        x: 80,
+        y: 96,
+        visible: false,
+        fontSize: 11,
+        color: "#ffffff",
+        boxWidth: 15,
+        boxHeight: 8,
+      },
+    ],
   );
   const [draggingElement, setDraggingElement] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const resizingRef = useRef<{
-    id: string; handle: string;
-    startMx: number; startMy: number;
+    id: string;
+    handle: string;
+    startMx: number;
+    startMy: number;
     startEl: LayoutElement;
-    containerW: number; containerH: number;
+    containerW: number;
+    containerH: number;
   } | null>(null);
-  const [colorizedPatternUrl, setColorizedPatternUrl] = useState<string | null>(null);
+  const [colorizedPatternUrl, setColorizedPatternUrl] = useState<string | null>(
+    null,
+  );
   const svgCacheRef = useRef<Record<string, string>>({});
   const blobUrlRef = useRef<string | null>(null);
 
-  const applyColorsToSvg = useCallback(async (patternUrl: string) => {
-    try {
-      if (!svgCacheRef.current[patternUrl]) {
-        const res = await fetch(patternUrl);
-        svgCacheRef.current[patternUrl] = await res.text();
-      }
-      let svg = svgCacheRef.current[patternUrl];
-      // Replace known base colors with template colors
-      svg = svg
-        .replace(/#7a1fe7/gi, template.primaryColor)
-        .replace(/#29125b/gi, template.primaryColor + "88")
-        .replace(/#1a0a3d/gi, template.backgroundColor)
-        .replace(/#ff00ff/gi, template.accentColor)
-        .replace(/#fff2e6/gi, template.textColor);
+  const applyColorsToSvg = useCallback(
+    async (patternUrl: string) => {
+      try {
+        if (!svgCacheRef.current[patternUrl]) {
+          const res = await fetch(
+            `/api/s3/proxy-svg?url=${encodeURIComponent(patternUrl)}`,
+          );
+          svgCacheRef.current[patternUrl] = await res.text();
+        }
+        let svg = svgCacheRef.current[patternUrl];
+        // Replace known base colors with template colors
+        svg = svg
+          .replace(/#7a1fe7/gi, template.primaryColor)
+          .replace(/#29125b/gi, template.primaryColor + "88")
+          .replace(/#1a0a3d/gi, template.backgroundColor)
+          .replace(/#ff00ff/gi, template.accentColor)
+          .replace(/#fff2e6/gi, template.textColor);
 
-      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
-      const blob = new Blob([svg], { type: "image/svg+xml" });
-      blobUrlRef.current = URL.createObjectURL(blob);
-      setColorizedPatternUrl(blobUrlRef.current);
-    } catch {
-      setColorizedPatternUrl(patternUrl);
-    }
-  }, [template.primaryColor, template.backgroundColor, template.accentColor, template.textColor]);
+        if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+        const blob = new Blob([svg], { type: "image/svg+xml" });
+        blobUrlRef.current = URL.createObjectURL(blob);
+        setColorizedPatternUrl(blobUrlRef.current);
+      } catch {
+        setColorizedPatternUrl(patternUrl);
+      }
+    },
+    [
+      template.primaryColor,
+      template.backgroundColor,
+      template.accentColor,
+      template.textColor,
+    ],
+  );
 
   useEffect(() => {
     const pat = SVG_PATTERNS.find((p) => p.id === svgPattern);
@@ -301,12 +470,30 @@ export function PopupTemplateModal({
       setColorizedPatternUrl(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svgPattern, template.primaryColor, template.backgroundColor, template.accentColor, template.textColor, applyColorsToSvg]);
-  const [customPatterns, setCustomPatterns] = useState<{ id: string; label: string; url: string }[]>(
-    (initialTemplate.customJson?.customPatterns as { id: string; label: string; url: string }[]) ?? []
+  }, [
+    svgPattern,
+    template.primaryColor,
+    template.backgroundColor,
+    template.accentColor,
+    template.textColor,
+    applyColorsToSvg,
+  ]);
+  const [customPatterns, setCustomPatterns] = useState<
+    { id: string; label: string; url: string }[]
+  >(
+    (initialTemplate.customJson?.customPatterns as {
+      id: string;
+      label: string;
+      url: string;
+    }[]) ?? [],
   );
-  const [patternUrlOverrides, setPatternUrlOverrides] = useState<Record<string, string>>(
-    (initialTemplate.customJson?.patternUrlOverrides as Record<string, string>) ?? {}
+  const [patternUrlOverrides, setPatternUrlOverrides] = useState<
+    Record<string, string>
+  >(
+    (initialTemplate.customJson?.patternUrlOverrides as Record<
+      string,
+      string
+    >) ?? {},
   );
   const [editingPatternId, setEditingPatternId] = useState<string | null>(null);
   const [uploadingPattern, setUploadingPattern] = useState(false);
@@ -328,37 +515,83 @@ export function PopupTemplateModal({
         patternUrlOverrides,
       },
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [template, svgPattern, clickUrl, clickUrlTarget, layoutElements, customPatterns, patternUrlOverrides]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    template,
+    svgPattern,
+    clickUrl,
+    clickUrlTarget,
+    layoutElements,
+    customPatterns,
+    patternUrlOverrides,
+  ]);
 
-  const SVG_PATTERNS = [...DEFAULT_SVG_PATTERNS, ...globalPatterns, ...customPatterns].map((p) => ({
+  const SVG_PATTERNS = [
+    ...DEFAULT_SVG_PATTERNS,
+    ...globalPatterns,
+    ...customPatterns,
+  ].map((p) => ({
     ...p,
     url: patternUrlOverrides[p.id] ?? p.url,
   }));
 
+  const getS3Url = useConstructUrl;
+
   const handlePatternUpload = async (file: File, replaceId?: string) => {
     setUploadingPattern(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("folder", "popup-patterns");
-      const res = await fetch("/api/upload-local", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro no upload");
-      const url = `${window.location.origin}${data.url}?t=${Date.now()}`;
+      // 1. Obter URL presignada
+      const presignedResponse = await fetch("/api/s3/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+          isImage: true,
+        }),
+      });
+
+      if (!presignedResponse.ok) {
+        const errData = await presignedResponse.json().catch(() => ({}));
+        throw new Error(errData?.error ?? "Falha ao gerar URL presignada");
+      }
+
+      const { presignedUrl, key } = await presignedResponse.json();
+
+      // 2. Upload para o S3
+      const uploadResponse = await fetch(presignedUrl, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Falha ao subir arquivo para o storage");
+      }
+
+      const url = `${getS3Url(key)}?t=${Date.now()}`;
+
+      // 3. Atualizar estado local
       if (replaceId) {
         const isDefault = DEFAULT_SVG_PATTERNS.some((p) => p.id === replaceId);
         if (isDefault) {
           setPatternUrlOverrides((prev) => ({ ...prev, [replaceId]: url }));
         } else {
           setCustomPatterns((prev) =>
-            prev.map((p) => p.id === replaceId ? { ...p, url } : p)
+            prev.map((p) => (p.id === replaceId ? { ...p, url } : p)),
           );
         }
         setSvgPattern(replaceId);
       } else {
         const newId = `custom-${Date.now()}`;
-        const newPattern = { id: newId, label: file.name.replace(/\.[^.]+$/, ""), url };
+        const newPattern = {
+          id: newId,
+          label: file.name.replace(/\.[^.]+$/, ""),
+          url,
+        };
         setCustomPatterns((prev) => [...prev, newPattern]);
         setSvgPattern(newId);
       }
@@ -386,18 +619,27 @@ export function PopupTemplateModal({
       const dx = ((e.clientX - r.startMx) / r.containerW) * 100;
       const dy = ((e.clientY - r.startMy) / r.containerH) * 100;
       const [sx, sy] = HANDLE_SIGNS[r.handle] ?? [0, 0];
-      const dw = dx * sx, dh = dy * sy;
+      const dw = dx * sx,
+        dh = dy * sy;
       const newW = Math.max(8, (r.startEl.boxWidth ?? 30) + dw);
       const newH = Math.max(4, (r.startEl.boxHeight ?? 12) + dh);
       setLayoutElements((prev) =>
         prev.map((el) =>
           el.id === r.id
-            ? { ...el, x: r.startEl.x + dw / 2, y: r.startEl.y + dh / 2, boxWidth: newW, boxHeight: newH }
-            : el
-        )
+            ? {
+                ...el,
+                x: r.startEl.x + dw / 2,
+                y: r.startEl.y + dh / 2,
+                boxWidth: newW,
+                boxHeight: newH,
+              }
+            : el,
+        ),
       );
     };
-    const onUp = () => { resizingRef.current = null; };
+    const onUp = () => {
+      resizingRef.current = null;
+    };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
     return () => {
@@ -406,22 +648,32 @@ export function PopupTemplateModal({
     };
   }, []);
 
-  const handleResizeMouseDown = (e: React.MouseEvent, elementId: string, handle: string) => {
+  const handleResizeMouseDown = (
+    e: React.MouseEvent,
+    elementId: string,
+    handle: string,
+  ) => {
     e.preventDefault();
     e.stopPropagation();
     const el = layoutElements.find((el) => el.id === elementId);
     if (!el || !previewRef.current) return;
     const rect = previewRef.current.getBoundingClientRect();
     resizingRef.current = {
-      id: elementId, handle,
-      startMx: e.clientX, startMy: e.clientY,
+      id: elementId,
+      handle,
+      startMx: e.clientX,
+      startMy: e.clientY,
       startEl: { ...el },
-      containerW: rect.width, containerH: rect.height,
+      containerW: rect.width,
+      containerH: rect.height,
     };
   };
 
   const handleElementDragStart = (e: React.DragEvent, elementId: string) => {
-    if (resizingRef.current) { e.preventDefault(); return; }
+    if (resizingRef.current) {
+      e.preventDefault();
+      return;
+    }
     setDraggingElement(elementId);
     e.dataTransfer.effectAllowed = "move";
   };
@@ -437,13 +689,19 @@ export function PopupTemplateModal({
 
     const preview = e.currentTarget as HTMLElement;
     const rect = preview.getBoundingClientRect();
-    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+    const x = Math.max(
+      0,
+      Math.min(100, ((e.clientX - rect.left) / rect.width) * 100),
+    );
+    const y = Math.max(
+      0,
+      Math.min(100, ((e.clientY - rect.top) / rect.height) * 100),
+    );
 
     setLayoutElements(
       layoutElements.map((el) =>
-        el.id === draggingElement ? { ...el, x, y } : el
-      )
+        el.id === draggingElement ? { ...el, x, y } : el,
+      ),
     );
     setDraggingElement(null);
   };
@@ -451,8 +709,8 @@ export function PopupTemplateModal({
   const toggleElementVisibility = (elementId: string) => {
     setLayoutElements(
       layoutElements.map((el) =>
-        el.id === elementId ? { ...el, visible: !el.visible } : el
-      )
+        el.id === elementId ? { ...el, visible: !el.visible } : el,
+      ),
     );
   };
 
@@ -460,7 +718,11 @@ export function PopupTemplateModal({
     setLayoutElements((prev) => prev.filter((el) => el.id !== elementId));
   };
 
-  const addImageElement = (mascot: { key: string; url: string; label: string }) => {
+  const addImageElement = (mascot: {
+    key: string;
+    url: string;
+    label: string;
+  }) => {
     const newEl: LayoutElement = {
       id: `image-${mascot.key}-${Date.now()}`,
       type: "image",
@@ -510,8 +772,14 @@ export function PopupTemplateModal({
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-800 sticky top-0 bg-zinc-900 z-10">
-          <h2 className="text-xl font-bold text-white">{isCreating ? "Novo Template" : "Editar Template"}</h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white" disabled={isLoading}>
+          <h2 className="text-xl font-bold text-white">
+            {isCreating ? "Novo Template" : "Editar Template"}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-white"
+            disabled={isLoading}
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -519,11 +787,15 @@ export function PopupTemplateModal({
         <div className="p-6 space-y-6">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Nome</label>
+            <label className="block text-sm font-medium text-zinc-300 mb-2">
+              Nome
+            </label>
             <input
               type="text"
               value={template.name}
-              onChange={(e) => setTemplate({ ...template, name: e.target.value })}
+              onChange={(e) =>
+                setTemplate({ ...template, name: e.target.value })
+              }
               className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500/60"
               disabled={isLoading}
             />
@@ -531,10 +803,17 @@ export function PopupTemplateModal({
 
           {/* Type */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Tipo</label>
+            <label className="block text-sm font-medium text-zinc-300 mb-2">
+              Tipo
+            </label>
             <select
               value={template.type}
-              onChange={(e) => setTemplate({ ...template, type: e.target.value as PopupTemplate["type"] })}
+              onChange={(e) =>
+                setTemplate({
+                  ...template,
+                  type: e.target.value as PopupTemplate["type"],
+                })
+              }
               className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500/60"
               disabled={isLoading}
             >
@@ -546,7 +825,9 @@ export function PopupTemplateModal({
 
           {/* Popup Function */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Função</label>
+            <label className="block text-sm font-medium text-zinc-300 mb-2">
+              Função
+            </label>
             <select
               value={popupFunction}
               onChange={(e) => setPopupFunction(e.target.value)}
@@ -565,7 +846,9 @@ export function PopupTemplateModal({
           <div>
             <label className="block text-sm font-medium text-zinc-300 mb-2">
               Link do popup{" "}
-              <span className="text-zinc-500 font-normal text-xs">(clicar em qualquer lugar abre o link)</span>
+              <span className="text-zinc-500 font-normal text-xs">
+                (clicar em qualquer lugar abre o link)
+              </span>
             </label>
             <div className="flex gap-2">
               <input
@@ -586,7 +869,11 @@ export function PopupTemplateModal({
                 <option value="_self">Mesma aba</option>
               </select>
               {clickUrl && (
-                <button type="button" onClick={() => setClickUrl("")} className="px-2 text-zinc-500 hover:text-red-400 transition-colors text-xs">
+                <button
+                  type="button"
+                  onClick={() => setClickUrl("")}
+                  className="px-2 text-zinc-500 hover:text-red-400 transition-colors text-xs"
+                >
                   ×
                 </button>
               )}
@@ -595,11 +882,15 @@ export function PopupTemplateModal({
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Título</label>
+            <label className="block text-sm font-medium text-zinc-300 mb-2">
+              Título
+            </label>
             <input
               type="text"
               value={template.title}
-              onChange={(e) => setTemplate({ ...template, title: e.target.value })}
+              onChange={(e) =>
+                setTemplate({ ...template, title: e.target.value })
+              }
               className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500/60"
               disabled={isLoading}
             />
@@ -607,10 +898,14 @@ export function PopupTemplateModal({
 
           {/* Message */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Mensagem</label>
+            <label className="block text-sm font-medium text-zinc-300 mb-2">
+              Mensagem
+            </label>
             <textarea
               value={template.message}
-              onChange={(e) => setTemplate({ ...template, message: e.target.value })}
+              onChange={(e) =>
+                setTemplate({ ...template, message: e.target.value })
+              }
               className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500/60 resize-none h-20"
               disabled={isLoading}
             />
@@ -619,7 +914,9 @@ export function PopupTemplateModal({
           {/* Prize Value - Conditional */}
           {popupFunction === "SPACE_POINT" && (
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">Prêmio</label>
+              <label className="block text-sm font-medium text-zinc-300 mb-2">
+                Prêmio
+              </label>
               <input
                 type="text"
                 value={prizeValue}
@@ -634,18 +931,28 @@ export function PopupTemplateModal({
           {/* SVG Pattern */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-zinc-300">Padrão do Banner</label>
-              <label className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs cursor-pointer transition-all ${uploadingPattern ? "opacity-50 pointer-events-none" : "bg-zinc-700 hover:bg-zinc-600 text-zinc-300"}`}>
+              <label className="block text-sm font-medium text-zinc-300">
+                Padrão do Banner
+              </label>
+              <label
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs cursor-pointer transition-all ${uploadingPattern ? "opacity-50 pointer-events-none" : "bg-zinc-700 hover:bg-zinc-600 text-zinc-300"}`}
+              >
                 <Upload className="w-3 h-3" />
                 {uploadingPattern ? "Enviando..." : "Novo padrão"}
                 <input
                   type="file"
-                  accept="image/svg+xml,image/png,image/jpeg,image/webp"
+                  accept={ACCEPT_IMAGE_TYPES}
                   className="hidden"
                   disabled={isLoading || uploadingPattern}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) handlePatternUpload(file);
+                    if (file) {
+                      if (!isAllowedImageType(file)) {
+                        alert("Por favor, envie apenas arquivos SVG.");
+                        return;
+                      }
+                      handlePatternUpload(file);
+                    }
                     e.target.value = "";
                   }}
                 />
@@ -657,44 +964,67 @@ export function PopupTemplateModal({
                 type="button"
                 onClick={() => setSvgPattern("")}
                 className={`relative border-2 rounded-xl p-3 flex flex-col items-center gap-2 transition-all ${
-                  !svgPattern ? "border-violet-500 bg-violet-600/10" : "border-zinc-700 hover:border-zinc-600"
+                  !svgPattern
+                    ? "border-violet-500 bg-violet-600/10"
+                    : "border-zinc-700 hover:border-zinc-600"
                 }`}
               >
                 <div className="w-full h-12 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500 text-xs">
                   Sem padrão
                 </div>
-                {!svgPattern && <Check className="absolute top-1.5 right-1.5 w-4 h-4 text-violet-400" />}
+                {!svgPattern && (
+                  <Check className="absolute top-1.5 right-1.5 w-4 h-4 text-violet-400" />
+                )}
               </button>
 
               {SVG_PATTERNS.map((p) => (
                 <div
                   key={p.id}
                   className={`relative border-2 rounded-xl p-2 flex flex-col items-center gap-2 transition-all cursor-pointer ${
-                    svgPattern === p.id ? "border-violet-500 bg-violet-600/10" : "border-zinc-700 hover:border-zinc-600"
+                    svgPattern === p.id
+                      ? "border-violet-500 bg-violet-600/10"
+                      : "border-zinc-700 hover:border-zinc-600"
                   }`}
                   onClick={() => setSvgPattern(p.id)}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.url} alt={p.label} className="w-full h-16 object-cover rounded-lg" />
-                  <span className="text-xs text-zinc-300 truncate w-full text-center">{p.label}</span>
-                  {svgPattern === p.id && <Check className="absolute top-1.5 right-1.5 w-4 h-4 text-violet-400" />}
+                  <img
+                    src={p.url}
+                    alt={p.label}
+                    className="w-full h-16 object-cover rounded-lg"
+                  />
+                  <span className="text-xs text-zinc-300 truncate w-full text-center">
+                    {p.label}
+                  </span>
+                  {svgPattern === p.id && (
+                    <Check className="absolute top-1.5 right-1.5 w-4 h-4 text-violet-400" />
+                  )}
                   {/* Edit button */}
                   <label
                     className="absolute bottom-1.5 right-1.5 w-6 h-6 bg-zinc-800/90 hover:bg-violet-600 rounded-md flex items-center justify-center cursor-pointer transition-colors"
                     title="Substituir imagem"
-                    onClick={(e) => { e.stopPropagation(); setEditingPatternId(p.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingPatternId(p.id);
+                    }}
                   >
                     <Pencil className="w-3 h-3 text-white" />
                     {editingPatternId === p.id && (
                       <input
                         type="file"
-                        accept="image/svg+xml,image/png,image/jpeg,image/webp"
+                        accept={ACCEPT_IMAGE_TYPES}
                         className="hidden"
                         autoFocus
                         disabled={isLoading || uploadingPattern}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) handlePatternUpload(file, p.id);
+                          if (file) {
+                            if (!isAllowedImageType(file)) {
+                              alert("Por favor, envie apenas arquivos SVG.");
+                              return;
+                            }
+                            handlePatternUpload(file, p.id);
+                          }
                           e.target.value = "";
                         }}
                         onBlur={() => setEditingPatternId(null)}
@@ -711,12 +1041,14 @@ export function PopupTemplateModal({
             <div>
               <label className="block text-sm font-medium text-zinc-300 mb-1">
                 Elementos arrastáveis{" "}
-                <span className="text-zinc-500 font-normal text-xs">(clique para adicionar na Prévia)</span>
+                <span className="text-zinc-500 font-normal text-xs">
+                  (clique para adicionar na Prévia)
+                </span>
               </label>
               <div className="flex flex-wrap gap-2">
                 {mascots.map((m) => {
                   const alreadyAdded = layoutElements.some(
-                    (el) => el.type === "image" && el.imageUrl === m.url
+                    (el) => el.type === "image" && el.imageUrl === m.url,
                   );
                   return (
                     <button
@@ -724,7 +1056,11 @@ export function PopupTemplateModal({
                       type="button"
                       onClick={() => !alreadyAdded && addImageElement(m)}
                       disabled={isLoading || alreadyAdded}
-                      title={alreadyAdded ? `${m.label} já adicionado` : `Adicionar ${m.label} à prévia`}
+                      title={
+                        alreadyAdded
+                          ? `${m.label} já adicionado`
+                          : `Adicionar ${m.label} à prévia`
+                      }
                       className={`relative flex items-center gap-2 px-2 py-1.5 rounded-xl border-2 transition-all ${
                         alreadyAdded
                           ? "border-emerald-500/50 bg-emerald-600/10 opacity-60 cursor-default"
@@ -732,9 +1068,15 @@ export function PopupTemplateModal({
                       }`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={m.url} alt={m.label} className="w-7 h-7 object-contain rounded" />
+                      <img
+                        src={m.url}
+                        alt={m.label}
+                        className="w-7 h-7 object-contain rounded"
+                      />
                       <span className="text-xs text-zinc-300">{m.label}</span>
-                      {alreadyAdded && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
+                      {alreadyAdded && (
+                        <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                      )}
                     </button>
                   );
                 })}
@@ -750,17 +1092,26 @@ export function PopupTemplateModal({
               backgroundColor: template.backgroundColor,
               textColor: template.textColor,
             }}
-            onChange={(field, value) => setTemplateAndNotify({ ...template, [field]: value })}
+            onChange={(field, value) =>
+              setTemplateAndNotify({ ...template, [field]: value })
+            }
             disabled={isLoading}
           />
 
           {/* Duration */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Duração (ms)</label>
+            <label className="block text-sm font-medium text-zinc-300 mb-2">
+              Duração (ms)
+            </label>
             <input
               type="number"
               value={template.dismissDuration}
-              onChange={(e) => setTemplate({ ...template, dismissDuration: Number(e.target.value) })}
+              onChange={(e) =>
+                setTemplate({
+                  ...template,
+                  dismissDuration: Number(e.target.value),
+                })
+              }
               className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500/60"
               disabled={isLoading}
             />
@@ -772,7 +1123,9 @@ export function PopupTemplateModal({
               <input
                 type="checkbox"
                 checked={template.enableConfetti}
-                onChange={(e) => setTemplate({ ...template, enableConfetti: e.target.checked })}
+                onChange={(e) =>
+                  setTemplate({ ...template, enableConfetti: e.target.checked })
+                }
                 className="rounded border-zinc-700"
                 disabled={isLoading}
               />
@@ -782,7 +1135,9 @@ export function PopupTemplateModal({
               <input
                 type="checkbox"
                 checked={template.enableSound}
-                onChange={(e) => setTemplate({ ...template, enableSound: e.target.checked })}
+                onChange={(e) =>
+                  setTemplate({ ...template, enableSound: e.target.checked })
+                }
                 className="rounded border-zinc-700"
                 disabled={isLoading}
               />
@@ -792,7 +1147,9 @@ export function PopupTemplateModal({
 
           {/* Preview */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-3">Prévia (Arraste os elementos)</label>
+            <label className="block text-sm font-medium text-zinc-300 mb-3">
+              Prévia (Arraste os elementos)
+            </label>
             <div
               ref={previewRef}
               className="relative w-full rounded-xl overflow-hidden popup-cq"
@@ -806,7 +1163,11 @@ export function PopupTemplateModal({
             >
               {colorizedPatternUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={colorizedPatternUrl} alt="padrão" className="absolute inset-0 w-full h-full object-cover" />
+                <img
+                  src={colorizedPatternUrl}
+                  alt="padrão"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
               )}
               {/* Draggable elements */}
               {layoutElements.map((el) => {
@@ -828,19 +1189,26 @@ export function PopupTemplateModal({
                       }}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={el.imageUrl} alt={el.label} className="w-full h-auto object-contain pointer-events-none" />
+                      <img
+                        src={el.imageUrl}
+                        alt={el.label}
+                        className="w-full h-auto object-contain pointer-events-none"
+                      />
                     </div>
                   );
                 }
                 const isSelected = selectedId === el.id;
-                const circleSize = `${((el.fontSize ?? 22) * 2.6 / 768) * 100}cqw`;
+                const circleSize = `${(((el.fontSize ?? 22) * 2.6) / 768) * 100}cqw`;
                 if (el.type === "hide") {
                   return (
                     <div
                       key={el.id}
                       draggable
                       onDragStart={(e) => handleElementDragStart(e, el.id)}
-                      onClick={(e) => { e.stopPropagation(); setSelectedId(el.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedId(el.id);
+                      }}
                       className="absolute cursor-move"
                       style={{
                         left: `${el.x}%`,
@@ -850,7 +1218,9 @@ export function PopupTemplateModal({
                         transform: "translate(-50%, -50%)",
                         opacity: draggingElement === el.id ? 0.5 : 1,
                         borderRadius: "50%",
-                        background: isSelected ? `${template.accentColor}55` : `${template.accentColor}33`,
+                        background: isSelected
+                          ? `${template.accentColor}55`
+                          : `${template.accentColor}33`,
                         border: isSelected
                           ? `2px solid ${template.accentColor}`
                           : `2px solid ${el.color ?? template.accentColor}`,
@@ -863,7 +1233,9 @@ export function PopupTemplateModal({
                         flexShrink: 0,
                       }}
                     >
-                      <span className="pointer-events-none select-none leading-none">✕</span>
+                      <span className="pointer-events-none select-none leading-none">
+                        ✕
+                      </span>
                     </div>
                   );
                 }
@@ -872,7 +1244,10 @@ export function PopupTemplateModal({
                     key={el.id}
                     draggable
                     onDragStart={(e) => handleElementDragStart(e, el.id)}
-                    onClick={(e) => { e.stopPropagation(); setSelectedId(el.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedId(el.id);
+                    }}
                     className="absolute cursor-move"
                     style={{
                       left: `${el.x}%`,
@@ -890,8 +1265,12 @@ export function PopupTemplateModal({
                       wordBreak: "break-word",
                       whiteSpace: "normal",
                       overflow: "hidden",
-                      border: isSelected ? "1px solid rgba(139,92,246,0.9)" : "1px dashed rgba(255,255,255,0.3)",
-                      background: isSelected ? "rgba(139,92,246,0.12)" : "rgba(255,255,255,0.06)",
+                      border: isSelected
+                        ? "1px solid rgba(139,92,246,0.9)"
+                        : "1px dashed rgba(255,255,255,0.3)",
+                      background: isSelected
+                        ? "rgba(139,92,246,0.12)"
+                        : "rgba(255,255,255,0.06)",
                       borderRadius: "4px",
                     }}
                   >
@@ -914,32 +1293,36 @@ export function PopupTemplateModal({
                       </span>
                     ) : (
                       <span className="pointer-events-none select-none">
-                        {el.type === "name"    && (template.name    || "Nome")}
-                        {el.type === "title"   && (template.title   || "Título")}
-                        {el.type === "message" && (template.message || "Mensagem")}
+                        {el.type === "name" && (template.name || "Nome")}
+                        {el.type === "title" && (template.title || "Título")}
+                        {el.type === "message" &&
+                          (template.message || "Mensagem")}
                       </span>
                     )}
                     {/* Resize handles */}
-                    {isSelected && RESIZE_HANDLES.map((h) => (
-                      <div
-                        key={h.id}
-                        onMouseDown={(e) => handleResizeMouseDown(e, el.id, h.id)}
-                        style={{
-                          position: "absolute",
-                          left: h.left,
-                          top: h.top,
-                          transform: "translate(-50%, -50%)",
-                          width: 8,
-                          height: 8,
-                          background: "#8b5cf6",
-                          border: "1.5px solid #fff",
-                          borderRadius: 2,
-                          cursor: h.cursor,
-                          zIndex: 20,
-                          pointerEvents: "auto",
-                        }}
-                      />
-                    ))}
+                    {isSelected &&
+                      RESIZE_HANDLES.map((h) => (
+                        <div
+                          key={h.id}
+                          onMouseDown={(e) =>
+                            handleResizeMouseDown(e, el.id, h.id)
+                          }
+                          style={{
+                            position: "absolute",
+                            left: h.left,
+                            top: h.top,
+                            transform: "translate(-50%, -50%)",
+                            width: 8,
+                            height: 8,
+                            background: "#8b5cf6",
+                            border: "1.5px solid #fff",
+                            borderRadius: 2,
+                            cursor: h.cursor,
+                            zIndex: 20,
+                            pointerEvents: "auto",
+                          }}
+                        />
+                      ))}
                   </div>
                 );
               })}
@@ -968,14 +1351,28 @@ export function PopupTemplateModal({
                     <div className="flex items-center gap-1 flex-1">
                       {el.imageUrl && (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={el.imageUrl} alt={el.label} className="w-6 h-6 object-contain rounded border border-zinc-700 shrink-0" />
+                        <img
+                          src={el.imageUrl}
+                          alt={el.label}
+                          className="w-6 h-6 object-contain rounded border border-zinc-700 shrink-0"
+                        />
                       )}
                       <button
                         type="button"
                         onClick={() =>
-                          setLayoutElements(layoutElements.map((e) =>
-                            e.id === el.id ? { ...e, imageSize: Math.max(5, (e.imageSize ?? 20) - 5) } : e
-                          ))
+                          setLayoutElements(
+                            layoutElements.map((e) =>
+                              e.id === el.id
+                                ? {
+                                    ...e,
+                                    imageSize: Math.max(
+                                      5,
+                                      (e.imageSize ?? 20) - 5,
+                                    ),
+                                  }
+                                : e,
+                            ),
+                          )
                         }
                         className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
                         disabled={isLoading}
@@ -988,11 +1385,19 @@ export function PopupTemplateModal({
                         max={100}
                         value={el.imageSize ?? 20}
                         onChange={(e) =>
-                          setLayoutElements(layoutElements.map((item) =>
-                            item.id === el.id
-                              ? { ...item, imageSize: Math.max(5, Math.min(100, Number(e.target.value))) }
-                              : item
-                          ))
+                          setLayoutElements(
+                            layoutElements.map((item) =>
+                              item.id === el.id
+                                ? {
+                                    ...item,
+                                    imageSize: Math.max(
+                                      5,
+                                      Math.min(100, Number(e.target.value)),
+                                    ),
+                                  }
+                                : item,
+                            ),
+                          )
                         }
                         className="w-12 bg-zinc-800 border border-zinc-700 rounded text-white text-xs text-center px-1 py-1 focus:outline-none focus:border-violet-500/60"
                         disabled={isLoading}
@@ -1000,9 +1405,19 @@ export function PopupTemplateModal({
                       <button
                         type="button"
                         onClick={() =>
-                          setLayoutElements(layoutElements.map((e) =>
-                            e.id === el.id ? { ...e, imageSize: Math.min(100, (e.imageSize ?? 20) + 5) } : e
-                          ))
+                          setLayoutElements(
+                            layoutElements.map((e) =>
+                              e.id === el.id
+                                ? {
+                                    ...e,
+                                    imageSize: Math.min(
+                                      100,
+                                      (e.imageSize ?? 20) + 5,
+                                    ),
+                                  }
+                                : e,
+                            ),
+                          )
                         }
                         className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
                         disabled={isLoading}
@@ -1026,9 +1441,19 @@ export function PopupTemplateModal({
                       <button
                         type="button"
                         onClick={() =>
-                          setLayoutElements(layoutElements.map((e) =>
-                            e.id === el.id ? { ...e, fontSize: Math.max(8, (e.fontSize ?? 12) - 1) } : e
-                          ))
+                          setLayoutElements(
+                            layoutElements.map((e) =>
+                              e.id === el.id
+                                ? {
+                                    ...e,
+                                    fontSize: Math.max(
+                                      8,
+                                      (e.fontSize ?? 12) - 1,
+                                    ),
+                                  }
+                                : e,
+                            ),
+                          )
                         }
                         className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
                         disabled={isLoading}
@@ -1041,11 +1466,19 @@ export function PopupTemplateModal({
                         max={72}
                         value={el.fontSize ?? 12}
                         onChange={(e) =>
-                          setLayoutElements(layoutElements.map((item) =>
-                            item.id === el.id
-                              ? { ...item, fontSize: Math.max(8, Math.min(72, Number(e.target.value))) }
-                              : item
-                          ))
+                          setLayoutElements(
+                            layoutElements.map((item) =>
+                              item.id === el.id
+                                ? {
+                                    ...item,
+                                    fontSize: Math.max(
+                                      8,
+                                      Math.min(72, Number(e.target.value)),
+                                    ),
+                                  }
+                                : item,
+                            ),
+                          )
                         }
                         className="w-12 bg-zinc-800 border border-zinc-700 rounded text-white text-xs text-center px-1 py-1 focus:outline-none focus:border-violet-500/60"
                         disabled={isLoading}
@@ -1053,9 +1486,19 @@ export function PopupTemplateModal({
                       <button
                         type="button"
                         onClick={() =>
-                          setLayoutElements(layoutElements.map((e) =>
-                            e.id === el.id ? { ...e, fontSize: Math.min(72, (e.fontSize ?? 12) + 1) } : e
-                          ))
+                          setLayoutElements(
+                            layoutElements.map((e) =>
+                              e.id === el.id
+                                ? {
+                                    ...e,
+                                    fontSize: Math.min(
+                                      72,
+                                      (e.fontSize ?? 12) + 1,
+                                    ),
+                                  }
+                                : e,
+                            ),
+                          )
                         }
                         className="w-6 h-6 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs flex items-center justify-center"
                         disabled={isLoading}
@@ -1067,9 +1510,13 @@ export function PopupTemplateModal({
                         type="color"
                         value={el.color ?? "#ffffff"}
                         onChange={(e) =>
-                          setLayoutElements(layoutElements.map((item) =>
-                            item.id === el.id ? { ...item, color: e.target.value } : item
-                          ))
+                          setLayoutElements(
+                            layoutElements.map((item) =>
+                              item.id === el.id
+                                ? { ...item, color: e.target.value }
+                                : item,
+                            ),
+                          )
                         }
                         className="w-7 h-7 rounded cursor-pointer border border-zinc-700 bg-zinc-800 shrink-0"
                         title={`Cor de ${el.label}`}
@@ -1080,14 +1527,18 @@ export function PopupTemplateModal({
 
                   {/* Link — for non-hide elements */}
                   {el.type !== "hide" && (
-                    <div className="w-full flex items-center gap-1 mt-1 ml-[6.5rem]">
+                    <div className="w-full flex items-center gap-1 mt-1 ml-26">
                       <input
                         type="url"
                         value={el.href ?? ""}
                         onChange={(e) =>
-                          setLayoutElements(layoutElements.map((item) =>
-                            item.id === el.id ? { ...item, href: e.target.value || undefined } : item
-                          ))
+                          setLayoutElements(
+                            layoutElements.map((item) =>
+                              item.id === el.id
+                                ? { ...item, href: e.target.value || undefined }
+                                : item,
+                            ),
+                          )
                         }
                         placeholder="Link (ex: /ranking)"
                         className="flex-1 bg-zinc-800 border border-zinc-700 rounded text-white text-[10px] px-2 py-1 focus:outline-none focus:border-violet-500/60"
@@ -1096,9 +1547,13 @@ export function PopupTemplateModal({
                       <select
                         value={el.hrefTarget ?? "_blank"}
                         onChange={(e) =>
-                          setLayoutElements(layoutElements.map((item) =>
-                            item.id === el.id ? { ...item, hrefTarget: e.target.value } : item
-                          ))
+                          setLayoutElements(
+                            layoutElements.map((item) =>
+                              item.id === el.id
+                                ? { ...item, hrefTarget: e.target.value }
+                                : item,
+                            ),
+                          )
                         }
                         className="bg-zinc-800 border border-zinc-700 rounded text-white text-[10px] px-1 py-1 focus:outline-none focus:border-violet-500/60"
                         disabled={isLoading || !el.href}
@@ -1114,20 +1569,28 @@ export function PopupTemplateModal({
 
             {/* System Variables */}
             <div className="mt-4">
-              <p className="text-xs font-medium text-zinc-400 mb-2">Variáveis do sistema <span className="text-zinc-600">(clique para copiar)</span></p>
+              <p className="text-xs font-medium text-zinc-400 mb-2">
+                Variáveis do sistema{" "}
+                <span className="text-zinc-600">(clique para copiar)</span>
+              </p>
               <div className="flex flex-wrap gap-2">
                 {[
-                  { label: "Nome do usuário",         value: "{{nome_usuario}}" },
-                  { label: "Qtd. de Stars",            value: "{{quantidade_stars}}" },
-                  { label: "Nome do plano",            value: "{{nome_plano}}" },
-                  { label: "Qtd. de Space Points",     value: "{{quantidade_space_points}}" },
-                  { label: "Nova conquista",           value: "{{nova_conquista}}" },
-                  { label: "Meu ranking",              value: "{{meu_ranking}}" },
+                  { label: "Nome do usuário", value: "{{nome_usuario}}" },
+                  { label: "Qtd. de Stars", value: "{{quantidade_stars}}" },
+                  { label: "Nome do plano", value: "{{nome_plano}}" },
+                  {
+                    label: "Qtd. de Space Points",
+                    value: "{{quantidade_space_points}}",
+                  },
+                  { label: "Nova conquista", value: "{{nova_conquista}}" },
+                  { label: "Meu ranking", value: "{{meu_ranking}}" },
                 ].map((v) => (
                   <button
                     key={v.value}
                     type="button"
-                    onClick={() => navigator.clipboard.writeText(v.value).catch(() => {})}
+                    onClick={() =>
+                      navigator.clipboard.writeText(v.value).catch(() => {})
+                    }
                     title={`Copiar ${v.value}`}
                     className="px-2 py-1 bg-zinc-800 hover:bg-violet-600/20 border border-zinc-700 hover:border-violet-500/50 text-zinc-300 hover:text-violet-300 text-xs rounded-lg transition-all font-mono"
                   >
@@ -1135,7 +1598,13 @@ export function PopupTemplateModal({
                   </button>
                 ))}
               </div>
-              <p className="text-[10px] text-zinc-600 mt-1.5">Use nas mensagens, ex: <span className="text-zinc-500">Parabéns, {`{{nome_usuario}}`}! Você ganhou {`{{quantidade_stars}}`}⭐</span></p>
+              <p className="text-[10px] text-zinc-600 mt-1.5">
+                Use nas mensagens, ex:{" "}
+                <span className="text-zinc-500">
+                  Parabéns, {`{{nome_usuario}}`}! Você ganhou{" "}
+                  {`{{quantidade_stars}}`}⭐
+                </span>
+              </p>
             </div>
           </div>
         </div>
@@ -1154,7 +1623,13 @@ export function PopupTemplateModal({
             className="flex-1 px-4 py-2 bg-violet-600 text-white font-medium rounded-lg hover:bg-violet-500 transition-colors disabled:opacity-50"
             disabled={isLoading}
           >
-            {isLoading ? (isCreating ? "Criando..." : "Salvando...") : (isCreating ? "Criar" : "Salvar")}
+            {isLoading
+              ? isCreating
+                ? "Criando..."
+                : "Salvando..."
+              : isCreating
+                ? "Criar"
+                : "Salvar"}
           </button>
         </div>
       </div>

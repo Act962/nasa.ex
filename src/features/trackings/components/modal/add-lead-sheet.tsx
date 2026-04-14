@@ -73,6 +73,7 @@ import {
 import { countries } from "@/types/some";
 import { normalizePhone, phoneMask } from "@/utils/format-phone";
 import { Switch } from "@/components/ui/switch-variable";
+import { useOrgProjects } from "@/features/org-projects/hooks/use-org-projects";
 
 const schema = z.object({
   name: z.string().min(2, "Nome obrigatório"),
@@ -103,8 +104,7 @@ export default function AddLeadSheet({
   const queryClient = useQueryClient();
   const { earn } = useSpacePointCtx();
   const { status, isLoadingStatus } = useStatus(trackingId ?? "");
-  const { data: projectsData, isLoading: isLoadingProjects } = useQuery(orpc.orgProjects.list.queryOptions({ input: {} }));
-  const projects = projectsData?.projects ?? [];
+  const { projects, isLoading: isLoadingProjects } = useOrgProjects();
   const [selectedCountry, setSelectedCountry] = useState(countries[0]);
   const [validateNumber, setValidateNumber] = useState(true);
 
@@ -402,7 +402,6 @@ export default function AddLeadSheet({
                       <SelectValue placeholder="Selecione um projeto/cliente (opcional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sem projeto</SelectItem>
                       {projects?.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
                           {project.name}

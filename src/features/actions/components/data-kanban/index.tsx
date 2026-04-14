@@ -22,8 +22,8 @@ import { createPortal } from "react-dom";
 import { WorkspaceColumn } from "./status-column";
 import { KanbanCard } from "./kanban-card";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { Decimal } from "@prisma/client/runtime/client";
 import { ColumnForm } from "./column-form";
+import { toast } from "sonner";
 import { useReorderAction } from "../../hooks/use-tasks";
 import { useActionKanbanStore } from "../../lib/kanban-store";
 import { Action } from "../../types";
@@ -66,6 +66,11 @@ const KanbanBoard = ({ workspaceId }: Props) => {
 
   const [activeAction, setActiveAction] = useState<Action | null>(null);
   const [activeColumn, setActiveColumn] = useState<any>(null);
+  const [originalNeighbors, setOriginalNeighbors] = useState<{
+    beforeId?: string;
+    afterId?: string;
+    columnId: string;
+  } | null>(null);
 
   const mouseSensor = useSensor(MouseSensor, {
     activationConstraint: { distance: 10 },
@@ -102,15 +107,30 @@ const KanbanBoard = ({ workspaceId }: Props) => {
 
   const onDragStart = useCallback(
     (event: DragStartEvent) => {
-      setIsDragging(true);
       const type = event.active.data?.current?.type;
 
+      if (type === "Action" && filters.sortBy !== "order") {
+        toast.info("A ordenação manual só é refletida quando o filtro de ordenação está em 'Manual'.");
+      }
+
+      setIsDragging(true);
+
       if (type === "Column") {
-        setActiveColumn(event.active.data?.current?.column);
+        const column = event.active.data?.current?.column;
+        const neighbors = useActionKanbanStore
+          .getState()
+          .getColumnNeighbors(column.id);
+        setOriginalNeighbors({ ...neighbors, columnId: "NONE" }); // Columns don't have parent column
+        setActiveColumn(column);
       }
 
       if (type === "Action") {
-        setActiveAction(event.active.data?.current?.action);
+        const action = event.active.data?.current?.action;
+        const neighbors = useActionKanbanStore
+          .getState()
+          .getActionNeighbors(action.columnId, action.id);
+        setOriginalNeighbors({ ...neighbors, columnId: action.columnId });
+        setActiveAction(action);
       }
     },
     [setIsDragging],
@@ -119,11 +139,14 @@ const KanbanBoard = ({ workspaceId }: Props) => {
   const onDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
-      setIsDragging(false);
       setActiveColumn(null);
       setActiveAction(null);
+      setOriginalNeighbors(null);
 
-      if (!over) return;
+      if (!over) {
+        setIsDragging(false);
+        return;
+      }
 
       const activeType = active.data?.current?.type;
       const overType = over.data?.current?.type;
@@ -133,26 +156,30 @@ const KanbanBoard = ({ workspaceId }: Props) => {
         const overId = over.id as string;
 
         if (activeId !== overId) {
-          const columns = useActionKanbanStore.getState().columnList;
-          const overIndex = columns.findIndex((c) => c.id === overId);
-          const prev = columns[overIndex - 1];
-          const next = columns[overIndex];
+          const currentNeighbors = useActionKanbanStore
+            .getState()
+            .getColumnNeighbors(activeId);
 
-          let newOrder: string;
-          if (!prev && next) {
-            newOrder = new Decimal(next.order).minus(1000).toString();
-          } else if (prev && !next) {
-            newOrder = new Decimal(prev.order).plus(1000).toString();
-          } else if (prev && next) {
-            newOrder = new Decimal(prev.order)
-              .plus(next.order)
-              .div(2)
-              .toString();
-          } else {
-            newOrder = "1000";
+          if (
+            currentNeighbors.beforeId === originalNeighbors?.beforeId &&
+            currentNeighbors.afterId === originalNeighbors?.afterId
+          ) {
+            setIsDragging(false);
+            return;
           }
 
-          reorderColumn.mutate({ id: activeId, order: newOrder });
+          reorderColumn.mutate(
+            {
+              id: activeId,
+              beforeId: currentNeighbors.beforeId,
+              afterId: currentNeighbors.afterId,
+            },
+            {
+              onSettled: () => setIsDragging(false),
+            },
+          );
+        } else {
+          setIsDragging(false);
         }
         return;
       }
@@ -160,27 +187,46 @@ const KanbanBoard = ({ workspaceId }: Props) => {
       if (activeType === "Action") {
         const action = active.data?.current?.action as Action;
         let targetColumnId: string | null = null;
-        let overActionId: string | undefined;
 
         if (overType === "Action") {
-          targetColumnId = over.data?.current?.action.columnId;
-          overActionId = over.data?.current?.action.id;
+          targetColumnId =
+            useActionKanbanStore.getState().findActionColumn(over.id as string) ??
+            over.data?.current?.action.columnId;
         } else if (overType === "Column") {
           targetColumnId = over.data?.current?.column.id;
         }
 
-        if (!targetColumnId) return;
+        if (!targetColumnId) {
+          setIsDragging(false);
+          return;
+        }
 
-        const newOrder = useActionKanbanStore
+        const currentNeighbors = useActionKanbanStore
           .getState()
-          .calculateMidpoint(targetColumnId, action.id);
+          .getActionNeighbors(targetColumnId, action.id);
 
-        reorderAction.mutate({
-          id: action.id,
-          columnId: targetColumnId,
-          order: newOrder,
-        });
+        if (
+          targetColumnId === originalNeighbors?.columnId &&
+          currentNeighbors.beforeId === originalNeighbors?.beforeId &&
+          currentNeighbors.afterId === originalNeighbors?.afterId
+        ) {
+          setIsDragging(false);
+          return;
+        }
+
+        reorderAction.mutate(
+          {
+            id: action.id,
+            columnId: targetColumnId,
+            beforeId: currentNeighbors.beforeId,
+            afterId: currentNeighbors.afterId,
+          },
+          { onSettled: () => setIsDragging(false) },
+        );
+        return;
       }
+
+      setIsDragging(false);
     },
     [columnList, reorderAction, reorderColumn, setIsDragging],
   );
@@ -195,6 +241,8 @@ const KanbanBoard = ({ workspaceId }: Props) => {
       const activeType = active.data?.current?.type;
       const overType = over.data?.current?.type;
 
+      if (activeId === overId) return;
+
       if (activeType === "Column" && overType === "Column") {
         moveColumn(activeId, overId);
         return;
@@ -208,7 +256,10 @@ const KanbanBoard = ({ workspaceId }: Props) => {
       if (!activeColumnId) return;
 
       const overColumnId =
-        overType === "Action" ? over.data?.current?.action.columnId : over.id;
+        overType === "Action"
+          ? (useActionKanbanStore.getState().findActionColumn(overId) ??
+            over.data?.current?.action.columnId)
+          : over.id;
 
       if (activeColumnId !== overColumnId) {
         moveActionToColumn(
@@ -217,7 +268,7 @@ const KanbanBoard = ({ workspaceId }: Props) => {
           overColumnId,
           overType === "Action" ? overId : undefined,
         );
-      } else {
+      } else if (overType === "Action") {
         moveActionInColumn(activeColumnId, activeId, overId);
       }
     },

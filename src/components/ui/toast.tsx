@@ -80,7 +80,7 @@ export function Toast({
 }
 
 interface ToastContainerProps {
-  toasts: ToastProps[];
+  toasts: Array<Omit<ToastProps, "onClose"> & { onClose?: any }>;
   onRemove: (id: string) => void;
 }
 

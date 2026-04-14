@@ -9,6 +9,7 @@ import { TagsField } from "./tags-field";
 import { CoverImageField } from "./cover-image-field";
 import { OrgProjectField } from "./org-project-field";
 import { Action } from "../../../types";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface SidebarProps {
   action?: Action;
@@ -39,7 +40,7 @@ export function ActionSidebar({
 }: SidebarProps) {
   if (isLoading) {
     return (
-      <div className="w-64 border-l shrink-0 overflow-y-auto bg-muted/80">
+      <div className="h-full overflow-y-auto bg-muted/80">
         <div className="p-4 space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="space-y-1.5">
@@ -53,7 +54,7 @@ export function ActionSidebar({
   }
 
   return (
-    <div className="w-64 border-l shrink-0 overflow-y-auto bg-muted/80">
+    <ScrollArea className="h-full border-l bg-muted/80">
       <div className="p-4 space-y-4">
         <OrgProjectField
           value={action?.orgProjectId}
@@ -116,6 +117,6 @@ export function ActionSidebar({
           createdAt={action?.createdAt ? new Date(action.createdAt) : undefined}
         />
       </div>
-    </div>
+    </ScrollArea>
   );
 }

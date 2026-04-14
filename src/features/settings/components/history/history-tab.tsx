@@ -8,52 +8,100 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
 } from "recharts";
 import {
-  Popover, PopoverContent, PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Activity, Users, Clock, Filter, ChevronDown, ChevronUp,
+  Activity,
+  Users,
+  Clock,
+  Filter,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_LABELS } from "@/lib/activity-constants";
 
 // Role colors for chart bars
 const MEMBER_COLORS = [
-  "#7C3AED", "#3B82F6", "#10B981", "#F59E0B", "#EF4444",
-  "#8B5CF6", "#06B6D4", "#84CC16", "#F97316", "#EC4899",
+  "#7C3AED",
+  "#3B82F6",
+  "#10B981",
+  "#F59E0B",
+  "#EF4444",
+  "#8B5CF6",
+  "#06B6D4",
+  "#84CC16",
+  "#F97316",
+  "#EC4899",
 ];
 
-const ROLE_META: Record<string, { label: string; color: string; bg: string }> = {
-  owner:     { label: "Master",    color: "text-violet-700", bg: "bg-violet-100" },
-  admin:     { label: "Adm",      color: "text-blue-700",   bg: "bg-blue-100"   },
-  member:    { label: "Single",   color: "text-slate-700",  bg: "bg-slate-100"  },
-  moderador: { label: "Moderador", color: "text-orange-700", bg: "bg-orange-100" },
-};
+const ROLE_META: Record<string, { label: string; color: string; bg: string }> =
+  {
+    owner: { label: "Master", color: "text-violet-700", bg: "bg-violet-100" },
+    admin: { label: "Adm", color: "text-blue-700", bg: "bg-blue-100" },
+    member: { label: "Single", color: "text-slate-700", bg: "bg-slate-100" },
+    moderador: {
+      label: "Moderador",
+      color: "text-orange-700",
+      bg: "bg-orange-100",
+    },
+  };
 
 function RoleBadge({ role }: { role: string }) {
-  const meta = ROLE_META[role] ?? { label: role, color: "text-slate-600", bg: "bg-slate-100" };
+  const meta = ROLE_META[role] ?? {
+    label: role,
+    color: "text-slate-600",
+    bg: "bg-slate-100",
+  };
   return (
-    <span className={cn("inline-flex items-center rounded-full px-1.5 py-px text-[10px] font-bold", meta.color, meta.bg)}>
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-1.5 py-px text-[10px] font-bold",
+        meta.color,
+        meta.bg,
+      )}
+    >
       {meta.label}
     </span>
   );
 }
 
 function initials(name: string) {
-  return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 }
 
 function formatDate(d: string | Date) {
   const date = typeof d === "string" ? new Date(d) : d;
   return date.toLocaleDateString("pt-BR", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -69,16 +117,20 @@ function OnlineBadge() {
   const online = data?.online ?? [];
 
   const badge = (
-    <div className={cn(
-      "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border cursor-pointer select-none transition-colors",
-      count > 0
-        ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800"
-        : "bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-900/30",
-    )}>
-      <span className={cn(
-        "size-2 rounded-full shrink-0",
-        count > 0 ? "bg-emerald-500 animate-pulse" : "bg-slate-300"
-      )} />
+    <div
+      className={cn(
+        "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border cursor-pointer select-none transition-colors",
+        count > 0
+          ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800"
+          : "bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-900/30",
+      )}
+    >
+      <span
+        className={cn(
+          "size-2 rounded-full shrink-0",
+          count > 0 ? "bg-emerald-500 animate-pulse" : "bg-slate-300",
+        )}
+      />
       {count} online agora
     </div>
   );
@@ -94,17 +146,24 @@ function OnlineBadge() {
         </p>
         <div className="space-y-0.5">
           {online.map((u) => (
-            <div key={u.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted/50">
+            <div
+              key={u.id}
+              className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted/50"
+            >
               <div className="relative shrink-0">
                 <Avatar className="size-7">
                   <AvatarImage src={u.userImage ?? ""} alt={u.userName} />
-                  <AvatarFallback className="text-[10px]">{initials(u.userName)}</AvatarFallback>
+                  <AvatarFallback className="text-[10px]">
+                    {initials(u.userName)}
+                  </AvatarFallback>
                 </Avatar>
                 <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-500 border-2 border-background" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium truncate">{u.userName}</p>
-                <p className="text-[10px] text-muted-foreground truncate">{u.userEmail}</p>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  {u.userEmail}
+                </p>
               </div>
             </div>
           ))}
@@ -124,8 +183,16 @@ function CustomTooltip({ active, payload, label }: any) {
     <div className="bg-background border rounded-lg shadow-lg p-3 text-xs space-y-1 max-w-48">
       <p className="font-semibold text-foreground mb-1.5">{label}</p>
       {payload.map((p: any) => (
-        <div key={p.dataKey} className="flex items-center justify-between gap-3">
-          <span style={{ color: p.fill ?? p.color }} className="font-medium truncate max-w-28">{p.name}</span>
+        <div
+          key={p.dataKey}
+          className="flex items-center justify-between gap-3"
+        >
+          <span
+            style={{ color: p.fill ?? p.color }}
+            className="font-medium truncate max-w-28"
+          >
+            {p.name}
+          </span>
           <span className="font-bold">{p.value}</span>
         </div>
       ))}
@@ -184,7 +251,8 @@ export function HistoryTab() {
         <div>
           <h3 className="text-base font-semibold">Acesso Restrito</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Apenas Master, Adm e Moderador podem visualizar o histórico de atividades.
+            Apenas Master, Adm e Moderador podem visualizar o histórico de
+            atividades.
           </p>
         </div>
       </div>
@@ -212,7 +280,8 @@ export function HistoryTab() {
             <Activity className="size-6" /> Histórico de Atividades
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Rastreamento completo de todas as ações realizadas pelos membros da organização.
+            Rastreamento completo de todas as ações realizadas pelos membros da
+            organização.
           </p>
         </div>
         <OnlineBadge />
@@ -244,7 +313,9 @@ export function HistoryTab() {
           <SelectContent>
             <SelectItem value="all">Todos os membros</SelectItem>
             {members.map((m) => (
-              <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+              <SelectItem key={m.id} value={m.id}>
+                {m.name}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -257,15 +328,24 @@ export function HistoryTab() {
           <SelectContent>
             <SelectItem value="all">Todos os apps</SelectItem>
             {Object.entries(APP_LABELS).map(([slug, label]) => (
-              <SelectItem key={slug} value={slug}>{label}</SelectItem>
+              <SelectItem key={slug} value={slug}>
+                {label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
         {/* Reset */}
         {(selectedUserId !== "all" || selectedApp !== "all") && (
-          <Button variant="ghost" size="sm" className="h-8 text-xs"
-            onClick={() => { setSelectedUserId("all"); setSelectedApp("all"); }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => {
+              setSelectedUserId("all");
+              setSelectedApp("all");
+            }}
+          >
             Limpar
           </Button>
         )}
@@ -285,7 +365,11 @@ export function HistoryTab() {
               </span>
             )}
           </span>
-          {showChart ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          {showChart ? (
+            <ChevronUp className="size-4" />
+          ) : (
+            <ChevronDown className="size-4" />
+          )}
         </button>
 
         {showChart && (
@@ -305,18 +389,33 @@ export function HistoryTab() {
                       key={m.userId}
                       className={cn(
                         "rounded-lg border p-3 cursor-pointer transition-colors",
-                        selectedUserId === m.userId ? "border-primary bg-primary/5" : "hover:bg-muted/40",
+                        selectedUserId === m.userId
+                          ? "border-primary bg-primary/5"
+                          : "hover:bg-muted/40",
                       )}
-                      onClick={() => setSelectedUserId(selectedUserId === m.userId ? "all" : m.userId)}
+                      onClick={() =>
+                        setSelectedUserId(
+                          selectedUserId === m.userId ? "all" : m.userId,
+                        )
+                      }
                     >
                       <div className="flex items-center gap-2 mb-1.5">
                         <Avatar className="size-6">
                           <AvatarImage src={m.image ?? ""} />
-                          <AvatarFallback className="text-[10px]">{initials(m.name)}</AvatarFallback>
+                          <AvatarFallback className="text-[10px]">
+                            {initials(m.name)}
+                          </AvatarFallback>
                         </Avatar>
-                        <span className="text-xs font-medium truncate">{m.name.split(" ")[0]}</span>
+                        <span className="text-xs font-medium truncate">
+                          {m.name.split(" ")[0]}
+                        </span>
                       </div>
-                      <p className="text-xl font-bold" style={{ color: MEMBER_COLORS[i % MEMBER_COLORS.length] }}>
+                      <p
+                        className="text-xl font-bold"
+                        style={{
+                          color: MEMBER_COLORS[i % MEMBER_COLORS.length],
+                        }}
+                      >
                         {m.total}
                       </p>
                       <p className="text-[10px] text-muted-foreground">ações</p>
@@ -326,8 +425,14 @@ export function HistoryTab() {
 
                 {/* Bar chart */}
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={chartData} margin={{ top: 4, right: 4, bottom: 4, left: -10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 4, right: 4, bottom: 4, left: -10 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="hsl(var(--border))"
+                    />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                     <Tooltip content={<CustomTooltip />} />
@@ -336,7 +441,12 @@ export function HistoryTab() {
                         <Cell
                           key={entry.name}
                           fill={MEMBER_COLORS[i % MEMBER_COLORS.length]}
-                          opacity={selectedUserId === "all" || memberTotals[i]?.userId === selectedUserId ? 1 : 0.3}
+                          opacity={
+                            selectedUserId === "all" ||
+                            memberTotals[i]?.userId === selectedUserId
+                              ? 1
+                              : 0.3
+                          }
                         />
                       ))}
                     </Bar>
@@ -381,16 +491,24 @@ export function HistoryTab() {
               Nenhuma atividade encontrada para os filtros selecionados.
             </div>
           ) : (
-            <>
+            <div className="overflow-x-auto">
               {logs.map((log) => {
                 const memberInfo = members.find((m) => m.id === log.userId);
                 const appLabel = APP_LABELS[log.appSlug] ?? log.appSlug;
                 return (
-                  <div key={log.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/10 transition-colors min-w-0">
+                  <div
+                    key={log.id}
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/10 transition-colors min-w-0"
+                  >
                     {/* Avatar */}
                     <Avatar className="size-7 shrink-0">
-                      <AvatarImage src={log.userImage ?? ""} alt={log.userName} />
-                      <AvatarFallback className="text-[10px]">{initials(log.userName)}</AvatarFallback>
+                      <AvatarImage
+                        src={log.userImage ?? ""}
+                        alt={log.userName}
+                      />
+                      <AvatarFallback className="text-[10px]">
+                        {initials(log.userName)}
+                      </AvatarFallback>
                     </Avatar>
 
                     {/* Nome */}
@@ -425,14 +543,21 @@ export function HistoryTab() {
                 );
               })}
 
-              {logs.length >= logsLimit && (logsData?.total ?? 0) > logsLimit && (
-                <div className="py-3 text-center">
-                  <Button variant="ghost" size="sm" onClick={() => setLogsLimit((v) => v + 50)} className="text-xs">
-                    Carregar mais ({(logsData?.total ?? 0) - logsLimit} restantes)
-                  </Button>
-                </div>
-              )}
-            </>
+              {logs.length >= logsLimit &&
+                (logsData?.total ?? 0) > logsLimit && (
+                  <div className="py-3 text-center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setLogsLimit((v) => v + 50)}
+                      className="text-xs"
+                    >
+                      Carregar mais ({(logsData?.total ?? 0) - logsLimit}{" "}
+                      restantes)
+                    </Button>
+                  </div>
+                )}
+            </div>
           )}
         </div>
       </div>

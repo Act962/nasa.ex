@@ -28,6 +28,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import type { StatusData, ChartType } from "@/features/insights/types";
+import { useIsMobile, useIsTinyMobile } from "@/hooks/use-mobile";
 
 interface StatusChartProps {
   data: StatusData[];
@@ -45,6 +46,9 @@ const STATUS_COLORS = [
 ];
 
 export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
+  const isMobile = useIsMobile();
+  const isTinyMobile = useIsTinyMobile();
+
   const chartData = data.map((item, index) => ({
     status: item.status.name,
     count: item.count,
@@ -112,12 +116,12 @@ export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
   switch (chartType) {
     case "bar":
       return (
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer config={chartConfig} className={`${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}>
           <BarChart
             accessibilityLayer
             data={chartData}
             layout="vertical"
-            margin={{ left: 0, right: 16 }}
+            margin={{ left: isTinyMobile ? -20 : 0, right: 16 }}
             className={onClick ? "cursor-pointer" : ""}
           >
             <CartesianGrid horizontal={false} />
@@ -125,10 +129,11 @@ export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
               dataKey="status"
               type="category"
               tickLine={false}
-              tickMargin={10}
+              tickMargin={isTinyMobile ? 4 : 10}
               axisLine={false}
-              width={100}
-              tick={{ fontSize: 12 }}
+              width={isTinyMobile ? 0 : (isMobile ? 80 : 100)}
+              tick={{ fontSize: isTinyMobile ? 9 : (isMobile ? 10 : 12) }}
+              hide={isTinyMobile}
             />
             <XAxis type="number" hide />
             <ChartTooltip cursor={false} content={<CustomTooltip />} />
@@ -142,10 +147,10 @@ export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
               ))}
               <LabelList
                 dataKey="count"
-                position="right"
-                offset={8}
-                className="fill-foreground"
-                fontSize={12}
+                position={isTinyMobile ? "insideLeft" : "right"}
+                offset={isTinyMobile ? 4 : 8}
+                className={isTinyMobile ? "fill-white font-bold" : "fill-foreground"}
+                fontSize={isTinyMobile ? 10 : 12}
               />
             </Bar>
           </BarChart>
@@ -156,7 +161,7 @@ export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
       return (
         <ChartContainer
           config={chartConfig}
-          className="mx-auto h-[300px] w-full"
+          className={`mx-auto ${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}
         >
           <PieChart>
             <ChartTooltip
@@ -167,7 +172,8 @@ export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
               data={chartData}
               dataKey="count"
               nameKey="status"
-              innerRadius={60}
+              innerRadius={isTinyMobile ? 50 : 60}
+              outerRadius={isTinyMobile ? 70 : 80}
               strokeWidth={5}
               onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
               className={onClick ? "cursor-pointer" : ""}
@@ -188,14 +194,14 @@ export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
                         <tspan
                           x={viewBox.cx}
                           y={viewBox.cy}
-                          className="fill-foreground text-3xl font-bold"
+                          className={`fill-foreground font-bold ${isTinyMobile ? "text-xl" : "text-2xl sm:text-3xl"}`}
                         >
                           {totalLeads.toLocaleString()}
                         </tspan>
                         <tspan
                           x={viewBox.cx}
-                          y={(viewBox.cy || 0) + 24}
-                          className="fill-muted-foreground"
+                          y={(viewBox.cy || 0) + (isTinyMobile ? 18 : 24)}
+                          className={`fill-muted-foreground ${isTinyMobile ? "text-[10px]" : "text-xs sm:text-sm"}`}
                         >
                           Total
                         </tspan>
@@ -207,7 +213,7 @@ export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
             </Pie>
             <ChartLegend
               content={<ChartLegendContent nameKey="status" />}
-              className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
+              className={`-translate-y-2 flex-wrap gap-2 ${isTinyMobile ? "*:basis-1/2 text-[9px]" : (isMobile ? "*:basis-1/3" : "*:basis-1/4")} *:justify-center`}
             />
           </PieChart>
         </ChartContainer>
@@ -215,7 +221,7 @@ export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
 
     case "line":
       return (
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer config={chartConfig} className={`${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}>
           <LineChart
             accessibilityLayer
             data={chartData}
@@ -233,16 +239,17 @@ export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: isTinyMobile ? 9 : (isMobile ? 10 : 12) }}
+              hide={isTinyMobile}
             />
-            <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+            <YAxis tickLine={false} axisLine={false} tickMargin={8} hide={isTinyMobile} />
             <ChartTooltip cursor={false} content={<CustomTooltip />} />
             <Line
               dataKey="count"
               type="natural"
               stroke="hsl(221, 83%, 53%)"
               strokeWidth={2}
-              dot={{ fill: "hsl(221, 83%, 53%)", r: 4 }}
+              dot={{ fill: "hsl(221, 83%, 53%)", r: isTinyMobile ? 2 : 4 }}
               activeDot={{ r: 6 }}
             />
           </LineChart>
@@ -251,7 +258,7 @@ export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
 
     case "area":
       return (
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer config={chartConfig} className={`${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}>
           <AreaChart
             accessibilityLayer
             data={chartData}
@@ -269,9 +276,10 @@ export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: isTinyMobile ? 9 : (isMobile ? 10 : 12) }}
+              hide={isTinyMobile}
             />
-            <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+            <YAxis tickLine={false} axisLine={false} tickMargin={8} hide={isTinyMobile} />
             <ChartTooltip
               cursor={false}
               content={<CustomTooltip />}
@@ -306,21 +314,21 @@ export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
       return (
         <ChartContainer
           config={chartConfig}
-          className="mx-auto h-[300px] w-full"
+          className={`mx-auto ${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}
         >
           <RadialBarChart
             data={chartData}
             startAngle={-90}
             endAngle={380}
-            innerRadius={30}
-            outerRadius={110}
+            innerRadius={isTinyMobile ? 25 : 30}
+            outerRadius={isTinyMobile ? 90 : 110}
           >
             <PolarGrid
               gridType="circle"
               radialLines={false}
               stroke="none"
               className="first:fill-muted last:fill-background"
-              polarRadius={[86, 74]}
+              polarRadius={isTinyMobile ? [70, 60] : [86, 74]}
             />
             <ChartTooltip
               cursor={false}
@@ -340,7 +348,7 @@ export function StatusChart({ data, chartType, onClick }: StatusChartProps) {
             {chartData && chartData.length <= 9 && (
               <ChartLegend
                 content={<ChartLegendContent nameKey="status" />}
-                className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
+                className={`-translate-y-2 flex-wrap gap-2 ${isTinyMobile ? "*:basis-1/2 text-[9px]" : (isMobile ? "*:basis-1/3" : "*:basis-1/4")} *:justify-center`}
               />
             )}
           </RadialBarChart>

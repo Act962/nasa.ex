@@ -28,6 +28,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import type { TagData, ChartType } from "@/features/insights/types";
+import { useIsMobile, useIsTinyMobile } from "@/hooks/use-mobile";
 
 interface TagsChartProps {
   data: TagData[];
@@ -47,6 +48,9 @@ const TAG_COLORS = [
 ];
 
 export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
+  const isMobile = useIsMobile();
+  const isTinyMobile = useIsTinyMobile();
+
   const chartData = data.map((item, index) => ({
     tag: item.tag.name,
     count: item.count,
@@ -114,7 +118,7 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
   switch (chartType) {
     case "bar":
       return (
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer config={chartConfig} className={`${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}>
           <BarChart
             accessibilityLayer
             data={chartData}
@@ -124,15 +128,16 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
             <XAxis
               dataKey="tag"
               tickLine={false}
-              tickMargin={10}
+              tickMargin={isTinyMobile ? 4 : 10}
               axisLine={false}
-              tick={{ fontSize: 11 }}
+              tick={{ fontSize: isTinyMobile ? 9 : (isMobile ? 10 : 11) }}
               interval={0}
-              angle={-45}
-              textAnchor="end"
-              height={70}
+              angle={isTinyMobile ? 0 : -45}
+              textAnchor={isTinyMobile ? "middle" : "end"}
+              height={isTinyMobile ? 30 : (isMobile ? 60 : 70)}
+              hide={isTinyMobile}
             />
-            <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+            <YAxis tickLine={false} axisLine={false} tickMargin={8} hide={isTinyMobile} width={isTinyMobile ? 0 : 40} />
             <ChartTooltip cursor={false} content={<CustomTooltip />} />
             <Bar
               dataKey="count"
@@ -145,8 +150,8 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
               <LabelList
                 position="top"
                 offset={8}
-                className="fill-foreground"
-                fontSize={11}
+                className="fill-foreground font-bold"
+                fontSize={isTinyMobile ? 10 : 11}
               />
             </Bar>
           </BarChart>
@@ -157,7 +162,7 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
       return (
         <ChartContainer
           config={chartConfig}
-          className="mx-auto h-[300px] w-full"
+          className={`mx-auto ${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}
         >
           <PieChart>
             <ChartTooltip
@@ -168,7 +173,8 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
               data={chartData}
               dataKey="count"
               nameKey="tag"
-              innerRadius={60}
+              innerRadius={isTinyMobile ? 50 : 60}
+              outerRadius={isTinyMobile ? 70 : 80}
               strokeWidth={5}
               onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
               className={onClick ? "cursor-pointer" : ""}
@@ -189,14 +195,14 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
                         <tspan
                           x={viewBox.cx}
                           y={viewBox.cy}
-                          className="fill-foreground text-3xl font-bold"
+                          className={`fill-foreground font-bold ${isTinyMobile ? "text-xl" : "text-2xl sm:text-3xl"}`}
                         >
                           {totalTags.toLocaleString()}
                         </tspan>
                         <tspan
                           x={viewBox.cx}
-                          y={(viewBox.cy || 0) + 24}
-                          className="fill-muted-foreground"
+                          y={(viewBox.cy || 0) + (isTinyMobile ? 18 : 24)}
+                          className={`fill-muted-foreground ${isTinyMobile ? "text-[10px]" : "text-xs sm:text-sm"}`}
                         >
                           Total
                         </tspan>
@@ -209,7 +215,7 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
             {chartData && chartData.length <= 9 && (
               <ChartLegend
                 content={<ChartLegendContent nameKey="tag" />}
-                className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
+                className={`-translate-y-2 flex-wrap gap-2 ${isTinyMobile ? "*:basis-1/2 text-[9px]" : (isMobile ? "*:basis-1/3" : "*:basis-1/4")} *:justify-center`}
               />
             )}
           </PieChart>
@@ -218,7 +224,7 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
 
     case "line":
       return (
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer config={chartConfig} className={`${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}>
           <LineChart
             accessibilityLayer
             data={chartData}
@@ -236,19 +242,20 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tick={{ fontSize: 11 }}
-              angle={-45}
-              textAnchor="end"
-              height={70}
+              tick={{ fontSize: isTinyMobile ? 9 : (isMobile ? 10 : 11) }}
+              angle={isTinyMobile ? 0 : -45}
+              textAnchor={isTinyMobile ? "middle" : "end"}
+              height={isTinyMobile ? 30 : (isMobile ? 60 : 70)}
+              hide={isTinyMobile}
             />
-            <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+            <YAxis tickLine={false} axisLine={false} tickMargin={8} hide={isTinyMobile} />
             <ChartTooltip cursor={false} content={<CustomTooltip />} />
             <Line
               dataKey="count"
               type="natural"
               stroke="hsl(262, 83%, 58%)"
               strokeWidth={2}
-              dot={{ fill: "hsl(262, 83%, 58%)", r: 4 }}
+              dot={{ fill: "hsl(262, 83%, 58%)", r: isTinyMobile ? 2 : 4 }}
               activeDot={{ r: 6 }}
             />
           </LineChart>
@@ -257,7 +264,7 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
 
     case "area":
       return (
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer config={chartConfig} className={`${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}>
           <AreaChart
             accessibilityLayer
             data={chartData}
@@ -275,12 +282,13 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tick={{ fontSize: 11 }}
-              angle={-45}
-              textAnchor="end"
-              height={70}
+              tick={{ fontSize: isTinyMobile ? 9 : (isMobile ? 10 : 11) }}
+              angle={isTinyMobile ? 0 : -45}
+              textAnchor={isTinyMobile ? "middle" : "end"}
+              height={isTinyMobile ? 30 : (isMobile ? 60 : 70)}
+              hide={isTinyMobile}
             />
-            <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+            <YAxis tickLine={false} axisLine={false} tickMargin={8} hide={isTinyMobile} />
             <ChartTooltip
               cursor={false}
               content={<CustomTooltip />}
@@ -315,21 +323,21 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
       return (
         <ChartContainer
           config={chartConfig}
-          className="mx-auto h-[300px] w-full"
+          className={`mx-auto ${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}
         >
           <RadialBarChart
             data={chartData}
             startAngle={-90}
             endAngle={380}
-            innerRadius={30}
-            outerRadius={110}
+            innerRadius={isTinyMobile ? 25 : 30}
+            outerRadius={isTinyMobile ? 90 : 110}
           >
             <PolarGrid
               gridType="circle"
               radialLines={false}
               stroke="none"
               className="first:fill-muted last:fill-background"
-              polarRadius={[86, 74]}
+              polarRadius={isTinyMobile ? [70, 60] : [86, 74]}
             />
             <ChartTooltip
               cursor={false}
@@ -349,7 +357,7 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
             {chartData && chartData.length <= 9 && (
               <ChartLegend
                 content={<ChartLegendContent nameKey="tag" />}
-                className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
+                className={`-translate-y-2 flex-wrap gap-2 ${isTinyMobile ? "*:basis-1/2 text-[9px]" : (isMobile ? "*:basis-1/3" : "*:basis-1/4")} *:justify-center`}
               />
             )}
           </RadialBarChart>
