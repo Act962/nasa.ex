@@ -58,6 +58,7 @@ export function WorkspaceColumn({
       filters: {
         participantIds: filters.participantIds,
         tagIds: filters.tagIds,
+        projectIds: filters.projectIds,
         dueDateFrom: filters.dueDateFrom,
         dueDateTo: filters.dueDateTo,
         sortBy: filters.sortBy,

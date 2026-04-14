@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/select";
 import { DatePicker } from "./data-picker";
 import dayjs from "dayjs";
+import { useQuery } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
 
 interface Props {
   open: boolean;
@@ -47,6 +49,7 @@ const formSchema = z.object({
   startDate: z.date().optional(),
   workspaceId: z.string().min(1, "Workspace é obrigatório"),
   columnId: z.string().min(1, "Coluna é obrigatória"),
+  orgProjectId: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -72,6 +75,10 @@ export const CreateActionModal = ({
 
   const createAction = useCreateTask();
   const { data } = useSuspenseColumnsByWorkspace(workspaceId);
+  const { data: projectsData } = useQuery(
+    orpc.orgProjects.list.queryOptions({ input: {} })
+  );
+  const projects = projectsData?.projects ?? [];
 
   const columns = data.columns;
 
@@ -190,6 +197,33 @@ export const CreateActionModal = ({
                 <FieldError errors={[form.formState.errors.columnId]} />
               </Field>
             </div>
+
+            <Field>
+              <FieldLabel>Projetos/Clientes (opcional)</FieldLabel>
+              <Controller
+                control={form.control}
+                name="orgProjectId"
+                render={({ field }) => (
+                  <Select
+                    onValueChange={(v) => field.onChange(v === "none" ? undefined : v)}
+                    value={field.value ?? "none"}
+                    disabled={isPending}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um projeto/cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem projeto</SelectItem>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </Field>
 
             <div className="grid grid-cols-2 gap-4">
               <Field>

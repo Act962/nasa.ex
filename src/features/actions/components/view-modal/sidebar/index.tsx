@@ -7,6 +7,7 @@ import { ParticipantsField } from "./participant-field";
 import { InfoFields } from "./info-fields";
 import { TagsField } from "./tags-field";
 import { CoverImageField } from "./cover-image-field";
+import { OrgProjectField } from "./org-project-field";
 import { Action } from "../../../types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -55,6 +56,12 @@ export function ActionSidebar({
   return (
     <ScrollArea className="h-full border-l bg-muted/80">
       <div className="p-4 space-y-4">
+        <OrgProjectField
+          value={action?.orgProjectId}
+          onValueChange={(orgProjectId) => onUpdateAction({ orgProjectId })}
+          disabled={isUpdating}
+        />
+
         <StatusField
           value={action?.columnId ?? ""}
           columns={columns}

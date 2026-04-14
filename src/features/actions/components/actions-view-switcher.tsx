@@ -10,6 +10,7 @@ import { CreateActionModal } from "./create-action-modal";
 import { DataKanban } from "./data-kanban";
 import { DataTable } from "./data-table";
 import { FiltersBar } from "./filters-bar";
+import { FiltersSheet } from "./filters-sheet";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -55,6 +56,12 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
               <PlusIcon className="size-4" />
               Nova ação
             </Button>
+          </div>
+
+          {/* Filters bar */}
+          <div className="px-4 py-2 border-b bg-background/80 flex items-center gap-2 flex-wrap">
+            <FiltersSheet />
+            <FiltersBar workspaceId={workspaceId} />
           </div>
 
           <div className="flex-1 overflow-auto">

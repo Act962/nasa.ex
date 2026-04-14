@@ -96,6 +96,14 @@ export const getAction = base
             },
           },
         },
+        orgProject: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            avatar: true,
+          },
+        },
       },
     });
 

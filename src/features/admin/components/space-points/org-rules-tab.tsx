@@ -76,9 +76,24 @@ export function OrgRulesTab({ orgId }: { orgId: string }) {
               )}
             </div>
           </div>
-          <span className={`text-sm font-bold shrink-0 ${isPenalty ? "text-red-400" : "text-violet-300"}`}>
-            {rule.points > 0 ? "+" : ""}{rule.points} pts
-          </span>
+          <div className="flex items-center gap-1 shrink-0">
+            <span className={`text-xs font-semibold ${isPenalty ? "text-red-400" : "text-violet-400"}`}>{rule.points > 0 ? "+" : ""}</span>
+            <input
+              type="number"
+              value={editingPoints[rule.id] ?? rule.points}
+              onChange={(e) => setEditingPoints((p) => ({ ...p, [rule.id]: e.target.value }))}
+              onBlur={() => {
+                const val = parseInt(editingPoints[rule.id] ?? String(rule.points));
+                if (!isNaN(val) && val !== rule.points) {
+                  updateRule({ id: rule.id, orgId, points: val });
+                }
+                setEditingPoints((p) => { const n = { ...p }; delete n[rule.id]; return n; });
+              }}
+              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setEditingPoints((p) => { const n = { ...p }; delete n[rule.id]; return n; }); } }}
+              className={`w-14 text-sm font-bold text-center bg-transparent border-b focus:outline-none focus:border-violet-500 transition-colors ${isPenalty ? "text-red-400 border-red-800" : "text-violet-300 border-zinc-700"}`}
+            />
+            <span className={`text-xs font-semibold ${isPenalty ? "text-red-400" : "text-violet-400"}`}>pts</span>
+          </div>
           <button onClick={() => setExpandedRule(isExpanded ? null : rule.id)} title="Configurar template"
             className={cn("shrink-0 h-6 w-6 flex items-center justify-center rounded transition-all",
               rule.popupTemplateId ? "text-amber-400 bg-amber-500/10 hover:bg-amber-500/20" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700")}>
