@@ -38,7 +38,11 @@ export function useUpdateOrgProject() {
     orpc.orgProjects.update.mutationOptions({
       onSuccess: (_, vars) => {
         qc.invalidateQueries({ queryKey: orpc.orgProjects.list.key() });
-        qc.invalidateQueries({ queryKey: orpc.orgProjects.get.key({ input: { projectId: (vars as any).projectId } }) });
+        qc.invalidateQueries({
+          queryKey: orpc.orgProjects.get.key({
+            input: { projectId: (vars as any).projectId },
+          }),
+        });
         toast.success("Projeto/Cliente atualizado!");
       },
       onError: (err: any) => toast.error(err?.message ?? "Erro ao atualizar"),

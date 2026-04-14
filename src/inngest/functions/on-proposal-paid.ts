@@ -199,8 +199,8 @@ export const onProposalPaid = inngest.createFunction(
 
     // 8. Criar registro de onboarding
     const onboardingProcessId = await step.run("create-onboarding-record", async () => {
-      const kickoffLink = process.env.KICKOFF_CALENDAR_LINK ?? null;
-      const process = await prisma.clientOnboardingProcess.create({
+      const kickoffLink: string | null = process.env.KICKOFF_CALENDAR_LINK ?? null;
+      const onboardingProcess = await prisma.clientOnboardingProcess.create({
         data: {
           organizationId,
           orgProjectId: projectId,
@@ -215,7 +215,7 @@ export const onProposalPaid = inngest.createFunction(
           paymentConfirmedAt: new Date(),
         },
       });
-      return process.id;
+      return onboardingProcess.id;
     });
 
     // 9. Enviar e-mail

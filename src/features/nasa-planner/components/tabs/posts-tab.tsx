@@ -330,7 +330,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                       size="sm"
                       variant="secondary"
                       className="gap-1.5 shadow-lg"
-                      onClick={() => handleDownloadImage(selectedPost.thumbnail!, selectedPost.title)}
+                      onClick={() => handleDownloadImage(selectedPost.thumbnail!, selectedPost.title ?? undefined)}
                     >
                       <DownloadIcon className="size-4" />
                       Baixar PNG
@@ -360,7 +360,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                     size="sm"
                     variant="outline"
                     className="gap-1.5"
-                    onClick={() => handleDownloadImage(selectedPost.thumbnail!, selectedPost.title)}
+                    onClick={() => handleDownloadImage(selectedPost.thumbnail!, selectedPost.title ?? undefined)}
                   >
                     <DownloadIcon className="size-3.5" />
                     Baixar PNG
@@ -648,7 +648,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                   className="gap-1.5"
                   onClick={() => {
                     const key = viewImageUrl.split(`${process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL}/`)[1];
-                    if (key) handleDownloadImage(key, selectedPost?.title);
+                    if (key) handleDownloadImage(key, selectedPost?.title ?? undefined);
                     else {
                       const a = document.createElement("a");
                       a.href = viewImageUrl;

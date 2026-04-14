@@ -20,7 +20,7 @@ export const updateOrgBrand = base
     brandIcp:            z.string().nullable().optional(),
     brandPositioning:    z.string().nullable().optional(),
     brandVoiceTone:      z.string().nullable().optional(),
-    brandVisual:         z.record(z.any()).optional(),
+    brandVisual:         z.record(z.string(), z.any()).optional(),
     brandAiInstructions: z.string().nullable().optional(),
     brandSwot:           SwotSchema.optional(),
   }))

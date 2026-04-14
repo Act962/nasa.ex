@@ -24,6 +24,7 @@ export const createLeadWithTags = base
       position: z.enum(["first", "last"]).default("last"),
       tagIds: z.array(z.string()).optional(),
       validateNumber: z.boolean().default(false),
+      orgProjectId: z.string().optional(),
     }),
   )
   .handler(async ({ input, errors, context }) => {
@@ -124,6 +125,7 @@ export const createLeadWithTags = base
           trackingId: input.trackingId,
           order: newOrder,
           responsibleId,
+          orgProjectId: input.orgProjectId,
         },
         include: {
           tracking: {
