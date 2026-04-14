@@ -18,6 +18,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
+import { OrgRulesTab } from "./org-rules-tab";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface TopOrg {
@@ -354,148 +355,148 @@ function OrgUsersTab({ orgId }: { orgId: string }) {
 }
 
 // ── Org rules tab ──────────────────────────────────────────────────────────────
-function OrgRulesTab({ orgId }: { orgId: string }) {
-  const { data: rules, isLoading } = useAdminOrgRules(orgId);
-  const { mutateAsync: updateRule } = useAdminUpdateRule();
-  const { mutateAsync: createRule, isPending: creating } = useAdminCreateRule();
-  const [showCreate, setShowCreate] = useState(false);
-  const [newAction, setNewAction] = useState("");
-  const [newLabel, setNewLabel] = useState("");
-  const [newPoints, setNewPoints] = useState(5);
-  const [newCooldown, setNewCooldown] = useState("");
+// function OrgRulesTab({ orgId }: { orgId: string }) {
+//   const { data: rules, isLoading } = useAdminOrgRules(orgId);
+//   const { mutateAsync: updateRule } = useAdminUpdateRule();
+//   const { mutateAsync: createRule, isPending: creating } = useAdminCreateRule();
+//   const [showCreate, setShowCreate] = useState(false);
+//   const [newAction, setNewAction] = useState("");
+//   const [newLabel, setNewLabel] = useState("");
+//   const [newPoints, setNewPoints] = useState(5);
+//   const [newCooldown, setNewCooldown] = useState("");
 
-  const handleCreate = async () => {
-    if (!newAction.trim() || !newLabel.trim())
-      return toast.error("Preencha os campos obrigatórios");
-    await createRule({
-      orgId,
-      action: newAction.toLowerCase().replace(/\s+/g, "_"),
-      label: newLabel,
-      points: newPoints,
-      cooldownHours: newCooldown ? parseFloat(newCooldown) : null,
-    });
-    setShowCreate(false);
-    setNewAction("");
-    setNewLabel("");
-    setNewPoints(5);
-    setNewCooldown("");
-  };
+//   const handleCreate = async () => {
+//     if (!newAction.trim() || !newLabel.trim())
+//       return toast.error("Preencha os campos obrigatórios");
+//     await createRule({
+//       orgId,
+//       action: newAction.toLowerCase().replace(/\s+/g, "_"),
+//       label: newLabel,
+//       points: newPoints,
+//       cooldownHours: newCooldown ? parseFloat(newCooldown) : null,
+//     });
+//     setShowCreate(false);
+//     setNewAction("");
+//     setNewLabel("");
+//     setNewPoints(5);
+//     setNewCooldown("");
+//   };
 
-  return (
-    <div className="space-y-3">
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-12 rounded-lg bg-zinc-800 animate-pulse"
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-1.5">
-          {(rules ?? []).map((rule) => (
-            <div
-              key={rule.id}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all",
-                rule.isActive
-                  ? "bg-zinc-800/50 border-zinc-700"
-                  : "bg-zinc-900 border-zinc-800 opacity-50",
-              )}
-            >
-              <button
-                onClick={() =>
-                  updateRule({ id: rule.id, orgId, isActive: !rule.isActive })
-                }
-                className={cn(
-                  "w-8 h-5 rounded-full transition-all shrink-0",
-                  rule.isActive ? "bg-violet-600" : "bg-zinc-700",
-                )}
-              >
-                <div
-                  className={cn(
-                    "w-4 h-4 rounded-full bg-white shadow mx-0.5 transition-transform",
-                    rule.isActive ? "translate-x-3" : "",
-                  )}
-                />
-              </button>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-white truncate">{rule.label}</p>
-                <p className="text-[10px] text-zinc-500 font-mono">
-                  {rule.action}{" "}
-                  {rule.cooldownHours ? `· ⏱ ${rule.cooldownHours}h` : ""}
-                </p>
-              </div>
-              <span className="text-sm font-bold text-violet-300 shrink-0">
-                {rule.points} pts
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+//   return (
+//     <div className="space-y-3">
+//       {isLoading ? (
+//         <div className="space-y-2">
+//           {Array.from({ length: 4 }).map((_, i) => (
+//             <div
+//               key={i}
+//               className="h-12 rounded-lg bg-zinc-800 animate-pulse"
+//             />
+//           ))}
+//         </div>
+//       ) : (
+//         <div className="space-y-1.5">
+//           {(rules ?? []).map((rule) => (
+//             <div
+//               key={rule.id}
+//               className={cn(
+//                 "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all",
+//                 rule.isActive
+//                   ? "bg-zinc-800/50 border-zinc-700"
+//                   : "bg-zinc-900 border-zinc-800 opacity-50",
+//               )}
+//             >
+//               <button
+//                 onClick={() =>
+//                   updateRule({ id: rule.id, orgId, isActive: !rule.isActive })
+//                 }
+//                 className={cn(
+//                   "w-8 h-5 rounded-full transition-all shrink-0",
+//                   rule.isActive ? "bg-violet-600" : "bg-zinc-700",
+//                 )}
+//               >
+//                 <div
+//                   className={cn(
+//                     "w-4 h-4 rounded-full bg-white shadow mx-0.5 transition-transform",
+//                     rule.isActive ? "translate-x-3" : "",
+//                   )}
+//                 />
+//               </button>
+//               <div className="flex-1 min-w-0">
+//                 <p className="text-sm text-white truncate">{rule.label}</p>
+//                 <p className="text-[10px] text-zinc-500 font-mono">
+//                   {rule.action}{" "}
+//                   {rule.cooldownHours ? `· ⏱ ${rule.cooldownHours}h` : ""}
+//                 </p>
+//               </div>
+//               <span className="text-sm font-bold text-violet-300 shrink-0">
+//                 {rule.points} pts
+//               </span>
+//             </div>
+//           ))}
+//         </div>
+//       )}
 
-      {showCreate ? (
-        <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-3 space-y-2">
-          <p className="text-xs font-semibold text-violet-400">Nova regra</p>
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              placeholder="Identificador"
-              value={newAction}
-              onChange={(e) => setNewAction(e.target.value)}
-              className="col-span-2 text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
-            />
-            <input
-              placeholder="Descrição"
-              value={newLabel}
-              onChange={(e) => setNewLabel(e.target.value)}
-              className="col-span-2 text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
-            />
-            <input
-              type="number"
-              min={1}
-              placeholder="Pontos"
-              value={newPoints}
-              onChange={(e) => setNewPoints(parseInt(e.target.value) || 1)}
-              className="text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
-            />
-            <input
-              type="number"
-              min={0}
-              step={0.5}
-              placeholder="Cooldown (h)"
-              value={newCooldown}
-              onChange={(e) => setNewCooldown(e.target.value)}
-              className="text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
-            />
-          </div>
-          <div className="flex gap-2 justify-end">
-            <button
-              onClick={() => setShowCreate(false)}
-              className="text-xs text-zinc-400 hover:text-white px-3 py-1"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleCreate}
-              disabled={creating}
-              className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg hover:bg-violet-700 disabled:opacity-50"
-            >
-              {creating ? "..." : "Criar"}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          onClick={() => setShowCreate(true)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-violet-500/30 text-violet-400 hover:bg-violet-500/10 transition-all text-xs"
-        >
-          <Plus className="w-3.5 h-3.5" /> Nova regra para esta empresa
-        </button>
-      )}
-    </div>
-  );
-}
+//       {showCreate ? (
+//         <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-3 space-y-2">
+//           <p className="text-xs font-semibold text-violet-400">Nova regra</p>
+//           <div className="grid grid-cols-2 gap-2">
+//             <input
+//               placeholder="Identificador"
+//               value={newAction}
+//               onChange={(e) => setNewAction(e.target.value)}
+//               className="col-span-2 text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+//             />
+//             <input
+//               placeholder="Descrição"
+//               value={newLabel}
+//               onChange={(e) => setNewLabel(e.target.value)}
+//               className="col-span-2 text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+//             />
+//             <input
+//               type="number"
+//               min={1}
+//               placeholder="Pontos"
+//               value={newPoints}
+//               onChange={(e) => setNewPoints(parseInt(e.target.value) || 1)}
+//               className="text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+//             />
+//             <input
+//               type="number"
+//               min={0}
+//               step={0.5}
+//               placeholder="Cooldown (h)"
+//               value={newCooldown}
+//               onChange={(e) => setNewCooldown(e.target.value)}
+//               className="text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+//             />
+//           </div>
+//           <div className="flex gap-2 justify-end">
+//             <button
+//               onClick={() => setShowCreate(false)}
+//               className="text-xs text-zinc-400 hover:text-white px-3 py-1"
+//             >
+//               Cancelar
+//             </button>
+//             <button
+//               onClick={handleCreate}
+//               disabled={creating}
+//               className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg hover:bg-violet-700 disabled:opacity-50"
+//             >
+//               {creating ? "..." : "Criar"}
+//             </button>
+//           </div>
+//         </div>
+//       ) : (
+//         <button
+//           onClick={() => setShowCreate(true)}
+//           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-violet-500/30 text-violet-400 hover:bg-violet-500/10 transition-all text-xs"
+//         >
+//           <Plus className="w-3.5 h-3.5" /> Nova regra para esta empresa
+//         </button>
+//       )}
+//     </div>
+//   );
+// }
 
 // ── Org panel ──────────────────────────────────────────────────────────────────
 function OrgPanel({ orgId, orgName }: { orgId: string; orgName: string }) {
