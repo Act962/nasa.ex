@@ -7,6 +7,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useActionStore } from "@/features/actions/context/use-action";
 
 export const useSuspenseWokspaces = () => {
   return useSuspenseQuery(orpc.workspace.list.queryOptions());
@@ -71,7 +72,9 @@ export const useColumnsByWorkspace = (
         workspaceId,
         participantIds: filters?.participantIds ?? [],
         tagIds: filters?.tagIds ?? [],
-        ...(filters?.dueDateFrom != null && { dueDateFrom: filters.dueDateFrom }),
+        ...(filters?.dueDateFrom != null && {
+          dueDateFrom: filters.dueDateFrom,
+        }),
         ...(filters?.dueDateTo != null && { dueDateTo: filters.dueDateTo }),
       },
       enabled: !!workspaceId,
@@ -492,12 +495,32 @@ export const useMoveAction = () => {
   const queryClient = useQueryClient();
   return useMutation(
     orpc.workspace.moveAction.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data) => {
         toast.success("Ação movida!");
         queryClient.invalidateQueries({ queryKey: ["action.listByColumn"] });
         queryClient.invalidateQueries(orpc.workspace.list.queryOptions());
+        queryClient.invalidateQueries(
+          orpc.action.get.queryOptions({ input: { actionId: data.action.id } }),
+        );
       },
       onError: () => toast.error("Erro ao mover ação!"),
+    }),
+  );
+};
+
+export const useMoveActions = () => {
+  const queryClient = useQueryClient();
+  const { clearSelection } = useActionStore();
+
+  return useMutation(
+    orpc.workspace.moveActions.mutationOptions({
+      onSuccess: () => {
+        toast.success("Ações movidas!");
+        queryClient.invalidateQueries({ queryKey: ["action.listByColumn"] });
+        queryClient.invalidateQueries(orpc.workspace.list.queryOptions());
+        clearSelection();
+      },
+      onError: () => toast.error("Erro ao mover ações!"),
     }),
   );
 };

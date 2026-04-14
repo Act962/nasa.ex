@@ -32,6 +32,23 @@ export const useAddTags = () => {
   );
 };
 
+export const useDeleteLead = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.leads.delete.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: ["leads.listLeadsByStatus"],
+        });
+        toast.success("Lead deletado com sucesso");
+      },
+      onError: () => {
+        toast.error("Erro ao deletar lead");
+      },
+    }),
+  );
+};
+
 export function useAddTagsOptimistic({
   leadId,
   trackingId,
@@ -141,6 +158,23 @@ export function useRemoveTagOptimistic({ leadId }: { leadId: string }) {
             input: { leadId },
           }),
         });
+      },
+    }),
+  );
+}
+
+export function useArchiveLead() {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.leads.archive.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: ["leads.listLeadsByStatus"],
+        });
+        toast.success("Lead arquivado com sucesso");
+      },
+      onError: () => {
+        toast.error("Erro ao arquivar lead");
       },
     }),
   );

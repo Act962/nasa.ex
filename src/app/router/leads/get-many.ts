@@ -138,6 +138,7 @@ export const listLeadsByStatus = base
       select: {
         id: true,
         isActive: true,
+        currentAction: true,
         name: true,
         email: true,
         phone: true,
@@ -167,6 +168,7 @@ export const listLeadsByStatus = base
           },
         },
       },
+
     });
 
     let nextCursorId: string | undefined;
