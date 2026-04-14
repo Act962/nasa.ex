@@ -195,11 +195,11 @@ export function KanbanCard({ action, isOverlay }: Props) {
           </div>
 
           {/* Title */}
-          <div className="relative flex items-start gap-2">
+          <div className="relative flex items-center gap-2">
             {(!isOverlay || selected) && (
               <div
                 className={cn(
-                  "absolute left-0 top-1 transition-all duration-300 cursor-pointer z-20",
+                  "absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 cursor-pointer z-20",
                   selected
                     ? "opacity-100 translate-x-0"
                     : "opacity-0 -translate-x-4 group-hover/card:translate-x-0 group-hover/card:opacity-100",
