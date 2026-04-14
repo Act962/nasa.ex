@@ -17,6 +17,7 @@ export const createAction = base
       startDate: z.date().optional(),
       workspaceId: z.string().min(1, "Workspace é obrigatório"),
       columnId: z.string().min(1, "Coluna é obrigatória"),
+      orgProjectId: z.string().optional(),
     }),
   )
   .handler(async ({ input, context }) => {
@@ -48,6 +49,7 @@ export const createAction = base
         workspaceId: input.workspaceId,
         order: newOrder,
         columnId: input.columnId,
+        orgProjectId: input.orgProjectId,
         createdBy: context.user.id,
         participants: {
           create: {

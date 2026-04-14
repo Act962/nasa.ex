@@ -18,6 +18,7 @@ export const updateAction = base
       startDate: z.date().nullable().optional(),
       endDate: z.date().nullable().optional(),
       isDone: z.boolean().optional(),
+      orgProjectId: z.string().nullable().optional(),
     }),
   )
   .handler(async ({ input }) => {

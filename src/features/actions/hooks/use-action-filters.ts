@@ -23,6 +23,7 @@ export type SortOrder = (typeof SORT_ORDER_OPTIONS)[number];
 export interface FiltersState {
   participantIds: string[];
   tagIds: string[];
+  projectIds: string[];
   dueDateFrom: Date | null;
   dueDateTo: Date | null;
   sortBy: SortBy;
@@ -33,6 +34,7 @@ export interface FiltersState {
 export const DEFAULT_FILTERS: FiltersState = {
   participantIds: [],
   tagIds: [],
+  projectIds: [],
   dueDateFrom: null,
   dueDateTo: null,
   sortBy: "order",
@@ -43,6 +45,7 @@ export const DEFAULT_FILTERS: FiltersState = {
 const actionFiltersParsers = {
   af_participants: parseAsArrayOf(parseAsString).withDefault([]),
   af_tags: parseAsArrayOf(parseAsString).withDefault([]),
+  af_projects: parseAsArrayOf(parseAsString).withDefault([]),
   af_from: parseAsIsoDateTime,
   af_to: parseAsIsoDateTime,
   af_sort: parseAsStringLiteral(SORT_BY_OPTIONS).withDefault("order"),
@@ -58,6 +61,7 @@ export function useActionFilters() {
   const filters: FiltersState = {
     participantIds: params.af_participants,
     tagIds: params.af_tags,
+    projectIds: params.af_projects,
     dueDateFrom: params.af_from,
     dueDateTo: params.af_to,
     sortBy: params.af_sort,
@@ -69,6 +73,7 @@ export function useActionFilters() {
     setParams({
       af_participants: next.participantIds,
       af_tags: next.tagIds,
+      af_projects: next.projectIds,
       af_from: next.dueDateFrom,
       af_to: next.dueDateTo,
       af_sort: next.sortBy,
@@ -79,6 +84,7 @@ export function useActionFilters() {
   const activeCount = [
     filters.participantIds.length > 0,
     filters.tagIds.length > 0,
+    filters.projectIds.length > 0,
     filters.dueDateFrom || filters.dueDateTo,
     filters.sortBy !== "order" || filters.sortOrder !== "asc",
     filters.showArchived,

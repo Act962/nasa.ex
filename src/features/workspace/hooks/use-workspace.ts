@@ -50,6 +50,7 @@ export const useCreateWorkspace = () => {
 interface ColumnFilters {
   participantIds?: string[];
   tagIds?: string[];
+  projectIds?: string[];
   dueDateFrom?: Date | null;
   dueDateTo?: Date | null;
 }
@@ -72,9 +73,8 @@ export const useColumnsByWorkspace = (
         workspaceId,
         participantIds: filters?.participantIds ?? [],
         tagIds: filters?.tagIds ?? [],
-        ...(filters?.dueDateFrom != null && {
-          dueDateFrom: filters.dueDateFrom,
-        }),
+        projectIds: filters?.projectIds ?? [],
+        ...(filters?.dueDateFrom != null && { dueDateFrom: filters.dueDateFrom }),
         ...(filters?.dueDateTo != null && { dueDateTo: filters.dueDateTo }),
       },
       enabled: !!workspaceId,

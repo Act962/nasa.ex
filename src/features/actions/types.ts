@@ -54,6 +54,14 @@ export interface Action {
     }[];
   }[];
 
+  orgProjectId?: string | null;
+  orgProject?: {
+    id: string;
+    name: string;
+    color: string | null;
+    avatar: string | null;
+  } | null;
+
   // Sprint 2 fields
   attachments: { name: string; url: string; type?: string }[];
   links: { title: string; url: string }[];
