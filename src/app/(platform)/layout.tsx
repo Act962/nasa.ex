@@ -3,6 +3,9 @@ import { requireAuth } from "@/lib/auth-utils";
 import prisma from "@/lib/prisma";
 import { OnboardingGate } from "@/features/onboarding/components/onboarding-gate";
 
+
+
+
 export default async function RouteLayout({
   children,
 }: {

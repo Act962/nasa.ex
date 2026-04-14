@@ -8,6 +8,7 @@ import { recordLeadHistory } from "./utils/history";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { validWhatsappPhone } from "@/http/uazapi/valid-whatsapp-phone";
 import { ValidWhatsappPhoneResponse } from "@/http/uazapi/types";
+import { logActivity } from "@/lib/activity-logger";
 
 export const createLeadWithTags = base
   .use(requiredAuthMiddleware)
@@ -124,6 +125,14 @@ export const createLeadWithTags = base
           order: newOrder,
           responsibleId,
         },
+        include: {
+          tracking: {
+            select: {
+              organizationId: true,
+              name: true,
+            },
+          },
+        },
       });
 
       if (input.validateNumber) {
@@ -163,6 +172,22 @@ export const createLeadWithTags = base
         notes: "Lead criado",
         tx,
       });
+
+      if (lead.tracking) {
+        await logActivity({
+          organizationId: lead.tracking.organizationId,
+          userId: context.user.id,
+          userName: context.user.name,
+          userEmail: context.user.email,
+          userImage: (context.user as any).image,
+          appSlug: "tracking",
+          action: "lead.created",
+          actionLabel: `Criou o lead "${input.name}"`,
+          resource: input.name,
+          resourceId: lead.id,
+          metadata: { phone: input.phone, trackingName: lead.tracking.name },
+        });
+      }
 
       return { lead };
     });

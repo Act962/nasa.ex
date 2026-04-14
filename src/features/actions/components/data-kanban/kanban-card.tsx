@@ -91,6 +91,7 @@ export function KanbanCard({ action }: Props) {
           "border border-border/50 shadow-sm hover:shadow-md transition-shadow",
           "bg-card group/card",
           action.isDone && "opacity-60",
+          // isDragging && "opacity-60",
         )}
       >
         {/* ── COVER IMAGE ─────────────────────────────────── */}

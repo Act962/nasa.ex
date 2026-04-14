@@ -16,12 +16,12 @@ export const deleteTracking = base
   .input(
     z.object({
       trackingId: z.string(),
-    })
+    }),
   )
   .output(
     z.object({
       trackingName: z.string(),
-    })
+    }),
   )
   .handler(async ({ input, errors, context }) => {
     const { user, org } = context;
@@ -44,23 +44,20 @@ export const deleteTracking = base
     }
 
     // Check if user is owner of tracking or moderator of organization
-    const isOwner = trackingExists.participants.some(
-      (p) => p.role === "OWNER"
-    );
 
-    if (!isOwner) {
-      const member = await prisma.member.findUnique({
-        where: {
-          userId_organizationId: {
-            userId: user.id,
-            organizationId: org.id,
-          },
+    const member = await prisma.member.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: user.id,
+          organizationId: org.id,
         },
-      });
+      },
+    });
 
-      if (!member || !["owner", "admin", "moderador"].includes(member.role)) {
-        throw errors.FORBIDDEN;
-      }
+    if (!member || !["owner", "admin", "moderador"].includes(member.role)) {
+      throw errors.FORBIDDEN({
+        message: "Você não tem permissão para arquivar este tracking",
+      });
     }
 
     const result = await prisma.tracking.update({

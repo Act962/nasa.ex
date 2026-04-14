@@ -10,7 +10,7 @@ interface TemplateSettingsProps {
 
 export function TemplateSettings({ trackingId }: TemplateSettingsProps) {
   const { data: tracking } = useQuery(
-    orpc.tracking.get.queryOptions({ input: { trackingId } })
+    orpc.tracking.get.queryOptions({ input: { trackingId } }),
   );
 
   if (!tracking) {
@@ -22,14 +22,15 @@ export function TemplateSettings({ trackingId }: TemplateSettingsProps) {
       <div>
         <h3 className="text-lg font-semibold mb-2">Padrões NASA</h3>
         <p className="text-sm text-muted-foreground mb-6">
-          Marque este tracking como um padrão NASA para que ele possa ser duplicado em outras empresas com dados fictícios.
+          Marque este tracking como um padrão NASA para que ele possa ser
+          duplicado em outras empresas com dados fictícios.
         </p>
       </div>
 
       <AppTemplateToggle
         appId={trackingId}
         appType="tracking"
-        isTemplate={tracking.isTemplate ?? false}
+        isTemplate={tracking.tracking.isTemplate ?? false}
       />
     </div>
   );

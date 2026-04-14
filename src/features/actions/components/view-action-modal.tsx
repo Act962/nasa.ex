@@ -23,15 +23,24 @@ import {
 } from "@/features/workspace/hooks/use-workspace";
 import { toast } from "sonner";
 import { Action } from "../types";
-import { ActionHeader } from "./view-modal/header";
+import { ActionHeader } from "./view-modal/action-header";
 import { ActionTitle } from "./view-modal/title";
 import { ActionDescription } from "./view-modal/description";
-import { ActionSubActions } from "./view-modal/sub-actions";
-import { ActionSidebar } from "./view-modal/sidebar";
+import { ActionSubActions } from "./sub-actions";
 import { AttachmentsSection } from "./view-modal/attachments-section";
 import { LinksSection } from "./view-modal/links-section";
 import { YoutubeSection } from "./view-modal/youtube-section";
 import { CardActionsMenu } from "./card-actions-menu";
+import { ActionSidebar } from "./view-modal/sidebar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { ShieldAlert } from "lucide-react";
 
 interface Props {
   actionId: string;
@@ -40,10 +49,9 @@ interface Props {
 }
 
 export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
-  const { action: rawAction, isLoading } = useQueryAction(actionId);
+  const { action: rawAction, hasAccess, isLoading } = useQueryAction(actionId);
   const action = (rawAction ?? undefined) as Action | undefined;
   const updateAction = useUpdateAction();
-  const deleteAction = useDeleteAction();
   const updateFields = useUpdateActionFields();
   const createSubAction = useCreateSubAction(actionId);
   const updateSubAction = useUpdateSubAction(actionId);
@@ -167,17 +175,17 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTitle className="sr-only">Visualizar e editar ação</DialogTitle>
+      <DialogTitle className="sr-only ">Visualizar e editar ação</DialogTitle>
       <DialogContent
         className="p-0 sm:max-w-[90%] bg-muted overflow-hidden flex flex-col max-h-[90vh] gap-0"
         showCloseButton={false}
       >
         <ActionHeader
-          workspaceName={action?.workspace?.name}
-          actionTitle={action?.title}
+          workspaceName={hasAccess ? action?.workspace?.name : ""}
+          actionTitle={hasAccess ? action?.title : "Sem permissão"}
           isLoading={isLoading}
           actionMenu={
-            action ? (
+            action && hasAccess ? (
               <CardActionsMenu
                 actionId={action.id}
                 workspaceId={action.workspaceId}
@@ -191,81 +199,122 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
         />
 
         <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 min-w-0">
-            {isLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-8 w-3/4" />
-                <Skeleton className="h-32 w-full" />
-              </div>
-            ) : (
-              <>
-                <ActionTitle
+          {!isLoading && action && !hasAccess ? (
+            <div className="flex-1 flex items-center justify-center p-8 text-center h-full w-full">
+              <Empty className="border-none">
+                <EmptyMedia variant="icon">
+                  <ShieldAlert className="size-6 text-destructive" />
+                </EmptyMedia>
+                <EmptyHeader>
+                  <EmptyTitle>Acesso Restrito</EmptyTitle>
+                  <EmptyDescription>
+                    Você não é participante deste evento. Os criadores ou
+                    administradores devem adicionar você para visualizar os
+                    detalhes.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            </div>
+          ) : (
+            <>
+              <ScrollArea className="flex-1 w-full px-6 min-w-0 ">
+                <div className="space-y-6 my-6">
+                  {isLoading ? (
+                    <div className="space-y-4">
+                      <Skeleton className="h-8 w-3/4" />
+                      <Skeleton className="h-32 w-full" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <ActionTitle
+                          action={action}
+                          onToggleDone={handleToggleDone}
+                          onUpdateTitle={(title) =>
+                            handleUpdateAction({ title })
+                          }
+                          isUpdating={updateAction.isPending}
+                          isLoading={isLoading}
+                          columns={columns}
+                          members={members}
+                          onUpdateAction={handleUpdateAction}
+                          onUpdateFields={handleUpdateFields}
+                          onToggleParticipant={handleToggleParticipant}
+                          isUpdatingAction={updateAction.isPending}
+                          isUpdatingFields={updateFields.isPending}
+                          isAddingParticipant={addResponsible.isPending}
+                          isRemovingParticipant={removeResponsible.isPending}
+                        />
+                      </div>
+
+                      <ActionDescription
+                        description={action?.description}
+                        onDescriptionChange={(description) =>
+                          handleUpdateAction({ description })
+                        }
+                      />
+
+                      <AttachmentsSection
+                        attachments={(action?.attachments ?? []) as any}
+                        onUpdate={(attachments) =>
+                          handleUpdateFields({ attachments })
+                        }
+                        onRemove={handleRemoveFile}
+                        disabled={
+                          updateFields.isPending || removeFileAction.isPending
+                        }
+                      />
+
+                      <LinksSection
+                        links={(action?.links ?? []) as any}
+                        onUpdate={(links) => handleUpdateFields({ links })}
+                        disabled={updateFields.isPending}
+                      />
+
+                      <YoutubeSection
+                        youtubeUrl={action?.youtubeUrl ?? null}
+                        onUpdate={(youtubeUrl) =>
+                          handleUpdateFields({ youtubeUrl })
+                        }
+                        disabled={updateFields.isPending}
+                      />
+
+                      <ActionSubActions
+                        subActions={action?.subActions}
+                        members={members}
+                        action={action}
+                        onCreate={handleAddSubAction}
+                        onToggle={handleToggleSubAction}
+                        onDelete={handleDeleteSubAction}
+                        onUpdate={handleUpdateSubAction}
+                        onAddResponsible={handleAddSubActionResponsible}
+                        onRemoveResponsible={handleRemoveSubActionResponsible}
+                        onPromote={handlePromoteSubAction}
+                        isCreating={createSubAction.isPending}
+                        isDeleting={deleteSubAction.isPending}
+                        isUpdating={updateSubAction.isPending}
+                      />
+                    </>
+                  )}
+                </div>
+              </ScrollArea>
+              <div className="sm:block hidden">
+                <ActionSidebar
                   action={action}
-                  onToggleDone={handleToggleDone}
-                  onUpdateTitle={(title) => handleUpdateAction({ title })}
-                  isUpdating={updateAction.isPending}
-                />
-
-                <ActionDescription
-                  description={action?.description}
-                  onDescriptionChange={(description) =>
-                    handleUpdateAction({ description })
-                  }
-                />
-
-                <AttachmentsSection
-                  attachments={(action?.attachments ?? []) as any}
-                  onUpdate={(attachments) =>
-                    handleUpdateFields({ attachments })
-                  }
-                  onRemove={handleRemoveFile}
-                  disabled={updateFields.isPending || removeFileAction.isPending}
-                />
-
-                <LinksSection
-                  links={(action?.links ?? []) as any}
-                  onUpdate={(links) => handleUpdateFields({ links })}
-                  disabled={updateFields.isPending}
-                />
-
-                <YoutubeSection
-                  youtubeUrl={action?.youtubeUrl ?? null}
-                  onUpdate={(youtubeUrl) => handleUpdateFields({ youtubeUrl })}
-                  disabled={updateFields.isPending}
-                />
-
-                <ActionSubActions
-                  subActions={action?.subActions}
+                  isLoading={isLoading}
+                  columns={columns}
                   members={members}
-                  action={action}
-                  onCreate={handleAddSubAction}
-                  onToggle={handleToggleSubAction}
-                  onDelete={handleDeleteSubAction}
-                  onUpdate={handleUpdateSubAction}
-                  onAddResponsible={handleAddSubActionResponsible}
-                  onRemoveResponsible={handleRemoveSubActionResponsible}
-                  onPromote={handlePromoteSubAction}
-                  isCreating={createSubAction.isPending}
-                  isDeleting={deleteSubAction.isPending}
-                  isUpdating={updateSubAction.isPending}
+                  onUpdateAction={handleUpdateAction}
+                  onUpdateFields={handleUpdateFields}
+                  onToggleParticipant={handleToggleParticipant}
+                  isUpdating={updateAction.isPending}
+                  isUpdatingFields={updateFields.isPending}
+                  isAddingParticipant={addResponsible.isPending}
+                  isRemovingParticipant={removeResponsible.isPending}
                 />
-              </>
-            )}
-          </div>
-
-          <ActionSidebar
-            action={action}
-            isLoading={isLoading}
-            columns={columns}
-            members={members}
-            onUpdateAction={handleUpdateAction}
-            onUpdateFields={handleUpdateFields}
-            onToggleParticipant={handleToggleParticipant}
-            isUpdating={updateAction.isPending}
-            isUpdatingFields={updateFields.isPending}
-            isAddingParticipant={addResponsible.isPending}
-            isRemovingParticipant={removeResponsible.isPending}
-          />
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

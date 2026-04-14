@@ -49,7 +49,7 @@ export function UserInfo() {
               </div>
             )}
             {!isPendingOrganization && (
-              <div>
+              <div className="hidden sm:block">
                 <p className="text-sm font-medium text-foreground">Empresa</p>
                 <span className="text-sm text-foreground/50">
                   {activeOrganization?.name}

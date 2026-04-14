@@ -144,7 +144,7 @@ export function ChartWrapper({
           </Button>
         </div>
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      <CardContent className="p-2 sm:p-6">{children}</CardContent>
     </Card>
   );
 }

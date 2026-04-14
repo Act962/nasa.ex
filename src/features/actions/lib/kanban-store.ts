@@ -35,7 +35,6 @@ type ActionKanbanStore = {
   findActionColumn: (actionId: string) => string | undefined;
 
   getColumnActions: (columnId: string) => Action[];
-  calculateMidpoint: (columnId: string, activeId: string) => string;
   getActionNeighbors: (
     columnId: string,
     actionId: string,
@@ -43,6 +42,7 @@ type ActionKanbanStore = {
 
   // Status/Columns
   columnList: any[];
+  getColumnNeighbors: (columnId: string) => { beforeId?: string; afterId?: string };
   setColumnList: (list: any[]) => void;
   moveColumn: (activeId: string, overId: string) => void;
 
@@ -120,6 +120,8 @@ export const useActionKanbanStore = create<ActionKanbanStore>()(
           const oldIndex = column.actions.findIndex((l) => l.id === activeId);
           const newIndex = column.actions.findIndex((l) => l.id === overId);
 
+          if (oldIndex === -1 || newIndex === -1) return state;
+
           return {
             columns: {
               ...state.columns,
@@ -183,48 +185,23 @@ export const useActionKanbanStore = create<ActionKanbanStore>()(
       getColumnActions: (columnId) =>
         get().columns[columnId]?.actions ?? EMPTY_ACTIONS,
 
-      findActionColumn: (actionId) => {
+      findActionColumn: (actionId: string) => {
         const state = get();
         return Object.keys(state.columns).find((colId) =>
           state.columns[colId].actions.some((l) => l.id === actionId),
         );
       },
 
-      calculateMidpoint: (columnId, activeId) => {
-        const actions = get().getColumnActions(columnId);
-        if (actions.length === 0) return "1000";
+      getColumnNeighbors: (columnId: string) => {
+        const columns = get().columnList;
+        const index = columns.findIndex((c) => c.id === columnId);
 
-        const index = actions.findIndex((l) => l.id === activeId);
-        
-        // If not found in target column (drag failed or not moved yet), 
-        // put it at the end of the target column as a safe fallback
-        if (index === -1) {
-          const last = actions[actions.length - 1];
-          return last ? new Decimal(last.order).plus(1000).toString() : "1000";
-        }
+        if (index === -1) return {};
 
-        const prev = actions[index - 1];
-        const next = actions[index + 1];
-
-        // Case 1: Only item in the column
-        if (!prev && !next) return "1000";
-        
-        // Case 2: Very first item (has next, no prev)
-        if (!prev && next) {
-          return new Decimal(next.order ?? "0").minus(1000).toString();
-        }
-        
-        // Case 3: Very last item (has prev, no next)
-        if (prev && !next) {
-          return new Decimal(prev.order ?? "0").plus(1000).toString();
-        }
-        
-        // Case 4: Between two items
-        if (prev && next) {
-          return new Decimal(prev.order ?? "0").plus(next.order ?? "0").div(2).toString();
-        }
-
-        return "1000";
+        return {
+          beforeId: columns[index - 1]?.id,
+          afterId: columns[index + 1]?.id,
+        };
       },
     }),
     {

@@ -18,10 +18,10 @@ export const listActionByWorkspace = base
       dueDateFrom: z.coerce.date().nullable().optional(),
       dueDateTo: z.coerce.date().nullable().optional(),
       sortBy: z
-        .enum(["createdAt", "dueDate", "priority", "title"])
+        .enum(["order", "createdAt", "dueDate", "priority", "title"])
         .optional()
-        .default("createdAt"),
-      sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
+        .default("order"),
+      sortOrder: z.enum(["asc", "desc"]).optional().default("asc"),
       isArchived: z.boolean().optional().default(false),
     }),
   )

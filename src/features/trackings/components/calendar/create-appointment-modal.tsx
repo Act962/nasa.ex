@@ -178,7 +178,7 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate 
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <div className="px-6 py-5 space-y-6">
+          <div className="px-4 tiny:px-6 py-4 tiny:py-5 space-y-4 tiny:space-y-6">
 
             {/* ── Seção 1: Agenda + Data + Horário ─────────────────────────── */}
             <div className="space-y-4">
@@ -226,7 +226,7 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate 
               <div className="border rounded-xl overflow-hidden">
                 <div className="flex flex-col sm:flex-row">
                   {/* Calendar */}
-                  <div className="p-4 sm:border-r flex flex-col items-start border-b sm:border-b-0">
+                  <div className="p-2 tiny:p-4 sm:border-r flex flex-col items-start border-b sm:border-b-0">
                     <p className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-3">
                       <CalendarIcon className="size-3.5" /> Data
                     </p>
@@ -239,7 +239,7 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate 
                   </div>
 
                   {/* Time slots or manual time input */}
-                  <div className="flex-1 p-4 flex flex-col min-w-0">
+                  <div className="flex-1 p-2 tiny:p-4 flex flex-col min-w-0">
                     <p className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-3">
                       <ClockIcon className="size-3.5" />
                       {dayjs(selectedDate.toDate(getLocalTimeZone())).format("DD/MM/YYYY")}
@@ -266,7 +266,7 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate 
                             type="button"
                             onClick={() => { setSelectedTime(slot.startTime); setManualTime(""); }}
                             className={cn(
-                              "flex items-center gap-3 rounded-lg border text-sm font-medium py-2.5 px-3 transition-all text-left w-full",
+                              "flex items-center gap-2 tiny:gap-3 rounded-lg border text-sm font-medium py-2 tiny:py-2.5 px-2.5 tiny:px-3 transition-all text-left w-full",
                               selectedTime === slot.startTime
                                 ? "border-primary bg-primary text-primary-foreground shadow-sm"
                                 : "border-border bg-card hover:border-primary hover:bg-primary/5 text-foreground",
@@ -421,7 +421,7 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate 
           </div>
 
           {/* ── Footer ─────────────────────────────────────────────────────── */}
-          <DialogFooter className="px-6 py-4 border-t gap-2">
+          <DialogFooter className="px-4 tiny:px-6 py-3 tiny:py-4 border-t gap-2 flex-col-reverse tiny:flex-row">
             {/* Summary pill */}
             {canSubmit && (
               <span className="mr-auto text-xs text-muted-foreground hidden sm:flex items-center gap-1">
@@ -430,13 +430,13 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate 
                 {selectedAgenda && <> &mdash; {selectedAgenda.name}</>}
               </span>
             )}
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="w-full tiny:w-auto">
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting || !canSubmit}
-              className="min-w-[160px]"
+              className="w-full tiny:min-w-[160px]"
             >
               {isSubmitting ? (
                 <><Spinner className="mr-2 size-4" /> Salvando…</>

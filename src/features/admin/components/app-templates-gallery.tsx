@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Copy, Loader } from "lucide-react";
 import { useAdminToast } from "@/features/admin/hooks/use-admin-toast";
 
-type AppType = "tracking" | "workspace" | "forgeProposal" | "forgeContract" | "form";
+type AppType = "tracking" | "workspace" | "forge-proposal" | "forge-contract" | "form";
 
 interface AppTemplatesGalleryProps {
   appType: AppType;
@@ -39,7 +39,6 @@ export function AppTemplatesGallery({
         if (!response.ok) throw new Error("Erro ao buscar padrões");
 
         const data = await response.json();
-        const typeKey = appType.replace("-", "").charAt(0).toUpperCase() + appType.slice(1);
         const typeData =
           data[
             appType === "forge-proposal"

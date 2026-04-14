@@ -16,6 +16,8 @@ const contractShape = z.object({
   templateId: z.string().nullable(),
   content: z.string().nullable(),
   signers: z.any(),
+  isTemplate: z.boolean(),
+  templateMarkedByModerator: z.boolean(),
   createdById: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),

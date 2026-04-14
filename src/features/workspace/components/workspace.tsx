@@ -25,9 +25,9 @@ export function WorkspaceBoard({ workspaceId }: Props) {
         />
       )}
       <div className="relative z-10 h-full flex flex-col">
-        <Suspense fallback={null}>
+        {/* <Suspense fallback={null}>
           <IncomingSharesPanel className="mx-4 mt-3 shrink-0" />
-        </Suspense>
+        </Suspense> */}
         <div className="flex-1 min-h-0">
           <ActionsViewSwitcher workspaceId={workspaceId} />
         </div>

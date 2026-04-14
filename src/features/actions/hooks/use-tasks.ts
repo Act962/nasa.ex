@@ -64,7 +64,7 @@ export const useInfiniteActionsByStatus = ({
     tagIds?: string[];
     dueDateFrom?: Date | null;
     dueDateTo?: Date | null;
-    sortBy?: "createdAt" | "dueDate" | "priority" | "title";
+    sortBy?: "order" | "createdAt" | "dueDate" | "priority" | "title";
     sortOrder?: "asc" | "desc";
     isArchived?: boolean;
   };
@@ -124,7 +124,7 @@ interface ListActionByWorkspace {
   tagIds?: string[];
   dueDateFrom?: Date | null;
   dueDateTo?: Date | null;
-  sortBy?: "createdAt" | "dueDate" | "priority" | "title";
+  sortBy?: "order" | "createdAt" | "dueDate" | "priority" | "title";
   sortOrder?: "asc" | "desc";
   isArchived?: boolean;
 }
@@ -206,6 +206,7 @@ export const useQueryAction = (actionId: string) => {
 
   return {
     action: data?.action,
+    hasAccess: data?.hasAccess,
     isLoading,
   };
 };

@@ -46,7 +46,7 @@ export function CalendarCell({
         {...mergeProps(buttonProps, focusProps)}
         ref={ref}
         hidden={isOutsideVisibleRange}
-        className={cn("size-10 sm:size-12 outline-none group rounded-md")}
+        className={cn("size-8 tiny:size-10 sm:size-12 outline-none group rounded-md")}
       >
         <div
           className={cn(
