@@ -118,10 +118,8 @@ export function NotificationCenterV2({
     setSelectedTemplate(template);
     setTemplateForm({
       templateId: template.id,
-      variables: template.variables?.reduce(
-        (acc, v) => ({ ...acc, [v]: "" }),
-        {}
-      ) || {},
+      variables:
+        template.variables?.reduce((acc, v) => ({ ...acc, [v]: "" }), {}) || {},
     });
   };
 
@@ -129,7 +127,7 @@ export function NotificationCenterV2({
     if (selectedTemplate) {
       const interpolated = interpolateTemplate(
         selectedTemplate,
-        templateForm.variables
+        templateForm.variables,
       );
       setForm({
         title: interpolated.title,
@@ -240,7 +238,9 @@ export function NotificationCenterV2({
                 onClick={handleApplyTemplate}
                 disabled={
                   selectedTemplate.variables &&
-                  selectedTemplate.variables.some((v) => !templateForm.variables[v])
+                  selectedTemplate.variables.some(
+                    (v) => !templateForm.variables[v],
+                  )
                 }
                 className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
               >
@@ -249,7 +249,8 @@ export function NotificationCenterV2({
             </>
           }
         >
-          {selectedTemplate.variables && selectedTemplate.variables.length > 0 ? (
+          {selectedTemplate.variables &&
+          selectedTemplate.variables.length > 0 ? (
             <div className="space-y-4">
               {selectedTemplate.variables.map((variable) => (
                 <div key={variable}>
@@ -320,7 +321,9 @@ export function NotificationCenterV2({
             </label>
             <input
               value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, title: e.target.value }))
+              }
               maxLength={100}
               placeholder="Título da notificação"
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500"

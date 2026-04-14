@@ -2124,21 +2124,28 @@ model UserNotificationPreference {
 // ─── Admin Notifications ──────────────────────────────────────────────────────
 
 model AdminNotification {
-  id          String   @id @default(cuid())
-  title       String
-  body        String
-  type        String   @default("info")   // info | warning | success | error
-  targetType  String   @default("all")    // all | org | user
-  targetId    String?  @map("target_id") // orgId ou userId
-  createdBy   String   @map("created_by")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id             String    @id @default(cuid())
+  title          String
+  body           String
+  type           String    @default("info")   // info | warning | success | error
+  appKey         String?   @map("app_key")
+  actionUrl      String?   @map("action_url")
+  metadata       Json?
+  targetType     String    @default("all")    // all | org | user
+  targetId       String?   @map("target_id")  // orgId ou userId
+  organizationId String?   @map("organization_id")
+  createdBy      String    @map("created_by") // userID ou "SYSTEM"
+  sentWhatsApp   Boolean   @default(false)    @map("sent_whatsapp")
+  createdAt      DateTime  @default(now())    @map("created_at")
 
   reads       AdminNotificationRead[]
 
   @@index([targetType])
   @@index([createdAt])
+  @@index([organizationId])
   @@map("admin_notification")
 }
+
 
 model AdminNotificationRead {
   id             String             @id @default(cuid())

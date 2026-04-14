@@ -61,16 +61,18 @@ export async function createNotification(opts: CreateNotificationOptions) {
     if (!inApp && !sendWA) return null; // user opted out completely
   }
 
-  const notif = await prisma.userNotification.create({
+  const notif = await prisma.adminNotification.create({
     data: {
-      userId,
+      targetType: "user",
+      targetId: userId,
       organizationId: organizationId ?? null,
       type,
       title,
       body,
-      appKey: appKey ?? NOTIF_META[type]?.appKey ?? null,
+      appKey: appKey ?? NOTIF_META[type as NotifType]?.appKey ?? null,
       actionUrl: actionUrl ?? null,
       metadata: metadata ? (metadata as object) : undefined,
+      createdBy: "SYSTEM",
       sentWhatsApp: false,
     },
     select: { id: true },
@@ -80,7 +82,7 @@ export async function createNotification(opts: CreateNotificationOptions) {
   if (sendWA && organizationId) {
     try {
       await sendWhatsAppNotification({ userId, organizationId, title, body });
-      await prisma.userNotification.update({
+      await prisma.adminNotification.update({
         where: { id: notif.id },
         data: { sentWhatsApp: true },
       });
@@ -91,6 +93,7 @@ export async function createNotification(opts: CreateNotificationOptions) {
 
   return notif;
 }
+
 
 /**
  * Sends a WhatsApp message using the org's connected WhatsApp instance.
@@ -133,7 +136,7 @@ async function sendWhatsAppNotification({
 }
 
 /**
- * Bulk create notifications for all users in an org.
+ * Bulk create notifications for all users in an org using broadcast.
  */
 export async function createOrgNotification({
   organizationId,
@@ -152,14 +155,51 @@ export async function createOrgNotification({
   actionUrl?:     string;
   metadata?:      Record<string, unknown>;
 }) {
-  const members = await prisma.member.findMany({
-    where: { organizationId },
-    select: { userId: true },
+  // Create BROADCAST notification (one row for all members)
+  const notif = await prisma.adminNotification.create({
+    data: {
+      targetType: "org",
+      targetId: organizationId,
+      organizationId,
+      type,
+      title,
+      body,
+      appKey: appKey ?? NOTIF_META[type as NotifType]?.appKey ?? null,
+      actionUrl: actionUrl ?? null,
+      metadata: metadata ? (metadata as object) : undefined,
+      createdBy: "SYSTEM",
+      sentWhatsApp: false,
+    },
+    select: { id: true },
   });
 
-  await Promise.allSettled(
-    members.map((m) =>
-      createNotification({ userId: m.userId, organizationId, type, title, body, appKey, actionUrl, metadata })
-    )
-  );
+  // For WhatsApp, we still need to check preferences and send individually
+  const membersWithWAPref = await prisma.userNotificationPreference.findMany({
+    where: { 
+      organizationId, 
+      notifType: type, 
+      whatsApp: true 
+    },
+    select: { userId: true }
+  });
+
+  if (membersWithWAPref.length > 0) {
+    await Promise.allSettled(
+      membersWithWAPref.map(async (m) => {
+        try {
+          await sendWhatsAppNotification({ userId: m.userId, organizationId, title, body });
+        } catch {
+          // ignore failures
+        }
+      })
+    );
+    
+    await prisma.adminNotification.update({
+      where: { id: notif.id },
+      data: { sentWhatsApp: true }
+    });
+  }
+
+  return notif;
 }
+
