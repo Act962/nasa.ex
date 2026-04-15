@@ -3,6 +3,7 @@
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useSpacePointCtx } from "@/features/space-point/components/space-point-provider";
 
 // ─── Planners ─────────────────────────────────────────────────────────────────
 
@@ -22,11 +23,13 @@ export function useNasaPlanner(plannerId: string) {
 
 export function useCreatePlanner() {
   const qc = useQueryClient();
+  const { earn } = useSpacePointCtx();
   return useMutation(
     orpc.nasaPlanner.planners.create.mutationOptions({
       onSuccess: () => {
         toast.success("Planner criado com sucesso!");
         qc.invalidateQueries(orpc.nasaPlanner.planners.list.queryOptions({}));
+        earn("create_mindmap", "Novo planner criado 🗓️");
       },
       onError: () => toast.error("Erro ao criar planner"),
     }),
@@ -129,6 +132,7 @@ export function useDeletePlannerPost() {
 
 export function useGeneratePlannerPost() {
   const qc = useQueryClient();
+  const { earn } = useSpacePointCtx();
   return useMutation(
     orpc.nasaPlanner.posts.generate.mutationOptions({
       onSuccess: (data) => {
@@ -136,6 +140,7 @@ export function useGeneratePlannerPost() {
           `Post gerado! ${data.starsSpent} stars usadas. Saldo: ${data.balanceAfter}`,
         );
         qc.invalidateQueries({ queryKey: ["nasaPlanner", "posts", "getMany"] });
+        earn("create_post", "Post gerado com IA ✨");
       },
       onError: (err: any) =>
         toast.error(err?.message ?? "Erro ao gerar post com IA"),
@@ -158,11 +163,13 @@ export function useApprovePlannerPost() {
 
 export function useSchedulePlannerPost() {
   const qc = useQueryClient();
+  const { earn } = useSpacePointCtx();
   return useMutation(
     orpc.nasaPlanner.posts.schedule.mutationOptions({
       onSuccess: () => {
         toast.success("Post agendado!");
         qc.invalidateQueries({ queryKey: ["nasaPlanner", "posts", "getMany"] });
+        earn("post_published", "Post agendado com sucesso 🕒");
       },
       onError: (err: any) =>
         toast.error(err?.message ?? "Erro ao agendar post"),

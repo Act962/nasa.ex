@@ -86,7 +86,7 @@ export function CreateAgendaModal({ open, onOpenChange }: Props) {
       },
       {
         onSuccess: () => {
-          earn("create_agenda", "Agenda criada 📅");
+          earn("create_event", "Agenda criada 📅");
           onOpenChange(false);
         },
       },

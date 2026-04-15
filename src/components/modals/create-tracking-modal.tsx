@@ -29,6 +29,7 @@ import { orpc } from "@/lib/orpc";
 import { Spinner } from "@/components/spinner";
 import { useTracking } from "@/hooks/use-tracking-modal";
 import { useRouter } from "next/navigation";
+import { useSpacePointCtx } from "@/features/space-point/components/space-point-provider";
 
 const createTrackingSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório"),
@@ -38,8 +39,9 @@ const createTrackingSchema = z.object({
 type CreateTrackingForm = z.infer<typeof createTrackingSchema>;
 
 export function ModalCreateTracking() {
-  const router = useRouter()
+  const router = useRouter();
   const queryClient = useQueryClient();
+  const { earn } = useSpacePointCtx();
 
   const {
     register,
@@ -67,13 +69,15 @@ export function ModalCreateTracking() {
 
         reset();
         onClose();
-        router.push(`/tracking/${data.trackingId}`)
+        console.log("Passou aqui");
+        earn("create_pipeline", "Novo tracking criado 📈");
+        router.push(`/tracking/${data.trackingId}`);
       },
       onError: (error) => {
         console.log(error);
         toast.error("Erro ao criar tracking, tente novamente");
       },
-    })
+    }),
   );
 
   const onSubmit = async (data: CreateTrackingForm) => {

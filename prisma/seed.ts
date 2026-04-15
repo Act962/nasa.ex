@@ -776,101 +776,109 @@ function shuffleArray<T>(array: T[]) {
   return array.sort(() => Math.random() - 0.5);
 }
 
+// async function main() {
+//   console.log("🌱 Iniciando seed...");
+
+//   /**
+//    * 1 — Criar TAGS
+//    */
+//   console.log("Criando tags...");
+
+//   const tagsData = Array.from({ length: TOTAL_TAGS }).map(() => ({
+//     name: "tag" + faker.person.fullName(),
+//     slug: "tag" + faker.person.fullName(),
+//     color: faker.color.rgb(),
+//     organizationId: ORGANIZATION_ID,
+//     trackingId: TRACKING_ID,
+//   }));
+
+//   await prisma.tag.createMany({
+//     data: tagsData,
+//   });
+
+//   const tags = await prisma.tag.findMany({
+//     where: {
+//       trackingId: TRACKING_ID,
+//     },
+//     select: {
+//       id: true,
+//     },
+//   });
+
+//   console.log(`✅ ${tags.length} tags criadas`);
+
+//   /**
+//    * 2 — Criar LEADS
+//    */
+//   console.log("Criando leads...");
+
+//   const leadsData = Array.from({ length: TOTAL_LEADS }).map((_, i) => ({
+//     name: faker.person.fullName(),
+//     email: faker.internet.email(),
+//     phone: generatePhone(i),
+//     statusId: faker.helpers.arrayElement([STATUS_ID1, STATUS_ID2, STATUS_ID3]),
+//     trackingId: TRACKING_ID,
+//   }));
+
+//   await prisma.lead.createMany({
+//     data: leadsData,
+//   });
+
+//   const leads = await prisma.lead.findMany({
+//     where: {
+//       trackingId: TRACKING_ID,
+//     },
+//     select: {
+//       id: true,
+//     },
+//   });
+
+//   console.log(`✅ ${leads.length} leads criados`);
+
+//   /**
+//    * 3 — Embaralhar TAGS entre LEADS
+//    */
+//   console.log("Relacionando tags aos leads...");
+
+//   const leadTagsData: {
+//     leadId: string;
+//     tagId: string;
+//   }[] = [];
+
+//   for (const lead of leads) {
+//     const shuffledTags = shuffleArray([...tags]);
+
+//     const numberOfTags = faker.number.int({
+//       min: 1,
+//       max: 3,
+//     });
+
+//     const selectedTags = shuffledTags.slice(0, numberOfTags);
+
+//     for (const tag of selectedTags) {
+//       leadTagsData.push({
+//         leadId: lead.id,
+//         tagId: tag.id,
+//       });
+//     }
+//   }
+
+//   await prisma.leadTag.createMany({
+//     data: leadTagsData,
+//     skipDuplicates: true,
+//   });
+
+//   console.log("✅ Tags vinculadas aos leads");
+
+//   console.log("🎉 Seed finalizado com sucesso");
+// }
+
 async function main() {
-  console.log("🌱 Iniciando seed...");
-
-  /**
-   * 1 — Criar TAGS
-   */
-  console.log("Criando tags...");
-
-  const tagsData = Array.from({ length: TOTAL_TAGS }).map(() => ({
-    name: "tag" + faker.person.fullName(),
-    slug: "tag" + faker.person.fullName(),
-    color: faker.color.rgb(),
-    organizationId: ORGANIZATION_ID,
-    trackingId: TRACKING_ID,
-  }));
-
-  await prisma.tag.createMany({
-    data: tagsData,
+  const a = await prisma.spacePointRule.findMany({
+    where: {},
   });
 
-  const tags = await prisma.tag.findMany({
-    where: {
-      trackingId: TRACKING_ID,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  console.log(`✅ ${tags.length} tags criadas`);
-
-  /**
-   * 2 — Criar LEADS
-   */
-  console.log("Criando leads...");
-
-  const leadsData = Array.from({ length: TOTAL_LEADS }).map((_, i) => ({
-    name: faker.person.fullName(),
-    email: faker.internet.email(),
-    phone: generatePhone(i),
-    statusId: faker.helpers.arrayElement([STATUS_ID1, STATUS_ID2, STATUS_ID3]),
-    trackingId: TRACKING_ID,
-  }));
-
-  await prisma.lead.createMany({
-    data: leadsData,
-  });
-
-  const leads = await prisma.lead.findMany({
-    where: {
-      trackingId: TRACKING_ID,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  console.log(`✅ ${leads.length} leads criados`);
-
-  /**
-   * 3 — Embaralhar TAGS entre LEADS
-   */
-  console.log("Relacionando tags aos leads...");
-
-  const leadTagsData: {
-    leadId: string;
-    tagId: string;
-  }[] = [];
-
-  for (const lead of leads) {
-    const shuffledTags = shuffleArray([...tags]);
-
-    const numberOfTags = faker.number.int({
-      min: 1,
-      max: 3,
-    });
-
-    const selectedTags = shuffledTags.slice(0, numberOfTags);
-
-    for (const tag of selectedTags) {
-      leadTagsData.push({
-        leadId: lead.id,
-        tagId: tag.id,
-      });
-    }
-  }
-
-  await prisma.leadTag.createMany({
-    data: leadTagsData,
-    skipDuplicates: true,
-  });
-
-  console.log("✅ Tags vinculadas aos leads");
-
-  console.log("🎉 Seed finalizado com sucesso");
+  console.log(a);
 }
 
 main().catch((e) => {

@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useActionKanbanStore, EMPTY_ACTIONS } from "../lib/kanban-store";
+import { useSpacePointCtx } from "@/features/space-point";
 
 export const useCreateTask = () => {
   const queryClient = useQueryClient();
@@ -219,6 +220,7 @@ export const useQueryAction = (actionId: string) => {
 
 export const useUpdateAction = () => {
   const queryClient = useQueryClient();
+  const { earn } = useSpacePointCtx();
   return useMutation(
     orpc.action.update.mutationOptions({
       onSuccess: (data) => {
@@ -240,6 +242,10 @@ export const useUpdateAction = () => {
             input: { workspaceId: data.action.workspaceId },
           }),
         );
+
+        if (data.action.isDone) {
+          earn("complete_card", "Card concluído ✅");
+        }
       },
     }),
   );

@@ -34,11 +34,11 @@ export default async function AdminSpacePointsPage() {
   });
 
   const topOrgs = orgGroups.map((o) => ({
-    orgId:       o.orgId,
-    orgName:     orgMap[o.orgId]?.name ?? "–",
-    orgLogo:     orgMap[o.orgId]?.logo ?? null,
+    orgId: o.orgId,
+    orgName: orgMap[o.orgId]?.name ?? "–",
+    orgLogo: orgMap[o.orgId]?.logo ?? null,
     totalPoints: o._sum.totalPoints ?? 0,
-    userCount:   o._count.userId,
+    userCount: o._count.userId,
   }));
 
   const stats = {
@@ -56,18 +56,38 @@ export default async function AdminSpacePointsPage() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-white">Space Points</h1>
-          <p className="text-sm text-zinc-400">Controle de gamificação por empresa e usuário</p>
+          <p className="text-sm text-zinc-400">
+            Controle de gamificação por empresa e usuário
+          </p>
         </div>
       </div>
 
       {/* KPI cards */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { icon: Users,    label: "Usuários ativos",    value: stats.totalUsers.toLocaleString("pt-BR"),                 color: "text-violet-400" },
-          { icon: Zap,      label: "Pontos distribuídos", value: stats.totalPointsAwarded.toLocaleString("pt-BR") + " pts", color: "text-yellow-400" },
-          { icon: Building2,label: "Empresas com pontos", value: stats.activeOrgs.toString(),                              color: "text-cyan-400"   },
+          {
+            icon: Users,
+            label: "Usuários ativos",
+            value: stats.totalUsers.toLocaleString("pt-BR"),
+            color: "text-violet-400",
+          },
+          {
+            icon: Zap,
+            label: "Pontos distribuídos",
+            value: stats.totalPointsAwarded.toLocaleString("pt-BR") + " pts",
+            color: "text-yellow-400",
+          },
+          {
+            icon: Building2,
+            label: "Empresas com pontos",
+            value: stats.activeOrgs.toString(),
+            color: "text-cyan-400",
+          },
         ].map(({ icon: Icon, label, value, color }) => (
-          <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-3">
+          <div
+            key={label}
+            className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-3"
+          >
             <Icon className={`w-5 h-5 ${color} shrink-0`} />
             <div>
               <p className="text-xs text-zinc-400">{label}</p>

@@ -1,6 +1,7 @@
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useSpacePointCtx } from "@/features/space-point";
 
 export const useCreateIntegration = ({
   trackingId,
@@ -8,6 +9,7 @@ export const useCreateIntegration = ({
   trackingId: string;
 }) => {
   const queryClient = useQueryClient();
+  const { earn } = useSpacePointCtx();
 
   return useMutation(
     orpc.integrations.create.mutationOptions({
@@ -18,6 +20,7 @@ export const useCreateIntegration = ({
             input: { trackingId },
           }),
         });
+        earn("connect_integration", "Integração conectada 🔗");
       },
       onError: () => {
         toast.error("Erro ao criar integração!");

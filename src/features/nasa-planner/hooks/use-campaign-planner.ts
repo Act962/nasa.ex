@@ -3,6 +3,7 @@
 import { orpc } from "@/lib/orpc";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useSpacePointCtx } from "@/features/space-point";
 
 // ─── Campaigns ────────────────────────────────────────────────────────────────
 
@@ -35,11 +36,16 @@ export function useCreateCampaign() {
 
 export function useUpdateCampaign() {
   const qc = useQueryClient();
+  const { earn } = useSpacePointCtx();
   return useMutation(
     orpc.nasaPlanner.campaigns.update.mutationOptions({
       onSuccess: (_, vars) => {
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.list.key() });
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: (vars as any).campaignId } }) });
+
+        if ((vars as any).status === "completed") {
+          earn("complete_campaign", "Campanha concluída 🏆");
+        }
       },
       onError: (err: any) => toast.error(err?.message ?? "Erro ao atualizar campanha"),
     }),

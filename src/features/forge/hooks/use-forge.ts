@@ -2,6 +2,7 @@
 
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSpacePointCtx } from "@/features/space-point/components/space-point-provider";
 
 // ─── Products ───────────────────────────────────────────────────────────────
 
@@ -41,11 +42,13 @@ export function useForgeProposals(filters?: { status?: string; responsibleId?: s
 
 export function useCreateForgeProposal() {
   const qc = useQueryClient();
+  const { earn } = useSpacePointCtx();
   return useMutation({
     ...orpc.forge.proposals.create.mutationOptions(),
     onSuccess: () => {
       qc.invalidateQueries(orpc.forge.proposals.list.queryOptions({ input: {} }));
       qc.invalidateQueries(orpc.forge.dashboard.get.queryOptions({ input: {} }));
+      earn("create_proposal", "Proposta gerada 📄");
     },
   });
 }
@@ -80,9 +83,13 @@ export function useForgeContracts(filters?: { status?: string }) {
 
 export function useCreateForgeContract() {
   const qc = useQueryClient();
+  const { earn } = useSpacePointCtx();
   return useMutation({
     ...orpc.forge.contracts.create.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries(orpc.forge.contracts.list.queryOptions({ input: {} })),
+    onSuccess: () => {
+      qc.invalidateQueries(orpc.forge.contracts.list.queryOptions({ input: {} }));
+      earn("contract_signed", "Contrato gerado ✍️");
+    },
   });
 }
 

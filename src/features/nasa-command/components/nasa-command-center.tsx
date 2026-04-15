@@ -144,6 +144,7 @@ import { IntegrationPlatform } from "@/generated/prisma/enums";
 import { toast } from "sonner";
 import { StarsWidget } from "@/features/stars";
 import { SpacePointWidget } from "@/features/space-point";
+import { useSpacePointCtx } from "@/features/space-point/components/space-point-provider";
 import {
   variableCategories,
   allApps,
@@ -1575,39 +1576,39 @@ function CommandInput({
           padding: 1,
         }}
       >
-      <div className="relative bg-zinc-900 rounded-[calc(1rem-1px)] overflow-visible transition-all">
-        {/* Text area with highlight */}
-        <div className="relative px-4 pt-4 pb-2">
-          <div
-            ref={highlightRef}
-            aria-hidden="true"
-            className="absolute inset-0 pl-12 pr-4 pt-4 pb-2 text-sm leading-relaxed pointer-events-none overflow-hidden whitespace-pre-wrap break-words"
-            style={{
-              fontSize: "0.875rem",
-              lineHeight: "1.625",
-              wordBreak: "break-word",
-            }}
-            dangerouslySetInnerHTML={{ __html: highlightedHTML + "\u200b" }}
-          />
-          <textarea
-            ref={textareaRef}
-            data-nasa-command
-            value={command}
-            onChange={handleTextChange}
-            onKeyDown={handleKeyDown}
-            onScroll={syncScroll}
-            disabled={loading}
-            rows={1}
-            placeholder="Fala comandante, quais as ordens?"
-            className="relative w-full bg-transparent text-transparent caret-white resize-none outline-none text-sm leading-relaxed placeholder:text-zinc-600 placeholder:font-sans placeholder:text-xs min-h-[48px] max-h-[200px] overflow-y-auto"
-            style={{
-              caretColor: "white",
-              fontSize: "0.875rem",
-              lineHeight: "1.625",
-              wordBreak: "break-word",
-            }}
-          />
-        </div>
+        <div className="relative bg-zinc-900 rounded-[calc(1rem-1px)] overflow-visible transition-all">
+          {/* Text area with highlight */}
+          <div className="relative px-4 pt-4 pb-2">
+            <div
+              ref={highlightRef}
+              aria-hidden="true"
+              className="absolute inset-0 pl-12 pr-4 pt-4 pb-2 text-sm leading-relaxed pointer-events-none overflow-hidden whitespace-pre-wrap wrap-break-word"
+              style={{
+                fontSize: "0.875rem",
+                lineHeight: "1.625",
+                wordBreak: "break-word",
+              }}
+              dangerouslySetInnerHTML={{ __html: highlightedHTML + "\u200b" }}
+            />
+            <textarea
+              ref={textareaRef}
+              data-nasa-command
+              value={command}
+              onChange={handleTextChange}
+              onKeyDown={handleKeyDown}
+              onScroll={syncScroll}
+              disabled={loading}
+              rows={1}
+              placeholder="Fala comandante, quais as ordens?"
+              className="relative w-full bg-transparent text-transparent caret-white resize-none outline-none text-sm leading-relaxed placeholder:text-zinc-600 placeholder:font-sans placeholder:text-xs min-h-[48px] max-h-[200px] overflow-y-auto"
+              style={{
+                caretColor: "white",
+                fontSize: "0.875rem",
+                lineHeight: "1.625",
+                wordBreak: "break-word",
+              }}
+            />
+          </div>
 
           {/* Bottom toolbar */}
           <div className="flex items-center justify-between px-3 py-2 border-t border-zinc-800/60">
@@ -1757,7 +1758,7 @@ function WelcomeScreen({
 
       {/* Mouse-tracking glow — bright blurred white dot */}
       <div
-        className="fixed pointer-events-none z-50 w-20 h-20 rounded-full bg-white/30 blur-[40px]"
+        className="fixed pointer-events-none z-50 w-20 h-20 rounded-full bg-white/30 blur-2xl"
         style={{
           left: mouse.x - 40,
           top: mouse.y - 40,
@@ -1808,6 +1809,7 @@ export function NasaCommandCenter() {
   const [recentCommands, setRecentCommands] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const { earn } = useSpacePointCtx();
 
   useEffect(() => {
     setRecentCommands(loadRecentCommands());
@@ -1850,6 +1852,7 @@ export function NasaCommandCenter() {
           command: userText,
           model,
         });
+        earn("ai_command", "Comando IA executado 🤖");
         setMessages((prev) =>
           prev.map((m) =>
             m.id === msgId + "-think"

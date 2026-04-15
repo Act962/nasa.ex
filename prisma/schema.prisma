@@ -169,9 +169,9 @@ model Organization {
   workspaceFolders WorkspaceFolder[]
   sentShares       ActionShare[]     @relation("SentShares")
   receivedShares   ActionShare[]     @relation("ReceivedShares")
-  spacePointRules  SpacePointRule[]
   starRules        StarRule[]
   spacePoints      UserSpacePoint[]
+  spacePointTransactions SpacePointTransaction[]
   spacePointPrizes SpacePointRankingPrize[]
 
   // NASA Payment
@@ -2197,11 +2197,10 @@ model StarRule {
   @@map("star_rule")
 }
 
-/// Per-org configurable rules: which actions earn how many points
+/// Global configurable rules: which actions earn how many points (fixed for all users)
 model SpacePointRule {
   id                String   @id @default(cuid())
-  orgId             String   @map("org_id")
-  action            String   // "lead_won" | "create_event" | "create_agenda" | "create_workspace_card" …
+  action            String   @unique // "lead_won" | "create_event" | ...
   label             String   // human-readable, shown in settings
   points            Int      @default(0)
   cooldownHours     Int?     @map("cooldown_hours") // null = unlimited
@@ -2210,11 +2209,8 @@ model SpacePointRule {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt      @map("updated_at")
 
-  org          Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
   transactions SpacePointTransaction[]
 
-  @@unique([orgId, action])
-  @@index([orgId])
   @@map("space_point_rule")
 }
 
@@ -2237,10 +2233,10 @@ model SpacePointRankingPrize {
   @@map("space_point_ranking_prize")
 }
 
-/// Accumulated points + level tracking per user-per-org
+/// Global accumulated points + level tracking per user (platform-wide)
 model UserSpacePoint {
   id           String    @id @default(cuid())
-  userId       String    @map("user_id")
+  userId       String    @unique @map("user_id")
   orgId        String    @map("org_id")
   totalPoints  Int       @default(0)  @map("total_points")
   weeklyPoints Int       @default(0)  @map("weekly_points")
@@ -2253,26 +2249,28 @@ model UserSpacePoint {
   transactions SpacePointTransaction[]
   seals        UserSpacePointSeal[]
 
-  @@unique([userId, orgId])
-  @@index([orgId, totalPoints])
   @@map("user_space_point")
 }
 
 /// Audit log of every point event
 model SpacePointTransaction {
-  id          String   @id @default(cuid())
-  userPointId String   @map("user_point_id")
-  ruleId      String?  @map("rule_id")
-  points      Int
-  description String
-  metadata    Json?    @default("{}")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id              String   @id @default(cuid())
+  userPointId     String   @map("user_point_id")
+  ruleId          String?  @map("rule_id")
+  orgId           String?  @map("org_id") // Track which org triggered the earn
+  points          Int
+  description     String
+  metadata        Json?    @default("{}")
+  createdAt       DateTime @default(now()) @map("created_at")
 
-  userPoint   UserSpacePoint  @relation(fields: [userPointId], references: [id], onDelete: Cascade)
-  rule        SpacePointRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  userPoint       UserSpacePoint @relation(fields: [userPointId], references: [id], onDelete: Cascade)
+  rule            SpacePointRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  org             Organization?   @relation(fields: [orgId], references: [id], onDelete: SetNull)
 
   @@index([userPointId])
   @@index([userPointId, createdAt])
+  @@index([orgId])
+  @@index([orgId, createdAt])
   @@map("space_point_transaction")
 }
 
