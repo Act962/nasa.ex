@@ -13,26 +13,28 @@ export async function ensureLevelsSeed() {
 }
 
 export async function ensureOrgRules(orgId: string) {
-  for (const rule of DEFAULT_RULES) {
-    const { category: _cat, ...ruleData } = rule;
-    await prisma.spacePointRule.upsert({
-      where:  { orgId_action: { orgId, action: rule.action } },
-      create: { ...ruleData, orgId },
-      update: {},
-    });
-  }
+  // for (const rule of DEFAULT_RULES) {
+  //   const { category: _cat, ...ruleData } = rule;
+  //   await prisma.spacePointRule.upsert({
+  //     where:  { orgId_action: { orgId, action: rule.action } },
+  //     create: { ...ruleData, orgId },
+  //     update: {},
+  //   });
+  // }
 }
 
 export async function ensureUserPoint(userId: string, orgId: string) {
   return prisma.userSpacePoint.upsert({
-    where:  { userId_orgId: { userId, orgId } },
+    where: { userId_orgId: { userId, orgId } },
     create: { userId, orgId },
     update: {},
   });
 }
 
 export async function getBadgeUrlMap(): Promise<Record<number, string>> {
-  const rows = await prisma.platformAsset.findMany({ where: { key: { startsWith: "badge:" } } });
+  const rows = await prisma.platformAsset.findMany({
+    where: { key: { startsWith: "badge:" } },
+  });
   const map: Record<number, string> = {};
   for (const r of rows) {
     const num = parseInt(r.key.replace("badge:", ""));
@@ -41,16 +43,24 @@ export async function getBadgeUrlMap(): Promise<Record<number, string>> {
   return map;
 }
 
-export function resolveBadgeUrl(badgeNumber: number, map: Record<number, string>): string {
+export function resolveBadgeUrl(
+  badgeNumber: number,
+  map: Record<number, string>,
+): string {
   return map[badgeNumber] ?? `/space-point/badges/${badgeNumber}.svg`;
 }
 
 export function periodToDateRange(
   period: "weekly" | "biweekly" | "monthly" | "annual" | "alltime" | "custom",
-  startDate?: string, endDate?: string,
+  startDate?: string,
+  endDate?: string,
 ): { gte?: Date; lte?: Date } {
   const now = new Date();
-  if (period === "custom") return { gte: startDate ? new Date(startDate) : undefined, lte: endDate ? new Date(endDate) : now };
+  if (period === "custom")
+    return {
+      gte: startDate ? new Date(startDate) : undefined,
+      lte: endDate ? new Date(endDate) : now,
+    };
   if (period === "alltime") return {};
   const days = { weekly: 7, biweekly: 15, monthly: 30, annual: 365 }[period];
   const gte = new Date(now);
@@ -60,21 +70,42 @@ export function periodToDateRange(
 }
 
 export async function awardPoints(
-  userId: string, orgId: string, action: string,
-  descriptionOverride?: string, metadataOverride?: object,
-): Promise<{ points: number; newSeals: { name: string; badgeNumber: number; planetEmoji: string; badgeUrl: string }[]; totalPoints: number; popupTemplateId: string | null }> {
+  userId: string,
+  orgId: string,
+  action: string,
+  descriptionOverride?: string,
+  metadataOverride?: object,
+): Promise<{
+  points: number;
+  newSeals: {
+    name: string;
+    badgeNumber: number;
+    planetEmoji: string;
+    badgeUrl: string;
+  }[];
+  totalPoints: number;
+  popupTemplateId: string | null;
+}> {
   await ensureLevelsSeed();
   await ensureOrgRules(orgId);
 
-  const rule = await prisma.spacePointRule.findFirst({ where: { orgId, action, isActive: true } });
-  if (!rule || rule.points === 0) return { points: 0, newSeals: [], totalPoints: 0, popupTemplateId: null };
+  const rule = await prisma.spacePointRule.findFirst({
+    where: { orgId, action, isActive: true },
+  });
+  if (!rule || rule.points === 0)
+    return { points: 0, newSeals: [], totalPoints: 0, popupTemplateId: null };
 
   if (rule.cooldownHours) {
     const cutoff = new Date(Date.now() - rule.cooldownHours * 3_600_000);
     const recent = await prisma.spacePointTransaction.findFirst({
-      where: { rule: { action }, userPoint: { userId, orgId }, createdAt: { gte: cutoff } },
+      where: {
+        rule: { action },
+        userPoint: { userId, orgId },
+        createdAt: { gte: cutoff },
+      },
     });
-    if (recent) return { points: 0, newSeals: [], totalPoints: 0, popupTemplateId: null };
+    if (recent)
+      return { points: 0, newSeals: [], totalPoints: 0, popupTemplateId: null };
   }
 
   const userPoint = await ensureUserPoint(userId, orgId);
@@ -86,28 +117,65 @@ export async function awardPoints(
   thisMonday.setHours(0, 0, 0, 0);
 
   const isSameWeek = userPoint.weekStart && userPoint.weekStart >= thisMonday;
-  const newWeeklyPoints = Math.max(0, (isSameWeek ? userPoint.weeklyPoints : 0) + rule.points);
+  const newWeeklyPoints = Math.max(
+    0,
+    (isSameWeek ? userPoint.weeklyPoints : 0) + rule.points,
+  );
   const newTotal = Math.max(0, userPoint.totalPoints + rule.points);
 
-  const allLevels = await prisma.spacePointLevel.findMany({ orderBy: { order: "asc" } });
-  const earnedBefore = await prisma.userSpacePointSeal.findMany({ where: { userPointId: userPoint.id }, select: { levelId: true } });
+  const allLevels = await prisma.spacePointLevel.findMany({
+    orderBy: { order: "asc" },
+  });
+  const earnedBefore = await prisma.userSpacePointSeal.findMany({
+    where: { userPointId: userPoint.id },
+    select: { levelId: true },
+  });
   const earnedBeforeSet = new Set(earnedBefore.map((s) => s.levelId));
 
   await prisma.$transaction([
     prisma.spacePointTransaction.create({
-      data: { userPointId: userPoint.id, ruleId: rule.id, points: rule.points, description: descriptionOverride ?? rule.label, metadata: metadataOverride ?? {} },
+      data: {
+        userPointId: userPoint.id,
+        ruleId: rule.id,
+        points: rule.points,
+        description: descriptionOverride ?? rule.label,
+        metadata: metadataOverride ?? {},
+      },
     }),
     prisma.userSpacePoint.update({
       where: { id: userPoint.id },
-      data: { totalPoints: newTotal, weeklyPoints: newWeeklyPoints, weekStart: isSameWeek ? userPoint.weekStart : thisMonday },
+      data: {
+        totalPoints: newTotal,
+        weeklyPoints: newWeeklyPoints,
+        weekStart: isSameWeek ? userPoint.weekStart : thisMonday,
+      },
     }),
   ]);
 
   const badgeMap = await getBadgeUrlMap();
-  const newSeals: { name: string; badgeNumber: number; planetEmoji: string; badgeUrl: string }[] = [];
-  for (const lvl of allLevels.filter((l) => l.requiredPoints <= newTotal && !earnedBeforeSet.has(l.id))) {
-    await prisma.userSpacePointSeal.create({ data: { userPointId: userPoint.id, levelId: lvl.id } });
-    newSeals.push({ name: lvl.name, badgeNumber: lvl.badgeNumber, planetEmoji: lvl.planetEmoji, badgeUrl: resolveBadgeUrl(lvl.badgeNumber, badgeMap) });
+  const newSeals: {
+    name: string;
+    badgeNumber: number;
+    planetEmoji: string;
+    badgeUrl: string;
+  }[] = [];
+  for (const lvl of allLevels.filter(
+    (l) => l.requiredPoints <= newTotal && !earnedBeforeSet.has(l.id),
+  )) {
+    await prisma.userSpacePointSeal.create({
+      data: { userPointId: userPoint.id, levelId: lvl.id },
+    });
+    newSeals.push({
+      name: lvl.name,
+      badgeNumber: lvl.badgeNumber,
+      planetEmoji: lvl.planetEmoji,
+      badgeUrl: resolveBadgeUrl(lvl.badgeNumber, badgeMap),
+    });
   }
-  return { points: rule.points, newSeals, totalPoints: newTotal, popupTemplateId: rule.popupTemplateId ?? null };
+  return {
+    points: rule.points,
+    newSeals,
+    totalPoints: newTotal,
+    popupTemplateId: rule.popupTemplateId ?? null,
+  };
 }
