@@ -22,7 +22,6 @@ export async function ensureGlobalSpacePointRules() {
   //     update: {},
   //   });
   // }
-  return void
 }
 
 export async function ensureOrgStarRules(orgId: string) {
