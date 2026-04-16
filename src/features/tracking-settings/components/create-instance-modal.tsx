@@ -24,10 +24,6 @@ interface CreateInstanceModalProps {
   trackingId: string;
 }
 
-function generateId() {
-  return Math.random().toString(36).substring(2, 10);
-}
-
 export function CreateInstanceModal({
   open,
   onOpenChange,
@@ -52,7 +48,7 @@ export function CreateInstanceModal({
   const params = useParams<{ trackingId: string }>();
 
   const resetForm = () => {
-    setName(generateId());
+    setName("");
     setError(null);
     setSuccess(null);
   };

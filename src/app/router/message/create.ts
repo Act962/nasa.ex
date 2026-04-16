@@ -9,6 +9,7 @@ import { sendText } from "@/http/uazapi/send-text";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import z from "zod";
+import { attendLeadIfWaiting } from "./utils";
 
 export const createTextMessage = base
   .use(requiredAuthMiddleware)
@@ -97,6 +98,9 @@ export const createTextMessage = base
         "message:created",
         messageCreated,
       );
+
+      // Trigger gamification/attendance logic
+      await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
 
       return {
         message: {

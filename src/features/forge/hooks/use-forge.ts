@@ -14,7 +14,10 @@ export function useCreateForgeProduct() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.forge.products.create.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries(orpc.forge.products.list.queryOptions({ input: {} })),
+    onSuccess: () =>
+      qc.invalidateQueries(
+        orpc.forge.products.list.queryOptions({ input: {} }),
+      ),
   });
 }
 
@@ -22,7 +25,10 @@ export function useUpdateForgeProduct() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.forge.products.update.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries(orpc.forge.products.list.queryOptions({ input: {} })),
+    onSuccess: () =>
+      qc.invalidateQueries(
+        orpc.forge.products.list.queryOptions({ input: {} }),
+      ),
   });
 }
 
@@ -30,14 +36,22 @@ export function useDeleteForgeProduct() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.forge.products.delete.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries(orpc.forge.products.list.queryOptions({ input: {} })),
+    onSuccess: () =>
+      qc.invalidateQueries(
+        orpc.forge.products.list.queryOptions({ input: {} }),
+      ),
   });
 }
 
 // ─── Proposals ──────────────────────────────────────────────────────────────
 
-export function useForgeProposals(filters?: { status?: string; responsibleId?: string }) {
-  return useQuery(orpc.forge.proposals.list.queryOptions({ input: filters ?? {} }));
+export function useForgeProposals(filters?: {
+  status?: string;
+  responsibleId?: string;
+}) {
+  return useQuery(
+    orpc.forge.proposals.list.queryOptions({ input: filters ?? {} }),
+  );
 }
 
 export function useCreateForgeProposal() {
@@ -46,8 +60,12 @@ export function useCreateForgeProposal() {
   return useMutation({
     ...orpc.forge.proposals.create.mutationOptions(),
     onSuccess: () => {
-      qc.invalidateQueries(orpc.forge.proposals.list.queryOptions({ input: {} }));
-      qc.invalidateQueries(orpc.forge.dashboard.get.queryOptions({ input: {} }));
+      qc.invalidateQueries(
+        orpc.forge.proposals.list.queryOptions({ input: {} }),
+      );
+      qc.invalidateQueries(
+        orpc.forge.dashboard.get.queryOptions({ input: {} }),
+      );
       earn("create_proposal", "Proposta gerada 📄");
     },
   });
@@ -58,8 +76,12 @@ export function useUpdateForgeProposal() {
   return useMutation({
     ...orpc.forge.proposals.update.mutationOptions(),
     onSuccess: () => {
-      qc.invalidateQueries(orpc.forge.proposals.list.queryOptions({ input: {} }));
-      qc.invalidateQueries(orpc.forge.dashboard.get.queryOptions({ input: {} }));
+      qc.invalidateQueries(
+        orpc.forge.proposals.list.queryOptions({ input: {} }),
+      );
+      qc.invalidateQueries(
+        orpc.forge.dashboard.get.queryOptions({ input: {} }),
+      );
     },
   });
 }
@@ -69,8 +91,12 @@ export function useDeleteForgeProposal() {
   return useMutation({
     ...orpc.forge.proposals.delete.mutationOptions(),
     onSuccess: () => {
-      qc.invalidateQueries(orpc.forge.proposals.list.queryOptions({ input: {} }));
-      qc.invalidateQueries(orpc.forge.dashboard.get.queryOptions({ input: {} }));
+      qc.invalidateQueries(
+        orpc.forge.proposals.list.queryOptions({ input: {} }),
+      );
+      qc.invalidateQueries(
+        orpc.forge.dashboard.get.queryOptions({ input: {} }),
+      );
     },
   });
 }
@@ -78,7 +104,9 @@ export function useDeleteForgeProposal() {
 // ─── Contracts ──────────────────────────────────────────────────────────────
 
 export function useForgeContracts(filters?: { status?: string }) {
-  return useQuery(orpc.forge.contracts.list.queryOptions({ input: filters ?? {} }));
+  return useQuery(
+    orpc.forge.contracts.list.queryOptions({ input: filters ?? {} }),
+  );
 }
 
 export function useCreateForgeContract() {
@@ -87,7 +115,9 @@ export function useCreateForgeContract() {
   return useMutation({
     ...orpc.forge.contracts.create.mutationOptions(),
     onSuccess: () => {
-      qc.invalidateQueries(orpc.forge.contracts.list.queryOptions({ input: {} }));
+      qc.invalidateQueries(
+        orpc.forge.contracts.list.queryOptions({ input: {} }),
+      );
       earn("contract_signed", "Contrato gerado ✍️");
     },
   });
@@ -97,7 +127,10 @@ export function useUpdateForgeContract() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.forge.contracts.update.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries(orpc.forge.contracts.list.queryOptions({ input: {} })),
+    onSuccess: () =>
+      qc.invalidateQueries(
+        orpc.forge.contracts.list.queryOptions({ input: {} }),
+      ),
   });
 }
 
@@ -105,7 +138,10 @@ export function useDeleteForgeContract() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.forge.contracts.delete.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries(orpc.forge.contracts.list.queryOptions({ input: {} })),
+    onSuccess: () =>
+      qc.invalidateQueries(
+        orpc.forge.contracts.list.queryOptions({ input: {} }),
+      ),
   });
 }
 
@@ -119,7 +155,10 @@ export function useCreateForgeTemplate() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.forge.templates.create.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries(orpc.forge.templates.list.queryOptions({ input: {} })),
+    onSuccess: () =>
+      qc.invalidateQueries(
+        orpc.forge.templates.list.queryOptions({ input: {} }),
+      ),
   });
 }
 
@@ -127,7 +166,10 @@ export function useUpdateForgeTemplate() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.forge.templates.update.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries(orpc.forge.templates.list.queryOptions({ input: {} })),
+    onSuccess: () =>
+      qc.invalidateQueries(
+        orpc.forge.templates.list.queryOptions({ input: {} }),
+      ),
   });
 }
 
@@ -135,7 +177,10 @@ export function useDeleteForgeTemplate() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.forge.templates.delete.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries(orpc.forge.templates.list.queryOptions({ input: {} })),
+    onSuccess: () =>
+      qc.invalidateQueries(
+        orpc.forge.templates.list.queryOptions({ input: {} }),
+      ),
   });
 }
 
@@ -149,7 +194,8 @@ export function useUpdateForgeSettings() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.forge.settings.update.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries(orpc.forge.settings.get.queryOptions({ input: {} })),
+    onSuccess: () =>
+      qc.invalidateQueries(orpc.forge.settings.get.queryOptions({ input: {} })),
   });
 }
 
@@ -157,4 +203,8 @@ export function useUpdateForgeSettings() {
 
 export function useForgeDashboard() {
   return useQuery(orpc.forge.dashboard.get.queryOptions({ input: {} }));
+}
+
+export function useTrackProposalView() {
+  return useMutation(orpc.forge.proposals.trackProposalView.mutationOptions());
 }

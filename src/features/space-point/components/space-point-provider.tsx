@@ -74,6 +74,7 @@ export function SpacePointProvider({
         }[];
         action: string;
       }) => {
+        console.log("🔔 EVENTO SPACE POINT RECEBIDO:", data);
         // Invalidar cache TanStack Query
         queryClient.invalidateQueries({ queryKey: ["spacePoint"] });
 

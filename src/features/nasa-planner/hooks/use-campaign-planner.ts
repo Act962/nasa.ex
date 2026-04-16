@@ -23,11 +23,13 @@ export function useCampaign(campaignId: string) {
 
 export function useCreateCampaign() {
   const qc = useQueryClient();
+  const { earn } = useSpacePointCtx();
   return useMutation(
     orpc.nasaPlanner.campaigns.create.mutationOptions({
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.list.key() });
         toast.success("Planejamento de campanha criado! (-1 STAR)");
+        earn("create_campaign_planner", "Novo planejamento de campanha 🚀");
       },
       onError: (err: any) => toast.error(err?.message ?? "Erro ao criar campanha"),
     }),
@@ -69,11 +71,13 @@ export function useDeleteCampaign() {
 
 export function useCreateCampaignEvent() {
   const qc = useQueryClient();
+  const { earn } = useSpacePointCtx();
   return useMutation(
     orpc.nasaPlanner.campaignEvents.create.mutationOptions({
       onSuccess: (_, vars) => {
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: (vars as any).campaignId } }) });
         toast.success("Evento adicionado!");
+        earn("create_campaign_event", "Evento de campanha agendado 📅");
       },
       onError: (err: any) => toast.error(err?.message ?? "Erro ao criar evento"),
     }),
@@ -109,11 +113,13 @@ export function useDeleteCampaignEvent() {
 
 export function useCreateCampaignTask() {
   const qc = useQueryClient();
+  const { earn } = useSpacePointCtx();
   return useMutation(
     orpc.nasaPlanner.campaignTasks.create.mutationOptions({
       onSuccess: (_, vars) => {
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: (vars as any).campaignId } }) });
         toast.success("Tarefa criada!");
+        earn("create_campaign_task", "Demanda criada no planejamento 📋");
       },
       onError: (err: any) => toast.error(err?.message ?? "Erro ao criar tarefa"),
     }),
@@ -136,11 +142,13 @@ export function useUpdateCampaignTask() {
 
 export function useCreateCampaignBrandAsset() {
   const qc = useQueryClient();
+  const { earn } = useSpacePointCtx();
   return useMutation(
     orpc.nasaPlanner.campaignBrandAssets.create.mutationOptions({
       onSuccess: (_, vars) => {
         qc.invalidateQueries({ queryKey: orpc.nasaPlanner.campaigns.get.key({ input: { campaignId: (vars as any).campaignId } }) });
         toast.success("Material salvo!");
+        earn("upload_brand_asset", "Material de marca enviado 🎨");
       },
       onError: (err: any) => toast.error(err?.message ?? "Erro ao salvar material"),
     }),

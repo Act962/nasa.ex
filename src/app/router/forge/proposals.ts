@@ -367,3 +367,32 @@ export const getForgeProposalPublic = base
       throw errors.NOT_FOUND;
     }
   });
+
+export const trackProposalView = base
+  .route({ method: "POST", summary: "Track proposal view and award points", tags: ["Forge"] })
+  .input(z.object({ token: z.string() }))
+  .output(z.object({ success: z.boolean() }))
+  .handler(async ({ input }) => {
+    try {
+      const proposal = await prisma.forgeProposal.findUnique({
+        where: { publicToken: input.token },
+        select: { id: true, responsibleId: true, organizationId: true },
+      });
+
+      if (!proposal) return { success: false };
+
+      // Award points to the responsible user
+      // Importing awardPoints from space-point/utils
+      const { awardPoints } = await import("../space-point/utils");
+      await awardPoints(
+        proposal.responsibleId,
+        proposal.organizationId,
+        "proposal_viewed"
+      );
+
+      return { success: true };
+    } catch (err) {
+      console.error("[forge/proposals trackView]", err);
+      return { success: false };
+    }
+  });

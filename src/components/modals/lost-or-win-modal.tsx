@@ -30,7 +30,6 @@ import { SelectItem } from "../ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
-import { useSpacePointCtx } from "@/features/space-point";
 
 const schemaLostOrWinner = z.object({
   observation: z.string().optional(),
@@ -43,7 +42,6 @@ export function LostOrWinModal() {
   const { id: leadId, isOpen, onClose, type } = useLostOrWin();
   const params = useParams<{ trackingId: string }>();
   const queryClient = useQueryClient();
-  const { earn } = useSpacePointCtx();
   const { reasons, isLoading } = useReasons(params.trackingId, type);
 
   const form = useForm({
@@ -73,11 +71,6 @@ export function LostOrWinModal() {
             },
           }),
         });
-
-        // Award Space Points on WIN
-        if (!isLost) {
-          earn("lead_won", "Lead marcado como ganho 🎉");
-        }
 
         toast.success("Lead atualizado com sucesso");
         form.reset();
