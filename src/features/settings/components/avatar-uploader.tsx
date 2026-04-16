@@ -6,12 +6,14 @@ import { Camera, Loader2, X, Check } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useSpacePointCtx } from "@/features/space-point/components/space-point-provider";
 
 const MAX_SIZE_MB = 5;
 const ACCEPTED    = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 export function AvatarUploader() {
   const { data: session, isPending, refetch } = authClient.useSession();
+  const { earn } = useSpacePointCtx();
 
   const inputRef               = useRef<HTMLInputElement>(null);
   const [preview, setPreview]  = useState<string | null>(null);
@@ -84,6 +86,10 @@ export function AvatarUploader() {
       // 4. Update user profile via better-auth
       const { error } = await authClient.updateUser({ image: publicUrl });
       if (error) throw new Error(error.message);
+
+      if (name && publicUrl) {
+        earn("profile_completed", "Perfil completo (foto + informações) ✨");
+      }
 
       toast.success("Foto de perfil atualizada!");
       handleCancel();

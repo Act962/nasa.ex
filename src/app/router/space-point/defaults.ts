@@ -424,6 +424,13 @@ export const DEFAULT_RULES = [
     category: "system",
   },
   {
+    action: "profile_completed",
+    label: "Perfil completo (foto + informações)",
+    points: 15,
+    cooldownHours: null,
+    category: "system",
+  },
+  {
     action: "referral_activated",
     label: "Indicar novo cliente ativado",
     points: 300,

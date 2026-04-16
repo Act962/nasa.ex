@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { awardPoints } from "@/app/router/space-point/utils";
 
 export const updateAction = base
   .use(requiredAuthMiddleware)
@@ -21,16 +22,39 @@ export const updateAction = base
       orgProjectId: z.string().nullable().optional(),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context }) => {
     const { actionId, ...data } = input;
+    const { session } = context;
+
+    const previous = await prisma.action.findUnique({
+      where: { id: actionId },
+    });
 
     const action = await prisma.action.update({
       where: { id: actionId },
       data: {
         ...data,
-        closedAt: data.isDone === true ? new Date() : data.isDone === false ? null : undefined,
+        closedAt:
+          data.isDone === true
+            ? new Date()
+            : data.isDone === false
+              ? null
+              : undefined,
       },
     });
+
+    // Somente pontua quando transiciona de não-feito para concluído
+    if (previous && !previous.isDone && data.isDone === true) {
+      const orgId = session.activeOrganizationId;
+      if (orgId) {
+        await awardPoints(
+          previous.createdBy,
+          orgId,
+          "complete_card",
+          "Card concluído ✅",
+        );
+      }
+    }
 
     return { action };
   });
