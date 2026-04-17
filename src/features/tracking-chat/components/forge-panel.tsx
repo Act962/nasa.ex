@@ -348,7 +348,9 @@ function ProposalsTab({
           />
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto px-3 pb-3 flex flex-col gap-1.5">
+
+      {/* Lista com scroll fixo */}
+      <div className="overflow-y-auto px-3 pb-3 flex flex-col gap-1.5" style={{ maxHeight: 340 }}>
         {isLoading && (
           <p className="text-xs text-muted-foreground text-center py-4">
             Carregando...
@@ -361,34 +363,44 @@ function ProposalsTab({
         )}
         {proposals.map((p) => {
           const total = p.products.reduce(
-            (sum, pp) =>
-              sum + Number(pp.unitValue) * Number(pp.quantity),
+            (sum, pp) => sum + Number(pp.unitValue) * Number(pp.quantity),
             0,
           );
+          const isExpanded = expandedId === p.id;
           return (
-            <div
-              key={p.id}
-              className="rounded-lg border bg-card overflow-hidden"
-            >
-              <button
-                className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-muted/50 transition-colors"
-                onClick={() =>
-                  setExpandedId(expandedId === p.id ? null : p.id)
-                }
-              >
-                <span className="text-sm font-medium truncate">
-                  Proposta #{String(p.number).padStart(4, "0")} - {p.title}
-                </span>
-                {expandedId === p.id ? (
-                  <ChevronDownIcon className="size-4 text-muted-foreground shrink-0 ml-1" />
-                ) : (
-                  <ChevronRightIcon className="size-4 text-muted-foreground shrink-0 ml-1" />
-                )}
-              </button>
+            <div key={p.id} className="rounded-lg border bg-card overflow-hidden">
+              {/* Header do card — sempre visível */}
+              <div className="flex items-center gap-1 px-3 py-2.5">
+                <button
+                  className="flex-1 flex items-center gap-2 text-left min-w-0"
+                  onClick={() => setExpandedId(isExpanded ? null : p.id)}
+                >
+                  {isExpanded ? (
+                    <ChevronDownIcon className="size-4 text-muted-foreground shrink-0" />
+                  ) : (
+                    <ChevronRightIcon className="size-4 text-muted-foreground shrink-0" />
+                  )}
+                  <span className="text-sm font-medium truncate">
+                    Proposta #{String(p.number).padStart(4, "0")} - {p.title}
+                  </span>
+                </button>
 
-              {expandedId === p.id && (
-                <div className="px-3 pb-3 flex flex-col gap-2">
-                  <p className="text-base font-bold text-primary">
+                {/* Botão enviar link sempre visível */}
+                <Button
+                  size="sm"
+                  className="h-7 text-xs shrink-0 gap-1 ml-1"
+                  title="Enviar link no chat"
+                  onClick={() => handleShare(p.publicToken, p.number, p.title)}
+                >
+                  <Share2Icon className="size-3" />
+                  Enviar link
+                </Button>
+              </div>
+
+              {/* Detalhes expandidos */}
+              {isExpanded && (
+                <div className="px-3 pb-3 flex flex-col gap-2 border-t">
+                  <p className="text-base font-bold text-primary pt-2">
                     {formatBRL(total)}
                   </p>
                   {p.responsible && (
@@ -420,16 +432,6 @@ function ProposalsTab({
                       onClick={() => handleCopy(p.publicToken)}
                     >
                       <LinkIcon className="size-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="h-7 text-xs flex-1 gap-1"
-                      onClick={() =>
-                        handleShare(p.publicToken, p.number, p.title)
-                      }
-                    >
-                      <Share2Icon className="size-3" />
-                      Enviar no chat
                     </Button>
                     <Button
                       size="icon"
