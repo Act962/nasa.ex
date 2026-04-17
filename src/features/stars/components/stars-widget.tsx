@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/popover";
 import { StarIcon } from "./star-icon";
 import { StarsPurchaseModal } from "./stars-purchase-modal";
-import { PlanPurchaseModal } from "./plan-purchase-modal";
+import { SubscriptionPlansModal } from "./subscription-plans-modal";
 import { Plus, TrendingUp, AlertTriangle, Zap, Sparkles } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 
 // ─── Consumed bar ─────────────────────────────────────────────────────────────
 
@@ -76,19 +77,45 @@ export function StarsWidget() {
     staleTime: 0,
   });
 
+  const { data: activeSubscriptions } = useQuery({
+    queryKey: ["activeSubscriptionsWidget"],
+    queryFn: async () => {
+      const { data } = await authClient.subscription.list();
+      return data;
+    },
+    refetchInterval: 60_000,
+  });
+
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (isLoading) {
     return <div className="h-8 w-32 rounded-lg bg-muted/60 animate-pulse" />;
   }
 
   const balance = data?.balance ?? 0;
-  const planMonthlyStars = data?.planMonthlyStars ?? 0;
-  const planName = data?.planName ?? "";
-  const planSlug = data?.planSlug ?? "free";
 
-  const hasPlan = planSlug !== "free" && planMonthlyStars > 0;
-  const consumed = hasPlan ? Math.max(0, planMonthlyStars - balance) : 0;
-  const pctUsed = hasPlan ? (consumed / planMonthlyStars) * 100 : 0;
+  // Use Better Auth plan as priority, fallback to DB
+  const activeSub = activeSubscriptions?.find(
+    (s) => s.status === "active" || s.status === "trialing",
+  );
+  const planName = activeSub
+    ? activeSub.plan.toUpperCase()
+    : (data?.planName ?? "");
+  const planSlug = activeSub
+    ? activeSub.plan.toLowerCase()
+    : (data?.planSlug ?? "free");
+
+  // Prioritize monthlyStars from Better Auth limits, or fallback to ORPC data
+  const planMonthlyStars = activeSub?.limits?.monthlyStars
+    ? Number(activeSub.limits.monthlyStars)
+    : (data?.planMonthlyStars ?? 0);
+
+  // hasPlan is true if we have a valid slug from Stripe or DB
+  const hasPlan = planSlug !== "free" && (planMonthlyStars > 0 || !!activeSub);
+
+  const consumed = hasPlan ? balance : 0;
+  const remaining = hasPlan ? Math.max(0, planMonthlyStars - consumed) : 0;
+  const pctUsed =
+    hasPlan && planMonthlyStars > 0 ? (consumed / planMonthlyStars) * 100 : 0;
   const isLow = hasPlan && pctUsed >= 80;
   const isCritical = hasPlan && pctUsed >= 95;
 
@@ -136,7 +163,7 @@ export function StarsWidget() {
             className="w-72 p-0 overflow-hidden shadow-xl border-border/60"
           >
             {/* Header */}
-            <div className="px-4 py-3 border-b bg-gradient-to-br from-[#7C3AED]/8 to-transparent">
+            <div className="px-4 py-3 border-b bg-linear-to-br from-[#7C3AED]/8 to-transparent">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Stars consumidas
@@ -159,7 +186,7 @@ export function StarsWidget() {
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
                     Saldo restante:{" "}
-                    <strong>{balance.toLocaleString("pt-BR")} ★</strong>
+                    <strong>{remaining.toLocaleString("pt-BR")} ★</strong>
                   </p>
                 </>
               ) : (
@@ -219,7 +246,7 @@ export function StarsWidget() {
                     </p>
                     <p className="text-sm font-semibold flex items-center justify-center gap-0.5">
                       <StarIcon className="size-3" />
-                      {balance.toLocaleString("pt-BR")}
+                      {remaining.toLocaleString("pt-BR")}
                     </p>
                   </div>
                   <div className="rounded-lg bg-muted/40 px-2 py-1.5">
@@ -282,7 +309,7 @@ export function StarsWidget() {
         open={purchaseOpen}
         onClose={() => setPurchaseOpen(false)}
       />
-      <PlanPurchaseModal
+      <SubscriptionPlansModal
         open={planOpen}
         onClose={() => setPlanOpen(false)}
         currentPlanSlug={planSlug}

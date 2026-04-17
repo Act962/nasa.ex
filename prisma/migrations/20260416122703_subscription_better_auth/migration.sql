@@ -1,4 +1,8 @@
 -- AlterTable
+ALTER TABLE "plans" ADD COLUMN     "stripe_price_id" TEXT,
+ADD COLUMN     "stripe_product_id" TEXT;
+
+-- AlterTable
 ALTER TABLE "user" ADD COLUMN     "stripe_customer_id" TEXT;
 
 -- CreateTable

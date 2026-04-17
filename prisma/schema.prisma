@@ -63,6 +63,7 @@ model User {
   nasaCampaignOnboardingsResponsible NasaCampaignOnboarding[] @relation("NasaCampaignOnboardingResponsible")
   nasaCampaignTasksAssigned NasaCampaignTask[] @relation("NasaCampaignTaskAssignee")
   supportTickets SupportTicket[]
+  stripeCustomerId String? @map("stripe_customer_id")
 
 
   @@unique([email])
@@ -1512,12 +1513,38 @@ model Plan {
   ctaGatewayId  String?  @map("cta_gateway_id") // PaymentGatewayConfig.id
   highlighted   Boolean  @default(false)    // destaque "Mais popular"
   isActive      Boolean  @default(true)     @map("is_active")
+  stripeProductId String?  @map("stripe_product_id")
+  stripePriceId   String?  @map("stripe_price_id")
   createdAt     DateTime @default(now())    @map("created_at")
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
 
   organizations Organization[]
 
   @@map("plans")
+}
+
+model Subscription {
+  id                   String    @id
+  plan                 String
+  referenceId          String    @map("reference_id")
+  stripeCustomerId     String?   @map("stripe_customer_id")
+  stripeSubscriptionId String?   @map("stripe_subscription_id")
+  status               String
+  periodStart          DateTime? @map("period_start")
+  periodEnd            DateTime? @map("period_end")
+  cancelAtPeriodEnd    Boolean?  @map("cancel_at_period_end")
+  cancelAt             DateTime? @map("cancel_at")
+  canceledAt           DateTime? @map("canceled_at")
+  endedAt              DateTime? @map("ended_at")
+  seats                Int?
+  trialStart           DateTime? @map("trial_start")
+  trialEnd             DateTime? @map("trial_end")
+  billingInterval      String?   @map("billing_interval")
+  stripeScheduleId     String?   @map("stripe_schedule_id")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  @@map("subscription")
 }
 
 model StarPackage {
