@@ -213,7 +213,14 @@ export function Footer({
             />
           )}
           {showAgenda && (
-            <AgendaPanel onClose={() => setShowAgenda(false)} />
+            <AgendaPanel
+              onClose={() => setShowAgenda(false)}
+              lead={lead}
+              onInsertLink={(text) => {
+                setMessage((prev) => (prev ? prev + "\n" + text : text));
+                setShowAgenda(false);
+              }}
+            />
           )}
           {!showAudioRecorder ? (
             <InputGroup

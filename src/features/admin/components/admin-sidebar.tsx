@@ -19,6 +19,7 @@ import {
   Landmark,
   Keyboard,
   LifeBuoyIcon,
+  LayoutTemplate,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,7 @@ const NAV = [
   { href: "/admin/assets", icon: ImageIcon, label: "Padrão Visual" },
   { href: "/admin/payments", icon: Landmark, label: "Gateways" },
   { href: "/admin/moderators", icon: ShieldCheck, label: "Moderadores" },
+  { href: "/admin/patterns", icon: LayoutTemplate, label: "Padrões NASA" },
   { href: "/admin/atalhos", icon: Keyboard, label: "Atalhos" },
   { href: "/admin/support", icon: LifeBuoyIcon, label: "Suporte" },
 ];

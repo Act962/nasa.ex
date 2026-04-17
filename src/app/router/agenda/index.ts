@@ -13,6 +13,8 @@ import { updateTimeSlot } from "./timeslots/update";
 import { updateAgenda } from "./update";
 import { getPublicAgenda } from "./public/get";
 import { getPublicAgendaTimeSlots } from "./public/get-timeslots";
+import { getPublicAppointment } from "./public/get-appointment";
+import { cancelPublicAppointment } from "./public/cancel-appointment";
 import { createAppointment } from "./appointments/create";
 import { createAdminAppointment } from "./appointments/create-admin";
 import { getAppointmentsByTracking } from "./appointments/get-appointments-by-tracking";
@@ -54,6 +56,8 @@ export const agendaRouter = {
     getTimeSlots: getPublicAgendaTimeSlots,
     appointment: {
       create: createAppointment,
+      get: getPublicAppointment,
+      cancel: cancelPublicAppointment,
     },
   },
   appointments: {

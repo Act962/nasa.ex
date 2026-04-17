@@ -65,6 +65,10 @@ interface Props {
   onClose: () => void;
   trackingId?: string;
   initialDate?: Date;
+  initialName?: string;
+  initialPhone?: string;
+  initialEmail?: string;
+  onSuccess?: (appointmentId: string) => void;
 }
 
 const formSchema = z.object({
@@ -82,7 +86,7 @@ const dayMap: DayOfWeek[] = [
   DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY,
 ];
 
-export function CreateAppointmentModal({ open, onClose, trackingId, initialDate }: Props) {
+export function CreateAppointmentModal({ open, onClose, trackingId, initialDate, initialName, initialPhone, initialEmail, onSuccess }: Props) {
   // Load agendas (all org agendas when trackingId is absent)
   const { data: agendasData, isLoading: isLoadingAgendas } =
     useQueryAgendasByTracking(trackingId || undefined);
@@ -109,11 +113,20 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate 
     if (open) {
       setSelectedTime("");
       setManualTime("");
-      form.reset({ name: "", phone: "", code: "55", email: "", notes: "" });
+      // Extract just the numeric digits from the phone for the masked input
+      const rawPhone = initialPhone ? initialPhone.replace(/\D/g, "").replace(/^55/, "") : "";
+      const maskedPhone = rawPhone ? phoneMask(rawPhone) : "";
+      form.reset({
+        name: initialName ?? "",
+        phone: maskedPhone,
+        code: "55",
+        email: initialEmail ?? "",
+        notes: "",
+      });
       if (initialDate)
         setSelectedDate(parseDate(dayjs(initialDate).format("YYYY-MM-DD")));
     }
-  }, [open, initialDate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, initialDate, initialName, initialPhone, initialEmail]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-select when only 1 agenda available
   useEffect(() => {
@@ -160,7 +173,12 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate 
     createAdminAppointment.mutate(
       { agendaId: selectedAgendaId, date: dateStr, time: effectiveTime,
         name: data.name, phone, email: data.email, notes: data.notes, timeZone },
-      { onSuccess: onClose },
+      {
+        onSuccess: (data) => {
+          onClose();
+          onSuccess?.(data.appointment.id);
+        },
+      },
     );
   };
 

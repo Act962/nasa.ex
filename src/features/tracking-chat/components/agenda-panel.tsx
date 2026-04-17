@@ -1,15 +1,33 @@
 "use client";
 
-import { CalendarIcon, XIcon } from "lucide-react";
+import { useState } from "react";
+import { CalendarIcon, XIcon, CalendarPlusIcon } from "lucide-react";
 import { AllAppointmentsCalendar } from "@/features/agenda/components/all-appointments-calendar";
+import { Button } from "@/components/ui/button";
+import { CreateAppointmentModal } from "@/features/trackings/components/calendar/create-appointment-modal";
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 interface AgendaPanelProps {
   onClose: () => void;
+  onInsertLink?: (text: string) => void;
+  lead?: {
+    id: string;
+    name: string;
+    phone: string | null;
+    email?: string | null;
+  };
 }
 
-export function AgendaPanel({ onClose }: AgendaPanelProps) {
+export function AgendaPanel({ onClose, onInsertLink, lead }: AgendaPanelProps) {
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const handleAppointmentSuccess = (appointmentId: string) => {
+    const link = `${window.location.origin}/agenda/appointment/${appointmentId}`;
+    const text = `🗓️ Seu compromisso foi confirmado! Acompanhe, cancele ou reagende pelo link:\n${link}`;
+    onInsertLink?.(text);
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -39,12 +57,25 @@ export function AgendaPanel({ onClose }: AgendaPanelProps) {
             <CalendarIcon className="size-4 text-muted-foreground" />
             <span className="text-sm font-semibold">Todos os agendamentos</span>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <XIcon className="size-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {lead && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs gap-1.5"
+                onClick={() => setShowCreateModal(true)}
+              >
+                <CalendarPlusIcon className="size-3.5" />
+                Novo compromisso
+              </Button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <XIcon className="size-4" />
+            </button>
+          </div>
         </div>
 
         {/* Calendário — idêntico à tela de Agenda */}
@@ -52,6 +83,18 @@ export function AgendaPanel({ onClose }: AgendaPanelProps) {
           <AllAppointmentsCalendar />
         </div>
       </div>
+
+      {/* Modal de criação de compromisso pré-preenchido com dados do lead */}
+      {lead && (
+        <CreateAppointmentModal
+          open={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          initialName={lead.name}
+          initialPhone={lead.phone ?? undefined}
+          initialEmail={lead.email ?? undefined}
+          onSuccess={handleAppointmentSuccess}
+        />
+      )}
     </>
   );
 }
