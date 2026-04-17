@@ -177,136 +177,136 @@ export function AttachmentsSection({
             </Button>
           )}
         </div>
-
         {isExpanded && (
           <div className="space-y-2">
+            {attachments.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {attachments.map((att, i) => {
+                  const isImage = isImageFile(att.name);
+                  const resolvedUrl = useConstructUrl(att.url);
 
-        {attachments.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {attachments.map((att, i) => {
-              const isImage = isImageFile(att.name);
-              const resolvedUrl = useConstructUrl(att.url);
+                  if (isImage) {
+                    return (
+                      <div
+                        key={i}
+                        className="relative group rounded-md border bg-muted/30 overflow-hidden aspect-video"
+                      >
+                        <img
+                          src={resolvedUrl}
+                          alt={att.name}
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                        {/* Mobile: slightly dark background always. Desktop: dark background only on hover */}
+                        <div className="absolute inset-0 bg-black/40 md:bg-black/60 md:opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
+                          <span className="text-white text-xs truncate drop-shadow-md font-medium">
+                            {att.name}
+                          </span>
+                          <div className="flex items-center gap-1 mt-auto opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              size="icon"
+                              variant="secondary"
+                              className="size-6 h-6 w-6 text-xs transition-colors hover:bg-secondary/80"
+                              onClick={() => handlePreview(att)}
+                              title="Pré-visualizar imagem"
+                            >
+                              <EyeIcon className="size-3" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="secondary"
+                              className="size-6 h-6 w-6 text-xs transition-colors hover:bg-secondary/80"
+                              onClick={() =>
+                                handleDownload(resolvedUrl, att.name)
+                              }
+                              title="Baixar imagem"
+                            >
+                              <DownloadIcon className="size-3" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="destructive"
+                              className="size-6 h-6 w-6 text-xs ml-auto transition-colors"
+                              onClick={() => handleRemove(att.url)}
+                              disabled={disabled}
+                              title="Remover imagem"
+                            >
+                              <XIcon className="size-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
 
-              if (isImage) {
-                return (
-                  <div
-                    key={i}
-                    className="relative group rounded-md border bg-muted/30 overflow-hidden aspect-video"
-                  >
-                    <img
-                      src={resolvedUrl}
-                      alt={att.name}
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                    {/* Mobile: slightly dark background always. Desktop: dark background only on hover */}
-                    <div className="absolute inset-0 bg-black/40 md:bg-black/60 md:opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
-                      <span className="text-white text-xs truncate drop-shadow-md font-medium">
-                        {att.name}
-                      </span>
-                      <div className="flex items-center gap-1 mt-auto opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                  return (
+                    <div
+                      key={i}
+                      className="flex flex-col items-center justify-center p-3 gap-2 rounded-md border bg-background text-sm group relative aspect-video"
+                    >
+                      <div className="flex-1 flex flex-col items-center justify-center gap-2 mb-6">
+                        <div className="bg-muted p-2.5 rounded-full [&>svg]:size-6">
+                          {getFileIcon(att.name)}
+                        </div>
+                        <span
+                          className="w-full text-center truncate text-xs text-muted-foreground font-medium px-2"
+                          title={att.name}
+                        >
+                          {att.name}
+                        </span>
+                      </div>
+
+                      {/* Actions wrapper: Always visible on mobile, hidden -> hover on desktop */}
+                      <div className="absolute inset-0 bg-background/90 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-2">
                         <Button
                           size="icon"
                           variant="secondary"
-                          className="size-6 h-6 w-6 text-xs transition-colors hover:bg-secondary/80"
+                          className="size-7"
                           onClick={() => handlePreview(att)}
-                          title="Pré-visualizar imagem"
+                          title="Abrir em nova aba"
                         >
-                          <EyeIcon className="size-3" />
+                          <EyeIcon className="size-3.5" />
                         </Button>
                         <Button
                           size="icon"
                           variant="secondary"
-                          className="size-6 h-6 w-6 text-xs transition-colors hover:bg-secondary/80"
+                          className="size-7"
                           onClick={() => handleDownload(resolvedUrl, att.name)}
-                          title="Baixar imagem"
                         >
-                          <DownloadIcon className="size-3" />
+                          <DownloadIcon className="size-3.5" />
                         </Button>
                         <Button
                           size="icon"
                           variant="destructive"
-                          className="size-6 h-6 w-6 text-xs ml-auto transition-colors"
+                          className="size-7"
                           onClick={() => handleRemove(att.url)}
                           disabled={disabled}
-                          title="Remover imagem"
                         >
-                          <XIcon className="size-3" />
+                          <XIcon className="size-3.5" />
                         </Button>
                       </div>
                     </div>
-                  </div>
-                );
-              }
+                  );
+                })}
+              </div>
+            )}
 
-              return (
-                <div
-                  key={i}
-                  className="flex flex-col items-center justify-center p-3 gap-2 rounded-md border bg-background text-sm group relative aspect-video"
+            {adding && (
+              <div className="border rounded-md p-3 bg-muted/40 space-y-2">
+                <Uploader
+                  value=""
+                  onConfirm={handleAdd}
+                  fileTypeAccepted="outros"
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-xs"
+                  onClick={() => setAdding(false)}
                 >
-                  <div className="flex-1 flex flex-col items-center justify-center gap-2 mb-6">
-                    <div className="bg-muted p-2.5 rounded-full [&>svg]:size-6">
-                      {getFileIcon(att.name)}
-                    </div>
-                    <span
-                      className="w-full text-center truncate text-xs text-muted-foreground font-medium px-2"
-                      title={att.name}
-                    >
-                      {att.name}
-                    </span>
-                  </div>
-
-                  {/* Actions wrapper: Always visible on mobile, hidden -> hover on desktop */}
-                  <div className="absolute inset-0 bg-background/90 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-2">
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      className="size-7"
-                      onClick={() => handlePreview(att)}
-                      title="Abrir em nova aba"
-                    >
-                      <EyeIcon className="size-3.5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      className="size-7"
-                      onClick={() => handleDownload(resolvedUrl, att.name)}
-                    >
-                      <DownloadIcon className="size-3.5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="destructive"
-                      className="size-7"
-                      onClick={() => handleRemove(att.url)}
-                      disabled={disabled}
-                    >
-                      <XIcon className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {adding && (
-          <div className="border rounded-md p-3 bg-muted/40 space-y-2">
-            <Uploader
-              value=""
-              onConfirm={handleAdd}
-              fileTypeAccepted="outros"
-            />
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 text-xs"
-              onClick={() => setAdding(false)}
-            >
-              Cancelar
-            </Button>
-          </div>
-        )}
+                  Cancelar
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

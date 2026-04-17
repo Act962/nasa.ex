@@ -1,4 +1,4 @@
-import { parseAsInteger, useQueryStates } from "nuqs";
+import { parseAsInteger, parseAsString, useQueryState, useQueryStates } from "nuqs";
 import { useListActionByWorkspace } from "../../hooks/use-tasks";
 import { useActionFilters } from "../../hooks/use-action-filters";
 import { columns } from "./columns";
@@ -13,6 +13,8 @@ export const DataTable = ({ workspaceId }: DataTableProps) => {
     pageIndex: parseAsInteger.withDefault(0),
     pageSize: parseAsInteger.withDefault(20),
   });
+  const [q] = useQueryState("q", parseAsString.withDefault(""));
+
   const { filters } = useActionFilters();
   const { actions, total } = useListActionByWorkspace({
     workspaceId,
@@ -26,6 +28,7 @@ export const DataTable = ({ workspaceId }: DataTableProps) => {
     sortBy: filters.sortBy,
     sortOrder: filters.sortOrder,
     isArchived: filters.showArchived,
+    title: q,
   });
 
   return (
