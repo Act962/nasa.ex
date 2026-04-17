@@ -16,10 +16,10 @@ import { createCheckoutSession } from "@/lib/stripe";
 import { z } from "zod";
 
 const BodySchema = z.object({
-  priceId: z.string(),
-  mode: z.enum(["subscription", "payment"]),
-  itemType: z.enum(["plan", "topup"]),
-  itemSlug: z.string(),
+  priceId:    z.string(),
+  mode:       z.enum(["subscription", "payment"]),
+  itemType:   z.enum(["plan", "topup"]),
+  itemSlug:   z.string(),
   cancelPath: z.string().optional(),
 });
 
@@ -33,41 +33,30 @@ export async function POST(req: NextRequest) {
   // ── Org (active organization from session) ──────────────────────────────────
   const activeOrgId = session.session.activeOrganizationId;
   if (!activeOrgId) {
-    return NextResponse.json(
-      { error: "Nenhuma organização ativa." },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Nenhuma organização ativa." }, { status: 400 });
   }
 
   const org = await prisma.organization.findUnique({
     where: { id: activeOrgId },
     select: { id: true, name: true },
   });
-
   if (!org) {
-    return NextResponse.json(
-      { error: "Organização não encontrada." },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Organização não encontrada." }, { status: 404 });
   }
 
   // ── Body ────────────────────────────────────────────────────────────────────
   const body = BodySchema.safeParse(await req.json());
   if (!body.success) {
-    return NextResponse.json(
-      { error: "Dados inválidos.", details: body.error.issues },
-      { status: 422 },
-    );
+    return NextResponse.json({ error: "Dados inválidos.", details: body.error.issues }, { status: 422 });
   }
 
   const { priceId, mode, itemType, itemSlug, cancelPath } = body.data;
 
   // ── Build URLs ──────────────────────────────────────────────────────────────
   const origin = req.nextUrl.origin;
-  const successPath =
-    itemType === "plan" ? "/settings/plan?success=1" : "/integrations?topup=1";
+  const successPath = itemType === "plan" ? "/settings/plan?success=1" : "/integrations?topup=1";
   const successUrl = `${origin}${successPath}&session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${origin}${cancelPath ?? (itemType === "plan" ? "/settings/plan" : "/integrations")}`;
+  const cancelUrl  = `${origin}${cancelPath ?? (itemType === "plan" ? "/settings/plan" : "/integrations")}`;
 
   // ── Create session ──────────────────────────────────────────────────────────
   try {
@@ -89,7 +78,7 @@ export async function POST(req: NextRequest) {
     if (msg.includes("STRIPE_SECRET_KEY")) {
       return NextResponse.json(
         { error: "Gateway de pagamento não configurado. Contate o suporte." },
-        { status: 503 },
+        { status: 503 }
       );
     }
     return NextResponse.json({ error: msg }, { status: 500 });

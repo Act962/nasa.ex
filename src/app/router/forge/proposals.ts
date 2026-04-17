@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 import { inngest } from "@/inngest/client";
+import { awardPoints } from "../space-point/utils";
 
 const proposalProductShape = z.object({
   id: z.string(),
@@ -14,7 +15,12 @@ const proposalProductShape = z.object({
   discount: z.string().nullable(),
   description: z.string().nullable(),
   order: z.number(),
-  product: z.object({ id: z.string(), name: z.string(), unit: z.string(), imageUrl: z.string().nullable() }),
+  product: z.object({
+    id: z.string(),
+    name: z.string(),
+    unit: z.string(),
+    imageUrl: z.string().nullable(),
+  }),
 });
 
 const proposalShape = z.object({
@@ -39,8 +45,19 @@ const proposalShape = z.object({
   createdById: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),
-  client: z.object({ id: z.string(), name: z.string(), email: z.string().nullable(), phone: z.string().nullable() }).nullable(),
-  responsible: z.object({ id: z.string(), name: z.string(), email: z.string() }),
+  client: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      email: z.string().nullable(),
+      phone: z.string().nullable(),
+    })
+    .nullable(),
+  responsible: z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+  }),
   products: z.array(proposalProductShape),
 });
 
@@ -61,13 +78,21 @@ export const listForgeProposals = base
         where: {
           organizationId: context.org.id,
           ...(input.status ? { status: input.status as never } : {}),
-          ...(input.responsibleId ? { responsibleId: input.responsibleId } : {}),
+          ...(input.responsibleId
+            ? { responsibleId: input.responsibleId }
+            : {}),
         },
         include: {
-          client: { select: { id: true, name: true, email: true, phone: true } },
+          client: {
+            select: { id: true, name: true, email: true, phone: true },
+          },
           responsible: { select: { id: true, name: true, email: true } },
           products: {
-            include: { product: { select: { id: true, name: true, unit: true, imageUrl: true } } },
+            include: {
+              product: {
+                select: { id: true, name: true, unit: true, imageUrl: true },
+              },
+            },
             orderBy: { order: "asc" },
           },
         },
@@ -101,10 +126,16 @@ export const getForgeProposal = base
       const proposal = await prisma.forgeProposal.findFirst({
         where: { id: input.id, organizationId: context.org.id },
         include: {
-          client: { select: { id: true, name: true, email: true, phone: true } },
+          client: {
+            select: { id: true, name: true, email: true, phone: true },
+          },
           responsible: { select: { id: true, name: true, email: true } },
           products: {
-            include: { product: { select: { id: true, name: true, unit: true, imageUrl: true } } },
+            include: {
+              product: {
+                select: { id: true, name: true, unit: true, imageUrl: true },
+              },
+            },
             orderBy: { order: "asc" },
           },
         },
@@ -158,12 +189,16 @@ export const createForgeProposal = base
         .default([]),
     }),
   )
-  .output(z.object({ proposal: z.object({ id: z.string(), number: z.number() }) }))
+  .output(
+    z.object({ proposal: z.object({ id: z.string(), number: z.number() }) }),
+  )
   .handler(async ({ input, context, errors }) => {
     try {
       // Helpers to clean blank form strings → null/undefined
-      const strOrNull = (v?: string | null) => (v && v.trim() !== "" ? v : null);
-      const strOrUndef = (v?: string | null) => (v && v.trim() !== "" ? v : undefined);
+      const strOrNull = (v?: string | null) =>
+        v && v.trim() !== "" ? v : null;
+      const strOrUndef = (v?: string | null) =>
+        v && v.trim() !== "" ? v : undefined;
 
       const proposal = await prisma.$transaction(async (tx) => {
         const last = await tx.forgeProposal.findFirst({
@@ -181,7 +216,10 @@ export const createForgeProposal = base
             clientId: strOrNull(input.clientId),
             responsibleId: input.responsibleId,
             participants: input.participants,
-            validUntil: input.validUntil && input.validUntil.trim() !== "" ? new Date(input.validUntil) : null,
+            validUntil:
+              input.validUntil && input.validUntil.trim() !== ""
+                ? new Date(input.validUntil)
+                : null,
             description: strOrNull(input.description),
             discount: strOrNull(input.discount),
             discountType: strOrUndef(input.discountType) as never,
@@ -194,8 +232,14 @@ export const createForgeProposal = base
                 .filter((pp) => pp.productId && pp.productId.trim() !== "")
                 .map((pp) => ({
                   productId: pp.productId,
-                  quantity: pp.quantity && pp.quantity.trim() !== "" ? pp.quantity : "1",
-                  unitValue: pp.unitValue && pp.unitValue.trim() !== "" ? pp.unitValue : "0",
+                  quantity:
+                    pp.quantity && pp.quantity.trim() !== ""
+                      ? pp.quantity
+                      : "1",
+                  unitValue:
+                    pp.unitValue && pp.unitValue.trim() !== ""
+                      ? pp.unitValue
+                      : "0",
                   discount: strOrNull(pp.discount),
                   description: strOrNull(pp.description),
                   order: pp.order,
@@ -248,15 +292,20 @@ export const updateForgeProposal = base
   .output(z.object({ ok: z.boolean() }))
   .handler(async ({ input, context, errors }) => {
     try {
-      const strOrNull = (v?: string | null) => (v !== undefined ? (v && v.trim() !== "" ? v : null) : undefined);
-      const strOrUndef = (v?: string | null) => (v && v.trim() !== "" ? v : undefined);
+      const strOrNull = (v?: string | null) =>
+        v !== undefined ? (v && v.trim() !== "" ? v : null) : undefined;
+      const strOrUndef = (v?: string | null) =>
+        v && v.trim() !== "" ? v : undefined;
 
       await prisma.$transaction(async (tx) => {
         await tx.forgeProposal.update({
           where: { id: input.id, organizationId: context.org.id },
           data: {
             title: input.title,
-            clientId: input.clientId !== undefined ? strOrNull(input.clientId) : undefined,
+            clientId:
+              input.clientId !== undefined
+                ? strOrNull(input.clientId)
+                : undefined,
             responsibleId: input.responsibleId,
             participants: input.participants,
             validUntil:
@@ -265,29 +314,57 @@ export const updateForgeProposal = base
                   ? new Date(input.validUntil)
                   : null
                 : undefined,
-            description: input.description !== undefined ? strOrNull(input.description) : undefined,
-            discount: input.discount !== undefined ? strOrNull(input.discount) : undefined,
-            discountType: input.discountType !== undefined ? (strOrUndef(input.discountType) as never) : undefined,
-            paymentLink: input.paymentLink !== undefined ? strOrNull(input.paymentLink) : undefined,
-            paymentGateway: input.paymentGateway !== undefined ? (strOrUndef(input.paymentGateway) as never) : undefined,
-            headerConfig: input.headerConfig !== undefined
-              ? (input.headerConfig as Prisma.InputJsonValue)
-              : undefined,
+            description:
+              input.description !== undefined
+                ? strOrNull(input.description)
+                : undefined,
+            discount:
+              input.discount !== undefined
+                ? strOrNull(input.discount)
+                : undefined,
+            discountType:
+              input.discountType !== undefined
+                ? (strOrUndef(input.discountType) as never)
+                : undefined,
+            paymentLink:
+              input.paymentLink !== undefined
+                ? strOrNull(input.paymentLink)
+                : undefined,
+            paymentGateway:
+              input.paymentGateway !== undefined
+                ? (strOrUndef(input.paymentGateway) as never)
+                : undefined,
+            headerConfig:
+              input.headerConfig !== undefined
+                ? (input.headerConfig as Prisma.InputJsonValue)
+                : undefined,
             status: strOrUndef(input.status) as never,
           },
         });
         if (input.products !== undefined) {
-          await tx.forgeProposalProduct.deleteMany({ where: { proposalId: input.id } });
-          const validProducts = input.products.filter((pp) => pp.productId && pp.productId.trim() !== "");
+          await tx.forgeProposalProduct.deleteMany({
+            where: { proposalId: input.id },
+          });
+          const validProducts = input.products.filter(
+            (pp) => pp.productId && pp.productId.trim() !== "",
+          );
           if (validProducts.length > 0) {
             await tx.forgeProposalProduct.createMany({
               data: validProducts.map((pp) => ({
                 proposalId: input.id,
                 productId: pp.productId,
-                quantity: pp.quantity && pp.quantity.trim() !== "" ? pp.quantity : "1",
-                unitValue: pp.unitValue && pp.unitValue.trim() !== "" ? pp.unitValue : "0",
-                discount: pp.discount && pp.discount.trim() !== "" ? pp.discount : null,
-                description: pp.description && pp.description.trim() !== "" ? pp.description : null,
+                quantity:
+                  pp.quantity && pp.quantity.trim() !== "" ? pp.quantity : "1",
+                unitValue:
+                  pp.unitValue && pp.unitValue.trim() !== ""
+                    ? pp.unitValue
+                    : "0",
+                discount:
+                  pp.discount && pp.discount.trim() !== "" ? pp.discount : null,
+                description:
+                  pp.description && pp.description.trim() !== ""
+                    ? pp.description
+                    : null,
                 order: pp.order,
               })),
             });
@@ -300,7 +377,13 @@ export const updateForgeProposal = base
         try {
           const updated = await prisma.forgeProposal.findUnique({
             where: { id: input.id },
-            select: { id: true, organizationId: true, clientId: true, orgProjectId: true },
+            select: {
+              id: true,
+              organizationId: true,
+              clientId: true,
+              orgProjectId: true,
+              responsibleId: true,
+            },
           });
           if (updated) {
             await inngest.send({
@@ -312,9 +395,19 @@ export const updateForgeProposal = base
                 orgProjectId: updated.orgProjectId,
               },
             });
+
+            // Recompensar o responsável pela proposta com pontos (Space Points)
+            await awardPoints(
+              updated.responsibleId,
+              updated.organizationId,
+              "proposal_accepted",
+            );
           }
         } catch (inngestErr) {
-          console.error("[forge/proposals] Inngest send error:", inngestErr);
+          console.error(
+            "[forge/proposals] Inngest send / SpacePoints error:",
+            inngestErr,
+          );
           // não bloqueia — onboarding é best-effort
         }
       }
@@ -329,7 +422,11 @@ export const updateForgeProposal = base
 export const deleteForgeProposal = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
-  .route({ method: "DELETE", summary: "Delete forge proposal", tags: ["Forge"] })
+  .route({
+    method: "DELETE",
+    summary: "Delete forge proposal",
+    tags: ["Forge"],
+  })
   .input(z.object({ id: z.string() }))
   .output(z.object({ ok: z.boolean() }))
   .handler(async ({ input, context, errors }) => {
@@ -345,7 +442,11 @@ export const deleteForgeProposal = base
 
 // Public route — no auth
 export const getForgeProposalPublic = base
-  .route({ method: "GET", summary: "Get public forge proposal", tags: ["Forge"] })
+  .route({
+    method: "GET",
+    summary: "Get public forge proposal",
+    tags: ["Forge"],
+  })
   .input(z.object({ token: z.string() }))
   .output(z.object({ proposal: z.any() }))
   .handler(async ({ input, errors }) => {
@@ -353,10 +454,16 @@ export const getForgeProposalPublic = base
       const proposal = await prisma.forgeProposal.findUnique({
         where: { publicToken: input.token },
         include: {
-          client: { select: { id: true, name: true, email: true, phone: true } },
+          client: {
+            select: { id: true, name: true, email: true, phone: true },
+          },
           organization: { select: { id: true, name: true, logo: true } },
           products: {
-            include: { product: { select: { id: true, name: true, unit: true, imageUrl: true } } },
+            include: {
+              product: {
+                select: { id: true, name: true, unit: true, imageUrl: true },
+              },
+            },
             orderBy: { order: "asc" },
           },
         },
@@ -365,5 +472,38 @@ export const getForgeProposalPublic = base
       return { proposal };
     } catch {
       throw errors.NOT_FOUND;
+    }
+  });
+
+export const trackProposalView = base
+  .route({
+    method: "POST",
+    summary: "Track proposal view and award points",
+    tags: ["Forge"],
+  })
+  .input(z.object({ token: z.string() }))
+  .output(z.object({ success: z.boolean() }))
+  .handler(async ({ input }) => {
+    try {
+      const proposal = await prisma.forgeProposal.findUnique({
+        where: { publicToken: input.token },
+        select: { id: true, responsibleId: true, organizationId: true },
+      });
+
+      if (!proposal) return { success: false };
+
+      // Award points to the responsible user
+      // Importing awardPoints from space-point/utils
+      const { awardPoints } = await import("../space-point/utils");
+      await awardPoints(
+        proposal.responsibleId,
+        proposal.organizationId,
+        "proposal_viewed",
+      );
+
+      return { success: true };
+    } catch (err) {
+      console.error("[forge/proposals trackView]", err);
+      return { success: false };
     }
   });

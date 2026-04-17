@@ -47,17 +47,6 @@ function useAdminOrgUsers(orgId: string | null, page: number) {
   });
 }
 
-function useAdminOrgRules(orgId: string | null) {
-  return useQuery({
-    ...orpc.spacePoint.adminOrgRules.queryOptions({
-      input: { orgId: orgId ?? "" },
-    }),
-    queryKey: ["admin", "spacePoints", "orgRules", orgId],
-    enabled: !!orgId,
-    staleTime: 30_000,
-  });
-}
-
 function useAdminAdjust() {
   const qc = useQueryClient();
   return useMutation({

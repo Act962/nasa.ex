@@ -2,6 +2,8 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { awardPoints } from "../space-point/utils";
+import { pusherServer } from "@/lib/pusher";
 
 // 🟦 UPDATE
 export const updateLeadAction = base
@@ -30,6 +32,11 @@ export const updateLeadAction = base
           id: true,
           statusId: true,
           trackingId: true,
+          tracking: {
+            select: {
+              organizationId: true,
+            },
+          },
         },
       });
 
@@ -66,6 +73,23 @@ export const updateLeadAction = base
           },
         }),
       ]);
+
+      // Gamificação em tempo real
+      const spAction =
+        leadAction === "WON" ? "lead_won" : "penalty_lead_lost_nofollowup";
+
+      try {
+        await awardPoints(
+          userId,
+          leadExists.tracking.organizationId,
+          spAction,
+          leadAction === "WON"
+            ? "Lead marcado como ganho 🎉"
+            : "Lead marcado como perdido ❌",
+        );
+      } catch (spErr) {
+        console.error("[leads/update-action] SpacePoint award error:", spErr);
+      }
 
       return {
         lead: leadExists,

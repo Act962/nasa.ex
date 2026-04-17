@@ -2,6 +2,8 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { inngest } from "@/inngest/client";
+import { awardPoints } from "@/app/router/space-point/utils";
+import { pusherServer } from "@/lib/pusher";
 
 export const submitResponse = base
   .route({
@@ -110,7 +112,7 @@ export const submitResponse = base
           }
         }
 
-        await tx.form.update({
+        const updatedForm = await tx.form.update({
           where: {
             id,
             published: true,
@@ -126,15 +128,42 @@ export const submitResponse = base
               increment: 1,
             },
           },
+          select: {
+            responses: true,
+            userId: true,
+            organizationId: true,
+          },
         });
+
+        // Gamificação em tempo real: Marcos de 10 e 100 respostas
+        if (updatedForm.responses === 10 || updatedForm.responses === 100) {
+          const action =
+            updatedForm.responses === 10
+              ? "form_10_responses"
+              : "form_100_responses";
+
+          try {
+            await awardPoints(
+              updatedForm.userId,
+              updatedForm.organizationId,
+              action,
+              undefined,
+              { formId: id },
+            );
+          } catch (spErr) {
+            console.error("[form/submit] SpacePoint award error:", spErr);
+            // Não bloqueia o submit do formulário se a pontuação falhar
+          }
+        }
       });
 
       // Verificar se este form faz parte de um processo de onboarding
       try {
-        const onboardingProcess = await prisma.clientOnboardingProcess.findFirst({
-          where: { OR: [{ brandFormId: id }, { onboardingFormId: id }] },
-          select: { id: true, brandFormId: true },
-        });
+        const onboardingProcess =
+          await prisma.clientOnboardingProcess.findFirst({
+            where: { OR: [{ brandFormId: id }, { onboardingFormId: id }] },
+            select: { id: true, brandFormId: true },
+          });
         if (onboardingProcess) {
           await inngest.send({
             name: "onboarding/form.submitted",

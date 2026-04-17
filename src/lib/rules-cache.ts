@@ -26,7 +26,7 @@ export async function getOrgRules(orgId: string): Promise<{ spRules: SpRule[]; s
 
   const [spRules, starRules] = await Promise.all([
     prisma.spacePointRule.findMany({
-      where: { orgId, isActive: true },
+      where: { isActive: true },
       select: { action: true, points: true, isActive: true, cooldownHours: true, popupTemplateId: true },
     }),
     prisma.starRule.findMany({

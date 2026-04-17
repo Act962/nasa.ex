@@ -24,6 +24,7 @@ export const listActionByWorkspace = base
         .default("order"),
       sortOrder: z.enum(["asc", "desc"]).optional().default("asc"),
       isArchived: z.boolean().optional().default(false),
+      title: z.string().optional(),
     }),
   )
 
@@ -66,6 +67,12 @@ export const listActionByWorkspace = base
         dueDate: {
           ...(input.dueDateFrom && { gte: input.dueDateFrom }),
           ...(input.dueDateTo && { lte: input.dueDateTo }),
+        },
+      }),
+      ...(input.title && {
+        title: {
+          contains: input.title,
+          mode: "insensitive",
         },
       }),
     };

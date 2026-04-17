@@ -1,6 +1,24 @@
-import { adminAdjustUserPoints, adminCreateOrgRule, adminGetOrgRules, adminGetOrgUsers, adminGetSpaceOverview, adminUpdateOrgRule } from "./admin-routes";
-import { createSpacePointRule, deleteSpacePointPrize, deleteSpacePointRule, earnSpacePoints, getMySpacePoint, getSpacePointPrizes, getSpacePointRanking, getSpacePointRules, getUserStats, updateSpacePointRule, upsertSpacePointPrize } from "./user-routes";
-
+import {
+  adminAdjustUserPoints,
+  adminCreateOrgRule,
+  adminGetOrgRules,
+  adminGetOrgUsers,
+  adminGetSpaceOverview,
+  adminUpdateOrgRule,
+} from "./admin-routes";
+import {
+  createSpacePointRule,
+  deleteSpacePointPrize,
+  deleteSpacePointRule,
+  earnSpacePoints,
+  getMySpacePoint,
+  getSpacePointPrizes,
+  getSpacePointRanking,
+  getSpacePointRules,
+  getUserStats,
+  updateSpacePointRule,
+  upsertSpacePointPrize,
+} from "./user-routes";
 
 // ─── Router export ────────────────────────────────────────────────────────────
 export const spacePointRouter = {

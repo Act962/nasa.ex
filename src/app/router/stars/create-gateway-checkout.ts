@@ -23,42 +23,30 @@ import {
 const ORIGIN = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
 // Asaas billing type per payment method
-const ASAAS_BILLING: Record<
-  string,
-  "PIX" | "BOLETO" | "CREDIT_CARD" | "UNDEFINED"
-> = {
-  pix: "PIX",
-  boleto: "BOLETO",
+const ASAAS_BILLING: Record<string, "PIX" | "BOLETO" | "CREDIT_CARD" | "UNDEFINED"> = {
+  pix:         "PIX",
+  boleto:      "BOLETO",
   credit_card: "CREDIT_CARD",
 };
 
 export const createGatewayCheckout = base
   .use(requiredAuthMiddleware)
-  .route({
-    method: "POST",
-    summary: "Create payment checkout for Stars top-up",
-  })
-  .input(
-    z.object({
-      packageId: z.string(),
-      paymentMethod: z.enum(["pix", "credit_card", "boleto"]),
-    }),
-  )
-  .output(
-    z.object({
-      provider: z.string(),
-      checkoutUrl: z.string().nullable(),
-      paymentId: z.string(),
-      pixQrCode: z.string().nullable(), // base64 image (PIX inline)
-      pixPayload: z.string().nullable(), // copy-paste PIX code
-    }),
-  )
-  .handler(async ({ input, context, errors }) => {
+  .route({ method: "POST", summary: "Create payment checkout for Stars top-up" })
+  .input(z.object({
+    packageId:     z.string(),
+    paymentMethod: z.enum(["pix", "credit_card", "boleto"]),
+  }))
+  .output(z.object({
+    provider:    z.string(),
+    checkoutUrl: z.string().nullable(),
+    paymentId:   z.string(),
+    pixQrCode:   z.string().nullable(),   // base64 image (PIX inline)
+    pixPayload:  z.string().nullable(),   // copy-paste PIX code
+  }))
+  .handler(async ({ input, context }) => {
     const { user, session } = context;
     const orgId = session.activeOrganizationId;
-    if (!orgId) {
-      throw errors.NOT_FOUND({ message: "Nenhuma organização ativa." });
-    }
+    if (!orgId) throw new Error("Nenhuma organização ativa.");
 
     // ── Load package ───────────────────────────────────────────────────────────
     const pkg = await prisma.starPackage.findUniqueOrThrow({
@@ -72,81 +60,71 @@ export const createGatewayCheckout = base
 
     if (input.paymentMethod === "pix" || input.paymentMethod === "boleto") {
       gw = await prisma.paymentGatewayConfig.findFirst({
-        where: { provider: "asaas", isActive: true },
+        where:   { provider: "asaas", isActive: true },
         orderBy: { isDefault: "desc" },
       });
-      if (!gw)
-        throw new Error(
-          "PIX e Boleto requerem Asaas configurado. Contate o suporte.",
-        );
+      if (!gw) throw new Error("PIX e Boleto requerem Asaas configurado. Contate o suporte.");
     } else {
       // credit_card: try Stripe first
       gw = await prisma.paymentGatewayConfig.findFirst({
-        where: { provider: "stripe", isActive: true },
+        where:   { provider: "stripe", isActive: true },
         orderBy: { isDefault: "desc" },
       });
       // fallback to Asaas
       if (!gw) {
         gw = await prisma.paymentGatewayConfig.findFirst({
-          where: { provider: "asaas", isActive: true },
+          where:   { provider: "asaas", isActive: true },
           orderBy: { isDefault: "desc" },
         });
       }
-      if (!gw)
-        throw errors.NOT_FOUND({
-          message: "Nenhum gateway de cartão disponível. Contate o suporte.",
-        });
+      if (!gw) throw new Error("Nenhum gateway de cartão disponível. Contate o suporte.");
     }
 
     // ── Create StarsPayment record ─────────────────────────────────────────────
     const payment = await prisma.starsPayment.create({
       data: {
-        userId: user.id,
+        userId:         user.id,
         organizationId: orgId,
-        packageId: pkg.id,
-        starsAmount: pkg.stars,
-        amountBrl: pkg.priceBrl,
-        provider: gw.provider,
-        gatewayId: gw.id,
-        status: "pending",
-        metadata: { paymentMethod: input.paymentMethod },
+        packageId:      pkg.id,
+        starsAmount:    pkg.stars,
+        amountBrl:      pkg.priceBrl,
+        provider:       gw.provider,
+        gatewayId:      gw.id,
+        status:         "pending",
+        metadata:       { paymentMethod: input.paymentMethod },
       },
     });
 
     const successUrl = `${ORIGIN}/settings/stars?payment=success&pid=${payment.id}`;
-    const cancelUrl = `${ORIGIN}/settings/stars?payment=cancelled`;
+    const cancelUrl  = `${ORIGIN}/settings/stars?payment=cancelled`;
 
     // ─────────────────────────────────────────────────────────────────────────
     // STRIPE  (credit_card)
     // ─────────────────────────────────────────────────────────────────────────
     if (gw.provider === "stripe") {
-      const stripe = new Stripe(gw.secretKey, {
-        apiVersion: "2026-03-25.dahlia",
-      });
+      const stripe = new Stripe(gw.secretKey, { apiVersion: "2026-03-25.dahlia" });
 
       const stripeSession = await stripe.checkout.sessions.create({
-        mode: "payment",
+        mode:           "payment",
         customer_email: user.email,
-        line_items: [
-          {
-            price_data: {
-              currency: "brl",
-              unit_amount: Math.round(Number(pkg.priceBrl) * 100),
-              product_data: {
-                name: `${pkg.stars} Stars — ${pkg.label}`,
-                description: "NASA.ex Platform Credits",
-              },
+        line_items: [{
+          price_data: {
+            currency:     "brl",
+            unit_amount:  Math.round(Number(pkg.priceBrl) * 100),
+            product_data: {
+              name:        `${pkg.stars} Stars — ${pkg.label}`,
+              description: "NASA.ex Platform Credits",
             },
-            quantity: 1,
           },
-        ],
+          quantity: 1,
+        }],
         success_url: `${successUrl}&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: cancelUrl,
+        cancel_url:   cancelUrl,
         metadata: {
           starsPaymentId: payment.id,
-          packageId: pkg.id,
+          packageId:      pkg.id,
           organizationId: orgId,
-          stars: String(pkg.stars),
+          stars:          String(pkg.stars),
         },
         payment_method_types: ["card"],
         locale: "pt-BR",
@@ -154,15 +132,15 @@ export const createGatewayCheckout = base
 
       await prisma.starsPayment.update({
         where: { id: payment.id },
-        data: { externalId: stripeSession.id },
+        data:  { externalId: stripeSession.id },
       });
 
       return {
-        provider: "stripe",
+        provider:    "stripe",
         checkoutUrl: stripeSession.url!,
-        paymentId: payment.id,
-        pixQrCode: null,
-        pixPayload: null,
+        paymentId:   payment.id,
+        pixQrCode:   null,
+        pixPayload:  null,
       };
     }
 
@@ -170,37 +148,30 @@ export const createGatewayCheckout = base
     // ASAAS  (pix | boleto | credit_card fallback)
     // ─────────────────────────────────────────────────────────────────────────
     if (gw.provider === "asaas") {
-      const env = gw.environment as AsaasEnv;
+      const env         = gw.environment as AsaasEnv;
       const billingType = ASAAS_BILLING[input.paymentMethod] ?? "UNDEFINED";
 
       // 1. Find or create Asaas customer
       const customer = await findOrCreateCustomer(
-        gw.secretKey,
-        env,
+        gw.secretKey, env,
         user.email,
         user.name ?? user.email,
       );
 
       // 2. Create charge with the requested billing type
       const charge = await createCharge(gw.secretKey, env, {
-        customerId: customer.id,
+        customerId:         customer.id,
         billingType,
-        value: Number(pkg.priceBrl),
-        dueDate: dueDatePlus(3),
-        description: `${pkg.stars} Stars — ${pkg.label} — NASA.ex`,
-        externalReference: payment.id,
+        value:              Number(pkg.priceBrl),
+        dueDate:            dueDatePlus(3),
+        description:        `${pkg.stars} Stars — ${pkg.label} — NASA.ex`,
+        externalReference:  payment.id,
         callbackSuccessUrl: successUrl,
       });
 
       await prisma.starsPayment.update({
         where: { id: payment.id },
-        data: {
-          externalId: charge.id,
-          metadata: {
-            asaasCustomerId: customer.id,
-            paymentMethod: input.paymentMethod,
-          },
-        },
+        data:  { externalId: charge.id, metadata: { asaasCustomerId: customer.id, paymentMethod: input.paymentMethod } },
       });
 
       // 3. For PIX: fetch QR code inline for best UX
@@ -209,8 +180,8 @@ export const createGatewayCheckout = base
 
       if (input.paymentMethod === "pix") {
         try {
-          const qr = await getPixQrCode(gw.secretKey, env, charge.id);
-          pixQrCode = qr.encodedImage;
+          const qr  = await getPixQrCode(gw.secretKey, env, charge.id);
+          pixQrCode  = qr.encodedImage;
           pixPayload = qr.payload;
         } catch {
           // QR fallback — client will use invoiceUrl
@@ -218,9 +189,9 @@ export const createGatewayCheckout = base
       }
 
       return {
-        provider: "asaas",
+        provider:    "asaas",
         checkoutUrl: charge.invoiceUrl ?? null,
-        paymentId: payment.id,
+        paymentId:   payment.id,
         pixQrCode,
         pixPayload,
       };

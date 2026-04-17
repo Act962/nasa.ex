@@ -1,9 +1,11 @@
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useSpacePointCtx } from "@/features/space-point/components/space-point-provider";
 
 export function useMutationUpdateLeads() {
   const queryClient = useQueryClient();
+  const { earn } = useSpacePointCtx();
   return useMutation(
     orpc.leads.updateManyStatus.mutationOptions({
       onSuccess: () => {
@@ -11,6 +13,7 @@ export function useMutationUpdateLeads() {
           queryKey: ["leads.listLeadsByStatus"],
         });
         toast.success("Lead atualizado");
+        earn("move_lead_stage", "Lead movimentado 🚀");
       },
       onError: () => {
         toast.error("Erro ao atualizar lead");

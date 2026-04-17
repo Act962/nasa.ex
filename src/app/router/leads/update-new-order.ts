@@ -90,6 +90,16 @@ export const updateNewOrder = base
         },
       });
 
+      await recordLeadHistory({
+        leadId,
+        userId: context.user.id,
+        action: LeadAction.ACTIVE,
+        notes: statusChanged
+          ? "Status do lead alterado via Kanban"
+          : "Posição do lead alterada na coluna",
+        tx,
+      });
+
       let workflows: { id: string }[] = [];
 
       if (statusChanged) {
@@ -111,16 +121,6 @@ export const updateNewOrder = base
           },
         });
       }
-
-      await recordLeadHistory({
-        leadId,
-        userId: context.user.id,
-        action: LeadAction.ACTIVE,
-        notes: statusChanged
-          ? "Status do lead alterado via Kanban"
-          : "Posição do lead alterada na coluna",
-        tx,
-      });
 
       return {
         updatedLead,

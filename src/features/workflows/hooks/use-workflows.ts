@@ -5,6 +5,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useSpacePointCtx } from "@/features/space-point/components/space-point-provider";
 
 export const useSuspenseWorkflows = (trackingId: string) => {
   return useSuspenseQuery(
@@ -28,11 +29,13 @@ export const useSuspenseWorkflow = (workflowId: string) => {
 
 export const useCreateWorkflow = () => {
   const queryClient = useQueryClient();
+  const { earn } = useSpacePointCtx();
 
   return useMutation(
     orpc.workflow.create.mutationOptions({
       onSuccess: (data) => {
         toast.success("Workflow criado com sucesso!");
+        earn("automation_created", "Novo workflow criado ✨");
         queryClient.invalidateQueries({
           queryKey: orpc.workflow.list.queryKey({
             input: {
@@ -129,6 +132,7 @@ export const useDeleteWorkflow = () => {
 
 export const useExecuteWorkflow = () => {
   // const queryClient = useQueryClient();
+  const { earn } = useSpacePointCtx();
 
   return useMutation(
     orpc.workflow.execute.mutationOptions({

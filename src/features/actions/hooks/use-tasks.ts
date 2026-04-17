@@ -131,6 +131,7 @@ interface ListActionByWorkspace {
   sortBy?: "order" | "createdAt" | "dueDate" | "priority" | "title";
   sortOrder?: "asc" | "desc";
   isArchived?: boolean;
+  title?: string;
 }
 
 export const useListActionByWorkspace = ({
@@ -145,6 +146,7 @@ export const useListActionByWorkspace = ({
   sortBy = "createdAt",
   sortOrder = "desc",
   isArchived = false,
+  title = "",
 }: ListActionByWorkspace) => {
   const { data, isLoading } = useQuery(
     orpc.action.listByWorkspace.queryOptions({
@@ -160,6 +162,7 @@ export const useListActionByWorkspace = ({
         sortBy,
         sortOrder,
         isArchived,
+        title,
       },
     }),
   );

@@ -2,6 +2,13 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import { CheckIcon, ListTodo, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Action } from "../../types";
 import { SubActionItem } from "./sub-action-item";
 

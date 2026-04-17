@@ -447,6 +447,7 @@ function UploadModal({
     async (acceptedFiles: File[]) => {
       if (!acceptedFiles.length) return;
       setUploading(true);
+      let successCount = 0;
       for (const file of acceptedFiles) {
         try {
           // Get presigned URL
@@ -483,12 +484,15 @@ function UploadModal({
             mimeType: file.type,
             size: file.size,
           });
+          successCount++;
         } catch (e) {
           toast.error(`Erro ao enviar ${file.name}`);
         }
       }
       setUploading(false);
-      earn("upload_nbox", "Upload de arquivo no N.Box 📁");
+      if (successCount > 0) {
+        earn("upload_nbox", "Upload de arquivo no N.Box 📁");
+      }
       onClose();
     },
     [createItem, folderId, earn],

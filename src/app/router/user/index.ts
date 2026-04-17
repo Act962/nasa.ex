@@ -14,7 +14,7 @@ export const completeOnboarding = base
 
     // Idempotency: only process once
     const dbUser = await prisma.user.findUnique({
-      where:  { id: user.id },
+      where: { id: user.id },
       select: { onboardingCompletedAt: true },
     });
     if (dbUser?.onboardingCompletedAt) {
@@ -23,23 +23,32 @@ export const completeOnboarding = base
 
     await prisma.user.update({
       where: { id: user.id },
-      data:  { onboardingCompletedAt: new Date() },
+      data: { onboardingCompletedAt: new Date() },
     });
 
     // Award 10 Space Points if inside an org
     const orgId = session.activeOrganizationId;
     if (orgId) {
       const userPoint = await prisma.userSpacePoint.upsert({
-        where:  { userId_orgId: { userId: user.id, orgId } },
-        create: { userId: user.id, orgId, totalPoints: 10, weeklyPoints: 10, weekStart: new Date() },
-        update: { totalPoints: { increment: 10 }, weeklyPoints: { increment: 10 } },
+        where: { userId: user.id },
+        create: {
+          userId: user.id,
+          orgId,
+          totalPoints: 10,
+          weeklyPoints: 10,
+          weekStart: new Date(),
+        },
+        update: {
+          totalPoints: { increment: 10 },
+          weeklyPoints: { increment: 10 },
+        },
       });
       await prisma.spacePointTransaction.create({
         data: {
           userPointId: userPoint.id,
-          points:      10,
+          points: 10,
           description: "🚀 Missão de Boas-Vindas completa! Bem-vindo ao NASA!",
-          metadata:    { source: "onboarding" },
+          metadata: { source: "onboarding" },
         },
       });
     }

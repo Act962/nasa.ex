@@ -60,7 +60,9 @@ const FIELD_ENTITY_MAP: Record<string, EntityType> = {
 };
 
 export function getEntityType(fieldKey: string): EntityType | null {
-  return FIELD_ENTITY_MAP[fieldKey.toLowerCase().replace(/[^a-z0-9]/g, "")] ?? null;
+  return (
+    FIELD_ENTITY_MAP[fieldKey.toLowerCase().replace(/[^a-z0-9]/g, "")] ?? null
+  );
 }
 
 // ─── Result item ──────────────────────────────────────────────────────────────
@@ -130,7 +132,10 @@ export function EntitySearchField({
   // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     };
@@ -146,7 +151,9 @@ export function EntitySearchField({
       <div
         className={cn(
           "flex items-center gap-2 w-full bg-zinc-800 border rounded-lg px-3 py-2 transition-colors",
-          open ? "border-violet-500/60" : "border-zinc-700 hover:border-zinc-600",
+          open
+            ? "border-violet-500/60"
+            : "border-zinc-700 hover:border-zinc-600",
         )}
         onClick={() => {
           setOpen(true);
@@ -173,10 +180,16 @@ export function EntitySearchField({
           className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-600 outline-none"
         />
         {isFetching && (
-          <span className="text-[10px] text-zinc-600 animate-pulse">buscando...</span>
+          <span className="text-[10px] text-zinc-600 animate-pulse">
+            buscando...
+          </span>
         )}
-        {isSelected && <CheckIcon className="w-3.5 h-3.5 text-violet-400 shrink-0" />}
-        {!isSelected && <ChevronDownIcon className="w-3.5 h-3.5 text-zinc-600 shrink-0" />}
+        {isSelected && (
+          <CheckIcon className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+        )}
+        {!isSelected && (
+          <ChevronDownIcon className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
+        )}
       </div>
 
       {/* Dropdown */}
@@ -198,7 +211,9 @@ export function EntitySearchField({
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-white truncate">{item.label}</p>
                 {item.sublabel && (
-                  <p className="text-[11px] text-zinc-500 truncate">{item.sublabel}</p>
+                  <p className="text-[11px] text-zinc-500 truncate">
+                    {item.sublabel}
+                  </p>
                 )}
               </div>
               {value === item.id && (
@@ -212,7 +227,9 @@ export function EntitySearchField({
       {/* No results */}
       {open && !isFetching && query.length > 0 && results.length === 0 && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-xl px-3 py-3">
-          <p className="text-xs text-zinc-500">Nenhum resultado para "{query}"</p>
+          <p className="text-xs text-zinc-500">
+            Nenhum resultado para "{query}"
+          </p>
         </div>
       )}
     </div>
@@ -229,13 +246,21 @@ interface PlainFieldProps {
   onEnter?: () => void;
 }
 
-export function PlainField({ label, value, onChange, placeholder, onEnter }: PlainFieldProps) {
+export function PlainField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  onEnter,
+}: PlainFieldProps) {
   return (
     <input
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      onKeyDown={(e) => { if (e.key === "Enter" && onEnter) onEnter(); }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && onEnter) onEnter();
+      }}
       placeholder={placeholder ?? label}
       className="w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-violet-500/60 transition-colors"
     />
@@ -251,7 +276,12 @@ interface TextareaFieldProps {
   placeholder?: string;
 }
 
-export function TextareaField({ label, value, onChange, placeholder }: TextareaFieldProps) {
+export function TextareaField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: TextareaFieldProps) {
   return (
     <textarea
       value={value}
@@ -276,16 +306,20 @@ export function DatePickerField({ value, onChange }: DatePickerFieldProps) {
       <input
         type="date"
         value={value}
+        max="9999-12-31"
         onChange={(e) => onChange(e.target.value)}
         className={cn(
           "w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-lg px-3 py-2",
-          "text-sm text-white focus:outline-none focus:border-violet-500/60 transition-colors [color-scheme:dark]",
+          "text-sm text-white focus:outline-none focus:border-violet-500/60 transition-colors scheme-dark",
         )}
       />
       {value && (
         <p className="text-[11px] text-zinc-500">
           {new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR", {
-            weekday: "long", day: "2-digit", month: "long", year: "numeric",
+            weekday: "long",
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
           })}
         </p>
       )}
@@ -296,12 +330,16 @@ export function DatePickerField({ value, onChange }: DatePickerFieldProps) {
 // ─── DateTime picker field ────────────────────────────────────────────────────
 
 interface DateTimePickerFieldProps {
-  value: string;         // "YYYY-MM-DDTHH:mm"
+  value: string; // "YYYY-MM-DDTHH:mm"
   onChange: (value: string) => void;
   onConfirm?: () => void;
 }
 
-export function DateTimePickerField({ value, onChange, onConfirm }: DateTimePickerFieldProps) {
+export function DateTimePickerField({
+  value,
+  onChange,
+  onConfirm,
+}: DateTimePickerFieldProps) {
   // Valor mínimo: agora (sem segundos)
   const minValue = new Date();
   minValue.setSeconds(0, 0);
@@ -313,22 +351,31 @@ export function DateTimePickerField({ value, onChange, onConfirm }: DateTimePick
         type="datetime-local"
         value={value}
         min={min}
+        max="9999-12-31T23:59"
         onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter" && onConfirm) onConfirm(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && onConfirm) onConfirm();
+        }}
         className={cn(
           "w-full bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-lg px-3 py-2",
           "text-sm text-white focus:outline-none focus:border-violet-500/60 transition-colors",
           // Estiliza o ícone nativo do datetime-local
-          "[color-scheme:dark]",
+          "scheme-dark",
         )}
       />
       {value && (
         <p className="text-[11px] text-zinc-500">
           {new Date(value).toLocaleDateString("pt-BR", {
-            weekday: "long", day: "2-digit", month: "long", year: "numeric",
+            weekday: "long",
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
           })}{" "}
           às{" "}
-          {new Date(value).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+          {new Date(value).toLocaleTimeString("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
         </p>
       )}
     </div>

@@ -9,6 +9,7 @@ import { sendMedia } from "@/http/uazapi/send-media";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import z from "zod";
+import { attendLeadIfWaiting } from "./utils";
 
 export const createMessageWithImage = base
   .use(requiredAuthMiddleware)
@@ -99,6 +100,9 @@ export const createMessageWithImage = base
         "message:created",
         messageCreated,
       );
+
+      // Trigger gamification/attendance logic
+      await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
 
       return {
         message: {

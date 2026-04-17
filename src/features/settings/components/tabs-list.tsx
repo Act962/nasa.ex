@@ -9,6 +9,7 @@ import {
   Clock,
   Bell,
   FolderIcon,
+  CreditCard,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -61,6 +62,12 @@ const tabsLink = [
     label: "Notificações",
     href: "/notifications",
     icon: Bell,
+    singleAllowed: true,
+  },
+  {
+    label: "Assinatura",
+    href: "/billing",
+    icon: CreditCard,
     singleAllowed: true,
   },
 ];

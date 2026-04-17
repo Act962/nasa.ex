@@ -4,25 +4,13 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  CheckCircle2,
-  Loader2,
-  Sparkles,
-  Zap,
-  ChevronLeft,
-  ExternalLink,
-  Copy,
-  Check,
-  QrCode,
-  CreditCard,
-  FileText,
+  CheckCircle2, Loader2, Sparkles, Zap, ChevronLeft,
+  ExternalLink, Copy, Check, QrCode, CreditCard, FileText,
 } from "lucide-react";
 import { StarIcon } from "./star-icon";
 import { toast } from "sonner";
@@ -39,43 +27,40 @@ interface StarsPurchaseModalProps {
 
 // ── Payment method display config ─────────────────────────────────────────────
 
-const METHOD_META: Record<
-  PaymentMethod,
-  {
-    icon: React.ElementType;
-    color: string;
-    bg: string;
-    border: string;
-    activeBorder: string;
-    activeBg: string;
-    badge?: string;
-  }
-> = {
+const METHOD_META: Record<PaymentMethod, {
+  icon: React.ElementType;
+  color: string;
+  bg: string;
+  border: string;
+  activeBorder: string;
+  activeBg: string;
+  badge?: string;
+}> = {
   pix: {
     icon: QrCode,
-    color: "text-emerald-600 dark:text-emerald-400",
-    bg: "bg-emerald-50 dark:bg-emerald-900/30",
-    border: "border-emerald-200 dark:border-emerald-800/50",
+    color:        "text-emerald-600 dark:text-emerald-400",
+    bg:           "bg-emerald-50 dark:bg-emerald-900/30",
+    border:       "border-emerald-200 dark:border-emerald-800/50",
     activeBorder: "border-emerald-500",
-    activeBg: "bg-emerald-50/80 dark:bg-emerald-900/20",
-    badge: "Instantâneo",
+    activeBg:     "bg-emerald-50/80 dark:bg-emerald-900/20",
+    badge:        "Instantâneo",
   },
   credit_card: {
     icon: CreditCard,
-    color: "text-violet-600 dark:text-violet-400",
-    bg: "bg-violet-50 dark:bg-violet-900/30",
-    border: "border-violet-200 dark:border-violet-800/50",
+    color:        "text-violet-600 dark:text-violet-400",
+    bg:           "bg-violet-50 dark:bg-violet-900/30",
+    border:       "border-violet-200 dark:border-violet-800/50",
     activeBorder: "border-violet-500",
-    activeBg: "bg-violet-50/80 dark:bg-violet-900/20",
+    activeBg:     "bg-violet-50/80 dark:bg-violet-900/20",
   },
   boleto: {
     icon: FileText,
-    color: "text-amber-600 dark:text-amber-400",
-    bg: "bg-amber-50 dark:bg-amber-900/30",
-    border: "border-amber-200 dark:border-amber-800/50",
+    color:        "text-amber-600 dark:text-amber-400",
+    bg:           "bg-amber-50 dark:bg-amber-900/30",
+    border:       "border-amber-200 dark:border-amber-800/50",
     activeBorder: "border-amber-500",
-    activeBg: "bg-amber-50/80 dark:bg-amber-900/20",
-    badge: "3 dias úteis",
+    activeBg:     "bg-amber-50/80 dark:bg-amber-900/20",
+    badge:        "3 dias úteis",
   },
 };
 
@@ -84,16 +69,14 @@ const METHOD_META: Record<
 export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
   const queryClient = useQueryClient();
 
-  const [step, setStep] = useState<Step>("packages");
-  const [selectedPkg, setSelectedPkg] = useState<string | null>(null);
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(
-    null,
-  );
-  const [copied, setCopied] = useState(false);
+  const [step,           setStep]           = useState<Step>("packages");
+  const [selectedPkg,    setSelectedPkg]    = useState<string | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
+  const [copied,         setCopied]         = useState(false);
 
   // Payment result state
-  const [pixQrCode, setPixQrCode] = useState<string | null>(null);
-  const [pixPayload, setPixPayload] = useState<string | null>(null);
+  const [pixQrCode,   setPixQrCode]   = useState<string | null>(null);
+  const [pixPayload,  setPixPayload]  = useState<string | null>(null);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   // ── Queries ──────────────────────────────────────────────────────────────────
@@ -155,9 +138,9 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
     }, 300);
   };
 
-  const packages = packagesData?.packages ?? [];
-  const methods = methodsData?.methods ?? [];
-  const balance = balanceData?.balance ?? 0;
+  const packages    = packagesData?.packages   ?? [];
+  const methods     = methodsData?.methods     ?? [];
+  const balance     = balanceData?.balance     ?? 0;
   const hasGateways = methodsData?.hasGateways ?? false;
 
   const handleProceedWithPackage = () => {
@@ -184,19 +167,14 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
   };
 
   const goBack = () => {
-    if (step === "method") setStep("packages");
-    if (step === "pix") setStep("method");
+    if (step === "method")  setStep("packages");
+    if (step === "pix")     setStep("method");
   };
 
   const selectedPackage = packages.find((p) => p.id === selectedPkg);
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) handleClose();
-      }}
-    >
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <div className="flex items-center gap-2">
@@ -213,15 +191,14 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
             </div>
             <div>
               <DialogTitle className="text-base">
-                {step === "packages" && "Adquirir Stars"}
-                {step === "method" && "Forma de Pagamento"}
+                {step === "packages"   && "Adquirir Stars"}
+                {step === "method"     && "Forma de Pagamento"}
                 {step === "processing" && "Iniciando pagamento…"}
-                {step === "pix" && "Pagamento via PIX"}
-                {step === "success" && "Stars adicionadas!"}
+                {step === "pix"        && "Pagamento via PIX"}
+                {step === "success"    && "Stars adicionadas!"}
               </DialogTitle>
               <p className="text-[11px] text-muted-foreground">
-                Saldo atual:{" "}
-                <strong>{balance.toLocaleString("pt-BR")} ★</strong>
+                Saldo atual: <strong>{balance.toLocaleString("pt-BR")} ★</strong>
               </p>
             </div>
           </div>
@@ -237,16 +214,13 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
             {pkgLoading ? (
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="h-14 rounded-xl bg-muted animate-pulse"
-                  />
+                  <div key={i} className="h-14 rounded-xl bg-muted animate-pulse" />
                 ))}
               </div>
             ) : (
               <div className="space-y-2">
                 {packages.map((pkg) => {
-                  const isSelected = selectedPkg === pkg.id;
+                  const isSelected   = selectedPkg === pkg.id;
                   const pricePerStar = (pkg.priceBrl / pkg.stars).toFixed(3);
                   return (
                     <button
@@ -259,14 +233,10 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
                           : "border-border hover:border-[#7C3AED]/40 hover:bg-[#7C3AED]/5",
                       )}
                     >
-                      <div
-                        className={cn(
-                          "size-9 rounded-lg flex items-center justify-center shrink-0",
-                          isSelected
-                            ? "bg-yellow-100 dark:bg-yellow-900/40"
-                            : "bg-muted",
-                        )}
-                      >
+                      <div className={cn(
+                        "size-9 rounded-lg flex items-center justify-center shrink-0",
+                        isSelected ? "bg-yellow-100 dark:bg-yellow-900/40" : "bg-muted",
+                      )}>
                         <StarIcon className="size-4" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -277,10 +247,7 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-bold text-sm">
-                          R${" "}
-                          {Number(pkg.priceBrl).toLocaleString("pt-BR", {
-                            minimumFractionDigits: 2,
-                          })}
+                          R$ {Number(pkg.priceBrl).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </p>
                       </div>
                     </button>
@@ -292,8 +259,7 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
             <div className="flex items-start gap-2 rounded-xl bg-blue-50 border border-blue-100 p-3 dark:bg-blue-950/20 dark:border-blue-900/50">
               <Zap className="size-3.5 text-blue-500 shrink-0 mt-0.5" />
               <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
-                Stars adquiridas nunca expiram. São cobradas mensalmente pelas
-                integrações ativas.
+                Stars adquiridas nunca expiram. São cobradas mensalmente pelas integrações ativas.
               </p>
             </div>
 
@@ -303,13 +269,9 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
               className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-2"
             >
               {directPending ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" /> Processando…
-                </>
+                <><Loader2 className="size-4 animate-spin" /> Processando…</>
               ) : (
-                <>
-                  <Sparkles className="size-4" /> Escolher forma de pagamento
-                </>
+                <><Sparkles className="size-4" /> Escolher forma de pagamento</>
               )}
             </Button>
           </div>
@@ -323,15 +285,10 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
               <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border">
                 <div className="flex items-center gap-2">
                   <StarIcon className="size-4" />
-                  <span className="text-sm font-medium">
-                    {selectedPackage.label}
-                  </span>
+                  <span className="text-sm font-medium">{selectedPackage.label}</span>
                 </div>
                 <span className="font-bold text-sm">
-                  R${" "}
-                  {Number(selectedPackage.priceBrl).toLocaleString("pt-BR", {
-                    minimumFractionDigits: 2,
-                  })}
+                  R$ {Number(selectedPackage.priceBrl).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </span>
               </div>
             )}
@@ -341,10 +298,7 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
             {methodsLoading ? (
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="h-16 rounded-xl bg-muted animate-pulse"
-                  />
+                  <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
                 ))}
               </div>
             ) : (
@@ -364,40 +318,29 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
                           : `border-border hover:${meta.activeBorder} hover:${meta.activeBg}`,
                       )}
                     >
-                      <div
-                        className={cn(
-                          "size-10 rounded-xl flex items-center justify-center shrink-0",
-                          meta.bg,
-                        )}
-                      >
+                      <div className={cn("size-10 rounded-xl flex items-center justify-center shrink-0", meta.bg)}>
                         <Icon className={cn("size-5", meta.color)} />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="font-semibold text-sm">
-                            {method.label}
-                          </p>
+                          <p className="font-semibold text-sm">{method.label}</p>
                           {method.isSandbox && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 font-medium">
                               TESTE
                             </span>
                           )}
                           {meta.badge && (
-                            <span
-                              className={cn(
-                                "text-[9px] px-1.5 py-0.5 rounded font-medium",
-                                method.id === "pix"
-                                  ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                  : "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
-                              )}
-                            >
+                            <span className={cn(
+                              "text-[9px] px-1.5 py-0.5 rounded font-medium",
+                              method.id === "pix"
+                                ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                : "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+                            )}>
                               {meta.badge}
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          {method.description}
-                        </p>
+                        <p className="text-[11px] text-muted-foreground">{method.description}</p>
                       </div>
                     </button>
                   );
@@ -418,8 +361,8 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
                 {selectedMethod === "pix"
                   ? "Gerando QR Code PIX…"
                   : selectedMethod === "boleto"
-                    ? "Gerando Boleto…"
-                    : "Abrindo checkout seguro…"}
+                  ? "Gerando Boleto…"
+                  : "Abrindo checkout seguro…"}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 {selectedMethod === "credit_card"
@@ -458,11 +401,7 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
                   onClick={copyPixCode}
                   className="absolute right-2 top-2 flex items-center gap-1 text-[11px] text-[#7C3AED] hover:text-[#6D28D9] font-medium"
                 >
-                  {copied ? (
-                    <Check className="size-3" />
-                  ) : (
-                    <Copy className="size-3" />
-                  )}
+                  {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
                   {copied ? "Copiado!" : "Copiar"}
                 </button>
               </div>
@@ -479,8 +418,7 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
             <div className="flex items-start gap-2 rounded-xl bg-blue-50 border border-blue-100 p-3 dark:bg-blue-950/20 dark:border-blue-900/50">
               <Zap className="size-3.5 text-blue-500 shrink-0 mt-0.5" />
               <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
-                As Stars serão creditadas automaticamente após a confirmação do
-                pagamento.
+                As Stars serão creditadas automaticamente após a confirmação do pagamento.
               </p>
             </div>
           </div>
@@ -493,12 +431,8 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
               <CheckCircle2 className="size-8 text-emerald-600" />
             </div>
             <div className="space-y-1">
-              <p className="font-semibold text-emerald-700">
-                Stars adicionadas com sucesso!
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Seu saldo foi atualizado.
-              </p>
+              <p className="font-semibold text-emerald-700">Stars adicionadas com sucesso!</p>
+              <p className="text-sm text-muted-foreground">Seu saldo foi atualizado.</p>
             </div>
           </div>
         )}

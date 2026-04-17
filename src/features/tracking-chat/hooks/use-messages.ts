@@ -17,6 +17,8 @@ interface UseMutationTextMessageProps {
     id: string;
     name: string;
     phone: string | null;
+    statusFlow?: string;
+    createdAt?: Date | string;
   };
   messageSelected?: MarkedMessage;
 }
@@ -189,6 +191,8 @@ interface UseMutationMediaMessageProps {
     id: string;
     name: string;
     phone: string | null;
+    statusFlow?: string;
+    createdAt?: Date | string;
   };
   quotedMessageId?: string | null;
   messageSelected?: MarkedMessage;

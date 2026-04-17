@@ -11,6 +11,7 @@ import { pusherServer } from "@/lib/pusher";
 import { S3 } from "@/lib/s3-client";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import z from "zod";
+import { attendLeadIfWaiting } from "./utils";
 
 export const createMessageWithAudio = base
   .use(requiredAuthMiddleware)
@@ -117,6 +118,9 @@ export const createMessageWithAudio = base
         "message:created",
         messageCreated,
       );
+
+      // Trigger gamification/attendance logic
+      await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
 
       return {
         message,

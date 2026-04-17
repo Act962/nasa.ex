@@ -2,27 +2,30 @@ import { requireAdminMiddleware } from "@/app/middlewares/admin";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { getStripe } from "../../../lib/stripe";
 
 const adminBase = base.use(requireAdminMiddleware);
 
 const planShape = z.object({
-  id:           z.string(),
-  slug:         z.string(),
-  name:         z.string(),
-  slogan:       z.string().nullable(),
-  sortOrder:    z.number(),
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  slogan: z.string().nullable(),
+  sortOrder: z.number(),
   monthlyStars: z.number(),
   priceMonthly: z.number(),
-  billingType:  z.string(),
-  maxUsers:     z.number(),
-  rolloverPct:  z.number(),
-  benefits:     z.array(z.string()),
-  ctaLabel:     z.string(),
-  ctaLink:      z.string().nullable(),
+  billingType: z.string(),
+  maxUsers: z.number(),
+  rolloverPct: z.number(),
+  benefits: z.array(z.string()),
+  ctaLabel: z.string(),
+  ctaLink: z.string().nullable(),
   ctaGatewayId: z.string().nullable(),
-  highlighted:  z.boolean(),
-  isActive:     z.boolean(),
-  orgCount:     z.number(),
+  highlighted: z.boolean(),
+  isActive: z.boolean(),
+  stripeProductId: z.string().nullable(),
+  stripePriceId: z.string().nullable(),
+  orgCount: z.number(),
 });
 
 // ── List ──────────────────────────────────────────────────────────────────────
@@ -34,25 +37,49 @@ export const listPlans = adminBase
     const rows = await prisma.plan.findMany({
       orderBy: [{ sortOrder: "asc" }, { priceMonthly: "asc" }],
       select: {
-        id: true, slug: true, name: true, slogan: true,
-        sortOrder: true, monthlyStars: true, priceMonthly: true,
-        billingType: true, maxUsers: true, rolloverPct: true,
-        benefits: true, ctaLabel: true, ctaLink: true,
-        ctaGatewayId: true, highlighted: true, isActive: true,
+        id: true,
+        slug: true,
+        name: true,
+        slogan: true,
+        sortOrder: true,
+        monthlyStars: true,
+        priceMonthly: true,
+        billingType: true,
+        maxUsers: true,
+        rolloverPct: true,
+        benefits: true,
+        ctaLabel: true,
+        ctaLink: true,
+        ctaGatewayId: true,
+        highlighted: true,
+        isActive: true,
+        stripeProductId: true,
+        stripePriceId: true,
         _count: { select: { organizations: true } },
       },
     });
 
     return {
       plans: rows.map((p) => ({
-        id: p.id, slug: p.slug, name: p.name, slogan: p.slogan,
-        sortOrder: p.sortOrder, monthlyStars: p.monthlyStars,
-        priceMonthly: Number(p.priceMonthly), billingType: p.billingType,
-        maxUsers: p.maxUsers, rolloverPct: p.rolloverPct,
+        id: p.id,
+        slug: p.slug,
+        name: p.name,
+        slogan: p.slogan,
+        sortOrder: p.sortOrder,
+        monthlyStars: p.monthlyStars,
+        priceMonthly: Number(p.priceMonthly),
+        billingType: p.billingType,
+        maxUsers: p.maxUsers,
+        rolloverPct: p.rolloverPct,
         benefits: (p.benefits as string[]) ?? [],
-        ctaLabel: p.ctaLabel, ctaLink: p.ctaLink,
-        ctaGatewayId: p.ctaGatewayId, highlighted: p.highlighted,
-        isActive: p.isActive, orgCount: p._count.organizations,
+        ctaLabel: p.ctaLabel,
+        ctaLink: p.ctaLink,
+        ctaGatewayId: p.ctaGatewayId,
+        highlighted: p.highlighted,
+        isActive: p.isActive,
+        stripeProductId: p.stripeProductId,
+        stripePriceId: p.stripePriceId,
+        orgCount: p._count.organizations,
       })),
     };
   });
@@ -61,53 +88,102 @@ export const listPlans = adminBase
 
 export const createPlan = adminBase
   .route({ method: "POST", summary: "Admin — Create plan" })
-  .input(z.object({
-    name:         z.string().min(1),
-    slogan:       z.string().optional(),
-    sortOrder:    z.number().default(0),
-    priceMonthly: z.number().min(0),
-    billingType:  z.enum(["monthly", "annual", "weekly"]).default("monthly"),
-    monthlyStars: z.number().min(0),
-    maxUsers:     z.number().min(1),
-    rolloverPct:  z.number().min(0).max(100).default(30),
-    benefits:     z.array(z.string()).default([]),
-    ctaLabel:     z.string().default("Assinar agora"),
-    ctaLink:      z.string().optional(),
-    ctaGatewayId: z.string().optional(),
-    highlighted:  z.boolean().default(false),
-    isActive:     z.boolean().default(true),
-  }))
+  .input(
+    z.object({
+      name: z.string().min(1),
+      slogan: z.string().optional(),
+      sortOrder: z.number().default(0),
+      priceMonthly: z.number().min(0),
+      billingType: z.enum(["monthly", "annual", "weekly"]).default("monthly"),
+      monthlyStars: z.number().min(0),
+      maxUsers: z.number().min(1),
+      rolloverPct: z.number().min(0).max(100).default(30),
+      benefits: z.array(z.string()).default([]),
+      ctaLabel: z.string().default("Assinar agora"),
+      ctaLink: z.string().optional(),
+      ctaGatewayId: z.string().optional(),
+      highlighted: z.boolean().default(false),
+      isActive: z.boolean().default(true),
+    }),
+  )
   .output(z.object({ id: z.string() }))
   .handler(async ({ input }) => {
     // Generate slug from name
     const slug = input.name
       .toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
       .replace(/\s+/g, "-")
       .replace(/[^a-z0-9-]/g, "")
       .slice(0, 40);
 
     const unique = `${slug}-${Date.now().toString(36)}`;
 
+    const stripe = getStripe();
+
     const plan = await prisma.plan.create({
       data: {
-        slug:         unique,
-        name:         input.name,
-        slogan:       input.slogan ?? null,
-        sortOrder:    input.sortOrder,
+        slug: unique,
+        name: input.name,
+        slogan: input.slogan ?? null,
+        sortOrder: input.sortOrder,
         priceMonthly: input.priceMonthly,
-        billingType:  input.billingType,
+        billingType: input.billingType,
         monthlyStars: input.monthlyStars,
-        maxUsers:     input.maxUsers,
-        rolloverPct:  input.rolloverPct,
-        benefits:     input.benefits,
-        ctaLabel:     input.ctaLabel,
-        ctaLink:      input.ctaLink ?? null,
+        maxUsers: input.maxUsers,
+        rolloverPct: input.rolloverPct,
+        benefits: input.benefits,
+        ctaLabel: input.ctaLabel,
+        ctaLink: input.ctaLink ?? null,
         ctaGatewayId: input.ctaGatewayId ?? null,
-        highlighted:  input.highlighted,
-        isActive:     input.isActive,
+        highlighted: input.highlighted,
+        isActive: input.isActive,
       },
     });
+
+    try {
+      // 1. Create Stripe Product
+      const product = await stripe.products.create({
+        name: plan.name,
+        description: plan.slogan ?? undefined,
+        metadata: {
+          planId: plan.id,
+          slug: plan.slug,
+        },
+      });
+
+      // 2. Map billing type to Stripe interval
+      const intervalMap: Record<string, "month" | "year" | "week"> = {
+        monthly: "month",
+        annual: "year",
+        weekly: "week",
+      };
+
+      const interval = intervalMap[plan.billingType] || "month";
+
+      // 3. Create Stripe Price
+      const price = await stripe.prices.create({
+        unit_amount: Math.round(Number(plan.priceMonthly) * 100), // Cents
+        currency: "brl",
+        recurring: { interval },
+        product: product.id,
+        metadata: {
+          planId: plan.id,
+        },
+      });
+
+      // 4. Update Plan with Stripe IDs
+      await prisma.plan.update({
+        where: { id: plan.id },
+        data: {
+          stripeProductId: product.id,
+          stripePriceId: price.id,
+        },
+      });
+    } catch (err) {
+      console.error("[Stripe] Error creating product/price:", err);
+      // We don't throw here to avoid failing the whole request, but you might want to handle this better
+    }
 
     return { id: plan.id };
   });
@@ -116,44 +192,106 @@ export const createPlan = adminBase
 
 export const updatePlan = adminBase
   .route({ method: "POST", summary: "Admin — Update plan" })
-  .input(z.object({
-    id:           z.string(),
-    name:         z.string().min(1),
-    slogan:       z.string().optional(),
-    sortOrder:    z.number(),
-    priceMonthly: z.number().min(0),
-    billingType:  z.enum(["monthly", "annual", "weekly"]),
-    monthlyStars: z.number().min(0),
-    maxUsers:     z.number().min(1),
-    rolloverPct:  z.number().min(0).max(100),
-    benefits:     z.array(z.string()),
-    ctaLabel:     z.string(),
-    ctaLink:      z.string().optional(),
-    ctaGatewayId: z.string().optional(),
-    highlighted:  z.boolean(),
-    isActive:     z.boolean(),
-  }))
+  .input(
+    z.object({
+      id: z.string(),
+      name: z.string().min(1),
+      slogan: z.string().optional(),
+      sortOrder: z.number(),
+      priceMonthly: z.number().min(0),
+      billingType: z.enum(["monthly", "annual", "weekly"]),
+      monthlyStars: z.number().min(0),
+      maxUsers: z.number().min(1),
+      rolloverPct: z.number().min(0).max(100),
+      benefits: z.array(z.string()),
+      ctaLabel: z.string(),
+      ctaLink: z.string().optional(),
+      ctaGatewayId: z.string().optional(),
+      highlighted: z.boolean(),
+      isActive: z.boolean(),
+    }),
+  )
   .output(z.object({ success: z.boolean() }))
   .handler(async ({ input }) => {
-    await prisma.plan.update({
+    const oldPlan = await prisma.plan.findUniqueOrThrow({
+      where: { id: input.id },
+    });
+
+    const updatedPlan = await prisma.plan.update({
       where: { id: input.id },
       data: {
-        name:         input.name,
-        slogan:       input.slogan ?? null,
-        sortOrder:    input.sortOrder,
+        name: input.name,
+        slogan: input.slogan ?? null,
+        sortOrder: input.sortOrder,
         priceMonthly: input.priceMonthly,
-        billingType:  input.billingType,
+        billingType: input.billingType,
         monthlyStars: input.monthlyStars,
-        maxUsers:     input.maxUsers,
-        rolloverPct:  input.rolloverPct,
-        benefits:     input.benefits,
-        ctaLabel:     input.ctaLabel,
-        ctaLink:      input.ctaLink ?? null,
+        maxUsers: input.maxUsers,
+        rolloverPct: input.rolloverPct,
+        benefits: input.benefits,
+        ctaLabel: input.ctaLabel,
+        ctaLink: input.ctaLink ?? null,
         ctaGatewayId: input.ctaGatewayId ?? null,
-        highlighted:  input.highlighted,
-        isActive:     input.isActive,
+        highlighted: input.highlighted,
+        isActive: input.isActive,
       },
     });
+
+    // Stripe Sync Logic
+    if (updatedPlan.stripeProductId) {
+      const stripe = getStripe();
+
+      try {
+        // 1. If name changed, update product
+        if (
+          updatedPlan.name !== oldPlan.name ||
+          updatedPlan.slogan !== oldPlan.slogan
+        ) {
+          await stripe.products.update(updatedPlan.stripeProductId, {
+            name: updatedPlan.name,
+            description: updatedPlan.slogan ?? undefined,
+          });
+        }
+
+        // 2. If price or billing type changed, create new price
+        if (
+          Number(updatedPlan.priceMonthly) !== Number(oldPlan.priceMonthly) ||
+          updatedPlan.billingType !== oldPlan.billingType
+        ) {
+          const intervalMap: Record<string, "month" | "year" | "week"> = {
+            monthly: "month",
+            annual: "year",
+            weekly: "week",
+          };
+
+          const newPrice = await stripe.prices.create({
+            unit_amount: Math.round(Number(updatedPlan.priceMonthly) * 100),
+            currency: "brl",
+            recurring: {
+              interval: intervalMap[updatedPlan.billingType] || "month",
+            },
+            product: updatedPlan.stripeProductId,
+            metadata: { planId: updatedPlan.id },
+          });
+
+          // Update DB with new Price ID
+          await prisma.plan.update({
+            where: { id: updatedPlan.id },
+            data: { stripePriceId: newPrice.id },
+          });
+
+          // Archive old price if it exists
+          if (oldPlan.stripePriceId) {
+            await stripe.prices.update(oldPlan.stripePriceId, {
+              active: false,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("[Stripe] Error syncing update:", err);
+      }
+    }
+
     return { success: true };
   });
 
@@ -164,8 +302,32 @@ export const deletePlan = adminBase
   .input(z.object({ id: z.string() }))
   .output(z.object({ success: z.boolean() }))
   .handler(async ({ input, errors }) => {
-    const count = await prisma.organization.count({ where: { planId: input.id } });
-    if (count > 0) throw errors.BAD_REQUEST({ message: `Este plano está em uso por ${count} empresa(s). Remova-as antes de excluir.` });
+    const plan = await prisma.plan.findUnique({
+      where: { id: input.id },
+      select: {
+        id: true,
+        stripeProductId: true,
+        _count: { select: { organizations: true } },
+      },
+    });
+
+    if (!plan) throw errors.NOT_FOUND({ message: "Plano não encontrado." });
+
+    if (plan._count.organizations > 0)
+      throw errors.BAD_REQUEST({
+        message: `Este plano está em uso por ${plan._count.organizations} empresa(s). Remova-as antes de excluir.`,
+      });
+
+    // Archive in Stripe if applicable
+    if (plan.stripeProductId) {
+      try {
+        const stripe = getStripe();
+        await stripe.products.update(plan.stripeProductId, { active: false });
+      } catch (err) {
+        console.error("[Stripe] Error archiving product on delete:", err);
+      }
+    }
+
     await prisma.plan.delete({ where: { id: input.id } });
     return { success: true };
   });
@@ -177,6 +339,9 @@ export const togglePlanActive = adminBase
   .input(z.object({ id: z.string(), isActive: z.boolean() }))
   .output(z.object({ success: z.boolean() }))
   .handler(async ({ input }) => {
-    await prisma.plan.update({ where: { id: input.id }, data: { isActive: input.isActive } });
+    await prisma.plan.update({
+      where: { id: input.id },
+      data: { isActive: input.isActive },
+    });
     return { success: true };
   });

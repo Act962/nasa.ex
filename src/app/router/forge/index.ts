@@ -11,6 +11,7 @@ import {
   updateForgeProposal,
   deleteForgeProposal,
   getForgeProposalPublic,
+  trackProposalView,
 } from "./proposals";
 import {
   listForgeContracts,
@@ -41,6 +42,7 @@ export const forgeRouter = {
     update: updateForgeProposal,
     delete: deleteForgeProposal,
     getPublic: getForgeProposalPublic,
+    trackProposalView: trackProposalView,
   },
   contracts: {
     list: listForgeContracts,

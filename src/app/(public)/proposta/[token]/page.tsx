@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { PublicProposalView } from "@/features/forge/components/public/public-proposal";
+import { ProposalViewTracker } from "@/features/forge/components/public/proposal-view-tracker";
 
 interface Props {
   params: Promise<{ token: string }>;
@@ -59,5 +60,14 @@ export default async function PublicProposalPage({ params }: Props) {
       : null,
   };
 
-  return <PublicProposalView proposal={serialized} />;
+  return (
+    <>
+      <ProposalViewTracker
+        token={token}
+        responsibleId={proposal.responsibleId}
+        createdById={proposal.createdById}
+      />
+      <PublicProposalView proposal={serialized} />
+    </>
+  );
 }

@@ -29,6 +29,7 @@ import { listNotifications } from "./list-notifications";
 import { adminCreateOrgUser } from "./create-org-user";
 import { adminRemoveMember } from "./remove-member";
 import { adminUpdateMember } from "./update-member";
+import { deleteAppTemplate } from "./delete-app-template";
 import {
   listPlatformAssets,
   setPlatformAsset,
@@ -80,6 +81,7 @@ export const adminRouter = {
   createOrgUser: adminCreateOrgUser,
   removeMember: adminRemoveMember,
   updateMember: adminUpdateMember,
+  deleteAppTemplate,
   listPlatformAssets,
   setPlatformAsset,
   deletePlatformAsset,

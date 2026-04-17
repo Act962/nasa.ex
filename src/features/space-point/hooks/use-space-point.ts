@@ -13,7 +13,13 @@ export function useSpacePoint() {
   });
 }
 
-export type RankingPeriod = "weekly" | "biweekly" | "monthly" | "annual" | "alltime" | "custom";
+export type RankingPeriod =
+  | "weekly"
+  | "biweekly"
+  | "monthly"
+  | "annual"
+  | "alltime"
+  | "custom";
 
 export function useSpacePointRanking(
   period: RankingPeriod = "weekly",
@@ -21,7 +27,9 @@ export function useSpacePointRanking(
   endDate?: string,
 ) {
   return useQuery({
-    ...orpc.spacePoint.ranking.queryOptions({ input: { period, startDate, endDate } }),
+    ...orpc.spacePoint.ranking.queryOptions({
+      input: { period, startDate, endDate },
+    }),
     queryKey: ["spacePoint", "ranking", period, startDate, endDate],
     staleTime: 60_000,
   });
@@ -34,8 +42,17 @@ export function useUserStats(
   endDate?: string,
 ) {
   return useQuery({
-    ...orpc.spacePoint.userStats.queryOptions({ input: { targetUserId: targetUserId ?? "", period, startDate, endDate } }),
-    queryKey: ["spacePoint", "userStats", targetUserId, period, startDate, endDate],
+    ...orpc.spacePoint.userStats.queryOptions({
+      input: { targetUserId: targetUserId ?? "", period, startDate, endDate },
+    }),
+    queryKey: [
+      "spacePoint",
+      "userStats",
+      targetUserId,
+      period,
+      startDate,
+      endDate,
+    ],
     enabled: !!targetUserId,
     staleTime: 30_000,
   });
@@ -60,8 +77,11 @@ export function useSpacePointPrizes(period: string) {
 export function useEarnSpacePoints() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (vars: { action: string; description?: string; metadata?: Record<string, unknown> }) =>
-      orpc.spacePoint.earn.call(vars),
+    mutationFn: (vars: {
+      action: string;
+      description?: string;
+      metadata?: Record<string, unknown>;
+    }) => orpc.spacePoint.earn.call(vars),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: SP_KEY });
     },
@@ -71,8 +91,13 @@ export function useEarnSpacePoints() {
 export function useUpdateSpacePointRule() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (vars: { id: string; points?: number; cooldownHours?: number | null; isActive?: boolean; label?: string }) =>
-      orpc.spacePoint.updateRule.call(vars),
+    mutationFn: (vars: {
+      id: string;
+      points?: number;
+      cooldownHours?: number | null;
+      isActive?: boolean;
+      label?: string;
+    }) => orpc.spacePoint.updateRule.call(vars),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["spacePoint", "rules"] });
     },
@@ -82,8 +107,12 @@ export function useUpdateSpacePointRule() {
 export function useCreateSpacePointRule() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (vars: { action: string; label: string; points: number; cooldownHours?: number | null }) =>
-      orpc.spacePoint.createRule.call(vars),
+    mutationFn: (vars: {
+      action: string;
+      label: string;
+      points: number;
+      cooldownHours?: number | null;
+    }) => orpc.spacePoint.createRule.call(vars),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["spacePoint", "rules"] });
     },
@@ -103,8 +132,13 @@ export function useDeleteSpacePointRule() {
 export function useUpsertSpacePointPrize() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (vars: { rank: number; period: string; title: string; description?: string; isActive?: boolean }) =>
-      orpc.spacePoint.upsertPrize.call(vars),
+    mutationFn: (vars: {
+      rank: number;
+      period: string;
+      title: string;
+      description?: string;
+      isActive?: boolean;
+    }) => orpc.spacePoint.upsertPrize.call(vars),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["spacePoint", "prizes", vars.period] });
     },
@@ -114,7 +148,8 @@ export function useUpsertSpacePointPrize() {
 export function useDeleteSpacePointPrize() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (vars: { id: string; period: string }) => orpc.spacePoint.deletePrize.call({ id: vars.id }),
+    mutationFn: (vars: { id: string; period: string }) =>
+      orpc.spacePoint.deletePrize.call({ id: vars.id }),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["spacePoint", "prizes", vars.period] });
     },

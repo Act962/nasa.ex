@@ -21,6 +21,7 @@ import { useDropzone } from "react-dropzone";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useSpacePointCtx } from "@/features/space-point/components/space-point-provider";
 
 interface UploadLogo {
   file: File | null;
@@ -50,6 +51,7 @@ export function FormCompany({ company }: Props) {
   const router = useRouter();
   const { isSingle } = useOrgRole();
   const { data: codeData, isLoading: isLoadingCode } = useGetCompanyCode();
+  const { earn } = useSpacePointCtx();
   const form = useForm<FormCompanySchema>({
     resolver: zodResolver(formCompanySchema),
     values: {
@@ -140,9 +142,7 @@ export function FormCompany({ company }: Props) {
             <div
               className={cn(
                 "group/avatar relative size-24 overflow-hidden rounded-full border border-dashed transition-colors",
-                isSingle
-                  ? "cursor-not-allowed opacity-60"
-                  : "cursor-pointer",
+                isSingle ? "cursor-not-allowed opacity-60" : "cursor-pointer",
                 !isSingle && isDragActive
                   ? "border-primary bg-primary/5"
                   : "border-muted-foreground/25 hover:border-muted-foreground/20",
@@ -176,7 +176,9 @@ export function FormCompany({ company }: Props) {
           <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/5 border border-violet-200 dark:border-violet-800 min-h-[52px]">
             {isLoadingCode ? (
               <div className="flex-1 flex items-center justify-center">
-                <span className="text-xs text-muted-foreground animate-pulse">Gerando código...</span>
+                <span className="text-xs text-muted-foreground animate-pulse">
+                  Gerando código...
+                </span>
               </div>
             ) : (
               <>
@@ -201,7 +203,8 @@ export function FormCompany({ company }: Props) {
             )}
           </div>
           <FieldDescription>
-            Compartilhe este código com outras empresas para que possam enviar cards para a sua organização.
+            Compartilhe este código com outras empresas para que possam enviar
+            cards para a sua organização.
           </FieldDescription>
         </Field>
 

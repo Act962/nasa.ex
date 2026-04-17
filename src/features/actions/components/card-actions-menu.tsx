@@ -12,6 +12,7 @@ import {
   Trash2Icon,
   FolderKanbanIcon,
   PlusIcon,
+  HistoryIcon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -34,6 +35,7 @@ import {
 import { useDeleteAction } from "../hooks/use-tasks";
 import { ShareActionDialog } from "./share-action-dialog";
 import { MoveActionWorkspaceDialog } from "./move-action-workspace";
+import { HistoricSheet } from "./view-modal/historic-sheet";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +62,7 @@ export function CardActionsMenu({
 }: Props) {
   const [shareOpen, setShareOpen] = useState(false);
   const [moveWorkspaceOpen, setMoveWorkspaceOpen] = useState(false);
+  const [historicOpen, setHistoricOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const copyAction = useCopyAction();
   const moveAction = useMoveAction();
@@ -207,6 +210,15 @@ export function CardActionsMenu({
             {isFavorited ? "Remover favorito" : "Favoritar"}
           </DropdownMenuItem>
 
+          {/* History */}
+          {/* <DropdownMenuItem
+            onClick={() => setHistoricOpen(true)}
+            className="gap-2 md:hidden"
+          >
+            <HistoryIcon className="size-3.5" />
+            Histórico
+          </DropdownMenuItem> */}
+
           <DropdownMenuSeparator />
 
           {/* Archive */}
@@ -254,6 +266,12 @@ export function CardActionsMenu({
         open={moveWorkspaceOpen}
         onOpenChange={setMoveWorkspaceOpen}
       />
+      {/* <HistoricSheet
+        actionId={actionId}
+        workspaceId={workspaceId}
+        open={historicOpen}
+        onOpenChange={setHistoricOpen}
+      /> */}
     </>
   );
 }

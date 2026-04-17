@@ -70,14 +70,15 @@ export const processUserAction = inngest.createFunction(
     }
 
     // ── 3. Pusher notification ───────────────────────────────────────────────
-    if (spAwarded !== 0 || starsDebited > 0 || newSeals.length > 0) {
+    // O SpacePoint / spAwarded já foi enviado nativamente via "awardPoints"
+    if (starsDebited > 0) {
       try {
         await pusherServer.trigger(`private-user-${userId}`, "points:updated", {
-          spAwarded,
+          spAwarded: 0, // Ignora SP, pois já notificado
           starsDebited,
           totalSP,
-          popupTemplateId,
-          newSeals,
+          popupTemplateId: null,
+          newSeals: [],
           action,
         });
       } catch (e) {

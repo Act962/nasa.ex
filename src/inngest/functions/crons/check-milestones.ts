@@ -15,9 +15,11 @@ interface MilestoneCheck {
 }
 
 const MILESTONES: MilestoneCheck[] = [
-  { action: "form_10_responses",  countAction: "form_response_collect", threshold: 10  },
-  { action: "form_100_responses", countAction: "form_response_collect", threshold: 100 },
-  { action: "automation_100_runs",countAction: "workflow_execute",      threshold: 100 },
+  {
+    action: "automation_100_runs",
+    countAction: "workflow_execute",
+    threshold: 100,
+  },
 ];
 
 export const checkMilestones = inngest.createFunction(
@@ -26,7 +28,7 @@ export const checkMilestones = inngest.createFunction(
   async () => {
     const events: TrackingEvent[] = [];
 
-    // Busca orgs ativas (com presencas recentes)
+    // ── 1. Milestones Genéricos (Baseados em contagem de transações) ─────────
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     const activeOrgs = await prisma.userPresence.findMany({
       where: { lastSeenAt: { gte: threeDaysAgo } },
@@ -34,17 +36,16 @@ export const checkMilestones = inngest.createFunction(
       distinct: ["organizationId", "userId"],
     });
 
-    // Agrupar por org+user
     const orgUsers = new Map<string, Set<string>>();
     for (const p of activeOrgs) {
-      if (!orgUsers.has(p.organizationId)) orgUsers.set(p.organizationId, new Set());
+      if (!orgUsers.has(p.organizationId))
+        orgUsers.set(p.organizationId, new Set());
       orgUsers.get(p.organizationId)!.add(p.userId);
     }
 
     for (const [orgId, userIds] of orgUsers) {
       for (const userId of userIds) {
         for (const milestone of MILESTONES) {
-          // Verificar se milestone ja foi alcancado (evita duplicata)
           const alreadyAwarded = await prisma.spacePointTransaction.findFirst({
             where: {
               userPoint: { userId, orgId },
@@ -53,7 +54,6 @@ export const checkMilestones = inngest.createFunction(
           });
           if (alreadyAwarded) continue;
 
-          // Contar acoes realizadas
           const count = await prisma.spacePointTransaction.count({
             where: {
               userPoint: { userId, orgId },
@@ -62,12 +62,20 @@ export const checkMilestones = inngest.createFunction(
           });
 
           if (count >= milestone.threshold) {
-            events.push({ userId, orgId, action: milestone.action, source: "cron" });
+            events.push({
+              userId,
+              orgId,
+              action: milestone.action,
+              source: "cron",
+            });
           }
         }
       }
     }
 
+    // ── 2. Milestones de Formulário (Processamento em tempo real migrado para submut-response.ts) ──
+
+    // Emitir eventos em lotes
     for (let i = 0; i < events.length; i += 100) {
       await emitTrackingBatch(events.slice(i, i + 100));
     }
