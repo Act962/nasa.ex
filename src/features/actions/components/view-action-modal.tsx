@@ -1,3 +1,5 @@
+"use client";
+
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   useQueryAction,
@@ -40,7 +42,10 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, HistoryIcon } from "lucide-react";
+import { HistoricSheet } from "./view-modal/historic-sheet";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
 interface Props {
   actionId: string;
@@ -51,6 +56,7 @@ interface Props {
 export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   const { action: rawAction, hasAccess, isLoading } = useQueryAction(actionId);
   const action = (rawAction ?? undefined) as Action | undefined;
+  const [historicOpen, setHistoricOpen] = useState(false);
   const updateAction = useUpdateAction();
   const updateFields = useUpdateActionFields();
   const createSubAction = useCreateSubAction(actionId);
@@ -196,6 +202,18 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
               />
             ) : undefined
           }
+          historyTrigger={
+            action && hasAccess ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 rounded-full hidden md:flex"
+                onClick={() => setHistoricOpen(true)}
+              >
+                <HistoryIcon className="size-4" />
+              </Button>
+            ) : undefined
+          }
         />
 
         <div className="flex flex-1 overflow-hidden">
@@ -317,6 +335,13 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
           )}
         </div>
       </DialogContent>
+
+      <HistoricSheet
+        actionId={actionId}
+        workspaceId={action?.workspaceId ?? ""}
+        open={historicOpen}
+        onOpenChange={setHistoricOpen}
+      />
     </Dialog>
   );
 }

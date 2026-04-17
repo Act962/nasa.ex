@@ -881,18 +881,18 @@ function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
 
         {/* Headline */}
         <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight mb-6 leading-[0.88] nasa-fade-up-d1">
-          <span className="text-white">Transforme cada</span>
+          <span className="text-white">O maior ecossistema</span>
           <br />
-          <span className="text-nasa">conversa em uma</span>
+          <span className="text-nasa">de ferramentas de IA</span>
           <br />
-          <span className="text-white">venda fechada</span>
+          <span className="text-white">para gestão comercial do universo</span>
         </h1>
 
         {/* Subtitle */}
-        <p className="text-lg sm:text-xl md:text-2xl text-white/45 max-w-2xl mb-3 leading-relaxed nasa-fade-up-d2">
-          Descubra um universo de opções para{" "}
+        <p className="text-lg sm:text-xl md:text-2xl text-white/45 max-w-3xl mb-3 leading-relaxed nasa-fade-up-d2">
+          Com o NASA, você paga em créditos (STARs), apenas o que for utilizar.{" "}
           <span className="text-white/75 font-semibold">
-            gestão comercial da sua empresa.
+            Mais de 15 ferramentas pelo preço de 1.
           </span>
         </p>
         <p className="text-base text-white/30 mb-10 nasa-fade-up-d2">

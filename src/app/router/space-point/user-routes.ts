@@ -255,48 +255,30 @@ export const getSpacePointRanking = base
       getBadgeUrlMap(),
     ]);
 
-    if (input.period === "alltime") {
-      const pts = await prisma.userSpacePoint.findMany({
-        where: { user: { members: { some: { id: orgId } } } },
-
-        include: { user: { select: { id: true, name: true, image: true } } },
-        orderBy: { totalPoints: "desc" },
-        take: 50,
-      });
-      return pts.map((p, i) => {
-        const e = allLevels.filter((l) => l.requiredPoints <= p.totalPoints);
-        const lvl = e[e.length - 1] ?? null;
-        return {
-          userId: p.user.id,
-          name: p.user.name,
-          image: p.user.image,
-          points: p.totalPoints,
-          rank: i + 1,
-          levelName: lvl?.name ?? null,
-          badgeNumber: lvl?.badgeNumber ?? null,
-          badgeUrl: lvl ? resolveBadgeUrl(lvl.badgeNumber, badgeMap) : null,
-        };
-      });
-    }
-
     const { gte, lte } = periodToDateRange(
       input.period,
       input.startDate,
       input.endDate,
     );
-    const allUserPts = await prisma.userSpacePoint.findMany({
-      where: { user: { members: { some: { id: orgId } } } },
 
-      include: { user: { select: { id: true, name: true, image: true } } },
-    });
+    const [allUserPts, txAgg] = await Promise.all([
+      prisma.userSpacePoint.findMany({
+        where: { user: { members: { some: { organizationId: orgId } } } },
+        include: { user: { select: { id: true, name: true, image: true } } },
+      }),
+      prisma.spacePointTransaction.groupBy({
+        by: ["userPointId"],
+        where: {
+          orgId,
+          ...(gte || lte ? { createdAt: { gte, lte } } : {}),
+        },
+        _sum: { points: true },
+        orderBy: { _sum: { points: "desc" } },
+        take: 50,
+      }),
+    ]);
+
     const userPtMap = Object.fromEntries(allUserPts.map((u) => [u.id, u]));
-    const txAgg = await prisma.spacePointTransaction.groupBy({
-      by: ["userPointId"],
-      where: { orgId, createdAt: { gte, lte } },
-      _sum: { points: true },
-      orderBy: { _sum: { points: "desc" } },
-      take: 50,
-    });
 
     return txAgg
       .map((row, i) => {

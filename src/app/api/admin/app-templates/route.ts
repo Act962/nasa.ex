@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 export async function GET(request: NextRequest) {
   try {
@@ -90,9 +92,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(templates);
   } catch (error) {
     console.error("Erro ao buscar padrões:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar padrões" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erro ao buscar padrões" }, { status: 500 });
   }
 }
