@@ -32,11 +32,13 @@ import { BodyMessage } from "./body-message";
 export function MessageBox({
   message,
   onSelectMessage,
+  onSaveToNBox,
   conversationId,
 }: {
   message: Message;
   messageSelected: MarkedMessage | undefined;
   onSelectMessage: (message: MarkedMessage) => void;
+  onSaveToNBox?: (message: Message) => void;
   conversationId: string;
 }) {
   const isOwn = message.fromMe;
@@ -77,6 +79,7 @@ export function MessageBox({
         onSelectMessage={onSelectMessage}
         onDeleteMessage={onDeleteMessage}
         onCopyMessage={copyMessage}
+        onSaveToNBox={onSaveToNBox ? () => onSaveToNBox(message) : undefined}
         onChange={setOpen}
         disabled={showImageViewer}
       >

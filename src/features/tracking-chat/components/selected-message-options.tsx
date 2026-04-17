@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MarkedMessage, Message } from "../types";
-import { CopyIcon, PencilIcon, SendIcon, Trash2Icon } from "lucide-react";
+import { ArchiveIcon, CopyIcon, PencilIcon, SendIcon, Trash2Icon } from "lucide-react";
 import { useMessageStore } from "../context/use-message";
 import { differenceInMinutes } from "date-fns";
 import { MessageStatus } from "@/generated/prisma/enums";
@@ -24,6 +24,7 @@ interface Props {
   onSelectMessage: (message: MarkedMessage) => void;
   onDeleteMessage: () => void;
   onCopyMessage: () => void;
+  onSaveToNBox?: () => void;
   onChange: (open: boolean) => void;
   disabled?: boolean;
 }
@@ -34,6 +35,7 @@ export function SelectedMessageOptions({
   onSelectMessage,
   onDeleteMessage,
   onCopyMessage,
+  onSaveToNBox,
   onChange,
   disabled,
 }: Props) {
@@ -68,6 +70,14 @@ export function SelectedMessageOptions({
           >
             Copiar <CopyIcon className="size-4" />
           </ContextMenuItem>
+          {onSaveToNBox && (
+            <ContextMenuItem
+              className="flex w-full justify-between"
+              onClick={onSaveToNBox}
+            >
+              Salvar N-Box <ArchiveIcon className="size-4" />
+            </ContextMenuItem>
+          )}
 
           {message.fromMe && (
             <>
@@ -101,6 +111,7 @@ export function SelectedMessageDropdown({
   onSelectMessage,
   onDeleteMessage,
   onCopyMessage,
+  onSaveToNBox,
   onChange,
 }: Props) {
   const startEditing = useMessageStore((state) => state.startEditing);
@@ -132,6 +143,14 @@ export function SelectedMessageDropdown({
           >
             Copiar <CopyIcon className="size-4" />
           </DropdownMenuItem>
+          {onSaveToNBox && (
+            <DropdownMenuItem
+              className="flex w-full justify-between"
+              onClick={onSaveToNBox}
+            >
+              Salvar N-Box <ArchiveIcon className="size-4" />
+            </DropdownMenuItem>
+          )}
 
           {message.fromMe && (
             <>

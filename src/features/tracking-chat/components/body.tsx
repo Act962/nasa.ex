@@ -31,6 +31,7 @@ import { authClient } from "@/lib/auth-client";
 import { MarkedMessage } from "../types";
 import { cn } from "@/lib/utils";
 import { EditMessage } from "./edit-message";
+import { SaveToNBoxPanel } from "./save-to-nbox-panel";
 
 import { useMessageStore } from "../context/use-message";
 import { useMutationEditMessage } from "../hooks/use-messages";
@@ -42,6 +43,7 @@ interface BodyProps {
 
 export function Body({ messageSelected, onSelectMessage }: BodyProps) {
   const { conversationId } = useParams<{ conversationId: string }>();
+  const [saveToNBoxMessage, setSaveToNBoxMessage] = useState<Message | null>(null);
   const [hasInitialScrolled, setHasInitialScrolled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -441,6 +443,7 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
                       status: message.status as MessageStatus,
                     }}
                     onSelectMessage={onSelectMessage}
+                    onSaveToNBox={(msg) => setSaveToNBoxMessage(msg)}
                     messageSelected={messageSelected}
                     conversationId={conversationId}
                   />
@@ -471,6 +474,18 @@ export function Body({ messageSelected, onSelectMessage }: BodyProps) {
         >
           <ChevronDownIcon />
         </Button>
+      )}
+
+      {saveToNBoxMessage && (
+        <SaveToNBoxPanel
+          message={{
+            body: saveToNBoxMessage.body,
+            mediaUrl: saveToNBoxMessage.mediaUrl,
+            mimetype: saveToNBoxMessage.mimetype,
+            fileName: saveToNBoxMessage.fileName,
+          }}
+          onClose={() => setSaveToNBoxMessage(null)}
+        />
       )}
     </>
   );
