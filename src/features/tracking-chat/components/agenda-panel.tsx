@@ -85,8 +85,9 @@ export function AgendaPanel({ onClose, onInsertLink, lead }: AgendaPanelProps) {
       </div>
 
       {/* Modal de criação de compromisso pré-preenchido com dados do lead */}
-      {lead && (
+      {lead && showCreateModal && (
         <CreateAppointmentModal
+          key={`${lead.id}-${Date.now()}`}
           open={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           initialName={lead.name}

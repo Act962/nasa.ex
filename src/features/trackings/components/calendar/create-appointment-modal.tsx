@@ -100,9 +100,21 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
   const [selectedTime, setSelectedTime] = useState("");
   const [manualTime, setManualTime]     = useState(""); // fallback when no slots
 
+  const initialPhoneMasked = (() => {
+    if (!initialPhone) return "";
+    const raw = initialPhone.replace(/\D/g, "").replace(/^55/, "");
+    return phoneMask(raw);
+  })();
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", phone: "", code: "55", email: "", notes: "" },
+    defaultValues: {
+      name: initialName ?? "",
+      phone: initialPhoneMasked,
+      code: "55",
+      email: initialEmail ?? "",
+      notes: "",
+    },
   });
 
   const selectedCode    = form.watch("code");
