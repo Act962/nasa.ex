@@ -22,9 +22,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { parseAsInteger, parseAsString, useQueryState, useQueryStates } from "nuqs";
+import { useEffect, useState } from "react";
+import { useDebouncedValue } from "@/hooks/use-debounced";
 import { Input } from "@/components/ui/input";
-import { parseAsInteger, useQueryState, useQueryStates } from "nuqs";
 import {
   Select,
   SelectValue,
@@ -55,6 +56,19 @@ export function ActionsTable<TData, TValue>({
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const [q, setQ] = useQueryState("q", parseAsString.withDefault(""));
+  const [searchValue, setSearchValue] = useState(q);
+  const debouncedSearch = useDebouncedValue(searchValue, 500);
+
+  useEffect(() => {
+    setQ(debouncedSearch || null);
+  }, [debouncedSearch, setQ]);
+
+  // Sincroniza o valor do input se q mudar externamente (ex: navegação)
+  useEffect(() => {
+    setSearchValue(q);
+  }, [q]);
+
   const table = useReactTable({
     data,
     columns,
@@ -79,10 +93,8 @@ export function ActionsTable<TData, TValue>({
       <div className="flex items-center py-4">
         <Input
           placeholder="Filtrar ações..."
-          value={(table.getColumn("title")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("title")?.setFilterValue(event.target.value)
-          }
+          value={searchValue}
+          onChange={(event) => setSearchValue(event.target.value)}
           className="max-w-sm"
         />
       </div>

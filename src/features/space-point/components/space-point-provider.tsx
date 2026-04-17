@@ -18,6 +18,7 @@ import {
   useSpacePointStore,
   type PopupTemplateData,
 } from "../store/use-space-point-store";
+import { DEFAULT_RULES } from "@/app/router/space-point/defaults";
 
 // PopupTemplateData moved to ../store/use-space-point-store.ts
 
@@ -93,7 +94,7 @@ export function SpacePointProvider({
                 : `+${data.spAwarded} Space Points conquistados!`,
               template: tpl as AchievementData["template"],
               vars: {
-                nova_conquista: data.action,
+                nova_conquista: DEFAULT_RULES.find((r) => r.action === data.action)?.label ?? data.action,
                 quantidade_space_points: String(data.totalSP),
                 quantidade_stars: String(data.starsDebited),
                 nome_plano: sp?.currentLevel?.name ?? "",
