@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CalendarIcon,
   FileIcon,
   HammerIcon,
   ImageIcon,
@@ -44,6 +45,7 @@ import { MessageSelected } from "./message-selected";
 import { ComposeResponse } from "./compose-response";
 import { ScriptsPanel } from "./scripts-panel";
 import { ForgePanel } from "./forge-panel";
+import { AgendaPanel } from "./agenda-panel";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
@@ -96,6 +98,7 @@ export function Footer({
   const [fileName, setFileName] = useState<string | undefined>(undefined);
   const [showScripts, setShowScripts] = useState(false);
   const [showForge, setShowForge] = useState(false);
+  const [showAgenda, setShowAgenda] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -209,6 +212,18 @@ export function Footer({
               leadName={lead.name}
             />
           )}
+          {showAgenda && (
+            <AgendaPanel
+              onClose={() => setShowAgenda(false)}
+              onInsertLink={(text) => {
+                setMessage((prev) => (prev ? prev + "\n" + text : text));
+                setShowAgenda(false);
+              }}
+              trackingId={trackingId}
+              leadName={lead.name}
+              leadPhone={lead.phone ?? undefined}
+            />
+          )}
           {!showAudioRecorder ? (
             <InputGroup
               className={cn(
@@ -229,8 +244,21 @@ export function Footer({
                         <div
                           className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
                           onClick={() => {
+                            setShowAgenda((v) => !v);
+                            setShowScripts(false);
+                            setShowForge(false);
+                            setOpen(false);
+                          }}
+                        >
+                          <CalendarIcon className="size-4" />
+                          <p className="text-sm">Agenda</p>
+                        </div>
+                        <div
+                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
+                          onClick={() => {
                             setShowScripts((v) => !v);
                             setShowForge(false);
+                            setShowAgenda(false);
                             setOpen(false);
                           }}
                         >
@@ -242,6 +270,7 @@ export function Footer({
                           onClick={() => {
                             setShowForge((v) => !v);
                             setShowScripts(false);
+                            setShowAgenda(false);
                             setOpen(false);
                           }}
                         >
