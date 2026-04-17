@@ -5,12 +5,12 @@ import { orpc } from "@/lib/orpc";
 import { authClient } from "@/lib/auth-client";
 import {
   CreditCard,
-  Zap,
   Star,
   ShieldCheck,
   ExternalLink,
   ChevronRight,
   Loader2,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -20,6 +20,7 @@ import { SubscriptionPlansModal } from "@/features/stars/components/subscription
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import Link from "next/link";
+import { StarsUsageBar } from "@/features/stars/components/stars-usage-bar";
 
 export default function BillingPage() {
   const [planModalOpen, setPlanModalOpen] = useState(false);
@@ -51,15 +52,14 @@ export default function BillingPage() {
     ? activeSub.plan.toLowerCase()
     : (balanceData?.planSlug ?? "free");
 
-  const planMonthlyStars = activeSub?.limits?.monthlyStars
-    ? Number(activeSub.limits.monthlyStars)
-    : (balanceData?.planMonthlyStars ?? 0);
+  const {
+    used = 0,
+    totalLimit = 100,
+    extraBalance = 0,
+    nextCycleDate,
+  } = balanceData || {};
 
-  const balance = balanceData?.balance ?? 0;
-  const consumed = activeSub || planSlug !== "free" ? balance : 0;
-  const remaining = Math.max(0, planMonthlyStars - consumed);
-  const pctUsed =
-    planMonthlyStars > 0 ? (consumed / planMonthlyStars) * 100 : 0;
+  const remaining = Math.max(0, totalLimit - used);
 
   const handleOpenPortal = async () => {
     setIsRedirecting(true);
@@ -89,9 +89,11 @@ export default function BillingPage() {
   return (
     <div className="px-4 space-y-8">
       {/* ── Plano Atual ── */}
-      <div className="flex items-center justify-between py-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between py-6 gap-4">
         <div className="space-y-1">
-          <h2 className="font-medium">Assinatura Atual</h2>
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Assinatura Atual
+          </h2>
           <div className="flex items-center gap-2">
             <span
               className={cn(
@@ -132,111 +134,120 @@ export default function BillingPage() {
         </div>
       </div>
 
-      <Separator />
+      <Separator className="bg-border/40" />
 
       {/* ── Consumo de Stars ── */}
       <div className="py-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="font-medium leading-relaxed">
-              Consumo de Créditos (Stars)
+        <div className="flex items-center justify-between mb-6">
+          <div className="space-y-1">
+            <h2 className="font-semibold text-base">
+              Monitoramento de Cota (Stars)
             </h2>
             <p className="text-xs text-muted-foreground">
-              Créditos inclusos no seu plano mensal para operações e IA.
+              Seu uso acumulado de automações e IA no ciclo mensal atual.
             </p>
           </div>
           <div className="text-right">
-            <span className="text-sm font-bold">
-              {consumed.toLocaleString()}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {" "}
-              / {planMonthlyStars.toLocaleString()}
-            </span>
+            <div className="flex items-baseline justify-end gap-1">
+              <span className="text-2xl font-bold tabular-nums">
+                {used.toLocaleString("pt-BR")}
+              </span>
+              <span className="text-sm text-muted-foreground font-medium">
+                / {totalLimit.toLocaleString("pt-BR")}
+              </span>
+            </div>
+            {extraBalance > 0 && (
+              <p className="text-[10px] text-emerald-600 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded inline-block mt-1">
+                +{extraBalance.toLocaleString("pt-BR")} extras disponíveis
+              </p>
+            )}
           </div>
         </div>
 
-        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-          <div
-            className={cn(
-              "h-full transition-all duration-500",
-              pctUsed >= 90 ? "bg-destructive" : "bg-primary",
-            )}
-            style={{ width: `${Math.max(1, Math.min(100, pctUsed))}%` }}
-          />
-        </div>
+        <StarsUsageBar used={used} limit={totalLimit} className="h-4" />
 
-        <div className="flex justify-between mt-2">
-          <span className="text-[10px] text-muted-foreground font-medium">
-            {Math.round(pctUsed)}% utilizado
-          </span>
-          <span className="text-[10px] text-muted-foreground font-medium">
-            {remaining.toLocaleString()} Stars restantes
-          </span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
+          <div className="flex items-center gap-3 p-4 rounded-xl border border-border/60 bg-muted/20">
+            <div className="size-10 rounded-lg bg-background border flex items-center justify-center">
+              <Star className="size-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-tight font-bold">
+                Stars Restantes
+              </p>
+              <p className="text-lg font-bold">
+                {remaining.toLocaleString("pt-BR")} ★
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 p-4 rounded-xl border border-border/60 bg-muted/20">
+            <div className="size-10 rounded-lg bg-background border flex items-center justify-center">
+              <CalendarDays className="size-5 text-[#7C3AED]" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-tight font-bold">
+                Próxima Renovação
+              </p>
+              <p className="text-lg font-bold">
+                {nextCycleDate ? new Date(nextCycleDate).toLocaleDateString("pt-BR", { day: '2-digit', month: 'long' }) : "---"}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <Separator />
+      <Separator className="bg-border/40" />
 
-      {/* ── Detalhes Adicionais ── */}
+      {/* ── Informações ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-12 py-6">
-        <div className="space-y-4">
-          <div className="flex items-start gap-3">
-            <div className="size-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-              <Star className="size-4 text-muted-foreground" />
+        <div className="space-y-6">
+          <div className="flex items-start gap-4">
+            <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+              <ShieldCheck className="size-5 text-primary" />
             </div>
-            <div>
-              <h3 className="text-sm font-medium">Uso de automação</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed mt-1">
-                As Stars são consumidas conforme você utiliza ferramentas de IA
-                e automações no app.
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold">Pagamento Seguro</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Utilizamos o Stripe para processar pagamentos com segurança. 
+                Não armazenamos dados sensíveis de faturamento em nossos servidores.
               </p>
             </div>
           </div>
 
-          <div className="flex items-start gap-3">
-            <div className="size-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-              <ShieldCheck className="size-4 text-muted-foreground" />
-            </div>
-            <div>
-              <h3 className="text-sm font-medium">Faturamento Seguro</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed mt-1">
-                Seus pagamentos são processados com segurança via Stripe. Não
-                armazenamos seus dados de cartão.
-              </p>
-            </div>
+          <div className="p-5 rounded-2xl bg-linear-to-br from-[#7C3AED]/10 to-transparent border border-[#7C3AED]/20">
+            <h3 className="text-sm font-bold mb-2 flex items-center gap-2">
+              Precisa de ajuda com sua conta?
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+              Dúvidas sobre limites, estornos ou upgrade corporativo? 
+              Fale diretamente com nosso time.
+            </p>
+            <Link
+              href="/support"
+              className="inline-flex items-center gap-2 text-xs font-bold text-[#7C3AED] hover:underline bg-white dark:bg-zinc-900 px-3 py-1.5 rounded-lg border border-[#7C3AED]/30"
+            >
+              Falar com Suporte
+              <ChevronRight className="size-3" />
+            </Link>
           </div>
         </div>
 
         <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
-            <h3 className="text-sm font-medium mb-1 flex items-center gap-2">
-              Precisa de ajuda?
-            </h3>
-            <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-              Dúvidas sobre cobrança ou migração de plano? Fale com nosso
-              suporte.
-            </p>
-            <Link
-              href="/support"
-              className="text-xs font-bold text-primary hover:underline flex items-center gap-1 group"
-            >
-              Contatar Suporte
-              <ChevronRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-          </div>
-
+          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Histórico de Faturamento</h3>
           <button
             onClick={handleOpenPortal}
-            className="w-full flex items-center justify-between p-4 rounded-xl border border-border hover:bg-muted/50 transition-colors group"
+            className="w-full flex items-center justify-between p-5 rounded-2xl border border-border/80 bg-background hover:bg-muted/30 transition-all group"
           >
-            <div className="text-left">
-              <h3 className="text-sm font-medium">Ver faturas anteriores</h3>
-              <p className="text-[10px] text-muted-foreground">
-                Acesse recibos e histórico no Stripe
+            <div className="text-left space-y-1">
+              <h3 className="text-sm font-bold">Stripe Customer Portal</h3>
+              <p className="text-xs text-muted-foreground">
+                Acesse suas faturas, recibos e métodos de pagamento.
               </p>
             </div>
-            <ExternalLink className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+            <div className="size-8 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <ExternalLink className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
           </button>
         </div>
       </div>

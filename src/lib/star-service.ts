@@ -2,11 +2,10 @@
  * ★ Star Service — moeda interna da plataforma NASA
  *
  * Regras:
- *  - Cada plano creditia X stars no início de cada ciclo mensal
- *  - Rollover: no máximo 30 % das stars do plano passam para o ciclo seguinte
- *  - Top-ups nunca expiram
- *  - Cada integração ativa debita mensalmente (APP_CHARGE)
- *  - Ao instalar uma integração é cobrado um setupCost (APP_SETUP)
+ *  - Modelo de Cota (0 → Limite): starsBalance representa o USO no ciclo atual.
+ *  - Reset Mensal: O uso zera automaticamente todo mês (Lazy Reset).
+ *  - Limite Padrão: 100 stars para usuários sem plano.
+ *  - Extras (Top-ups): Guardados em starsExtraBalance, não expiram e são usados após a cota do plano.
  */
 
 import prisma from "@/lib/prisma";
@@ -15,8 +14,10 @@ import { StarTransactionType } from "@/generated/prisma/client";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface StarBalance {
-  balance: number;
-  planMonthlyStars: number;
+  used: number;              // Uso no ciclo atual (antigo starsBalance)
+  planMonthlyStars: number;  // Limite do plano (ex: 1000)
+  extraBalance: number;      // Saldo fixo de compras extras (top-ups)
+  totalLimit: number;        // planMonthlyStars + extraBalance (para exibição)
   planSlug: string;
   planName: string;
   cycleStart: Date | null;
@@ -32,13 +33,12 @@ export interface AppCostInfo {
 
 // ─── Balance ──────────────────────────────────────────────────────────────────
 
-const WELCOME_BONUS = 100;
-
 export async function checkBalance(organizationId: string): Promise<StarBalance> {
-  const org = await prisma.organization.findUniqueOrThrow({
+  let org = await prisma.organization.findUniqueOrThrow({
     where: { id: organizationId },
     select: {
       starsBalance: true,
+      starsExtraBalance: true,
       starsCycleStart: true,
       plan: {
         select: { slug: true, name: true, monthlyStars: true },
@@ -46,43 +46,63 @@ export async function checkBalance(organizationId: string): Promise<StarBalance>
     },
   });
 
-  // ── Welcome bonus: crédito único de 100 stars no primeiro acesso ─────────
-  const hasAnyTransaction = await prisma.starTransaction.count({
-    where: { organizationId },
-  });
-  if (hasAnyTransaction === 0) {
-    const newBalance = org.starsBalance + WELCOME_BONUS;
+  const now = new Date();
+
+  // ── 1. Lazy Monthly Reset Logic ──────────────────────────────────────────
+  let nextCycleDate: Date | null = null;
+  
+  if (!org.starsCycleStart) {
+    // Primeiro acesso: define o ciclo como agora
+    await prisma.organization.update({
+      where: { id: organizationId },
+      data: { starsCycleStart: now },
+    });
+    org.starsCycleStart = now;
+  }
+
+  const cycleStart = new Date(org.starsCycleStart);
+  const resetDate = new Date(cycleStart);
+  resetDate.setMonth(resetDate.getMonth() + 1);
+
+  if (now >= resetDate) {
+    // O mês virou! Reseta o uso (starsBalance)
     await prisma.$transaction([
       prisma.organization.update({
         where: { id: organizationId },
-        data: { starsBalance: newBalance },
+        data: { 
+          starsBalance: 0,
+          starsCycleStart: now, // Novo ciclo começa hoje
+        },
       }),
       prisma.starTransaction.create({
         data: {
           organizationId,
-          type: StarTransactionType.MANUAL_ADJUST,
-          amount: WELCOME_BONUS,
-          balanceAfter: newBalance,
-          description: "🎉 Bônus de boas-vindas ao NASA",
+          type: StarTransactionType.PLAN_CREDIT,
+          amount: 0,
+          balanceAfter: 0,
+          description: "🔄 Ciclo renovado: uso mensal resetado para 0",
         },
       }),
     ]);
-    org.starsBalance = newBalance;
+    org.starsBalance = 0;
+    org.starsCycleStart = now;
+    
+    const newNext = new Date(now);
+    newNext.setMonth(newNext.getMonth() + 1);
+    nextCycleDate = newNext;
+  } else {
+    nextCycleDate = resetDate;
   }
-  // ─────────────────────────────────────────────────────────────────────────
 
-  const plan = org.plan ?? { slug: "free", name: "Gratuito", monthlyStars: 0 };
-
-  let nextCycleDate: Date | null = null;
-  if (org.starsCycleStart) {
-    const d = new Date(org.starsCycleStart);
-    d.setMonth(d.getMonth() + 1);
-    nextCycleDate = d;
-  }
+  // ── 2. Defaults & Quota Calculation ──────────────────────────────────────
+  const plan = org.plan ?? { slug: "free", name: "Gratuito", monthlyStars: 100 };
+  const planStars = plan.monthlyStars || 100;
 
   return {
-    balance: org.starsBalance,
-    planMonthlyStars: plan.monthlyStars,
+    used: org.starsBalance,
+    planMonthlyStars: planStars,
+    extraBalance: org.starsExtraBalance,
+    totalLimit: planStars + org.starsExtraBalance,
     planSlug: plan.slug,
     planName: plan.name,
     cycleStart: org.starsCycleStart,
@@ -90,26 +110,7 @@ export async function checkBalance(organizationId: string): Promise<StarBalance>
   };
 }
 
-// ─── Moderator Check ─────────────────────────────────────────────────────────
-
-const MODERATOR_REFILL_THRESHOLD = 100;      // Reabastece quando saldo ≤ este valor
-const MODERATOR_REFILL_AMOUNT    = 1_000_000; // Valor de reabastecimento
-
-/**
- * Verifica se a organização possui pelo menos um membro com role "moderador".
- * Moderadores recebem reabastecimento automático quando o saldo chega a ≤ 100 ★.
- */
-async function orgHasModerator(organizationId: string): Promise<boolean> {
-  const count = await prisma.member.count({
-    where: {
-      organizationId,
-      role: "moderador",
-    },
-  });
-  return count > 0;
-}
-
-// ─── Debit ────────────────────────────────────────────────────────────────────
+// ─── Debit (Usage Tracking) ───────────────────────────────────────────────────
 
 export async function debitStars(
   organizationId: string,
@@ -117,135 +118,81 @@ export async function debitStars(
   type: StarTransactionType,
   description: string,
   appSlug?: string,
-  userId?: string,             // opcional: rastreia consumo individual do usuário
-): Promise<{ success: boolean; newBalance: number }> {
-  // ── 1. Debitar dentro de uma transação atômica ────────────────────────────
+  userId?: string,
+): Promise<{ success: boolean; newUsed: number }> {
+  
   const result = await prisma.$transaction(async (tx) => {
     const org = await tx.organization.findUniqueOrThrow({
       where: { id: organizationId },
-      select: { starsBalance: true },
+      select: { 
+        starsBalance: true, 
+        starsExtraBalance: true,
+        plan: { select: { monthlyStars: true } }
+      },
     });
 
-    if (org.starsBalance < amount) {
-      return { success: false, newBalance: org.starsBalance };
+    const planLimit = org.plan?.monthlyStars ?? 100;
+    const totalAvailable = (planLimit - org.starsBalance) + org.starsExtraBalance;
+
+    if (totalAvailable < amount) {
+      return { success: false, newUsed: org.starsBalance };
     }
 
-    const newBalance = org.starsBalance - amount;
+    let remainingToDebit = amount;
+    let newStarsBalance = org.starsBalance;
+    let newExtraBalance = org.starsExtraBalance;
 
+    // 1. Consome primeiro a cota do plano (até atingir planLimit)
+    if (newStarsBalance < planLimit) {
+      const spaceInPlan = planLimit - newStarsBalance;
+      const toTakeFromPlan = Math.min(spaceInPlan, remainingToDebit);
+      
+      newStarsBalance += toTakeFromPlan;
+      remainingToDebit -= toTakeFromPlan;
+    }
+
+    // 2. Se ainda sobrou débito, retira do starsExtraBalance (compras extras)
+    if (remainingToDebit > 0) {
+      newExtraBalance -= remainingToDebit;
+    }
+
+    // Atualiza a organização
     await tx.organization.update({
       where: { id: organizationId },
-      data: { starsBalance: newBalance },
+      data: { 
+        starsBalance: newStarsBalance,
+        starsExtraBalance: newExtraBalance,
+      },
     });
 
+    // Registra a transação
     await tx.starTransaction.create({
       data: {
         organizationId,
         type,
         amount: -amount,
-        balanceAfter: newBalance,
+        balanceAfter: newStarsBalance, // Para o extrato, mostramos o uso do mês
         description,
         appSlug,
       },
     });
 
-    // ── Incrementar currentUsage por usuário (se informado) ─────────────────
+    // Rastreio individual de usuário
     if (userId) {
       await tx.memberStarBudget.upsert({
         where: { organizationId_userId: { organizationId, userId } },
         update: { currentUsage: { increment: amount } },
         create: {
-          id:             `${organizationId}-${userId}`,
+          id: `${organizationId}-${userId}`,
           organizationId,
           userId,
-          monthlyBudget:  0,
-          currentUsage:   amount,
+          monthlyBudget: 0,
+          currentUsage: amount,
         },
       });
     }
 
-    return { success: true, newBalance };
-  });
-
-  // ── 2. Reabastecimento para moderadores ──────────────────────────────────
-  // Se o saldo chegou a ≤ 100 e a org tem um membro moderador → recarrega para 1.000.000
-  if (result.success && result.newBalance <= MODERATOR_REFILL_THRESHOLD) {
-    try {
-      const isMod = await orgHasModerator(organizationId);
-      if (isMod) {
-        await prisma.$transaction(async (tx) => {
-          // Lê o saldo mais recente dentro da transação
-          const org = await tx.organization.findUniqueOrThrow({
-            where: { id: organizationId },
-            select: { starsBalance: true },
-          });
-
-          // Só reabastece se ainda estiver no limiar (evita double-refill em paralelo)
-          if (org.starsBalance > MODERATOR_REFILL_THRESHOLD) return;
-
-          const topupAmount  = MODERATOR_REFILL_AMOUNT - org.starsBalance;
-          const refillBalance = MODERATOR_REFILL_AMOUNT;
-
-          await tx.organization.update({
-            where: { id: organizationId },
-            data: { starsBalance: refillBalance },
-          });
-
-          await tx.starTransaction.create({
-            data: {
-              organizationId,
-              type: StarTransactionType.MANUAL_ADJUST,
-              amount: topupAmount,
-              balanceAfter: refillBalance,
-              description: `Reabastecimento automático moderador: saldo atingiu ≤${MODERATOR_REFILL_THRESHOLD} ★ → +${topupAmount.toLocaleString("pt-BR")} ★ (total ${MODERATOR_REFILL_AMOUNT.toLocaleString("pt-BR")} ★)`,
-            },
-          });
-        });
-
-        // Retorna com o saldo já reabastecido
-        return { success: true, newBalance: MODERATOR_REFILL_AMOUNT };
-      }
-    } catch {
-      // Reabastecimento é não-crítico: falha silenciosa
-    }
-  }
-
-  return result;
-}
-
-// ─── Credit (internal) ────────────────────────────────────────────────────────
-
-async function creditStars(
-  organizationId: string,
-  amount: number,
-  type: StarTransactionType,
-  description: string,
-  packageId?: string
-): Promise<number> {
-  const result = await prisma.$transaction(async (tx) => {
-    const org = await tx.organization.findUniqueOrThrow({
-      where: { id: organizationId },
-      select: { starsBalance: true },
-    });
-
-    const newBalance = org.starsBalance + amount;
-
-    await tx.organization.update({
-      where: { id: organizationId },
-      data: { starsBalance: newBalance },
-    });
-
-    await tx.starTransaction.create({
-      data: {
-        organizationId,
-        type,
-        amount,
-        balanceAfter: newBalance,
-        description,
-        packageId,
-      },
-    });
-
-    return newBalance;
+    return { success: true, newUsed: newStarsBalance };
   });
 
   return result;
@@ -256,7 +203,7 @@ async function creditStars(
 export async function purchaseTopUp(
   organizationId: string,
   packageId: string
-): Promise<{ success: boolean; newBalance: number; starsAdded: number }> {
+): Promise<{ success: boolean; starsAdded: number }> {
   const pkg = await prisma.starPackage.findUniqueOrThrow({
     where: { id: packageId },
     select: { stars: true, label: true, isActive: true },
@@ -266,94 +213,26 @@ export async function purchaseTopUp(
     throw new Error("Pacote não disponível.");
   }
 
-  const newBalance = await creditStars(
-    organizationId,
-    pkg.stars,
-    StarTransactionType.TOPUP_PURCHASE,
-    `Compra de pacote ${pkg.label}`,
-    packageId
-  );
+  await prisma.$transaction(async (tx) => {
+    // Adiciona ao starsExtraBalance (que não reseta mensalmente)
+    await tx.organization.update({
+      where: { id: organizationId },
+      data: { starsExtraBalance: { increment: pkg.stars } },
+    });
 
-  return { success: true, newBalance, starsAdded: pkg.stars };
-}
-
-// ─── Monthly cycle ────────────────────────────────────────────────────────────
-
-/**
- * Runs the monthly cycle for an organization:
- *  1. Apply rollover from previous balance (up to `rolloverPct` of plan stars)
- *  2. Credit plan stars
- *  3. Debit monthly app charges for all active workspace integrations
- */
-export async function runMonthlyCycle(organizationId: string): Promise<void> {
-  const org = await prisma.organization.findUniqueOrThrow({
-    where: { id: organizationId },
-    select: {
-      starsBalance: true,
-      starsCycleStart: true,
-      plan: true,
-      workspaceIntegrations: {
-        where: { isActive: true },
-        select: { appSlug: true },
-      },
-    },
-  });
-
-  if (!org.plan) return;
-
-  const { monthlyStars, rolloverPct } = org.plan;
-  const maxRollover = Math.floor(monthlyStars * (rolloverPct / 100));
-  const rollover = Math.min(org.starsBalance, maxRollover);
-
-  // Reset balance to rollover amount, then credit plan stars
-  await prisma.organization.update({
-    where: { id: organizationId },
-    data: {
-      starsBalance: rollover,
-      starsCycleStart: new Date(),
-    },
-  });
-
-  if (rollover > 0) {
-    await prisma.starTransaction.create({
+    await tx.starTransaction.create({
       data: {
         organizationId,
-        type: StarTransactionType.ROLLOVER,
-        amount: rollover,
-        balanceAfter: rollover,
-        description: `Rollover do ciclo anterior (${rollover} ★)`,
+        type: StarTransactionType.TOPUP_PURCHASE,
+        amount: pkg.stars,
+        balanceAfter: 0, // No novo modelo, transações de crédito não alteram o "Uso"
+        description: `Compra de pacote extra: ${pkg.label} (+${pkg.stars} ★)`,
+        packageId,
       },
     });
-  }
+  });
 
-  // Credit plan stars
-  await creditStars(
-    organizationId,
-    monthlyStars,
-    StarTransactionType.PLAN_CREDIT,
-    `Crédito mensal do plano ${org.plan.name} (${monthlyStars} ★)`
-  );
-
-  // Debit monthly charges for each active app
-  for (const wi of org.workspaceIntegrations) {
-    const appCost = await prisma.appStarCost.findUnique({
-      where: { appSlug: wi.appSlug },
-    });
-    if (!appCost || appCost.monthlyCost === 0) continue;
-
-    await debitStars(
-      organizationId,
-      appCost.monthlyCost,
-      StarTransactionType.APP_CHARGE,
-      `Cobrança mensal — ${wi.appSlug} (${appCost.monthlyCost} ★)`,
-      wi.appSlug
-    );
-
-    await prisma.workspaceIntegration.update({
-      where: { organizationId_appSlug: { organizationId, appSlug: wi.appSlug } },
-      data: { lastChargedAt: new Date() },
-    });
-  }
+  return { success: true, starsAdded: pkg.stars };
 }
 
 // ─── App cost info ────────────────────────────────────────────────────────────
@@ -377,7 +256,7 @@ export async function getAppCost(appSlug: string): Promise<AppCostInfo | null> {
 export async function installApp(
   organizationId: string,
   appSlug: string
-): Promise<{ success: boolean; newBalance: number; insufficientStars: boolean }> {
+): Promise<{ success: boolean; insufficientStars: boolean }> {
   const appCost = await prisma.appStarCost.findUnique({ where: { appSlug } });
   const setupCost = appCost?.setupCost ?? 0;
 
@@ -389,11 +268,7 @@ export async function installApp(
   });
 
   if (setupCost === 0) {
-    const org = await prisma.organization.findUniqueOrThrow({
-      where: { id: organizationId },
-      select: { starsBalance: true },
-    });
-    return { success: true, newBalance: org.starsBalance, insufficientStars: false };
+    return { success: true, insufficientStars: false };
   }
 
   const result = await debitStars(
@@ -406,7 +281,6 @@ export async function installApp(
 
   return {
     success: result.success,
-    newBalance: result.newBalance,
     insufficientStars: !result.success,
   };
 }

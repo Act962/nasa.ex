@@ -9,8 +9,10 @@ export const getStarBalance = base
   .use(requireOrgMiddleware)
   .output(
     z.object({
-      balance: z.number(),
+      used: z.number(),
       planMonthlyStars: z.number(),
+      extraBalance: z.number(),
+      totalLimit: z.number(),
       planSlug: z.string(),
       planName: z.string(),
       cycleStart: z.date().nullable(),

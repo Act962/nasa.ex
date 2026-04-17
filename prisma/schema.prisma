@@ -132,6 +132,7 @@ model Organization {
   // ── STARS ──────────────────────────────────
   planId                String?   @map("plan_id")
   starsBalance          Int       @default(0)   @map("stars_balance")
+  starsExtraBalance     Int       @default(0)   @map("stars_extra_balance")
   starsCycleStart       DateTime? @map("stars_cycle_start")
   starsAlertConfig      Json      @default("{}") @map("stars_alert_config")
   starDistributionMode  String    @default("org") @map("star_distribution_mode")
