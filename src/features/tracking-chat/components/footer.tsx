@@ -5,6 +5,7 @@ import {
   ImageIcon,
   MicIcon,
   PlusIcon,
+  ScrollTextIcon,
   SendIcon,
   SparklesIcon,
   StickerIcon,
@@ -40,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { EmojiData } from "emoji-picker-react/dist/types/exposedTypes";
 import { MessageSelected } from "./message-selected";
 import { ComposeResponse } from "./compose-response";
+import { ScriptsPanel } from "./scripts-panel";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
@@ -90,6 +92,7 @@ export function Footer({
   const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const [message, setMessage] = useState("");
   const [fileName, setFileName] = useState<string | undefined>(undefined);
+  const [showScripts, setShowScripts] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -180,6 +183,18 @@ export function Footer({
         )}
 
         <div className="w-full h-full flex items-center gap-2 lg:gap-4 relative">
+          {showScripts && (
+            <ScriptsPanel
+              trackingId={trackingId}
+              onClose={() => setShowScripts(false)}
+              onSelectScript={(content) => {
+                setMessage((prev) => prev + content);
+                setShowScripts(false);
+              }}
+              leadName={lead.name}
+              leadPhone={lead.phone ?? undefined}
+            />
+          )}
           {!showAudioRecorder ? (
             <InputGroup
               className={cn(
@@ -197,6 +212,16 @@ export function Footer({
                         <PlusIcon className="cursor-pointer size-4" />
                       </PopoverTrigger>
                       <PopoverContent className="w-fit h-fit p-0">
+                        <div
+                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
+                          onClick={() => {
+                            setShowScripts((v) => !v);
+                            setOpen(false);
+                          }}
+                        >
+                          <ScrollTextIcon className="size-4" />
+                          <p className="text-sm">Scripts</p>
+                        </div>
                         <div className="relative w-full h-full cursor-pointer overflow-hidden">
                           <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4">
                             <FileIcon className="size-4" />

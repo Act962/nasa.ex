@@ -6,6 +6,12 @@ export function useMutationRodizio() {
   return useMutation(
     orpc.rodizio.finishLead.mutationOptions({
       onSuccess: (data) => {
+        if (data.lead?.conversation?.id) {
+          queryClient.invalidateQueries({
+            queryKey: ["conversations.list"],
+          });
+        }
+
         queryClient.invalidateQueries({
           queryKey: orpc.conversation.get.queryKey({
             input: {

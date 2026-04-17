@@ -12,7 +12,7 @@ export default async function Page({ params }: Props) {
   const { slug } = await params;
   const integration = getIntegrationBySlug(slug);
 
-  if (!integration || !integration.hubPageEnabled) {
+  if (!integration) {
     notFound();
   }
 

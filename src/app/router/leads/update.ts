@@ -28,6 +28,7 @@ export const updateLead = base
         tagIds: z.array(z.string()).optional(),
         isConversation: z.boolean().optional().default(false),
         active: z.boolean().optional().default(false),
+        statusFlow: z.enum(["WAITING", "ACTIVE", "FINISHED"]).optional(),
         amount: z.number().optional(),
         trackingId: z.string().optional(),
         orgProjectId: z.string().nullable().optional(),
@@ -43,6 +44,7 @@ export const updateLead = base
           v.trackingId !== undefined ||
           v.tagIds !== undefined ||
           v.active !== undefined ||
+          v.statusFlow !== undefined ||
           v.amount !== undefined ||
           v.orgProjectId !== undefined,
         {
@@ -85,6 +87,7 @@ export const updateLead = base
             responsibleId: input.responsibleId,
             isActive: input.active,
             amount: input.amount,
+            ...(input.statusFlow ? { statusFlow: input.statusFlow as any } : {}),
             leadTags: input.tagIds
               ? {
                   deleteMany: {},

@@ -275,6 +275,7 @@ model Tracking {
   aiSettings     AiSettings?
   trackingConsultants TrackingConsultant[]
   workspaces     Workspace[]
+  scripts        Script[]
 
   @@map("tracking")
 }
@@ -2855,4 +2856,23 @@ model SupportTicket {
   @@index([userId])
   @@index([status])
   @@map("support_tickets")
+}
+
+
+// ─────────────────────────────────────────────
+// SCRIPTS
+// ─────────────────────────────────────────────
+
+model Script {
+  id         String   @id @default(cuid())
+  name       String
+  content    String   @db.Text
+  trackingId String   @map("tracking_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+
+  @@index([trackingId])
+  @@map("scripts")
 }

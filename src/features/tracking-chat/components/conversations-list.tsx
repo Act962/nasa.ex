@@ -1,6 +1,7 @@
 "use client";
 
 import { LeadBox } from "./lead-box";
+import { ConversationFilters } from "./conversation-filters";
 import { SettingsIcon, UserPlusIcon, UserRoundPlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useInfinityConversation } from "../hooks/use-conversation";
@@ -16,6 +17,7 @@ import {
 import { CreateChatDialog } from "./create-chat-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryTracking } from "@/features/tracking-settings/hooks/use-tracking";
+import { LeadSource } from "@/generated/prisma/enums";
 import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import { pusherClient } from "@/lib/pusher";
 import { orpc } from "@/lib/orpc";
@@ -25,6 +27,14 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SearchConversations } from "./search-conversaitons";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import { Instance } from "../types";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { useParams, useRouter } from "next/navigation";
 
@@ -40,6 +50,14 @@ export function ConversationsList() {
   );
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState<
+    "ALL" | "WHATSAPP" | "INSTAGRAM" | "TIKTOK" | "FACEBOOK"
+  >("ALL");
+  const [statusFlowFilter, setStatusFlowFilter] = useState<
+    "FINISHED" | "ACTIVE" | null
+  >(null);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const debouncedSearch = useDebouncedValue(search, 500);
   const router = useRouter();
 
@@ -81,6 +99,33 @@ export function ConversationsList() {
   const items = useMemo(() => {
     return data?.pages.flatMap((p) => p.items) ?? [];
   }, [data]);
+
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      if (!matchesChannel(item, selectedChannel)) {
+        return false;
+      }
+
+      if (statusFlowFilter && item.lead.statusFlow !== statusFlowFilter) {
+        return false;
+      }
+
+      if (favoritesOnly && !isFavoriteConversation(item)) {
+        return false;
+      }
+
+      if (
+        selectedTagIds.length > 0 &&
+        !selectedTagIds.some((tagId) =>
+          item.lead.leadTags?.some((leadTag) => leadTag.tag.id === tagId),
+        )
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [items, selectedChannel, statusFlowFilter, favoritesOnly, selectedTagIds]);
 
   const isNearBottom = (el: HTMLDivElement) =>
     el.scrollHeight - el.scrollTop - el.clientHeight <= 80;
@@ -127,6 +172,13 @@ export function ConversationsList() {
     ? `/tracking/${selectedTracking}/settings`
     : "/tracking/";
 
+  const handleTrackingChange = (id: string) => {
+    if (id === selectedTracking) return;
+    setSelectedTracking(id);
+    setSelectedStatus(null);
+    setSelectedTagIds([]);
+  };
+
   return (
     <>
       <aside className="pb-20 lg:pb-0 lg:flex w-full px-5 flex flex-col h-full overflow-hidden">
@@ -153,15 +205,44 @@ export function ConversationsList() {
           </div>
         </div>
         <div className="flex-1 flex flex-col gap-2 min-h-0">
+          <Select value={selectedTracking} onValueChange={handleTrackingChange}>
+            <SelectTrigger
+              className="w-full h-10 rounded-lg bg-background border border-input px-3 text-sm"
+              disabled={isLoadingTrackings || trackings.length === 0}
+            >
+              <SelectValue placeholder="Selecionar tracking" />
+            </SelectTrigger>
+            <SelectContent align="start" className="w-(--radix-select-trigger-width)">
+              <SelectGroup>
+                {trackings.map((tracking) => (
+                  <SelectItem key={tracking.id} value={tracking.id}>
+                    {tracking.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+
           <SearchConversations
             search={search}
             onSearchChange={setSearch}
             trackingId={selectedTracking || null}
             onTrackingChange={(id: string | null) =>
-              setSelectedTracking(id ?? "")
+              handleTrackingChange(id ?? "")
             }
             statusId={selectedStatus}
             onStatusChange={setSelectedStatus}
+          />
+          <ConversationFilters
+            trackingId={selectedTracking || null}
+            selectedChannel={selectedChannel}
+            onChannelChange={setSelectedChannel}
+            statusFlowFilter={statusFlowFilter}
+            onStatusFlowFilterChange={setStatusFlowFilter}
+            favoritesOnly={favoritesOnly}
+            onFavoritesOnlyChange={setFavoritesOnly}
+            selectedTagIds={selectedTagIds}
+            onSelectedTagIdsChange={setSelectedTagIds}
           />
 
           {isLoading || isLoadingTrackings ? (
@@ -172,7 +253,7 @@ export function ConversationsList() {
             </div>
           ) : (
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              {items.length === 0 && (
+              {filteredItems.length === 0 && (
                 <Empty>
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
@@ -180,7 +261,7 @@ export function ConversationsList() {
                     </EmptyMedia>
                     <EmptyTitle>Sem conversas</EmptyTitle>
                     <EmptyDescription>
-                      Nenhuma conversa encontrada
+                      Nenhuma conversa encontrada com os filtros atuais
                     </EmptyDescription>
                   </EmptyHeader>
                   <EmptyContent>
@@ -195,7 +276,7 @@ export function ConversationsList() {
                 onScroll={handleScroll}
                 className="overflow-y-auto flex flex-col gap-2 flex-1 pb-4 scroll-cols-tracking min-h-0"
               >
-                {items.map((item) => (
+                {filteredItems.map((item) => (
                   <LeadBox
                     instance={instance}
                     key={item.id}
@@ -226,5 +307,56 @@ export function ConversationsList() {
         onOpenChange={setOpen}
       />
     </>
+  );
+}
+
+function matchesChannel(
+  item: {
+    lead: {
+      source: LeadSource;
+    };
+  },
+  selectedChannel: "ALL" | "WHATSAPP" | "INSTAGRAM" | "TIKTOK" | "FACEBOOK",
+) {
+  if (selectedChannel === "ALL") {
+    return true;
+  }
+
+  // A tela de Tracking Chat hoje é alimentada pela instância de WhatsApp
+  // configurada no tracking. Ao selecionar WhatsApp, não filtramos nada
+  // para garantir que todos os leads dessa instância apareçam.
+  if (selectedChannel === "WHATSAPP") {
+    return true;
+  }
+
+  if (selectedChannel === "FACEBOOK") {
+    return item.lead.source === LeadSource.OTHER;
+  }
+
+  return item.lead.source === selectedChannel;
+}
+
+function isFavoriteConversation(item: {
+  lead: {
+    leadTags?: {
+      tag: {
+        name: string;
+        slug: string;
+      };
+    }[];
+  };
+}) {
+  return (
+    item.lead.leadTags?.some(({ tag }) => {
+      const normalizedName = tag.name.toLowerCase();
+      const normalizedSlug = tag.slug.toLowerCase();
+
+      return (
+        normalizedName.includes("favorit") ||
+        normalizedSlug.includes("favorit") ||
+        normalizedName.includes("star") ||
+        normalizedSlug.includes("star")
+      );
+    }) ?? false
   );
 }
