@@ -17,7 +17,7 @@ export const cancelPublicAppointment = base
 
     const updated = await prisma.appointment.update({
       where: { id: input.appointmentId },
-      data: { status: "CANCELLED" },
+      data: { status: "CANCELLED", cancelledBy: "CLIENT" },
     });
 
     return { appointment: updated };

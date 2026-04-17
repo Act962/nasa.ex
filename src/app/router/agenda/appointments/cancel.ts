@@ -43,6 +43,7 @@ export const cancelAppointment = base
       },
       data: {
         status: "CANCELLED",
+        cancelledBy: "SYSTEM",
       },
     });
 

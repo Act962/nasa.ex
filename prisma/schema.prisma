@@ -1133,6 +1133,7 @@ model Appointment {
   startsAt    DateTime          @map("starts_at")
   endsAt      DateTime          @map("ends_at")
   status      AppointmentStatus @default(PENDING)
+  cancelledBy String?           @map("cancelled_by") // "CLIENT" | "SYSTEM"
   agendaId    String            @map("agenda_id")
   leadId      String?           @map("lead_id")
   userId      String?           @map("user_id")
