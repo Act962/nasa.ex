@@ -4,7 +4,10 @@ import prisma from "@/lib/prisma";
 import { invalidateOrgRules, invalidateAllRules } from "@/lib/rules-cache";
 import { z } from "zod";
 
-import { DEFAULT_STAR_RULES, STAR_RULE_CATEGORY_LABEL } from "@/data/star-rules";
+import {
+  DEFAULT_STAR_RULES,
+  STAR_RULE_CATEGORY_LABEL,
+} from "@/app/router/stars/data/star-rules";
 
 async function ensureOrgStarRules(orgId: string) {
   for (const rule of DEFAULT_STAR_RULES) {

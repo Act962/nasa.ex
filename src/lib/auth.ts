@@ -6,6 +6,7 @@ import { resend } from "./email/resend";
 import { reactInvitationEmail } from "./email/invitation";
 import { stripeClient } from "./stripe";
 import prisma from "./prisma";
+import { runMonthlyCycle } from "./star-service";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -82,6 +83,43 @@ export const auth = betterAuth({
             }
           } catch (e) {
             console.error("[auth hook] login log failed:", e);
+          }
+        },
+      },
+    },
+    organization: {
+      create: {
+        after: async (org: any) => {
+          try {
+            // Busca o plano free no banco
+            const freePlan = await prisma.plan.findUnique({
+              where: { slug: "free" },
+            });
+
+            if (!freePlan) {
+              console.warn(
+                "[auth hook] plano 'free' não encontrado no banco. Rode o seed.",
+              );
+              return;
+            }
+
+            // Associa o plano free à nova organização e inicia o ciclo
+            await prisma.organization.update({
+              where: { id: org.id },
+              data: {
+                planId: freePlan.id,
+                starsCycleStart: new Date(),
+              },
+            });
+
+            // Credita as 100 stars iniciais do plano free
+            await runMonthlyCycle(org.id);
+
+            console.log(
+              `[auth hook] ✅ Plano free atribuído e ciclo iniciado para org ${org.id}`,
+            );
+          } catch (e) {
+            console.error("[auth hook] falha ao atribuir plano free:", e);
           }
         },
       },

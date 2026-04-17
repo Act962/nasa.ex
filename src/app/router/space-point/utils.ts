@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { DEFAULT_LEVELS, DEFAULT_RULES } from "./defaults";
-import { DEFAULT_STAR_RULES } from "@/data/star-rules";
+import { DEFAULT_STAR_RULES } from "@/app/router/stars/data/star-rules";
 import { pusherServer } from "@/lib/pusher";
 
 const EXPECTED_LEVEL_COUNT = DEFAULT_LEVELS.length;

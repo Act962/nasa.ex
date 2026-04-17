@@ -34,7 +34,9 @@ export interface AppCostInfo {
 
 const WELCOME_BONUS = 100;
 
-export async function checkBalance(organizationId: string): Promise<StarBalance> {
+export async function checkBalance(
+  organizationId: string,
+): Promise<StarBalance> {
   const org = await prisma.organization.findUniqueOrThrow({
     where: { id: organizationId },
     select: {
@@ -71,7 +73,7 @@ export async function checkBalance(organizationId: string): Promise<StarBalance>
   }
   // ─────────────────────────────────────────────────────────────────────────
 
-  const plan = org.plan ?? { slug: "free", name: "Gratuito", monthlyStars: 0 };
+  const plan = org.plan ?? { slug: "free", name: "Free", monthlyStars: 100 };
 
   let nextCycleDate: Date | null = null;
   if (org.starsCycleStart) {
@@ -92,8 +94,8 @@ export async function checkBalance(organizationId: string): Promise<StarBalance>
 
 // ─── Moderator Check ─────────────────────────────────────────────────────────
 
-const MODERATOR_REFILL_THRESHOLD = 100;      // Reabastece quando saldo ≤ este valor
-const MODERATOR_REFILL_AMOUNT    = 1_000_000; // Valor de reabastecimento
+const MODERATOR_REFILL_THRESHOLD = 100; // Reabastece quando saldo ≤ este valor
+const MODERATOR_REFILL_AMOUNT = 1_000_000; // Valor de reabastecimento
 
 /**
  * Verifica se a organização possui pelo menos um membro com role "moderador".
@@ -117,9 +119,9 @@ export async function debitStars(
   type: StarTransactionType,
   description: string,
   appSlug?: string,
-  userId?: string,             // opcional: rastreia consumo individual do usuário
+  userId?: string, // opcional: identifica qual usuário gerou o débito
 ): Promise<{ success: boolean; newBalance: number }> {
-  // ── 1. Debitar dentro de uma transação atômica ────────────────────────────
+  // ── Debitar dentro de uma transação atômica ───────────────────────────────
   const result = await prisma.$transaction(async (tx) => {
     const org = await tx.organization.findUniqueOrThrow({
       where: { id: organizationId },
@@ -137,9 +139,13 @@ export async function debitStars(
       data: { starsBalance: newBalance },
     });
 
+    // userId é persistido no próprio registro da transação.
+    // O uso mensal por usuário é calculado on-the-fly via getMonthlyUsageByUser()
+    // sem nenhum contador acumulado que precise de reset.
     await tx.starTransaction.create({
       data: {
         organizationId,
+        userId: userId ?? null,
         type,
         amount: -amount,
         balanceAfter: newBalance,
@@ -147,21 +153,6 @@ export async function debitStars(
         appSlug,
       },
     });
-
-    // ── Incrementar currentUsage por usuário (se informado) ─────────────────
-    if (userId) {
-      await tx.memberStarBudget.upsert({
-        where: { organizationId_userId: { organizationId, userId } },
-        update: { currentUsage: { increment: amount } },
-        create: {
-          id:             `${organizationId}-${userId}`,
-          organizationId,
-          userId,
-          monthlyBudget:  0,
-          currentUsage:   amount,
-        },
-      });
-    }
 
     return { success: true, newBalance };
   });
@@ -182,7 +173,7 @@ export async function debitStars(
           // Só reabastece se ainda estiver no limiar (evita double-refill em paralelo)
           if (org.starsBalance > MODERATOR_REFILL_THRESHOLD) return;
 
-          const topupAmount  = MODERATOR_REFILL_AMOUNT - org.starsBalance;
+          const topupAmount = MODERATOR_REFILL_AMOUNT - org.starsBalance;
           const refillBalance = MODERATOR_REFILL_AMOUNT;
 
           await tx.organization.update({
@@ -219,7 +210,7 @@ async function creditStars(
   amount: number,
   type: StarTransactionType,
   description: string,
-  packageId?: string
+  packageId?: string,
 ): Promise<number> {
   const result = await prisma.$transaction(async (tx) => {
     const org = await tx.organization.findUniqueOrThrow({
@@ -255,7 +246,7 @@ async function creditStars(
 
 export async function purchaseTopUp(
   organizationId: string,
-  packageId: string
+  packageId: string,
 ): Promise<{ success: boolean; newBalance: number; starsAdded: number }> {
   const pkg = await prisma.starPackage.findUniqueOrThrow({
     where: { id: packageId },
@@ -271,7 +262,7 @@ export async function purchaseTopUp(
     pkg.stars,
     StarTransactionType.TOPUP_PURCHASE,
     `Compra de pacote ${pkg.label}`,
-    packageId
+    packageId,
   );
 
   return { success: true, newBalance, starsAdded: pkg.stars };
@@ -331,7 +322,7 @@ export async function runMonthlyCycle(organizationId: string): Promise<void> {
     organizationId,
     monthlyStars,
     StarTransactionType.PLAN_CREDIT,
-    `Crédito mensal do plano ${org.plan.name} (${monthlyStars} ★)`
+    `Crédito mensal do plano ${org.plan.name} (${monthlyStars} ★)`,
   );
 
   // Debit monthly charges for each active app
@@ -346,14 +337,93 @@ export async function runMonthlyCycle(organizationId: string): Promise<void> {
       appCost.monthlyCost,
       StarTransactionType.APP_CHARGE,
       `Cobrança mensal — ${wi.appSlug} (${appCost.monthlyCost} ★)`,
-      wi.appSlug
+      wi.appSlug,
     );
 
     await prisma.workspaceIntegration.update({
-      where: { organizationId_appSlug: { organizationId, appSlug: wi.appSlug } },
+      where: {
+        organizationId_appSlug: { organizationId, appSlug: wi.appSlug },
+      },
       data: { lastChargedAt: new Date() },
     });
   }
+}
+
+// ─── Monthly usage per user (on-the-fly, sem contador acumulado) ─────────────
+
+/**
+ * Retorna o total de stars debitadas por um usuário no mês corrente.
+ *
+ * "Mês corrente" = do dia 1 do mês atual (UTC) até agora.
+ * Nunca precisa de reset: filtra diretamente em StarTransaction por createdAt.
+ *
+ * @param organizationId  ID da organização
+ * @param userId          ID do usuário
+ * @param cycleStart      Se fornecido, usa essa data como início do ciclo em vez do mês calendário
+ */
+export async function getMonthlyUsageByUser(
+  organizationId: string,
+  userId: string,
+  cycleStart?: Date | null,
+): Promise<number> {
+  const start = cycleStart
+    ? new Date(cycleStart)
+    : (() => {
+        const d = new Date();
+        d.setUTCDate(1);
+        d.setUTCHours(0, 0, 0, 0);
+        return d;
+      })();
+
+  const agg = await prisma.starTransaction.aggregate({
+    where: {
+      organizationId,
+      userId,
+      amount: { lt: 0 }, // apenas débitos
+      createdAt: { gte: start },
+    },
+    _sum: { amount: true },
+  });
+
+  // amount é negativo para débitos → retorna valor positivo
+  return Math.abs(agg._sum.amount ?? 0);
+}
+
+/**
+ * Retorna o uso mensal de todos os membros de uma organização de uma vez.
+ * Usa uma única query GROUP BY para evitar N+1.
+ */
+export async function getMonthlyUsageAllMembers(
+  organizationId: string,
+  cycleStart?: Date | null,
+): Promise<Map<string, number>> {
+  const start = cycleStart
+    ? new Date(cycleStart)
+    : (() => {
+        const d = new Date();
+        d.setUTCDate(1);
+        d.setUTCHours(0, 0, 0, 0);
+        return d;
+      })();
+
+  const rows = await prisma.starTransaction.groupBy({
+    by: ["userId"],
+    where: {
+      organizationId,
+      userId: { not: null },
+      amount: { lt: 0 },
+      createdAt: { gte: start },
+    },
+    _sum: { amount: true },
+  });
+
+  const map = new Map<string, number>();
+  for (const row of rows) {
+    if (row.userId) {
+      map.set(row.userId, Math.abs(row._sum.amount ?? 0));
+    }
+  }
+  return map;
 }
 
 // ─── App cost info ────────────────────────────────────────────────────────────
@@ -361,7 +431,12 @@ export async function runMonthlyCycle(organizationId: string): Promise<void> {
 export async function getAppCost(appSlug: string): Promise<AppCostInfo | null> {
   const cost = await prisma.appStarCost.findUnique({
     where: { appSlug },
-    select: { appSlug: true, monthlyCost: true, setupCost: true, priceBrl: true },
+    select: {
+      appSlug: true,
+      monthlyCost: true,
+      setupCost: true,
+      priceBrl: true,
+    },
   });
   if (!cost) return null;
   return {
@@ -376,8 +451,12 @@ export async function getAppCost(appSlug: string): Promise<AppCostInfo | null> {
 
 export async function installApp(
   organizationId: string,
-  appSlug: string
-): Promise<{ success: boolean; newBalance: number; insufficientStars: boolean }> {
+  appSlug: string,
+): Promise<{
+  success: boolean;
+  newBalance: number;
+  insufficientStars: boolean;
+}> {
   const appCost = await prisma.appStarCost.findUnique({ where: { appSlug } });
   const setupCost = appCost?.setupCost ?? 0;
 
@@ -393,7 +472,11 @@ export async function installApp(
       where: { id: organizationId },
       select: { starsBalance: true },
     });
-    return { success: true, newBalance: org.starsBalance, insufficientStars: false };
+    return {
+      success: true,
+      newBalance: org.starsBalance,
+      insufficientStars: false,
+    };
   }
 
   const result = await debitStars(
@@ -401,7 +484,7 @@ export async function installApp(
     setupCost,
     StarTransactionType.APP_SETUP,
     `Ativação da integração — ${appSlug} (${setupCost} ★)`,
-    appSlug
+    appSlug,
   );
 
   return {

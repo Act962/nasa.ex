@@ -91,11 +91,24 @@ export async function POST(req: NextRequest) {
       case "invoice.payment_succeeded": {
         const invoice = event.data.object;
         const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
-        // TODO: mapear customerId → organizationId após salvar stripeCustomerId na org
-        // Por ora, apenas loga
-        console.log("[stripe/webhook] invoice paid for customer:", customerId);
+        if (!customerId) break;
+
+        // Localiza a org pelo stripeCustomerId da subscription
+        const org = await prisma.organization.findFirst({
+          where: { stripeCustomerId: customerId },
+          select: { id: true },
+        });
+
+        if (org) {
+          // Avança o ciclo: rollover + crédito mensal do plano + cobranças de apps
+          await runMonthlyCycle(org.id);
+          console.log(`[stripe/webhook] ✅ ciclo mensal renovado para org ${org.id}`);
+        } else {
+          console.warn(`[stripe/webhook] ⚠️ org não encontrada para customerId ${customerId}`);
+        }
         break;
       }
+
 
       // ── Cancelamento de assinatura ───────────────────────────────────────────
       case "customer.subscription.deleted": {

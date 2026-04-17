@@ -1590,6 +1590,7 @@ enum StarTransactionType {
 model StarTransaction {
   id             String              @id @default(cuid())
   organizationId String              @map("organization_id")
+  userId         String?             @map("user_id") // quem gerou o débito (null = sistema)
   type           StarTransactionType
   amount         Int                 // positivo = crédito, negativo = débito
   balanceAfter   Int                 @map("balance_after")
@@ -1601,6 +1602,7 @@ model StarTransaction {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, createdAt])
+  @@index([organizationId, userId, createdAt]) // índice para agregação mensal por usuário
   @@index([type])
   @@map("star_transactions")
 }

@@ -31,6 +31,7 @@ export const getStarDistribution = base
       where:  { id: orgId },
       select: {
         starDistributionMode: true,
+        starsCycleStart: true,
         plan: { select: { monthlyStars: true } },
         members: {
           select: {
@@ -39,7 +40,7 @@ export const getStarDistribution = base
           },
         },
         memberStarBudgets: {
-          select: { userId: true, monthlyBudget: true, currentUsage: true },
+          select: { userId: true, monthlyBudget: true },
         },
       },
     });
@@ -50,20 +51,44 @@ export const getStarDistribution = base
       ? Math.floor(planMonthlyStars / memberCount)
       : 0;
 
+    // Uso mensal calculado on-the-fly via StarTransaction — sem contador acumulado.
+    // Início do ciclo = starsCycleStart da org ou dia 1 do mês atual (UTC).
+    const cycleStart = org.starsCycleStart ?? (() => {
+      const d = new Date();
+      d.setUTCDate(1);
+      d.setUTCHours(0, 0, 0, 0);
+      return d;
+    })();
+
+    const usageRows = await prisma.starTransaction.groupBy({
+      by: ["userId"],
+      where: {
+        organizationId: orgId,
+        userId: { not: null },
+        amount: { lt: 0 },
+        createdAt: { gte: cycleStart },
+      },
+      _sum: { amount: true },
+    });
+
+    const usageMap = new Map<string, number>();
+    for (const row of usageRows) {
+      if (row.userId) {
+        usageMap.set(row.userId, Math.abs(row._sum.amount ?? 0));
+      }
+    }
+
     const budgetMap = new Map(
-      org.memberStarBudgets.map((b) => [b.userId, b])
+      org.memberStarBudgets.map((b) => [b.userId, b.monthlyBudget])
     );
 
-    const members = org.members.map((m) => {
-      const budget = budgetMap.get(m.userId);
-      return {
-        userId:        m.userId,
-        userName:      m.user.name,
-        userEmail:     m.user.email,
-        monthlyBudget: budget?.monthlyBudget ?? 0,
-        currentUsage:  budget?.currentUsage  ?? 0,
-      };
-    });
+    const members = org.members.map((m) => ({
+      userId:        m.userId,
+      userName:      m.user.name,
+      userEmail:     m.user.email,
+      monthlyBudget: budgetMap.get(m.userId) ?? 0,
+      currentUsage:  usageMap.get(m.userId)  ?? 0,
+    }));
 
     return {
       mode:            org.starDistributionMode as "org" | "equal" | "custom",
