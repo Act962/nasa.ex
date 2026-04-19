@@ -9,6 +9,7 @@ interface RichtTextEditorProps {
   onChange?: (value: string) => void;
   disabled?: boolean;
   children?: React.ReactNode;
+  placeholder?: string;
 }
 
 export function RichtTextEditor({
@@ -16,9 +17,10 @@ export function RichtTextEditor({
   field,
   disabled,
   children,
+  placeholder,
 }: RichtTextEditorProps) {
   const editor = useEditor({
-    extensions: editorExtensions,
+    extensions: editorExtensions({ placeholder }),
     content: (() => {
       if (!field) return "";
       try {

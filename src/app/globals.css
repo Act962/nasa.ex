@@ -229,7 +229,6 @@ input::placeholder {
 }
 
 @media print {
-
   /* ── A4 page with space reserved for running header + footer ────────────── */
   @page {
     size: A4 portrait;
@@ -256,7 +255,7 @@ input::placeholder {
     align-items: center;
     justify-content: space-between;
     position: fixed;
-    top: -22mm;          /* offset into the @page top margin */
+    top: -22mm; /* offset into the @page top margin */
     left: 0;
     right: 0;
     height: 20mm;
@@ -273,7 +272,7 @@ input::placeholder {
     align-items: center;
     justify-content: space-between;
     position: fixed;
-    bottom: -18mm;       /* offset into the @page bottom margin */
+    bottom: -18mm; /* offset into the @page bottom margin */
     left: 0;
     right: 0;
     height: 16mm;
@@ -282,7 +281,10 @@ input::placeholder {
     background: white;
     border-top: 0.5pt solid #e5e7eb;
     font-size: 8pt;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family:
+      system-ui,
+      -apple-system,
+      sans-serif;
     color: #9ca3af;
     z-index: 9999;
   }
@@ -300,7 +302,10 @@ input::placeholder {
   }
 
   /* Headings stay with the paragraph that follows */
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     break-after: avoid !important;
     page-break-after: avoid !important;
   }
@@ -319,15 +324,149 @@ input::placeholder {
 }
 
 @keyframes wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  15%       { transform: rotate(-15deg); }
-  30%       { transform: rotate(15deg); }
-  45%       { transform: rotate(-10deg); }
-  60%       { transform: rotate(10deg); }
-  75%       { transform: rotate(-5deg); }
-  90%       { transform: rotate(5deg); }
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  15% {
+    transform: rotate(-15deg);
+  }
+  30% {
+    transform: rotate(15deg);
+  }
+  45% {
+    transform: rotate(-10deg);
+  }
+  60% {
+    transform: rotate(10deg);
+  }
+  75% {
+    transform: rotate(-5deg);
+  }
+  90% {
+    transform: rotate(5deg);
+  }
 }
 
 .popup-cq {
   container-type: inline-size;
+}
+
+.tiptap {
+  img {
+    display: block;
+  }
+
+  /* Container gerado pelo ResizableNodeView */
+  [data-resize-state] {
+    display: inline-block;
+    line-height: 0;
+  }
+
+  /* Wrapper — precisa ser relative para os handles se posicionarem corretamente */
+  [data-resize-wrapper] {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+  }
+
+  &.ProseMirror-selectednode {
+    outline: 3px solid var(--primary);
+  }
+
+  /* Handles escondidos por padrão */
+  [data-resize-handle] {
+    display: none;
+    position: absolute;
+    background-color: var(--primary);
+    border: 1px solid white;
+    border-radius: 2px;
+    z-index: 10;
+
+    &:hover {
+      opacity: 0.8;
+    }
+
+    /* ── Cantos ── */
+    &[data-resize-handle="top-left"],
+    &[data-resize-handle="top-right"],
+    &[data-resize-handle="bottom-left"],
+    &[data-resize-handle="bottom-right"] {
+      width: 10px;
+      height: 10px;
+    }
+
+    &[data-resize-handle="top-left"] {
+      top: -5px;
+      left: -5px;
+      cursor: nwse-resize;
+    }
+
+    &[data-resize-handle="top-right"] {
+      top: -5px;
+      right: -5px;
+      cursor: nesw-resize;
+    }
+
+    &[data-resize-handle="bottom-left"] {
+      bottom: -5px;
+      left: -5px;
+      cursor: nesw-resize;
+    }
+
+    &[data-resize-handle="bottom-right"] {
+      bottom: -5px;
+      right: -5px;
+      cursor: nwse-resize;
+    }
+
+    /* ── Bordas — centralizadas com transform ── */
+    &[data-resize-handle="top"],
+    &[data-resize-handle="bottom"] {
+      width: 10px;
+      height: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    &[data-resize-handle="top"] {
+      top: -3px;
+      cursor: ns-resize;
+    }
+
+    &[data-resize-handle="bottom"] {
+      bottom: -3px;
+      cursor: ns-resize;
+    }
+
+    &[data-resize-handle="left"],
+    &[data-resize-handle="right"] {
+      width: 6px;
+      height: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    &[data-resize-handle="left"] {
+      left: -3px;
+      cursor: ew-resize;
+    }
+
+    &[data-resize-handle="right"] {
+      right: -3px;
+      cursor: ew-resize;
+    }
+  }
+
+  /* Mostra handles e outline apenas quando selecionada */
+  [data-resize-state="true"] {
+    [data-resize-handle] {
+      display: block;
+    }
+
+    [data-resize-wrapper] {
+      outline: 1px solid rgba(0, 0, 0, 0.25);
+      border-radius: 0.125rem;
+    }
+  }
 }
