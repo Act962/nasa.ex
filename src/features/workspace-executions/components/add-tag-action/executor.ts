@@ -3,7 +3,6 @@ import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { wsAddTagChannel } from "@/inngest/channels/workspace";
 import { ActionContext } from "../../schemas";
-import { loadActionContext } from "../../lib/load-action-context";
 
 type Data = {
   action?: { tagId: string };
@@ -35,12 +34,10 @@ export const wsAddTagActionExecutor: NodeExecutor<Data> = async ({
         update: {},
       });
 
-      const refreshed = await loadActionContext(action.id);
-
       if (realTime) {
         await publish(wsAddTagChannel().status({ nodeId, status: "success" }));
       }
-      return { ...context, action: refreshed ?? action };
+      return { ...context, action: { id: action.id } };
     } catch (err) {
       if (realTime) {
         await publish(wsAddTagChannel().status({ nodeId, status: "error" }));

@@ -117,7 +117,7 @@ export function CreateActionWithAi({
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="flex-1 lg:w-auto">
+        <Button variant="outline" className="flex-1 lg:w-auto" size="sm">
           <Sparkles className="size-4 mr-2 text-purple-500 group-hover:animate-pulse" />
           <span className="bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-semibold">
             Criar com IA

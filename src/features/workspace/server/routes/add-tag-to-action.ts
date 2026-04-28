@@ -2,7 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import { sendWorkspaceWorkflowEvent } from "@/inngest/utils";
+import { hasTaggedWorkflow, sendWorkspaceWorkflowEvent } from "@/inngest/utils";
 import { z } from "zod";
 
 export const addTagToAction = base
@@ -22,11 +22,18 @@ export const addTagToAction = base
         select: { workspaceId: true },
       });
       if (action) {
-        await sendWorkspaceWorkflowEvent({
-          trigger: "WS_ACTION_TAGGED",
-          workspaceId: action.workspaceId,
-          actionId: input.actionId,
-        });
+        const hasListener = await hasTaggedWorkflow(
+          action.workspaceId,
+          input.tagId,
+        );
+        if (hasListener) {
+          await sendWorkspaceWorkflowEvent({
+            trigger: "WS_ACTION_TAGGED",
+            workspaceId: action.workspaceId,
+            actionId: input.actionId,
+            tagId: input.tagId,
+          });
+        }
       }
     } catch (err) {
       console.error("[workspace-workflow] failed to emit action.tagged", err);

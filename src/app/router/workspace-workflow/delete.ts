@@ -7,11 +7,11 @@ export const deleteWorkspaceWorkflow = base
   .use(requiredAuthMiddleware)
   .input(z.object({ id: z.string() }))
   .handler(async ({ input, errors }) => {
-    const wf = await prisma.workspaceWorkflow.findUnique({
+    const wf = await prisma.workflow.findUnique({
       where: { id: input.id },
     });
     if (!wf) throw errors.NOT_FOUND({ message: "Workflow não encontrado" });
 
-    await prisma.workspaceWorkflow.delete({ where: { id: input.id } });
+    await prisma.workflow.delete({ where: { id: input.id } });
     return wf;
   });

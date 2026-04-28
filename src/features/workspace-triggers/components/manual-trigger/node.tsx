@@ -3,6 +3,7 @@
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { memo, useState } from "react";
 import { MousePointerIcon } from "lucide-react";
+import { useParams } from "next/navigation";
 import { WsBaseTriggerNode } from "@/features/workspace-triggers/components/base-trigger-node";
 import { useNodeStatus } from "@/features/executions/hook/use-node-status";
 import { WS_MANUAL_TRIGGER_CHANNEL_NAME } from "@/inngest/channels/workspace";
@@ -17,6 +18,7 @@ type Data = { action?: WsManualTriggerFormValues };
 export const WsManualTriggerNode = memo((props: NodeProps<Node<Data>>) => {
   const [open, setOpen] = useState(false);
   const { setNodes } = useReactFlow();
+  const { workspaceId } = useParams<{ workspaceId: string }>();
   const status = useNodeStatus({
     nodeId: props.id,
     channel: WS_MANUAL_TRIGGER_CHANNEL_NAME,
@@ -41,6 +43,7 @@ export const WsManualTriggerNode = memo((props: NodeProps<Node<Data>>) => {
         onOpenChange={setOpen}
         onSubmit={handleSubmit}
         defaultValues={props.data?.action}
+        workspaceId={workspaceId}
       />
       <WsBaseTriggerNode
         {...props}

@@ -1,6 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { WorkspaceNodeType } from "@/generated/prisma/enums";
+import { NodeType } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -20,19 +20,22 @@ export const updateWorkspaceWorkflowName = base
     }),
   )
   .handler(async ({ input, errors }) => {
-    const wf = await prisma.workspaceWorkflow.findUnique({
+    const wf = await prisma.workflow.findUnique({
       where: { id: input.workflowId },
     });
     if (!wf) throw errors.NOT_FOUND({ message: "Workflow not found" });
+    if (!wf.workspaceId) {
+      throw errors.BAD_REQUEST({ message: "Workflow não pertence a um workspace" });
+    }
 
-    const updated = await prisma.workspaceWorkflow.update({
+    const updated = await prisma.workflow.update({
       where: { id: input.workflowId },
       data: { name: input.name },
     });
     return {
       id: updated.id,
       workflowName: updated.name,
-      workspaceId: updated.workspaceId,
+      workspaceId: updated.workspaceId!,
     };
   });
 
@@ -62,25 +65,25 @@ export const updateWorkspaceWorkflowNodes = base
   .handler(async ({ input }) => {
     const { id, nodes, edges } = input;
 
-    const workflow = await prisma.workspaceWorkflow.findUniqueOrThrow({
+    const workflow = await prisma.workflow.findUniqueOrThrow({
       where: { id },
     });
 
     return prisma.$transaction(async (tx) => {
-      await tx.workspaceNode.deleteMany({ where: { workflowId: id } });
+      await tx.node.deleteMany({ where: { workflowId: id } });
 
-      await tx.workspaceNode.createMany({
+      await tx.node.createMany({
         data: nodes.map((n) => ({
           id: n.id,
           workflowId: id,
           name: n.type || "unknown",
-          type: n.type as WorkspaceNodeType,
+          type: n.type as NodeType,
           position: n.position,
           data: n.data || {},
         })),
       });
 
-      await tx.workspaceConnection.createMany({
+      await tx.connection.createMany({
         data: edges.map((e) => ({
           workflowId: id,
           fromNodeId: e.source,
@@ -90,7 +93,7 @@ export const updateWorkspaceWorkflowNodes = base
         })),
       });
 
-      await tx.workspaceWorkflow.update({
+      await tx.workflow.update({
         where: { id },
         data: { updatedAt: new Date() },
       });

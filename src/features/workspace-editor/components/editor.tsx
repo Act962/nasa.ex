@@ -20,7 +20,7 @@ import {
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { workspaceNodeComponents } from "@/config/workspace-node-components";
-import { WorkspaceNodeType } from "@/generated/prisma/enums";
+import { NodeType } from "@/generated/prisma/enums";
 import "@xyflow/react/dist/style.css";
 import { Spinner } from "@/components/ui/spinner";
 import { useSetAtom } from "jotai";
@@ -57,7 +57,7 @@ export function WorkspaceEditor({ workflowId }: { workflowId: string }) {
 
   const hasManualTrigger = useMemo(
     () =>
-      nodes.some((n) => n.type === WorkspaceNodeType.WS_MANUAL_TRIGGER),
+      nodes.some((n) => n.type === NodeType.WS_MANUAL_TRIGGER),
     [nodes],
   );
 

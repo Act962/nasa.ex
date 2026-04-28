@@ -3,10 +3,12 @@ import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { wsSetResponsibleChannel } from "@/inngest/channels/workspace";
 import { ActionContext } from "../../schemas";
-import { loadActionContext } from "../../lib/load-action-context";
 
 type Data = {
-  action?: { userId: string };
+  action?: {
+    userIds?: string[];
+    userId?: string;
+  };
 };
 
 export const wsSetResponsibleExecutor: NodeExecutor<Data> = async ({
@@ -26,25 +28,39 @@ export const wsSetResponsibleExecutor: NodeExecutor<Data> = async ({
     }
     try {
       const action = context.action as ActionContext | undefined;
-      const userId = data.action?.userId;
-      if (!action || !userId) {
-        throw new NonRetriableError("Action or user missing");
+      const rawUserIds = data.action?.userIds;
+      const legacyUserId = data.action?.userId;
+      const userIds = Array.from(
+        new Set(
+          (rawUserIds && rawUserIds.length > 0
+            ? rawUserIds
+            : legacyUserId
+              ? [legacyUserId]
+              : []
+          ).filter(Boolean),
+        ),
+      );
+
+      if (!action || userIds.length === 0) {
+        throw new NonRetriableError("Action or users missing");
       }
 
-      await prisma.actionsUserResponsible.upsert({
-        where: { actionId_userId: { actionId: action.id, userId } },
-        create: { actionId: action.id, userId },
-        update: {},
-      });
-
-      const refreshed = await loadActionContext(action.id);
+      await prisma.$transaction(
+        userIds.map((userId) =>
+          prisma.actionsUserResponsible.upsert({
+            where: { actionId_userId: { actionId: action.id, userId } },
+            create: { actionId: action.id, userId },
+            update: {},
+          }),
+        ),
+      );
 
       if (realTime) {
         await publish(
           wsSetResponsibleChannel().status({ nodeId, status: "success" }),
         );
       }
-      return { ...context, action: refreshed ?? action };
+      return { ...context, action: { id: action.id } };
     } catch (err) {
       if (realTime) {
         await publish(

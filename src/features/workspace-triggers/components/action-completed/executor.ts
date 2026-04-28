@@ -1,6 +1,7 @@
 import { NodeExecutor } from "@/features/workspace-executions/types";
 import { NonRetriableError } from "inngest";
 import { actionContext } from "@/features/workspace-executions/schemas";
+import { loadActionContext } from "@/features/workspace-executions/lib/load-action-context";
 
 export const wsActionCompletedExecutor: NodeExecutor = async ({
   context,
@@ -11,9 +12,13 @@ export const wsActionCompletedExecutor: NodeExecutor = async ({
     if (!parsed.success) {
       throw new NonRetriableError("Invalid action data on context");
     }
-    if (!parsed.data.isDone) {
+    const detail = await loadActionContext(parsed.data.id);
+    if (!detail) {
+      throw new NonRetriableError("Action not found");
+    }
+    if (!detail.isDone) {
       throw new NonRetriableError("Action is not completed");
     }
-    return { ...context, action: parsed.data, realTime: false };
+    return { ...context, action: { id: parsed.data.id }, realTime: false };
   });
 };

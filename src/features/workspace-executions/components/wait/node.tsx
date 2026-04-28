@@ -1,40 +1,73 @@
 "use client";
 
+import { Node, NodeProps, useReactFlow } from "@xyflow/react";
+import { memo, useState } from "react";
 import { TimerIcon } from "lucide-react";
-import { makeExecutionNode } from "../_shared/make-node";
+import { WsBaseExecutionNode } from "../base-execution-node";
+import { WsWaitDialog, WsWaitFormValues } from "./dialog";
+import { useNodeStatus } from "@/features/executions/hook/use-node-status";
 import { WS_WAIT_CHANNEL_NAME } from "@/inngest/channels/workspace";
 import { fetchWsWaitToken } from "../../lib/realtime-tokens";
 
-type Values = {
-  type: "MINUTES" | "HOURS";
-  minutes: number;
-  hours: number;
+type WsWaitNodeData = {
+  action?: WsWaitFormValues;
 };
 
-export const WsWaitNode = makeExecutionNode<Values>({
-  name: "Esperar",
-  description: "Aguarda antes de continuar",
-  icon: TimerIcon,
-  channelName: WS_WAIT_CHANNEL_NAME,
-  refreshToken: fetchWsWaitToken as any,
-  dialogTitle: "Esperar",
-  fields: [
-    {
-      kind: "select",
-      name: "type",
-      label: "Unidade",
-      options: [
-        { value: "MINUTES", label: "Minutos" },
-        { value: "HOURS", label: "Horas" },
-      ],
-    },
-    { kind: "number", name: "minutes", label: "Minutos (se for minutos)" },
-    { kind: "number", name: "hours", label: "Horas (se for horas)" },
-  ],
-  describe: (v) =>
-    v?.type === "MINUTES"
-      ? `${v.minutes} min`
-      : v?.type === "HOURS"
-        ? `${v.hours}h`
-        : undefined,
+type WsWaitNodeType = Node<WsWaitNodeData>;
+
+export const WsWaitNode = memo((props: NodeProps<WsWaitNodeType>) => {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const { setNodes } = useReactFlow();
+
+  const nodeStatus = useNodeStatus({
+    nodeId: props.id,
+    channel: WS_WAIT_CHANNEL_NAME,
+    topic: "status",
+    refreshToken: fetchWsWaitToken as any,
+  });
+
+  const handleOpenSettings = () => setDialogOpen(true);
+
+  const handleSubmit = (values: WsWaitFormValues) => {
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id === props.id) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              action: values,
+            },
+          };
+        }
+
+        return node;
+      }),
+    );
+  };
+
+  const nodeData = props.data;
+
+  return (
+    <>
+      <WsWaitDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSubmit={handleSubmit}
+        defaultValues={nodeData.action}
+      />
+      <WsBaseExecutionNode
+        {...props}
+        id={props.id}
+        icon={TimerIcon}
+        name="Esperar"
+        status={nodeStatus}
+        description={"Esperar até"}
+        onSettings={handleOpenSettings}
+        onDoubleClick={handleOpenSettings}
+      />
+    </>
+  );
 });
+
+WsWaitNode.displayName = "WsWaitNode";

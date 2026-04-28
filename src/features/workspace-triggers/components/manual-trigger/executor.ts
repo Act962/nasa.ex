@@ -25,7 +25,7 @@ export const wsManualTriggerExecutor: NodeExecutor<ManualTriggerData> = async ({
     }
     const action = await loadActionContext(actionId);
     if (!action) throw new NonRetriableError("Action not found");
-    return { ...context, action, realTime: true };
+    return { ...context, action: { id: action.id }, realTime: true };
   });
 
   await publish(

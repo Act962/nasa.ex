@@ -1,5 +1,6 @@
 import { NodeExecutor } from "@/features/workspace-executions/types";
 import { NonRetriableError } from "inngest";
+import { WsWaitFormValues } from "./dialog";
 import { wsWaitChannel } from "@/inngest/channels/workspace";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -10,16 +11,11 @@ dayjs.extend(timezone);
 
 const TIMEZONE = "America/Sao_Paulo";
 
-type Data = {
-  action?:
-    | { type: "MINUTES"; minutes: number }
-    | { type: "HOURS"; hours: number }
-    | { type: "DAYS"; days: number; hours: number; minutes: number }
-    | { type: "WEEKS"; weeks: number; hours: number; minutes: number }
-    | { type: "MONTHS"; months: number; hours: number; minutes: number };
+type WsWaitNodeData = {
+  action?: WsWaitFormValues;
 };
 
-export const wsWaitExecutor: NodeExecutor<Data> = async ({
+export const wsWaitExecutor: NodeExecutor<WsWaitNodeData> = async ({
   data,
   nodeId,
   context,
@@ -29,29 +25,44 @@ export const wsWaitExecutor: NodeExecutor<Data> = async ({
   const realTime = context.realTime as boolean;
 
   if (realTime) {
-    await publish(wsWaitChannel().status({ nodeId, status: "loading" }));
+    await publish(
+      wsWaitChannel().status({
+        nodeId,
+        status: "loading",
+      }),
+    );
   }
 
   const action = data.action;
+
   if (!action) {
     if (realTime) {
-      await publish(wsWaitChannel().status({ nodeId, status: "error" }));
+      await publish(
+        wsWaitChannel().status({
+          nodeId,
+          status: "error",
+        }),
+      );
     }
-    throw new NonRetriableError("Wait action not defined");
+
+    throw new NonRetriableError("Wait action is not defined");
   }
 
-  if (action.type === "MINUTES") {
-    await step.sleep("ws-wait", `${action.minutes}m`);
-  } else if (action.type === "HOURS") {
-    await step.sleep("ws-wait", `${action.hours}h`);
+  if (action.type === "MINUTES" || action.type === "HOURS") {
+    const waitTime =
+      action.type === "MINUTES" ? action.minutes + "m" : action.hours + "h";
+    await step.sleep("ws-wait", waitTime);
   } else {
     const now = dayjs().tz(TIMEZONE);
     let targetDate = now;
-    if (action.type === "DAYS") targetDate = targetDate.add(action.days, "day");
-    else if (action.type === "WEEKS")
+
+    if (action.type === "DAYS") {
+      targetDate = targetDate.add(action.days, "day");
+    } else if (action.type === "WEEKS") {
       targetDate = targetDate.add(action.weeks, "week");
-    else if (action.type === "MONTHS")
+    } else if (action.type === "MONTHS") {
       targetDate = targetDate.add(action.months, "month");
+    }
 
     targetDate = targetDate
       .set("hour", action.hours)
@@ -63,7 +74,12 @@ export const wsWaitExecutor: NodeExecutor<Data> = async ({
   }
 
   if (realTime) {
-    await publish(wsWaitChannel().status({ nodeId, status: "success" }));
+    await publish(
+      wsWaitChannel().status({
+        nodeId,
+        status: "success",
+      }),
+    );
   }
 
   return context;

@@ -24,7 +24,7 @@ export const useCreateWorkspaceWorkflow = () => {
         toast.success("Workflow criado com sucesso!");
         qc.invalidateQueries({
           queryKey: orpc.workspaceWorkflow.list.queryKey({
-            input: { workspaceId: data.workspaceId },
+            input: { workspaceId: data.workspaceId! },
           }),
         });
       },
@@ -40,7 +40,7 @@ export const useUpdateWorkspaceWorkflowName = () => {
         toast.success("Workflow atualizado!");
         qc.invalidateQueries({
           queryKey: orpc.workspaceWorkflow.list.queryKey({
-            input: { workspaceId: data.workspaceId },
+            input: { workspaceId: data.workspaceId! },
           }),
         });
         qc.invalidateQueries({
@@ -63,7 +63,7 @@ export const useUpdateWorkspaceWorkflow = () => {
         toast.success(`Workflow "${data.name}" salvo`);
         qc.invalidateQueries({
           queryKey: orpc.workspaceWorkflow.list.queryKey({
-            input: { workspaceId: data.workspaceId },
+            input: { workspaceId: data.workspaceId! },
           }),
         });
         qc.invalidateQueries({
@@ -85,7 +85,7 @@ export const useDeleteWorkspaceWorkflow = () => {
         toast.success(`Workflow "${data.name}" deletado`);
         qc.invalidateQueries({
           queryKey: orpc.workspaceWorkflow.list.queryKey({
-            input: { workspaceId: data.workspaceId },
+            input: { workspaceId: data.workspaceId! },
           }),
         });
       },

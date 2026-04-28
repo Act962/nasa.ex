@@ -1,13 +1,20 @@
 import { NodeExecutor } from "@/features/workspace-executions/types";
 import { NonRetriableError } from "inngest";
+import prisma from "@/lib/prisma";
 import { wsFilterChannel } from "@/inngest/channels/workspace";
 import { ActionContext } from "../../schemas";
+import { loadActionContext } from "../../lib/load-action-context";
 
 type Condition =
   | { field: "column"; operator: "is" | "is_not"; value: string[] }
   | { field: "tag"; operator: "contains" | "not_contains"; value: string[] }
-  | { field: "priority"; operator: "is" | "is_not"; value: string[] }
-  | { field: "isDone"; operator: "is"; value: boolean };
+  | {
+      field: "participant";
+      operator: "contains" | "not_contains";
+      value: string[];
+    }
+  | { field: "isDone"; operator: "is"; value: "true" | "false" | boolean }
+  | { field: "name"; operator: "equals" | "contains"; value: string };
 
 type Data = {
   action?: {
@@ -34,24 +41,45 @@ export const wsFilterExecutor: NodeExecutor<Data> = async ({
       const cfg = data.action;
       if (!action || !cfg?.conditions?.length) return context;
 
+      const detail = await loadActionContext(action.id);
+      if (!detail) {
+        throw new NonRetriableError("Action not found");
+      }
+
+      const fullAction = await prisma.action.findUnique({
+        where: { id: action.id },
+        select: { title: true },
+      });
+      const title = fullAction?.title ?? detail.title ?? "";
+
       const results = cfg.conditions.map((c) => {
         switch (c.field) {
           case "column": {
-            const hit = action.columnId
-              ? c.value.includes(action.columnId)
+            const hit = detail.columnId
+              ? c.value.includes(detail.columnId)
               : false;
             return c.operator === "is" ? hit : !hit;
           }
           case "tag": {
-            const hit = c.value.some((v) => action.tagIds.includes(v));
+            const hit = c.value.some((v) => detail.tagIds.includes(v));
             return c.operator === "contains" ? hit : !hit;
           }
-          case "priority": {
-            const hit = c.value.includes(action.priority);
-            return c.operator === "is" ? hit : !hit;
+          case "participant": {
+            const hit = c.value.some((v) =>
+              detail.participantIds.includes(v),
+            );
+            return c.operator === "contains" ? hit : !hit;
           }
-          case "isDone":
-            return action.isDone === c.value;
+          case "isDone": {
+            const expected =
+              typeof c.value === "boolean" ? c.value : c.value === "true";
+            return detail.isDone === expected;
+          }
+          case "name": {
+            const a = title.toLowerCase().trim();
+            const b = String(c.value).toLowerCase().trim();
+            return c.operator === "equals" ? a === b : a.includes(b);
+          }
           default:
             return true;
         }

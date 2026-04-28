@@ -1,6 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { WorkspaceNodeType } from "@/generated/prisma/enums";
+import { NodeType } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -22,7 +22,7 @@ export const createWorkspaceWorkflow = base
       throw errors.BAD_REQUEST({ message: "Workspace não encontrado" });
     }
 
-    const workflow = await prisma.workspaceWorkflow.create({
+    const workflow = await prisma.workflow.create({
       data: {
         name: input.name,
         description: input.description,
@@ -30,9 +30,9 @@ export const createWorkspaceWorkflow = base
         userId: context.user.id,
         nodes: {
           create: {
-            type: WorkspaceNodeType.WS_INITIAL,
+            type: NodeType.WS_INITIAL,
             position: { x: 0, y: 0 },
-            name: WorkspaceNodeType.WS_INITIAL,
+            name: NodeType.WS_INITIAL,
           },
         },
       },

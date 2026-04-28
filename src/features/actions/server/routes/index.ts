@@ -2,6 +2,7 @@ import { createAction } from "./create";
 import { getAction } from "./get";
 import { listActionByColumn } from "./list-action-by-column";
 import { listActionByWorkspace } from "./list-action-by-workspace";
+import { searchActions } from "./search-actions";
 import { reorderAction } from "./reorder";
 import { updateAction } from "./update";
 import { deleteAction } from "./delete";
@@ -25,6 +26,7 @@ export const actionRoutes = {
   create: createAction,
   listByColumn: listActionByColumn,
   listByWorkspace: listActionByWorkspace,
+  searchActions,
   reorder: reorderAction,
   get: getAction,
   update: updateAction,

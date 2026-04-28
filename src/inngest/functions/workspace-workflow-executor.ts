@@ -2,7 +2,7 @@ import { NonRetriableError } from "inngest";
 import { inngest } from "../client";
 import prisma from "@/lib/prisma";
 import { topologicalSort } from "../utils";
-import { WorkspaceNodeType } from "@/generated/prisma/enums";
+import { NodeType } from "@/generated/prisma/enums";
 import { getWorkspaceExecutor } from "@/features/workspace-executions/lib/executor-registry";
 import { loadActionContext } from "@/features/workspace-executions/lib/load-action-context";
 import {
@@ -20,13 +20,13 @@ import {
   wsWaitChannel,
 } from "../channels/workspace";
 
-const triggerToNodeType: Record<string, WorkspaceNodeType> = {
-  WS_MANUAL_TRIGGER: WorkspaceNodeType.WS_MANUAL_TRIGGER,
-  WS_ACTION_CREATED: WorkspaceNodeType.WS_ACTION_CREATED,
-  WS_ACTION_MOVED_COLUMN: WorkspaceNodeType.WS_ACTION_MOVED_COLUMN,
-  WS_ACTION_TAGGED: WorkspaceNodeType.WS_ACTION_TAGGED,
-  WS_ACTION_COMPLETED: WorkspaceNodeType.WS_ACTION_COMPLETED,
-  WS_ACTION_PARTICIPANT_ADDED: WorkspaceNodeType.WS_ACTION_PARTICIPANT_ADDED,
+const triggerToNodeType: Record<string, NodeType> = {
+  WS_MANUAL_TRIGGER: NodeType.WS_MANUAL_TRIGGER,
+  WS_ACTION_CREATED: NodeType.WS_ACTION_CREATED,
+  WS_ACTION_MOVED_COLUMN: NodeType.WS_ACTION_MOVED_COLUMN,
+  WS_ACTION_TAGGED: NodeType.WS_ACTION_TAGGED,
+  WS_ACTION_COMPLETED: NodeType.WS_ACTION_COMPLETED,
+  WS_ACTION_PARTICIPANT_ADDED: NodeType.WS_ACTION_PARTICIPANT_ADDED,
 };
 
 export const executeWorkspaceWorkflow = inngest.createFunction(
@@ -49,14 +49,23 @@ export const executeWorkspaceWorkflow = inngest.createFunction(
     ],
   },
   async ({ event, step, publish }) => {
-    const { trigger, workspaceId, actionId, workflowId, initialData } =
-      event.data as {
-        trigger: keyof typeof triggerToNodeType;
-        workspaceId: string;
-        actionId?: string;
-        workflowId?: string;
-        initialData?: Record<string, any>;
-      };
+    const {
+      trigger,
+      workspaceId,
+      actionId,
+      workflowId,
+      initialData,
+      columnId,
+      tagId,
+    } = event.data as {
+      trigger: keyof typeof triggerToNodeType;
+      workspaceId: string;
+      actionId?: string;
+      workflowId?: string;
+      initialData?: Record<string, any>;
+      columnId?: string;
+      tagId?: string;
+    };
 
     const triggerNodeType = triggerToNodeType[trigger];
     if (!triggerNodeType) {
@@ -65,13 +74,13 @@ export const executeWorkspaceWorkflow = inngest.createFunction(
 
     const workflows = await step.run("find-ws-workflows", async () => {
       if (workflowId) {
-        const wf = await prisma.workspaceWorkflow.findUnique({
+        const wf = await prisma.workflow.findUnique({
           where: { id: workflowId },
           include: { nodes: true, connections: true },
         });
-        return wf ? [wf] : [];
+        return wf && wf.workspaceId ? [wf] : [];
       }
-      return prisma.workspaceWorkflow.findMany({
+      const candidates = await prisma.workflow.findMany({
         where: {
           workspaceId,
           isActive: true,
@@ -79,6 +88,41 @@ export const executeWorkspaceWorkflow = inngest.createFunction(
         },
         include: { nodes: true, connections: true },
       });
+
+      // Para o gatilho de "ação movida", só mantém workflows cujo node
+      // de gatilho esteja configurado para a coluna de destino real.
+      if (trigger === "WS_ACTION_MOVED_COLUMN") {
+        if (!columnId) return [];
+        return candidates.filter((wf) =>
+          wf.nodes.some((n) => {
+            if (n.type !== triggerNodeType) return false;
+            const cfg = (n.data as any)?.action as
+              | { columnId?: string }
+              | undefined;
+            return cfg?.columnId === columnId;
+          }),
+        );
+      }
+
+      // Para "ação etiquetada", o node exige ao menos uma tag configurada;
+      // só roda workflows cujo array tagIds inclua a tag recém aplicada.
+      if (trigger === "WS_ACTION_TAGGED") {
+        if (!tagId) return [];
+        return candidates.filter((wf) =>
+          wf.nodes.some((n) => {
+            if (n.type !== triggerNodeType) return false;
+            const cfg = (n.data as any)?.action as
+              | { tagIds?: string[] }
+              | undefined;
+            if (!Array.isArray(cfg?.tagIds) || cfg.tagIds.length === 0) {
+              return false;
+            }
+            return cfg.tagIds.includes(tagId);
+          }),
+        );
+      }
+
+      return candidates;
     });
 
     if (!workflows.length) return { ran: 0 };
@@ -91,7 +135,15 @@ export const executeWorkspaceWorkflow = inngest.createFunction(
         await inngest.send(
           workflows.map((wf) => ({
             name: "workspace-workflow/trigger" as const,
-            data: { trigger, workspaceId, actionId, workflowId: wf.id, initialData },
+            data: {
+              trigger,
+              workspaceId,
+              actionId,
+              workflowId: wf.id,
+              initialData,
+              columnId,
+              tagId,
+            },
           })),
         );
       });
@@ -111,11 +163,12 @@ export const executeWorkspaceWorkflow = inngest.createFunction(
       workspaceId: wf.workspaceId,
       action: actionCtx ?? (initialData as any)?.action,
       realTime: Boolean(workflowId),
+      columnId,
     };
 
     try {
       for (const node of sortedNodes) {
-        const executor = getWorkspaceExecutor(node.type as WorkspaceNodeType);
+        const executor = getWorkspaceExecutor(node.type as NodeType);
         context = await executor({
           data: node.data as Record<string, unknown>,
           nodeId: node.id,

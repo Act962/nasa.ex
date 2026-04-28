@@ -3,6 +3,7 @@ import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { wsSendEmailChannel } from "@/inngest/channels/workspace";
 import { ActionContext } from "../../schemas";
+import { loadActionContext } from "../../lib/load-action-context";
 import { renderWorkspaceVariables } from "../../lib/render-variables";
 
 type Data = {
@@ -34,26 +35,31 @@ export const wsSendEmailParticipantsExecutor: NodeExecutor<Data> = async ({
         throw new NonRetriableError("Action or email config missing");
       }
 
+      const detail = await loadActionContext(action.id);
+      if (!detail) {
+        throw new NonRetriableError("Action not found");
+      }
+
       const workspace = await prisma.workspace.findUnique({
-        where: { id: action.workspaceId },
+        where: { id: detail.workspaceId },
       });
       if (!workspace) throw new NonRetriableError("Workspace not found");
 
-      const column = action.columnId
+      const column = detail.columnId
         ? await prisma.workspaceColumn.findUnique({
-            where: { id: action.columnId },
+            where: { id: detail.columnId },
           })
         : null;
 
       const participants = await prisma.user.findMany({
-        where: { id: { in: action.participantIds } },
+        where: { id: { in: detail.participantIds } },
       });
 
       for (const participant of participants) {
         if (!participant.email) continue;
 
         const rendered = renderWorkspaceVariables(cfg.body, {
-          action,
+          action: detail,
           workspace: { name: workspace.name },
           column: column ? { name: column.name } : undefined,
           participant: {
@@ -71,7 +77,7 @@ export const wsSendEmailParticipantsExecutor: NodeExecutor<Data> = async ({
             body: rendered,
             type: "CUSTOM",
             appKey: "workspace",
-            actionUrl: `/workspaces/${workspace.id}?actionId=${action.id}`,
+            actionUrl: `/workspaces/${workspace.id}?actionId=${detail.id}`,
           },
         });
       }

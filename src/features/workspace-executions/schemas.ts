@@ -2,6 +2,12 @@ import { z } from "zod";
 
 export const actionContext = z.object({
   id: z.string(),
+});
+
+export type ActionContext = z.infer<typeof actionContext>;
+
+export const actionDetail = z.object({
+  id: z.string(),
   title: z.string(),
   isDone: z.boolean(),
   workspaceId: z.string(),
@@ -13,4 +19,4 @@ export const actionContext = z.object({
   tagIds: z.array(z.string()).default([]),
 });
 
-export type ActionContext = z.infer<typeof actionContext>;
+export type ActionDetail = z.infer<typeof actionDetail>;

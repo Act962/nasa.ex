@@ -375,3 +375,59 @@ export const useCancelAppointment = () => {
     }),
   );
 };
+
+export const useCompleteAppointment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.appointments.complete.mutationOptions({
+      onSuccess: (data) => {
+        toast.success("Agendamento concluído com sucesso");
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.get.queryOptions({
+            input: { appointmentId: data.appointment.id },
+          }),
+        );
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.getManyByTracking.queryOptions({
+            input: { trackingId: data.appointment.trackingId ?? "" },
+          }),
+        );
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.getManyByOrg.queryOptions({ input: {} }),
+        );
+      },
+      onError: (error) => {
+        toast.error("Erro ao concluir agendamento: " + error.message);
+      },
+    }),
+  );
+};
+
+export const useDeleteAppointment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.appointments.delete.mutationOptions({
+      onSuccess: (data) => {
+        toast.success("Agendamento deletado com sucesso");
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.get.queryOptions({
+            input: { appointmentId: data.appointment.id },
+          }),
+        );
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.getManyByTracking.queryOptions({
+            input: { trackingId: data.appointment.trackingId ?? "" },
+          }),
+        );
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.getManyByOrg.queryOptions({ input: {} }),
+        );
+      },
+      onError: (error) => {
+        toast.error("Erro ao deletar agendamento: " + error.message);
+      },
+    }),
+  );
+};

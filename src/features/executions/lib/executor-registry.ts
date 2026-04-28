@@ -15,7 +15,7 @@ import { leadTaggedTriggerExecutor } from "@/features/triggers/components/lead-t
 import { aiFinishedTriggerExecutor } from "@/features/triggers/components/ai-finished/executor";
 import { filterLeadExecutor } from "../components/filter-lead/executor";
 
-export const executorRegistry: Record<NodeType, NodeExecutor> = {
+export const executorRegistry: Partial<Record<NodeType, NodeExecutor>> = {
   [NodeType.INITIAL]: manualTriggerExecutor,
   [NodeType.MANUAL_TRIGGER]: manualTriggerExecutor,
   [NodeType.HTTP_REQUEST]: httpRequestExecutor,

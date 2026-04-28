@@ -6,7 +6,7 @@ import { MoveHorizontalIcon } from "lucide-react";
 import { WsBaseTriggerNode } from "@/features/workspace-triggers/components/base-trigger-node";
 import { SimpleDialog } from "@/features/workspace-executions/components/_shared/simple-dialog";
 
-type Values = { columnId?: string };
+type Values = { columnId: string };
 type Data = { action?: Values };
 
 export const WsActionMovedColumnNode = memo((props: NodeProps<Node<Data>>) => {
@@ -25,9 +25,9 @@ export const WsActionMovedColumnNode = memo((props: NodeProps<Node<Data>>) => {
         open={open}
         onOpenChange={setOpen}
         title="Ação movida para coluna"
-        description="Dispara quando uma ação é movida para a coluna selecionada."
+        description="Dispara somente quando uma ação é movida para a coluna selecionada."
         fields={[
-          { kind: "column", name: "columnId", label: "Coluna", optional: true },
+          { kind: "column", name: "columnId", label: "Coluna" },
         ]}
         defaultValues={props.data?.action}
         onSubmit={handleSubmit}
@@ -39,7 +39,7 @@ export const WsActionMovedColumnNode = memo((props: NodeProps<Node<Data>>) => {
         description={
           props.data?.action?.columnId
             ? "Coluna definida"
-            : "Ao mover para qualquer coluna"
+            : "Selecione a coluna"
         }
         onSettings={() => setOpen(true)}
         onDoubleClick={() => setOpen(true)}

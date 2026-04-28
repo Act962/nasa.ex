@@ -3,7 +3,10 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { logOrgActivity } from "@/lib/org-activity-log";
-import { sendWorkspaceWorkflowEvent } from "@/inngest/utils";
+import {
+  hasMovedColumnWorkflow,
+  sendWorkspaceWorkflowEvent,
+} from "@/inngest/utils";
 import { z } from "zod";
 
 export const moveAction = base
@@ -45,14 +48,21 @@ export const moveAction = base
         to: { columnId: input.columnId, workspaceId: input.workspaceId },
       },
     });
-    try {
-      await sendWorkspaceWorkflowEvent({
-        trigger: "WS_ACTION_MOVED_COLUMN",
-        workspaceId: input.workspaceId,
-        actionId: input.actionId,
-      });
-    } catch (err) {
-      console.error("[workspace-workflow] failed to emit action.moved", err);
+    if (existing?.columnId !== input.columnId) {
+      try {
+        if (
+          await hasMovedColumnWorkflow(input.workspaceId, input.columnId)
+        ) {
+          await sendWorkspaceWorkflowEvent({
+            trigger: "WS_ACTION_MOVED_COLUMN",
+            workspaceId: input.workspaceId,
+            actionId: input.actionId,
+            columnId: input.columnId,
+          });
+        }
+      } catch (err) {
+        console.error("[workspace-workflow] failed to emit action.moved", err);
+      }
     }
 
     return { action };

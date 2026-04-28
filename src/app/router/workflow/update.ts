@@ -43,6 +43,12 @@ export const updateName = base
       },
     });
 
+    if (!updatedWorkflow.trackingId) {
+      throw errors.BAD_REQUEST({
+        message: "Workflow não pertence a um tracking",
+      });
+    }
+
     return {
       id: updatedWorkflow.id,
       workflowName: updatedWorkflow.name,

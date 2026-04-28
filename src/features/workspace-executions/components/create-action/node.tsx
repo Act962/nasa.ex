@@ -4,19 +4,26 @@ import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { memo, useState } from "react";
 import { PlusSquareIcon } from "lucide-react";
 import { WsBaseExecutionNode } from "../base-execution-node";
-import { SimpleDialog } from "../_shared/simple-dialog";
+import {
+  CreateActionDialog,
+  CreateActionFormValues,
+} from "./dialog";
 import { useNodeStatus } from "@/features/executions/hook/use-node-status";
 import { WS_CREATE_ACTION_CHANNEL_NAME } from "@/inngest/channels/workspace";
 import { fetchWsCreateActionToken } from "../../lib/realtime-tokens";
 
-type Values = {
+type LegacySingle = {
   title: string;
   description?: string;
   priority: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   workspaceId?: string;
   columnId: string;
 };
-type Data = { action?: Values };
+
+type Data = {
+  action?: LegacySingle;
+  actions?: CreateActionFormValues["actions"];
+};
 
 export const WsCreateActionNode = memo((props: NodeProps<Node<Data>>) => {
   const [open, setOpen] = useState(false);
@@ -28,48 +35,57 @@ export const WsCreateActionNode = memo((props: NodeProps<Node<Data>>) => {
     refreshToken: fetchWsCreateActionToken as any,
   });
 
-  const handleSubmit = (v: Values) =>
+  const handleSubmit = (v: CreateActionFormValues) =>
     setNodes((nodes) =>
       nodes.map((n) =>
         n.id === props.id
-          ? { ...n, data: { ...(n.data as any), action: v } }
+          ? {
+              ...n,
+              data: { ...(n.data as any), actions: v.actions, action: undefined },
+            }
           : n,
       ),
     );
 
+  const defaults: CreateActionFormValues = {
+    actions:
+      props.data?.actions && props.data.actions.length > 0
+        ? props.data.actions
+        : props.data?.action
+          ? [
+              {
+                title: props.data.action.title,
+                description: props.data.action.description,
+                priority: props.data.action.priority,
+                workspaceId: props.data.action.workspaceId,
+                columnId: props.data.action.columnId,
+                participants: [],
+                subActions: [],
+              },
+            ]
+          : [],
+  };
+
+  const description =
+    props.data?.actions && props.data.actions.length > 0
+      ? props.data.actions.length === 1
+        ? props.data.actions[0]?.title || "Configure a nova ação"
+        : `${props.data.actions.length} ações`
+      : (props.data?.action?.title ?? "Configure a nova ação");
+
   return (
     <>
-      <SimpleDialog<Values>
+      <CreateActionDialog
         open={open}
         onOpenChange={setOpen}
-        title="Criar ação"
-        description="A ação será criada no workspace atual."
-        fields={[
-          { kind: "text", name: "title", label: "Título" },
-          { kind: "textarea", name: "description", label: "Descrição" },
-          {
-            kind: "select",
-            name: "priority",
-            label: "Prioridade",
-            options: [
-              { value: "NONE", label: "Nenhuma" },
-              { value: "LOW", label: "Baixa" },
-              { value: "MEDIUM", label: "Média" },
-              { value: "HIGH", label: "Alta" },
-              { value: "URGENT", label: "Urgente" },
-            ],
-          },
-          { kind: "workspace", name: "workspaceId", label: "Workspace destino", optional: true },
-          { kind: "column", name: "columnId", label: "Coluna", workspaceIdFrom: "workspaceId" },
-        ]}
-        defaultValues={props.data?.action}
+        defaultValues={defaults}
         onSubmit={handleSubmit}
       />
       <WsBaseExecutionNode
         {...props}
         icon={PlusSquareIcon}
         name="Criar ação"
-        description={props.data?.action?.title ?? "Configure a nova ação"}
+        description={description}
         status={status}
         onSettings={() => setOpen(true)}
         onDoubleClick={() => setOpen(true)}

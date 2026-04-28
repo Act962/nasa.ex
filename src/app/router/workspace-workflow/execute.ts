@@ -13,10 +13,15 @@ export const executeWorkspaceWorkflowRoute = base
     }),
   )
   .handler(async ({ input, errors }) => {
-    const wf = await prisma.workspaceWorkflow.findUnique({
+    const wf = await prisma.workflow.findUnique({
       where: { id: input.id },
     });
     if (!wf) throw errors.NOT_FOUND({ message: "Workflow não encontrado" });
+    if (!wf.workspaceId) {
+      throw errors.BAD_REQUEST({
+        message: "Workflow não pertence a um workspace",
+      });
+    }
 
     await sendWorkspaceWorkflowEvent({
       trigger: "WS_MANUAL_TRIGGER",

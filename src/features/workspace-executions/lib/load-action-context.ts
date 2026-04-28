@@ -1,9 +1,9 @@
 import prisma from "@/lib/prisma";
-import { ActionContext } from "../schemas";
+import { ActionDetail } from "../schemas";
 
 export async function loadActionContext(
   actionId: string,
-): Promise<ActionContext | null> {
+): Promise<ActionDetail | null> {
   const action = await prisma.action.findUnique({
     where: { id: actionId },
     include: {

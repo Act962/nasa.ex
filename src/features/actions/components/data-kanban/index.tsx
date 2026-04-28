@@ -95,10 +95,14 @@ const KanbanBoard = ({ workspaceId }: Props) => {
   useEffect(() => {
     if (!fetchedColumns.length || isDragging) return;
 
-    const currentIds = columnList.map((c) => c.id).join(",");
-    const nextIds = fetchedColumns.map((c) => c.id).join(",");
+    const currentSignature = columnList
+      .map((column) => `${column.id}:${column.actionsCount}:${column.order}`)
+      .join(",");
+    const nextSignature = fetchedColumns
+      .map((column) => `${column.id}:${column.actionsCount}:${column.order}`)
+      .join(",");
 
-    if (currentIds !== nextIds) {
+    if (currentSignature !== nextSignature) {
       setColumnList(fetchedColumns);
     }
   }, [fetchedColumns, setColumnList, isDragging, columnList]);

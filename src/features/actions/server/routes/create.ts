@@ -77,11 +77,22 @@ export const createAction = base
     });
 
     try {
-      await sendWorkspaceWorkflowEvent({
-        trigger: "WS_ACTION_CREATED",
-        workspaceId: action.workspaceId,
-        actionId: action.id,
+      const hasMatchingWorkflow = await prisma.workflow.findFirst({
+        where: {
+          workspaceId: action.workspaceId,
+          isActive: true,
+          nodes: { some: { type: "WS_ACTION_CREATED" } },
+        },
+        select: { id: true },
       });
+
+      if (hasMatchingWorkflow) {
+        await sendWorkspaceWorkflowEvent({
+          trigger: "WS_ACTION_CREATED",
+          workspaceId: action.workspaceId,
+          actionId: action.id,
+        });
+      }
     } catch (err) {
       console.error("[workspace-workflow] failed to emit action.created", err);
     }

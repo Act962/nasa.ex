@@ -11,6 +11,6 @@ export const wsActionCreatedExecutor: NodeExecutor = async ({
     if (!parsed.success) {
       throw new NonRetriableError("Invalid action data on context");
     }
-    return { ...context, action: parsed.data, realTime: false };
+    return { ...context, action: { id: parsed.data.id }, realTime: false };
   });
 };

@@ -1,5 +1,5 @@
 import { WsInitialNode } from "@/features/workspace-executions/components/ws-initial-node";
-import { WorkspaceNodeType } from "@/generated/prisma/enums";
+import { NodeType } from "@/generated/prisma/enums";
 import type { NodeTypes } from "@xyflow/react";
 
 import { WsManualTriggerNode } from "@/features/workspace-triggers/components/manual-trigger/node";
@@ -22,26 +22,26 @@ import { WsWaitNode } from "@/features/workspace-executions/components/wait/node
 import { WsFilterNode } from "@/features/workspace-executions/components/filter/node";
 
 export const workspaceNodeComponents = {
-  [WorkspaceNodeType.WS_INITIAL]: WsInitialNode,
-  [WorkspaceNodeType.WS_MANUAL_TRIGGER]: WsManualTriggerNode,
-  [WorkspaceNodeType.WS_ACTION_CREATED]: WsActionCreatedNode,
-  [WorkspaceNodeType.WS_ACTION_MOVED_COLUMN]: WsActionMovedColumnNode,
-  [WorkspaceNodeType.WS_ACTION_TAGGED]: WsActionTaggedNode,
-  [WorkspaceNodeType.WS_ACTION_COMPLETED]: WsActionCompletedNode,
-  [WorkspaceNodeType.WS_ACTION_PARTICIPANT_ADDED]:
+  [NodeType.WS_INITIAL]: WsInitialNode,
+  [NodeType.WS_MANUAL_TRIGGER]: WsManualTriggerNode,
+  [NodeType.WS_ACTION_CREATED]: WsActionCreatedNode,
+  [NodeType.WS_ACTION_MOVED_COLUMN]: WsActionMovedColumnNode,
+  [NodeType.WS_ACTION_TAGGED]: WsActionTaggedNode,
+  [NodeType.WS_ACTION_COMPLETED]: WsActionCompletedNode,
+  [NodeType.WS_ACTION_PARTICIPANT_ADDED]:
     WsActionParticipantAddedNode,
-  [WorkspaceNodeType.WS_CREATE_ACTION]: WsCreateActionNode,
-  [WorkspaceNodeType.WS_MOVE_ACTION]: WsMoveActionNode,
-  [WorkspaceNodeType.WS_ADD_TAG_ACTION]: WsAddTagActionNode,
-  [WorkspaceNodeType.WS_ADD_PARTICIPANT]: WsAddParticipantNode,
-  [WorkspaceNodeType.WS_SET_RESPONSIBLE]: WsSetResponsibleNode,
-  [WorkspaceNodeType.WS_CREATE_SUB_ACTION]: WsCreateSubActionNode,
-  [WorkspaceNodeType.WS_SEND_MESSAGE_PARTICIPANTS]:
+  [NodeType.WS_CREATE_ACTION]: WsCreateActionNode,
+  [NodeType.WS_MOVE_ACTION]: WsMoveActionNode,
+  [NodeType.WS_ADD_TAG_ACTION]: WsAddTagActionNode,
+  [NodeType.WS_ADD_PARTICIPANT]: WsAddParticipantNode,
+  [NodeType.WS_SET_RESPONSIBLE]: WsSetResponsibleNode,
+  [NodeType.WS_CREATE_SUB_ACTION]: WsCreateSubActionNode,
+  [NodeType.WS_SEND_MESSAGE_PARTICIPANTS]:
     WsSendMessageParticipantsNode,
-  [WorkspaceNodeType.WS_SEND_EMAIL_PARTICIPANTS]: WsSendEmailParticipantsNode,
-  [WorkspaceNodeType.WS_ARCHIVE_ACTION]: WsArchiveActionNode,
-  [WorkspaceNodeType.WS_WAIT]: WsWaitNode,
-  [WorkspaceNodeType.WS_FILTER]: WsFilterNode,
+  [NodeType.WS_SEND_EMAIL_PARTICIPANTS]: WsSendEmailParticipantsNode,
+  [NodeType.WS_ARCHIVE_ACTION]: WsArchiveActionNode,
+  [NodeType.WS_WAIT]: WsWaitNode,
+  [NodeType.WS_FILTER]: WsFilterNode,
 } as const satisfies Partial<NodeTypes>;
 
 export type WorkspaceRegisteredNodeTypes = keyof typeof workspaceNodeComponents;

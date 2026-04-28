@@ -39,7 +39,7 @@ export const useCreateWorkflow = () => {
         queryClient.invalidateQueries({
           queryKey: orpc.workflow.list.queryKey({
             input: {
-              trackingId: data.trackingId,
+              trackingId: data.trackingId!,
             },
           }),
         });
@@ -58,7 +58,7 @@ export const useUpdateWorkflowName = () => {
         queryClient.invalidateQueries({
           queryKey: orpc.workflow.list.queryKey({
             input: {
-              trackingId: data.trackingId,
+              trackingId: data.trackingId!,
             },
           }),
         });
@@ -88,7 +88,7 @@ export const useUpdateWorkflow = () => {
         queryClient.invalidateQueries({
           queryKey: orpc.workflow.list.queryKey({
             input: {
-              trackingId: data.trackingId,
+              trackingId: data.trackingId!,
             },
           }),
         });
@@ -118,7 +118,7 @@ export const useDeleteWorkflow = () => {
         queryClient.invalidateQueries({
           queryKey: orpc.workflow.list.queryKey({
             input: {
-              trackingId: data.trackingId,
+              trackingId: data.trackingId!,
             },
           }),
         });

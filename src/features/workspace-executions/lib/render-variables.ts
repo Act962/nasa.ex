@@ -1,8 +1,8 @@
 import dayjs from "dayjs";
-import { ActionContext } from "../schemas";
+import { ActionDetail } from "../schemas";
 
 interface Ctx {
-  action: ActionContext;
+  action: ActionDetail;
   workspace: { name: string };
   column?: { name: string };
   participant?: { name: string; email: string };

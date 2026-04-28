@@ -25,6 +25,8 @@ import {
 import { useQueryAppointment } from "../../hooks/use-appointments";
 import {
   useCancelAppointment,
+  useCompleteAppointment,
+  useDeleteAppointment,
   useRescheduleAppointment,
 } from "@/features/agenda/hooks/use-agenda";
 import { useQueryPublicAgendaTimeSlots } from "@/features/agenda/hooks/use-public-agenda";
@@ -39,7 +41,6 @@ import {
   today,
   CalendarDate,
   parseDate,
-  DateValue,
 } from "@internationalized/date";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
@@ -49,6 +50,7 @@ dayjs.extend(timezone);
 import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { authClient } from "@/lib/auth-client";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -63,6 +65,7 @@ import {
   XCircleIcon,
   PencilIcon,
   CheckIcon,
+  Trash2Icon,
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────── */
@@ -111,11 +114,17 @@ export const ViewAppointment = ({
   appointmentId,
 }: ViewAppointmentProps) => {
   const { appointment, isLoading } = useQueryAppointment({ appointmentId });
+  const { data: session } = authClient.useSession();
+  const { data: activeOrganization } = authClient.useActiveOrganization();
 
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
 
   const cancelMutation = useCancelAppointment();
+  const completeMutation = useCompleteAppointment();
+  const deleteMutation = useDeleteAppointment();
 
   const handleConfirmCancel = () => {
     cancelMutation.mutate(
@@ -129,7 +138,49 @@ export const ViewAppointment = ({
     );
   };
 
+  const handleConfirmComplete = () => {
+    completeMutation.mutate(
+      { appointmentId },
+      {
+        onSuccess: () => {
+          setCompleteOpen(false);
+          onOpenChange(false);
+        },
+      },
+    );
+  };
+
+  const handleConfirmDelete = () => {
+    deleteMutation.mutate(
+      { appointmentId },
+      {
+        onSuccess: () => {
+          setDeleteOpen(false);
+          onOpenChange(false);
+        },
+      },
+    );
+  };
+
   const isCancelled = appointment?.status === "CANCELLED";
+  const isDone = appointment?.status === "DONE";
+  const currentUserId = session?.user?.id;
+  const currentMemberRole =
+    (
+      activeOrganization?.members as Array<{ userId: string; role: string }>
+    )?.find((member) => member.userId === currentUserId)?.role ?? null;
+  const isAgendaOwner =
+    !!currentUserId &&
+    !!appointment?.agenda?.responsibles?.some(
+      (responsible: { userId: string }) => responsible.userId === currentUserId,
+    );
+  const isOrgManager =
+    !!currentMemberRole &&
+    ["owner", "admin", "moderador"].includes(currentMemberRole);
+  const isAppointmentCreator =
+    !!currentUserId && appointment?.userId === currentUserId;
+  const canDeleteAppointment =
+    isAgendaOwner || isOrgManager || isAppointmentCreator;
 
   return (
     <>
@@ -178,26 +229,54 @@ export const ViewAppointment = ({
               </div>
 
               {/* ── Action buttons ── */}
-              {!isCancelled && (
-                <div className="flex gap-2 mt-4 mb-2 px-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 gap-1.5"
-                    onClick={() => setRescheduleOpen(true)}
-                  >
-                    <PencilIcon className="size-3.5" />
-                    Reagendar
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="flex-1 gap-1.5"
-                    onClick={() => setCancelOpen(true)}
-                  >
-                    <XCircleIcon className="size-3.5" />
-                    Cancelar
-                  </Button>
+              {(!isCancelled || canDeleteAppointment) && (
+                <div className="flex flex-wrap gap-2 mt-4 mb-2 px-1">
+                  {!isCancelled && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 gap-1.5"
+                      onClick={() => setRescheduleOpen(true)}
+                      disabled={isDone}
+                    >
+                      <PencilIcon className="size-3.5" />
+                      Reagendar
+                    </Button>
+                  )}
+                  {!isCancelled && !isDone && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 gap-1.5"
+                      onClick={() => setCompleteOpen(true)}
+                    >
+                      <CheckIcon className="size-3.5" />
+                      Concluir
+                    </Button>
+                  )}
+                  {!isCancelled && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 gap-1.5"
+                      onClick={() => setCancelOpen(true)}
+                      disabled={isDone}
+                    >
+                      <XCircleIcon className="size-3.5" />
+                      Cancelar
+                    </Button>
+                  )}
+                  {canDeleteAppointment && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="flex-1 gap-1.5"
+                      onClick={() => setDeleteOpen(true)}
+                    >
+                      <Trash2Icon className="size-3.5" />
+                      Deletar
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -354,6 +433,59 @@ export const ViewAppointment = ({
             >
               {cancelMutation.isPending && <Spinner className="mr-2 size-4" />}
               Sim, cancelar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={completeOpen} onOpenChange={setCompleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Concluir agendamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Este agendamento de{" "}
+              <strong>{appointment?.lead?.name ?? "cliente"}</strong> será
+              marcado como finalizado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={completeMutation.isPending}>
+              Voltar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmComplete}
+              disabled={completeMutation.isPending}
+            >
+              {completeMutation.isPending && (
+                <Spinner className="mr-2 size-4" />
+              )}
+              Sim, concluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deletar agendamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O agendamento de{" "}
+              <strong>{appointment?.lead?.name ?? "cliente"}</strong> será
+              removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending && <Spinner className="mr-2 size-4" />}
+              Sim, deletar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

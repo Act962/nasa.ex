@@ -1,4 +1,4 @@
-import { WorkspaceNodeType } from "@/generated/prisma/enums";
+import { NodeType } from "@/generated/prisma/enums";
 import { NodeExecutor } from "@/features/workspace-executions/types";
 import { wsInitialExecutor } from "./initial-executor";
 import { wsManualTriggerExecutor } from "@/features/workspace-triggers/components/manual-trigger/executor";
@@ -19,31 +19,31 @@ import { wsArchiveActionExecutor } from "../components/archive-action/executor";
 import { wsWaitExecutor } from "../components/wait/executor";
 import { wsFilterExecutor } from "../components/filter/executor";
 
-export const wsExecutorRegistry: Partial<Record<WorkspaceNodeType, NodeExecutor>> = {
-  [WorkspaceNodeType.WS_INITIAL]: wsInitialExecutor,
-  [WorkspaceNodeType.WS_MANUAL_TRIGGER]: wsManualTriggerExecutor,
-  [WorkspaceNodeType.WS_ACTION_CREATED]: wsActionCreatedExecutor,
-  [WorkspaceNodeType.WS_ACTION_MOVED_COLUMN]: wsActionMovedColumnExecutor,
-  [WorkspaceNodeType.WS_ACTION_TAGGED]: wsActionTaggedExecutor,
-  [WorkspaceNodeType.WS_ACTION_COMPLETED]: wsActionCompletedExecutor,
-  [WorkspaceNodeType.WS_ACTION_PARTICIPANT_ADDED]:
+export const wsExecutorRegistry: Partial<Record<NodeType, NodeExecutor>> = {
+  [NodeType.WS_INITIAL]: wsInitialExecutor,
+  [NodeType.WS_MANUAL_TRIGGER]: wsManualTriggerExecutor,
+  [NodeType.WS_ACTION_CREATED]: wsActionCreatedExecutor,
+  [NodeType.WS_ACTION_MOVED_COLUMN]: wsActionMovedColumnExecutor,
+  [NodeType.WS_ACTION_TAGGED]: wsActionTaggedExecutor,
+  [NodeType.WS_ACTION_COMPLETED]: wsActionCompletedExecutor,
+  [NodeType.WS_ACTION_PARTICIPANT_ADDED]:
     wsActionParticipantAddedExecutor,
-  [WorkspaceNodeType.WS_CREATE_ACTION]: wsCreateActionExecutor,
-  [WorkspaceNodeType.WS_MOVE_ACTION]: wsMoveActionExecutor,
-  [WorkspaceNodeType.WS_ADD_TAG_ACTION]: wsAddTagActionExecutor,
-  [WorkspaceNodeType.WS_ADD_PARTICIPANT]: wsAddParticipantExecutor,
-  [WorkspaceNodeType.WS_SET_RESPONSIBLE]: wsSetResponsibleExecutor,
-  [WorkspaceNodeType.WS_CREATE_SUB_ACTION]: wsCreateSubActionExecutor,
-  [WorkspaceNodeType.WS_SEND_MESSAGE_PARTICIPANTS]:
+  [NodeType.WS_CREATE_ACTION]: wsCreateActionExecutor,
+  [NodeType.WS_MOVE_ACTION]: wsMoveActionExecutor,
+  [NodeType.WS_ADD_TAG_ACTION]: wsAddTagActionExecutor,
+  [NodeType.WS_ADD_PARTICIPANT]: wsAddParticipantExecutor,
+  [NodeType.WS_SET_RESPONSIBLE]: wsSetResponsibleExecutor,
+  [NodeType.WS_CREATE_SUB_ACTION]: wsCreateSubActionExecutor,
+  [NodeType.WS_SEND_MESSAGE_PARTICIPANTS]:
     wsSendMessageParticipantsExecutor,
-  [WorkspaceNodeType.WS_SEND_EMAIL_PARTICIPANTS]:
+  [NodeType.WS_SEND_EMAIL_PARTICIPANTS]:
     wsSendEmailParticipantsExecutor,
-  [WorkspaceNodeType.WS_ARCHIVE_ACTION]: wsArchiveActionExecutor,
-  [WorkspaceNodeType.WS_WAIT]: wsWaitExecutor,
-  [WorkspaceNodeType.WS_FILTER]: wsFilterExecutor,
+  [NodeType.WS_ARCHIVE_ACTION]: wsArchiveActionExecutor,
+  [NodeType.WS_WAIT]: wsWaitExecutor,
+  [NodeType.WS_FILTER]: wsFilterExecutor,
 };
 
-export function getWorkspaceExecutor(type: WorkspaceNodeType): NodeExecutor {
+export function getWorkspaceExecutor(type: NodeType): NodeExecutor {
   const executor = wsExecutorRegistry[type];
   if (!executor) {
     throw new Error(`No executor found for workspace node type: ${type}`);

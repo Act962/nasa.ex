@@ -4,7 +4,6 @@ import prisma from "@/lib/prisma";
 import { logOrgActivity } from "@/lib/org-activity-log";
 import { wsMoveActionChannel } from "@/inngest/channels/workspace";
 import { ActionContext } from "../../schemas";
-import { loadActionContext } from "../../lib/load-action-context";
 
 type Data = {
   action?: {
@@ -35,7 +34,6 @@ export const wsMoveActionExecutor: NodeExecutor<Data> = async ({
         throw new NonRetriableError("Action or config missing");
       }
 
-      const workspaceId = cfg.workspaceId ?? action.workspaceId;
       const dbAction = await prisma.action.findUnique({
         where: { id: action.id },
         select: {
@@ -45,6 +43,10 @@ export const wsMoveActionExecutor: NodeExecutor<Data> = async ({
           workspaceId: true,
         },
       });
+      if (!dbAction) {
+        throw new NonRetriableError("Action not found");
+      }
+      const workspaceId = cfg.workspaceId ?? dbAction.workspaceId;
 
       await prisma.action.update({
         where: { id: action.id },
@@ -71,14 +73,12 @@ export const wsMoveActionExecutor: NodeExecutor<Data> = async ({
         });
       }
 
-      const refreshed = await loadActionContext(action.id);
-
       if (realTime) {
         await publish(
           wsMoveActionChannel().status({ nodeId, status: "success" }),
         );
       }
-      return { ...context, action: refreshed ?? action };
+      return { ...context, action: { id: action.id } };
     } catch (err) {
       if (realTime) {
         await publish(

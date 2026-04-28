@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { editorAtom } from "@/features/editor/store/atoms";
 import { useCallback } from "react";
 import { createId } from "@paralleldrive/cuid2";
-import { WorkspaceNodeType } from "@/generated/prisma/enums";
+import { NodeType } from "@/generated/prisma/enums";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -63,7 +63,7 @@ export function WsMenuOptions({
       const newId = createId();
       setNodes((nodes) => {
         const hasInitial = nodes.some(
-          (n) => n.type === WorkspaceNodeType.WS_INITIAL,
+          (n) => n.type === NodeType.WS_INITIAL,
         );
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;

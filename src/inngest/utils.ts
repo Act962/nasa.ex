@@ -1,6 +1,8 @@
 import { Connection, Node } from "@/generated/prisma/client";
+import { NodeType } from "@/generated/prisma/enums";
 import toposort from "toposort";
 import { inngest } from "./client";
+import prisma from "@/lib/prisma";
 
 export const topologicalSort = (
   nodes: Node[],
@@ -65,12 +67,66 @@ export type WorkspaceWorkflowTrigger =
   | "WS_ACTION_COMPLETED"
   | "WS_ACTION_PARTICIPANT_ADDED";
 
+/**
+ * Verifica se há algum workflow ativo no workspace com um nó de gatilho
+ * "ação movida" configurado para a coluna de destino. Usado para evitar
+ * disparar eventos Inngest que rodariam um function call sem efeito.
+ */
+export const hasMovedColumnWorkflow = async (
+  workspaceId: string,
+  columnId: string,
+) => {
+  const node = await prisma.node.findFirst({
+    where: {
+      type: NodeType.WS_ACTION_MOVED_COLUMN,
+      data: {
+        path: ["action", "columnId"],
+        equals: columnId,
+      },
+      workflow: {
+        workspaceId,
+        isActive: true,
+      },
+    },
+    select: { id: true },
+  });
+  return !!node;
+};
+
+/**
+ * Verifica se há algum workflow ativo no workspace com um nó de gatilho
+ * "ação etiquetada" cujo array de tagIds inclua a tag aplicada. Usado para
+ * evitar disparar eventos Inngest sem nenhuma automação ouvinte.
+ */
+export const hasTaggedWorkflow = async (
+  workspaceId: string,
+  tagId: string,
+) => {
+  const node = await prisma.node.findFirst({
+    where: {
+      type: NodeType.WS_ACTION_TAGGED,
+      data: {
+        path: ["action", "tagIds"],
+        array_contains: tagId,
+      },
+      workflow: {
+        workspaceId,
+        isActive: true,
+      },
+    },
+    select: { id: true },
+  });
+  return !!node;
+};
+
 export const sendWorkspaceWorkflowEvent = async (data: {
   trigger: WorkspaceWorkflowTrigger;
   workspaceId: string;
   actionId?: string;
   workflowId?: string; // optional: force a specific workflow (manual trigger)
   initialData?: Record<string, any>;
+  columnId?: string; // destination column for WS_ACTION_MOVED_COLUMN
+  tagId?: string; // tag aplicada para WS_ACTION_TAGGED
   [key: string]: any;
 }) => {
   return inngest.send({

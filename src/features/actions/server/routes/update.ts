@@ -5,7 +5,10 @@ import prisma from "@/lib/prisma";
 import { logOrgActivity } from "@/lib/org-activity-log";
 import { z } from "zod";
 import { awardPoints } from "@/app/router/space-point/utils";
-import { sendWorkspaceWorkflowEvent } from "@/inngest/utils";
+import {
+  hasMovedColumnWorkflow,
+  sendWorkspaceWorkflowEvent,
+} from "@/inngest/utils";
 
 export const updateAction = base
   .use(requiredAuthMiddleware)
@@ -101,14 +104,18 @@ export const updateAction = base
     if (
       previous &&
       data.columnId !== undefined &&
+      data.columnId !== null &&
       previous.columnId !== data.columnId
     ) {
       try {
-        await sendWorkspaceWorkflowEvent({
-          trigger: "WS_ACTION_MOVED_COLUMN",
-          workspaceId: action.workspaceId,
-          actionId: action.id,
-        });
+        if (await hasMovedColumnWorkflow(action.workspaceId, data.columnId)) {
+          await sendWorkspaceWorkflowEvent({
+            trigger: "WS_ACTION_MOVED_COLUMN",
+            workspaceId: action.workspaceId,
+            actionId: action.id,
+            columnId: data.columnId,
+          });
+        }
       } catch (err) {
         console.error(
           "[workspace-workflow] failed to emit action.moved (update)",

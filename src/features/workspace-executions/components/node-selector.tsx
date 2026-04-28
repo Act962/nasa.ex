@@ -1,6 +1,6 @@
 "use client";
 
-import { WorkspaceNodeType } from "@/generated/prisma/enums";
+import { NodeType } from "@/generated/prisma/enums";
 import { createId } from "@paralleldrive/cuid2";
 import { useReactFlow } from "@xyflow/react";
 import {
@@ -50,7 +50,7 @@ export function WsNodeSelector({ open, onOpenChange, sourceId, children }: Props
       const newId = createId();
       setNodes((nodes) => {
         const hasInitial = nodes.some(
-          (n) => n.type === WorkspaceNodeType.WS_INITIAL,
+          (n) => n.type === NodeType.WS_INITIAL,
         );
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;

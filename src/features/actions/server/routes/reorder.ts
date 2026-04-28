@@ -3,6 +3,10 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
+import {
+  hasMovedColumnWorkflow,
+  sendWorkspaceWorkflowEvent,
+} from "@/inngest/utils";
 import { z } from "zod";
 
 export const reorderAction = base
@@ -25,6 +29,7 @@ export const reorderAction = base
       });
 
       if (!currentAction) throw errors.NOT_FOUND;
+      const previousColumnId = currentAction.columnId;
 
       let newOrder: Prisma.Decimal;
 
@@ -62,8 +67,28 @@ export const reorderAction = base
         },
       });
 
-      return updatedAction;
+      return { action: updatedAction, previousColumnId };
     });
 
-    return { action: result };
+    if (result.previousColumnId !== columnId) {
+      try {
+        if (
+          await hasMovedColumnWorkflow(result.action.workspaceId, columnId)
+        ) {
+          await sendWorkspaceWorkflowEvent({
+            trigger: "WS_ACTION_MOVED_COLUMN",
+            workspaceId: result.action.workspaceId,
+            actionId: result.action.id,
+            columnId,
+          });
+        }
+      } catch (err) {
+        console.error(
+          "[workspace-workflow] failed to emit action.moved (reorder)",
+          err,
+        );
+      }
+    }
+
+    return { action: result.action };
   });

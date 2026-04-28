@@ -3,13 +3,17 @@ import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { wsSendMessageChannel } from "@/inngest/channels/workspace";
 import { ActionContext } from "../../schemas";
+import { loadActionContext } from "../../lib/load-action-context";
 import { renderWorkspaceVariables } from "../../lib/render-variables";
-import { sendTextMessage } from "@/features/executions/components/send-message/message/send-text-message";
+import { countries } from "@/types/some";
+import { normalizePhone } from "@/utils/format-phone";
+import { sendTextRaw } from "./message/send-text-raw";
+import { sendImageRaw } from "./message/send-image-raw";
+import { sendDocumentRaw } from "./message/send-document-raw";
+import type { WsSendMessageFormValues } from "./dialog";
 
 type Data = {
-  action?: {
-    message: string;
-  };
+  action?: WsSendMessageFormValues;
 };
 
 export const wsSendMessageParticipantsExecutor: NodeExecutor<Data> = async ({
@@ -29,82 +33,93 @@ export const wsSendMessageParticipantsExecutor: NodeExecutor<Data> = async ({
     }
     try {
       const action = context.action as ActionContext | undefined;
-      const message = data.action?.message;
-      if (!action || !message) {
-        throw new NonRetriableError("Action or message missing");
+      const cfg = data.action;
+      if (!action || !cfg) {
+        throw new NonRetriableError("Action or config missing");
       }
 
+      const detail = await loadActionContext(action.id);
+      if (!detail) throw new NonRetriableError("Action not found");
+
       const workspace = await prisma.workspace.findUnique({
-        where: { id: action.workspaceId },
+        where: { id: detail.workspaceId },
       });
       if (!workspace) throw new NonRetriableError("Workspace not found");
 
-      const column = action.columnId
+      const column = detail.columnId
         ? await prisma.workspaceColumn.findUnique({
-            where: { id: action.columnId },
+            where: { id: detail.columnId },
           })
         : null;
 
-      const participants = await prisma.user.findMany({
-        where: { id: { in: action.participantIds } },
-      });
-
-      const leads = await prisma.lead.findMany({
-        where: {
-          phone: { in: participants.map((p) => p.email ?? "").filter(Boolean) },
-        },
-        include: { tracking: true },
-        take: 0,
-      });
-      void leads;
-
-      // Não temos integração direta workspace → whatsapp. Quando o workspace
-      // está vinculado a um tracking, usamos a instância desse tracking e o
-      // participante deve ter um lead associado pelo email.
-      if (!workspace.trackingId) {
-        throw new NonRetriableError(
-          "Workspace sem tracking vinculado, não é possível enviar mensagem",
-        );
-      }
-
-      const instance = await prisma.whatsAppInstance.findFirst({
-        where: { trackingId: workspace.trackingId },
+      const instance = await prisma.whatsAppInstance.findUnique({
+        where: { id: cfg.instanceId },
       });
       if (!instance) throw new NonRetriableError("Instance not found");
 
-      for (const participant of participants) {
-        const lead = await prisma.lead.findFirst({
-          where: {
-            trackingId: workspace.trackingId,
-            OR: [
-              participant.email ? { email: participant.email } : undefined,
-            ].filter(Boolean) as any,
-          },
-          include: { tracking: true, status: true },
-        });
-        if (!lead || !lead.phone) continue;
-
-        const conversation = await prisma.conversation.findFirst({
-          where: { leadId: lead.id, trackingId: workspace.trackingId },
-        });
-        if (!conversation) continue;
-
-        const body = renderWorkspaceVariables(message, {
-          action,
+      const renderFor = (
+        template: string,
+        participant?: { name: string; email: string },
+      ) =>
+        renderWorkspaceVariables(template, {
+          action: detail,
           workspace: { name: workspace.name },
           column: column ? { name: column.name } : undefined,
-          participant: {
-            name: participant.name,
-            email: participant.email ?? "",
-          },
+          participant,
         });
 
-        await sendTextMessage({
-          body,
-          conversationId: conversation.id,
-          leadPhone: lead.phone,
-          token: instance.apiKey,
+      const dispatch = async (
+        number: string,
+        participant?: { name: string; email: string },
+      ) => {
+        const payload = cfg.payload;
+        if (payload.type === "TEXT") {
+          await sendTextRaw({
+            body: renderFor(payload.message, participant),
+            number,
+            token: instance.apiKey,
+            baseUrl: instance.baseUrl,
+          });
+        } else if (payload.type === "IMAGE") {
+          await sendImageRaw({
+            body: renderFor(payload.caption ?? "", participant),
+            number,
+            token: instance.apiKey,
+            mediaUrl: payload.imageUrl,
+            baseUrl: instance.baseUrl,
+          });
+        } else if (payload.type === "DOCUMENT") {
+          await sendDocumentRaw({
+            body: renderFor(payload.caption ?? "", participant),
+            number,
+            token: instance.apiKey,
+            mediaUrl: payload.documentUrl,
+            fileName: payload.fileName,
+            baseUrl: instance.baseUrl,
+          });
+        }
+      };
+
+      if (cfg.target.sendMode === "CUSTOM") {
+        const country = countries.find((c) => c.code === cfg.target.code);
+        const ddi = country?.ddi.replace(/\D/g, "") || "";
+        const number = ddi + normalizePhone(cfg.target.phone);
+        await dispatch(number);
+      } else {
+        const participants = await prisma.user.findMany({
+          where: { id: { in: detail.participantIds } },
         });
+
+        for (const participant of participants) {
+          if (!participant.phone) continue;
+          const number = normalizePhone(participant.phone);
+          if (!number) continue;
+
+          await dispatch(number, {
+            name: participant.name,
+            email: participant.email ?? "",
+          });
+        }
       }
 
       if (realTime) {

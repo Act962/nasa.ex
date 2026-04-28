@@ -14,6 +14,7 @@ model User {
   email                 String
   emailVerified         Boolean   @default(false)
   nickname              String?
+  phone                 String?
   image                 String?
   isSystemAdmin         Boolean   @default(false) @map("is_system_admin")
   isActive              Boolean   @default(true) @map("is_active")
@@ -34,7 +35,6 @@ model User {
   responsibleOnSubActions            SubActionUserResponsible[]
   responsibleOnLeads                 Lead[]                       @relation("LeadResponsible")
   worflows                           Workflow[]
-  workspaceWorkflows                 WorkspaceWorkflow[]
   forms                              Form[]
   leadFiles                          LeadFile[]
   insightShares                      InsightShares[]
@@ -668,7 +668,7 @@ model Workspace {
   archivedAt      DateTime?             @map("archived_at")
   tags            WorkspaceTag[]
   automations     WorkspaceAutomation[]
-  workflows       WorkspaceWorkflow[]
+  workflows       Workflow[]
   folderItems     WorkspaceFolderItem[]
 
   @@index([organizationId])
@@ -940,16 +940,21 @@ model Workflow {
   name        String
   description String?
   userId      String?  @map("user_id")
-  trackingId  String   @map("tracking_id")
+  trackingId  String?  @map("tracking_id")
+  workspaceId String?  @map("workspace_id")
+  isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tracking  Tracking?  @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   nodes       Node[]
   connections Connection[]
 
+  @@index([trackingId])
+  @@index([workspaceId])
   @@map("workflows")
 }
 
@@ -975,6 +980,32 @@ enum NodeType {
 
   // Utils
   FILTER_LEAD
+
+  // ─── Workspace (Actions/Kanban) ─────────────────
+  // Utils
+  WS_INITIAL
+
+  // Gatilhos
+  WS_MANUAL_TRIGGER
+  WS_ACTION_CREATED
+  WS_ACTION_MOVED_COLUMN
+  WS_ACTION_TAGGED
+  WS_ACTION_COMPLETED
+  WS_ACTION_PARTICIPANT_ADDED
+
+  // Execuções
+  WS_CREATE_ACTION
+  WS_MOVE_ACTION
+  WS_ADD_TAG_ACTION
+  WS_ADD_PARTICIPANT
+  WS_SET_RESPONSIBLE
+  WS_CREATE_SUB_ACTION
+  WS_SEND_MESSAGE_PARTICIPANTS
+  WS_SEND_EMAIL_PARTICIPANTS
+  WS_ARCHIVE_ACTION
+  WS_WAIT
+  WS_HTTP_REQUEST
+  WS_FILTER
 }
 
 model Node {
@@ -2234,92 +2265,6 @@ model WorkspaceAutomation {
 
   @@index([workspaceId])
   @@map("workspace_automations")
-}
-
-// ─── Workspace Workflows (motor de automação baseado em nodes) ─────────────────
-
-model WorkspaceWorkflow {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  userId      String?  @map("user_id")
-  workspaceId String   @map("workspace_id")
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  nodes       WorkspaceNode[]
-  connections WorkspaceConnection[]
-
-  @@index([workspaceId])
-  @@map("workspace_workflows")
-}
-
-enum WorkspaceNodeType {
-  // Utils
-  WS_INITIAL
-
-  // Gatilhos
-  WS_MANUAL_TRIGGER
-  WS_ACTION_CREATED
-  WS_ACTION_MOVED_COLUMN
-  WS_ACTION_TAGGED
-  WS_ACTION_COMPLETED
-  WS_ACTION_PARTICIPANT_ADDED
-
-  // Execuções
-  WS_CREATE_ACTION
-  WS_MOVE_ACTION
-  WS_ADD_TAG_ACTION
-  WS_ADD_PARTICIPANT
-  WS_SET_RESPONSIBLE
-  WS_CREATE_SUB_ACTION
-  WS_SEND_MESSAGE_PARTICIPANTS
-  WS_SEND_EMAIL_PARTICIPANTS
-  WS_ARCHIVE_ACTION
-  WS_WAIT
-  WS_HTTP_REQUEST
-  WS_FILTER
-}
-
-model WorkspaceNode {
-  id         String            @id @default(cuid())
-  workflowId String            @map("workflow_id")
-  name       String
-  type       WorkspaceNodeType
-  position   Json
-  data       Json              @default("{}")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  workflow WorkspaceWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-
-  outputConnections WorkspaceConnection[] @relation("WsFromNode")
-  inputConnections  WorkspaceConnection[] @relation("WsToNode")
-
-  @@map("workspace_nodes")
-}
-
-model WorkspaceConnection {
-  id         String   @id @default(cuid())
-  workflowId String   @map("workflow_id")
-  fromNodeId String   @map("from_node_id")
-  toNodeId   String   @map("to_node_id")
-  fromOutput String   @default("main")
-  toInput    String   @default("main")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  workflow WorkspaceWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  fromNode WorkspaceNode     @relation("WsFromNode", fields: [fromNodeId], references: [id], onDelete: Cascade)
-  toNode   WorkspaceNode     @relation("WsToNode", fields: [toNodeId], references: [id], onDelete: Cascade)
-
-  @@unique([fromNodeId, toNodeId, fromOutput, toInput])
-  @@map("workspace_connections")
 }
 
 // ─── Action Mirror ────────────────────────────────────────────────────────────
