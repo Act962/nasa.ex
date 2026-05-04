@@ -44,7 +44,7 @@ export function NowPanel({ orgIds }: Props) {
       {} as any;
     for (const u of data?.now ?? []) {
       const slug = u.activeAppSlug ?? "system";
-      if (!map[slug]) map[slug] = [] as any;
+      if (!map[slug]) (map as any)[slug] = [] as any;
       (map[slug] as any[]).push(u);
     }
     return map;

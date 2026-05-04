@@ -78,7 +78,7 @@ export const editMessageHandler = base
           resource: conv.lead?.name ?? undefined,
           resourceId: messageBefore.id,
           metadata: {
-            conversationId: conv.id,
+            conversationId: messageBefore.conversationId,
             leadId: conv.leadId,
             trackingId: conv.trackingId,
             previousBody: messageBefore.body ?? null,

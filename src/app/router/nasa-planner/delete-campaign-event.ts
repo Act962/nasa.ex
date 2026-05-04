@@ -12,7 +12,7 @@ export const deleteCampaignEvent = base
   .handler(async ({ input, context }) => {
     const event = await prisma.nasaCampaignEvent.findFirst({
       where: { id: input.eventId, campaignPlannerId: input.campaignId, campaignPlanner: { organizationId: context.org.id } },
-      include: { campaignPlanner: { select: { name: true } } },
+      include: { campaignPlanner: { select: { title: true } } },
     });
     if (!event) throw new Error("Evento não encontrado.");
     await prisma.nasaCampaignEvent.delete({ where: { id: input.eventId } });
@@ -27,12 +27,12 @@ export const deleteCampaignEvent = base
       subAppSlug: "nasa-planner-events",
       featureKey: "campaign.event.deleted",
       action: "campaign.event.deleted",
-      actionLabel: `Excluiu o evento "${event.title}" da campanha "${event.campaignPlanner.name}"`,
+      actionLabel: `Excluiu o evento "${event.title}" da campanha "${event.campaignPlanner.title}"`,
       resource: event.title,
       resourceId: event.id,
       metadata: {
         campaignId: input.campaignId,
-        campaignName: event.campaignPlanner.name,
+        campaignName: event.campaignPlanner.title,
       },
     });
 

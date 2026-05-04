@@ -166,16 +166,16 @@ export const submitResponse = base
             id: true,
             name: true,
             organizationId: true,
-            user: { select: { id: true, name: true, email: true, image: true } },
+            createdBy: { select: { id: true, name: true, email: true, image: true } },
           },
         });
-        if (formMeta?.user) {
+        if (formMeta?.createdBy) {
           await logActivity({
             organizationId: formMeta.organizationId,
-            userId: formMeta.user.id,
-            userName: formMeta.user.name,
-            userEmail: formMeta.user.email,
-            userImage: formMeta.user.image,
+            userId: formMeta.createdBy.id,
+            userName: formMeta.createdBy.name,
+            userEmail: formMeta.createdBy.email,
+            userImage: formMeta.createdBy.image,
             appSlug: "forms",
             subAppSlug: "forms-responses",
             featureKey: "forms.response.submitted",

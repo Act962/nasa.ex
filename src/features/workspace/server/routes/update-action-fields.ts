@@ -68,12 +68,6 @@ export const updateActionFields = base
         featureKey = "workspace.action.restored";
         actionLabel = `Restaurou a ação "${action.title}"`;
         subAppSlug = "workspace-actions-archive";
-      } else if (data.isFavorited === true && existing && !existing.isFavorited) {
-        featureKey = "workspace.action.favorited";
-        actionLabel = `Favoritou a ação "${action.title}"`;
-      } else if (data.isFavorited === false && existing?.isFavorited) {
-        featureKey = "workspace.action.unfavorited";
-        actionLabel = `Removeu favorito da ação "${action.title}"`;
       } else if (data.coverImage !== undefined) {
         featureKey = "workspace.action.cover.updated";
         actionLabel = `Atualizou a capa da ação "${action.title}"`;
