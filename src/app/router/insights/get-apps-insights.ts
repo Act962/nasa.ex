@@ -454,6 +454,144 @@ export const getAppsInsights = base
         }, {}),
     };
 
+    // ── Space Station ────────────────────────────────────────────────────────
+    const [stations, accessRequests, starsSentByOrgUsers, starsReceivedByOrgStations] =
+      await Promise.all([
+        prisma.spaceStation.findMany({
+          where: {
+            OR: [
+              { orgId: { in: orgIds } },
+              { user: { members: { some: { organizationId: { in: orgIds } } } } },
+            ],
+          },
+          select: {
+            id: true,
+            type: true,
+            isPublic: true,
+            rank: true,
+            starsReceived: true,
+            accessMode: true,
+          },
+        }),
+        prisma.stationAccessRequest.findMany({
+          where: {
+            station: {
+              OR: [
+                { orgId: { in: orgIds } },
+                { user: { members: { some: { organizationId: { in: orgIds } } } } },
+              ],
+            },
+            ...(dateFilter ? { createdAt: dateFilter } : {}),
+          },
+          select: { id: true, status: true },
+        }),
+        prisma.spaceStationStar.findMany({
+          where: {
+            from: {
+              OR: [
+                { orgId: { in: orgIds } },
+                { user: { members: { some: { organizationId: { in: orgIds } } } } },
+              ],
+            },
+            ...(dateFilter ? { createdAt: dateFilter } : {}),
+          },
+          select: { id: true, amount: true },
+        }),
+        prisma.spaceStationStar.findMany({
+          where: {
+            to: {
+              OR: [
+                { orgId: { in: orgIds } },
+                { user: { members: { some: { organizationId: { in: orgIds } } } } },
+              ],
+            },
+            ...(dateFilter ? { createdAt: dateFilter } : {}),
+          },
+          select: { id: true, amount: true },
+        }),
+      ]);
+
+    const spaceStationData = {
+      totalStations: stations.length,
+      publicStations: stations.filter((s) => s.isPublic).length,
+      orgStations: stations.filter((s) => s.type === "ORG").length,
+      userStations: stations.filter((s) => s.type === "USER").length,
+      totalStarsReceived: stations.reduce((s, st) => s + st.starsReceived, 0),
+      starsSentInPeriod: starsSentByOrgUsers.reduce((s, st) => s + st.amount, 0),
+      starsReceivedInPeriod: starsReceivedByOrgStations.reduce((s, st) => s + st.amount, 0),
+      pendingAccessRequests: accessRequests.filter((r) => r.status === "PENDING").length,
+      approvedAccessRequests: accessRequests.filter((r) => r.status === "APPROVED").length,
+    };
+
+    // ── NASA Route ───────────────────────────────────────────────────────────
+    const [routeCourses, enrollments, progress, certificates] = await Promise.all([
+      prisma.nasaRouteCourse.findMany({
+        where: {
+          creatorOrgId: { in: orgIds },
+          ...(dateFilter ? { createdAt: dateFilter } : {}),
+        },
+        select: {
+          id: true,
+          title: true,
+          isPublished: true,
+          studentsCount: true,
+          priceStars: true,
+          format: true,
+        },
+      }),
+      prisma.nasaRouteEnrollment.findMany({
+        where: {
+          OR: [
+            { course: { creatorOrgId: { in: orgIds } } },
+            { buyerOrgId: { in: orgIds } },
+          ],
+          ...(dateFilter ? { enrolledAt: dateFilter } : {}),
+        },
+        select: { id: true, source: true, paidStars: true, completedAt: true, courseId: true },
+      }),
+      prisma.nasaRouteProgress.findMany({
+        where: {
+          course: { creatorOrgId: { in: orgIds } },
+          ...(dateFilter ? { startedAt: dateFilter } : {}),
+        },
+        select: { id: true, completedAt: true, completedLessonIds: true },
+      }),
+      prisma.nasaRouteCertificate.findMany({
+        where: {
+          course: { creatorOrgId: { in: orgIds } },
+          ...(dateFilter ? { issuedAt: dateFilter } : {}),
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    const enrollmentsByCourse = enrollments.reduce<Record<string, number>>((acc, e) => {
+      acc[e.courseId] = (acc[e.courseId] ?? 0) + 1;
+      return acc;
+    }, {});
+    const topCourses = Object.entries(enrollmentsByCourse)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([id, count]) => ({
+        id,
+        title: routeCourses.find((c) => c.id === id)?.title ?? "Curso",
+        enrollments: count,
+      }));
+
+    const nasaRouteData = {
+      totalCourses: routeCourses.length,
+      publishedCourses: routeCourses.filter((c) => c.isPublished).length,
+      totalStudents: routeCourses.reduce((s, c) => s + c.studentsCount, 0),
+      totalEnrollments: enrollments.length,
+      paidEnrollments: enrollments.filter((e) => e.source === "purchase").length,
+      freeEnrollments: enrollments.filter((e) => e.source === "free_access").length,
+      starsRevenue: enrollments.reduce((s, e) => s + e.paidStars, 0),
+      completedCourses: progress.filter((p) => p.completedAt).length,
+      completedLessons: progress.reduce((s, p) => s + p.completedLessonIds.length, 0),
+      certificatesIssued: certificates.length,
+      topCourses,
+    };
+
     return {
       forge:        forgeData,
       spacetime:    spacetimeData,
@@ -466,6 +604,8 @@ export const getAppsInsights = base
       linnker:      linnkerData,
       spacePoints:  spacePointsData,
       stars:        starsData,
+      spaceStation: spaceStationData,
+      nasaRoute:    nasaRouteData,
       period:       { startDate: input.startDate, endDate: input.endDate },
     };
   });

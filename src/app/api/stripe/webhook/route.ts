@@ -12,11 +12,15 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 import { constructWebhookEvent } from "@/lib/stripe";
 import prisma from "@/lib/prisma";
 import { purchaseTopUp, runMonthlyCycle } from "@/lib/star-service";
 import { StarTransactionType } from "@/generated/prisma/client";
 import { processPaymentPartnerEffects } from "@/lib/partner-service";
+import { inngest } from "@/inngest/client";
+
+const SIGNUP_TOKEN_TTL_DAYS = 7;
 
 export async function POST(req: NextRequest) {
   const payload   = await req.text();
@@ -39,7 +43,68 @@ export async function POST(req: NextRequest) {
       // ── Checkout concluído ───────────────────────────────────────────────────
       case "checkout.session.completed": {
         const session = event.data.object;
-        const { organizationId, itemType, itemSlug, starsPaymentId } = session.metadata ?? {};
+        const metadata = session.metadata ?? {};
+        const { organizationId, itemType, itemSlug, starsPaymentId } = metadata;
+
+        // ── Public course checkout (kind=course_public_purchase) ──────────────
+        if (metadata.kind === "course_public_purchase" && metadata.pendingId) {
+          const pendingId = metadata.pendingId;
+          const pending = await prisma.pendingCoursePurchase.findUnique({
+            where: { id: pendingId },
+            select: { id: true, status: true },
+          });
+          if (!pending) {
+            console.warn(
+              "[stripe/webhook] course_public_purchase pending not found:",
+              pendingId,
+            );
+            break;
+          }
+          // Idempotência: webhook pode chegar duplicado
+          if (pending.status === "PAID" || pending.status === "REDEEMED") {
+            console.log(
+              `[stripe/webhook] course_public_purchase ${pendingId} já em ${pending.status} — ignorando.`,
+            );
+            break;
+          }
+
+          const signupToken = randomBytes(32).toString("hex");
+          const tokenExpiresAt = new Date(
+            Date.now() + SIGNUP_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+          );
+
+          await prisma.pendingCoursePurchase.update({
+            where: { id: pendingId },
+            data: {
+              status: "PAID",
+              paidAt: new Date(),
+              signupToken,
+              tokenExpiresAt,
+              stripePaymentIntentId:
+                typeof session.payment_intent === "string"
+                  ? session.payment_intent
+                  : null,
+            },
+          });
+
+          // Dispara e-mail via Inngest (não-crítico — falha não desfaz pagamento)
+          try {
+            await inngest.send({
+              name: "course/public-purchase.paid",
+              data: { pendingId },
+            });
+          } catch (err) {
+            console.error(
+              "[stripe/webhook] inngest dispatch failed (course public purchase):",
+              err,
+            );
+          }
+
+          console.log(
+            `[stripe/webhook] ✅ course_public_purchase paid: pendingId=${pendingId}`,
+          );
+          break;
+        }
 
         // ── New Stars gateway checkout (starsPaymentId present) ──────────────
         if (starsPaymentId) {

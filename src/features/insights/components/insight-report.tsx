@@ -2,11 +2,12 @@
 
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Download, Loader2, FileText, RefreshCw } from "lucide-react";
+import { Sparkles, Download, Loader2, FileText, RefreshCw, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/lib/orpc";
 import { useMutation } from "@tanstack/react-query";
 import type { AppModule } from "./app-selector";
+import { SaveReportModal } from "./reports/save-report-modal";
 
 interface InsightReportProps {
   selectedModules: AppModule[];
@@ -231,6 +232,7 @@ export function InsightReport({
 }: InsightReportProps) {
   const [report, setReport] = useState<string>("");
   const [isPdfLoading, setIsPdfLoading] = useState(false);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
 
   const { mutate: generateReport, isPending } = useMutation({
     mutationFn: () =>
@@ -301,20 +303,31 @@ export function InsightReport({
 
         <div className="flex items-center gap-2">
           {report && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownload}
-              disabled={isPdfLoading}
-              className="gap-1.5 text-xs"
-            >
-              {isPdfLoading ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Download className="size-3.5" />
-              )}
-              Baixar PDF
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSaveModalOpen(true)}
+                className="gap-1.5 text-xs"
+              >
+                <Save className="size-3.5" />
+                Salvar relatório
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownload}
+                disabled={isPdfLoading}
+                className="gap-1.5 text-xs"
+              >
+                {isPdfLoading ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Download className="size-3.5" />
+                )}
+                Baixar PDF
+              </Button>
+            </>
           )}
           <Button
             size="sm"
@@ -365,6 +378,24 @@ export function InsightReport({
           />
         )}
       </div>
+
+      <SaveReportModal
+        open={saveModalOpen}
+        onOpenChange={setSaveModalOpen}
+        defaultName={`${orgName} — ${periodStr}`}
+        filters={{ period }}
+        modules={selectedModules}
+        snapshot={{
+          period,
+          tracking,
+          chat,
+          forge,
+          spacetime,
+          nasaPlanner,
+          metaAds,
+        }}
+        aiNarrative={report || undefined}
+      />
     </div>
   );
 }

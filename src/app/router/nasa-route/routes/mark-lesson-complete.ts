@@ -6,6 +6,7 @@ import { ORPCError } from "@orpc/server";
 import { pusherServer } from "@/lib/pusher";
 import { awardPoints } from "@/app/router/space-point/utils";
 import { awardCourseRewards, issueCertificate } from "../utils";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * Marca aula como concluída (idempotente).
@@ -162,6 +163,26 @@ export const markLessonComplete = base
       } catch (err) {
         console.error("[nasa-route/mark-lesson] issueCertificate error:", err);
       }
+    }
+
+    if (lessonWasNew && enrollment.buyerOrgId) {
+      await logActivity({
+        organizationId: enrollment.buyerOrgId,
+        userId,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "nasa-route",
+        subAppSlug: "nasa-route-courses",
+        featureKey: isFullyComplete ? "route.course.completed" : "route.lesson.completed",
+        action: isFullyComplete ? "route.course.completed" : "route.lesson.completed",
+        actionLabel: isFullyComplete
+          ? `Concluiu o curso "${course.title}"`
+          : `Concluiu uma aula em "${course.title}"`,
+        resource: course.title,
+        resourceId: course.id,
+        metadata: { lessonId: input.lessonId, spAwarded: lessonSpAwarded, isFullyComplete },
+      });
     }
 
     return {

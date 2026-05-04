@@ -9,23 +9,27 @@ interface ReminderListTabProps {
   conversationId?: string;
   leadId?: string;
   trackingId?: string;
+  actionId?: string;
 }
 
 export function ReminderListTab({
   conversationId,
   leadId,
   trackingId,
+  actionId,
 }: ReminderListTabProps) {
   const { data, isLoading } = useListReminders({
     conversationId,
     leadId,
     trackingId,
+    actionId,
   });
 
   const deleteReminder = useDeleteReminder({
     conversationId,
     leadId,
     trackingId,
+    actionId,
   });
 
   if (isLoading) {
@@ -44,7 +48,9 @@ export function ReminderListTab({
         <CalendarIcon className="size-10 text-muted-foreground/50 mb-3" />
         <p className="text-sm font-medium text-foreground">Nenhum lembrete</p>
         <p className="text-xs text-muted-foreground mt-1">
-          Você não tem lembretes ativos para este lead.
+          {actionId
+            ? "Você não tem lembretes ativos para este evento."
+            : "Você não tem lembretes ativos para este lead."}
         </p>
       </div>
     );

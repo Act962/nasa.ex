@@ -60,11 +60,15 @@ function GridSkeleton() {
 function PlatformDefCard({
   def,
   isConnected,
+  errorMessage,
+  lastSyncAt,
   onConfigure,
   onDisconnect,
 }: {
   def: PlatformDef;
   isConnected: boolean;
+  errorMessage?: string | null;
+  lastSyncAt?: Date | string | null;
   onConfigure: () => void;
   onDisconnect: () => void;
 }) {
@@ -113,6 +117,17 @@ function PlatformDefCard({
         </div>
       </div>
 
+      {isConnected && errorMessage && (
+        <div className="mt-2 text-[10px] text-destructive bg-destructive/10 border border-destructive/30 rounded px-2 py-1 leading-snug" title={errorMessage}>
+          ⚠ {errorMessage.length > 80 ? errorMessage.slice(0, 80) + "…" : errorMessage}
+        </div>
+      )}
+      {isConnected && !errorMessage && lastSyncAt && (
+        <div className="mt-2 text-[10px] text-muted-foreground">
+          Última sync: {new Date(lastSyncAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-border/50">
         {isSingle ? (
@@ -144,10 +159,16 @@ function PlatformDefCard({
 
 // ─── Main Grid ────────────────────────────────────────────────────────────────
 
+interface IntegrationStatus {
+  errorMessage?: string | null;
+  lastSyncAt?: Date | string | null;
+}
+
 interface IntegrationGridProps {
   isLoading?: boolean;
   platformDefs?: PlatformDef[];
   connectedPlatforms?: Set<string>;
+  integrationStatuses?: Map<string, IntegrationStatus>;
   onConfigurePlatform?: (def: PlatformDef) => void;
   onDisconnectPlatform?: (platform: IntegrationPlatform) => void;
 }
@@ -156,6 +177,7 @@ export function IntegrationGrid({
   isLoading = false,
   platformDefs = [],
   connectedPlatforms = new Set(),
+  integrationStatuses = new Map(),
   onConfigurePlatform,
   onDisconnectPlatform,
 }: IntegrationGridProps) {
@@ -428,6 +450,8 @@ export function IntegrationGrid({
                         key={String(def.platform)}
                         def={def}
                         isConnected={def.platform === "WHATSAPP" ? true : connectedPlatforms.has(String(def.platform))}
+                        errorMessage={integrationStatuses.get(String(def.platform))?.errorMessage}
+                        lastSyncAt={integrationStatuses.get(String(def.platform))?.lastSyncAt}
                         onConfigure={() => onConfigurePlatform?.(def)}
                         onDisconnect={() => def.platform !== "WHATSAPP" && onDisconnectPlatform?.(def.platform as IntegrationPlatform)}
                       />

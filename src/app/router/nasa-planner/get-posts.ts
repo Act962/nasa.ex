@@ -30,7 +30,11 @@ export const getPosts = base
           : {}),
       },
       orderBy: { createdAt: "desc" },
-      include: { slides: { orderBy: { order: "asc" } } },
+      include: {
+        slides: { orderBy: { order: "asc" } },
+        orgProject: { select: { id: true, name: true, avatar: true } },
+        createdBy: { select: { id: true, name: true, image: true } },
+      },
     });
 
     return { posts };

@@ -5,6 +5,7 @@ import {
   defaultBackgroundColor,
   defaultPrimaryColor,
 } from "@/features/form/constants";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -75,6 +76,22 @@ export const createForm = base
           },
         },
       },
+    });
+
+    await logActivity({
+      organizationId,
+      userId: context.user.id,
+      userName: context.user.name,
+      userEmail: context.user.email,
+      userImage: (context.user as any).image,
+      appSlug: "forms",
+      subAppSlug: "forms-builder",
+      featureKey: "forms.form.created",
+      action: "forms.form.created",
+      actionLabel: `Criou o formulário "${form.name}"`,
+      resource: form.name,
+      resourceId: form.id,
+      metadata: { hasTracking: !!trackingId },
     });
 
     return {

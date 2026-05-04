@@ -4,6 +4,8 @@ import { publicGetCourse } from "./routes/public-get-course";
 import { publicGetFreeLesson } from "./routes/public-get-free-lesson";
 import { publicSearch } from "./routes/public-search";
 import { publicGetCertificate } from "./routes/public-get-certificate";
+import { getPendingPurchase } from "./routes/get-pending-purchase";
+import { redeemCoursePurchase } from "./routes/redeem-course-purchase";
 
 // ── Aluno ───────────────────────────────────────────────────────────────
 import { listMyEnrollments } from "./routes/list-my-enrollments";
@@ -44,6 +46,8 @@ export const nasaRouteRouter = {
   publicGetFreeLesson,
   publicSearch,
   publicGetCertificate,
+  getPendingPurchase,
+  redeemCoursePurchase,
   // aluno
   listMyEnrollments,
   getCourseAsStudent,

@@ -8,6 +8,7 @@ import {
   MessageSquare, Users, TrendingUp, AlertCircle,
   ListTodo, FormInput, Inbox, Wallet, Link2, Coins, Star,
   Activity, Eye, Award, ShoppingCart, Receipt,
+  Rocket, Map as MapIcon, GraduationCap, BookOpen,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -709,6 +710,130 @@ export function StarsSection({ data }: { data: StarsData }) {
                   <p className="text-sm truncate capitalize">{app.replace(/-/g, " ")}</p>
                 </div>
                 <Badge variant="secondary" className="text-[10px]">{fmt(amount)} ⭐</Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Space Station Section ───────────────────────────────────────────────────
+
+interface SpaceStationData {
+  totalStations: number;
+  publicStations: number;
+  orgStations: number;
+  userStations: number;
+  totalStarsReceived: number;
+  starsSentInPeriod: number;
+  starsReceivedInPeriod: number;
+  pendingAccessRequests: number;
+  approvedAccessRequests: number;
+}
+
+export function SpaceStationSection({ data }: { data: SpaceStationData }) {
+  return (
+    <div className="space-y-3">
+      <SectionHeader
+        icon={Rocket}
+        label="Space Station — Mundos & Comunidade"
+        color="text-indigo-600"
+        bg="bg-indigo-50 dark:bg-indigo-950/40"
+        description="Estações, mundos públicos e engajamento com Stars"
+      />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <KpiCard label="Estações" value={fmt(data.totalStations)}
+          icon={Rocket} color="text-indigo-600" bg="bg-indigo-50 dark:bg-indigo-950/40"
+          sub={`${data.orgStations} org · ${data.userStations} pessoais`} />
+        <KpiCard label="Públicas" value={fmt(data.publicStations)}
+          icon={Eye} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-950/40"
+          sub="Visíveis em /space" />
+        <KpiCard label="Stars enviados" value={fmt(data.starsSentInPeriod)}
+          icon={Star} color="text-amber-500" bg="bg-amber-50 dark:bg-amber-950/40"
+          sub="No período" />
+        <KpiCard label="Stars recebidos" value={fmt(data.starsReceivedInPeriod)}
+          icon={Star} color="text-fuchsia-600" bg="bg-fuchsia-50 dark:bg-fuchsia-950/40"
+          sub={`${fmt(data.totalStarsReceived)} total`} />
+        <KpiCard label="Pedidos de acesso" value={fmt(data.pendingAccessRequests)}
+          icon={Clock} color="text-orange-500" bg="bg-orange-50 dark:bg-orange-950/40"
+          sub="Pendentes"
+          badge={data.pendingAccessRequests > 0 ? "Atenção" : undefined}
+          badgeVariant="secondary" />
+        <KpiCard label="Acessos aprovados" value={fmt(data.approvedAccessRequests)}
+          icon={CheckCircle2} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950/40"
+          sub="No período" />
+      </div>
+    </div>
+  );
+}
+
+// ─── NASA Route Section ──────────────────────────────────────────────────────
+
+interface NasaRouteData {
+  totalCourses: number;
+  publishedCourses: number;
+  totalStudents: number;
+  totalEnrollments: number;
+  paidEnrollments: number;
+  freeEnrollments: number;
+  starsRevenue: number;
+  completedCourses: number;
+  completedLessons: number;
+  certificatesIssued: number;
+  topCourses: Array<{ id: string; title: string; enrollments: number }>;
+}
+
+export function NasaRouteSection({ data }: { data: NasaRouteData }) {
+  const completionRate = data.totalEnrollments > 0
+    ? (data.completedCourses / data.totalEnrollments) * 100
+    : 0;
+
+  return (
+    <div className="space-y-3">
+      <SectionHeader
+        icon={MapIcon}
+        label="NASA Route — Cursos & Trilhas"
+        color="text-sky-600"
+        bg="bg-sky-50 dark:bg-sky-950/40"
+        description="Cursos publicados, alunos e progresso"
+      />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <KpiCard label="Cursos" value={fmt(data.totalCourses)}
+          icon={BookOpen} color="text-sky-600" bg="bg-sky-50 dark:bg-sky-950/40"
+          sub={`${data.publishedCourses} publicados`} />
+        <KpiCard label="Alunos" value={fmt(data.totalStudents)}
+          icon={Users} color="text-violet-600" bg="bg-violet-50 dark:bg-violet-950/40"
+          sub="Total de matrículas únicas" />
+        <KpiCard label="Matrículas" value={fmt(data.totalEnrollments)}
+          icon={GraduationCap} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-950/40"
+          sub={`${data.paidEnrollments} pagas · ${data.freeEnrollments} livres`} />
+        <KpiCard label="Receita em Stars" value={fmt(data.starsRevenue)}
+          icon={Star} color="text-fuchsia-600" bg="bg-fuchsia-50 dark:bg-fuchsia-950/40"
+          sub="Stars arrecadados" />
+        <KpiCard label="Cursos concluídos" value={fmt(data.completedCourses)}
+          icon={CheckCircle2} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950/40"
+          badge={`${completionRate.toFixed(0)}%`} badgeVariant="default"
+          sub="Taxa de conclusão" />
+        <KpiCard label="Aulas assistidas" value={fmt(data.completedLessons)}
+          icon={Activity} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-950/40" />
+        <KpiCard label="Certificados" value={fmt(data.certificatesIssued)}
+          icon={Award} color="text-amber-500" bg="bg-amber-50 dark:bg-amber-950/40"
+          sub="Emitidos no período" />
+      </div>
+
+      {data.topCourses.length > 0 && (
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Top cursos por matrículas</p>
+          <div className="space-y-2">
+            {data.topCourses.map((c, i) => (
+              <div key={c.id} className="flex items-center justify-between gap-3 py-1.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs font-bold text-muted-foreground w-5">{i + 1}º</span>
+                  <p className="text-sm truncate">{c.title}</p>
+                </div>
+                <Badge variant="secondary" className="text-[10px]">{fmt(c.enrollments)} matrículas</Badge>
               </div>
             ))}
           </div>

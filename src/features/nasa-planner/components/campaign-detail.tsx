@@ -360,7 +360,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
 
       {/* Add Event Dialog */}
       <Dialog open={eventOpen} onOpenChange={(v) => { setEventOpen(v); if (!v) { setEventWorkspaceId(""); setEventColumnId(""); setReflectInAgenda(false); } }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[95vh] sm:max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Adicionar Ação</DialogTitle></DialogHeader>
           <div className="space-y-4">
             {/* Basic fields */}

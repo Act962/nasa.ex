@@ -71,9 +71,10 @@ export const getAction = base
               },
             },
           },
-          orderBy: {
-            finishDate: "asc",
-          },
+          orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+        },
+        subActionGroups: {
+          orderBy: { order: "asc" },
         },
         user: {
           select: {

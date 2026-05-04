@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -38,6 +39,22 @@ export const createLinnkerPage = base
         coverColor: coverColor ?? "#6366f1",
         buttonStyle: buttonStyle ?? "rounded",
       },
+    });
+
+    await logActivity({
+      organizationId,
+      userId: context.user.id,
+      userName: context.user.name,
+      userEmail: context.user.email,
+      userImage: (context.user as any).image,
+      appSlug: "linnker",
+      subAppSlug: "linnker-pages",
+      featureKey: "linnker.page.created",
+      action: "linnker.page.created",
+      actionLabel: `Criou a página Linnker "${page.title}" (/${page.slug})`,
+      resource: page.title,
+      resourceId: page.id,
+      metadata: { slug: page.slug },
     });
 
     return { message: "Página criada com sucesso", page };

@@ -15,17 +15,21 @@ export const listReminders = base
       conversationId: z.string().optional(),
       leadId: z.string().optional(),
       trackingId: z.string().optional(),
+      actionId: z.string().optional(),
     }),
   )
   .handler(async ({ input }) => {
-    const { conversationId, leadId, trackingId } = input;
+    const { conversationId, leadId, trackingId, actionId } = input;
 
     const reminders = await prisma.reminder.findMany({
       where: {
         isActive: true,
-        ...(conversationId ? { conversationId } : {}),
-        ...(leadId && !conversationId ? { leadId } : {}),
-        ...(trackingId && !conversationId && !leadId ? { trackingId } : {}),
+        ...(actionId ? { actionId } : {}),
+        ...(conversationId && !actionId ? { conversationId } : {}),
+        ...(leadId && !conversationId && !actionId ? { leadId } : {}),
+        ...(trackingId && !conversationId && !leadId && !actionId
+          ? { trackingId }
+          : {}),
       },
       include: {
         occurrences: {

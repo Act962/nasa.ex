@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -48,6 +49,24 @@ export const sendStar = base
         data: { starsReceived: { increment: amount } },
       }),
     ]);
+
+    if (orgId) {
+      await logActivity({
+        organizationId: orgId,
+        userId,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "space-station",
+        subAppSlug: "station-stars",
+        featureKey: "station.star.sent",
+        action: "station.star.sent",
+        actionLabel: `Enviou ${amount} ★ de "@${fromNick}" para "@${toNick}"`,
+        resource: toNick,
+        resourceId: star.id,
+        metadata: { fromNick, toNick, amount, hasMessage: !!message },
+      });
+    }
 
     return { star };
   });

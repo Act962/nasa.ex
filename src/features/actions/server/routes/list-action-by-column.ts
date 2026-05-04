@@ -93,6 +93,7 @@ export const listActionByColumn = base
         order: true,
         coverImage: true,
         isDone: true,
+        isArchived: true,
         priority: true,
         isFavorited: true,
         favorites: {

@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { logActivity } from "@/lib/activity-logger";
 
 // 🟦 UPDATE
 export const archiveLead = base
@@ -21,8 +22,10 @@ export const archiveLead = base
         where: { id: input.leadId },
         select: {
           id: true,
+          name: true,
           statusId: true,
           trackingId: true,
+          tracking: { select: { organizationId: true, name: true } },
         },
       });
 
@@ -47,6 +50,24 @@ export const archiveLead = base
           },
         }),
       ]);
+
+      if (leadExists.tracking) {
+        await logActivity({
+          organizationId: leadExists.tracking.organizationId,
+          userId: context.user.id,
+          userName: context.user.name,
+          userEmail: context.user.email,
+          userImage: (context.user as any).image,
+          appSlug: "tracking",
+          subAppSlug: "tracking-pipeline",
+          featureKey: "lead.archived",
+          action: "lead.archived",
+          actionLabel: `Arquivou o lead "${leadExists.name}"`,
+          resource: leadExists.name,
+          resourceId: leadExists.id,
+          metadata: { trackingName: leadExists.tracking.name },
+        });
+      }
 
       return {
         lead: leadExists,

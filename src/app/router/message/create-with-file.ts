@@ -10,7 +10,8 @@ import { sendMedia } from "@/http/uazapi/send-media";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import z from "zod";
-import { attendLeadIfWaiting } from "./utils";
+import { attendLeadIfWaiting, logChatMessageSent } from "./utils";
+import { MessageChannel } from "@/generated/prisma/enums";
 
 export const createMessageWithFile = base
   .use(requiredAuthMiddleware)
@@ -79,6 +80,8 @@ export const createMessageWithFile = base
           conversation: {
             select: {
               id: true,
+              channel: true,
+              tracking: { select: { organizationId: true } },
               lead: {
                 select: {
                   id: true,
@@ -110,6 +113,18 @@ export const createMessageWithFile = base
 
       // Trigger gamification/attendance logic
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+
+      await logChatMessageSent({
+        organizationId: message.conversation.tracking?.organizationId,
+        conversationId: input.conversationId,
+        channel: message.conversation.channel ?? MessageChannel.WHATSAPP,
+        user: { id: context.user.id, name: context.user.name, email: context.user.email, image: (context.user as any).image },
+        messageId: message.id,
+        body: input.body ?? "",
+        mediaType: "file",
+        leadId: message.conversation.lead.id,
+        leadName: message.conversation.lead.name,
+      });
 
       return {
         message: {

@@ -24,9 +24,8 @@ const formSchema = z
     recurrenceType: z.nativeEnum(ReminderRecurrenceType),
     dayOfMonth: z.number().min(1).max(28).optional(),
     remindTime: z.string().regex(/^\d{2}:\d{2}$/, "Formato HH:MM"),
-    // Obrigatório para todos os tipos, exceto MONTHLY + dayOfMonth definido
     firstRemindAt: z.string().optional(),
-    notifyPhone: z.string().min(1, "Número obrigatório"),
+    notifyPhone: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -34,7 +33,7 @@ const formSchema = z
         data.recurrenceType === ReminderRecurrenceType.MONTHLY &&
         data.dayOfMonth
       ) {
-        return true; // dia fixo → data calculada automaticamente
+        return true;
       }
       return !!data.firstRemindAt;
     },
@@ -48,7 +47,9 @@ interface ReminderCreateTabProps {
   conversationId?: string;
   leadId?: string;
   trackingId?: string;
+  actionId?: string;
   phone: string | null;
+  phoneOptional?: boolean;
 }
 
 export function ReminderCreateTab({
@@ -56,7 +57,9 @@ export function ReminderCreateTab({
   conversationId,
   leadId,
   trackingId,
+  actionId,
   phone,
+  phoneOptional = false,
 }: ReminderCreateTabProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -79,9 +82,17 @@ export function ReminderCreateTab({
     conversationId,
     leadId,
     trackingId,
+    actionId,
   });
 
   const onSubmit = form.handleSubmit((values) => {
+    if (!phoneOptional && !values.notifyPhone?.trim()) {
+      form.setError("notifyPhone", {
+        type: "manual",
+        message: "Número obrigatório",
+      });
+      return;
+    }
     createReminder.mutate(
       {
         message: values.message,
@@ -89,7 +100,6 @@ export function ReminderCreateTab({
         dayOfMonth:
           isMonthly && values.dayOfMonth ? values.dayOfMonth : undefined,
         remindTime: values.remindTime,
-        // Só envia firstRemindAt quando necessário
         firstRemindAt:
           needsFirstRemindAt && values.firstRemindAt
             ? new Date(
@@ -100,6 +110,7 @@ export function ReminderCreateTab({
         conversationId,
         leadId,
         trackingId,
+        actionId,
       },
       { onSuccess: onClose },
     );
@@ -197,7 +208,9 @@ export function ReminderCreateTab({
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="notifyPhone">
           WhatsApp para notificar{" "}
-          <span className="text-muted-foreground text-xs">(DDI + número)</span>
+          <span className="text-muted-foreground text-xs">
+            {phoneOptional ? "(opcional — vazio = só notificação no app)" : "(DDI + número)"}
+          </span>
         </Label>
         <Input
           id="notifyPhone"

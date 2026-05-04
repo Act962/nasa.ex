@@ -8,6 +8,7 @@ import {
   sendWorkspaceWorkflowEvent,
 } from "@/inngest/utils";
 import { z } from "zod";
+import { logActivity } from "@/lib/activity-logger";
 
 export const reorderAction = base
   .use(requiredAuthMiddleware)
@@ -20,7 +21,7 @@ export const reorderAction = base
       afterId: z.string().optional().nullable(),
     }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, errors, context }) => {
     const { id, columnId, beforeId, afterId } = input;
 
     const result = await prisma.$transaction(async (tx) => {
@@ -88,6 +89,32 @@ export const reorderAction = base
           err,
         );
       }
+    }
+
+    const orgId = context.session.activeOrganizationId;
+    if (orgId) {
+      const moved = result.previousColumnId !== columnId;
+      await logActivity({
+        organizationId: orgId,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "workspace",
+        subAppSlug: "workspace-actions",
+        featureKey: moved ? "workspace.action.moved" : "workspace.action.reordered",
+        action: moved ? "workspace.action.moved" : "workspace.action.reordered",
+        actionLabel: moved
+          ? `Moveu a ação "${result.action.title}" entre colunas`
+          : `Reordenou a ação "${result.action.title}" na coluna`,
+        resource: result.action.title,
+        resourceId: result.action.id,
+        metadata: {
+          fromColumnId: result.previousColumnId,
+          toColumnId: columnId,
+          dragSource: "kanban",
+        },
+      });
     }
 
     return { action: result.action };

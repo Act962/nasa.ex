@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { VideoEmbed } from "../shared/video-embed";
 import { PriceStarsDisplay } from "../shared/price-stars-display";
 import { EnrollmentModal } from "../student/enrollment-modal";
+import { PublicCheckoutModal } from "./public-checkout-modal";
 import { COURSE_FORMAT_LABELS, COURSE_LEVEL_LABELS } from "../../types";
 import { imgSrc } from "@/features/public-calendar/utils/img-src";
 
@@ -30,11 +31,26 @@ interface Props {
   companySlug: string;
   courseSlug: string;
   isAuthenticated?: boolean;
+  /** Cotação de 1 STAR em BRL — vinda do server (singleton RouterPaymentSettings). */
+  starPriceBrl?: number;
 }
 
-export function CoursePublicPage({ companySlug, courseSlug, isAuthenticated = false }: Props) {
+interface PublicCheckoutPlan {
+  id: string;
+  name: string;
+  priceStars: number;
+}
+
+export function CoursePublicPage({
+  companySlug,
+  courseSlug,
+  isAuthenticated = false,
+  starPriceBrl = 0.15,
+}: Props) {
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [publicCheckoutPlan, setPublicCheckoutPlan] =
+    useState<PublicCheckoutPlan | null>(null);
   const { data, isLoading, isError } = useQuery({
     ...orpc.nasaRoute.publicGetCourse.queryOptions({
       input: { companySlug, courseSlug },
@@ -67,11 +83,60 @@ export function CoursePublicPage({ companySlug, courseSlug, isAuthenticated = fa
   const signInHref = `/sign-in?redirect=${encodeURIComponent(
     `/c/${companySlug}/${courseSlug}`,
   )}`;
-  const ctaLabel = headlinePriceStars === 0 ? "Acessar gratuitamente" : "Comprar com STARs";
+  const signUpHref = `/sign-up?callbackUrl=${encodeURIComponent(
+    `/c/${companySlug}/${courseSlug}`,
+  )}`;
+
+  // BRL formatado pra um plano (usado nos botões de unauth)
+  const formatPlanBrl = (priceStars: number) =>
+    (priceStars * starPriceBrl).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+
+  // Headline CTA pro hero
+  const headlineFreeCourse = headlinePriceStars === 0;
+  const heroCtaLabel = headlineFreeCourse
+    ? "Acessar gratuitamente"
+    : !isAuthenticated && !hasMultiplePlans && defaultPlan
+      ? `Comprar por ${formatPlanBrl(defaultPlan.priceStars)}`
+      : hasMultiplePlans
+        ? "Ver planos"
+        : "Comprar com STARs";
 
   function startEnrollment(planId: string | null) {
     setSelectedPlanId(planId);
     setEnrollOpen(true);
+  }
+
+  function startPublicCheckout(plan: { id: string; name: string; priceStars: number }) {
+    if (plan.priceStars <= 0) return;
+    setPublicCheckoutPlan(plan);
+  }
+
+  function handleHeroClick() {
+    if (headlineFreeCourse) {
+      // curso gratuito: precisa criar conta normal
+      window.location.href = signUpHref;
+      return;
+    }
+    if (!isAuthenticated) {
+      // 1 plano único → modal direto. Multi-plano → mostra a seção de planos
+      if (!hasMultiplePlans && defaultPlan) {
+        startPublicCheckout({
+          id: defaultPlan.id,
+          name: defaultPlan.name,
+          priceStars: defaultPlan.priceStars,
+        });
+      } else {
+        // Scroll suave pra seção de planos
+        document
+          .getElementById("plans-section")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      return;
+    }
+    startEnrollment(hasMultiplePlans ? null : defaultPlan?.id ?? null);
   }
 
   return (
@@ -163,29 +228,35 @@ export function CoursePublicPage({ companySlug, courseSlug, isAuthenticated = fa
             </span>
             <PriceStarsDisplay priceStars={headlinePriceStars} size="lg" />
           </div>
-          {isAuthenticated ? (
-            <Button
-              size="lg"
-              className="mt-4 w-full"
-              onClick={() => startEnrollment(hasMultiplePlans ? null : defaultPlan?.id ?? null)}
-            >
-              {hasMultiplePlans ? "Ver planos" : ctaLabel}
-            </Button>
-          ) : (
-            <Button asChild size="lg" className="mt-4 w-full">
-              <Link href={signInHref}>{ctaLabel}</Link>
-            </Button>
+          {!isAuthenticated && !headlineFreeCourse && !hasMultiplePlans && defaultPlan && (
+            <p className="mt-1 text-right text-[11px] text-muted-foreground">
+              ≈ {formatPlanBrl(defaultPlan.priceStars)} via cartão
+            </p>
           )}
+          <Button
+            size="lg"
+            className="mt-4 w-full"
+            onClick={handleHeroClick}
+          >
+            {heroCtaLabel}
+          </Button>
           {!isAuthenticated && (
             <p className="mt-2 text-center text-[11px] text-muted-foreground">
-              Cadastro rápido em segundos
+              {headlineFreeCourse
+                ? "Crie sua conta em segundos"
+                : "Compra direta · sem precisar criar conta antes"}
+            </p>
+          )}
+          {isAuthenticated && (
+            <p className="mt-2 text-center text-[11px] text-muted-foreground">
+              Pago com STARs da sua conta
             </p>
           )}
         </aside>
       </header>
 
       {plans.length > 0 && (
-        <section className="mt-8">
+        <section id="plans-section" className="mt-8 scroll-mt-6">
           <h2 className="text-xl font-bold">
             {hasMultiplePlans ? "Escolha seu plano" : "Plano de acesso"}
           </h2>
@@ -248,6 +319,11 @@ export function CoursePublicPage({ companySlug, courseSlug, isAuthenticated = fa
                       </>
                     )}
                   </div>
+                  {!isFree && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      ≈ {formatPlanBrl(plan.priceStars)} via cartão
+                    </p>
+                  )}
 
                   <ul className="mt-4 flex-1 space-y-2 text-sm">
                     <li className="flex items-start gap-2">
@@ -309,15 +385,27 @@ export function CoursePublicPage({ companySlug, courseSlug, isAuthenticated = fa
                       >
                         {isFree ? "Começar agora" : "Comprar este plano"}
                       </Button>
-                    ) : (
+                    ) : isFree ? (
                       <Button
                         asChild
                         className="w-full"
                         variant={plan.isDefault ? "default" : "outline"}
                       >
-                        <Link href={signInHref}>
-                          {isFree ? "Começar agora" : "Comprar este plano"}
-                        </Link>
+                        <Link href={signUpHref}>Começar agora</Link>
+                      </Button>
+                    ) : (
+                      <Button
+                        className="w-full"
+                        variant={plan.isDefault ? "default" : "outline"}
+                        onClick={() =>
+                          startPublicCheckout({
+                            id: plan.id,
+                            name: plan.name,
+                            priceStars: plan.priceStars,
+                          })
+                        }
+                      >
+                        Comprar por {formatPlanBrl(plan.priceStars)}
                       </Button>
                     )}
                   </div>
@@ -420,6 +508,20 @@ export function CoursePublicPage({ companySlug, courseSlug, isAuthenticated = fa
             })),
           }}
           initialPlanId={selectedPlanId}
+        />
+      )}
+
+      {!isAuthenticated && publicCheckoutPlan && (
+        <PublicCheckoutModal
+          open={!!publicCheckoutPlan}
+          onClose={() => setPublicCheckoutPlan(null)}
+          course={{
+            id: course.id,
+            title: course.title,
+            creatorOrgName: org.name,
+          }}
+          plan={publicCheckoutPlan}
+          amountBrl={publicCheckoutPlan.priceStars * starPriceBrl}
         />
       )}
     </div>

@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { randomUUID } from "crypto";
@@ -143,6 +144,23 @@ export const createPaymentEntry = base
         data.map((d) => prisma.paymentEntry.create({ data: d, include: entryInclude }))
       );
 
+      const totalAmount = entries.reduce((s, e) => s + e.amount, 0);
+      await logActivity({
+        organizationId: context.org.id,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "payment",
+        subAppSlug: "payment-entries",
+        featureKey: input.type === "RECEIVABLE" ? "payment.receivable.created" : "payment.payable.created",
+        action: input.type === "RECEIVABLE" ? "payment.receivable.created" : "payment.payable.created",
+        actionLabel: `${input.type === "RECEIVABLE" ? "Lançou recebimento" : "Lançou pagamento"} "${input.description}" (R$ ${totalAmount.toFixed(2)})`,
+        resource: input.description,
+        resourceId: entries[0]?.id,
+        metadata: { amount: totalAmount, installments, type: input.type },
+      });
+
       return { entries };
     } catch (err) {
       console.error("[payment/entries create]", err);
@@ -218,6 +236,24 @@ export const payPaymentEntry = base
           ...(input.accountId ? { accountId: input.accountId } : {}),
         },
         include: entryInclude,
+      });
+
+      await logActivity({
+        organizationId: context.org.id,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "payment",
+        subAppSlug: "payment-entries",
+        featureKey: status === "PAID" ? "payment.entry.paid" : "payment.entry.partial",
+        action: status === "PAID" ? "payment.entry.paid" : "payment.entry.partial",
+        actionLabel: status === "PAID"
+          ? `Quitou "${entry.description}" (R$ ${input.paidAmount.toFixed(2)})`
+          : `Recebeu parcial em "${entry.description}" (R$ ${input.paidAmount.toFixed(2)})`,
+        resource: entry.description,
+        resourceId: entry.id,
+        metadata: { paidAmount: input.paidAmount, totalPaid: newPaid, totalAmount: existing.amount, type: existing.type },
       });
 
       return { entry };

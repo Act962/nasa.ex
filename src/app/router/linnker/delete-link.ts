@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -24,5 +25,21 @@ export const deleteLinnkerLink = base
     }
 
     await prisma.linnkerLink.delete({ where: { id: input.id } });
+
+    await logActivity({
+      organizationId,
+      userId: context.user.id,
+      userName: context.user.name,
+      userEmail: context.user.email,
+      userImage: (context.user as any).image,
+      appSlug: "linnker",
+      subAppSlug: "linnker-links",
+      featureKey: "linnker.link.deleted",
+      action: "linnker.link.deleted",
+      actionLabel: `Excluiu o link "${link.title}"`,
+      resource: link.title,
+      resourceId: link.id,
+    });
+
     return { message: "Link excluído" };
   });

@@ -2,6 +2,7 @@ import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { sendText } from "@/http/uazapi/send-text";
 import { computeNextRemindAt } from "@/lib/reminder-recurrence";
+import { createNotification } from "@/lib/notification-service";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
 
@@ -56,6 +57,15 @@ export const processReminder = inngest.createFunction(
               },
             },
           },
+          action: {
+            select: {
+              id: true,
+              title: true,
+              workspaceId: true,
+              organizationId: true,
+              participants: { select: { userId: true } },
+            },
+          },
         },
       }),
     );
@@ -77,6 +87,40 @@ export const processReminder = inngest.createFunction(
           instance.apiKey,
           { number: phone, text: message },
           instance.baseUrl,
+        ),
+      );
+
+      sent = true;
+    }
+
+    // 4b. Se houver action vinculada, notificar participantes via in-app
+    if (fresh.action) {
+      const action = fresh.action;
+      const targetIds = action.participants.map((p) => p.userId);
+      const truncated =
+        fresh.message.length > 60
+          ? fresh.message.slice(0, 60) + "…"
+          : fresh.message;
+      const actionUrl = `/workspaces/${action.workspaceId}?actionId=${action.id}`;
+
+      await step.run("notify-action-participants", () =>
+        Promise.allSettled(
+          targetIds.map((userId) =>
+            createNotification({
+              userId,
+              organizationId: action.organizationId ?? undefined,
+              type: "CUSTOM",
+              appKey: "explorer",
+              title: `🔔 Lembrete: ${truncated}`,
+              body: `Sobre: ${action.title}`,
+              actionUrl,
+              metadata: {
+                kind: "action_reminder",
+                actionId: action.id,
+                reminderId: fresh.id,
+              },
+            }),
+          ),
         ),
       );
 

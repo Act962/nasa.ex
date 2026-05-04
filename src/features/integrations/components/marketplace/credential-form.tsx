@@ -5,9 +5,16 @@ import type { CredentialField } from "@/types/integration";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Eye, EyeOff, ExternalLink, Info, Save, Loader2 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { CheckCircle2, Eye, EyeOff, ExternalLink, Info, Save, Loader2, Facebook, Chrome } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/lib/orpc";
+import { useConnectionWizardStore } from "@/features/integrations/store/connection-wizard-store";
 
 // ─── LocalStorage persistence ─────────────────────────────────────────────────
 
@@ -111,9 +118,21 @@ interface CredentialFormProps {
   onSaved?: () => void;
   /** Compact = used inside modal (smaller spacing) */
   compact?: boolean;
+  /** Quando setado, mostra botão OAuth e move o paste manual para accordion */
+  oauthProvider?: "meta" | "google";
+  /** Permite paste manual via accordion mesmo com oauthProvider */
+  manualFallback?: boolean;
 }
 
-export function CredentialForm({ slug, fields, onSaved, compact = false }: CredentialFormProps) {
+export function CredentialForm({
+  slug,
+  fields,
+  onSaved,
+  compact = false,
+  oauthProvider,
+  manualFallback = true,
+}: CredentialFormProps) {
+  const startWizard = useConnectionWizardStore((s) => s.start);
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -167,6 +186,67 @@ export function CredentialForm({ slug, fields, onSaved, compact = false }: Crede
       setSaving(false);
     }
   };
+
+  if (oauthProvider) {
+    const ProviderIcon = oauthProvider === "meta" ? Facebook : Chrome;
+    const providerLabel = oauthProvider === "meta" ? "Facebook" : "Google";
+    const bgClass = oauthProvider === "meta" ? "bg-[#1877F2] hover:bg-[#166FE5]" : "bg-[#4285F4] hover:bg-[#357AE8]";
+
+    return (
+      <div className={cn("space-y-4", compact ? "py-1" : "py-2")}>
+        <Button
+          type="button"
+          size="lg"
+          onClick={() => startWizard(oauthProvider)}
+          className={cn("w-full gap-2 font-semibold text-white", bgClass)}
+        >
+          <ProviderIcon className="size-4" />
+          Conectar com {providerLabel}
+        </Button>
+
+        <p className="text-center text-[11px] text-muted-foreground leading-relaxed px-2">
+          O ASTRO te guia passo a passo. Conexão por OAuth oficial — sem copy/paste de tokens.
+        </p>
+
+        {manualFallback && fields.length > 0 && (
+          <Accordion type="single" collapsible>
+            <AccordionItem value="manual" className="border rounded-lg">
+              <AccordionTrigger className="px-3 py-2 text-xs text-muted-foreground hover:no-underline">
+                Modo avançado — paste manual de tokens
+              </AccordionTrigger>
+              <AccordionContent className="px-3 pb-3">
+                <div className={cn("space-y-3 pt-1")}>
+                  {fields.map((field) => (
+                    <CredentialInput
+                      key={field.key}
+                      field={field}
+                      value={values[field.key] ?? ""}
+                      onChange={(v) => handleChange(field.key, v)}
+                    />
+                  ))}
+                  <Button
+                    onClick={handleSave}
+                    disabled={!allRequiredFilled || saving}
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2"
+                  >
+                    {saving ? (
+                      <><Loader2 className="size-3.5 animate-spin" /> Salvando...</>
+                    ) : saved ? (
+                      <><CheckCircle2 className="size-3.5" /> Salvo</>
+                    ) : (
+                      <><Save className="size-3.5" /> Salvar tokens manuais</>
+                    )}
+                  </Button>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={cn("space-y-4", compact ? "py-1" : "py-2")}>

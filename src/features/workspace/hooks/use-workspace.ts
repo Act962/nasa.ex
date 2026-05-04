@@ -404,11 +404,9 @@ export const useUpdateActionFields = () => {
           orpc.action.get.queryOptions({ input: { actionId: data.action.id } }),
         );
         queryClient.invalidateQueries({ queryKey: ["action.listByColumn"] });
-        queryClient.invalidateQueries(
-          orpc.action.listByWorkspace.queryOptions({
-            input: { workspaceId: data.action.workspaceId },
-          }),
-        );
+        queryClient.invalidateQueries({
+          queryKey: ["action.listByWorkspace"],
+        });
       },
       onError: () => toast.error("Erro ao atualizar ação!"),
     }),

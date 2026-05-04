@@ -61,6 +61,8 @@ export const integrations: Integration[] = [
     tags: ["Social"],
     hubPageEnabled: true,
     spaceImagePrompt: "Instagram gradient logo in space, cosmic background",
+    oauthProvider: "meta",
+    manualFallback: true,
     credentials: [
       {
         key: "instagram_account_id",
@@ -123,6 +125,8 @@ export const integrations: Integration[] = [
     hubPageEnabled: true,
     spaceImagePrompt:
       "Facebook Messenger logo floating in nebula, purple-blue space",
+    oauthProvider: "meta",
+    manualFallback: true,
     credentials: [
       {
         key: "page_id",
@@ -875,7 +879,8 @@ export const integrations: Integration[] = [
     status: "available",
     icon: "https://logo.clearbit.com/ads.google.com",
     tags: ["Ads", "Google"],
-    hubPageEnabled: false,
+    hubPageEnabled: true,
+    oauthProvider: "google",
   },
   {
     id: "facebook-ads",
@@ -888,6 +893,7 @@ export const integrations: Integration[] = [
     icon: "https://logo.clearbit.com/facebook.com",
     tags: ["Ads", "Meta"],
     hubPageEnabled: true,
+    oauthProvider: "meta",
     spaceImagePrompt:
       "Facebook blue logo in advertising space, lead forms floating",
   },

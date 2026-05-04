@@ -121,6 +121,8 @@ export const createLead = base
           userEmail: context.user.email,
           userImage: (context.user as any).image,
           appSlug: "tracking",
+          subAppSlug: "tracking-pipeline",
+          featureKey: "lead.created",
           action: "lead.created",
           actionLabel: `Criou o lead "${input.name}"`,
           resource: input.name,

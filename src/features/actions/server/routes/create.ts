@@ -5,6 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { generatePublicSlug } from "@/features/public-calendar/utils/slug";
+import { logActivity } from "@/lib/activity-logger";
 
 const EVENT_CATEGORY_VALUES = [
   "WORKSHOP",
@@ -107,6 +108,25 @@ export const createAction = base
         },
       },
     });
+
+    const orgId = context.session.activeOrganizationId;
+    if (orgId) {
+      await logActivity({
+        organizationId: orgId,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "workspace",
+        subAppSlug: "workspace-actions",
+        featureKey: input.isPublic ? "workspace.action.created.public" : "workspace.action.created",
+        action: "workspace.action.created",
+        actionLabel: `Criou a ação "${action.title}"`,
+        resource: action.title,
+        resourceId: action.id,
+        metadata: { priority: input.priority, isPublic: input.isPublic ?? false },
+      });
+    }
 
     return {
       action,

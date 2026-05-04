@@ -30,6 +30,8 @@ export const createFolder = base
       userEmail: context.user.email,
       userImage: (context.user as any).image,
       appSlug: "nbox",
+      subAppSlug: "nbox-folders",
+      featureKey: "nbox.folder.created",
       action: "nbox.folder.created",
       actionLabel: `Criou a pasta "${folder.name}" no NBox`,
       resource: folder.name,

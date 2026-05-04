@@ -98,6 +98,8 @@ export const deleteLead = base
             userEmail: context.user.email,
             userImage: (context.user as any).image,
             appSlug: "tracking",
+            subAppSlug: "tracking-pipeline",
+            featureKey: "lead.deleted",
             action: "lead.deleted",
             actionLabel: `Excluiu o lead "${lead.name}"`,
             resource: lead.name,

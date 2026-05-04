@@ -38,6 +38,9 @@ model User {
   forms                              Form[]
   leadFiles                          LeadFile[]
   insightShares                      InsightShares[]
+  savedInsightReports                SavedInsightReport[]
+  savedReportCompares                SavedReportCompare[]
+  insightLayoutsUpdated              OrganizationInsightLayout[] @relation("OrgInsightLayoutUpdater")
   agendaResponsibles                 AgendaResponsible[]
   appointments                       Appointment[]
   trackingConsultants                TrackingConsultant[]
@@ -78,6 +81,8 @@ model User {
   actionFavorites        ActionFavorite[]
   publicActionShares     PublicActionShare[]    @relation("PublicActionShareSharer")
   actionReminders        ActionReminder[]       @relation("ActionReminderUser")
+  actionChatMessages     ActionChatMessage[]    @relation("ActionChatSender")
+  actionChatReads        ActionChatRead[]       @relation("ActionChatReader")
 
   profileCard                UserProfileCard?
   orgRoles                   OrgRole[]
@@ -93,6 +98,8 @@ model User {
   nasaRouteFreeAccess        NasaRouteFreeAccess[]  @relation("NasaRouteFreeAccessUser")
   nasaRouteFreeAccessGranted NasaRouteFreeAccess[]  @relation("NasaRouteFreeAccessGrantor")
   nasaRouteCertificates      NasaRouteCertificate[]
+  pendingCoursePurchasesRedeemed PendingCoursePurchase[] @relation("PendingCoursePurchaseRedeemer")
+  routerPaymentSettingsUpdated   RouterPaymentSettings[] @relation("RouterPaymentSettingsUpdater")
   remindersCreated           Reminder[]             @relation("ReminderCreatedBy")
 
   // ── NASA Partner ──
@@ -103,6 +110,8 @@ model User {
   partnerTermsVersionsPublished PartnerTermsVersion[] @relation("PartnerTermsVersionPublisher")
   partnerTierHistoryTriggered   PartnerTierHistory[]  @relation("PartnerTierHistoryTrigger")
   partnerPayoutsMarkedPaid      PartnerPayout[]       @relation("PartnerPayoutPaidBy")
+
+  metaAccountAccess MemberMetaAccountAccess[]
 
   @@unique([email])
   @@map("user")
@@ -172,6 +181,9 @@ model Organization {
   // ── STARS ──────────────────────────────────
   planId               String?   @map("plan_id")
   starsBalance         Int       @default(0) @map("stars_balance")
+  starsBonusBalance    Int       @default(0) @map("stars_bonus_balance")
+  // Saldo de bônus (welcome, promoções) — não pode pagar curso no NASA Router,
+  // mas pode ser consumido por integrações (Planner IA, Command IA, APP_CHARGE/SETUP).
   starsCycleStart      DateTime? @map("stars_cycle_start")
   starsAlertConfig     Json      @default("{}") @map("stars_alert_config")
   starDistributionMode String    @default("org") @map("star_distribution_mode")
@@ -206,6 +218,11 @@ model Organization {
   activityLogs           OrgActivityLog[]
   systemActivityLogs     SystemActivityLog[]
   userPresences          UserPresence[]
+  userSessionRollups     UserSessionRollup[]
+  publicPageViews        PublicPageView[]
+  savedInsightReports    SavedInsightReport[]
+  savedReportCompares    SavedReportCompare[]
+  insightLayout          OrganizationInsightLayout?
   workspaces             Workspace[]
   form                   Form[]
   workspaceFolders       WorkspaceFolder[]
@@ -287,6 +304,14 @@ model Organization {
   partnerReferral        PartnerReferral?
   partnerCommissions     PartnerCommission[]
   partnerLifetimeGranted Boolean             @default(false) @map("partner_lifetime_granted")
+
+  // ── Meta Ads ──
+  metaAdsKpiSnapshots MetaAdsKpiSnapshot[]
+  metaAdCampaigns     MetaAdCampaign[]
+  metaAdSets          MetaAdSet[]
+  metaAds             MetaAd[]
+
+  memberMetaAccountAccess MemberMetaAccountAccess[]
 
   @@unique([slug])
   @@map("organization")
@@ -384,6 +409,7 @@ model Tracking {
   workspaces          Workspace[]
   scripts             Script[]
   reminders           Reminder[]
+  paymentEntries      PaymentEntry[]
 
   @@map("tracking")
 }
@@ -825,9 +851,10 @@ model Action {
   workspace    Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   column       WorkspaceColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
 
-  participants ActionsUserParticipant[]
-  responsibles ActionsUserResponsible[]
-  subActions   SubActions[]
+  participants    ActionsUserParticipant[]
+  responsibles    ActionsUserResponsible[]
+  subActions      SubActions[]
+  subActionGroups SubActionGroup[]
 
   attachments     Json           @default("[]") @map("attachments")
   links           Json           @default("[]") @map("links")
@@ -868,6 +895,10 @@ model Action {
   views        ActionView[]
   publicShares PublicActionShare[]
   reminders    ActionReminder[]
+
+  chatMessages  ActionChatMessage[]
+  chatReads     ActionChatRead[]
+  chatReminders Reminder[]          @relation("ActionReminders")
 
   @@index([workspaceId])
   @@index([columnId])
@@ -972,6 +1003,47 @@ model ActionReminder {
   @@map("action_reminders")
 }
 
+model ActionChatMessage {
+  id              String   @id @default(cuid())
+  actionId        String   @map("action_id")
+  body            String?
+  mediaUrl        String?  @map("media_url")
+  mediaType       String?  @map("media_type")
+  mimetype        String?
+  fileName        String?  @map("file_name")
+  quotedMessageId String?  @map("quoted_message_id")
+  senderId        String   @map("sender_id")
+  senderName      String?  @map("sender_name")
+  isEdited        Boolean  @default(false) @map("is_edited")
+  isDeleted       Boolean  @default(false) @map("is_deleted")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  action        Action              @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  sender        User                @relation("ActionChatSender", fields: [senderId], references: [id], onDelete: Cascade)
+  quotedMessage ActionChatMessage?  @relation("QuotedActionChat", fields: [quotedMessageId], references: [id], onDelete: SetNull)
+  quotes        ActionChatMessage[] @relation("QuotedActionChat")
+
+  @@index([actionId, createdAt])
+  @@index([senderId])
+  @@map("action_chat_messages")
+}
+
+model ActionChatRead {
+  id         String   @id @default(cuid())
+  actionId   String   @map("action_id")
+  userId     String   @map("user_id")
+  lastReadAt DateTime @default(now()) @map("last_read_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  action Action @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  user   User   @relation("ActionChatReader", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([actionId, userId])
+  @@index([userId])
+  @@map("action_chat_reads")
+}
+
 model SubActionUserResponsible {
   id          String @id @default(cuid())
   userId      String @map("user_id")
@@ -992,13 +1064,31 @@ model SubActions {
   finishDate   DateTime?                  @map("finish_date")
   createdAt    DateTime                   @default(now()) @map("created_at")
   actionId     String                     @map("action_id")
+  groupId      String?                    @map("group_id")
+  order        Int                        @default(0)
   action       Action                     @relation(fields: [actionId], references: [id])
+  group        SubActionGroup?            @relation(fields: [groupId], references: [id], onDelete: SetNull)
   responsibles SubActionUserResponsible[]
 
   @@index([actionId])
+  @@index([groupId])
   @@index([isDone])
   @@index([finishDate])
   @@map("sub_action")
+}
+
+model SubActionGroup {
+  id         String       @id @default(cuid())
+  name       String
+  order      Int          @default(0)
+  isOpen     Boolean      @default(true) @map("is_open")
+  actionId   String       @map("action_id")
+  action     Action       @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  subActions SubActions[]
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  @@index([actionId])
+  @@map("sub_action_groups")
 }
 
 // ─────────────────────────────────────────────
@@ -1333,10 +1423,12 @@ model Reminder {
   leadId         String? @map("lead_id")
   conversationId String? @map("conversation_id")
   trackingId     String? @map("tracking_id")
+  actionId       String? @map("action_id")
 
   lead         Lead?                @relation(fields: [leadId], references: [id], onDelete: SetNull)
   conversation Conversation?        @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   tracking     Tracking?            @relation(fields: [trackingId], references: [id], onDelete: SetNull)
+  action       Action?              @relation("ActionReminders", fields: [actionId], references: [id], onDelete: SetNull)
   createdBy    User                 @relation("ReminderCreatedBy", fields: [createdByUserId], references: [id])
   occurrences  ReminderOccurrence[]
 
@@ -1344,6 +1436,7 @@ model Reminder {
   @@index([conversationId])
   @@index([leadId])
   @@index([trackingId])
+  @@index([actionId, isActive])
   @@map("reminders")
 }
 
@@ -1616,6 +1709,10 @@ model PlatformIntegration {
   config         Json                @default("{}") // tokens, IDs, secrets
   createdAt      DateTime            @default(now()) @map("created_at")
   updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  lastErrorMessage String?   @map("last_error_message")
+  lastErrorAt      DateTime? @map("last_error_at")
+  lastSyncAt       DateTime? @map("last_sync_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -1936,6 +2033,7 @@ enum StarTransactionType {
   REFUND // estorno
   COURSE_PURCHASE // débito ao comprar curso NASA Route
   COURSE_PAYOUT // crédito ao criador por venda de curso NASA Route
+  WELCOME_BONUS // bônus único de boas-vindas — credita em starsBonusBalance
 }
 
 model StarTransaction {
@@ -2160,6 +2258,27 @@ model NasaPlannerPost {
   campaignId     String?  @map("campaign_id")
   referenceLinks String[] @default([]) @map("reference_links")
 
+  logoKey       String? @map("logo_key")
+  videoKey      String? @map("video_key")
+  videoDuration Int?    @map("video_duration")
+  isAd          Boolean @default(false) @map("is_ad")
+
+  targetIgAccountId String? @map("target_ig_account_id")
+  targetFbPageId    String? @map("target_fb_page_id")
+
+  externalIgPostId String? @map("external_ig_post_id")
+  externalFbPostId String? @map("external_fb_post_id")
+  publishError     String? @map("publish_error")
+
+  metricsImpressions Int?      @map("metrics_impressions")
+  metricsReach       Int?      @map("metrics_reach")
+  metricsLikes       Int?      @map("metrics_likes")
+  metricsComments    Int?      @map("metrics_comments")
+  metricsShares      Int?      @map("metrics_shares")
+  metricsVideoViews  Int?      @map("metrics_video_views")
+  metricsSyncedAt    DateTime? @map("metrics_synced_at")
+  metricsSyncError   String?   @map("metrics_sync_error")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -2181,6 +2300,8 @@ model NasaPlannerPostSlide {
   order  Int    @default(0)
 
   imageKey      String? @map("image_key")
+  videoKey      String? @map("video_key")
+  targetFormat  String? @default("1:1") @map("target_format")
   headline      String?
   subtext       String?
   overlayConfig Json    @default("{}") @map("overlay_config")
@@ -2274,6 +2395,41 @@ model OrgPermission {
   @@map("org_permission")
 }
 
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║ 🚨🚨🚨 MIGRATION PENDENTE — DEV: APLICAR ANTES DE TESTAR EM RUNTIME 🚨🚨🚨 ║
+// ║                                                                          ║
+// ║  Tabela `member_meta_account_access` e enum `MetaAccountKind` ainda      ║
+// ║  NÃO foram aplicados no banco. Sem isso, as procedures de "multi-conta   ║
+// ║  Meta + permissões" quebram em runtime.                                  ║
+// ║                                                                          ║
+// ║  👉 Ver instruções completas: prisma/PENDING_MIGRATIONS.md               ║
+// ║                                                                          ║
+// ║  TL;DR (dev local):                                                      ║
+// ║     pnpm prisma db push && pnpm db:generate                              ║
+// ║                                                                          ║
+// ║  TL;DR (produção): rodar `prisma migrate deploy` quando histórico OK.    ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+enum MetaAccountKind {
+  AD_ACCOUNT
+  PAGE
+  IG_ACCOUNT
+}
+
+model MemberMetaAccountAccess {
+  id             String          @id @default(cuid())
+  organizationId String          @map("organization_id")
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String          @map("user_id")
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind           MetaAccountKind
+  accountKey     String          @map("account_key") // act_xxx | page_id | ig_id
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  @@unique([organizationId, userId, kind, accountKey])
+  @@index([organizationId, userId])
+  @@map("member_meta_account_access")
+}
+
 model OrgActivityLog {
   id             String       @id @default(cuid())
   organizationId String       @map("organization_id")
@@ -2302,16 +2458,22 @@ model SystemActivityLog {
   userEmail      String       @map("user_email")
   userImage      String?      @map("user_image")
   appSlug        String       @default("system") @map("app_slug")
+  subAppSlug     String?      @map("sub_app_slug")
+  featureKey     String?      @map("feature_key")
   action         String
   actionLabel    String       @map("action_label")
   resource       String?
   resourceId     String?      @map("resource_id")
+  companyId      String?      @map("company_id")
+  durationMs     Int?         @map("duration_ms")
   metadata       Json?
   createdAt      DateTime     @default(now()) @map("created_at")
 
   @@index([organizationId, createdAt])
   @@index([userId])
   @@index([appSlug])
+  @@index([companyId])
+  @@index([featureKey, createdAt])
   @@map("system_activity_log")
 }
 
@@ -2324,9 +2486,97 @@ model UserPresence {
   userEmail      String       @map("user_email")
   userImage      String?      @map("user_image")
   lastSeenAt     DateTime     @default(now()) @map("last_seen_at")
+  activeAppSlug  String?      @map("active_app_slug")
+  activePath     String?      @map("active_path")
+  activeResource String?      @map("active_resource")
 
   @@unique([userId, organizationId])
   @@map("user_presence")
+}
+
+// ─────────────────────────────────────────────
+// INSIGHTS — Atividade, Page Views, Relatórios
+// ─────────────────────────────────────────────
+
+model UserSessionRollup {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id")
+  day            DateTime     @db.Date
+  totalOnlineSec Int          @default(0) @map("total_online_sec")
+  totalActiveSec Int          @default(0) @map("total_active_sec")
+  byApp          Json         @default("{}") @map("by_app")
+  sessions       Json         @default("[]")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@unique([organizationId, userId, day])
+  @@index([userId, day])
+  @@map("user_session_rollup")
+}
+
+model PublicPageView {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  page           String
+  nick           String?
+  visitorId      String       @map("visitor_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([organizationId, page, createdAt])
+  @@index([visitorId])
+  @@map("public_page_view")
+}
+
+model SavedInsightReport {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id")
+  createdBy      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  filters        Json         @default("{}")
+  modules        Json         @default("[]")
+  snapshot       Json         @default("{}")
+  aiNarrative    String?      @map("ai_narrative")
+  shareToken     String?      @unique @map("share_token")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@index([organizationId, createdAt])
+  @@index([userId])
+  @@map("saved_insight_report")
+}
+
+model SavedReportCompare {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id")
+  createdBy      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  reportIds      String[]     @map("report_ids")
+  notes          String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([organizationId, createdAt])
+  @@map("saved_report_compare")
+}
+
+model OrganizationInsightLayout {
+  id             String       @id @default(cuid())
+  organizationId String       @unique @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  blocks         Json         @default("[]")
+  updatedById    String?      @map("updated_by_id")
+  updatedBy      User?        @relation("OrgInsightLayoutUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@map("organization_insight_layout")
 }
 
 // ─── Workspace Tags ───────────────────────────────────────────────────────────
@@ -2885,6 +3135,7 @@ model PaymentEntry {
   costCenterId String? @map("cost_center_id")
   contactId    String? @map("contact_id")
   accountId    String? @map("account_id")
+  trackingId   String? @map("tracking_id")
 
   // Parcelamento
   installmentTotal   Int?    @map("installment_total")
@@ -2904,6 +3155,7 @@ model PaymentEntry {
   costCenter   PaymentCostCenter?  @relation(fields: [costCenterId], references: [id])
   contact      PaymentContact?     @relation(fields: [contactId], references: [id])
   account      PaymentBankAccount? @relation(fields: [accountId], references: [id])
+  tracking     Tracking?           @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   createdBy    User?               @relation("PaymentEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
@@ -2913,6 +3165,7 @@ model PaymentEntry {
   @@index([contactId])
   @@index([categoryId])
   @@index([installmentGroupId])
+  @@index([trackingId])
   @@map("payment_entries")
 }
 
@@ -4145,16 +4398,17 @@ model NasaRouteCourse {
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
-  creatorOrg   Organization           @relation("NasaRouteCreatorOrg", fields: [creatorOrgId], references: [id], onDelete: Cascade)
-  creatorUser  User                   @relation("NasaRouteCreatorUser", fields: [creatorUserId], references: [id], onDelete: Restrict)
-  category     NasaRouteCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  modules      NasaRouteModule[]
-  lessons      NasaRouteLesson[]
-  enrollments  NasaRouteEnrollment[]
-  progress     NasaRouteProgress[]
-  freeAccess   NasaRouteFreeAccess[]
-  plans        NasaRoutePlan[]
-  certificates NasaRouteCertificate[]
+  creatorOrg       Organization            @relation("NasaRouteCreatorOrg", fields: [creatorOrgId], references: [id], onDelete: Cascade)
+  creatorUser      User                    @relation("NasaRouteCreatorUser", fields: [creatorUserId], references: [id], onDelete: Restrict)
+  category         NasaRouteCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  modules          NasaRouteModule[]
+  lessons          NasaRouteLesson[]
+  enrollments      NasaRouteEnrollment[]
+  progress         NasaRouteProgress[]
+  freeAccess       NasaRouteFreeAccess[]
+  plans            NasaRoutePlan[]
+  certificates     NasaRouteCertificate[]
+  pendingPurchases PendingCoursePurchase[]
 
   @@unique([creatorOrgId, slug])
   @@index([creatorOrgId])
@@ -4278,10 +4532,11 @@ model NasaRoutePlan {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  course      NasaRouteCourse           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  lessons     NasaRoutePlanLesson[]
-  attachments NasaRoutePlanAttachment[]
-  enrollments NasaRouteEnrollment[]
+  course           NasaRouteCourse           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons          NasaRoutePlanLesson[]
+  attachments      NasaRoutePlanAttachment[]
+  enrollments      NasaRouteEnrollment[]
+  pendingPurchases PendingCoursePurchase[]
 
   @@index([courseId, order])
   @@map("nasa_route_plan")
@@ -4339,6 +4594,63 @@ model NasaRouteCertificate {
   @@index([userId])
   @@index([courseId])
   @@map("nasa_route_certificate")
+}
+
+// ─────────────────────────────────────────────
+// NASA Route — Checkout público (compra sem conta)
+// ─────────────────────────────────────────────
+
+enum PendingCoursePurchaseStatus {
+  PENDING
+  PAID
+  REDEEMED
+  EXPIRED
+  REFUNDED
+  CANCELLED
+}
+
+// Compra de curso iniciada por usuário sem conta. Após pagamento confirmado
+// pelo Stripe, gera signupToken enviado por e-mail; o resgate cria User+Org
+// e matricula o aluno no curso.
+model PendingCoursePurchase {
+  id                    String                      @id @default(cuid())
+  email                 String
+  courseId              String                      @map("course_id")
+  planId                String?                     @map("plan_id")
+  priceStars            Int                         @map("price_stars")
+  amountBrlCents        Int                         @map("amount_brl_cents")
+  starPriceBrlSnapshot  Decimal                     @map("star_price_brl_snapshot") @db.Decimal(10, 4)
+  stripeSessionId       String?                     @map("stripe_session_id")
+  stripePaymentIntentId String?                     @map("stripe_payment_intent_id")
+  signupToken           String?                     @unique @map("signup_token")
+  tokenExpiresAt        DateTime?                   @map("token_expires_at")
+  status                PendingCoursePurchaseStatus @default(PENDING)
+  createdAt             DateTime                    @default(now()) @map("created_at")
+  paidAt                DateTime?                   @map("paid_at")
+  redeemedAt            DateTime?                   @map("redeemed_at")
+  redeemedByUserId      String?                     @map("redeemed_by_user_id")
+  redeemedEnrollmentId  String?                     @map("redeemed_enrollment_id")
+
+  course         NasaRouteCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  plan           NasaRoutePlan?  @relation(fields: [planId], references: [id], onDelete: SetNull)
+  redeemedByUser User?           @relation("PendingCoursePurchaseRedeemer", fields: [redeemedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([status])
+  @@index([stripeSessionId])
+  @@map("pending_course_purchase")
+}
+
+// Configurações globais de pricing do NASA Route. Singleton (id="singleton").
+model RouterPaymentSettings {
+  id           String   @id
+  starPriceBrl Decimal  @default(0.15) @map("star_price_brl") @db.Decimal(10, 4)
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  updatedById  String?  @map("updated_by_id")
+
+  updatedBy User? @relation("RouterPaymentSettingsUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("router_payment_settings")
 }
 
 // ─────────────────────────────────────────────
@@ -4623,4 +4935,176 @@ model PartnerProgramSettings {
   updatedAt                   DateTime @updatedAt @map("updated_at")
 
   @@map("partner_program_settings")
+}
+
+// ─────────────────────────────────────────────
+// META ADS — campanhas pagas (Insights + Ads Management)
+// ─────────────────────────────────────────────
+
+enum MetaAdEntityStatus {
+  ACTIVE
+  PAUSED
+  DELETED
+  ARCHIVED
+  PENDING_REVIEW
+  DISAPPROVED
+  PREAPPROVED
+  PENDING_BILLING_INFO
+  CAMPAIGN_PAUSED
+  ADSET_PAUSED
+  IN_PROCESS
+  WITH_ISSUES
+}
+
+enum MetaAdLevel {
+  ACCOUNT
+  CAMPAIGN
+  ADSET
+  AD
+}
+
+// Snapshot diário de KPIs Meta Ads (account/campaign/adset/ad).
+// Permite histórico/séries temporais e drill-down sem refazer chamadas à API.
+model MetaAdsKpiSnapshot {
+  id             String      @id @default(cuid())
+  organizationId String      @map("organization_id")
+  level          MetaAdLevel
+  entityId       String      @map("entity_id") // ID Meta da entidade (account/campaign/adset/ad)
+  entityName     String?     @map("entity_name")
+  date           DateTime    @db.Date
+  datePreset     String?     @map("date_preset")
+
+  // Core
+  reach       Int     @default(0)
+  impressions Int     @default(0)
+  frequency   Decimal @default(0) @db.Decimal(10, 4)
+  clicks      Int     @default(0)
+  ctr         Decimal @default(0) @db.Decimal(10, 4)
+  engagement  Int     @default(0)
+
+  // Custos (BRL)
+  spend Decimal @default(0) @db.Decimal(14, 2)
+  cpm   Decimal @default(0) @db.Decimal(14, 4)
+  cpc   Decimal @default(0) @db.Decimal(14, 4)
+  cpp   Decimal @default(0) @db.Decimal(14, 4)
+  cpl   Decimal @default(0) @db.Decimal(14, 4)
+  cpa   Decimal @default(0) @db.Decimal(14, 4)
+  cpv   Decimal @default(0) @db.Decimal(14, 4)
+
+  // Conversão
+  conversions     Int     @default(0)
+  leads           Int     @default(0)
+  conversionValue Decimal @default(0) @map("conversion_value") @db.Decimal(14, 2)
+  conversionRate  Decimal @default(0) @map("conversion_rate") @db.Decimal(10, 4)
+  roas            Decimal @default(0) @db.Decimal(14, 4)
+  roi             Decimal @default(0) @db.Decimal(14, 4)
+
+  // Vídeo
+  videoPlays        Int     @default(0) @map("video_plays")
+  videoP25          Int     @default(0) @map("video_p25")
+  videoP50          Int     @default(0) @map("video_p50")
+  videoP75          Int     @default(0) @map("video_p75")
+  videoP100         Int     @default(0) @map("video_p100")
+  videoAvgWatchTime Decimal @default(0) @map("video_avg_watch_time") @db.Decimal(10, 2)
+
+  raw       Json? // payload bruto Meta para debug
+  syncedAt  DateTime @default(now()) @map("synced_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, level, entityId, date])
+  @@index([organizationId, level, date])
+  @@index([organizationId, entityId])
+  @@map("meta_ads_kpi_snapshots")
+}
+
+// Espelho de campanhas Meta Ads gerenciadas via NASA.
+// Quando criada pelo backend NASA → metaCampaignId só é preenchido após sync com Meta.
+model MetaAdCampaign {
+  id                  String             @id @default(cuid())
+  organizationId      String             @map("organization_id")
+  metaCampaignId      String?            @unique @map("meta_campaign_id")
+  adAccountId         String             @map("ad_account_id")
+  name                String
+  objective           String?
+  status              MetaAdEntityStatus @default(PAUSED)
+  effectiveStatus     String?            @map("effective_status")
+  specialAdCategories String[]           @default([]) @map("special_ad_categories")
+  buyingType          String?            @map("buying_type")
+  dailyBudget         Decimal?           @map("daily_budget") @db.Decimal(14, 2)
+  lifetimeBudget      Decimal?           @map("lifetime_budget") @db.Decimal(14, 2)
+  bidStrategy         String?            @map("bid_strategy")
+  startTime           DateTime?          @map("start_time")
+  stopTime            DateTime?          @map("stop_time")
+  createdByUserId     String?            @map("created_by_user_id")
+  lastSyncedAt        DateTime?          @map("last_synced_at")
+  raw                 Json?
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  adsets       MetaAdSet[]
+  ads          MetaAd[]
+
+  @@index([organizationId])
+  @@index([adAccountId])
+  @@map("meta_ad_campaigns")
+}
+
+model MetaAdSet {
+  id               String             @id @default(cuid())
+  organizationId   String             @map("organization_id")
+  campaignId       String             @map("campaign_id")
+  metaAdsetId      String?            @unique @map("meta_adset_id")
+  name             String
+  status           MetaAdEntityStatus @default(PAUSED)
+  effectiveStatus  String?            @map("effective_status")
+  optimizationGoal String?            @map("optimization_goal")
+  billingEvent     String?            @map("billing_event")
+  bidAmount        Decimal?           @map("bid_amount") @db.Decimal(14, 4)
+  dailyBudget      Decimal?           @map("daily_budget") @db.Decimal(14, 2)
+  lifetimeBudget   Decimal?           @map("lifetime_budget") @db.Decimal(14, 2)
+  targeting        Json?
+  startTime        DateTime?          @map("start_time")
+  endTime          DateTime?          @map("end_time")
+  lastSyncedAt     DateTime?          @map("last_synced_at")
+  raw              Json?
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign     MetaAdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  ads          MetaAd[]
+
+  @@index([organizationId])
+  @@index([campaignId])
+  @@map("meta_adsets")
+}
+
+model MetaAd {
+  id              String             @id @default(cuid())
+  organizationId  String             @map("organization_id")
+  campaignId      String             @map("campaign_id")
+  adsetId         String             @map("adset_id")
+  metaAdId        String?            @unique @map("meta_ad_id")
+  name            String
+  status          MetaAdEntityStatus @default(PAUSED)
+  effectiveStatus String?            @map("effective_status")
+  creativeId      String?            @map("creative_id")
+  creative        Json?
+  previewUrl      String?            @map("preview_url")
+  lastSyncedAt    DateTime?          @map("last_synced_at")
+  raw             Json?
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign     MetaAdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adset        MetaAdSet      @relation(fields: [adsetId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([campaignId])
+  @@index([adsetId])
+  @@map("meta_ads")
 }

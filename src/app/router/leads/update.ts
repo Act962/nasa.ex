@@ -185,15 +185,37 @@ export const updateLead = base
       });
       if (tracking) {
         let actionLabel = "";
+        let featureKey = "lead.updated";
+        const changedFields: string[] = [];
         if (input.statusId && input.statusId !== leadExists.statusId) {
           const newStatus = await prisma.status.findUnique({ where: { id: input.statusId }, select: { name: true } });
           actionLabel = `Moveu o lead "${result.lead.name}" para a coluna "${newStatus?.name ?? input.statusId}"`;
+          featureKey = "lead.moved";
         } else if (input.name && input.name !== leadExists.name) {
           actionLabel = `Renomeou o lead de "${leadExists.name}" para "${input.name}"`;
+          featureKey = "lead.field.updated";
+          changedFields.push("name");
+        } else if (input.phone && input.phone !== leadExists.phone) {
+          actionLabel = `Atualizou o telefone de "${result.lead.name}"`;
+          featureKey = "lead.field.updated";
+          changedFields.push("phone");
+        } else if (input.email && input.email !== leadExists.email) {
+          actionLabel = `Atualizou o e-mail de "${result.lead.name}"`;
+          featureKey = "lead.field.updated";
+          changedFields.push("email");
         } else if (input.active !== undefined && input.active !== leadExists.isActive) {
           actionLabel = input.active ? `Ativou o lead "${result.lead.name}"` : `Arquivou o lead "${result.lead.name}"`;
+          featureKey = input.active ? "lead.activated" : "lead.archived";
         } else if (input.amount !== undefined) {
           actionLabel = `Atualizou o valor do lead "${result.lead.name}"`;
+          featureKey = "lead.field.updated";
+          changedFields.push("amount");
+        } else if (input.tagIds) {
+          actionLabel = `Atualizou tags do lead "${result.lead.name}"`;
+          featureKey = "lead.tag.updated";
+        } else if (input.responsibleId && input.responsibleId !== leadExists.responsibleId) {
+          actionLabel = `Trocou o responsável do lead "${result.lead.name}"`;
+          featureKey = "lead.responsible.changed";
         } else {
           actionLabel = `Atualizou o lead "${result.lead.name}"`;
         }
@@ -204,11 +226,13 @@ export const updateLead = base
           userEmail: context.user.email,
           userImage: (context.user as any).image,
           appSlug: "tracking",
-          action: input.statusId && input.statusId !== leadExists.statusId ? "lead.moved" : "lead.updated",
+          subAppSlug: "tracking-pipeline",
+          featureKey,
+          action: featureKey === "lead.moved" ? "lead.moved" : "lead.updated",
           actionLabel,
           resource: result.lead.name,
           resourceId: result.lead.id,
-          metadata: { trackingName: tracking.name },
+          metadata: { trackingName: tracking.name, changedFields, fromStatusId: leadExists.statusId, toStatusId: input.statusId },
         });
       }
 

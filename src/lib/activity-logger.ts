@@ -56,6 +56,11 @@ export interface ActivityData {
   resource?: string;
   resourceId?: string;
   metadata?: Record<string, any>;
+  // ── Novos campos opcionais (Fase 1 — Insights expandido) ──────────────────
+  subAppSlug?: string;   // sub-app (ex: "tracking-chat", "tracking-pipeline")
+  featureKey?: string;   // chave granular (ex: "chat.link.sent", "lead.dragged")
+  companyId?: string;    // empresa específica (multi-empresa do usuário)
+  durationMs?: number;   // duração da ação (drag/edit/atendimento), em ms
 }
 
 export async function logActivity(data: ActivityData): Promise<void> {

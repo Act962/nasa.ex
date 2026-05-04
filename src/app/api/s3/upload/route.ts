@@ -1,3 +1,13 @@
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║ 🚨🚨🚨 DEV: PENDÊNCIA — CORS NÃO CONFIGURADO NO BUCKET R2 `nasa-ex` 🚨🚨🚨 ║
+// ║                                                                          ║
+// ║ Sintoma: uploads pelo browser quebram com "TypeError: Failed to fetch".  ║
+// ║ Causa:   o bucket aceita PUT, mas falta regra CORS para o navegador      ║
+// ║          fazer o preflight (OPTIONS) antes do PUT.                       ║
+// ║ Fix:     painel Cloudflare → R2 → bucket nasa-ex → Settings → CORS.      ║
+// ║          Detalhes completos em CLOUDFLARE_R2_CORS_PENDING.md (raiz).     ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 import z from "zod";

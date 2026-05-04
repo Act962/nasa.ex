@@ -92,6 +92,7 @@ export function StarsWidget() {
   }
 
   const balance = data?.balance ?? 0;
+  const bonusBalance = data?.bonusBalance ?? 0;
 
   // Use Better Auth plan as priority, fallback to DB
   const activeSub = activeSubscriptions?.find(
@@ -194,6 +195,17 @@ export function StarsWidget() {
                   <StarIcon className="size-4" />
                   <span>Sem plano ativo</span>
                 </div>
+              )}
+
+              {bonusBalance > 0 && (
+                <p className="mt-1.5 text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="size-3 text-[#7C3AED]" />
+                  <span>
+                    + <strong>{bonusBalance.toLocaleString("pt-BR")} ★</strong>{" "}
+                    de bônus
+                    <span className="opacity-70"> · não vale em cursos</span>
+                  </span>
+                </p>
               )}
             </div>
 

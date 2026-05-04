@@ -26,6 +26,8 @@ export const deleteItem = base
       userEmail: context.user.email,
       userImage: (context.user as any).image,
       appSlug: "nbox",
+      subAppSlug: "nbox-items",
+      featureKey: "nbox.item.deleted",
       action: "nbox.item.deleted",
       actionLabel: `Excluiu o arquivo "${item?.name ?? input.itemId}" do NBox`,
       resource: item?.name,

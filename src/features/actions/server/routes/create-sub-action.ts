@@ -13,14 +13,26 @@ export const createSubAction = base
       actionId: z.string(),
       title: z.string().min(1, "Título é obrigatório"),
       finishDate: z.date().optional(),
+      groupId: z.string().nullable().optional(),
     }),
   )
   .handler(async ({ input, context }) => {
+    const last = await prisma.subActions.findFirst({
+      where: {
+        actionId: input.actionId,
+        groupId: input.groupId ?? null,
+      },
+      orderBy: { order: "desc" },
+      select: { order: true },
+    });
+
     const subAction = await prisma.subActions.create({
       data: {
         title: input.title,
         actionId: input.actionId,
         finishDate: input.finishDate,
+        groupId: input.groupId ?? null,
+        order: (last?.order ?? -1) + 1,
       },
       include: {
         responsibles: {

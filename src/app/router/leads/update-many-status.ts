@@ -68,11 +68,18 @@ export const updateManyStatusLead = base
 
       // Log activity
       if (input.statusId && input.trackingId) {
-        const [tracking, newStatus] = await Promise.all([
+        const fromStatusIds = Array.from(
+          new Set(leadExists.map((l) => l.statusId).filter(Boolean) as string[]),
+        );
+        const [tracking, newStatus, fromStatuses] = await Promise.all([
           prisma.tracking.findUnique({ where: { id: input.trackingId }, select: { organizationId: true, name: true } }),
           prisma.status.findUnique({ where: { id: input.statusId }, select: { name: true } }),
+          fromStatusIds.length
+            ? prisma.status.findMany({ where: { id: { in: fromStatusIds } }, select: { id: true, name: true } })
+            : Promise.resolve([]),
         ]);
         if (tracking) {
+          const fromStatusName = fromStatuses[0]?.name;
           await logActivity({
             organizationId: tracking.organizationId,
             userId: context.user.id,
@@ -81,8 +88,20 @@ export const updateManyStatusLead = base
             userImage: (context.user as any).image,
             appSlug: "tracking",
             action: "lead.moved",
-            actionLabel: `Moveu ${input.leadsIds.length} lead(s) para a coluna "${newStatus?.name ?? input.statusId}"`,
-            metadata: { count: input.leadsIds.length, statusName: newStatus?.name, trackingName: tracking.name },
+            actionLabel:
+              fromStatusName && fromStatuses.length === 1
+                ? `Moveu ${input.leadsIds.length} lead(s) de "${fromStatusName}" para "${newStatus?.name ?? input.statusId}"`
+                : `Moveu ${input.leadsIds.length} lead(s) para a coluna "${newStatus?.name ?? input.statusId}"`,
+            subAppSlug: "tracking-pipeline",
+            featureKey: "lead.dragged",
+            metadata: {
+              count: input.leadsIds.length,
+              statusName: newStatus?.name,
+              trackingName: tracking.name,
+              fromStatusIds,
+              fromStatusNames: fromStatuses.map((s) => s.name),
+              toStatusId: input.statusId,
+            },
           });
         }
       }

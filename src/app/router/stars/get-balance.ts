@@ -10,6 +10,8 @@ export const getStarBalance = base
   .output(
     z.object({
       balance: z.number(),
+      bonusBalance: z.number(),
+      totalBalance: z.number(),
       planMonthlyStars: z.number(),
       planSlug: z.string(),
       planName: z.string(),

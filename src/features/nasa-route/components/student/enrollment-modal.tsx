@@ -72,7 +72,11 @@ export function EnrollmentModal({
     if (initialPlanId) return "confirm";
     return hasMultiplePlans ? "select-plan" : "confirm";
   });
-  const [errorInfo, setErrorInfo] = useState<{ balance: number; needed: number } | null>(null);
+  const [errorInfo, setErrorInfo] = useState<{
+    balance: number;
+    bonusBalance: number;
+    needed: number;
+  } | null>(null);
   const [showStarsModal, setShowStarsModal] = useState(false);
 
   // Reset state when modal reopens with a different initialPlanId
@@ -89,6 +93,7 @@ export function EnrollmentModal({
   });
 
   const balance = balanceData?.balance ?? 0;
+  const bonusBalance = balanceData?.bonusBalance ?? 0;
 
   const selectedPlan = useMemo(
     () => plans.find((p) => p.id === selectedPlanId) ?? fallbackPlan,
@@ -126,6 +131,7 @@ export function EnrollmentModal({
       if (code === "INSUFFICIENT_STARS") {
         setErrorInfo({
           balance: err.data.balance ?? balance,
+          bonusBalance: err.data.bonusBalance ?? bonusBalance,
           needed: err.data.needed ?? priceStars,
         });
         setStep("insufficient");
@@ -138,7 +144,7 @@ export function EnrollmentModal({
 
   function handleConfirm() {
     if (!isFree && balance < priceStars) {
-      setErrorInfo({ balance, needed: priceStars });
+      setErrorInfo({ balance, bonusBalance, needed: priceStars });
       setStep("insufficient");
       return;
     }
@@ -321,12 +327,27 @@ export function EnrollmentModal({
                     </span>
                   </div>
                   {!isFree && (
-                    <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-sm">
-                      <span className="text-muted-foreground">Seu saldo</span>
-                      <span className="font-medium tabular-nums">
-                        {balance.toLocaleString("pt-BR")} ★
-                      </span>
-                    </div>
+                    <>
+                      <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-sm">
+                        <span className="text-muted-foreground">
+                          Seu saldo gastável
+                        </span>
+                        <span className="font-medium tabular-nums">
+                          {balance.toLocaleString("pt-BR")} ★
+                        </span>
+                      </div>
+                      {bonusBalance > 0 && (
+                        <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                          <span>
+                            Bônus{" "}
+                            <span className="opacity-70">(não vale aqui)</span>
+                          </span>
+                          <span className="tabular-nums">
+                            {bonusBalance.toLocaleString("pt-BR")} ★
+                          </span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -393,11 +414,21 @@ export function EnrollmentModal({
                     </span>
                   </div>
                   <div className="mt-1 flex items-center justify-between">
-                    <span className="text-muted-foreground">Seu saldo atual</span>
+                    <span className="text-muted-foreground">
+                      Seu saldo gastável
+                    </span>
                     <span className="font-medium tabular-nums">
                       {errorInfo.balance.toLocaleString("pt-BR")} ★
                     </span>
                   </div>
+                  {errorInfo.bonusBalance > 0 && (
+                    <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Bônus disponível</span>
+                      <span className="tabular-nums">
+                        {errorInfo.bonusBalance.toLocaleString("pt-BR")} ★
+                      </span>
+                    </div>
+                  )}
                   <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
                     <span className="text-muted-foreground">Faltam</span>
                     <span className="font-bold">
@@ -405,6 +436,17 @@ export function EnrollmentModal({
                     </span>
                   </div>
                 </div>
+
+                {errorInfo.bonusBalance > 0 && (
+                  <div className="rounded-xl border border-amber-200/60 bg-amber-50/60 p-3 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-200">
+                    Você tem{" "}
+                    <strong>
+                      {errorInfo.bonusBalance.toLocaleString("pt-BR")} ★
+                    </strong>{" "}
+                    de bônus, mas o bônus não pode ser usado pra cursos do NASA
+                    Router. Adquira STARS gastáveis abaixo.
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2">

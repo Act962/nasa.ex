@@ -312,11 +312,13 @@ export function KanbanCard({ action, isOverlay }: Props) {
         </div>
       </div>
 
-      <ViewActionModal
-        actionId={action.id}
-        open={open}
-        onOpenChange={setOpen}
-      />
+      {open && (
+        <ViewActionModal
+          actionId={action.id}
+          open={open}
+          onOpenChange={setOpen}
+        />
+      )}
     </>
   );
 }

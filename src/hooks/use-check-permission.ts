@@ -11,6 +11,7 @@ type AppKey =
   | "spacetime"
   | "nasa-planner"
   | "insights"
+  | "insights-layout"
   | "integrations"
   | "explorer"
   | "nbox"

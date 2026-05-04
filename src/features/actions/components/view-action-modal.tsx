@@ -13,6 +13,11 @@ import {
   useAddSubActionResponsible,
   useRemoveSubActionResponsible,
   usePromoteSubAction,
+  useReorderSubActions,
+  useCreateSubActionGroup,
+  useUpdateSubActionGroup,
+  useDeleteSubActionGroup,
+  useReorderSubActionGroups,
   useAddParticipant,
   useRemoveParticipant,
 } from "../hooks/use-tasks";
@@ -46,6 +51,8 @@ import { ShieldAlert, HistoryIcon } from "lucide-react";
 import { HistoricSheet } from "./view-modal/historic-sheet";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { ChatSection } from "./chat";
+import { authClient } from "@/lib/auth-client";
 
 interface Props {
   actionId: string;
@@ -56,6 +63,7 @@ interface Props {
 export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   const { action: rawAction, hasAccess, isLoading } = useQueryAction(actionId);
   const action = (rawAction ?? undefined) as Action | undefined;
+  const { data: session } = authClient.useSession();
   const [historicOpen, setHistoricOpen] = useState(false);
   const updateAction = useUpdateAction();
   const updateFields = useUpdateActionFields();
@@ -69,6 +77,11 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   const addSubActionResponsible = useAddSubActionResponsible(actionId);
   const removeSubActionResponsible = useRemoveSubActionResponsible(actionId);
   const promoteSubAction = usePromoteSubAction(actionId);
+  const reorderSubActions = useReorderSubActions(actionId);
+  const createSubActionGroup = useCreateSubActionGroup(actionId);
+  const updateSubActionGroup = useUpdateSubActionGroup(actionId);
+  const deleteSubActionGroup = useDeleteSubActionGroup(actionId);
+  const reorderSubActionGroups = useReorderSubActionGroups(actionId);
   const removeFileAction = useRemoveFileAction();
 
   const { columns } = useColumnsByWorkspace(action?.workspaceId ?? "");
@@ -85,10 +98,55 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
     handleUpdateAction({ isDone: !action?.isDone });
   };
 
-  const handleAddSubAction = (title: string) => {
+  const handleAddSubAction = (title: string, groupId?: string | null) => {
     createSubAction.mutate(
-      { actionId, title },
+      { actionId, title, groupId: groupId ?? null },
       { onError: () => toast.error("Erro ao criar sub-ação") },
+    );
+  };
+
+  const handleReorderSubActions = (
+    items: { id: string; order: number; groupId: string | null }[],
+  ) => {
+    reorderSubActions.mutate(
+      { actionId, items },
+      { onError: () => toast.error("Erro ao reordenar sub-ações") },
+    );
+  };
+
+  const handleCreateSubActionGroup = (name: string) => {
+    createSubActionGroup.mutate(
+      { actionId, name },
+      { onError: () => toast.error("Erro ao criar pasta") },
+    );
+  };
+
+  const handleUpdateSubActionGroup = (
+    groupId: string,
+    data: { name?: string; isOpen?: boolean },
+  ) => {
+    updateSubActionGroup.mutate(
+      { groupId, ...data },
+      { onError: () => toast.error("Erro ao atualizar pasta") },
+    );
+  };
+
+  const handleDeleteSubActionGroup = (
+    groupId: string,
+    deleteSubActions: boolean = false,
+  ) => {
+    deleteSubActionGroup.mutate(
+      { groupId, deleteSubActions },
+      { onError: () => toast.error("Erro ao excluir pasta") },
+    );
+  };
+
+  const handleReorderSubActionGroups = (
+    items: { id: string; order: number }[],
+  ) => {
+    reorderSubActionGroups.mutate(
+      { actionId, items },
+      { onError: () => toast.error("Erro ao reordenar pastas") },
     );
   };
 
@@ -300,6 +358,7 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
 
                       <ActionSubActions
                         subActions={action?.subActions}
+                        subActionGroups={action?.subActionGroups}
                         members={members}
                         actionStartDate={action?.startDate ? new Date(action.startDate) : null}
                         actionDueDate={action?.dueDate ? new Date(action.dueDate) : null}
@@ -310,10 +369,23 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
                         onAddResponsible={handleAddSubActionResponsible}
                         onRemoveResponsible={handleRemoveSubActionResponsible}
                         onPromote={handlePromoteSubAction}
+                        onReorder={handleReorderSubActions}
+                        onCreateGroup={handleCreateSubActionGroup}
+                        onUpdateGroup={handleUpdateSubActionGroup}
+                        onDeleteGroup={handleDeleteSubActionGroup}
+                        onReorderGroups={handleReorderSubActionGroups}
                         isCreating={createSubAction.isPending}
                         isDeleting={deleteSubAction.isPending}
                         isUpdating={updateSubAction.isPending}
                       />
+
+                      {action?.id && session?.user?.id && (
+                        <ChatSection
+                          actionId={action.id}
+                          actionTitle={action.title ?? "Evento"}
+                          currentUserId={session.user.id}
+                        />
+                      )}
                     </>
                   )}
 

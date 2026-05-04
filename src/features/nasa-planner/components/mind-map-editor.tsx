@@ -77,6 +77,7 @@ import {
   XIcon,
   FileJsonIcon,
   ImageIcon,
+  FileImageIcon,
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -89,6 +90,7 @@ import {
 import { Spinner } from "@/components/spinner";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
+import { MindMapToPostDialog } from "./mind-map-to-post-dialog";
 
 // ─── Branch Colors ─────────────────────────────────────────────────────────────
 const BRANCH_COLORS = [
@@ -186,6 +188,7 @@ function NodeContextToolbar({
   onDelete,
   onChangeColor,
   onGenerateAI,
+  onCreatePost,
   isGenerating,
 }: {
   nodeId: string;
@@ -195,6 +198,7 @@ function NodeContextToolbar({
   onDelete: () => void;
   onChangeColor: (c: string) => void;
   onGenerateAI: () => void;
+  onCreatePost: () => void;
   isGenerating: boolean;
 }) {
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -216,6 +220,13 @@ function NodeContextToolbar({
           className="size-6 flex items-center justify-center rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-600 transition-colors disabled:opacity-40"
         >
           {isGenerating ? <Loader2 className="size-3 animate-spin" /> : <BotIcon className="size-3.5" />}
+        </button>
+        <button
+          title="Criar Post"
+          onClick={onCreatePost}
+          className="size-6 flex items-center justify-center rounded-lg hover:bg-pink-100 dark:hover:bg-pink-900/30 text-pink-500 transition-colors"
+        >
+          <FileImageIcon className="size-3.5" />
         </button>
         <div className="w-px h-4 bg-border" />
         <div className="relative">
@@ -268,6 +279,9 @@ function MindMapRootNode({ id, data, selected }: { id: string; data: any; select
   const handleGenerateAI = useCallback(() => {
     (window as any).__mmGenerateAI?.(id);
   }, [id]);
+  const handleCreatePost = useCallback(() => {
+    (window as any).__mmCreatePost?.(id, data.label ?? "");
+  }, [id, data.label]);
 
   return (
     <>
@@ -280,6 +294,7 @@ function MindMapRootNode({ id, data, selected }: { id: string; data: any; select
           onDelete={handleDelete}
           onChangeColor={handleChangeColor}
           onGenerateAI={handleGenerateAI}
+          onCreatePost={handleCreatePost}
           isGenerating={data.isGenerating ?? false}
         />
       )}
@@ -320,6 +335,7 @@ function TopicNode({ id, data, selected }: { id: string; data: any; selected?: b
   const handleDelete = () => (window as any).__mmDeleteNode?.(id);
   const handleChangeColor = (c: string) => (window as any).__mmChangeColor?.(id, c);
   const handleGenerateAI = () => (window as any).__mmGenerateAI?.(id);
+  const handleCreatePost = () => (window as any).__mmCreatePost?.(id, data.label ?? "");
   const handleCollapse = () => (window as any).__mmToggleCollapse?.(id);
 
   const hasChildren = data.hasChildren ?? false;
@@ -336,6 +352,7 @@ function TopicNode({ id, data, selected }: { id: string; data: any; selected?: b
           onDelete={handleDelete}
           onChangeColor={handleChangeColor}
           onGenerateAI={handleGenerateAI}
+          onCreatePost={handleCreatePost}
           isGenerating={data.isGenerating ?? false}
         />
       )}
@@ -514,6 +531,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
   const [searchQuery, setSearchQuery] = useState("");
   const [isGeneratingAI, setIsGeneratingAI] = useState<string | null>(null);
   const [aiSuggestionDialog, setAiSuggestionDialog] = useState<{ nodeId: string; label: string; suggestions: string[] } | null>(null);
+  const [mmPostDialog, setMmPostDialog] = useState<{ open: boolean; title: string }>({ open: false, title: "" });
 
   // Undo/Redo
   const historyRef = useRef<HistoryEntry[]>([]);
@@ -864,6 +882,8 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
     (window as any).__mmFinishEdit = finishEdit;
     (window as any).__mmCancelEdit = cancelEdit;
     (window as any).__mmGenerateAI = generateAI;
+    (window as any).__mmCreatePost = (_nodeId: string, label: string) =>
+      setMmPostDialog({ open: true, title: label });
     return () => {
       delete (window as any).__mmAddChild;
       delete (window as any).__mmAddSibling;
@@ -873,6 +893,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
       delete (window as any).__mmFinishEdit;
       delete (window as any).__mmCancelEdit;
       delete (window as any).__mmGenerateAI;
+      delete (window as any).__mmCreatePost;
     };
   });
 
@@ -1312,6 +1333,14 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Mind Map → Post Dialog */}
+      <MindMapToPostDialog
+        open={mmPostDialog.open}
+        onOpenChange={(open) => setMmPostDialog((s) => ({ ...s, open }))}
+        plannerId={plannerId}
+        initialTitle={mmPostDialog.title}
+      />
     </div>
   );
 }

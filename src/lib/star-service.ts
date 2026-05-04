@@ -15,12 +15,23 @@ import { StarTransactionType } from "@/generated/prisma/client";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface StarBalance {
-  balance: number;
+  balance: number;          // saldo gastável (planos, top-ups, payouts) — pode pagar curso no Router
+  bonusBalance: number;     // saldo de bônus (welcome, promoções) — NÃO pode pagar curso no Router
+  totalBalance: number;     // soma dos dois — pra exibição/rastreio apenas
   planMonthlyStars: number;
   planSlug: string;
   planName: string;
   cycleStart: Date | null;
   nextCycleDate: Date | null;
+}
+
+export interface DebitOpts {
+  /**
+   * `true` (default): se o saldo gastável não cobrir o valor, complementa com bônus.
+   * `false`: valida apenas contra `starsBalance`. Usado em compra de curso (Router),
+   * onde bônus de boas-vindas não pode ser aceito como pagamento.
+   */
+  allowBonus?: boolean;
 }
 
 export interface AppCostInfo {
@@ -39,6 +50,7 @@ export async function checkBalance(organizationId: string): Promise<StarBalance>
     where: { id: organizationId },
     select: {
       starsBalance: true,
+      starsBonusBalance: true,
       starsCycleStart: true,
       plan: {
         select: { slug: true, name: true, monthlyStars: true },
@@ -47,27 +59,28 @@ export async function checkBalance(organizationId: string): Promise<StarBalance>
   });
 
   // ── Welcome bonus: crédito único de 100 stars no primeiro acesso ─────────
+  // Crédita em starsBonusBalance — não pode ser usado pra comprar curso no Router.
   const hasAnyTransaction = await prisma.starTransaction.count({
     where: { organizationId },
   });
   if (hasAnyTransaction === 0) {
-    const newBalance = org.starsBalance + WELCOME_BONUS;
+    const newBonusBalance = org.starsBonusBalance + WELCOME_BONUS;
     await prisma.$transaction([
       prisma.organization.update({
         where: { id: organizationId },
-        data: { starsBalance: newBalance },
+        data: { starsBonusBalance: newBonusBalance },
       }),
       prisma.starTransaction.create({
         data: {
           organizationId,
-          type: StarTransactionType.MANUAL_ADJUST,
+          type: StarTransactionType.WELCOME_BONUS,
           amount: WELCOME_BONUS,
-          balanceAfter: newBalance,
+          balanceAfter: org.starsBalance,
           description: "🎉 Bônus de boas-vindas ao NASA",
         },
       }),
     ]);
-    org.starsBalance = newBalance;
+    org.starsBonusBalance = newBonusBalance;
   }
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -82,6 +95,8 @@ export async function checkBalance(organizationId: string): Promise<StarBalance>
 
   return {
     balance: org.starsBalance,
+    bonusBalance: org.starsBonusBalance,
+    totalBalance: org.starsBalance + org.starsBonusBalance,
     planMonthlyStars: plan.monthlyStars,
     planSlug: plan.slug,
     planName: plan.name,
@@ -118,24 +133,47 @@ export async function debitStars(
   description: string,
   appSlug?: string,
   userId?: string,             // opcional: rastreia consumo individual do usuário
-): Promise<{ success: boolean; newBalance: number }> {
+  opts?: DebitOpts,            // opcional: { allowBonus?: boolean = true }
+): Promise<{ success: boolean; newBalance: number; newBonusBalance: number }> {
+  const allowBonus = opts?.allowBonus ?? true;
+
   // ── 1. Debitar dentro de uma transação atômica ────────────────────────────
   const result = await prisma.$transaction(async (tx) => {
     const org = await tx.organization.findUniqueOrThrow({
       where: { id: organizationId },
-      select: { starsBalance: true },
+      select: { starsBalance: true, starsBonusBalance: true },
     });
 
-    if (org.starsBalance < amount) {
-      return { success: false, newBalance: org.starsBalance };
+    const totalAvailable = allowBonus
+      ? org.starsBalance + org.starsBonusBalance
+      : org.starsBalance;
+
+    if (totalAvailable < amount) {
+      return {
+        success: false,
+        newBalance: org.starsBalance,
+        newBonusBalance: org.starsBonusBalance,
+      };
     }
 
-    const newBalance = org.starsBalance - amount;
+    // Debita gastáveis primeiro; se faltar, complementa do bônus (quando permitido).
+    const fromMain = Math.min(org.starsBalance, amount);
+    const fromBonus = amount - fromMain;
+    const newBalance = org.starsBalance - fromMain;
+    const newBonusBalance = org.starsBonusBalance - fromBonus;
 
     await tx.organization.update({
       where: { id: organizationId },
-      data: { starsBalance: newBalance },
+      data:
+        fromBonus > 0
+          ? { starsBalance: newBalance, starsBonusBalance: newBonusBalance }
+          : { starsBalance: newBalance },
     });
+
+    const finalDescription =
+      fromBonus > 0
+        ? `${description} (${fromMain}★ saldo + ${fromBonus}★ bônus)`
+        : description;
 
     await tx.starTransaction.create({
       data: {
@@ -143,7 +181,7 @@ export async function debitStars(
         type,
         amount: -amount,
         balanceAfter: newBalance,
-        description,
+        description: finalDescription,
         appSlug,
       },
     });
@@ -163,7 +201,7 @@ export async function debitStars(
       });
     }
 
-    return { success: true, newBalance };
+    return { success: true, newBalance, newBonusBalance };
   });
 
   // ── 2. Reabastecimento para moderadores ──────────────────────────────────
@@ -202,7 +240,11 @@ export async function debitStars(
         });
 
         // Retorna com o saldo já reabastecido
-        return { success: true, newBalance: MODERATOR_REFILL_AMOUNT };
+        return {
+          success: true,
+          newBalance: MODERATOR_REFILL_AMOUNT,
+          newBonusBalance: result.newBonusBalance,
+        };
       }
     } catch {
       // Reabastecimento é não-crítico: falha silenciosa

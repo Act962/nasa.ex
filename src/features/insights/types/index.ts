@@ -111,7 +111,9 @@ export type AppModule =
   | "payment"
   | "linnker"
   | "space-points"
-  | "stars";
+  | "stars"
+  | "space-station"
+  | "nasa-route";
 
 export const ALL_MODULES: AppModule[] = [
   "tracking",
@@ -127,4 +129,6 @@ export const ALL_MODULES: AppModule[] = [
   "linnker",
   "space-points",
   "stars",
+  "space-station",
+  "nasa-route",
 ];

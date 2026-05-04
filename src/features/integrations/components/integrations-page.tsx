@@ -33,7 +33,9 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Chrome,
   ExternalLink,
+  Facebook,
   Globe,
   Info,
   Key,
@@ -47,6 +49,13 @@ import {
   ToggleRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { useConnectionWizardStore } from "@/features/integrations/store/connection-wizard-store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,6 +81,7 @@ export interface PlatformDef {
   steps: string[];
   category: "messaging" | "social" | "maps" | "email" | "ads" | "crm" | "ai";
   visualGuide?: boolean;
+  oauthProvider?: "meta" | "google";
 }
 
 // ─── Google Calendar Visual Steps ─────────────────────────────────────────────
@@ -249,6 +259,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
     icon: InstagramIcon,
     docsUrl: "https://developers.facebook.com/docs/instagram-api/getting-started", docsLabel: "Meta for Developers",
     category: "messaging",
+    oauthProvider: "meta",
     steps: [
       "Acesse developers.facebook.com e crie um App do tipo 'Business'",
       "Ative o produto 'Instagram Graph API' no App",
@@ -271,6 +282,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
     icon: MetaIcon,
     docsUrl: "https://developers.facebook.com/docs/marketing-api/get-started", docsLabel: "Meta Marketing API Docs",
     category: "ads",
+    oauthProvider: "meta",
     steps: [
       "Acesse developers.facebook.com e crie ou use um App existente do tipo 'Business'",
       "Adicione o produto 'Marketing API' ao App",
@@ -334,6 +346,7 @@ export const PLATFORM_DEFS: PlatformDef[] = [
     icon: GmailIcon,
     docsUrl: "https://console.cloud.google.com/", docsLabel: "Google Cloud Console",
     category: "email",
+    oauthProvider: "google",
     steps: [
       "Acesse console.cloud.google.com e ative a 'Gmail API'",
       "Crie um ID de Cliente OAuth 2.0 do tipo 'Aplicativo da Web'",
@@ -608,6 +621,21 @@ export function ConfigDialog({
   const [astroGuide, setAstroGuide] = useState<string | null>(null);
   const [astroLoading, setAstroLoading] = useState(false);
   const Icon = def.icon;
+  const startWizard = useConnectionWizardStore((s) => s.start);
+
+  const oauthProvider = def.oauthProvider;
+  const ProviderIcon = oauthProvider === "meta" ? Facebook : Chrome;
+  const providerLabel = oauthProvider === "meta" ? "Facebook" : "Google";
+  const oauthBtnClass =
+    oauthProvider === "meta"
+      ? "bg-[#1877F2] hover:bg-[#166FE5]"
+      : "bg-[#4285F4] hover:bg-[#357AE8]";
+
+  function handleOAuthClick() {
+    if (!oauthProvider) return;
+    onClose();
+    startWizard(oauthProvider);
+  }
 
   async function handleGenerateGuide() {
     setAstroLoading(true);
@@ -714,42 +742,101 @@ export function ConfigDialog({
           </div>
         )}
 
-        {def.fields.length > 0 ? (
-          <div className="space-y-4">
-            {def.fields.map((field) => (
-              <div key={field.key} className="space-y-1.5">
-                <Label htmlFor={field.key} className="text-sm font-medium">{field.label}</Label>
-                <Input id={field.key} type={field.type ?? "text"} placeholder={field.placeholder}
-                  value={values[field.key] ?? ""}
-                  onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                  autoComplete="off" />
-                {field.hint && <p className="text-[11px] text-muted-foreground">{field.hint}</p>}
-              </div>
-            ))}
+        {oauthProvider ? (
+          <div className="space-y-3">
+            <Button
+              type="button"
+              size="lg"
+              onClick={handleOAuthClick}
+              className={cn("w-full gap-2 font-semibold text-white", oauthBtnClass)}
+            >
+              <ProviderIcon className="size-4" />
+              Conectar com {providerLabel}
+            </Button>
+            <p className="text-center text-[11px] text-muted-foreground leading-relaxed px-2">
+              O ASTRO te guia passo a passo. Conexão por OAuth oficial — sem copy/paste de tokens.
+            </p>
+            {def.fields.length > 0 && (
+              <Accordion type="single" collapsible>
+                <AccordionItem value="manual" className="border rounded-lg">
+                  <AccordionTrigger className="px-3 py-2 text-xs text-muted-foreground hover:no-underline">
+                    Modo avançado — paste manual de tokens
+                  </AccordionTrigger>
+                  <AccordionContent className="px-3 pb-3">
+                    <div className="space-y-3 pt-1">
+                      {def.fields.map((field) => (
+                        <div key={field.key} className="space-y-1.5">
+                          <Label htmlFor={field.key} className="text-sm font-medium">{field.label}</Label>
+                          <Input id={field.key} type={field.type ?? "text"} placeholder={field.placeholder}
+                            value={values[field.key] ?? ""}
+                            onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                            autoComplete="off" />
+                          {field.hint && <p className="text-[11px] text-muted-foreground">{field.hint}</p>}
+                        </div>
+                      ))}
+                      <Button
+                        onClick={() => onSave(values)}
+                        disabled={isSaving || !Object.values(values).some(v => v.trim())}
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-1.5"
+                      >
+                        {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+                        Salvar tokens manuais
+                      </Button>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border text-xs text-muted-foreground">
+              <ShieldCheck className="size-4 shrink-0 text-green-500 mt-0.5" />
+              <span>Credenciais armazenadas com segurança. O NASA nunca compartilha seus tokens com terceiros.</span>
+            </div>
+            <Button variant="outline" onClick={onClose} className="w-full" disabled={isSaving}>
+              Cancelar
+            </Button>
           </div>
         ) : (
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300">
-            <CheckCircle2 className="size-4 shrink-0 mt-0.5 text-emerald-500" />
-            <span>Nenhuma credencial necessária. Clique em <strong>Ativar integração</strong> para conectar.</span>
-          </div>
+          <>
+            {def.fields.length > 0 ? (
+              <div className="space-y-4">
+                {def.fields.map((field) => (
+                  <div key={field.key} className="space-y-1.5">
+                    <Label htmlFor={field.key} className="text-sm font-medium">{field.label}</Label>
+                    <Input id={field.key} type={field.type ?? "text"} placeholder={field.placeholder}
+                      value={values[field.key] ?? ""}
+                      onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                      autoComplete="off" />
+                    {field.hint && <p className="text-[11px] text-muted-foreground">{field.hint}</p>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300">
+                <CheckCircle2 className="size-4 shrink-0 mt-0.5 text-emerald-500" />
+                <span>Nenhuma credencial necessária. Clique em <strong>Ativar integração</strong> para conectar.</span>
+              </div>
+            )}
+
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border text-xs text-muted-foreground">
+              <ShieldCheck className="size-4 shrink-0 text-green-500 mt-0.5" />
+              <span>Credenciais armazenadas com segurança. O NASA nunca compartilha seus tokens com terceiros.</span>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" onClick={onClose} className="flex-1" disabled={isSaving}>Cancelar</Button>
+              <Button
+                onClick={() => onSave(values)}
+                disabled={isSaving || (def.fields.length > 0 && !Object.values(values).some(v => v.trim()))}
+                className="flex-1 gap-1.5"
+              >
+                {isSaving ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                {def.fields.length === 0 ? "Ativar integração" : "Salvar integração"}
+              </Button>
+            </div>
+          </>
         )}
-
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border text-xs text-muted-foreground">
-          <ShieldCheck className="size-4 shrink-0 text-green-500 mt-0.5" />
-          <span>Credenciais armazenadas com segurança. O NASA nunca compartilha seus tokens com terceiros.</span>
-        </div>
-
-        <div className="flex gap-2 pt-1">
-          <Button variant="outline" onClick={onClose} className="flex-1" disabled={isSaving}>Cancelar</Button>
-          <Button
-            onClick={() => onSave(values)}
-            disabled={isSaving || (def.fields.length > 0 && !Object.values(values).some(v => v.trim()))}
-            className="flex-1 gap-1.5"
-          >
-            {isSaving ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-            {def.fields.length === 0 ? "Ativar integração" : "Salvar integração"}
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
   );

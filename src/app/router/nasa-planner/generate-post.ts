@@ -3,107 +3,13 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { debitStars } from "@/lib/star-service";
+import { logActivity } from "@/lib/activity-logger";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { NasaPlannerPostType, NasaPlannerPostStatus, StarTransactionType } from "@/generated/prisma/enums";
-import { S3 } from "@/lib/s3-client";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { v4 as uuidv4 } from "uuid";
-
-const STARS_PER_GENERATION = 5;
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
-}
-
-async function uploadToS3(buffer: Buffer, contentType = "image/jpeg"): Promise<string | null> {
-  try {
-    const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES;
-    if (!bucket) { console.error("[IMG] S3 bucket not configured"); return null; }
-    const ext = contentType.includes("jpeg") || contentType.includes("jpg") ? "jpg" : "png";
-    const key = `nasa-planner/posts/${uuidv4()}.${ext}`;
-    await S3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: buffer, ContentType: contentType }));
-    console.log(`[IMG] S3 upload OK: ${key} (${buffer.length} bytes)`);
-    return key;
-  } catch (err: any) {
-    console.error("[IMG] S3 upload error:", err?.message);
-    return null;
-  }
-}
-
-// ─── TEXT via Pollinations.ai (free, no API key, no tokens) ──────────────────
-
-async function generateTextViaPollinations(systemPrompt: string, userPrompt: string): Promise<string | null> {
-  const MODELS = ["openai", "openai-large", "mistral", "mistral-large"];
-  for (const model of MODELS) {
-    try {
-      console.log(`[AI] Pollinations text — model: ${model}`);
-      const resp = await fetchWithTimeout(
-        "https://text.pollinations.ai/openai",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model,
-            jsonMode: true,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-          }),
-        },
-        60000,
-      );
-
-      if (!resp.ok) {
-        console.error(`[AI] Pollinations ${model}: HTTP ${resp.status}`);
-        continue;
-      }
-
-      const data = await resp.json().catch(() => null);
-      const text: string | undefined =
-        data?.choices?.[0]?.message?.content ?? // OpenAI-compatible format
-        (typeof data === "string" ? data : undefined);
-
-      if (text && text.trim()) {
-        console.log(`[AI] Pollinations ${model} OK`);
-        return text.trim();
-      }
-    } catch (err: any) {
-      console.error(`[AI] Pollinations ${model} error:`, err?.message);
-      continue;
-    }
-  }
-  return null;
-}
-
-// ─── IMAGE via Pollinations.ai (free, no API key, no tokens) ─────────────────
-
-async function generateImage(prompt: string): Promise<string | null> {
-  try {
-    const encoded = encodeURIComponent(prompt.slice(0, 400));
-    const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&model=flux&nologo=true&seed=${Date.now()}`;
-    console.log("[IMG] Generating via Pollinations.ai...");
-
-    const resp = await fetchWithTimeout(url, {}, 50000);
-    if (!resp.ok) { console.error(`[IMG] Pollinations HTTP ${resp.status}`); return null; }
-
-    const buffer = Buffer.from(await resp.arrayBuffer());
-    if (buffer.length < 500) { console.error(`[IMG] Pollinations tiny: ${buffer.length} bytes`); return null; }
-
-    const ct = resp.headers.get("content-type") ?? "image/jpeg";
-    return await uploadToS3(buffer, ct.startsWith("image/") ? ct : "image/jpeg");
-  } catch (err: any) {
-    console.error("[IMG] Pollinations error:", err?.message);
-    return null;
-  }
-}
-
-// ─── Route handler ────────────────────────────────────────────────────────────
+import {
+  selectImageProvider, generateImage, generateTextViaPollinations, STARS_POST_FULL,
+} from "./_helpers/ai-provider";
 
 export const generatePost = base
   .use(requiredAuthMiddleware)
@@ -130,14 +36,12 @@ export const generatePost = base
           : Promise.resolve(null),
       ]);
 
-      // Keep brand ref for image style hint
-      const brand = planner;
+      const providerInfo = await selectImageProvider(context.org.id);
 
-      // Debit stars
       let debit: { success: boolean; newBalance: number };
       try {
         debit = await debitStars(
-          context.org.id, STARS_PER_GENERATION, StarTransactionType.APP_CHARGE,
+          context.org.id, STARS_POST_FULL, StarTransactionType.APP_CHARGE,
           "NASA Planner — geração de conteúdo IA", "nasa-planner", context.user.id,
         );
       } catch (starErr: any) {
@@ -145,13 +49,11 @@ export const generatePost = base
       }
       if (!debit.success) throw new ORPCError("BAD_REQUEST", { message: "Saldo de stars insuficiente para gerar o post" });
 
-      // Build brand context — OrgProject fields take priority over NasaPlanner fields
       const projSwot = orgProject?.swot as Record<string, string> | null;
       const projVisual = orgProject?.visual as Record<string, string> | null;
       const plannerSwot = planner?.swot as Record<string, string> | null;
       const plannerFonts = planner?.fonts as Record<string, string> | null;
 
-      // Resolved brand values: OrgProject first, NasaPlanner as fallback
       const brandName    = orgProject?.name           ?? planner?.brandName    ?? null;
       const brandSlogan  = orgProject?.slogan         ?? planner?.brandSlogan  ?? null;
       const brandIcp     = orgProject?.icp            ?? planner?.icp          ?? null;
@@ -167,7 +69,7 @@ export const generatePost = base
         brandIcp     ? `Público-alvo (ICP): ${brandIcp}`                        : "",
         brandPos     ? `Posicionamento: ${brandPos}`                            : "",
         brandTone    ? `Tom de voz: ${brandTone}`                               : "",
-        planner?.keyMessages?.length   ? `Mensagens-chave: ${planner.keyMessages.join(", ")}`   : "",
+        planner?.keyMessages?.length    ? `Mensagens-chave: ${planner.keyMessages.join(", ")}`   : "",
         planner?.forbiddenWords?.length ? `Palavras proibidas: ${planner.forbiddenWords.join(", ")}` : "",
         planner?.primaryColors?.length  ? `Cores primárias: ${planner.primaryColors.join(", ")}`    : "",
         brandFont    ? `Tipografia principal: ${brandFont}`                     : "",
@@ -217,38 +119,31 @@ INSTRUÇÕES:
       const userPromptText = input.userPrompt
         || `Crie um ${postTypeLabel} envolvente e alinhado à identidade da marca. Use o contexto fornecido para produzir conteúdo de alta qualidade.`;
 
-      // ── Generate text via Pollinations.ai (free, no tokens) ──────────────────
       const text = await generateTextViaPollinations(systemPrompt, userPromptText);
-
       if (!text) {
         throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Falha na geração de conteúdo. O serviço de IA gratuito (Pollinations) não respondeu. Tente novamente.",
+          message: "Falha na geração de conteúdo. O serviço de IA não respondeu. Tente novamente.",
         });
       }
 
-      // Parse AI response
       let parsed: any;
       try {
         const clean = text.replace(/```json\n?|```\n?/g, "").trim();
-        // Extract JSON if surrounded by extra text
         const jsonMatch = clean.match(/\{[\s\S]*\}/);
         parsed = JSON.parse(jsonMatch ? jsonMatch[0] : clean);
       } catch {
         throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "IA retornou resposta inválida. Tente novamente." });
       }
 
-      // ── Generate image via Pollinations.ai (free, no tokens) ─────────────────
       const imagePrompt = [
         parsed.title ?? "",
         parsed.slide?.headline ?? parsed.slides?.[0]?.headline ?? "",
-        brand?.toneOfVoice ? `Style: ${brand.toneOfVoice}` : "",
+        planner?.toneOfVoice ? `Style: ${planner.toneOfVoice}` : "",
         "Social media image, high quality, no text, impactful visual.",
       ].filter(Boolean).join(". ");
 
-      const generatedImageKey = await generateImage(imagePrompt);
-      console.log("[IMG] Result:", generatedImageKey ?? "none — continuing without image");
+      const generatedImageKey = await generateImage(imagePrompt, providerInfo, "hd");
 
-      // Build slides
       const slidesData: Array<{ order: number; imageKey: string | null; headline: string | null; subtext: string | null; overlayConfig: object }> = [];
 
       if (post.type === NasaPlannerPostType.CAROUSEL && Array.isArray(parsed.slides)) {
@@ -257,7 +152,7 @@ INSTRUÇÕES:
           let slideImageKey: string | null = i === 0 ? generatedImageKey : null;
           if (i > 0) {
             const slidePrompt = [s.headline ?? "", s.subtext ?? "", "Carousel slide, no text, high quality."].filter(Boolean).join(". ");
-            slideImageKey = await generateImage(slidePrompt);
+            slideImageKey = await generateImage(slidePrompt, providerInfo, "standard");
           }
           slidesData.push({ order: s.order ?? i + 1, imageKey: slideImageKey, headline: s.headline ?? null, subtext: s.subtext ?? null, overlayConfig: {} });
         }
@@ -267,7 +162,6 @@ INSTRUÇÕES:
         slidesData.push({ order: 1, imageKey: generatedImageKey, headline: parsed.title ?? null, subtext: null, overlayConfig: {} });
       }
 
-      // Persist
       await prisma.nasaPlannerPostSlide.deleteMany({ where: { postId: post.id } });
 
       const updatedPost = await prisma.nasaPlannerPost.update({
@@ -278,7 +172,7 @@ INSTRUÇÕES:
           hashtags: parsed.hashtags ?? post.hashtags,
           cta: parsed.cta ?? post.cta,
           status: NasaPlannerPostStatus.PENDING_APPROVAL,
-          starsSpent: { increment: STARS_PER_GENERATION },
+          starsSpent: { increment: STARS_POST_FULL },
           ...(generatedImageKey ? { thumbnail: generatedImageKey } : {}),
           slides: { createMany: { data: slidesData } },
         },
@@ -288,7 +182,23 @@ INSTRUÇÕES:
         },
       });
 
-      return { post: updatedPost, starsSpent: STARS_PER_GENERATION, balanceAfter: debit.newBalance };
+      await logActivity({
+        organizationId: context.org.id,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "nasa-planner",
+        subAppSlug: "planner-posts",
+        featureKey: "planner.post.generated",
+        action: "planner.post.generated",
+        actionLabel: `Gerou conteúdo IA para um ${postTypeLabel}`,
+        resource: parsed.title ?? null,
+        resourceId: updatedPost.id,
+        metadata: { type: post.type, starsSpent: STARS_POST_FULL, hasImage: !!generatedImageKey },
+      });
+
+      return { post: updatedPost, starsSpent: STARS_POST_FULL, balanceAfter: debit.newBalance };
     } catch (err: any) {
       if (err instanceof ORPCError) throw err;
       console.error("[NASA Planner] Unexpected error:", err?.message ?? err);

@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
@@ -67,13 +68,37 @@ export const markLessonComplete = base
     const isFullyComplete = updatedIds.length >= totalLessons;
 
     let rewards = null as null | Awaited<ReturnType<typeof awardTrackRewards>>;
-    if (isFullyComplete && !progress.completedAt) {
+    const justCompleted = isFullyComplete && !progress.completedAt;
+    if (justCompleted) {
       await prisma.spaceHelpProgress.update({
         where: { id: progress.id },
         data: { completedAt: new Date() },
       });
       rewards = await awardTrackRewards({ userId, orgId, trackId });
     }
+
+    await logActivity({
+      organizationId: orgId,
+      userId,
+      userName: context.user.name,
+      userEmail: context.user.email,
+      userImage: (context.user as any).image,
+      appSlug: "space-help",
+      subAppSlug: "spacehelp-tracks",
+      featureKey: justCompleted ? "spacehelp.track.completed" : "spacehelp.lesson.completed",
+      action: justCompleted ? "spacehelp.track.completed" : "spacehelp.lesson.completed",
+      actionLabel: justCompleted
+        ? `Concluiu a trilha "${track.title}" no Space Help`
+        : `Concluiu uma aula da trilha "${track.title}"`,
+      resource: track.title,
+      resourceId: trackId,
+      metadata: {
+        lessonId,
+        completedCount: updatedIds.length,
+        totalLessons,
+        rewardsApplied: !!rewards,
+      },
+    });
 
     return {
       completedLessonIds: updatedIds,

@@ -4,10 +4,15 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
-import { StarTransactionType } from "@/generated/prisma/enums";
 import { pusherServer } from "@/lib/pusher";
 import { awardPoints } from "@/app/router/space-point/utils";
+<<<<<<< feature/W-nasa-router-fluxo-de-aquisicao-de-cursos-20260503
+import { canEnrollFree } from "../utils";
+import { executeCoursePurchaseInTx } from "../helpers/purchase-helpers";
+=======
 import { canEnrollFree, PLATFORM_FEE_PCT } from "../utils";
+import { logActivity } from "@/lib/activity-logger";
+>>>>>>> main
 
 /**
  * Compra de curso pelo aluno (paga com STARs da org dele).
@@ -132,10 +137,10 @@ export const purchaseCourse = base
       };
     }
 
-    // 4. Validar saldo
+    // 4. Validar saldo (apenas gastável — bônus não paga curso)
     const buyerOrg = await prisma.organization.findUniqueOrThrow({
       where: { id: buyerOrgId },
-      select: { starsBalance: true },
+      select: { starsBalance: true, starsBonusBalance: true },
     });
     if (buyerOrg.starsBalance < priceStars) {
       throw new ORPCError("BAD_REQUEST", {
@@ -143,101 +148,27 @@ export const purchaseCourse = base
         data: {
           code: "INSUFFICIENT_STARS",
           balance: buyerOrg.starsBalance,
+          bonusBalance: buyerOrg.starsBonusBalance,
           needed: priceStars,
         },
       });
     }
 
     // 5. Transação atômica: debit aluno + credit criador + enrollment + progress + studentsCount++
-    const payoutStars = Math.floor(priceStars * (1 - PLATFORM_FEE_PCT));
-    const platformFee = priceStars - payoutStars;
-
-    const result = await prisma.$transaction(async (tx) => {
-      // Debit aluno
-      const buyer = await tx.organization.findUniqueOrThrow({
-        where: { id: buyerOrgId },
-        select: { starsBalance: true },
-      });
-      if (buyer.starsBalance < priceStars) {
-        throw new ORPCError("BAD_REQUEST", {
-          message: "Saldo insuficiente",
-          data: { code: "INSUFFICIENT_STARS" },
-        });
-      }
-      const buyerNewBalance = buyer.starsBalance - priceStars;
-      await tx.organization.update({
-        where: { id: buyerOrgId },
-        data: { starsBalance: buyerNewBalance },
-      });
-      const debit = await tx.starTransaction.create({
-        data: {
-          organizationId: buyerOrgId,
-          type: StarTransactionType.COURSE_PURCHASE,
-          amount: -priceStars,
-          balanceAfter: buyerNewBalance,
-          description: `Compra: ${course.title} — Plano ${plan.name}`,
-          appSlug: "nasa-route",
-        },
-      });
-
-      // Credit criador (90% do valor)
-      const creator = await tx.organization.findUniqueOrThrow({
-        where: { id: course.creatorOrgId },
-        select: { starsBalance: true },
-      });
-      const creatorNewBalance = creator.starsBalance + payoutStars;
-      await tx.organization.update({
-        where: { id: course.creatorOrgId },
-        data: { starsBalance: creatorNewBalance },
-      });
-      await tx.starTransaction.create({
-        data: {
-          organizationId: course.creatorOrgId,
-          type: StarTransactionType.COURSE_PAYOUT,
-          amount: payoutStars,
-          balanceAfter: creatorNewBalance,
-          description: `Venda: ${course.title} — Plano ${plan.name} (taxa ${platformFee} ★ retida)`,
-          appSlug: "nasa-route",
-        },
-      });
-
-      // Cria/ativa enrollment
-      const enrollment = await tx.nasaRouteEnrollment.upsert({
-        where: { userId_courseId: { userId, courseId: course.id } },
-        create: {
-          userId,
-          courseId: course.id,
-          planId: plan.id,
-          buyerOrgId,
-          paidStars: priceStars,
-          source: "purchase",
-          status: "active",
-          paymentRef: debit.id,
-        },
-        update: {
-          status: "active",
-          paidStars: priceStars,
-          planId: plan.id,
-          buyerOrgId,
-          paymentRef: debit.id,
-        },
-      });
-
-      // Progress vazio
-      await tx.nasaRouteProgress.upsert({
-        where: { userId_courseId: { userId, courseId: course.id } },
-        create: { userId, courseId: course.id, completedLessonIds: [] },
-        update: {},
-      });
-
-      // Atualiza contador do curso
-      await tx.nasaRouteCourse.update({
-        where: { id: course.id },
-        data: { studentsCount: { increment: 1 } },
-      });
-
-      return { enrollment, buyerNewBalance, creatorNewBalance };
-    });
+    const result = await prisma.$transaction(async (tx) =>
+      executeCoursePurchaseInTx({
+        tx,
+        userId,
+        buyerOrgId,
+        courseId: course.id,
+        courseTitle: course.title,
+        creatorOrgId: course.creatorOrgId,
+        planId: plan.id,
+        planName: plan.name,
+        priceStars,
+      }),
+    );
+    const { payoutStars } = result;
 
     // 6. SP de matrícula (não-crítico)
     await safeAwardEnroll({ userId, buyerOrgId, courseTitle: course.title, courseId: course.id });
@@ -250,6 +181,22 @@ export const purchaseCourse = base
       courseTitle: course.title,
       paidStars: priceStars,
       payoutStars,
+    });
+
+    await logActivity({
+      organizationId: buyerOrgId,
+      userId,
+      userName: context.user.name,
+      userEmail: context.user.email,
+      userImage: (context.user as any).image,
+      appSlug: "nasa-route",
+      subAppSlug: "nasa-route-courses",
+      featureKey: "route.course.purchased",
+      action: "route.course.purchased",
+      actionLabel: `Comprou o curso "${course.title}"`,
+      resource: course.title,
+      resourceId: course.id,
+      metadata: { paidStars: priceStars, planName: plan.name },
     });
 
     return {

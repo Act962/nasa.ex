@@ -1,4 +1,8 @@
-import { type KeyboardEvent, useRef, useCallback } from "react";
+"use client";
+
+import { useRef, useCallback } from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +28,7 @@ import {
   XIcon,
   UserPlusIcon,
   CheckIcon,
+  GripVerticalIcon,
 } from "lucide-react";
 import { Action } from "../../types";
 import { DatePicker } from "../data-picker";
@@ -86,25 +91,53 @@ export function SubActionItem({
     [onUpdate, sub.id],
   );
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: sub.id, data: { type: "subaction" } });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+  };
+
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       className={cn(
         "rounded-md border border-transparent hover:border-border hover:bg-muted/40 transition-colors",
         isExpanded && "border-border bg-muted/60",
+        isDragging && "opacity-40",
       )}
     >
-      <div className="flex items-center gap-2 px-2 py-1.5 group">
+      <div className="flex items-start gap-1.5 px-2 py-1.5 group">
+        {/* Drag handle */}
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="size-5 flex items-center justify-center text-muted-foreground/40 hover:text-muted-foreground cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5"
+          aria-label="Arrastar"
+        >
+          <GripVerticalIcon className="size-3.5" />
+        </button>
+
         <Checkbox
           checked={sub.isDone}
           onCheckedChange={() => onToggle(sub.id, sub.isDone)}
-          className="shrink-0"
+          className="shrink-0 mt-1"
         />
 
         {isEditingTitle ? (
           <Input
             autoFocus
             defaultValue={sub.title}
-            className="h-7 text-sm flex-1"
+            className="h-7 text-sm flex-1 min-w-0"
             onBlur={(e) => {
               const val = e.target.value.trim();
               if (val && val !== sub.title) {
@@ -126,7 +159,7 @@ export function SubActionItem({
         ) : (
           <button
             className={cn(
-              "flex-1 min-w-0 text-sm text-left truncate py-0.5",
+              "flex-1 min-w-0 text-sm text-left py-0.5 break-words whitespace-normal leading-snug",
               sub.isDone && "line-through text-muted-foreground",
             )}
             onClick={onToggleExpand}
@@ -137,7 +170,7 @@ export function SubActionItem({
         )}
 
         {sub.responsibles.length > 0 && (
-          <div className="flex -space-x-1 shrink-0">
+          <div className="flex -space-x-1 shrink-0 mt-0.5">
             {sub.responsibles.slice(0, 3).map((r) => (
               <Avatar key={r.user.id} className="size-5 ring-1 ring-background">
                 <AvatarImage src={r.user.image ?? undefined} />
@@ -155,7 +188,7 @@ export function SubActionItem({
         )}
 
         {sub.finishDate && (
-          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0 mt-1">
             {new Date(sub.finishDate).toLocaleDateString("pt-BR", {
               day: "2-digit",
               month: "short",
@@ -240,7 +273,7 @@ export function SubActionItem({
                   onUpdate(sub.id, { description: val });
                 }
               }}
-              className="text-xs min-h-[60px] resize-none"
+              className="text-xs min-h-[60px] resize-none break-words"
             />
           </div>
 

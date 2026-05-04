@@ -45,6 +45,8 @@ export interface Action {
     isDone: boolean;
     description: string | null;
     finishDate: Date | null;
+    order?: number;
+    groupId?: string | null;
     responsibles: {
       user: {
         id: string;
@@ -52,6 +54,12 @@ export interface Action {
         image: string | null;
       };
     }[];
+  }[];
+  subActionGroups?: {
+    id: string;
+    name: string;
+    order: number;
+    isOpen: boolean;
   }[];
 
   orgProjectId?: string | null;

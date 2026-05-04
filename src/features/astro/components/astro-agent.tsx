@@ -31,6 +31,8 @@ import {
   type SpaceHelpResource,
 } from "../lib/space-help-suggester";
 import { parseYoutubeId } from "@/features/space-help/lib/youtube";
+import { useConnectionWizardStore } from "@/features/integrations/store/connection-wizard-store";
+import { getGuidedMessage, getGuidedQuickReplies, getFaqAnswer } from "../lib/guided-mode";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1264,9 +1266,24 @@ export function AstroAgent() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, thinking]);
 
+  const wizardProvider = useConnectionWizardStore((s) => s.provider);
+
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim()) return;
+
+      // Guided mode (Connection Wizard) — try FAQ first
+      if (wizardProvider) {
+        const faq = getFaqAnswer(text);
+        if (faq) {
+          setMessages((prev) => [
+            ...prev,
+            { id: generateId(), role: "user", text },
+            { id: generateId(), role: "astro", text: faq },
+          ]);
+          return;
+        }
+      }
 
       // Handle install confirmation
       if (text.startsWith("__install:")) {
@@ -1453,6 +1470,8 @@ export function AstroAgent() {
 
           {!minimized && (
             <>
+              {/* Guided mode banner (Connection Wizard) */}
+              <GuidedModeBanner onSend={sendMessage} />
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3 h-[426px]">
                 {messages.map((msg, index) => (
@@ -1517,5 +1536,40 @@ export function AstroAgent() {
         </div>
       )}
     </>
+  );
+}
+
+function GuidedModeBanner({ onSend }: { onSend: (text: string) => void }) {
+  const provider = useConnectionWizardStore((s) => s.provider);
+  const step = useConnectionWizardStore((s) => s.currentStep);
+  const error = useConnectionWizardStore((s) => s.error);
+  if (!provider) return null;
+  const message = getGuidedMessage({ provider, step, error });
+  const replies = getGuidedQuickReplies({ provider, step, error });
+  return (
+    <div className="border-b border-amber-200/60 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 px-4 py-3">
+      <div className="flex items-start gap-2">
+        <Sparkles className="size-4 text-amber-500 shrink-0 mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+            Modo guiado · {provider === "meta" ? "Meta" : "Google"}
+          </p>
+          <p className="text-xs leading-relaxed text-foreground/80 mt-1">{message}</p>
+          {replies.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {replies.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => onSend(r)}
+                  className="rounded-full border border-amber-300/60 bg-white/60 dark:bg-background/60 px-2.5 py-1 text-[11px] hover:bg-amber-100 dark:hover:bg-amber-950/30 transition"
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

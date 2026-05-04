@@ -1,4 +1,5 @@
 import { base } from "@/app/middlewares/base";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { inngest } from "@/inngest/client";
@@ -156,6 +157,38 @@ export const submitResponse = base
           }
         }
       });
+
+      // Log activity (form owner como ator — submissão pública)
+      try {
+        const formMeta = await prisma.form.findUnique({
+          where: { id },
+          select: {
+            id: true,
+            name: true,
+            organizationId: true,
+            user: { select: { id: true, name: true, email: true, image: true } },
+          },
+        });
+        if (formMeta?.user) {
+          await logActivity({
+            organizationId: formMeta.organizationId,
+            userId: formMeta.user.id,
+            userName: formMeta.user.name,
+            userEmail: formMeta.user.email,
+            userImage: formMeta.user.image,
+            appSlug: "forms",
+            subAppSlug: "forms-responses",
+            featureKey: "forms.response.submitted",
+            action: "forms.response.submitted",
+            actionLabel: `Resposta recebida no formulário "${formMeta.name}"`,
+            resource: formMeta.name,
+            resourceId: formMeta.id,
+            metadata: { isPublicSubmission: true },
+          });
+        }
+      } catch (logErr) {
+        console.error("[form/submit] logActivity error:", logErr);
+      }
 
       // Verificar se este form faz parte de um processo de onboarding
       try {

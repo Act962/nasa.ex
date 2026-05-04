@@ -7,9 +7,11 @@ interface DashboardState {
   trackingId?: string;
   organizationIds: string[];
   tagIds: string[];
+  memberIds: string[];
   dateRange: DateRange;
   settings: DashboardSettings;
   selectedModules: AppModule[];
+  moduleOrder: AppModule[];
 }
 
 interface DashboardActions {
@@ -17,8 +19,10 @@ interface DashboardActions {
   setDateRange: (dateRange: DateRange) => void;
   setTagIds: (tagIds: string[]) => void;
   setOrganizationIds: (organizationIds: string[]) => void;
+  setMemberIds: (memberIds: string[]) => void;
   toggleOrganizationId: (organizationId: string) => void;
   toggleTagId: (tagId: string) => void;
+  toggleMemberId: (memberId: string) => void;
   toggleSection: (section: keyof DashboardSettings["visibleSections"]) => void;
   setChartType: (
     chart: keyof DashboardSettings["chartTypes"],
@@ -26,6 +30,8 @@ interface DashboardActions {
   ) => void;
   resetSettings: () => void;
   setSelectedModules: (modules: AppModule[]) => void;
+  setModuleOrder: (order: AppModule[]) => void;
+  resetModuleOrder: () => void;
 }
 
 const defaultSettings: DashboardSettings = {
@@ -50,15 +56,25 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
       trackingId: undefined,
       organizationIds: [],
       tagIds: [],
+      memberIds: [],
       dateRange: { from: undefined, to: undefined },
       settings: defaultSettings,
       selectedModules: ALL_MODULES,
+      moduleOrder: ALL_MODULES,
 
       setTrackingId: (trackingId) => set({ trackingId }),
       setDateRange: (dateRange) => set({ dateRange }),
       setTagIds: (tagIds) => set({ tagIds }),
+      setMemberIds: (memberIds) => set({ memberIds }),
       setOrganizationIds: (organizationIds) =>
         set({ organizationIds, trackingId: undefined }),
+
+      toggleMemberId: (memberId) =>
+        set((state) => ({
+          memberIds: state.memberIds.includes(memberId)
+            ? state.memberIds.filter((id) => id !== memberId)
+            : [...state.memberIds, memberId],
+        })),
 
       toggleOrganizationId: (organizationId) => {
         if (organizationId === "ALL") {
@@ -112,6 +128,18 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
 
       setSelectedModules: (modules) =>
         set({ selectedModules: modules.length > 0 ? modules : ALL_MODULES }),
+
+      setModuleOrder: (order) =>
+        set((state) => {
+          // Garante que todos os módulos novos (não persistidos) sejam anexados
+          const merged = [
+            ...order.filter((m) => ALL_MODULES.includes(m)),
+            ...ALL_MODULES.filter((m) => !order.includes(m)),
+          ];
+          return { moduleOrder: merged };
+        }),
+
+      resetModuleOrder: () => set({ moduleOrder: ALL_MODULES }),
     }),
     {
       name: "insights-storage",
@@ -122,8 +150,10 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
         trackingId: state.trackingId,
         organizationIds: state.organizationIds,
         tagIds: state.tagIds,
+        memberIds: state.memberIds,
         dateRange: state.dateRange,
         selectedModules: state.selectedModules,
+        moduleOrder: state.moduleOrder,
       }),
       onRehydrateStorage: () => (state) => {
         // Converte strings de data de volta para objetos Date após a rehidratação
@@ -134,6 +164,14 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
           if (state.dateRange.to) {
             state.dateRange.to = new Date(state.dateRange.to);
           }
+        }
+        // Mescla módulos novos que ainda não estão na ordem persistida
+        if (state) {
+          const persistedOrder = state.moduleOrder ?? [];
+          state.moduleOrder = [
+            ...persistedOrder.filter((m) => ALL_MODULES.includes(m)),
+            ...ALL_MODULES.filter((m) => !persistedOrder.includes(m)),
+          ];
         }
       },
     },

@@ -1,9 +1,11 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { GraduationCap, Search } from "lucide-react";
+import { ArrowLeft, GraduationCap, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { CourseCard } from "../shared/course-card";
 
 interface CompanyCatalogProps {
@@ -11,15 +13,38 @@ interface CompanyCatalogProps {
 }
 
 export function CompanyCatalog({ companySlug }: CompanyCatalogProps) {
+  const router = useRouter();
   const { data, isLoading, isError } = useQuery({
     ...orpc.nasaRoute.publicListByCompany.queryOptions({
       input: { companySlug },
     }),
   });
 
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push("/");
+    }
+  };
+
+  const backButton = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={handleBack}
+      className="mb-4 -ml-2 gap-1.5 text-muted-foreground hover:text-foreground"
+    >
+      <ArrowLeft className="size-4" />
+      Voltar
+    </Button>
+  );
+
   if (isLoading) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-10">
+        {backButton}
         <Skeleton className="h-32 rounded-3xl" />
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -32,11 +57,14 @@ export function CompanyCatalog({ companySlug }: CompanyCatalogProps) {
 
   if (isError || !data) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-20 text-center">
+      <div className="mx-auto max-w-3xl px-4 py-20">
+        <div className="mb-6 text-left">{backButton}</div>
+        <div className="text-center">
         <h1 className="text-2xl font-bold">Página não encontrada</h1>
         <p className="mt-2 text-muted-foreground">
           A organização que você procura não existe ou ainda não publicou cursos.
         </p>
+        </div>
       </div>
     );
   }
@@ -45,6 +73,7 @@ export function CompanyCatalog({ companySlug }: CompanyCatalogProps) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
+      {backButton}
       <header className="rounded-3xl border border-border bg-gradient-to-br from-violet-600/10 via-indigo-500/5 to-fuchsia-500/5 p-8">
         <div className="flex flex-wrap items-center gap-4">
           {org.logo ? (

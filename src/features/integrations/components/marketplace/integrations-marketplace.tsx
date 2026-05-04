@@ -77,6 +77,12 @@ export function IntegrationsMarketplace() {
     (data?.integrations ?? []).map((i) => [i.platform, i.config as Record<string, string>])
   );
   const connectedSet = new Set(connectedMap.keys());
+  const statusMap = new Map(
+    (data?.integrations ?? []).map((i) => [
+      String(i.platform),
+      { errorMessage: i.lastErrorMessage, lastSyncAt: i.lastSyncAt },
+    ])
+  );
 
   const handleSave = (config: Record<string, string>) => {
     if (!configuring || configuring.platform === "WHATSAPP") return;
@@ -140,6 +146,7 @@ export function IntegrationsMarketplace() {
         <IntegrationGrid
           platformDefs={PLATFORM_DEFS}
           connectedPlatforms={connectedSet}
+          integrationStatuses={statusMap}
           onConfigurePlatform={setConfiguring}
           onDisconnectPlatform={setDisconnecting}
         />

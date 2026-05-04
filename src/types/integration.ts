@@ -44,6 +44,8 @@ export interface Integration {
   hubPageEnabled: boolean
   spaceImagePrompt?: string
   credentials?: CredentialField[]  // Campos de configuração da integração
+  oauthProvider?: 'meta' | 'google'  // Conexão via OAuth wizard
+  manualFallback?: boolean           // Habilita modo manual paste como fallback
 }
 
 export const CATEGORY_LABELS: Record<IntegrationCategory, string> = {

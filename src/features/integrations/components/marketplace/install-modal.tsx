@@ -542,12 +542,14 @@ export function InstallModal({
               </p>
             </div>
 
-            {hasCredentials && (
+            {(hasCredentials || integration.oauthProvider) && (
               <CredentialForm
                 slug={integration.slug}
-                fields={integration.credentials!}
+                fields={integration.credentials ?? []}
                 onSaved={() => setCredsSaved(true)}
                 compact
+                oauthProvider={integration.oauthProvider}
+                manualFallback={integration.manualFallback ?? true}
               />
             )}
 

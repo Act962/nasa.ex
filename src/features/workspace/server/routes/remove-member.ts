@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -68,12 +69,43 @@ export const removeWorkspaceMember = base
       throw new Error("Não é possível remover o dono do workspace");
     }
 
+    const [removedUser, workspace] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: input.userId },
+        select: { name: true, email: true },
+      }),
+      prisma.workspace.findUnique({
+        where: { id: input.workspaceId },
+        select: { name: true },
+      }),
+    ]);
+
     const member = await prisma.workspaceMember.delete({
       where: {
         workspaceId_userId: {
           workspaceId: input.workspaceId,
           userId: input.userId,
         },
+      },
+    });
+
+    await logActivity({
+      organizationId: org.id,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      userImage: (user as any).image,
+      appSlug: "workspace",
+      subAppSlug: "workspace-members",
+      featureKey: "workspace.member.removed",
+      action: "workspace.member.removed",
+      actionLabel: `Desvinculou ${removedUser?.name ?? "membro"} do workspace "${workspace?.name ?? ""}"`,
+      resource: removedUser?.name ?? input.userId,
+      resourceId: input.userId,
+      metadata: {
+        workspaceId: input.workspaceId,
+        workspaceName: workspace?.name,
+        previousRole: memberToBeRemoved.role,
       },
     });
 

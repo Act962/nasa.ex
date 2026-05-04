@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { base } from "@/app/middlewares/base";
 import { auth } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 
 /**
@@ -130,6 +131,32 @@ export const acceptTerms = base
         },
       });
     });
+
+    const orgId =
+      session.session.activeOrganizationId ??
+      (
+        await prisma.member.findFirst({
+          where: { userId: session.user.id },
+          select: { organizationId: true },
+        })
+      )?.organizationId;
+    if (orgId) {
+      await logActivity({
+        organizationId: orgId,
+        userId: session.user.id,
+        userName: session.user.name,
+        userEmail: session.user.email,
+        userImage: (session.user as any).image,
+        appSlug: "partner",
+        subAppSlug: "partner-terms",
+        featureKey: "partner.terms.accepted",
+        action: "partner.terms.accepted",
+        actionLabel: `Aceitou os Termos do programa NASA Parceiros (v${version.version})`,
+        resource: version.title,
+        resourceId: version.id,
+        metadata: { version: version.version, contentHash: version.contentHash },
+      });
+    }
 
     return { success: true };
   });

@@ -36,8 +36,13 @@ export const updatePost = base
       cta: z.string().optional(),
       targetNetworks: z.array(z.string()).optional(),
       thumbnail: z.string().optional(),
-      scheduledAt: z.string().optional(),
+      scheduledAt: z.string().nullable().optional(),
       slides: z.array(slideSchema).optional(),
+      isAd: z.boolean().optional(),
+      clientOrgName: z.string().optional(),
+      orgProjectId: z.string().nullable().optional(),
+      targetIgAccountId: z.string().nullable().optional(),
+      targetFbPageId: z.string().nullable().optional(),
     }),
   )
   .handler(async ({ input, context }) => {
@@ -48,7 +53,7 @@ export const updatePost = base
         where: { id: postId, organizationId: context.org.id },
         data: {
           ...data,
-          ...(scheduledAt ? { scheduledAt: new Date(scheduledAt) } : {}),
+          ...(scheduledAt === null ? { scheduledAt: null } : scheduledAt ? { scheduledAt: new Date(scheduledAt) } : {}),
         },
       });
 

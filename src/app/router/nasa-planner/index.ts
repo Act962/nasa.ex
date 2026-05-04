@@ -37,6 +37,22 @@ import { deleteCampaignBrandAsset } from "./delete-campaign-brand-asset";
 import { getCampaignCalendar } from "./get-campaign-calendar";
 import { getPublicCalendar } from "./get-public-calendar";
 import { generateCampaignBrief } from "./generate-campaign-brief";
+import { publishPost } from "./publish-post";
+import { generateImageFromPrompt } from "./generate-image-from-prompt";
+import { uploadPostImage } from "./upload-post-image";
+import { updatePostSlide } from "./update-post-slide";
+import { createPostFromAction } from "./create-post-from-action";
+import { attachVideo } from "./attach-video";
+import { addVideoClip } from "./add-video-clip";
+import { saveEditedVideo } from "./save-edited-video";
+import { generateVideoClip } from "./generate-video-clip";
+import { schedulePostReal } from "./schedule-post-real";
+import { generateImageFromReference } from "./generate-image-from-reference";
+import { transcribeVideo } from "./transcribe-video";
+import { removePostMedia } from "./remove-post-media";
+import { removePostSlide } from "./remove-post-slide";
+import { addSlidesBatch } from "./add-slides-batch";
+import { syncPostMetrics } from "./sync-post-metrics";
 
 export const nasaPlannerRouter = {
   planners: {
@@ -55,6 +71,22 @@ export const nasaPlannerRouter = {
     generate: generatePost,
     approve: approvePost,
     schedule: schedulePost,
+    publish: publishPost,
+    generateImage: generateImageFromPrompt,
+    uploadImage: uploadPostImage,
+    updateSlide: updatePostSlide,
+    createFromAction: createPostFromAction,
+    attachVideo: attachVideo,
+    addVideoClip: addVideoClip,
+    saveEditedVideo: saveEditedVideo,
+    generateVideoClip: generateVideoClip,
+    scheduleReal: schedulePostReal,
+    generateImageFromReference: generateImageFromReference,
+    transcribeVideo: transcribeVideo,
+    removeMedia: removePostMedia,
+    removeSlide: removePostSlide,
+    addSlidesBatch: addSlidesBatch,
+    syncMetrics: syncPostMetrics,
   },
   mindMaps: {
     list: listMindMaps,

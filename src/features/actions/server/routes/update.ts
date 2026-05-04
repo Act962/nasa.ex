@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { awardPoints } from "@/app/router/space-point/utils";
 import { generatePublicSlug } from "@/features/public-calendar/utils/slug";
+import { logActivity } from "@/lib/activity-logger";
 
 const EVENT_CATEGORY_VALUES = [
   "WORKSHOP",
@@ -100,6 +101,49 @@ export const updateAction = base
           "Card concluído ✅",
         );
       }
+    }
+
+    const orgId = session.activeOrganizationId;
+    if (orgId) {
+      const changedFields: string[] = [];
+      if (data.title !== undefined && previous && data.title !== previous.title) changedFields.push("title");
+      if (data.description !== undefined && previous && data.description !== previous.description) changedFields.push("description");
+      if (data.priority !== undefined && previous && data.priority !== previous.priority) changedFields.push("priority");
+      if (data.columnId !== undefined && previous && data.columnId !== previous.columnId) changedFields.push("columnId");
+      if (data.dueDate !== undefined) changedFields.push("dueDate");
+      if (data.isPublic !== undefined && previous && data.isPublic !== previous.isPublic) changedFields.push("isPublic");
+
+      let featureKey = "workspace.action.updated";
+      let actionLabel = `Atualizou a ação "${action.title}"`;
+      if (data.isDone === true && previous && !previous.isDone) {
+        featureKey = "workspace.action.completed";
+        actionLabel = `Concluiu a ação "${action.title}"`;
+      } else if (data.isDone === false && previous?.isDone) {
+        featureKey = "workspace.action.reopened";
+        actionLabel = `Reabriu a ação "${action.title}"`;
+      } else if (data.isPublic === true && previous && !previous.isPublic) {
+        featureKey = "workspace.action.published";
+        actionLabel = `Publicou a ação "${action.title}" no calendário público`;
+      } else if (data.columnId !== undefined && previous && data.columnId !== previous.columnId) {
+        featureKey = "workspace.action.moved";
+        actionLabel = `Moveu a ação "${action.title}" entre colunas`;
+      }
+
+      await logActivity({
+        organizationId: orgId,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "workspace",
+        subAppSlug: "workspace-actions",
+        featureKey,
+        action: featureKey,
+        actionLabel,
+        resource: action.title,
+        resourceId: action.id,
+        metadata: { changedFields },
+      });
     }
 
     return { action };

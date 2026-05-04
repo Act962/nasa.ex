@@ -16,6 +16,8 @@ import {
   Link2,
   Coins,
   Star,
+  Rocket,
+  Map as MapIcon,
 } from "lucide-react";
 import type { AppModule } from "@/features/insights/types";
 import { ALL_MODULES } from "@/features/insights/types";
@@ -151,6 +153,24 @@ export const MODULE_DEFS: ModuleDef[] = [
     activeBg: "bg-fuchsia-600",
     border: "border-fuchsia-500",
   },
+  {
+    id: "space-station",
+    label: "Space Station",
+    icon: Rocket,
+    color: "text-indigo-600",
+    bg: "bg-indigo-50 dark:bg-indigo-950/40",
+    activeBg: "bg-indigo-600",
+    border: "border-indigo-500",
+  },
+  {
+    id: "nasa-route",
+    label: "NASA Route",
+    icon: MapIcon,
+    color: "text-sky-600",
+    bg: "bg-sky-50 dark:bg-sky-950/40",
+    activeBg: "bg-sky-600",
+    border: "border-sky-500",
+  },
 ];
 
 interface AppSelectorProps {
@@ -162,9 +182,10 @@ export function AppSelector({ selected, onChange }: AppSelectorProps) {
   const allSelected = selected.length === ALL_MODULES.length;
 
   const toggle = (id: AppModule) => {
-    if (selected.includes(id)) {
-      if (selected.length === 1) return; // keep at least one
-      onChange(selected.filter((s) => s !== id));
+    const isActive = selected.includes(id);
+    if (isActive) {
+      if (selected.length === 1) return;
+      onChange(selected.filter((m) => m !== id));
     } else {
       onChange([...selected, id]);
     }

@@ -329,7 +329,9 @@ export function IntegrationHubPage({ integration }: IntegrationHubPageProps) {
           <div className={cn("px-5 pb-5 pt-4", !installed && "opacity-40 pointer-events-none select-none")}>
             <CredentialForm
               slug={integration.slug}
-              fields={integration.credentials!}
+              fields={integration.credentials ?? []}
+              oauthProvider={integration.oauthProvider}
+              manualFallback={integration.manualFallback ?? true}
             />
           </div>
         </div>

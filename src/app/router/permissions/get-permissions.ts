@@ -5,16 +5,36 @@ import prisma from "@/lib/prisma";
 
 // Apps available in NASA Explorer
 export const ALL_APPS = [
-  { key: "tracking",     label: "Tracking / CRM",       icon: "🎯" },
-  { key: "chat",         label: "Chat / Atendimento",   icon: "💬" },
-  { key: "forge",        label: "Forge / Propostas",    icon: "📄" },
-  { key: "spacetime",    label: "SpaceTime / Agenda",   icon: "📅" },
-  { key: "nasa-planner", label: "NASA Planner",             icon: "📸" },
-  { key: "insights",     label: "Insights",             icon: "📊" },
-  { key: "integrations", label: "Integrações",          icon: "🔗" },
-  { key: "explorer",     label: "NASA Explorer",        icon: "🚀" },
-  { key: "nbox",         label: "NBox",                 icon: "📦" },
-  { key: "forge-contracts", label: "Contratos",         icon: "✍️" },
+  // Core
+  { key: "tracking",              label: "Tracking / CRM",          icon: "🎯" },
+  { key: "tracking-automacoes",   label: "Tracking (Automações)",   icon: "⚡" },
+  { key: "contatos",              label: "Contatos",                icon: "👥" },
+  { key: "formularios",           label: "Formulários",             icon: "📋" },
+  // Comunicação
+  { key: "chat",                  label: "Chat / Atendimento",      icon: "💬" },
+  { key: "linnker",               label: "Linnker",                 icon: "🔗" },
+  // Propostas & Contratos
+  { key: "forge",                 label: "Forge / Propostas",       icon: "📄" },
+  { key: "forge-contracts",       label: "Contratos",               icon: "✍️" },
+  // Agenda & Planejamento
+  { key: "spacetime",             label: "SpaceTime / Agenda",      icon: "📅" },
+  { key: "nasa-planner",          label: "Planner",                 icon: "🗓️" },
+  // Workspace
+  { key: "workspace",             label: "Workspace",               icon: "🏢" },
+  { key: "workspace-automacoes",  label: "Workspace (Automações)",  icon: "⚙️" },
+  // Financeiro
+  { key: "financeiro",            label: "Financeiro",              icon: "💰" },
+  // Gamificação
+  { key: "stars",                 label: "Stars",                   icon: "⭐" },
+  { key: "space-points",          label: "Space Points",            icon: "🏅" },
+  // Análise & Navegação
+  { key: "insights",              label: "Insights",                icon: "📊" },
+  { key: "insights-layout",       label: "Insights · Layout",       icon: "🧩" },
+  { key: "nasa-route",            label: "NASA Route",              icon: "🗺️" },
+  // Infra
+  { key: "integrations",          label: "Integrações",             icon: "🔌" },
+  { key: "explorer",              label: "NASA Explorer",           icon: "🚀" },
+  { key: "nbox",                  label: "NBox",                    icon: "📦" },
 ];
 
 export const NASA_ROLES = ["owner", "admin", "member", "moderador"] as const;

@@ -6,6 +6,7 @@ import { Prisma, Workflow } from "@/generated/prisma/client";
 import { sendWorkflowExecution } from "@/inngest/utils";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
+import { logActivity } from "@/lib/activity-logger";
 
 export const updateNewOrder = base
   .use(requiredAuthMiddleware)
@@ -142,6 +143,36 @@ export const updateNewOrder = base
           }),
         ),
       );
+    }
+
+    const tracking = await prisma.tracking.findUnique({
+      where: { id: trackingId },
+      select: { organizationId: true, name: true },
+    });
+
+    if (tracking) {
+      await logActivity({
+        organizationId: tracking.organizationId,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "tracking",
+        subAppSlug: "tracking-pipeline",
+        featureKey: result.statusChanged ? "lead.dragged" : "lead.reordered",
+        action: result.statusChanged ? "lead.dragged" : "lead.reordered",
+        actionLabel: result.statusChanged
+          ? `Moveu o lead "${result.updatedLead.name}" entre colunas`
+          : `Reordenou o lead "${result.updatedLead.name}" na coluna`,
+        resource: result.updatedLead.name,
+        resourceId: result.updatedLead.id,
+        metadata: {
+          trackingName: tracking.name,
+          fromStatusId: result.previousLead.statusId,
+          toStatusId: result.updatedLead.statusId,
+          dragSource: "kanban",
+        },
+      });
     }
 
     return result.updatedLead;

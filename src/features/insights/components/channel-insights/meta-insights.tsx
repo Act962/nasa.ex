@@ -21,6 +21,10 @@ import {
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useDashboardFilters } from "@/features/insights/hooks/use-dashboard-store";
+import { AddToPlannerButton } from "@/features/insights/components/add-to-planner-button";
+import { MetaAdsDrilldown } from "./meta-ads-drilldown";
+import { MetaAdsCampaignManager } from "./meta-ads-campaign-manager";
+import { MetaAccountSwitcher } from "@/features/integrations/components/meta-account-switcher";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -126,8 +130,7 @@ export function MetaInsights() {
     orpc.channelInsights.meta.queryOptions({ input: metaInput }),
   );
 
-  if (!isLoading && !data?.connected) return <NotConnected />;
-
+  const notConnected = !isLoading && !data?.connected;
   const d = data?.data;
   const loading = isLoading || isRefetching;
 
@@ -149,7 +152,7 @@ export function MetaInsights() {
   return (
     <div className="space-y-6">
       {/* Header controls */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-[#0082FB]/40 text-[#0082FB] bg-[#0082FB]/5 gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-[#0082FB] animate-pulse" />
@@ -157,12 +160,33 @@ export function MetaInsights() {
           </Badge>
           <span className="text-sm text-muted-foreground">Dados da conta de anúncios</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <MetaAccountSwitcher />
+          <AddToPlannerButton context="Meta Ads Insights" suggestedTitle="Post baseado em Meta Insights" />
           <Button size="sm" variant="ghost" onClick={() => refetch()} disabled={loading} className="h-8 w-8 p-0">
             <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
           </Button>
         </div>
       </div>
+
+      {notConnected && (
+        <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-amber-500/30 bg-amber-50/40 dark:bg-amber-950/20">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="size-5 text-amber-600 shrink-0" />
+            <div>
+              <p className="text-sm font-medium">Meta Ads não conectado</p>
+              <p className="text-xs text-muted-foreground">
+                Conecte para puxar KPIs ao vivo. As campanhas e snapshots locais seguem visíveis abaixo.
+              </p>
+            </div>
+          </div>
+          <Button asChild size="sm" variant="outline" className="gap-1.5 shrink-0">
+            <Link href="/integrations">
+              Conectar <ArrowRight className="size-3.5" />
+            </Link>
+          </Button>
+        </div>
+      )}
 
       {/* 📊 Alcance e Entrega */}
       <section>
@@ -266,6 +290,22 @@ export function MetaInsights() {
             sub="% do vídeo assistido em média"
             icon={TrendingUp} color="bg-orange-100 text-orange-600 dark:bg-orange-900/40" loading={loading} />
         </div>
+      </section>
+
+      {/* 🔍 Drill-down */}
+      <section className="space-y-4">
+        <SectionHeader icon="🔍" title="Drill-down de performance"
+          description="Detalhe por campanha, conjunto de anúncios ou anúncio individual"
+          color="border-cyan-500 bg-cyan-50/50 dark:bg-cyan-950/20" />
+        <MetaAdsDrilldown />
+      </section>
+
+      {/* 📣 Gerenciamento */}
+      <section className="space-y-4">
+        <SectionHeader icon="📣" title="Gerenciar campanhas"
+          description="Crie, pause, ative ou exclua campanhas Meta Ads diretamente do NASA"
+          color="border-fuchsia-500 bg-fuchsia-50/50 dark:bg-fuchsia-950/20" />
+        <MetaAdsCampaignManager />
       </section>
     </div>
   );

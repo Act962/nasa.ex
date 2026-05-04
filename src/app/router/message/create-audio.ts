@@ -11,7 +11,8 @@ import { pusherServer } from "@/lib/pusher";
 import { S3 } from "@/lib/s3-client";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import z from "zod";
-import { attendLeadIfWaiting } from "./utils";
+import { attendLeadIfWaiting, logChatMessageSent } from "./utils";
+import { MessageChannel } from "@/generated/prisma/enums";
 
 export const createMessageWithAudio = base
   .use(requiredAuthMiddleware)
@@ -88,6 +89,8 @@ export const createMessageWithAudio = base
           conversation: {
             select: {
               id: true,
+              channel: true,
+              tracking: { select: { organizationId: true } },
               lead: {
                 select: {
                   id: true,
@@ -121,6 +124,18 @@ export const createMessageWithAudio = base
 
       // Trigger gamification/attendance logic
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+
+      await logChatMessageSent({
+        organizationId: message.conversation.tracking?.organizationId,
+        conversationId: input.conversationId,
+        channel: message.conversation.channel ?? MessageChannel.WHATSAPP,
+        user: { id: context.user.id, name: context.user.name, email: context.user.email, image: (context.user as any).image },
+        messageId: message.id,
+        body: "",
+        mediaType: "audio",
+        leadId: message.conversation.lead.id,
+        leadName: message.conversation.lead.name,
+      });
 
       return {
         message,

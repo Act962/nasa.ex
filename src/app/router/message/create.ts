@@ -13,7 +13,7 @@ import { pusherServer } from "@/lib/pusher";
 import { IntegrationPlatform, MessageChannel } from "@/generated/prisma/enums";
 import z from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { attendLeadIfWaiting } from "./utils";
+import { attendLeadIfWaiting, logChatMessageSent } from "./utils";
 
 export const createTextMessage = base
   .use(requiredAuthMiddleware)
@@ -148,6 +148,18 @@ export const createTextMessage = base
 
       // Trigger gamification/attendance logic
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+
+      await logChatMessageSent({
+        organizationId,
+        conversationId: input.conversationId,
+        channel,
+        user: { id: context.user.id, name: context.user.name, email: context.user.email, image: (context.user as any).image },
+        messageId: message.id,
+        body: input.body,
+        mediaType: "text",
+        leadId: message.conversation.lead.id,
+        leadName: message.conversation.lead.name,
+      });
 
       return {
         message: {

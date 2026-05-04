@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireOrgMiddleware } from "../../middlewares/org";
 import { recordLeadHistory } from "./utils/history";
 import { sendWorkflowExecution } from "@/inngest/utils";
+import { logActivity } from "@/lib/activity-logger";
 
 export const addTagsToLead = base
   .use(requiredAuthMiddleware)
@@ -80,6 +81,37 @@ export const addTagsToLead = base
           }),
         ),
       );
+    }
+
+    const tracking = await prisma.tracking.findUnique({
+      where: { id: lead.trackingId },
+      select: { organizationId: true, name: true },
+    });
+    if (tracking) {
+      const tags = await prisma.tag.findMany({
+        where: { id: { in: input.tagIds } },
+        select: { id: true, name: true },
+      });
+      await logActivity({
+        organizationId: tracking.organizationId,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "tracking",
+        subAppSlug: "tracking-pipeline",
+        featureKey: "lead.tag.added",
+        action: "lead.tag.added",
+        actionLabel: `Adicionou ${result.count} tag(s) ao lead "${lead.name}"`,
+        resource: lead.name,
+        resourceId: lead.id,
+        metadata: {
+          trackingName: tracking.name,
+          tagIds: input.tagIds,
+          tagNames: tags.map((t) => t.name),
+          count: result.count,
+        },
+      });
     }
 
     return {

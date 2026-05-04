@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { buildFirstRemindAt } from "@/lib/reminder-recurrence";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
 import { ReminderRecurrenceType } from "@/generated/prisma/enums";
@@ -27,6 +28,7 @@ export const createReminder = base
         leadId: z.string().optional(),
         conversationId: z.string().optional(),
         trackingId: z.string().optional(),
+        actionId: z.string().optional(),
       })
       .refine(
         (data) =>
@@ -49,6 +51,7 @@ export const createReminder = base
       leadId,
       conversationId,
       trackingId,
+      actionId,
     } = input;
 
     // Calcula a primeira data de disparo
@@ -67,6 +70,7 @@ export const createReminder = base
         leadId: leadId ?? null,
         conversationId: conversationId ?? null,
         trackingId: trackingId ?? null,
+        actionId: actionId ?? null,
       },
     });
 
@@ -75,6 +79,78 @@ export const createReminder = base
       name: "reminder/created",
       data: { reminderId: reminder.id },
     });
+
+    // 3. Tenta resolver organizationId via referências (lead/conversation/tracking/action)
+    let organizationId: string | undefined;
+    let leadName: string | undefined;
+    let trackingName: string | undefined;
+    if (leadId) {
+      const lead = await prisma.lead.findUnique({
+        where: { id: leadId },
+        select: {
+          name: true,
+          tracking: { select: { organizationId: true, name: true } },
+        },
+      });
+      organizationId = lead?.tracking?.organizationId;
+      leadName = lead?.name;
+      trackingName = lead?.tracking?.name;
+    } else if (conversationId) {
+      const conv = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        select: {
+          tracking: { select: { organizationId: true, name: true } },
+          lead: { select: { name: true } },
+        },
+      });
+      organizationId = conv?.tracking?.organizationId;
+      leadName = conv?.lead?.name;
+      trackingName = conv?.tracking?.name;
+    } else if (trackingId) {
+      const tr = await prisma.tracking.findUnique({
+        where: { id: trackingId },
+        select: { organizationId: true, name: true },
+      });
+      organizationId = tr?.organizationId;
+      trackingName = tr?.name;
+    } else {
+      const member = await prisma.member.findFirst({
+        where: { userId: context.user.id },
+        select: { organizationId: true },
+      });
+      organizationId = member?.organizationId;
+    }
+
+    if (organizationId) {
+      const isRecurring = recurrenceType !== ReminderRecurrenceType.ONCE;
+      const subjectName = leadName ?? trackingName ?? "lembrete";
+      await logActivity({
+        organizationId,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "chat",
+        subAppSlug: isRecurring ? "tracking-reminders-recurring" : "tracking-reminders",
+        featureKey: isRecurring ? "reminder.recurring.created" : "reminder.created",
+        action: isRecurring ? "reminder.recurring.created" : "reminder.created",
+        actionLabel: isRecurring
+          ? `Criou lembrete recorrente (${recurrenceType.toLowerCase()}) para "${subjectName}"`
+          : `Criou lembrete para "${subjectName}"`,
+        resource: subjectName,
+        resourceId: reminder.id,
+        metadata: {
+          recurrenceType,
+          leadId: leadId ?? undefined,
+          conversationId: conversationId ?? undefined,
+          trackingId: trackingId ?? undefined,
+          actionId: actionId ?? undefined,
+          remindTime,
+          dayOfMonth: dayOfMonth ?? undefined,
+          nextRemindAt,
+        },
+      });
+    }
 
     return { reminder };
   });

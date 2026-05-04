@@ -27,6 +27,12 @@ import { WidgetList } from "./widget";
 import { ChannelInsights } from "./channel-insights";
 import { AppSelector } from "./app-selector";
 import { CrossDataOverview } from "./cross-data-overview";
+import { CrossInsightsPanel } from "./cross-insights-panel";
+import { OrgLayoutProvider } from "@/features/insights/context/org-layout-provider";
+import { AppMetricCard } from "./app-metric-card";
+import { AddInsightButton } from "./add-insight-button";
+import { LayoutEditToolbar } from "./layout-edit-toolbar";
+import { WidgetTag } from "./widget";
 import {
   ForgeSection,
   SpacetimeSection,
@@ -39,13 +45,17 @@ import {
   LinnkerSection,
   SpacePointsSection,
   StarsSection,
+  SpaceStationSection,
+  NasaRouteSection,
 } from "./apps-sections";
+import { SortableDashboardSections } from "./sortable-dashboard-sections";
 import { useQueryAppsInsights } from "@/features/insights/hooks/use-dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { CustomizableChart } from "./customizable-chart";
 import { InsightReport } from "./insight-report";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
+import { InsightsTabsNav } from "./insights-tabs-nav";
 
 interface TrackingDashboardProps {
   initialData?: DashboardReport;
@@ -164,9 +174,11 @@ export function TrackingDashboard({
   const showTrackingFilters = selectedModules.includes("tracking");
 
   return (
+    <OrgLayoutProvider>
     <Tabs defaultValue="general">
       <div className="flex flex-col h-full w-full">
         <HeaderTracking title="Insights" />
+        <InsightsTabsNav />
         <div className="sm:sticky top-10 z-10 bg-background/95 backdrop-blur-sm border-b py-4 space-y-4 px-2 sm:px-6">
           <DashboardHeader
             settings={settings}
@@ -175,7 +187,75 @@ export function TrackingDashboard({
             onReset={resetSettings}
             onRefresh={refresh}
             isLoading={isLoading}
+            filters={{
+              trackingId,
+              organizationIds,
+              tagIds,
+              dateRange,
+            }}
+            modules={selectedModules}
+            snapshotData={{
+              period: {
+                startDate: appsInput.startDate,
+                endDate: appsInput.endDate,
+              },
+              tracking: data?.summary
+                ? {
+                    totalLeads: data.summary.totalLeads,
+                    wonLeads: data.summary.wonLeads,
+                    activeLeads: data.summary.activeLeads,
+                    conversionRate: data.summary.conversionRate,
+                  }
+                : undefined,
+              chat: appsInsights?.chat
+                ? {
+                    totalConversations: appsInsights.chat.totalConversations,
+                    totalMessages: appsInsights.chat.totalMessages,
+                    attendedConversations:
+                      appsInsights.chat.attendedConversations,
+                    attendanceRate: appsInsights.chat.attendanceRate,
+                  }
+                : undefined,
+              forge: appsInsights?.forge
+                ? {
+                    totalProposals: appsInsights.forge.totalProposals,
+                    pagas: appsInsights.forge.pagas,
+                    revenueTotal: appsInsights.forge.revenueTotal,
+                  }
+                : undefined,
+              spacetime: appsInsights?.spacetime
+                ? {
+                    total: appsInsights.spacetime.total,
+                    confirmed: appsInsights.spacetime.confirmed,
+                    done: appsInsights.spacetime.done,
+                  }
+                : undefined,
+              nasaPlanner: appsInsights?.nasaPlanner
+                ? {
+                    total: appsInsights.nasaPlanner.total,
+                    published: appsInsights.nasaPlanner.published,
+                    starsSpent: appsInsights.nasaPlanner.starsSpent,
+                  }
+                : undefined,
+              metaAds:
+                metaInsights?.connected && metaInsights.data
+                  ? {
+                      spend: metaInsights.data.spend,
+                      leads: metaInsights.data.leads,
+                      cpl: metaInsights.data.cpl,
+                      roas: metaInsights.data.roas,
+                    }
+                  : undefined,
+              filters: {
+                trackingId,
+                organizationIds,
+                tagIds,
+                dateRange,
+              },
+              modules: selectedModules,
+            }}
           />
+          <LayoutEditToolbar />
 
           {/* App Selector */}
           <AppSelector
@@ -391,48 +471,49 @@ export function TrackingDashboard({
               }
             />
 
-            {/* App-specific sections */}
-            <div className="space-y-8">
-              {selectedModules.includes("forge") && appsInsights?.forge && (
-                <ForgeSection data={appsInsights.forge} />
+            <CrossInsightsPanel />
+
+            {/* App-specific sections + tags + métricas — drag & drop unificado */}
+            <SortableDashboardSections
+              selectedModules={selectedModules}
+              sections={{
+                tracking: null,
+                chat: null,
+                forge: appsInsights?.forge ? <ForgeSection data={appsInsights.forge} /> : null,
+                spacetime: appsInsights?.spacetime ? <SpacetimeSection data={appsInsights.spacetime} /> : null,
+                "nasa-planner": appsInsights?.nasaPlanner ? <NasaPlannerSection data={appsInsights.nasaPlanner} /> : null,
+                integrations: <IntegrationsSection metaAds={metaInsights ?? undefined} />,
+                workspace: appsInsights?.workspace ? <WorkspaceSection data={appsInsights.workspace} /> : null,
+                forms: appsInsights?.forms ? <FormsSection data={appsInsights.forms} /> : null,
+                nbox: appsInsights?.nbox ? <NBoxSection data={appsInsights.nbox} /> : null,
+                payment: appsInsights?.payment ? <PaymentSection data={appsInsights.payment} /> : null,
+                linnker: appsInsights?.linnker ? <LinnkerSection data={appsInsights.linnker} /> : null,
+                "space-points": appsInsights?.spacePoints ? <SpacePointsSection data={appsInsights.spacePoints} /> : null,
+                stars: appsInsights?.stars ? <StarsSection data={appsInsights.stars} /> : null,
+                "space-station": appsInsights?.spaceStation ? <SpaceStationSection data={appsInsights.spaceStation} /> : null,
+                "nasa-route": appsInsights?.nasaRoute ? <NasaRouteSection data={appsInsights.nasaRoute} /> : null,
+              }}
+              renderTagTile={(b) => (
+                <WidgetTag
+                  title={b.title ?? "Tag"}
+                  tagId={b.tagId}
+                  organizationId={organizationIds[0] ?? ""}
+                  id={b.id}
+                  organizationIds={organizationIds}
+                />
               )}
-              {selectedModules.includes("spacetime") &&
-                appsInsights?.spacetime && (
-                  <SpacetimeSection data={appsInsights.spacetime} />
-                )}
-              {selectedModules.includes("nasa-planner") &&
-                appsInsights?.nasaPlanner && (
-                  <NasaPlannerSection data={appsInsights.nasaPlanner} />
-                )}
-              {selectedModules.includes("integrations") && (
-                <IntegrationsSection metaAds={metaInsights ?? undefined} />
+              renderAppMetric={(b) => (
+                <AppMetricCard
+                  blockId={b.id}
+                  appSlug={b.appSlug}
+                  metricKey={b.metricKey}
+                  label={b.label}
+                />
               )}
-              {selectedModules.includes("workspace") &&
-                appsInsights?.workspace && (
-                  <WorkspaceSection data={appsInsights.workspace} />
-                )}
-              {selectedModules.includes("forms") && appsInsights?.forms && (
-                <FormsSection data={appsInsights.forms} />
+              renderAddAnchor={() => (
+                <AddInsightButton organizationIds={organizationIds} />
               )}
-              {selectedModules.includes("nbox") && appsInsights?.nbox && (
-                <NBoxSection data={appsInsights.nbox} />
-              )}
-              {selectedModules.includes("payment") &&
-                appsInsights?.payment && (
-                  <PaymentSection data={appsInsights.payment} />
-                )}
-              {selectedModules.includes("linnker") &&
-                appsInsights?.linnker && (
-                  <LinnkerSection data={appsInsights.linnker} />
-                )}
-              {selectedModules.includes("space-points") &&
-                appsInsights?.spacePoints && (
-                  <SpacePointsSection data={appsInsights.spacePoints} />
-                )}
-              {selectedModules.includes("stars") && appsInsights?.stars && (
-                <StarsSection data={appsInsights.stars} />
-              )}
-            </div>
+            />
 
             <WidgetList organizationIds={organizationIds} />
           </TabsContent>
@@ -575,5 +656,6 @@ export function TrackingDashboard({
         />
       </div>
     </Tabs>
+    </OrgLayoutProvider>
   );
 }

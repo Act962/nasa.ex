@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { TemplateCategory } from "@/generated/prisma/enums";
 import z from "zod";
@@ -24,6 +25,7 @@ export const publishWorldTemplate = base
   )
   .handler(async ({ input, context }) => {
     const userId = context.user.id;
+    const orgId = context.session.activeOrganizationId;
     const template = await prisma.worldTemplate.create({
       data: {
         name:        input.name,
@@ -36,5 +38,24 @@ export const publishWorldTemplate = base
         authorId:    userId,
       },
     });
+
+    if (orgId) {
+      await logActivity({
+        organizationId: orgId,
+        userId,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "space-station",
+        subAppSlug: "station-templates",
+        featureKey: "station.template.published",
+        action: "station.template.published",
+        actionLabel: `Publicou o template "${template.name}"${input.isPublic ? " (público)" : ""}`,
+        resource: template.name,
+        resourceId: template.id,
+        metadata: { category: template.category, isPublic: template.isPublic },
+      });
+    }
+
     return { template };
   });

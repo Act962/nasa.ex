@@ -5,6 +5,7 @@ import { orpc } from "@/lib/orpc";
 import { SidebarHeader, SidebarInset } from "@/components/ui/sidebar";
 import { HeaderTracking } from "../../../../features/leads/components/header-tracking";
 import { TrackingList } from "../../../../features/trackings/components/tracking-list";
+import { AppPinnedInsightsStrip } from "@/components/app-pinned-insights-strip";
 
 export default async function TrackingPage() {
   const queryClient = getQueryClient();
@@ -14,6 +15,7 @@ export default async function TrackingPage() {
   return (
     <SidebarInset className="min-h-full pb-8">
       <HeaderTracking />
+      <AppPinnedInsightsStrip appModule="tracking" />
       <div className="h-full px-4">
         <Heading />
 

@@ -46,11 +46,13 @@ export const createItem = base
       userEmail: context.user.email,
       userImage: (context.user as any).image,
       appSlug: "nbox",
+      subAppSlug: "nbox-items",
+      featureKey: input.type === NBoxItemType.FILE ? "nbox.file.uploaded" : "nbox.link.added",
       action: "nbox.item.created",
-      actionLabel: `Adicionou o arquivo "${item.name}" no NBox`,
+      actionLabel: `Adicionou o ${input.type === NBoxItemType.FILE ? "arquivo" : "link"} "${item.name}" no NBox`,
       resource: item.name,
       resourceId: item.id,
-      metadata: { type: item.type },
+      metadata: { type: item.type, hasFolder: !!input.folderId, size: item.size },
     });
 
     return { item };

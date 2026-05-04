@@ -151,7 +151,7 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSignIn)} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+    <form method="post" onSubmit={handleSubmit(onSignIn)} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: 4 }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: "white", letterSpacing: "-0.5px", marginBottom: 6 }}>

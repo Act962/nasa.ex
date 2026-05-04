@@ -8,16 +8,18 @@ interface UseListRemindersOptions {
   conversationId?: string;
   leadId?: string;
   trackingId?: string;
+  actionId?: string;
 }
 
 export function useListReminders({
   conversationId,
   leadId,
   trackingId,
+  actionId,
 }: UseListRemindersOptions) {
   return useQuery(
     orpc.reminder.list.queryOptions({
-      input: { conversationId, leadId, trackingId },
+      input: { conversationId, leadId, trackingId, actionId },
     })
   );
 }
@@ -26,6 +28,7 @@ export function useCreateReminder({
   conversationId,
   leadId,
   trackingId,
+  actionId,
 }: UseListRemindersOptions) {
   const queryClient = useQueryClient();
 
@@ -34,7 +37,7 @@ export function useCreateReminder({
     onSuccess: () => {
       queryClient.invalidateQueries(
         orpc.reminder.list.queryOptions({
-          input: { conversationId, leadId, trackingId },
+          input: { conversationId, leadId, trackingId, actionId },
         })
       );
       toast.success("Lembrete criado com sucesso!");
@@ -49,6 +52,7 @@ export function useDeleteReminder({
   conversationId,
   leadId,
   trackingId,
+  actionId,
 }: UseListRemindersOptions) {
   const queryClient = useQueryClient();
 
@@ -57,7 +61,7 @@ export function useDeleteReminder({
     onSuccess: () => {
       queryClient.invalidateQueries(
         orpc.reminder.list.queryOptions({
-          input: { conversationId, leadId, trackingId },
+          input: { conversationId, leadId, trackingId, actionId },
         })
       );
       toast.success("Lembrete removido com sucesso");

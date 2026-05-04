@@ -1,4 +1,5 @@
 import { base } from "@/app/middlewares/base";
+import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { LeadSource } from "@/generated/prisma/enums";
 import z from "zod";
@@ -75,6 +76,28 @@ export const captureLinnkerLead = base
       where: { id: linkId },
       data: { clicks: { increment: 1 } },
     });
+
+    const owner = await prisma.user.findUnique({
+      where: { id: page.userId },
+      select: { id: true, name: true, email: true, image: true },
+    });
+    if (owner) {
+      await logActivity({
+        organizationId: page.organizationId,
+        userId: owner.id,
+        userName: owner.name,
+        userEmail: owner.email,
+        userImage: owner.image,
+        appSlug: "linnker",
+        subAppSlug: "linnker-leads",
+        featureKey: "linnker.lead.captured",
+        action: "linnker.lead.captured",
+        actionLabel: `Lead "${name}" capturado via Linnker "${page.title}"`,
+        resource: name,
+        resourceId: lead.id,
+        metadata: { pageId: page.id, linkId, isNew: !existing },
+      });
+    }
 
     return { message: "Lead capturado com sucesso", leadId: lead.id, redirectUrl: link.url };
   });

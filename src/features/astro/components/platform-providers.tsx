@@ -8,6 +8,7 @@ import { SpacePointProvider } from "@/features/space-point";
 import { TourProvider } from "@/features/tour/context";
 import { TourOverlay } from "@/features/tour/overlay";
 import { useGlobalShortcuts } from "@/features/admin/components/shortcuts-client";
+import { ConnectionWizardDialog } from "@/features/integrations/components/connection-wizard/connection-wizard-dialog";
 
 function GlobalShortcutsRegistrar() {
   useGlobalShortcuts();
@@ -44,6 +45,7 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
           {children}
           <GlobalShortcutsRegistrar />
           <AstroAgent />
+          <ConnectionWizardDialog />
           <TourOverlay />
           <HeartbeatProvider />
         </SpacePointProvider>

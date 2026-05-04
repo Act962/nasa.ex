@@ -123,7 +123,7 @@ export function useDeletePlannerPost() {
     orpc.nasaPlanner.posts.delete.mutationOptions({
       onSuccess: () => {
         toast.success("Post excluído!");
-        qc.invalidateQueries({ queryKey: ["nasaPlanner", "posts", "getMany"] });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
       },
       onError: () => toast.error("Erro ao excluir post"),
     }),
@@ -139,7 +139,7 @@ export function useGeneratePlannerPost() {
         toast.success(
           `Post gerado! ${data.starsSpent} stars usadas. Saldo: ${data.balanceAfter}`,
         );
-        qc.invalidateQueries({ queryKey: ["nasaPlanner", "posts", "getMany"] });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
         earn("create_post", "Post gerado com IA ✨");
       },
       onError: (err: any) =>
@@ -154,7 +154,7 @@ export function useApprovePlannerPost() {
     orpc.nasaPlanner.posts.approve.mutationOptions({
       onSuccess: () => {
         toast.success("Post aprovado!");
-        qc.invalidateQueries({ queryKey: ["nasaPlanner", "posts", "getMany"] });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
       },
       onError: () => toast.error("Erro ao aprovar post"),
     }),
@@ -168,11 +168,200 @@ export function useSchedulePlannerPost() {
     orpc.nasaPlanner.posts.schedule.mutationOptions({
       onSuccess: () => {
         toast.success("Post agendado!");
-        qc.invalidateQueries({ queryKey: ["nasaPlanner", "posts", "getMany"] });
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
         earn("post_published", "Post agendado com sucesso 🕒");
       },
       onError: (err: any) =>
         toast.error(err?.message ?? "Erro ao agendar post"),
+    }),
+  );
+}
+
+export function usePublishPlannerPost() {
+  const qc = useQueryClient();
+  const { earn } = useSpacePointCtx();
+  return useMutation(
+    orpc.nasaPlanner.posts.publish.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(`Post publicado! ${data.balanceAfter} stars restantes`);
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+        earn("post_published", "Post publicado no Planner 🚀");
+      },
+      onError: (err: any) => toast.error(err?.message ?? "Erro ao publicar post"),
+    }),
+  );
+}
+
+export function useSyncPostMetrics() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.syncMetrics.mutationOptions({
+      onSuccess: () => {
+        toast.success("Métricas sincronizadas");
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+      },
+      onError: (err: any) => toast.error(err?.message ?? "Erro ao sincronizar métricas"),
+    }),
+  );
+}
+
+export function useGeneratePlannerPostImage() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.generateImage.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(`Imagem gerada! ${data.starsSpent} star${data.starsSpent !== 1 ? "s" : ""} usada${data.starsSpent !== 1 ? "s" : ""}`);
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+      },
+      onError: (err: any) => toast.error(err?.message ?? "Erro ao gerar imagem"),
+    }),
+  );
+}
+
+export function useUploadPlannerPostImage() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.uploadImage.mutationOptions({
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+      },
+      onError: () => toast.error("Erro ao fazer upload da imagem"),
+    }),
+  );
+}
+
+export function useUpdatePlannerPostSlide() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.updateSlide.mutationOptions({
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+      },
+      onError: () => toast.error("Erro ao salvar slide"),
+    }),
+  );
+}
+
+export function useAttachVideo() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.attachVideo.mutationOptions({
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+      },
+      onError: () => toast.error("Erro ao anexar vídeo"),
+    }),
+  );
+}
+
+export function useAddVideoClip() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.addVideoClip.mutationOptions({
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+      },
+      onError: () => toast.error("Erro ao adicionar clipe"),
+    }),
+  );
+}
+
+export function useSaveEditedVideo() {
+  const qc = useQueryClient();
+  const { earn } = useSpacePointCtx();
+  return useMutation(
+    orpc.nasaPlanner.posts.saveEditedVideo.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(`Vídeo salvo! ${data.starsSpent} star${data.starsSpent !== 1 ? "s" : ""} usada${data.starsSpent !== 1 ? "s" : ""}`);
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+        earn("create_post", "Vídeo editado no Planner 🎬");
+      },
+      onError: (err: any) => toast.error(err?.message ?? "Erro ao salvar vídeo editado"),
+    }),
+  );
+}
+
+export function useSchedulePlannerPostReal() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.scheduleReal.mutationOptions({
+      onSuccess: () => {
+        toast.success("Post agendado para publicação!");
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+      },
+      onError: (err: any) => toast.error(err?.message ?? "Erro ao agendar post"),
+    }),
+  );
+}
+
+export function useGenerateImageFromReference() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.generateImageFromReference.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(`Imagem gerada! ${data.starsSpent} star usada.`);
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+      },
+      onError: (err: any) => toast.error(err?.message ?? "Erro ao gerar imagem por referência"),
+    }),
+  );
+}
+
+export function useAddSlidesBatch() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.addSlidesBatch.mutationOptions({
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+      },
+      onError: () => toast.error("Erro ao adicionar slides"),
+    }),
+  );
+}
+
+export function useRemovePostSlide() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.removeSlide.mutationOptions({
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+      },
+      onError: () => toast.error("Erro ao remover slide"),
+    }),
+  );
+}
+
+export function useRemovePostMedia() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nasaPlanner.posts.removeMedia.mutationOptions({
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+      },
+      onError: () => toast.error("Erro ao remover mídia"),
+    }),
+  );
+}
+
+export function useTranscribeVideo() {
+  return useMutation(
+    orpc.nasaPlanner.posts.transcribeVideo.mutationOptions({
+      onError: (err: any) => toast.error(err?.message ?? "Erro ao transcrever vídeo"),
+    }),
+  );
+}
+
+export function useGenerateVideoClip() {
+  const qc = useQueryClient();
+  const { earn } = useSpacePointCtx();
+  return useMutation(
+    orpc.nasaPlanner.posts.generateVideoClip.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(`Vídeo gerado! ${data.starsSpent} stars usadas.`);
+        qc.invalidateQueries({ queryKey: orpc.nasaPlanner.posts.getMany.key() });
+        earn("create_post", "Vídeo gerado com IA 🤖");
+      },
+      onError: (err: any) => toast.error(err?.message ?? "Erro ao gerar vídeo com IA"),
     }),
   );
 }

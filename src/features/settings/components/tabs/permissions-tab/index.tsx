@@ -13,6 +13,7 @@ import {
   ChevronUp,
   Lock,
   UserPlus,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -22,11 +23,13 @@ import { PermissionMatrix } from "./permission-matrix";
 import { MemberList } from "./member-list";
 import { AddMemberDialog } from "./add-member-dialog";
 import { StarsHistory } from "./stars-history";
+import { MetaAccountsTab } from "./meta-accounts-tab";
 import { usePermissionsMutations } from "./hooks/use-permissions-mutations";
 
 export function PermissionsTab() {
   const { data: session } = authClient.useSession();
   const [showMatrix, setShowMatrix] = useState(true);
+  const [showMetaAccounts, setShowMetaAccounts] = useState(false);
 
   // Add member dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -207,6 +210,26 @@ export function PermissionsTab() {
           </div>
         )}
       </div>
+
+      {/* ── Acesso por conta Meta ─────────────────────────────────────────── */}
+      {isMaster && (
+        <div className="space-y-3">
+          <button
+            className="flex items-center gap-2 text-base font-semibold w-full text-left"
+            onClick={() => setShowMetaAccounts((v) => !v)}
+          >
+            <Building2 className="size-4" />
+            Acesso por conta Meta
+            {showMetaAccounts ? (
+              <ChevronUp className="size-4 ml-auto" />
+            ) : (
+              <ChevronDown className="size-4 ml-auto" />
+            )}
+          </button>
+
+          {showMetaAccounts && <MetaAccountsTab />}
+        </div>
+      )}
 
       {/* ── Stars usage ───────────────────────────────────────────────────── */}
       {isMaster && (

@@ -184,11 +184,13 @@ export const createLeadWithTags = base
           userEmail: context.user.email,
           userImage: (context.user as any).image,
           appSlug: "tracking",
+          subAppSlug: "tracking-pipeline",
+          featureKey: "lead.created",
           action: "lead.created",
           actionLabel: `Criou o lead "${input.name}"`,
           resource: input.name,
           resourceId: lead.id,
-          metadata: { phone: input.phone, trackingName: lead.tracking.name },
+          metadata: { phone: input.phone, trackingName: lead.tracking.name, hasTags: (input.tagIds?.length ?? 0) > 0 },
         });
       }
 

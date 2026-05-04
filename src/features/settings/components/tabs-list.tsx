@@ -6,7 +6,6 @@ import {
   UsersIcon,
   ShieldCheck,
   FileInput,
-  Clock,
   Bell,
   FolderIcon,
   CreditCard,
@@ -46,12 +45,6 @@ const tabsLink = [
     href: "/permissions",
     icon: ShieldCheck,
     singleAllowed: true, // can see but can't edit
-  },
-  {
-    label: "Histórico",
-    href: "/history",
-    icon: Clock,
-    singleAllowed: false,
   },
   {
     label: "Importar",

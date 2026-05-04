@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   PlusIcon, SparklesIcon, TrashIcon, CheckCircle2Icon,
-  ClockIcon, MoreVerticalIcon, BuildingIcon, FolderIcon, RocketIcon, XIcon, LinkIcon,
+  ClockIcon, CalendarCheckIcon, CalendarIcon, MoreVerticalIcon, BuildingIcon, FolderIcon, RocketIcon, XIcon, LinkIcon, MegaphoneIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -24,7 +25,9 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
@@ -37,9 +40,18 @@ import { useQuery } from "@tanstack/react-query";
 import {
   useNasaPlannerPosts, useCreatePlannerPost, useDeletePlannerPost,
   useGeneratePlannerPost, useApprovePlannerPost, useSchedulePlannerPost,
+  usePublishPlannerPost, useUpdatePlannerPost,
 } from "../../hooks/use-nasa-planner";
-import { EyeIcon, DownloadIcon } from "lucide-react";
+import { EyeIcon, DownloadIcon, ImagePlusIcon, SendIcon, LayersIcon } from "lucide-react";
 import { POST_STATUSES, POST_NETWORKS } from "../../constants";
+import { ImageEditorDialog } from "../image-editor/image-editor-dialog";
+import { VideoEditorDialog } from "../video-editor/video-editor-dialog";
+import { VideoIcon } from "lucide-react";
+import { PostMediaUploader } from "../post-media-uploader";
+import { useNetworkConnectionStatus } from "../../hooks/use-network-status";
+import { PostMetricsRow } from "../post-metrics-row";
+import { PostPreview } from "../post-preview";
+import { PublishTargetPicker } from "../publish-target-picker";
 
 const POST_TYPE_OPTIONS = [
   { value: "STATIC", label: "Imagem" },
@@ -54,14 +66,19 @@ const POST_TYPE_LABELS: Record<string, string> = {
 
 export function PostsTab({ plannerId }: { plannerId: string }) {
   const { posts, isLoading } = useNasaPlannerPosts(plannerId);
+  const { isConnected } = useNetworkConnectionStatus();
   const createPost = useCreatePlannerPost();
   const deletePost = useDeletePlannerPost();
   const generatePost = useGeneratePlannerPost();
   const approvePost = useApprovePlannerPost();
   const schedulePost = useSchedulePlannerPost();
+  const publishPost = usePublishPlannerPost();
+  const updatePost = useUpdatePlannerPost();
 
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [viewImageUrl, setViewImageUrl] = useState<string | null>(null);
+  const [imageEditorPostId, setImageEditorPostId] = useState<string | null>(null);
+  const [videoEditorPostId, setVideoEditorPostId] = useState<string | null>(null);
 
   // Always derive selectedPost from live posts list so thumbnail updates after generation
   const selectedPost = selectedPostId ? (posts.find((p: any) => p.id === selectedPostId) ?? null) : null;
@@ -80,6 +97,8 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
     clientOrgName: "",
     campaignId: null as string | null,
     referenceLinks: [] as string[],
+    scheduledAt: "",
+    isAd: false,
   });
   const [newLinkInput, setNewLinkInput] = useState("");
   const [orgOpen, setOrgOpen] = useState(false);
@@ -104,7 +123,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
   const selectedCampaign = campaigns.find((c: any) => c.id === newPost.campaignId);
 
   const resetForm = () => {
-    setNewPost({ title: "", type: "STATIC", networks: [], caption: "", orgProjectId: null, clientOrgName: "", campaignId: null, referenceLinks: [] });
+    setNewPost({ title: "", type: "STATIC", networks: [], caption: "", orgProjectId: null, clientOrgName: "", campaignId: null, referenceLinks: [], scheduledAt: "", isAd: false });
     setSelectedOrgId(null);
     setNewLinkInput("");
   };
@@ -129,6 +148,8 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
       clientOrgName: newPost.clientOrgName || undefined,
       campaignId: newPost.campaignId ?? undefined,
       referenceLinks: newPost.referenceLinks.length ? newPost.referenceLinks : undefined,
+      scheduledAt: newPost.scheduledAt || undefined,
+      isAd: newPost.isAd,
     });
     setCreateOpen(false);
     resetForm();
@@ -142,7 +163,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
   };
 
   const getImageUrl = (key: string) =>
-    `https://${process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL}/${key}`;
+    key.startsWith("http") ? key : `https://${process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL}/${key}`;
 
   const handleDownloadImage = async (key: string, title?: string) => {
     const url = getImageUrl(key);
@@ -225,7 +246,31 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                       onClick={() => setSelectedPostId(post.id)}
                     >
                       <CardContent className="p-3 space-y-2">
-                        {post.thumbnail && (
+                        {post.type === "CAROUSEL" && (post as any).slides?.length > 0 ? (
+                          <div className="relative rounded-md overflow-hidden w-full bg-muted">
+                            <div className="grid grid-cols-3 gap-0.5">
+                              {(post as any).slides.slice(0, 6).map((slide: any, idx: number) => (
+                                <div key={slide.id} className="aspect-square bg-muted overflow-hidden">
+                                  {slide.imageKey ? (
+                                    <img
+                                      src={getImageUrl(slide.imageKey)}
+                                      alt={`Slide ${idx + 1}`}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-muted">
+                                      <ImagePlusIcon className="size-4 text-muted-foreground/30" />
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] font-medium rounded px-1.5 py-0.5 flex items-center gap-1">
+                              <LayersIcon className="size-2.5" />{(post as any).slides.length}
+                            </div>
+                          </div>
+                        ) : post.thumbnail ? (
                           <div className="rounded-md overflow-hidden aspect-square w-full bg-muted">
                             <img
                               src={getImageUrl(post.thumbnail)}
@@ -234,7 +279,19 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                             />
                           </div>
-                        )}
+                        ) : (post as any).videoKey ? (
+                          <div className="rounded-md aspect-square w-full bg-muted overflow-hidden relative">
+                            <video
+                              src={getImageUrl((post as any).videoKey)}
+                              className="w-full h-full object-cover"
+                              muted
+                              preload="metadata"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                              <VideoIcon className="size-8 text-white drop-shadow" />
+                            </div>
+                          </div>
+                        ) : null}
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-sm font-medium line-clamp-2 flex-1">{post.title}</p>
                           <DropdownMenu>
@@ -244,6 +301,16 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              {post.type !== "REEL" && (
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setImageEditorPostId(post.id); }}>
+                                  <ImagePlusIcon className="size-3.5 mr-2 text-pink-500" />Editar Imagem
+                                </DropdownMenuItem>
+                              )}
+                              {(post.type === "REEL" || !!(post as any).videoKey) && (
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setVideoEditorPostId(post.id); }}>
+                                  <VideoIcon className="size-3.5 mr-2 text-violet-500" />Editar Vídeo
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleGenerate(post.id); }}>
                                 <SparklesIcon className="size-3.5 mr-2" />Gerar com IA
                               </DropdownMenuItem>
@@ -257,6 +324,35 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                                   <ClockIcon className="size-3.5 mr-2" />Agendar
                                 </DropdownMenuItem>
                               )}
+                              {post.status !== "PUBLISHED" && (
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); publishPost.mutate({ postId: post.id }); }}>
+                                  <SendIcon className="size-3.5 mr-2 text-violet-500" />Publicar Agora
+                                </DropdownMenuItem>
+                              )}
+                              {post.thumbnail && (
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownloadImage(post.thumbnail!, post.title ?? undefined); }}>
+                                  <DownloadIcon className="size-3.5 mr-2" />Baixar Imagem
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuSub>
+                                <DropdownMenuSubTrigger onClick={(e) => e.stopPropagation()}>
+                                  <RocketIcon className="size-3.5 mr-2" />Mover para
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                  {POST_STATUSES.map((s) => (
+                                    <DropdownMenuItem
+                                      key={s.key}
+                                      disabled={post.status === s.key}
+                                      onClick={(e) => { e.stopPropagation(); updatePost.mutate({ postId: post.id, status: s.key as any }); }}
+                                    >
+                                      {post.status === s.key && <CheckIcon className="size-3 mr-2" />}
+                                      {post.status !== s.key && <span className="size-3 mr-2" />}
+                                      {s.label}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuSubContent>
+                              </DropdownMenuSub>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
@@ -269,22 +365,79 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                         </div>
                         <div className="flex flex-wrap gap-1">
                           {post.type && <Badge variant="outline" className="text-xs px-1.5 py-0">{POST_TYPE_LABELS[post.type] ?? post.type}</Badge>}
+                          {(post as any).isAd && (
+                            <Badge className="text-xs px-1.5 py-0 bg-orange-500 hover:bg-orange-500 text-white gap-1">
+                              <MegaphoneIcon className="size-2.5" />Anúncio
+                            </Badge>
+                          )}
                           {(post.targetNetworks ?? []).map((net: string) => (
-                            <Badge key={net} variant="secondary" className="text-xs px-1.5 py-0">{POST_NETWORKS[net] ?? net}</Badge>
+                            <Badge key={net} variant="secondary" className="text-xs px-1.5 py-0 gap-1">
+                              <span className={`size-1.5 rounded-full shrink-0 ${isConnected(net) ? "bg-emerald-500" : "bg-zinc-400"}`} />
+                              {POST_NETWORKS[net] ?? net}
+                            </Badge>
                           ))}
                         </div>
-                        {(post.clientOrgName || post.orgProject) && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <BuildingIcon className="size-3" />
-                            {post.clientOrgName ?? post.orgProject?.name}
-                          </p>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {post.clientOrgName?.trim() && (
+                            <Avatar className="size-5 shrink-0 ring-1 ring-background" title={post.clientOrgName}>
+                              <AvatarImage
+                                src={(organizations ?? []).find((o: any) => o.name === post.clientOrgName)?.logo ?? ""}
+                                alt={post.clientOrgName}
+                              />
+                              <AvatarFallback className="text-[8px] font-bold bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300">
+                                {post.clientOrgName.trim()[0].toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                          {post.orgProject?.name?.trim() && (
+                            <Avatar className="size-5 shrink-0 ring-1 ring-background" title={post.orgProject.name}>
+                              <AvatarImage src={post.orgProject.avatar ?? ""} alt={post.orgProject.name} />
+                              <AvatarFallback className="text-[8px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                                {post.orgProject.name.trim()[0].toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                          {post.createdBy && (
+                            <Avatar className="size-5 shrink-0 ring-1 ring-background ml-auto" title={post.createdBy.name}>
+                              <AvatarImage src={post.createdBy.image ?? ""} alt={post.createdBy.name} />
+                              <AvatarFallback className="text-[8px] font-bold">
+                                {post.createdBy.name?.[0]?.toUpperCase() ?? "?"}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
+                        {post.status === "PUBLISHED" && (
+                          <PostMetricsRow
+                            reach={post.metricsReach}
+                            likes={post.metricsLikes}
+                            comments={post.metricsComments}
+                            videoViews={post.metricsVideoViews}
+                          />
                         )}
-                        {post.scheduledAt && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <ClockIcon className="size-3" />
-                            {format(new Date(post.scheduledAt), "dd/MM HH:mm")}
-                          </p>
-                        )}
+                        {(() => {
+                          if (post.status === "PUBLISHED" && post.publishedAt) {
+                            return (
+                              <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                                <CalendarCheckIcon className="size-3" />
+                                Publicado {format(new Date(post.publishedAt), "dd/MM HH:mm")}
+                              </p>
+                            );
+                          }
+                          if (post.scheduledAt) {
+                            return (
+                              <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                                <ClockIcon className="size-3" />
+                                {format(new Date(post.scheduledAt), "dd/MM HH:mm")}
+                              </p>
+                            );
+                          }
+                          return (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <CalendarIcon className="size-3" />
+                              {format(new Date(post.createdAt), "dd/MM HH:mm")}
+                            </p>
+                          );
+                        })()}
                       </CardContent>
                     </Card>
                   ))}
@@ -302,12 +455,13 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
 
       {/* Post Detail */}
       <Dialog open={!!selectedPost} onOpenChange={(o) => !o && setSelectedPostId(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
+        <DialogContent className="max-w-lg max-h-[95vh] sm:max-h-[80vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-5 pb-3 shrink-0 border-b">
             <DialogTitle className="line-clamp-1">{selectedPost?.title}</DialogTitle>
           </DialogHeader>
           {selectedPost && (
-            <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <PostPreview post={selectedPost as any} />
               {selectedPost.thumbnail ? (
                 <div className="relative group rounded-lg overflow-hidden aspect-square w-full max-w-xs mx-auto bg-muted">
                   <img
@@ -337,12 +491,18 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                     </Button>
                   </div>
                 </div>
-              ) : (
-                <div className="rounded-lg border-2 border-dashed aspect-square w-full max-w-xs mx-auto bg-muted/30 flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                  <SparklesIcon className="size-8 opacity-30" />
-                  <p className="text-xs">Gere com IA para criar a imagem</p>
-                </div>
-              )}
+              ) : null}
+
+              {/* Media uploader — always visible */}
+              <PostMediaUploader
+                postId={selectedPost.id}
+                postType={selectedPost.type ?? "STATIC"}
+                hasImage={!!selectedPost.thumbnail}
+                hasVideo={!!(selectedPost as any).videoKey}
+                thumbnailUrl={selectedPost.thumbnail}
+                slides={(selectedPost as any).slides ?? []}
+                onDone={() => setSelectedPostId(selectedPost.id)}
+              />
 
               {/* Action buttons below image */}
               {selectedPost.thumbnail && (
@@ -380,6 +540,58 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
                   <BuildingIcon className="size-3.5" />{selectedPost.clientOrgName}
                 </p>
               )}
+
+              <PublishTargetPicker
+                targetNetworks={selectedPost.targetNetworks ?? []}
+                igAccountId={(selectedPost as any).targetIgAccountId}
+                fbPageId={(selectedPost as any).targetFbPageId}
+                disabled={updatePost.isPending || selectedPost.status === "PUBLISHED"}
+                onChange={(patch) =>
+                  updatePost.mutate({ postId: selectedPost.id, ...patch } as any)
+                }
+              />
+
+              {/* Post para anúncio */}
+              <div className="flex items-center justify-between rounded-lg border px-4 py-3">
+                <Label className="flex items-center gap-1.5 cursor-pointer">
+                  <MegaphoneIcon className="size-3.5 text-orange-500" />
+                  Post para anúncio
+                </Label>
+                <Switch
+                  checked={(selectedPost as any).isAd ?? false}
+                  onCheckedChange={(v) => updatePost.mutate({ postId: selectedPost.id, isAd: v })}
+                />
+              </div>
+
+              {/* Data de publicação — editável */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <CalendarIcon className="size-3.5" />Data de Publicação
+                </Label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    type="datetime-local"
+                    defaultValue={(selectedPost as any).scheduledAt
+                      ? new Date((selectedPost as any).scheduledAt).toISOString().slice(0, 16)
+                      : ""}
+                    key={selectedPost.id}
+                    className="flex-1 text-sm"
+                    onChange={(e) => {
+                      updatePost.mutate({ postId: selectedPost.id, scheduledAt: e.target.value || undefined });
+                    }}
+                  />
+                  {(selectedPost as any).scheduledAt && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => updatePost.mutate({ postId: selectedPost.id, scheduledAt: null })}
+                    >
+                      <XIcon className="size-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </div>
               {selectedPost.caption && (
                 <div>
                   <Label className="text-xs text-muted-foreground">Legenda</Label>
@@ -419,7 +631,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
 
       {/* Create Post */}
       <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) resetForm(); }}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md max-h-[95vh] sm:max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Novo Post</DialogTitle></DialogHeader>
           <div className="space-y-4">
 
@@ -598,6 +810,32 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
             </div>
 
             <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                <ClockIcon className="size-3.5 opacity-60" />
+                Data e Hora de Publicação <span className="text-muted-foreground text-xs">(opcional)</span>
+              </Label>
+              <Input
+                type="datetime-local"
+                value={newPost.scheduledAt}
+                onChange={(e) => setNewPost((p) => ({ ...p, scheduledAt: e.target.value }))}
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border px-4 py-3">
+              <div className="space-y-0.5">
+                <Label className="flex items-center gap-1.5 cursor-pointer">
+                  <MegaphoneIcon className="size-3.5 text-orange-500" />
+                  Post para anúncio
+                </Label>
+                <p className="text-xs text-muted-foreground">Marque se este post será usado como campanha de anúncios pagos.</p>
+              </div>
+              <Switch
+                checked={newPost.isAd}
+                onCheckedChange={(v) => setNewPost((p) => ({ ...p, isAd: v }))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
               <Label>Legenda (opcional)</Label>
               <Textarea placeholder="Escreva a legenda ou deixe a IA gerar..." rows={3} value={newPost.caption} onChange={(e) => setNewPost((p) => ({ ...p, caption: e.target.value }))} />
             </div>
@@ -613,7 +851,7 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
 
       {/* Schedule */}
       <Dialog open={!!schedulePostId} onOpenChange={(o) => !o && setSchedulePostId(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm max-h-[95vh] sm:max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Agendar Post</DialogTitle></DialogHeader>
           <div className="space-y-1.5">
             <Label>Data e Hora</Label>
@@ -630,16 +868,16 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
 
       {/* Fullscreen Image Viewer */}
       <Dialog open={!!viewImageUrl} onOpenChange={(o) => !o && setViewImageUrl(null)}>
-        <DialogContent className="max-w-3xl p-2 bg-black border-black">
+        <DialogContent className="max-w-2xl max-h-[95vh] sm:max-h-[80vh] p-2 bg-black border-black flex flex-col">
           <DialogHeader className="sr-only">
             <DialogTitle>Visualizar imagem</DialogTitle>
           </DialogHeader>
           {viewImageUrl && (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 flex-1 min-h-0">
               <img
                 src={viewImageUrl}
                 alt="Post"
-                className="w-full rounded-md object-contain max-h-[80vh]"
+                className="flex-1 min-h-0 w-full rounded-md object-contain max-h-[75vh]"
               />
               <div className="flex justify-center gap-2 pb-1">
                 <Button
@@ -680,6 +918,38 @@ export function PostsTab({ plannerId }: { plannerId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Video Editor Dialog */}
+      {videoEditorPostId && (() => {
+        const vPost = posts.find((p: any) => p.id === videoEditorPostId);
+        return (
+          <VideoEditorDialog
+            open={!!videoEditorPostId}
+            onOpenChange={(v) => { if (!v) setVideoEditorPostId(null); }}
+            postId={videoEditorPostId}
+            postTitle={vPost?.title ?? undefined}
+            post={(vPost as any) ?? null}
+          />
+        );
+      })()}
+
+      {/* Image Editor Dialog */}
+      {imageEditorPostId && (() => {
+        const editorPost = posts.find((p: any) => p.id === imageEditorPostId);
+        return (
+          <ImageEditorDialog
+            open={!!imageEditorPostId}
+            onOpenChange={(v) => { if (!v) setImageEditorPostId(null); }}
+            postId={imageEditorPostId}
+            plannerId={plannerId}
+            initialImageKey={editorPost?.thumbnail}
+            initialHeadline={editorPost?.slides?.[0]?.headline ?? editorPost?.title ?? null}
+            initialSubtext={editorPost?.slides?.[0]?.subtext ?? editorPost?.caption ?? null}
+            slides={editorPost?.slides ?? []}
+            post={(editorPost as any) ?? null}
+          />
+        );
+      })()}
     </div>
   );
 }

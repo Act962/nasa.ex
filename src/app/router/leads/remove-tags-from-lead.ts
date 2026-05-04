@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { requireOrgMiddleware } from "../../middlewares/org";
 import { recordLeadHistory } from "./utils/history";
+import { logActivity } from "@/lib/activity-logger";
 
 export const removeTagsFromLead = base
   .use(requiredAuthMiddleware)
@@ -47,6 +48,32 @@ export const removeTagsFromLead = base
 
       return deleted;
     });
+
+    const tracking = await prisma.tracking.findUnique({
+      where: { id: lead.trackingId },
+      select: { organizationId: true, name: true },
+    });
+    if (tracking) {
+      await logActivity({
+        organizationId: tracking.organizationId,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "tracking",
+        subAppSlug: "tracking-pipeline",
+        featureKey: "lead.tag.removed",
+        action: "lead.tag.removed",
+        actionLabel: `Removeu ${result.count} tag(s) do lead "${lead.name}"`,
+        resource: lead.name,
+        resourceId: lead.id,
+        metadata: {
+          trackingName: tracking.name,
+          tagIds: input.tagIds,
+          count: result.count,
+        },
+      });
+    }
 
     return {
       count: result.count,
