@@ -6,13 +6,9 @@ import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { pusherServer } from "@/lib/pusher";
 import { awardPoints } from "@/app/router/space-point/utils";
-<<<<<<< feature/W-nasa-router-fluxo-de-aquisicao-de-cursos-20260503
 import { canEnrollFree } from "../utils";
 import { executeCoursePurchaseInTx } from "../helpers/purchase-helpers";
-=======
-import { canEnrollFree, PLATFORM_FEE_PCT } from "../utils";
 import { logActivity } from "@/lib/activity-logger";
->>>>>>> main
 
 /**
  * Compra de curso pelo aluno (paga com STARs da org dele).
