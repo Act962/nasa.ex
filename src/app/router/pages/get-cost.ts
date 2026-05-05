@@ -1,6 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { checkBalance } from "@/lib/star-service";
+import { checkBalance } from "@/features/stars/lib/star-service";
 import { PAGES_STARS_COST } from "./_schemas";
 
 export const getPagesCost = base

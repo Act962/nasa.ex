@@ -2,7 +2,7 @@ import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { sendText } from "@/http/uazapi/send-text";
 import { computeNextRemindAt } from "@/lib/reminder-recurrence";
-import { createNotification } from "@/lib/notification-service";
+import { createNotification } from "@/features/admin/lib/notification-service";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
 

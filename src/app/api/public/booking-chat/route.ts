@@ -12,7 +12,7 @@ import {
   makeGetAvailableSlotsTool,
   makeListMyAppointmentsTool,
 } from "@/features/public-booking-chat/lib/booking-agent";
-import { debitStars } from "@/lib/star-service";
+import { debitStars } from "@/features/stars/lib/star-service";
 import { StarTransactionType } from "@/generated/prisma/client";
 import dayjs from "dayjs";
 

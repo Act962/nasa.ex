@@ -6,7 +6,7 @@
 
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { emitTrackingBatch, type TrackingEvent } from "@/lib/tracking-emitter";
+import { emitTrackingBatch, type TrackingEvent } from "@/features/space-point/lib/tracking-emitter";
 
 export const detectChatTimeout = inngest.createFunction(
   { id: "detect-chat-timeouts", retries: 1 },

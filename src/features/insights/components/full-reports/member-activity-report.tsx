@@ -17,7 +17,7 @@ import {
   Cell,
 } from "recharts";
 import { formatDuration, exportToCSV } from "./format-utils";
-import { APP_LABELS } from "@/lib/activity-constants";
+import { APP_LABELS } from "@/features/admin/lib/activity-constants";
 
 interface Props {
   from: string;

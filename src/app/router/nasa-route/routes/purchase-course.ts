@@ -8,7 +8,7 @@ import { pusherServer } from "@/lib/pusher";
 import { awardPoints } from "@/app/router/space-point/utils";
 import { canEnrollFree } from "../utils";
 import { executeCoursePurchaseInTx } from "../helpers/purchase-helpers";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 /**
  * Compra de curso pelo aluno (paga com STARs da org dele).

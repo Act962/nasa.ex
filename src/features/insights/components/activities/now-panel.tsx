@@ -6,7 +6,7 @@ import { orpc } from "@/lib/orpc";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Activity } from "lucide-react";
-import { APP_LABELS } from "@/lib/activity-constants";
+import { APP_LABELS } from "@/features/admin/lib/activity-constants";
 import { cn } from "@/lib/utils";
 
 interface Props {

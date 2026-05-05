@@ -10,7 +10,7 @@ import { MessageStatus } from "@/features/tracking-chat/types";
 import { getContactDetails } from "@/http/uazapi/get-contact-details";
 import { WA_COLORS } from "@/utils/whatsapp-utils";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 export async function POST(request: NextRequest) {
   const { searchParams } = new URL(request.url);

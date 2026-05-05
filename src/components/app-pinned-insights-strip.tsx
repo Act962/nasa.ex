@@ -18,7 +18,7 @@ import {
   isAppMetricSource,
   type AppMetricSource,
   type InsightBlock,
-} from "@/lib/insights/app-metrics";
+} from "@/features/insights/lib/app-metrics";
 import type { AppModule } from "@/features/insights/types";
 
 interface AppPinnedInsightsStripProps {

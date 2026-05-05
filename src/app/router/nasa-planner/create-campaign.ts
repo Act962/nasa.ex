@@ -1,10 +1,10 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import { debitStars } from "@/lib/star-service";
+import { debitStars } from "@/features/stars/lib/star-service";
 import { StarTransactionType } from "@/generated/prisma/enums";
 import { awardPoints } from "@/app/router/space-point/utils";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import { ORPCError } from "@orpc/server";
 import prisma from "@/lib/prisma";
 import { z } from "zod";

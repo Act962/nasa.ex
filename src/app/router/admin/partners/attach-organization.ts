@@ -6,7 +6,7 @@ import {
   createCommissionFromPayment,
   recalcReferralActivity,
   recalcPartnerTier,
-} from "@/lib/partner-service";
+} from "@/features/partner/lib/partner-service";
 
 const adminBase = base.use(requireAdminMiddleware);
 

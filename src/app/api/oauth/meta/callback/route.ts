@@ -5,9 +5,9 @@ import {
   fetchMetaConnections,
   metaPublicOrigin,
   META_SCOPES,
-} from "@/lib/oauth/meta-config";
-import { consumeState } from "@/lib/oauth/state-store";
-import { putSession } from "@/lib/oauth/session-cache";
+} from "@/features/integrations/lib/oauth/meta-config";
+import { consumeState } from "@/features/integrations/lib/oauth/state-store";
+import { putSession } from "@/features/integrations/lib/oauth/session-cache";
 
 function errorRedirect(origin: string, returnUrl: string, code: string) {
   const url = new URL(returnUrl, origin);

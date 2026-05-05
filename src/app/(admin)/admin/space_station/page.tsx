@@ -1,4 +1,4 @@
-import { requireAdminSession } from "@/lib/admin-utils";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import prisma from "@/lib/prisma";
 import { WorldAssetsManager } from "@/features/admin/components/space-station/world-assets-manager";
 import { Globe } from "lucide-react";

@@ -78,14 +78,38 @@ Arquivo `.env.local` na raiz. Variáveis principais:
 nasaex-wey/
 ├── src/
 │   ├── app/          # Rotas Next.js (App Router)
-│   ├── components/   # Componentes React
-│   ├── lib/          # Utilitários e configurações
+│   ├── components/   # Componentes globais e shadcn/ui
+│   ├── features/     # Domínios da aplicação (ver abaixo)
+│   ├── lib/          # APENAS infra global (auth, prisma, orpc, stripe, utils...)
 │   └── server/       # Lógica server-side + oRPC procedures
 ├── prisma/
 │   └── schema.prisma # Schema do banco de dados
 ├── docker-compose.yml
 └── CLAUDE.md         # Este arquivo
 ```
+
+## Arquitetura por Features (OBRIGATÓRIO)
+
+Cada **feature** representa um domínio do sistema (ex: `tracking`, `insights`, `partner`, `stars`, `admin`, `integrations`). Tudo que pertence a um domínio mora dentro da sua pasta — componentes, lógica de servidor, hooks, schemas, libs, utils.
+
+```
+src/features/<dominio>/
+├── components/   # Componentes React específicos do domínio
+├── server/       # Procedures/handlers oRPC e lógica server-side do domínio
+├── hooks/        # React hooks específicos do domínio
+├── schema/       # Schemas Zod (singular, quando há um schema central)
+├── schemas/      # Schemas Zod (plural, quando são vários)
+├── lib/          # Services, helpers e regras de negócio do domínio
+└── utils/        # Funções utilitárias puras do domínio
+```
+
+### Regras
+
+1. **Domínio fechado**: código de uma feature não deve depender de internals de outra. Se duas features precisam do mesmo helper, ele sobe para `src/lib/` (infra global) ou vira uma feature própria.
+2. **`src/lib/` é só infra global**: `auth`, `prisma`, `orpc`, `stripe`, `asaas`, `pusher`, `s3-client`, `r2-url`, `upload-utils`, `query/`, `email/` (cliente Resend + templates transversais), `utils`, `serializer`, `json-to-html`, `geocode`, `reminder-recurrence`. Nada de domínio aqui.
+3. **Arquivos novos**: ao criar lógica de um domínio, coloque dentro de `src/features/<dominio>/` na subpasta correspondente — nunca em `src/lib/` nem em `src/components/` (a não ser que seja realmente global/UI primitiva).
+4. **Imports cross-feature**: permitido importar `@/features/<outra>/...` quando faz sentido (ex: `admin` consome activity logs que outras features escrevem). Evite ciclos.
+5. **Componentes globais** ficam em `src/components/` — apenas UI primitiva (shadcn/ui) e shells reutilizados em todo o app (sidebar, header). Componentes de domínio vão em `src/features/<dominio>/components/`.
 
 ## Funcionalidades Principais
 

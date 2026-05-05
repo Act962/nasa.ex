@@ -1,4 +1,4 @@
-import { requireAdminSession } from "@/lib/admin-utils";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { Users, Search, ShieldCheck } from "lucide-react";

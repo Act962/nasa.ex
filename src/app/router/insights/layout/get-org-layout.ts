@@ -2,8 +2,8 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import { canEditInsightsLayout } from "@/lib/permissions/can-edit-insights-layout";
-import type { InsightBlock } from "@/lib/insights/app-metrics";
+import { canEditInsightsLayout } from "@/features/insights/lib/permissions/can-edit-insights-layout";
+import type { InsightBlock } from "@/features/insights/lib/app-metrics";
 
 export const getOrgLayout = base
   .use(requiredAuthMiddleware)

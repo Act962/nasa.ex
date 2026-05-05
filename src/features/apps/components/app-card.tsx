@@ -19,7 +19,7 @@ import {
   PanelLeft,
 } from "lucide-react";
 import { useSidebarPrefs, useSetSidebarPref, isItemVisible } from "@/hooks/use-sidebar-prefs";
-import { SIDEBAR_NAV_ITEMS } from "@/lib/sidebar-items";
+import { SIDEBAR_NAV_ITEMS } from "@/features/apps/lib/sidebar-items";
 import type { AppDef, AppStatus } from "./apps-data";
 
 export type { AppDef, AppStatus };

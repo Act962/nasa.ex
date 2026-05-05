@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import {
   isAppMetricSource,
   type AppMetricSource,
-} from "@/lib/insights/app-metrics";
+} from "@/features/insights/lib/app-metrics";
 import { z } from "zod";
 
 interface MetricResult {
