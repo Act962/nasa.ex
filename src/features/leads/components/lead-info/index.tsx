@@ -85,7 +85,9 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
 
   function goToTracking() {
     const idConversation = initialData.lead.conversation?.id;
-    router.push(`/tracking-chat/${idConversation ? idConversation : ""}`);
+    const trackingId = lead.trackingId;
+    const path = `/tracking-chat/${idConversation ? idConversation : ""}`;
+    router.push(trackingId ? `${path}?trackingId=${trackingId}` : path);
   }
 
   function handleOpenSendMessage() {
