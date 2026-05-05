@@ -32,6 +32,10 @@ export function googleRedirectUri(): string {
   return v;
 }
 
+export function googlePublicOrigin(): string {
+  return new URL(googleRedirectUri()).origin;
+}
+
 export function buildGoogleAuthUrl(state: string, scopes: readonly string[] = GOOGLE_SCOPES): string {
   const params = new URLSearchParams({
     client_id: clientId(),

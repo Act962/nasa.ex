@@ -3,6 +3,7 @@ import { getStats } from "./get-stats";
 import { heartbeat } from "./heartbeat";
 import { getOnlineUsers } from "./get-online";
 import { logLogout } from "./log-logout";
+import { logInactivity } from "./log-inactivity";
 
 export const activityRouter = {
   getLogs,
@@ -10,4 +11,5 @@ export const activityRouter = {
   heartbeat,
   getOnlineUsers,
   logLogout,
+  logInactivity,
 };

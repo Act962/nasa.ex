@@ -3,18 +3,20 @@ import {
   exchangeCodeForToken,
   exchangeForLongLivedToken,
   fetchMetaConnections,
+  metaPublicOrigin,
   META_SCOPES,
 } from "@/lib/oauth/meta-config";
 import { consumeState } from "@/lib/oauth/state-store";
 import { putSession } from "@/lib/oauth/session-cache";
 
-function errorRedirect(req: NextRequest, returnUrl: string, code: string) {
-  const url = new URL(returnUrl, req.url);
+function errorRedirect(origin: string, returnUrl: string, code: string) {
+  const url = new URL(returnUrl, origin);
   url.searchParams.set("oauth_error", code);
   return NextResponse.redirect(url);
 }
 
 export async function GET(req: NextRequest) {
+  const origin = metaPublicOrigin();
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const stateRaw = url.searchParams.get("state");
@@ -22,16 +24,16 @@ export async function GET(req: NextRequest) {
   const fbErrorReason = url.searchParams.get("error_reason");
 
   if (fbError) {
-    return errorRedirect(req, "/integrations/marketplace", fbErrorReason || fbError);
+    return errorRedirect(origin, "/integrations/marketplace", fbErrorReason || fbError);
   }
 
   if (!code || !stateRaw) {
-    return errorRedirect(req, "/integrations/marketplace", "missing_code_or_state");
+    return errorRedirect(origin, "/integrations/marketplace", "missing_code_or_state");
   }
 
   const state = await consumeState(stateRaw);
   if (!state || state.provider !== "meta") {
-    return errorRedirect(req, "/integrations/marketplace", "invalid_state");
+    return errorRedirect(origin, "/integrations/marketplace", "invalid_state");
   }
 
   try {
@@ -62,13 +64,13 @@ export async function GET(req: NextRequest) {
       igAccounts: connections.igAccounts,
     });
 
-    const target = new URL(state.returnUrl, req.url);
+    const target = new URL(state.returnUrl, origin);
     target.searchParams.set("oauth_session", sessionId);
     target.searchParams.set("oauth_provider", "meta");
     target.searchParams.set("oauth_step", "select");
     return NextResponse.redirect(target);
   } catch (err) {
     console.error("Meta OAuth callback erro:", err);
-    return errorRedirect(req, state.returnUrl, "exchange_failed");
+    return errorRedirect(origin, state.returnUrl, "exchange_failed");
   }
 }

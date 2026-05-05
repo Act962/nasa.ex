@@ -9,7 +9,7 @@ export const getLogs = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .input(z.object({
-    userId:    z.string().optional(),
+    userIds:   z.array(z.string()).optional(),
     appSlug:   z.string().optional(),
     startDate: z.string().optional(), // ISO string
     endDate:   z.string().optional(),
@@ -27,8 +27,15 @@ export const getLogs = base
       throw new ORPCError("FORBIDDEN", { message: "Sem permissão para ver o histórico" });
     }
 
-    const where: any = { organizationId: orgId };
-    if (input.userId) where.userId = input.userId;
+    const userIdFilter = input.userIds && input.userIds.length > 0 ? input.userIds : null;
+
+    const where: any = {
+      organizationId: orgId,
+      // Esconder logs internos de inatividade da tabela detalhada — são
+      // janelas de "aba em segundo plano", não ações do usuário.
+      NOT: { action: "tab.hidden" },
+    };
+    if (userIdFilter) where.userId = { in: userIdFilter };
     if (input.appSlug) where.appSlug = input.appSlug;
     if (input.startDate || input.endDate) {
       where.createdAt = {};
@@ -51,7 +58,7 @@ export const getLogs = base
       ? await prisma.orgActivityLog.findMany({
           where: {
             organizationId: orgId,
-            ...(input.userId ? { userId: input.userId } : {}),
+            ...(userIdFilter ? { userId: { in: userIdFilter } } : {}),
             ...(input.startDate || input.endDate ? {
               createdAt: {
                 ...(input.startDate ? { gte: new Date(input.startDate) } : {}),

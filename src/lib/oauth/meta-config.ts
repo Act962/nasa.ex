@@ -35,6 +35,10 @@ export function metaRedirectUri(): string {
   return v;
 }
 
+export function metaPublicOrigin(): string {
+  return new URL(metaRedirectUri()).origin;
+}
+
 export function buildMetaAuthUrl(state: string, scopes: readonly string[] = META_SCOPES): string {
   const params = new URLSearchParams({
     client_id: appId(),

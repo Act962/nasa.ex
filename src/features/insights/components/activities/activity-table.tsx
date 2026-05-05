@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { buildResourceUrl } from "@/features/insights/lib/build-resource-url";
 
 interface Props {
-  userId?: string;
+  userIds?: string[];
   appSlug?: string;
   startDate: string;
   endDate?: string;
@@ -81,7 +81,7 @@ function prettifyFeatureKey(key: string | null | undefined, subAppSlug: string |
 }
 
 export function ActivityTable({
-  userId,
+  userIds,
   appSlug,
   startDate,
   endDate,
@@ -92,7 +92,7 @@ export function ActivityTable({
   const { data, isLoading } = useQuery({
     ...orpc.activity.getLogs.queryOptions({
       input: {
-        ...(userId ? { userId } : {}),
+        ...(userIds && userIds.length > 0 ? { userIds } : {}),
         ...(appSlug ? { appSlug } : {}),
         startDate,
         ...(endDate ? { endDate } : {}),

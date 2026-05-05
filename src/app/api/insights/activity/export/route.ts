@@ -32,7 +32,16 @@ export async function GET(req: NextRequest) {
   }
 
   const url = new URL(req.url);
-  const userId = url.searchParams.get("userId") ?? undefined;
+  // Suporte a single (userId=foo) e multi (userIds=foo,bar). Ambos coexistem
+  // por compat — UI nova manda `userIds`, links antigos podem ainda usar `userId`.
+  const userIdsRaw = url.searchParams.get("userIds");
+  const userIdsParam = userIdsRaw ? userIdsRaw.split(",").filter(Boolean) : null;
+  const singleUserId = url.searchParams.get("userId");
+  const userIds: string[] | null = userIdsParam && userIdsParam.length > 0
+    ? userIdsParam
+    : singleUserId
+      ? [singleUserId]
+      : null;
   const appSlug = url.searchParams.get("appSlug") ?? undefined;
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
@@ -55,9 +64,11 @@ export async function GET(req: NextRequest) {
   const isMemberOnly = memberships.every((m) => m.role === "member");
   const where: any = {
     organizationId: { in: orgIds },
+    // Não exportar janelas de inatividade — são meta-eventos internos.
+    NOT: { action: "tab.hidden" },
   };
   if (isMemberOnly) where.userId = session.user.id;
-  else if (userId) where.userId = userId;
+  else if (userIds) where.userId = { in: userIds };
   if (appSlug) where.appSlug = appSlug;
   if (from || to) {
     where.createdAt = {};

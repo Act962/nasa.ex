@@ -28,6 +28,7 @@ import { NowPanel } from "./now-panel";
 import { StatsCards } from "./stats-cards";
 import { ActivityTable } from "./activity-table";
 import { DateRangeTimePicker } from "./date-range-time-picker";
+import { MemberMultiSelect } from "@/features/insights/components/full-reports/member-multi-select";
 
 function initials(name: string) {
   return name
@@ -121,7 +122,7 @@ export function ActivitiesPanel() {
     end.setHours(23, 59, 0, 0);
     return { from: start, to: end };
   });
-  const [selectedUserId, setSelectedUserId] = useState<string>("all");
+  const [memberIds, setMemberIds] = useState<string[]>([]);
   const [selectedApp, setSelectedApp] = useState<string>("all");
   const [orgIds, setOrgIds] = useState<string[]>([]);
   const [logsLimit, setLogsLimit] = useState(50);
@@ -136,26 +137,6 @@ export function ActivitiesPanel() {
     () => (dateRange.to ?? new Date()).toISOString(),
     [dateRange.to],
   );
-
-  const statsPeriod: "7d" | "30d" | "90d" = useMemo(() => {
-    if (!dateRange.from) return "30d";
-    const diffDays = Math.round(
-      (Date.now() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24),
-    );
-    if (diffDays <= 7) return "7d";
-    if (diffDays <= 30) return "30d";
-    return "90d";
-  }, [dateRange.from]);
-
-  const { data: stats } = useQuery({
-    ...orpc.activity.getStats.queryOptions({
-      input: {
-        period: statsPeriod,
-        ...(selectedApp !== "all" ? { appSlug: selectedApp } : {}),
-      },
-    }),
-    enabled: !isSingle,
-  });
 
   if (isSingle) {
     return (
@@ -174,11 +155,9 @@ export function ActivitiesPanel() {
     );
   }
 
-  const members = stats?.members ?? [];
-
   const handleExport = () => {
     const params = new URLSearchParams();
-    if (selectedUserId !== "all") params.set("userId", selectedUserId);
+    if (memberIds.length > 0) params.set("userIds", memberIds.join(","));
     if (selectedApp !== "all") params.set("appSlug", selectedApp);
     params.set("from", startDate);
     params.set("to", endDate);
@@ -203,7 +182,12 @@ export function ActivitiesPanel() {
 
       <NowPanel orgIds={orgIds} />
 
-      <StatsCards orgIds={orgIds} from={startDate} to={endDate} />
+      <StatsCards
+        orgIds={orgIds}
+        from={startDate}
+        to={endDate}
+        memberIds={memberIds}
+      />
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -218,19 +202,7 @@ export function ActivitiesPanel() {
           onChange={setDateRange}
         />
 
-        <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-          <SelectTrigger className="h-8 text-xs w-40">
-            <SelectValue placeholder="Todos os membros" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os membros</SelectItem>
-            {members.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MemberMultiSelect value={memberIds} onChange={setMemberIds} />
 
         <Select value={selectedApp} onValueChange={setSelectedApp}>
           <SelectTrigger className="h-8 text-xs w-40">
@@ -246,13 +218,13 @@ export function ActivitiesPanel() {
           </SelectContent>
         </Select>
 
-        {(selectedUserId !== "all" || selectedApp !== "all" || orgIds.length > 0) && (
+        {(memberIds.length > 0 || selectedApp !== "all" || orgIds.length > 0) && (
           <Button
             variant="ghost"
             size="sm"
             className="h-8 text-xs"
             onClick={() => {
-              setSelectedUserId("all");
+              setMemberIds([]);
               setSelectedApp("all");
               setOrgIds([]);
             }}
@@ -277,7 +249,7 @@ export function ActivitiesPanel() {
 
         <TabsContent value="geral" className="mt-4">
           <ActivityTable
-            userId={selectedUserId !== "all" ? selectedUserId : undefined}
+            userIds={memberIds}
             appSlug={selectedApp !== "all" ? selectedApp : undefined}
             startDate={startDate}
             endDate={endDate}
@@ -289,7 +261,7 @@ export function ActivitiesPanel() {
 
         <TabsContent value="atendimento" className="mt-4">
           <ActivityTable
-            userId={selectedUserId !== "all" ? selectedUserId : undefined}
+            userIds={memberIds}
             appSlug="chat"
             startDate={startDate}
             endDate={endDate}
@@ -301,7 +273,7 @@ export function ActivitiesPanel() {
 
         <TabsContent value="pipeline" className="mt-4">
           <ActivityTable
-            userId={selectedUserId !== "all" ? selectedUserId : undefined}
+            userIds={memberIds}
             appSlug="tracking"
             startDate={startDate}
             endDate={endDate}

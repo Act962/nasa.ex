@@ -3,33 +3,35 @@ import {
   exchangeCodeForGoogleToken,
   fetchGoogleAdsCustomers,
   fetchGoogleUserInfo,
+  googlePublicOrigin,
 } from "@/lib/oauth/google-config";
 import { consumeState } from "@/lib/oauth/state-store";
 import { putSession } from "@/lib/oauth/session-cache";
 
-function errorRedirect(req: NextRequest, returnUrl: string, code: string) {
-  const url = new URL(returnUrl, req.url);
+function errorRedirect(origin: string, returnUrl: string, code: string) {
+  const url = new URL(returnUrl, origin);
   url.searchParams.set("oauth_error", code);
   return NextResponse.redirect(url);
 }
 
 export async function GET(req: NextRequest) {
+  const origin = googlePublicOrigin();
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const stateRaw = url.searchParams.get("state");
   const gError = url.searchParams.get("error");
 
   if (gError) {
-    return errorRedirect(req, "/integrations/marketplace", gError);
+    return errorRedirect(origin, "/integrations/marketplace", gError);
   }
 
   if (!code || !stateRaw) {
-    return errorRedirect(req, "/integrations/marketplace", "missing_code_or_state");
+    return errorRedirect(origin, "/integrations/marketplace", "missing_code_or_state");
   }
 
   const state = await consumeState(stateRaw);
   if (!state || state.provider !== "google") {
-    return errorRedirect(req, "/integrations/marketplace", "invalid_state");
+    return errorRedirect(origin, "/integrations/marketplace", "invalid_state");
   }
 
   try {
@@ -49,13 +51,13 @@ export async function GET(req: NextRequest) {
       adsCustomers,
     });
 
-    const target = new URL(state.returnUrl, req.url);
+    const target = new URL(state.returnUrl, origin);
     target.searchParams.set("oauth_session", sessionId);
     target.searchParams.set("oauth_provider", "google");
     target.searchParams.set("oauth_step", "select");
     return NextResponse.redirect(target);
   } catch (err) {
     console.error("Google OAuth callback erro:", err);
-    return errorRedirect(req, state.returnUrl, "exchange_failed");
+    return errorRedirect(origin, state.returnUrl, "exchange_failed");
   }
 }

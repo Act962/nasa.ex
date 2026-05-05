@@ -28,6 +28,7 @@ export const getActivitySummary = base
       return {
         totalActiveSec: 0,
         totalOnlineSec: 0,
+        totalInactiveSec: 0,
         spacePointsEarned: 0,
         starsConsumed: 0,
         byUser: [],
@@ -56,6 +57,7 @@ export const getActivitySummary = base
           userName: true,
           userImage: true,
           appSlug: true,
+          action: true,
           createdAt: true,
           durationMs: true,
         },
@@ -125,6 +127,7 @@ export const getActivitySummary = base
       image: string | null;
       actions: number;
       activeMs: number;
+      inactiveMs: number;
       isOnlineNow: boolean;
       currentActivity: { appSlug: string | null; path: string | null; resource: string | null } | null;
       spacePoints: number;
@@ -132,6 +135,8 @@ export const getActivitySummary = base
       _times: number[];
       _durs: number[];
     }> = {};
+
+    let totalInactiveMs = 0;
 
     for (const log of logs) {
       if (!byUser[log.userId]) {
@@ -141,6 +146,7 @@ export const getActivitySummary = base
           image: log.userImage ?? null,
           actions: 0,
           activeMs: 0,
+          inactiveMs: 0,
           isOnlineNow: false,
           currentActivity: null,
           spacePoints: 0,
@@ -150,6 +156,17 @@ export const getActivitySummary = base
         };
       }
       const u = byUser[log.userId];
+
+      // Logs de inatividade (aba em segundo plano) somam tempo inativo, mas não
+      // contam como "ação", não entram em sumMergedWindows e não inflam o
+      // breakdown por app.
+      if (log.action === "tab.hidden") {
+        const dur = log.durationMs ?? 0;
+        u.inactiveMs += dur;
+        totalInactiveMs += dur;
+        continue;
+      }
+
       u.actions++;
       const ts = log.createdAt.getTime();
       const dur = log.durationMs ?? 0;
@@ -193,6 +210,8 @@ export const getActivitySummary = base
 
     const byAppMap: Record<string, { actions: number; activeMs: number; users: Set<string>; _times: number[]; _durs: number[] }> = {};
     for (const log of logs) {
+      // Pular tab.hidden — inatividade não pertence a um app específico.
+      if (log.action === "tab.hidden") continue;
       if (!byAppMap[log.appSlug]) byAppMap[log.appSlug] = { actions: 0, activeMs: 0, users: new Set(), _times: [], _durs: [] };
       byAppMap[log.appSlug].actions++;
       byAppMap[log.appSlug]._times.push(log.createdAt.getTime());
@@ -208,6 +227,7 @@ export const getActivitySummary = base
     return {
       totalActiveSec: Math.round(totalActiveMs / 1000),
       totalOnlineSec: Math.round(totalActiveMs / 1000),
+      totalInactiveSec: Math.round(totalInactiveMs / 1000),
       spacePointsEarned: spTransactions.reduce((s, t) => s + t.points, 0),
       starsConsumed: stars.reduce((s, t) => s + Math.abs(t.amount), 0),
       byUser: Object.values(byUser)
