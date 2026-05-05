@@ -24,6 +24,12 @@ import { cn } from "@/lib/utils";
 // Custo de Star por usuário ativo/mês (regra global)
 const STAR_PER_USER = 30;
 
+// CTA configurado como link externo (ex: "Falar com consultor") — pula checkout.
+function isExternalCta(href?: string | null): href is string {
+  if (!href) return false;
+  return /^(https?:|mailto:|tel:)/i.test(href);
+}
+
 const PUBLIC_PLANS = [
   {
     id: "suit",
@@ -131,7 +137,23 @@ function PublicPlanCard({
   const [detailOpen, setDetailOpen] = useState(false);
 
   const slug = plan.planSlug ?? plan.id;
-  const isCurrentPlan = isLoggedIn && currentPlanSlug === slug;
+  const externalHref = isExternalCta(plan.ctaHref) ? plan.ctaHref : null;
+  // Plano com link externo (ex: "Falar com consultor") nunca é "plano atual".
+  const isCurrentPlan =
+    !externalHref && isLoggedIn && currentPlanSlug === slug;
+
+  const handleCtaClick = () => {
+    if (externalHref) {
+      const isHttp = /^https?:/i.test(externalHref);
+      if (isHttp) {
+        window.open(externalHref, "_blank", "noopener,noreferrer");
+      } else {
+        window.location.href = externalHref;
+      }
+      return;
+    }
+    onPurchase?.(slug);
+  };
 
   const planDetail: PlanDetail = {
     id: plan.id,
@@ -157,7 +179,7 @@ function PublicPlanCard({
         onClose={() => setDetailOpen(false)}
         isLoggedIn={isLoggedIn}
         isCurrentPlan={isCurrentPlan}
-        onPurchase={() => onPurchase?.(slug)}
+        onPurchase={handleCtaClick}
       />
 
       <div
@@ -312,7 +334,7 @@ function PublicPlanCard({
           </Button>
         ) : isLoggedIn ? (
           <Button
-            onClick={() => onPurchase?.(slug)}
+            onClick={handleCtaClick}
             className={cn(
               "w-full font-bold text-sm rounded-xl",
               plan.highlighted
@@ -324,12 +346,12 @@ function PublicPlanCard({
                     : "bg-zinc-700/80 hover:bg-zinc-700 text-white border border-zinc-600/50",
             )}
           >
-            Adquirir plano
+            {externalHref ? plan.ctaLabel : "Adquirir plano"}
             <ArrowRight className="size-3.5 ml-1.5" />
           </Button>
         ) : (
           <Button
-            onClick={() => onPurchase?.(slug)}
+            onClick={handleCtaClick}
             className={cn(
               "w-full font-bold text-sm rounded-xl",
               plan.highlighted
