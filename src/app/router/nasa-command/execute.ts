@@ -3,7 +3,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { debitStars } from "@/lib/star-service";
+import { debitStars } from "@/features/stars/lib/star-service";
 import { StarTransactionType, ForgeProposalStatus } from "@/generated/prisma/enums";
 import {
   parseDate,

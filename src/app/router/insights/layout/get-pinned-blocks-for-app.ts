@@ -2,7 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import type { InsightBlock } from "@/lib/insights/app-metrics";
+import type { InsightBlock } from "@/features/insights/lib/app-metrics";
 import { z } from "zod";
 
 export const getPinnedBlocksForApp = base

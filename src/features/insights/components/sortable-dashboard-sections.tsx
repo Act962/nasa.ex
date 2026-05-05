@@ -21,7 +21,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVerticalIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AppModule } from "@/features/insights/types";
-import type { InsightBlock } from "@/lib/insights/app-metrics";
+import type { InsightBlock } from "@/features/insights/lib/app-metrics";
 import { useOrgLayout } from "@/features/insights/context/org-layout-provider";
 
 interface SortableDashboardSectionsProps {

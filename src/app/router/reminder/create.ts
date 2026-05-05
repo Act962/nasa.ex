@@ -1,7 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { buildFirstRemindAt } from "@/lib/reminder-recurrence";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
 import { ReminderRecurrenceType } from "@/generated/prisma/enums";

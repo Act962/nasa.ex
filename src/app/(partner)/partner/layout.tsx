@@ -1,4 +1,4 @@
-import { requirePartnerSession } from "@/lib/partner-utils";
+import { requirePartnerSession } from "@/features/partner/lib/partner-utils";
 import { PartnerLayoutClient } from "@/features/partner/components/partner-layout-client";
 
 export default async function PartnerLayout({

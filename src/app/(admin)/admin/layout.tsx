@@ -1,4 +1,4 @@
-import { requireAdminSession } from "@/lib/admin-utils";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import { AdminSidebar } from "@/features/admin/components/admin-sidebar";
 import { AdminHeader } from "@/features/admin/components/admin-header";
 import { AdminLayoutClient } from "@/features/admin/components/admin-layout-client";

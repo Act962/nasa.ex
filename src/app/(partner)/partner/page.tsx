@@ -1,4 +1,4 @@
-import { requirePartnerSession } from "@/lib/partner-utils";
+import { requirePartnerSession } from "@/features/partner/lib/partner-utils";
 import prisma from "@/lib/prisma";
 import {
   getProgramSettings,
@@ -9,7 +9,7 @@ import {
   currentCycleYearMonth,
   nextPayoutDate,
   TIER_ORDER,
-} from "@/lib/partner-service";
+} from "@/features/partner/lib/partner-service";
 import {
   Handshake,
   TrendingUp,

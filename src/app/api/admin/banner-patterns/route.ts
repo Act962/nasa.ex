@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminSession } from "@/lib/admin-utils";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import prisma from "@/lib/prisma";
 
 const ASSET_KEY = "popup:banner_patterns";

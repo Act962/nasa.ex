@@ -2,7 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { ParticipantRole } from "@/generated/prisma/enums";
 import { requireAuth } from "@/lib/auth-utils";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 

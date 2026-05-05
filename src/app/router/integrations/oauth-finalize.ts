@@ -3,7 +3,7 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { IntegrationPlatform } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
-import { consumeSession, getSessionByProvider } from "@/lib/oauth/session-cache";
+import { consumeSession, getSessionByProvider } from "@/features/integrations/lib/oauth/session-cache";
 import { z } from "zod";
 
 const FinalizeInput = z.object({

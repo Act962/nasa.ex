@@ -1,4 +1,4 @@
-import { requirePartnerSession } from "@/lib/partner-utils";
+import { requirePartnerSession } from "@/features/partner/lib/partner-utils";
 import prisma from "@/lib/prisma";
 import { History, ArrowUpRight, ArrowDownRight } from "lucide-react";
 

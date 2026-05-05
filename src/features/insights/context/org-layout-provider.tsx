@@ -13,7 +13,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { ALL_MODULES, type AppModule } from "@/features/insights/types";
-import type { InsightBlock } from "@/lib/insights/app-metrics";
+import type { InsightBlock } from "@/features/insights/lib/app-metrics";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 

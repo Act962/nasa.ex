@@ -12,7 +12,7 @@ import {
   TIER_ORDER,
   tierLabel,
   tierRank,
-} from "@/lib/partner-service";
+} from "@/features/partner/lib/partner-service";
 
 const partnerBase = base.use(requirePartnerMiddleware);
 

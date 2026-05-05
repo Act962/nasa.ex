@@ -1,4 +1,4 @@
-import { requireAdminSession } from "@/lib/admin-utils";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import prisma from "@/lib/prisma";
 import { AssetsManager } from "@/features/admin/components/assets/assets-manager";
 import { ImageIcon } from "lucide-react";

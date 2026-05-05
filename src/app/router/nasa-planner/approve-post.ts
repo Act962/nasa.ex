@@ -3,7 +3,7 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 export const approvePost = base
   .use(requiredAuthMiddleware)

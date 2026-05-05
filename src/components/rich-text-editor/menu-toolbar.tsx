@@ -11,20 +11,55 @@ import {
   Italic,
   ListIcon,
   ListOrdered,
+  type LucideIcon,
   Redo,
   StrikethroughIcon,
   Undo,
 } from "lucide-react";
-import { Toggle } from "../ui/toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { useEditorState, type Editor } from "@tiptap/react";
 import { cn } from "@/lib/utils";
 import { Separator } from "../ui/separator";
-import { Button } from "../ui/button";
+import { Toggle } from "../ui/toggle";
 
 interface MenuToolbarProps {
   editor: Editor | null;
   children?: React.ReactNode;
+}
+
+interface ToolbarItem {
+  label: string;
+  icon: LucideIcon;
+  onClick: () => void;
+  isActive?: boolean;
+  disabled?: boolean;
+}
+
+interface ToolbarButtonProps extends ToolbarItem {}
+
+function ToolbarButton({
+  label,
+  icon: Icon,
+  onClick,
+  isActive,
+  disabled,
+}: ToolbarButtonProps) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Toggle
+          size="sm"
+          pressed={isActive}
+          disabled={disabled}
+          onPressedChange={onClick}
+          className={cn(isActive && "bg-muted text-muted-foreground")}
+        >
+          <Icon />
+        </Toggle>
+      </TooltipTrigger>
+      <TooltipContent align="center">{label}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 export function MenuToolbar({ editor, children }: MenuToolbarProps) {
@@ -53,243 +88,107 @@ export function MenuToolbar({ editor, children }: MenuToolbarProps) {
     },
   });
 
+  const sections: ToolbarItem[][] = [
+    [
+      {
+        label: "Negrito",
+        icon: Bold,
+        onClick: () => editor.chain().focus().toggleBold().run(),
+        isActive: editorState.isBold,
+      },
+      {
+        label: "Itálico",
+        icon: Italic,
+        onClick: () => editor.chain().focus().toggleItalic().run(),
+        isActive: editorState.isItalic,
+      },
+      {
+        label: "Tachado",
+        icon: StrikethroughIcon,
+        onClick: () => editor.chain().focus().toggleStrike().run(),
+        isActive: editorState.isStrike,
+      },
+      {
+        label: "Título 1",
+        icon: Heading1Icon,
+        onClick: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
+        isActive: editorState.isHeading,
+      },
+      {
+        label: "Título 2",
+        icon: Heading2Icon,
+        onClick: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+        isActive: editorState.isHeading2,
+      },
+      {
+        label: "Título 3",
+        icon: Heading3Icon,
+        onClick: () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
+        isActive: editorState.isHeading3,
+      },
+      {
+        label: "Lista não ordenada",
+        icon: ListIcon,
+        onClick: () => editor.chain().focus().toggleBulletList().run(),
+        isActive: editorState.isBulletList,
+      },
+      {
+        label: "Lista ordenada",
+        icon: ListOrdered,
+        onClick: () => editor.chain().focus().toggleOrderedList().run(),
+        isActive: editorState.isOrderedList,
+      },
+    ],
+    // Alinhamento
+    [
+      {
+        label: "Alinhar à esquerda",
+        icon: AlignLeft,
+        onClick: () => editor.chain().focus().setTextAlign("left").run(),
+        isActive: editorState.textAlignLeft,
+      },
+      {
+        label: "Alinhar ao centro",
+        icon: AlignCenter,
+        onClick: () => editor.chain().focus().setTextAlign("center").run(),
+        isActive: editorState.textAlignCenter,
+      },
+      {
+        label: "Alinhar à direita",
+        icon: AlignRight,
+        onClick: () => editor.chain().focus().setTextAlign("right").run(),
+        isActive: editorState.textAlignRight,
+      },
+    ],
+    // Edição
+    [
+      {
+        label: "Desfazer",
+        icon: Undo,
+        onClick: () => editor.chain().focus().undo().run(),
+        disabled: !editorState.canUndo,
+      },
+      {
+        label: "Refazer",
+        icon: Redo,
+        onClick: () => editor.chain().focus().redo().run(),
+        disabled: !editorState.canRedo,
+      },
+    ],
+  ];
+
   return (
-    <div className="flex items-center flex-wrap gap-2 border-b px-4 py-2">
-      <div className="flex items-center flex-wrap gap-1">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Toggle
-              size={"sm"}
-              pressed={editorState.isBold}
-              onPressedChange={() => editor.chain().focus().toggleBold().run()}
-              className={cn(
-                editorState.isBold && "bg-muted text-muted-foreground",
-              )}
-            >
-              <Bold />
-            </Toggle>
-          </TooltipTrigger>
-          <TooltipContent align="center">Negrito</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Toggle
-              size={"sm"}
-              pressed={editorState.isItalic}
-              onPressedChange={() =>
-                editor.chain().focus().toggleItalic().run()
-              }
-              className={cn(
-                editorState.isItalic && "bg-muted text-muted-foreground",
-              )}
-            >
-              <Italic />
-            </Toggle>
-          </TooltipTrigger>
-          <TooltipContent align="center">Itálico</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Toggle
-              size={"sm"}
-              pressed={editorState.isStrike}
-              onPressedChange={() =>
-                editor.chain().focus().toggleStrike().run()
-              }
-              className={cn(
-                editorState.isStrike && "bg-muted text-muted-foreground",
-              )}
-            >
-              <StrikethroughIcon />
-            </Toggle>
-          </TooltipTrigger>
-          <TooltipContent align="center">Tachado</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Toggle
-              size={"sm"}
-              pressed={editorState.isHeading}
-              onPressedChange={() =>
-                editor.chain().focus().toggleHeading({ level: 1 }).run()
-              }
-              className={cn(
-                editorState.isHeading && "bg-muted text-muted-foreground",
-              )}
-            >
-              <Heading1Icon />
-            </Toggle>
-          </TooltipTrigger>
-          <TooltipContent align="center">Título 1</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Toggle
-              size={"sm"}
-              pressed={editorState.isHeading2}
-              onPressedChange={() =>
-                editor.chain().focus().toggleHeading({ level: 2 }).run()
-              }
-              className={cn(
-                editorState.isHeading2 && "bg-muted text-muted-foreground",
-              )}
-            >
-              <Heading2Icon />
-            </Toggle>
-          </TooltipTrigger>
-          <TooltipContent align="center">Título 2</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Toggle
-              size={"sm"}
-              pressed={editorState.isHeading3}
-              onPressedChange={() =>
-                editor.chain().focus().toggleHeading({ level: 3 }).run()
-              }
-              className={cn(
-                editorState.isHeading3 && "bg-muted text-muted-foreground",
-              )}
-            >
-              <Heading3Icon />
-            </Toggle>
-          </TooltipTrigger>
-          <TooltipContent align="center">Título 3</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Toggle
-              size={"sm"}
-              pressed={editorState.isBulletList}
-              onPressedChange={() =>
-                editor.chain().focus().toggleBulletList().run()
-              }
-              className={cn(
-                editorState.isBulletList && "bg-muted text-muted-foreground",
-              )}
-            >
-              <ListIcon />
-            </Toggle>
-          </TooltipTrigger>
-          <TooltipContent align="center">Lista não ordenada</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Toggle
-              size={"sm"}
-              pressed={editorState.isOrderedList}
-              onPressedChange={() =>
-                editor.chain().focus().toggleOrderedList().run()
-              }
-              className={cn(
-                editorState.isOrderedList && "bg-muted text-muted-foreground",
-              )}
-            >
-              <ListOrdered />
-            </Toggle>
-          </TooltipTrigger>
-          <TooltipContent align="center">Lista ordenada</TooltipContent>
-        </Tooltip>
-      </div>
-
-      <Separator orientation="vertical" className="h-6!" />
-
-      <div className="flex items-center flex-wrap gap-1">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Toggle
-              size={"sm"}
-              pressed={editorState.textAlignLeft}
-              onPressedChange={() =>
-                editor.chain().focus().setTextAlign("left").run()
-              }
-              className={cn(
-                editorState.textAlignLeft && "bg-muted text-muted-foreground",
-              )}
-            >
-              <AlignLeft />
-            </Toggle>
-          </TooltipTrigger>
-          <TooltipContent align="center">Alinhar à esquerda</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Toggle
-              size={"sm"}
-              pressed={editorState.textAlignCenter}
-              onPressedChange={() =>
-                editor.chain().focus().setTextAlign("center").run()
-              }
-              className={cn(
-                editorState.textAlignCenter && "bg-muted text-muted-foreground",
-              )}
-            >
-              <AlignCenter />
-            </Toggle>
-          </TooltipTrigger>
-          <TooltipContent align="center">Alinhar ao centro</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Toggle
-              size={"sm"}
-              pressed={editorState.textAlignRight}
-              onPressedChange={() =>
-                editor.chain().focus().setTextAlign("right").run()
-              }
-              className={cn(
-                editorState.textAlignRight && "bg-muted text-muted-foreground",
-              )}
-            >
-              <AlignRight />
-            </Toggle>
-          </TooltipTrigger>
-          <TooltipContent align="center">Alinhar à direita</TooltipContent>
-        </Tooltip>
-      </div>
-
-      <Separator orientation="vertical" className="h-6!" />
-
-      <div className="flex items-center flex-wrap gap-1">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size={"sm"}
-              variant={"ghost"}
-              type="button"
-              onClick={() => editor.chain().focus().undo().run()}
-              disabled={!editorState.canUndo}
-            >
-              <Undo />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent align="center">Desfazer</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size={"sm"}
-              variant={"ghost"}
-              type="button"
-              onClick={() => editor.chain().focus().redo().run()}
-              disabled={!editorState.canRedo}
-            >
-              <Redo />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent align="center">Refazer</TooltipContent>
-        </Tooltip>
-      </div>
+    <div className="sticky top-0 z-10 flex items-center flex-wrap gap-1 border-b px-4 py-2 bg-muted rounded-t-lg">
+      {sections.map((section, index) => (
+        <div key={index} className="flex items-center flex-wrap gap-1">
+          {section.map((item) => (
+            <ToolbarButton key={item.label} {...item} />
+          ))}
+          {index < sections.length - 1 && (
+            <Separator orientation="vertical" className="h-6! mx-1" />
+          )}
+        </div>
+      ))}
 
       {children}
     </div>

@@ -1,4 +1,4 @@
-import { requireAdminSession } from "@/lib/admin-utils";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import prisma from "@/lib/prisma";
 import { SpacePointsAdminClient } from "@/features/admin/components/space-points/space-points-admin-client";
 import { Rocket, Users, Zap, Building2 } from "lucide-react";
