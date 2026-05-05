@@ -81,7 +81,7 @@ export function PermissionsMatrix({
   }
 
   return (
-    <div className="grid grid-cols-[220px_1fr] gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-4 lg:gap-6">
       {/* Org selector */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 space-y-2 h-fit">
         <div className="relative">
@@ -111,13 +111,13 @@ export function PermissionsMatrix({
       </div>
 
       {/* Matrix */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 sm:p-5 min-w-0">
         {!selectedOrgId ? (
           <p className="text-sm text-zinc-500 text-center py-12">Selecione uma empresa à esquerda.</p>
         ) : (
           <div className="space-y-4">
             {/* Role tabs */}
-            <div className="flex gap-2 border-b border-zinc-800 pb-3">
+            <div className="flex flex-wrap gap-2 border-b border-zinc-800 pb-3">
               {roles.map((r) => (
                 <button
                   key={r}
