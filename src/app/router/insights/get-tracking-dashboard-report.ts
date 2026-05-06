@@ -85,6 +85,7 @@ export const getTrackingDashboardReport = base
         ttfrRes,
         leadsWaiting,
         leadsActive,
+        sentReminders,
       ] = await Promise.all([
         prisma.lead.count({ where: baseWhere }),
         prisma.lead.count({ where: { ...baseWhere, currentAction: "WON" } }),
@@ -296,6 +297,64 @@ export const getTrackingDashboardReport = base
 
         // Leads em atendimento (ACTIVE)
         prisma.lead.count({ where: { ...baseWhere, statusFlow: "ACTIVE" } }),
+
+        // Lembretes enviados (ReminderOccurrence com sent=true) no período
+        prisma.reminderOccurrence.count({
+          where: {
+            sent: true,
+            ...(startDate || endDate
+              ? {
+                  sentAt: {
+                    ...(startDate ? { gte: new Date(startDate) } : {}),
+                    ...(endDate ? { lte: new Date(endDate) } : {}),
+                  },
+                }
+              : {}),
+            reminder: {
+              OR: [
+                {
+                  tracking: {
+                    organization: {
+                      ...organizationFilter,
+                      members: { some: { userId: user.id } },
+                    },
+                    ...(trackingId ? { id: trackingId } : {}),
+                  },
+                },
+                {
+                  lead: {
+                    tracking: {
+                      organization: {
+                        ...organizationFilter,
+                        members: { some: { userId: user.id } },
+                      },
+                      ...(trackingId ? { id: trackingId } : {}),
+                    },
+                  },
+                },
+                {
+                  conversation: {
+                    tracking: {
+                      organization: {
+                        ...organizationFilter,
+                        members: { some: { userId: user.id } },
+                      },
+                      ...(trackingId ? { id: trackingId } : {}),
+                    },
+                  },
+                },
+                {
+                  action: {
+                    organization: {
+                      ...organizationFilter,
+                      members: { some: { userId: user.id } },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        }),
       ]);
 
       const soldThisMonth = Number(soldActiveRes._sum.amount || 0);
@@ -599,6 +658,7 @@ export const getTrackingDashboardReport = base
           avgTimeToFirstResponse: ttfrRes?.[0]?.avg_ttfr
             ? Math.round(Number(ttfrRes[0].avg_ttfr))
             : null,
+          sentReminders,
         },
         byStatus: Object.entries(statusConsolidated).map(([id, val]) => ({
           status: statusMap[id] ?? {

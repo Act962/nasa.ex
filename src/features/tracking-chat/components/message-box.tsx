@@ -227,7 +227,10 @@ export function MessageBox({
             </div>
 
             <div className="text-xs flex flex-row items-center gap-1">
-              {format(new Date(message.createdAt), "p")}
+              {(() => {
+                const d = message.createdAt ? new Date(message.createdAt) : null;
+                return d && !isNaN(d.getTime()) ? format(d, "p") : "";
+              })()}
               <IconStatus className="size-3" />
             </div>
           </div>
