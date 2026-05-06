@@ -113,6 +113,11 @@ model User {
 
   metaAccountAccess MemberMetaAccountAccess[]
 
+  // Meta Ads MCP — autorização do user pra usar Astro IA Meta Ads
+  metaMcpAuthorizationsAuthorized MetaMcpAuthorization[]   @relation("McpAuthorizedUser")
+  metaMcpAuthorizationsGranted    MetaMcpAuthorization[]   @relation("McpAuthorizedBy")
+  metaAdsPendingActions           MetaAdsPendingAction[]
+
   @@unique([email])
   @@map("user")
 }
@@ -190,6 +195,10 @@ model Organization {
   // "org"    = pool compartilhado (padrão)
   // "equal"  = dividido igualmente entre usuários ativos
   // "custom" = orçamento personalizado por usuário
+
+  // Intervalo (segundos) entre heartbeats do HeartbeatProvider. Owner/master
+  // pode alternar entre 60 (padrão, menos tráfego) e 30 (granularidade maior).
+  heartbeatIntervalSeconds Int @default(60) @map("heartbeat_interval_seconds")
 
   members                Member[]
   invitations            Invitation[]
@@ -312,6 +321,10 @@ model Organization {
   metaAds             MetaAd[]
 
   memberMetaAccountAccess MemberMetaAccountAccess[]
+
+  // Meta Ads MCP — autorização e pending actions
+  metaMcpAuthorizations MetaMcpAuthorization[]
+  metaAdsPendingActions MetaAdsPendingAction[]
 
   @@unique([slug])
   @@map("organization")
@@ -4386,7 +4399,7 @@ model NasaRouteCourse {
   trailerUrl         String?   @map("trailer_url")
   level              String    @default("beginner")
   durationMin        Int?      @map("duration_min")
-  format             String    @default("course") // "course" | "training" | "mentoring"
+  format             String    @default("course") // "course" | "training" | "mentoring" | "ebook" | "event" | "community" | "subscription"
   creatorOrgId       String    @map("creator_org_id")
   creatorUserId      String    @map("creator_user_id")
   categoryId         String?   @map("category_id")
@@ -4395,8 +4408,31 @@ model NasaRouteCourse {
   publishedAt        DateTime? @map("published_at")
   studentsCount      Int       @default(0) @map("students_count")
   rewardSpOnComplete Int       @default(0) @map("reward_sp_on_complete")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  // eBook (format = "ebook")
+  ebookFileKey   String? @map("ebook_file_key")
+  ebookFileName  String? @map("ebook_file_name")
+  ebookFileSize  Int?    @map("ebook_file_size")
+  ebookMimeType  String? @map("ebook_mime_type")
+  ebookPageCount Int?    @map("ebook_page_count")
+
+  // Evento Online (format = "event")
+  eventStartsAt     DateTime? @map("event_starts_at")
+  eventEndsAt       DateTime? @map("event_ends_at")
+  eventStreamUrl    String?   @map("event_stream_url")
+  eventTimezone     String?   @map("event_timezone")
+  eventLocationNote String?   @map("event_location_note")
+
+  // Comunidade (format = "community")
+  communityType      String? @map("community_type") // "whatsapp" | "telegram" | "discord" | "other"
+  communityInviteUrl String? @map("community_invite_url")
+  communityRules     String? @map("community_rules")
+
+  // Assinatura (format = "subscription") — preço em NasaRoutePlan.priceStars; aqui só a periodicidade
+  subscriptionPeriod String? @map("subscription_period") // "monthly" (V1) | "yearly" (V2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   creatorOrg       Organization            @relation("NasaRouteCreatorOrg", fields: [creatorOrgId], references: [id], onDelete: Cascade)
   creatorUser      User                    @relation("NasaRouteCreatorUser", fields: [creatorUserId], references: [id], onDelete: Restrict)
@@ -4471,17 +4507,39 @@ model NasaRouteEnrollment {
   enrolledAt  DateTime  @default(now()) @map("enrolled_at")
   completedAt DateTime? @map("completed_at")
 
-  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course      NasaRouteCourse       @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  plan        NasaRoutePlan?        @relation(fields: [planId], references: [id], onDelete: SetNull)
-  buyerOrg    Organization?         @relation("NasaRouteBuyerOrg", fields: [buyerOrgId], references: [id], onDelete: SetNull)
-  certificate NasaRouteCertificate?
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course       NasaRouteCourse        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  plan         NasaRoutePlan?         @relation(fields: [planId], references: [id], onDelete: SetNull)
+  buyerOrg     Organization?          @relation("NasaRouteBuyerOrg", fields: [buyerOrgId], references: [id], onDelete: SetNull)
+  certificate  NasaRouteCertificate?
+  subscription NasaRouteSubscription?
 
   @@unique([userId, courseId])
   @@index([userId])
   @@index([courseId])
   @@index([planId])
   @@map("nasa_route_enrollment")
+}
+
+model NasaRouteSubscription {
+  id                 String    @id @default(cuid())
+  enrollmentId       String    @unique @map("enrollment_id")
+  status             String    @default("active") // "active" | "past_due" | "cancelled" | "expired"
+  startedAt          DateTime  @default(now()) @map("started_at")
+  currentPeriodStart DateTime  @map("current_period_start")
+  currentPeriodEnd   DateTime  @map("current_period_end")
+  nextChargeAt       DateTime  @map("next_charge_at")
+  lastChargedAt      DateTime? @map("last_charged_at")
+  failedChargeCount  Int       @default(0) @map("failed_charge_count")
+  cancelledAt        DateTime? @map("cancelled_at")
+  cancelReason       String?   @map("cancel_reason")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  enrollment NasaRouteEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([nextChargeAt, status])
+  @@map("nasa_route_subscription")
 }
 
 model NasaRouteProgress {
@@ -5107,4 +5165,55 @@ model MetaAd {
   @@index([campaignId])
   @@index([adsetId])
   @@map("meta_ads")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Meta Ads MCP (Astro IA)
+// ────────────────────────────────────────────────────────────────────────────
+
+/// Autorização explícita pra um usuário usar o Astro Meta Ads via MCP.
+/// Owner e Moderador têm autorização IMPLÍCITA pelo role — não precisam de
+/// registro aqui. Admin e Member precisam de grant explícito (autorizado
+/// por owner ou moderador). `revokedAt` faz soft-delete preservando histórico.
+model MetaMcpAuthorization {
+  id             String    @id @default(cuid())
+  organizationId String    @map("organization_id")
+  userId         String    @map("user_id")
+  authorizedById String    @map("authorized_by_id")
+  authorizedAt   DateTime  @default(now()) @map("authorized_at")
+  revokedAt      DateTime? @map("revoked_at")
+  notes          String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation("McpAuthorizedUser", fields: [userId], references: [id], onDelete: Cascade)
+  authorizedBy User         @relation("McpAuthorizedBy", fields: [authorizedById], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@map("meta_mcp_authorizations")
+}
+
+/// Operação Meta Ads de escrita PROPOSTA pelo Astro mas ainda não executada.
+/// Astro chama `meta_ads_propose_*` que persiste aqui com TTL curto (5min).
+/// UI mostra card de confirmação. Click em Confirmar → `executeMcpAction`
+/// lê pendingAction, valida ownership/TTL, executa via MCP, marca executed.
+model MetaAdsPendingAction {
+  id             String    @id @default(cuid())
+  organizationId String    @map("organization_id")
+  userId         String    @map("user_id")
+  toolName       String    @map("tool_name") // ex: "meta_ads_pause_campaign"
+  payload        Json // params validados pela tool
+  summary        String // texto pro UI
+  status         String    @default("pending") // pending | executed | cancelled | expired
+  expiresAt      DateTime  @map("expires_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  executedAt     DateTime? @map("executed_at")
+  errorMessage   String?   @map("error_message")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status, expiresAt])
+  @@index([userId])
+  @@map("meta_ads_pending_actions")
 }

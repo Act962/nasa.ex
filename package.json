@@ -38,6 +38,7 @@
     "@imgly/background-removal": "^1.7.0",
     "@inngest/realtime": "^0.4.6",
     "@internationalized/date": "^3.12.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@openrouter/ai-sdk-provider": "^2.2.3",
     "@orpc/client": "^1.13.5",
     "@orpc/openapi": "^1.13.5",

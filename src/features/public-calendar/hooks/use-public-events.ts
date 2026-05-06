@@ -9,11 +9,21 @@ export function usePublicEvents(initialData?: Record<string, unknown>) {
   const state = useFiltersStore((s) => s.state);
   const city = useFiltersStore((s) => s.city);
   const category = useFiltersStore((s) => s.category);
+  const organizationId = useFiltersStore((s) => s.organizationId);
   const search = useFiltersStore((s) => s.search);
   const from = useFiltersStore((s) => s.from);
   const to = useFiltersStore((s) => s.to);
 
-  const hasFilters = !!(country || state || city || category || search || from || to);
+  const hasFilters = !!(
+    country ||
+    state ||
+    city ||
+    category ||
+    organizationId ||
+    search ||
+    from ||
+    to
+  );
 
   return useQuery({
     ...orpc.public.calendar.listPublic.queryOptions({
@@ -22,6 +32,7 @@ export function usePublicEvents(initialData?: Record<string, unknown>) {
         state: state ?? undefined,
         city: city ?? undefined,
         category: category ?? undefined,
+        organizationId: organizationId ?? undefined,
         search: search || undefined,
         from: from ?? undefined,
         to: to ?? undefined,
@@ -46,6 +57,13 @@ export function usePublicCategories() {
 export function usePublicLocations() {
   return useQuery({
     ...orpc.public.calendar.listLocations.queryOptions({ input: {} }),
+    staleTime: 60_000,
+  });
+}
+
+export function usePublicOrganizations() {
+  return useQuery({
+    ...orpc.public.calendar.listOrganizations.queryOptions({ input: {} }),
     staleTime: 60_000,
   });
 }

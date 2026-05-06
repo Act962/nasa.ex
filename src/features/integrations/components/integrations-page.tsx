@@ -7,6 +7,7 @@ import {
   useDeletePlatformIntegration,
 } from "../hooks/use-integrations";
 import { useOrgRole } from "@/hooks/use-org-role";
+import { MetaMcpSection } from "./meta-mcp-section";
 import { IntegrationPlatform } from "@/generated/prisma/enums";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -921,6 +922,9 @@ export function IntegrationsPage() {
         );
       })}
 
+      {/* Astro Meta Ads (MCP) — auto-hides when Meta not connected */}
+      <MetaMcpSection />
+
       {/* Lead origin info */}
       <div className="rounded-2xl border bg-card p-5">
         <h2 className="font-semibold text-sm mb-1">🎯 Rastreamento automático de origem de leads</h2>
@@ -1030,6 +1034,9 @@ export function PlatformIntegrationsSection() {
           </section>
         );
       })}
+
+      {/* Astro Meta Ads (MCP) — auto-hides when Meta not connected */}
+      <MetaMcpSection />
 
       {configuring && configuring.platform !== "WHATSAPP" && (
         <ConfigDialog def={configuring}

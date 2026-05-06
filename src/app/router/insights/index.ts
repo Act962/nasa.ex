@@ -30,6 +30,8 @@ import { getWorkspacesReport } from "./reports/get-workspaces-report";
 import { getTrackingsReport } from "./reports/get-trackings-report";
 import { getAttendantsReport } from "./reports/get-attendants-report";
 import { getMemberActivityReport } from "./reports/get-member-activity-report";
+import { getMetaTrafficOverview } from "./reports/get-meta-traffic-overview";
+import { getCampaignsEvolution } from "./reports/get-campaigns-evolution";
 
 export const insightsRouter = {
   getAppsInsights,
@@ -64,4 +66,6 @@ export const insightsRouter = {
   getTrackingsReport,
   getAttendantsReport,
   getMemberActivityReport,
+  getMetaTrafficOverview,
+  getCampaignsEvolution,
 };

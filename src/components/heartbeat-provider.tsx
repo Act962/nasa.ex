@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 
 const PATH_RULES: Array<{ pattern: RegExp; appSlug: string; resourceFrom?: number }> = [
@@ -47,12 +48,22 @@ function resolveAppSlugFromPath(pathname: string) {
 }
 
 // Threshold mínimo pra registrar uma janela de inatividade (ms).
-// Alinhado com o intervalo do heartbeat — abaixo disso é considerado
+// Alinhado com o intervalo mínimo do heartbeat — abaixo disso é considerado
 // troca rápida de aba/contexto, não inatividade real.
 const INACTIVITY_THRESHOLD_MS = 30_000;
 
+const DEFAULT_INTERVAL_SECONDS = 60;
+
 export function HeartbeatProvider() {
   const pathname = usePathname();
+
+  const { data: config } = useQuery({
+    ...orpc.activity.getConfig.queryOptions(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const intervalMs = (config?.heartbeatIntervalSeconds ?? DEFAULT_INTERVAL_SECONDS) * 1000;
+
 
   useEffect(() => {
     const sendHeartbeat = () => {
@@ -66,9 +77,9 @@ export function HeartbeatProvider() {
         .catch(() => {});
     };
     sendHeartbeat();
-    const interval = setInterval(sendHeartbeat, 30_000);
+    const interval = setInterval(sendHeartbeat, intervalMs);
     return () => clearInterval(interval);
-  }, [pathname]);
+  }, [pathname, intervalMs]);
 
   // Captura "Tempo inativo": tempo com a aba escondida (outra tab, janela
   // minimizada, etc). Usa Page Visibility API ao invés de polling — event

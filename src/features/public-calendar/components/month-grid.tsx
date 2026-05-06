@@ -13,6 +13,11 @@ import {
 import { cn } from "@/lib/utils";
 import { EVENT_CATEGORIES } from "../utils/categories";
 import { imgSrc } from "../utils/img-src";
+import {
+  buildVariableHolidays,
+  getHoliday,
+  getMobilizationEvent,
+} from "../utils/holidays";
 import type { PublicEvent } from "../types";
 
 dayjs.locale("pt-br");
@@ -21,6 +26,7 @@ interface MonthGridProps {
   events: PublicEvent[];
   onSelect: (event: PublicEvent) => void;
   selectedId?: string | null;
+  onCreateForDate?: (date: Dayjs) => void;
 }
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -53,10 +59,25 @@ function MiniCard({
     : null;
 
   const coverSrc = ev.coverImage && !coverFailed ? imgSrc(ev.coverImage) : null;
-  const logoSrc =
-    ev.organization?.logo && !logoFailed
-      ? imgSrc(ev.organization.logo)
+  // Logo da empresa (preferencial) → avatar do criador (fallback) → null.
+  // Trata strings vazias e URLs inválidas como ausência de logo.
+  const orgLogo =
+    typeof ev.organization?.logo === "string" && ev.organization.logo.trim()
+      ? ev.organization.logo
       : null;
+  const userImage =
+    typeof ev.user?.image === "string" && ev.user.image.trim()
+      ? ev.user.image
+      : null;
+  const rawBrandSrc = orgLogo ?? userImage;
+  const computedSrc = rawBrandSrc ? imgSrc(rawBrandSrc) : "";
+  const logoSrc = computedSrc && !logoFailed ? computedSrc : null;
+  const brandInitial = (
+    ev.organization?.name?.[0] ??
+    ev.user?.name?.[0] ??
+    ev.title?.[0] ??
+    "?"
+  ).toUpperCase();
 
   return (
     <button
@@ -77,36 +98,52 @@ function MiniCard({
           className="absolute inset-0 h-full w-full object-cover"
           onError={() => setCoverFailed(true)}
         />
-      ) : logoSrc ? (
-        <>
-          <div className="absolute inset-0 bg-card" />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={logoSrc}
-            alt={ev.organization?.name ?? ""}
-            className="absolute inset-0 h-full w-full object-contain p-1"
-            onError={() => setLogoFailed(true)}
-          />
-        </>
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-violet-500/20 via-fuchsia-500/20 to-pink-500/20 text-sm">
+        // Sem cover: gradient com emoji da categoria como background.
+        // O logo da empresa (se existir) aparece como bolinha acima do título.
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-violet-500/30 via-fuchsia-500/30 to-pink-500/30 text-sm">
           {cat?.emoji ?? "✨"}
         </div>
       )}
 
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent px-1.5 pb-1 pt-6">
-        <div className="truncate text-[9px] font-bold leading-tight text-white drop-shadow">
-          {ev.title}
-        </div>
-        <div className="text-[8px] font-medium text-white/90">
-          {dayjs(ev.startDate).format("HH:mm")}
+      {/* Logo da empresa à esquerda, centralizada verticalmente no card —
+          mesmo tamanho da bola da data (size-6 = 24px). */}
+      <div className="absolute left-1.5 top-1/2 z-10 -translate-y-1/2">
+        {logoSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoSrc}
+            alt={ev.organization?.name ?? ev.user?.name ?? ""}
+            className="size-6 rounded-full bg-white object-cover ring-1 ring-white/70 shadow"
+            onError={() => setLogoFailed(true)}
+          />
+        ) : (
+          <div className="flex size-6 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-pink-500 text-[10px] font-bold text-white ring-1 ring-white/70 shadow">
+            {brandInitial}
+          </div>
+        )}
+      </div>
+
+      <div className="absolute inset-0 flex items-center bg-gradient-to-r from-black/85 via-black/55 to-black/15 pl-[33px] pr-1.5">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[9px] font-bold leading-tight text-white drop-shadow">
+            {ev.title}
+          </div>
+          <div className="truncate text-[8px] font-medium leading-tight text-white/90">
+            {dayjs(ev.startDate).format("HH:mm")}
+          </div>
         </div>
       </div>
     </button>
   );
 }
 
-export function MonthGrid({ events, onSelect, selectedId }: MonthGridProps) {
+export function MonthGrid({
+  events,
+  onSelect,
+  selectedId,
+  onCreateForDate,
+}: MonthGridProps) {
   const [cursor, setCursor] = useState<Dayjs>(dayjs().startOf("month"));
   const gridRef = useRef<HTMLDivElement>(null);
   const todayCellRef = useRef<HTMLDivElement>(null);
@@ -130,6 +167,13 @@ export function MonthGrid({ events, onSelect, selectedId }: MonthGridProps) {
     return days;
   }, [cursor]);
 
+  // Páscoa, Dia das Mães/Pais e Corpus Christi mudam de ano para ano —
+  // calculamos para os anos visíveis na grade atual.
+  const variableHolidays = useMemo(() => {
+    const years = new Set(grid.map((d) => d.year()));
+    return buildVariableHolidays(years);
+  }, [grid]);
+
   // Altura de cada linha (semana) da grade:
   // - N = máximo de mini-cards visíveis em uma célula da linha (cap em MAX_VISIBLE)
   // - altura base = 2 × CELL_PADDING + N × CARD_HEIGHT + (N - 1) × CARD_GAP
@@ -145,26 +189,34 @@ export function MonthGrid({ events, onSelect, selectedId }: MonthGridProps) {
       const row = grid.slice(i, i + 7);
       let maxCards = 0;
       let rowHasOverflow = false;
+      let maxTopLabels = 0;
       for (const day of row) {
         const key = day.format("YYYY-MM-DD");
         const count = eventsByDay.get(key)?.length ?? 0;
         maxCards = Math.max(maxCards, Math.min(count, MAX_VISIBLE));
         if (count > MAX_VISIBLE) rowHasOverflow = true;
+        const labels =
+          (getHoliday(day, variableHolidays) ? 1 : 0) +
+          (getMobilizationEvent(day) ? 1 : 0);
+        if (labels > maxTopLabels) maxTopLabels = labels;
       }
+      // 20px por label de feriado/mobilização que aparece no topo da célula.
+      const topLabelExtra = maxTopLabels * 20;
       if (maxCards === 0) {
-        heights.push(EMPTY_ROW_HEIGHT);
+        heights.push(EMPTY_ROW_HEIGHT + topLabelExtra);
       } else {
         const base =
           2 * CELL_PADDING +
           maxCards * CARD_HEIGHT +
           (maxCards - 1) * CARD_GAP;
-        heights.push(
-          rowHasOverflow ? base + CARD_GAP + PLUS_MORE_HEIGHT : base,
-        );
+        const withOverflow = rowHasOverflow
+          ? base + CARD_GAP + PLUS_MORE_HEIGHT
+          : base;
+        heights.push(withOverflow + topLabelExtra);
       }
     }
     return heights;
-  }, [grid, eventsByDay]);
+  }, [grid, eventsByDay, variableHolidays]);
 
   const today = dayjs().startOf("day");
 
@@ -259,20 +311,32 @@ export function MonthGrid({ events, onSelect, selectedId }: MonthGridProps) {
           const isOutside = !day.isSame(cursor, "month");
           const isToday = day.isSame(today, "day");
           const overflow = dayEvents.length - MAX_VISIBLE;
+          const holiday = getHoliday(day, variableHolidays);
+          const mobilization = getMobilizationEvent(day);
+          const hasTopLabel = !!(holiday || mobilization);
 
           return (
             <div
               key={dayKey}
               ref={isToday ? todayCellRef : undefined}
               className={cn(
-                "relative overflow-hidden rounded-lg",
+                "group/day relative overflow-hidden rounded-lg",
                 isToday
                   ? "bg-primary/15 ring-1 ring-primary/40"
                   : isOutside
                     ? "bg-violet-500/8"
                     : "bg-card/60",
+                onCreateForDate && "cursor-pointer hover:bg-card/80",
               )}
               style={{ padding: `${CELL_PADDING}px` }}
+              onClick={(e) => {
+                // Só dispara se o clique foi em área vazia da célula —
+                // não em mini-cards (botões internos param a propagação).
+                if (!onCreateForDate) return;
+                if (e.target === e.currentTarget) {
+                  onCreateForDate(day);
+                }
+              }}
             >
               {/* Número do dia — absolute, NÃO consome altura da cédula */}
               <div
@@ -290,11 +354,85 @@ export function MonthGrid({ events, onSelect, selectedId }: MonthGridProps) {
                 {day.date()}
               </div>
 
+              {/* Feriados / mobilizações nacionais — renderizados no topo */}
+              {hasTopLabel && (
+                <div className="absolute left-0 right-0 top-[28px] z-20 flex flex-col gap-0.5 px-[5px]">
+                  {[holiday, mobilization].filter(Boolean).map((ev, i) => (
+                    <Popover key={i}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className={cn(
+                            "w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium leading-tight transition-opacity hover:opacity-80",
+                            ev!.color === "amber"
+                              ? "bg-amber-400/20 text-amber-700 dark:text-amber-300"
+                              : "bg-indigo-400/20 text-indigo-700 dark:text-indigo-300",
+                          )}
+                        >
+                          {ev!.label}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-72 p-0"
+                        align="start"
+                        side="right"
+                      >
+                        <div className="p-3 pb-2">
+                          <p className="text-sm font-semibold leading-tight">
+                            {ev!.title}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {ev!.description}
+                          </p>
+                        </div>
+                        <div
+                          className={cn(
+                            "mx-3 mb-2 rounded px-2 py-1.5 text-xs",
+                            ev!.color === "amber"
+                              ? "bg-amber-400/15 text-amber-800 dark:text-amber-300"
+                              : "bg-indigo-400/15 text-indigo-800 dark:text-indigo-300",
+                          )}
+                        >
+                          <span className="font-semibold">Impacto: </span>
+                          {ev!.impact}
+                        </div>
+                        <div className="border-t px-3 py-2">
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Dicas de ação
+                          </p>
+                          <ul className="space-y-0.5">
+                            {ev!.tips.map((tip, ti) => (
+                              <li
+                                key={ti}
+                                className="flex gap-1.5 text-xs text-foreground/80"
+                              >
+                                <span className="mt-0.5 shrink-0 text-muted-foreground">
+                                  •
+                                </span>
+                                {tip}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  ))}
+                </div>
+              )}
+
               {/* Mini cards — gap de 0,1 × CARD_HEIGHT entre eles + "+X mais" no fluxo */}
               {dayEvents.length > 0 && (
                 <div
                   className="flex h-full flex-col"
-                  style={{ gap: `${CARD_GAP}px` }}
+                  style={{
+                    gap: `${CARD_GAP}px`,
+                    paddingTop:
+                      holiday && mobilization
+                        ? 68
+                        : hasTopLabel
+                          ? 48
+                          : 28,
+                  }}
                 >
                   {dayEvents.slice(0, MAX_VISIBLE).map((ev) => (
                     <MiniCard

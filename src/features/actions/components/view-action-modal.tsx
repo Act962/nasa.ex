@@ -47,7 +47,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { ShieldAlert, HistoryIcon } from "lucide-react";
+import { ShieldAlert, HistoryIcon, PanelRightOpen } from "lucide-react";
 import { HistoricSheet } from "./view-modal/historic-sheet";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -65,6 +65,7 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   const action = (rawAction ?? undefined) as Action | undefined;
   const { data: session } = authClient.useSession();
   const [historicOpen, setHistoricOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const updateAction = useUpdateAction();
   const updateFields = useUpdateActionFields();
   const createSubAction = useCreateSubAction(actionId);
@@ -241,7 +242,7 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTitle className="sr-only ">Visualizar e editar ação</DialogTitle>
       <DialogContent
-        className="p-0 sm:max-w-[90%] bg-muted overflow-hidden flex flex-col max-h-[90vh] gap-0"
+        className="bg-muted flex h-[100dvh] max-w-none flex-col gap-0 overflow-hidden rounded-none p-0 sm:h-auto sm:max-h-[90vh] sm:max-w-[90%] sm:rounded-lg"
         showCloseButton={false}
       >
         <ActionHeader
@@ -270,6 +271,19 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
                 onClick={() => setHistoricOpen(true)}
               >
                 <HistoryIcon className="size-4" />
+              </Button>
+            ) : undefined
+          }
+          mobileSidebarTrigger={
+            action && hasAccess ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 rounded-full lg:hidden"
+                onClick={() => setMobileSidebarOpen(true)}
+                title="Detalhes"
+              >
+                <PanelRightOpen className="size-4" />
               </Button>
             ) : undefined
           }
@@ -392,7 +406,7 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
                   <div className="pb-32" />
                 </div>
               </ScrollArea>
-              <div className="sm:block hidden">
+              <div className="hidden w-[320px] shrink-0 lg:block">
                 <ActionSidebar
                   action={action}
                   isLoading={isLoading}
@@ -418,6 +432,34 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
         open={historicOpen}
         onOpenChange={setHistoricOpen}
       />
+
+      {/* Mobile/tablet sidebar — abre centralizado na tela ocupando 95vw x 90vh.
+          Em desktop (lg+) o sidebar já é renderizado inline. */}
+      <Dialog open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+        <DialogContent
+          className="flex h-[90dvh] w-[95vw] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-lg lg:hidden"
+          showCloseButton
+        >
+          <DialogTitle className="border-b px-4 py-3 text-base">
+            Detalhes
+          </DialogTitle>
+          <div className="flex-1 overflow-hidden">
+            <ActionSidebar
+              action={action}
+              isLoading={isLoading}
+              columns={columns}
+              members={members}
+              onUpdateAction={handleUpdateAction}
+              onUpdateFields={handleUpdateFields}
+              onToggleParticipant={handleToggleParticipant}
+              isUpdating={updateAction.isPending}
+              isUpdatingFields={updateFields.isPending}
+              isAddingParticipant={addResponsible.isPending}
+              isRemovingParticipant={removeResponsible.isPending}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

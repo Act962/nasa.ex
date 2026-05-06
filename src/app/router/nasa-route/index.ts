@@ -13,6 +13,10 @@ import { getCourseAsStudent } from "./routes/get-course-as-student";
 import { purchaseCourse } from "./routes/purchase-course";
 import { markLessonComplete } from "./routes/mark-lesson-complete";
 import { listMyCertificates } from "./routes/list-my-certificates";
+import { getEbookDownloadUrl } from "./routes/get-ebook-download-url";
+import { getEventStreamUrl } from "./routes/get-event-stream-url";
+import { getCommunityInvite } from "./routes/get-community-invite";
+import { getSubscriptionStatus } from "./routes/get-subscription-status";
 
 // ── Criador ─────────────────────────────────────────────────────────────
 import { creatorListCourses } from "./routes/creator-list-courses";
@@ -54,6 +58,10 @@ export const nasaRouteRouter = {
   purchaseCourse,
   markLessonComplete,
   listMyCertificates,
+  getEbookDownloadUrl,
+  getEventStreamUrl,
+  getCommunityInvite,
+  getSubscriptionStatus,
   // criador
   creatorListCourses,
   creatorGetCourse,

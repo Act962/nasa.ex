@@ -51,6 +51,7 @@ import { workspaceWorkflowRoutes } from "./workspace-workflow";
 import { reminderRouter } from "./reminder";
 import { partnerRouter } from "./partner";
 import { metaAdsRouter } from "./meta-ads";
+import { metaMcpRouter } from "./meta-mcp";
 
 export const router = {
   tracking: trackingRoutes,
@@ -105,4 +106,5 @@ export const router = {
   reminder: reminderRouter,
   partner: partnerRouter,
   metaAds: metaAdsRouter,
+  metaMcp: metaMcpRouter,
 };

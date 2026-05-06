@@ -65,7 +65,7 @@ export function NasaRouteHome() {
   }, [courses]);
 
   return (
-    <div className="space-y-10 pb-16">
+    <div className="w-full flex-1 space-y-10 pb-16">
       {!isSearching && heroCourse && !isLoading && (
         <CourseHero
           course={heroCourse}

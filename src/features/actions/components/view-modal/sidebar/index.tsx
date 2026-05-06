@@ -55,8 +55,8 @@ export function ActionSidebar({
   }
 
   return (
-    <ScrollArea className="h-full border-l bg-muted/80">
-      <div className="p-4 space-y-4">
+    <ScrollArea className="h-full w-full border-l bg-muted/80">
+      <div className="space-y-4 p-4">
         <PublicVisibilityField
           isPublic={action?.isPublic}
           publicSlug={action?.publicSlug}
