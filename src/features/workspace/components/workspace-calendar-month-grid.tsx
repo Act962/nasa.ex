@@ -3,7 +3,20 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/pt-br";
-import { ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Plus } from "lucide-react";
+import {
+  DndContext,
+  type DragEndEvent,
+  type DragStartEvent,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  pointerWithin,
+} from "@dnd-kit/core";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -11,7 +24,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { imgSrc } from "@/features/public-calendar/utils/img-src";
+import { useUpdateAction } from "@/features/actions/hooks/use-tasks";
 
 dayjs.locale("pt-br");
 
@@ -268,6 +283,10 @@ interface MonthGridProps {
   onCursorChange: (cursor: Dayjs) => void;
   onSelect: (action: WorkspaceCalendarAction) => void;
   selectedId?: string | null;
+  /** Click em área vazia da célula. Recebe o dia clicado. */
+  onCreateForDate?: (date: Dayjs) => void;
+  /** Quando informado, mostra ícone de "+" no hover da célula. */
+  showCreateOnHover?: boolean;
 }
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -282,20 +301,45 @@ function isEmoji(value?: string | null): value is string {
   return !!value && !value.startsWith("http") && !value.startsWith("/") && value.length <= 4;
 }
 
+/** Drop zone transparente que ocupa todo o cell — registra `useDroppable`
+ *  com id "day-YYYY-MM-DD". Quando um card é dropado dentro do cell,
+ *  o handler `onDragEnd` recebe `over.id = "day-YYYY-MM-DD"`. */
+function DropZone({ dayKey }: { dayKey: string }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `day-${dayKey}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "pointer-events-none absolute inset-0 z-0 rounded-lg transition-colors",
+        isOver && "bg-primary/15 ring-2 ring-primary/60",
+      )}
+    />
+  );
+}
+
 function MiniCard({
   action,
   color,
   selected,
   onSelect,
+  draggable = false,
 }: {
   action: WorkspaceCalendarAction;
   color: string;
   selected: boolean;
   onSelect: (a: WorkspaceCalendarAction) => void;
+  draggable?: boolean;
 }) {
   const [coverFailed, setCoverFailed] = useState(false);
   const [wsCoverFailed, setWsCoverFailed] = useState(false);
   const [creatorImgFailed, setCreatorImgFailed] = useState(false);
+
+  // DnD — só ativa quando draggable=true (evita custo em modos não-drag)
+  const drag = useDraggable({
+    id: `action-${action.id}`,
+    data: { action },
+    disabled: !draggable,
+  });
 
   const dateStr = action.dueDate || action.startDate;
   const time = dateStr ? dayjs(dateStr).format("HH:mm") : "";
@@ -317,15 +361,45 @@ function MiniCard({
 
   return (
     <button
+      ref={draggable ? drag.setNodeRef : undefined}
       type="button"
-      onClick={() => onSelect(action)}
+      onClick={(e) => {
+        // Não dispara onSelect durante drag (drag-kit já bloqueia o click no fim)
+        if (drag.isDragging) {
+          e.preventDefault();
+          return;
+        }
+        onSelect(action);
+      }}
+      {...(draggable ? drag.attributes : {})}
+      {...(draggable ? drag.listeners : {})}
       className={cn(
         "group relative h-[52px] w-full overflow-hidden rounded-md transition",
         selected ? "ring-2 ring-primary" : "hover:ring-2 hover:ring-primary/60",
+        draggable && "cursor-grab active:cursor-grabbing",
+        drag.isDragging && "opacity-40",
       )}
-      style={{ backgroundColor: color }}
+      style={{
+        backgroundColor: color,
+        // Quando em drag, deixamos o DragOverlay renderizar o "fantasma" — só
+        // baixamos a opacidade aqui pra dar feedback visual.
+      }}
       title={action.title}
     >
+      {/* Camada de fallback SEMPRE presente: gradient + inicial grande.
+          Garante que mesmo sem imagem o card tenha visual bonito. As imagens
+          (quando existem) renderizam por cima. */}
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{
+          background: `linear-gradient(135deg, ${color} 0%, ${color}cc 60%, ${color}80 100%)`,
+        }}
+      >
+        <span className="text-2xl font-bold text-white/30 select-none">
+          {action.title.charAt(0).toUpperCase()}
+        </span>
+      </div>
+
       {actionCover ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -407,9 +481,69 @@ export function WorkspaceCalendarMonthGrid({
   onCursorChange,
   onSelect,
   selectedId,
+  onCreateForDate,
+  showCreateOnHover,
 }: MonthGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const todayCellRef = useRef<HTMLDivElement>(null);
+
+  // ── DnD: arrastar evento entre dias muda dueDate da action ───────────────
+  const updateAction = useUpdateAction();
+  const [draggingAction, setDraggingAction] =
+    useState<WorkspaceCalendarAction | null>(null);
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+
+  const handleDragStart = (e: DragStartEvent) => {
+    const a = (e.active.data.current as { action?: WorkspaceCalendarAction })?.action;
+    if (a) setDraggingAction(a);
+  };
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    setDraggingAction(null);
+    const action = (e.active.data.current as { action?: WorkspaceCalendarAction })
+      ?.action;
+    const dropDayKey = e.over?.id as string | undefined;
+    if (!action || !dropDayKey || !dropDayKey.startsWith("day-")) return;
+    const targetDay = dropDayKey.slice(4); // "day-YYYY-MM-DD"
+
+    // Não move se cair no mesmo dia (evita mutation desnecessária)
+    const currentDate = action.dueDate || action.startDate;
+    const currentKey = currentDate
+      ? dayjs(currentDate).format("YYYY-MM-DD")
+      : null;
+    if (currentKey === targetDay) return;
+
+    // Preserva o horário (HH:mm:ss) original quando mover
+    const originalTime = currentDate
+      ? dayjs(currentDate)
+      : dayjs().hour(9).minute(0).second(0);
+    const newDate = dayjs(targetDay)
+      .hour(originalTime.hour())
+      .minute(originalTime.minute())
+      .second(originalTime.second())
+      .toDate();
+
+    updateAction.mutate(
+      {
+        actionId: action.id,
+        dueDate: newDate,
+      } as any,
+      {
+        onSuccess: () => {
+          toast.success(
+            `Movido para ${dayjs(targetDay).format("DD [de] MMMM")}`,
+          );
+        },
+        onError: (err) => {
+          toast.error(`Falha ao mover: ${(err as Error).message}`);
+        },
+      },
+    );
+  };
 
   const actionsByDay = useMemo(() => {
     const map = new Map<string, WorkspaceCalendarAction[]>();
@@ -486,6 +620,13 @@ export function WorkspaceCalendarMonthGrid({
     a.workspaceId ? workspaceColorMap[a.workspaceId] ?? "#7c3aed" : "#7c3aed";
 
   return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setDraggingAction(null)}
+    >
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
@@ -557,8 +698,16 @@ export function WorkspaceCalendarMonthGrid({
             <div
               key={dayKey}
               ref={isToday ? todayCellRef : undefined}
+              onClick={(e) => {
+                // Só dispara em click na área vazia da célula — clicks em
+                // cards / popovers / "+" param via stopPropagation neles.
+                if (onCreateForDate && e.target === e.currentTarget) {
+                  onCreateForDate(day);
+                }
+              }}
               className={cn(
-                "relative overflow-hidden rounded-lg",
+                "group relative overflow-hidden rounded-lg",
+                onCreateForDate && "cursor-pointer",
                 isToday
                   ? "bg-primary/15 ring-1 ring-primary/40"
                   : isOutside
@@ -567,6 +716,9 @@ export function WorkspaceCalendarMonthGrid({
               )}
               style={{ padding: `${CELL_PADDING}px` }}
             >
+              {/* Drop zone — registra useDroppable("day-YYYY-MM-DD") */}
+              <DropZone dayKey={dayKey} />
+
               {/* Número do dia */}
               <div
                 className={cn(
@@ -582,6 +734,21 @@ export function WorkspaceCalendarMonthGrid({
               >
                 {day.date()}
               </div>
+
+              {/* Botão "+" pra criar evento (visível no hover) */}
+              {showCreateOnHover && onCreateForDate && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCreateForDate(day);
+                  }}
+                  title={`Criar evento em ${day.format("DD/MM/YYYY")}`}
+                  className="absolute right-[5px] top-[5px] z-20 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 shadow-sm transition-opacity hover:scale-110 group-hover:opacity-100"
+                >
+                  <Plus className="size-3.5" />
+                </button>
+              )}
 
               {(holiday || mobilization) && (
                 <div className="absolute left-0 right-0 top-[28px] z-20 flex flex-col gap-0.5 px-[5px]">
@@ -645,6 +812,7 @@ export function WorkspaceCalendarMonthGrid({
                       color={getColor(a)}
                       selected={selectedId === a.id}
                       onSelect={onSelect}
+                      draggable
                     />
                   ))}
 
@@ -697,5 +865,20 @@ export function WorkspaceCalendarMonthGrid({
         })}
       </div>
     </div>
+
+    {/* DragOverlay — fantasma do card durante o drag */}
+    <DragOverlay>
+      {draggingAction ? (
+        <div className="pointer-events-none">
+          <MiniCard
+            action={draggingAction}
+            color={getColor(draggingAction)}
+            selected={false}
+            onSelect={() => {}}
+          />
+        </div>
+      ) : null}
+    </DragOverlay>
+    </DndContext>
   );
 }

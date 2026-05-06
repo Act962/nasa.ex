@@ -3,7 +3,7 @@ import { tool } from "ai";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-export const createActionTool = (userId: string) =>
+export const createActionTool = (userId: string, orgId: string) =>
   tool({
     description:
       "Create a event with title, workspace and status. Você pode usar outros campos como data de inicio e fim, descrição, etc, mas estes não são obrigatórios. ",
@@ -23,7 +23,11 @@ export const createActionTool = (userId: string) =>
                 id: userId,
               },
             },
-
+            // organizationId é OBRIGATÓRIO pra ação aparecer no calendário —
+            // `getWorkspaceCalendar` filtra por org.
+            organization: {
+              connect: { id: orgId },
+            },
             title: title,
             description: content,
             workspace: {

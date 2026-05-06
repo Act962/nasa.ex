@@ -84,8 +84,13 @@ export function PublicVisibilityField({
         <div className="space-y-3 pt-2">
           {publicUrl && (
             <div className="flex items-center gap-1.5 rounded border border-border/40 bg-muted/40 p-1.5">
-              <div className="flex-1 truncate text-xs text-muted-foreground">
-                {publicUrl}
+              <div
+                className="flex-1 truncate text-xs text-muted-foreground"
+                title={publicUrl}
+              >
+                {publicUrl.length > 30
+                  ? `${publicUrl.slice(0, 30)}…`
+                  : publicUrl}
               </div>
               <Button
                 type="button"

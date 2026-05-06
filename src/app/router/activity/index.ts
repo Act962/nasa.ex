@@ -4,6 +4,8 @@ import { heartbeat } from "./heartbeat";
 import { getOnlineUsers } from "./get-online";
 import { logLogout } from "./log-logout";
 import { logInactivity } from "./log-inactivity";
+import { getConfig } from "./get-config";
+import { setConfig } from "./set-config";
 
 export const activityRouter = {
   getLogs,
@@ -12,4 +14,6 @@ export const activityRouter = {
   getOnlineUsers,
   logLogout,
   logInactivity,
+  getConfig,
+  setConfig,
 };

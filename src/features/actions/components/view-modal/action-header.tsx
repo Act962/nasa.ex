@@ -10,6 +10,7 @@ interface HeaderProps {
   isLoading: boolean;
   actionMenu?: ReactNode;
   historyTrigger?: ReactNode;
+  mobileSidebarTrigger?: ReactNode;
 }
 
 export function ActionHeader({
@@ -18,6 +19,7 @@ export function ActionHeader({
   isLoading,
   actionMenu,
   historyTrigger,
+  mobileSidebarTrigger,
 }: HeaderProps) {
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
@@ -29,6 +31,7 @@ export function ActionHeader({
         </span>
       </div>
       <div className="flex items-center gap-1 shrink-0">
+        {mobileSidebarTrigger}
         {historyTrigger}
         {actionMenu}
         <DialogClose asChild>

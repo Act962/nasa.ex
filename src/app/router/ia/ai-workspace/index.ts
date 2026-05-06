@@ -94,7 +94,7 @@ export const createActionWithAi = base
         toolChoice: "auto",
 
         tools: {
-          createAction: createActionTool(userId),
+          createAction: createActionTool(userId, orgId),
           listWorkspaces: listWorkspaces(userId),
           listColumnsByWorkspace: listColumnsByWorkspace(
             userId,

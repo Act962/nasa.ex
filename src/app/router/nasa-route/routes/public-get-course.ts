@@ -87,6 +87,18 @@ export const publicGetCourse = base
         minPriceStars,
         studentsCount: course.studentsCount,
         rewardSpOnComplete: course.rewardSpOnComplete,
+        // Campos por formato — só metadados públicos.
+        // URLs sensíveis (ebookFileKey, communityInviteUrl, eventStreamUrl)
+        // só vêm via procedures autenticadas após matrícula.
+        ebookFileSize: course.ebookFileSize,
+        ebookMimeType: course.ebookMimeType,
+        ebookPageCount: course.ebookPageCount,
+        eventStartsAt: course.eventStartsAt,
+        eventEndsAt: course.eventEndsAt,
+        eventTimezone: course.eventTimezone,
+        eventLocationNote: course.eventLocationNote,
+        communityType: course.communityType,
+        subscriptionPeriod: course.subscriptionPeriod,
         category: course.category,
         creator: course.creatorUser,
         modules: course.modules,

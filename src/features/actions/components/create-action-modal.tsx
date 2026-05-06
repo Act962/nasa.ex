@@ -57,6 +57,10 @@ interface Props {
   workspaceId: string;
   defaultColumnId?: string;
   presetPublic?: boolean;
+  /** Override do startDate default (hoje 00h). Útil ao criar a partir do calendário. */
+  defaultStartDate?: Date;
+  /** Override do dueDate default (amanhã 00h). Útil ao criar a partir do calendário. */
+  defaultDueDate?: Date;
 }
 
 type WorkspaceMemberOption = {
@@ -89,6 +93,8 @@ export const CreateActionModal = ({
   workspaceId,
   defaultColumnId,
   presetPublic,
+  defaultStartDate,
+  defaultDueDate,
 }: Props) => {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -97,13 +103,30 @@ export const CreateActionModal = ({
       priority: "MEDIUM",
       title: "",
       description: "",
-      startDate: dayjs().startOf("day").toDate(),
-      dueDate: dayjs().add(1, "day").startOf("day").toDate(),
+      startDate: defaultStartDate ?? dayjs().startOf("day").toDate(),
+      dueDate:
+        defaultDueDate ??
+        (defaultStartDate
+          ? dayjs(defaultStartDate).endOf("day").toDate()
+          : dayjs().add(1, "day").startOf("day").toDate()),
       columnId: defaultColumnId ?? "",
       isPublic: presetPublic ?? false,
       participantIds: [],
     },
   });
+
+  // Re-sincroniza datas se o prop mudar (cada click numa data abre o modal
+  // com defaults novos).
+  useEffect(() => {
+    if (open && defaultStartDate) {
+      form.setValue("startDate", defaultStartDate);
+      form.setValue(
+        "dueDate",
+        defaultDueDate ?? dayjs(defaultStartDate).endOf("day").toDate(),
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, defaultStartDate?.getTime(), defaultDueDate?.getTime()]);
 
   const createAction = useCreateTask();
   const { data } = useSuspenseColumnsByWorkspace(workspaceId);

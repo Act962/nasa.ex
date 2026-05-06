@@ -28,6 +28,7 @@ import { NowPanel } from "./now-panel";
 import { StatsCards } from "./stats-cards";
 import { ActivityTable } from "./activity-table";
 import { DateRangeTimePicker } from "./date-range-time-picker";
+import { HeartbeatIntervalToggle } from "./heartbeat-interval-toggle";
 import { MemberMultiSelect } from "@/features/insights/components/full-reports/member-multi-select";
 
 function initials(name: string) {
@@ -177,7 +178,10 @@ export function ActivitiesPanel() {
             organização.
           </p>
         </div>
-        <OnlineBadge />
+        <div className="flex items-center gap-2">
+          <HeartbeatIntervalToggle />
+          <OnlineBadge />
+        </div>
       </div>
 
       <NowPanel orgIds={orgIds} />
