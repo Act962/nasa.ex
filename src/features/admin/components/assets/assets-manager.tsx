@@ -775,7 +775,7 @@ export function AssetsManager({
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 w-fit max-w-full overflow-x-auto">
         {TABS.map(({ key, label, icon: Icon, count }) => (
           <button
             key={key}

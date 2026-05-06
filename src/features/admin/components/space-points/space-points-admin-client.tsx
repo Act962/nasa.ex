@@ -545,7 +545,7 @@ export function SpacePointsAdminClient({ topOrgs, allOrgs }: Props) {
   const selectedOrgName = allOrgs.find((o) => o.id === selectedOrg)?.name ?? "";
 
   return (
-    <div className="grid grid-cols-[280px_1fr] gap-6">
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[280px_1fr]">
       {/* Left: top orgs + selector */}
       <div className="space-y-4">
         <div>

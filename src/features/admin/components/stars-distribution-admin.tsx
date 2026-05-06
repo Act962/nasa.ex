@@ -339,7 +339,7 @@ export function StarsDistributionAdmin() {
       </div>
 
       {/* Mode legend */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {MODES.map(({ id, label, icon: Icon, desc }) => (
           <div key={id} className="flex items-start gap-3 p-4 rounded-xl bg-zinc-800/50 border border-zinc-700/40">
             <div className={cn(

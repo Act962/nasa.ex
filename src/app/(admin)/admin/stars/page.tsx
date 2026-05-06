@@ -152,7 +152,7 @@ export default async function StarsPage({ searchParams }: { searchParams: Promis
           {/* Table */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[700px] text-sm">
                 <thead>
                   <tr className="text-zinc-500 text-xs uppercase border-b border-zinc-800">
                     <th className="text-left px-5 py-3">Empresa</th>

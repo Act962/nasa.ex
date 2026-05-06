@@ -247,7 +247,7 @@ export function StarsRulesAdmin({ allOrgs }: Props) {
   const selectedOrgName = allOrgs.find((o) => o.id === selectedOrg)?.name ?? "";
 
   return (
-    <div className="grid grid-cols-[260px_1fr] gap-6">
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[260px_1fr]">
       {/* Left: org selector */}
       <div className="space-y-3">
         <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Empresas</h2>
@@ -256,7 +256,7 @@ export function StarsRulesAdmin({ allOrgs }: Props) {
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar empresa..."
             className="w-full pl-7 pr-3 py-1.5 text-xs bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-yellow-500" />
         </div>
-        <div className="max-h-[calc(100vh-300px)] overflow-y-auto space-y-0.5">
+        <div className="max-h-60 lg:max-h-[calc(100vh-300px)] overflow-y-auto space-y-0.5">
           {filteredOrgs.map((org) => (
             <button key={org.id} onClick={() => setSelectedOrg(org.id)}
               className={cn("w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-all",

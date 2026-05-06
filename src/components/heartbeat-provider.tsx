@@ -5,8 +5,16 @@ import { usePathname } from "next/navigation";
 import { orpc } from "@/lib/orpc";
 import { pusherClient } from "@/lib/pusher";
 
-const PATH_RULES: Array<{ pattern: RegExp; appSlug: string; resourceFrom?: number }> = [
-  { pattern: /^\/tracking(?:\/([^/]+))?/, appSlug: "tracking", resourceFrom: 1 },
+const PATH_RULES: Array<{
+  pattern: RegExp;
+  appSlug: string;
+  resourceFrom?: number;
+}> = [
+  {
+    pattern: /^\/tracking(?:\/([^/]+))?/,
+    appSlug: "tracking",
+    resourceFrom: 1,
+  },
   { pattern: /^\/chat(?:\/([^/]+))?/, appSlug: "chat", resourceFrom: 1 },
   { pattern: /^\/insights/, appSlug: "insights" },
   { pattern: /^\/forge/, appSlug: "forge" },
@@ -44,7 +52,10 @@ function resolveAppSlugFromPath(pathname: string) {
       return { appSlug: rule.appSlug, resource };
     }
   }
-  return { appSlug: "system" as string, resource: undefined as string | undefined };
+  return {
+    appSlug: "system" as string,
+    resource: undefined as string | undefined,
+  };
 }
 
 const INACTIVITY_THRESHOLD_MS = 30_000;
@@ -59,7 +70,9 @@ export function HeartbeatProvider() {
   // The channel stays open for the entire session — Pusher handles online/offline
   // detection automatically without any polling interval.
   useEffect(() => {
-    const { appSlug, resource } = resolveAppSlugFromPath(pathnameRef.current ?? "");
+    const { appSlug, resource } = resolveAppSlugFromPath(
+      pathnameRef.current ?? "",
+    );
 
     orpc.activity.connect
       .call({
@@ -111,15 +124,14 @@ export function HeartbeatProvider() {
         const dur = Date.now() - hiddenAt;
         hiddenAt = null;
         if (dur >= INACTIVITY_THRESHOLD_MS) {
-          orpc.activity.logInactivity
-            .call({ durationMs: dur })
-            .catch(() => {});
+          orpc.activity.logInactivity.call({ durationMs: dur }).catch(() => {});
         }
       }
     }
 
     document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
 
   return null;
