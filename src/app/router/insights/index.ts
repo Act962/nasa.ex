@@ -12,6 +12,7 @@ import { listInsightShares } from "./list-insight-shares";
 import { publicOrganizationDashboard } from "./public-organization-dashboard";
 import { deleteInsight } from "./delete-insight";
 import { listLeadsAtInsights } from "./list-leads-at-insight";
+import { listSentReminders } from "./list-sent-reminders";
 import { listMyOrganizations } from "./list-my-organizations";
 import { getActivitySummary } from "./get-activity-summary";
 import { getActivityNow } from "./get-activity-now";
@@ -45,6 +46,7 @@ export const insightsRouter = {
   publicOrganizationDashboard,
   deleteInsight,
   listLeadsAtInsights,
+  listSentReminders,
   listMyOrganizations,
   getActivitySummary,
   getActivityNow,

@@ -23,7 +23,6 @@ export const listReminders = base
 
     const reminders = await prisma.reminder.findMany({
       where: {
-        isActive: true,
         ...(actionId ? { actionId } : {}),
         ...(conversationId && !actionId ? { conversationId } : {}),
         ...(leadId && !conversationId && !actionId ? { leadId } : {}),
@@ -37,7 +36,11 @@ export const listReminders = base
           take: 1,
         },
       },
-      orderBy: { nextRemindAt: "asc" },
+      orderBy: [
+        { isActive: "desc" },
+        { nextRemindAt: "asc" },
+        { updatedAt: "desc" },
+      ],
     });
 
     return { reminders };

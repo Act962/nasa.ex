@@ -3,6 +3,12 @@ import prisma from "@/lib/prisma";
 import { sendText } from "@/http/uazapi/send-text";
 import { computeNextRemindAt } from "@/lib/reminder-recurrence";
 import { createNotification } from "@/features/admin/lib/notification-service";
+import { pusherServer } from "@/lib/pusher";
+import {
+  CreatedMessageProps,
+  MessageStatus,
+} from "@/features/tracking-chat/types";
+import { v4 as uuidv4 } from "uuid";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
 
@@ -21,7 +27,7 @@ export const processReminder = inngest.createFunction(
       prisma.reminder.findUnique({
         where: { id: reminderId },
         include: {
-          lead: { select: { name: true } },
+          lead: { select: { id: true, name: true } },
           tracking: {
             select: {
               whatsappInstance: {
@@ -49,7 +55,15 @@ export const processReminder = inngest.createFunction(
       prisma.reminder.findUnique({
         where: { id: reminderId, isActive: true },
         include: {
-          lead: { select: { name: true } },
+          lead: {
+            select: {
+              id: true,
+              name: true,
+              conversation: { select: { id: true } },
+            },
+          },
+          conversation: { select: { id: true, leadId: true } },
+          createdBy: { select: { id: true, name: true } },
           tracking: {
             select: {
               whatsappInstance: {
@@ -82,7 +96,7 @@ export const processReminder = inngest.createFunction(
     if (phone && instance?.status === "CONNECTED") {
       const message = fresh.message;
 
-      await step.run("send-whatsapp", () =>
+      const sendResponse = await step.run("send-whatsapp", () =>
         sendText(
           instance.apiKey,
           { number: phone, text: message },
@@ -91,6 +105,71 @@ export const processReminder = inngest.createFunction(
       );
 
       sent = true;
+
+      // Salva a mensagem na conversa do tracking, se houver
+      const conversationId =
+        fresh.conversation?.id ?? fresh.lead?.conversation?.id ?? null;
+
+      if (conversationId) {
+        const externalMessageId = sendResponse?.messageid ?? uuidv4();
+        const senderName = fresh.createdBy?.name ?? null;
+        const currentUserId = fresh.createdBy?.id ?? "";
+        const createdAt = sendResponse?.messageTimestamp
+          ? new Date(sendResponse.messageTimestamp * 1000)
+          : undefined;
+
+        await step.run("save-message-in-conversation", async () => {
+          try {
+            const created = await prisma.message.create({
+            data: {
+              conversationId,
+              body: message,
+              messageId: externalMessageId,
+              fromMe: true,
+              status: MessageStatus.SENT,
+              senderName,
+              ...(createdAt ? { createdAt } : {}),
+            },
+            select: {
+              id: true,
+              messageId: true,
+              body: true,
+              createdAt: true,
+              fromMe: true,
+              status: true,
+              mediaUrl: true,
+              mediaType: true,
+              mediaCaption: true,
+              mimetype: true,
+              fileName: true,
+              quotedMessageId: true,
+              conversationId: true,
+              senderId: true,
+              senderName: true,
+              conversation: {
+                select: {
+                  id: true,
+                  lead: { select: { id: true, name: true } },
+                },
+              },
+            },
+          });
+
+            const messageCreated: CreatedMessageProps = {
+              ...created,
+              currentUserId,
+            };
+
+            await pusherServer.trigger(
+              created.conversationId,
+              "message:created",
+              messageCreated,
+            );
+          } catch (err) {
+            console.error("[reminder] failed to persist message in conversation", err);
+          }
+        });
+      }
     }
 
     // 4b. Se houver action vinculada, notificar participantes via in-app
