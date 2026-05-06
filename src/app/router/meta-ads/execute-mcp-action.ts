@@ -2,14 +2,15 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import { logActivity } from "@/lib/activity-logger";
-import { debitStars } from "@/lib/star-service";
+
 import { StarTransactionType } from "@/generated/prisma/enums";
 import { checkMcpAuthorization } from "@/lib/meta-mcp/authorization";
 import { createMetaMcpClient } from "@/lib/meta-mcp/client";
 import { getMetaAuth } from "@/app/router/meta-ads/_helpers";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
+import { debitStars } from "@/features/stars/lib/star-service";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 /**
  * Executa uma `MetaAdsPendingAction` previamente proposta pelo Astro.
@@ -44,7 +45,10 @@ export const executeMcpAction = base
     if (!pending) {
       throw new ORPCError("NOT_FOUND", { message: "Ação não encontrada." });
     }
-    if (pending.organizationId !== context.org.id || pending.userId !== context.user.id) {
+    if (
+      pending.organizationId !== context.org.id ||
+      pending.userId !== context.user.id
+    ) {
       throw new ORPCError("FORBIDDEN", {
         message: "Você não tem acesso a essa ação.",
       });
@@ -84,7 +88,9 @@ export const executeMcpAction = base
     }
 
     // 4. Auth Meta + client
-    const metaAuth = await getMetaAuth(context.org.id, { userId: context.user.id });
+    const metaAuth = await getMetaAuth(context.org.id, {
+      userId: context.user.id,
+    });
     if (!metaAuth) {
       await prisma.metaAdsPendingAction.update({
         where: { id: pending.id },
@@ -174,7 +180,8 @@ export const executeMcpAction = base
         tool: pending.toolName,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      const message =
+        error instanceof Error ? error.message : "Erro desconhecido";
       await prisma.metaAdsPendingAction.update({
         where: { id: pending.id },
         data: { status: "pending", errorMessage: message },

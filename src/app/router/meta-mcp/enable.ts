@@ -2,7 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import { canManageMcpAuthorizations } from "@/lib/meta-mcp/authorization";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -47,19 +47,23 @@ export const enable = base
       });
     }
 
-    const existingConfig = (integration.config ?? {}) as Record<string, unknown>;
+    const existingConfig = (integration.config ?? {}) as Record<
+      string,
+      unknown
+    >;
     const newConfig = {
       ...existingConfig,
       mcpEnabled: true,
       mcpEnabledAt: new Date().toISOString(),
       mcpEnabledBy: context.user.id,
       // Defaults conservadores — só na PRIMEIRA habilitação
-      mcpAllowedOps:
-        existingConfig.mcpAllowedOps ?? ["read", "pause", "resume"],
-      mcpMaxBudgetPerCampaign:
-        existingConfig.mcpMaxBudgetPerCampaign ?? 500,
-      mcpDefaultModel:
-        existingConfig.mcpDefaultModel ?? "openai:gpt-4.1-nano",
+      mcpAllowedOps: existingConfig.mcpAllowedOps ?? [
+        "read",
+        "pause",
+        "resume",
+      ],
+      mcpMaxBudgetPerCampaign: existingConfig.mcpMaxBudgetPerCampaign ?? 500,
+      mcpDefaultModel: existingConfig.mcpDefaultModel ?? "openai:gpt-4.1-nano",
     };
 
     await prisma.platformIntegration.update({

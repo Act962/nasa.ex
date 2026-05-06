@@ -121,14 +121,12 @@ export const CreateActionModal = ({
       priority: "MEDIUM",
       title: presetTitle ?? "",
       description: "",
-      startDate: initialStart,
-      dueDate: initialDue,
-      startDate: defaultStartDate ?? dayjs().startOf("day").toDate(),
+      startDate: defaultStartDate ?? initialStart,
       dueDate:
         defaultDueDate ??
         (defaultStartDate
           ? dayjs(defaultStartDate).endOf("day").toDate()
-          : dayjs().add(1, "day").startOf("day").toDate()),
+          : initialDue),
       columnId: defaultColumnId ?? "",
       isPublic: presetPublic ?? false,
       participantIds: [],
