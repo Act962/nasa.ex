@@ -9,14 +9,13 @@ export function useNotifications() {
   const qc = useQueryClient();
   const router = useRouter();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["user-notifications"],
-    queryFn: () => orpc.userNotifications.list.call({ limit: 20 }),
-    refetchInterval: 30_000,
-  });
+  const { data, isLoading } = useQuery(
+    orpc.userNotifications.list.queryOptions({ input: { limit: 20 } }),
+  );
 
   const markReadMut = useMutation({
-    mutationFn: (id: string) => orpc.userNotifications.markRead.call({ notificationId: id }),
+    mutationFn: (id: string) =>
+      orpc.userNotifications.markRead.call({ notificationId: id }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["user-notifications"] }),
   });
 
@@ -28,13 +27,16 @@ export function useNotifications() {
   const unread = data?.unreadCount ?? 0;
   const notifications = data?.notifications ?? [];
 
-  const handleNotifClick = useCallback((n: typeof notifications[0], onAction?: () => void) => {
-    if (!n.isRead) markReadMut.mutate(n.id);
-    if (n.actionUrl) {
-      onAction?.();
-      router.push(n.actionUrl);
-    }
-  }, [markReadMut, router]);
+  const handleNotifClick = useCallback(
+    (n: (typeof notifications)[0], onAction?: () => void) => {
+      if (!n.isRead) markReadMut.mutate(n.id);
+      if (n.actionUrl) {
+        onAction?.();
+        router.push(n.actionUrl);
+      }
+    },
+    [markReadMut, router],
+  );
 
   return {
     notifications,
