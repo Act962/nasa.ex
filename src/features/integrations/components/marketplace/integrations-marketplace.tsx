@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { IntegrationGrid } from "./integration-grid";
+import { MetaMcpSection } from "@/features/integrations/components/meta-mcp-section";
 import { integrations } from "@/data/integrations";
 import { Badge } from "@/components/ui/badge";
 import { Puzzle, Zap, CheckCircle2 } from "lucide-react";
@@ -151,6 +152,9 @@ export function IntegrationsMarketplace() {
           onDisconnectPlatform={setDisconnecting}
         />
       </div>
+
+      {/* Astro Meta Ads (MCP) — auto-hides when Meta not connected */}
+      <MetaMcpSection />
 
       {/* ConfigDialog */}
       {configuring && configuring.platform !== "WHATSAPP" && (

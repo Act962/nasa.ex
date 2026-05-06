@@ -1,12 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import {
-  convertToModelMessages,
-  stepCountIs,
-  streamText,
-  type UIMessage,
-} from "ai";
+import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { streamToEventIterator } from "@orpc/client";
 import { createActionTool } from "./tools/create-action";
@@ -22,20 +17,46 @@ import { addResponsibleToActionTool } from "./tools/add-responsible-to-action";
 import z from "zod";
 import prisma from "@/lib/prisma";
 import { findUserTool } from "./tools/find-user";
+import { listCampaignsForSelectionTool } from "./tools/meta-ads/list-campaigns-for-selection";
+import {
+  getAccountOverviewTool,
+  getInsightsTool,
+  getDiagnosticsTool,
+  listCatalogsTool,
+} from "./tools/meta-ads/read-tools";
+import {
+  proposePauseCampaignTool,
+  proposeResumeCampaignTool,
+  proposeUpdateCampaignTool,
+  proposeCreateCampaignTool,
+  proposeCreateAdTool,
+} from "./tools/meta-ads/propose-tools";
+import { checkMcpAuthorization } from "@/lib/meta-mcp/authorization";
 
 export const createActionWithAi = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .input(
     z.object({
-      messages: z.array(z.custom<UIMessage>()),
+      messages: z.array(z.any()),
       initialWorkspaceId: z.string().optional(),
       initialColumnId: z.string().optional(),
+      // Contexto Meta Ads opcional — passado pelos surfaces que usam Astro
+      // pra gestão de Meta Ads (insights/relatorios, planner, NASA Explorer,
+      // Astro overlay). Define a campanha em foco no chat.
+      activeMetaCampaignId: z.string().optional(),
+      activeMetaCampaignName: z.string().optional(),
     }),
   )
   .handler(async function* ({ input, context, errors }) {
     try {
-      const { messages, initialWorkspaceId, initialColumnId } = input;
+      const {
+        messages,
+        initialWorkspaceId,
+        initialColumnId,
+        activeMetaCampaignId,
+        activeMetaCampaignName,
+      } = input;
       const orgId = context.org.id;
       const userId = context.user.id;
 
@@ -44,9 +65,13 @@ export const createActionWithAi = base
         select: { role: true },
       });
 
-      if (!initialWorkspaceId) {
-        throw errors.NOT_FOUND;
-      }
+      // Decide se registra tools Meta MCP nesta sessão.
+      // Critério: MCP habilitado na org + user autorizado.
+      const metaMcpAuth = await checkMcpAuthorization(userId, orgId);
+      const metaMcpEnabled = metaMcpAuth.authorized;
+
+      // Sem workspace, só registramos tools Meta (não bloqueia).
+      const hasWorkspace = !!initialWorkspaceId;
 
       const systemPrompt = [
         'Você é o "ASTRO", o assistente inteligente da NASA.ex.',
@@ -79,6 +104,23 @@ export const createActionWithAi = base
         "Contexto Atual:",
         `- Organização ID: ${orgId}`,
         `- Usuário ID: ${userId}`,
+        ...(metaMcpEnabled
+          ? [
+              "",
+              "META ADS (Astro IA):",
+              "- Você TEM acesso a tools Meta Ads (listar, insights, diagnósticos, propor pause/resume/criar/editar campanhas).",
+              activeMetaCampaignId
+                ? `- CAMPANHA EM FOCO: ${activeMetaCampaignName ?? activeMetaCampaignId} (id: ${activeMetaCampaignId}). Use esse campaignId em tools de gestão.`
+                : "- NENHUMA campanha selecionada. Quando o usuário pedir ação focada (pausar, editar, diagnóstico), CHAME PRIMEIRO `metaListCampaignsForSelection` para listar e o frontend renderizar o picker. NÃO INVENTE campaignIds.",
+              "- Tools `metaPropose*` NÃO executam nada — só preparam confirmação. O usuário tem que clicar 'Confirmar' no card que aparece no chat.",
+              "- Se uma tool Meta retornar `error: \"unauthorized\"` ou `error: \"operation_not_allowed\"`, repasse a `message` ao usuário em linguagem amigável e PARE — não tente outra tool Meta.",
+              "- Use `metaGetAccountOverview` para visão geral, `metaGetInsights` para detalhes (com ou sem campaignId), `metaGetDiagnostics` para problemas/recomendações.",
+            ]
+          : [
+              "",
+              "META ADS:",
+              "- Astro IA Meta Ads NÃO está habilitado/autorizado nesta sessão. Se o usuário pedir ação Meta Ads, oriente: 'Peça ao Master ou Moderador da organização pra liberar o uso do Astro Meta Ads em Integrações → Meta → Astro + IA'.",
+            ]),
       ];
       const result = streamText({
         model: openai("gpt-4.1-nano"),
@@ -94,6 +136,43 @@ export const createActionWithAi = base
         toolChoice: "auto",
 
         tools: {
+          // Workspace tools — só registradas quando há workspace context
+          ...(hasWorkspace
+            ? {
+                createAction: createActionTool(userId),
+                listWorkspaces: listWorkspaces(userId),
+                listColumnsByWorkspace: listColumnsByWorkspace(
+                  userId,
+                  initialWorkspaceId!,
+                ),
+                findAction: findActionTool(userId, initialWorkspaceId!, orgId),
+                updateAction: updateActionTool(userId),
+                getOverdueActions: getOverdueActionsTool(userId),
+                moveActionToColumn: moveActionToColumnTool(userId),
+                getWorkspaceSummary: getWorkspaceSummaryTool(userId),
+                closeAction: closeActionTool(userId),
+                addResponsibleToAction: addResponsibleToActionTool(userId),
+                findUser: findUserTool(initialWorkspaceId!),
+              }
+            : {}),
+          // Meta Ads MCP tools — registradas só quando MCP autorizado
+          ...(metaMcpEnabled
+            ? {
+                metaListCampaignsForSelection: listCampaignsForSelectionTool(
+                  userId,
+                  orgId,
+                ),
+                metaGetAccountOverview: getAccountOverviewTool(userId, orgId),
+                metaGetInsights: getInsightsTool(userId, orgId),
+                metaGetDiagnostics: getDiagnosticsTool(userId, orgId),
+                metaListCatalogs: listCatalogsTool(userId, orgId),
+                metaProposePauseCampaign: proposePauseCampaignTool(userId, orgId),
+                metaProposeResumeCampaign: proposeResumeCampaignTool(userId, orgId),
+                metaProposeUpdateCampaign: proposeUpdateCampaignTool(userId, orgId),
+                metaProposeCreateCampaign: proposeCreateCampaignTool(userId, orgId),
+                metaProposeCreateAd: proposeCreateAdTool(userId, orgId),
+              }
+            : {}),
           createAction: createActionTool(userId, orgId),
           listWorkspaces: listWorkspaces(userId),
           listColumnsByWorkspace: listColumnsByWorkspace(

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
 import { InsightsTabsNav } from "@/features/insights/components/insights-tabs-nav";
 import { ReportsList } from "@/features/insights/components/reports/reports-list";
+import { AstroPromptBar } from "@/features/insights/components/astro/astro-prompt-bar";
 import { CampaignsEvolution } from "@/features/insights/components/reports/campaigns-evolution";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, BarChart3, TrendingUp } from "lucide-react";
@@ -11,6 +12,12 @@ export default function RelatoriosPage() {
     <div className="flex flex-col h-full w-full">
       <HeaderTracking title="Insights" />
       <InsightsTabsNav />
+      <div className="flex-1 overflow-auto px-4 sm:px-6 py-6 max-w-7xl mx-auto w-full space-y-6">
+        <AstroPromptBar
+          context="insights"
+          placeholder="Pergunte ao Astro sobre suas campanhas Meta… (ex: 'pausa minha campanha de Black Friday')"
+        />
+        <div>
       <div className="flex-1 overflow-auto px-4 sm:px-6 py-6 max-w-7xl mx-auto w-full space-y-8">
         {/* Modelos de relatório */}
         <section>
@@ -73,6 +80,7 @@ export default function RelatoriosPage() {
             </p>
           </div>
           <ReportsList />
+        </div>
         </section>
       </div>
     </div>

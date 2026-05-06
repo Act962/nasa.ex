@@ -113,6 +113,11 @@ model User {
 
   metaAccountAccess MemberMetaAccountAccess[]
 
+  // Meta Ads MCP — autorização do user pra usar Astro IA Meta Ads
+  metaMcpAuthorizationsAuthorized MetaMcpAuthorization[]   @relation("McpAuthorizedUser")
+  metaMcpAuthorizationsGranted    MetaMcpAuthorization[]   @relation("McpAuthorizedBy")
+  metaAdsPendingActions           MetaAdsPendingAction[]
+
   @@unique([email])
   @@map("user")
 }
@@ -316,6 +321,10 @@ model Organization {
   metaAds             MetaAd[]
 
   memberMetaAccountAccess MemberMetaAccountAccess[]
+
+  // Meta Ads MCP — autorização e pending actions
+  metaMcpAuthorizations MetaMcpAuthorization[]
+  metaAdsPendingActions MetaAdsPendingAction[]
 
   @@unique([slug])
   @@map("organization")
@@ -5156,4 +5165,55 @@ model MetaAd {
   @@index([campaignId])
   @@index([adsetId])
   @@map("meta_ads")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Meta Ads MCP (Astro IA)
+// ────────────────────────────────────────────────────────────────────────────
+
+/// Autorização explícita pra um usuário usar o Astro Meta Ads via MCP.
+/// Owner e Moderador têm autorização IMPLÍCITA pelo role — não precisam de
+/// registro aqui. Admin e Member precisam de grant explícito (autorizado
+/// por owner ou moderador). `revokedAt` faz soft-delete preservando histórico.
+model MetaMcpAuthorization {
+  id             String    @id @default(cuid())
+  organizationId String    @map("organization_id")
+  userId         String    @map("user_id")
+  authorizedById String    @map("authorized_by_id")
+  authorizedAt   DateTime  @default(now()) @map("authorized_at")
+  revokedAt      DateTime? @map("revoked_at")
+  notes          String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation("McpAuthorizedUser", fields: [userId], references: [id], onDelete: Cascade)
+  authorizedBy User         @relation("McpAuthorizedBy", fields: [authorizedById], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@map("meta_mcp_authorizations")
+}
+
+/// Operação Meta Ads de escrita PROPOSTA pelo Astro mas ainda não executada.
+/// Astro chama `meta_ads_propose_*` que persiste aqui com TTL curto (5min).
+/// UI mostra card de confirmação. Click em Confirmar → `executeMcpAction`
+/// lê pendingAction, valida ownership/TTL, executa via MCP, marca executed.
+model MetaAdsPendingAction {
+  id             String    @id @default(cuid())
+  organizationId String    @map("organization_id")
+  userId         String    @map("user_id")
+  toolName       String    @map("tool_name") // ex: "meta_ads_pause_campaign"
+  payload        Json // params validados pela tool
+  summary        String // texto pro UI
+  status         String    @default("pending") // pending | executed | cancelled | expired
+  expiresAt      DateTime  @map("expires_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  executedAt     DateTime? @map("executed_at")
+  errorMessage   String?   @map("error_message")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status, expiresAt])
+  @@index([userId])
+  @@map("meta_ads_pending_actions")
 }
