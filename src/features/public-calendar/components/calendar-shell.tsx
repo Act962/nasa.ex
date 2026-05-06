@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+import { type Dayjs } from "dayjs";
 import {
   Sheet,
   SheetContent,
@@ -25,6 +28,8 @@ export function CalendarShell({
   initialData?: Record<string, unknown>;
 }) {
   const { data, isLoading } = usePublicEvents(initialData);
+  const router = useRouter();
+  const { data: session } = authClient.useSession();
   const [selected, setSelected] = useState<PublicEvent | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -34,6 +39,20 @@ export function CalendarShell({
   function handleSelect(ev: PublicEvent) {
     setSelected(ev);
     setDetailOpen(true);
+  }
+
+  // Clicar numa data vazia da grade → cria um novo evento já com a data
+  // de início pré-selecionada. Mantém o mesmo fluxo do botão "Criar Evento":
+  // se anônimo, manda pro sign-up; se logado, cai no /calendario/criar-evento
+  // que provisiona org+workspace e depois abre a modal com seedTitle/startDate.
+  function handleCreateForDate(date: Dayjs) {
+    const startDate = date.toISOString();
+    const url = `/calendario/criar-evento?startDate=${encodeURIComponent(startDate)}`;
+    if (session?.user) {
+      router.push(url);
+    } else {
+      router.push(`/sign-up?callbackUrl=${encodeURIComponent(url)}`);
+    }
   }
 
   return (
@@ -108,6 +127,7 @@ export function CalendarShell({
                   events={events}
                   onSelect={handleSelect}
                   selectedId={selected?.id ?? null}
+                  onCreateForDate={handleCreateForDate}
                 />
               </div>
               <div className="h-full overflow-auto lg:hidden">

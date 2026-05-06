@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Globe, Copy, ExternalLink, Check } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useQueryState } from "nuqs";
+import { cn } from "@/lib/utils";
 import { EVENT_CATEGORIES, BR_STATES } from "../utils/categories";
 import type { EventCategory } from "@/generated/prisma/enums";
 
@@ -56,6 +58,38 @@ export function PublicVisibilityField({
     ? `${typeof window !== "undefined" ? window.location.origin : ""}/calendario/evento/${publicSlug}`
     : null;
 
+  // Destaque temporário quando o user vem do fluxo de criação de evento
+  // pelo /calendario. Lemos via sessionStorage (definido pelo
+  // `actions-view-switcher` no `onCreated`) pra evitar race com nuqs e
+  // também via `?highlight=public` (fallback / deep-link).
+  const [highlight, setHighlight] = useQueryState("highlight");
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [sessionFlag, setSessionFlag] = useState(false);
+
+  useEffect(() => {
+    try {
+      const flag = sessionStorage.getItem("nasa:highlightPublic");
+      if (flag) {
+        setSessionFlag(true);
+        sessionStorage.removeItem("nasa:highlightPublic");
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const isHighlighted = highlight === "public" || sessionFlag;
+
+  useEffect(() => {
+    if (!isHighlighted) return;
+    cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const t = setTimeout(() => {
+      setSessionFlag(false);
+      if (highlight === "public") setHighlight(null);
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [isHighlighted, setHighlight, highlight]);
+
   const handleCopy = async () => {
     if (!publicUrl) return;
     await navigator.clipboard.writeText(publicUrl);
@@ -65,10 +99,28 @@ export function PublicVisibilityField({
   };
 
   return (
-    <div className="space-y-2.5 rounded-lg border border-border/60 bg-card p-3">
+    <div
+      ref={cardRef}
+      className={cn(
+        "space-y-2.5 rounded-lg border border-border/60 bg-card p-3 transition-all",
+        isHighlighted &&
+          "border-violet-400 ring-4 ring-violet-400/40 shadow-lg shadow-violet-500/20 animate-[publicPulse_1.2s_ease-in-out_infinite]",
+      )}
+    >
+      <style>{`
+        @keyframes publicPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.45); }
+          50%      { box-shadow: 0 0 0 8px rgba(167, 139, 250, 0); }
+        }
+      `}</style>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Globe className="h-4 w-4 text-muted-foreground" />
+          <Globe
+            className={cn(
+              "h-4 w-4 transition-colors",
+              isHighlighted ? "text-violet-500" : "text-muted-foreground",
+            )}
+          />
           <Label className="cursor-pointer text-sm font-medium">
             Visualização Pública
           </Label>
