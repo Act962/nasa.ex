@@ -41,7 +41,7 @@ async function handleRequest(request: Request) {
     }, // Provide initial context if needed
   });
 
-  return response ?? new Response("Not found", { status: 404 });
+  return response ?? new Response("RPC route not matched", { status: 404 });
 }
 
 export const HEAD = handleRequest;

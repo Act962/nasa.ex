@@ -16,7 +16,9 @@ export function CreateEventEntry() {
       router.push("/calendario/criar-evento");
       return;
     }
-    router.push("/sign-in?callbackUrl=/calendario/criar-evento");
+    // Usuário não cadastrado: vai pro sign-up; após criar conta volta pra
+    // /calendario/criar-evento, que provisiona org + workspace + abre modal.
+    router.push("/sign-up?callbackUrl=/calendario/criar-evento");
   };
 
   return (

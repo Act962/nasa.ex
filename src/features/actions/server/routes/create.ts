@@ -92,6 +92,9 @@ export const createAction = base
         dueDate: input.dueDate,
         startDate: input.startDate,
         workspaceId: input.workspaceId,
+        // organizationId é OBRIGATÓRIO pra ação aparecer no calendário do
+        // workspace — `getWorkspaceCalendar` filtra por organizationId.
+        organizationId: context.org.id,
         order: newOrder,
         columnId: input.columnId,
         orgProjectId: input.orgProjectId,

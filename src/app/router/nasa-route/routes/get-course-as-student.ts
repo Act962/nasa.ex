@@ -99,6 +99,19 @@ export const getCourseAsStudent = base
         format: course.format,
         priceStars: course.priceStars,
         rewardSpOnComplete: course.rewardSpOnComplete,
+        // Metadados públicos por formato — viewers usam pra renderizar.
+        // URLs sensíveis (ebookFileKey, eventStreamUrl, communityInviteUrl)
+        // continuam em procedures dedicadas pra controlar TTL e auditoria.
+        ebookFileName: course.ebookFileName,
+        ebookFileSize: course.ebookFileSize,
+        ebookMimeType: course.ebookMimeType,
+        ebookPageCount: course.ebookPageCount,
+        eventStartsAt: course.eventStartsAt,
+        eventEndsAt: course.eventEndsAt,
+        eventTimezone: course.eventTimezone,
+        eventLocationNote: course.eventLocationNote,
+        communityType: course.communityType,
+        subscriptionPeriod: course.subscriptionPeriod,
         category: course.category,
         creatorOrg: course.creatorOrg,
         creator: course.creatorUser,

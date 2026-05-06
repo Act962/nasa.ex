@@ -43,12 +43,12 @@ export const WorkspaceHeader = () => {
 
   return (
     <>
-      <div className="flex flex-row items-center justify-between gap-x-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-x-4">
         <EntityHeader
           title="Workspace"
           description="Aqui está uma visão geral deste espaço de trabalho!"
         />
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
           <Button
             variant="outline"
             size="sm"
@@ -56,11 +56,13 @@ export const WorkspaceHeader = () => {
             onClick={() => setCalendarOpen(true)}
           >
             <CalendarDaysIcon className="size-4" />
-            Calendário Workspace
+            <span className="hidden sm:inline">Calendário Workspace</span>
+            <span className="sm:hidden">Calendário</span>
           </Button>
-          <Button size="sm" onClick={() => setOpen(true)}>
+          <Button size="sm" onClick={() => setOpen(true)} className="gap-1.5">
             <PlusIcon className="size-4" />
-            Novo workspace
+            <span className="hidden sm:inline">Novo workspace</span>
+            <span className="sm:hidden">Novo</span>
           </Button>
         </div>
       </div>
@@ -103,7 +105,7 @@ export const WorkspaceAnalytics = () => {
 
 export const WorkspaceContainer = () => {
   return (
-    <div className="h-full w-full px-8 py-6 space-y-6">
+    <div className="h-full w-full space-y-6 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
       <main className="flex flex-1 flex-col py-4">
         <WorkspaceHeader />
         <div className="mt-8">

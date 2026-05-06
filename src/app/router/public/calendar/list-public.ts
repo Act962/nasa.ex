@@ -14,6 +14,7 @@ export const listPublic = base
       state: z.string().optional(),
       city: z.string().optional(),
       category: EventCategoryEnum.optional(),
+      organizationId: z.string().optional(),
       from: z.date().optional(),
       to: z.date().optional(),
       search: z.string().optional(),
@@ -32,6 +33,7 @@ export const listPublic = base
       ...(input.state ? { state: input.state } : {}),
       ...(input.city ? { city: input.city } : {}),
       ...(input.category ? { eventCategory: input.category } : {}),
+      ...(input.organizationId ? { organizationId: input.organizationId } : {}),
       ...(input.from || input.to
         ? {
             startDate: {

@@ -57,6 +57,18 @@ interface Props {
   workspaceId: string;
   defaultColumnId?: string;
   presetPublic?: boolean;
+  presetTitle?: string;
+  // Pré-seleciona a data de início (vinda do clique numa data específica
+  // no /calendario). A data de entrega é setada pra +1 dia.
+  presetStartDate?: Date;
+  // Chamado após `prisma.action.create` resolver com sucesso. Recebe o id
+  // do action recém-criado pra fluxos como abrir ViewActionModal e
+  // destacar a seção de Visualização Pública.
+  onCreated?: (actionId: string) => void;
+  /** Override do startDate default (hoje 00h). Útil ao criar a partir do calendário. */
+  defaultStartDate?: Date;
+  /** Override do dueDate default (amanhã 00h). Útil ao criar a partir do calendário. */
+  defaultDueDate?: Date;
 }
 
 type WorkspaceMemberOption = {
@@ -89,21 +101,67 @@ export const CreateActionModal = ({
   workspaceId,
   defaultColumnId,
   presetPublic,
+  presetTitle,
+  presetStartDate,
+  onCreated,
+  defaultStartDate,
+  defaultDueDate,
 }: Props) => {
+  const initialStart = presetStartDate
+    ? dayjs(presetStartDate).startOf("day").toDate()
+    : dayjs().startOf("day").toDate();
+  const initialDue = presetStartDate
+    ? dayjs(presetStartDate).add(1, "day").startOf("day").toDate()
+    : dayjs().add(1, "day").startOf("day").toDate();
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       workspaceId,
       priority: "MEDIUM",
-      title: "",
+      title: presetTitle ?? "",
       description: "",
-      startDate: dayjs().startOf("day").toDate(),
-      dueDate: dayjs().add(1, "day").startOf("day").toDate(),
+      startDate: defaultStartDate ?? initialStart,
+      dueDate:
+        defaultDueDate ??
+        (defaultStartDate
+          ? dayjs(defaultStartDate).endOf("day").toDate()
+          : initialDue),
       columnId: defaultColumnId ?? "",
       isPublic: presetPublic ?? false,
       participantIds: [],
     },
   });
+
+  // Sincroniza presetTitle quando muda (ex: navegação com novo ?title=).
+  useEffect(() => {
+    if (presetTitle && !form.formState.isDirty) {
+      form.setValue("title", presetTitle);
+    }
+  }, [presetTitle, form]);
+
+  // Sincroniza presetStartDate quando muda.
+  useEffect(() => {
+    if (presetStartDate && !form.formState.isDirty) {
+      form.setValue("startDate", dayjs(presetStartDate).startOf("day").toDate());
+      form.setValue(
+        "dueDate",
+        dayjs(presetStartDate).add(1, "day").startOf("day").toDate(),
+      );
+    }
+  }, [presetStartDate, form]);
+  // Re-sincroniza datas se o prop mudar (cada click numa data abre o modal
+  // com defaults novos).
+  useEffect(() => {
+    if (open && defaultStartDate) {
+      form.setValue("startDate", defaultStartDate);
+      form.setValue(
+        "dueDate",
+        defaultDueDate ?? dayjs(defaultStartDate).endOf("day").toDate(),
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, defaultStartDate?.getTime(), defaultDueDate?.getTime()]);
 
   const createAction = useCreateTask();
   const { data } = useSuspenseColumnsByWorkspace(workspaceId);
@@ -146,9 +204,17 @@ export const CreateActionModal = ({
           : undefined,
       },
       {
-        onSuccess: () => {
-          onOpenChange(false);
+        onSuccess: (result) => {
           form.reset();
+          // Quando há `onCreated`, deixamos o caller decidir o que fazer:
+          // ele tipicamente fecha a modal E atualiza a URL atomicamente
+          // (ex: setar actionId+highlight numa única navegação). Evita
+          // race condition entre `onOpenChange(false)` e `onCreated`.
+          if (onCreated && result?.action?.id) {
+            onCreated(result.action.id);
+          } else {
+            onOpenChange(false);
+          }
         },
       },
     );

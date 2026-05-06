@@ -8,7 +8,7 @@ import { StatusChart } from "./charts/status-chart";
 import { ChannelChart } from "./charts/channel-chart";
 import { AttendantChart } from "./charts/attendant-chart";
 import { TagsChart } from "./charts/tags-chart";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ListLeadByRelatoryModal } from "./list-lead-by-relatory-modal";
@@ -160,6 +160,87 @@ export function TrackingDashboard({
       : { queryKey: ["meta-disabled"], queryFn: () => null, enabled: false },
   );
 
+  // Campanhas (level=campaign) — usado para enriquecer o snapshot ao salvar
+  // relatório, permitindo análise de evolução por campanha entre snapshots.
+  const metaCampaignsQuery = useQuery(
+    selectedModules.includes("integrations") && dateRange.from && dateRange.to
+      ? orpc.metaAds.snapshots.list.queryOptions({
+          input: {
+            level: "campaign" as const,
+            startDate: dateRange.from.toISOString(),
+            endDate: dateRange.to.toISOString(),
+          },
+        })
+      : { queryKey: ["meta-campaigns-disabled"], queryFn: () => null, enabled: false },
+  );
+
+  const metaActiveAccount = useQuery(
+    orpc.integrations.getActiveMetaSelection.queryOptions(),
+  );
+  const metaAvailableAccounts = useQuery(
+    orpc.integrations.listAvailableMetaAccounts.queryOptions(),
+  );
+
+  // Agrega campanhas dos snapshots (1 linha por entityId, somando o range)
+  const metaCampaignsSnapshot = useMemo(() => {
+    const snaps = (metaCampaignsQuery.data?.snapshots ?? []) as any[];
+    if (snaps.length === 0) return [] as any[];
+    const num = (v: unknown): number =>
+      typeof v === "string" ? parseFloat(v) : typeof v === "number" ? v : 0;
+    const byId = new Map<string, any>();
+    for (const s of snaps) {
+      const key = s.entityId as string;
+      const existing = byId.get(key);
+      if (!existing) {
+        byId.set(key, {
+          metaCampaignId: key,
+          name: s.entityName ?? key,
+          spend: num(s.spend),
+          impressions: s.impressions ?? 0,
+          clicks: s.clicks ?? 0,
+          conversions: s.conversions ?? 0,
+          leads: s.leads ?? 0,
+          reach: num(s.reach),
+          conversionValue: num(s.conversionValue),
+        });
+      } else {
+        existing.spend += num(s.spend);
+        existing.impressions += s.impressions ?? 0;
+        existing.clicks += s.clicks ?? 0;
+        existing.conversions += s.conversions ?? 0;
+        existing.leads += s.leads ?? 0;
+        existing.reach = Math.max(existing.reach, num(s.reach));
+        existing.conversionValue += num(s.conversionValue);
+      }
+    }
+    // Calcula derivados
+    return Array.from(byId.values()).map((c) => ({
+      metaCampaignId: c.metaCampaignId,
+      name: c.name,
+      spend: Math.round(c.spend * 100) / 100,
+      impressions: c.impressions,
+      clicks: c.clicks,
+      conversions: c.conversions,
+      leads: c.leads,
+      reach: c.reach,
+      ctr: c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
+      cpc: c.clicks > 0 ? c.spend / c.clicks : 0,
+      cpm: c.impressions > 0 ? (c.spend / c.impressions) * 1000 : 0,
+      cpa: c.conversions > 0 ? c.spend / c.conversions : 0,
+      cpl: c.leads > 0 ? c.spend / c.leads : 0,
+      roas: c.spend > 0 ? c.conversionValue / c.spend : 0,
+    }));
+  }, [metaCampaignsQuery.data]);
+
+  const activeAdAccountId = metaActiveAccount.data?.adAccountId ?? null;
+  const activeAdAccountName = useMemo(() => {
+    const accounts = (metaAvailableAccounts.data?.adAccounts ?? []) as Array<{
+      id: string;
+      name?: string;
+    }>;
+    return accounts.find((a) => a.id === activeAdAccountId)?.name ?? null;
+  }, [metaAvailableAccounts.data, activeAdAccountId]);
+
   const organizatins = organization || [];
 
   const trackingOptions = [
@@ -244,8 +325,23 @@ export function TrackingDashboard({
                       leads: metaInsights.data.leads,
                       cpl: metaInsights.data.cpl,
                       roas: metaInsights.data.roas,
+                      // Rastreabilidade: qual ad account gerou estes números
+                      adAccountId: activeAdAccountId,
+                      adAccountName: activeAdAccountName,
+                      capturedAt: new Date().toISOString(),
+                      // Granularidade por campanha — usada pelo gráfico de
+                      // evolução em /insights/relatorios.
+                      campaigns: metaCampaignsSnapshot,
                     }
-                  : undefined,
+                  : metaCampaignsSnapshot.length > 0
+                    ? {
+                        // Fallback: sem live mas há snapshots persistidos
+                        adAccountId: activeAdAccountId,
+                        adAccountName: activeAdAccountName,
+                        capturedAt: new Date().toISOString(),
+                        campaigns: metaCampaignsSnapshot,
+                      }
+                    : undefined,
               filters: {
                 trackingId,
                 organizationIds,

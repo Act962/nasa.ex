@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Search,
   RotateCcw,
@@ -13,6 +14,8 @@ import {
   CheckSquare,
   FolderOpen,
   User as UserIcon,
+  Flag,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +36,24 @@ interface LeadOption {
   name: string;
 }
 
+interface ResponsibleOption {
+  id: string;
+  name: string;
+  image?: string | null;
+}
+
+export type ActionPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+
+export const PRIORITY_META: Record<
+  ActionPriority,
+  { label: string; color: string }
+> = {
+  LOW: { label: "Baixa", color: "bg-emerald-500" },
+  MEDIUM: { label: "Média", color: "bg-yellow-500" },
+  HIGH: { label: "Alta", color: "bg-orange-500" },
+  URGENT: { label: "Urgente", color: "bg-red-600" },
+};
+
 interface Props {
   workspaces: Workspace[];
   workspaceColorMap: Record<string, string>;
@@ -43,6 +64,11 @@ interface Props {
   // Leads
   leads: LeadOption[];
   selectedLeadIds: Set<string>;
+  // Responsáveis (NOVO)
+  responsibles: ResponsibleOption[];
+  selectedResponsibleIds: Set<string>;
+  // Prioridades (NOVO)
+  selectedPriorities: Set<ActionPriority>;
   // Filtros básicos
   search: string;
   showOnlyPending: boolean;
@@ -53,6 +79,10 @@ interface Props {
   onClearOrgProjects: () => void;
   onToggleLead: (id: string) => void;
   onClearLeads: () => void;
+  onToggleResponsible: (id: string) => void;
+  onClearResponsibles: () => void;
+  onTogglePriority: (p: ActionPriority) => void;
+  onClearPriorities: () => void;
   onSearchChange: (s: string) => void;
   onTogglePending: (v: boolean) => void;
   onReset: () => void;
@@ -107,6 +137,9 @@ export function WorkspaceCalendarFilters({
   selectedOrgProjectIds,
   leads,
   selectedLeadIds,
+  responsibles,
+  selectedResponsibleIds,
+  selectedPriorities,
   search,
   showOnlyPending,
   onToggleWorkspace,
@@ -115,6 +148,10 @@ export function WorkspaceCalendarFilters({
   onClearOrgProjects,
   onToggleLead,
   onClearLeads,
+  onToggleResponsible,
+  onClearResponsibles,
+  onTogglePriority,
+  onClearPriorities,
   onSearchChange,
   onTogglePending,
   onReset,
@@ -131,7 +168,9 @@ export function WorkspaceCalendarFilters({
     (showOnlyPending ? 1 : 0) +
     selectedWorkspaceIds.size +
     selectedOrgProjectIds.size +
-    selectedLeadIds.size;
+    selectedLeadIds.size +
+    selectedResponsibleIds.size +
+    selectedPriorities.size;
 
   return (
     <aside className="flex flex-col">
@@ -346,6 +385,78 @@ export function WorkspaceCalendarFilters({
                       className="cursor-pointer truncate text-xs font-normal"
                     >
                       {l.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </FilterSection>
+          )}
+
+          {/* Prioridade — sempre visível (4 valores fixos) */}
+          <FilterSection
+            title="Prioridade"
+            icon={<Flag className="size-3" />}
+            count={selectedPriorities.size}
+            onClear={onClearPriorities}
+          >
+            <div className="space-y-1">
+              {(Object.keys(PRIORITY_META) as ActionPriority[]).map((p) => (
+                <div
+                  key={p}
+                  className="flex items-center gap-2 rounded p-1 hover:bg-muted/40"
+                >
+                  <Checkbox
+                    id={`ws-cal-priority-${p}`}
+                    checked={selectedPriorities.has(p)}
+                    onCheckedChange={() => onTogglePriority(p)}
+                  />
+                  <div
+                    className={cn(
+                      "size-2.5 shrink-0 rounded-full",
+                      PRIORITY_META[p].color,
+                    )}
+                  />
+                  <Label
+                    htmlFor={`ws-cal-priority-${p}`}
+                    className="cursor-pointer text-xs font-normal"
+                  >
+                    {PRIORITY_META[p].label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </FilterSection>
+
+          {/* Responsáveis (deduzidos das ações no período) */}
+          {responsibles.length > 0 && (
+            <FilterSection
+              title="Responsáveis"
+              icon={<Users className="size-3" />}
+              count={selectedResponsibleIds.size}
+              onClear={onClearResponsibles}
+            >
+              <div className="space-y-1">
+                {responsibles.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center gap-2 rounded p-1 hover:bg-muted/40"
+                  >
+                    <Checkbox
+                      id={`ws-cal-resp-${r.id}`}
+                      checked={selectedResponsibleIds.has(r.id)}
+                      onCheckedChange={() => onToggleResponsible(r.id)}
+                    />
+                    <Avatar className="size-5 shrink-0">
+                      <AvatarImage src={r.image ?? undefined} alt={r.name} />
+                      <AvatarFallback className="text-[9px]">
+                        {r.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <Label
+                      htmlFor={`ws-cal-resp-${r.id}`}
+                      className="cursor-pointer truncate text-xs font-normal"
+                    >
+                      {r.name}
                     </Label>
                   </div>
                 ))}

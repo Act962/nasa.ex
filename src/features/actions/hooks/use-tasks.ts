@@ -243,6 +243,11 @@ export const useUpdateAction = () => {
             input: { workspaceId: data.action.workspaceId },
           }),
         );
+        // Calendário consolidado (Workspace Calendar) — refrescar pra
+        // refletir mudanças de data via drag-and-drop.
+        queryClient.invalidateQueries({
+          queryKey: ["action.getWorkspaceCalendar"],
+        });
       },
     }),
   );

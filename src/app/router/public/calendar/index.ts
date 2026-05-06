@@ -6,6 +6,7 @@ import { generateShareToken } from "./generate-share-token";
 import { getTopSharers } from "./get-top-sharers";
 import { listCategories } from "./list-categories";
 import { listLocations } from "./list-locations";
+import { listOrganizations } from "./list-organizations";
 
 export const calendarRouter = {
   listPublic,
@@ -16,4 +17,5 @@ export const calendarRouter = {
   getTopSharers,
   listCategories,
   listLocations,
+  listOrganizations,
 };

@@ -14,8 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Search, RotateCcw, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFiltersStore } from "../store/filters-store";
-import { usePublicCategories, usePublicLocations } from "../hooks/use-public-events";
+import {
+  usePublicCategories,
+  usePublicLocations,
+  usePublicOrganizations,
+} from "../hooks/use-public-events";
 import { BR_STATES } from "../utils/categories";
+import { imgSrc } from "../utils/img-src";
 import type { EventCategory } from "@/generated/prisma/enums";
 
 export function FiltersSidebar({ defaultOpen = false }: { defaultOpen?: boolean }) {
@@ -24,21 +29,24 @@ export function FiltersSidebar({ defaultOpen = false }: { defaultOpen?: boolean 
     state,
     city,
     category,
+    organizationId,
     search,
     setState,
     setCity,
     setCategory,
+    setOrganizationId,
     setSearch,
     reset,
   } = useFiltersStore();
   const { data: categoriesData } = usePublicCategories();
   const { data: locationsData } = usePublicLocations();
+  const { data: organizationsData } = usePublicOrganizations();
 
   const citiesForState = state
     ? locationsData?.states.find((s) => s.state === state)?.cities ?? []
     : [];
 
-  const hasActive = !!(search || category || state || city);
+  const hasActive = !!(search || category || state || city || organizationId);
 
   return (
     <aside className="flex flex-col">
@@ -52,7 +60,7 @@ export function FiltersSidebar({ defaultOpen = false }: { defaultOpen?: boolean 
           <span className="text-sm font-semibold">Filtros</span>
           {hasActive && (
             <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-              {[search, category, state, city].filter(Boolean).length}
+              {[search, category, state, city, organizationId].filter(Boolean).length}
             </span>
           )}
         </div>
@@ -67,7 +75,7 @@ export function FiltersSidebar({ defaultOpen = false }: { defaultOpen?: boolean 
       <div
         className={cn(
           "overflow-hidden transition-all duration-200",
-          open ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0",
+          open ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0",
         )}
       >
         <div className="flex flex-col gap-4 px-4 pb-4 pt-1 lg:px-5">
@@ -109,6 +117,47 @@ export function FiltersSidebar({ defaultOpen = false }: { defaultOpen?: boolean 
                         ({c.count})
                       </span>
                     )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Empresa</Label>
+            <Select
+              value={organizationId ?? "__all"}
+              onValueChange={(v) =>
+                setOrganizationId(v === "__all" ? null : v)
+              }
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Todas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all">Todas as empresas</SelectItem>
+                {organizationsData?.organizations.map((org) => (
+                  <SelectItem key={org.id} value={org.id}>
+                    <span className="flex items-center gap-2">
+                      {org.logo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={imgSrc(org.logo)}
+                          alt={org.name}
+                          className="size-4 rounded-full bg-white object-cover ring-1 ring-border"
+                        />
+                      ) : (
+                        <span className="flex size-4 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-pink-500 text-[8px] font-bold text-white">
+                          {org.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      <span className="truncate">{org.name}</span>
+                      {org.count > 0 && (
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          ({org.count})
+                        </span>
+                      )}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
