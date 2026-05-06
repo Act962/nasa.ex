@@ -21,6 +21,7 @@ export const listHistoric = base
         where: {
           leadId: input.leadId,
         },
+        take: 100,
         select: {
           id: true,
           action: true,

@@ -73,8 +73,7 @@ export function StarsWidget() {
 
   const { data, isLoading } = useQuery({
     ...orpc.stars.getBalance.queryOptions(),
-    refetchInterval: 15_000,
-    staleTime: 0,
+    refetchInterval: 60_000,
   });
 
   const { data: activeSubscriptions } = useQuery({

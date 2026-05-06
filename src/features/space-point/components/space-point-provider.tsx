@@ -5,7 +5,6 @@ import {
   useCallback,
   useContext,
   useRef,
-  useState,
   useEffect,
 } from "react";
 import { toast } from "sonner";
@@ -53,10 +52,17 @@ export function SpacePointProvider({
       .catch(() => {});
   }, [setPopupTemplates]);
 
+  // Keep refs so the Pusher handler always reads latest values without
+  // causing the effect to re-run (and re-subscribe) on every state change.
+  const popupTemplatesRef = useRef(popupTemplates);
+  useEffect(() => { popupTemplatesRef.current = popupTemplates; }, [popupTemplates]);
+
+  const spRef = useRef(sp);
+  useEffect(() => { spRef.current = sp; }, [sp]);
+
   // ── Pusher listener: real-time points updates ────────────────────────────
   useEffect(() => {
     const userId = session?.user?.id;
-    console.log("Passou");
     if (!userId) return;
 
     const channel = pusherClient.subscribe(`private-user-${userId}`);
@@ -75,14 +81,14 @@ export function SpacePointProvider({
         }[];
         action: string;
       }) => {
-        // Invalidar cache TanStack Query
         queryClient.invalidateQueries({ queryKey: ["spacePoint"] });
 
         const isPenalty = data.spAwarded < 0;
+        const templates = popupTemplatesRef.current;
+        const currentSp = spRef.current;
 
-        // Popup template especifico
-        if (data.popupTemplateId && popupTemplates.length > 0) {
-          const tpl = popupTemplates.find((t) => t.id === data.popupTemplateId);
+        if (data.popupTemplateId && templates.length > 0) {
+          const tpl = templates.find((t) => t.id === data.popupTemplateId);
           if (tpl) {
             setAchievement({
               type: "achievement",
@@ -97,7 +103,7 @@ export function SpacePointProvider({
                 nova_conquista: DEFAULT_RULES.find((r) => r.action === data.action)?.label ?? data.action,
                 quantidade_space_points: String(data.totalSP),
                 quantidade_stars: String(data.starsDebited),
-                nome_plano: sp?.currentLevel?.name ?? "",
+                nome_plano: currentSp?.currentLevel?.name ?? "",
                 meu_ranking: "",
               },
             });
@@ -105,7 +111,6 @@ export function SpacePointProvider({
           }
         }
 
-        // New seals
         if (data.newSeals.length > 0) {
           const seal = data.newSeals[data.newSeals.length - 1]!;
           setAchievement({
@@ -134,7 +139,7 @@ export function SpacePointProvider({
       channel.unbind_all();
       pusherClient.unsubscribe(`private-user-${userId}`);
     };
-  }, [session?.user?.id, popupTemplates, queryClient, sp]);
+  }, [session?.user?.id, queryClient]); // minimal deps — refs handle the rest
 
   const getTemplate = (type: string): PopupTemplateData | undefined =>
     popupTemplates.find((t) => t.type === type) ?? popupTemplates[0];

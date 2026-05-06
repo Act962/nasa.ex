@@ -100,8 +100,7 @@ export function ActivityTable({
         offset: 0,
       },
     }),
-    refetchInterval: 30_000,
-    staleTime: 0,
+    refetchInterval: 60_000,
   });
 
   const { data: stats } = useQuery({

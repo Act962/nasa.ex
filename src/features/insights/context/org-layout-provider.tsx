@@ -56,7 +56,6 @@ export function OrgLayoutProvider({ children }: { children: ReactNode }) {
 
   const layoutQuery = useQuery({
     ...orpc.insights.getOrgLayout.queryOptions(),
-    staleTime: 0,
     refetchOnWindowFocus: false,
   });
 

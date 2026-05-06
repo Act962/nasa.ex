@@ -30,6 +30,7 @@ export const listAllTrackings = base
             },
           },
         },
+        take: 100,
         include: {
           whatsappInstance: {
             select: {

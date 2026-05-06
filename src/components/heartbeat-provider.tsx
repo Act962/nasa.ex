@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { orpc } from "@/lib/orpc";
+import { pusherClient } from "@/lib/pusher";
 
 const PATH_RULES: Array<{ pattern: RegExp; appSlug: string; resourceFrom?: number }> = [
   { pattern: /^\/tracking(?:\/([^/]+))?/, appSlug: "tracking", resourceFrom: 1 },
@@ -46,35 +47,59 @@ function resolveAppSlugFromPath(pathname: string) {
   return { appSlug: "system" as string, resource: undefined as string | undefined };
 }
 
-// Threshold mínimo pra registrar uma janela de inatividade (ms).
-// Alinhado com o intervalo do heartbeat — abaixo disso é considerado
-// troca rápida de aba/contexto, não inatividade real.
 const INACTIVITY_THRESHOLD_MS = 30_000;
 
 export function HeartbeatProvider() {
   const pathname = usePathname();
+  const channelRef = useRef<string | null>(null);
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
 
+  // Connect once on mount: register presence in DB and subscribe to presence channel.
+  // The channel stays open for the entire session — Pusher handles online/offline
+  // detection automatically without any polling interval.
   useEffect(() => {
-    const sendHeartbeat = () => {
-      const { appSlug, resource } = resolveAppSlugFromPath(pathname ?? "");
-      orpc.activity.heartbeat
+    const { appSlug, resource } = resolveAppSlugFromPath(pathnameRef.current ?? "");
+
+    orpc.activity.connect
+      .call({
+        activeAppSlug: appSlug,
+        activePath: pathnameRef.current ?? "",
+        activeResource: resource,
+      })
+      .then(({ channelName }) => {
+        channelRef.current = channelName;
+        pusherClient.subscribe(channelName);
+      })
+      .catch(() => {});
+
+    return () => {
+      if (channelRef.current) {
+        pusherClient.unsubscribe(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, []); // intentionally empty — runs once per session
+
+  // Update active app/path on navigation (debounced 3s to avoid spamming on
+  // rapid route transitions).
+  useEffect(() => {
+    const { appSlug, resource } = resolveAppSlugFromPath(pathname ?? "");
+    const timer = setTimeout(() => {
+      orpc.activity.updateActivity
         .call({
           activeAppSlug: appSlug,
           activePath: pathname ?? "",
           activeResource: resource,
         })
         .catch(() => {});
-    };
-    sendHeartbeat();
-    const interval = setInterval(sendHeartbeat, 30_000);
-    return () => clearInterval(interval);
+    }, 3_000);
+    return () => clearTimeout(timer);
   }, [pathname]);
 
-  // Captura "Tempo inativo": tempo com a aba escondida (outra tab, janela
-  // minimizada, etc). Usa Page Visibility API ao invés de polling — event
-  // listener não é throttled em background, e o cálculo da duração só roda
-  // quando o usuário volta (estado `visible`), garantindo precisão.
-  // Janelas < 30s são descartadas (provável troca rápida de aba/contexto).
+  // Track inactivity windows via Page Visibility API — no polling needed.
+  // The duration is only computed when the user returns (state = visible),
+  // so short tab switches under the threshold are silently ignored.
   useEffect(() => {
     let hiddenAt: number | null = null;
 

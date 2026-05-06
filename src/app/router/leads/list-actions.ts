@@ -59,13 +59,31 @@ export const listActionsByLead = base
         where: {
           leadId: input.leadId,
         },
-        include: {
+        take: 200,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          score: true,
+          isDone: true,
+          type: true,
+          trackingId: true,
+          organizationId: true,
+          leadId: true,
+          startDate: true,
+          endDate: true,
+          createdAt: true,
+          user: {
+            select: { id: true, name: true, image: true, email: true },
+          },
           responsibles: {
-            include: {
-              user: true,
+            select: {
+              user: {
+                select: { id: true, name: true, image: true, email: true },
+              },
             },
           },
-          user: true,
         },
       });
       const actionsFormatted = actions.map((action) => ({

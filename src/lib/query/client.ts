@@ -13,6 +13,7 @@ export function createQueryClient() {
           return JSON.stringify({ json, meta });
         },
         staleTime: 60 * 1000, // > 0 to prevent immediate refetching on mount
+        gcTime: 5 * 60 * 1000, // remove unused queries from cache after 5 minutes
       },
       dehydrate: {
         shouldDehydrateQuery: (query) =>
