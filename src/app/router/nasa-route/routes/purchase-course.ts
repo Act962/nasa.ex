@@ -7,8 +7,10 @@ import { ORPCError } from "@orpc/server";
 import { StarTransactionType } from "@/generated/prisma/enums";
 import { pusherServer } from "@/lib/pusher";
 import { awardPoints } from "@/app/router/space-point/utils";
-import { canEnrollFree } from "../utils";
+import { canEnrollFree, PLATFORM_FEE_PCT } from "../utils";
 import { executeCoursePurchaseInTx } from "../helpers/purchase-helpers";
+import { createSubscriptionInTx } from "../helpers/subscription-helpers";
+import type { SubscriptionPeriod } from "@/features/nasa-route/lib/formats";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 
 /**
