@@ -8,7 +8,7 @@
 
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { recalcPartnerTier } from "@/lib/partner-service";
+import { recalcPartnerTier } from "@/features/partner/lib/partner-service";
 
 export const partnerTierRecalcDaily = inngest.createFunction(
   { id: "partner-tier-recalc-daily", retries: 1 },

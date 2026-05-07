@@ -1,6 +1,6 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { debitStars } from "@/lib/star-service";
+import { debitStars } from "@/features/stars/lib/star-service";
 import { StarTransactionType } from "@/generated/prisma/enums";
 
 function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {

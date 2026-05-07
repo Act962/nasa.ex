@@ -1,4 +1,4 @@
-import { requireAdminSession } from "@/lib/admin-utils";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import { CategoryFeaturesEditor } from "@/features/admin/components/space-help/category-features-editor";
 
 export default async function AdminSpaceHelpCategoryDetailPage({

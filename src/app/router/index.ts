@@ -52,6 +52,7 @@ import { reminderRouter } from "./reminder";
 import { partnerRouter } from "./partner";
 import { metaAdsRouter } from "./meta-ads";
 import { metaMcpRouter } from "./meta-mcp";
+import { astroRoutes } from "@/features/astro/server/routes";
 
 export const router = {
   tracking: trackingRoutes,
@@ -107,4 +108,5 @@ export const router = {
   partner: partnerRouter,
   metaAds: metaAdsRouter,
   metaMcp: metaMcpRouter,
+  astro: astroRoutes,
 };

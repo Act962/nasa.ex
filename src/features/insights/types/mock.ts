@@ -17,6 +17,7 @@ export const mockDashboardData: DashboardReport = {
     avgTimeToFirstResponse: 0, // seconds
     leadsActive: 0,
     leadsWaiting: 0,
+    sentReminders: 0,
   },
 
   byStatus: [

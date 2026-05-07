@@ -1,24 +1,25 @@
 # N.A.S.A – Plataforma de Tracking de Leads
+
 > Memória persistente do projeto para Claude Code. Leia este arquivo antes de qualquer mudança.
 
 ## Stack Tecnológica
 
-| Camada | Tecnologia |
-|--------|-----------|
-| Framework | Next.js 16 (App Router) |
-| Linguagem | TypeScript 5 |
-| UI | Tailwind CSS 4 + Radix UI + shadcn/ui |
-| Estado global | Zustand |
-| Formulários | React Hook Form + Zod |
-| Dados (client) | TanStack Query + TanStack Table |
-| Editor de texto | TipTap |
-| Drag & Drop | @dnd-kit |
-| RPC | oRPC — handler em `/api/rpc` |
-| Autenticação | better-auth (email/senha + Google OAuth) |
-| Banco de dados | PostgreSQL + Prisma 7 |
-| Infra local | Docker Compose |
-| Automações | Inngest |
-| Package manager | pnpm |
+| Camada          | Tecnologia                               |
+| --------------- | ---------------------------------------- |
+| Framework       | Next.js 16 (App Router)                  |
+| Linguagem       | TypeScript 5                             |
+| UI              | Tailwind CSS 4 + Radix UI + shadcn/ui    |
+| Estado global   | Zustand                                  |
+| Formulários     | React Hook Form + Zod                    |
+| Dados (client)  | TanStack Query + TanStack Table          |
+| Editor de texto | TipTap                                   |
+| Drag & Drop     | @dnd-kit                                 |
+| RPC             | oRPC — handler em `/api/rpc`             |
+| Autenticação    | better-auth (email/senha + Google OAuth) |
+| Banco de dados  | PostgreSQL + Prisma 7                    |
+| Infra local     | Docker Compose                           |
+| Automações      | Inngest                                  |
+| Package manager | pnpm                                     |
 
 ## Comandos Essenciais
 
@@ -36,9 +37,11 @@ npm run build         # Build de produção
 > **NUNCA** commitar/pushar diretamente em `main`. Toda alteração mora numa branch feature.
 
 1. **Início de sessão** — antes de qualquer alteração de código, rode:
+
    ```
    /start <app> <descricao-curta>
    ```
+
    Cria a branch `feature/W-<app-slug>-<desc-slug>-<YYYYMMDD>` a partir da `main` atualizada.
    - `<app>`: nome do App NASA (ex: `space-help`, `forge`, `tracking`, `insights`).
    - `<descricao-curta>`: o que vai mudar (ex: `uploader-imagem`, `fix-template-pdf`).
@@ -46,9 +49,11 @@ npm run build         # Build de produção
 2. **Durante a sessão** — uma branch por sessão. Trabalhe inteiro nela; não troque de branch no meio.
 
 3. **Final de sessão** — quando terminar, rode:
+
    ```
    /ship <mensagem-do-commit>
    ```
+
    Claude commita tudo, faz push pra `origin` e abre PR pra `main` via `gh`.
 
 4. **Se precisar mexer no código mas estiver em `main`**: PARE imediatamente, peça ao usuário pra rodar `/start` antes. O hook `PreToolUse` bloqueia `git commit`/`git push` na main.
@@ -67,6 +72,7 @@ npm run build         # Build de produção
 ## Variáveis de Ambiente
 
 Arquivo `.env.local` na raiz. Variáveis principais:
+
 - `DATABASE_URL` — string de conexão PostgreSQL
 - `BETTER_AUTH_SECRET` — chave secreta de autenticação
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — OAuth Google
@@ -78,14 +84,38 @@ Arquivo `.env.local` na raiz. Variáveis principais:
 nasaex-wey/
 ├── src/
 │   ├── app/          # Rotas Next.js (App Router)
-│   ├── components/   # Componentes React
-│   ├── lib/          # Utilitários e configurações
+│   ├── components/   # Componentes globais e shadcn/ui
+│   ├── features/     # Domínios da aplicação (ver abaixo)
+│   ├── lib/          # APENAS infra global (auth, prisma, orpc, stripe, utils...)
 │   └── server/       # Lógica server-side + oRPC procedures
 ├── prisma/
 │   └── schema.prisma # Schema do banco de dados
 ├── docker-compose.yml
 └── CLAUDE.md         # Este arquivo
 ```
+
+## Arquitetura por Features (OBRIGATÓRIO)
+
+Cada **feature** representa um domínio do sistema (ex: `tracking`, `insights`, `partner`, `stars`, `admin`, `integrations`). Tudo que pertence a um domínio mora dentro da sua pasta — componentes, lógica de servidor, hooks, schemas, libs, utils.
+
+```
+src/features/<dominio>/
+├── components/   # Componentes React específicos do domínio
+├── server/       # Procedures/handlers oRPC e lógica server-side do domínio
+├── hooks/        # React hooks específicos do domínio
+├── schema/       # Schemas Zod (singular, quando há um schema central)
+├── schemas/      # Schemas Zod (plural, quando são vários)
+├── lib/          # Services, helpers e regras de negócio do domínio
+└── utils/        # Funções utilitárias puras do domínio
+```
+
+### Regras
+
+1. **Domínio fechado**: código de uma feature não deve depender de internals de outra. Se duas features precisam do mesmo helper, ele sobe para `src/lib/` (infra global) ou vira uma feature própria.
+2. **`src/lib/` é só infra global**: `auth`, `prisma`, `orpc`, `stripe`, `asaas`, `pusher`, `s3-client`, `r2-url`, `upload-utils`, `query/`, `email/` (cliente Resend + templates transversais), `utils`, `serializer`, `json-to-html`, `geocode`, `reminder-recurrence`. Nada de domínio aqui.
+3. **Arquivos novos**: ao criar lógica de um domínio, coloque dentro de `src/features/<dominio>/` na subpasta correspondente — nunca em `src/lib/` nem em `src/components/` (a não ser que seja realmente global/UI primitiva).
+4. **Imports cross-feature**: permitido importar `@/features/<outra>/...` quando faz sentido (ex: `admin` consome activity logs que outras features escrevem). Evite ciclos.
+5. **Componentes globais** ficam em `src/components/` — apenas UI primitiva (shadcn/ui) e shells reutilizados em todo o app (sidebar, header). Componentes de domínio vão em `src/features/<dominio>/components/`.
 
 ## Funcionalidades Principais
 

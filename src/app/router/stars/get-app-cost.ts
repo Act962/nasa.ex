@@ -1,6 +1,6 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
-import { getAppCost } from "@/lib/star-service";
+import { getAppCost } from "@/features/stars/lib/star-service";
 import { z } from "zod";
 
 export const getAppStarCost = base

@@ -3,7 +3,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
-import { createNotification } from "@/lib/notification-service";
+import { createNotification } from "@/features/admin/lib/notification-service";
 import z from "zod";
 import { assertActionAccess } from "./_helpers";
 

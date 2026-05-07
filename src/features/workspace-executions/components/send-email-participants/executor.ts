@@ -5,6 +5,7 @@ import { wsSendEmailChannel } from "@/inngest/channels/workspace";
 import { ActionContext } from "../../schemas";
 import { loadActionContext } from "../../lib/load-action-context";
 import { renderWorkspaceVariables } from "../../lib/render-variables";
+import { resend } from "@/lib/email/resend";
 
 type Data = {
   action?: {
@@ -55,10 +56,12 @@ export const wsSendEmailParticipantsExecutor: NodeExecutor<Data> = async ({
         where: { id: { in: detail.participantIds } },
       });
 
+      const from = process.env.BETTER_AUTH_EMAIL ?? "noreply@nasaex.com";
+
       for (const participant of participants) {
         if (!participant.email) continue;
 
-        const rendered = renderWorkspaceVariables(cfg.body, {
+        const renderCtx = {
           action: detail,
           workspace: { name: workspace.name },
           column: column ? { name: column.name } : undefined,
@@ -66,20 +69,41 @@ export const wsSendEmailParticipantsExecutor: NodeExecutor<Data> = async ({
             name: participant.name,
             email: participant.email,
           },
-        });
+        };
+        const renderedBody = renderWorkspaceVariables(cfg.body, renderCtx);
+        const renderedSubject = renderWorkspaceVariables(cfg.subject, renderCtx);
 
-        // Envio de email: registrar notificação no sistema, que aciona
-        // os providers configurados (o projeto já possui UserNotification).
-        await prisma.userNotification.create({
-          data: {
-            userId: participant.id,
-            title: cfg.subject,
-            body: rendered,
-            type: "CUSTOM",
-            appKey: "workspace",
-            actionUrl: `/workspaces/${workspace.id}?actionId=${detail.id}`,
-          },
-        });
+        try {
+          await prisma.userNotification.create({
+            data: {
+              userId: participant.id,
+              title: renderedSubject,
+              body: renderedBody,
+              type: "CUSTOM",
+              appKey: "workspace",
+              actionUrl: `/workspaces/${workspace.id}?actionId=${detail.id}`,
+            },
+          });
+        } catch (notifyErr) {
+          console.error(
+            `[ws-send-email-participants] Failed to create notification for ${participant.id}`,
+            notifyErr,
+          );
+        }
+
+        try {
+          await resend.emails.send({
+            from,
+            to: participant.email,
+            subject: renderedSubject,
+            text: renderedBody,
+          });
+        } catch (mailErr) {
+          console.error(
+            `[ws-send-email-participants] Failed to send email to ${participant.email}`,
+            mailErr,
+          );
+        }
       }
 
       if (realTime) {

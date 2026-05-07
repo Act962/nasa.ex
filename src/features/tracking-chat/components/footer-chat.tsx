@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 import { EmojiData } from "emoji-picker-react/dist/types/exposedTypes";
 import { MessageSelected } from "./message-selected";
 import { ComposeResponse } from "./compose-response";
+import { TrackingChatCopilot } from "@/features/astro/components/embeds/tracking-chat-copilot";
 import { ScriptsPanel } from "./scripts-panel";
 import { ForgePanel } from "./forge-panel";
 import { AgendaPanel } from "./agenda-panel";
@@ -501,6 +502,15 @@ export function Footer({
                 <ComposeResponse
                   conversationId={conversationId}
                   onResponse={(text) => setMessage(text)}
+                />
+              </InputGroupAddon>
+
+              <InputGroupAddon align="inline-end">
+                <TrackingChatCopilot
+                  conversationId={conversationId}
+                  leadId={lead.id}
+                  trackingId={trackingId}
+                  onApplyDraft={(text) => setMessage(text)}
                 />
               </InputGroupAddon>
 

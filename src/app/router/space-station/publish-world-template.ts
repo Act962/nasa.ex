@@ -1,6 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { TemplateCategory } from "@/generated/prisma/enums";
 import z from "zod";

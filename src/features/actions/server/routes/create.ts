@@ -5,7 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { generatePublicSlug } from "@/features/public-calendar/utils/slug";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import {
   hasActionCreatedWorkflow,
   sendWorkspaceWorkflowEvent,

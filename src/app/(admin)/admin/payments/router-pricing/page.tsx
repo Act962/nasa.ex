@@ -1,4 +1,4 @@
-import { requireAdminSession } from "@/lib/admin-utils";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import { RouterPricingForm } from "./router-pricing-form";
 
 export default async function AdminRouterPricingPage() {

@@ -36,17 +36,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 export function ConversationsList() {
   const { conversationId, trackingId } = useParams<{
     conversationId: string;
     trackingId?: string;
   }>();
+  const searchParams = useSearchParams();
+  const trackingIdFromQuery = searchParams.get("trackingId");
   const [open, setOpen] = useState(false);
   const { trackings, isLoadingTrackings } = useQueryTracking();
   const [selectedTracking, setSelectedTracking] = useState<string>(
-    trackingId ?? "",
+    trackingId ?? trackingIdFromQuery ?? "",
   );
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
@@ -146,10 +148,11 @@ export function ConversationsList() {
     whatsappInstance?.status === WhatsAppInstanceStatus.DISCONNECTED;
 
   useEffect(() => {
-    if (!isLoadingTrackings && trackings.length > 0 && !selectedTracking) {
-      setSelectedTracking(trackings[0].id);
-    }
-  }, [trackings, isLoadingTrackings, selectedTracking]);
+    if (isLoadingTrackings || trackings.length === 0 || selectedTracking) return;
+    const fromQuery =
+      trackingIdFromQuery && trackings.find((t) => t.id === trackingIdFromQuery);
+    setSelectedTracking(fromQuery ? fromQuery.id : trackings[0].id);
+  }, [trackings, isLoadingTrackings, selectedTracking, trackingIdFromQuery]);
 
   useEffect(() => {
     if (!selectedTracking) return;

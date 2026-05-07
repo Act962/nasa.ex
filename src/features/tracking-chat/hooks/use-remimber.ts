@@ -4,6 +4,18 @@ import { orpc } from "@/lib/orpc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+export function useReminderOccurrences(reminderId: string, enabled: boolean) {
+  return useQuery({
+    ...orpc.reminder.occurrences.queryOptions({
+      input: { reminderId },
+    }),
+    enabled,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+}
+
 interface UseListRemindersOptions {
   conversationId?: string;
   leadId?: string;

@@ -1,7 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requireAdminMiddleware } from "@/app/middlewares/admin";
 import prisma from "@/lib/prisma";
-import { invalidateOrgRules, invalidateAllRules } from "@/lib/rules-cache";
+import { invalidateOrgRules, invalidateAllRules } from "@/features/stars/lib/rules-cache";
 import { z } from "zod";
 
 import { DEFAULT_STAR_RULES, STAR_RULE_CATEGORY_LABEL } from "@/data/star-rules";
