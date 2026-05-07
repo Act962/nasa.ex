@@ -111,6 +111,7 @@ export function WorkspaceCalendarModal({ open, onOpenChange }: Props) {
 
   const typedActions = actions as unknown as WorkspaceCalendarAction[];
 
+  // Workspaces que TÊM ações no mês (usado pra stats e overlay).
   const workspaces = useMemo(() => {
     const map = new Map<string, { id: string; name: string }>();
     typedActions.forEach((a) => {
@@ -121,13 +122,32 @@ export function WorkspaceCalendarModal({ open, onOpenChange }: Props) {
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [typedActions]);
 
+  // Lista pra o filtro: TODOS os workspaces da org (mesmo sem eventos no mês),
+  // pra o user poder filtrar e ver. Inclui também os workspaces presentes nas
+  // ações (caso `allWorkspaces` ainda não tenha carregado).
+  const filterWorkspaces = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+    allWorkspaces.forEach((ws) => {
+      map.set(ws.id, { id: ws.id, name: ws.name });
+    });
+    workspaces.forEach((ws) => {
+      if (!map.has(ws.id)) map.set(ws.id, ws);
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allWorkspaces, workspaces]);
+
   const workspaceColorMap = useMemo(() => {
     const map: Record<string, string> = {};
-    workspaces.forEach((ws, i) => {
+    filterWorkspaces.forEach((ws, i) => {
       map[ws.id] = PALETTE[i % PALETTE.length];
     });
+    workspaces.forEach((ws) => {
+      if (!map[ws.id]) {
+        map[ws.id] = PALETTE[Object.keys(map).length % PALETTE.length];
+      }
+    });
     return map;
-  }, [workspaces]);
+  }, [filterWorkspaces, workspaces]);
 
   // Clientes/Projetos disponíveis (deduzidos das ações do mês)
   const orgProjects = useMemo(() => {
@@ -270,7 +290,7 @@ export function WorkspaceCalendarModal({ open, onOpenChange }: Props) {
 
   const filtersNode = (
     <WorkspaceCalendarFilters
-      workspaces={workspaces}
+      workspaces={filterWorkspaces}
       workspaceColorMap={workspaceColorMap}
       selectedWorkspaceIds={selectedWorkspaceIds}
       orgProjects={orgProjects}

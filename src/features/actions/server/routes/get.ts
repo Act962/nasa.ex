@@ -169,9 +169,30 @@ export const getAction = base
       },
     });
 
+    // ─── Permissão de compartilhamento cross-org ────────────────────────
+    // A ação NÃO pode ser recompartilhada se ela for uma cópia recebida
+    // de outra org (existe um ActionShare cujo copiedActionId aponta pra
+    // essa action). Caso contrário, só o criador OU moderadores podem
+    // compartilhar.
+    const isReceivedCopy = !!(await prisma.actionShare.findFirst({
+      where: { copiedActionId: action.id },
+      select: { id: true },
+    }));
+
+    const isCreator = action.createdBy === context.user.id;
+    const isModerador = orgMember?.role === "moderador";
+    const canShareWithOrgs =
+      !isReceivedCopy && (isCreator || isModerador);
+
     const { favorites, ...rest } = action;
     return {
-      action: { ...rest, isFavoritedByMe: favorites.length > 0, activityLogs },
+      action: {
+        ...rest,
+        isFavoritedByMe: favorites.length > 0,
+        activityLogs,
+        isReceivedCopy,
+        canShareWithOrgs,
+      },
       hasAccess,
     };
   });

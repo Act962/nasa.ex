@@ -29,6 +29,7 @@ import { actionChatRoutes } from "./chat";
 import { toggleFavoriteGlobal } from "./toggle-favorite-global";
 import { toggleFavoritePersonal } from "./toggle-favorite-personal";
 import { listFavorites } from "./list-favorites";
+import { shareActionWithOrgs } from "./share-with-orgs";
 
 export const actionRoutes = {
   getAnalytics,
@@ -61,4 +62,5 @@ export const actionRoutes = {
   toggleFavoriteGlobal,
   toggleFavoritePersonal,
   listFavorites,
+  shareWithOrgs: shareActionWithOrgs,
 };

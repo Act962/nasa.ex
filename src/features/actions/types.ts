@@ -109,6 +109,13 @@ export interface Action {
   viewCount?: number;
   likesCount?: number;
   shareCount?: number;
+
+  // ─── Compartilhamento cross-org ─────────────────────────────────────
+  /** True se a ação é uma cópia recebida de outra empresa. */
+  isReceivedCopy?: boolean;
+  /** True se o user atual pode compartilhar com outras empresas
+   *  (criador OU moderador, e não é cópia recebida). */
+  canShareWithOrgs?: boolean;
 }
 
 export type ActionHistoryType =

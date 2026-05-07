@@ -36,6 +36,7 @@ import { CalendarDaysIcon, FolderKanbanIcon, PlusIcon } from "lucide-react";
 import { PatternsSection } from "@/features/admin/components/patterns-section";
 import { Button } from "@/components/ui/button";
 import { WorkspaceCalendarModal } from "./workspace-calendar-modal";
+import { IncomingSharesPanel } from "./incoming-shares-panel";
 
 export const WorkspaceHeader = () => {
   const [open, setOpen] = useState(false);
@@ -108,6 +109,12 @@ export const WorkspaceContainer = () => {
     <div className="h-full w-full space-y-6 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
       <main className="flex flex-1 flex-col py-4">
         <WorkspaceHeader />
+        {/* Caixa de aprovação de compartilhamentos cross-org. O componente
+            já tem `if (shares.length === 0) return null` — só aparece
+            quando há pendentes pra aprovar. */}
+        <div className="mt-6">
+          <IncomingSharesPanel />
+        </div>
         <div className="mt-8">
           <WorkspaceAnalytics />
         </div>

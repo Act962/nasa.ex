@@ -50,6 +50,7 @@ import {
 import { CheckIcon, UserPlusIcon, XIcon } from "lucide-react";
 import { useWorkspaceMembers } from "@/features/workspace/hooks/use-workspace";
 import { authClient } from "@/lib/auth-client";
+import { ShareTargetsField } from "./share-targets-field";
 
 interface Props {
   open: boolean;
@@ -91,6 +92,7 @@ const formSchema = z.object({
   orgProjectId: z.string().optional(),
   isPublic: z.boolean().optional(),
   participantIds: z.array(z.string()).optional(),
+  targetOrgIds: z.array(z.string()).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -130,6 +132,7 @@ export const CreateActionModal = ({
       columnId: defaultColumnId ?? "",
       isPublic: presetPublic ?? false,
       participantIds: [],
+      targetOrgIds: [],
     },
   });
 
@@ -256,6 +259,21 @@ export const CreateActionModal = ({
                 disabled={isPending}
               />
               <FieldError errors={[form.formState.errors.description]} />
+            </Field>
+
+            <Field>
+              <FieldLabel>Compartilhar com empresas (opcional)</FieldLabel>
+              <Controller
+                control={form.control}
+                name="targetOrgIds"
+                render={({ field }) => (
+                  <ShareTargetsField
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                    disabled={isPending}
+                  />
+                )}
+              />
             </Field>
 
             <div className="grid grid-cols-2 gap-4">
