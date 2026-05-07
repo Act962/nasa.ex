@@ -11,6 +11,7 @@ import {
   ArrowLeftIcon,
   ArrowUpRightIcon,
   LinkIcon,
+  Tags,
   TrashIcon,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -20,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { DeleteAgendaModal } from "./delete-agenda-modal";
 import Link from "next/link";
+import { CopyLinkWithUtm } from "@/components/ui/copy-link-with-utm";
 
 interface HeaderAgendaProps {
   agendaId: string;
@@ -95,6 +97,14 @@ export function HeaderAgenda({ agendaId }: HeaderAgendaProps) {
             <Button size="sm" variant="outline" onClick={handleCopyLink}>
               <LinkIcon />
             </Button>
+            <CopyLinkWithUtm
+              baseUrl={baseUrl}
+              trigger={
+                <Button size="sm" variant="outline" title="Copiar link com UTM">
+                  <Tags />
+                </Button>
+              }
+            />
             <Button
               size="sm"
               variant="outline"

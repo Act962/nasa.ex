@@ -2,6 +2,12 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { LeadSource } from "@/generated/prisma/enums";
 import z from "zod";
+import { trackLeadEvent } from "@/lib/lead-journey/track";
+import {
+  trackingParamsSchema,
+  trackingToLeadData,
+  shouldLogUtmLanding,
+} from "@/lib/tracking/tracking-params";
 
 export const registerLinnkerScan = base
   .route({
@@ -17,10 +23,11 @@ export const registerLinnkerScan = base
       phone: z.string().optional(),
       latitude: z.number().optional(),
       longitude: z.number().optional(),
+      tracking: trackingParamsSchema.optional(),
     }),
   )
   .handler(async ({ input, errors, context }) => {
-    const { slug, name, email, phone, latitude, longitude } = input;
+    const { slug, name, email, phone, latitude, longitude, tracking: t } = input;
 
     const page = await prisma.linnkerPage.findUnique({
       where: { slug, isPublished: true },
@@ -60,9 +67,23 @@ export const registerLinnkerScan = base
                 trackingId: tracking.id,
                 statusId: status.id,
                 source: LeadSource.OTHER,
+                ...trackingToLeadData(t),
               },
             });
             leadId = lead.id;
+
+            if (shouldLogUtmLanding(t)) {
+              await trackLeadEvent({
+                leadId: lead.id,
+                kind: "utm_landing",
+                metadata: {
+                  utmSource: t?.utmSource,
+                  utmCampaign: t?.utmCampaign,
+                  landingPage: t?.landingPage,
+                  referrer: t?.referrer,
+                },
+              });
+            }
           }
         }
       }
@@ -79,6 +100,14 @@ export const registerLinnkerScan = base
         longitude,
       },
     });
+
+    if (leadId) {
+      await trackLeadEvent({
+        leadId,
+        kind: "linnker_scan",
+        metadata: { pageId: page.id, slug, hasGeo: !!(latitude && longitude) },
+      });
+    }
 
     return { message: "Scan registrado", leadId };
   });

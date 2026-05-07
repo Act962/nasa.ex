@@ -26,6 +26,7 @@ import { publishScheduledPosts } from "@/inngest/functions/nasa-planner/publish-
 import { refreshMetaTokens } from "@/inngest/functions/nasa-planner/refresh-meta-tokens";
 import { syncPostMetricsCron } from "@/inngest/functions/nasa-planner/sync-post-metrics-cron";
 import { syncMetaAdsKpis } from "@/inngest/functions/crons/sync-meta-ads-kpis";
+import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-structure";
 import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route-subscription-renew";
 import { astroIngestKnowledge } from "@/inngest/functions/astro/ingest-knowledge";
 import { astroAgentTrigger } from "@/inngest/functions/astro/agent-trigger";
@@ -52,6 +53,7 @@ export const { GET, POST, PUT } = serve({
     syncPostMetricsCron,
     // ── Meta Ads ──
     syncMetaAdsKpis,
+    syncMetaAdsStructure,
     // ── NASA Route ──
     nasaRouteSubscriptionRenew,
     // ── ASTRO ──

@@ -5,6 +5,12 @@ import z from "zod";
 import { inngest } from "@/inngest/client";
 import { awardPoints } from "@/app/router/space-point/utils";
 import { pusherServer } from "@/lib/pusher";
+import { trackLeadEvent } from "@/lib/lead-journey/track";
+import {
+  trackingParamsSchema,
+  trackingToLeadData,
+  shouldLogUtmLanding,
+} from "@/lib/tracking/tracking-params";
 
 export const submitResponse = base
   .route({
@@ -16,11 +22,12 @@ export const submitResponse = base
     z.object({
       id: z.string(),
       response: z.string(),
+      tracking: trackingParamsSchema.optional(),
     }),
   )
   .handler(async ({ input, errors }) => {
     try {
-      const { id, response } = input;
+      const { id, response, tracking: trackingParams } = input;
       const tagIds: string[] = Object.values(JSON.parse(response))
         .map((field: any) => field?.meta?.tagId)
         .filter((tagId): tagId is string => Boolean(tagId));
@@ -81,6 +88,13 @@ export const submitResponse = base
 
           if (existingLead) {
             leadId = existingLead.id;
+            // Lead já existia — registra o resubmit como evento, sem alterar UTMs
+            // do "primeiro touch".
+            await trackLeadEvent({
+              leadId,
+              kind: "form_submit",
+              metadata: { formId: id, returning: true },
+            });
           } else {
             const newLead = await tx.lead.create({
               data: {
@@ -90,6 +104,7 @@ export const submitResponse = base
                 trackingId,
                 statusId,
                 source: "FORM",
+                ...trackingToLeadData(trackingParams),
               },
             });
             await tx.leadTag.createMany({
@@ -99,6 +114,27 @@ export const submitResponse = base
               })),
             });
             leadId = newLead.id;
+
+            await trackLeadEvent({
+              leadId: newLead.id,
+              kind: "form_submit",
+              metadata: { formId: id },
+            });
+            if (shouldLogUtmLanding(trackingParams)) {
+              await trackLeadEvent({
+                leadId: newLead.id,
+                kind: "utm_landing",
+                metadata: {
+                  utmSource: trackingParams?.utmSource,
+                  utmMedium: trackingParams?.utmMedium,
+                  utmCampaign: trackingParams?.utmCampaign,
+                  utmContent: trackingParams?.utmContent,
+                  utmTerm: trackingParams?.utmTerm,
+                  landingPage: trackingParams?.landingPage,
+                  referrer: trackingParams?.referrer,
+                },
+              });
+            }
 
             await fetch(
               `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/lead/new?trackingId=${trackingId}&leadId=${newLead.id}`,

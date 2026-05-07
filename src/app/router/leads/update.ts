@@ -6,6 +6,7 @@ import { z } from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
 import { sendWorkflowExecution } from "@/inngest/utils";
+import { trackLeadEvent } from "@/lib/lead-journey/track";
 
 // 🟦 UPDATE
 export const updateLead = base
@@ -73,6 +74,12 @@ export const updateLead = base
         throw errors.NOT_FOUND;
       }
 
+      const isStatusChange =
+        !!input.statusId && input.statusId !== leadExists.statusId;
+      const isResponsibleChange =
+        !!input.responsibleId && input.responsibleId !== leadExists.responsibleId;
+      const now = new Date();
+
       const result = await prisma.$transaction(async (tx) => {
         const lead = await tx.lead.update({
           where: { id: input.id },
@@ -87,6 +94,8 @@ export const updateLead = base
             responsibleId: input.responsibleId,
             isActive: input.active,
             amount: input.amount,
+            ...(isStatusChange ? { lastStatusChangeAt: now } : {}),
+            ...(isResponsibleChange ? { assignedAt: now } : {}),
             ...(input.statusFlow ? { statusFlow: input.statusFlow as any } : {}),
             leadTags: input.tagIds
               ? {
@@ -176,6 +185,37 @@ export const updateLead = base
             }),
           ),
         );
+      }
+
+      if (isStatusChange) {
+        await trackLeadEvent({
+          leadId: result.lead.id,
+          kind: "status_changed",
+          actorId: context.user.id,
+          metadata: {
+            from: leadExists.statusId,
+            to: input.statusId,
+          },
+        });
+      }
+      if (isResponsibleChange) {
+        await trackLeadEvent({
+          leadId: result.lead.id,
+          kind: "lead_assigned",
+          actorId: context.user.id,
+          metadata: {
+            from: leadExists.responsibleId,
+            to: input.responsibleId,
+          },
+        });
+      }
+      if (input.tagIds && input.tagIds.length > 0) {
+        await trackLeadEvent({
+          leadId: result.lead.id,
+          kind: "tag_added",
+          actorId: context.user.id,
+          metadata: { tagIds: input.tagIds },
+        });
       }
 
       // Log activity for meaningful changes only

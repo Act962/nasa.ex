@@ -9,8 +9,9 @@
  * Não depende de oRPC — é puro fetch para ser usado em procedures e crons.
  */
 
-const API_VERSION = "v19.0";
-const GRAPH = `https://graph.facebook.com/${API_VERSION}`;
+export const META_API_VERSION = "v19.0";
+export const META_GRAPH = `https://graph.facebook.com/${META_API_VERSION}`;
+const GRAPH = META_GRAPH;
 
 export interface MetaAuth {
   accessToken: string;
@@ -21,7 +22,7 @@ function actId(adAccountId: string) {
   return adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 }
 
-async function graphFetch<T = unknown>(
+export async function graphFetch<T = unknown>(
   url: string,
   init?: RequestInit,
 ): Promise<T> {

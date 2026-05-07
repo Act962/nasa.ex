@@ -64,7 +64,6 @@ export function HeartbeatProvider() {
 
   const intervalMs = (config?.heartbeatIntervalSeconds ?? DEFAULT_INTERVAL_SECONDS) * 1000;
 
-
   useEffect(() => {
     const sendHeartbeat = () => {
       const { appSlug, resource } = resolveAppSlugFromPath(pathname ?? "");

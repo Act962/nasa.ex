@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { client } from "@/lib/orpc";
 import type { LinnkerPage, LinnkerLink } from "../types";
+import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
 
 interface Props {
   page: Pick<LinnkerPage, "title" | "coverColor" | "buttonStyle" | "avatarUrl">;
@@ -33,6 +34,7 @@ export function LinnkerCapturePage({ page, link }: Props) {
         name,
         email: email || undefined,
         phone: phone || undefined,
+        tracking: getTrackingParamsClient(),
       });
       setDone(true);
       // Redirect after 1.5s

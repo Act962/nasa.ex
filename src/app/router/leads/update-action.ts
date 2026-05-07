@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { awardPoints } from "../space-point/utils";
 import { pusherServer } from "@/lib/pusher";
+import { trackLeadEvent } from "@/lib/lead-journey/track";
 
 // 🟦 UPDATE
 export const updateLeadAction = base
@@ -90,6 +91,17 @@ export const updateLeadAction = base
       } catch (spErr) {
         console.error("[leads/update-action] SpacePoint award error:", spErr);
       }
+
+      await trackLeadEvent({
+        leadId: input.leadId,
+        kind: leadAction === "WON" ? "won" : "lost",
+        actorId: userId,
+        metadata: {
+          reasonId: input.reasonId,
+          reasonName: reasonExists.name,
+          notes: input.observation,
+        },
+      });
 
       return {
         lead: leadExists,

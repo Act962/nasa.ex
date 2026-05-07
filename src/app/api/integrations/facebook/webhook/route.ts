@@ -9,6 +9,12 @@ import { MessageStatus } from "@/features/tracking-chat/types"
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead"
 import { logActivity } from "@/features/admin/lib/activity-logger"
 import { MessageChannel } from "@/generated/prisma/enums"
+import { trackLeadEvent } from "@/lib/lead-journey/track"
+import {
+  resolveReferralForOrg,
+  ctwaToLeadData,
+  captureMetaReferralForNewLead,
+} from "@/lib/lead-journey/ctwa"
 
 // Meta webhook verification
 export async function GET(request: NextRequest) {
@@ -128,6 +134,12 @@ export async function POST(request: NextRequest) {
             orderBy: { order: "asc" },
           })
 
+          const fbReferral = await resolveReferralForOrg(
+            integration.organizationId,
+            event,
+            message,
+          )
+
           lead = await prisma.lead.create({
             data: {
               name: `Facebook ${senderId}`,
@@ -137,6 +149,8 @@ export async function POST(request: NextRequest) {
               source: LeadSource.OTHER,
               profile: profileKey,
               order: firstLead ? Number(firstLead.order) - 1 : 0,
+              lastInboundAt: new Date(),
+              ...(fbReferral ? ctwaToLeadData(fbReferral.ref, fbReferral.resolved) : {}),
               conversation: {
                 create: {
                   remoteJid,
@@ -163,6 +177,15 @@ export async function POST(request: NextRequest) {
               metadata: { phone, trackingName: tracking.name, source: "FACEBOOK" },
             })
           } catch {}
+
+          if (fbReferral) {
+            await captureMetaReferralForNewLead(
+              lead.id,
+              fbReferral.ref,
+              fbReferral.resolved,
+              "FACEBOOK",
+            )
+          }
 
           try {
             await prisma.$transaction((tx) => assignLeadRoundRobin(tx, lead!.id))
@@ -205,8 +228,19 @@ export async function POST(request: NextRequest) {
           where: { leadId_trackingId: { leadId: lead!.id, trackingId } },
           data: {
             lastMessage: { connect: { id: messageData.id } },
-            lead: { update: { updatedAt: new Date() } },
+            lead: {
+              update: {
+                updatedAt: new Date(),
+                lastInboundAt: new Date(),
+              },
+            },
           },
+        })
+
+        await trackLeadEvent({
+          leadId: lead!.id,
+          kind: "message_in",
+          metadata: { channel: "FACEBOOK", messageId },
         })
 
         await pusherServer.trigger(trackingId, "conversation:new", {

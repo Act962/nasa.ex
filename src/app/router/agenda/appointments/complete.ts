@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { trackLeadEvent } from "@/lib/lead-journey/track";
 
 export const completeAppointment = base
   .use(requiredAuthMiddleware)
@@ -64,6 +65,15 @@ export const completeAppointment = base
       resourceId: appointmentId,
       metadata: { previousStatus: appointment.status },
     });
+
+    if (appointment.leadId) {
+      await trackLeadEvent({
+        leadId: appointment.leadId,
+        kind: "appointment_done",
+        actorId: context.user.id,
+        metadata: { appointmentId, title: appointment.title },
+      });
+    }
 
     return { appointment: updatedAppointment };
   });

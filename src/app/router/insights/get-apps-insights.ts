@@ -14,6 +14,7 @@ export const getAppsInsights = base
       endDate: z.string().optional(),
       trackingId: z.string().optional(),
       tagIds: z.array(z.string()).optional(),
+      workspaceIds: z.array(z.string()).optional(),
     }),
   )
   .handler(async ({ input, context }) => {
@@ -180,6 +181,9 @@ export const getAppsInsights = base
         ...(dateFilter ? { createdAt: dateFilter } : {}),
         ...(input.trackingId ? { trackingId: input.trackingId } : {}),
         ...(tagWhereLead ? { lead: { is: tagWhereLead } } : {}),
+        ...(input.workspaceIds && input.workspaceIds.length > 0
+          ? { workspaceId: { in: input.workspaceIds } }
+          : {}),
       },
       select: {
         id: true,

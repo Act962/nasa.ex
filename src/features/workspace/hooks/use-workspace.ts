@@ -536,6 +536,43 @@ export const useListOutgoingShares = (status?: string) => {
   return { shares: data?.shares ?? [], isLoading };
 };
 
+// Lista orgs onde o user é membro (excluindo a corrente). Usado pelo
+// multi-select "Compartilhar com empresas" no CreateActionModal.
+export const useShareableOrgs = () => {
+  return useQuery(
+    orpc.workspace.listShareableOrgs.queryOptions({ input: {} }),
+  );
+};
+
+// Compartilha uma action existente com 1+ orgs (cópia direta ou PENDING
+// dependendo do role do user em cada org). Usado no ActionShareTargetsField
+// dentro do ViewActionModal.
+export const useShareActionWithOrgs = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.action.shareWithOrgs.mutationOptions({
+      onSuccess: (data) => {
+        const direct = data.results.filter((r) => r.kind === "direct").length;
+        const pending = data.results.filter((r) => r.kind === "pending").length;
+        const skipped = data.results.filter((r) => r.kind === "skipped").length;
+        const parts: string[] = [];
+        if (direct) parts.push(`${direct} cópia(s) direta`);
+        if (pending) parts.push(`${pending} aguardando aprovação`);
+        if (parts.length === 0 && skipped) {
+          toast.info("Empresas selecionadas já tinham compartilhamento ativo.");
+        } else if (parts.length > 0) {
+          toast.success(`Compartilhado: ${parts.join(", ")}.`);
+        }
+        queryClient.invalidateQueries(
+          orpc.workspace.listOutgoingShares.queryOptions({ input: {} }),
+        );
+      },
+      onError: (error: any) =>
+        toast.error(error.message || "Erro ao compartilhar"),
+    }),
+  );
+};
+
 export const useApproveShare = () => {
   const queryClient = useQueryClient();
   return useMutation(

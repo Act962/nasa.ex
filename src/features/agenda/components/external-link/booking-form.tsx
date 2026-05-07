@@ -39,6 +39,7 @@ import { countries } from "@/types/some";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 import { useRouter } from "next/navigation";
+import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
 
 interface BookingFormProps {
   orgSlug: string;
@@ -90,6 +91,8 @@ export function BookingForm({ orgSlug, agendaSlug }: BookingFormProps) {
 
     const phone = normalizePhone(countrySelected.ddi + data.phone);
 
+    const tracking = getTrackingParamsClient();
+
     createAppointment.mutate(
       {
         agendaSlug,
@@ -101,6 +104,7 @@ export function BookingForm({ orgSlug, agendaSlug }: BookingFormProps) {
         name: data.name,
         notes: data.notes,
         timeZone,
+        tracking,
       },
       {
         onSuccess: () => {

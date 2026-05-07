@@ -4,6 +4,12 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import z from "zod";
+import { trackLeadEvent } from "@/lib/lead-journey/track";
+import {
+  trackingParamsSchema,
+  trackingToLeadData,
+  shouldLogUtmLanding,
+} from "@/lib/tracking/tracking-params";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -25,6 +31,7 @@ export const createAppointment = base
       email: z.email("Email inválido").optional().or(z.literal("")),
       notes: z.string().optional(),
       timeZone: z.string().optional(),
+      tracking: trackingParamsSchema.optional(),
     }),
   )
   .handler(async ({ input, errors }) => {
@@ -98,6 +105,7 @@ export const createAppointment = base
         });
       }
 
+      const t = input.tracking;
       lead = await prisma.lead.create({
         data: {
           name: input.name,
@@ -106,8 +114,25 @@ export const createAppointment = base
           trackingId: agenda.trackingId,
           statusId: firstStatus.id,
           source: "AGENDA",
+          ...trackingToLeadData(t),
         },
       });
+
+      if (shouldLogUtmLanding(t)) {
+        await trackLeadEvent({
+          leadId: lead.id,
+          kind: "utm_landing",
+          metadata: {
+            utmSource: t?.utmSource,
+            utmMedium: t?.utmMedium,
+            utmCampaign: t?.utmCampaign,
+            utmContent: t?.utmContent,
+            utmTerm: t?.utmTerm,
+            landingPage: t?.landingPage,
+            referrer: t?.referrer,
+          },
+        });
+      }
     }
 
     const appointment = await prisma.appointment.create({
@@ -120,6 +145,15 @@ export const createAppointment = base
         notes: input.notes,
         status: "PENDING",
         trackingId: agenda.trackingId,
+      },
+    });
+
+    await trackLeadEvent({
+      leadId: lead.id,
+      kind: "appointment_created",
+      metadata: {
+        appointmentId: appointment.id,
+        startsAt: appointment.startsAt,
       },
     });
 

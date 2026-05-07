@@ -11,8 +11,9 @@ export const AnalyticsCard = (props: {
   value: number;
   isLoading: boolean;
   type: "task" | "project" | "member";
+  onClick?: () => void;
 }) => {
-  const { title, value, isLoading, type } = props;
+  const { title, value, isLoading, type, onClick } = props;
 
   const getArrowIcon = () => {
     if (type === "task") {
@@ -38,8 +39,30 @@ export const AnalyticsCard = (props: {
     }
     return null;
   };
+  const interactive = !!onClick;
+
   return (
-    <Card className="shadow-none w-full bg-transparent">
+    <Card
+      className={
+        "shadow-none w-full bg-transparent transition-colors " +
+        (interactive
+          ? "cursor-pointer hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          : "")
+      }
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        interactive
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick?.();
+              }
+            }
+          : undefined
+      }
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <div className="flex items-center gap-1">
           <CardTitle className="text-sm font-medium">{title}</CardTitle>

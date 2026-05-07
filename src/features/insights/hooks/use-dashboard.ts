@@ -11,6 +11,7 @@ interface InsightFilter {
   startDate?: string;
   endDate?: string;
   tagIds?: string[];
+  workspaceIds?: string[];
 }
 
 export const useQueryAppsInsights = (input: InsightFilter) => {
