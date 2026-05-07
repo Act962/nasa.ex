@@ -206,6 +206,9 @@ export const useAdminCreateAppointment = () => {
         queryClient.invalidateQueries(
           orpc.agenda.appointments.getManyByOrg.queryOptions({ input: {} }),
         );
+        queryClient.invalidateQueries({
+          queryKey: orpc.agenda.public.getTimeSlots.key({}),
+        });
       },
       onError: (error) => {
         toast.error("Erro ao criar agendamento: " + error.message);
