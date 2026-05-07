@@ -25,12 +25,29 @@ const STARS_PER_BOOKING_MESSAGE = 1; // 1 ★ por interação com a IA
 // Armazena contagem de requisições por IP em memória.
 // Suficiente para bloquear abusos básicos em instâncias únicas.
 // Para produção em multi-instância, usar Redis ou KV store.
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+declare global {
+  // eslint-disable-next-line no-var
+  var __nasaBookingRateLimit:
+    | Map<string, { count: number; resetAt: number }>
+    | undefined;
+}
+
+const rateLimitMap: Map<string, { count: number; resetAt: number }> =
+  globalThis.__nasaBookingRateLimit ??
+  (globalThis.__nasaBookingRateLimit = new Map());
+
 const RATE_LIMIT_MAX = 20;       // máximo de mensagens por janela
 const RATE_LIMIT_WINDOW_MS = 60_000; // janela de 1 minuto
 
+function gcRateLimit(now: number) {
+  for (const [ip, entry] of rateLimitMap) {
+    if (now > entry.resetAt) rateLimitMap.delete(ip);
+  }
+}
+
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
+  gcRateLimit(now);
   const entry = rateLimitMap.get(ip);
 
   if (!entry || now > entry.resetAt) {
