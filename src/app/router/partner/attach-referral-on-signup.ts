@@ -6,7 +6,7 @@ import {
   attachReferralFromLink,
   recalcPartnerTier,
   recalcReferralActivity,
-} from "@/lib/partner-service";
+} from "@/features/partner/lib/partner-service";
 
 /**
  * Chamada após criar uma org no signup com cookie `nasa_ref` presente.

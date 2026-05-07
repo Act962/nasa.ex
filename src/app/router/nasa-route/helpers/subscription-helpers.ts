@@ -103,6 +103,15 @@ export async function chargeSubscriptionInTx({
       status: sub.status,
     };
   }
+  const buyerOrgId = sub.enrollment.buyerOrgId;
+  if (!buyerOrgId) {
+    return {
+      ok: false,
+      reason: "subscription_inactive",
+      failedChargeCount: sub.failedChargeCount,
+      status: sub.status,
+    };
+  }
 
   const course = await tx.nasaRouteCourse.findUnique({
     where: { id: sub.enrollment.courseId },
@@ -138,7 +147,7 @@ export async function chargeSubscriptionInTx({
 
   // Verifica saldo
   const buyer = await tx.organization.findUniqueOrThrow({
-    where: { id: sub.enrollment.buyerOrgId },
+    where: { id: buyerOrgId },
     select: { starsBalance: true },
   });
 
@@ -181,12 +190,12 @@ export async function chargeSubscriptionInTx({
   // Cobrança OK — débito + crédito
   const buyerNew = buyer.starsBalance - priceStars;
   await tx.organization.update({
-    where: { id: sub.enrollment.buyerOrgId },
+    where: { id: buyerOrgId },
     data: { starsBalance: buyerNew },
   });
   await tx.starTransaction.create({
     data: {
-      organizationId: sub.enrollment.buyerOrgId,
+      organizationId: buyerOrgId,
       type: StarTransactionType.COURSE_PURCHASE,
       amount: -priceStars,
       balanceAfter: buyerNew,

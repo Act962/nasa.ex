@@ -11,6 +11,7 @@ import { OrgProjectField } from "./org-project-field";
 import { Action } from "../../../types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PublicVisibilityField } from "@/features/public-calendar/components/public-visibility-field";
+import { ActionShareTargetsField } from "./share-targets-field";
 
 interface SidebarProps {
   action?: Action;
@@ -68,6 +69,13 @@ export function ActionSidebar({
           onUpdate={(data) => onUpdateAction(data)}
           disabled={isUpdating}
         />
+
+        {action?.id && action.canShareWithOrgs && (
+          <ActionShareTargetsField
+            actionId={action.id}
+            disabled={isUpdating}
+          />
+        )}
 
         <OrgProjectField
           value={action?.orgProjectId}

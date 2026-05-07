@@ -1,5 +1,5 @@
-import { requireAdminSession } from "@/lib/admin-utils";
-import { getProgramSettings } from "@/lib/partner-service";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
+import { getProgramSettings } from "@/features/partner/lib/partner-service";
 import Link from "next/link";
 import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 

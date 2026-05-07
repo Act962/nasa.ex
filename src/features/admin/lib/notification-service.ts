@@ -175,10 +175,10 @@ export async function createOrgNotification({
 
   // For WhatsApp, we still need to check preferences and send individually
   const membersWithWAPref = await prisma.userNotificationPreference.findMany({
-    where: { 
-      organizationId, 
-      notifType: type, 
-      whatsApp: true 
+    where: {
+      organizationId,
+      notifType: type,
+      whatsApp: true
     },
     select: { userId: true }
   });
@@ -193,7 +193,7 @@ export async function createOrgNotification({
         }
       })
     );
-    
+
     await prisma.adminNotification.update({
       where: { id: notif.id },
       data: { sentWhatsApp: true }

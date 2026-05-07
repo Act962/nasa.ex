@@ -6,7 +6,7 @@ import { Prisma, Workflow } from "@/generated/prisma/client";
 import { sendWorkflowExecution } from "@/inngest/utils";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 export const updateNewOrder = base
   .use(requiredAuthMiddleware)

@@ -81,6 +81,7 @@ export function ReminderPanel({
               conversationId={conversationId}
               leadId={leadId}
               trackingId={trackingId}
+              leadName={lead.name}
             />
           </TabsContent>
         </Tabs>

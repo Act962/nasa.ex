@@ -10,7 +10,7 @@
 
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { getProgramSettings, nextPayoutDate } from "@/lib/partner-service";
+import { getProgramSettings, nextPayoutDate } from "@/features/partner/lib/partner-service";
 
 function previousCycleYearMonth(date: Date = new Date()): string {
   const d = new Date(date);

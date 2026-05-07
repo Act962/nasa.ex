@@ -2,7 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import z from "zod";
 import { deleteMessage } from "@/http/uazapi/delete-message";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 
 export const deleteMessageHandler = base

@@ -2,7 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import { debitStars } from "@/lib/star-service";
+import { debitStars } from "@/features/stars/lib/star-service";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { NasaPlannerPostStatus, StarTransactionType } from "@/generated/prisma/enums";

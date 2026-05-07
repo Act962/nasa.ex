@@ -1,7 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import { checkBalance } from "@/lib/star-service";
+import { checkBalance } from "@/features/stars/lib/star-service";
 import { z } from "zod";
 
 export const getStarBalance = base

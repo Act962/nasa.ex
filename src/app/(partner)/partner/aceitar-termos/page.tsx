@@ -1,4 +1,4 @@
-import { requirePartnerSession } from "@/lib/partner-utils";
+import { requirePartnerSession } from "@/features/partner/lib/partner-utils";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { ScrollText } from "lucide-react";

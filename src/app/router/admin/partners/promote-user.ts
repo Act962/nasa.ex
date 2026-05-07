@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import {
   ensurePartner,
   getOrCreateReferralLink,
-} from "@/lib/partner-service";
+} from "@/features/partner/lib/partner-service";
 import { PartnerStatus } from "@/generated/prisma/client";
 
 const adminBase = base.use(requireAdminMiddleware);

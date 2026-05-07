@@ -3,8 +3,8 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { IntegrationPlatform } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
-import { revokeMetaToken } from "@/lib/oauth/meta-config";
-import { revokeGoogleToken } from "@/lib/oauth/google-config";
+import { revokeMetaToken } from "@/features/integrations/lib/oauth/meta-config";
+import { revokeGoogleToken } from "@/features/integrations/lib/oauth/google-config";
 import { z } from "zod";
 
 const DisconnectInput = z.object({

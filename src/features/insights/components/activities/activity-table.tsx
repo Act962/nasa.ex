@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Download, ExternalLink } from "lucide-react";
-import { APP_LABELS } from "@/lib/activity-constants";
+import { APP_LABELS } from "@/features/admin/lib/activity-constants";
 import { cn } from "@/lib/utils";
 import { buildResourceUrl } from "@/features/insights/lib/build-resource-url";
 

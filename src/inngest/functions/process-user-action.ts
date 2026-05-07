@@ -9,9 +9,9 @@
  */
 
 import { inngest } from "@/inngest/client";
-import { getOrgRules } from "@/lib/rules-cache";
+import { getOrgRules } from "@/features/stars/lib/rules-cache";
 import { awardPoints } from "@/app/router/space-point/utils";
-import { debitStars } from "@/lib/star-service";
+import { debitStars } from "@/features/stars/lib/star-service";
 import { pusherServer } from "@/lib/pusher";
 import { StarTransactionType } from "@/generated/prisma/client";
 

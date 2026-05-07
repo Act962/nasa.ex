@@ -64,6 +64,8 @@ export function PlanDetailModal({
     ? "border-emerald-700/30 bg-[#0a120e]"
     : "border-zinc-700/50 bg-[#0f0f14]";
 
+  const isExternalCta = !!plan.ctaHref && /^(https?:|mailto:|tel:)/i.test(plan.ctaHref);
+
   const ctaClass = plan.highlighted
     ? "bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-600/30"
     : isFree
@@ -209,7 +211,7 @@ export function PlanDetailModal({
           <div className="border-t border-white/8" />
 
           {/* CTA */}
-          {isLoggedIn && isCurrentPlan ? (
+          {isLoggedIn && isCurrentPlan && !isExternalCta ? (
             <Button disabled className={cn("w-full font-bold text-sm rounded-2xl py-5 opacity-60", ctaClass)}>
               Plano atual
             </Button>
@@ -218,12 +220,16 @@ export function PlanDetailModal({
               onClick={() => { onClose(); onPurchase?.(); }}
               className={cn("w-full font-bold text-sm rounded-2xl py-5", ctaClass)}
             >
-              Adquirir plano
+              {isExternalCta ? plan.ctaLabel : "Adquirir plano"}
               <ArrowRight className="size-4 ml-2" />
             </Button>
           ) : (
             <Button asChild className={cn("w-full font-bold text-sm rounded-2xl py-5", ctaClass)}>
-              <Link href={plan.ctaHref ?? "/sign-up"}>
+              <Link
+                href={plan.ctaHref ?? "/sign-up"}
+                target={isExternalCta && plan.ctaHref?.startsWith("http") ? "_blank" : undefined}
+                rel={isExternalCta && plan.ctaHref?.startsWith("http") ? "noopener noreferrer" : undefined}
+              >
                 {plan.ctaLabel}
                 <ArrowRight className="size-4 ml-2" />
               </Link>

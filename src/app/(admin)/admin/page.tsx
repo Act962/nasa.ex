@@ -1,4 +1,4 @@
-import { requireAdminSession } from "@/lib/admin-utils";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import prisma from "@/lib/prisma";
 import { Building2, Users, Star, Activity, TrendingUp, Wifi } from "lucide-react";
 import Link from "next/link";

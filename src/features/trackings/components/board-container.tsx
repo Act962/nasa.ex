@@ -38,7 +38,7 @@ import { NavOptionsTracking } from "./nav-options-trancking";
 import { useQueryState } from "nuqs";
 import dayjs from "dayjs";
 import { useLeadSoundAlert } from "@/hooks/use-lead-sound-alert";
-import { useArchiveLead } from "../hooks/use-leads";
+
 
 interface BoardContainerProps {
   trackingId: string;
@@ -53,7 +53,7 @@ interface Status {
 }
 
 export function BoardContainer({ trackingId }: BoardContainerProps) {
-  const archiveLead = useArchiveLead();
+
   const [activeLead, setActiveLead] = useState<any>(null);
   const [activeColumn, setActiveColumn] = useState<Status | null>(null);
   const [originalNeighbors, setOriginalNeighbors] = useState<{
@@ -181,7 +181,11 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
             onOpen(leadData.id, "LOSS");
             break;
           case "excluir":
-            archiveLead.mutate({ leadId: leadData.id });
+            onOpenDeleteLead({
+              id: leadData.id,
+              name: leadData.name,
+              trackingId,
+            });
             break;
         }
 

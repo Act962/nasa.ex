@@ -1,5 +1,5 @@
-import prisma from "./prisma";
-import { emitTracking } from "./tracking-emitter";
+import prisma from "@/lib/prisma";
+import { emitTracking } from "@/features/space-point/lib/tracking-emitter";
 export { APP_LABELS, APP_SLUGS } from "./activity-constants";
 
 // ── Mapeamento: `appSlug:action` → tracking action (SP/Stars) ──────────────

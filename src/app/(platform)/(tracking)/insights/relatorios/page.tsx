@@ -17,8 +17,6 @@ export default function RelatoriosPage() {
           context="insights"
           placeholder="Pergunte ao Astro sobre suas campanhas Meta… (ex: 'pausa minha campanha de Black Friday')"
         />
-        <div>
-      <div className="flex-1 overflow-auto px-4 sm:px-6 py-6 max-w-7xl mx-auto w-full space-y-8">
         {/* Modelos de relatório */}
         <section>
           <div className="mb-3">
@@ -80,7 +78,6 @@ export default function RelatoriosPage() {
             </p>
           </div>
           <ReportsList />
-        </div>
         </section>
       </div>
     </div>

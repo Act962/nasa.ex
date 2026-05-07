@@ -146,3 +146,51 @@ ALTER TABLE "nasa_planner_posts"
 
 Sem isso, o `update-post.ts`/`publish-post.ts` quebram ao tentar gravar a
 escolha do destino e qualquer erro retornado pela Graph API.
+
+---
+
+## Migration adicional — ASTRO Agentes IA + pgvector (2026-05-07)
+
+**Branch:** `feature/astro-agentes-nasa`
+**Pastas:**
+- `prisma/migrations/20260507192354_astro_agents/` (4 tabelas + 2 enums; gerada
+  por `prisma migrate dev`).
+- `prisma/migrations/20260507192355_astro_pgvector/` (extensão pgvector +
+  coluna `embedding vector(1536)` + índice ivfflat). Só SQL puro porque o
+  Prisma não tem suporte ao tipo `vector`.
+
+**Pré-requisito:** container do Postgres precisa usar a imagem
+`pgvector/pgvector:pg17` (atualizado em `docker-compose.yml`). Caso contrário,
+`CREATE EXTENSION vector` falha com `extension "vector" is not available`.
+
+```bash
+docker compose down
+docker compose up -d
+```
+
+### Aplicar do zero (`prisma migrate deploy`)
+
+Funciona automático: `migrate deploy` roda as duas migrations em ordem.
+
+### Aplicar quando `astro_agents` JÁ está aplicada e falta só a `astro_pgvector`
+
+(É o caso desta máquina de dev — `migrate dev` aplicou a primeira mas a
+segunda foi adicionada depois.)
+
+```bash
+pnpm prisma db execute \
+  --file prisma/migrations/20260507192355_astro_pgvector/migration.sql \
+  --schema prisma/schema.prisma
+
+pnpm prisma migrate resolve --applied "20260507192355_astro_pgvector"
+pnpm db:generate
+```
+
+### Verificação
+
+```bash
+psql postgresql://docker:docker@localhost/nasa_db -c "\dx vector"
+psql postgresql://docker:docker@localhost/nasa_db -c "\d ai_knowledge_chunk"
+# `embedding` deve aparecer como `vector(1536)` e existir
+# `ai_knowledge_chunk_embedding_idx` (ivfflat).
+```

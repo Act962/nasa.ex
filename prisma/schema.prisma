@@ -40,7 +40,7 @@ model User {
   insightShares                      InsightShares[]
   savedInsightReports                SavedInsightReport[]
   savedReportCompares                SavedReportCompare[]
-  insightLayoutsUpdated              OrganizationInsightLayout[] @relation("OrgInsightLayoutUpdater")
+  insightLayoutsUpdated              OrganizationInsightLayout[]  @relation("OrgInsightLayoutUpdater")
   agendaResponsibles                 AgendaResponsible[]
   appointments                       Appointment[]
   trackingConsultants                TrackingConsultant[]
@@ -84,23 +84,23 @@ model User {
   actionChatMessages     ActionChatMessage[]    @relation("ActionChatSender")
   actionChatReads        ActionChatRead[]       @relation("ActionChatReader")
 
-  profileCard                UserProfileCard?
-  orgRoles                   OrgRole[]
-  orgFollows                 OrgFollow[]
-  companyReviews             CompanyReview[]
-  companyPosts               CompanyPost[]
-  companyPostComments        CompanyPostComment[]
-  spaceHelpProgress          SpaceHelpProgress[]
-  spaceHelpBadges            UserSpaceHelpBadge[]
-  nasaRouteCoursesCreated    NasaRouteCourse[]      @relation("NasaRouteCreatorUser")
-  nasaRouteEnrollments       NasaRouteEnrollment[]
-  nasaRouteProgress          NasaRouteProgress[]
-  nasaRouteFreeAccess        NasaRouteFreeAccess[]  @relation("NasaRouteFreeAccessUser")
-  nasaRouteFreeAccessGranted NasaRouteFreeAccess[]  @relation("NasaRouteFreeAccessGrantor")
-  nasaRouteCertificates      NasaRouteCertificate[]
+  profileCard                    UserProfileCard?
+  orgRoles                       OrgRole[]
+  orgFollows                     OrgFollow[]
+  companyReviews                 CompanyReview[]
+  companyPosts                   CompanyPost[]
+  companyPostComments            CompanyPostComment[]
+  spaceHelpProgress              SpaceHelpProgress[]
+  spaceHelpBadges                UserSpaceHelpBadge[]
+  nasaRouteCoursesCreated        NasaRouteCourse[]       @relation("NasaRouteCreatorUser")
+  nasaRouteEnrollments           NasaRouteEnrollment[]
+  nasaRouteProgress              NasaRouteProgress[]
+  nasaRouteFreeAccess            NasaRouteFreeAccess[]   @relation("NasaRouteFreeAccessUser")
+  nasaRouteFreeAccessGranted     NasaRouteFreeAccess[]   @relation("NasaRouteFreeAccessGrantor")
+  nasaRouteCertificates          NasaRouteCertificate[]
   pendingCoursePurchasesRedeemed PendingCoursePurchase[] @relation("PendingCoursePurchaseRedeemer")
   routerPaymentSettingsUpdated   RouterPaymentSettings[] @relation("RouterPaymentSettingsUpdater")
-  remindersCreated           Reminder[]             @relation("ReminderCreatedBy")
+  remindersCreated               Reminder[]              @relation("ReminderCreatedBy")
 
   // ── NASA Partner ──
   referralLink                  PartnerReferralLink?
@@ -114,9 +114,13 @@ model User {
   metaAccountAccess MemberMetaAccountAccess[]
 
   // Meta Ads MCP — autorização do user pra usar Astro IA Meta Ads
-  metaMcpAuthorizationsAuthorized MetaMcpAuthorization[]   @relation("McpAuthorizedUser")
-  metaMcpAuthorizationsGranted    MetaMcpAuthorization[]   @relation("McpAuthorizedBy")
+  metaMcpAuthorizationsAuthorized MetaMcpAuthorization[] @relation("McpAuthorizedUser")
+  metaMcpAuthorizationsGranted    MetaMcpAuthorization[] @relation("McpAuthorizedBy")
   metaAdsPendingActions           MetaAdsPendingAction[]
+
+  // ── ASTRO (Agentes IA) ──
+  aiSessions      AiSession[]
+  aiKnowledgeMade AiKnowledge[] @relation("AiKnowledgeCreatedBy")
 
   @@unique([email])
   @@map("user")
@@ -216,7 +220,7 @@ model Organization {
   forgeContracts         ForgeContract[]
   forgeTemplates         ForgeContractTemplate[]
   forgeSettings          ForgeSettings?
-  plan                   Plan?                    @relation(fields: [planId], references: [id], onDelete: SetNull)
+  plan                   Plan?                      @relation(fields: [planId], references: [id], onDelete: SetNull)
   starTransactions       StarTransaction[]
   workspaceIntegrations  WorkspaceIntegration[]
   memberStarBudgets      MemberStarBudget[]
@@ -235,8 +239,8 @@ model Organization {
   workspaces             Workspace[]
   form                   Form[]
   workspaceFolders       WorkspaceFolder[]
-  sentShares             ActionShare[]            @relation("SentShares")
-  receivedShares         ActionShare[]            @relation("ReceivedShares")
+  sentShares             ActionShare[]              @relation("SentShares")
+  receivedShares         ActionShare[]              @relation("ReceivedShares")
   starRules              StarRule[]
   spacePoints            UserSpacePoint[]
   spacePointTransactions SpacePointTransaction[]
@@ -325,6 +329,11 @@ model Organization {
   // Meta Ads MCP — autorização e pending actions
   metaMcpAuthorizations MetaMcpAuthorization[]
   metaAdsPendingActions MetaAdsPendingAction[]
+
+  // ── ASTRO (Agentes IA) ──
+  aiAgentConfigs AiAgentConfig[]
+  aiSessions     AiSession[]
+  aiKnowledge    AiKnowledge[]
 
   @@unique([slug])
   @@map("organization")
@@ -5216,4 +5225,103 @@ model MetaAdsPendingAction {
   @@index([organizationId, status, expiresAt])
   @@index([userId])
   @@map("meta_ads_pending_actions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ASTRO — Agentes IA da NASA
+//
+// Arquitetura:
+//  • AiAgentConfig: configuração por agente, escopo Organization (toggle, modo
+//    AUTO/TRIGGER/MANUAL, knowledge bases vinculadas).
+//  • AiSession: histórico de conversa. messages é UIMessage[] (AI SDK) em Json.
+//    /home lista sessões "livres" (context IS NULL). Embeds salvam com
+//    context = { scope: "lead", leadId } etc. e ficam fora desse feed.
+//  • AiKnowledge / AiKnowledgeChunk: base de conhecimento (RAG via pgvector).
+//    Coluna `embedding vector(1536)` é adicionada em AiKnowledgeChunk via
+//    migration SQL manual (Prisma omite). Retrieval usa $queryRaw + Prisma.sql.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum AiAgentMode {
+  AUTO
+  TRIGGER
+  MANUAL
+}
+
+enum AiKnowledgeStatus {
+  PENDING
+  PROCESSING
+  READY
+  ERROR
+}
+
+model AiAgentConfig {
+  id             String      @id @default(cuid())
+  organizationId String      @map("organization_id")
+  agentKey       String      @map("agent_key") // "astro" | "closer" | "task-agent" | ...
+  enabled        Boolean     @default(true)
+  mode           AiAgentMode @default(MANUAL)
+  knowledgeIds   String[]    @default([]) @map("knowledge_ids")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, agentKey])
+  @@index([organizationId])
+  @@map("ai_agent_config")
+}
+
+model AiSession {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  title          String?
+  messages       Json     @default("[]") // UIMessage[] do AI SDK
+  context        Json? // null = sessão livre (/home); { scope, ...ids } = embed contextual
+  lastAgentKey   String?  @map("last_agent_key")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, userId, updatedAt(sort: Desc)])
+  @@map("ai_session")
+}
+
+model AiKnowledge {
+  id             String            @id @default(cuid())
+  organizationId String            @map("organization_id")
+  name           String
+  type           String // "pdf" | "xlsx" | "docx" | "txt" | "csv"
+  fileUrl        String?           @map("file_url") // R2/S3
+  status         AiKnowledgeStatus @default(PENDING)
+  chunksCount    Int               @default(0) @map("chunks_count")
+  errorMessage   String?           @map("error_message")
+  createdBy      String            @map("created_by")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator      User               @relation("AiKnowledgeCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  chunks       AiKnowledgeChunk[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("ai_knowledge")
+}
+
+model AiKnowledgeChunk {
+  id             String   @id @default(cuid())
+  knowledgeId    String   @map("knowledge_id")
+  organizationId String   @map("organization_id") // dup p/ filtros rápidos no $queryRaw
+  content        String   @db.Text
+  // embedding vector(1536) — adicionada via migration SQL manual
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  knowledge AiKnowledge @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([knowledgeId])
+  @@map("ai_knowledge_chunk")
 }

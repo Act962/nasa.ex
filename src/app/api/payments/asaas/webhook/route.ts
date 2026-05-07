@@ -11,8 +11,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { purchaseTopUp } from "@/lib/star-service";
-import { processPaymentPartnerEffects } from "@/lib/partner-service";
+import { purchaseTopUp } from "@/features/stars/lib/star-service";
+import { processPaymentPartnerEffects } from "@/features/partner/lib/partner-service";
 
 interface AsaasWebhookPayload {
   event:   string;  // "PAYMENT_RECEIVED" | "PAYMENT_CONFIRMED" | etc.

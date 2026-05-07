@@ -11,7 +11,7 @@
 
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { recalcReferralActivity } from "@/lib/partner-service";
+import { recalcReferralActivity } from "@/features/partner/lib/partner-service";
 
 const BATCH_SIZE = 200;
 

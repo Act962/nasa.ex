@@ -2,7 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import { logOrgActivity } from "@/lib/org-activity-log";
+import { logOrgActivity } from "@/features/admin/lib/org-activity-log";
 import { z } from "zod";
 
 export const copyAction = base

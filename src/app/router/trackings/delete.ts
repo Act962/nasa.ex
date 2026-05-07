@@ -3,7 +3,7 @@ import { z } from "zod";
 import { base } from "../../middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { requireOrgMiddleware } from "../../middlewares/org";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 export const deleteTracking = base
   .use(requiredAuthMiddleware)

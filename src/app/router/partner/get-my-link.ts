@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { base } from "@/app/middlewares/base";
 import { auth } from "@/lib/auth";
-import { getOrCreateReferralLink } from "@/lib/partner-service";
+import { getOrCreateReferralLink } from "@/features/partner/lib/partner-service";
 
 /**
  * Endpoint público (apenas autenticado): retorna ou cria o link de
