@@ -43,7 +43,7 @@ import {
   TrashIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
 import { cn } from "@/lib/utils";
@@ -200,6 +200,7 @@ function DiaMode({
   slotDuration: number;
 }) {
   const { data, isLoading } = useQueryDateAvailabilities(agendaId);
+  const { data: overridesData } = useSuspenseDateOverrides(agendaId);
   const upsert = useUpsertDateAvailability();
   const deleteDateAvail = useDeleteDateAvailability();
 
@@ -210,12 +211,22 @@ function DiaMode({
 
   const dateAvailabilities = data?.dateAvailabilities ?? [];
   const configuredDatesSet = new Set(dateAvailabilities.map((d) => d.date));
+  const blockedDatesSet = new Set(
+    overridesData.dateOverrides.filter((d) => d.isBlocked).map((d) => d.date),
+  );
 
   const daysInMonth = currentMonth.daysInMonth();
   const firstDayOfWeek = currentMonth.day();
   const today = dayjs().format("YYYY-MM-DD");
 
+  useEffect(() => {
+    if (selectedDate && blockedDatesSet.has(selectedDate)) {
+      setSelectedDate(null);
+    }
+  }, [selectedDate, blockedDatesSet]);
+
   const handleClickDate = (date: string) => {
+    if (blockedDatesSet.has(date)) return;
     setSelectedDate((prev) => (prev === date ? null : date));
     // If not yet configured, auto-create
     if (!configuredDatesSet.has(date)) {
@@ -291,27 +302,39 @@ function DiaMode({
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const date = currentMonth.date(i + 1).format("YYYY-MM-DD");
               const isPast = date < today;
+              const isBlocked = blockedDatesSet.has(date);
               const isConfigured = configuredDatesSet.has(date);
               const isSelected = selectedDate === date;
 
               return (
                 <button
                   key={date}
-                  disabled={isPast}
+                  disabled={isPast || isBlocked}
                   onClick={() => handleClickDate(date)}
+                  title={isBlocked ? "Data bloqueada" : undefined}
                   className={cn(
                     "relative h-8 w-full rounded-md flex flex-col items-center justify-center text-xs font-medium transition-colors",
                     isPast &&
                       "opacity-30 cursor-not-allowed text-muted-foreground",
-                    isSelected && "bg-primary text-primary-foreground",
-                    !isSelected && !isPast && "hover:bg-accent cursor-pointer",
+                    isBlocked &&
+                      "bg-destructive/15 text-destructive cursor-not-allowed",
+                    isSelected &&
+                      !isBlocked &&
+                      "bg-primary text-primary-foreground",
+                    !isSelected &&
+                      !isPast &&
+                      !isBlocked &&
+                      "hover:bg-accent cursor-pointer",
                   )}
                 >
                   {i + 1}
-                  {isConfigured && !isSelected && (
+                  {isBlocked && (
+                    <BanIcon className="absolute top-0.5 right-0.5 size-2.5 text-destructive" />
+                  )}
+                  {isConfigured && !isSelected && !isBlocked && (
                     <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
                   )}
-                  {isConfigured && isSelected && (
+                  {isConfigured && isSelected && !isBlocked && (
                     <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary-foreground" />
                   )}
                 </button>
@@ -645,7 +668,13 @@ export function Availability({
             </Suspense>
           </>
         ) : (
-          <DiaMode agendaId={agendaId} slotDuration={slotDuration} />
+          <Suspense
+            fallback={
+              <div className="text-xs text-muted-foreground">Carregando...</div>
+            }
+          >
+            <DiaMode agendaId={agendaId} slotDuration={slotDuration} />
+          </Suspense>
         )}
       </CardContent>
     </Card>

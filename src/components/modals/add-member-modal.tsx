@@ -86,7 +86,7 @@ export function AddMemberModal() {
             onClick={onInvite}
           >
             {isSendInvitation && <Spinner />}
-            Adiconar
+            Adicionar
           </Button>
         </div>
       </DialogContent>
