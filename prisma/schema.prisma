@@ -118,6 +118,9 @@ model User {
   metaMcpAuthorizationsGranted    MetaMcpAuthorization[] @relation("McpAuthorizedBy")
   metaAdsPendingActions           MetaAdsPendingAction[]
 
+  // Insights — jornada do lead
+  leadJourneyEventsActed LeadJourneyEvent[] @relation("LeadJourneyEventActor")
+
   // ── ASTRO (Agentes IA) ──
   aiSessions      AiSession[]
   aiKnowledgeMade AiKnowledge[] @relation("AiKnowledgeCreatedBy")
@@ -555,6 +558,29 @@ model LeadHistory {
   @@map("lead_history")
 }
 
+/// Timeline granular de eventos por lead — alimenta a tab "Jornada" do lead e o
+/// painel de Insights. Reusa onde possível, mas o `LeadHistory` está limitado pelo
+/// enum `LeadAction` (4 valores) e o `SystemActivityLog` é por org/user, não por lead.
+model LeadJourneyEvent {
+  id         String   @id @default(cuid())
+  leadId     String   @map("lead_id")
+  /// Tipo do evento. Valores conhecidos: form_submit | message_in | message_out | first_response |
+  /// appointment_created | appointment_done | appointment_no_show | status_changed | tag_added |
+  /// lead_assigned | linnker_scan | ctwa_referral | utm_landing | won | lost
+  kind       String
+  occurredAt DateTime @default(now()) @map("occurred_at")
+  actorId    String?  @map("actor_id")
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  lead  Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  actor User? @relation("LeadJourneyEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([leadId, occurredAt])
+  @@index([kind])
+  @@map("lead_journey_events")
+}
+
 enum LeadSource {
   DEFAULT
   WHATSAPP
@@ -603,6 +629,30 @@ model Lead {
   currentAction LeadAction @default(ACTIVE) @map("current_action")
   isActive      Boolean    @default(true) @map("is_active")
 
+  // ─── Origem / Tracking de campanha (UTM + CTWA + Meta Ads) ───
+  utmSource      String? @map("utm_source")
+  utmMedium      String? @map("utm_medium")
+  utmCampaign    String? @map("utm_campaign")
+  utmContent     String? @map("utm_content")
+  utmTerm        String? @map("utm_term")
+  referrer       String?
+  landingPage    String? @map("landing_page")
+  device         String? // mobile | desktop | tablet (parseado do UA)
+  ctwaClid       String? @map("ctwa_clid")
+  metaAdId       String? @map("meta_ad_id")
+  metaAdsetId    String? @map("meta_adset_id")
+  metaCampaignId String? @map("meta_campaign_id")
+  metaSourceUrl  String? @map("meta_source_url")
+  metaHeadline   String? @map("meta_headline")
+  metaBody       String? @map("meta_body")
+
+  // ─── Atribuição / jornada ───
+  assignedAt         DateTime? @map("assigned_at")
+  lastInboundAt      DateTime? @map("last_inbound_at")
+  lastOutboundAt     DateTime? @map("last_outbound_at")
+  firstResponseAt    DateTime? @map("first_response_at")
+  lastStatusChangeAt DateTime? @map("last_status_change_at")
+
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   closedAt  DateTime? @map("closed_at")
@@ -618,6 +668,7 @@ model Lead {
 
   leadTags                  LeadTag[]
   history                   LeadHistory[]
+  journeyEvents             LeadJourneyEvent[]
   files                     LeadFile[]
   actions                   Action[]
   appointments              Appointment[]
@@ -635,6 +686,11 @@ model Lead {
   @@index([currentAction])
   @@index([isActive])
   @@index([responsibleId])
+  @@index([utmCampaign])
+  @@index([metaAdId])
+  @@index([metaCampaignId])
+  @@index([lastInboundAt])
+  @@index([assignedAt])
   @@map("leads")
 }
 

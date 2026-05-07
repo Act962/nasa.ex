@@ -11,6 +11,12 @@ import { getContactDetails } from "@/http/uazapi/get-contact-details";
 import { WA_COLORS } from "@/utils/whatsapp-utils";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { trackLeadEvent } from "@/lib/lead-journey/track";
+import {
+  resolveReferralForOrg,
+  ctwaToLeadData,
+  captureMetaReferralForNewLead,
+} from "@/lib/lead-journey/ctwa";
 import {
   chatLabelsEventSchema,
   messagesEventSchema,
@@ -72,6 +78,7 @@ export async function POST(request: NextRequest) {
         where: { id: trackingId },
         select: {
           id: true,
+          organizationId: true,
           globalAiActive: true,
         },
       });
@@ -160,6 +167,12 @@ export async function POST(request: NextRequest) {
           );
         }
 
+        const ctwa = await resolveReferralForOrg(
+          tracking.organizationId,
+          json.message,
+          json,
+        );
+
         const createdLead = await prisma.lead.create({
           data: {
             name: name ?? "Sem nome",
@@ -170,6 +183,8 @@ export async function POST(request: NextRequest) {
             profile: key,
             order: firstLead ? Number(firstLead.order) - 1 : 0,
             statusFlow: "WAITING",
+            lastInboundAt: new Date(),
+            ...(ctwa ? ctwaToLeadData(ctwa.ref, ctwa.resolved) : {}),
             conversation: {
               create: {
                 remoteJid,
@@ -190,6 +205,17 @@ export async function POST(request: NextRequest) {
         });
 
         lead = createdLead;
+
+        // `message_in` é logado abaixo no bloco unificado de timestamps;
+        // aqui só registramos o referral CTWA pra dar contexto na timeline.
+        if (ctwa) {
+          await captureMetaReferralForNewLead(
+            lead.id,
+            ctwa.ref,
+            ctwa.resolved,
+            "WHATSAPP",
+          );
+        }
 
         // Log system activity for new lead via WhatsApp
         try {
@@ -616,6 +642,12 @@ export async function POST(request: NextRequest) {
           { status: 201 },
         );
       }
+      // Atualiza timestamps de jornada do lead. firstResponseAt só é setado
+      // quando atendente (fromMe=true) responde APÓS lead ter mandado inbound.
+      const now = new Date();
+      const shouldSetFirstResponse =
+        fromMe && !lead.firstResponseAt && lead.lastInboundAt;
+
       await prisma.conversation.update({
         where: {
           leadId_trackingId: {
@@ -629,11 +661,37 @@ export async function POST(request: NextRequest) {
           },
           lead: {
             update: {
-              updatedAt: new Date(),
+              updatedAt: now,
+              ...(fromMe
+                ? { lastOutboundAt: now }
+                : { lastInboundAt: now }),
+              ...(shouldSetFirstResponse ? { firstResponseAt: now } : {}),
             },
           },
         },
       });
+
+      // Track timeline events (best-effort).
+      if (fromMe) {
+        await trackLeadEvent({
+          leadId: lead.id,
+          kind: "message_out",
+          metadata: { channel: "WHATSAPP", messageId },
+        });
+        if (shouldSetFirstResponse) {
+          await trackLeadEvent({
+            leadId: lead.id,
+            kind: "first_response",
+            metadata: { channel: "WHATSAPP" },
+          });
+        }
+      } else {
+        await trackLeadEvent({
+          leadId: lead.id,
+          kind: "message_in",
+          metadata: { channel: "WHATSAPP", messageId },
+        });
+      }
 
       await pusherServer.trigger(trackingId, "conversation:new", {
         ...lead.conversation,

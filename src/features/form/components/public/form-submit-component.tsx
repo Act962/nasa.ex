@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FormBlocks } from "@/features/form/lib/form-blocks";
 import { toast } from "sonner";
 import { useMutationSubmitResponse } from "../../hooks/use-form";
+import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -166,8 +167,12 @@ export function FormSubmitComponent({ id, blocks, settings }: FormSubmitProps) {
         }),
       }),
     });
+    // Captura UTMs/origem do session storage (preenchidos pelo middleware
+    // ou pela primeira navegação do usuário). Best-effort: nada quebra se vazio.
+    const tracking = getTrackingParamsClient();
+
     submitResponse.mutate(
-      { id, response: responseJson },
+      { id, response: responseJson, tracking },
       {
         onSuccess: () => {
           setSubmitted(true);

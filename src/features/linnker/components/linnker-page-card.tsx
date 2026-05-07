@@ -12,10 +12,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Link2, QrCode, ExternalLink, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
+import { MoreHorizontal, Link2, QrCode, ExternalLink, Pencil, Trash2, Eye, EyeOff, Tags } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import type { LinnkerPage } from "../types";
+import { CopyLinkWithUtm } from "@/components/ui/copy-link-with-utm";
 
 interface Props {
   page: LinnkerPage;
@@ -77,6 +78,14 @@ export function LinnkerPageCard({ page, onRefetch }: Props) {
             <DropdownMenuItem onClick={copyLink}>
               <Link2 className="size-4 mr-2" /> Copiar link
             </DropdownMenuItem>
+            <CopyLinkWithUtm
+              baseUrl={publicUrl}
+              trigger={
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <Tags className="size-4 mr-2" /> Copiar link com UTM
+                </DropdownMenuItem>
+              }
+            />
             <DropdownMenuItem asChild>
               <a href={publicUrl} target="_blank" rel="noreferrer">
                 <ExternalLink className="size-4 mr-2" /> Ver página

@@ -6,6 +6,11 @@ import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/client";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
+import { trackLeadEvent } from "@/lib/lead-journey/track";
+import {
+  trackingParamsSchema,
+  trackingToLeadData,
+} from "@/lib/tracking/tracking-params";
 
 // 🟧 LIST ALL
 export const createLead = base
@@ -23,6 +28,7 @@ export const createLead = base
       description: z.string().optional(),
       statusId: z.string(),
       trackingId: z.string(),
+      tracking: trackingParamsSchema.optional(),
     }),
   )
   .output(
@@ -83,6 +89,8 @@ export const createLead = base
             trackingId: input.trackingId,
             order: newOrder,
             responsibleId: context.user.id,
+            assignedAt: new Date(),
+            ...trackingToLeadData(input.tracking),
           },
           select: {
             id: true,
@@ -106,6 +114,13 @@ export const createLead = base
         });
 
         return newLead;
+      });
+
+      await trackLeadEvent({
+        leadId: lead.id,
+        kind: "lead_assigned",
+        actorId: context.user.id,
+        metadata: { responsibleId: context.user.id, source: "manual" },
       });
 
       // Log activity (non-blocking)

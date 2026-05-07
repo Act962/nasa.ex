@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Activity, FileBarChart2, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Activity, FileBarChart2, BarChart3, Route } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
-  { label: "Visão Geral",         href: "/insights",                      icon: LayoutDashboard },
-  { label: "Atividades",          href: "/insights/atividades",           icon: Activity        },
-  { label: "Relatórios completos", href: "/insights/relatorios-completos", icon: BarChart3      },
-  { label: "Relatórios",          href: "/insights/relatorios",           icon: FileBarChart2   },
+  { label: "Visão Geral",          href: "/insights",                      icon: LayoutDashboard },
+  { label: "Jornada do Lead",      href: "/insights/jornada",              icon: Route           },
+  { label: "Atividades",           href: "/insights/atividades",           icon: Activity        },
+  { label: "Relatórios completos", href: "/insights/relatorios-completos", icon: BarChart3       },
+  { label: "Relatórios",           href: "/insights/relatorios",           icon: FileBarChart2   },
 ];
 
 export function InsightsTabsNav() {
