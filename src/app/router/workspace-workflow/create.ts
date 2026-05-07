@@ -1,11 +1,13 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { NodeType } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
 export const createWorkspaceWorkflow = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .input(
     z.object({
       name: z.string(),
@@ -15,11 +17,14 @@ export const createWorkspaceWorkflow = base
   )
   .handler(async ({ context, input, errors }) => {
     const workspace = await prisma.workspace.findUnique({
-      where: { id: input.workspaceId },
+      where: {
+        id: input.workspaceId,
+        organizationId: context.org.id,
+      },
     });
 
     if (!workspace) {
-      throw errors.BAD_REQUEST({ message: "Workspace não encontrado" });
+      throw errors.NOT_FOUND({ message: "Workspace não encontrado" });
     }
 
     const workflow = await prisma.workflow.create({
