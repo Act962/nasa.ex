@@ -152,42 +152,45 @@ escolha do destino e qualquer erro retornado pela Graph API.
 ## Migration adicional — ASTRO Agentes IA + pgvector (2026-05-07)
 
 **Branch:** `feature/astro-agentes-nasa`
-**Pasta:** `prisma/migrations/20260507120000_astro_agents/`
+**Pastas:**
+- `prisma/migrations/20260507192354_astro_agents/` (4 tabelas + 2 enums; gerada
+  por `prisma migrate dev`).
+- `prisma/migrations/20260507192355_astro_pgvector/` (extensão pgvector +
+  coluna `embedding vector(1536)` + índice ivfflat). Só SQL puro porque o
+  Prisma não tem suporte ao tipo `vector`.
 
-Cria 4 tabelas novas (`ai_agent_config`, `ai_session`, `ai_knowledge`,
-`ai_knowledge_chunk`), 2 enums (`AiAgentMode`, `AiKnowledgeStatus`), habilita a
-extensão `vector` (pgvector) e adiciona a coluna `embedding vector(1536)` +
-índice `ivfflat` em `ai_knowledge_chunk` para retrieval semântico.
-
-**Pré-requisito:** o container do Postgres deve usar a imagem
-`pgvector/pgvector:pg17` (já atualizado em `docker-compose.yml`). Se você ainda
-está em `bitnami/postgresql`, derrube e suba o container — o `CREATE EXTENSION
-vector` vai falhar com `extension "vector" is not available`.
+**Pré-requisito:** container do Postgres precisa usar a imagem
+`pgvector/pgvector:pg17` (atualizado em `docker-compose.yml`). Caso contrário,
+`CREATE EXTENSION vector` falha com `extension "vector" is not available`.
 
 ```bash
 docker compose down
 docker compose up -d
 ```
 
-Como aplicar (drift conhecido neste repo — usar Opção B):
+### Aplicar do zero (`prisma migrate deploy`)
+
+Funciona automático: `migrate deploy` roda as duas migrations em ordem.
+
+### Aplicar quando `astro_agents` JÁ está aplicada e falta só a `astro_pgvector`
+
+(É o caso desta máquina de dev — `migrate dev` aplicou a primeira mas a
+segunda foi adicionada depois.)
 
 ```bash
-# 1. Aplicar SQL direto
 pnpm prisma db execute \
-  --file prisma/migrations/20260507120000_astro_agents/migration.sql \
+  --file prisma/migrations/20260507192355_astro_pgvector/migration.sql \
   --schema prisma/schema.prisma
 
-# 2. Marcar como aplicada
-pnpm prisma migrate resolve --applied "20260507120000_astro_agents"
-
-# 3. Regenerar client
+pnpm prisma migrate resolve --applied "20260507192355_astro_pgvector"
 pnpm db:generate
 ```
 
-Verificação:
+### Verificação
 
 ```bash
-psql postgresql://docker:docker@localhost/nasa_db -c "\\dx vector"
-psql postgresql://docker:docker@localhost/nasa_db -c "\\d ai_knowledge_chunk"
-# embedding deve aparecer como `vector(1536)`
+psql postgresql://docker:docker@localhost/nasa_db -c "\dx vector"
+psql postgresql://docker:docker@localhost/nasa_db -c "\d ai_knowledge_chunk"
+# `embedding` deve aparecer como `vector(1536)` e existir
+# `ai_knowledge_chunk_embedding_idx` (ivfflat).
 ```

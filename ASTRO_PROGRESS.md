@@ -38,12 +38,13 @@ ASTRO é um copiloto IA escalável dentro do app: um orquestrador que delega par
 | 6 | Dependências (`pnpm add`) | ⬜ | langchain + ai-elements + loaders |
 | 7 | Backbone server (`src/features/astro/server`) | ✅ | orchestrator, registry, agents (Closer, Task), tools (leads, actions, knowledge), rag (embeddings, retriever) |
 | 8 | Route handler `/api/astro/chat` | ✅ | `streamText().toUIMessageStreamResponse()` com persistência em `AiSession` no `onFinish` |
-| 9 | UI: AstroProvider + useAstroChat + refatorar `astro-agent.tsx` | ⬜ | |
-| 10 | `/home` (NASA Command Center) → modo fullscreen do ASTRO | ⬜ | manter casca visual; trocar motor |
-| 11 | oRPC routes (sessions / agent-config / knowledge-base) | 🟡 | sessions + agent-configs ok; knowledge-base ainda falta |
-| 12 | Embed Closer no tracking-chat | ⬜ | footer + body + Pusher → Inngest |
-| 13 | Inngest functions (`ingest-knowledge`, `agent-trigger`) | ⬜ | |
-| 14 | Demais embeds (lead, action, agenda, insights, planner, forms, editor) | ⬜ | pós-MVP |
+| 9 | UI: AstroProvider + useAstroChat + refatorar `astro-agent.tsx` | ✅ | provider, `use-astro-context`, `use-astro-chat`, `AstroMessage`, `AstroComposer`. `astro-agent-legacy.tsx` mantido para referência visual. |
+| 10 | `/home` (NASA Command Center) → modo fullscreen do ASTRO | ✅ | nasa-command-center reconectado ao orquestrador; recent-requests lê de `AiSession`; thinking-display alimentado por tool-parts reais. |
+| 11 | oRPC routes (sessions / agent-config / knowledge-base) | 🟡 | sessions (CRUD) + agent-configs ok; knowledge-base falta. |
+| 12 | Embed Closer no tracking-chat | 🟡 | popover `TrackingChatCopilot` no footer com botão "Aplicar" no draft. **Falta**: banner automático no body + Pusher→Inngest (Sessão 3). |
+| 13 | Inngest functions (`ingest-knowledge`, `agent-trigger`) | 🟡 | stubs registrados em `/api/inngest/route.ts`; lógica real fica para Sessão 3. |
+| 14 | Settings → Agentes (UI mínima) | ✅ | aba "Agentes IA" + `AgentsSection` com switch enabled + select de mode. |
+| 15 | Demais embeds (lead, action, agenda, insights, planner, forms, editor) | ⬜ | pós-MVP. |
 
 ## Arquivos novos criados
 
@@ -95,6 +96,58 @@ ASTRO é um copiloto IA escalável dentro do app: um orquestrador que delega par
 2. Ler o plano: `C:/Users/Dev/.claude/plans/crie-o-planejamento-para-piped-knuth.md`.
 3. `git status` + `git log --oneline -20` na branch para conferir o que já foi commitado.
 4. Continuar a partir da primeira linha `⬜` da tabela acima.
+
+### Próximos passos imediatos (Sessão 3)
+
+A UI ligou no orquestrador. Próxima entrega foca em RAG real, trigger
+automático e embeds restantes.
+
+1. **RAG ingest real** — implementar `astro/ingest-knowledge` (Inngest stub):
+   download via R2, loaders LangChain (`PDFLoader`, `DocxLoader`,
+   `XlsxLoader`, `TextLoader`), `RecursiveCharacterTextSplitter` (chunkSize
+   ~800, overlap ~100), `embedBatch` em lotes de 100, INSERT via `$queryRaw`
+   com `embedding = $vector::vector`.
+2. **Knowledge base oRPC + UI** — `astro.knowledge.{list,uploadInit,delete,
+   reingest}`. UI em `Settings → Agentes IA` para anexar/listar fontes por
+   agente (`AiAgentConfig.knowledgeIds`).
+3. **Trigger automático Closer** — handler de mensagem nova no
+   tracking-chat emite `astro/conversation.message-received`; `astroAgentTrigger`
+   cria `AiSession` com `context = { scope: "trigger", conversationId }` e
+   notifica via Pusher; Body do tracking-chat assina e renderiza um banner.
+4. **Compose/Summarize → tools do ASTRO** — depreciar `compose-response.tsx`
+   e `summerize-conversation.tsx` (manter funcionais até confirmar paridade).
+5. **Embeds restantes** — lead detail, action view, agenda editor, insights
+   dashboard, planner, forms, editor TipTap (vide tabela 3.7 do plano).
+6. **Deletar `astro-agent-legacy.tsx`** após confirmação visual da UX nova.
+7. **Deprecar `nasa-command/ai-intent.ts` + `execute-helpers/`** — auditar
+   usos externos, marcar `@deprecated`, depois remover.
+
+### Como rodar Sessão 2 localmente
+
+```bash
+# 1. Container com pgvector
+docker compose down
+docker compose up -d
+
+# 2. Aplicar a micro-migration de pgvector (se ainda não foi)
+pnpm prisma db execute \
+  --file prisma/migrations/20260507192355_astro_pgvector/migration.sql \
+  --schema prisma/schema.prisma
+pnpm prisma migrate resolve --applied "20260507192355_astro_pgvector"
+pnpm db:generate
+
+# 3. Variáveis no .env.local
+# OPENAI_API_KEY=...                    (embeddings — só obrigatório quando rodar RAG)
+# ASTRO_DEFAULT_MODEL=claude-sonnet-4-5 (opcional)
+# ASTRO_EMBEDDING_MODEL=text-embedding-3-small (opcional)
+
+# 4. Dev
+pnpm dev
+# /home → ASTRO em fullscreen
+# qualquer página fora do tracking-chat → widget flutuante (ícone Sparkles canto inferior direito)
+# tracking-chat → botão Sparkles no footer abre Closer
+# /settings/astro → aba "Agentes IA"
+```
 
 ### Próximos passos imediatos (Sessão 2)
 

@@ -50,34 +50,29 @@ export async function POST(req: Request) {
 
   const uiMessages = parsed.messages as unknown as UIMessage[];
 
-  // Resolve / cria sessão
-  let sessionId = parsed.sessionId;
-  if (sessionId) {
-    const existing = await prisma.aiSession.findUnique({
-      where: { id: sessionId },
-      select: { userId: true, organizationId: true },
-    });
-    if (
-      !existing ||
-      existing.userId !== userId ||
-      existing.organizationId !== organizationId
-    ) {
-      return NextResponse.json(
-        { error: "Sessão não encontrada" },
-        { status: 404 },
-      );
-    }
-  } else {
-    const created = await prisma.aiSession.create({
-      data: {
-        organizationId,
-        userId,
-        messages: [],
-        context: parsed.context ? (parsed.context as object) : undefined,
-      },
-      select: { id: true },
-    });
-    sessionId = created.id;
+  // O cliente DEVE criar a sessão via `orpc.astro.sessions.create` antes de
+  // chamar este endpoint — assim mantemos o fluxo do AI SDK simples (sem
+  // truques de header/data-part para devolver o id). Validamos posse aqui.
+  const sessionId = parsed.sessionId;
+  if (!sessionId) {
+    return NextResponse.json(
+      { error: "sessionId obrigatório (chame astro.sessions.create primeiro)" },
+      { status: 400 },
+    );
+  }
+  const existing = await prisma.aiSession.findUnique({
+    where: { id: sessionId },
+    select: { userId: true, organizationId: true },
+  });
+  if (
+    !existing ||
+    existing.userId !== userId ||
+    existing.organizationId !== organizationId
+  ) {
+    return NextResponse.json(
+      { error: "Sessão não encontrada" },
+      { status: 404 },
+    );
   }
 
   const result = await streamAstro({
@@ -105,7 +100,7 @@ export async function POST(req: Request) {
         titleSrc.trim().slice(0, 60) || "Conversa com ASTRO";
 
       await prisma.aiSession.update({
-        where: { id: sessionId! },
+        where: { id: sessionId },
         data: {
           messages: finalMessages as unknown as object,
           // Auto-título só na primeira persistência
