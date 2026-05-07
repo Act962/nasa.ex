@@ -36,6 +36,10 @@ import { CalendarDaysIcon, FolderKanbanIcon, PlusIcon } from "lucide-react";
 import { PatternsSection } from "@/features/admin/components/patterns-section";
 import { Button } from "@/components/ui/button";
 import { WorkspaceCalendarModal } from "./workspace-calendar-modal";
+import {
+  AnalyticsDetailsModal,
+  type AnalyticsBucket,
+} from "./analytics-details-modal";
 import { IncomingSharesPanel } from "./incoming-shares-panel";
 
 export const WorkspaceHeader = () => {
@@ -79,28 +83,38 @@ export const WorkspaceHeader = () => {
 
 export const WorkspaceAnalytics = () => {
   const { data, isLoading } = useQueryActionsAnalytics();
+  const [bucket, setBucket] = useState<AnalyticsBucket | null>(null);
 
   return (
-    <div className="grid gap-4 md:gap-5 lg:grid-cols-2 xl:grid-cols-3">
-      <AnalyticsCard
-        isLoading={isLoading}
-        title="Total Actions"
-        value={data?.total ?? 0}
-        type="task"
+    <>
+      <div className="grid gap-4 md:gap-5 lg:grid-cols-2 xl:grid-cols-3">
+        <AnalyticsCard
+          isLoading={isLoading}
+          title="Total Actions"
+          value={data?.total ?? 0}
+          type="task"
+          onClick={() => setBucket("total")}
+        />
+        <AnalyticsCard
+          isLoading={isLoading}
+          title="Ações Atrasadas"
+          value={data?.delayed ?? 0}
+          type="project"
+          onClick={() => setBucket("delayed")}
+        />
+        <AnalyticsCard
+          isLoading={isLoading}
+          title="Ações Concluídas (7 dias)"
+          value={data?.completed ?? 0}
+          type="task"
+          onClick={() => setBucket("completed")}
+        />
+      </div>
+      <AnalyticsDetailsModal
+        bucket={bucket}
+        onClose={() => setBucket(null)}
       />
-      <AnalyticsCard
-        isLoading={isLoading}
-        title="Ações Atrasadas"
-        value={data?.delayed ?? 0}
-        type="project"
-      />
-      <AnalyticsCard
-        isLoading={isLoading}
-        title="Ações Concluídas (7 dias)"
-        value={data?.completed ?? 0}
-        type="task"
-      />
-    </div>
+    </>
   );
 };
 

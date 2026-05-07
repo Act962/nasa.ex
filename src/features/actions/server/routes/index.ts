@@ -21,6 +21,8 @@ import { deleteSubActionGroup } from "./delete-sub-action-group";
 import { reorderSubActionGroups } from "./reorder-sub-action-groups";
 
 import { getAnalytics } from "./get-analytics";
+import { listAnalyticsDetails } from "./list-analytics-details";
+import { requestActionDelivery } from "./request-action-delivery";
 import { listRecentActions } from "./list-recent";
 import { addParticipant } from "./add-participant";
 import { removeParticipant } from "./remove-participant";
@@ -33,6 +35,8 @@ import { shareActionWithOrgs } from "./share-with-orgs";
 
 export const actionRoutes = {
   getAnalytics,
+  listAnalyticsDetails,
+  requestActionDelivery,
   listRecent: listRecentActions,
   create: createAction,
   listByColumn: listActionByColumn,

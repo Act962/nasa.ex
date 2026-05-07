@@ -2,7 +2,12 @@
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Columns3Icon, ListIcon, PlusIcon } from "lucide-react";
+import {
+  CalendarDaysIcon,
+  Columns3Icon,
+  ListIcon,
+  PlusIcon,
+} from "lucide-react";
 import { useQueryState } from "nuqs";
 
 import { useEffect, useState } from "react";
@@ -15,6 +20,7 @@ import { FiltersSheet } from "./filters-sheet";
 import { cn } from "@/lib/utils";
 import { CreateActionWithAi } from "./ai-button";
 import { useTour } from "@/features/tour/context";
+import { WorkspaceCalendarModal } from "@/features/workspace/components/workspace-calendar-modal";
 
 interface Props {
   workspaceId: string;
@@ -22,6 +28,7 @@ interface Props {
 
 export function ActionsViewSwitcher({ workspaceId }: Props) {
   const [localOpen, setLocalOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   // Flag pra suprimir o `onOpenChange` que o Radix dispara quando trocamos
   // o prop `open` programaticamente após criar a ação. Sem isso, ele reseta
   // os params da URL (setCreateParam(null) etc) e atrapalha o redirect
@@ -57,8 +64,17 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
     <>
       <Tabs
         className="flex-1 w-full h-full"
-        defaultValue={view || "list"}
-        onValueChange={setView}
+        value={view || "list"}
+        onValueChange={(next) => {
+          // "calendar" não é uma view real — é um shortcut pra abrir o
+          // `WorkspaceCalendarModal`. Não atualizamos `view` (o tab fica
+          // como "list"/"kanban" anterior) pra não quebrar o estado.
+          if (next === "calendar") {
+            setCalendarOpen(true);
+            return;
+          }
+          setView(next);
+        }}
       >
         <div className="h-full flex flex-col">
           {/* Top bar: views + new button */}
@@ -71,6 +87,10 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
               <TabsTrigger value="kanban" className="h-8 w-full lg:w-auto">
                 <Columns3Icon className="size-4" />
                 Kanban
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="h-8 w-full lg:w-auto">
+                <CalendarDaysIcon className="size-4" />
+                Calendário
               </TabsTrigger>
             </TabsList>
           </div>
@@ -156,6 +176,10 @@ export function ActionsViewSwitcher({ workspaceId }: Props) {
           }
           setLocalOpen(false);
         }}
+      />
+      <WorkspaceCalendarModal
+        open={calendarOpen}
+        onOpenChange={setCalendarOpen}
       />
     </>
   );

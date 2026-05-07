@@ -87,7 +87,7 @@ export function DateFilter({ variant = "popover" }: Props) {
   const isActive = !!(filters.dueDateFrom || filters.dueDateTo);
   const dateLabel = isActive
     ? `${filters.dueDateFrom ? dayjs(filters.dueDateFrom).format("DD/MM") : "..."} – ${filters.dueDateTo ? dayjs(filters.dueDateTo).format("DD/MM") : "..."}`
-    : "Calendário";
+    : "Filtrar por data";
 
   const trigger = (
     <Button
