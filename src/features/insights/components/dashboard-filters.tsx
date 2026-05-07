@@ -53,6 +53,11 @@ interface DashboardFiltersProps {
   organizationOptions: { id: string; name: string }[];
   onTagToggle: (tagId: string) => void;
   onDateRangeChange: (range: DateRange) => void;
+
+  // Filtro de workspaces (Insights)
+  workspaceIds?: string[];
+  workspaceOptions?: { id: string; name: string }[];
+  onWorkspaceToggle?: (id: string) => void;
 }
 
 export function DashboardFilters({
@@ -66,6 +71,9 @@ export function DashboardFilters({
   organizationIds,
   organizationOptions,
   onOrganizationToggle,
+  workspaceIds = [],
+  workspaceOptions = [],
+  onWorkspaceToggle,
   showTrackingFilter = true,
   showTagsFilter = true,
 }: DashboardFiltersProps) {
@@ -79,6 +87,13 @@ export function DashboardFilters({
           selectedIds={organizationIds}
           onToggle={onOrganizationToggle}
         />
+        {onWorkspaceToggle && workspaceOptions.length > 0 && (
+          <WorkspaceFilterButton
+            options={workspaceOptions}
+            selectedIds={workspaceIds}
+            onToggle={onWorkspaceToggle}
+          />
+        )}
         {showTrackingFilter && <Select value={trackingId ?? "ALL"} onValueChange={onTrackingChange}>
           <SelectTrigger className="w-full sm:w-50">
             <SelectValue placeholder="Selecione um tracking" />
@@ -318,6 +333,63 @@ function OrganizationFilterButton({
                     }
                   />
                   <span>{option.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function WorkspaceFilterButton({
+  options,
+  selectedIds,
+  onToggle,
+}: {
+  options: { id: string; name: string }[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const realOptions = options.filter((o) => o.id !== "ALL");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="w-full sm:w-50 justify-between">
+          <span className="truncate">
+            {selectedIds.length === 0
+              ? "Todos os Workspaces"
+              : selectedIds.length === 1
+                ? realOptions.find((o) => o.id === selectedIds[0])?.name
+                : `${selectedIds.length} Workspaces`}
+          </span>
+          <PlusIcon className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 p-0">
+        <Command>
+          <CommandInput placeholder="Filtrar workspaces..." />
+          <CommandList>
+            <CommandEmpty>Nenhum workspace encontrado.</CommandEmpty>
+            <CommandGroup className="max-h-64 overflow-auto">
+              <CommandItem
+                onSelect={() => onToggle("ALL")}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <Checkbox checked={selectedIds.length === 0} />
+                <span>Todos os Workspaces</span>
+              </CommandItem>
+              {realOptions.map((option) => (
+                <CommandItem
+                  key={option.id}
+                  onSelect={() => onToggle(option.id)}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <Checkbox checked={selectedIds.includes(option.id)} />
+                  <span className="truncate">{option.name}</span>
                 </CommandItem>
               ))}
             </CommandGroup>

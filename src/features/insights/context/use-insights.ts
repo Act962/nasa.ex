@@ -8,6 +8,7 @@ interface DashboardState {
   organizationIds: string[];
   tagIds: string[];
   memberIds: string[];
+  workspaceIds: string[];
   dateRange: DateRange;
   settings: DashboardSettings;
   selectedModules: AppModule[];
@@ -20,9 +21,11 @@ interface DashboardActions {
   setTagIds: (tagIds: string[]) => void;
   setOrganizationIds: (organizationIds: string[]) => void;
   setMemberIds: (memberIds: string[]) => void;
+  setWorkspaceIds: (workspaceIds: string[]) => void;
   toggleOrganizationId: (organizationId: string) => void;
   toggleTagId: (tagId: string) => void;
   toggleMemberId: (memberId: string) => void;
+  toggleWorkspaceId: (workspaceId: string) => void;
   toggleSection: (section: keyof DashboardSettings["visibleSections"]) => void;
   setChartType: (
     chart: keyof DashboardSettings["chartTypes"],
@@ -57,6 +60,7 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
       organizationIds: [],
       tagIds: [],
       memberIds: [],
+      workspaceIds: [],
       dateRange: { from: undefined, to: undefined },
       settings: defaultSettings,
       selectedModules: ALL_MODULES,
@@ -66,6 +70,7 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
       setDateRange: (dateRange) => set({ dateRange }),
       setTagIds: (tagIds) => set({ tagIds }),
       setMemberIds: (memberIds) => set({ memberIds }),
+      setWorkspaceIds: (workspaceIds) => set({ workspaceIds }),
       setOrganizationIds: (organizationIds) =>
         set({ organizationIds, trackingId: undefined }),
 
@@ -75,6 +80,20 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
             ? state.memberIds.filter((id) => id !== memberId)
             : [...state.memberIds, memberId],
         })),
+
+      // "ALL" como sentinel pra resetar pra "todos os workspaces"
+      // (workspaceIds=[] significa todos no backend).
+      toggleWorkspaceId: (workspaceId) => {
+        if (workspaceId === "ALL") {
+          set({ workspaceIds: [] });
+          return;
+        }
+        set((state) => ({
+          workspaceIds: state.workspaceIds.includes(workspaceId)
+            ? state.workspaceIds.filter((id) => id !== workspaceId)
+            : [...state.workspaceIds, workspaceId],
+        }));
+      },
 
       toggleOrganizationId: (organizationId) => {
         if (organizationId === "ALL") {
@@ -144,26 +163,26 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
     {
       name: "insights-storage",
       storage: createJSONStorage(() => localStorage),
-      // Persistimos as configurações de visualização e os filtros
+      // Persistimos as configurações de visualização e os filtros — mas
+      // NÃO persistimos `dateRange` pra evitar UX confusa: cliente cria
+      // ações hoje e vê "0" porque o range ficou travado num período
+      // antigo da sessão anterior. Cada sessão começa sem filtro de data
+      // (undefined → query retorna tudo).
       partialize: (state) => ({
         settings: state.settings,
         trackingId: state.trackingId,
         organizationIds: state.organizationIds,
         tagIds: state.tagIds,
         memberIds: state.memberIds,
-        dateRange: state.dateRange,
+        workspaceIds: state.workspaceIds,
         selectedModules: state.selectedModules,
         moduleOrder: state.moduleOrder,
       }),
       onRehydrateStorage: () => (state) => {
-        // Converte strings de data de volta para objetos Date após a rehidratação
-        if (state?.dateRange) {
-          if (state.dateRange.from) {
-            state.dateRange.from = new Date(state.dateRange.from);
-          }
-          if (state.dateRange.to) {
-            state.dateRange.to = new Date(state.dateRange.to);
-          }
+        // dateRange não é mais persistido — sessões antigas podem ter
+        // strings antigas de data armazenadas; ignoramos.
+        if (state) {
+          state.dateRange = { from: undefined, to: undefined };
         }
         // Mescla módulos novos que ainda não estão na ordem persistida
         if (state) {

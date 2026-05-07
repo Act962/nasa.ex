@@ -114,6 +114,7 @@ export function TrackingDashboard({
     trackingId,
     organizationIds,
     tagIds,
+    workspaceIds,
     dateRange,
     settings,
     selectedModules,
@@ -121,6 +122,7 @@ export function TrackingDashboard({
     toggleOrganizationId,
     setDateRange,
     toggleTagId,
+    toggleWorkspaceId,
     toggleSection,
     setChartType,
     resetSettings,
@@ -143,6 +145,7 @@ export function TrackingDashboard({
     endDate: dateRange.to?.toISOString(),
     trackingId: trackingId || undefined,
     tagIds: tagIds.length ? tagIds : undefined,
+    workspaceIds: workspaceIds.length ? workspaceIds : undefined,
   };
   const { appsInsights } = useQueryAppsInsights(appsInput);
 
@@ -254,6 +257,17 @@ export function TrackingDashboard({
     { id: "ALL", name: "Todos as Empresas" },
     ...organizatins.map((t) => ({ id: t.id, name: t.name })),
   ];
+  // Lista de workspaces da org corrente — usada pelo filtro "Todos os Workspaces"
+  // no painel de Insights. Quando o user tem múltiplas orgs selecionadas o
+  // filtro continua mostrando workspaces da org ATIVA (limitação do
+  // workspace.list atual; aceitável pra MVP).
+  const { data: workspacesData } = useQuery(
+    orpc.workspace.list.queryOptions({ input: {} }),
+  );
+  const workspaceOptions = (workspacesData?.workspaces ?? []).map((w) => ({
+    id: w.id,
+    name: w.name,
+  }));
 
   const showTrackingFilters = selectedModules.includes("tracking");
 
@@ -374,6 +388,9 @@ export function TrackingDashboard({
             onOrganizationToggle={toggleOrganizationId}
             onTagToggle={toggleTagId}
             onDateRangeChange={setDateRange}
+            workspaceIds={workspaceIds}
+            workspaceOptions={workspaceOptions}
+            onWorkspaceToggle={toggleWorkspaceId}
             showTrackingFilter={showTrackingFilters}
             showTagsFilter={showTrackingFilters}
           />
