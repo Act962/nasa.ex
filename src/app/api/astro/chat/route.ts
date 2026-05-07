@@ -31,17 +31,33 @@ export const maxDuration = 120;
  *   - UI message stream do AI SDK (`toUIMessageStreamResponse`).
  */
 export async function POST(req: Request) {
+  console.log("[ASTRO/chat] POST start");
   const sessionData = await auth.api.getSession({ headers: await headers() });
   if (!sessionData?.user || !sessionData.session.activeOrganizationId) {
+    console.warn("[ASTRO/chat] no session/org");
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
   const userId = sessionData.user.id;
   const organizationId = sessionData.session.activeOrganizationId;
 
+  const rawBody = await req.json().catch((e) => {
+    console.error("[ASTRO/chat] req.json failed", e);
+    return null;
+  });
+  if (!rawBody) {
+    return NextResponse.json({ error: "Body ausente" }, { status: 400 });
+  }
+  console.log("[ASTRO/chat] body keys:", Object.keys(rawBody), {
+    sessionId: rawBody.sessionId,
+    nMessages: Array.isArray(rawBody.messages) ? rawBody.messages.length : -1,
+    pinnedAgentKey: rawBody.pinnedAgentKey,
+  });
+
   let parsed;
   try {
-    parsed = astroChatRequestSchema.parse(await req.json());
+    parsed = astroChatRequestSchema.parse(rawBody);
   } catch (e) {
+    console.error("[ASTRO/chat] schema parse failed", e);
     return NextResponse.json(
       { error: "Body inválido", detail: String(e) },
       { status: 400 },
@@ -75,18 +91,34 @@ export async function POST(req: Request) {
     );
   }
 
-  const result = await streamAstro({
-    ctx: {
-      userId,
-      organizationId,
-      route: parsed.context ?? {},
-      pinnedAgentKey: parsed.pinnedAgentKey as AgentKey | undefined,
-    },
-    uiMessages,
-  });
+  let result;
+  try {
+    result = await streamAstro({
+      ctx: {
+        userId,
+        organizationId,
+        route: parsed.context ?? {},
+        pinnedAgentKey: parsed.pinnedAgentKey as AgentKey | undefined,
+      },
+      uiMessages,
+    });
+  } catch (e) {
+    console.error("[ASTRO/chat] streamAstro setup failed", e);
+    return NextResponse.json(
+      { error: "Falha ao iniciar o orquestrador", detail: String(e) },
+      { status: 500 },
+    );
+  }
 
   return result.toUIMessageStreamResponse({
+    onError: (err) => {
+      console.error("[ASTRO/chat] stream error", err);
+      return err instanceof Error ? err.message : String(err);
+    },
     onFinish: async ({ messages: finalMessages, isAborted }) => {
+      console.log(
+        `[ASTRO/chat] stream finish (aborted=${isAborted}, n=${finalMessages.length})`,
+      );
       if (isAborted) return;
       const firstUserMsg = finalMessages.find((m) => m.role === "user");
       const titleSrc =

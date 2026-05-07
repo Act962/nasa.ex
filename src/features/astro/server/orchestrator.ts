@@ -7,7 +7,7 @@ import {
   type ModelMessage,
   type UIMessage,
 } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { ASTRO_ORCHESTRATOR_PROMPT } from "@/features/astro/lib/prompts";
@@ -20,12 +20,19 @@ import type { AgentContext } from "@/features/astro/server/agents/types";
 import type { AgentKey } from "@/features/astro/schemas/agent-config";
 
 /**
- * Modelo default — Anthropic Sonnet (mais recente). Pode ser sobrescrito por
- * `ASTRO_DEFAULT_MODEL` no env. O AI SDK roteia o id para o provider correto.
+ * Modelo default — OpenAI. Reaproveita a `OPENAI_API_KEY` que já é usada
+ * pelos embeddings do RAG. Pode ser sobrescrito por `ASTRO_DEFAULT_MODEL` no
+ * env (ex: `gpt-4o`, `gpt-4.1-mini`, `gpt-5`, etc).
  */
 function defaultModel() {
-  const id = process.env.ASTRO_DEFAULT_MODEL ?? "claude-sonnet-4-5";
-  return anthropic(id);
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error(
+      "OPENAI_API_KEY ausente — necessária para o ASTRO. " +
+        "Adicione em .env.local e reinicie o `pnpm dev`.",
+    );
+  }
+  const id = process.env.ASTRO_DEFAULT_MODEL ?? "gpt-4o-mini";
+  return openai(id);
 }
 
 /**

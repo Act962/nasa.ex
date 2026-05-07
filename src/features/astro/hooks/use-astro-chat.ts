@@ -2,7 +2,7 @@
 
 import { useChat, type UseChatOptions } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useId, useMemo, useRef } from "react";
 import { client } from "@/lib/orpc";
 import { useAstro } from "@/features/astro/components/astro-provider";
 import type { AgentKey } from "@/features/astro/schemas/agent-config";
@@ -16,6 +16,14 @@ interface UseAstroChatOpts {
   bodyOverride?: () => Record<string, unknown>;
   onError?: UseChatOptions<UIMessage>["onError"];
   onFinish?: UseChatOptions<UIMessage>["onFinish"];
+}
+
+/**
+ * Logger default — visível no console do browser para debug. Nunca lança.
+ */
+function defaultErrorHandler(err: Error) {
+  // eslint-disable-next-line no-console
+  console.error("[ASTRO chat error]", err);
 }
 
 /**
@@ -56,11 +64,17 @@ export function useAstroChat(opts: UseAstroChatOpts = {}) {
     [opts.bodyOverride, opts.pinnedAgentKey, routeContext],
   );
 
+  // CRÍTICO: id estável durante toda a vida do componente. Se trocássemos
+  // por `sessionId` quando ele é definido, o useChat remontaria no meio do
+  // primeiro stream e o "Pensando…" ficaria infinito (a instância nova não
+  // herdaria o stream em andamento). O sessionId vai pelo body do transport.
+  const stableId = useId();
+
   const chat = useChat<UIMessage>({
-    id: sessionId ?? "astro-pending",
+    id: stableId,
     messages: opts.initialMessages,
     transport,
-    onError: opts.onError,
+    onError: opts.onError ?? defaultErrorHandler,
     onFinish: opts.onFinish,
   });
 
