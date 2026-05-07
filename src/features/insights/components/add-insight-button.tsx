@@ -28,7 +28,7 @@ import {
   APP_METRIC_SOURCES,
   APP_METRICS,
   type AppMetricSource,
-} from "@/lib/insights/app-metrics";
+} from "@/features/insights/lib/app-metrics";
 import { ALL_MODULES, type AppModule } from "@/features/insights/types";
 import { toast } from "sonner";
 

@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebarPrefs, useSetSidebarPref, isItemVisible } from "@/hooks/use-sidebar-prefs";
-import { SIDEBAR_NAV_ITEMS } from "@/lib/sidebar-items";
+import { SIDEBAR_NAV_ITEMS } from "@/features/apps/lib/sidebar-items";
 import { useSuspenseWokspaces } from "@/features/workspace/hooks/use-workspace";
 import { SidebarToggle } from "./app-card";
 

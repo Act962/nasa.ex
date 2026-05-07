@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { awardPoints } from "@/app/router/space-point/utils";
 import { generatePublicSlug } from "@/features/public-calendar/utils/slug";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 const EVENT_CATEGORY_VALUES = [
   "WORKSHOP",

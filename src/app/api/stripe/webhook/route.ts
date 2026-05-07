@@ -15,9 +15,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { constructWebhookEvent } from "@/lib/stripe";
 import prisma from "@/lib/prisma";
-import { purchaseTopUp, runMonthlyCycle } from "@/lib/star-service";
+import { purchaseTopUp, runMonthlyCycle } from "@/features/stars/lib/star-service";
 import { StarTransactionType } from "@/generated/prisma/client";
-import { processPaymentPartnerEffects } from "@/lib/partner-service";
+import { processPaymentPartnerEffects } from "@/features/partner/lib/partner-service";
 import { inngest } from "@/inngest/client";
 
 const SIGNUP_TOKEN_TTL_DAYS = 7;

@@ -2,12 +2,18 @@
 // import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 // import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { RPCHandler } from "@orpc/server/fetch";
-import { onError } from "@orpc/server";
+import { ORPCError, onError } from "@orpc/server";
 import { router } from "@/app/router";
 
 const handler = new RPCHandler(router, {
   interceptors: [
     onError((error) => {
+      if (error instanceof ORPCError) {
+        if (error.code === "INTERNAL_SERVER_ERROR") {
+          console.warn("[rpc:internal]", error.message);
+        }
+        return;
+      }
       console.error(error);
     }),
   ],

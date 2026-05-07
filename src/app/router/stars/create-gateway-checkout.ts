@@ -22,7 +22,7 @@ import {
 import {
   getDiscountRateForTier,
   getProgramSettings,
-} from "@/lib/partner-service";
+} from "@/features/partner/lib/partner-service";
 import { PartnerStatus, Prisma } from "@/generated/prisma/client";
 
 const ORIGIN = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";

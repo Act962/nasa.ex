@@ -167,8 +167,8 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
   // Time slots from agenda
   const { timeSlots, isLoading: isLoadingSlots } = useQueryPublicAgendaTimeSlots(
     selectedAgenda
-      ? { orgSlug: selectedAgenda.organization.slug, agendaSlug: selectedAgenda.slug, date: dateStr }
-      : { orgSlug: "", agendaSlug: "", date: dateStr },
+      ? { orgSlug: selectedAgenda.organization.slug, agendaSlug: selectedAgenda.slug, date: dateStr, includeUnavailable: true }
+      : { orgSlug: "", agendaSlug: "", date: dateStr, includeUnavailable: true },
   );
 
   // Effective time: selected slot OR manual input
@@ -290,23 +290,47 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
                     ) : timeSlots && timeSlots.length > 0 ? (
                       /* Agenda time slots */
                       <div className="flex flex-col gap-1.5 overflow-y-auto max-h-64 pr-1">
-                        {timeSlots.map((slot) => (
-                          <button
-                            key={slot.id}
-                            type="button"
-                            onClick={() => { setSelectedTime(slot.startTime); setManualTime(""); }}
-                            className={cn(
-                              "flex items-center gap-2 tiny:gap-3 rounded-lg border text-sm font-medium py-2 tiny:py-2.5 px-2.5 tiny:px-3 transition-all text-left w-full",
-                              selectedTime === slot.startTime
-                                ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                                : "border-border bg-card hover:border-primary hover:bg-primary/5 text-foreground",
-                            )}
-                          >
-                            <ClockIcon className={cn("size-4 shrink-0", selectedTime === slot.startTime ? "text-primary-foreground" : "text-muted-foreground")} />
-                            <span className="flex-1">{slot.startTime}</span>
-                            {selectedTime === slot.startTime && <CheckIcon className="size-4 shrink-0" />}
-                          </button>
-                        ))}
+                        {timeSlots.map((slot) => {
+                          const isDisabled = slot.isOccupied || slot.isBlocked || slot.isPast;
+                          const statusLabel = slot.isBlocked
+                            ? "Bloqueado"
+                            : slot.isOccupied
+                              ? "Ocupado"
+                              : slot.isPast
+                                ? "Passado"
+                                : null;
+                          const isSelected = !isDisabled && selectedTime === slot.startTime;
+                          return (
+                            <button
+                              key={slot.id}
+                              type="button"
+                              disabled={isDisabled}
+                              aria-disabled={isDisabled}
+                              onClick={() => {
+                                if (isDisabled) return;
+                                setSelectedTime(slot.startTime);
+                                setManualTime("");
+                              }}
+                              className={cn(
+                                "flex items-center gap-2 tiny:gap-3 rounded-lg border text-sm font-medium py-2 tiny:py-2.5 px-2.5 tiny:px-3 transition-all text-left w-full",
+                                isSelected
+                                  ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                                  : isDisabled
+                                    ? "border-dashed border-border bg-muted/40 text-muted-foreground cursor-not-allowed opacity-60"
+                                    : "border-border bg-card hover:border-primary hover:bg-primary/5 text-foreground",
+                              )}
+                            >
+                              <ClockIcon className={cn("size-4 shrink-0", isSelected ? "text-primary-foreground" : "text-muted-foreground")} />
+                              <span className={cn("flex-1", isDisabled && "line-through")}>{slot.startTime}</span>
+                              {statusLabel && (
+                                <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground shrink-0">
+                                  {statusLabel}
+                                </span>
+                              )}
+                              {isSelected && <CheckIcon className="size-4 shrink-0" />}
+                            </button>
+                          );
+                        })}
                       </div>
                     ) : (
                       /* No slots — manual time input */

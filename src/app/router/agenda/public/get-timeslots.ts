@@ -17,9 +17,11 @@ export const getPublicAgendaTimeSlots = base
       date: z.string().min(1, "Date is required"), // ISO String
       agendaSlug: z.string().min(1, "Agenda slug is required"),
       orgSlug: z.string().min(1, "Organization slug is required"),
+      includeUnavailable: z.boolean().optional(),
     }),
   )
   .handler(async ({ input, errors }) => {
+    const includeUnavailable = !!input.includeUnavailable;
     const organization = await prisma.organization.findUnique({
       where: { slug: input.orgSlug },
       select: { id: true },
@@ -54,7 +56,8 @@ export const getPublicAgendaTimeSlots = base
     const dateOverride = await prisma.agendaDateOverride.findUnique({
       where: { agendaId_date: { agendaId: agenda.id, date: input.date } },
     });
-    if (dateOverride?.isBlocked) {
+    const isDateBlocked = !!dateOverride?.isBlocked;
+    if (isDateBlocked && !includeUnavailable) {
       return { timeSlots: [] };
     }
 
@@ -112,6 +115,9 @@ export const getPublicAgendaTimeSlots = base
       id: string;
       startTime: string;
       fillTime: string;
+      isOccupied: boolean;
+      isPast: boolean;
+      isBlocked: boolean;
     }[] = [];
     const now = dayjs();
     const isToday = requestedDate.isSame(now, "day");
@@ -130,25 +136,30 @@ export const getPublicAgendaTimeSlots = base
         const slotStart = current;
         const slotEnd = current.add(agenda.slotDuration, "minute");
 
-        // 1. Filter past slots if today
-        if (isToday && slotStart.isBefore(now)) {
-          current = slotEnd;
-          continue;
-        }
-
-        // 2. Filter overlap with appointments
+        const isPast = isToday && slotStart.isBefore(now);
         const isOccupied = appointments.some((app) => {
           const appStart = dayjs(app.startsAt);
           const appEnd = dayjs(app.endsAt);
-          // Overlap: slotStart < appEnd AND slotEnd > appStart
           return slotStart.isBefore(appEnd) && slotEnd.isAfter(appStart);
         });
 
-        if (!isOccupied) {
+        if (includeUnavailable) {
           generatedSlots.push({
             id: `${range.id}-${slotStart.format("HHmm")}`,
             startTime: slotStart.format("HH:mm"),
             fillTime: slotEnd.format("HH:mm"),
+            isOccupied,
+            isPast,
+            isBlocked: isDateBlocked,
+          });
+        } else if (!isPast && !isOccupied) {
+          generatedSlots.push({
+            id: `${range.id}-${slotStart.format("HHmm")}`,
+            startTime: slotStart.format("HH:mm"),
+            fillTime: slotEnd.format("HH:mm"),
+            isOccupied: false,
+            isPast: false,
+            isBlocked: false,
           });
         }
 

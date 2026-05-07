@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 export async function attendLeadIfWaiting(leadId: string, userId: string) {
   const lead = await prisma.lead.findUnique({

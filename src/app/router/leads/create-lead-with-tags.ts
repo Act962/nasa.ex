@@ -8,7 +8,7 @@ import { recordLeadHistory } from "./utils/history";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { validWhatsappPhone } from "@/http/uazapi/valid-whatsapp-phone";
 import { ValidWhatsappPhoneResponse } from "@/http/uazapi/types";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 export const createLeadWithTags = base
   .use(requiredAuthMiddleware)

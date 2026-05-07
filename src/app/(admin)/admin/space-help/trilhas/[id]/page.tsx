@@ -1,4 +1,4 @@
-import { requireAdminSession } from "@/lib/admin-utils";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import { TrackLessonsEditor } from "@/features/admin/components/space-help/track-lessons-editor";
 
 export default async function AdminSpaceHelpTrackDetailPage({

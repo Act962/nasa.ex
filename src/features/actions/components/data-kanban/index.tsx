@@ -96,10 +96,16 @@ const KanbanBoard = ({ workspaceId }: Props) => {
     if (!fetchedColumns.length || isDragging) return;
 
     const currentSignature = columnList
-      .map((column) => `${column.id}:${column.actionsCount}:${column.order}`)
+      .map(
+        (column) =>
+          `${column.id}:${column.name}:${column.color}:${column.actionsCount}:${column.order}`,
+      )
       .join(",");
     const nextSignature = fetchedColumns
-      .map((column) => `${column.id}:${column.actionsCount}:${column.order}`)
+      .map(
+        (column) =>
+          `${column.id}:${column.name}:${column.color}:${column.actionsCount}:${column.order}`,
+      )
       .join(",");
 
     if (currentSignature !== nextSignature) {

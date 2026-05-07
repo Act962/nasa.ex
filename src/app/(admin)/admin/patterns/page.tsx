@@ -1,4 +1,4 @@
-import { requireAdminSession } from "@/lib/admin-utils";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppTemplatesGallery } from "@/features/admin/components/app-templates-gallery";
 import { LayoutTemplate } from "lucide-react";

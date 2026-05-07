@@ -1,7 +1,7 @@
 import { NodeExecutor } from "@/features/workspace-executions/types";
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
-import { logOrgActivity } from "@/lib/org-activity-log";
+import { logOrgActivity } from "@/features/admin/lib/org-activity-log";
 import { wsMoveActionChannel } from "@/inngest/channels/workspace";
 import { ActionContext } from "../../schemas";
 

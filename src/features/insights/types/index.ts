@@ -22,6 +22,7 @@ export interface DashboardSummary {
   leadsWaiting: number;
   leadsActive: number;
   avgTimeToFirstResponse: number | null;
+  sentReminders?: number;
 }
 
 export interface StatusData {

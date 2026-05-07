@@ -1,7 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import { canEditInsightsLayout } from "@/lib/permissions/can-edit-insights-layout";
+import { canEditInsightsLayout } from "@/features/insights/lib/permissions/can-edit-insights-layout";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";

@@ -9,6 +9,7 @@ import {
   Download,
   Clock,
   Activity,
+  BellRing,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DashboardSummary } from "@/features/insights/types";
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 interface KPICardsProps {
   summary: DashboardSummary;
+  onSentRemindersClick?: () => void;
 }
 
 interface KPICardProps {
@@ -25,6 +27,7 @@ interface KPICardProps {
   trend?: number | null;
   trendLabel?: string;
   variant?: "default" | "success" | "warning" | "destructive";
+  onClick?: () => void;
 }
 
 function KPICard({
@@ -34,6 +37,7 @@ function KPICard({
   trend,
   trendLabel,
   variant = "default",
+  onClick,
 }: KPICardProps) {
   const variantStyles = {
     default: "bg-card",
@@ -51,7 +55,24 @@ function KPICard({
 
   return (
     <Card
-      className={cn("transition-all hover:shadow-md", variantStyles[variant])}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      className={cn(
+        "transition-all hover:shadow-md",
+        variantStyles[variant],
+        onClick && "cursor-pointer hover:border-primary",
+      )}
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -96,7 +117,10 @@ function formatTTFR(seconds: number | null) {
   return `${hours}h ${minutes}m`;
 }
 
-export function KPIAtendimentCards({ summary }: KPICardsProps) {
+export function KPIAtendimentCards({
+  summary,
+  onSentRemindersClick,
+}: KPICardsProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <KPICard
@@ -143,6 +167,13 @@ export function KPIAtendimentCards({ summary }: KPICardsProps) {
             ? "success"
             : "warning"
         }
+      />
+      <KPICard
+        title="Lembretes Enviados"
+        value={(summary.sentReminders ?? 0).toLocaleString("pt-BR")}
+        icon={<BellRing className="size-4" />}
+        variant="success"
+        onClick={onSentRemindersClick}
       />
     </div>
   );
