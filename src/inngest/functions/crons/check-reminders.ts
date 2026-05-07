@@ -114,46 +114,48 @@ export const processReminder = inngest.createFunction(
         const externalMessageId = sendResponse?.messageid ?? uuidv4();
         const senderName = fresh.createdBy?.name ?? null;
         const currentUserId = fresh.createdBy?.id ?? "";
-        const createdAt = sendResponse?.messageTimestamp
-          ? new Date(sendResponse.messageTimestamp * 1000)
-          : undefined;
 
         await step.run("save-message-in-conversation", async () => {
+          const ts = sendResponse?.messageTimestamp;
+          const parsed = ts ? new Date(ts) : null;
+          const createdAt =
+            parsed && !isNaN(parsed.getTime()) ? parsed : new Date();
+
           try {
             const created = await prisma.message.create({
-            data: {
-              conversationId,
-              body: message,
-              messageId: externalMessageId,
-              fromMe: true,
-              status: MessageStatus.SENT,
-              senderName,
-              ...(createdAt ? { createdAt } : {}),
-            },
-            select: {
-              id: true,
-              messageId: true,
-              body: true,
-              createdAt: true,
-              fromMe: true,
-              status: true,
-              mediaUrl: true,
-              mediaType: true,
-              mediaCaption: true,
-              mimetype: true,
-              fileName: true,
-              quotedMessageId: true,
-              conversationId: true,
-              senderId: true,
-              senderName: true,
-              conversation: {
-                select: {
-                  id: true,
-                  lead: { select: { id: true, name: true } },
+              data: {
+                conversationId,
+                body: message,
+                messageId: externalMessageId,
+                fromMe: true,
+                status: MessageStatus.SENT,
+                senderName,
+                createdAt,
+              },
+              select: {
+                id: true,
+                messageId: true,
+                body: true,
+                createdAt: true,
+                fromMe: true,
+                status: true,
+                mediaUrl: true,
+                mediaType: true,
+                mediaCaption: true,
+                mimetype: true,
+                fileName: true,
+                quotedMessageId: true,
+                conversationId: true,
+                senderId: true,
+                senderName: true,
+                conversation: {
+                  select: {
+                    id: true,
+                    lead: { select: { id: true, name: true } },
+                  },
                 },
               },
-            },
-          });
+            });
 
             const messageCreated: CreatedMessageProps = {
               ...created,
@@ -166,7 +168,10 @@ export const processReminder = inngest.createFunction(
               messageCreated,
             );
           } catch (err) {
-            console.error("[reminder] failed to persist message in conversation", err);
+            console.error(
+              "[reminder] failed to persist message in conversation",
+              err,
+            );
           }
         });
       }
