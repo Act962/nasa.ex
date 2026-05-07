@@ -31,6 +31,9 @@ import { getAttendantsReport } from "./reports/get-attendants-report";
 import { getMemberActivityReport } from "./reports/get-member-activity-report";
 import { getMetaTrafficOverview } from "./reports/get-meta-traffic-overview";
 import { getCampaignsEvolution } from "./reports/get-campaigns-evolution";
+import { listLeadRescue } from "./lead-rescue/list";
+import { getFunnel } from "./funnel/get";
+import { getLeadOrigin } from "./lead-origin/get";
 
 export const insightsRouter = {
   getAppsInsights,
@@ -66,4 +69,7 @@ export const insightsRouter = {
   getMemberActivityReport,
   getMetaTrafficOverview,
   getCampaignsEvolution,
+  listLeadRescue,
+  getFunnel,
+  getLeadOrigin,
 };

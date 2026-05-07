@@ -12,6 +12,9 @@ interface DashboardState {
   settings: DashboardSettings;
   selectedModules: AppModule[];
   moduleOrder: AppModule[];
+  /** Configuração de resgate (Para Resgatar) — persistida na sessão. */
+  rescueSlaHours?: number;
+  rescueStuckDays?: number;
 }
 
 interface DashboardActions {
@@ -32,6 +35,7 @@ interface DashboardActions {
   setSelectedModules: (modules: AppModule[]) => void;
   setModuleOrder: (order: AppModule[]) => void;
   resetModuleOrder: () => void;
+  setRescueConfig: (config: { slaHours: number; stuckDays: number }) => void;
 }
 
 const defaultSettings: DashboardSettings = {
@@ -61,6 +65,8 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
       settings: defaultSettings,
       selectedModules: ALL_MODULES,
       moduleOrder: ALL_MODULES,
+      rescueSlaHours: 24,
+      rescueStuckDays: 7,
 
       setTrackingId: (trackingId) => set({ trackingId }),
       setDateRange: (dateRange) => set({ dateRange }),
@@ -140,6 +146,9 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
         }),
 
       resetModuleOrder: () => set({ moduleOrder: ALL_MODULES }),
+
+      setRescueConfig: ({ slaHours, stuckDays }) =>
+        set({ rescueSlaHours: slaHours, rescueStuckDays: stuckDays }),
     }),
     {
       name: "insights-storage",
@@ -154,6 +163,8 @@ export const useInsightsStore = create<DashboardState & DashboardActions>()(
         dateRange: state.dateRange,
         selectedModules: state.selectedModules,
         moduleOrder: state.moduleOrder,
+        rescueSlaHours: state.rescueSlaHours,
+        rescueStuckDays: state.rescueStuckDays,
       }),
       onRehydrateStorage: () => (state) => {
         // Converte strings de data de volta para objetos Date após a rehidratação

@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/activity-logger";
 import { z } from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
+import { trackLeadEvent } from "@/lib/lead-journey/track";
 
 // 🟦 UPDATE
 export const updateManyStatusLead = base
@@ -47,6 +48,7 @@ export const updateManyStatusLead = base
           data: {
             statusId: input.statusId,
             trackingId: input.trackingId,
+            ...(input.statusId ? { lastStatusChangeAt: new Date() } : {}),
           },
         });
 
@@ -104,6 +106,26 @@ export const updateManyStatusLead = base
             },
           });
         }
+      }
+
+      if (input.statusId) {
+        const leadStatusBefore = new Map(
+          leadExists.map((l) => [l.id, l.statusId]),
+        );
+        await Promise.all(
+          input.leadsIds.map((leadId) =>
+            trackLeadEvent({
+              leadId,
+              kind: "status_changed",
+              actorId: context.user.id,
+              metadata: {
+                from: leadStatusBefore.get(leadId),
+                to: input.statusId,
+                bulk: true,
+              },
+            }),
+          ),
+        );
       }
 
       return result;

@@ -3,6 +3,12 @@ import { logActivity } from "@/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { LeadSource } from "@/generated/prisma/enums";
 import z from "zod";
+import { trackLeadEvent } from "@/lib/lead-journey/track";
+import {
+  trackingParamsSchema,
+  trackingToLeadData,
+  shouldLogUtmLanding,
+} from "@/lib/tracking/tracking-params";
 
 export const captureLinnkerLead = base
   .route({
@@ -17,10 +23,11 @@ export const captureLinnkerLead = base
       name: z.string().min(1),
       email: z.string().email().optional(),
       phone: z.string().optional(),
+      tracking: trackingParamsSchema.optional(),
     }),
   )
   .handler(async ({ input, errors }) => {
-    const { linkId, pageSlug, name, email, phone } = input;
+    const { linkId, pageSlug, name, email, phone, tracking: t } = input;
 
     const page = await prisma.linnkerPage.findUnique({
       where: { slug: pageSlug },
@@ -62,13 +69,36 @@ export const captureLinnkerLead = base
           trackingId,
           statusId: tracking.status[0].id,
           source: LeadSource.OTHER,
+          ...trackingToLeadData(t),
         },
       });
+
+      if (shouldLogUtmLanding(t)) {
+        await trackLeadEvent({
+          leadId: lead.id,
+          kind: "utm_landing",
+          metadata: {
+            utmSource: t?.utmSource,
+            utmMedium: t?.utmMedium,
+            utmCampaign: t?.utmCampaign,
+            utmContent: t?.utmContent,
+            utmTerm: t?.utmTerm,
+            landingPage: t?.landingPage,
+            referrer: t?.referrer,
+          },
+        });
+      }
     }
 
     // Register scan
     await prisma.linnkerScan.create({
       data: { pageId: page.id, leadId: lead.id, name, email, phone },
+    });
+
+    await trackLeadEvent({
+      leadId: lead.id,
+      kind: "linnker_scan",
+      metadata: { pageId: page.id, linkId, pageSlug },
     });
 
     // Increment link click counter

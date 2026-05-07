@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { client } from "@/lib/orpc";
 import type { LinnkerPage, LinnkerLink, SocialLink } from "../types";
+import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
 
 const BUTTON_RADIUS: Record<string, string> = {
   pill: "9999px",
@@ -68,7 +69,9 @@ export function LinnkerPublicPage({ page, isDraft = false }: Props) {
 
   useEffect(() => {
     if (!isDraft) {
-      client.linnker.registerScan({ slug: page.slug }).catch(() => {});
+      client.linnker
+        .registerScan({ slug: page.slug, tracking: getTrackingParamsClient() })
+        .catch(() => {});
     }
   }, [page.slug, isDraft]);
 
