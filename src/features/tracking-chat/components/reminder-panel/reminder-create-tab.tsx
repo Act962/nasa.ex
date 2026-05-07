@@ -17,6 +17,7 @@ import { ReminderRecurrenceType } from "@/generated/prisma/enums";
 import { Spinner } from "@/components/ui/spinner";
 import { RECURRENCE_LABELS } from "./data";
 import { useCreateReminder } from "../../hooks/use-remimber";
+import { phoneMaskFull, normalizePhone } from "@/utils/format-phone";
 
 const formSchema = z
   .object({
@@ -68,7 +69,7 @@ export function ReminderCreateTab({
       recurrenceType: ReminderRecurrenceType.ONCE,
       remindTime: "09:00",
       firstRemindAt: new Date().toISOString().split("T")[0],
-      notifyPhone: phone ?? "",
+      notifyPhone: phoneMaskFull(phone ?? ""),
     },
   });
 
@@ -106,7 +107,9 @@ export function ReminderCreateTab({
                 `${values.firstRemindAt}T${values.remindTime}:00`,
               ).toISOString()
             : undefined,
-        notifyPhone: values.notifyPhone || undefined,
+        notifyPhone: values.notifyPhone
+          ? normalizePhone(values.notifyPhone)
+          : undefined,
         conversationId,
         leadId,
         trackingId,
@@ -215,8 +218,11 @@ export function ReminderCreateTab({
         <Input
           id="notifyPhone"
           type="tel"
-          placeholder="5511999887766"
+          placeholder="+55 (11) 99988-7766"
           {...form.register("notifyPhone")}
+          onChange={(e) => {
+            form.setValue("notifyPhone", phoneMaskFull(e.target.value));
+          }}
         />
         {form.formState.errors.notifyPhone && (
           <p className="text-xs text-destructive">

@@ -1,9 +1,9 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
-import { logOrgActivity } from "@/lib/org-activity-log";
+import { logOrgActivity } from "@/features/admin/lib/org-activity-log";
 import { z } from "zod";
 
 export const archiveActions = base

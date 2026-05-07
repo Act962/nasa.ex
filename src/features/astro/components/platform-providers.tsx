@@ -3,6 +3,7 @@
 import { type ReactNode } from "react";
 import { MarketplaceProvider } from "@/features/integrations/context/marketplace-context";
 import { AstroAgent } from "./astro-agent";
+import { AstroProvider } from "./astro-provider";
 import { HeartbeatProvider } from "@/components/heartbeat-provider";
 import { SpacePointProvider } from "@/features/space-point";
 import { TourProvider } from "@/features/tour/context";
@@ -29,9 +30,11 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
       <TourProvider>
         <MarketplaceProvider>
           <SpacePointProvider>
-            {children}
-            <TourOverlay />
-            <HeartbeatProvider />
+            <AstroProvider>
+              {children}
+              <TourOverlay />
+              <HeartbeatProvider />
+            </AstroProvider>
           </SpacePointProvider>
         </MarketplaceProvider>
       </TourProvider>
@@ -42,12 +45,14 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
     <TourProvider>
       <MarketplaceProvider>
         <SpacePointProvider>
-          {children}
-          <GlobalShortcutsRegistrar />
-          <AstroAgent />
-          <ConnectionWizardDialog />
-          <TourOverlay />
-          <HeartbeatProvider />
+          <AstroProvider>
+            {children}
+            <GlobalShortcutsRegistrar />
+            <AstroAgent />
+            <ConnectionWizardDialog />
+            <TourOverlay />
+            <HeartbeatProvider />
+          </AstroProvider>
         </SpacePointProvider>
       </MarketplaceProvider>
     </TourProvider>

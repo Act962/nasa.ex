@@ -8,7 +8,7 @@ import {
   sendWorkspaceWorkflowEvent,
 } from "@/inngest/utils";
 import { z } from "zod";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 export const reorderAction = base
   .use(requiredAuthMiddleware)

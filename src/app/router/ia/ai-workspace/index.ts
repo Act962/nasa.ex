@@ -139,7 +139,7 @@ export const createActionWithAi = base
           // Workspace tools — só registradas quando há workspace context
           ...(hasWorkspace
             ? {
-                createAction: createActionTool(userId),
+                createAction: createActionTool(userId, orgId),
                 listWorkspaces: listWorkspaces(userId),
                 listColumnsByWorkspace: listColumnsByWorkspace(
                   userId,
@@ -173,20 +173,6 @@ export const createActionWithAi = base
                 metaProposeCreateAd: proposeCreateAdTool(userId, orgId),
               }
             : {}),
-          createAction: createActionTool(userId, orgId),
-          listWorkspaces: listWorkspaces(userId),
-          listColumnsByWorkspace: listColumnsByWorkspace(
-            userId,
-            initialWorkspaceId,
-          ),
-          findAction: findActionTool(userId, initialWorkspaceId, orgId),
-          updateAction: updateActionTool(userId),
-          getOverdueActions: getOverdueActionsTool(userId),
-          moveActionToColumn: moveActionToColumnTool(userId),
-          getWorkspaceSummary: getWorkspaceSummaryTool(userId),
-          closeAction: closeActionTool(userId),
-          addResponsibleToAction: addResponsibleToActionTool(userId),
-          findUser: findUserTool(initialWorkspaceId),
         },
       });
 

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireOrgMiddleware } from "../../middlewares/org";
 import { recordLeadHistory } from "./utils/history";
 import { sendWorkflowExecution } from "@/inngest/utils";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 export const addTagsToLead = base
   .use(requiredAuthMiddleware)

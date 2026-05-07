@@ -6,7 +6,7 @@
 
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { emitTrackingBatch, type TrackingEvent } from "@/lib/tracking-emitter";
+import { emitTrackingBatch, type TrackingEvent } from "@/features/space-point/lib/tracking-emitter";
 
 export const checkStreaks = inngest.createFunction(
   { id: "check-login-streaks", retries: 1 },

@@ -1,8 +1,8 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import { logActivity } from "@/lib/activity-logger";
-import { purchaseTopUp } from "@/lib/star-service";
+import { logActivity } from "@/features/admin/lib/activity-logger";
+import { purchaseTopUp } from "@/features/stars/lib/star-service";
 import { z } from "zod";
 
 export const purchaseStarPackage = base

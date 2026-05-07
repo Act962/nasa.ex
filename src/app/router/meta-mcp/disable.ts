@@ -2,7 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import { canManageMcpAuthorizations } from "@/lib/meta-mcp/authorization";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -22,7 +22,8 @@ export const disable = base
     );
     if (!canManage) {
       throw new ORPCError("FORBIDDEN", {
-        message: "Apenas Master e Moderador podem desabilitar o Astro Meta Ads.",
+        message:
+          "Apenas Master e Moderador podem desabilitar o Astro Meta Ads.",
       });
     }
 
@@ -37,7 +38,10 @@ export const disable = base
     });
     if (!integration) return { enabled: false };
 
-    const existingConfig = (integration.config ?? {}) as Record<string, unknown>;
+    const existingConfig = (integration.config ?? {}) as Record<
+      string,
+      unknown
+    >;
     await prisma.platformIntegration.update({
       where: { id: integration.id },
       data: {

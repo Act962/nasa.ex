@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ListLeadByRelatoryModal } from "./list-lead-by-relatory-modal";
+import { SentRemindersModal } from "./sent-reminders-modal";
 import { useDashboardStore } from "@/features/insights/hooks/use-dashboard-store";
 import {
   useDashboardData,
@@ -99,6 +100,8 @@ export function TrackingDashboard({
 }: TrackingDashboardProps) {
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSentRemindersModalOpen, setIsSentRemindersModalOpen] =
+    useState(false);
 
   const handleChartClick = (leadIds?: string[]) => {
     if (leadIds && leadIds.length > 0) {
@@ -111,6 +114,7 @@ export function TrackingDashboard({
     trackingId,
     organizationIds,
     tagIds,
+    workspaceIds,
     dateRange,
     settings,
     selectedModules,
@@ -118,6 +122,7 @@ export function TrackingDashboard({
     toggleOrganizationId,
     setDateRange,
     toggleTagId,
+    toggleWorkspaceId,
     toggleSection,
     setChartType,
     resetSettings,
@@ -140,6 +145,7 @@ export function TrackingDashboard({
     endDate: dateRange.to?.toISOString(),
     trackingId: trackingId || undefined,
     tagIds: tagIds.length ? tagIds : undefined,
+    workspaceIds: workspaceIds.length ? workspaceIds : undefined,
   };
   const { appsInsights } = useQueryAppsInsights(appsInput);
 
@@ -251,6 +257,17 @@ export function TrackingDashboard({
     { id: "ALL", name: "Todos as Empresas" },
     ...organizatins.map((t) => ({ id: t.id, name: t.name })),
   ];
+  // Lista de workspaces da org corrente — usada pelo filtro "Todos os Workspaces"
+  // no painel de Insights. Quando o user tem múltiplas orgs selecionadas o
+  // filtro continua mostrando workspaces da org ATIVA (limitação do
+  // workspace.list atual; aceitável pra MVP).
+  const { data: workspacesData } = useQuery(
+    orpc.workspace.list.queryOptions({ input: {} }),
+  );
+  const workspaceOptions = (workspacesData?.workspaces ?? []).map((w) => ({
+    id: w.id,
+    name: w.name,
+  }));
 
   const showTrackingFilters = selectedModules.includes("tracking");
 
@@ -371,6 +388,9 @@ export function TrackingDashboard({
             onOrganizationToggle={toggleOrganizationId}
             onTagToggle={toggleTagId}
             onDateRangeChange={setDateRange}
+            workspaceIds={workspaceIds}
+            workspaceOptions={workspaceOptions}
+            onWorkspaceToggle={toggleWorkspaceId}
             showTrackingFilter={showTrackingFilters}
             showTagsFilter={showTrackingFilters}
           />
@@ -728,7 +748,10 @@ export function TrackingDashboard({
               className="flex-1 overflow-y-auto pt-6 space-y-6"
             >
               <h2 className="mb-4 text-lg font-semibold">Atendimento</h2>
-              <KPIAtendimentCards summary={data.summary} />
+              <KPIAtendimentCards
+                summary={data.summary}
+                onSentRemindersClick={() => setIsSentRemindersModalOpen(true)}
+              />
             </TabsContent>
           )}
 
@@ -749,6 +772,13 @@ export function TrackingDashboard({
           isOpen={isModalOpen}
           onOpenChange={setIsModalOpen}
           leadIds={selectedLeadIds}
+        />
+        <SentRemindersModal
+          isOpen={isSentRemindersModalOpen}
+          onOpenChange={setIsSentRemindersModalOpen}
+          trackingId={trackingId}
+          organizationIds={organizationIds}
+          dateRange={dateRange}
         />
       </div>
     </Tabs>

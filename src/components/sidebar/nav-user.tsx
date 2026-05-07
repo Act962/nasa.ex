@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BadgeCheck,
   Bell,
@@ -88,6 +88,11 @@ export function NavUser() {
   const { setTheme } = useTheme();
   const router = useRouter();
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Resolve current user's role in active org
   const currentRole =
@@ -129,8 +134,8 @@ export function NavUser() {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              {isPending && <Skeleton className="h-8 w-full rounded-lg" />}
-              {!isPending && (
+              {(!mounted || isPending) && <Skeleton className="h-8 w-full rounded-lg" />}
+              {mounted && !isPending && (
                 <>
                   <Avatar className="h-8 w-8 rounded-lg">
                     {session?.user.image && (

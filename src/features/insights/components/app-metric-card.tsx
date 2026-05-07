@@ -11,7 +11,7 @@ import {
   APP_METRIC_LABELS,
   findMetricDef,
   type AppMetricSource,
-} from "@/lib/insights/app-metrics";
+} from "@/features/insights/lib/app-metrics";
 import { useOrgLayout } from "@/features/insights/context/org-layout-provider";
 import { useDashboardStore } from "@/features/insights/hooks/use-dashboard-store";
 

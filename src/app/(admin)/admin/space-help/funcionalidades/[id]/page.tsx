@@ -1,4 +1,4 @@
-import { requireAdminSession } from "@/lib/admin-utils";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import { FeatureStepsEditor } from "@/features/admin/components/space-help/feature-steps-editor";
 
 export default async function AdminSpaceHelpFeatureDetailPage({

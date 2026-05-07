@@ -1,4 +1,4 @@
-import { requireAdminSession } from "@/lib/admin-utils";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import { Keyboard, ExternalLink } from "lucide-react";
 import { SHORTCUTS } from "@/features/admin/components/shortcuts-data";
 

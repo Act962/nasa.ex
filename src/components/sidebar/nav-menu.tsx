@@ -10,7 +10,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { SIDEBAR_NAV_ITEMS } from "@/lib/sidebar-items";
+import { SIDEBAR_NAV_ITEMS } from "@/features/apps/lib/sidebar-items";
 import { useSidebarPrefs, isItemVisible } from "@/hooks/use-sidebar-prefs";
 
 function AstroNavIcon({ className }: { className?: string }) {

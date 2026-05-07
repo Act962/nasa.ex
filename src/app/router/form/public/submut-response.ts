@@ -1,5 +1,5 @@
 import { base } from "@/app/middlewares/base";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { inngest } from "@/inngest/client";

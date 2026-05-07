@@ -2,7 +2,7 @@ import { z } from "zod";
 import { base } from "@/app/middlewares/base";
 import { requirePartnerMiddleware } from "@/app/middlewares/partner";
 import prisma from "@/lib/prisma";
-import { getProgramSettings } from "@/lib/partner-service";
+import { getProgramSettings } from "@/features/partner/lib/partner-service";
 
 const partnerBase = base.use(requirePartnerMiddleware);
 

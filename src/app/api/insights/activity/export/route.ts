@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { APP_LABELS } from "@/lib/activity-constants";
+import { APP_LABELS } from "@/features/admin/lib/activity-constants";
 
 const MAX_ROWS = 50_000;
 

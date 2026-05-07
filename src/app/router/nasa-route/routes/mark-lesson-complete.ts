@@ -6,7 +6,7 @@ import { ORPCError } from "@orpc/server";
 import { pusherServer } from "@/lib/pusher";
 import { awardPoints } from "@/app/router/space-point/utils";
 import { awardCourseRewards, issueCertificate } from "../utils";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 /**
  * Marca aula como concluída (idempotente).

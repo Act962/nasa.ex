@@ -247,7 +247,7 @@ export function WorkspaceCalendarFilters({
           >
             {workspaces.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                Nenhum workspace neste mês
+                Você ainda não tem workspaces.
               </p>
             ) : (
               <div className="space-y-1">

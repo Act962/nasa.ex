@@ -2,7 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import z from "zod";
 import { editMessage } from "@/http/uazapi/edit-message";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { MessageStatus } from "@/generated/prisma/enums";
 

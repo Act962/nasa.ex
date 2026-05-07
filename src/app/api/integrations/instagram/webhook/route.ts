@@ -7,7 +7,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3"
 import { v4 as uuidv4 } from "uuid"
 import { MessageStatus } from "@/features/tracking-chat/types"
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead"
-import { logActivity } from "@/lib/activity-logger"
+import { logActivity } from "@/features/admin/lib/activity-logger"
 import { MessageChannel } from "@/generated/prisma/enums"
 import { trackLeadEvent } from "@/lib/lead-journey/track"
 import {

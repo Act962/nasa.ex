@@ -4,8 +4,8 @@ import {
 } from "@/lib/meta-mcp/authorization";
 import { getMetaAuth } from "@/app/router/meta-ads/_helpers";
 import { createMetaMcpClient, type MetaMcpClient } from "@/lib/meta-mcp/client";
-import { debitStars } from "@/lib/star-service";
 import { StarTransactionType } from "@/generated/prisma/enums";
+import { debitStars } from "@/features/stars/lib/star-service";
 
 /**
  * Resultado padrão pra tools Meta MCP que falham por auth/config.
@@ -29,8 +29,7 @@ export async function setupMetaTool(
   userId: string,
   orgId: string,
 ): Promise<
-  | { ok: true; client: MetaMcpClient; close: () => Promise<void> }
-  | ToolError
+  { ok: true; client: MetaMcpClient; close: () => Promise<void> } | ToolError
 > {
   const auth = await checkMcpAuthorization(userId, orgId);
   if (!auth.authorized) {

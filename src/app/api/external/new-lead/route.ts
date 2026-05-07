@@ -1,4 +1,4 @@
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { normalizePhone } from "@/utils/format-phone";
 import { NextRequest } from "next/server";

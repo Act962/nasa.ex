@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { requireCourseManager } from "../utils";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 /** Publica/despublica um curso. Exige pelo menos 1 aula para publicar. */
 export const creatorPublishCourse = base

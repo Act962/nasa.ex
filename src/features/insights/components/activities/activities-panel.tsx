@@ -22,7 +22,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Activity, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { APP_LABELS } from "@/lib/activity-constants";
+import { APP_LABELS } from "@/features/admin/lib/activity-constants";
 import { CompanyMultiSelect } from "./company-multi-select";
 import { NowPanel } from "./now-panel";
 import { StatsCards } from "./stats-cards";

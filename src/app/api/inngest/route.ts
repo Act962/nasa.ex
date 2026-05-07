@@ -28,6 +28,8 @@ import { syncPostMetricsCron } from "@/inngest/functions/nasa-planner/sync-post-
 import { syncMetaAdsKpis } from "@/inngest/functions/crons/sync-meta-ads-kpis";
 import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-structure";
 import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route-subscription-renew";
+import { astroIngestKnowledge } from "@/inngest/functions/astro/ingest-knowledge";
+import { astroAgentTrigger } from "@/inngest/functions/astro/agent-trigger";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -54,6 +56,9 @@ export const { GET, POST, PUT } = serve({
     syncMetaAdsStructure,
     // ── NASA Route ──
     nasaRouteSubscriptionRenew,
+    // ── ASTRO ──
+    astroIngestKnowledge,
+    astroAgentTrigger,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

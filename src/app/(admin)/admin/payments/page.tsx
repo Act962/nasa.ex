@@ -1,4 +1,4 @@
-import { requireAdminSession } from "@/lib/admin-utils";
+import { requireAdminSession } from "@/features/admin/lib/admin-utils";
 import { PaymentsManager } from "@/features/admin/components/payments/payments-manager";
 
 export default async function AdminPaymentsPage() {

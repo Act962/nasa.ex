@@ -3,20 +3,24 @@ import { NasaLogo } from "./nasa-logo";
 import { RotatingExample } from "./rotating-example";
 import { CommandInput, CommandInputProps } from "./command-input";
 import { ExampleLibrary } from "./example-library";
-import { RecentRequests } from "./recent-requests";
+import { RecentRequests, type RecentAstroSession } from "./recent-requests";
 
 interface WelcomeScreenProps {
   onSelect: (e: string) => void;
   commandInputProps: CommandInputProps;
-  recentCommands: string[];
-  onClearRecent: () => void;
+  recentSessions: RecentAstroSession[];
+  recentLoading?: boolean;
+  onSelectSession: (sessionId: string) => void;
+  onDeleteSession?: (sessionId: string) => void;
 }
 
 export function WelcomeScreen({
   onSelect,
   commandInputProps,
-  recentCommands,
-  onClearRecent,
+  recentSessions,
+  recentLoading,
+  onSelectSession,
+  onDeleteSession,
 }: WelcomeScreenProps) {
   const [mouse, setMouse] = useState({ x: -999, y: -999 });
 
@@ -62,11 +66,12 @@ export function WelcomeScreen({
           <ExampleLibrary onSelect={onSelect} />
         </div>
 
-        {/* 4. Últimas solicitações */}
+        {/* 4. Conversas recentes (AiSession) */}
         <RecentRequests
-          recent={recentCommands}
-          onSelect={onSelect}
-          onClear={onClearRecent}
+          sessions={recentSessions}
+          loading={recentLoading}
+          onSelect={onSelectSession}
+          onDelete={onDeleteSession}
         />
       </div>
     </div>

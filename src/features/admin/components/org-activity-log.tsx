@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { APP_LABELS } from "@/lib/activity-constants";
+import { APP_LABELS } from "@/features/admin/lib/activity-constants";
 import { Clock, ChevronDown, Filter } from "lucide-react";
 
 interface ActivityLog {

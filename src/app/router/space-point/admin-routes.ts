@@ -1,7 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requireAdminMiddleware } from "@/app/middlewares/admin";
 import prisma from "@/lib/prisma";
-import { invalidateOrgRules } from "@/lib/rules-cache";
+import { invalidateOrgRules } from "@/features/stars/lib/rules-cache";
 import { z } from "zod";
 import { DEFAULT_RULES } from "./defaults";
 import { ensureLevelsSeed, getBadgeUrlMap, resolveBadgeUrl } from "./utils";

@@ -10,13 +10,20 @@ import { MessageStatus } from "@/features/tracking-chat/types";
 import { getContactDetails } from "@/http/uazapi/get-contact-details";
 import { WA_COLORS } from "@/utils/whatsapp-utils";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import {
   resolveReferralForOrg,
   ctwaToLeadData,
   captureMetaReferralForNewLead,
 } from "@/lib/lead-journey/ctwa";
+import {
+  chatLabelsEventSchema,
+  messagesEventSchema,
+  webhookBaseSchema,
+} from "@/http/uazapi/webhook-schema";
+
+const FETCH_TIMEOUT_MS = 10_000;
 
 export async function POST(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -31,9 +38,36 @@ export async function POST(request: NextRequest) {
 
   try {
     const json = await request.json();
-    console.log(json);
+    const base = webhookBaseSchema.safeParse(json);
+    if (!base.success) {
+      console.warn("[webhook:chat] invalid_base", {
+        trackingId,
+        issues: base.error.issues,
+      });
+      return NextResponse.json(
+        { ok: false, reason: "invalid_payload" },
+        { status: 200 },
+      );
+    }
 
-    if (json.EventType === "messages") {
+    console.info("[webhook:chat] in", {
+      trackingId,
+      eventType: base.data.EventType,
+    });
+
+    if (base.data.EventType === "messages") {
+      const messagesParsed = messagesEventSchema.safeParse(json);
+      if (!messagesParsed.success) {
+        console.warn("[webhook:chat] invalid_messages", {
+          trackingId,
+          issues: messagesParsed.error.issues,
+        });
+        return NextResponse.json(
+          { ok: false, reason: "invalid_messages_payload" },
+          { status: 200 },
+        );
+      }
+
       const fromMe = json.message.fromMe;
       const name = fromMe ? json.chat.name : json.message.senderName;
 
@@ -80,7 +114,9 @@ export async function POST(request: NextRequest) {
           });
 
           if (profileLead?.image) {
-            const imageResponse = await fetch(profileLead.image);
+            const imageResponse = await fetch(profileLead.image, {
+              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+            });
             if (imageResponse.ok) {
               const arrayBuffer = await imageResponse.arrayBuffer();
               const buffer = Buffer.from(arrayBuffer);
@@ -123,7 +159,6 @@ export async function POST(request: NextRequest) {
             order: "asc",
           },
         });
-        console.log(firstLead);
 
         if (!status) {
           return NextResponse.json(
@@ -214,16 +249,21 @@ export async function POST(request: NextRequest) {
           console.error("Error assigning lead in round robin:", error);
         }
 
-        await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/lead/new?trackingId=${trackingId}&leadId=${lead.id}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
+        try {
+          await fetch(
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/lead/new?trackingId=${trackingId}&leadId=${lead.id}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ trackingId }),
+              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
             },
-            body: JSON.stringify({ trackingId }),
-          },
-        );
+          );
+        } catch (error) {
+          console.error("[webhook:chat] workflow_lead_new_failed", error);
+        }
       } else {
         if (!lead.conversation) {
           await prisma.conversation.create({
@@ -326,19 +366,24 @@ export async function POST(request: NextRequest) {
         });
 
         if (lead.isActive && tracking.globalAiActive) {
-          await fetch(process.env.WEBHOOK_AI_AGENT_N8N!, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              type: "MESSAGE",
-              text: body,
-              phone: lead.phone,
-              trackingId,
-              leadId: lead.id,
-            }),
-          });
+          try {
+            await fetch(process.env.WEBHOOK_AI_AGENT_N8N!, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                type: "MESSAGE",
+                text: body,
+                phone: lead.phone,
+                trackingId,
+                leadId: lead.id,
+              }),
+              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+            });
+          } catch (error) {
+            console.error("[webhook:chat] n8n_agent_failed", error);
+          }
         }
       }
 
@@ -354,7 +399,9 @@ export async function POST(request: NextRequest) {
 
           if (image?.fileURL) {
             try {
-              const imageResponse = await fetch(image.fileURL);
+              const imageResponse = await fetch(image.fileURL, {
+                signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+              });
               if (imageResponse.ok) {
                 const arrayBuffer = await imageResponse.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
@@ -421,22 +468,28 @@ export async function POST(request: NextRequest) {
           mimetype = document.mimetype;
 
           if (document?.fileURL) {
-            const documentResponse = await fetch(document.fileURL);
-            if (documentResponse.ok) {
-              const arrayBuffer = await documentResponse.arrayBuffer();
-              const buffer = Buffer.from(arrayBuffer);
+            try {
+              const documentResponse = await fetch(document.fileURL, {
+                signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+              });
+              if (documentResponse.ok) {
+                const arrayBuffer = await documentResponse.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
 
-              const extension = document.fileURL.split(".").pop() || "pdf";
-              key = `${uuidv4()}.${extension}`;
+                const extension = document.fileURL.split(".").pop() || "pdf";
+                key = `${uuidv4()}.${extension}`;
 
-              await S3.send(
-                new PutObjectCommand({
-                  Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
-                  Key: key,
-                  Body: buffer,
-                  ContentType: mimetype,
-                }),
-              );
+                await S3.send(
+                  new PutObjectCommand({
+                    Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
+                    Key: key,
+                    Body: buffer,
+                    ContentType: mimetype,
+                  }),
+                );
+              }
+            } catch (error) {
+              console.error("[webhook:chat] document_upload_failed", error);
             }
           }
         }
@@ -480,7 +533,9 @@ export async function POST(request: NextRequest) {
         let mimetype = "";
         if (audio?.fileURL) {
           try {
-            const audioResponse = await fetch(audio.fileURL);
+            const audioResponse = await fetch(audio.fileURL, {
+              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+            });
             if (audioResponse.ok) {
               const arrayBuffer = await audioResponse.arrayBuffer();
               const buffer = Buffer.from(arrayBuffer);
@@ -534,22 +589,28 @@ export async function POST(request: NextRequest) {
         });
         let key = null;
         if (document?.fileURL) {
-          const documentResponse = await fetch(document.fileURL);
-          if (documentResponse.ok) {
-            const arrayBuffer = await documentResponse.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
+          try {
+            const documentResponse = await fetch(document.fileURL, {
+              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+            });
+            if (documentResponse.ok) {
+              const arrayBuffer = await documentResponse.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
 
-            const extension = document.fileURL.split(".").pop() || "webp";
-            key = `${uuidv4()}.${extension}`;
+              const extension = document.fileURL.split(".").pop() || "webp";
+              key = `${uuidv4()}.${extension}`;
 
-            await S3.send(
-              new PutObjectCommand({
-                Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
-                Key: key,
-                Body: buffer,
-                ContentType: document.mimetype,
-              }),
-            );
+              await S3.send(
+                new PutObjectCommand({
+                  Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
+                  Key: key,
+                  Body: buffer,
+                  ContentType: document.mimetype,
+                }),
+              );
+            }
+          } catch (error) {
+            console.error("[webhook:chat] sticker_upload_failed", error);
           }
         }
 
@@ -647,7 +708,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true }, { status: 201 });
     }
 
-    if (json.EventType === "connection") {
+    if (base.data.EventType === "connection") {
       if (json.instance.status === "disconnected") {
         await prisma.whatsAppInstance.update({
           where: { apiKey: json.token },
@@ -658,7 +719,7 @@ export async function POST(request: NextRequest) {
       }
       return NextResponse.json({ success: true }, { status: 200 });
     }
-    if (json.EventType === "labels") {
+    if (base.data.EventType === "labels") {
       const { LabelID, Action } = json.event;
 
       if (Action) {
@@ -732,7 +793,19 @@ export async function POST(request: NextRequest) {
       }
       return NextResponse.json({ success: true }, { status: 200 });
     }
-    if (json.EventType === "chat_labels") {
+    if (base.data.EventType === "chat_labels") {
+      const chatLabelsParsed = chatLabelsEventSchema.safeParse(json);
+      if (!chatLabelsParsed.success) {
+        console.warn("[webhook:chat] invalid_chat_labels", {
+          trackingId,
+          issues: chatLabelsParsed.error.issues,
+        });
+        return NextResponse.json(
+          { ok: false, reason: "invalid_chat_labels_payload" },
+          { status: 200 },
+        );
+      }
+
       const remoteJid = json.message.chatid;
       const labels = (json.chat.wa_label as string[]) || [];
 
@@ -784,7 +857,7 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ error: "Event not handled" }, { status: 404 });
   } catch (error: any) {
-    console.error("Webhook Error:", error);
+    console.error("[webhook:chat] unhandled", error);
     return NextResponse.json(
       { error: error.message || "Internal Server Error" },
       { status: 500 },

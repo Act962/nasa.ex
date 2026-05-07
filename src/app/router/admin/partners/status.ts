@@ -2,7 +2,7 @@ import { z } from "zod";
 import { base } from "@/app/middlewares/base";
 import { requireAdminMiddleware } from "@/app/middlewares/admin";
 import prisma from "@/lib/prisma";
-import { recalcPartnerTier } from "@/lib/partner-service";
+import { recalcPartnerTier } from "@/features/partner/lib/partner-service";
 import { PartnerStatus } from "@/generated/prisma/client";
 
 const adminBase = base.use(requireAdminMiddleware);
