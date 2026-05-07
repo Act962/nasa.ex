@@ -96,6 +96,36 @@ ASTRO é um copiloto IA escalável dentro do app: um orquestrador que delega par
 3. `git status` + `git log --oneline -20` na branch para conferir o que já foi commitado.
 4. Continuar a partir da primeira linha `⬜` da tabela acima.
 
+### Próximos passos imediatos (Sessão 2)
+
+A fundação backend está pronta e commitada. **A próxima sessão deve focar em UI**, na ordem:
+
+1. **Aplicar a migration localmente** (`docker compose down && up -d`, depois seguir Opção B em `prisma/PENDING_MIGRATIONS.md`).
+2. **Refatorar `src/features/astro/components/astro-agent.tsx`** (78KB) — substituir motor simulado por `useChat({ api: '/api/astro/chat' })`. Sugestão: criar `astro-chat.tsx` novo e fazer o `astro-agent.tsx` virar shell que monta `<AstroChat mode="full"/>`. Documentação útil:
+   - `useChat` do AI SDK 6 com transport custom para enviar `sessionId`/`context`/`pinnedAgentKey` no body.
+   - Estado: `useAstroContext` lendo `usePathname()` para mapear rota → `{ orgId, leadId, ... }`.
+3. **Criar `AstroProvider`** em `src/features/astro/components/astro-provider.tsx` (Context com `sessionId`, `mode`, `pinnedAgentKey`, route-context). Envolver em `platform-providers.tsx`.
+4. **Refatorar `nasa-command-center`** (`src/features/nasa-command/`):
+   - `nasa-command-center.tsx` → shell com `<AstroChat mode="fullscreen"/>` decorado pela casca visual existente (welcome-screen, star-field, rotating-example, example-library, model-selector).
+   - `command-input.tsx` → input do `useChat`.
+   - `thinking-display.tsx` → renderiza tool-calls reais das message parts.
+   - `recent-requests.tsx` → consumir `orpc.astro.sessions.list` + ao clicar, hidratar via `orpc.astro.sessions.get`.
+   - **Deprecar** `src/app/router/nasa-command/ai-intent.ts` + helpers (capacidades já estão como tools).
+5. **Embed Closer no tracking-chat**:
+   - `src/features/tracking-chat/components/footer-chat.tsx` → botão "ASTRO" + toggle "Copiloto automático".
+   - `src/features/tracking-chat/components/body.tsx` → banner de sugestão.
+   - Embeds passam `pinnedAgentKey: "closer"` + `context: { conversationId, leadId, trackingId }`.
+6. **Inngest functions**: `src/inngest/astro/ingest-knowledge.ts` (RAG ingest) e `astro/agent-trigger.ts` (modo TRIGGER do Closer). Registrar em `src/inngest/functions.ts`.
+7. **knowledge-base** (oRPC): `upload-init`, `list`, `delete`, `reingest` — UI Settings → Agentes.
+
+### Pontos de cuidado para Sessão 2
+
+- A imagem do Postgres mudou; sem rodar `docker compose up` o `pgvector` não existe e a migration falha em `CREATE EXTENSION vector`.
+- `OPENAI_API_KEY` precisa estar em `.env.local` para embeddings — caso contrário `embed()` lança. Adicionar `ASTRO_DEFAULT_MODEL` (opcional).
+- Os agentes têm `enabled` default `true` mesmo sem row em `AiAgentConfig` — `loadAgentEnabledMap` já faz fallback.
+- AI SDK v6 (`ai@^6.0.103`): `convertToModelMessages`, `stopWhen`, `toUIMessageStreamResponse({ onFinish })` são as APIs corretas. `generateText` retorna `text` direto.
+- `useChat` do `@ai-sdk/react` v3: importar do `@ai-sdk/react`, configurar transport `DefaultChatTransport({ api: '/api/astro/chat', body: () => ({ sessionId, context, pinnedAgentKey }) })`.
+
 ## Pontos de atenção
 
 - ⚠️ **Nunca** commitar em `main` (hook bloqueia). Sempre nesta branch.
