@@ -20,6 +20,7 @@ import { listLeadsByStatus } from "./get-many";
 import { updateManyStatusLead } from "./update-many-status";
 import { listLeadFiles } from "./list-files";
 import { createLeadFile } from "./create-file";
+import { deleteLeadFile } from "./delete-file";
 import { updateWhatsappTagsLead } from "./update-whatsapp-labels";
 import { addTagsToLead } from "./add-tags";
 import { addHistoricLead } from "./add-historic-lead";
@@ -32,6 +33,7 @@ import { listFormResponsesByLead } from "./list-form-responses";
 import { listJourney } from "./list-journey";
 import { generateLeadPublicLink } from "./generate-public-link";
 import { getLeadByPublicToken } from "./get-by-public-token";
+import { getLeadPrefillByToken } from "./get-prefill-by-token";
 
 export const leadRoutes = {
   list: listLead,
@@ -56,6 +58,7 @@ export const leadRoutes = {
   updateManyStatus: updateManyStatusLead,
   listFiles: listLeadFiles,
   createFile: createLeadFile,
+  deleteFile: deleteLeadFile,
   updateWhatsappTags: updateWhatsappTagsLead,
   addTags: addTagsToLead,
   removeTags: removeTagsFromLead,
@@ -68,4 +71,5 @@ export const leadRoutes = {
   listJourney,
   generatePublicLink: generateLeadPublicLink,
   getByPublicToken: getLeadByPublicToken,
+  getPrefillByToken: getLeadPrefillByToken,
 };

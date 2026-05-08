@@ -52,7 +52,13 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       name: "Formulários",
       value: "forms",
       icon: ClipboardListIcon,
-      content: <LeadFormResponses leadId={initialData.lead.id} />,
+      content: (
+        <LeadFormResponses
+          leadId={initialData.lead.id}
+          trackingId={initialData.lead.trackingId}
+          statusId={initialData.lead.statusId}
+        />
+      ),
     },
   ];
 
