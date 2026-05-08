@@ -4,7 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 /**
  * Compartilha uma action existente com 1+ organizações.

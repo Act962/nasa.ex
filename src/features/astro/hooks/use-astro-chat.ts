@@ -1,7 +1,7 @@
 "use client";
 
-import { useChat, type UseChatOptions } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport, type ChatInit, type UIMessage } from "ai";
 import { useCallback, useId, useMemo, useRef } from "react";
 import { client } from "@/lib/orpc";
 import { useAstro } from "@/features/astro/components/astro-provider";
@@ -14,8 +14,8 @@ interface UseAstroChatOpts {
   initialMessages?: UIMessage[];
   /** Override de `body` para casos avançados. */
   bodyOverride?: () => Record<string, unknown>;
-  onError?: UseChatOptions<UIMessage>["onError"];
-  onFinish?: UseChatOptions<UIMessage>["onFinish"];
+  onError?: ChatInit<UIMessage>["onError"];
+  onFinish?: ChatInit<UIMessage>["onFinish"];
 }
 
 /**

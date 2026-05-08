@@ -165,15 +165,15 @@ function EventMetadataPreview({
   if (kind === "ctwa_referral") {
     return (
       <div className="text-xs mt-1 space-y-0.5">
-        {metadata.headline && (
+        {Boolean(metadata.headline) && (
           <div className="italic">"{String(metadata.headline)}"</div>
         )}
-        {metadata.metaCampaignId && (
+        {Boolean(metadata.metaCampaignId) && (
           <div className="text-muted-foreground">
             Campanha: {String(metadata.metaCampaignId)}
           </div>
         )}
-        {metadata.sourceUrl && (
+        {Boolean(metadata.sourceUrl) && (
           <a
             href={String(metadata.sourceUrl)}
             target="_blank"

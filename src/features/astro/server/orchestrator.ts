@@ -5,6 +5,7 @@ import {
   tool,
   convertToModelMessages,
   type ModelMessage,
+  type ToolSet,
   type UIMessage,
 } from "ai";
 import { openai } from "@ai-sdk/openai";
@@ -61,7 +62,7 @@ function buildRoutingTools(opts: {
   ctx: AgentContext;
   enabled: Record<AgentKey, boolean>;
 }) {
-  const tools: Record<string, ReturnType<typeof tool>> = {};
+  const tools: ToolSet = {};
   for (const agent of AGENTS) {
     if (!opts.enabled[agent.key]) continue;
     tools[`route_to_${agent.key.replace(/-/g, "_")}`] = tool({
@@ -128,6 +129,8 @@ export function streamAstro(opts: {
     const enabled = await loadAgentEnabledMap(ctx.organizationId);
 
     // Pinned agent (embeds): pula o orquestrador, vai direto para o sub-agente.
+    const modelMessages = await convertToModelMessages(uiMessages);
+
     if (ctx.pinnedAgentKey) {
       const pinned = getAgent(ctx.pinnedAgentKey);
       if (pinned && enabled[ctx.pinnedAgentKey]) {
@@ -135,7 +138,7 @@ export function streamAstro(opts: {
           model: defaultModel(),
           system: pinned.systemPrompt,
           tools: pinned.buildTools(ctx),
-          messages: convertToModelMessages(uiMessages),
+          messages: modelMessages,
           stopWhen: ({ steps }) => steps.length >= 8,
         });
       }
@@ -148,7 +151,7 @@ export function streamAstro(opts: {
       model: defaultModel(),
       system: `${ASTRO_ORCHESTRATOR_PROMPT}\n\n${systemSuffix}`,
       tools: routingTools,
-      messages: convertToModelMessages(uiMessages),
+      messages: modelMessages,
       stopWhen: ({ steps }) => steps.length >= 6,
     });
   })();

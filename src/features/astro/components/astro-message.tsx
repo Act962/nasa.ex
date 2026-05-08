@@ -76,10 +76,16 @@ export function AstroMessage({ message }: { message: UIMessage }) {
 function ToolPart({
   part,
 }: {
-  part: Extract<UIMessage["parts"][number], { type: `tool-${string}` }>;
+  part: Extract<
+    UIMessage["parts"][number],
+    { type: `tool-${string}` } | { type: "dynamic-tool" }
+  >;
 }) {
-  // type vem como "tool-search_lead", "tool-route_to_closer", etc.
-  const toolName = part.type.replace(/^tool-/, "");
+  // type vem como "tool-search_lead", "tool-route_to_closer", "dynamic-tool", etc.
+  const toolName =
+    part.type === "dynamic-tool"
+      ? ((part as { toolName?: string }).toolName ?? "dynamic")
+      : part.type.replace(/^tool-/, "");
   const state = (part as { state?: string }).state ?? "input-streaming";
 
   const { Icon, label, tone } = stateUI(state);

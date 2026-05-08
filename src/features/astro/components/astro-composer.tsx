@@ -3,7 +3,7 @@
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { SendIcon, StopCircleIcon, Loader2Icon } from "lucide-react";
+import { SendIcon, StopCircleIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AstroComposerProps {
@@ -80,11 +80,7 @@ export function AstroComposer({
           disabled={disabled || text.trim().length === 0}
           aria-label="Enviar"
         >
-          {status === "submitted" ? (
-            <Loader2Icon className="size-4 animate-spin" />
-          ) : (
-            <SendIcon className="size-4" />
-          )}
+          <SendIcon className="size-4" />
         </Button>
       )}
     </form>

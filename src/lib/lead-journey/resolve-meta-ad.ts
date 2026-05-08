@@ -111,11 +111,11 @@ export async function resolveMetaAd(
           adsetId: adsetRow.id,
           metaAdId,
           name: adName,
-          creative: creative as object | null,
+          creative: (creative ?? undefined) as object | undefined,
         },
         update: {
           name: adName,
-          creative: creative as object | null,
+          creative: (creative ?? undefined) as object | undefined,
         },
       });
     }
