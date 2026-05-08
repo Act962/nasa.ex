@@ -61,6 +61,7 @@ import { useView } from "../contexts/use-view";
 import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import { TagModal } from "@/features/trackings/components/modal/add-tag-sheet";
+import { SlaTimer } from "@/features/leads/components/sla-timer";
 
 const TEMP_COLOR = {
   COLD: "#3498db",
@@ -254,6 +255,13 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
               <p>{TEMP_TEXT[data.temperature]}</p>
             </TooltipContent>
           </Tooltip>
+          {data.slaDeadline && (
+            <SlaTimer
+              compact
+              enteredAt={data.statusEnteredAt ?? data.createdAt}
+              deadline={data.slaDeadline}
+            />
+          )}
           {data.statusFlow &&
             STATUS_FLOW_CONFIG[data.statusFlow] &&
             (() => {

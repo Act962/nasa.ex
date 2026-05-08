@@ -158,6 +158,8 @@ export const listLeadsByStatus = base
         temperature: true,
         statusFlow: true,
         profile: true,
+        // Campos novos: existem no client após `prisma generate` rodar pós-migration
+        ...({ slaDeadline: true, statusEnteredAt: true } as any),
         responsible: {
           select: {
             image: true,

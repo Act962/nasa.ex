@@ -5,11 +5,18 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { LeadInfo } from "./lead-info";
 import { LeadFull } from "@/types/lead";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { EditIcon, FileIcon, RouteIcon, StickyNoteIcon } from "lucide-react";
+import {
+  ClipboardListIcon,
+  EditIcon,
+  FileIcon,
+  RouteIcon,
+  StickyNoteIcon,
+} from "lucide-react";
 import { TabNotes } from "./notes";
 import { LeadFiles } from "./lead-files/lead-files";
 import { ObservationLead } from "./observations";
 import { JourneyTimeline } from "./journey-timeline";
+import { LeadFormResponses } from "./lead-form-responses";
 
 interface LeadDatailsProps {
   initialData: LeadFull;
@@ -40,6 +47,18 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       value: "files",
       icon: FileIcon,
       content: <LeadFiles leadId={initialData.lead.id} />,
+    },
+    {
+      name: "Formulários",
+      value: "forms",
+      icon: ClipboardListIcon,
+      content: (
+        <LeadFormResponses
+          leadId={initialData.lead.id}
+          trackingId={initialData.lead.trackingId}
+          statusId={initialData.lead.statusId}
+        />
+      ),
     },
   ];
 

@@ -34,9 +34,15 @@ type FormSubmitProps = {
   id: string;
   blocks: FormBlockInstance[];
   settings?: FormSettings | null;
+  initialLead?: { name?: string; email?: string; phone?: string };
 };
 
-export function FormSubmitComponent({ id, blocks, settings }: FormSubmitProps) {
+export function FormSubmitComponent({
+  id,
+  blocks,
+  settings,
+  initialLead,
+}: FormSubmitProps) {
   const submitResponse = useMutationSubmitResponse();
 
   const formVals = useRef<{ [key: string]: FieldValue }>({});
@@ -106,7 +112,21 @@ export function FormSubmitComponent({ id, blocks, settings }: FormSubmitProps) {
   }, [idTagManager]);
 
   // ─── Lead info ─────────────────────────────────────────────
-  const [leadInfo, setLeadInfo] = useState({ name: "", email: "", phone: "" });
+  const [leadInfo, setLeadInfo] = useState({
+    name: initialLead?.name ?? "",
+    email: initialLead?.email ?? "",
+    phone: initialLead?.phone ?? "",
+  });
+
+  // Reaplica quando o prefill chega via prop assíncrona (ex.: token query)
+  useEffect(() => {
+    if (!initialLead) return;
+    setLeadInfo((prev) => ({
+      name: prev.name || (initialLead.name ?? ""),
+      email: prev.email || (initialLead.email ?? ""),
+      phone: prev.phone || (initialLead.phone ?? ""),
+    }));
+  }, [initialLead?.name, initialLead?.email, initialLead?.phone]);
 
   const validateLeadFields = () => {
     const errors: { [key: string]: string } = {};

@@ -27,5 +27,7 @@ export type Lead = {
   }[];
   temperature: Temperature;
   statusFlow: StatusFlow;
+  slaDeadline?: Date | string | null;
+  statusEnteredAt?: Date | string | null;
 };
 

@@ -20,6 +20,7 @@ import { listLeadsByStatus } from "./get-many";
 import { updateManyStatusLead } from "./update-many-status";
 import { listLeadFiles } from "./list-files";
 import { createLeadFile } from "./create-file";
+import { deleteLeadFile } from "./delete-file";
 import { updateWhatsappTagsLead } from "./update-whatsapp-labels";
 import { addTagsToLead } from "./add-tags";
 import { addHistoricLead } from "./add-historic-lead";
@@ -28,6 +29,10 @@ import { removeTagsFromLead } from "./remove-tags-from-lead";
 import { importLeadsBatch } from "./import-lead";
 import { exportLeads } from "./export-leads";
 import { getLeadJourney } from "./journey/get";
+import { listFormResponsesByLead } from "./list-form-responses";
+import { generateLeadPublicLink } from "./generate-public-link";
+import { getLeadByPublicToken } from "./get-by-public-token";
+import { getLeadPrefillByToken } from "./get-prefill-by-token";
 
 export const leadRoutes = {
   list: listLead,
@@ -52,6 +57,7 @@ export const leadRoutes = {
   updateManyStatus: updateManyStatusLead,
   listFiles: listLeadFiles,
   createFile: createLeadFile,
+  deleteFile: deleteLeadFile,
   updateWhatsappTags: updateWhatsappTagsLead,
   addTags: addTagsToLead,
   removeTags: removeTagsFromLead,
@@ -60,4 +66,8 @@ export const leadRoutes = {
   importLead: importLeadsBatch,
   exportLeads: exportLeads,
   getJourney: getLeadJourney,
+  listFormResponses: listFormResponsesByLead,
+  generatePublicLink: generateLeadPublicLink,
+  getByPublicToken: getLeadByPublicToken,
+  getPrefillByToken: getLeadPrefillByToken,
 };

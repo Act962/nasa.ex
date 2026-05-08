@@ -60,6 +60,12 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
       "{{fonte}}": LeadSourceColors[lead.source]?.label || lead.source,
       "{{track}}": lead.tracking.name,
       "{{status}}": lead.status.name,
+      "{{public_link}}": (() => {
+        const token = (lead as unknown as { publicToken?: string | null }).publicToken;
+        if (!token) return "";
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+        return `${baseUrl}/public/lead/${token}`;
+      })(),
     };
 
     try {
