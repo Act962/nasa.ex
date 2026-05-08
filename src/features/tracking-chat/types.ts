@@ -43,6 +43,9 @@ export interface Message {
   mediaUrl: string | null;
   quotedMessageId?: string | null;
   mimetype?: string | null;
+  mediaType?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   createdAt: Date;
   fromMe: boolean;
   fileName?: string | null;

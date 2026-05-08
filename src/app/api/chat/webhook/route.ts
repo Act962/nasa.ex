@@ -50,11 +50,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.info("[webhook:chat] in", {
-      trackingId,
-      eventType: base.data.EventType,
-    });
-
     if (base.data.EventType === "messages") {
       const messagesParsed = messagesEventSchema.safeParse(json);
       if (!messagesParsed.success) {
@@ -234,7 +229,11 @@ export async function POST(request: NextRequest) {
               actionLabel: `Um lead chegou no tracking "${tracking.name}" via WhatsApp (${lead.name ?? phone})`,
               resource: lead.name ?? phone,
               resourceId: lead.id,
-              metadata: { phone, trackingName: tracking.name, source: "WHATSAPP" },
+              metadata: {
+                phone,
+                trackingName: tracking.name,
+                source: "WHATSAPP",
+              },
             });
           }
         } catch {}
@@ -581,6 +580,51 @@ export async function POST(request: NextRequest) {
           },
         });
       }
+      if (messageType === "LocationMessage" || messageType === "Location") {
+        const content = (
+          typeof json.message.content === "object" && json.message.content
+            ? json.message.content
+            : {}
+        ) as Record<string, any>;
+        const latitude = Number(
+          content.degreesLatitude ?? content.latitude ?? content.lat,
+        );
+        const longitude = Number(
+          content.degreesLongitude ?? content.longitude ?? content.lng,
+        );
+        const locName: string | null = content.name ?? null;
+        const address: string | null = content.address ?? null;
+
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          messageData = await prisma.message.upsert({
+            where: { messageId },
+            update: {
+              status: MessageStatus.SEEN,
+              latitude,
+              longitude,
+              createdAt,
+            },
+            create: {
+              fromMe,
+              conversationId: lead.conversation?.id!,
+              senderId,
+              messageId,
+              status: MessageStatus.SEEN,
+              quotedMessageId: quotedMessageData?.id,
+              createdAt,
+              senderName: name,
+              latitude,
+              longitude,
+              mediaType: "location",
+              body: [locName, address].filter(Boolean).join(" — ") || null,
+            },
+            include: {
+              quotedMessage: true,
+              conversation: { include: { lead: true } },
+            },
+          });
+        }
+      }
       if (messageType === "StickerMessage") {
         const document = await downloadFile({
           token: json.token,
@@ -662,9 +706,7 @@ export async function POST(request: NextRequest) {
           lead: {
             update: {
               updatedAt: now,
-              ...(fromMe
-                ? { lastOutboundAt: now }
-                : { lastInboundAt: now }),
+              ...(fromMe ? { lastOutboundAt: now } : { lastInboundAt: now }),
               ...(shouldSetFirstResponse ? { firstResponseAt: now } : {}),
             },
           },

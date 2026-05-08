@@ -1423,6 +1423,9 @@ model Message {
   mimetype     String?
   fileName     String? @map("file_name")
 
+  latitude  Float? @map("latitude")
+  longitude Float? @map("longitude")
+
   quotedMessageId String?   @map("quoted_message_id")
   quotedMessage   Message?  @relation("QuotedMessages", fields: [quotedMessageId], references: [id], onDelete: SetNull)
   quotes          Message[] @relation("QuotedMessages")
