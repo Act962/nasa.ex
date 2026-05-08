@@ -1,12 +1,23 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import prismaDefault from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
+import {
+  trackLeadEvent,
+  type LeadJourneyEventKind,
+} from "@/lib/lead-journey/track";
 
 type PrismaLike = PrismaClient | Prisma.TransactionClient;
 
-// Mantemos o tipo local ate o dev rodar `prisma generate` apos a migration
-// (que adiciona o enum LeadEventType ao client gerado). Quando isso acontecer
-// basta trocar este alias por: `import type { LeadEventType } from "@/generated/prisma/client";`
+/**
+ * Tipos de evento usados pela feature de Formulários/SLA/Link Público.
+ * Mapeados pra `LeadJourneyEventKind` do sistema unificado de jornada do
+ * upstream — single source of truth é `LeadJourneyEvent` (via `trackLeadEvent`).
+ *
+ * Eventos sem equivalente direto (TAG_REMOVED, FILE_UPLOADED, NOTE,
+ * PUBLIC_LINK_VIEWED, SLA_BREACHED, ACTION_CHANGE) são silenciosamente
+ * ignorados pelo journey, mas o Pusher do link público continua disparando
+ * pra atualizar a tela do cliente em tempo real.
+ */
 export type LeadEventType =
   | "ACTION_CHANGE"
   | "STATUS_CHANGE"
@@ -37,25 +48,13 @@ export type RecordLeadEventInput = {
   metadata?: Prisma.InputJsonValue | null;
 };
 
-function buildData(i: RecordLeadEventInput) {
-  return {
-    leadId: i.leadId,
-    action: (i.action ?? "ACTIVE") as LeadActionLocal,
-    eventType: i.eventType,
-    userId: i.userId ?? null,
-    previousStatusId: i.previousStatusId ?? null,
-    newStatusId: i.newStatusId ?? null,
-    previousTrackingId: i.previousTrackingId ?? null,
-    newTrackingId: i.newTrackingId ?? null,
-    previousResponsibleId: i.previousResponsibleId ?? null,
-    newResponsibleId: i.newResponsibleId ?? null,
-    notes: i.notes ?? null,
-    metadata:
-      i.metadata !== undefined && i.metadata !== null
-        ? (i.metadata as Prisma.InputJsonValue)
-        : undefined,
-  };
-}
+const TYPE_TO_KIND: Partial<Record<LeadEventType, LeadJourneyEventKind>> = {
+  STATUS_CHANGE: "status_changed",
+  TRACKING_CHANGE: "status_changed",
+  RESPONSIBLE_CHANGE: "lead_assigned",
+  FORM_SUBMITTED: "form_submit",
+  TAG_ADDED: "tag_added",
+};
 
 const PUBLIC_TIMELINE_EVENTS: ReadonlySet<LeadEventType> = new Set<LeadEventType>([
   "STATUS_CHANGE",
@@ -65,6 +64,23 @@ const PUBLIC_TIMELINE_EVENTS: ReadonlySet<LeadEventType> = new Set<LeadEventType
   "FILE_UPLOADED",
   "SLA_BREACHED",
 ]);
+
+function buildJourneyMetadata(i: RecordLeadEventInput): Record<string, unknown> {
+  const metadata: Record<string, unknown> = {
+    eventType: i.eventType,
+  };
+  if (i.previousStatusId) metadata.previousStatusId = i.previousStatusId;
+  if (i.newStatusId) metadata.newStatusId = i.newStatusId;
+  if (i.previousTrackingId) metadata.previousTrackingId = i.previousTrackingId;
+  if (i.newTrackingId) metadata.newTrackingId = i.newTrackingId;
+  if (i.previousResponsibleId) metadata.previousResponsibleId = i.previousResponsibleId;
+  if (i.newResponsibleId) metadata.newResponsibleId = i.newResponsibleId;
+  if (i.notes) metadata.notes = i.notes;
+  if (i.metadata && typeof i.metadata === "object") {
+    Object.assign(metadata, i.metadata as Record<string, unknown>);
+  }
+  return metadata;
+}
 
 async function notifyPublicChannel(
   leadId: string,
@@ -91,29 +107,36 @@ async function notifyPublicChannel(
   }
 }
 
+/**
+ * Grava o evento na timeline unificada do lead (`LeadJourneyEvent` via
+ * `trackLeadEvent`) e dispara Pusher pro canal público do lead, se ele tiver
+ * `publicToken`. Eventos sem mapeamento pra `LeadJourneyEventKind` só
+ * disparam Pusher (sem persistência adicional) — não criamos registro
+ * paralelo em `LeadHistory` pra evitar duplicação com o sistema do upstream.
+ */
 export async function recordLeadEvent(
   input: RecordLeadEventInput,
   client: PrismaLike = prismaDefault,
 ) {
-  // Cast para `any` intencional: campos novos do schema (eventType, previous*, etc.)
-  // só existem no client após `prisma generate` rodar pós-migration.
-  const created = await (client.leadHistory as unknown as {
-    create: (args: { data: unknown }) => Promise<unknown>;
-  }).create({
-    data: buildData(input),
-  });
+  const kind = TYPE_TO_KIND[input.eventType];
+  let result: unknown = null;
+  if (kind) {
+    result = await trackLeadEvent({
+      leadId: input.leadId,
+      kind,
+      actorId: input.userId ?? null,
+      metadata: buildJourneyMetadata(input),
+    });
+  }
   await notifyPublicChannel(input.leadId, input.eventType, client);
-  return created;
+  return result;
 }
 
 export async function recordLeadEvents(
   inputs: RecordLeadEventInput[],
   client: PrismaLike = prismaDefault,
 ) {
-  if (inputs.length === 0) return;
-  await (client.leadHistory as unknown as {
-    createMany: (args: { data: unknown[] }) => Promise<unknown>;
-  }).createMany({
-    data: inputs.map(buildData),
-  });
+  for (const input of inputs) {
+    await recordLeadEvent(input, client);
+  }
 }

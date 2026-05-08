@@ -9,7 +9,7 @@ import { useConstructUrl } from "@/hooks/use-construct-url";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { LeadFull } from "@/types/lead";
-import { ChevronLeft, Circle, ClipboardClockIcon, GitBranchPlus, Mail } from "lucide-react";
+import { ChevronLeft, Circle, ClipboardClockIcon, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ActionButton } from "./action-button";
@@ -20,7 +20,6 @@ import { FieldTags } from "./fields/field-tags";
 import { FieldText } from "./fields/field-text";
 import { InfoItem } from "./Info-item";
 import { ListHistoric } from "../list-historic";
-import { LeadJourneyTree } from "../lead-journey-tree";
 import { WhatsappIcon } from "@/components/whatsapp";
 import {
   Tooltip,
@@ -43,7 +42,6 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
   const { lead } = initialData;
 
   const [openHistoric, setOpenHistoric] = useState(false);
-  const [openJourney, setOpenJourney] = useState(false);
   const [openSendMessage, setOpenSendMessage] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [name, setName] = useState(lead.name);
@@ -175,15 +173,6 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                 </TooltipTrigger>
                 <TooltipContent>Histórico</TooltipContent>
               </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild onClick={() => setOpenJourney(true)}>
-                  <ActionButton
-                    icon={<GitBranchPlus className="size-4" />}
-                  />
-                </TooltipTrigger>
-                <TooltipContent>Jornada do Lead</TooltipContent>
-              </Tooltip>
             </div>
 
             <div className="flex items-center gap-2 py-1">
@@ -301,12 +290,6 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
         leadId={lead.id}
         open={openHistoric}
         onOpenChange={setOpenHistoric}
-      />
-
-      <LeadJourneyTree
-        leadId={lead.id}
-        open={openJourney}
-        onOpenChange={setOpenJourney}
       />
     </>
   );

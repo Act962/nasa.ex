@@ -30,7 +30,6 @@ import { importLeadsBatch } from "./import-lead";
 import { exportLeads } from "./export-leads";
 import { getLeadJourney } from "./journey/get";
 import { listFormResponsesByLead } from "./list-form-responses";
-import { listJourney } from "./list-journey";
 import { generateLeadPublicLink } from "./generate-public-link";
 import { getLeadByPublicToken } from "./get-by-public-token";
 import { getLeadPrefillByToken } from "./get-prefill-by-token";
@@ -68,7 +67,6 @@ export const leadRoutes = {
   exportLeads: exportLeads,
   getJourney: getLeadJourney,
   listFormResponses: listFormResponsesByLead,
-  listJourney,
   generatePublicLink: generateLeadPublicLink,
   getByPublicToken: getLeadByPublicToken,
   getPrefillByToken: getLeadPrefillByToken,
