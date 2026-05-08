@@ -81,6 +81,7 @@ export const createLeadWithAi = base
         "  - AI_FINISHED      → conditions: [] (opcional)",
         "  - MOVE_LEAD_STATUS → statusId: 'id', conditions: [] (opcional)",
         "  - LEAD_TAGGED      → tagIds: ['id'], conditions: [] (opcional)",
+        "  - FIRST_CHAT_INTERACTION → sem parâmetros extras",
         "EXECUÇÕES:",
         "  - MOVE_LEAD    → statusId: 'id_destino', trackingId: 'id_tracking'",
         "  - SEND_MESSAGE → message: 'texto' (variáveis: {{name}}, {{email}}, {{phone}}, {{status}}); countryCode: 'BR' (padrão)",

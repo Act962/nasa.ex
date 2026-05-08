@@ -20,6 +20,7 @@ TRIGGERS — informe apenas os campos indicados:
 - AI_FINISHED: conditions (opcional, padrão [])
 - MOVE_LEAD_STATUS: statusId (obrigatório), conditions (opcional)
 - LEAD_TAGGED: tagIds[] (obrigatório), conditions (opcional)
+- FIRST_CHAT_INTERACTION: sem campos extras
 
 EXECUÇÕES — informe apenas os campos indicados:
 - MOVE_LEAD: statusId, trackingId
@@ -78,6 +79,7 @@ EXECUÇÕES — informe apenas os campos indicados:
         switch (type) {
           case "MANUAL_TRIGGER":
           case "NEW_LEAD":
+          case "FIRST_CHAT_INTERACTION":
             dbData = {};
             break;
 

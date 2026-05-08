@@ -4,6 +4,7 @@ import {
   BotIcon,
   CircleGaugeIcon,
   FunnelIcon,
+  MessageSquareIcon,
   MousePointerIcon,
   MoveHorizontalIcon,
   SendIcon,
@@ -59,6 +60,14 @@ export const triggerNodes: NodeTypeOption[] = [
     label: "IA Finalizou o Atendimento",
     description: "Executa o fluxo ao finalizar um atendimento com IA",
     icon: BotIcon,
+  },
+  {
+    type: NodeType.FIRST_CHAT_INTERACTION,
+    category: "trigger",
+    label: "Primeira Interação no Chat",
+    description:
+      "Executa o fluxo quando o usuário envia a primeira mensagem ao lead",
+    icon: MessageSquareIcon,
   },
 ];
 

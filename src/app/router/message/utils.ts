@@ -1,5 +1,7 @@
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { NodeType } from "@/generated/prisma/enums";
+import { sendWorkflowExecution } from "@/inngest/utils";
 
 export async function attendLeadIfWaiting(leadId: string, userId: string) {
   const lead = await prisma.lead.findUnique({
@@ -67,4 +69,60 @@ export async function logChatMessageSent(params: {
       featureKey: "chat.link.sent",
     });
   }
+}
+
+// Dispara o gatilho FIRST_CHAT_INTERACTION na 1ª mensagem do usuário do app
+// (fromMe=true) numa conversa. Atomicidade via updateMany condicional:
+// `firstUserMessageAt: null` é a guarda — só uma transação pode passar de
+// NULL → Date. Em envios concorrentes, o Postgres serializa o UPDATE e apenas
+// uma chamada recebe `count: 1`; as demais recebem `0` e saem sem custo extra.
+//
+// Caminho quente (mensagens 2..N): 1 UPDATE indexado por PK que não casa o
+// WHERE → retorno imediato. Sem COUNT, sem JOIN, sem ler `messages`.
+export async function triggerFirstChatInteractionIfFirst(params: {
+  conversationId: string;
+  leadId: string;
+}) {
+  const { count } = await prisma.conversation.updateMany({
+    where: { id: params.conversationId, firstUserMessageAt: null },
+    data: { firstUserMessageAt: new Date() },
+  });
+
+  if (count === 0) return;
+
+  const lead = await prisma.lead.findUnique({
+    where: { id: params.leadId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      statusId: true,
+      trackingId: true,
+      responsibleId: true,
+      isActive: true,
+    },
+  });
+
+  if (!lead) return;
+
+  const workflows = await prisma.workflow.findMany({
+    where: {
+      trackingId: lead.trackingId,
+      isActive: true,
+      nodes: { some: { type: NodeType.FIRST_CHAT_INTERACTION } },
+    },
+    select: { id: true },
+  });
+
+  if (workflows.length === 0) return;
+
+  await Promise.all(
+    workflows.map((workflow) =>
+      sendWorkflowExecution({
+        workflowId: workflow.id,
+        initialData: { lead },
+      }),
+    ),
+  );
 }

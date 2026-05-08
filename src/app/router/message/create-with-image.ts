@@ -9,7 +9,11 @@ import { sendMedia } from "@/http/uazapi/send-media";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import z from "zod";
-import { attendLeadIfWaiting, logChatMessageSent } from "./utils";
+import {
+  attendLeadIfWaiting,
+  logChatMessageSent,
+  triggerFirstChatInteractionIfFirst,
+} from "./utils";
 import { MessageChannel } from "@/generated/prisma/enums";
 
 export const createMessageWithImage = base
@@ -106,6 +110,11 @@ export const createMessageWithImage = base
 
       // Trigger gamification/attendance logic
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+
+      await triggerFirstChatInteractionIfFirst({
+        conversationId: input.conversationId,
+        leadId: message.conversation.lead.id,
+      });
 
       await logChatMessageSent({
         organizationId: message.conversation.tracking?.organizationId,
