@@ -11,6 +11,7 @@ import {
   trackingToLeadData,
   shouldLogUtmLanding,
 } from "@/lib/tracking/tracking-params";
+import { recordLeadEvent } from "@/features/leads/lib/history";
 
 export const submitResponse = base
   .route({
@@ -169,8 +170,27 @@ export const submitResponse = base
             responses: true,
             userId: true,
             organizationId: true,
+            formSubmissions: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { id: true },
+            },
           },
         });
+
+        if (leadId) {
+          const newResponseId = updatedForm.formSubmissions?.[0]?.id ?? null;
+          await recordLeadEvent(
+            {
+              leadId,
+              eventType: "FORM_SUBMITTED",
+              metadata: newResponseId
+                ? { formResponseId: newResponseId, formId: id }
+                : { formId: id },
+            },
+            tx,
+          );
+        }
 
         // Gamificação em tempo real: Marcos de 10 e 100 respostas
         if (updatedForm.responses === 10 || updatedForm.responses === 100) {

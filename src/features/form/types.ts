@@ -9,7 +9,19 @@ export type FormBlockType =
   | "TextArea"
   | "StarRating"
   | "Heading"
-  | "Paragraph";
+  | "Paragraph"
+  | "Checkbox"
+  | "Dropdown"
+  | "DatePicker"
+  | "UserSelect"
+  | "MultiUserSelect"
+  | "FileUpload"
+  | "ImageUpload"
+  | "ImageDisplay"
+  | "ParagraphWithTitle"
+  | "SignatureUser"
+  | "SignatureClient"
+  | "Slider";
 
 export type HandleBlurFuncWithTagId = (
   key: string,

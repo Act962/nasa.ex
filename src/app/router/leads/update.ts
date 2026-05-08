@@ -7,6 +7,8 @@ import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
 import { sendWorkflowExecution } from "@/inngest/utils";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
+import { recordLeadEvent } from "@/features/leads/lib/history";
+import { computeSlaDeadline } from "@/features/leads/lib/sla";
 
 // 🟦 UPDATE
 export const updateLead = base
@@ -81,6 +83,24 @@ export const updateLead = base
       const now = new Date();
 
       const result = await prisma.$transaction(async (tx) => {
+        // Recompute SLA deadline when status changes
+        let slaPatch: { statusEnteredAt?: Date | null; slaDeadline?: Date | null } = {};
+        if (input.statusId && input.statusId !== leadExists.statusId) {
+          const newStatus = await tx.status.findUnique({
+            where: { id: input.statusId },
+            // slaHours só existe no client após `prisma generate` rodar
+            select: { id: true, slaHours: true } as unknown as { id: true; slaHours: true },
+          });
+          const enteredAt = new Date();
+          slaPatch = {
+            statusEnteredAt: enteredAt,
+            slaDeadline: computeSlaDeadline(
+              newStatus as unknown as { slaHours?: number | null } | null,
+              enteredAt,
+            ),
+          };
+        }
+
         const lead = await tx.lead.update({
           where: { id: input.id },
           data: {
@@ -97,6 +117,7 @@ export const updateLead = base
             ...(isStatusChange ? { lastStatusChangeAt: now } : {}),
             ...(isResponsibleChange ? { assignedAt: now } : {}),
             ...(input.statusFlow ? { statusFlow: input.statusFlow as any } : {}),
+            ...(slaPatch as any),
             leadTags: input.tagIds
               ? {
                   deleteMany: {},
@@ -128,6 +149,47 @@ export const updateLead = base
           notes: "Lead atualizado",
           tx,
         });
+
+        // Eventos granulares para a Jornada
+        if (input.statusId && input.statusId !== leadExists.statusId) {
+          await recordLeadEvent(
+            {
+              leadId: lead.id,
+              eventType: "STATUS_CHANGE",
+              userId: context.user.id,
+              previousStatusId: leadExists.statusId,
+              newStatusId: input.statusId,
+            },
+            tx,
+          );
+        }
+        if (input.trackingId && input.trackingId !== leadExists.trackingId) {
+          await recordLeadEvent(
+            {
+              leadId: lead.id,
+              eventType: "TRACKING_CHANGE",
+              userId: context.user.id,
+              previousTrackingId: leadExists.trackingId,
+              newTrackingId: input.trackingId,
+            },
+            tx,
+          );
+        }
+        if (
+          input.responsibleId !== undefined &&
+          input.responsibleId !== leadExists.responsibleId
+        ) {
+          await recordLeadEvent(
+            {
+              leadId: lead.id,
+              eventType: "RESPONSIBLE_CHANGE",
+              userId: context.user.id,
+              previousResponsibleId: leadExists.responsibleId,
+              newResponsibleId: input.responsibleId ?? null,
+            },
+            tx,
+          );
+        }
 
         let workflows: { id: string }[] = [];
         if (input.tagIds) {

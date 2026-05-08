@@ -435,8 +435,22 @@ model Tracking {
   scripts             Script[]
   reminders           Reminder[]
   paymentEntries      PaymentEntry[]
+  cardConfig          TrackingCardConfig?
 
   @@map("tracking")
+}
+
+model TrackingCardConfig {
+  id         String   @id @default(cuid())
+  trackingId String   @unique @map("tracking_id")
+  fields     Json     @default("[]")
+  showSlaTimer Boolean @default(true) @map("show_sla_timer")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+
+  @@map("tracking_card_config")
 }
 
 model AiSettings {
@@ -514,13 +528,16 @@ enum ParticipantRole {
 }
 
 model Status {
-  id         String   @id @default(cuid())
-  name       String
-  color      String?  @default("#1447e6")
-  order      Decimal  @default(0) @db.Decimal(20, 10)
-  trackingId String   @map("tracking_id")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id                  String   @id @default(cuid())
+  name                String
+  color               String?  @default("#1447e6")
+  order               Decimal  @default(0) @db.Decimal(20, 10)
+  slaHours            Int?     @map("sla_hours")
+  notifyClientOnEnter Boolean  @default(false) @map("notify_client_on_enter")
+  clientNotifyTemplate String? @map("client_notify_template") @db.Text
+  trackingId          String   @map("tracking_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   // Relacionamentos
   tracking     Tracking       @relation(fields: [trackingId], references: [id], onDelete: Cascade)
@@ -538,22 +555,45 @@ enum LeadAction {
   LOST // Perdido
 }
 
+enum LeadEventType {
+  ACTION_CHANGE       // mudança de currentAction (ACTIVE/WON/LOST/DELETED) — compat
+  STATUS_CHANGE       // mudou de coluna no tracking
+  TRACKING_CHANGE     // mudou de tracking (setor)
+  RESPONSIBLE_CHANGE  // mudou de responsável
+  FORM_SUBMITTED      // formulário público respondido
+  TAG_ADDED
+  TAG_REMOVED
+  FILE_UPLOADED
+  NOTE
+  PUBLIC_LINK_VIEWED  // cliente abriu o link público
+  SLA_BREACHED        // SLA da etapa estourou
+}
+
 model LeadHistory {
   id        String     @id @default(cuid())
   leadId    String     @map("lead_id")
   action    LeadAction
+  eventType LeadEventType? @map("event_type")
+  previousStatusId      String?   @map("previous_status_id")
+  newStatusId           String?   @map("new_status_id")
+  previousTrackingId    String?   @map("previous_tracking_id")
+  newTrackingId         String?   @map("new_tracking_id")
+  previousResponsibleId String?   @map("previous_responsible_id")
+  newResponsibleId      String?   @map("new_responsible_id")
+  metadata              Json?
   reasonId  String?    @map("reason_id")
   notes     String?
-  userId    String     @map("user_id")
+  userId    String?    @map("user_id")
   createdAt DateTime   @default(now()) @map("created_at")
 
   // Relacionamentos
   lead   Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
   reason WinLossReason? @relation(fields: [reasonId], references: [id], onDelete: SetNull)
-  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([leadId])
   @@index([action])
+  @@index([eventType])
   @@index([createdAt])
   @@map("lead_history")
 }
@@ -652,6 +692,11 @@ model Lead {
   lastOutboundAt     DateTime? @map("last_outbound_at")
   firstResponseAt    DateTime? @map("first_response_at")
   lastStatusChangeAt DateTime? @map("last_status_change_at")
+
+  // ─── Formulários / SLA por etapa / Link público (feature/W-formularios) ───
+  publicToken     String?   @unique @map("public_token")
+  slaDeadline     DateTime? @map("sla_deadline")
+  statusEnteredAt DateTime? @map("status_entered_at")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

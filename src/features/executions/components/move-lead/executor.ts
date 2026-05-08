@@ -3,6 +3,8 @@ import { LeadContext } from "../../schemas";
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { moveLeadChannel } from "@/inngest/channels/move-lead";
+import { recordLeadEvent } from "@/features/leads/lib/history";
+import { computeSlaDeadline } from "@/features/leads/lib/sla";
 
 type MoveLeadNodeData = {
   trackingId?: string;
@@ -77,6 +79,12 @@ export const moveLeadExecutor: NodeExecutor<MoveLeadNodeData> = async ({
         throw new NonRetriableError("Status not found");
       }
 
+      const enteredAt = new Date();
+      const slaDeadline = computeSlaDeadline(
+        status as unknown as { slaHours?: number | null },
+        enteredAt,
+      );
+
       const updatedLead = await prisma.lead.update({
         where: {
           id: lead.id,
@@ -84,8 +92,29 @@ export const moveLeadExecutor: NodeExecutor<MoveLeadNodeData> = async ({
         data: {
           trackingId: data.trackingId,
           statusId: data.statusId,
+          ...({ statusEnteredAt: enteredAt, slaDeadline } as any),
         },
       });
+
+      const previousStatusId = lead.statusId ?? null;
+      const previousTrackingId = lead.trackingId ?? null;
+
+      if (data.statusId && data.statusId !== previousStatusId) {
+        await recordLeadEvent({
+          leadId: lead.id,
+          eventType: "STATUS_CHANGE",
+          previousStatusId,
+          newStatusId: data.statusId,
+        });
+      }
+      if (data.trackingId && data.trackingId !== previousTrackingId) {
+        await recordLeadEvent({
+          leadId: lead.id,
+          eventType: "TRACKING_CHANGE",
+          previousTrackingId,
+          newTrackingId: data.trackingId,
+        });
+      }
 
       if (realTime) {
         await publish(
