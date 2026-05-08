@@ -27,13 +27,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { toast } from "sonner";
-import {
-  addMonths,
-  format,
-  getDay,
-  parse,
-  startOfWeek,
-} from "date-fns";
+import { addMonths, format, getDay, parse, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   CalendarDate,
@@ -50,7 +44,10 @@ dayjs.extend(relativeTime);
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
-const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+const statusConfig: Record<
+  string,
+  { label: string; color: string; icon: React.ReactNode }
+> = {
   CONFIRMED: {
     label: "Confirmado",
     color: "bg-green-500/10 text-green-600 border-green-200",
@@ -88,14 +85,17 @@ function ReschedulePanel({
   onSuccess: () => void;
   onCancel: () => void;
 }) {
-  const [selectedDate, setSelectedDate] = useState<CalendarDate>(today(getLocalTimeZone()));
+  const [selectedDate, setSelectedDate] = useState<CalendarDate>(
+    today(getLocalTimeZone()),
+  );
   const [selectedTime, setSelectedTime] = useState("");
 
-  const { timeSlots, isLoading: isLoadingSlots } = useQueryPublicAgendaTimeSlots({
-    orgSlug,
-    agendaSlug,
-    date: selectedDate.toString(),
-  });
+  const { timeSlots, isLoading: isLoadingSlots } =
+    useQueryPublicAgendaTimeSlots({
+      orgSlug,
+      agendaSlug,
+      date: selectedDate.toString(),
+    });
 
   const rescheduleMutation = useMutation(
     orpc.agenda.public.appointment.reschedule.mutationOptions({
@@ -136,7 +136,9 @@ function ReschedulePanel({
           <div className="flex-1 p-3 flex flex-col min-w-0">
             <p className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-3">
               <ClockIcon className="size-3.5" />
-              {dayjs(selectedDate.toDate(getLocalTimeZone())).format("DD/MM/YYYY")}
+              {dayjs(selectedDate.toDate(getLocalTimeZone())).format(
+                "DD/MM/YYYY",
+              )}
             </p>
 
             {isLoadingSlots ? (
@@ -157,9 +159,18 @@ function ReschedulePanel({
                         : "border-border bg-card hover:border-primary hover:bg-primary/5 text-foreground",
                     )}
                   >
-                    <ClockIcon className={cn("size-4 shrink-0", selectedTime === slot.startTime ? "text-primary-foreground" : "text-muted-foreground")} />
+                    <ClockIcon
+                      className={cn(
+                        "size-4 shrink-0",
+                        selectedTime === slot.startTime
+                          ? "text-primary-foreground"
+                          : "text-muted-foreground",
+                      )}
+                    />
                     <span className="flex-1">{slot.startTime}</span>
-                    {selectedTime === slot.startTime && <CheckIcon className="size-4 shrink-0" />}
+                    {selectedTime === slot.startTime && (
+                      <CheckIcon className="size-4 shrink-0" />
+                    )}
                   </button>
                 ))}
               </div>
@@ -183,7 +194,12 @@ function ReschedulePanel({
       </div>
 
       <div className="flex gap-2">
-        <Button variant="outline" className="flex-1" onClick={onCancel} disabled={rescheduleMutation.isPending}>
+        <Button
+          variant="outline"
+          className="flex-1"
+          onClick={onCancel}
+          disabled={rescheduleMutation.isPending}
+        >
           Voltar
         </Button>
         <Button
@@ -199,7 +215,9 @@ function ReschedulePanel({
           }
         >
           {rescheduleMutation.isPending ? (
-            <><Spinner className="size-4 mr-2" /> Salvando…</>
+            <>
+              <Spinner className="size-4 mr-2" /> Salvando…
+            </>
           ) : (
             "Confirmar reagendamento"
           )}
@@ -218,7 +236,9 @@ export default function PublicAppointmentPage() {
   const [showReschedule, setShowReschedule] = useState(false);
 
   const { data, isLoading, isError } = useQuery(
-    orpc.agenda.public.appointment.get.queryOptions({ input: { appointmentId: id } }),
+    orpc.agenda.public.appointment.get.queryOptions({
+      input: { appointmentId: id },
+    }),
   );
 
   const cancelMutation = useMutation(
@@ -226,7 +246,9 @@ export default function PublicAppointmentPage() {
       onSuccess: () => {
         toast.success("Compromisso cancelado com sucesso.");
         queryClient.invalidateQueries(
-          orpc.agenda.public.appointment.get.queryOptions({ input: { appointmentId: id } }),
+          orpc.agenda.public.appointment.get.queryOptions({
+            input: { appointmentId: id },
+          }),
         );
         setConfirmCancel(false);
       },
@@ -272,15 +294,19 @@ export default function PublicAppointmentPage() {
     appt.cancelledBy === "CLIENT"
       ? "Cancelado pelo cliente"
       : appt.cancelledBy === "SYSTEM"
-      ? "Cancelado pelo sistema"
-      : null;
+        ? "Cancelado pelo sistema"
+        : null;
 
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col items-center justify-center p-4 gap-6">
       {/* Org header */}
       <div className="flex items-center gap-3">
         {org.logo ? (
-          <img src={org.logo} alt={org.name} className="size-10 rounded-full object-cover" />
+          <img
+            src={org.logo}
+            alt={org.name}
+            className="size-10 rounded-full object-cover"
+          />
         ) : (
           <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center">
             <BuildingIcon className="size-5 text-primary" />
@@ -291,11 +317,13 @@ export default function PublicAppointmentPage() {
 
       <Card className="max-w-md w-full shadow-lg">
         <CardContent className="py-6 px-6 space-y-5">
-
           {/* Status */}
           <div className="flex items-center justify-between">
             <h1 className="text-base font-semibold">{appt.agenda.name}</h1>
-            <Badge className={`text-xs border ${status.color}`} variant="outline">
+            <Badge
+              className={`text-xs border ${status.color}`}
+              variant="outline"
+            >
               {status.icon}
               {status.label}
             </Badge>
@@ -320,7 +348,8 @@ export default function PublicAppointmentPage() {
             <div className="flex items-center gap-2 text-sm">
               <ClockIcon className="size-4 text-muted-foreground shrink-0" />
               <span>
-                {dayjs(appt.startsAt).format("HH:mm")} – {dayjs(appt.endsAt).format("HH:mm")}
+                {dayjs(appt.startsAt).format("HH:mm")} –{" "}
+                {dayjs(appt.endsAt).format("HH:mm")}
                 <span className="ml-2 text-xs text-muted-foreground">
                   ({appt.agenda.slotDuration} min)
                 </span>
@@ -373,7 +402,9 @@ export default function PublicAppointmentPage() {
               onSuccess={() => {
                 setShowReschedule(false);
                 queryClient.invalidateQueries(
-                  orpc.agenda.public.appointment.get.queryOptions({ input: { appointmentId: id } }),
+                  orpc.agenda.public.appointment.get.queryOptions({
+                    input: { appointmentId: id },
+                  }),
                 );
               }}
               onCancel={() => setShowReschedule(false)}
@@ -425,9 +456,15 @@ export default function PublicAppointmentPage() {
                       variant="destructive"
                       className="flex-1"
                       disabled={cancelMutation.isPending}
-                      onClick={() => cancelMutation.mutate({ appointmentId: id })}
+                      onClick={() =>
+                        cancelMutation.mutate({ appointmentId: id })
+                      }
                     >
-                      {cancelMutation.isPending ? <Spinner className="size-4" /> : "Confirmar"}
+                      {cancelMutation.isPending ? (
+                        <Spinner className="size-4" />
+                      ) : (
+                        "Confirmar"
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -446,20 +483,24 @@ export default function PublicAppointmentPage() {
                   onSuccess={() => {
                     setShowReschedule(false);
                     queryClient.invalidateQueries(
-                      orpc.agenda.public.appointment.get.queryOptions({ input: { appointmentId: id } }),
+                      orpc.agenda.public.appointment.get.queryOptions({
+                        input: { appointmentId: id },
+                      }),
                     );
                   }}
                   onCancel={() => setShowReschedule(false)}
                 />
               ) : (
-                <Button className="w-full" onClick={() => setShowReschedule(true)}>
+                <Button
+                  className="w-full"
+                  onClick={() => setShowReschedule(true)}
+                >
                   <CalendarPlusIcon className="size-4 mr-2" />
                   Reagendar compromisso
                 </Button>
               )}
             </div>
           )}
-
         </CardContent>
       </Card>
 

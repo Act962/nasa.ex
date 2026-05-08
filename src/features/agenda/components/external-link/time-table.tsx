@@ -14,11 +14,17 @@ interface Props {
 
 export function TimeTable({ selectedDate, orgSlug, agendaSlug }: Props) {
   const { locale } = useLocale();
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const { timeSlots, isLoading } = useQueryPublicAgendaTimeSlots({
     orgSlug,
     agendaSlug,
     date: dayjs(selectedDate).format("YYYY-MM-DD"),
+    timeZone,
   });
+
+  const visibleSlots = (timeSlots ?? []).filter(
+    (slot) => !slot.isPast && !slot.isOccupied && !slot.isBlocked,
+  );
 
   return (
     <div>
@@ -35,9 +41,8 @@ export function TimeTable({ selectedDate, orgSlug, agendaSlug }: Props) {
           </div>
         )}
         {!isLoading &&
-          timeSlots &&
-          timeSlots.length > 0 &&
-          timeSlots.map((slot) => (
+          visibleSlots.length > 0 &&
+          visibleSlots.map((slot) => (
             <Button
               key={slot.id}
               asChild
@@ -52,7 +57,7 @@ export function TimeTable({ selectedDate, orgSlug, agendaSlug }: Props) {
             </Button>
           ))}
 
-        {!isLoading && timeSlots?.length === 0 && (
+        {!isLoading && visibleSlots.length === 0 && (
           <p className="text-sm text-muted-foreground">
             Nenhum horário disponível
           </p>

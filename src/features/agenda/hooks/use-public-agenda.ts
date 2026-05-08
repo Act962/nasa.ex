@@ -32,6 +32,7 @@ interface UseQueryPublicAgendaTimeSlotsProps {
   agendaSlug: string;
   date: string;
   includeUnavailable?: boolean;
+  timeZone?: string;
 }
 
 export const useQueryPublicAgendaTimeSlots = ({
@@ -39,11 +40,12 @@ export const useQueryPublicAgendaTimeSlots = ({
   agendaSlug,
   date,
   includeUnavailable,
+  timeZone,
 }: UseQueryPublicAgendaTimeSlotsProps) => {
   const enabled = !!(orgSlug && agendaSlug && date);
   const { data, isLoading } = useQuery({
     ...orpc.agenda.public.getTimeSlots.queryOptions({
-      input: { orgSlug, agendaSlug, date, includeUnavailable },
+      input: { orgSlug, agendaSlug, date, includeUnavailable, timeZone },
     }),
     enabled,
   });
