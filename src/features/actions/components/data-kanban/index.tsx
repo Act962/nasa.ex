@@ -277,25 +277,33 @@ const KanbanBoard = ({ workspaceId }: Props) => {
 
       const activeId = active.id as string;
       const overId = over.id as string;
+      if (activeId === overId) return;
+
       const activeType = active.data?.current?.type;
       const overType = over.data?.current?.type;
 
-      if (activeId === overId) return;
-
-      // Reorder de COLUNAS via onDragOver é OK — não envolve unmount/mount
-      // de cards (apenas reordena o columnList).
       if (activeType === "Column" && overType === "Column") {
         moveColumn(activeId, overId);
         return;
       }
 
-      // Para AÇÕES, NÃO mutamos o store em onDragOver. Movimento mid-drag
-      // dispara unmount/mount dos KanbanCards entre LeadsList/ActionsList,
-      // acumulando ref churn nos componentes Radix internos. O movimento
-      // real é aplicado apenas no onDragEnd. dnd-kit cuida do feedback
-      // visual durante o drag via DragOverlay.
+      // Within-column é seguro: KanbanCard fica montado na mesma SortableContext,
+      // dnd-kit só aplica CSS transforms (sem unmount/mount → sem ref churn nos
+      // Radix internos). Cross-column NÃO entra aqui — fica pro onDragEnd, senão
+      // o ciclo unmount/remount dispara "Maximum update depth".
+      if (activeType === "Action" && overType === "Action") {
+        const activeAction = active.data?.current?.action;
+        const overAction = over.data?.current?.action;
+        if (
+          activeAction &&
+          overAction &&
+          activeAction.columnId === overAction.columnId
+        ) {
+          moveActionInColumn(activeAction.columnId, activeId, overId);
+        }
+      }
     },
-    [moveColumn],
+    [moveColumn, moveActionInColumn],
   );
 
   return (

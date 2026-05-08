@@ -201,7 +201,9 @@ function ActionsList({
         </div>
       )}
       {!isLoading &&
-        actions.map((action) => <KanbanCard key={action.id} action={action} />)}
+        actions.map((action) => (
+          <KanbanCard key={action.id} action={action} />
+        ))}
     </SortableContext>
   );
 }

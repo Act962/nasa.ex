@@ -311,24 +311,35 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
       const { active, over } = event;
       if (!over) return;
 
+      const activeId = active.id as string;
+      const overId = over.id as string;
+      if (activeId === overId) return;
+
       const activeType = active.data.current?.type;
       const overType = over.data.current?.type;
 
-      // Reorder de COLUNAS via onDragOver é OK — não envolve LeadItem
-      // mount/unmount (apenas reordena o columnList).
       if (activeType === "Column" && overType === "Column") {
-        moveColumn(active.id as string, over.id as string);
+        moveColumn(activeId, overId);
         return;
       }
 
-      // Para LEADS, NÃO mutamos o store em onDragOver. Cada moveLeadToColumn
-      // mid-drag desmonta+remonta o LeadItem entre colunas, e o Switch da
-      // Radix dentro do CheckIaLead acumula ref churn em loop ("Maximum
-      // update depth"). O movimento real (cross-coluna ou within-coluna)
-      // é aplicado apenas no onDragEnd. dnd-kit lida com o feedback visual
-      // durante o drag via DragOverlay (já configurado).
+      // Within-column é seguro: LeadItem fica montado na mesma SortableContext,
+      // dnd-kit só aplica CSS transforms (sem unmount/mount → sem ref churn nos
+      // Radix internos). Cross-column NÃO entra aqui — fica pro onDragEnd, senão
+      // o ciclo unmount/remount dispara "Maximum update depth" no Switch/Popover.
+      if (activeType === "Lead" && overType === "Lead") {
+        const activeLead = active.data.current?.lead;
+        const overLead = over.data.current?.lead;
+        if (
+          activeLead &&
+          overLead &&
+          activeLead.statusId === overLead.statusId
+        ) {
+          moveLeadInColumn(activeLead.statusId, activeId, overId);
+        }
+      }
     },
-    [moveColumn],
+    [moveColumn, moveLeadInColumn],
   );
 
   const isDragging = useKanbanStore((s) => s.isDragging);
