@@ -510,3 +510,44 @@ export interface SendListPayload {
 }
 
 export type SendMenuResponse = SendTextResponse;
+
+// ── Find messages (history sync) ──────────────────────────────────────────────
+
+export interface FindMessagesPayload {
+  chatid: string;
+  id?: string;
+  track_source?: string;
+  track_id?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface FindMessageItem {
+  id: string;
+  messageid: string;
+  chatid: string;
+  sender?: string;
+  senderName?: string;
+  isGroup?: boolean;
+  fromMe: boolean;
+  messageType: string;
+  source?: string;
+  messageTimestamp: number;
+  status?: string;
+  text?: string;
+  quoted?: string;
+  edited?: string;
+  content?: any;
+  fileURL?: string;
+  track_source?: string;
+  track_id?: string;
+}
+
+export interface FindMessagesResponse {
+  returnedMessages: number;
+  messages: FindMessageItem[];
+  limit: number;
+  offset: number;
+  nextOffset: number;
+  hasMore: boolean;
+}

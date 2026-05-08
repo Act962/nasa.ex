@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { CheckIaLead } from "./check-ia-lead";
 import { MessageChannel, StatusFlow } from "@/generated/prisma/enums";
 import { useMutationRodizio } from "../hooks/use-rodizio";
+import { SyncMessagesButton } from "./sync-messages-button";
 import type { SVGProps } from "react";
 
 interface HeaderProps {
@@ -118,6 +119,7 @@ export function Header({
         </div>
       </div>
       <div className="flex items-center gap-4">
+        <SyncMessagesButton conversationId={conversationId} />
         <SummerizeConversation conversationId={conversationId} />
         <CheckIaLead
           size={"default"}
