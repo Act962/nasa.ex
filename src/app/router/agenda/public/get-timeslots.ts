@@ -2,9 +2,13 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import z from "zod";
 
 dayjs.extend(isBetween);
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export const getPublicAgendaTimeSlots = base
   .route({
@@ -18,10 +22,12 @@ export const getPublicAgendaTimeSlots = base
       agendaSlug: z.string().min(1, "Agenda slug is required"),
       orgSlug: z.string().min(1, "Organization slug is required"),
       includeUnavailable: z.boolean().optional(),
+      timeZone: z.string().optional(),
     }),
   )
   .handler(async ({ input, errors }) => {
     const includeUnavailable = !!input.includeUnavailable;
+    const tz = input.timeZone || "America/Sao_Paulo";
     const organization = await prisma.organization.findUnique({
       where: { slug: input.orgSlug },
       select: { id: true },
@@ -61,7 +67,7 @@ export const getPublicAgendaTimeSlots = base
       return { timeSlots: [] };
     }
 
-    const requestedDate = dayjs(input.date, "YYYY-MM-DD");
+    const requestedDate = dayjs.tz(input.date, "YYYY-MM-DD", tz);
 
     // Correcting day of week mapping if necessary
     const daysMap: Record<string, string> = {
@@ -119,15 +125,17 @@ export const getPublicAgendaTimeSlots = base
       isPast: boolean;
       isBlocked: boolean;
     }[] = [];
-    const now = dayjs();
+    const now = dayjs().tz(tz);
     const isToday = requestedDate.isSame(now, "day");
 
     for (const range of timeSlotRanges) {
-      let current = dayjs(
+      let current = dayjs.tz(
         `${requestedDate.format("YYYY-MM-DD")}T${range.startTime}`,
+        tz,
       );
-      const end = dayjs(
+      const end = dayjs.tz(
         `${requestedDate.format("YYYY-MM-DD")}T${range.endTime}`,
+        tz,
       );
 
       // The user wants the end time to be inclusive as a start time

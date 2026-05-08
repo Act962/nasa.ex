@@ -93,7 +93,7 @@ function EventChip({ event }: { event: CalendarEvent }) {
   return (
     <div
       className={cn(
-        "truncate text-[11px] font-semibold leading-tight px-1.5 py-[2px]",
+        "truncate text-[11px] font-semibold leading-tight px-1.5 py-0.5",
         "border-l-[3px] rounded-[2px]",
         chip,
       )}
@@ -372,7 +372,7 @@ function CalendarToolbar({
         </div>
         <div className="w-full flex flex-col sm:flex-row justify-center sm:justify-end gap-2">
           <Select value={agendaId} onValueChange={onAgendaChange}>
-            <SelectTrigger className="w-full sm:w-[180px] h-8 text-xs overflow-hidden">
+            <SelectTrigger className="w-full sm:w-45 h-8 text-xs overflow-hidden">
               <div className="flex items-center gap-2 truncate ">
                 <FilterIcon className="size-3 shrink-0" />
                 <SelectValue placeholder="Agenda" />

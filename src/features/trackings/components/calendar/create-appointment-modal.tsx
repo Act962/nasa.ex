@@ -72,8 +72,8 @@ interface Props {
 }
 
 const formSchema = z.object({
-  name:  z.string().min(1, "Nome é obrigatório"),
-  code:  z.string().optional(),
+  name: z.string().min(1, "Nome é obrigatório"),
+  code: z.string().optional(),
   phone: z.string().min(1, "Telefone é obrigatório"),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   notes: z.string().optional(),
@@ -82,11 +82,25 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 const dayMap: DayOfWeek[] = [
-  DayOfWeek.SUNDAY, DayOfWeek.MONDAY, DayOfWeek.TUESDAY,
-  DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY,
+  DayOfWeek.SUNDAY,
+  DayOfWeek.MONDAY,
+  DayOfWeek.TUESDAY,
+  DayOfWeek.WEDNESDAY,
+  DayOfWeek.THURSDAY,
+  DayOfWeek.FRIDAY,
+  DayOfWeek.SATURDAY,
 ];
 
-export function CreateAppointmentModal({ open, onClose, trackingId, initialDate, initialName, initialPhone, initialEmail, onSuccess }: Props) {
+export function CreateAppointmentModal({
+  open,
+  onClose,
+  trackingId,
+  initialDate,
+  initialName,
+  initialPhone,
+  initialEmail,
+  onSuccess,
+}: Props) {
   // Load agendas (all org agendas when trackingId is absent)
   const { data: agendasData, isLoading: isLoadingAgendas } =
     useQueryAgendasByTracking(trackingId || undefined);
@@ -95,10 +109,12 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
   // ── State ──────────────────────────────────────────────────────────────────
   const [selectedAgendaId, setSelectedAgendaId] = useState("");
   const [selectedDate, setSelectedDate] = useState<CalendarDate>(() =>
-    initialDate ? parseDate(dayjs(initialDate).format("YYYY-MM-DD")) : today(getLocalTimeZone()),
+    initialDate
+      ? parseDate(dayjs(initialDate).format("YYYY-MM-DD"))
+      : today(getLocalTimeZone()),
   );
   const [selectedTime, setSelectedTime] = useState("");
-  const [manualTime, setManualTime]     = useState(""); // fallback when no slots
+  const [manualTime, setManualTime] = useState(""); // fallback when no slots
 
   const initialPhoneMasked = (() => {
     if (!initialPhone) return "";
@@ -117,8 +133,9 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
     },
   });
 
-  const selectedCode    = form.watch("code");
-  const countrySelected = countries.find((c) => c.code === selectedCode) ?? countries[0];
+  const selectedCode = form.watch("code");
+  const countrySelected =
+    countries.find((c) => c.code === selectedCode) ?? countries[0];
 
   // Reset on open
   useEffect(() => {
@@ -126,7 +143,9 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
       setSelectedTime("");
       setManualTime("");
       // Extract just the numeric digits from the phone for the masked input
-      const rawPhone = initialPhone ? initialPhone.replace(/\D/g, "").replace(/^55/, "") : "";
+      const rawPhone = initialPhone
+        ? initialPhone.replace(/\D/g, "").replace(/^55/, "")
+        : "";
       const maskedPhone = rawPhone ? phoneMask(rawPhone) : "";
       form.reset({
         name: initialName ?? "",
@@ -147,14 +166,20 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const selectedAgenda = agendas.find((a) => a.id === selectedAgendaId);
-  const dateStr        = selectedDate.toString();
+  const dateStr = selectedDate.toString();
 
   // Availability logic (for greying out dates)
-  const availabilityMap: Partial<Record<DayOfWeek, boolean>> = Object.fromEntries(
-    (selectedAgenda?.availabilities ?? []).map((a: any) => [a.dayOfWeek, a.isActive]),
-  );
+  const availabilityMap: Partial<Record<DayOfWeek, boolean>> =
+    Object.fromEntries(
+      (selectedAgenda?.availabilities ?? []).map((a: any) => [
+        a.dayOfWeek,
+        a.isActive,
+      ]),
+    );
   const blockedDatesSet = new Set(
-    (selectedAgenda?.dateOverrides ?? []).filter((d: any) => d.isBlocked).map((d: any) => d.date),
+    (selectedAgenda?.dateOverrides ?? [])
+      .filter((d: any) => d.isBlocked)
+      .map((d: any) => d.date),
   );
   const isDateUnavailable = (date: DateValue): boolean => {
     if (!selectedAgenda) return false;
@@ -164,27 +189,54 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
     return isActive === undefined ? true : !isActive;
   };
 
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
   // Time slots from agenda
-  const { timeSlots, isLoading: isLoadingSlots } = useQueryPublicAgendaTimeSlots(
-    selectedAgenda
-      ? { orgSlug: selectedAgenda.organization.slug, agendaSlug: selectedAgenda.slug, date: dateStr, includeUnavailable: true }
-      : { orgSlug: "", agendaSlug: "", date: dateStr, includeUnavailable: true },
-  );
+  const { timeSlots, isLoading: isLoadingSlots } =
+    useQueryPublicAgendaTimeSlots(
+      selectedAgenda
+        ? {
+            orgSlug: selectedAgenda.organization.slug,
+            agendaSlug: selectedAgenda.slug,
+            date: dateStr,
+            includeUnavailable: true,
+            timeZone,
+          }
+        : {
+            orgSlug: "",
+            agendaSlug: "",
+            date: dateStr,
+            includeUnavailable: true,
+            timeZone,
+          },
+    );
+
+  const visibleSlots = (timeSlots ?? []).filter((s) => !s.isPast);
 
   // Effective time: selected slot OR manual input
   const effectiveTime = selectedTime || manualTime;
 
   // ── Submit ─────────────────────────────────────────────────────────────────
   const createAdminAppointment = useAdminCreateAppointment();
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const onSubmit = (data: FormData) => {
-    if (!selectedAgendaId) { form.setError("name", { message: "" }); return; }
-    if (!effectiveTime)    return;
+    if (!selectedAgendaId) {
+      form.setError("name", { message: "" });
+      return;
+    }
+    if (!effectiveTime) return;
     const phone = normalizePhone(countrySelected.ddi + data.phone);
     createAdminAppointment.mutate(
-      { agendaId: selectedAgendaId, date: dateStr, time: effectiveTime,
-        name: data.name, phone, email: data.email, notes: data.notes, timeZone },
+      {
+        agendaId: selectedAgendaId,
+        date: dateStr,
+        time: effectiveTime,
+        name: data.name,
+        phone,
+        email: data.email,
+        notes: data.notes,
+        timeZone,
+      },
       {
         onSuccess: (data) => {
           onClose();
@@ -194,8 +246,8 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
     );
   };
 
-  const isSubmitting  = createAdminAppointment.isPending;
-  const canSubmit     = !!selectedAgendaId && !!effectiveTime;
+  const isSubmitting = createAdminAppointment.isPending;
+  const canSubmit = !!selectedAgendaId && !!effectiveTime;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -209,7 +261,6 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
 
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <div className="px-4 tiny:px-6 py-4 tiny:py-5 space-y-4 tiny:space-y-6">
-
             {/* ── Seção 1: Agenda + Data + Horário ─────────────────────────── */}
             <div className="space-y-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -228,17 +279,24 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
                 </div>
               ) : agendas.length > 1 ? (
                 <Field className="gap-y-1.5">
-                  <FieldLabel>Agenda <span className="text-destructive">*</span></FieldLabel>
+                  <FieldLabel>
+                    Agenda <span className="text-destructive">*</span>
+                  </FieldLabel>
                   <Select
                     value={selectedAgendaId}
-                    onValueChange={(v) => { setSelectedAgendaId(v); setSelectedTime(""); }}
+                    onValueChange={(v) => {
+                      setSelectedAgendaId(v);
+                      setSelectedTime("");
+                    }}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecione uma agenda…" />
                     </SelectTrigger>
                     <SelectContent>
                       {agendas.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -248,7 +306,9 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border text-sm">
                   <CalendarIcon className="size-3.5 text-muted-foreground shrink-0" />
                   <span className="font-medium">{agendas[0]?.name}</span>
-                  <span className="ml-auto text-xs text-muted-foreground">agenda selecionada</span>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    agenda selecionada
+                  </span>
                 </div>
               )}
 
@@ -264,7 +324,10 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
                       minValue={today(getLocalTimeZone())}
                       isDateUnavailable={isDateUnavailable}
                       value={selectedDate}
-                      onChange={(d) => { setSelectedDate(d as CalendarDate); setSelectedTime(""); }}
+                      onChange={(d) => {
+                        setSelectedDate(d as CalendarDate);
+                        setSelectedTime("");
+                      }}
                     />
                   </div>
 
@@ -272,7 +335,9 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
                   <div className="flex-1 p-2 tiny:p-4 flex flex-col min-w-0">
                     <p className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-3">
                       <ClockIcon className="size-3.5" />
-                      {dayjs(selectedDate.toDate(getLocalTimeZone())).format("DD/MM/YYYY")}
+                      {dayjs(selectedDate.toDate(getLocalTimeZone())).format(
+                        "DD/MM/YYYY",
+                      )}
                     </p>
 
                     {!selectedAgendaId ? (
@@ -280,18 +345,21 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
                       <div className="flex-1 flex flex-col items-center justify-center py-8 text-center">
                         <CalendarIcon className="size-8 text-muted-foreground/30 mb-2" />
                         <p className="text-sm text-muted-foreground">
-                          {agendas.length > 1 ? "Selecione uma agenda para ver os horários" : "Selecione uma data"}
+                          {agendas.length > 1
+                            ? "Selecione uma agenda para ver os horários"
+                            : "Selecione uma data"}
                         </p>
                       </div>
                     ) : isLoadingSlots ? (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
                         <Spinner className="size-4" /> Carregando horários…
                       </div>
-                    ) : timeSlots && timeSlots.length > 0 ? (
+                    ) : visibleSlots.length > 0 ? (
                       /* Agenda time slots */
                       <div className="flex flex-col gap-1.5 overflow-y-auto max-h-64 pr-1">
-                        {timeSlots.map((slot) => {
-                          const isDisabled = slot.isOccupied || slot.isBlocked || slot.isPast;
+                        {visibleSlots.map((slot) => {
+                          const isDisabled =
+                            slot.isOccupied || slot.isBlocked || slot.isPast;
                           const statusLabel = slot.isBlocked
                             ? "Bloqueado"
                             : slot.isOccupied
@@ -299,7 +367,8 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
                               : slot.isPast
                                 ? "Passado"
                                 : null;
-                          const isSelected = !isDisabled && selectedTime === slot.startTime;
+                          const isSelected =
+                            !isDisabled && selectedTime === slot.startTime;
                           return (
                             <button
                               key={slot.id}
@@ -320,14 +389,30 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
                                     : "border-border bg-card hover:border-primary hover:bg-primary/5 text-foreground",
                               )}
                             >
-                              <ClockIcon className={cn("size-4 shrink-0", isSelected ? "text-primary-foreground" : "text-muted-foreground")} />
-                              <span className={cn("flex-1", isDisabled && "line-through")}>{slot.startTime}</span>
+                              <ClockIcon
+                                className={cn(
+                                  "size-4 shrink-0",
+                                  isSelected
+                                    ? "text-primary-foreground"
+                                    : "text-muted-foreground",
+                                )}
+                              />
+                              <span
+                                className={cn(
+                                  "flex-1",
+                                  isDisabled && "line-through",
+                                )}
+                              >
+                                {slot.startTime}
+                              </span>
                               {statusLabel && (
                                 <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground shrink-0">
                                   {statusLabel}
                                 </span>
                               )}
-                              {isSelected && <CheckIcon className="size-4 shrink-0" />}
+                              {isSelected && (
+                                <CheckIcon className="size-4 shrink-0" />
+                              )}
                             </button>
                           );
                         })}
@@ -336,12 +421,16 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
                       /* No slots — manual time input */
                       <div className="space-y-3">
                         <p className="text-xs text-muted-foreground">
-                          Nenhum horário configurado para esta data. Informe o horário manualmente:
+                          Nenhum horário configurado para esta data. Informe o
+                          horário manualmente:
                         </p>
                         <Input
                           type="time"
                           value={manualTime}
-                          onChange={(e) => { setManualTime(e.target.value); setSelectedTime(""); }}
+                          onChange={(e) => {
+                            setManualTime(e.target.value);
+                            setSelectedTime("");
+                          }}
                           className="w-36"
                         />
                       </div>
@@ -367,7 +456,10 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Nome */}
                 <Field className="gap-y-1.5">
-                  <FieldLabel htmlFor="name" className="flex items-center gap-1.5">
+                  <FieldLabel
+                    htmlFor="name"
+                    className="flex items-center gap-1.5"
+                  >
                     <UserIcon className="size-3.5 text-muted-foreground" />
                     Nome <span className="text-destructive">*</span>
                   </FieldLabel>
@@ -378,13 +470,18 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
                     {...form.register("name")}
                   />
                   {form.formState.errors.name?.message && (
-                    <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
+                    <p className="text-xs text-destructive">
+                      {form.formState.errors.name.message}
+                    </p>
                   )}
                 </Field>
 
                 {/* Email */}
                 <Field className="gap-y-1.5">
-                  <FieldLabel htmlFor="email" className="flex items-center gap-1.5">
+                  <FieldLabel
+                    htmlFor="email"
+                    className="flex items-center gap-1.5"
+                  >
                     <MailIcon className="size-3.5 text-muted-foreground" />
                     Email
                   </FieldLabel>
@@ -396,14 +493,19 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
                     {...form.register("email")}
                   />
                   {form.formState.errors.email?.message && (
-                    <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>
+                    <p className="text-xs text-destructive">
+                      {form.formState.errors.email.message}
+                    </p>
                   )}
                 </Field>
               </div>
 
               {/* Telefone */}
               <Field className="gap-y-1.5">
-                <FieldLabel htmlFor="phone" className="flex items-center gap-1.5">
+                <FieldLabel
+                  htmlFor="phone"
+                  className="flex items-center gap-1.5"
+                >
                   <PhoneIcon className="size-3.5 text-muted-foreground" />
                   Telefone <span className="text-destructive">*</span>
                 </FieldLabel>
@@ -422,20 +524,33 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
                               countrySelected && "bg-accent",
                             )}
                           >
-                            <img src={countrySelected.flag} alt={countrySelected.country} className="size-4 rounded-sm" />
+                            <img
+                              src={countrySelected.flag}
+                              alt={countrySelected.country}
+                              className="size-4 rounded-sm"
+                            />
                             <span>{countrySelected.ddi}</span>
                             <ChevronDownIcon className="size-3" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="max-h-40 overflow-y-auto">
+                        <DropdownMenuContent
+                          align="end"
+                          className="max-h-40 overflow-y-auto"
+                        >
                           <DropdownMenuGroup>
                             {countries.map((country) => (
                               <DropdownMenuItem
                                 key={country.code}
-                                onClick={() => form.setValue("code" as any, country.code)}
+                                onClick={() =>
+                                  form.setValue("code" as any, country.code)
+                                }
                                 className="cursor-pointer"
                               >
-                                <img src={country.flag} alt={country.country} className="size-5 rounded-sm" />
+                                <img
+                                  src={country.flag}
+                                  alt={country.country}
+                                  className="size-5 rounded-sm"
+                                />
                                 <span>{country.ddi}</span>
                               </DropdownMenuItem>
                             ))}
@@ -447,19 +562,25 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
                         className="pl-2"
                         disabled={isSubmitting}
                         {...field}
-                        onChange={(e) => field.onChange(phoneMask(e.target.value))}
+                        onChange={(e) =>
+                          field.onChange(phoneMask(e.target.value))
+                        }
                       />
                     </InputGroup>
                   )}
                 />
                 <FieldDescription>
-                  {form.formState.errors.phone?.message ?? "Formato (00) 0000-0000, sem o 9"}
+                  {form.formState.errors.phone?.message ??
+                    "Formato (00) 0000-0000, sem o 9"}
                 </FieldDescription>
               </Field>
 
               {/* Observações */}
               <Field className="gap-y-1.5">
-                <FieldLabel htmlFor="notes" className="flex items-center gap-1.5">
+                <FieldLabel
+                  htmlFor="notes"
+                  className="flex items-center gap-1.5"
+                >
                   <StickyNoteIcon className="size-3.5 text-muted-foreground" />
                   Observações
                 </FieldLabel>
@@ -480,11 +601,20 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
             {canSubmit && (
               <span className="mr-auto text-xs text-muted-foreground hidden sm:flex items-center gap-1">
                 <CheckIcon className="size-3.5 text-primary" />
-                {dayjs(selectedDate.toDate(getLocalTimeZone())).format("DD/MM/YYYY")} às {effectiveTime}
+                {dayjs(selectedDate.toDate(getLocalTimeZone())).format(
+                  "DD/MM/YYYY",
+                )}{" "}
+                às {effectiveTime}
                 {selectedAgenda && <> &mdash; {selectedAgenda.name}</>}
               </span>
             )}
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="w-full tiny:w-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="w-full tiny:w-auto"
+            >
               Cancelar
             </Button>
             <Button
@@ -493,7 +623,9 @@ export function CreateAppointmentModal({ open, onClose, trackingId, initialDate,
               className="w-full tiny:min-w-[160px]"
             >
               {isSubmitting ? (
-                <><Spinner className="mr-2 size-4" /> Salvando…</>
+                <>
+                  <Spinner className="mr-2 size-4" /> Salvando…
+                </>
               ) : (
                 "Confirmar compromisso"
               )}
