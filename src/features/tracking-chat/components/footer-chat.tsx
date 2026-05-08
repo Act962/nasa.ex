@@ -9,6 +9,7 @@ import {
   HammerIcon,
   LayoutListIcon,
   ImageIcon,
+  MapPinIcon,
   MicIcon,
   PlusIcon,
   ScrollTextIcon,
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/popover";
 import {
   useMutationAudioMessage,
+  useMutationLocationMessage,
   useMutationTextMessage,
 } from "../hooks/use-messages";
 import { toast } from "sonner";
@@ -54,6 +56,7 @@ import { FormsPanel } from "./forms-panel";
 import { NBoxPanel } from "./nbox-panel";
 import { ButtonsPanel } from "./buttons-panel";
 import { ReminderPanel } from "./reminder-panel";
+import { SendLocationDialog } from "./send-location-dialog";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
@@ -111,6 +114,11 @@ export function Footer({
   const [showNBox, setShowNBox] = useState(false);
   const [showButtons, setShowButtons] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
+  const [locationDialogOpen, setLocationDialogOpen] = useState(false);
+  const [pendingLocation, setPendingLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -128,6 +136,11 @@ export function Footer({
     conversationId,
     lead,
     quotedMessageId: messageSelected?.messageId,
+    messageSelected,
+  });
+  const mutationLocation = useMutationLocationMessage({
+    conversationId,
+    lead,
     messageSelected,
   });
 
@@ -170,6 +183,49 @@ export function Footer({
       setMessage("");
       closeMessageSelected();
     }
+  };
+
+  const handleSendLocation = () => {
+    if (!instance.instance) return toast.error("Instância não encontrada");
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      return toast.error("Geolocalização não suportada neste dispositivo");
+    }
+    setOpen(false);
+    setPendingLocation(null);
+    setLocationDialogOpen(true);
+    toast.loading("Obtendo localização...", { id: "geo" });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        toast.dismiss("geo");
+        setPendingLocation({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        });
+      },
+      (err) => {
+        toast.dismiss("geo");
+        toast.error("Não foi possível obter localização: " + err.message);
+        setLocationDialogOpen(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
+  const handleConfirmSendLocation = () => {
+    if (!instance.instance) return toast.error("Instância não encontrada");
+    if (!pendingLocation) return;
+    mutationLocation.mutate({
+      conversationId,
+      leadPhone: lead.phone!,
+      token: instance.instance.apiKey,
+      latitude: pendingLocation.latitude,
+      longitude: pendingLocation.longitude,
+      replyId: messageSelected?.messageId,
+      id: messageSelected?.id,
+    });
+    closeMessageSelected();
+    setLocationDialogOpen(false);
+    setPendingLocation(null);
   };
 
   const handleFileChange = (
@@ -399,6 +455,13 @@ export function Footer({
                           <BellIcon className="size-4" />
                           <p className="text-sm">Lembrete</p>
                         </div>
+                        <div
+                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
+                          onClick={handleSendLocation}
+                        >
+                          <MapPinIcon className="size-4" />
+                          <p className="text-sm">Localização</p>
+                        </div>
                         <div className="relative w-full h-full cursor-pointer overflow-hidden">
                           <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4">
                             <FileIcon className="size-4" />
@@ -486,7 +549,7 @@ export function Footer({
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder={isDisabled ? "" : "Digite sua mensagem"}
                 disabled={isDisabled}
-                className="resize-none min-h-0 py-2.5 text-sm max-h-[200px]"
+                className="resize-none min-h-0 py-2.5 text-sm max-h-50"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
@@ -549,6 +612,17 @@ export function Footer({
           )}
         </div>
       </form>
+      <SendLocationDialog
+        open={locationDialogOpen}
+        onOpenChange={(o) => {
+          setLocationDialogOpen(o);
+          if (!o) setPendingLocation(null);
+        }}
+        latitude={pendingLocation?.latitude ?? null}
+        longitude={pendingLocation?.longitude ?? null}
+        onConfirm={handleConfirmSendLocation}
+        isSending={mutationLocation.isPending}
+      />
       {sendImage && instance.instance && (
         <SendFile
           conversationId={conversationId}

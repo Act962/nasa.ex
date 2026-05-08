@@ -309,6 +309,20 @@ export interface SendTextResponse {
   };
 }
 
+export interface SendLocationPayload {
+  number: string;
+  latitude: number;
+  longitude: number;
+  name?: string;
+  address?: string;
+  replyid?: string;
+  readchat?: boolean;
+  readmessages?: boolean;
+  delay?: number;
+}
+
+export type SendLocationResponse = SendTextResponse;
+
 export type MediaType =
   | "image"
   | "video"

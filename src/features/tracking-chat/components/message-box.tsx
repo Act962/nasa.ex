@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { FileMessageBox } from "./file-message-box";
 import { AudioMessageBox } from "./audio-message-box";
+import { LocationMessageBox } from "./location-message-box";
 import {
   CheckCheckIcon,
   CheckIcon,
@@ -56,11 +57,18 @@ export function MessageBox({
 
   const IconStatus = IconsStatus[message.status as MessageStatus];
 
+  const isLocation =
+    message.latitude != null &&
+    message.longitude != null &&
+    Number.isFinite(message.latitude) &&
+    Number.isFinite(message.longitude);
+
   const isFile =
     message.mimetype?.startsWith("application/") ||
     message.mimetype?.startsWith("text/") ||
     message.mimetype?.startsWith("image/") ||
-    message.mimetype?.startsWith("video/");
+    message.mimetype?.startsWith("video/") ||
+    isLocation;
 
   const onDeleteMessage = () => {
     if (!token) return;
@@ -122,7 +130,14 @@ export function MessageBox({
               >
                 {message.quotedMessage && <QuotedMessage message={message} />}
                 <div className="relative w-fit py-1">
-                  {message.mediaUrl &&
+                  {isLocation && (
+                    <LocationMessageBox
+                      latitude={message.latitude as number}
+                      longitude={message.longitude as number}
+                      name={message.body}
+                    />
+                  )}
+                  {!isLocation && message.mediaUrl &&
                     message.mimetype?.startsWith("image") && (
                       <>
                         <Image
@@ -173,7 +188,7 @@ export function MessageBox({
                         mimetype={message.mimetype}
                       />
                     )}
-                  {message.body && (
+                  {!isLocation && message.body && (
                     <div className="whitespace-pre-wrap px-1.5 pt-1 ">
                       <BodyMessage message={message} />
                     </div>

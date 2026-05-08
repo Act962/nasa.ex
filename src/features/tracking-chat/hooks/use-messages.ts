@@ -497,6 +497,104 @@ export function useMutationAudioMessage({
   );
 }
 
+interface UseMutationLocationMessageProps {
+  conversationId: string;
+  lead: {
+    id: string;
+    name: string;
+    phone: string | null;
+  };
+  messageSelected?: MarkedMessage;
+}
+
+export function useMutationLocationMessage({
+  conversationId,
+  lead,
+  messageSelected,
+}: UseMutationLocationMessageProps) {
+  const queryClient = useQueryClient();
+  const { data: session } = authClient.useSession();
+
+  return useMutation(
+    orpc.message.createLocation.mutationOptions({
+      onMutate: async (data) => {
+        await queryClient.cancelQueries({
+          queryKey: ["message.list", conversationId],
+        });
+        const previousData = queryClient.getQueryData<InfiniteMessages>([
+          "message.list",
+          conversationId,
+        ]);
+
+        const tempId = `optimistic-${crypto.randomUUID()}`;
+        const bodyText =
+          [data.name, data.address].filter(Boolean).join(" — ") || null;
+
+        const optimisticMessage: Message = {
+          id: tempId,
+          messageId: tempId,
+          body: bodyText,
+          quotedMessageId: data.replyId ?? undefined,
+          createdAt: new Date(),
+          status: MessageStatus.SENT,
+          fromMe: true,
+          senderName: session?.user.name,
+          mediaUrl: null,
+          mediaType: "location",
+          latitude: data.latitude,
+          longitude: data.longitude,
+          conversation: {
+            lead: { id: lead.id, name: lead.name },
+          },
+          quotedMessage: messageSelected
+            ? {
+                ...messageSelected,
+                mediaUrl: messageSelected.mediaUrl || null,
+                mimetype: messageSelected.mimetype || null,
+                fileName: messageSelected.fileName || null,
+                createdAt: new Date(),
+                status: MessageStatus.SENT,
+                conversation: {
+                  lead: {
+                    id: messageSelected.lead.id,
+                    name: messageSelected.lead.name,
+                  },
+                },
+              }
+            : null,
+        };
+
+        queryClient.setQueryData(["message.list", conversationId], (old: any) =>
+          updateCacheWithOptimisticMessage(old, optimisticMessage),
+        );
+
+        return { previousData, tempId };
+      },
+      onSuccess: (data, _variables, context) => {
+        queryClient.setQueryData<InfiniteMessages>(
+          ["message.list", conversationId],
+          (old) =>
+            updateCacheMessageStatus(
+              old,
+              context?.tempId,
+              data.message as Message,
+            ),
+        );
+        markConversationLeadActive(queryClient, lead.id);
+      },
+      onError(_err, _variables, context) {
+        if (context?.previousData) {
+          queryClient.setQueryData(
+            ["message.list", conversationId],
+            context.previousData,
+          );
+        }
+        return toast.error("Erro ao enviar localização");
+      },
+    }),
+  );
+}
+
 export function useMutationDeleteMessage({
   conversationId,
 }: {
