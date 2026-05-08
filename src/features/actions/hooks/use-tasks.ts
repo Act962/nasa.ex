@@ -1,4 +1,4 @@
-import { orpc } from "@/lib/orpc";
+import { client, orpc } from "@/lib/orpc";
 import {
   useInfiniteQuery,
   useMutation,
@@ -176,32 +176,54 @@ export const useListActionByWorkspace = ({
 
 export const useReorderAction = () => {
   const queryClient = useQueryClient();
-  return useMutation(
-    orpc.action.reorder.mutationOptions({
-      onSuccess: (data) => {
-        queryClient.invalidateQueries(
-          orpc.workspace.getColumnsByWorkspace.queryOptions({
-            input: {
-              workspaceId: data.action.workspaceId,
-            },
-          }),
-        );
-        queryClient.invalidateQueries({
-          queryKey: ["action.listByColumn"],
-        });
-        queryClient.invalidateQueries(
-          orpc.action.listByWorkspace.queryOptions({
-            input: {
-              workspaceId: data.action.workspaceId,
-            },
-          }),
-        );
-      },
-      onError: (error) => {
-        console.error("Failed to reorder action:", error);
-      },
-    }),
-  );
+
+  return useMutation({
+    mutationFn: async (variables: {
+      id: string;
+      columnId: string;
+      beforeId?: string | null;
+      afterId?: string | null;
+      previousColumnId?: string;
+    }) => {
+      const { previousColumnId, ...input } = variables;
+      const result = await client.action.reorder(input);
+      // Carrega previousColumnId no resultado para o onSuccess estreitar
+      // a invalidação às colunas envolvidas (origem + destino), evitando
+      // refetch de todas as colunas do board (ressonância no loop).
+      return { ...result, _previousColumnId: previousColumnId };
+    },
+    onSuccess: (data) => {
+      const previousColumnId = data._previousColumnId;
+      const workspaceId = data.action.workspaceId;
+      const newColumnId = data.action.columnId;
+
+      queryClient.invalidateQueries(
+        orpc.workspace.getColumnsByWorkspace.queryOptions({
+          input: { workspaceId },
+        }),
+      );
+
+      queryClient.invalidateQueries({
+        predicate: (q) => {
+          if (q.queryKey[0] !== "action.listByColumn") return false;
+          const cid = q.queryKey[1] as string;
+          return (
+            cid === newColumnId ||
+            (previousColumnId !== undefined && cid === previousColumnId)
+          );
+        },
+      });
+
+      queryClient.invalidateQueries(
+        orpc.action.listByWorkspace.queryOptions({
+          input: { workspaceId },
+        }),
+      );
+    },
+    onError: (error) => {
+      console.error("Failed to reorder action:", error);
+    },
+  });
 };
 
 export const useQueryAction = (actionId: string) => {

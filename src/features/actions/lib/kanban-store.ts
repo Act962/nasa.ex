@@ -68,7 +68,31 @@ export const useActionKanbanStore = create<ActionKanbanStore>()(
 
       setColumnList: (list) => {
         if (get().isDragging) return;
-        if (get().columnList === list) return;
+        const current = get().columnList;
+        if (current === list) return;
+
+        // Quando o conjunto de IDs é o mesmo, preserva o ref antigo de cada
+        // coluna cujo conteúdo é idêntico ao incoming. Refetch traz objetos
+        // novos com mesmo conteúdo, e re-renderizar WorkspaceColumn cascateia
+        // em ScrollArea ref churn (causa do "Maximum update depth").
+        if (
+          current.length === list.length &&
+          current.length > 0 &&
+          current.every((c) => list.some((l) => l.id === c.id))
+        ) {
+          const byId = new Map(list.map((l) => [l.id, l]));
+          const merged = current.map((c) => {
+            const incoming = byId.get(c.id);
+            if (!incoming) return c;
+            return JSON.stringify(c) === JSON.stringify(incoming)
+              ? c
+              : incoming;
+          });
+          const changed = merged.some((m, i) => m !== current[i]);
+          if (changed) set({ columnList: merged });
+          return;
+        }
+
         set({ columnList: list });
       },
 
@@ -100,14 +124,22 @@ export const useActionKanbanStore = create<ActionKanbanStore>()(
       registerColumn: (columnId, actions) => {
         if (get().isDragging) return;
 
-        const currentActions = get().columns[columnId]?.actions;
+        const current = get().columns[columnId]?.actions;
+        const next = actions ?? EMPTY_ACTIONS;
 
-        if (currentActions === actions) return;
+        if (current === next) return;
+
+        // Compara conteúdo serializado: evita set() quando a query refetch
+        // retornou nova referência mas dados idênticos (causa do loop de
+        // re-render no drag). Captura mudanças em qualquer campo — essencial
+        // para que edições de title/description via mutation cheguem ao
+        // Zustand store e a componentes filhos que sincronizam state com props.
+        if (current && JSON.stringify(current) === JSON.stringify(next)) return;
 
         set((state) => ({
           columns: {
             ...state.columns,
-            [columnId]: { id: columnId, actions: actions ?? EMPTY_ACTIONS },
+            [columnId]: { id: columnId, actions: next },
           },
         }));
       },

@@ -22,11 +22,6 @@ import { Badge } from "@/components/ui/badge";
 import { useQueryTagByLead } from "@/features/tracking-chat/hooks/use-leads-conversation";
 import { Button } from "@/components/ui/button";
 import { phoneMaskFull } from "@/utils/format-phone";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import dayjs from "dayjs";
 import { memo, useMemo, useState, useEffect } from "react";
 import { Lead } from "../types";
@@ -169,16 +164,11 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
               {data.name.split(" ")[0][0]}
             </AvatarFallback>
           </Avatar>
-          <Tooltip>
-            <TooltipTrigger>
-              <div className="max-w-40 truncate">
-                <span className="font-medium text-xs truncate">
-                  {data.name || "Sem nome"}
-                </span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>{data.name || "Sem nome"}</TooltipContent>
-          </Tooltip>
+          <div className="max-w-40 truncate" title={data.name || "Sem nome"}>
+            <span className="font-medium text-xs truncate">
+              {data.name || "Sem nome"}
+            </span>
+          </div>
         </div>
 
         <div
@@ -243,53 +233,50 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           <span className="text-xs text-muted-foreground">
             {dayjs(data.createdAt).format("DD/MM/YYYY HH:mm")}
           </span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <RocketIcon
-                className="size-3"
-                style={{ color: TEMP_COLOR[data.temperature] }}
-              />
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{TEMP_TEXT[data.temperature]}</p>
-            </TooltipContent>
-          </Tooltip>
+          <span
+            className="inline-flex"
+            title={TEMP_TEXT[data.temperature]}
+          >
+            <RocketIcon
+              className="size-3"
+              style={{ color: TEMP_COLOR[data.temperature] }}
+            />
+          </span>
           {data.statusFlow &&
             STATUS_FLOW_CONFIG[data.statusFlow] &&
             (() => {
               const { label, color, Icon } =
                 STATUS_FLOW_CONFIG[data.statusFlow];
               return (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Icon className="size-3" style={{ color }} />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{label}</p>
-                  </TooltipContent>
-                </Tooltip>
+                <span className="inline-flex" title={label}>
+                  <Icon className="size-3" style={{ color }} />
+                </span>
               );
             })()}
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Avatar className="size-4">
-              <AvatarImage
-                src={data.responsible?.image || "/user-placeholder.png"}
-                alt="photo user"
-              />
-              <AvatarFallback>
-                {data.responsible?.name.split(" ")[0][0]}
-              </AvatarFallback>
-            </Avatar>
-          </TooltipTrigger>
-          <TooltipContent>
-            {data.responsible?.name || "Sem responsável"}
-          </TooltipContent>
-        </Tooltip>
+        <span title={data.responsible?.name || "Sem responsável"}>
+          <Avatar className="size-4">
+            <AvatarImage
+              src={data.responsible?.image || "/user-placeholder.png"}
+              alt="photo user"
+            />
+            <AvatarFallback>
+              {data.responsible?.name.split(" ")[0][0]}
+            </AvatarFallback>
+          </Avatar>
+        </span>
       </div>
     </div>
   );
+}, (prev, next) => {
+  // Custom equality: skip render quando o conteúdo do lead é idêntico
+  // por valor (não apenas por referência). Isso é crítico durante drag
+  // cross-coluna: moveLeadToColumn cria { ...lead, statusId: novoCol }
+  // que é nova ref mas com mesmo conteúdo visual após primeira move.
+  // Sem isso, cada onDragOver dispara re-render do LeadItem, que cascateia
+  // em ref churn dos Radix internos (Switch, Popover, etc.) → loop.
+  if (prev.data === next.data) return true;
+  return JSON.stringify(prev.data) === JSON.stringify(next.data);
 });
 
 LeadItem.displayName = "LeadItem";
@@ -319,20 +306,17 @@ function ListLeadTags({ leadId, tags }: { leadId: string; tags: any[] }) {
       {leadTags && leadTags.length > 0 && (
         <>
           {leadTags.slice(0, 8).map((tag) => (
-            <Tooltip key={tag.id}>
-              <TooltipTrigger asChild>
-                <Badge
-                  className="px-1 py-0 text-[10px] h-4 font-normal max-w-50 inline-block truncate"
-                  style={{
-                    backgroundColor: tag.color || "#000000",
-                    color: getContrastColor(tag.color || "#000000"),
-                  }}
-                >
-                  {tag.name}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>{tag.name}</TooltipContent>
-            </Tooltip>
+            <Badge
+              key={tag.id}
+              title={tag.name}
+              className="px-1 py-0 text-[10px] h-4 font-normal max-w-50 inline-block truncate"
+              style={{
+                backgroundColor: tag.color || "#000000",
+                color: getContrastColor(tag.color || "#000000"),
+              }}
+            >
+              {tag.name}
+            </Badge>
           ))}
           {leadTags.length > 8 && (
             <Badge

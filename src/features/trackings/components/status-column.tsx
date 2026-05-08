@@ -1,6 +1,5 @@
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { useInfiniteLeadsByStatus } from "../hooks/use-trackings";
 import { LeadItem } from "./lead-item";
 import { cn } from "@/lib/utils";
@@ -13,6 +12,7 @@ import { EMPTY_LEADS, useKanbanStore } from "../lib/kanban-store";
 import { useQueryState } from "nuqs";
 import dayjs from "dayjs";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface StatusColumnProps {
   status: {
@@ -26,7 +26,7 @@ interface StatusColumnProps {
   isOverlay?: boolean;
 }
 
-export function StatusColumn({
+function StatusColumnImpl({
   status,
   index,
   trackingId,
@@ -108,7 +108,7 @@ export function StatusColumn({
 
     const sentinel = sentinelRef.current;
     const scrollContainer = sentinel?.closest(
-      "[data-radix-scroll-area-viewport]",
+      "[data-kanban-scroll-viewport]",
     ) as HTMLElement | null;
 
     if (!sentinel || !scrollContainer) return;
@@ -141,11 +141,10 @@ export function StatusColumn({
     registerColumn(status.id, data);
   }, [data, registerColumn, status.id, isOverlay]);
 
-  const leads = useKanbanStore(
-    (state) => state.columns[status.id]?.leads ?? EMPTY_LEADS,
+  const headerData = useMemo(
+    () => ({ ...status, trackingId }),
+    [status, trackingId],
   );
-
-  const leadIds = useMemo(() => leads.map((l) => l.id), [leads]);
 
   return (
     <li
@@ -160,27 +159,23 @@ export function StatusColumn({
     >
       <div className="flex flex-col flex-1 min-h-0 rounded-md bg-muted/60 shadow-md">
         <StatusHeader
-          data={useMemo(
-            () => ({ ...status, trackingId }),
-            [status, trackingId],
-          )}
+          data={headerData}
           attributes={attributes}
           listeners={listeners}
         />
 
-        <ScrollArea className="flex-1 min-h-0">
+        {/* Caso der bug novamente
+        <div
+          data-kanban-scroll-viewport
+          className="flex-1 min-h-0 overflow-y-auto scrollbar-thin"
+        >*/}
+
+        <ScrollArea
+          data-kanban-scroll-viewport
+          className="flex-1 min-h-0 scrollbar-thin"
+        >
           <ol className="mx-1 px-1 py-2 flex flex-col gap-y-2">
-            <SortableContext items={leadIds}>
-              {isLoading && (
-                <div className="flex flex-col gap-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-32 rounded-md shadow-sm" />
-                  ))}
-                </div>
-              )}
-              {!isLoading &&
-                leads.map((lead) => <LeadItem key={lead.id} data={lead} />)}
-            </SortableContext>
+            <LeadsList columnId={status.id} isLoading={isLoading} />
 
             {hasNextPage && (
               <li className="list-none">
@@ -217,6 +212,56 @@ export function StatusColumn({
   );
 }
 
+// Subscriber isolado: lê leads do store + renderiza a lista. Quando o user
+// faz drag (moveLeadInColumn/ToColumn muda `state.columns[id].leads`),
+// SÓ este componente re-renderiza, NÃO o StatusColumn pai. Isso evita o
+// re-render dos botões Radix em StatusHeader, que tinham ref churn em
+// loop ("Maximum update depth").
+function LeadsList({
+  columnId,
+  isLoading,
+}: {
+  columnId: string;
+  isLoading: boolean;
+}) {
+  const leads = useKanbanStore(
+    (state) => state.columns[columnId]?.leads ?? EMPTY_LEADS,
+  );
+  const leadIds = useMemo(() => leads.map((l) => l.id), [leads]);
+
+  return (
+    <SortableContext items={leadIds}>
+      {isLoading && (
+        <div className="flex flex-col gap-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-md shadow-sm" />
+          ))}
+        </div>
+      )}
+      {!isLoading &&
+        leads.map((lead) => <LeadItem key={lead.id} data={lead} />)}
+    </SortableContext>
+  );
+}
+
+// memo + custom equality: ignora `leads` count (que muda a cada drag).
+// O contador é exibido por <StatusLeadsCount> dentro de StatusHeader, que
+// se subscreve sozinho via TanStack Query e re-renderiza em isolamento.
+// Isso evita que mudanças no count cascateem em re-renders dos botões
+// Radix (Slot/useComposedRefs) — origem do "Maximum update depth".
+export const StatusColumn = memo(StatusColumnImpl, (prev, next) => {
+  if (prev.index !== next.index) return false;
+  if (prev.trackingId !== next.trackingId) return false;
+  if (prev.isOverlay !== next.isOverlay) return false;
+  if (prev.status === next.status) return true;
+  return (
+    prev.status.id === next.status.id &&
+    prev.status.name === next.status.name &&
+    prev.status.color === next.status.color
+  );
+});
+StatusColumn.displayName = "StatusColumn";
+
 export const StatusItemSkeleton = () => {
   return (
     <li className="shrink-0 w-72 h-full flex flex-col select-none">
@@ -224,13 +269,13 @@ export const StatusItemSkeleton = () => {
         <div className="p-3">
           <Skeleton className="h-7 w-3/4 rounded-md" />
         </div>
-        <ScrollArea className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
           <ol className="mx-2 px-1 py-3 flex flex-col gap-y-3">
             <Skeleton className="h-32 rounded-xl" />
             <Skeleton className="h-32 rounded-xl" />
             <Skeleton className="h-32 rounded-xl" />
           </ol>
-        </ScrollArea>
+        </div>
         <div className="px-2 pt-1 border-t border-border/10">
           <Skeleton className="h-10 w-full rounded-md" />
         </div>

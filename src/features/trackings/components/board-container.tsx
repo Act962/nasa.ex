@@ -25,7 +25,7 @@ import {
 import { StatusForm } from "./status-form";
 import { StatusColumn, StatusItemSkeleton } from "./status-column";
 import { Footer } from "./footer";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 // Removendo importação incorreta de StatusItem
 import { LeadItem } from "./lead-item";
@@ -96,6 +96,13 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
     trackingId: trackingId,
     ...queryInput,
   });
+
+  // Mantém status acessível via ref para callbacks sem inclui-lo nas deps
+  // — tira `status` das deps de onDragEnd, evitando recriação a cada refetch.
+  const statusRef = useRef(status);
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   const columnList = useKanbanStore((s) => s.columnList);
   const setColumnList = useKanbanStore((s) => s.setColumnList);
@@ -195,13 +202,16 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
       if (activeType === "Column") {
         const activeId = active.id as string;
 
-        const originalIndex = status.findIndex((s) => s.id === activeId);
-        const newIndex = columnList.findIndex((c) => c.id === activeId);
+        const currentList = useKanbanStore.getState().columnList;
+        const originalIndex = statusRef.current.findIndex(
+          (s) => s.id === activeId,
+        );
+        const newIndex = currentList.findIndex((c) => c.id === activeId);
 
         if (originalIndex === newIndex) return;
 
-        const prev = columnList[newIndex - 1];
-        const next = columnList[newIndex + 1];
+        const prev = currentList[newIndex - 1];
+        const next = currentList[newIndex + 1];
 
         let newOrder: Decimal;
 
@@ -240,6 +250,28 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
 
         if (!targetColumnId) return;
 
+        // Aplicamos o movimento (cross-column OU within-column) APENAS no drop.
+        // Mid-drag não mutamos o store — o feedback visual é via DragOverlay
+        // do dnd-kit. Isso evita oscilação que disparava ref churn em
+        // Switch/Tooltip dos LeadItems ("Maximum update depth").
+        const currentColumnId = useKanbanStore
+          .getState()
+          .findLeadColumn(lead.id);
+
+        if (currentColumnId !== targetColumnId) {
+          // Cross-column: remove da origem, adiciona ao destino na posição
+          // do overLead (se houver).
+          moveLeadToColumn(
+            lead.id,
+            currentColumnId ?? lead.statusId,
+            targetColumnId,
+            overLeadId,
+          );
+        } else if (overLeadId && overLeadId !== lead.id) {
+          // Within-column: reordena baseado em onde foi solto.
+          moveLeadInColumn(targetColumnId, lead.id, overLeadId);
+        }
+
         const currentNeighbors = useKanbanStore
           .getState()
           .getLeadNeighbors(targetColumnId, lead.id);
@@ -251,13 +283,6 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
         ) {
           return;
         }
-        console.log({
-          leadId: lead.id,
-          targetStatusId: targetColumnId,
-          beforeId: currentNeighbors.beforeId,
-          afterId: currentNeighbors.afterId,
-          trackingId: trackingId,
-        });
 
         updateLeadOrder.mutate({
           leadId: lead.id,
@@ -269,12 +294,12 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
       }
     },
     [
-      columnList,
+      moveLeadInColumn,
+      moveLeadToColumn,
       onOpen,
       onOpenDeleteLead,
       originalNeighbors,
       setIsDragging,
-      status,
       trackingId,
       updateColumnOrder,
       updateLeadOrder,
@@ -286,51 +311,51 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
       const { active, over } = event;
       if (!over) return;
 
-      const activeId = active.id as string;
-      const overId = over.id as string;
       const activeType = active.data.current?.type;
       const overType = over.data.current?.type;
 
+      // Reorder de COLUNAS via onDragOver é OK — não envolve LeadItem
+      // mount/unmount (apenas reordena o columnList).
       if (activeType === "Column" && overType === "Column") {
-        moveColumn(activeId, overId);
+        moveColumn(active.id as string, over.id as string);
         return;
       }
 
-      if (activeType !== "Lead") return;
-
-      // Busca a coluna ATUAL do lead no store, não a original
-      const activeColumnId = useKanbanStore.getState().findLeadColumn(activeId);
-      if (!activeColumnId) return;
-
-      const overColumnId =
-        overType === "Lead" ? over.data.current?.lead.statusId : over.id;
-
-      if (activeColumnId !== overColumnId) {
-        moveLeadToColumn(
-          activeId,
-          activeColumnId,
-          overColumnId,
-          overType === "Lead" ? overId : undefined,
-        );
-      } else {
-        moveLeadInColumn(activeColumnId, activeId, overId);
-      }
+      // Para LEADS, NÃO mutamos o store em onDragOver. Cada moveLeadToColumn
+      // mid-drag desmonta+remonta o LeadItem entre colunas, e o Switch da
+      // Radix dentro do CheckIaLead acumula ref churn em loop ("Maximum
+      // update depth"). O movimento real (cross-coluna ou within-coluna)
+      // é aplicado apenas no onDragEnd. dnd-kit lida com o feedback visual
+      // durante o drag via DragOverlay (já configurado).
     },
-    [moveColumn, moveLeadToColumn, moveLeadInColumn],
+    [moveColumn],
   );
 
   const isDragging = useKanbanStore((s) => s.isDragging);
-  const columns = useKanbanStore((s) => s.columns);
-  const totalLeads = useMemo(
-    () =>
-      Object.values(columns).reduce((acc, col) => acc + col.leads.length, 0),
-    [columns],
+  // Selector retorna primitivo (number) — Object.is compara por valor,
+  // então re-renderiza só quando o total muda. Substitui o
+  // `useKanbanStore((s) => s.columns)` que mudava de ref a cada drag.
+  const totalLeads = useKanbanStore((s) =>
+    Object.values(s.columns).reduce((acc, col) => acc + col.leads.length, 0),
   );
 
   useLeadSoundAlert({ trackingId, totalLeads });
 
   useEffect(() => {
-    if (status && !isDragging) {
+    if (!status || isDragging) return;
+
+    // Signature check evita reescrever o store quando o conteúdo é idêntico
+    // (refetch do TanStack Query retorna nova ref sem mudança real).
+    const sig = (cols: any[]) =>
+      cols
+        .map(
+          (c) =>
+            `${c.id}:${c.name}:${c.color}:${c.order}:${(c as any).leads ?? ""}`,
+        )
+        .join(",");
+
+    const current = useKanbanStore.getState().columnList;
+    if (sig(current) !== sig(status)) {
       setColumnList(status);
     }
   }, [status, setColumnList, isDragging]);
