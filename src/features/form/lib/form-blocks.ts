@@ -26,6 +26,7 @@ import { SliderBlock } from "@/features/form/components/common/blocks/slider-blo
 import { UrlBlock } from "@/features/form/components/common/blocks/url-block";
 import { MaskedFieldBlock } from "@/features/form/components/common/blocks/masked-field-block";
 import { PageBreakBlock } from "@/features/form/components/common/blocks/page-break-block";
+import { QrCodeMultiBlock } from "@/features/form/components/common/blocks/qr-code-multi-block";
 
 export const FormBlocks: FormBlocksType = {
   RowLayout: RowLayoutBlock,
@@ -51,4 +52,5 @@ export const FormBlocks: FormBlocksType = {
   Url: UrlBlock,
   MaskedField: MaskedFieldBlock,
   PageBreak: PageBreakBlock,
+  QrCodeMulti: QrCodeMultiBlock,
 };

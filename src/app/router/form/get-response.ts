@@ -2,6 +2,10 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
+import {
+  checkLeadTrackingParticipant,
+  NOT_TRACKING_PARTICIPANT_MESSAGE,
+} from "@/features/leads/lib/tracking-participant-guard";
 
 /**
  * Busca uma `FormResponses` específica por ID, retornando junto:
@@ -85,7 +89,7 @@ export const getResponseById = base
         throw errors.NOT_FOUND({ message: "Resposta não encontrada" });
       }
 
-      // Verifica que o user é membro da org do form.
+      // Verifica que o user é membro da org do form (defesa em profundidade).
       const member = await prisma.member.findFirst({
         where: { organizationId: response.form.organizationId, userId },
         select: { id: true },
@@ -94,6 +98,21 @@ export const getResponseById = base
         throw errors.UNAUTHORIZED({
           message: "Você não tem acesso a esta resposta",
         });
+      }
+
+      // Regra de NEGÓCIO: só participantes do tracking ATUAL do lead
+      // podem mexer no formulário. Se o lead foi movido pra um tracking
+      // do qual o user não participa, bloqueia com mensagem específica.
+      if (response.lead?.id) {
+        const { ok } = await checkLeadTrackingParticipant(
+          response.lead.id,
+          userId,
+        );
+        if (!ok) {
+          throw errors.FORBIDDEN({
+            message: NOT_TRACKING_PARTICIPANT_MESSAGE,
+          });
+        }
       }
 
       return { response };

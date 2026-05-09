@@ -3,6 +3,11 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { recordLeadEvent } from "@/features/leads/lib/history";
+import {
+  checkLeadTrackingParticipant,
+  NOT_TRACKING_PARTICIPANT_MESSAGE,
+} from "@/features/leads/lib/tracking-participant-guard";
+import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
 
 /**
  * Atualiza o `jsonResponse` de uma `FormResponses` existente. Usado no fluxo
@@ -35,13 +40,16 @@ export const updateResponse = base
 
       // Carrega a resposta sem filtrar por org ativa — depois verificamos
       // que o user é membro da org do form (ver create-response-for-lead.ts).
+      // Inclui `labelManuallyEdited` + `form.jsonBlock` para re-derivar
+      // o `label` automático sem sobrescrever overrides manuais.
       const existing = await prisma.formResponses.findFirst({
         where: { id },
         select: {
           id: true,
           leadId: true,
           formId: true,
-          form: { select: { organizationId: true } },
+          labelManuallyEdited: true,
+          form: { select: { organizationId: true, jsonBlock: true } },
         },
       });
 
@@ -49,7 +57,7 @@ export const updateResponse = base
         throw errors.NOT_FOUND({ message: "Resposta não encontrada" });
       }
 
-      // Membership check
+      // Membership check (org-level — defesa em profundidade)
       const member = await prisma.member.findFirst({
         where: { organizationId: existing.form.organizationId, userId },
         select: { id: true },
@@ -60,15 +68,41 @@ export const updateResponse = base
         });
       }
 
+      // Tracking participant check — usuário precisa participar do
+      // tracking ATUAL do lead pra editar respostas.
+      if (existing.leadId) {
+        const { ok } = await checkLeadTrackingParticipant(
+          existing.leadId,
+          userId,
+        );
+        if (!ok) {
+          throw errors.FORBIDDEN({
+            message: NOT_TRACKING_PARTICIPANT_MESSAGE,
+          });
+        }
+      }
+
+      // Re-deriva label automático SOMENTE quando o user nunca fez
+      // override manual (`labelManuallyEdited === false`). Caso contrário
+      // mantém o `label` que está salvo (manual prevalece).
+      const dataToUpdate: { jsonResponse: string; label?: string | null } = {
+        jsonResponse: response,
+      };
+      if (!existing.labelManuallyEdited) {
+        dataToUpdate.label = deriveResponseLabel({
+          jsonBlock: existing.form.jsonBlock,
+          jsonResponse: response,
+        });
+      }
+
       const updated = await prisma.formResponses.update({
         where: { id: existing.id },
-        data: {
-          jsonResponse: response,
-        },
+        data: dataToUpdate,
         select: {
           id: true,
           createdAt: true,
           leadId: true,
+          label: true,
         },
       });
 
@@ -82,6 +116,7 @@ export const updateResponse = base
             formId: existing.formId,
             edited: true,
             editedBy: userId,
+            label: updated.label ?? null,
           },
         });
       }

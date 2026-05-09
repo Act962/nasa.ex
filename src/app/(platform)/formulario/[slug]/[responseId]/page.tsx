@@ -12,6 +12,7 @@ import {
   useMutationUpdateResponse,
 } from "@/features/form/hooks/use-form";
 import { FormSubmitComponent } from "@/features/form/components/public/form-submit-component";
+import { FormLeadProvider } from "@/features/form/context/form-lead-context";
 import type { FieldValue, FormBlockInstance } from "@/features/form/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { orpc } from "@/lib/orpc";
@@ -251,25 +252,33 @@ export default function Page() {
 
       {/* ── Form em modo edit ──────────────────────────────────────── */}
       <main className="flex-1 min-h-0">
-        <FormSubmitComponent
-          id={response.form.id}
-          blocks={blocks}
-          settings={response.form.settings}
-          initialResponseValues={initialResponseValues}
-          submitLabel="Salvar"
-          onSubmitOverride={async (responseJson) => {
-            try {
-              await updateMutation.mutateAsync({
-                id: response.id,
-                response: responseJson,
-              });
-              toast.success("Resposta atualizada");
-            } catch (err) {
-              toast.error("Falha ao atualizar a resposta");
-              throw err;
-            }
+        <FormLeadProvider
+          value={{
+            leadId: response.lead?.id ?? null,
+            leadPublicToken: response.lead?.publicToken ?? null,
+            formId: response.form.id,
           }}
-        />
+        >
+          <FormSubmitComponent
+            id={response.form.id}
+            blocks={blocks}
+            settings={response.form.settings}
+            initialResponseValues={initialResponseValues}
+            submitLabel="Salvar"
+            onSubmitOverride={async (responseJson) => {
+              try {
+                await updateMutation.mutateAsync({
+                  id: response.id,
+                  response: responseJson,
+                });
+                toast.success("Resposta atualizada");
+              } catch (err) {
+                toast.error("Falha ao atualizar a resposta");
+                throw err;
+              }
+            }}
+          />
+        </FormLeadProvider>
       </main>
     </div>
   );

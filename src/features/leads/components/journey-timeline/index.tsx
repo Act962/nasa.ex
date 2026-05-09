@@ -110,7 +110,7 @@ export function JourneyTimeline({ leadId }: JourneyTimelineProps) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-medium">
-                    {kindLabel(evt.kind)}
+                    {deriveKindLabel(evt.kind, evt.metadata)}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {dayjs(evt.occurredAt).format("DD/MM/YYYY HH:mm")} (
@@ -288,14 +288,27 @@ function EventMetadataPreview({
     if (!metadata.formName) return null;
     const edited = metadata.edited === true;
     const returning = metadata.returning === true;
+    const started = metadata.started === true;
+    const clientSigned = metadata.clientSigned === true;
+    const label =
+      typeof metadata.label === "string" && metadata.label.trim().length > 0
+        ? metadata.label.trim()
+        : null;
     return (
       <div className="text-xs text-muted-foreground mt-1">
-        {edited
-          ? "Atualizou: "
-          : returning
-            ? "Reenviou: "
-            : "Preencheu: "}
+        {started
+          ? "Iniciou o preenchimento de: "
+          : clientSigned
+            ? "Cliente assinou: "
+            : edited
+              ? "Atualizou: "
+              : returning
+                ? "Reenviou: "
+                : "Preencheu: "}
         <strong>{String(metadata.formName)}</strong>
+        {label && (
+          <span className="text-muted-foreground/80"> · {label}</span>
+        )}
       </div>
     );
   }
@@ -335,4 +348,18 @@ function EventMetadataPreview({
   }
 
   return null;
+}
+
+// FORM_STARTED compartilha kind="form_submit" com FORM_SUBMITTED, mas é
+// diferenciado por metadata.started — sobrescreve o título da timeline.
+function deriveKindLabel(
+  kind: string,
+  metadata: Record<string, unknown> | null | undefined,
+): string {
+  if (kind === "form_submit") {
+    if (metadata?.started === true) return "Formulário iniciado";
+    if (metadata?.clientSigned === true) return "Cliente assinou o formulário";
+    if (metadata?.edited === true) return "Formulário atualizado";
+  }
+  return kindLabel(kind);
 }

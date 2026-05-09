@@ -283,11 +283,21 @@ export async function resolvePublicTimeline(
     if (t === "FORM_SUBMITTED") {
       const fId = typeof meta.formId === "string" ? meta.formId : null;
       const edited = meta.edited === true;
+      const label =
+        typeof meta.label === "string" && meta.label.trim().length > 0
+          ? meta.label.trim()
+          : null;
+      const fName = formName(fId);
+      const detailsWithLabel = fName
+        ? label
+          ? `${fName} · ${label}`
+          : fName
+        : label;
       return {
         ...base,
         kind: "form_submitted",
         title: edited ? "Formulário atualizado" : "Formulário recebido",
-        details: formName(fId),
+        details: detailsWithLabel,
       };
     }
     if (t === "TAG_ADDED") {
@@ -401,15 +411,36 @@ export async function resolvePublicTimeline(
       const fId = typeof meta.formId === "string" ? meta.formId : null;
       const returning = meta.returning === true;
       const edited = meta.edited === true;
+      const started = meta.started === true;
+      const clientSigned = meta.clientSigned === true;
+      const label =
+        typeof meta.label === "string" && meta.label.trim().length > 0
+          ? meta.label.trim()
+          : null;
+      // `started` (consultor abriu o form) é diferente de
+      // `submitted` (consultor enviou). Mantemos no mesmo `kind` no
+      // banco, mas o título reflete a natureza do evento.
+      const title = started
+        ? "Formulário iniciado"
+        : clientSigned
+          ? "Cliente assinou o formulário"
+          : edited
+            ? "Formulário atualizado"
+            : returning
+              ? "Resposta de formulário recebida"
+              : "Formulário recebido";
+      // Concatena label como sufixo no nome do form (ex: "Checklist · #00123").
+      const fName = formName(fId);
+      const detailsWithLabel = fName
+        ? label
+          ? `${fName} · ${label}`
+          : fName
+        : label;
       return {
         ...base,
         kind: "form_submitted",
-        title: edited
-          ? "Formulário atualizado"
-          : returning
-            ? "Resposta de formulário recebida"
-            : "Formulário recebido",
-        details: formName(fId),
+        title,
+        details: detailsWithLabel,
       };
     }
     if (j.kind === "lead_assigned") {

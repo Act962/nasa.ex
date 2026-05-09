@@ -46,6 +46,52 @@ import { useState, type CSSProperties } from "react";
 type ChildWidth = "third" | "half" | "two-thirds" | "full";
 const WIDTH_CYCLE: ChildWidth[] = ["full", "two-thirds", "half", "third"];
 
+// Alinhamento horizontal dos child blocks dentro do RowLayout. Aplica
+// `justify-content` no flex container — relevante quando os children não
+// preenchem 100% da largura (ex: dois blocos de 33% cada).
+type RowAlign =
+  | "start"
+  | "center"
+  | "end"
+  | "between"
+  | "around"
+  | "evenly";
+
+const ROW_ALIGN_OPTIONS: { value: RowAlign; label: string; hint: string }[] = [
+  { value: "start", label: "Esquerda", hint: "Blocos colados à esquerda" },
+  { value: "center", label: "Centro", hint: "Blocos centralizados juntos" },
+  { value: "end", label: "Direita", hint: "Blocos colados à direita" },
+  { value: "between", label: "Distribuídos (cantos)", hint: "Espaço só entre os blocos" },
+  { value: "around", label: "Distribuídos (com bordas)", hint: "Espaço igual entre e nas bordas" },
+  { value: "evenly", label: "Uniforme", hint: "Mesmo espaço entre tudo" },
+];
+
+function getRowAlign(blockInstance: FormBlockInstance): RowAlign {
+  const a = (blockInstance.attributes ?? {}) as { rowAlign?: RowAlign };
+  if (a.rowAlign && ROW_ALIGN_OPTIONS.some((o) => o.value === a.rowAlign)) {
+    return a.rowAlign;
+  }
+  return "start";
+}
+
+function getRowAlignClass(align: RowAlign): string {
+  switch (align) {
+    case "center":
+      return "justify-center";
+    case "end":
+      return "justify-end";
+    case "between":
+      return "justify-between";
+    case "around":
+      return "justify-around";
+    case "evenly":
+      return "justify-evenly";
+    case "start":
+    default:
+      return "justify-start";
+  }
+}
+
 function getChildWidth(child: FormBlockInstance): ChildWidth {
   // Lê primeiro `columnWidth` (novo) e cai em `width` antigo só se for um dos
   // valores válidos — assim coexiste com blocos que usam `width` em pixels
@@ -445,7 +491,10 @@ function RowLayoutCanvasComponent({
                 strategy={verticalListSortingStrategy}
               >
                 <div
-                  className="flex w-full flex-row flex-wrap items-stretch justify-start gap-3 py-4 px-3"
+                  className={cn(
+                    "flex w-full flex-row flex-wrap items-stretch gap-3 py-4 px-3",
+                    getRowAlignClass(getRowAlign(blockInstance)),
+                  )}
                   style={getPrimaryColorStyle(settings?.primaryColor)}
                 >
                   {childBlocks?.map((childBlock) => (
@@ -535,7 +584,10 @@ function RowLayoutFormComponent({
       >
         <CardContent className="px-2 pb-2 py-4">
           <div
-            className="flex w-full flex-row flex-wrap items-stretch justify-start gap-3 px-3"
+            className={cn(
+              "flex w-full flex-row flex-wrap items-stretch gap-3 px-3",
+              getRowAlignClass(getRowAlign(blockInstance)),
+            )}
             style={getPrimaryColorStyle(settings?.primaryColor)}
           >
             {childblocks.map((childblock) => {
@@ -576,7 +628,23 @@ function RowLayoutPropertiesComponent({
   blockInstance: FormBlockInstance;
 }) {
   const childblocks = blockInstance.childblocks || [];
-  const { selectedChildId, setSelectedChildId } = useBuilderStore();
+  const { selectedChildId, setSelectedChildId, updateAnyBlock } =
+    useBuilderStore();
+
+  // Atualiza `rowAlign` no próprio RowLayout — afeta `justify-content` do
+  // container flex que envolve os child blocks. Usa `updateAnyBlock` (sem
+  // parentId) pra que o store mantenha `selectedBlockLayout` sincronizado.
+  function commitRowAlign(value: RowAlign) {
+    updateAnyBlock(blockInstance.id, {
+      ...blockInstance,
+      attributes: {
+        ...(blockInstance.attributes ?? {}),
+        rowAlign: value,
+      },
+    });
+  }
+
+  const currentAlign = getRowAlign(blockInstance);
 
   // Mostra só o child selecionado. Se não há nada selecionado, lista compacta
   // pra escolher (ou orientação pra clicar no canvas).
@@ -584,40 +652,72 @@ function RowLayoutPropertiesComponent({
     ? childblocks.find((c) => c.id === selectedChildId)
     : null;
 
+  // Bloco "Alinhamento dos campos" — sempre visível no topo, mesmo sem
+  // child selecionado. Permite escolher como os children se distribuem
+  // horizontalmente quando não preenchem 100% da largura (ex: 2 blocos
+  // de 33% cada, podem ficar à esquerda, centro, direita, ou separados).
+  const alignmentSection = (
+    <div className="px-4 pt-4 pb-3 space-y-2 border-b">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Alinhamento dos campos
+      </div>
+      <select
+        className="w-full border rounded-md h-7 px-2 text-xs bg-transparent"
+        value={currentAlign}
+        onChange={(e) => commitRowAlign(e.target.value as RowAlign)}
+      >
+        {ROW_ALIGN_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <p className="text-[11px] text-muted-foreground leading-tight">
+        {ROW_ALIGN_OPTIONS.find((o) => o.value === currentAlign)?.hint}
+      </p>
+    </div>
+  );
+
   if (childblocks.length === 0) {
     return (
-      <div className="pt-4 px-4 text-xs text-muted-foreground italic">
-        Adicione blocos arrastando da barra lateral.
+      <div>
+        {alignmentSection}
+        <div className="pt-4 px-4 text-xs text-muted-foreground italic">
+          Adicione blocos arrastando da barra lateral.
+        </div>
       </div>
     );
   }
 
   if (!selectedChild) {
     return (
-      <div className="pt-4 px-4 space-y-2">
-        <p className="text-xs text-muted-foreground">
-          Clique em um bloco no formulário para configurar suas propriedades.
-        </p>
-        <div className="flex flex-col gap-1 pt-2">
-          {childblocks.map((c, idx) => {
-            const label =
-              (c.attributes?.label as string | undefined) ||
-              (c.attributes?.title as string | undefined) ||
-              FormBlocks[c.blockType]?.blockBtnElement.label ||
-              c.blockType;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setSelectedChildId(c.id)}
-                className="text-left text-xs px-2 py-1.5 rounded hover:bg-accent border border-transparent hover:border-border truncate"
-                title={label}
-              >
-                <span className="text-muted-foreground mr-1">{idx + 1}.</span>
-                {label}
-              </button>
-            );
-          })}
+      <div>
+        {alignmentSection}
+        <div className="pt-4 px-4 space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Clique em um bloco no formulário para configurar suas propriedades.
+          </p>
+          <div className="flex flex-col gap-1 pt-2">
+            {childblocks.map((c, idx) => {
+              const label =
+                (c.attributes?.label as string | undefined) ||
+                (c.attributes?.title as string | undefined) ||
+                FormBlocks[c.blockType]?.blockBtnElement.label ||
+                c.blockType;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSelectedChildId(c.id)}
+                  className="text-left text-xs px-2 py-1.5 rounded hover:bg-accent border border-transparent hover:border-border truncate"
+                  title={label}
+                >
+                  <span className="text-muted-foreground mr-1">{idx + 1}.</span>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
@@ -626,8 +726,9 @@ function RowLayoutPropertiesComponent({
   const selectedIndex = childblocks.findIndex((c) => c.id === selectedChild.id);
 
   return (
-    <div className="pt-3 w-full">
-      <div className="flex items-center justify-between px-3 pb-2 border-b">
+    <div className="w-full">
+      {alignmentSection}
+      <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b">
         <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
           Bloco {selectedIndex + 1} de {childblocks.length}
         </span>

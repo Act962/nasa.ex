@@ -141,11 +141,27 @@ export default function PublicLeadPage() {
   return (
     <main className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-2xl mx-auto space-y-4">
-        <header className="text-center space-y-1 py-4">
+        <header className="text-center space-y-2 py-4">
           <h1 className="text-2xl font-semibold">Olá, {lead.name}</h1>
           <p className="text-sm text-muted-foreground">
             Acompanhe em tempo real o status do seu atendimento.
           </p>
+          {/* Tracking atual em destaque — o setor onde o lead está hoje
+              é a info mais útil pro cliente entender o estágio. */}
+          <div className="flex justify-center pt-1">
+            <div
+              className="inline-flex items-center gap-2 rounded-full border-2 px-4 py-1.5 text-sm font-semibold shadow-sm"
+              style={{
+                borderColor: lead.status.color ?? "#1447e6",
+                color: lead.status.color ?? "#1447e6",
+                background: `${lead.status.color ?? "#1447e6"}10`,
+              }}
+              title="Setor atual do atendimento"
+            >
+              <GitBranch className="w-4 h-4" />
+              <span>{lead.tracking.name}</span>
+            </div>
+          </div>
         </header>
 
         <Card>
@@ -164,7 +180,7 @@ export default function PublicLeadPage() {
               <div>
                 <p className="font-medium">{lead.status.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  Setor: {lead.tracking.name}
+                  Setor: <strong>{lead.tracking.name}</strong>
                 </p>
               </div>
             </div>

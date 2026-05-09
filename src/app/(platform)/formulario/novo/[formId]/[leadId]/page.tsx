@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import {
 } from "@/features/form/hooks/use-form";
 import { useQueryLead } from "@/features/leads/hooks/use-lead";
 import { FormSubmitComponent } from "@/features/form/components/public/form-submit-component";
+import { FormLeadProvider } from "@/features/form/context/form-lead-context";
 import { NotAvaliable } from "@/features/form/components/public/not-avaliable";
 import type { FormBlockInstance } from "@/features/form/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
@@ -38,6 +39,24 @@ export default function Page() {
   const { form, isLoading: formLoading } = useQueryFormById({ formId });
   const { data: leadData, isLoading: leadLoading } = useQueryLead(leadId);
   const createMutation = useMutationCreateResponseForLead();
+
+  // Notifica a timeline (interna + pública via Pusher) que o consultor abriu
+  // o formulário. A procedure é idempotente (10min de janela) — refresh ou
+  // entrar/sair várias vezes não duplica eventos. Roda 1x por mount;
+  // o ref evita disparo duplo do StrictMode em dev.
+  const recordOpening = useMutation(
+    orpc.form.recordFormOpening.mutationOptions({}),
+  );
+  const openingRecordedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!formId || !leadId) return;
+    const key = `${formId}:${leadId}`;
+    if (openingRecordedRef.current === key) return;
+    openingRecordedRef.current = key;
+    recordOpening.mutate({ formId, leadId });
+    // recordOpening é estável dentro do componente; não precisa entrar nas deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formId, leadId]);
 
   const lead = (leadData as { lead?: any } | undefined)?.lead;
   const status = lead?.status as
@@ -192,6 +211,15 @@ export default function Page() {
 
       {/* Form em modo "novo preenchimento interno" */}
       <main className="flex-1 min-h-0">
+        <FormLeadProvider
+          value={{
+            leadId,
+            leadPublicToken:
+              (lead as { publicToken?: string | null } | null)?.publicToken ??
+              null,
+            formId,
+          }}
+        >
         <FormSubmitComponent
           id={form.id}
           blocks={blocks}
@@ -230,11 +258,18 @@ export default function Page() {
                 router.replace(`/formulario/${slug}/${newResponseId}`);
               }
             } catch (err) {
-              toast.error("Falha ao enviar a resposta");
+              // Quando o erro é FORBIDDEN (user não é participante do
+              // tracking atual do lead), mostra a mensagem específica
+              // — útil pra o consultor entender o motivo do bloqueio.
+              const msg =
+                (err as { message?: string } | null | undefined)?.message ??
+                "Falha ao enviar a resposta";
+              toast.error(msg);
               throw err;
             }
           }}
         />
+        </FormLeadProvider>
       </main>
     </div>
   );

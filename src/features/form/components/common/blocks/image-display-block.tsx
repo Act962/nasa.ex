@@ -161,7 +161,7 @@ function PropertiesView({
                 />
                 <FormControl>
                   <Input
-                    className="mt-2"
+                    className="mt-2 h-7 text-xs"
                     placeholder="ou cole uma URL/key"
                     {...field}
                     onChange={(e) => {
@@ -181,7 +181,11 @@ function PropertiesView({
               <FormItem>
                 <FormLabel className="text-[13px] font-normal">Texto alternativo</FormLabel>
                 <FormControl>
-                  <Input {...field} onChange={(e) => { field.onChange(e); commit({ alt: e.target.value }); }} />
+                  <Input
+                    className="h-7 text-xs"
+                    {...field}
+                    onChange={(e) => { field.onChange(e); commit({ alt: e.target.value }); }}
+                  />
                 </FormControl>
               </FormItem>
             )}
@@ -196,6 +200,7 @@ function PropertiesView({
                   <FormControl>
                     <Input
                       type="number"
+                      className="h-7 text-xs"
                       value={field.value}
                       onChange={(e) => {
                         const v = Number(e.target.value) || 0;
@@ -216,6 +221,7 @@ function PropertiesView({
                   <FormControl>
                     <Input
                       type="number"
+                      className="h-7 text-xs"
                       value={field.value}
                       onChange={(e) => {
                         const v = Number(e.target.value) || 0;
@@ -236,7 +242,7 @@ function PropertiesView({
                 <FormLabel className="text-[13px] font-normal">Alinhamento</FormLabel>
                 <FormControl>
                   <select
-                    className="w-full border rounded-md h-9 px-2 text-sm"
+                    className="w-full border rounded-md h-7 px-2 text-xs bg-transparent"
                     value={field.value}
                     onChange={(e) => {
                       const v = e.target.value as AttributesType["align"];

@@ -411,6 +411,15 @@ model Tracking {
   globalAiActive            Boolean   @default(false) @map("global_ai_active")
   isTemplate                Boolean   @default(false) @map("is_template")
   templateMarkedByModerator Boolean   @default(false) @map("template_marked_by_moderator")
+  // Aparência do card no dashboard de Tracking. `cardBorderColor` é uma
+  // cor hex/rgb/hsl ou null (sem cor); `cardBackgroundImage` é a chave S3
+  // de uma imagem que vira fundo desfocado do card.
+  // `cardBackgroundBlur` é o raio do filter blur em px (0-30, default 8).
+  // `cardBackgroundOpacity` é a opacidade da imagem em % (0-100, default 25).
+  cardBorderColor           String?   @map("card_border_color")
+  cardBackgroundImage       String?   @map("card_background_image")
+  cardBackgroundBlur        Int       @default(8) @map("card_background_blur")
+  cardBackgroundOpacity     Int       @default(25) @map("card_background_opacity")
   createdAt                 DateTime  @default(now()) @map("created_at")
   updatedAt                 DateTime  @updatedAt @map("updated_at")
 
@@ -1403,6 +1412,15 @@ model FormResponses {
   jsonResponse Json     @default("[]")
   leadId       String?  @map("lead_id")
   lead         Lead?    @relation(fields: [leadId], references: [id])
+
+  // Título customizado da resposta (ex: "#00123" — número da O.S).
+  // - `label` é exibido como sufixo após o nome do form: "Checklist · #00123".
+  // - Auto-derivado de um bloco do form marcado com
+  //   `attributes.useAsResponseLabel === true`.
+  // - Se `labelManuallyEdited === true`, saves seguintes não sobrescrevem
+  //   (manual prevalece). Limpar manualmente devolve ao modo automático.
+  label               String?  @map("label")
+  labelManuallyEdited Boolean  @default(false) @map("label_manually_edited")
 
   form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
 

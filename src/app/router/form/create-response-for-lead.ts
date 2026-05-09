@@ -3,6 +3,11 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { recordLeadEvent } from "@/features/leads/lib/history";
+import {
+  checkLeadTrackingParticipant,
+  NOT_TRACKING_PARTICIPANT_MESSAGE,
+} from "@/features/leads/lib/tracking-participant-guard";
+import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
 
 /**
  * Cria uma `FormResponses` em nome de um consultor logado, vinculando ao
@@ -38,10 +43,12 @@ export const createResponseForLead = base
 
       // Carrega form e lead sem filtrar por org ativa — checamos coerência
       // entre os dois (mesma org) e que o user é membro daquela org.
+      // `jsonBlock` vem junto pra auto-derivar `label` da resposta (campo
+      // marcado com `attributes.useAsResponseLabel === true`).
       const [form, lead] = await Promise.all([
         prisma.form.findUnique({
           where: { id: formId },
-          select: { id: true, organizationId: true },
+          select: { id: true, organizationId: true, jsonBlock: true },
         }),
         prisma.lead.findUnique({
           where: { id: leadId },
@@ -62,7 +69,7 @@ export const createResponseForLead = base
         });
       }
 
-      // User precisa ser membro da org do form/lead.
+      // User precisa ser membro da org do form/lead (defesa em profundidade).
       const member = await prisma.member.findFirst({
         where: { organizationId: form.organizationId, userId },
         select: { id: true },
@@ -73,15 +80,35 @@ export const createResponseForLead = base
         });
       }
 
+      // Regra de NEGÓCIO: user precisa ser participante do tracking
+      // ATUAL do lead pra criar respostas.
+      const { ok } = await checkLeadTrackingParticipant(leadId, userId);
+      if (!ok) {
+        throw errors.FORBIDDEN({
+          message: NOT_TRACKING_PARTICIPANT_MESSAGE,
+        });
+      }
+
+      // Auto-deriva o título customizado (label) a partir do bloco marcado
+      // com `useAsResponseLabel`. `labelManuallyEdited=false` na criação —
+      // saves seguintes podem re-derivar até o user editar manualmente.
+      const autoLabel = deriveResponseLabel({
+        jsonBlock: form.jsonBlock,
+        jsonResponse: response,
+      });
+
       const created = await prisma.formResponses.create({
         data: {
           jsonResponse: response,
           formId,
           leadId,
+          label: autoLabel,
+          labelManuallyEdited: false,
         },
         select: {
           id: true,
           createdAt: true,
+          label: true,
         },
       });
 
@@ -99,6 +126,9 @@ export const createResponseForLead = base
           formId,
           source: "internal",
           createdBy: userId,
+          // Label vai no metadata pra renderização imediata em timelines
+          // sem precisar de outra query.
+          label: created.label ?? null,
         },
       });
 

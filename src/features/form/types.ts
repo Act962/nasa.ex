@@ -11,6 +11,7 @@ export type FormBlockType =
   | "Url"
   | "MaskedField"
   | "PageBreak"
+  | "QrCodeMulti"
   | "StarRating"
   | "Heading"
   | "Paragraph"

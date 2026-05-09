@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { orpc } from "@/lib/orpc";
 import { FormSubmitComponent } from "@/features/form/components/public/form-submit-component";
+import { FormLeadProvider } from "@/features/form/context/form-lead-context";
 import type { FieldValue, FormBlockInstance } from "@/features/form/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { Lock } from "lucide-react";
@@ -194,6 +195,16 @@ export default function Page() {
 
       {/* Form em modo read-only com SignatureClient interativo */}
       <main className="flex-1 min-h-0">
+        <FormLeadProvider
+          value={{
+            // O cliente final acessa via token; já temos lead.id mas
+            // expomos o token como `leadPublicToken` pra QRs de
+            // acompanhamento gerarem o mesmo link compartilhado.
+            leadId: response.lead?.id ?? null,
+            leadPublicToken: token,
+            formId: response.form.id,
+          }}
+        >
         <FormSubmitComponent
           id={response.form.id}
           blocks={blocks}
@@ -241,6 +252,7 @@ export default function Page() {
             }
           }}
         />
+        </FormLeadProvider>
       </main>
     </div>
   );

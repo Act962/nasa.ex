@@ -1,23 +1,23 @@
 "use client";
 
 import { useMemo } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { toast } from "sonner";
 import {
-  EyeIcon,
-  Link2,
+  ArrowRight,
   Loader,
   PencilLine,
   SquarePenIcon,
 } from "lucide-react";
 import { orpc } from "@/lib/orpc";
 import { CreateForm } from "@/features/form/components/create-form";
-import { buildResponseSlug } from "@/features/form/lib/response-slug";
-import { useQueryLead } from "@/features/leads/hooks/use-lead";
-import { useConstructUrl } from "@/hooks/use-construct-url";
+import {
+  STATE_COLOR,
+  STATE_LABEL,
+  type FormResponseState,
+} from "@/features/form/lib/form-response-state";
 import {
   Card,
   CardContent,
@@ -47,7 +47,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 type ResponseEntry = {
   id: string;
   createdAt: Date | string;
-  jsonResponse: unknown;
+  label: string | null;
+  state: FormResponseState;
   form: { id: string; name: string };
 };
 
@@ -59,6 +60,8 @@ type FormGroup = {
   responses: ResponseEntry[];
   lastAt: Date | null;
   firstAt: Date | null;
+  lastLabel: string | null;
+  lastState: FormResponseState | null;
 };
 
 function indexByForm(
@@ -88,9 +91,13 @@ function buildGroups(
     const respList = responsesByForm.get(f.id) ?? [];
     let lastAt: Date | null = null;
     let firstAt: Date | null = null;
+    let lastResponse: ResponseEntry | null = null;
     for (const r of respList) {
       const t = new Date(r.createdAt);
-      if (!lastAt || t > lastAt) lastAt = t;
+      if (!lastAt || t > lastAt) {
+        lastAt = t;
+        lastResponse = r;
+      }
       if (!firstAt || t < firstAt) firstAt = t;
     }
     return {
@@ -101,6 +108,8 @@ function buildGroups(
       responses: respList,
       lastAt,
       firstAt,
+      lastLabel: lastResponse?.label ?? null,
+      lastState: lastResponse?.state ?? null,
     };
   });
   // Ordena: forms com respostas (mais recentes primeiro), depois forms sem
@@ -135,14 +144,9 @@ export function LeadFormResponses({
 
   const isLoading = respLoading || formsLoading;
 
-  // Status atual + responsável do lead — exibidos como contexto em cada item
-  // de form preenchido na seção "Todos os forms".
-  const { data: leadData } = useQueryLead(leadId);
-  const leadStatus = (leadData as { lead?: { status?: { name?: string; color?: string } } } | undefined)
-    ?.lead?.status;
-  const leadResponsible = (leadData as {
-    lead?: { responsible?: { id?: string; name?: string; image?: string | null } };
-  } | undefined)?.lead?.responsible;
+  // O contexto do lead (status/responsável) deixou de aparecer aqui — agora
+  // o card é puramente de listagem de forms; quem mostra esse contexto é a
+  // página dedicada `/contatos/<leadId>/formularios/<formId>`.
 
   const responses = useMemo(
     () => (respData?.responses as ResponseEntry[]) ?? [],
@@ -274,8 +278,6 @@ export function LeadFormResponses({
                   key={g.formId}
                   group={g}
                   leadId={leadId}
-                  leadStatus={leadStatus}
-                  leadResponsible={leadResponsible}
                 />
               ))}
             </div>
@@ -332,67 +334,36 @@ function StatsCard({
 function FormGroupItem({
   group,
   leadId,
-  leadStatus,
-  leadResponsible,
 }: {
   group: FormGroup;
   leadId: string;
-  leadStatus?: { name?: string; color?: string };
-  leadResponsible?: { id?: string; name?: string; image?: string | null };
 }) {
   const router = useRouter();
   const hasResponses = group.responses.length > 0;
-  const responsibleAvatar = useConstructUrl(leadResponsible?.image || "");
 
-  // "Ver/continuar preenchimento" abre a resposta MAIS RECENTE em modo edit.
-  const latestResponse = group.responses[0];
-  function openLatestResponse() {
-    if (!latestResponse) return;
-    const slug = buildResponseSlug(group.formName, latestResponse.createdAt);
-    router.push(`/formulario/${slug}/${latestResponse.id}`);
+  // "Abrir" → página dedicada que lista todas as respostas deste form pra
+  // este lead, com botão "Preencher novo" e edição inline do título.
+  function openFormPage() {
+    router.push(`/contatos/${leadId}/formularios/${group.formId}`);
   }
 
-  // "Preencher" — pra forms que o lead ainda NÃO respondeu. Abre o consultor
-  // num form novo já amarrado ao lead.
+  // "Preencher" — atalho pra forms ainda sem nenhuma resposta. Vai direto
+  // pro editor; a row de FormResponses só nasce no submit.
   function startNewResponse() {
     router.push(`/formulario/novo/${group.formId}/${leadId}`);
   }
 
-  // "Link visualização cliente" — gera (ou reusa) o publicToken do lead e
-  // copia a URL `/lead/<token>/formulario/<responseId>` pro clipboard.
-  // Cliente vê o form em modo read-only e só pode assinar a SignatureClient.
-  const generateLink = useMutation(
-    orpc.leads.generatePublicLink.mutationOptions({}),
-  );
-  function copyClientFormLink() {
-    if (!latestResponse) return;
-    generateLink.mutate(
-      { leadId, rotate: false },
-      {
-        onSuccess: (res) => {
-          const r = res as { token?: string };
-          if (!r.token) {
-            toast.error("Não foi possível gerar o link");
-            return;
-          }
-          const url = `${window.location.origin}/lead/${r.token}/formulario/${latestResponse.id}`;
-          navigator.clipboard
-            .writeText(url)
-            .then(() =>
-              toast.success("Link de visualização do cliente copiado!"),
-            )
-            .catch(() => toast.info(url));
-        },
-        onError: () => toast.error("Falha ao gerar link do cliente"),
-      },
-    );
-  }
+  // Cor + label do estado da última resposta (5 estados: empty/in_progress/
+  // waiting_client_signature/stale/complete). Vira badge ao lado do nome.
+  const stateColor = group.lastState ? STATE_COLOR[group.lastState] : null;
+  const stateLabel = group.lastState ? STATE_LABEL[group.lastState] : null;
 
   return (
     <div className="flex flex-col gap-2">
       <Item
-        className="w-full hover:bg-foreground/10 transition-colors cursor-default"
+        className="w-full hover:bg-foreground/10 transition-colors cursor-pointer"
         variant="outline"
+        onClick={hasResponses ? openFormPage : undefined}
       >
         <ItemContent className="flex-row">
           <ItemHeader className="flex flex-col items-start gap-2">
@@ -400,48 +371,35 @@ function FormGroupItem({
               {!hasResponses && (
                 <SquarePenIcon className="size-4 shrink-0 text-muted-foreground/60" />
               )}
-              <span>{group.formName}</span>
+              <span>
+                {group.formName}
+                {group.lastLabel && (
+                  <span className="text-muted-foreground font-normal">
+                    {" · "}
+                    {group.lastLabel}
+                  </span>
+                )}
+              </span>
 
-              {/* Badge do status atual do lead — só pra forms já preenchidos. */}
-              {hasResponses && leadStatus?.name && (
+              {/* Badge de estado da última resposta */}
+              {hasResponses && stateColor && stateLabel && (
                 <span
                   className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium"
                   style={{
-                    borderColor: leadStatus.color || undefined,
-                    color: leadStatus.color || undefined,
-                    background: leadStatus.color
-                      ? `${leadStatus.color}15`
-                      : undefined,
+                    borderColor: stateColor,
+                    color: stateColor === "#ffffff" ? "#475569" : stateColor,
+                    background:
+                      stateColor === "#ffffff"
+                        ? "#f1f5f9"
+                        : `${stateColor}15`,
                   }}
-                  title="Status atual do lead"
+                  title={stateLabel}
                 >
                   <span
                     className="inline-block size-1.5 rounded-full"
-                    style={{ background: leadStatus.color || "#888" }}
+                    style={{ background: stateColor }}
                   />
-                  {leadStatus.name}
-                </span>
-              )}
-
-              {/* Responsável pela etapa atual — só pra forms preenchidos. */}
-              {hasResponses && leadResponsible?.name && (
-                <span
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-foreground/10 bg-foreground/5 text-[10px] text-muted-foreground"
-                  title={`Responsável: ${leadResponsible.name}`}
-                >
-                  {leadResponsible.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={responsibleAvatar}
-                      alt={leadResponsible.name}
-                      className="size-3.5 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="size-3.5 rounded-full bg-foreground/15 flex items-center justify-center text-[8px] font-semibold">
-                      {leadResponsible.name.slice(0, 1).toUpperCase()}
-                    </span>
-                  )}
-                  {leadResponsible.name}
+                  {stateLabel}
                 </span>
               )}
             </ItemTitle>
@@ -478,28 +436,18 @@ function FormGroupItem({
             </Button>
           )}
 
-          {/* Form com respostas → abre a mais recente em modo edit pra
-              continuar/conferir o preenchimento. */}
+          {/* Form com respostas → abre a página dedicada que lista todas
+              as respostas e permite preencher uma nova. */}
           {hasResponses && (
-            <>
-              <Button
-                size="icon-sm"
-                variant="outline"
-                onClick={openLatestResponse}
-                title="Ver/continuar preenchimento"
-              >
-                <EyeIcon />
-              </Button>
-              <Button
-                size="icon-sm"
-                variant="outline"
-                onClick={copyClientFormLink}
-                disabled={generateLink.isPending}
-                title="Link de visualização do cliente (read-only, com assinatura)"
-              >
-                <Link2 />
-              </Button>
-            </>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={openFormPage}
+              title="Ver respostas deste formulário"
+            >
+              Abrir
+              <ArrowRight className="size-4" />
+            </Button>
           )}
         </ItemActions>
       </Item>

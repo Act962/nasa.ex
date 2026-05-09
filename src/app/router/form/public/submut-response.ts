@@ -12,6 +12,7 @@ import {
   shouldLogUtmLanding,
 } from "@/lib/tracking/tracking-params";
 import { recordLeadEvent } from "@/features/leads/lib/history";
+import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
 
 export const submitResponse = base
   .route({
@@ -58,6 +59,7 @@ export const submitResponse = base
             published: true,
           },
           select: {
+            jsonBlock: true,
             settings: {
               select: {
                 trackingId: true,
@@ -182,6 +184,14 @@ export const submitResponse = base
           }
         }
 
+        // Auto-deriva o título customizado da resposta (label) a partir do
+        // bloco do form marcado com `attributes.useAsResponseLabel`. Submit
+        // público sempre nasce com `labelManuallyEdited=false` (default).
+        const autoLabel = deriveResponseLabel({
+          jsonBlock: form.jsonBlock,
+          jsonResponse: response,
+        });
+
         const updatedForm = await tx.form.update({
           where: {
             id,
@@ -192,6 +202,7 @@ export const submitResponse = base
               create: {
                 jsonResponse: response,
                 ...(leadId && { leadId }),
+                label: autoLabel,
               },
             },
             responses: {
@@ -205,20 +216,26 @@ export const submitResponse = base
             formSubmissions: {
               orderBy: { createdAt: "desc" },
               take: 1,
-              select: { id: true },
+              select: { id: true, label: true },
             },
           },
         });
 
         if (leadId) {
-          const newResponseId = updatedForm.formSubmissions?.[0]?.id ?? null;
+          const lastSub = updatedForm.formSubmissions?.[0];
+          const newResponseId = lastSub?.id ?? null;
+          const newResponseLabel = lastSub?.label ?? null;
           await recordLeadEvent(
             {
               leadId,
               eventType: "FORM_SUBMITTED",
               metadata: newResponseId
-                ? { formResponseId: newResponseId, formId: id }
-                : { formId: id },
+                ? {
+                    formResponseId: newResponseId,
+                    formId: id,
+                    label: newResponseLabel,
+                  }
+                : { formId: id, label: newResponseLabel },
             },
             tx,
           );

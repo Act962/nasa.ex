@@ -23,6 +23,7 @@ export type LeadEventType =
   | "STATUS_CHANGE"
   | "TRACKING_CHANGE"
   | "RESPONSIBLE_CHANGE"
+  | "FORM_STARTED"
   | "FORM_SUBMITTED"
   | "TAG_ADDED"
   | "TAG_REMOVED"
@@ -52,6 +53,11 @@ const TYPE_TO_KIND: Partial<Record<LeadEventType, LeadJourneyEventKind>> = {
   STATUS_CHANGE: "status_changed",
   TRACKING_CHANGE: "status_changed",
   RESPONSIBLE_CHANGE: "lead_assigned",
+  // FORM_STARTED e FORM_SUBMITTED dividem o mesmo `kind` no banco
+  // (LeadJourneyEvent.kind = "form_submit"); o front diferencia pelo
+  // `metadata.started` (true → ícone/label diferente). Mantém o schema
+  // unificado e evita migration nova só pra um literal.
+  FORM_STARTED: "form_submit",
   FORM_SUBMITTED: "form_submit",
   TAG_ADDED: "tag_added",
 };
@@ -60,6 +66,7 @@ const PUBLIC_TIMELINE_EVENTS: ReadonlySet<LeadEventType> = new Set<LeadEventType
   "STATUS_CHANGE",
   "TRACKING_CHANGE",
   "RESPONSIBLE_CHANGE",
+  "FORM_STARTED",
   "FORM_SUBMITTED",
   "FILE_UPLOADED",
   "SLA_BREACHED",
