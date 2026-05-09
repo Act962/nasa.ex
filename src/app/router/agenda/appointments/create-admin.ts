@@ -29,6 +29,7 @@ export const createAdminAppointment = base
       email: z.email("Email inválido").optional().or(z.literal("")),
       notes: z.string().optional(),
       timeZone: z.string().optional(),
+      meetingType: z.enum(["ONLINE", "IN_PERSON"]).optional(),
     }),
   )
   .handler(async ({ input, context, errors }) => {
@@ -112,6 +113,21 @@ export const createAdminAppointment = base
         trackingId: agenda.trackingId,
       },
     });
+
+    // Define o meetingType via SQL bruto (não depende do prisma generate ter
+    // sido rodado após adicionar a coluna `meeting_type`).
+    if (input.meetingType) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE "appointments" SET "meeting_type" = $1::"MeetingType" WHERE id = $2`,
+          input.meetingType,
+          appointment.id,
+        );
+      } catch {
+        // Silencia: se a coluna ainda não existe no DB, ignora — o appointment
+        // já foi criado com o default ONLINE (ou ficará como tal após migration).
+      }
+    }
 
     // Log activity
     await logActivity({

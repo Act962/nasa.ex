@@ -22,6 +22,20 @@ export const getAppointmentsByTracking = base
           organizationId: context.org.id,
         },
       },
+      orderBy: { startsAt: "asc" },
+      include: {
+        agenda: { select: { id: true, name: true } },
+        lead: { select: { id: true, name: true, email: true, phone: true } },
+        orgProject: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            color: true,
+            avatar: true,
+          },
+        },
+      },
     });
 
     return { appointments };

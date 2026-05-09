@@ -197,7 +197,31 @@ export const useAdminCreateAppointment = () => {
   return useMutation(
     orpc.agenda.appointments.createAdmin.mutationOptions({
       onSuccess: (data) => {
-        toast.success("Agendamento criado com sucesso!");
+        // Link público que o lead usa pra reagendar/cancelar
+        const baseUrl =
+          (typeof window !== "undefined" &&
+            (process.env.NEXT_PUBLIC_BASE_URL ?? window.location.origin)) ||
+          "";
+        const publicLink = baseUrl
+          ? `${baseUrl}/agenda/appointment/${data.appointment.id}`
+          : "";
+
+        toast.success("Agendamento criado com sucesso!", {
+          description: publicLink
+            ? "Clique em 'Copiar link' para mandar ao lead."
+            : undefined,
+          duration: 8000,
+          action: publicLink
+            ? {
+                label: "Copiar link",
+                onClick: () => {
+                  navigator.clipboard.writeText(publicLink);
+                  toast.success("Link copiado!");
+                },
+              }
+            : undefined,
+        });
+
         queryClient.invalidateQueries(
           orpc.agenda.appointments.getManyByTracking.queryOptions({
             input: { trackingId: data.appointment.trackingId ?? "" },
@@ -402,6 +426,51 @@ export const useCompleteAppointment = () => {
       },
       onError: (error) => {
         toast.error("Erro ao concluir agendamento: " + error.message);
+      },
+    }),
+  );
+};
+
+export const useSyncAppointmentToGoogleCalendar = () => {
+  return useMutation(
+    orpc.agenda.appointments.syncToGoogleCalendar.mutationOptions({
+      onSuccess: (data) => {
+        toast.success("Evento criado no Google Calendar", {
+          description: `Convite enviado para ${data.attendeeEmail}.`,
+        });
+      },
+      onError: (error) => {
+        toast.error("Falha ao sincronizar com Google Calendar", {
+          description: error.message,
+        });
+      },
+    }),
+  );
+};
+
+export const useSetAppointmentMeetingType = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.agenda.appointments.setMeetingType.mutationOptions({
+      onSuccess: (data) => {
+        toast.success("Tipo de reunião atualizado");
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.get.queryOptions({
+            input: { appointmentId: data.appointment.id },
+          }),
+        );
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.getManyByOrg.queryOptions({ input: {} }),
+        );
+        queryClient.invalidateQueries(
+          orpc.agenda.appointments.getManyByTracking.queryOptions({
+            input: { trackingId: data.appointment.trackingId ?? "" },
+          }),
+        );
+      },
+      onError: (error) => {
+        toast.error("Erro ao atualizar tipo: " + error.message);
       },
     }),
   );
