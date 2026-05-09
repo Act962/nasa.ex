@@ -28,6 +28,7 @@ import { v4 as uuidv4 } from "uuid";
 import { FormSettings } from "@/generated/prisma/client";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { TagDropdown } from "./dropdown-select-tag";
+import { usePrefillValue } from "@/features/form/context/form-prefill-context";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "RadioSelect";
@@ -41,7 +42,7 @@ type attributesType = {
 type propertiesValidateSchemaType = z.input<typeof propertiesValidateSchema>;
 
 const propertiesValidateSchema = z.object({
-  label: z.string().trim().min(2).max(255),
+  label: z.string().trim().max(255).optional(),
   required: z.boolean().default(false),
   options: z.array(
     z.object({ value: z.string().min(1), tagId: z.string().nullable() }),
@@ -98,15 +99,15 @@ function RadioSelectCanvasComponent({
   gap-3 w-full
     "
     >
-      <Label
-        className="
-     text-base font-normal! mb-2
+      {label?.trim() && (
+        <Label className="
+     text-base font-normal! mb-2 whitespace-normal break-words leading-snug
      "
-        style={{ color: textColor }}
-      >
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
+        style={{ color: textColor }}>
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+        </Label>
+      )}
 
       <RadioGroup
         disabled={true}
@@ -161,14 +162,30 @@ function RadioSelectFormComponent({
 
   const textColor = getContrastColor(settings?.backgroundColor || "");
 
+  // Prefill (modo edição): se a resposta tem valor salvo, preenche o estado
+  // inicial e propaga via handleBlur no mount pra que o salvamento subsequente
+  // não sobrescreva com vazio mesmo se o user não tocar no campo.
+  const prefill = usePrefillValue(block.id);
+  const initialOption = prefill
+    ? options.find((o) => o.value === prefill)
+    : undefined;
   const [value, setValue] = useState<{
     value: string;
     meta: Record<string, unknown>;
   }>({
-    value: "",
-    meta: {},
+    value: prefill ?? "",
+    meta: { tagId: initialOption?.tagId || null },
   });
   const [isError, setIsError] = useState(false);
+  useEffect(() => {
+    if (prefill && handleBlur) {
+      handleBlur(block.id, {
+        value: prefill,
+        meta: { tagId: initialOption?.tagId || null },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const validateField = (val: string) => {
     if (required) {
@@ -179,13 +196,13 @@ function RadioSelectFormComponent({
 
   return (
     <div className="flex flex-col gap-3 w-full">
-      <Label
-        className={`text-base font-normal! mb-2 ${isError || isSubmitError ? "text-red-500" : ""}`}
-        style={{ color: textColor }}
-      >
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
+      {label?.trim() && (
+        <Label className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-red-500" : ""}`}
+        style={{ color: textColor }}>
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+        </Label>
+      )}
 
       <RadioGroup
         value={value.value}
@@ -238,14 +255,14 @@ function RadioSelectFormComponent({
       </RadioGroup>
 
       {isError ? (
-        <p className="text-red-500 text-[0.8rem]">
+        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
           {required && value.value.trim().length === 0
             ? "This field is required"
             : ""}
         </p>
       ) : (
         errorMessage && (
-          <p className="text-red-500 text-[0.8rem]">{errorMessage}</p>
+          <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage}</p>
         )
       )}
     </div>

@@ -13,7 +13,7 @@ import {
   StickyNoteIcon,
 } from "lucide-react";
 import { TabNotes } from "./notes";
-import { LeadFiles } from "./lead-files/lead-files";
+import { LeadAttachmentsByFolder } from "./lead-files/lead-attachments-by-folder";
 import { ObservationLead } from "./observations";
 import { JourneyTimeline } from "./journey-timeline";
 import { LeadFormResponses } from "./lead-form-responses";
@@ -46,7 +46,7 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       name: "Arquivos",
       value: "files",
       icon: FileIcon,
-      content: <LeadFiles leadId={initialData.lead.id} />,
+      content: <LeadAttachmentsByFolder leadId={initialData.lead.id} />,
     },
     {
       name: "Formulários",

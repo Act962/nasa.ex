@@ -485,3 +485,20 @@ input::placeholder {
     }
   }
 }
+
+@keyframes pulse-ring {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px var(--primary, #1447e6),
+      0 0 0 6px color-mix(in srgb, var(--primary, #1447e6) 25%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--primary, #1447e6) 60%, transparent),
+      0 0 0 12px color-mix(in srgb, var(--primary, #1447e6) 0%, transparent);
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 1.6s ease-in-out infinite;
+}

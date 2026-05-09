@@ -1384,6 +1384,10 @@ model FormSettings {
   showEmail       Boolean  @default(true) @map("show_email")
   showPhone       Boolean  @default(true) @map("show_phone")
   finishMessage   String   @default("Obrigado por seu cadastro!") @map("finish_message")
+  stepMode        String   @default("off") @map("step_mode")
+  nextButtonLabel String   @default("Próximo") @map("next_button_label")
+  progressMascots Json     @default("[]") @map("progress_mascots")
+  nextButtonAction Json    @default("{\"type\":\"next_block\"}") @map("next_button_action")
 
   tracking Tracking? @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   status   Status?   @relation(fields: [statusId], references: [id], onDelete: SetNull)

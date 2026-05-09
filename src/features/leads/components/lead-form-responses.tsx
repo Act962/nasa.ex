@@ -1,22 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 import {
-  ChevronDown,
-  ChevronRight,
-  ClipboardList,
-  ExternalLink,
   EyeIcon,
+  Link2,
   Loader,
+  PencilLine,
   SquarePenIcon,
 } from "lucide-react";
 import { orpc } from "@/lib/orpc";
 import { CreateForm } from "@/features/form/components/create-form";
+import { buildResponseSlug } from "@/features/form/lib/response-slug";
+import { useQueryLead } from "@/features/leads/hooks/use-lead";
+import { useConstructUrl } from "@/hooks/use-construct-url";
 import {
   Card,
   CardContent,
@@ -49,38 +50,6 @@ type ResponseEntry = {
   jsonResponse: unknown;
   form: { id: string; name: string };
 };
-
-const SYSTEM_KEYS = new Set(["user_name", "user_email", "user_phone"]);
-
-function parseResponse(json: unknown): Record<string, unknown> {
-  if (!json) return {};
-  if (typeof json === "string") {
-    try {
-      return JSON.parse(json) as Record<string, unknown>;
-    } catch {
-      return {};
-    }
-  }
-  if (typeof json === "object") return json as Record<string, unknown>;
-  return {};
-}
-
-function renderValue(value: unknown): string {
-  if (value === null || value === undefined) return "-";
-  if (typeof value === "string") return value || "-";
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  if (typeof value === "object") {
-    const v = value as { value?: unknown; responseValue?: unknown };
-    if (v.value !== undefined) return renderValue(v.value);
-    if (v.responseValue !== undefined) return renderValue(v.responseValue);
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return "—";
-    }
-  }
-  return String(value);
-}
 
 type FormGroup = {
   formId: string;
@@ -166,26 +135,14 @@ export function LeadFormResponses({
 
   const isLoading = respLoading || formsLoading;
 
-  const generateLink = useMutation(
-    orpc.leads.generatePublicLink.mutationOptions({}),
-  );
-
-  function openWithPrefill(formId: string) {
-    generateLink.mutate(
-      { leadId, rotate: false },
-      {
-        onSuccess: (res) => {
-          const token = (res as { token: string }).token;
-          window.open(
-            `${window.location.origin}/submit-form/${formId}?leadToken=${encodeURIComponent(token)}`,
-            "_blank",
-            "noopener,noreferrer",
-          );
-        },
-        onError: () => toast.error("Falha ao gerar link com dados do lead"),
-      },
-    );
-  }
+  // Status atual + responsável do lead — exibidos como contexto em cada item
+  // de form preenchido na seção "Todos os forms".
+  const { data: leadData } = useQueryLead(leadId);
+  const leadStatus = (leadData as { lead?: { status?: { name?: string; color?: string } } } | undefined)
+    ?.lead?.status;
+  const leadResponsible = (leadData as {
+    lead?: { responsible?: { id?: string; name?: string; image?: string | null } };
+  } | undefined)?.lead?.responsible;
 
   const responses = useMemo(
     () => (respData?.responses as ResponseEntry[]) ?? [],
@@ -316,8 +273,9 @@ export function LeadFormResponses({
                 <FormGroupItem
                   key={g.formId}
                   group={g}
-                  onOpenWithPrefill={() => openWithPrefill(g.formId)}
-                  prefillLoading={generateLink.isPending}
+                  leadId={leadId}
+                  leadStatus={leadStatus}
+                  leadResponsible={leadResponsible}
                 />
               ))}
             </div>
@@ -373,44 +331,119 @@ function StatsCard({
 
 function FormGroupItem({
   group,
-  onOpenWithPrefill,
-  prefillLoading,
+  leadId,
+  leadStatus,
+  leadResponsible,
 }: {
   group: FormGroup;
-  onOpenWithPrefill: () => void;
-  prefillLoading?: boolean;
+  leadId: string;
+  leadStatus?: { name?: string; color?: string };
+  leadResponsible?: { id?: string; name?: string; image?: string | null };
 }) {
   const router = useRouter();
   const hasResponses = group.responses.length > 0;
-  const [expanded, setExpanded] = useState(false);
+  const responsibleAvatar = useConstructUrl(leadResponsible?.image || "");
 
-  function toggle() {
-    if (hasResponses) setExpanded((v) => !v);
+  // "Ver/continuar preenchimento" abre a resposta MAIS RECENTE em modo edit.
+  const latestResponse = group.responses[0];
+  function openLatestResponse() {
+    if (!latestResponse) return;
+    const slug = buildResponseSlug(group.formName, latestResponse.createdAt);
+    router.push(`/formulario/${slug}/${latestResponse.id}`);
+  }
+
+  // "Preencher" — pra forms que o lead ainda NÃO respondeu. Abre o consultor
+  // num form novo já amarrado ao lead.
+  function startNewResponse() {
+    router.push(`/formulario/novo/${group.formId}/${leadId}`);
+  }
+
+  // "Link visualização cliente" — gera (ou reusa) o publicToken do lead e
+  // copia a URL `/lead/<token>/formulario/<responseId>` pro clipboard.
+  // Cliente vê o form em modo read-only e só pode assinar a SignatureClient.
+  const generateLink = useMutation(
+    orpc.leads.generatePublicLink.mutationOptions({}),
+  );
+  function copyClientFormLink() {
+    if (!latestResponse) return;
+    generateLink.mutate(
+      { leadId, rotate: false },
+      {
+        onSuccess: (res) => {
+          const r = res as { token?: string };
+          if (!r.token) {
+            toast.error("Não foi possível gerar o link");
+            return;
+          }
+          const url = `${window.location.origin}/lead/${r.token}/formulario/${latestResponse.id}`;
+          navigator.clipboard
+            .writeText(url)
+            .then(() =>
+              toast.success("Link de visualização do cliente copiado!"),
+            )
+            .catch(() => toast.info(url));
+        },
+        onError: () => toast.error("Falha ao gerar link do cliente"),
+      },
+    );
   }
 
   return (
     <div className="flex flex-col gap-2">
       <Item
-        role="button"
-        className={`w-full hover:bg-foreground/10 transition-colors ${
-          hasResponses ? "cursor-pointer" : "cursor-default"
-        }`}
+        className="w-full hover:bg-foreground/10 transition-colors cursor-default"
         variant="outline"
-        onClick={toggle}
       >
         <ItemContent className="flex-row">
           <ItemHeader className="flex flex-col items-start gap-2">
-            <ItemTitle className="flex items-center gap-2">
-              {hasResponses ? (
-                expanded ? (
-                  <ChevronDown className="size-4 shrink-0" />
-                ) : (
-                  <ChevronRight className="size-4 shrink-0" />
-                )
-              ) : (
+            <ItemTitle className="flex items-center gap-2 flex-wrap">
+              {!hasResponses && (
                 <SquarePenIcon className="size-4 shrink-0 text-muted-foreground/60" />
               )}
-              {group.formName}
+              <span>{group.formName}</span>
+
+              {/* Badge do status atual do lead — só pra forms já preenchidos. */}
+              {hasResponses && leadStatus?.name && (
+                <span
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium"
+                  style={{
+                    borderColor: leadStatus.color || undefined,
+                    color: leadStatus.color || undefined,
+                    background: leadStatus.color
+                      ? `${leadStatus.color}15`
+                      : undefined,
+                  }}
+                  title="Status atual do lead"
+                >
+                  <span
+                    className="inline-block size-1.5 rounded-full"
+                    style={{ background: leadStatus.color || "#888" }}
+                  />
+                  {leadStatus.name}
+                </span>
+              )}
+
+              {/* Responsável pela etapa atual — só pra forms preenchidos. */}
+              {hasResponses && leadResponsible?.name && (
+                <span
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-foreground/10 bg-foreground/5 text-[10px] text-muted-foreground"
+                  title={`Responsável: ${leadResponsible.name}`}
+                >
+                  {leadResponsible.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={responsibleAvatar}
+                      alt={leadResponsible.name}
+                      className="size-3.5 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="size-3.5 rounded-full bg-foreground/15 flex items-center justify-center text-[8px] font-semibold">
+                      {leadResponsible.name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  {leadResponsible.name}
+                </span>
+              )}
             </ItemTitle>
             <ItemDescription className="text-muted-foreground">
               <span>
@@ -431,90 +464,46 @@ function FormGroupItem({
         </ItemContent>
 
         <ItemActions onClick={(e) => e.stopPropagation()}>
-          <Button
-            size="icon-sm"
-            variant="outline"
-            onClick={onOpenWithPrefill}
-            disabled={prefillLoading}
-            title="Abrir formulário com dados do lead pré-preenchidos"
-          >
-            <ExternalLink />
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="outline"
-            onClick={() => router.push(`/form/responses/${group.formId}`)}
-            title="Ver todas as respostas"
-          >
-            <EyeIcon />
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="outline"
-            onClick={() => router.push(`/form/builder/${group.formId}`)}
-            title="Editar formulário"
-          >
-            <SquarePenIcon />
-          </Button>
+          {/* Form ainda não preenchido por este lead → consultor inicia
+              um preenchimento em nome do lead (`/formulario/novo/...`). */}
+          {!hasResponses && (
+            <Button
+              size="sm"
+              variant="default"
+              onClick={startNewResponse}
+              title="Preencher formulário em nome do lead"
+            >
+              <PencilLine className="size-4" />
+              Preencher
+            </Button>
+          )}
+
+          {/* Form com respostas → abre a mais recente em modo edit pra
+              continuar/conferir o preenchimento. */}
+          {hasResponses && (
+            <>
+              <Button
+                size="icon-sm"
+                variant="outline"
+                onClick={openLatestResponse}
+                title="Ver/continuar preenchimento"
+              >
+                <EyeIcon />
+              </Button>
+              <Button
+                size="icon-sm"
+                variant="outline"
+                onClick={copyClientFormLink}
+                disabled={generateLink.isPending}
+                title="Link de visualização do cliente (read-only, com assinatura)"
+              >
+                <Link2 />
+              </Button>
+            </>
+          )}
         </ItemActions>
       </Item>
-
-      {expanded && (
-        <div className="pl-6 flex flex-col gap-3">
-          {group.responses
-            .slice()
-            .sort(
-              (a, b) =>
-                new Date(b.createdAt).getTime() -
-                new Date(a.createdAt).getTime(),
-            )
-            .map((resp) => (
-              <ResponseCard key={resp.id} response={resp} />
-            ))}
-        </div>
-      )}
     </div>
   );
 }
 
-function ResponseCard({ response }: { response: ResponseEntry }) {
-  const parsed = parseResponse(response.jsonResponse);
-  const entries = Object.entries(parsed).filter(
-    ([key]) => !SYSTEM_KEYS.has(key),
-  );
-  return (
-    <Card className="bg-foreground/5 border-foreground/10">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3 pb-2 border-b border-foreground/10">
-          <span className="text-xs font-medium flex items-center gap-2">
-            <ClipboardList className="w-3.5 h-3.5" />
-            Resposta
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {format(new Date(response.createdAt), "dd/MM/yyyy HH:mm", {
-              locale: ptBR,
-            })}
-          </span>
-        </div>
-        <div className="space-y-3">
-          {entries.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Resposta sem campos preenchidos.
-            </p>
-          ) : (
-            entries.map(([key, value]) => (
-              <div key={key} className="flex flex-col">
-                <span className="text-[10px] font-semibold text-foreground/70 uppercase tracking-wider">
-                  {key}
-                </span>
-                <span className="text-sm text-foreground break-words whitespace-pre-line">
-                  {renderValue(value)}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}

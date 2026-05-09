@@ -33,6 +33,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { orpc } from "@/lib/orpc";
+import { usePrefillFieldValue } from "@/features/form/context/form-prefill-context";
 
 type AttributesType = {
   label: string;
@@ -41,7 +42,7 @@ type AttributesType = {
 };
 
 const propertiesValidateSchema = z.object({
-  label: z.string().trim().min(2).max(255),
+  label: z.string().trim().max(255).optional(),
   helperText: z.string().trim().max(255).optional(),
   required: z.boolean().default(false).optional(),
 });
@@ -110,17 +111,19 @@ function CanvasView({
   const { label, required, helperText } = (blockInstance as Instance).attributes;
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label className="text-base font-normal! mb-2">
-        {label}
-        {required && <span className="text-red-500">*</span>}
-        <span className="text-xs text-muted-foreground ml-2">({btnLabel})</span>
-      </Label>
+      {label?.trim() && (
+        <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug">
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+          <span className="text-xs text-muted-foreground ml-2">({btnLabel})</span>
+        </Label>
+      )}
       <Select disabled>
         <SelectTrigger>
           <SelectValue placeholder={multiple ? "Selecione um ou mais usuários" : "Selecione um usuário"} />
         </SelectTrigger>
       </Select>
-      {helperText && <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>}
+      {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
     </div>
   );
 }
@@ -142,8 +145,56 @@ function FormView({
   const { label, required, helperText } = block.attributes;
   const { data, isLoading, isError: queryFailed } = useOrgMembers();
   const members = data?.members ?? [];
-  const [selected, setSelected] = useState<string[]>([]);
+
+  // Prefill: usamos `meta.ids` (lista de IDs) salva no submit anterior.
+  // Fallback: tenta extrair nomes do `value` (CSV) e mapear pra IDs por name
+  // — útil pra respostas antigas sem `meta`.
+  const prefill = usePrefillFieldValue(block.id);
+  const initialIds: string[] = (() => {
+    if (!prefill) return [];
+    const metaIds = (prefill.meta as { ids?: unknown } | undefined)?.ids;
+    if (Array.isArray(metaIds)) return metaIds.filter((x): x is string => typeof x === "string");
+    return [];
+  })();
+  const [selected, setSelected] = useState<string[]>(initialIds);
   const [isError, setIsError] = useState(false);
+
+  // Quando os members chegarem do servidor, tenta resolver o fallback por
+  // nome (caso `meta.ids` não exista) e propaga via handleBlur.
+  useEffect(() => {
+    if (!prefill || members.length === 0) return;
+    if (selected.length > 0) {
+      // Já temos IDs do meta — só notifica o handleBlur uma vez.
+      const picked = members.filter((m) => selected.includes(m.id));
+      handleBlur?.(block.id, {
+        value: picked.map((p) => p.name).join(", "),
+        meta: {
+          ids: selected,
+          members: picked.map((p) => ({ id: p.id, name: p.name, email: p.email })),
+        },
+      });
+      return;
+    }
+    // Sem IDs no meta — tenta casar por nome (CSV).
+    const names = (prefill.value || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (names.length === 0) return;
+    const matched = members.filter((m) => names.includes(m.name));
+    if (matched.length > 0) {
+      const ids = matched.map((m) => m.id);
+      setSelected(ids);
+      handleBlur?.(block.id, {
+        value: matched.map((m) => m.name).join(", "),
+        meta: {
+          ids,
+          members: matched.map((m) => ({ id: m.id, name: m.name, email: m.email })),
+        },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [members.length]);
 
   function commit(ids: string[]) {
     setSelected(ids);
@@ -159,26 +210,30 @@ function FormView({
   if (queryFailed) {
     return (
       <div className="flex flex-col gap-2 w-full">
-        <Label className="text-base font-normal! mb-2">{label}</Label>
+        {label?.trim() && (
+          <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug">{label}</Label>
+        )}
         <Input
           placeholder="Digite o nome do responsável"
           onBlur={(e) =>
             handleBlur?.(block.id, { value: e.target.value, meta: { freeText: true } })
           }
         />
-        {helperText && <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>}
+        {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label
-        className={`text-base font-normal! mb-2 ${isError || isSubmitError ? "text-red-500" : ""}`}
-      >
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
+      {label?.trim() && (
+        <Label
+          className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-red-500" : ""}`}
+        >
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+        </Label>
+      )}
       <Select
         value={multiple ? "" : selected[0] ?? ""}
         onValueChange={(v) => {
@@ -226,9 +281,9 @@ function FormView({
           })}
         </div>
       )}
-      {helperText && <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>}
+      {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
       {(isError || isSubmitError) && (
-        <p className="text-red-500 text-[0.8rem]">{errorMessage || "Selecione ao menos um usuário."}</p>
+        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage || "Selecione ao menos um usuário."}</p>
       )}
     </div>
   );

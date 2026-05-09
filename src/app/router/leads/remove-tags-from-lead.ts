@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { requireOrgMiddleware } from "../../middlewares/org";
 import { recordLeadHistory } from "./utils/history";
+import { recordLeadEvent } from "@/features/leads/lib/history";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 
 export const removeTagsFromLead = base
@@ -45,6 +46,21 @@ export const removeTagsFromLead = base
         notes: "Tags removidas do lead",
         tx,
       });
+
+      // Evento granular por tag (mesmo padrão do add-tags).
+      await Promise.all(
+        input.tagIds.map((tagId) =>
+          recordLeadEvent(
+            {
+              leadId: input.leadId,
+              eventType: "TAG_REMOVED",
+              userId: context.user.id,
+              metadata: { tagId },
+            },
+            tx,
+          ),
+        ),
+      );
 
       return deleted;
     });

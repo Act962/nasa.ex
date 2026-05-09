@@ -31,6 +31,9 @@ import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { Textarea } from "@/components/ui/textarea";
 import { getContrastColor } from "@/utils/get-contrast-color";
 
+// Paragraph aparece no painel "Field" do builder por convenção, mas não é
+// preenchível — `isFillableBlock` (em features/form/lib/fillable-blocks.ts)
+// trata-o como decorativo no cálculo de progresso e validação de grupo.
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "Paragraph";
 
@@ -99,7 +102,7 @@ function ParagraphCanvasFormComponent({
       className={`w-full text-left ${fontSizeClass[fontSize]} ${fontWeightClass[fontWeight]}`}
       style={{ color: textColor || undefined }}
     >
-      <p>{text}</p>
+      <p className="break-words whitespace-normal">{text}</p>
     </div>
   );
 }

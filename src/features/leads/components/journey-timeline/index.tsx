@@ -188,10 +188,135 @@ function EventMetadataPreview({
   }
 
   if (kind === "status_changed") {
+    const fromName = String(metadata.from ?? "—");
+    const toName = String(metadata.to ?? "—");
+    const fromColor =
+      typeof metadata.fromColor === "string" ? metadata.fromColor : null;
+    const toColor =
+      typeof metadata.toColor === "string" ? metadata.toColor : null;
+    return (
+      <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5 flex-wrap">
+        de{" "}
+        <Badge
+          variant="outline"
+          className="text-[10px] gap-1"
+          style={
+            fromColor
+              ? {
+                  borderColor: fromColor,
+                  color: fromColor,
+                  background: `${fromColor}15`,
+                }
+              : undefined
+          }
+        >
+          {fromColor && (
+            <span
+              className="size-1.5 rounded-full"
+              style={{ background: fromColor }}
+            />
+          )}
+          {fromName}
+        </Badge>{" "}
+        para{" "}
+        <Badge
+          variant="outline"
+          className="text-[10px] gap-1"
+          style={
+            toColor
+              ? {
+                  borderColor: toColor,
+                  color: toColor,
+                  background: `${toColor}15`,
+                }
+              : undefined
+          }
+        >
+          {toColor && (
+            <span
+              className="size-1.5 rounded-full"
+              style={{ background: toColor }}
+            />
+          )}
+          {toName}
+        </Badge>
+      </div>
+    );
+  }
+
+  if (kind === "tracking_changed") {
     return (
       <div className="text-xs text-muted-foreground mt-1">
         de <Badge variant="outline" className="text-[10px]">{String(metadata.from ?? "—")}</Badge>{" "}
         para <Badge variant="outline" className="text-[10px]">{String(metadata.to ?? "—")}</Badge>
+      </div>
+    );
+  }
+
+  if (kind === "lead_assigned") {
+    if (!metadata.responsibleName) return null;
+    return (
+      <div className="text-xs text-muted-foreground mt-1">
+        Responsável: <strong>{String(metadata.responsibleName)}</strong>
+      </div>
+    );
+  }
+
+  if (kind === "tag_added" || kind === "tag_removed") {
+    if (!metadata.tagName) return null;
+    const color =
+      typeof metadata.tagColor === "string" ? metadata.tagColor : "#888";
+    return (
+      <div className="mt-1">
+        <Badge
+          variant="outline"
+          className="text-[10px] gap-1"
+          style={{
+            borderColor: color,
+            color: color,
+            background: `${color}15`,
+          }}
+        >
+          <span className="size-1.5 rounded-full" style={{ background: color }} />
+          {String(metadata.tagName)}
+        </Badge>
+      </div>
+    );
+  }
+
+  if (kind === "form_submit") {
+    if (!metadata.formName) return null;
+    const edited = metadata.edited === true;
+    const returning = metadata.returning === true;
+    return (
+      <div className="text-xs text-muted-foreground mt-1">
+        {edited
+          ? "Atualizou: "
+          : returning
+            ? "Reenviou: "
+            : "Preencheu: "}
+        <strong>{String(metadata.formName)}</strong>
+      </div>
+    );
+  }
+
+  if (kind === "file_uploaded") {
+    const fileName =
+      typeof metadata.fileName === "string" ? metadata.fileName : null;
+    if (!fileName) return null;
+    return (
+      <div className="text-xs text-muted-foreground mt-1 truncate">
+        Arquivo: <strong>{fileName}</strong>
+      </div>
+    );
+  }
+
+  if (kind === "note") {
+    const text = typeof metadata.notes === "string" ? metadata.notes : null;
+    if (!text) return null;
+    return (
+      <div className="text-sm bg-muted/50 rounded-md px-3 py-1.5 mt-1.5 max-w-xl line-clamp-3">
+        {text}
       </div>
     );
   }

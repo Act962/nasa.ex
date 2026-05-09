@@ -4,6 +4,7 @@ import { MousePointerClickIcon } from "lucide-react";
 import { FormBlocks } from "@/features/form/lib/form-blocks";
 import { SaveFormBtn } from "../common/save-form-btn";
 import { PublishFormBtn } from "../common/publish-form-btn";
+import { BuilderSaveStatus } from "../common/builder-save-status";
 
 export function BuilderBlockProperties() {
   const { selectedBlockLayout } = useBuilderStore();
@@ -23,10 +24,12 @@ export function BuilderBlockProperties() {
           className="flex flex-col w-full items-center
         h-auto min-h-full"
         >
-          <div className="w-full flex flex-row justify-end items-center dark:bg-accent pb-2 pt-3 sticky border-b border top-0 gap-2 px-2">
-            {/* <PreviewDialog /> */}
-            <SaveFormBtn />
-            <PublishFormBtn />
+          <div className="w-full flex flex-row justify-between items-center dark:bg-accent pb-2 pt-3 sticky border-b border top-0 gap-2 px-2">
+            <BuilderSaveStatus />
+            <div className="flex items-center gap-2">
+              <SaveFormBtn />
+              <PublishFormBtn />
+            </div>
           </div>
 
           {/* {Layout Property} */}

@@ -25,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
+import { usePrefillValue } from "@/features/form/context/form-prefill-context";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "Checkbox";
@@ -39,7 +40,7 @@ type AttributesType = {
 };
 
 const propertiesValidateSchema = z.object({
-  label: z.string().trim().min(2).max(255),
+  label: z.string().trim().max(255).optional(),
   helperText: z.string().trim().max(255).optional(),
   required: z.boolean().default(false).optional(),
   multiple: z.boolean().default(false).optional(),
@@ -76,23 +77,25 @@ function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
   const { label, options, required, helperText, multiple } = block.attributes;
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label className="text-base font-normal! mb-2">
-        {label}
-        {required && <span className="text-red-500">*</span>}
-        {!multiple && (
-          <span className="text-xs text-muted-foreground ml-1">(único)</span>
-        )}
-      </Label>
+      {label?.trim() && (
+        <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug">
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+          {!multiple && (
+            <span className="text-xs text-muted-foreground ml-1">(único)</span>
+          )}
+        </Label>
+      )}
       <div className="flex flex-col gap-2">
         {options?.map((opt) => (
           <div key={opt.id} className="flex items-center gap-2 pointer-events-none">
             <Checkbox checked={false} />
-            <span className="text-sm">{opt.label}</span>
+            <span className="text-sm break-words whitespace-normal min-w-0 flex-1">{opt.label}</span>
           </div>
         ))}
       </div>
       {helperText && (
-        <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>
+        <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>
       )}
     </div>
   );
@@ -111,8 +114,28 @@ function FormView({
 }) {
   const block = blockInstance as Instance;
   const { label, options, required, helperText, multiple } = block.attributes;
-  const [selected, setSelected] = useState<string[]>([]);
+
+  // Prefill: a resposta salva é uma string CSV de IDs (`opt1,opt2`).
+  const prefill = usePrefillValue(block.id);
+  const initialSelected = prefill
+    ? prefill.split(",").filter((s) => s.length > 0)
+    : [];
+  const [selected, setSelected] = useState<string[]>(initialSelected);
   const [isError, setIsError] = useState(false);
+  useEffect(() => {
+    if (prefill && handleBlur) {
+      handleBlur(block.id, {
+        value: prefill,
+        meta: {
+          ids: initialSelected,
+          labels: options
+            .filter((o) => initialSelected.includes(o.id))
+            .map((o) => o.label),
+        },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function toggle(id: string, checked: boolean) {
     let next: string[];
@@ -132,12 +155,14 @@ function FormView({
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label
-        className={`text-base font-normal! mb-2 ${isError || isSubmitError ? "text-red-500" : ""}`}
-      >
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
+      {label?.trim() && (
+        <Label
+          className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-red-500" : ""}`}
+        >
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+        </Label>
+      )}
       <div className="flex flex-col gap-2">
         {options?.map((opt) => (
           <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
@@ -145,15 +170,15 @@ function FormView({
               checked={selected.includes(opt.id)}
               onCheckedChange={(c) => toggle(opt.id, !!c)}
             />
-            <span className="text-sm">{opt.label}</span>
+            <span className="text-sm break-words whitespace-normal min-w-0 flex-1">{opt.label}</span>
           </label>
         ))}
       </div>
       {helperText && (
-        <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>
+        <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>
       )}
       {(isError || isSubmitError) && (
-        <p className="text-red-500 text-[0.8rem]">{errorMessage || "Selecione ao menos uma opção."}</p>
+        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage || "Selecione ao menos uma opção."}</p>
       )}
     </div>
   );

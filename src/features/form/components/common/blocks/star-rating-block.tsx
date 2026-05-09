@@ -26,6 +26,7 @@ import { defaultPrimaryColor } from "@/features/form/constants";
 import { Label } from "@/components/ui/label";
 import { FormSettings } from "@/generated/prisma/client";
 import { getContrastColor } from "@/utils/get-contrast-color";
+import { usePrefillValue } from "@/features/form/context/form-prefill-context";
 
 import "@smastrom/react-rating/style.css";
 import { useEffect, useState } from "react";
@@ -43,7 +44,7 @@ type attributesType = {
 type PropertiesValidateSchemaType = z.input<typeof propertiesValidateSchema>;
 
 const propertiesValidateSchema = z.object({
-  label: z.string().trim().min(2).max(255),
+  label: z.string().trim().max(255).optional(),
   maxStars: z.number().min(1),
   required: z.boolean().default(false),
 });
@@ -84,10 +85,12 @@ function StarRatingCanvasComponent({
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label className="text-base font-normal mb-1">
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
+      {label?.trim() && (
+        <Label className="text-base font-normal mb-1 whitespace-normal break-words leading-snug">
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+        </Label>
+      )}
       <div className="flex items-center gap-10 justify-center">
         <Rating
           style={{ maxWidth: 420 }}
@@ -134,8 +137,19 @@ function StarRatingFormComponent({
     ? getContrastColor(settings.backgroundColor)
     : undefined;
 
-  const [rating, setRating] = useState(0);
+  // Prefill: rating salvo como string numérica.
+  const prefill = usePrefillValue(block.id);
+  const initialRating = prefill && !Number.isNaN(Number(prefill))
+    ? Number(prefill)
+    : 0;
+  const [rating, setRating] = useState(initialRating);
   const [isError, setIsError] = useState(false);
+  useEffect(() => {
+    if (prefill && handleBlur) {
+      handleBlur(block.id, { value: String(initialRating) });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleStarChange = (newRating: number) => {
     setRating(newRating);
@@ -157,14 +171,16 @@ function StarRatingFormComponent({
 
   return (
     <div className="flex flex-col gap-2 w-full mb-1">
-      <Label
-        className={`text-base font-normal mb-1 ${
-          isError || isSubmitError ? "text-red-500" : ""
-        }`}
-      >
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
+      {label?.trim() && (
+        <Label
+          className={`text-base font-normal mb-1 whitespace-normal break-words leading-snug ${
+            isError || isSubmitError ? "text-red-500" : ""
+          }`}
+        >
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+        </Label>
+      )}
       <div className="flex items-center gap-10 justify-center">
         {/* Render stars */}
         <Rating
@@ -190,12 +206,12 @@ function StarRatingFormComponent({
         />
       </div>
       {isError || isSubmitError ? (
-        <p className="text-red-500 text-[0.8rem]">
+        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
           {required && rating === 0 ? "This field is required." : ""}
         </p>
       ) : (
         errorMessage && (
-          <p className="text-red-500 text-[0.8rem]">{errorMessage}</p>
+          <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage}</p>
         )
       )}
 

@@ -65,7 +65,22 @@ export const ImageDisplayBlock: ObjectBlockType = {
 type Instance = FormBlockInstance & { attributes: AttributesType };
 
 function View({ blockInstance }: { blockInstance: FormBlockInstance }) {
-  const { url, alt, width, height, align } = (blockInstance as Instance).attributes;
+  const attrs = (blockInstance as Instance).attributes;
+  const { url, alt, align } = attrs;
+  const wRaw = attrs.width as unknown;
+  const hRaw = attrs.height as unknown;
+  const width =
+    typeof wRaw === "number" && Number.isFinite(wRaw) && wRaw >= 40
+      ? wRaw
+      : Number(wRaw) >= 40 && Number.isFinite(Number(wRaw))
+        ? Number(wRaw)
+        : 320;
+  const height =
+    typeof hRaw === "number" && Number.isFinite(hRaw) && hRaw >= 40
+      ? hRaw
+      : Number(hRaw) >= 40 && Number.isFinite(Number(hRaw))
+        ? Number(hRaw)
+        : 200;
   const constructed = useConstructUrl(url || "");
   const justify = align === "left" ? "justify-start" : align === "right" ? "justify-end" : "justify-center";
   if (!url) {

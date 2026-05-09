@@ -7,6 +7,15 @@ import { FormBlocks } from "@/features/form/lib/form-blocks";
 import { useState } from "react";
 import { AiAssistanceBtn } from "./utils/ai-assistance-btn";
 
+/**
+ * Quais blocos de Layout são considerados ESTRUTURAIS — adicionar um destes
+ * num form já publicado pode confundir respondentes (eles veriam um novo
+ * grupo/passo). RowLayout cria grupo/step → estrutural. Os demais
+ * (PageBreak, ImageDisplay, ParagraphWithTitle) são puramente DECORATIVOS
+ * e podem ser adicionados livremente mesmo após publicação.
+ */
+const STRUCTURAL_LAYOUT_BLOCKS = new Set(["RowLayout"]);
+
 export function FormBlockBox() {
   const { formData } = useBuilderStore();
   const isPublished = formData?.published;
@@ -55,7 +64,13 @@ export function FormBlockBox() {
                 <BlockBtnElement
                   key={block.blockType}
                   formBlock={block}
-                  disabled={isPublished}
+                  // Apenas blocos estruturais (RowLayout) ficam travados
+                  // após publicação. Decorativos (PageBreak, ImageDisplay,
+                  // ParagraphWithTitle) podem ser adicionados livremente.
+                  disabled={
+                    isPublished &&
+                    STRUCTURAL_LAYOUT_BLOCKS.has(block.blockType)
+                  }
                 />
               ))}
             </div>
