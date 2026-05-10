@@ -16,7 +16,6 @@ import { BubbleAppsPanel, type BubbleApp } from "./bubble-apps-panel";
 import { BubbleChatPanel } from "./bubble-chat-panel";
 import { toast } from "sonner";
 import { ProximityBar } from "./proximity-bar";
-import { ParticipantsPanel } from "./participants-panel";
 import { ConnectPeoplePanel } from "./connect-people-panel";
 import { SharePanel } from "./share-panel";
 import { CreditsPanel } from "./credits-panel";
@@ -228,11 +227,36 @@ export function SpaceGame({
     const onAreaEnter = (e: Event) => {
       const { areaId, type, props } = (e as CustomEvent).detail as {
         areaId: string; type: AreaType;
-        props?: { message?: string; url?: string; roomName?: string; audioUrl?: string; targetNick?: string };
+        props?: {
+          message?: string;
+          url?: string;
+          roomName?: string;
+          audioUrl?: string;
+          targetNick?: string;
+          // NASA props
+          agendaSlug?: string;
+          workspaceId?: string;
+          trackingId?: string;
+          formId?: string;
+          courseId?: string;
+          nboxItemId?: string;
+          imageUrl?: string;
+          imageAlt?: string;
+          socialRoute?: string;
+          openInNewTab?: boolean;
+          profileMode?: "self" | "click";
+        };
       };
 
       // ── Website: mostra overlay com botão de abrir ──────────────────────
       if (type === "website") {
+        const url = props?.url;
+        if (url) setWebsiteOverlay({ url, areaId });
+        return;
+      }
+
+      // ── Imagem-link: trata como website (URL de destino) ────────────────
+      if (type === "imagem-link") {
         const url = props?.url;
         if (url) setWebsiteOverlay({ url, areaId });
         return;
@@ -262,6 +286,7 @@ export function SpaceGame({
           } catch { /* ignore */ }
         }
         const meta = AREA_TYPE_META[type];
+        if (!meta) return;
         setAreaToast({ id: areaId, type, title: `${meta.emoji} Áudio`, message: "Reproduzindo áudio da área." });
         return;
       }
@@ -279,6 +304,34 @@ export function SpaceGame({
         meeting: props?.roomName ? `Sala de reunião: ${props.roomName}` : "Você entrou em uma sala de reunião.",
         info:    props?.message ?? "Informação da área.",
         custom:  props?.message ?? "Você entrou em uma área personalizada.",
+        // ─── Funções NASA ───────────────────────────────────────────────
+        "n-box":      props?.nboxItemId
+          ? "Documento autorizado disponível. (Visualizador em breve)"
+          : "Configure um arquivo do N-Box pro visitante baixar.",
+        agendamento:  props?.agendaSlug
+          ? "Reserve um horário nesta agenda. (Tela em breve)"
+          : "Esta área de agendamento ainda não tem uma agenda configurada.",
+        demanda:      props?.workspaceId
+          ? "Solicite uma demanda no Workspace. (Modal em breve)"
+          : "Configure um workspace pra esta área de demanda.",
+        balcao:       "🛎️ Em atendimento — aguardando próximo na fila. (Cena fictícia em breve)",
+        profile:      props?.profileMode === "self"
+          ? "Vendo seu perfil. (Painel em breve)"
+          : "Clique em um avatar próximo pra ver o perfil dele.",
+        prateleira:   "🛒 Loja de produtos — pague em Stars ou cartão. (Painel em breve)",
+        auditorio:    props?.courseId
+          ? "Auditório — clique pra entrar no curso ao vivo. (Painel em breve)"
+          : "Configure um curso pra este auditório.",
+        "nasa-route": props?.courseId
+          ? "Curso disponível — compre o acesso pra entrar. (Checkout em breve)"
+          : "Configure um curso pra esta área NASA Route.",
+        formulario:   props?.formId
+          ? "Preencha o formulário. (Modal em breve)"
+          : "Configure um formulário pra esta área.",
+        "rede-social": "💬 Rede social interna. (Painel em breve)",
+        "imagem-link": props?.imageAlt
+          ? `Abrir ${props.imageAlt}`
+          : "Imagem clicável.",
       };
       const message = messages[type];
       if (!message) return;
@@ -368,7 +421,7 @@ export function SpaceGame({
           connectPanelOpen={connectPanelOpen}
           onOpenMap={() => setMapMenuOpen(o => !o)}
           onOpenEmpresas={() => setEmpresasOpen(true)}
-          onOpenAvatar={() => setAvatarPanelOpen(true)}
+          onOpenAvatar={() => setSettingsOpen(true)}
           mapActive={mapMenuOpen || mapEditorOpen}
           peers={webrtc.peers}
           isOwner={isOwner}
@@ -381,8 +434,8 @@ export function SpaceGame({
           <div
             className="max-w-sm rounded-2xl px-5 py-4 text-center shadow-2xl backdrop-blur-md border"
             style={{
-              backgroundColor: `${AREA_TYPE_META[areaToast.type].color}33`,
-              borderColor:     `${AREA_TYPE_META[areaToast.type].color}66`,
+              backgroundColor: `${AREA_TYPE_META[areaToast.type]?.color ?? "#94a3b8"}33`,
+              borderColor:     `${AREA_TYPE_META[areaToast.type]?.color ?? "#94a3b8"}66`,
             }}
           >
             <p className="text-white text-sm font-semibold mb-1">{areaToast.title}</p>
@@ -472,6 +525,7 @@ export function SpaceGame({
           stationId={stationId}
           worldConfig={worldConfig}
           onClose={() => setMapEditorOpen(false)}
+          onWorldConfigChange={(next) => setWorldConfig(next)}
         />
       )}
 
@@ -505,19 +559,8 @@ export function SpaceGame({
         />
       )}
 
-      {/* ── Participants panel (lista de todos no mundo) ── */}
-      {!loading && (
-        <ParticipantsPanel
-          localName={userName}
-          localNick={userNick}
-          localSpriteUrl={rawSpriteUrl === "pixel_astronaut" ? "/lpc_pixel_astronaut.png" : rawSpriteUrl ?? null}
-          onSendMessage={(peerId, peerName) => {
-            setChatPeerId(peerId);
-            setChatPeerName(peerName);
-          }}
-          onInviteUser={() => setShareOpen(true)}
-        />
-      )}
+      {/* "Conectar pessoas" agora vive como ícone no MediaBar (left group),
+          ao lado de Empresas. Botão standalone foi removido. */}
 
       {/* ── Proximity bar — top center, WorkAdventure-style ── */}
       {!loading && (
@@ -587,40 +630,34 @@ export function SpaceGame({
         />
       )}
 
-      {/* ── HUD — nick + controls (top-left) ── */}
+      {/* ── HUD — nick (top-left) + controls (bottom-center) ── */}
       {!loading && (
-        <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-          <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-slate-300">
-            <span className="font-mono text-indigo-400">@{nick}</span> · Space Station
+        <>
+          <div className="absolute top-3 left-4 z-10">
+            <div className="h-[52px] flex items-center bg-black/50 backdrop-blur-sm rounded-2xl px-4 text-xs text-slate-300">
+              <span className="font-mono text-indigo-400">@{nick}</span>&nbsp;· Space Station
+            </div>
           </div>
-          <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-slate-400">
-            WASD ou ← ↑ ↓ → para mover
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+            <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-slate-400 text-center">
+              ← ↑ ↓ → para mover
+            </div>
           </div>
-        </div>
+        </>
       )}
 
-      {/* ── Top-right: configure + exit ── */}
-      <div className="absolute top-4 right-4 z-10 flex gap-2">
-        {isOwner && !loading && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="bg-black/60 border-white/20 text-white hover:bg-white/10"
-            onClick={() => { setSettingsOpen(o => !o); setGalaxyOpen(false); }}
-          >
-            <Settings className="h-4 w-4 mr-1" />
-            Configurar
-          </Button>
-        )}
-        <Button
-          size="sm"
-          variant="outline"
-          className="bg-black/60 border-white/20 text-white hover:bg-white/10"
+      {/* ── Top-right: exit ──
+          Botão "Configurar" removido — agora a configuração abre via
+          ícone "Personalizar avatar" no MediaBar (UserRound). */}
+      <div className="absolute top-3 right-4 z-10 flex gap-2">
+        <button
+          type="button"
+          className="h-[52px] flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-2xl px-4 text-xs font-medium text-white hover:bg-black/60 transition-all"
           onClick={() => (window.location.href = `/station/${nick}`)}
         >
-          <X className="h-4 w-4 mr-1" />
+          <X className="h-4 w-4" />
           Sair
-        </Button>
+        </button>
       </div>
 
       {/* ── Galaxy explorer (side panel) ── */}

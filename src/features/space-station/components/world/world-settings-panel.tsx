@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   X, Settings, Rocket, Star, Globe, User, Check, AlertCircle, Users,
 } from "lucide-react";
@@ -9,13 +9,14 @@ import {
   useUpdateWorld, useListStations,
   useListWorldTemplates, useApplyWorldTemplate,
 } from "../../hooks/use-station";
-import { WokaCustomizer } from "./woka-customizer";
+import { WokaCustomizer, WOKA_TABS, type WokaTabId } from "./woka-customizer";
 import type {
   AvatarConfig, StationWorldConfig, WorldMapData, WorldElementsConfig,
   RoomConfig, ScenarioType, HairStyle, BeardStyle, FaceAccessory,
 } from "../../types";
 import { DEFAULT_ELEMENTS, DEFAULT_ROOMS, DEFAULT_AVATAR_CONFIG } from "../../types";
 import { fetchTiledMeta } from "../../utils/tiled-loader";
+import { toast } from "sonner";
 
 interface Props {
   stationId: string;
@@ -27,7 +28,7 @@ interface Props {
   onApply: (worldConfig: StationWorldConfig, avatarConfig: AvatarConfig) => void;
 }
 
-type Tab = "scenario" | "avatar" | "galaxy" | "comunidade";
+// Cada tab agora é uma categoria do avatar (Body / Eyes / Hair / etc).
 
 const SCENARIOS: {
   id: ScenarioType; label: string; emoji: string; description: string;
@@ -132,7 +133,36 @@ const FACE_ACCESSORIES: { value: FaceAccessory; label: string; emoji: string }[]
 ];
 
 export function WorldSettingsPanel({ stationId, worldConfig, avatarConfig, nick, userImage, onClose, onApply }: Props) {
-  const [tab, setTab] = useState<Tab>("scenario");
+  const [wokaTab, setWokaTab] = useState<WokaTabId>("body");
+  const [avatarDirty, setAvatarDirty] = useState(false);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+
+  function handleSaveAvatar(onDone?: () => void) {
+    setSaveError(null);
+    updateWorld(
+      { stationId, avatarConfig: avatar, mapData: buildMapData() },
+      {
+        onSuccess: () => {
+          setAvatarDirty(false);
+          onDone?.();
+        },
+        onError: (err) => {
+          setSaveError(
+            (err as { message?: string })?.message ?? "Erro ao salvar",
+          );
+        },
+      },
+    );
+  }
+
+  // Fecha o painel — se houver alterações pendentes, abre o modal.
+  const requestClose = () => {
+    if (avatarDirty) {
+      setCloseConfirmOpen(true);
+      return;
+    }
+    onClose();
+  };
   const raw = (worldConfig.mapData as WorldMapData | null);
 
   const gameView = "aerial" as const;
@@ -154,6 +184,11 @@ export function WorldSettingsPanel({ stationId, worldConfig, avatarConfig, nick,
   const [selectedFurniture,setSelectedFurniture]= useState<string | null>(raw?.selectedAssets?.furniture?? null);
   const [tiledMapUrl,  setTiledMapUrl]  = useState<string>(raw?.tiledMapUrl  ?? "");
   const [tiledBaseUrl, setTiledBaseUrl] = useState<string>(raw?.tiledBaseUrl ?? "");
+  const [bgImageUrl,    setBgImageUrl]    = useState<string>(raw?.backgroundImageUrl ?? "");
+  const [bgImageWidth,  setBgImageWidth]  = useState<number | undefined>(raw?.backgroundImageWidth);
+  const [bgImageHeight, setBgImageHeight] = useState<number | undefined>(raw?.backgroundImageHeight);
+  const [bgUploading,   setBgUploading]   = useState(false);
+  const [bgUploadError, setBgUploadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   function toggleRoom(type: RoomConfig["type"]) {
@@ -161,6 +196,10 @@ export function WorldSettingsPanel({ stationId, worldConfig, avatarConfig, nick,
   }
 
   function buildMapData(): WorldMapData {
+    // Preserva trabalho feito no Map Editor (objetos, áreas, tiles, salas)
+    // — esses campos não são editados aqui, mas se omitidos o servidor faz
+    // REPLACE total do mapData e apaga tudo. Bug grave de perda de trabalho.
+    const previous = (raw ?? {}) as Partial<WorldMapData>;
     return {
       gameView, scenario, elements, rooms, meetingRoomCount,
       selectedAssets: {
@@ -171,7 +210,49 @@ export function WorldSettingsPanel({ stationId, worldConfig, avatarConfig, nick,
       },
       tiledMapUrl:  tiledMapUrl  || undefined,
       tiledBaseUrl: tiledBaseUrl || undefined,
+      backgroundImageUrl:    bgImageUrl || undefined,
+      backgroundImageWidth:  bgImageWidth,
+      backgroundImageHeight: bgImageHeight,
+      // Preservados:
+      placedObjects: previous.placedObjects,
+      areas:         previous.areas,
+      tileLayer:     previous.tileLayer,
+      roomConfig:    previous.roomConfig,
     };
+  }
+
+  async function handleBgImageUpload(file: File) {
+    setBgUploadError(null);
+    if (!file.type.startsWith("image/")) {
+      setBgUploadError("Selecione um arquivo de imagem.");
+      return;
+    }
+    setBgUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/upload-local", { method: "POST", body: form });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!data.url) throw new Error(data.error ?? "Sem URL retornada");
+      // Lê dimensões nativas da imagem pra setar bounds default do mapa
+      const img = new window.Image();
+      const dimensions = await new Promise<{ w: number; h: number }>(
+        (resolve, reject) => {
+          img.onload = () =>
+            resolve({ w: img.naturalWidth, h: img.naturalHeight });
+          img.onerror = () => reject(new Error("Imagem inválida"));
+          img.src = data.url!;
+        },
+      );
+      setBgImageUrl(data.url);
+      setBgImageWidth(dimensions.w);
+      setBgImageHeight(dimensions.h);
+      setScenario("image");
+    } catch (e) {
+      setBgUploadError(`Falha: ${(e as Error).message}`);
+    } finally {
+      setBgUploading(false);
+    }
   }
 
   // Apply immediately to the live game (no DB save yet)
@@ -179,256 +260,232 @@ export function WorldSettingsPanel({ stationId, worldConfig, avatarConfig, nick,
     onApply({ ...worldConfig, mapData: newMapData }, newAvatar);
   }
 
+  // ── Preview ao vivo ──────────────────────────────────────────────────
+  // Sempre que o usuário muda algo no painel (cenário, mapa Tiled, salas,
+  // etc.) re-aplica preview pra o mundo refletir a escolha imediatamente,
+  // antes mesmo de clicar em "Salvar". Sem isso o user clica num card e
+  // tem a impressão de que "nada acontece".
+  // Skipa o primeiro render pra não disparar update redundante no mount.
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    try {
+      applyPreview(buildMapData());
+    } catch (err) {
+      console.warn("[WorldSettingsPanel] preview failed:", err);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    scenario,
+    rooms,
+    meetingRoomCount,
+    elements,
+    selectedChair,
+    selectedDesk,
+    selectedComputer,
+    selectedFurniture,
+    tiledMapUrl,
+    tiledBaseUrl,
+  ]);
+
   function handleSave() {
     setSaveError(null);
-    const newMapData = buildMapData();
-    // Apply immediately for instant feedback
-    applyPreview(newMapData);
+    let newMapData: WorldMapData;
+    try {
+      newMapData = buildMapData();
+    } catch (e) {
+      console.error("[WorldSettingsPanel] buildMapData failed:", e);
+      setSaveError("Erro ao montar configuração. Recarregue a página.");
+      toast.error("Erro ao salvar — recarregue e tente de novo.");
+      return;
+    }
+
+    // Apply immediately for instant feedback (não bloqueia o save se falhar)
+    try {
+      applyPreview(newMapData);
+    } catch (e) {
+      console.warn("[WorldSettingsPanel] applyPreview failed:", e);
+    }
+
     // Persist and close
     updateWorld(
       { stationId, avatarConfig: avatar, mapData: newMapData },
       {
-        onSuccess: () => onClose(),
+        onSuccess: () => {
+          toast.success("Mundo salvo!");
+          onClose();
+        },
         onError: (err) => {
           const msg = (err as { message?: string })?.message ?? "Erro ao salvar configurações";
           setSaveError(msg);
+          toast.error(`Falha ao salvar: ${msg}`);
         },
       },
     );
   }
 
-  const tabs: { id: Tab; label: string; Icon: React.ElementType }[] = [
-    { id: "scenario",   label: "Cenário",    Icon: Star },
-    { id: "avatar",     label: "Avatar",     Icon: User },
-    { id: "comunidade", label: "Comunidade", Icon: Users },
-    { id: "galaxy",     label: "Galáxia",    Icon: Globe },
-  ];
-
   // Avatar preview composto
   return (
     <>
-    <div className="absolute inset-y-0 right-0 z-30 w-96 flex flex-col bg-slate-950/98 backdrop-blur-md border-l border-white/10 shadow-2xl">
+    <div className="absolute inset-y-0 right-0 z-30 w-[480px] flex flex-col bg-slate-950/98 backdrop-blur-md border-l border-white/10 shadow-2xl">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
         <div className="flex items-center gap-2">
           <Settings className="h-4 w-4 text-indigo-400" />
           <h2 className="text-white font-semibold text-sm">Configurar Mundo</h2>
         </div>
-        <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+        <button onClick={requestClose} className="text-slate-400 hover:text-white transition-colors">
           <X className="h-4 w-4" />
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-white/10 overflow-x-auto">
-        {tabs.map(({ id, label, Icon }) => (
+      {/* Tabs do avatar (Body / Eyes / Hair / …) — controlam o WokaCustomizer */}
+      <div
+        className="flex border-b border-white/10 overflow-x-auto"
+        style={{ scrollbarWidth: "none" }}
+      >
+        {WOKA_TABS.map((t) => (
           <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={`flex-1 min-w-fit flex flex-col items-center gap-1 py-3 px-2 text-xs font-medium transition-colors whitespace-nowrap ${
-              tab === id ? "text-indigo-400 border-b-2 border-indigo-400" : "text-slate-500 hover:text-slate-300"
+            key={t.id}
+            onClick={() => t.available && setWokaTab(t.id)}
+            disabled={!t.available}
+            className={`flex-1 min-w-fit flex flex-col items-center gap-0.5 py-2.5 px-2 text-[10px] font-medium transition-colors whitespace-nowrap ${
+              wokaTab === t.id
+                ? "text-white border-b-2 border-indigo-400 bg-white/5"
+                : t.available
+                  ? "text-slate-400 hover:text-slate-200"
+                  : "text-slate-600 cursor-not-allowed"
             }`}
+            title={!t.available ? "Em breve" : t.label}
           >
-            <Icon className="h-3.5 w-3.5" />
-            {label}
+            <span className="text-base leading-none">{t.icon}</span>
+            <span>{t.label}</span>
           </button>
         ))}
       </div>
 
-      {/* ── Avatar tab — fills the remaining flex space directly ── */}
-      {tab === "avatar" && (
-        <div className="flex-1 overflow-hidden min-h-0">
-          <WokaCustomizer
-            avatarConfig={avatar}
-            onChange={(partial) => {
-              const next = { ...avatar, ...partial };
-              setAvatar(next);
-              // Save immediately when avatar changes
-              updateWorld(
-                { stationId, avatarConfig: next, mapData: buildMapData() },
-                { onError: (err) => setSaveError((err as { message?: string })?.message ?? "Erro ao salvar") },
-              );
-              onApply({ ...worldConfig, mapData: buildMapData() }, next);
-            }}
-            onClose={() => setTab("scenario")}
-          />
-        </div>
-      )}
+      {/* ── Avatar customizer — preview ao vivo, persiste só ao Salvar ── */}
+      <div className="flex-1 overflow-hidden min-h-0">
+        <WokaCustomizer
+          avatarConfig={avatar}
+          externalTab={wokaTab}
+          onChange={(partial) => {
+            const next = { ...avatar, ...partial };
+            setAvatar(next);
+            setAvatarDirty(true);
+            // Preview ao vivo — atualiza canvas SEM persistir no DB
+            onApply({ ...worldConfig, mapData: buildMapData() }, next);
+          }}
+          onClose={requestClose}
+        />
+      </div>
 
-      {/* Content — hidden when avatar tab is active */}
-      {tab !== "avatar" && <div className="flex-1 overflow-y-auto p-5 space-y-5">
-
-        {/* ── Cenário ── */}
-        {tab === "scenario" && (
-          <div className="space-y-4">
-            <div>
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Modelos de Mundo</p>
-              <p className="text-xs text-slate-600">{SCENARIOS.length} ambientes espaciais — escolha e personalize</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {SCENARIOS.map((s) => {
-                const active = scenario === s.id;
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => setScenario(s.id)}
-                    className={`relative text-left rounded-xl border overflow-hidden transition-all group ${
-                      active ? "border-indigo-500 ring-2 ring-indigo-500/40" : "border-white/10 hover:border-white/30"
-                    }`}
-                  >
-                    {/* ── Preview image area ── */}
-                    <div className="relative h-28 overflow-hidden">
-                      {/* Imagem real (pixel-art WA map ou foto temática) */}
-                      {s.previewImg && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={s.previewImg}
-                          alt={s.label}
-                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                        />
-                      )}
-                      {/* Overlay escuro gradiente — sempre presente para legibilidade */}
-                      <div
-                        className="absolute inset-0"
-                        style={{
-                          background: s.previewImg
-                            ? `linear-gradient(to bottom, ${s.accent}18 0%, ${s.bg}f0 100%)`
-                            : `radial-gradient(ellipse at 60% 35%, ${s.accent}44 0%, ${s.bg} 75%)`,
-                        }}
-                      />
-                      {/* Dot pattern apenas sem imagem */}
-                      {!s.previewImg && (
-                        <div
-                          className="absolute inset-0 opacity-20"
-                          style={{ backgroundImage: `radial-gradient(${s.accent} 1px, transparent 1px)`, backgroundSize: "12px 12px" }}
-                        />
-                      )}
-                      {/* Emoji centralizado */}
-                      <span className="absolute inset-0 flex items-center justify-center text-3xl drop-shadow-lg z-10">
-                        {s.emoji}
-                      </span>
-                      {/* Tag badge */}
-                      <span
-                        className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full z-20"
-                        style={{
-                          background: `${s.accent}30`,
-                          color: s.accent,
-                          border: `1px solid ${s.accent}55`,
-                          backdropFilter: "blur(6px)",
-                        }}
-                      >
-                        {s.tag}
-                      </span>
-                      {active && (
-                        <span className="absolute top-1.5 left-1.5 z-20">
-                          <Check className="h-3.5 w-3.5 text-indigo-400 drop-shadow" />
-                        </span>
-                      )}
-                    </div>
-                    {/* ── Info ── */}
-                    <div className="px-2.5 py-2" style={{ background: `${s.bg}ee` }}>
-                      <p className="text-xs font-semibold text-white leading-tight truncate">{s.label}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5 leading-tight line-clamp-2">{s.description}</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* ── Mapa Tiled ── */}
-            <MapPresetsSection
-              activeUrl={tiledMapUrl}
-              onApply={(preset) => {
-                setTiledMapUrl(preset.url);
-                setTiledBaseUrl(preset.baseUrl);
-                setScenario("tiled");
-              }}
-            />
-
-            <TiledMapSection
-              currentTiledUrl={tiledMapUrl}
-              onApply={(newUrl, newBase) => {
-                setTiledMapUrl(newUrl);
-                setTiledBaseUrl(newBase);
-                setScenario("tiled");
-              }}
-            />
+      {/* Footer: botão Salvar + indicador de erro */}
+      <div className="px-5 py-3 border-t border-white/10 flex items-center gap-3">
+        {saveError && (
+          <div className="flex items-start gap-1.5 text-[11px] text-red-400 flex-1">
+            <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+            <span>{saveError}</span>
           </div>
         )}
-
-        {/* ── Comunidade ── */}
-        {tab === "comunidade" && (
-          <WorldTemplateGallery stationId={stationId} onApplied={() => { onClose(); }} />
+        {!saveError && avatarDirty && (
+          <span className="text-[11px] text-amber-400 flex-1">
+            Você tem alterações não salvas
+          </span>
         )}
-
-        {/* ── Galáxia ── */}
-        {tab === "galaxy" && (
-          <div className="space-y-3">
-            <p className="text-xs text-slate-500">Explore outras empresas no universo NASA</p>
-            {(stationsData?.stations ?? []).filter((s: { nick: string }) => s.nick !== nick).map((s: {
-              id: string; nick: string; avatarUrl?: string | null;
-              org?: { name: string; logo?: string | null } | null;
-              user?: { name: string; image?: string | null } | null;
-              starsReceived: number;
-            }) => (
-              <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl border border-white/10 hover:border-white/20 transition-all">
-                <div className="w-10 h-10 rounded-full bg-indigo-900 flex items-center justify-center text-lg flex-shrink-0 overflow-hidden">
-                  {(s.avatarUrl ?? s.org?.logo ?? s.user?.image) ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={s.avatarUrl ?? s.org?.logo ?? s.user?.image ?? ""} alt="" className="w-full h-full object-cover" />
-                  ) : "🚀"}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">@{s.nick}</p>
-                  <p className="text-xs text-slate-400 truncate">{s.org?.name ?? s.user?.name}</p>
-                  <p className="text-xs text-amber-400">⭐ {s.starsReceived} STARs</p>
-                </div>
-                <Button size="sm" variant="outline"
-                  className="border-indigo-500/50 text-indigo-400 hover:bg-indigo-500/10 text-xs flex-shrink-0"
-                  onClick={() => window.open(`/station/${s.nick}/world`, "_blank")}
-                >
-                  <Rocket className="h-3 w-3 mr-1" />Visitar
-                </Button>
-              </div>
-            ))}
-            {!(stationsData?.stations?.length) && (
-              <div className="text-center py-8 text-slate-500 text-sm">
-                <Globe className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                Nenhuma estação encontrada
-              </div>
-            )}
-          </div>
+        {!saveError && !avatarDirty && (
+          <span className="text-[11px] text-slate-500 flex-1">
+            Faça alterações e clique em Salvar
+          </span>
         )}
-      </div>} {/* end tab !== "avatar" content */}
-
-      {/* Footer */}
-      {tab !== "galaxy" && tab !== "avatar" && tab !== "comunidade" && (
-        <div className="px-5 py-4 border-t border-white/10 space-y-3">
-          {saveError && (
-            <div className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-              <span>{saveError}</span>
-            </div>
-          )}
-          <div className="flex gap-3">
-            <Button variant="ghost" onClick={onClose} className="flex-1 text-slate-400 hover:text-white">Fechar</Button>
-            <Button onClick={handleSave} disabled={isPending} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white">
-              {isPending ? "Salvando..." : "💾 Salvar"}
-            </Button>
-          </div>
-        </div>
-      )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={requestClose}
+          className="text-slate-400 hover:text-white"
+        >
+          Fechar
+        </Button>
+        <Button
+          size="sm"
+          onClick={handleSaveAvatar}
+          disabled={isPending || !avatarDirty}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white"
+        >
+          {isPending ? "Salvando..." : "💾 Salvar"}
+        </Button>
+      </div>
     </div>
 
-    {/* ── Woka Avatar Panel (full-screen modal) ── */}
+    {/* Modal "Salvar alterações?" ao fechar */}
+    {closeConfirmOpen && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+        onClick={() => setCloseConfirmOpen(false)}
+      >
+        <div
+          className="w-full max-w-sm rounded-xl border border-white/10 bg-slate-900 p-6 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 className="text-base font-semibold text-white mb-2">
+            Salvar alterações?
+          </h3>
+          <p className="text-xs text-slate-400 leading-relaxed mb-5">
+            Você tem alterações no avatar que ainda não foram salvas. O que
+            deseja fazer?
+          </p>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => {
+                handleSaveAvatar(() => {
+                  setCloseConfirmOpen(false);
+                  onClose();
+                });
+              }}
+              disabled={isPending}
+              className="w-full px-3 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+            >
+              {isPending ? "Salvando..." : "Salvar e sair"}
+            </button>
+            <button
+              onClick={() => {
+                setCloseConfirmOpen(false);
+                onClose();
+              }}
+              disabled={isPending}
+              className="w-full px-3 py-2 rounded-md text-sm font-medium text-red-300 border border-red-500/30 bg-red-500/5 hover:bg-red-500/15 disabled:opacity-50 transition-colors"
+            >
+              Descartar alterações
+            </button>
+            <button
+              onClick={() => setCloseConfirmOpen(false)}
+              disabled={isPending}
+              className="w-full px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-white/5 disabled:opacity-50 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 }
 
 /* ─── World Template Gallery ─────────────────────────────────────────────── */
 
-function WorldTemplateGallery({ stationId, onApplied }: { stationId: string; onApplied: () => void }) {
+function WorldTemplateGallery({
+  stationId,
+  currentMapData,
+  onApplied,
+}: {
+  stationId: string;
+  currentMapData: Partial<WorldMapData> | null;
+  onApplied: () => void;
+}) {
   const [search, setSearch] = useState("");
   const [applying, setApplying] = useState<string | null>(null);
   const { data, isLoading } = useListWorldTemplates({ search: search || undefined });
@@ -441,7 +498,23 @@ function WorldTemplateGallery({ stationId, onApplied }: { stationId: string; onA
   }[];
 
   async function handleApply(templateId: string) {
-    if (!confirm("Aplicar este template vai substituir o mapa atual. Continuar?")) return;
+    // Resumo do conteúdo atual pra alertar antes de sobrescrever
+    const objs = currentMapData?.placedObjects?.length ?? 0;
+    const ars = currentMapData?.areas?.length ?? 0;
+    const tiles = currentMapData?.tileLayer
+      ? Object.keys(currentMapData.tileLayer.cells ?? {}).length
+      : 0;
+    const hasContent = objs > 0 || ars > 0 || tiles > 0;
+
+    const message = hasContent
+      ? `⚠️ Você está prestes a SUBSTITUIR seu mundo atual:\n\n` +
+        `  • ${objs} objeto(s) colocado(s)\n` +
+        `  • ${ars} área(s)\n` +
+        `  • ${tiles} tile(s) pintado(s)\n\n` +
+        `Tudo isso será PERDIDO e não pode ser desfeito.\n\nContinuar?`
+      : "Aplicar este template vai substituir o mapa atual. Continuar?";
+
+    if (!confirm(message)) return;
     setApplying(templateId);
     try {
       await applyTemplate({ templateId, stationId });
