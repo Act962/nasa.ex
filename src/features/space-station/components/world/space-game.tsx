@@ -634,9 +634,13 @@ export function SpaceGame({
       {!loading && (
         <>
           <div className="absolute top-3 left-4 z-10">
-            <div className="h-[52px] flex items-center bg-black/50 backdrop-blur-sm rounded-2xl px-4 text-xs text-slate-300">
+            <a
+              href={`/space/${nick}`}
+              title="Abrir Spacehome"
+              className="h-[52px] flex items-center bg-black/50 backdrop-blur-sm rounded-2xl px-4 text-xs text-slate-300 hover:bg-black/60 hover:text-white transition-colors cursor-pointer"
+            >
               <span className="font-mono text-indigo-400">@{nick}</span>&nbsp;· Space Station
-            </div>
+            </a>
           </div>
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
             <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-slate-400 text-center">

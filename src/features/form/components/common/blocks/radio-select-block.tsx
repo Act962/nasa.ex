@@ -8,6 +8,7 @@ import {
 import { ChevronDown, CircleIcon, TagIcon, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -36,6 +37,12 @@ type attributesType = {
   label: string;
   options: { value: string; tagId?: string | null }[];
   required: boolean;
+  /**
+   * Quando true, o bloco renderiza checkboxes (múltipla escolha) em vez
+   * de radios. Valor serializado: CSV das opções marcadas; meta.tagIds
+   * vira array.
+   */
+  allowMultiple: boolean;
 };
 
 type propertiesValidateSchemaType = z.input<typeof propertiesValidateSchema>;
@@ -43,6 +50,7 @@ type propertiesValidateSchemaType = z.input<typeof propertiesValidateSchema>;
 const propertiesValidateSchema = z.object({
   label: z.string().trim().min(2).max(255),
   required: z.boolean().default(false),
+  allowMultiple: z.boolean().default(false).optional(),
   options: z.array(
     z.object({ value: z.string().min(1), tagId: z.string().nullable() }),
   ),
@@ -62,6 +70,7 @@ export const RadioSelectBlock: ObjectBlockType = {
         { value: "Opção 2", tagId: null },
       ],
       required: false,
+      allowMultiple: false,
     },
   }),
 
@@ -88,51 +97,63 @@ function RadioSelectCanvasComponent({
 }) {
   const block = blockInstance as NewInstance;
 
-  const { label, options, required } = block.attributes;
+  const { label, options, required, allowMultiple } = block.attributes;
 
   const textColor = getContrastColor(settings?.backgroundColor || "");
 
   return (
-    <div
-      className="flex flex-col
-  gap-3 w-full
-    "
-    >
+    <div className="flex flex-col gap-3 w-full">
       <Label
-        className="
-     text-base font-normal! mb-2
-     "
+        className="text-base font-normal! mb-2"
         style={{ color: textColor }}
       >
         {label}
         {required && <span className="text-red-500">*</span>}
       </Label>
 
-      <RadioGroup
-        disabled={true}
-        className="space-y-3
-        disabled:cursor-default 
-        pointer-events-none
-        cursor-default"
-      >
-        {options?.map((option: OptionType, index: number) => (
-          <div key={index} className="flex items-center space-x-2">
-            <RadioGroupItem
-              disabled
-              value={option.value}
-              id={option.value}
-              style={{ borderColor: settings?.primaryColor }}
-            />
-            <Label
-              htmlFor={option.value}
-              className="font-normal!"
-              style={{ color: textColor }}
-            >
-              {option.value}
-            </Label>
-          </div>
-        ))}
-      </RadioGroup>
+      {allowMultiple ? (
+        <div className="space-y-3 pointer-events-none">
+          {options?.map((option: OptionType, index: number) => (
+            <div key={index} className="flex items-center space-x-2">
+              <Checkbox
+                disabled
+                id={`pv-${option.value}`}
+                style={{ borderColor: settings?.primaryColor }}
+              />
+              <Label
+                htmlFor={`pv-${option.value}`}
+                className="font-normal!"
+                style={{ color: textColor }}
+              >
+                {option.value}
+              </Label>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <RadioGroup
+          disabled={true}
+          className="space-y-3 disabled:cursor-default pointer-events-none cursor-default"
+        >
+          {options?.map((option: OptionType, index: number) => (
+            <div key={index} className="flex items-center space-x-2">
+              <RadioGroupItem
+                disabled
+                value={option.value}
+                id={option.value}
+                style={{ borderColor: settings?.primaryColor }}
+              />
+              <Label
+                htmlFor={option.value}
+                className="font-normal!"
+                style={{ color: textColor }}
+              >
+                {option.value}
+              </Label>
+            </div>
+          ))}
+        </RadioGroup>
+      )}
     </div>
   );
 }
@@ -157,7 +178,7 @@ function RadioSelectFormComponent({
   settings?: FormSettings | null;
 }) {
   const block = blockInstance as NewInstance;
-  const { label, options, required } = block.attributes;
+  const { label, options, required, allowMultiple } = block.attributes;
 
   const textColor = getContrastColor(settings?.backgroundColor || "");
 
@@ -168,6 +189,8 @@ function RadioSelectFormComponent({
     value: "",
     meta: {},
   });
+  // Pra múltipla escolha mantemos lista das opções marcadas.
+  const [selected, setSelected] = useState<string[]>([]);
   const [isError, setIsError] = useState(false);
 
   const validateField = (val: string) => {
@@ -177,6 +200,18 @@ function RadioSelectFormComponent({
     return true; // If not required, always valid.
   };
 
+  function commitMulti(next: string[]) {
+    setSelected(next);
+    const csv = next.join(", ");
+    const tagIds = next
+      .map((v) => options.find((o) => o.value === v)?.tagId)
+      .filter((t): t is string => !!t);
+    setValue({ value: csv, meta: { tagIds } });
+    const isValid = !required || next.length > 0;
+    setIsError(!isValid);
+    handleBlur?.(block.id, { value: csv, meta: { tagIds, selected: next } });
+  }
+
   return (
     <div className="flex flex-col gap-3 w-full">
       <Label
@@ -185,62 +220,96 @@ function RadioSelectFormComponent({
       >
         {label}
         {required && <span className="text-red-500">*</span>}
+        {allowMultiple && (
+          <span className="ml-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            (múltipla escolha)
+          </span>
+        )}
       </Label>
 
-      <RadioGroup
-        value={value.value}
-        className="space-y-3"
-        onValueChange={(value) => {
-          const option = options.find((option) => option.value === value);
-          setValue({
-            value,
-            meta: { tagId: option?.tagId || null },
-          });
-          const isValid = validateField(value);
-          setIsError(!isValid);
-          if (handleBlur) {
-            handleBlur(block.id, {
-              value,
-              meta: {
-                tagId: option?.tagId || null,
-              },
+      {allowMultiple ? (
+        <div className="space-y-3">
+          {options?.map((option: OptionType, index: number) => {
+            const uniqueId = `option-multi-${index}-${block.id}`;
+            const checked = selected.includes(option.value);
+            return (
+              <div key={index} className="flex items-center space-x-2">
+                <Checkbox
+                  id={uniqueId}
+                  checked={checked}
+                  onCheckedChange={(v) => {
+                    const next = v
+                      ? [...selected, option.value]
+                      : selected.filter((s) => s !== option.value);
+                    commitMulti(next);
+                  }}
+                  className={`cursor-pointer ${
+                    isError || isSubmitError ? "border-red-500" : ""
+                  }`}
+                  style={{
+                    borderColor: settings?.primaryColor || undefined,
+                  }}
+                />
+                <Label
+                  htmlFor={uniqueId}
+                  className="font-normal! cursor-pointer"
+                  style={{ color: textColor || undefined }}
+                >
+                  {option.value}
+                </Label>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <RadioGroup
+          value={value.value}
+          className="space-y-3"
+          onValueChange={(v) => {
+            const option = options.find((o) => o.value === v);
+            setValue({ value: v, meta: { tagId: option?.tagId || null } });
+            const isValid = validateField(v);
+            setIsError(!isValid);
+            handleBlur?.(block.id, {
+              value: v,
+              meta: { tagId: option?.tagId || null },
             });
-          }
-        }}
-      >
-        {options?.map((option: OptionType, index: number) => {
-          const uniqueId = `option-${uuidv4()}`;
-          return (
-            <div key={index} className="flex items-center space-x-2">
-              <RadioGroupItem
-                value={option.value}
-                id={uniqueId}
-                className={`cursor-pointer ${
-                  isError || isSubmitError ? "border-red-500" : ""
-                }`}
-                style={{
-                  borderColor: settings?.primaryColor || undefined,
-                  color: textColor || undefined,
-                }}
-              />
-              <Label
-                htmlFor={uniqueId}
-                className="font-normal! cursor-pointer"
-                style={{
-                  color: textColor || undefined,
-                }}
-              >
-                {option.value}
-              </Label>
-            </div>
-          );
-        })}
-      </RadioGroup>
+          }}
+        >
+          {options?.map((option: OptionType, index: number) => {
+            const uniqueId = `option-${uuidv4()}`;
+            return (
+              <div key={index} className="flex items-center space-x-2">
+                <RadioGroupItem
+                  value={option.value}
+                  id={uniqueId}
+                  className={`cursor-pointer ${
+                    isError || isSubmitError ? "border-red-500" : ""
+                  }`}
+                  style={{
+                    borderColor: settings?.primaryColor || undefined,
+                    color: textColor || undefined,
+                  }}
+                />
+                <Label
+                  htmlFor={uniqueId}
+                  className="font-normal! cursor-pointer"
+                  style={{ color: textColor || undefined }}
+                >
+                  {option.value}
+                </Label>
+              </div>
+            );
+          })}
+        </RadioGroup>
+      )}
 
       {isError ? (
         <p className="text-red-500 text-[0.8rem]">
-          {required && value.value.trim().length === 0
-            ? "This field is required"
+          {required
+            ? allowMultiple
+              ? "Selecione ao menos uma opção"
+              : "Este campo é obrigatório"
             : ""}
         </p>
       ) : (
@@ -271,6 +340,7 @@ function RadioSelectPropertiesComponent({
     defaultValues: {
       label: block.attributes.label,
       required: block.attributes.required,
+      allowMultiple: block.attributes.allowMultiple ?? false,
       options: block.attributes.options.map((option) => ({
         value: option.value,
         tagId: option.tagId,
@@ -283,6 +353,7 @@ function RadioSelectPropertiesComponent({
     form.reset({
       label: block.attributes.label,
       required: block.attributes.required,
+      allowMultiple: block.attributes.allowMultiple ?? false,
       options: block.attributes.options || [],
     });
   }, [block.attributes, form]);
@@ -322,12 +393,7 @@ function RadioSelectPropertiesComponent({
   return (
     <div className="w-full pb-4">
       <div className="w-full flex items-center justify-between gap-1 bg-foreground/10 rounded-md h-auto p-1 px-2 mb-[10px]">
-        <span
-          className="
-          text-sm font-medium text-muted-foreground
-          tracking-wider
-        "
-        >
+        <span className="text-sm font-medium text-muted-foreground tracking-wider">
           Radio {positionIndex}
         </span>
         <ChevronDown className="w-4 h-4" />
@@ -344,10 +410,7 @@ function RadioSelectPropertiesComponent({
             name="label"
             render={({ field }) => (
               <FormItem className="text-end">
-                <div
-                  className="flex items-baseline
-                  justify-between w-full gap-2"
-                >
+                <div className="flex items-baseline justify-between w-full gap-2">
                   <FormLabel className="text-[13px] font-normal">
                     Label
                   </FormLabel>
@@ -377,10 +440,7 @@ function RadioSelectPropertiesComponent({
             name="options"
             render={({ field }) => (
               <FormItem className="text-end">
-                <div
-                  className="flex items-baseline
-                  justify-between w-full gap-2"
-                >
+                <div className="flex items-baseline justify-between w-full gap-2">
                   <FormLabel className="text-[13px] font-normal">
                     Opções
                   </FormLabel>
@@ -418,11 +478,7 @@ function RadioSelectPropertiesComponent({
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="
-                            p-0 absolute -right-1 -top-1
-                            bg-foreground rounded-full
-                            w-4 h-4
-                          "
+                            className="p-0 absolute -right-1 -top-1 bg-foreground rounded-full w-4 h-4"
                             onClick={() => {
                               const updatedOptions = field.value?.filter(
                                 (_, i) => i !== index,
@@ -469,16 +525,40 @@ function RadioSelectPropertiesComponent({
             )}
           />
 
+          {/* Múltipla escolha (transforma radios em checkboxes) */}
+          <FormField
+            control={form.control}
+            name="allowMultiple"
+            render={({ field }) => (
+              <FormItem className="text-end">
+                <div className="flex items-baseline justify-between w-full gap-2">
+                  <FormLabel className="text-[13px] font-normal">
+                    Múltipla escolha
+                  </FormLabel>
+                  <FormControl>
+                    <Switch
+                      checked={!!field.value}
+                      onCheckedChange={(value) => {
+                        field.onChange(value);
+                        setChanges({
+                          ...form.getValues(),
+                          allowMultiple: value,
+                        });
+                      }}
+                    />
+                  </FormControl>
+                </div>
+              </FormItem>
+            )}
+          />
+
           {/* Required Field */}
           <FormField
             control={form.control}
             name="required"
             render={({ field }) => (
               <FormItem className="text-end">
-                <div
-                  className="flex items-baseline
-                  justify-between w-full gap-2"
-                >
+                <div className="flex items-baseline justify-between w-full gap-2">
                   <FormLabel className="text-[13px] font-normal">
                     Obrigatorio
                   </FormLabel>

@@ -1,15 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/lib/orpc";
 import { SpaceCard } from "../space-card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 interface CardProjectsProps {
   nick: string;
 }
 
 export function CardProjects({ nick }: CardProjectsProps) {
+  const session = authClient.useSession();
+  const isAuthenticated = !!session.data?.user?.id;
+
   const { data, isLoading } = useQuery(
     orpc.public.space.listProjects.queryOptions({
       input: { nick, limit: 6 },
@@ -23,7 +30,21 @@ export function CardProjects({ nick }: CardProjectsProps) {
       title="Projetos públicos"
       subtitle="Trackings compartilhados pela empresa"
       isEmpty={!isLoading && projects.length === 0}
-      empty="A empresa ainda não publicou projetos."
+      empty={
+        isAuthenticated
+          ? "Você ainda não compartilhou projetos publicamente."
+          : "A empresa ainda não publicou projetos."
+      }
+      emptyAction={
+        isAuthenticated ? (
+          <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600">
+            <Link href="/workspaces">
+              <Plus className="mr-1 size-4" />
+              Criar meu primeiro projeto
+            </Link>
+          </Button>
+        ) : null
+      }
     >
       {isLoading ? (
         <div className="space-y-2">

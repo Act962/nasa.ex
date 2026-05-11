@@ -36,17 +36,10 @@ export function FormBlockBox() {
         />
         <AiAssistanceBtn />
       </div>
-      <div
-        className="flex flex-col 
-      space-y-3
-      w-full"
-      >
+      <div className="flex flex-col space-y-3 w-full">
         {layoutBlocks?.length > 0 && (
           <div className="mb-2">
-            <h5
-              className="text-[13px]
-            font-medium"
-            >
+            <h5 className="text-[13px] font-medium">
               Layouts
             </h5>
 
@@ -64,10 +57,7 @@ export function FormBlockBox() {
 
         <Separator />
         <div>
-          <h5
-            className="text-[13px]
-           text-muted-foreground font-medium"
-          >
+          <h5 className="text-[13px] text-muted-foreground font-medium">
             Fields
           </h5>
 

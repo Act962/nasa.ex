@@ -175,10 +175,7 @@ function RowLayoutCanvasComponent({
               !blockInstance.isLocked &&
               activeBlock?.data?.current?.isBlockBtnElement &&
               droppable.isOver && (
-                <div
-                  className="relative border border-dotted 
-                border-foreground bg-foreground/10 w-full h-28"
-                >
+                <div className="relative border border-dotted border-foreground bg-foreground/10 w-full h-28">
                   <div className="absolute left-1/2 top-0 -translate-x-1/2 text-xs bg-foreground text-muted-foreground hover:bg-foreground hover:text-white text-center w-28 p-1 rounded-b-full shadow-md">
                     Arraste o bloco aqui
                   </div>
@@ -188,13 +185,7 @@ function RowLayoutCanvasComponent({
             {!droppable.isOver && childBlocks?.length == 0 ? (
               <PlaceHolder textColor={textColor} />
             ) : (
-              <div
-                className="
-                      flex w-full flex-col
-                       items-center 
-                       justify-start 
-                       gap-4 py-4 px-3"
-              >
+              <div className="flex w-full flex-col items-center justify-start gap-4 py-4 px-3">
                 {childBlocks?.map((childBlock) => (
                   <div
                     key={childBlock.id}
@@ -282,16 +273,11 @@ function RowLayoutFormComponent({
       >
         <CardContent className="px-2 pb-2">
           <div className="flex flex-wrap gap-2">
-            <div
-              className="
-             flex w-full flex-col items-center justify-center gap-4 py-4 px-3"
-            >
+            <div className="flex w-full flex-col items-center justify-center gap-4 py-4 px-3">
               {childblocks.map((childblock) => (
                 <div
                   key={childblock.id}
-                  className="flex items-center
-                        justify-center 
-                        gap-1 h-auto w-full"
+                  className="flex items-center justify-center gap-1 h-auto w-full"
                 >
                   <ChildFormComponentWrapper
                     blockInstance={childblock}
@@ -318,12 +304,7 @@ function RowLayoutPropertiesComponent({
   const childblocks = blockInstance.childblocks || [];
   return (
     <div className="pt-3 w-full">
-      <div
-        className="flex w-full flex-col 
-    items-center
-     justify-start gap-0 py-0 px-0
-    "
-      >
+      <div className="flex w-full flex-col items-center justify-start gap-0 py-0 px-0">
         {childblocks?.map((childblock, index) => (
           <div
             key={childblock.id}
@@ -346,9 +327,7 @@ function PlaceHolder({ textColor }: { textColor: string | undefined }) {
     <div className="flex flex-col items-center justify-center border border-dotted border-muted-foreground rounded-md bg-accent/10 hover:bg-accent/5 w-full h-28 text-foreground font-medium text-base gap-1s">
       <p
         style={{ color: textColor || undefined }}
-        className="
-          text-center 
-          "
+        className="text-center"
       >
         Arraste e solte um bloco aqui para começar
       </p>

@@ -96,8 +96,7 @@ function TextFieldCanvasComponent({
       </Label>
       <Input
         readOnly
-        className="pointer-events-none!
-        cursor-default h-10"
+        className="pointer-events-none! cursor-default h-10"
         placeholder={placeHolder}
       />
       {helperText && (
@@ -304,10 +303,7 @@ function TextFieldPropertiesComponent({
                         }}
                       />
                     </FormControl>
-                    <FormDescription
-                      className="text-[11px] 
-                    mt-2 pl-1"
-                    >
+                    <FormDescription className="text-[11px] mt-2 pl-1">
                       Forneça uma nota curta para orientar os usuários
                     </FormDescription>
                   </div>

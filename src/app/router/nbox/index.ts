@@ -6,6 +6,7 @@ import { getItems } from "./get-items";
 import { createItem } from "./create-item";
 import { updateItem } from "./update-item";
 import { deleteItem } from "./delete-item";
+import { toggleItemPublic } from "./toggle-item-public";
 import { getStorage } from "./get-storage";
 
 export const nboxRouter = {
@@ -20,6 +21,7 @@ export const nboxRouter = {
     create: createItem,
     update: updateItem,
     delete: deleteItem,
+    togglePublic: toggleItemPublic,
   },
   getStorage,
 };

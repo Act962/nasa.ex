@@ -83,10 +83,7 @@ function TextAreaCanvasComponent({
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label
-        className="text-base font-normal
-       mb-2"
-      >
+      <Label className="text-base font-normal mb-2">
         {label}
         {required && <span className="text-red-500">*</span>}
       </Label>
@@ -95,14 +92,10 @@ function TextAreaCanvasComponent({
         rows={rows || 3} // Default row value if not provided
         cols={50} // Default column value if not provided
         readOnly
-        className="resize-none min-h-[50px]!
-        pointer-events-none cursor-default"
+        className="resize-none min-h-[50px]! pointer-events-none cursor-default"
       />
       {helperText && (
-        <p
-          className="text-muted-foreground 
-        text-[0.8rem]"
-        >
+        <p className="text-muted-foreground text-[0.8rem]">
           {helperText}
         </p>
       )}

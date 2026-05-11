@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ImagePlus, Trash } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -105,13 +105,24 @@ function FormView({
 }) {
   const block = blockInstance as Instance;
   const { label, required, helperText, multiple, width, height } = block.attributes;
+  // Backup persistente das imagens em sessionStorage por blockId — antes,
+  // se o componente remountasse (ex: multi-step do form, ou rerender por
+  // mudança em outro campo), o useState voltava pra [] e as imagens
+  // sumiam do payload final, mesmo já enviadas pro S3.
+  const storageKey = `nasa.form.image-upload.${block.id}`;
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isError, setIsError] = useState(false);
+  const initialRestoreRef = useRef(false);
 
   function commit(next: ImageItem[]) {
     setImages(next);
     const isValid = !required || next.length > 0;
     setIsError(!isValid);
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(next));
+    } catch {
+      /* quota / private mode — ignorar */
+    }
     handleBlur?.(block.id, {
       value: next.map((i) => i.url).join(","),
       meta: { images: next, dimensions: { width, height } },
@@ -122,6 +133,29 @@ function FormView({
     const item = { url: key, name: fileName ?? "Imagem" };
     commit(multiple ? [...images, item] : [item]);
   }
+
+  // Restaura na montagem inicial — sessionStorage tem prioridade sobre
+  // useState vazio. Re-emite pro formVals.current pra garantir que o
+  // submit final inclua as imagens.
+  useEffect(() => {
+    if (initialRestoreRef.current) return;
+    initialRestoreRef.current = true;
+    try {
+      const raw = sessionStorage.getItem(storageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as ImageItem[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setImages(parsed);
+        handleBlur?.(block.id, {
+          value: parsed.map((i) => i.url).join(","),
+          meta: { images: parsed, dimensions: { width, height }, restored: true },
+        });
+      }
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex flex-col gap-2 w-full">

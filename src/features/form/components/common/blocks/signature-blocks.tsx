@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, PenLine, Signature, Eraser } from "lucide-react";
+import { ChevronDown, PenLine, Signature, Eraser, Check } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -208,9 +208,17 @@ function SignatureClientForm({
   const block = blockInstance as Instance;
   const { label, required, helperText } = block.attributes;
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Backup persistente da imagem em sessionStorage por blockId — sobrevive
+  // re-renders/remount enquanto a aba estiver aberta. Antes esse valor
+  // morria no useState/canvas e a assinatura sumia ao salvar.
+  const storageKey = `nasa.form.signature.${block.id}`;
   const [drawing, setDrawing] = useState(false);
   const [hasContent, setHasContent] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
   const [isError, setIsError] = useState(false);
+  // Mantemos o último dataURL fora do React pra garantir que o "Confirmar"
+  // pegue mesmo se o paint terminar entre re-renders.
+  const lastDataUrlRef = useRef<string>("");
 
   function getPos(e: React.MouseEvent | React.TouchEvent) {
     const canvas = canvasRef.current!;
@@ -230,6 +238,8 @@ function SignatureClientForm({
     ctx.beginPath();
     ctx.moveTo(x, y);
     setDrawing(true);
+    // Qualquer novo traço descondirma assinatura antiga — força reconfirmar
+    if (confirmed) setConfirmed(false);
   }
 
   function move(e: React.MouseEvent | React.TouchEvent) {
@@ -247,16 +257,49 @@ function SignatureClientForm({
   }
 
   function end() {
-    if (!drawing) return;
     setDrawing(false);
-    const dataUrl = canvasRef.current?.toDataURL("image/png");
-    if (dataUrl) {
-      setIsError(false);
-      handleBlur?.(block.id, {
-        value: dataUrl,
-        meta: { dataUrl, signedAt: new Date().toISOString() },
-      });
+    // Captura snapshot leve a cada stroke pra ter "última versão" garantida.
+    // Mesmo se drawing já estava false (race entre re-renders), salvamos
+    // se o canvas tiver conteúdo visível.
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    // JPEG quality 0.6 reduz ~10x vs PNG sem prejuízo visual da assinatura.
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.6);
+    if (dataUrl && hasContent) {
+      lastDataUrlRef.current = dataUrl;
+      try {
+        sessionStorage.setItem(storageKey, dataUrl);
+      } catch {
+        /* quota ou modo privado — silenciar */
+      }
     }
+  }
+
+  function confirm() {
+    // Botão "Confirmar assinatura" → grava no formVals via handleBlur.
+    // Pega o dataURL atual do canvas (ou do ref) pra evitar perda de
+    // estado em re-renders entre o último stroke e o click.
+    const canvas = canvasRef.current;
+    let dataUrl = lastDataUrlRef.current;
+    if (canvas && hasContent) {
+      dataUrl = canvas.toDataURL("image/jpeg", 0.6);
+      lastDataUrlRef.current = dataUrl;
+    }
+    if (!dataUrl) {
+      if (required) setIsError(true);
+      return;
+    }
+    setIsError(false);
+    setConfirmed(true);
+    try {
+      sessionStorage.setItem(storageKey, dataUrl);
+    } catch {
+      /* ignore */
+    }
+    handleBlur?.(block.id, {
+      value: dataUrl,
+      meta: { dataUrl, signedAt: new Date().toISOString() },
+    });
   }
 
   function clear() {
@@ -264,6 +307,13 @@ function SignatureClientForm({
     if (!canvas) return;
     canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
     setHasContent(false);
+    setConfirmed(false);
+    lastDataUrlRef.current = "";
+    try {
+      sessionStorage.removeItem(storageKey);
+    } catch {
+      /* ignore */
+    }
     if (required) setIsError(true);
     handleBlur?.(block.id, { value: "" });
   }
@@ -273,8 +323,33 @@ function SignatureClientForm({
     if (!canvas) return;
     canvas.width = canvas.offsetWidth * 2;
     canvas.height = canvas.offsetHeight * 2;
-    const ctx = canvas.getContext("2d");
-    ctx?.scale(1, 1);
+
+    // Restaura assinatura prévia (sessionStorage) caso o componente seja
+    // remontado durante a sessão — multi-step do form, troca de página etc.
+    let saved = "";
+    try {
+      saved = sessionStorage.getItem(storageKey) ?? "";
+    } catch {
+      /* ignore */
+    }
+    if (saved) {
+      const img = new Image();
+      img.onload = () => {
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        setHasContent(true);
+        setConfirmed(true);
+        lastDataUrlRef.current = saved;
+        // Re-emite pro formVals.current pra não depender da ordem de mount.
+        handleBlur?.(block.id, {
+          value: saved,
+          meta: { dataUrl: saved, restored: true },
+        });
+      };
+      img.src = saved;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -287,7 +362,7 @@ function SignatureClientForm({
       </Label>
       <div
         className={`relative border-2 rounded-md bg-white ${
-          isError || isSubmitError ? "border-red-500!" : "border-foreground/20"
+          isError || isSubmitError ? "border-red-500!" : confirmed ? "border-emerald-500" : "border-foreground/20"
         }`}
         style={{ height: "150px" }}
       >
@@ -307,12 +382,35 @@ function SignatureClientForm({
             Assine aqui
           </span>
         )}
+        {confirmed && (
+          <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+            <Check className="w-3 h-3" />
+            Assinatura registrada
+          </div>
+        )}
       </div>
-      <Button type="button" variant="ghost" size="sm" className="w-fit" onClick={clear}>
-        <Eraser className="w-4 h-4 mr-1" />
-        Limpar
-      </Button>
+      <div className="flex gap-2 items-center flex-wrap">
+        <Button
+          type="button"
+          size="sm"
+          onClick={confirm}
+          disabled={!hasContent || confirmed}
+          className="bg-emerald-600 hover:bg-emerald-700"
+        >
+          <Check className="w-4 h-4 mr-1" />
+          {confirmed ? "Assinada" : "Confirmar assinatura"}
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={clear} disabled={!hasContent}>
+          <Eraser className="w-4 h-4 mr-1" />
+          Limpar
+        </Button>
+      </div>
       {helperText && <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>}
+      {!confirmed && hasContent && (
+        <p className="text-[0.75rem] text-amber-600">
+          Clique em &quot;Confirmar assinatura&quot; pra gravar antes de enviar o formulário.
+        </p>
+      )}
       {(isError || isSubmitError) && (
         <p className="text-red-500 text-[0.8rem]">{errorMessage || "Assinatura obrigatória."}</p>
       )}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronDown, Clock } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -135,7 +135,11 @@ function FormView({
               className={`justify-start font-normal flex-1 ${isError || isSubmitError ? "border-red-500!" : ""}`}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {date ? format(date, "PPP", { locale: ptBR }) : "Selecione uma data"}
+              {/* Formato explícito DD/MM/YYYY a pedido do produto (10/05/26).
+                  Placeholder também mostra o padrão pra orientar o usuário. */}
+              {date
+                ? format(date, "dd/MM/yyyy", { locale: ptBR })
+                : "DD/MM/AAAA"}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
@@ -149,12 +153,22 @@ function FormView({
           </PopoverContent>
         </Popover>
         {withTime && (
-          <Input
-            type="time"
-            className="w-32"
-            value={time}
-            onChange={(e) => commit(date, e.target.value)}
-          />
+          <div className="relative w-36">
+            <Clock className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground" />
+            <Input
+              type="time"
+              value={time}
+              onChange={(e) => commit(date, e.target.value)}
+              className="pl-8 text-foreground"
+              style={{
+                // Garante que mesmo em themes ou em iOS Safari o texto e
+                // o spinner do <input type=time> apareçam em preto sólido
+                // (default fica cinza claro e some no fundo branco).
+                colorScheme: "light",
+                color: "#000",
+              }}
+            />
+          </div>
         )}
       </div>
       {helperText && <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>}

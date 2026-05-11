@@ -9,7 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Globe } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateOrgProject, useUpdateOrgProject } from "../hooks/use-org-projects";
+import {
+  useCreateOrgProject,
+  useUpdateOrgProject,
+  useToggleOrgProjectPublic,
+} from "../hooks/use-org-projects";
+import { PublicVisibilityDialog } from "@/components/public-visibility-dialog";
 
 const PROJECT_TYPES = [
   { value: "client",  label: "Cliente" },
@@ -38,12 +43,14 @@ interface Props {
 export function ProjectFormDialog({ open, onOpenChange, editing }: Props) {
   const create = useCreateOrgProject();
   const update = useUpdateOrgProject();
+  const togglePublic = useToggleOrgProjectPublic();
 
   const [name, setName] = useState("");
   const [type, setType] = useState("client");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#7c3aed");
   const [isPublicOnSpace, setIsPublicOnSpace] = useState(false);
+  const [publicConfirmOpen, setPublicConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (editing) {
@@ -61,15 +68,35 @@ export function ProjectFormDialog({ open, onOpenChange, editing }: Props) {
   const handleSubmit = async () => {
     if (!name.trim()) return;
     if (editing) {
+      // `isPublicOnSpace` é persistido separado via togglePublic (com consent).
+      // Aqui apenas atualizamos os campos descritivos.
       await update.mutateAsync({
         projectId: editing.id, name, type,
-        description: description || null, color, isPublicOnSpace,
+        description: description || null, color,
       });
     } else {
       await create.mutateAsync({ name, type, description: description || undefined, color });
     }
     onOpenChange(false);
   };
+
+  /** Switch público: liga → abre dialog de consentimento; desliga → direto. */
+  function handlePublicSwitch(next: boolean) {
+    if (!editing) return; // novo projeto: só salva tudo no submit
+    if (next) {
+      setPublicConfirmOpen(true);
+    } else {
+      togglePublic.mutate(
+        {
+          projectId: editing.id,
+          isPublicOnSpace: false,
+        },
+        {
+          onSuccess: () => setIsPublicOnSpace(false),
+        },
+      );
+    }
+  }
 
   const isPending = create.isPending || update.isPending;
 
@@ -126,7 +153,8 @@ export function ProjectFormDialog({ open, onOpenChange, editing }: Props) {
                 <Switch
                   id="public-on-space"
                   checked={isPublicOnSpace}
-                  onCheckedChange={setIsPublicOnSpace}
+                  disabled={togglePublic.isPending}
+                  onCheckedChange={handlePublicSwitch}
                 />
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
@@ -144,6 +172,29 @@ export function ProjectFormDialog({ open, onOpenChange, editing }: Props) {
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Dialog de consentimento de visualização pública */}
+      <PublicVisibilityDialog
+        open={publicConfirmOpen}
+        onOpenChange={setPublicConfirmOpen}
+        isPending={togglePublic.isPending}
+        onConfirm={() => {
+          if (!editing) return;
+          togglePublic.mutate(
+            {
+              projectId: editing.id,
+              isPublicOnSpace: true,
+              consent: true,
+            },
+            {
+              onSuccess: () => {
+                setIsPublicOnSpace(true);
+                setPublicConfirmOpen(false);
+              },
+            },
+          );
+        }}
+      />
     </Dialog>
   );
 }

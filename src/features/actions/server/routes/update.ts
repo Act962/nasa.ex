@@ -43,15 +43,36 @@ export const updateAction = base
       city: z.string().nullable().optional(),
       address: z.string().nullable().optional(),
       registrationUrl: z.string().nullable().optional(),
+      /**
+       * Consentimento explícito de "Visualização Pública". OBRIGATÓRIO
+       * quando `isPublic=true` E o evento estava privado antes. Sem isso,
+       * a procedure rejeita — protege contra chamadas API que pulam o
+       * `<PublicVisibilityDialog>` no front.
+       */
+      consent: z.boolean().optional(),
     }),
   )
-  .handler(async ({ input, context }) => {
-    const { actionId, ...data } = input;
+  .handler(async ({ input, context, errors }) => {
+    const { actionId, consent, ...data } = input;
     const { session } = context;
 
     const previous = await prisma.action.findUnique({
       where: { id: actionId },
     });
+
+    // Guarda do consentimento: vira público (false → true) sem consent é
+    // rejeitado pra que TODA publicação passe pelo aviso explícito.
+    if (
+      data.isPublic === true &&
+      previous &&
+      !previous.isPublic &&
+      consent !== true
+    ) {
+      throw errors.BAD_REQUEST({
+        message:
+          "Consentimento obrigatório pra tornar o evento público. Confirme o aviso de visualização pública.",
+      });
+    }
 
     // Ao publicar pela 1ª vez: gerar publicSlug único + setar publishedAt
     let publicSlug: string | undefined;
@@ -115,6 +136,7 @@ export const updateAction = base
 
       let featureKey = "workspace.action.updated";
       let actionLabel = `Atualizou a ação "${action.title}"`;
+      let publicMeta = false;
       if (data.isDone === true && previous && !previous.isDone) {
         featureKey = "workspace.action.completed";
         actionLabel = `Concluiu a ação "${action.title}"`;
@@ -122,8 +144,12 @@ export const updateAction = base
         featureKey = "workspace.action.reopened";
         actionLabel = `Reabriu a ação "${action.title}"`;
       } else if (data.isPublic === true && previous && !previous.isPublic) {
-        featureKey = "workspace.action.published";
-        actionLabel = `Publicou a ação "${action.title}" no calendário público`;
+        featureKey = "workspace.action.made_public";
+        actionLabel = `Tornou o evento "${action.title}" público — aparece no calendário público e na Spacehome.`;
+        publicMeta = true;
+      } else if (data.isPublic === false && previous?.isPublic) {
+        featureKey = "workspace.action.made_private";
+        actionLabel = `Tornou o evento "${action.title}" privado — removido do calendário público.`;
       } else if (data.columnId !== undefined && previous && data.columnId !== previous.columnId) {
         featureKey = "workspace.action.moved";
         actionLabel = `Moveu a ação "${action.title}" entre colunas`;
@@ -142,7 +168,9 @@ export const updateAction = base
         actionLabel,
         resource: action.title,
         resourceId: action.id,
-        metadata: { changedFields },
+        metadata: publicMeta
+          ? { changedFields, isPublic: true, consentGiven: consent === true }
+          : { changedFields },
       });
     }
 

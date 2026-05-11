@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/lib/orpc";
 import { SpaceCard } from "../space-card";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, ExternalLink } from "lucide-react";
+import { CalendarDays, ExternalLink, Plus } from "lucide-react";
 
 interface CardCalendarProps {
   nick: string;
@@ -16,6 +17,9 @@ interface CardCalendarProps {
  * completa. NÃO é o /calendario global.
  */
 export function CardCalendar({ nick }: CardCalendarProps) {
+  const session = authClient.useSession();
+  const isAuthenticated = !!session.data?.user?.id;
+
   const { data, isLoading } = useQuery(
     orpc.public.space.listSpaceActions.queryOptions({
       input: { nick, limit: 6 },
@@ -42,7 +46,21 @@ export function CardCalendar({ nick }: CardCalendarProps) {
         </Button>
       }
       isEmpty={!isLoading && events.length === 0}
-      empty="Nenhum evento público agendado."
+      empty={
+        isAuthenticated
+          ? "Você ainda não publicou eventos."
+          : "Nenhum evento público agendado."
+      }
+      emptyAction={
+        isAuthenticated ? (
+          <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600">
+            <Link href="/agendas">
+              <Plus className="mr-1 size-4" />
+              Criar meu primeiro agendamento
+            </Link>
+          </Button>
+        ) : null
+      }
     >
       {isLoading ? (
         <div className="space-y-2">

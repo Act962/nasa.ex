@@ -36,6 +36,10 @@ export interface SpaceLayout {
   rows: SpaceLayoutRow[];
 }
 
+// "news" foi removido dos layouts a pedido do produto (10/05/26). O tipo
+// permanece em SpaceCardType porque ainda existe no banco de páginas
+// customizadas — apenas não aparece nos templates padrão.
+
 export const DEFAULT_LAYOUT: SpaceLayout = {
   slug: "default",
   rows: [
@@ -44,7 +48,6 @@ export const DEFAULT_LAYOUT: SpaceLayout = {
     { cards: ["projects", "ranking"] },
     { cards: ["calendar"] },
     { cards: ["nbox", "forms"] },
-    { cards: ["news"] },
     { cards: ["reviews"] },
     { cards: ["stars", "followers"] },
     { cards: ["footer"] },
@@ -60,7 +63,6 @@ export const CORPORATE_LAYOUT: SpaceLayout = {
     { cards: ["projects"] },
     { cards: ["integrations", "connected-orgs"] },
     { cards: ["forms"] },
-    { cards: ["news"] },
     { cards: ["reviews"] },
     { cards: ["footer"] },
   ],
@@ -71,7 +73,6 @@ export const CREATIVE_LAYOUT: SpaceLayout = {
   rows: [
     { cards: ["header"] },
     { cards: ["space-station"] },        // Logo abaixo do header
-    { cards: ["news"] },
     { cards: ["social-banners"] },
     { cards: ["projects"] },
     { cards: ["stars", "followers"] },

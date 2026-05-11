@@ -11,6 +11,7 @@ import {
   SunIcon,
   MoonIcon,
   LaptopIcon,
+  UserCircle,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -224,6 +225,14 @@ export function NavUser() {
               >
                 <BadgeCheck />
                 Configurações
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => router.push("/settings/perfil-publico")}
+                className="cursor-pointer"
+              >
+                <UserCircle />
+                Perfil público
               </DropdownMenuItem>
 
               <DropdownMenuItem
