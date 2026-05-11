@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  Mic, MicOff, Video, VideoOff, Share2, Star,
+  Mic, MicOff, Video, VideoOff, Share2,
   Map, Users, Smile, Settings, Monitor, MonitorOff, UserRound, MapPin,
-  Check, ChevronDown,
+  Check, ChevronDown, UserPlus,
 } from "lucide-react";
 import NextImage from "next/image";
 import { useEffect, useRef, useState } from "react";
@@ -119,7 +119,7 @@ export function MediaBar({
   return (
     <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 pointer-events-none select-none">
       {/* ── Left group: emoji + grid ── */}
-      <div className="flex items-center gap-1 bg-slate-900/90 backdrop-blur-sm rounded-2xl px-2 py-1.5 pointer-events-auto">
+      <div className="flex items-center gap-1 h-[52px] bg-black/50 backdrop-blur-sm rounded-2xl px-2 pointer-events-auto">
         {onOpenEmpresas && (
           <button
             onClick={onOpenEmpresas}
@@ -129,6 +129,15 @@ export function MediaBar({
             <MapPin className="h-4 w-4" />
             <span className="hidden md:inline">Empresas</span>
           </button>
+        )}
+        {onOpenConnect && (
+          <IconBtn
+            title="Conectar pessoas"
+            onClick={onOpenConnect}
+            active={connectPanelOpen}
+          >
+            <UserPlus className="h-4 w-4" />
+          </IconBtn>
         )}
         <IconBtn title="Reações" onClick={() => {}}>
           <Smile className="h-4 w-4" />
@@ -142,7 +151,7 @@ export function MediaBar({
       </div>
 
       {/* ── Center group: mic + cam ── */}
-      <div className="flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-sm rounded-2xl px-3 py-1.5 pointer-events-auto">
+      <div className="flex items-center gap-1.5 h-[52px] bg-black/50 backdrop-blur-sm rounded-2xl px-3 pointer-events-auto">
         {/* Mic toggle */}
         <button
           onClick={onToggleMic}
@@ -207,10 +216,7 @@ export function MediaBar({
       </div>
 
       {/* ── Right group: star + share + enter + map + profile ── */}
-      <div className="flex items-center gap-1 bg-slate-900/90 backdrop-blur-sm rounded-2xl px-2 py-1.5 pointer-events-auto">
-        <IconBtn title="Favoritos">
-          <Star className="h-4 w-4" />
-        </IconBtn>
+      <div className="flex items-center gap-1 h-[52px] bg-black/50 backdrop-blur-sm rounded-2xl px-2 pointer-events-auto">
         <IconBtn title="Compartilhar link" onClick={onOpenShare}>
           <Share2 className="h-4 w-4" />
         </IconBtn>
@@ -441,12 +447,26 @@ function WorldAvatarPill({
   );
 }
 
-function IconBtn({ children, title, onClick }: { children: React.ReactNode; title?: string; onClick?: () => void }) {
+function IconBtn({
+  children,
+  title,
+  onClick,
+  active = false,
+}: {
+  children: React.ReactNode;
+  title?: string;
+  onClick?: () => void;
+  active?: boolean;
+}) {
   return (
     <button
       onClick={onClick}
       title={title}
-      className="w-8 h-8 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all"
+      className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
+        active
+          ? "bg-indigo-500/20 text-indigo-300 border border-indigo-400/30"
+          : "text-slate-300 hover:text-white hover:bg-white/10"
+      }`}
     >
       {children}
     </button>

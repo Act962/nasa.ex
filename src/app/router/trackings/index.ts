@@ -7,9 +7,15 @@ import { addParticipant } from "./add-participant";
 import { removeParticipant } from "./remove-participant";
 import { listParticipants } from "./list-participants";
 import { listAllTrackings } from "./list-all-trackings";
+import { getTrackingCardConfig } from "./get-card-config";
+import { updateTrackingCardConfig } from "./update-card-config";
+import { listDashboard } from "./list-dashboard";
+import { getCardAppearance } from "./get-card-appearance";
 
 export const trackingRoutes = {
   list: listTrackings,
+  listDashboard,
+  getCardAppearance,
   create: createTracking,
   get: getTracking,
   update: updateTracking,
@@ -18,4 +24,6 @@ export const trackingRoutes = {
   removeParticipant: removeParticipant,
   listParticipants: listParticipants,
   listAllTrackings,
+  getCardConfig: getTrackingCardConfig,
+  updateCardConfig: updateTrackingCardConfig,
 };

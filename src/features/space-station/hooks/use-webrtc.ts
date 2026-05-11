@@ -385,6 +385,24 @@ export function useWebRTC({ stationId, userId, userName, userImage }: UseWebRTCO
 
     try {
       setCamError(null);
+
+      // Pre-flight: se o ambiente não suporta, falhe com mensagem clara
+      // (em vez de stack trace de TypeError com `mediaDevices undefined`).
+      if (typeof window !== "undefined" && window.isSecureContext === false) {
+        throw new Error(
+          "INSECURE_CONTEXT: este site precisa estar em HTTPS pra acessar câmera e microfone.",
+        );
+      }
+      if (
+        typeof navigator === "undefined" ||
+        !navigator.mediaDevices ||
+        typeof navigator.mediaDevices.getUserMedia !== "function"
+      ) {
+        throw new Error(
+          "MEDIA_API_UNAVAILABLE: este browser não suporta captura de mídia, ou a página está bloqueando o acesso (Permissions-Policy).",
+        );
+      }
+
       const constraints: MediaStreamConstraints = {
         audio: audio
           ? (selectedAudioRef.current ? { deviceId: { exact: selectedAudioRef.current } } : true)
@@ -413,7 +431,11 @@ export function useWebRTC({ stationId, userId, userName, userImage }: UseWebRTCO
       if (video)  { camOnRef.current = false;  setCamOn(false);  }
       if (audio)  { micOnRef.current = false;   setMicOn(false);  }
 
-      if (msg.includes("by system")) {
+      if (msg.includes("INSECURE_CONTEXT")) {
+        setCamError("Este site precisa estar em HTTPS pra acessar câmera e microfone. Acesse pela URL https://...");
+      } else if (msg.includes("MEDIA_API_UNAVAILABLE")) {
+        setCamError("Browser não suporta captura de mídia ou a página está bloqueando (Permissions-Policy). Tente em outra aba (não embarcado em iframe) e em Chrome/Edge/Firefox/Safari atualizados.");
+      } else if (msg.includes("by system")) {
         setCamError("Acesso negado pelo sistema. Vá em Preferências do Sistema → Privacidade → Microfone/Câmera e permita o navegador.");
       } else if (msg.includes("Permission denied") || msg.includes("NotAllowedError")) {
         setCamError("Permissão negada pelo navegador. Clique no cadeado na barra de endereços e permita o acesso.");
@@ -497,6 +519,20 @@ export function useWebRTC({ stationId, userId, userName, userImage }: UseWebRTCO
     } else {
       // ── Start screen sharing ───────────────────────────────────────────
       try {
+        if (typeof window !== "undefined" && window.isSecureContext === false) {
+          throw new Error(
+            "INSECURE_CONTEXT: este site precisa estar em HTTPS pra compartilhar tela.",
+          );
+        }
+        if (
+          typeof navigator === "undefined" ||
+          !navigator.mediaDevices ||
+          typeof navigator.mediaDevices.getDisplayMedia !== "function"
+        ) {
+          throw new Error(
+            "DISPLAY_API_UNAVAILABLE: este browser não suporta compartilhamento de tela ou a página está bloqueando o acesso (Permissions-Policy: display-capture).",
+          );
+        }
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
         screenStreamRef.current = stream;
         setScreenStream(stream);
@@ -526,7 +562,17 @@ export function useWebRTC({ stationId, userId, userName, userImage }: UseWebRTCO
           if (screenOnRef.current) void toggleScreenRef.current?.();
         };
       } catch (err) {
-        console.warn("[useWebRTC] getDisplayMedia error:", err);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn("[useWebRTC] getDisplayMedia error:", msg);
+        if (msg.includes("INSECURE_CONTEXT")) {
+          setCamError("Este site precisa estar em HTTPS pra compartilhar tela.");
+        } else if (msg.includes("DISPLAY_API_UNAVAILABLE")) {
+          setCamError("Compartilhamento de tela bloqueado: browser sem suporte ou Permissions-Policy não libera display-capture.");
+        } else if (msg.includes("NotAllowedError") || msg.includes("Permission denied")) {
+          setCamError("Você cancelou ou negou o compartilhamento de tela.");
+        } else {
+          setCamError(`Erro ao compartilhar tela: ${msg}`);
+        }
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

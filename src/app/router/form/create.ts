@@ -21,10 +21,11 @@ export const createForm = base
       name: z.string().min(1),
       description: z.string().optional(),
       trackingId: z.string().optional(),
+      statusId: z.string().optional(),
     }),
   )
   .handler(async ({ input, context, errors }) => {
-    const { name, description, trackingId } = input;
+    const { name, description, trackingId, statusId } = input;
     const organizationId = context.session.activeOrganizationId;
 
     if (!organizationId) {
@@ -65,7 +66,6 @@ export const createForm = base
         description,
         userId: context.user.id,
         organizationId,
-        ...(trackingId && { trackingId }),
         jsonBlock,
         content: jsonBlock,
         shareUrl: uuidv4(),
@@ -73,6 +73,8 @@ export const createForm = base
           create: {
             primaryColor: defaultPrimaryColor,
             backgroundColor: defaultBackgroundColor,
+            ...(trackingId && { trackingId }),
+            ...(statusId && { statusId }),
           },
         },
       },

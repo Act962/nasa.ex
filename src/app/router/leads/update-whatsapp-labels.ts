@@ -5,6 +5,7 @@ import { z } from "zod";
 import { managementLabels } from "@/http/uazapi/management-labels";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
+import { recordLeadEvent } from "@/features/leads/lib/history";
 
 // 🟦 UPDATE
 export const updateWhatsappTagsLead = base
@@ -85,6 +86,41 @@ export const updateWhatsappTagsLead = base
           notes: "Tags do lead sincronizadas via WhatsApp",
           tx,
         });
+
+        // Diff de tags pra emitir TAG_ADDED/TAG_REMOVED apenas pra mudanças.
+        const previousTagIds = new Set(
+          leadExists.leadTags.map((lt) => lt.tag.id),
+        );
+        const newTagIds = new Set(validTagIds);
+        const added = validTagIds.filter((id) => !previousTagIds.has(id));
+        const removed = Array.from(previousTagIds).filter(
+          (id) => !newTagIds.has(id),
+        );
+
+        await Promise.all([
+          ...added.map((tagId) =>
+            recordLeadEvent(
+              {
+                leadId: input.id,
+                eventType: "TAG_ADDED",
+                userId: context.user.id,
+                metadata: { tagId, source: "whatsapp_sync" },
+              },
+              tx,
+            ),
+          ),
+          ...removed.map((tagId) =>
+            recordLeadEvent(
+              {
+                leadId: input.id,
+                eventType: "TAG_REMOVED",
+                userId: context.user.id,
+                metadata: { tagId, source: "whatsapp_sync" },
+              },
+              tx,
+            ),
+          ),
+        ]);
 
         return lead;
       });

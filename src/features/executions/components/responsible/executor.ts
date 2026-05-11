@@ -3,6 +3,7 @@ import { ResponsibleFormValues } from "./dialog";
 import { LeadContext } from "../../schemas";
 import { responsibleChannel } from "@/inngest/channels/responsible";
 import prisma from "@/lib/prisma";
+import { recordLeadEvent } from "@/features/leads/lib/history";
 
 type ResponsibleNodeData = {
   action?: ResponsibleFormValues;
@@ -35,11 +36,24 @@ export const responsibleExecutor: NodeExecutor<ResponsibleNodeData> = async ({
       if (action?.type === "ADD") {
         if (action.responsible?.id) {
           const responsibleId = action.responsible.id;
+          const before = await prisma.lead.findUnique({
+            where: { id: lead.id },
+            select: { responsibleId: true },
+          });
 
           updatedLead = (await prisma.lead.update({
             where: { id: lead.id },
             data: { responsibleId },
           })) as unknown as LeadContext;
+
+          if (before?.responsibleId !== responsibleId) {
+            await recordLeadEvent({
+              leadId: lead.id,
+              eventType: "RESPONSIBLE_CHANGE",
+              previousResponsibleId: before?.responsibleId ?? null,
+              newResponsibleId: responsibleId,
+            });
+          }
         }
       } else if (action?.type === "REMOVE") {
         if (action.responsible?.id) {
@@ -55,6 +69,13 @@ export const responsibleExecutor: NodeExecutor<ResponsibleNodeData> = async ({
               where: { id: lead.id },
               data: { responsibleId: null },
             })) as unknown as LeadContext;
+
+            await recordLeadEvent({
+              leadId: lead.id,
+              eventType: "RESPONSIBLE_CHANGE",
+              previousResponsibleId: idToRemove,
+              newResponsibleId: null,
+            });
           }
         }
       }

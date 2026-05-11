@@ -411,6 +411,15 @@ model Tracking {
   globalAiActive            Boolean   @default(false) @map("global_ai_active")
   isTemplate                Boolean   @default(false) @map("is_template")
   templateMarkedByModerator Boolean   @default(false) @map("template_marked_by_moderator")
+  // Aparência do card no dashboard de Tracking. `cardBorderColor` é uma
+  // cor hex/rgb/hsl ou null (sem cor); `cardBackgroundImage` é a chave S3
+  // de uma imagem que vira fundo desfocado do card.
+  // `cardBackgroundBlur` é o raio do filter blur em px (0-30, default 8).
+  // `cardBackgroundOpacity` é a opacidade da imagem em % (0-100, default 25).
+  cardBorderColor           String?   @map("card_border_color")
+  cardBackgroundImage       String?   @map("card_background_image")
+  cardBackgroundBlur        Int       @default(8) @map("card_background_blur")
+  cardBackgroundOpacity     Int       @default(25) @map("card_background_opacity")
   createdAt                 DateTime  @default(now()) @map("created_at")
   updatedAt                 DateTime  @updatedAt @map("updated_at")
 
@@ -435,8 +444,22 @@ model Tracking {
   scripts             Script[]
   reminders           Reminder[]
   paymentEntries      PaymentEntry[]
+  cardConfig          TrackingCardConfig?
 
   @@map("tracking")
+}
+
+model TrackingCardConfig {
+  id         String   @id @default(cuid())
+  trackingId String   @unique @map("tracking_id")
+  fields     Json     @default("[]")
+  showSlaTimer Boolean @default(true) @map("show_sla_timer")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+
+  @@map("tracking_card_config")
 }
 
 model AiSettings {
@@ -514,13 +537,16 @@ enum ParticipantRole {
 }
 
 model Status {
-  id         String   @id @default(cuid())
-  name       String
-  color      String?  @default("#1447e6")
-  order      Decimal  @default(0) @db.Decimal(20, 10)
-  trackingId String   @map("tracking_id")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id                  String   @id @default(cuid())
+  name                String
+  color               String?  @default("#1447e6")
+  order               Decimal  @default(0) @db.Decimal(20, 10)
+  slaHours            Int?     @map("sla_hours")
+  notifyClientOnEnter Boolean  @default(false) @map("notify_client_on_enter")
+  clientNotifyTemplate String? @map("client_notify_template") @db.Text
+  trackingId          String   @map("tracking_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   // Relacionamentos
   tracking     Tracking       @relation(fields: [trackingId], references: [id], onDelete: Cascade)
@@ -538,22 +564,45 @@ enum LeadAction {
   LOST // Perdido
 }
 
+enum LeadEventType {
+  ACTION_CHANGE       // mudança de currentAction (ACTIVE/WON/LOST/DELETED) — compat
+  STATUS_CHANGE       // mudou de coluna no tracking
+  TRACKING_CHANGE     // mudou de tracking (setor)
+  RESPONSIBLE_CHANGE  // mudou de responsável
+  FORM_SUBMITTED      // formulário público respondido
+  TAG_ADDED
+  TAG_REMOVED
+  FILE_UPLOADED
+  NOTE
+  PUBLIC_LINK_VIEWED  // cliente abriu o link público
+  SLA_BREACHED        // SLA da etapa estourou
+}
+
 model LeadHistory {
   id        String     @id @default(cuid())
   leadId    String     @map("lead_id")
   action    LeadAction
+  eventType LeadEventType? @map("event_type")
+  previousStatusId      String?   @map("previous_status_id")
+  newStatusId           String?   @map("new_status_id")
+  previousTrackingId    String?   @map("previous_tracking_id")
+  newTrackingId         String?   @map("new_tracking_id")
+  previousResponsibleId String?   @map("previous_responsible_id")
+  newResponsibleId      String?   @map("new_responsible_id")
+  metadata              Json?
   reasonId  String?    @map("reason_id")
   notes     String?
-  userId    String     @map("user_id")
+  userId    String?    @map("user_id")
   createdAt DateTime   @default(now()) @map("created_at")
 
   // Relacionamentos
   lead   Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
   reason WinLossReason? @relation(fields: [reasonId], references: [id], onDelete: SetNull)
-  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([leadId])
   @@index([action])
+  @@index([eventType])
   @@index([createdAt])
   @@map("lead_history")
 }
@@ -652,6 +701,11 @@ model Lead {
   lastOutboundAt     DateTime? @map("last_outbound_at")
   firstResponseAt    DateTime? @map("first_response_at")
   lastStatusChangeAt DateTime? @map("last_status_change_at")
+
+  // ─── Formulários / SLA por etapa / Link público (feature/W-formularios) ───
+  publicToken     String?   @unique @map("public_token")
+  slaDeadline     DateTime? @map("sla_deadline")
+  statusEnteredAt DateTime? @map("status_entered_at")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -1340,6 +1394,10 @@ model FormSettings {
   showEmail       Boolean  @default(true) @map("show_email")
   showPhone       Boolean  @default(true) @map("show_phone")
   finishMessage   String   @default("Obrigado por seu cadastro!") @map("finish_message")
+  stepMode        String   @default("off") @map("step_mode")
+  nextButtonLabel String   @default("Próximo") @map("next_button_label")
+  progressMascots Json     @default("[]") @map("progress_mascots")
+  nextButtonAction Json    @default("{\"type\":\"next_block\"}") @map("next_button_action")
 
   tracking Tracking? @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   status   Status?   @relation(fields: [statusId], references: [id], onDelete: SetNull)
@@ -1355,6 +1413,15 @@ model FormResponses {
   jsonResponse Json     @default("[]")
   leadId       String?  @map("lead_id")
   lead         Lead?    @relation(fields: [leadId], references: [id])
+
+  // Título customizado da resposta (ex: "#00123" — número da O.S).
+  // - `label` é exibido como sufixo após o nome do form: "Checklist · #00123".
+  // - Auto-derivado de um bloco do form marcado com
+  //   `attributes.useAsResponseLabel === true`.
+  // - Se `labelManuallyEdited === true`, saves seguintes não sobrescrevem
+  //   (manual prevalece). Limpar manualmente devolve ao modo automático.
+  label               String?  @map("label")
+  labelManuallyEdited Boolean  @default(false) @map("label_manually_edited")
 
   form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
 
@@ -1654,6 +1721,12 @@ enum AppointmentStatus {
   DONE
 }
 
+// Tipo de reunião do agendamento
+enum MeetingType {
+  ONLINE
+  IN_PERSON
+}
+
 model Appointment {
   id          String            @id @default(cuid())
   title       String?
@@ -1661,6 +1734,8 @@ model Appointment {
   startsAt    DateTime          @map("starts_at")
   endsAt      DateTime          @map("ends_at")
   status      AppointmentStatus @default(PENDING)
+  meetingType MeetingType       @default(ONLINE) @map("meeting_type")
+  gcalEventId String?           @map("gcal_event_id") // ID do evento criado no Google Calendar
   cancelledBy String?           @map("cancelled_by") // "CLIENT" | "SYSTEM"
   agendaId    String            @map("agenda_id")
   leadId      String?           @map("lead_id")
