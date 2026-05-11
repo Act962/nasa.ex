@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,43 @@ import { Spinner } from "@/components/ui/spinner";
 import { RECURRENCE_LABELS } from "./data";
 import { useCreateReminder } from "../../hooks/use-remimber";
 import { phoneMaskFull, normalizePhone } from "@/utils/format-phone";
+import { VariablePicker } from "@/features/executions/components/send-message/variable-picker";
+import { useVariableAutocomplete } from "@/features/executions/components/send-message/use-variable-autocomplete";
+
+const VariableTextarea = ({ value, onChange, ...props }: any) => {
+  const {
+    open,
+    setOpen,
+    search,
+    setSearch,
+    inputRef,
+    handleKeyDown,
+    handleSelect,
+    handleValueChange,
+  } = useVariableAutocomplete(value || "", onChange);
+
+  return (
+    <div className="relative">
+      <Textarea
+        {...props}
+        ref={inputRef as any}
+        value={value || ""}
+        onChange={handleValueChange}
+        onKeyDown={handleKeyDown}
+      />
+      <div className="absolute top-0 left-0">
+        <VariablePicker
+          open={open}
+          onOpenChange={setOpen}
+          search={search}
+          onSearchChange={setSearch}
+          onSelect={handleSelect}
+          triggerRef={inputRef}
+        />
+      </div>
+    </div>
+  );
+};
 
 const formSchema = z
   .object({
@@ -125,21 +162,29 @@ export function ReminderCreateTab({
       className="flex flex-col gap-4 px-5 py-4 overflow-y-auto"
     >
       {/* Mensagem */}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="message">Mensagem do lembrete</Label>
-        <Textarea
-          id="message"
-          placeholder="Ex: Cobrar pagamento da proposta #123"
-          className="resize-none"
-          rows={3}
-          {...form.register("message")}
-        />
-        {form.formState.errors.message && (
-          <p className="text-xs text-destructive">
-            {form.formState.errors.message.message}
-          </p>
+      <Controller
+        control={form.control}
+        name="message"
+        render={({ field, fieldState }) => (
+          <div className="flex flex-col gap-1.5">
+            <Label>Mensagem do lembrete</Label>
+            <VariableTextarea
+              {...field}
+              placeholder="Ex: Cobrar pagamento da proposta #123"
+              className="resize-none"
+              rows={3}
+            />
+            {fieldState.error && (
+              <p className="text-xs text-destructive">
+                {fieldState.error.message}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Clique em &quot;/&quot; para adicionar variáveis.
+            </p>
+          </div>
         )}
-      </div>
+      />
 
       {/* Recorrência */}
       <div className="flex flex-col gap-1.5">

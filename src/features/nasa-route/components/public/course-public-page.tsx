@@ -24,6 +24,7 @@ import { CourseLessonsSection } from "./course-lessons-section";
 import { COURSE_FORMAT_LABELS, COURSE_LEVEL_LABELS } from "../../types";
 import { hasLessons } from "../../lib/formats";
 import { imgSrc } from "@/features/public-calendar/utils/img-src";
+import { useRouter } from "next/navigation";
 
 interface Props {
   companySlug: string;
@@ -45,6 +46,7 @@ export function CoursePublicPage({
   isAuthenticated = false,
   starPriceBrl = 0.15,
 }: Props) {
+  const router = useRouter();
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [publicCheckoutPlan, setPublicCheckoutPlan] =
@@ -54,6 +56,10 @@ export function CoursePublicPage({
       input: { companySlug, courseSlug },
     }),
   });
+
+  const handleBack = () => {
+    router.back();
+  };
 
   if (isLoading) {
     return (
@@ -108,7 +114,11 @@ export function CoursePublicPage({
     setEnrollOpen(true);
   }
 
-  function startPublicCheckout(plan: { id: string; name: string; priceStars: number }) {
+  function startPublicCheckout(plan: {
+    id: string;
+    name: string;
+    priceStars: number;
+  }) {
     if (plan.priceStars <= 0) return;
     setPublicCheckoutPlan(plan);
   }
@@ -134,18 +144,20 @@ export function CoursePublicPage({
       }
       return;
     }
-    startEnrollment(hasMultiplePlans ? null : defaultPlan?.id ?? null);
+    startEnrollment(hasMultiplePlans ? null : (defaultPlan?.id ?? null));
   }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
-      <Link
-        href={`/c/${companySlug}`}
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleBack}
+        className="mb-4 -ml-2 gap-1.5 text-muted-foreground hover:text-foreground"
       >
         <ChevronLeft className="size-4" />
         Voltar para {org.name}
-      </Link>
+      </Button>
 
       <header className="mt-4 grid grid-cols-1 gap-6 rounded-3xl border border-border bg-card p-6 md:grid-cols-[1fr_360px] md:p-8">
         <div className="min-w-0">
@@ -157,12 +169,18 @@ export function CoursePublicPage({
               {COURSE_LEVEL_LABELS[course.level] ?? course.level}
             </span>
             {course.category && (
-              <span className="rounded-full bg-muted px-2.5 py-0.5">{course.category.name}</span>
+              <span className="rounded-full bg-muted px-2.5 py-0.5">
+                {course.category.name}
+              </span>
             )}
           </div>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">{course.title}</h1>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
+            {course.title}
+          </h1>
           {course.subtitle && (
-            <p className="mt-2 text-lg text-muted-foreground">{course.subtitle}</p>
+            <p className="mt-2 text-lg text-muted-foreground">
+              {course.subtitle}
+            </p>
           )}
           {course.description && (
             <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
@@ -208,7 +226,10 @@ export function CoursePublicPage({
         <aside className="rounded-2xl border border-border bg-muted/30 p-5">
           <div className="overflow-hidden rounded-xl">
             {course.trailer.embedUrl ? (
-              <VideoEmbed url={course.trailer.embedUrl} title={`Trailer · ${course.title}`} />
+              <VideoEmbed
+                url={course.trailer.embedUrl}
+                title={`Trailer · ${course.title}`}
+              />
             ) : course.coverUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -217,7 +238,7 @@ export function CoursePublicPage({
                 className="aspect-video w-full object-cover"
               />
             ) : (
-              <div className="flex aspect-video w-full items-center justify-center bg-gradient-to-br from-violet-500/20 to-fuchsia-500/10 text-violet-500/40">
+              <div className="flex aspect-video w-full items-center justify-center bg-linear-to-br from-violet-500/20 to-fuchsia-500/10 text-violet-500/40">
                 <GraduationCap className="size-16" />
               </div>
             )}
@@ -228,11 +249,15 @@ export function CoursePublicPage({
             </span>
             <PriceStarsDisplay priceStars={headlinePriceStars} size="lg" />
           </div>
-          {!isAuthenticated && !isFree && !hasMultiplePlans && defaultPlan && lessonsBased && (
-            <p className="mt-1 text-right text-[11px] text-muted-foreground">
-              ≈ {formatPlanBrl(defaultPlan.priceStars)} via cartão
-            </p>
-          )}
+          {!isAuthenticated &&
+            !isFree &&
+            !hasMultiplePlans &&
+            defaultPlan &&
+            lessonsBased && (
+              <p className="mt-1 text-right text-[11px] text-muted-foreground">
+                ≈ {formatPlanBrl(defaultPlan.priceStars)} via cartão
+              </p>
+            )}
           <div className="mt-4">
             {lessonsBased ? (
               <Button size="lg" className="w-full" onClick={handleHeroClick}>
@@ -247,7 +272,9 @@ export function CoursePublicPage({
                 eventStartsAt={course.eventStartsAt}
                 eventEndsAt={course.eventEndsAt}
                 onClick={() =>
-                  startEnrollment(hasMultiplePlans ? null : defaultPlan?.id ?? null)
+                  startEnrollment(
+                    hasMultiplePlans ? null : (defaultPlan?.id ?? null),
+                  )
                 }
               />
             ) : (
@@ -319,7 +346,8 @@ export function CoursePublicPage({
           <div className="flex items-center gap-2">
             <CheckCircle2 className="size-5" />
             <p className="text-sm font-medium">
-              Conclua todas as aulas e ganhe +{course.rewardSpOnComplete} Space Points de bônus!
+              Conclua todas as aulas e ganhe +{course.rewardSpOnComplete} Space
+              Points de bônus!
             </p>
           </div>
         </section>

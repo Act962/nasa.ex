@@ -22,7 +22,7 @@ export default async function WorkflowsPage({ params }: WorkflowPageProps) {
   });
 
   return (
-    <div className="container mx-auto mt-16 space-y-8 px-4">
+    <div className="container mx-auto space-y-8 px-4">
       <div className="flex items-center justify-between">
         <div className="max-w-xl">
           <h1 className="text-lg md:text-xl font-semibold">Automações</h1>
@@ -33,16 +33,16 @@ export default async function WorkflowsPage({ params }: WorkflowPageProps) {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-            <AiLeadButton trackingId={trackingId}>
-              <Button variant="outline" size="sm">
-                <SparklesIcon className="size-4 text-purple-500" />
-                <span className="hidden sm:inline bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-semibold">
-                  IA de Automações
-                </span>
-              </Button>
-            </AiLeadButton>
-            <CreateWorkflowButton />
-          </div>
+          <AiLeadButton trackingId={trackingId}>
+            <Button variant="outline" size="sm">
+              <SparklesIcon className="size-4 text-purple-500" />
+              <span className="hidden sm:inline bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-semibold">
+                IA de Automações
+              </span>
+            </Button>
+          </AiLeadButton>
+          <CreateWorkflowButton />
+        </div>
       </div>
 
       <HydrateClient client={queryClient}>

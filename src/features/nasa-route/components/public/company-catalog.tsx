@@ -21,11 +21,7 @@ export function CompanyCatalog({ companySlug }: CompanyCatalogProps) {
   });
 
   const handleBack = () => {
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push("/");
-    }
+    router.back();
   };
 
   const backButton = (
@@ -48,7 +44,7 @@ export function CompanyCatalog({ companySlug }: CompanyCatalogProps) {
         <Skeleton className="h-32 rounded-3xl" />
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="aspect-[3/4] rounded-2xl" />
+            <Skeleton key={i} className="aspect-3/4 rounded-2xl" />
           ))}
         </div>
       </div>
@@ -60,10 +56,11 @@ export function CompanyCatalog({ companySlug }: CompanyCatalogProps) {
       <div className="mx-auto max-w-3xl px-4 py-20">
         <div className="mb-6 text-left">{backButton}</div>
         <div className="text-center">
-        <h1 className="text-2xl font-bold">Página não encontrada</h1>
-        <p className="mt-2 text-muted-foreground">
-          A organização que você procura não existe ou ainda não publicou cursos.
-        </p>
+          <h1 className="text-2xl font-bold">Página não encontrada</h1>
+          <p className="mt-2 text-muted-foreground">
+            A organização que você procura não existe ou ainda não publicou
+            cursos.
+          </p>
         </div>
       </div>
     );
@@ -74,7 +71,7 @@ export function CompanyCatalog({ companySlug }: CompanyCatalogProps) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       {backButton}
-      <header className="rounded-3xl border border-border bg-gradient-to-br from-violet-600/10 via-indigo-500/5 to-fuchsia-500/5 p-8">
+      <header className="rounded-3xl border border-border bg-linear-to-br from-violet-600/10 via-indigo-500/5 to-fuchsia-500/5 p-8">
         <div className="flex flex-wrap items-center gap-4">
           {org.logo ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -92,9 +89,12 @@ export function CompanyCatalog({ companySlug }: CompanyCatalogProps) {
             <p className="text-xs font-medium uppercase tracking-wider text-violet-700 dark:text-violet-300">
               Área de Membros · NASA Route
             </p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight md:text-4xl">{org.name}</h1>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight md:text-4xl">
+              {org.name}
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {courses.length} {courses.length === 1 ? "curso publicado" : "cursos publicados"}
+              {courses.length}{" "}
+              {courses.length === 1 ? "curso publicado" : "cursos publicados"}
             </p>
           </div>
         </div>
@@ -114,7 +114,10 @@ export function CompanyCatalog({ companySlug }: CompanyCatalogProps) {
               <CourseCard
                 key={c.id}
                 href={`/c/${org.slug}/${c.slug}`}
-                course={{ ...c, creatorOrg: { name: org.name, logo: org.logo } }}
+                course={{
+                  ...c,
+                  creatorOrg: { name: org.name, logo: org.logo },
+                }}
               />
             ))}
           </div>

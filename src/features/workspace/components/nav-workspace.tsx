@@ -4,7 +4,8 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useState } from "react";
 import { WorkspaceSettingsModal } from "./modals/workspace-settings-modal";
 import { Button } from "@/components/ui/button";
-import { PlusIcon, SettingsIcon } from "lucide-react";
+import { ArrowLeftIcon, PlusIcon, SettingsIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useWorkspaceMembers } from "../hooks/use-workspace";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQueryState } from "nuqs";
@@ -18,10 +19,19 @@ export function NavWorkspace({ workspaceId, title }: Props) {
   const [open, setOpen] = useState(false);
   const [_, setView] = useQueryState("workspace_settings");
   const { members, isLoading } = useWorkspaceMembers(workspaceId);
+  const router = useRouter();
   return (
     <>
       <div className="sticky top-0 bg-background z-10 h-12 flex justify-between items-center px-4 py-2 gap-2 border-b border-border">
         <div className="flex items-center gap-x-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            onClick={() => router.back()}
+          >
+            <ArrowLeftIcon className="size-4" />
+          </Button>
           <SidebarTrigger />
 
           <h2 className="text-sm font-semibold">{title}</h2>
