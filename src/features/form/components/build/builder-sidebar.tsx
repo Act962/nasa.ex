@@ -10,20 +10,33 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
-import { FileTextIcon, HomeIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  FileTextIcon,
+  HomeIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
+} from "lucide-react";
 import { FormBlockBox } from "@/features/form/components/common/form-block-box";
 import { FormSettings } from "@/features/form/components/common/form-settings";
+import { BlockBtnIcon } from "@/features/form/components/common/utils/block-btn-element";
+import { FormBlocks } from "@/features/form/lib/form-blocks";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Edit2, X } from "lucide-react";
+import { Edit2 } from "lucide-react";
 import { useMutationUpdateForm } from "../../hooks/use-form";
 
 export function BuilderSidebar({
   rest,
+  isOpen = true,
+  onToggle,
 }: {
   rest?: React.ComponentProps<typeof Sidebar>;
+  isOpen?: boolean;
+  onToggle?: () => void;
 }) {
   const { formData, setFormData } = useBuilderStore();
   const [isEditing, setIsEditing] = useState(false);
@@ -61,12 +74,70 @@ export function BuilderSidebar({
     setIsEditing(false);
   };
 
+  // Apenas blocos ESTRUTURAIS (criam grupos/passos) são travados em forms
+  // publicados. Decorativos (PageBreak, ImageDisplay, ParagraphWithTitle)
+  // podem ser adicionados livremente mesmo após publicação.
+  const STRUCTURAL_LAYOUT_BLOCKS = new Set(["RowLayout"]);
+
+  if (!isOpen) {
+    const isPublished = formData?.published;
+    const allBlocks = Object.values(FormBlocks);
+    const layoutBlocks = allBlocks.filter((b) => b.blockCategory === "Layout");
+    const fieldBlocks = allBlocks.filter((b) => b.blockCategory === "Field");
+
+    return (
+      <div className="border-r h-full flex flex-col items-center pt-3 pb-4 px-1 w-12 shrink-0 gap-2 overflow-y-auto">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={onToggle}
+              aria-label="Abrir painel de blocos"
+            >
+              <PanelLeftOpenIcon className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Abrir painel de blocos</TooltipContent>
+        </Tooltip>
+
+        <Separator className="my-1" />
+
+        <div className="flex flex-col items-center gap-1.5">
+          {layoutBlocks.map((block) => (
+            <BlockBtnIcon
+              key={block.blockType}
+              formBlock={block}
+              disabled={
+                !!isPublished &&
+                STRUCTURAL_LAYOUT_BLOCKS.has(block.blockType)
+              }
+            />
+          ))}
+        </div>
+
+        <Separator className="my-1" />
+
+        <div className="flex flex-col items-center gap-1.5">
+          {fieldBlocks.map((block) => (
+            <BlockBtnIcon
+              key={block.blockType}
+              formBlock={block}
+              disabled={false}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="border-r left-12 h-full overflow-y-auto pb-12" {...rest}>
+    <div className="border-r left-12 h-full overflow-y-auto pb-12 w-[300px] shrink-0" {...rest}>
       <div className="py-4 px-0">
         <header className="border-b border-border w-full pt-1 pb-2 flex shrink-0 items-center gap-2">
-          <div className="flex items-center gap-2 px-4">
-            <HomeIcon className="-ml-1 w-4 h-4" />
+          <div className="flex items-center gap-2 px-4 flex-1 min-w-0">
+            <HomeIcon className="-ml-1 w-4 h-4 shrink-0" />
             <Separator orientation="vertical" className="mr-2 h-4" />
             <Breadcrumb>
               <BreadcrumbList>
@@ -107,6 +178,20 @@ export function BuilderSidebar({
               </BreadcrumbList>
             </Breadcrumb>
           </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 mr-2 shrink-0"
+                onClick={onToggle}
+                aria-label="Recolher painel"
+              >
+                <PanelLeftCloseIcon className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Recolher painel</TooltipContent>
+          </Tooltip>
         </header>
       </div>
       <SidebarContent className="pt-2 px-5">

@@ -1,22 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  ChevronDown,
-  ChevronRight,
-  ClipboardList,
-  ExternalLink,
-  EyeIcon,
+  ArrowRight,
   Loader,
+  PencilLine,
   SquarePenIcon,
 } from "lucide-react";
 import { orpc } from "@/lib/orpc";
 import { CreateForm } from "@/features/form/components/create-form";
+import {
+  STATE_COLOR,
+  STATE_LABEL,
+  type FormResponseState,
+} from "@/features/form/lib/form-response-state";
 import {
   Card,
   CardContent,
@@ -46,41 +47,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 type ResponseEntry = {
   id: string;
   createdAt: Date | string;
-  jsonResponse: unknown;
+  label: string | null;
+  state: FormResponseState;
   form: { id: string; name: string };
 };
-
-const SYSTEM_KEYS = new Set(["user_name", "user_email", "user_phone"]);
-
-function parseResponse(json: unknown): Record<string, unknown> {
-  if (!json) return {};
-  if (typeof json === "string") {
-    try {
-      return JSON.parse(json) as Record<string, unknown>;
-    } catch {
-      return {};
-    }
-  }
-  if (typeof json === "object") return json as Record<string, unknown>;
-  return {};
-}
-
-function renderValue(value: unknown): string {
-  if (value === null || value === undefined) return "-";
-  if (typeof value === "string") return value || "-";
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  if (typeof value === "object") {
-    const v = value as { value?: unknown; responseValue?: unknown };
-    if (v.value !== undefined) return renderValue(v.value);
-    if (v.responseValue !== undefined) return renderValue(v.responseValue);
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return "—";
-    }
-  }
-  return String(value);
-}
 
 type FormGroup = {
   formId: string;
@@ -90,6 +60,8 @@ type FormGroup = {
   responses: ResponseEntry[];
   lastAt: Date | null;
   firstAt: Date | null;
+  lastLabel: string | null;
+  lastState: FormResponseState | null;
 };
 
 function indexByForm(
@@ -119,9 +91,13 @@ function buildGroups(
     const respList = responsesByForm.get(f.id) ?? [];
     let lastAt: Date | null = null;
     let firstAt: Date | null = null;
+    let lastResponse: ResponseEntry | null = null;
     for (const r of respList) {
       const t = new Date(r.createdAt);
-      if (!lastAt || t > lastAt) lastAt = t;
+      if (!lastAt || t > lastAt) {
+        lastAt = t;
+        lastResponse = r;
+      }
       if (!firstAt || t < firstAt) firstAt = t;
     }
     return {
@@ -132,6 +108,8 @@ function buildGroups(
       responses: respList,
       lastAt,
       firstAt,
+      lastLabel: lastResponse?.label ?? null,
+      lastState: lastResponse?.state ?? null,
     };
   });
   // Ordena: forms com respostas (mais recentes primeiro), depois forms sem
@@ -166,26 +144,9 @@ export function LeadFormResponses({
 
   const isLoading = respLoading || formsLoading;
 
-  const generateLink = useMutation(
-    orpc.leads.generatePublicLink.mutationOptions({}),
-  );
-
-  function openWithPrefill(formId: string) {
-    generateLink.mutate(
-      { leadId, rotate: false },
-      {
-        onSuccess: (res) => {
-          const token = (res as { token: string }).token;
-          window.open(
-            `${window.location.origin}/submit-form/${formId}?leadToken=${encodeURIComponent(token)}`,
-            "_blank",
-            "noopener,noreferrer",
-          );
-        },
-        onError: () => toast.error("Falha ao gerar link com dados do lead"),
-      },
-    );
-  }
+  // O contexto do lead (status/responsável) deixou de aparecer aqui — agora
+  // o card é puramente de listagem de forms; quem mostra esse contexto é a
+  // página dedicada `/contatos/<leadId>/formularios/<formId>`.
 
   const responses = useMemo(
     () => (respData?.responses as ResponseEntry[]) ?? [],
@@ -316,8 +277,7 @@ export function LeadFormResponses({
                 <FormGroupItem
                   key={g.formId}
                   group={g}
-                  onOpenWithPrefill={() => openWithPrefill(g.formId)}
-                  prefillLoading={generateLink.isPending}
+                  leadId={leadId}
                 />
               ))}
             </div>
@@ -373,44 +333,75 @@ function StatsCard({
 
 function FormGroupItem({
   group,
-  onOpenWithPrefill,
-  prefillLoading,
+  leadId,
 }: {
   group: FormGroup;
-  onOpenWithPrefill: () => void;
-  prefillLoading?: boolean;
+  leadId: string;
 }) {
   const router = useRouter();
   const hasResponses = group.responses.length > 0;
-  const [expanded, setExpanded] = useState(false);
 
-  function toggle() {
-    if (hasResponses) setExpanded((v) => !v);
+  // "Abrir" → página dedicada que lista todas as respostas deste form pra
+  // este lead, com botão "Preencher novo" e edição inline do título.
+  function openFormPage() {
+    router.push(`/contatos/${leadId}/formularios/${group.formId}`);
   }
+
+  // "Preencher" — atalho pra forms ainda sem nenhuma resposta. Vai direto
+  // pro editor; a row de FormResponses só nasce no submit.
+  function startNewResponse() {
+    router.push(`/formulario/novo/${group.formId}/${leadId}`);
+  }
+
+  // Cor + label do estado da última resposta (5 estados: empty/in_progress/
+  // waiting_client_signature/stale/complete). Vira badge ao lado do nome.
+  const stateColor = group.lastState ? STATE_COLOR[group.lastState] : null;
+  const stateLabel = group.lastState ? STATE_LABEL[group.lastState] : null;
 
   return (
     <div className="flex flex-col gap-2">
       <Item
-        role="button"
-        className={`w-full hover:bg-foreground/10 transition-colors ${
-          hasResponses ? "cursor-pointer" : "cursor-default"
-        }`}
+        className="w-full hover:bg-foreground/10 transition-colors cursor-pointer"
         variant="outline"
-        onClick={toggle}
+        onClick={hasResponses ? openFormPage : undefined}
       >
         <ItemContent className="flex-row">
           <ItemHeader className="flex flex-col items-start gap-2">
-            <ItemTitle className="flex items-center gap-2">
-              {hasResponses ? (
-                expanded ? (
-                  <ChevronDown className="size-4 shrink-0" />
-                ) : (
-                  <ChevronRight className="size-4 shrink-0" />
-                )
-              ) : (
+            <ItemTitle className="flex items-center gap-2 flex-wrap">
+              {!hasResponses && (
                 <SquarePenIcon className="size-4 shrink-0 text-muted-foreground/60" />
               )}
-              {group.formName}
+              <span>
+                {group.formName}
+                {group.lastLabel && (
+                  <span className="text-muted-foreground font-normal">
+                    {" · "}
+                    {group.lastLabel}
+                  </span>
+                )}
+              </span>
+
+              {/* Badge de estado da última resposta */}
+              {hasResponses && stateColor && stateLabel && (
+                <span
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium"
+                  style={{
+                    borderColor: stateColor,
+                    color: stateColor === "#ffffff" ? "#475569" : stateColor,
+                    background:
+                      stateColor === "#ffffff"
+                        ? "#f1f5f9"
+                        : `${stateColor}15`,
+                  }}
+                  title={stateLabel}
+                >
+                  <span
+                    className="inline-block size-1.5 rounded-full"
+                    style={{ background: stateColor }}
+                  />
+                  {stateLabel}
+                </span>
+              )}
             </ItemTitle>
             <ItemDescription className="text-muted-foreground">
               <span>
@@ -431,90 +422,36 @@ function FormGroupItem({
         </ItemContent>
 
         <ItemActions onClick={(e) => e.stopPropagation()}>
-          <Button
-            size="icon-sm"
-            variant="outline"
-            onClick={onOpenWithPrefill}
-            disabled={prefillLoading}
-            title="Abrir formulário com dados do lead pré-preenchidos"
-          >
-            <ExternalLink />
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="outline"
-            onClick={() => router.push(`/form/responses/${group.formId}`)}
-            title="Ver todas as respostas"
-          >
-            <EyeIcon />
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="outline"
-            onClick={() => router.push(`/form/builder/${group.formId}`)}
-            title="Editar formulário"
-          >
-            <SquarePenIcon />
-          </Button>
+          {/* Form ainda não preenchido por este lead → consultor inicia
+              um preenchimento em nome do lead (`/formulario/novo/...`). */}
+          {!hasResponses && (
+            <Button
+              size="sm"
+              variant="default"
+              onClick={startNewResponse}
+              title="Preencher formulário em nome do lead"
+            >
+              <PencilLine className="size-4" />
+              Preencher
+            </Button>
+          )}
+
+          {/* Form com respostas → abre a página dedicada que lista todas
+              as respostas e permite preencher uma nova. */}
+          {hasResponses && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={openFormPage}
+              title="Ver respostas deste formulário"
+            >
+              Abrir
+              <ArrowRight className="size-4" />
+            </Button>
+          )}
         </ItemActions>
       </Item>
-
-      {expanded && (
-        <div className="pl-6 flex flex-col gap-3">
-          {group.responses
-            .slice()
-            .sort(
-              (a, b) =>
-                new Date(b.createdAt).getTime() -
-                new Date(a.createdAt).getTime(),
-            )
-            .map((resp) => (
-              <ResponseCard key={resp.id} response={resp} />
-            ))}
-        </div>
-      )}
     </div>
   );
 }
 
-function ResponseCard({ response }: { response: ResponseEntry }) {
-  const parsed = parseResponse(response.jsonResponse);
-  const entries = Object.entries(parsed).filter(
-    ([key]) => !SYSTEM_KEYS.has(key),
-  );
-  return (
-    <Card className="bg-foreground/5 border-foreground/10">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3 pb-2 border-b border-foreground/10">
-          <span className="text-xs font-medium flex items-center gap-2">
-            <ClipboardList className="w-3.5 h-3.5" />
-            Resposta
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {format(new Date(response.createdAt), "dd/MM/yyyy HH:mm", {
-              locale: ptBR,
-            })}
-          </span>
-        </div>
-        <div className="space-y-3">
-          {entries.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Resposta sem campos preenchidos.
-            </p>
-          ) : (
-            entries.map(([key, value]) => (
-              <div key={key} className="flex flex-col">
-                <span className="text-[10px] font-semibold text-foreground/70 uppercase tracking-wider">
-                  {key}
-                </span>
-                <span className="text-sm text-foreground break-words whitespace-pre-line">
-                  {renderValue(value)}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}

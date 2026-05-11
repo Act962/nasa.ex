@@ -7,6 +7,11 @@ import { FormBlocks } from "@/features/form/lib/form-blocks";
 import React, { useState } from "react";
 import { AiAssistanceBtn } from "./ai-assistance-btn";
 
+// Apenas blocos ESTRUTURAIS (criam grupo/passo) ficam travados em forms
+// publicados — o resto (PageBreak, ImageDisplay, ParagraphWithTitle) é
+// decorativo e seguro pra adicionar a qualquer momento.
+const STRUCTURAL_LAYOUT_BLOCKS = new Set(["RowLayout"]);
+
 export function FormBlockBox() {
   const { formData } = useBuilderStore();
   const isPublished = formData?.published;
@@ -55,7 +60,10 @@ export function FormBlockBox() {
                 <BlockBtnElement
                   key={block.blockType}
                   formBlock={block}
-                  disabled={isPublished}
+                  disabled={
+                    isPublished &&
+                    STRUCTURAL_LAYOUT_BLOCKS.has(block.blockType)
+                  }
                 />
               ))}
             </div>
@@ -76,7 +84,7 @@ export function FormBlockBox() {
               <BlockBtnElement
                 key={block.blockType}
                 formBlock={block}
-                disabled={isPublished}
+                disabled={false}
               />
             ))}
           </div>

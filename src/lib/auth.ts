@@ -61,6 +61,15 @@ export const auth = betterAuth({
       prompt: "select_account",
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+      // Pede acesso ao Google Calendar já no login pra reuso opcional
+      // (sincronização de agendamentos sem precisar conectar a integração).
+      scope: [
+        "openid",
+        "email",
+        "profile",
+        "https://www.googleapis.com/auth/calendar.events",
+      ],
+      accessType: "offline",
     },
   },
   databaseHooks: {

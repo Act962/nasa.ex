@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ImagePlus, Trash } from "lucide-react";
+import { ChevronDown, EyeIcon, ImagePlus, Trash } from "lucide-react";
+import { ImagePreviewDialog } from "@/features/actions/components/view-modal/image-preview-dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { Uploader } from "@/components/file-uploader/uploader";
 import { useConstructUrl } from "@/hooks/use-construct-url";
+import { usePrefillFieldValue } from "@/features/form/context/form-prefill-context";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "ImageUpload";
@@ -36,15 +38,19 @@ type AttributesType = {
   multiple: boolean;
   width: number;
   height: number;
+  backgroundUrl?: string;
+  backgroundFit?: "cover" | "contain";
 };
 
 const propertiesValidateSchema = z.object({
-  label: z.string().trim().min(2).max(255),
+  label: z.string().trim().max(255).optional(),
   helperText: z.string().trim().max(255).optional(),
   required: z.boolean().default(false).optional(),
   multiple: z.boolean().default(false).optional(),
   width: z.number().int().min(40).max(2000),
   height: z.number().int().min(40).max(2000),
+  backgroundUrl: z.string().optional(),
+  backgroundFit: z.enum(["cover", "contain"]).optional(),
 });
 type PropertiesType = z.input<typeof propertiesValidateSchema>;
 
@@ -72,22 +78,74 @@ export const ImageUploadBlock: ObjectBlockType = {
 type Instance = FormBlockInstance & { attributes: AttributesType };
 type ImageItem = { url: string; name: string };
 
+/**
+ * Coerções defensivas: width/height antigos podem ter sido sobrescritos por
+ * `"full"|"half"|...` quando havia conflito com a largura da coluna do row.
+ * Sempre converter pra Number e cair no default se inválido.
+ */
+function pxOrDefault(v: unknown, fallback: number): number {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) && n >= 40 ? n : fallback;
+}
+
 function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
-  const { label, required, helperText, width, height } = (blockInstance as Instance).attributes;
+  const attrs = (blockInstance as Instance).attributes;
+  const {
+    label,
+    required,
+    helperText,
+    backgroundUrl,
+    backgroundFit,
+  } = attrs;
+  const width = pxOrDefault(attrs.width, 240);
+  const height = pxOrDefault(attrs.height, 180);
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label className="text-base font-normal! mb-2">
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
-      <div
-        className="border border-dashed rounded-md flex items-center justify-center text-sm text-muted-foreground"
-        style={{ width: `${width}px`, height: `${height}px`, maxWidth: "100%" }}
-      >
-        <ImagePlus className="w-5 h-5 mr-2" />
-        Imagem
+      {label?.trim() && (
+        <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug">
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+        </Label>
+      )}
+      <UploadPreviewBox
+        width={width}
+        height={height}
+        backgroundUrl={backgroundUrl}
+        backgroundFit={backgroundFit}
+      />
+      {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
+    </div>
+  );
+}
+
+function UploadPreviewBox({
+  width,
+  height,
+  backgroundUrl,
+  backgroundFit,
+}: {
+  width: number;
+  height: number;
+  backgroundUrl?: string;
+  backgroundFit?: "cover" | "contain";
+}) {
+  const constructedBg = useConstructUrl(backgroundUrl || "");
+  return (
+    <div
+      className="relative border border-dashed rounded-md overflow-hidden flex items-center justify-center text-sm text-muted-foreground"
+      style={{ width: `${width}px`, height: `${height}px`, maxWidth: "100%" }}
+    >
+      {backgroundUrl && (
+        <img
+          src={constructedBg}
+          alt="upload background"
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          style={{ objectFit: backgroundFit ?? "cover" }}
+        />
+      )}
+      <div className="relative flex items-center justify-center bg-background/80 rounded-full size-10 shadow-sm">
+        <ImagePlus className="w-5 h-5" />
       </div>
-      {helperText && <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>}
     </div>
   );
 }
@@ -104,15 +162,64 @@ function FormView({
   errorMessage?: string;
 }) {
   const block = blockInstance as Instance;
-  const { label, required, helperText, multiple, width, height } = block.attributes;
-  // Backup persistente das imagens em sessionStorage por blockId — antes,
-  // se o componente remountasse (ex: multi-step do form, ou rerender por
-  // mudança em outro campo), o useState voltava pra [] e as imagens
-  // sumiam do payload final, mesmo já enviadas pro S3.
-  const storageKey = `nasa.form.image-upload.${block.id}`;
-  const [images, setImages] = useState<ImageItem[]>([]);
+  const {
+    label,
+    required,
+    helperText,
+    multiple,
+    backgroundUrl,
+    backgroundFit,
+  } = block.attributes;
+  const width = pxOrDefault(block.attributes.width, 240);
+  const height = pxOrDefault(block.attributes.height, 180);
+
+  // Prefill: extrai a lista de imagens (mesmo padrão do FileUpload — meta
+  // tem o array original com nomes; cai pra split do CSV de URLs como fallback).
+  const prefill = usePrefillFieldValue(block.id);
+  const initialImages: ImageItem[] = (() => {
+    if (!prefill) return [];
+    const metaImages = (prefill.meta as { images?: unknown } | undefined)?.images;
+    if (Array.isArray(metaImages)) {
+      return metaImages
+        .filter((i): i is ImageItem =>
+          !!i &&
+          typeof i === "object" &&
+          typeof (i as { url?: unknown }).url === "string",
+        )
+        .map((i) => ({
+          url: (i as { url: string }).url,
+          name: (i as { name?: string }).name ?? "Imagem",
+        }));
+    }
+    if (typeof prefill.value === "string" && prefill.value.length > 0) {
+      return prefill.value
+        .split(",")
+        .map((u) => u.trim())
+        .filter(Boolean)
+        .map((url) => ({ url, name: url.split("/").pop() ?? "Imagem" }));
+    }
+    return [];
+  })();
+  const [images, setImages] = useState<ImageItem[]>(initialImages);
   const [isError, setIsError] = useState(false);
+  const [uploaderEpoch, setUploaderEpoch] = useState(0);
+  const constructedBg = useConstructUrl(backgroundUrl || "");
+  // Backup persistente extra das imagens em sessionStorage por blockId —
+  // sobrevive a re-renders mesmo sem prefill (caso o user esteja preenchendo
+  // pela primeira vez e algum rerender acidental dispare).
+  const storageKey = `nasa.form.image-upload.${block.id}`;
   const initialRestoreRef = useRef(false);
+
+  // Sincroniza o prefill com o formVals no mount.
+  useEffect(() => {
+    if (initialImages.length > 0 && handleBlur) {
+      handleBlur(block.id, {
+        value: initialImages.map((i) => i.url).join(","),
+        meta: { images: initialImages, dimensions: { width, height } },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function commit(next: ImageItem[]) {
     setImages(next);
@@ -132,6 +239,11 @@ function FormView({
   function onUpload(key: string, fileName?: string) {
     const item = { url: key, name: fileName ?? "Imagem" };
     commit(multiple ? [...images, item] : [item]);
+    if (multiple) {
+      // Força remontar o Uploader pra aceitar próxima imagem
+      // (ele desabilita o dropzone enquanto tem objectUrl interno).
+      setUploaderEpoch((e) => e + 1);
+    }
   }
 
   // Restaura na montagem inicial — sessionStorage tem prioridade sobre
@@ -159,15 +271,36 @@ function FormView({
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label
-        className={`text-base font-normal! mb-2 ${isError || isSubmitError ? "text-red-500" : ""}`}
-      >
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
+      {label?.trim() && (
+        <Label className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-red-500" : ""}`}>
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+        </Label>
+      )}
       {(multiple || images.length === 0) && (
-        <div style={{ maxWidth: `${width}px`, width: "100%" }}>
-          <Uploader fileTypeAccepted="image" onUpload={onUpload} />
+        <div
+          className={`relative rounded-md overflow-hidden [&_[data-slot=card]]:bg-transparent! [&_[data-slot=card]]:h-full! [&_[data-slot=card]]:w-full! ${
+            backgroundUrl
+              ? "[&_[data-slot=card]]:border-transparent! [&_p]:hidden [&_[data-slot=card]>[data-slot=card-content]]:p-0!"
+              : ""
+          }`}
+          style={{
+            width: `${width}px`,
+            height: `${height}px`,
+            maxWidth: "100%",
+            backgroundImage: backgroundUrl ? `url(${constructedBg})` : undefined,
+            backgroundSize: backgroundFit ?? "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+          }}
+        >
+          <div className="relative w-full h-full">
+            <Uploader
+              key={`uploader-${uploaderEpoch}`}
+              fileTypeAccepted="image"
+              onUpload={onUpload}
+            />
+          </div>
         </div>
       )}
       {images.length > 0 && (
@@ -183,9 +316,9 @@ function FormView({
           ))}
         </div>
       )}
-      {helperText && <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>}
+      {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
       {(isError || isSubmitError) && (
-        <p className="text-red-500 text-[0.8rem]">{errorMessage || "Envie uma imagem."}</p>
+        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage || "Envie uma imagem."}</p>
       )}
     </div>
   );
@@ -203,23 +336,54 @@ function ImagePreview({
   onRemove: () => void;
 }) {
   const url = useConstructUrl(image.url);
+  const [open, setOpen] = useState(false);
   return (
-    <div
-      className="relative border rounded-md overflow-hidden group"
-      style={{ width: `${width}px`, height: `${height}px`, maxWidth: "100%" }}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt={image.name} className="w-full h-full object-cover" />
-      <Button
-        type="button"
-        variant="destructive"
-        size="icon"
-        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100"
-        onClick={onRemove}
+    <>
+      <div
+        className="relative border rounded-md overflow-hidden group"
+        style={{ width: `${width}px`, height: `${height}px`, maxWidth: "100%" }}
       >
-        <Trash className="w-4 h-4" />
-      </Button>
-    </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={image.name} className="w-full h-full object-cover" />
+
+        {/* Overlay com ações no hover */}
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            className="size-8 shadow-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(true);
+            }}
+            title="Visualizar"
+          >
+            <EyeIcon className="w-4 h-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="icon"
+            className="size-8 shadow-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            title="Remover"
+          >
+            <Trash className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      <ImagePreviewDialog
+        open={open}
+        src={url}
+        fileName={image.name}
+        onClose={() => setOpen(false)}
+      />
+    </>
   );
 }
 
@@ -355,6 +519,87 @@ function PropertiesView({
               </FormItem>
             )}
           />
+
+          {/* Imagem de fundo do upload */}
+          <div className="pt-2 border-t space-y-2">
+            <FormLabel className="text-[13px] font-medium">
+              Imagem de fundo do upload
+            </FormLabel>
+            <p className="text-[11px] text-muted-foreground">
+              Aparece atrás da área de upload — útil pra mostrar um modelo
+              ou silhueta (ex: posição do veículo).
+            </p>
+
+            <Uploader
+              fileTypeAccepted="image"
+              onUpload={(key) =>
+                commit({ backgroundUrl: key } as Partial<AttributesType>)
+              }
+            />
+
+            {block.attributes.backgroundUrl && (
+              <>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={block.attributes.backgroundUrl}
+                    onChange={(e) =>
+                      commit({
+                        backgroundUrl: e.target.value,
+                      } as Partial<AttributesType>)
+                    }
+                    className="text-[12px] h-8"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      commit({ backgroundUrl: "" } as Partial<AttributesType>)
+                    }
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                  >
+                    limpar
+                  </button>
+                </div>
+
+                <div>
+                  <FormLabel className="text-[12px] font-normal">
+                    Ajuste da imagem
+                  </FormLabel>
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        commit({
+                          backgroundFit: "cover",
+                        } as Partial<AttributesType>)
+                      }
+                      className={`text-xs px-3 py-1.5 rounded border ${
+                        (block.attributes.backgroundFit ?? "cover") === "cover"
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:bg-accent"
+                      }`}
+                    >
+                      Preencher
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        commit({
+                          backgroundFit: "contain",
+                        } as Partial<AttributesType>)
+                      }
+                      className={`text-xs px-3 py-1.5 rounded border ${
+                        block.attributes.backgroundFit === "contain"
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:bg-accent"
+                      }`}
+                    >
+                      Encaixar
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </form>
       </Form>
     </div>

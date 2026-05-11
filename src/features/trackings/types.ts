@@ -29,5 +29,22 @@ export type Lead = {
   statusFlow: StatusFlow;
   slaDeadline?: Date | string | null;
   statusEnteredAt?: Date | string | null;
+  // Conversation usada pelo ícone WhatsApp do card pra direcionar pro chat.
+  conversation?: { id: string } | null;
+  // Formulários do lead — usados pelos ícones de status no card. Estado
+  // derivado server-side a partir de jsonResponse + jsonBlock.
+  forms?: Array<{
+    responseId: string;
+    formId: string;
+    formName: string;
+    createdAt: Date | string;
+    state:
+      | "empty"
+      | "in_progress"
+      | "waiting_client_signature"
+      | "stale"
+      | "complete";
+    slug: string;
+  }>;
 };
 

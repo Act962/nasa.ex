@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
+import { usePrefillValue } from "@/features/form/context/form-prefill-context";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "Dropdown";
@@ -45,7 +46,7 @@ type AttributesType = {
 };
 
 const propertiesValidateSchema = z.object({
-  label: z.string().trim().min(2).max(255),
+  label: z.string().trim().max(255).optional(),
   helperText: z.string().trim().max(255).optional(),
   placeholder: z.string().trim().max(255).optional(),
   required: z.boolean().default(false).optional(),
@@ -81,16 +82,23 @@ function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
   const { label, placeholder, required, helperText } = (blockInstance as Instance).attributes;
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label className="text-base font-normal! mb-2">
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
+      {label?.trim() && (
+
+        <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug">
+
+          {label}
+
+          {required && <span className="text-red-500"> *</span>}
+
+        </Label>
+
+      )}
       <Select disabled>
         <SelectTrigger>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
       </Select>
-      {helperText && <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>}
+      {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
     </div>
   );
 }
@@ -108,8 +116,25 @@ function FormView({
 }) {
   const block = blockInstance as Instance;
   const { label, placeholder, options, required, helperText } = block.attributes;
-  const [value, setValue] = useState<string>("");
+
+  // Prefill: a resposta salva é o LABEL (`opt?.label ?? ""`). Convertemos
+  // de volta pra ID procurando a option correspondente; se não achar, fica
+  // vazio (option foi renomeada/removida desde a resposta original).
+  const prefill = usePrefillValue(block.id);
+  const initialOption = prefill
+    ? options.find((o) => o.label === prefill)
+    : undefined;
+  const [value, setValue] = useState<string>(initialOption?.id ?? "");
   const [isError, setIsError] = useState(false);
+  useEffect(() => {
+    if (initialOption && handleBlur) {
+      handleBlur(block.id, {
+        value: initialOption.label,
+        meta: { id: initialOption.id },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function onChange(v: string) {
     setValue(v);
@@ -121,12 +146,12 @@ function FormView({
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label
-        className={`text-base font-normal! mb-2 ${isError || isSubmitError ? "text-red-500" : ""}`}
-      >
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
+      {label?.trim() && (
+        <Label className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-red-500" : ""}`}>
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+        </Label>
+      )}
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className={isError || isSubmitError ? "border-red-500!" : ""}>
           <SelectValue placeholder={placeholder} />
@@ -139,9 +164,9 @@ function FormView({
           ))}
         </SelectContent>
       </Select>
-      {helperText && <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>}
+      {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
       {(isError || isSubmitError) && (
-        <p className="text-red-500 text-[0.8rem]">{errorMessage || "Selecione uma opção."}</p>
+        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage || "Selecione uma opção."}</p>
       )}
     </div>
   );

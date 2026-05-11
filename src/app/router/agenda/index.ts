@@ -25,6 +25,8 @@ import { completeAppointment } from "./appointments/complete";
 import { deleteAppointment } from "./appointments/delete";
 import { rescheduleAppointment } from "./appointments/reschedule";
 import { getAppointmentsByOrg } from "./appointments/get-appointments-by-org";
+import { setAppointmentMeetingType } from "./appointments/set-meeting-type";
+import { syncAppointmentToGoogleCalendar } from "./appointments/sync-google-calendar";
 import { toggleDateOverride } from "./date-overrides/toggle";
 import { getManyDateOverrides } from "./date-overrides/get-many";
 import { getAgendasByTracking } from "./get-by-tracking";
@@ -73,6 +75,8 @@ export const agendaRouter = {
     getManyByOrg: getAppointmentsByOrg,
     createAdmin: createAdminAppointment,
     reschedule: rescheduleAppointment,
+    setMeetingType: setAppointmentMeetingType,
+    syncToGoogleCalendar: syncAppointmentToGoogleCalendar,
   },
   dateOverrides: {
     toggle: toggleDateOverride,

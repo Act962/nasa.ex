@@ -4,7 +4,6 @@ import {
   CreatedMessageProps,
   MessageStatus,
 } from "@/features/tracking-chat/types";
-import { markReadMessage } from "@/http/uazapi/mark-read-message";
 import { sendText } from "@/http/uazapi/send-text";
 import { sendInstagramDm } from "@/http/meta/send-instagram-dm";
 import { sendFacebookMessage } from "@/http/meta/send-facebook-message";
@@ -13,7 +12,11 @@ import { pusherServer } from "@/lib/pusher";
 import { IntegrationPlatform, MessageChannel } from "@/generated/prisma/enums";
 import z from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { attendLeadIfWaiting, logChatMessageSent } from "./utils";
+import {
+  attendLeadIfWaiting,
+  logChatMessageSent,
+  triggerFirstChatInteractionIfFirst,
+} from "./utils";
 
 export const createTextMessage = base
   .use(requiredAuthMiddleware)
@@ -38,7 +41,11 @@ export const createTextMessage = base
     try {
       const conversation = await prisma.conversation.findUnique({
         where: { id: input.conversationId },
-        select: { channel: true, trackingId: true, tracking: { select: { organizationId: true } } },
+        select: {
+          channel: true,
+          trackingId: true,
+          tracking: { select: { organizationId: true } },
+        },
       });
 
       const channel = conversation?.channel ?? MessageChannel.WHATSAPP;
@@ -48,7 +55,11 @@ export const createTextMessage = base
 
       if (channel === MessageChannel.INSTAGRAM) {
         const integration = await prisma.platformIntegration.findFirst({
-          where: { platform: IntegrationPlatform.INSTAGRAM, organizationId, isActive: true },
+          where: {
+            platform: IntegrationPlatform.INSTAGRAM,
+            organizationId,
+            isActive: true,
+          },
         });
         const config = integration?.config as Record<string, string> | null;
         if (config?.access_token) {
@@ -61,7 +72,11 @@ export const createTextMessage = base
         }
       } else if (channel === MessageChannel.FACEBOOK) {
         const integration = await prisma.platformIntegration.findFirst({
-          where: { platform: IntegrationPlatform.META, organizationId, isActive: true },
+          where: {
+            platform: IntegrationPlatform.META,
+            organizationId,
+            isActive: true,
+          },
         });
         const config = integration?.config as Record<string, string> | null;
         if (config?.page_access_token && config?.page_id) {
@@ -149,11 +164,21 @@ export const createTextMessage = base
       // Trigger gamification/attendance logic
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
 
+      await triggerFirstChatInteractionIfFirst({
+        conversationId: input.conversationId,
+        leadId: message.conversation.lead.id,
+      });
+
       await logChatMessageSent({
         organizationId,
         conversationId: input.conversationId,
         channel,
-        user: { id: context.user.id, name: context.user.name, email: context.user.email, image: (context.user as any).image },
+        user: {
+          id: context.user.id,
+          name: context.user.name,
+          email: context.user.email,
+          image: (context.user as any).image,
+        },
         messageId: message.id,
         body: input.body,
         mediaType: "text",

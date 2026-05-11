@@ -4,10 +4,9 @@ import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { SelectTrackingPopover } from "../select-tracking-field";
-import { PencilIcon } from "lucide-react";
+import { ChevronsUpDownIcon, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { InfoItem } from "../Info-item";
 
 interface FieldTrackingProps {
   trackingId: string;
@@ -15,6 +14,12 @@ interface FieldTrackingProps {
   statusId: string;
 }
 
+/**
+ * Campo "Fluxo / Tracking" no detalhe do lead. Render no estilo do
+ * `FieldProject`: um trigger sempre visível mostrando o tracking atual +
+ * chevron. Clicar abre o popover (SelectTrackingPopover) com seleção de
+ * tracking + status (ambos obrigatórios pra mover o lead pra outro fluxo).
+ */
 export function FieldTracking({
   trackingId,
   trackingName,
@@ -35,41 +40,47 @@ export function FieldTracking({
       {
         onSuccess: () => {
           setIsEditing(false);
-        }
-      }
+        },
+      },
     );
   };
 
   return (
-    <div className="flex flex-col gap-2 group w-full">
-      <div className="flex justify-between items-center w-full">
-        <div className="flex-1 min-w-0 pr-2">
-          <InfoItem label="Fluxo / Tracking" value={trackingName} />
-        </div>
-        
-        <SelectTrackingPopover
-          currentTrackingId={trackingId}
-          currentStatusId={statusId}
-          onSubmit={handleSubmit}
-          isLoading={mutation.isPending}
-          open={isEditing}
-          onOpenChange={setIsEditing}
+    <div className="flex flex-col gap-1 w-full">
+      <span className="text-xs font-medium opacity-50">Fluxo / Tracking</span>
+      <SelectTrackingPopover
+        currentTrackingId={trackingId}
+        currentStatusId={statusId}
+        onSubmit={handleSubmit}
+        isLoading={mutation.isPending}
+        open={isEditing}
+        onOpenChange={setIsEditing}
+      >
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={isEditing}
+          className="w-full justify-between font-normal h-8 text-sm"
+          disabled={mutation.isPending}
+          onClick={() => setIsEditing(true)}
         >
-          <Button
-            variant={"ghost"}
-            size={"icon-sm"}
-            className="opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity mt-3"
-            disabled={mutation.isPending}
-            onClick={() => setIsEditing(true)}
-          >
-            {mutation.isPending ? (
-              <Spinner />
-            ) : (
-              <PencilIcon className="size-3" />
-            )}
-          </Button>
-        </SelectTrackingPopover>
-      </div>
+          <div className="flex items-center gap-2 truncate">
+            <GitBranch className="size-4 shrink-0 opacity-60" />
+            <span className="truncate">
+              {trackingName || (
+                <span className="text-muted-foreground">
+                  Selecionar fluxo
+                </span>
+              )}
+            </span>
+          </div>
+          {mutation.isPending ? (
+            <Spinner className="ml-2 size-4 shrink-0" />
+          ) : (
+            <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
+          )}
+        </Button>
+      </SelectTrackingPopover>
     </div>
   );
 }

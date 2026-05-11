@@ -6,6 +6,7 @@ import { Prisma, Workflow } from "@/generated/prisma/client";
 import { sendWorkflowExecution } from "@/inngest/utils";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
+import { recordLeadEvent } from "@/features/leads/lib/history";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 
 export const updateNewOrder = base
@@ -100,6 +101,22 @@ export const updateNewOrder = base
           : "Posição do lead alterada na coluna",
         tx,
       });
+
+      // Evento granular pra Jornada (alimenta a timeline pública do lead).
+      // Sem isso, a página `/lead/<token>` só veria o LeadHistory genérico
+      // ("Lead reativado") sem detalhes de qual etapa.
+      if (statusChanged) {
+        await recordLeadEvent(
+          {
+            leadId,
+            eventType: "STATUS_CHANGE",
+            userId: context.user.id,
+            previousStatusId: currentLead.statusId,
+            newStatusId: targetStatusId,
+          },
+          tx,
+        );
+      }
 
       let workflows: { id: string }[] = [];
 

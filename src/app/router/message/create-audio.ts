@@ -11,7 +11,11 @@ import { pusherServer } from "@/lib/pusher";
 import { S3 } from "@/lib/s3-client";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import z from "zod";
-import { attendLeadIfWaiting, logChatMessageSent } from "./utils";
+import {
+  attendLeadIfWaiting,
+  logChatMessageSent,
+  triggerFirstChatInteractionIfFirst,
+} from "./utils";
 import { MessageChannel } from "@/generated/prisma/enums";
 
 export const createMessageWithAudio = base
@@ -124,6 +128,11 @@ export const createMessageWithAudio = base
 
       // Trigger gamification/attendance logic
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+
+      await triggerFirstChatInteractionIfFirst({
+        conversationId: input.conversationId,
+        leadId: message.conversation.lead.id,
+      });
 
       await logChatMessageSent({
         organizationId: message.conversation.tracking?.organizationId,

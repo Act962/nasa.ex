@@ -58,8 +58,16 @@ function View({ blockInstance }: { blockInstance: FormBlockInstance }) {
   const { title, body } = (blockInstance as Instance).attributes;
   return (
     <div className="flex flex-col gap-1 w-full">
-      {title && <h3 className="text-base font-semibold">{title}</h3>}
-      {body && <p className="text-sm text-muted-foreground whitespace-pre-line">{body}</p>}
+      {title && (
+        <h3 className="text-base font-semibold break-words whitespace-normal leading-snug">
+          {title}
+        </h3>
+      )}
+      {body && (
+        <p className="text-sm text-muted-foreground whitespace-pre-line break-words">
+          {body}
+        </p>
+      )}
     </div>
   );
 }

@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { useEffect, useState } from "react";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { useForm } from "react-hook-form";
+import { usePrefillValue } from "@/features/form/context/form-prefill-context";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "TextArea";
@@ -40,7 +41,7 @@ type PropertiesValidateSchemaType = z.input<typeof propertiesValidateSchema>;
 
 const propertiesValidateSchema = z.object({
   placeHolder: z.string().trim().optional(),
-  label: z.string().trim().min(2).max(255),
+  label: z.string().trim().max(255).optional(),
   required: z.boolean().default(false),
   helperText: z.string().trim().max(255).optional(),
   rows: z.number().min(1).max(20).default(3),
@@ -83,19 +84,33 @@ function TextAreaCanvasComponent({
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label className="text-base font-normal mb-2">
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
+      {label?.trim() && (
+
+        <Label
+        className="text-base font-normal
+       mb-2"
+      >
+
+          {label}
+
+          {required && <span className="text-red-500"> *</span>}
+
+        </Label>
+
+      )}
       <Textarea
         placeholder={placeHolder}
-        rows={rows || 3} // Default row value if not provided
-        cols={50} // Default column value if not provided
+        rows={rows || 3}
         readOnly
-        className="resize-none min-h-[50px]! pointer-events-none cursor-default"
+        wrap="soft"
+        className="resize-none min-h-[50px]! w-full min-w-0 pointer-events-none cursor-default"
+        style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
       />
       {helperText && (
-        <p className="text-muted-foreground text-[0.8rem]">
+        <p
+          className="text-muted-foreground 
+        text-[0.8rem]"
+        >
           {helperText}
         </p>
       )}
@@ -117,8 +132,19 @@ function TextAreaFormComponent({
   const block = blockInstance as NewInstance;
   const { label, placeHolder, required, helperText, rows } = block.attributes; // Destructure attributes
 
-  const [value, setValue] = useState("");
+  // Pré-preenche com a resposta salva (fluxo edit em /formulario/...).
+  const prefill = usePrefillValue(block.id);
+  const [value, setValue] = useState(prefill ?? "");
   const [isError, setIsError] = useState(false);
+
+  // Sincroniza com formVals no mount pra que valores pré-preenchidos
+  // façam parte do payload mesmo sem interação do usuário.
+  useEffect(() => {
+    if (prefill && prefill.trim().length > 0 && handleBlur) {
+      handleBlur(block.id, { value: prefill });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const validateField = (val: string) => {
     if (required) {
@@ -129,7 +155,7 @@ function TextAreaFormComponent({
   return (
     <div className="flex flex-col gap-2 w-full">
       <Label
-        className={`text-base font-normal! mb-2 ${
+        className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${
           isError || isSubmitError ? "text-red-500" : ""
         }`}
       >
@@ -138,17 +164,18 @@ function TextAreaFormComponent({
       </Label>
       <Textarea
         placeholder={placeHolder}
-        rows={rows || 3} // Default row value if not provided
-        cols={50} // Default column value if not provided
-        className={`resize-none min-h-[50px]! ${
+        rows={rows || 3}
+        wrap="soft"
+        className={`resize-y min-h-[50px]! w-full min-w-0 ${
           isError || isSubmitError ? "border-red-500!" : ""
         }`}
+        style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
         value={value}
         onChange={(event) => setValue(event.target.value)}
         onBlur={(event) => {
           const inputValue = event.target.value;
           const isValid = validateField(inputValue);
-          setIsError(!isValid); // Set error state based on validation.
+          setIsError(!isValid);
           if (handleBlur) {
             handleBlur(block.id, { value: inputValue });
           }
@@ -159,14 +186,14 @@ function TextAreaFormComponent({
       )}
 
       {isError || isSubmitError ? (
-        <p className="text-red-500 text-[0.8rem]">
+        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
           {required && value.trim().length === 0
             ? `This field is required.`
             : ""}
         </p>
       ) : (
         errorMessage && (
-          <p className="text-red-500 text-[0.8rem]">{errorMessage}</p>
+          <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage}</p>
         )
       )}
     </div>

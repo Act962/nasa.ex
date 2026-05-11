@@ -7,17 +7,17 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowUpRight,
   CheckIcon,
+  ClipboardList as ClipboardListIcon,
   Grip,
-  Mail,
   Phone,
   PlusIcon,
   RocketIcon,
   Tag,
   Sparkles,
-  MessageCircle,
   Clock,
   CheckCircle2,
 } from "lucide-react";
+import { WhatsappIcon } from "@/components/whatsapp";
 import { Badge } from "@/components/ui/badge";
 import { useQueryTagByLead } from "@/features/tracking-chat/hooks/use-leads-conversation";
 import { Button } from "@/components/ui/button";
@@ -77,10 +77,18 @@ const TEMP_TEXT = {
   VERY_HOT: "Extremamente quente",
 } as const;
 
+// Configuração de ícone de status do lead. O ícone "Em atendimento"
+// (antigamente um MessageCircle) foi MESCLADO com o ícone de "Conversa"
+// do detalhe do lead — agora o WhatsApp icon serve às duas funções:
+//   1. Indicador visual do `statusFlow` (cor muda conforme estado).
+//   2. Ação clicável: leva pro `/tracking-chat/<conversationId>` do lead.
+// Os 4 estados continuam tendo seus respectivos labels/cores; o ícone
+// principal (WhatsApp) é o mesmo, e os estados extremos (NEW/FINISHED)
+// preservam ícones secundários quando úteis pra reconhecimento visual.
 const STATUS_FLOW_CONFIG = {
   NEW: { label: "Novo lead", color: "#8b5cf6", Icon: Sparkles },
-  ACTIVE: { label: "Em atendimento", color: "#22c55e", Icon: MessageCircle },
-  WAITING: { label: "Aguardando atendimento", color: "#f59e0b", Icon: Clock },
+  ACTIVE: { label: "Em atendimento", color: "#22c55e", Icon: WhatsappIcon },
+  WAITING: { label: "Aguardando atendimento", color: "#f59e0b", Icon: WhatsappIcon },
   FINISHED: { label: "Finalizado", color: "#6b7280", Icon: CheckCircle2 },
 } as const;
 
@@ -187,10 +195,11 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity rounded-full"
-            onClick={(e) => {
+            className="rounded-full hover:opacity-80 transition-opacity"
+            onClick={() => {
               router.push(`/contatos/${data.id}`);
             }}
+            aria-label="Abrir detalhes do lead"
           >
             <ArrowUpRight className="size-3.5" />
           </button>
@@ -204,12 +213,8 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
       </div>
       <Separator />
       <div className="flex flex-col px-4 gap-1 text-xs text-muted-foreground py-2">
-        <LeadItemContainer>
-          <Mail className="size-3" />
-          <span className="truncate max-w-40">
-            {data.email || "Email@example.com"}
-          </span>
-        </LeadItemContainer>
+        {/* E-mail removido do card por solicitação — fica visível apenas
+            no painel "Detalhes do lead" pra deixar o card mais enxuto. */}
         <LeadItemContainer>
           <Phone className="size-3" />
           {phoneMaskFull(data.phone) || "(00) 00000-0000"}
@@ -267,17 +272,51 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
             (() => {
               const { label, color, Icon } =
                 STATUS_FLOW_CONFIG[data.statusFlow];
+              const conversationId = data.conversation?.id;
+              // Click direciona pro chat — substituiu o ícone "Em
+              // atendimento" e mesclou a função do ícone de "Conversa"
+              // do detalhe do lead.
+              const goToChat = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const path = `/tracking-chat/${conversationId ?? ""}`;
+                router.push(
+                  data.trackingId
+                    ? `${path}?trackingId=${data.trackingId}`
+                    : path,
+                );
+              };
               return (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Icon className="size-3" style={{ color }} />
+                    <button
+                      type="button"
+                      onClick={goToChat}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="inline-flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer"
+                      aria-label={`${label} — abrir conversa`}
+                    >
+                      <Icon className="size-3" style={{ color }} />
+                    </button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{label}</p>
+                    <p>
+                      {label}
+                      {conversationId
+                        ? " — clique para abrir a conversa"
+                        : " — clique para iniciar uma conversa"}
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               );
             })()}
+
+          {/* Ícones de formulário (1 por response) — cor reflete o estado:
+              branco=iniciado, azul=em progresso, laranja=aguardando assinatura
+              cliente, vermelho=stale ou aguardando responsável, verde=completo. */}
+          {(data.forms ?? []).map((f) => (
+            <FormStatusIcon key={f.responseId} form={f} leadId={data.id} />
+          ))}
         </div>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -301,6 +340,86 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
 });
 
 LeadItem.displayName = "LeadItem";
+
+/**
+ * Ícone de status do formulário no card do lead. Click direciona:
+ *   - estado "empty" (branco) → tab Formulários do detalhe do lead.
+ *   - demais estados → página de edição da resposta (`/formulario/<slug>/<id>`).
+ *
+ * O fetch dos dados (state, name, slug) já vem do `get-many` server-side,
+ * então o render é puro e barato.
+ */
+function FormStatusIcon({
+  form,
+  leadId,
+}: {
+  form: NonNullable<Lead["forms"]>[number];
+  leadId: string;
+}) {
+  const router = useRouter();
+  const STATE_COLORS: Record<typeof form.state, string> = {
+    empty: "#ffffff",
+    in_progress: "#3b82f6",
+    waiting_client_signature: "#f59e0b",
+    stale: "#ef4444",
+    complete: "#10b981",
+  };
+  const STATE_LABELS: Record<typeof form.state, string> = {
+    empty: "Iniciado — sem respostas",
+    in_progress: "Em preenchimento",
+    waiting_client_signature: "Aguardando assinatura do cliente",
+    stale: "Aguardando responsável (>24h ou assinatura)",
+    complete: "Preenchido",
+  };
+  const color = STATE_COLORS[form.state];
+  const stateLabel = STATE_LABELS[form.state];
+
+  const goToForm = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (form.state === "empty") {
+      // Branco → tab Formulários no detalhe do lead.
+      router.push(`/contatos/${leadId}?tab=forms`);
+    } else {
+      // Demais estados → página de edição da resposta.
+      router.push(`/formulario/${form.slug}/${form.responseId}`);
+    }
+  };
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={goToForm}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="inline-flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer"
+          aria-label={`Formulário "${form.formName}" — ${stateLabel}`}
+        >
+          {/* Ícone de prancheta colorido conforme o estado. Borda discreta
+              pra branco ficar visível sobre fundo claro. */}
+          <ClipboardListIcon
+            className="size-3"
+            style={{
+              color,
+              // Stroke escuro pra branco não desaparecer em fundo claro.
+              filter:
+                form.state === "empty"
+                  ? "drop-shadow(0 0 0.5px rgba(0,0,0,0.6))"
+                  : undefined,
+            }}
+          />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <div className="text-xs flex flex-col">
+          <strong>{form.formName}</strong>
+          <span className="text-muted-foreground">{stateLabel}</span>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 interface LeadItemContainerProps extends React.ComponentProps<"div"> {}
 

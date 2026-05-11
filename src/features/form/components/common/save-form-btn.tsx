@@ -49,6 +49,49 @@ export function SaveFormBtn() {
               redirectUrl: formData.settings.redirectUrl,
               idPixel: formData.settings.idPixel,
               idTagManager: formData.settings.idTagManager,
+              stepMode:
+                ((formData.settings as unknown) as { stepMode?: string })
+                  .stepMode || "off",
+              nextButtonLabel:
+                ((formData.settings as unknown) as {
+                  nextButtonLabel?: string;
+                }).nextButtonLabel || "Próximo",
+              ...(Array.isArray(
+                ((formData.settings as unknown) as {
+                  progressMascots?: unknown;
+                }).progressMascots,
+              ) && {
+                progressMascots: ((formData.settings as unknown) as {
+                  progressMascots?: Array<{
+                    min: number;
+                    max: number;
+                    label: string;
+                    emoji?: string;
+                    imageUrl?: string;
+                  }>;
+                }).progressMascots,
+              }),
+              ...(typeof ((formData.settings as unknown) as {
+                nextButtonAction?: unknown;
+              }).nextButtonAction === "object" &&
+              ((formData.settings as unknown) as { nextButtonAction?: unknown })
+                .nextButtonAction !== null
+                ? {
+                    nextButtonAction: ((formData.settings as unknown) as {
+                      nextButtonAction?: {
+                        type:
+                          | "next_block"
+                          | "form"
+                          | "external_link"
+                          | "add_tag";
+                        formId?: string | null;
+                        externalUrl?: string | null;
+                        tagId?: string | null;
+                        passLeadData?: boolean;
+                      };
+                    }).nextButtonAction,
+                  }
+                : {}),
             }
           : undefined,
       },

@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { recordLeadEvent } from "@/features/leads/lib/history";
+import { resolvePublicTimeline } from "@/features/leads/lib/public-timeline";
 
 export const getLeadByPublicToken = base
   .route({
@@ -30,20 +31,9 @@ export const getLeadByPublicToken = base
           status: { select: { id: true, name: true, color: true, order: true } },
           tracking: { select: { id: true, name: true } },
           responsible: { select: { name: true, image: true } },
-          history: {
-            orderBy: { createdAt: "asc" },
-            take: 100,
-            select: {
-              id: true,
-              createdAt: true,
-              eventType: true,
-              previousStatusId: true,
-              newStatusId: true,
-              previousTrackingId: true,
-              newTrackingId: true,
-              metadata: true,
-            },
-          },
+          // history fica fora do select — montamos a timeline rica abaixo
+          // com `resolvePublicTimeline` (junta LeadHistory + LeadJourneyEvent
+          // e resolve IDs em nomes).
         },
       });
 
@@ -58,7 +48,6 @@ export const getLeadByPublicToken = base
         status: { id: string; name: string; color: string | null; order: unknown };
         tracking: { id: string; name: string };
         responsible: { name: string; image: string | null } | null;
-        history: unknown[];
       };
 
       // Registrar visualização (sem userId)
@@ -72,6 +61,17 @@ export const getLeadByPublicToken = base
         console.warn("[lead.getByPublicToken] failed to record view event", e);
       }
 
+      // Constrói a timeline pública rica: une LeadHistory + LeadJourneyEvent
+      // e resolve IDs (status, tracking, user, form, tag) em nomes legíveis.
+      // O cliente vê "Mudou de etapa: 'X' → 'Y'" em vez de "Atualização
+      // registrada".
+      let timeline: Awaited<ReturnType<typeof resolvePublicTimeline>> = [];
+      try {
+        timeline = await resolvePublicTimeline(leadData.id, 150);
+      } catch (e) {
+        console.warn("[lead.getByPublicToken] timeline resolve failed", e);
+      }
+
       // Mascarar parcialmente o nome do lead
       const masked = leadData.name?.split(" ")[0] ?? "Cliente";
 
@@ -79,6 +79,10 @@ export const getLeadByPublicToken = base
         lead: {
           ...leadData,
           name: masked,
+          timeline,
+          // Mantém `history` por compat com clientes antigos que ainda
+          // leem dessa propriedade — vazio agora.
+          history: [],
         },
       };
     } catch (err) {

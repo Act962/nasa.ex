@@ -5,8 +5,13 @@ export type FormCategoryType = "Layout" | "Field";
 export type FormBlockType =
   | "RowLayout"
   | "RadioSelect"
+  | "RadioMatrix"
   | "TextField"
   | "TextArea"
+  | "Url"
+  | "MaskedField"
+  | "PageBreak"
+  | "QrCodeMulti"
   | "StarRating"
   | "Heading"
   | "Paragraph"

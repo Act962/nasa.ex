@@ -104,7 +104,7 @@ export default async function Page({
     {
       name: "Personalização",
       value: "personalization",
-      content: <Personalization />,
+      content: <Personalization trackingId={trackingId} />,
     },
   ];
 

@@ -4,8 +4,9 @@ import { useView } from "@/features/trackings/contexts/use-view";
 import { Palette, Columns2, LayoutTemplate } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import { CardAppearanceSection } from "./card-appearance-section";
 
-export function Personalization() {
+export function Personalization({ trackingId }: { trackingId?: string }) {
   const { viewMode, setViewMode } = useView();
 
   return (
@@ -90,6 +91,9 @@ export function Personalization() {
           </Card>
         </div>
       </div>
+
+      {/* ── Aparência do card no Dashboard de Tracking ───────────── */}
+      {trackingId && <CardAppearanceSection trackingId={trackingId} />}
     </div>
   );
 }

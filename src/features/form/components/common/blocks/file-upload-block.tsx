@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, FileUp, FileText, Trash } from "lucide-react";
+import {
+  ChevronDown,
+  DownloadIcon,
+  EyeIcon,
+  FileUp,
+  FileText,
+  Trash,
+} from "lucide-react";
+import { ImagePreviewDialog } from "@/features/actions/components/view-modal/image-preview-dialog";
+import { handleDownload, handleOpen } from "@/utils/handle-files";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { Uploader } from "@/components/file-uploader/uploader";
 import { useConstructUrl } from "@/hooks/use-construct-url";
+import { usePrefillFieldValue } from "@/features/form/context/form-prefill-context";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "FileUpload";
@@ -37,7 +47,7 @@ type AttributesType = {
 };
 
 const propertiesValidateSchema = z.object({
-  label: z.string().trim().min(2).max(255),
+  label: z.string().trim().max(255).optional(),
   helperText: z.string().trim().max(255).optional(),
   required: z.boolean().default(false).optional(),
   multiple: z.boolean().default(false).optional(),
@@ -65,15 +75,22 @@ function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
   const { label, required, helperText } = (blockInstance as Instance).attributes;
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label className="text-base font-normal! mb-2">
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
+      {label?.trim() && (
+
+        <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug">
+
+          {label}
+
+          {required && <span className="text-red-500"> *</span>}
+
+        </Label>
+
+      )}
       <div className="border border-dashed rounded-md p-4 text-center text-sm text-muted-foreground">
         <FileUp className="w-5 h-5 mx-auto mb-1" />
         Arraste arquivos aqui ou clique para enviar
       </div>
-      {helperText && <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>}
+      {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
     </div>
   );
 }
@@ -91,8 +108,49 @@ function FormView({
 }) {
   const block = blockInstance as Instance;
   const { label, required, helperText, multiple } = block.attributes;
-  const [files, setFiles] = useState<FileItem[]>([]);
+
+  // Prefill: extrai a lista de arquivos salva. Preferimos `meta.files`
+  // (que tem `name` original); cai pra split do `value` (CSV de URLs S3).
+  const prefill = usePrefillFieldValue(block.id);
+  const initialFiles: FileItem[] = (() => {
+    if (!prefill) return [];
+    const metaFiles = (prefill.meta as { files?: unknown } | undefined)?.files;
+    if (Array.isArray(metaFiles)) {
+      return metaFiles
+        .filter((f): f is FileItem =>
+          !!f &&
+          typeof f === "object" &&
+          typeof (f as { url?: unknown }).url === "string",
+        )
+        .map((f) => ({
+          url: (f as { url: string }).url,
+          name: (f as { name?: string }).name ?? "Arquivo",
+        }));
+    }
+    if (typeof prefill.value === "string" && prefill.value.length > 0) {
+      return prefill.value
+        .split(",")
+        .map((u) => u.trim())
+        .filter(Boolean)
+        .map((url) => ({ url, name: url.split("/").pop() ?? "Arquivo" }));
+    }
+    return [];
+  })();
+  const [files, setFiles] = useState<FileItem[]>(initialFiles);
   const [isError, setIsError] = useState(false);
+  const [uploaderEpoch, setUploaderEpoch] = useState(0);
+
+  // Propaga o prefill pro formVals no mount (evita perda de dados se o user
+  // só clicar em Salvar sem mexer nos arquivos).
+  useEffect(() => {
+    if (initialFiles.length > 0 && handleBlur) {
+      handleBlur(block.id, {
+        value: initialFiles.map((f) => f.url).join(","),
+        meta: { files: initialFiles },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function commit(next: FileItem[]) {
     setFiles(next);
@@ -107,6 +165,7 @@ function FormView({
   function onUpload(key: string, fileName?: string) {
     const item = { url: key, name: fileName ?? "Arquivo" };
     commit(multiple ? [...files, item] : [item]);
+    if (multiple) setUploaderEpoch((e) => e + 1);
   }
 
   function remove(idx: number) {
@@ -115,14 +174,18 @@ function FormView({
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label
-        className={`text-base font-normal! mb-2 ${isError || isSubmitError ? "text-red-500" : ""}`}
-      >
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
+      {label?.trim() && (
+        <Label className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${isError || isSubmitError ? "text-red-500" : ""}`}>
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+        </Label>
+      )}
       {(multiple || files.length === 0) && (
-        <Uploader fileTypeAccepted="outros" onUpload={onUpload} />
+        <Uploader
+          key={`uploader-${uploaderEpoch}`}
+          fileTypeAccepted="outros"
+          onUpload={onUpload}
+        />
       )}
       {files.length > 0 && (
         <div className="flex flex-col gap-2 mt-2">
@@ -131,31 +194,86 @@ function FormView({
           ))}
         </div>
       )}
-      {helperText && <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>}
+      {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
       {(isError || isSubmitError) && (
-        <p className="text-red-500 text-[0.8rem]">{errorMessage || "Envie um arquivo."}</p>
+        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage || "Envie um arquivo."}</p>
       )}
     </div>
   );
 }
 
+const IMAGE_EXTS = new Set([
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "webp",
+  "svg",
+  "bmp",
+  "avif",
+]);
+function isImageFile(name: string): boolean {
+  return IMAGE_EXTS.has(name.split(".").pop()?.toLowerCase() ?? "");
+}
+
 function FilePreview({ file, onRemove }: { file: FileItem; onRemove: () => void }) {
   const url = useConstructUrl(file.url);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const isImage = isImageFile(file.name);
+
+  function onView() {
+    if (isImage) setPreviewOpen(true);
+    else handleOpen(url);
+  }
+
   return (
-    <div className="flex items-center justify-between p-2 border rounded-md">
-      <a
-        href={url}
-        target="_blank"
-        rel="noreferrer"
-        className="flex items-center gap-2 text-sm hover:underline"
-      >
-        <FileText className="w-4 h-4" />
-        {file.name}
-      </a>
-      <Button type="button" variant="ghost" size="icon" onClick={onRemove}>
-        <Trash className="w-4 h-4" />
-      </Button>
-    </div>
+    <>
+      <div className="flex items-center justify-between p-2 border rounded-md gap-2">
+        <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
+          <FileText className="w-4 h-4 shrink-0" />
+          <span className="truncate">{file.name}</span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onView}
+            title={isImage ? "Visualizar" : "Abrir em nova aba"}
+          >
+            <EyeIcon className="w-4 h-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDownload(url, file.name)}
+            title="Baixar"
+          >
+            <DownloadIcon className="w-4 h-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onRemove}
+            title="Remover"
+          >
+            <Trash className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      {isImage && (
+        <ImagePreviewDialog
+          open={previewOpen}
+          src={url}
+          fileName={file.name}
+          onClose={() => setPreviewOpen(false)}
+          onDownload={() => handleDownload(url, file.name)}
+        />
+      )}
+    </>
   );
 }
 

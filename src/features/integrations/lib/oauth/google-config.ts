@@ -10,6 +10,7 @@ export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/adwords",
   "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/calendar.events",
 ] as const;
 
 export type GoogleScope = (typeof GOOGLE_SCOPES)[number];
@@ -129,4 +130,25 @@ export async function revokeGoogleToken(token: string): Promise<void> {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
   }).catch(() => undefined);
+}
+
+export async function refreshGoogleToken(
+  refreshToken: string,
+): Promise<GoogleTokenResponse> {
+  const body = new URLSearchParams({
+    client_id: clientId(),
+    client_secret: clientSecret(),
+    refresh_token: refreshToken,
+    grant_type: "refresh_token",
+  });
+  const res = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Google refresh token falhou: ${res.status} ${text}`);
+  }
+  return (await res.json()) as GoogleTokenResponse;
 }
