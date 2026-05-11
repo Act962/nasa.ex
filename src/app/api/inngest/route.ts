@@ -30,6 +30,7 @@ import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-st
 import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route-subscription-renew";
 import { astroIngestKnowledge } from "@/inngest/functions/astro/ingest-knowledge";
 import { astroAgentTrigger } from "@/inngest/functions/astro/agent-trigger";
+import { chatSyncMessages } from "@/inngest/functions/chat/sync-conversation-messages";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -59,6 +60,8 @@ export const { GET, POST, PUT } = serve({
     // ── ASTRO ──
     astroIngestKnowledge,
     astroAgentTrigger,
+    // ── Chat sync ──
+    chatSyncMessages,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

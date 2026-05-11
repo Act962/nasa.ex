@@ -10,6 +10,7 @@ import { useConstructUrl } from "@/hooks/use-construct-url";
 import { FileMessageBox } from "./file-message-box";
 import { AudioMessageBox } from "./audio-message-box";
 import { LocationMessageBox } from "./location-message-box";
+import { PendingMediaNotice } from "./pending-media-notice";
 import {
   CheckCheckIcon,
   CheckIcon,
@@ -63,12 +64,21 @@ export function MessageBox({
     Number.isFinite(message.latitude) &&
     Number.isFinite(message.longitude);
 
+  const isPendingMedia =
+    !isLocation &&
+    !message.mediaUrl &&
+    !!message.mediaType &&
+    ["image", "audio", "video", "document", "sticker"].includes(
+      message.mediaType,
+    );
+
   const isFile =
     message.mimetype?.startsWith("application/") ||
     message.mimetype?.startsWith("text/") ||
     message.mimetype?.startsWith("image/") ||
     message.mimetype?.startsWith("video/") ||
-    isLocation;
+    isLocation ||
+    isPendingMedia;
 
   const onDeleteMessage = () => {
     if (!token) return;
@@ -136,6 +146,9 @@ export function MessageBox({
                       longitude={message.longitude as number}
                       name={message.body}
                     />
+                  )}
+                  {isPendingMedia && (
+                    <PendingMediaNotice mediaType={message.mediaType!} />
                   )}
                   {!isLocation && message.mediaUrl &&
                     message.mimetype?.startsWith("image") && (
