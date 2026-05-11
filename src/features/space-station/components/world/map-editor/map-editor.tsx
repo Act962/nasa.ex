@@ -634,7 +634,8 @@ export function MapEditor({
 
   const toolLabel: Record<Tool, string> = {
     select: "Objetos", explore: "Explorar", areas: "Áreas",
-    entities: "Entidades", tiles: "Editor de Tiles", settings: "Configurar sala",
+    entities: "Entidades", tiles: "Editor de Tiles", scenario: "Cenário",
+    settings: "Configurar sala",
   };
 
   return (

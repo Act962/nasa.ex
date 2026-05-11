@@ -71,22 +71,27 @@ export function SaveFormBtn() {
                   }>;
                 }).progressMascots,
               }),
-              ...(((formData.settings as unknown) as {
+              ...(typeof ((formData.settings as unknown) as {
                 nextButtonAction?: unknown;
-              }).nextButtonAction &&
-                typeof ((formData.settings as unknown) as {
-                  nextButtonAction?: unknown;
-                }).nextButtonAction === "object" && {
-                  nextButtonAction: ((formData.settings as unknown) as {
-                    nextButtonAction?: {
-                      type: "next_block" | "form" | "external_link" | "add_tag";
-                      formId?: string | null;
-                      externalUrl?: string | null;
-                      tagId?: string | null;
-                      passLeadData?: boolean;
-                    };
-                  }).nextButtonAction,
-                }),
+              }).nextButtonAction === "object" &&
+              ((formData.settings as unknown) as { nextButtonAction?: unknown })
+                .nextButtonAction !== null
+                ? {
+                    nextButtonAction: ((formData.settings as unknown) as {
+                      nextButtonAction?: {
+                        type:
+                          | "next_block"
+                          | "form"
+                          | "external_link"
+                          | "add_tag";
+                        formId?: string | null;
+                        externalUrl?: string | null;
+                        tagId?: string | null;
+                        passLeadData?: boolean;
+                      };
+                    }).nextButtonAction,
+                  }
+                : {}),
             }
           : undefined,
       },

@@ -411,7 +411,7 @@ export function WorldSettingsPanel({ stationId, worldConfig, avatarConfig, nick,
         </Button>
         <Button
           size="sm"
-          onClick={handleSaveAvatar}
+          onClick={() => handleSaveAvatar()}
           disabled={isPending || !avatarDirty}
           className="bg-indigo-600 hover:bg-indigo-700 text-white"
         >

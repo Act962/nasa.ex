@@ -137,22 +137,28 @@ export function useFormAutosave() {
                   }>;
                 }).progressMascots,
               }),
-              ...(((currentSettings as unknown) as {
+              ...(typeof ((currentSettings as unknown) as {
                 nextButtonAction?: unknown;
-              }).nextButtonAction &&
-                typeof ((currentSettings as unknown) as {
-                  nextButtonAction?: unknown;
-                }).nextButtonAction === "object" && {
-                  nextButtonAction: ((currentSettings as unknown) as {
-                    nextButtonAction?: {
-                      type: "next_block" | "form" | "external_link" | "add_tag";
-                      formId?: string | null;
-                      externalUrl?: string | null;
-                      tagId?: string | null;
-                      passLeadData?: boolean;
-                    };
-                  }).nextButtonAction,
-                }),
+              }).nextButtonAction === "object" &&
+              ((currentSettings as unknown) as {
+                nextButtonAction?: unknown;
+              }).nextButtonAction !== null
+                ? {
+                    nextButtonAction: ((currentSettings as unknown) as {
+                      nextButtonAction?: {
+                        type:
+                          | "next_block"
+                          | "form"
+                          | "external_link"
+                          | "add_tag";
+                        formId?: string | null;
+                        externalUrl?: string | null;
+                        tagId?: string | null;
+                        passLeadData?: boolean;
+                      };
+                    }).nextButtonAction,
+                  }
+                : {}),
             },
           }),
         },

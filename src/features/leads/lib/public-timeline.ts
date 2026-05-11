@@ -228,7 +228,7 @@ export async function resolvePublicTimeline(
   }
 
   // ── Converte LeadHistory rows ────────────────────────────────────────
-  const fromHistory: PublicTimelineEntry[] = historyRows.map((h) => {
+  const fromHistory: PublicTimelineEntry[] = historyRows.map((h): PublicTimelineEntry => {
     const meta = (h.metadata ?? {}) as Record<string, unknown>;
     const base: PublicTimelineEntry = {
       id: `h-${h.id}`,

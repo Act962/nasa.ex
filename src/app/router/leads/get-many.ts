@@ -215,10 +215,17 @@ export const listLeadsByStatus = base
 
     if (leads.length > limit) {
       leads.pop();
-      const last = leads[leads.length - 1];
+      const last = leads[leads.length - 1] as unknown as {
+        id: string;
+        order: { toString(): string };
+        createdAt: Date;
+        updatedAt: Date;
+      };
       nextCursorId = last.id;
       nextCursorValue =
-        sortBy === "order" ? last.order.toString() : last[sortBy].toISOString();
+        sortBy === "order"
+          ? last.order.toString()
+          : last[sortBy].toISOString();
     }
 
     return {

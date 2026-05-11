@@ -243,7 +243,9 @@ export default function Page() {
               });
               toast.success("Resposta enviada");
               const newResponseId = (
-                res as { response?: { id?: string; createdAt?: string } }
+                res as {
+                  response?: { id?: string; createdAt?: string | Date };
+                }
               )?.response?.id;
               const createdAt = (
                 res as { response?: { createdAt?: string | Date } }

@@ -374,10 +374,10 @@ export function LeadAttachmentsByFolder({ leadId }: { leadId: string }) {
       </div>
 
       <ImagePreviewDialog
-        isOpen={!!preview}
+        open={!!preview}
         onClose={() => setPreview(null)}
-        media={preview ? [{ src: preview.src, alt: preview.name }] : []}
-        startIndex={0}
+        src={preview?.src ?? ""}
+        fileName={preview?.name}
       />
     </>
   );
