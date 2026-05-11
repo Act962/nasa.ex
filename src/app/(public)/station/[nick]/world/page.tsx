@@ -24,9 +24,18 @@ export default async function SpaceStationWorldRoute({ params }: Props) {
   const reqHeaders = await headers();
 
   const [station, session] = await Promise.all([
+    // Lookup pelo nick sem filtrar por isPublic — o owner precisa ver a
+    // própria estação mesmo enquanto está privada (preview/edição).
     prisma.spaceStation.findUnique({
-      where: { nick, isPublic: true },
-      select: { id: true, nick: true, worldConfig: true, userId: true, orgId: true },
+      where: { nick },
+      select: {
+        id: true,
+        nick: true,
+        worldConfig: true,
+        userId: true,
+        orgId: true,
+        isPublic: true,
+      },
     }),
     Promise.race([
       auth.api.getSession({ headers: reqHeaders }),
@@ -40,6 +49,9 @@ export default async function SpaceStationWorldRoute({ params }: Props) {
     station.userId === session.user.id ||
     station.orgId === session.session.activeOrganizationId
   );
+
+  // Estação privada só é acessível pelo owner.
+  if (!station.isPublic && !isOwner) notFound();
 
   // Dados do usuário para o avatar e WebRTC
   const userImage = session?.user?.image ?? null;

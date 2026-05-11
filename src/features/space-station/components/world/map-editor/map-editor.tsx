@@ -10,13 +10,15 @@ import {
   X, Move, Compass, SquareDashed, Lamp, Settings as Cog, Trash2,
   DoorClosed, Save, RotateCcw, Undo2, PenLine, Share2,
   ChevronLeft, ChevronRight, GripHorizontal,
-  PanelLeft, PanelBottom, Maximize2,
+  PanelLeft, PanelBottom, Maximize2, Image as ImageIcon,
+  Loader2, Check, AlertCircle,
 } from "lucide-react";
 import { ObjectLibrary } from "./object-library";
 import { AreaEditor } from "./area-editor";
 import { RoomConfig } from "./room-config";
 import { ExploreRoom } from "./explore-room";
 import { TilePainter } from "./tile-painter";
+import { ScenarioEditor } from "./scenario-editor";
 import { SaveTileTemplateModal } from "./save-tile-template-modal";
 import type { LibraryItem } from "./categories";
 import type {
@@ -25,7 +27,7 @@ import type {
 } from "../../../types";
 import { useUpdateWorld } from "../../../hooks/use-station";
 
-type Tool = "select" | "explore" | "areas" | "entities" | "settings" | "tiles";
+type Tool = "select" | "explore" | "areas" | "entities" | "settings" | "tiles" | "scenario";
 
 /** Modo de ancoragem do painel do editor. */
 type DockMode = "left" | "bottom" | "floating";
@@ -67,10 +69,19 @@ interface Props {
   onClose:      () => void;
   /** Callback quando a lista de placedObjects é alterada localmente (live preview) */
   onPlacedObjectsChange?: (objs: PlacedMapObject[]) => void;
+  /** Callback pra aplicar mudanças no worldConfig em tempo real (preview).
+   *  Usado pelo MapScenarioEditor que troca cenário, imagem de fundo, etc. */
+  onWorldConfigChange?: (next: StationWorldConfig) => void;
 }
 
 
-export function MapEditor({ stationId, worldConfig, onClose, onPlacedObjectsChange }: Props) {
+export function MapEditor({
+  stationId,
+  worldConfig,
+  onClose,
+  onPlacedObjectsChange,
+  onWorldConfigChange,
+}: Props) {
   const { mutateAsync: updateWorld, isPending: saving } = useUpdateWorld();
 
   const initialMap = useMemo(
@@ -473,6 +484,9 @@ export function MapEditor({ stationId, worldConfig, onClose, onPlacedObjectsChan
   }, []);
 
   /* ───────────────────────── Save ──────────────────────────────── */
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   async function save() {
     const current = (worldConfig.mapData ?? {}) as Partial<WorldMapData>;
     const hasTiles = tileLayer && Object.keys(tileLayer.cells).length > 0;
@@ -489,13 +503,102 @@ export function MapEditor({ stationId, worldConfig, onClose, onPlacedObjectsChan
       ...(tileLayer ? { tileLayer } : {}),
     };
     try {
+      setSaveError(null);
       await updateWorld({ stationId, mapData: nextMapData });
       setDirty(false);
+      setSavedAt(Date.now());
+      // Autosave bem-sucedido → limpa rascunho local
+      try { window.localStorage.removeItem(autosaveKey); } catch {/* ok */}
     } catch (e) {
       console.error("[MapEditor] save error:", e);
-      alert("Erro ao salvar. Tente novamente.");
+      setSaveError((e as Error)?.message ?? "Erro ao salvar");
     }
   }
+
+  // (Auto-save removido a pedido — usuário prefere testar antes de salvar.)
+  // O autosave em localStorage continua ativo mais abaixo como recovery.
+
+  /* ───────── Autosave em localStorage (recuperação de crash) ────── */
+  const autosaveKey = `space-station:map-editor:autosave:${stationId}`;
+
+  // Salva snapshot a cada mudança quando dirty (debounce 1s)
+  useEffect(() => {
+    if (!dirty) return;
+    const timer = setTimeout(() => {
+      try {
+        const snapshot = {
+          savedAt: Date.now(),
+          data: { placed, areas, roomConfig, tileLayer },
+        };
+        window.localStorage.setItem(autosaveKey, JSON.stringify(snapshot));
+      } catch {/* quota / privado — ignora */}
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [dirty, placed, areas, roomConfig, tileLayer, autosaveKey]);
+
+  // Beforeunload: avisa antes de fechar/recarregar/navegar com alterações
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = ""; // navegadores modernos exibem mensagem padrão
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
+  // Recuperação: se houver rascunho local, oferece restaurar uma única vez
+  const [recoveryPrompted, setRecoveryPrompted] = useState(false);
+  useEffect(() => {
+    if (recoveryPrompted) return;
+    try {
+      const raw = window.localStorage.getItem(autosaveKey);
+      if (!raw) {
+        setRecoveryPrompted(true);
+        return;
+      }
+      const parsed = JSON.parse(raw) as {
+        savedAt: number;
+        data: {
+          placed: PlacedMapObject[];
+          areas: MapArea[];
+          roomConfig: MapRoomConfig;
+          tileLayer: TileLayer | null;
+        };
+      };
+      const minutesAgo = Math.round((Date.now() - parsed.savedAt) / 60000);
+      const ago =
+        minutesAgo < 1
+          ? "agora há pouco"
+          : minutesAgo === 1
+            ? "1 minuto atrás"
+            : `${minutesAgo} minutos atrás`;
+      const restore = window.confirm(
+        `Encontramos alterações não salvas (${ago}) deste ambiente.\n\nDeseja restaurar?`,
+      );
+      if (restore) {
+        setPlaced(parsed.data.placed ?? []);
+        setAreas(parsed.data.areas ?? []);
+        setRoomConfig(parsed.data.roomConfig ?? {});
+        setTileLayer(parsed.data.tileLayer ?? null);
+        setDirty(true);
+      } else {
+        window.localStorage.removeItem(autosaveKey);
+      }
+    } catch {/* ignora corrompido */}
+    setRecoveryPrompted(true);
+  }, [recoveryPrompted, autosaveKey]);
+
+  // Fecha o editor — se houver alterações pendentes, abre modal de
+  // confirmação "Salvar alterações?" (Salvar / Descartar / Cancelar).
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const requestClose = useCallback(() => {
+    if (dirty) {
+      setCloseConfirmOpen(true);
+      return;
+    }
+    onClose();
+  }, [dirty, onClose]);
 
   function openPublishModal() {
     window.dispatchEvent(new CustomEvent("space-station:publish-template-open", {
@@ -542,7 +645,7 @@ export function MapEditor({ stationId, worldConfig, onClose, onPlacedObjectsChan
     >
       {/* ─── SIDEBAR ─── */}
       <div className="w-14 bg-slate-950/95 backdrop-blur-md border-r border-white/5 flex flex-col items-center py-3 gap-1 pointer-events-auto flex-shrink-0 overflow-y-auto">
-        <SidebarBtn icon={<X className="h-4 w-4" />} title="Fechar editor" onClick={onClose} variant="ghost" />
+        <SidebarBtn icon={<X className="h-4 w-4" />} title="Fechar editor" onClick={requestClose} variant="ghost" />
         <div className="w-7 h-px bg-white/10 my-1" />
 
         <SidebarBtn icon={<Move         className="h-4 w-4" />} title="Selecionar / mover"          active={tool === "select"}   onClick={() => { setTool("select");   setCollapsed(false); }} />
@@ -550,6 +653,7 @@ export function MapEditor({ stationId, worldConfig, onClose, onPlacedObjectsChan
         <SidebarBtn icon={<SquareDashed className="h-4 w-4" />} title="Ferramenta de editor de área" active={tool === "areas"}    onClick={() => { setTool("areas");    setCollapsed(false); }} />
         <SidebarBtn icon={<Lamp         className="h-4 w-4" />} title="Ferramenta de editor de entidade" active={tool === "entities"} onClick={() => { setTool("entities"); setCollapsed(false); }} />
         <SidebarBtn icon={<PenLine      className="h-4 w-4" />} title="Pintar tiles (pixel art)"   active={tool === "tiles"}    onClick={() => { setTool("tiles");    setCollapsed(false); }} />
+        <SidebarBtn icon={<ImageIcon    className="h-4 w-4" />} title="Cenário (imagem / modelo / Tiled)" active={tool === "scenario"} onClick={() => { setTool("scenario"); setCollapsed(false); }} />
         <SidebarBtn icon={<Cog          className="h-4 w-4" />} title="Configurar minha sala"       active={tool === "settings"} onClick={() => { setTool("settings"); setCollapsed(false); }} />
 
         <div className="flex-1 min-h-[4px]" />
@@ -648,6 +752,13 @@ export function MapEditor({ stationId, worldConfig, onClose, onPlacedObjectsChan
         )}
 
         {tool === "areas"    && <AreaEditor  areas={areas} onChange={updateAreas} />}
+        {tool === "scenario" && (
+          <ScenarioEditor
+            stationId={stationId}
+            worldConfig={worldConfig}
+            onWorldConfigChange={onWorldConfigChange}
+          />
+        )}
         {tool === "settings" && <RoomConfig  value={roomConfig} onChange={updateRoomConfig} />}
         {tool === "explore"  && <ExploreRoom placedObjects={placed} areas={areas} />}
 
@@ -660,22 +771,30 @@ export function MapEditor({ stationId, worldConfig, onClose, onPlacedObjectsChan
               {tileLayer && Object.keys(tileLayer.cells).length > 0 && (
                 <span className="text-indigo-400">· {Object.keys(tileLayer.cells).length} tiles</span>
               )}
-              {dirty && <span className="text-amber-400">• não salvo</span>}
             </div>
             <div className="flex-1" />
+            {/* Indicador de status de save (info — não auto-salva mais) */}
+            <SaveStatus
+              saving={saving}
+              dirty={dirty}
+              error={saveError}
+              savedAt={savedAt}
+              onRetry={() => void save()}
+            />
             <button
-              onClick={() => { if (dirty && !confirm("Descartar alterações não salvas?")) return; onClose(); }}
+              onClick={requestClose}
               className="text-xs text-slate-300 hover:text-white px-2 py-1 rounded-md hover:bg-white/5 transition-colors flex items-center gap-1"
-              title="Fechar sem salvar"
+              title="Fechar editor"
             >
               <RotateCcw className="h-3 w-3" /> Fechar
             </button>
             <button
-              onClick={save}
+              onClick={() => void save()}
               disabled={saving || !dirty}
               className="text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors"
             >
-              <Save className="h-3 w-3" /> {saving ? "Salvando..." : "Salvar"}
+              <Save className="h-3 w-3" />
+              {saving ? "Salvando..." : "Salvar"}
             </button>
           </div>
           <div className="flex gap-2">
@@ -683,12 +802,14 @@ export function MapEditor({ stationId, worldConfig, onClose, onPlacedObjectsChan
               onClick={() =>
                 window.dispatchEvent(new CustomEvent("space-station:save-tile-template-open"))
               }
+              title="Salva o conjunto de tiles atual como um modelo reutilizável (não salva o mundo). Use o botão 'Salvar' acima pra persistir o mundo."
               className="flex-1 text-xs text-emerald-300 hover:text-white border border-emerald-900 hover:border-emerald-500 hover:bg-emerald-900/30 px-3 py-1.5 rounded-md flex items-center justify-center gap-1.5 transition-colors"
             >
-              <Save className="h-3 w-3" /> Salvar ambiente
+              <Save className="h-3 w-3" /> Salvar como modelo
             </button>
             <button
               onClick={openPublishModal}
+              title="Publica o mundo atual como um Template público pra outros users clonarem. Não substitui o 'Salvar' — sempre salve antes."
               className="flex-1 text-xs text-indigo-300 hover:text-white border border-indigo-800 hover:border-indigo-500 hover:bg-indigo-900/30 px-3 py-1.5 rounded-md flex items-center justify-center gap-1.5 transition-colors"
             >
               <Share2 className="h-3 w-3" /> Publicar Template
@@ -735,7 +856,87 @@ export function MapEditor({ stationId, worldConfig, onClose, onPlacedObjectsChan
       tileLayer={tileLayer}
       placedObjects={placed}
     />
+
+    {/* Modal "Salvar alterações?" ao fechar com mudanças pendentes */}
+    {closeConfirmOpen && (
+      <CloseConfirmModal
+        saving={saving}
+        onSaveAndClose={async () => {
+          await save();
+          setCloseConfirmOpen(false);
+          onClose();
+        }}
+        onDiscardAndClose={() => {
+          // Limpa rascunho local também, pra não disparar recovery prompt depois
+          try {
+            window.localStorage.removeItem(autosaveKey);
+          } catch {
+            /* ok */
+          }
+          setCloseConfirmOpen(false);
+          onClose();
+        }}
+        onCancel={() => setCloseConfirmOpen(false)}
+      />
+    )}
     </>
+  );
+}
+
+/* ─── Modal: Salvar alterações antes de fechar? ───────────────── */
+
+function CloseConfirmModal({
+  saving,
+  onSaveAndClose,
+  onDiscardAndClose,
+  onCancel,
+}: {
+  saving: boolean;
+  onSaveAndClose: () => void;
+  onDiscardAndClose: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl border border-white/10 bg-slate-900 p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-base font-semibold text-white mb-2">
+          Salvar alterações?
+        </h3>
+        <p className="text-xs text-slate-400 leading-relaxed mb-5">
+          Você tem alterações no mapa que ainda não foram salvas. O que deseja
+          fazer?
+        </p>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={onSaveAndClose}
+            disabled={saving}
+            className="w-full px-3 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+          >
+            {saving ? "Salvando..." : "Salvar e sair"}
+          </button>
+          <button
+            onClick={onDiscardAndClose}
+            disabled={saving}
+            className="w-full px-3 py-2 rounded-md text-sm font-medium text-red-300 border border-red-500/30 bg-red-500/5 hover:bg-red-500/15 disabled:opacity-50 transition-colors"
+          >
+            Descartar alterações
+          </button>
+          <button
+            onClick={onCancel}
+            disabled={saving}
+            className="w-full px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-white/5 disabled:opacity-50 transition-colors"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -865,10 +1066,70 @@ function InspectorPanel({
           <LabeledSlider
             label="Profundidade"
             value={selectedObj.depth ?? 5}
-            min={1} max={20} step={1}
-            fmt={(v) => `${Math.round(v)}`}
+            min={1} max={50} step={1}
+            fmt={(v) =>
+              `${Math.round(v)}${(v ?? 0) >= 25 ? " (acima do avatar)" : ""}`
+            }
             onChange={(v) => onUpdate({ depth: v })}
           />
+
+          {/* Toggle "À frente do avatar" — atalho que seta depth=30 (acima
+              do avatar, que renderiza em ~20-21). Quando desligado, volta
+              ao default 5 (atrás). Também emite evento direto pro Phaser
+              forçar setDepth no sprite caso o sync demore a propagar. */}
+          {(() => {
+            const isFront = (selectedObj.depth ?? 5) >= 25;
+            return (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  // depth=50 garante render acima do avatar (20) E do tile
+                  // overlay (30), eliminando qualquer empate de z-order.
+                  const newDepth = isFront ? 5 : 50;
+                  onUpdate({ depth: newDepth });
+                  // Força aplicação imediata no Phaser via event direto — não
+                  // espera o sync passar por toda a cadeia React → Phaser.
+                  window.dispatchEvent(
+                    new CustomEvent("space-station:force-object-depth", {
+                      detail: { id: selectedObj.id, depth: newDepth },
+                    }),
+                  );
+                }}
+                title="Quando ligado, este objeto renderiza ACIMA do avatar (telhado, copa de árvore, luminária pendurada, etc.)."
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md border text-xs cursor-pointer select-none transition-colors text-left ${
+                  isFront
+                    ? "border-fuchsia-500/50 bg-fuchsia-500/10 text-fuchsia-200"
+                    : "border-white/10 bg-slate-800/40 text-slate-300 hover:bg-slate-800/60"
+                }`}
+              >
+                <span
+                  className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                    isFront
+                      ? "bg-fuchsia-500 border-fuchsia-500 text-white"
+                      : "border-slate-500 bg-transparent"
+                  }`}
+                >
+                  {isFront && (
+                    <svg
+                      viewBox="0 0 12 12"
+                      className="w-3 h-3"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M2 6l3 3 5-6" />
+                    </svg>
+                  )}
+                </span>
+                <span className="font-medium flex-1">À frente do avatar</span>
+                {isFront && (
+                  <span className="text-[10px] text-fuchsia-300/80">acima</span>
+                )}
+              </button>
+            );
+          })()}
 
           <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
             <input
@@ -904,5 +1165,69 @@ function LabeledSlider({
         className="w-full accent-indigo-500"
       />
     </div>
+  );
+}
+
+/* ─── Indicador de auto-save ──────────────────────────────────────────── */
+
+function SaveStatus({
+  saving,
+  dirty,
+  error,
+  savedAt,
+  onRetry,
+}: {
+  saving: boolean;
+  dirty: boolean;
+  error: string | null;
+  savedAt: number | null;
+  onRetry: () => void;
+}) {
+  // Estado mais informativo possível dado os flags atuais.
+  if (error) {
+    return (
+      <button
+        type="button"
+        onClick={onRetry}
+        title={error}
+        className="text-[11px] flex items-center gap-1.5 px-2 py-1 rounded-md bg-red-500/15 border border-red-500/30 text-red-300 hover:bg-red-500/25 transition-colors"
+      >
+        <AlertCircle className="h-3 w-3" />
+        Erro — clicar pra tentar
+      </button>
+    );
+  }
+  if (saving) {
+    return (
+      <span className="text-[11px] flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-500/15 border border-indigo-500/30 text-indigo-300">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Salvando...
+      </span>
+    );
+  }
+  if (dirty) {
+    return (
+      <span className="text-[11px] flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300">
+        <Save className="h-3 w-3" />
+        Aguardando...
+      </span>
+    );
+  }
+  if (savedAt) {
+    return (
+      <span
+        className="text-[11px] flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-300"
+        title={`Salvo automaticamente às ${new Date(savedAt).toLocaleTimeString()}`}
+      >
+        <Check className="h-3 w-3" />
+        Salvo
+      </span>
+    );
+  }
+  return (
+    <span className="text-[11px] flex items-center gap-1.5 px-2 py-1 rounded-md text-slate-500">
+      <Save className="h-3 w-3" />
+      Auto-save
+    </span>
   );
 }

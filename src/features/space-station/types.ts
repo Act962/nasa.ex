@@ -195,6 +195,7 @@ export type ScenarioType =
   | "observatory"
   | "bridge"
   | "tiled"
+  | "image"   // imagem única upload (padrão)
   | "custom";
 
 /* ─── Tile Layer (Map Builder) ───────────────────────────────────────────── */
@@ -251,7 +252,13 @@ export type TileTextureKey =
   | "deco_cloud"
   | "deco_fire";
 
-export type TileLayerName = "floor" | "wall" | "decoration";
+/** Camadas de tile, em ordem de profundidade visual:
+ *  - floor: piso (atrás de tudo)
+ *  - wall: parede com colisão
+ *  - decoration: decoração no nível do mundo (acima do piso, atrás do avatar)
+ *  - overlay: camada que renderiza ACIMA do avatar (telhado, copa de árvore,
+ *    luminárias, vidro, etc.) — útil pra dar sensação de profundidade. */
+export type TileLayerName = "floor" | "wall" | "decoration" | "overlay";
 
 export interface TileCell {
   texture: TileTextureKey;
@@ -281,7 +288,19 @@ export type AreaType =
   | "info"          // exibe mensagem informativa
   | "credits"       // exibe créditos / atribuição de licença CC BY-SA 3.0
   | "collision"     // bloqueia o movimento do jogador (paredes, mesas, etc.)
-  | "custom";       // genérica (apenas visual / tag)
+  | "custom"        // genérica (apenas visual / tag)
+  // ─── Funções NASA ─────────────────────────────────────────────────
+  | "n-box"         // armazenamento de arquivos (upload / download)
+  | "agendamento"   // abre página da agenda pública pra reservar horário
+  | "demanda"       // abre criação de demanda no Workspace
+  | "balcao"        // marca o player "em atendimento" no Tracking
+  | "profile"       // ver perfil curricular do user (próprio ou clicado)
+  | "prateleira"    // loja de produtos (Stars ou cartão)
+  | "auditorio"     // sala de vídeo em grupo (palestra / curso ao vivo)
+  | "nasa-route"    // compra de acesso (auditório, curso, etc.)
+  | "formulario"    // preenchimento de formulário NASA
+  | "rede-social"   // abre rede social interna da empresa
+  | "imagem-link";  // imagem clicável que abre URL externa autenticada
 
 export interface MapArea {
   id:   string;
@@ -296,13 +315,52 @@ export interface MapArea {
   color?: string;
   /** Propriedades específicas por tipo */
   props?: {
-    url?:        string;   // website / exit
+    // ── Tipos base ─────────────────────────────────────────────
+    url?:        string;   // website / exit / imagem-link / rede-social
     targetNick?: string;   // exit: nick da outra station
     audioUrl?:   string;   // play-audio
     message?:    string;   // info / credits extra note
     silent?:     boolean;  // silent area
-    roomName?:   string;   // meeting
+    roomName?:   string;   // meeting / auditorio
     showAssets?: boolean;  // credits: listar assets CC BY-SA
+
+    // ── Funções NASA ───────────────────────────────────────────
+    /** N-Box: pasta/path de arquivos compartilhados */
+    nboxFolderId?: string;
+    /** N-Box: permite upload (default true) */
+    nboxAllowUpload?: boolean;
+    /** Agendamento: slug da agenda pública (org/agendaSlug) */
+    agendaSlug?: string;
+    /** Demanda: workspaceId pra abrir o create action modal */
+    workspaceId?: string;
+    /** Balcão: trackingId pra associar o atendimento */
+    trackingId?: string;
+    /** Balcão: statusId opcional (estado padrão "Em atendimento") */
+    statusId?: string;
+    /** Profile: "self" (mostra do próprio user) ou "click" (clica em outro player) */
+    profileMode?: "self" | "click";
+    /** Prateleira: id do catálogo / vitrine de produtos */
+    productCatalogId?: string;
+    /** Auditório: capacidade máxima de participantes */
+    capacity?: number;
+    /** Auditório: requer compra prévia via NASA Route? */
+    requiresPurchase?: boolean;
+    /** NASA Route: id do produto/curso/acesso à venda */
+    nasaRouteProductId?: string;
+    /** Formulário: id do formulário a preencher */
+    formId?: string;
+    /** Rede social: rota interna (default /social) */
+    socialRoute?: string;
+    /** Imagem-link: URL da imagem exibida no spot */
+    imageUrl?: string;
+    /** Imagem-link: alt text */
+    imageAlt?: string;
+    /** Imagem-link: abrir em nova aba (default true) */
+    openInNewTab?: boolean;
+    /** N-Box: ID do item (arquivo) selecionado */
+    nboxItemId?: string;
+    /** Auditório/NASA Route: ID do curso selecionado */
+    courseId?: string;
   };
 }
 
@@ -368,6 +426,16 @@ export interface WorldMapData {
   tiledBaseUrl?: string;
   /** Camada de tiles pintados pelo usuário no Map Builder (scenario === "custom") */
   tileLayer?: TileLayer;
+  /** URL da imagem usada como cenário quando scenario === "image".
+   *  O usuário sobe uma imagem (ex: cena pixel-art) e o avatar anda em
+   *  cima dela. Áreas com type=collision controlam onde ele não pode
+   *  passar (sofá, parede, etc.). */
+  backgroundImageUrl?: string;
+  /** Largura do mapa em pixels (define os bounds do mundo).
+   *  Se omitido, usa as dimensões nativas da imagem ao carregar. */
+  backgroundImageWidth?: number;
+  /** Altura do mapa em pixels. */
+  backgroundImageHeight?: number;
 }
 
 export const AREA_TYPE_META: Record<AreaType, { label: string; emoji: string; color: string; description: string }> = {
@@ -382,6 +450,18 @@ export const AREA_TYPE_META: Record<AreaType, { label: string; emoji: string; co
   credits:      { label: "Créditos",   emoji: "©",  color: "#f97316", description: "Créditos e licenças CC BY-SA 3.0" },
   collision:    { label: "Colisão",    emoji: "🚧", color: "#ef4444", description: "Bloqueia o jogador (paredes, mesas)" },
   custom:       { label: "Personalizada", emoji: "🏷️", color: "#94a3b8", description: "Área genérica" },
+  // ─── Funções NASA ──────────────────────────────────────────────────
+  "n-box":      { label: "N-Box",        emoji: "📦", color: "#22c55e", description: "Arquivos: upload e download compartilhado" },
+  agendamento:  { label: "Agendamento",  emoji: "📅", color: "#0ea5e9", description: "Reservar horário em uma agenda pública" },
+  demanda:      { label: "Demanda",      emoji: "📝", color: "#a855f7", description: "Solicitar demanda no Workspace" },
+  balcao:       { label: "Balcão",       emoji: "🛎️", color: "#f43f5e", description: "Em atendimento (Tracking)" },
+  profile:      { label: "Profile",      emoji: "👤", color: "#14b8a6", description: "Currículo + book de fotos do user" },
+  prateleira:   { label: "Prateleira",   emoji: "🛒", color: "#fb923c", description: "Loja de produtos (Stars ou cartão)" },
+  auditorio:    { label: "Auditório",    emoji: "🎤", color: "#6366f1", description: "Vídeo em grupo (palestra / curso ao vivo)" },
+  "nasa-route": { label: "NASA Route",   emoji: "🛤️", color: "#8b5cf6", description: "Comprar acesso (auditório, curso)" },
+  formulario:   { label: "Formulário",   emoji: "📋", color: "#84cc16", description: "Preencher formulário NASA" },
+  "rede-social": { label: "Rede social", emoji: "💬", color: "#ec4899", description: "Rede social interna da empresa" },
+  "imagem-link": { label: "Imagem-link", emoji: "🖼️", color: "#06b6d4", description: "Imagem clicável com link externo" },
 };
 
 export const DEFAULT_ELEMENTS: WorldElementsConfig = {

@@ -117,9 +117,10 @@ const GROUPS_BY_TAB: Record<Exclude<TabId, "body" | "custom" | "comunidade">, Wo
 };
 
 /* ─── Tabs ───────────────────────────────────────────────────────────────── */
-type TabId = "body" | "eyes" | "hair" | "clothes" | "hat" | "accessory" | "custom" | "comunidade";
+export type WokaTabId = "body" | "eyes" | "hair" | "clothes" | "hat" | "accessory" | "custom" | "comunidade";
+type TabId = WokaTabId;
 
-const TABS: { id: TabId; label: string; icon: string; available: boolean }[] = [
+export const WOKA_TABS: { id: WokaTabId; label: string; icon: string; available: boolean }[] = [
   { id: "body",       label: "Body",       icon: "🧍", available: true },
   { id: "eyes",       label: "Eyes",       icon: "👀", available: true },
   { id: "hair",       label: "Hair",       icon: "💇", available: true },
@@ -431,10 +432,13 @@ interface Props {
   avatarConfig?: AvatarConfig;
   onChange: (partial: Partial<AvatarConfig>) => void;
   onClose: () => void;
+  /** Quando definido, usa esta tab em vez do estado interno e esconde a
+   *  barra de tabs (o pai controla a navegação). */
+  externalTab?: WokaTabId;
 }
 
 /* ─── Main component ─────────────────────────────────────────────────────── */
-export function WokaCustomizer({ avatarConfig, onChange, onClose }: Props) {
+export function WokaCustomizer({ avatarConfig, onChange, onClose, externalTab }: Props) {
   const currentUrl = avatarConfig?.lpcSpritesheetUrl;
   // Accept any saved URL (Pipoya, /uploads/, or external) as the initial preview
   const initialUrl =
@@ -443,7 +447,11 @@ export function WokaCustomizer({ avatarConfig, onChange, onClose }: Props) {
       : ALL_TEXTURES[0].url;
 
   const [selectedUrl, setSelectedUrl] = useState(initialUrl);
-  const [tab, setTab]     = useState<TabId>("body");
+  const [internalTab, setInternalTab] = useState<TabId>("body");
+  const tab = externalTab ?? internalTab;
+  const setTab = (id: TabId) => {
+    if (externalTab === undefined) setInternalTab(id);
+  };
   const [dirIdx, setDirIdx] = useState(0);
 
   const [overlays, setOverlays] = useState<Record<Exclude<TabId, "body" | "custom" | "comunidade">, string | null>>({
@@ -705,30 +713,33 @@ export function WokaCustomizer({ avatarConfig, onChange, onClose }: Props) {
         {/* ── Right: tabs + grid (fills remaining ~236px) ── */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-          {/* Tab bar — scrollable horizontally */}
-          <div className="flex border-b border-white/8 overflow-x-auto"
-            style={{ scrollbarWidth: "none" }}>
-            {TABS.map(t => (
-              <button
-                key={t.id}
-                onClick={() => t.available && setTab(t.id)}
-                className={`flex-shrink-0 flex flex-col items-center gap-0.5 px-3 pt-2.5 pb-2 text-[10px] font-medium transition-all relative ${
-                  tab === t.id
-                    ? "text-white border-b-2 border-indigo-400 bg-white/5"
-                    : t.available
-                      ? "text-slate-400 hover:text-slate-200"
-                      : "text-slate-600 cursor-not-allowed"
-                }`}
-                title={!t.available ? "Em breve" : t.label}
-              >
-                <span className="text-base leading-none">{t.icon}</span>
-                <span>{t.label}</span>
-                {!t.available && (
-                  <span className="absolute top-1 right-0.5 text-[7px] bg-slate-700 text-slate-500 px-0.5 rounded leading-tight">soon</span>
-                )}
-              </button>
-            ))}
-          </div>
+          {/* Tab bar — scrollable horizontally. Escondida quando o pai
+              controla a tab (externalTab) — ele renderiza as tabs no header. */}
+          {externalTab === undefined && (
+            <div className="flex border-b border-white/8 overflow-x-auto"
+              style={{ scrollbarWidth: "none" }}>
+              {WOKA_TABS.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => t.available && setTab(t.id)}
+                  className={`flex-shrink-0 flex flex-col items-center gap-0.5 px-3 pt-2.5 pb-2 text-[10px] font-medium transition-all relative ${
+                    tab === t.id
+                      ? "text-white border-b-2 border-indigo-400 bg-white/5"
+                      : t.available
+                        ? "text-slate-400 hover:text-slate-200"
+                        : "text-slate-600 cursor-not-allowed"
+                  }`}
+                  title={!t.available ? "Em breve" : t.label}
+                >
+                  <span className="text-base leading-none">{t.icon}</span>
+                  <span>{t.label}</span>
+                  {!t.available && (
+                    <span className="absolute top-1 right-0.5 text-[7px] bg-slate-700 text-slate-500 px-0.5 rounded leading-tight">soon</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Character grid */}
           <div

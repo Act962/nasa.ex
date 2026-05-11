@@ -5,9 +5,32 @@
  * Permite desenhar retângulos no mapa com tipo + propriedades (silent, exit, meeting, etc).
  */
 
-import { useEffect, useState } from "react";
-import { Plus, Trash2, SquareDashed, Crosshair } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Plus,
+  Trash2,
+  SquareDashed,
+  Crosshair,
+  ChevronDown,
+  ChevronRight,
+  Upload,
+  Loader2,
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
 import { AREA_TYPE_META, type AreaType, type MapArea } from "../../../types";
+
+/** Fallback pra áreas com tipo legado (ex: removido). */
+function getMeta(type: AreaType) {
+  return (
+    AREA_TYPE_META[type] ?? {
+      label: type as string,
+      emoji: "🏷️",
+      color: "#94a3b8",
+      description: "",
+    }
+  );
+}
 
 interface Props {
   areas:    MapArea[];
@@ -17,6 +40,7 @@ interface Props {
 export function AreaEditor({ areas, onChange }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawingType, setDrawingType] = useState<AreaType | null>(null);
+  const [drawingExpanded, setDrawingExpanded] = useState(true);
 
   // Ao ativar o tipo de desenho, avisa o Phaser
   useEffect(() => {
@@ -29,7 +53,7 @@ export function AreaEditor({ areas, onChange }: Props) {
   useEffect(() => {
     const onDrawn = (e: Event) => {
       const d = (e as CustomEvent).detail as { type: AreaType; x: number; y: number; w: number; h: number };
-      const meta = AREA_TYPE_META[d.type];
+      const meta = getMeta(d.type);
       const n = areas.filter(a => a.type === d.type).length + 1;
       const area: MapArea = {
         id:    `area-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -90,32 +114,55 @@ export function AreaEditor({ areas, onChange }: Props) {
         </p>
       </div>
 
-      {/* Tipo de área para desenhar */}
+      {/* Tipo de área para desenhar — colapsável */}
       <div className="px-5 pt-3 pb-2">
-        <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2">
-          Desenhar área
-        </div>
-        <div className="grid grid-cols-3 gap-1.5">
-          {(Object.keys(AREA_TYPE_META) as AreaType[]).map((t) => {
-            const m = AREA_TYPE_META[t];
-            const active = drawingType === t;
-            return (
-              <button
-                key={t}
-                onClick={() => setDrawingType(active ? null : t)}
-                className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg border transition-colors ${
-                  active
-                    ? "border-indigo-400/60 bg-indigo-500/10 text-indigo-200"
-                    : "border-white/5 hover:border-white/20 hover:bg-white/5 text-slate-300"
-                }`}
-                title={m.description}
-              >
-                <span className="text-base leading-none">{m.emoji}</span>
-                <span className="text-[10px] font-medium leading-tight">{m.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        <button
+          type="button"
+          onClick={() => setDrawingExpanded((v) => !v)}
+          className="w-full flex items-center justify-between gap-2 mb-2 group"
+          title={drawingExpanded ? "Recolher" : "Expandir"}
+        >
+          <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold group-hover:text-slate-300 transition-colors">
+            Desenhar área
+          </span>
+          <span className="flex items-center gap-1.5 text-[10px] text-slate-500 group-hover:text-slate-300 transition-colors">
+            {drawingType && !drawingExpanded && (
+              <span className="text-indigo-400 normal-case">
+                {getMeta(drawingType).emoji} {getMeta(drawingType).label}
+              </span>
+            )}
+            {drawingExpanded ? (
+              <ChevronDown className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" />
+            )}
+          </span>
+        </button>
+
+        {drawingExpanded && (
+          <div className="grid grid-cols-3 gap-1.5">
+            {(Object.keys(AREA_TYPE_META) as AreaType[]).map((t) => {
+              const m = getMeta(t);
+              const active = drawingType === t;
+              return (
+                <button
+                  key={t}
+                  onClick={() => setDrawingType(active ? null : t)}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg border transition-colors ${
+                    active
+                      ? "border-indigo-400/60 bg-indigo-500/10 text-indigo-200"
+                      : "border-white/5 hover:border-white/20 hover:bg-white/5 text-slate-300"
+                  }`}
+                  title={m.description}
+                >
+                  <span className="text-base leading-none">{m.emoji}</span>
+                  <span className="text-[10px] font-medium leading-tight">{m.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {drawingType && (
           <div className="flex items-center gap-2 mt-2 px-2 py-1.5 rounded-md bg-indigo-500/10 border border-indigo-400/20 text-[11px] text-indigo-300">
             <Crosshair className="h-3 w-3 animate-pulse" />
@@ -140,7 +187,7 @@ export function AreaEditor({ areas, onChange }: Props) {
         )}
 
         {areas.map((a) => {
-          const m = AREA_TYPE_META[a.type];
+          const m = getMeta(a.type);
           const isSelected = selectedId === a.id;
           return (
             <div
@@ -194,8 +241,8 @@ export function AreaEditor({ areas, onChange }: Props) {
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-white flex-1 truncate">{selected.name}</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-              style={{ color: AREA_TYPE_META[selected.type].color, border: `1px solid ${AREA_TYPE_META[selected.type].color}66` }}>
-              {AREA_TYPE_META[selected.type].label}
+              style={{ color: getMeta(selected.type).color, border: `1px solid ${getMeta(selected.type).color}66` }}>
+              {getMeta(selected.type).label}
             </span>
           </div>
 
@@ -277,6 +324,201 @@ export function AreaEditor({ areas, onChange }: Props) {
             </div>
           )}
 
+          {/* ─── Funções NASA ──────────────────────────────────────────── */}
+          {selected.type === "n-box" && (
+            <NBoxItemPicker
+              value={selected.props?.nboxItemId ?? ""}
+              onChange={(id) => updateProps({ nboxItemId: id })}
+            />
+          )}
+
+          {selected.type === "agendamento" && (
+            <>
+              <AgendaPicker
+                value={selected.props?.agendaSlug ?? ""}
+                onChange={(slug) => updateProps({ agendaSlug: slug })}
+              />
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={selected.props?.openInNewTab ?? false}
+                  onChange={(e) =>
+                    updateProps({ openInNewTab: e.target.checked })
+                  }
+                />
+                Abrir em nova aba (somente owner / criador do mundo)
+              </label>
+            </>
+          )}
+
+          {selected.type === "demanda" && (
+            <WorkspacePicker
+              value={selected.props?.workspaceId ?? ""}
+              onChange={(id) => updateProps({ workspaceId: id })}
+            />
+          )}
+
+          {selected.type === "balcao" && (
+            <div className="rounded-lg bg-rose-500/10 border border-rose-500/20 p-3 space-y-2">
+              <p className="text-[11px] text-rose-300 leading-relaxed">
+                Ao entrar, o avatar visitante aparece <strong>sendo atendido</strong>{" "}
+                pelo avatar do owner — comunicação fictícia exibida no chat,
+                com o nome do lead acima do avatar e a posição/quantidade
+                em espera.
+              </p>
+              <TrackingPicker
+                value={selected.props?.trackingId ?? ""}
+                onChange={(id) => updateProps({ trackingId: id })}
+              />
+            </div>
+          )}
+
+          {selected.type === "profile" && (
+            <div className="rounded-lg bg-teal-500/10 border border-teal-500/20 p-3 space-y-2">
+              <p className="text-[11px] text-teal-300 leading-relaxed">
+                Mostra os dados do avatar (Nome, E-mail, Função, Cargo e
+                demais infos do perfil em <em>Geral</em>).
+              </p>
+              <Field label="Modo de ativação">
+                <select
+                  value={selected.props?.profileMode ?? "click"}
+                  onChange={(e) =>
+                    updateProps({
+                      profileMode: e.target.value as "self" | "click",
+                    })
+                  }
+                  className="w-full px-2 py-1.5 rounded-md bg-slate-800/60 border border-white/10 text-xs text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="click">Clicar em outro player</option>
+                  <option value="self">Mostrar próprio perfil</option>
+                </select>
+              </Field>
+            </div>
+          )}
+
+          {selected.type === "prateleira" && (
+            <Field label="ID do catálogo">
+              <input
+                value={selected.props?.productCatalogId ?? ""}
+                onChange={(e) =>
+                  updateProps({ productCatalogId: e.target.value })
+                }
+                placeholder="ID da vitrine de produtos"
+                className="w-full px-2 py-1.5 rounded-md bg-slate-800/60 border border-white/10 text-xs text-white focus:outline-none focus:border-indigo-500"
+              />
+            </Field>
+          )}
+
+          {selected.type === "auditorio" && (
+            <>
+              <CoursePicker
+                label="Curso exibido ao entrar"
+                value={selected.props?.courseId ?? ""}
+                onChange={(id) => updateProps({ courseId: id })}
+              />
+              <Field label="Capacidade">
+                <input
+                  type="number"
+                  min={2}
+                  max={500}
+                  value={selected.props?.capacity ?? 50}
+                  onChange={(e) =>
+                    updateProps({
+                      capacity: Math.max(
+                        2,
+                        Math.min(500, parseInt(e.target.value) || 50),
+                      ),
+                    })
+                  }
+                  className="w-full px-2 py-1.5 rounded-md bg-slate-800/60 border border-white/10 text-xs text-white focus:outline-none focus:border-indigo-500 tabular-nums"
+                />
+              </Field>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Ao entrar, o link do curso aparece na tela. O visitante pode
+                comprar diretamente.
+              </p>
+            </>
+          )}
+
+          {selected.type === "nasa-route" && (
+            <CoursePicker
+              label="Produto / curso à venda"
+              value={selected.props?.courseId ?? ""}
+              onChange={(id) => updateProps({ courseId: id })}
+            />
+          )}
+
+          {selected.type === "formulario" && (
+            <>
+              <FormPicker
+                value={selected.props?.formId ?? ""}
+                onChange={(id) => updateProps({ formId: id })}
+              />
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={selected.props?.openInNewTab ?? false}
+                  onChange={(e) =>
+                    updateProps({ openInNewTab: e.target.checked })
+                  }
+                />
+                Abrir em nova aba (somente owner / criador do mundo)
+              </label>
+            </>
+          )}
+
+          {selected.type === "rede-social" && (
+            <Field label="Rota interna">
+              <input
+                value={selected.props?.socialRoute ?? "/social"}
+                onChange={(e) => updateProps({ socialRoute: e.target.value })}
+                placeholder="/social"
+                className="w-full px-2 py-1.5 rounded-md bg-slate-800/60 border border-white/10 text-xs text-white focus:outline-none focus:border-indigo-500"
+              />
+            </Field>
+          )}
+
+          {selected.type === "imagem-link" && (
+            <>
+              <ImageUploader
+                value={selected.props?.imageUrl ?? ""}
+                onChange={(url) => updateProps({ imageUrl: url })}
+              />
+              <Field label="URL de destino (clique)">
+                <input
+                  value={selected.props?.url ?? ""}
+                  onChange={(e) => updateProps({ url: e.target.value })}
+                  placeholder="https://ifood.com.br/..."
+                  className="w-full px-2 py-1.5 rounded-md bg-slate-800/60 border border-white/10 text-xs text-white focus:outline-none focus:border-indigo-500"
+                />
+              </Field>
+              <Field label="Texto alternativo (alt)">
+                <input
+                  value={selected.props?.imageAlt ?? ""}
+                  onChange={(e) => updateProps({ imageAlt: e.target.value })}
+                  placeholder="ex: iFood"
+                  className="w-full px-2 py-1.5 rounded-md bg-slate-800/60 border border-white/10 text-xs text-white focus:outline-none focus:border-indigo-500"
+                />
+              </Field>
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={selected.props?.openInNewTab !== false}
+                  onChange={(e) =>
+                    updateProps({ openInNewTab: e.target.checked })
+                  }
+                />
+                Abrir em nova aba
+              </label>
+            </>
+          )}
+
+          {/* TODO runtime: o comportamento de cada Função NASA ao o player
+              entrar/clicar é wireado em world-scene.ts (handleAreaEnter /
+              handleAreaClick). Como cada função integra com módulos
+              diferentes (N-Box files, Workspace actions, Tracking, NASA
+              Route, formulários, etc.), a implementação é incremental. */}
+
           <div className="grid grid-cols-2 gap-2">
             <Field label="Largura">
               <input
@@ -314,5 +556,324 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="block text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1">{label}</span>
       {children}
     </label>
+  );
+}
+
+/* ─── Pickers (dropdowns) ─────────────────────────────────────────────── */
+
+const SELECT_CLASS =
+  "w-full px-2 py-1.5 rounded-md bg-slate-800/60 border border-white/10 text-xs text-white focus:outline-none focus:border-indigo-500";
+
+function AgendaPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (slug: string) => void;
+}) {
+  const { data, isLoading } = useQuery({
+    ...orpc.agenda.getMany.queryOptions({}),
+    retry: false,
+  });
+  const agendas = (((data as { agendas?: Array<{ id: string; name: string; slug: string; isActive: boolean }> })?.agendas) ?? []) as Array<{
+    id: string;
+    name: string;
+    slug: string;
+    isActive: boolean;
+  }>;
+  return (
+    <Field label="Agenda">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={SELECT_CLASS}
+        disabled={isLoading}
+      >
+        <option value="">— Selecione uma agenda —</option>
+        {agendas.map((a) => (
+          <option key={a.id} value={a.slug}>
+            {a.name} {a.isActive ? "" : "(inativa)"}
+          </option>
+        ))}
+      </select>
+      {!isLoading && agendas.length === 0 && (
+        <p className="mt-1 text-[10px] text-slate-500">
+          Nenhuma agenda cadastrada — crie uma em /agendas.
+        </p>
+      )}
+    </Field>
+  );
+}
+
+function WorkspacePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const { data, isLoading } = useQuery({
+    ...orpc.workspace.list.queryOptions({ input: {} }),
+    retry: false,
+  });
+  const workspaces = ((data as { workspaces?: Array<{ id: string; name: string }> })
+    ?.workspaces ?? []) as Array<{ id: string; name: string }>;
+  return (
+    <Field label="Workspace">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={SELECT_CLASS}
+        disabled={isLoading}
+      >
+        <option value="">— Selecione um workspace —</option>
+        {workspaces.map((w) => (
+          <option key={w.id} value={w.id}>
+            {w.name}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+}
+
+function TrackingPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const { data, isLoading } = useQuery({
+    ...orpc.tracking.list.queryOptions({}),
+    retry: false,
+  });
+  // tracking.list retorna o array diretamente (não { trackings })
+  const trackings = (Array.isArray(data) ? data : []) as Array<{
+    id: string;
+    name: string;
+  }>;
+  return (
+    <Field label="Tracking (funil)">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={SELECT_CLASS}
+        disabled={isLoading}
+      >
+        <option value="">— Selecione um tracking —</option>
+        {trackings.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+}
+
+function FormPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const { data, isLoading } = useQuery({
+    ...orpc.form.list.queryOptions({ input: {} }),
+    retry: false,
+  });
+  const forms = ((data as { forms?: Array<{ id: string; name?: string; title?: string }> })
+    ?.forms ?? []) as Array<{ id: string; name?: string; title?: string }>;
+  return (
+    <Field label="Formulário">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={SELECT_CLASS}
+        disabled={isLoading}
+      >
+        <option value="">— Selecione um formulário —</option>
+        {forms.map((f) => (
+          <option key={f.id} value={f.id}>
+            {f.name || f.title || `Formulário ${f.id.slice(0, 6)}`}
+          </option>
+        ))}
+      </select>
+      {!isLoading && forms.length === 0 && (
+        <p className="mt-1 text-[10px] text-slate-500">
+          Nenhum formulário disponível — crie em /forms.
+        </p>
+      )}
+    </Field>
+  );
+}
+
+function CoursePicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const { data, isLoading } = useQuery({
+    ...orpc.nasaRoute.creatorListCourses.queryOptions({}),
+    retry: false,
+  });
+  const courses = ((data as { courses?: Array<{ id: string; title?: string; name?: string }> })
+    ?.courses ?? []) as Array<{ id: string; title?: string; name?: string }>;
+  return (
+    <Field label={label}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={SELECT_CLASS}
+        disabled={isLoading}
+      >
+        <option value="">— Selecione um curso —</option>
+        {courses.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.title || c.name || `Curso ${c.id.slice(0, 6)}`}
+          </option>
+        ))}
+      </select>
+      {!isLoading && courses.length === 0 && (
+        <p className="mt-1 text-[10px] text-slate-500">
+          Nenhum curso cadastrado — crie um em NASA Route.
+        </p>
+      )}
+    </Field>
+  );
+}
+
+function NBoxItemPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const { data, isLoading } = useQuery({
+    ...orpc.nbox.items.getMany.queryOptions({ input: {} }),
+    retry: false,
+  });
+  const items = ((data as { items?: Array<{ id: string; name: string }> })
+    ?.items ?? []) as Array<{ id: string; name: string }>;
+  return (
+    <Field label="Documento / arquivo (N-Box)">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={SELECT_CLASS}
+        disabled={isLoading}
+      >
+        <option value="">— Selecione um arquivo —</option>
+        {items.map((i) => (
+          <option key={i.id} value={i.id}>
+            {i.name}
+          </option>
+        ))}
+      </select>
+      {!isLoading && items.length === 0 && (
+        <p className="mt-1 text-[10px] text-slate-500">
+          Nenhum arquivo no N-Box — faça upload pra autorizar a exibição.
+        </p>
+      )}
+    </Field>
+  );
+}
+
+/* ─── Image uploader ─────────────────────────────────────────────────── */
+
+function ImageUploader({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (url: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFile(file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Selecione um arquivo de imagem.");
+      return;
+    }
+    setError(null);
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/upload-local", {
+        method: "POST",
+        body: form,
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!data.url) throw new Error(data.error ?? "Sem URL retornada");
+      onChange(data.url);
+    } catch (e) {
+      setError(`Falha ao enviar: ${(e as Error).message}`);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <Field label="Imagem">
+      <div className="space-y-2">
+        {value && (
+          <div className="relative rounded-md overflow-hidden border border-white/10 bg-slate-900/40">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={value}
+              alt="Preview"
+              className="w-full h-24 object-contain"
+            />
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+          />
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className="flex-1 px-2 py-1.5 rounded-md border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-xs text-indigo-200 flex items-center justify-center gap-1.5 disabled:opacity-50"
+          >
+            {uploading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Upload className="h-3 w-3" />
+            )}
+            {uploading
+              ? "Enviando..."
+              : value
+                ? "Trocar imagem"
+                : "Selecionar imagem"}
+          </button>
+          {value && !uploading && (
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              className="px-2 py-1.5 rounded-md border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-xs text-red-200"
+              title="Remover imagem"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+        {error && <p className="text-[10px] text-red-400">{error}</p>}
+      </div>
+    </Field>
   );
 }
