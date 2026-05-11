@@ -582,6 +582,7 @@ export function PlansManager() {
       )}
 
       <PlanFormDialog
+        key={editing?.id ?? "new"}
         open={formOpen}
         onClose={() => {
           setFormOpen(false);
