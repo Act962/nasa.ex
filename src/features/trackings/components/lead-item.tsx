@@ -152,7 +152,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
       <div className="flex items-center justify-between px-3 py-2">
         <div className="flex flex-row items-center gap-2">
           <button
-            className="touch-none group-hover:flex active:cursor-grabbing cursor-grab hidden"
+            className="touch-none flex lg:hidden lg:group-hover:flex active:cursor-grabbing cursor-grab"
             {...listeners}
             {...attributes}
             onClick={(e) => e.stopPropagation()} // Evita selecionar ao clicar no grid de arrastar
@@ -160,7 +160,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
             <Grip className="size-4 " />
           </button>
           <Avatar
-            className="size-4 group-hover:hidden touch-none"
+            className="size-4 hidden lg:block lg:group-hover:hidden touch-none"
             {...listeners}
             {...attributes}
           >
@@ -186,7 +186,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity rounded-full"
+            className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity rounded-full"
             onClick={(e) => {
               router.push(`/contatos/${data.id}`);
             }}

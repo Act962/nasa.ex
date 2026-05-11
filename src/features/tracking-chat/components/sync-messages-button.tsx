@@ -19,10 +19,18 @@ import { pusherClient } from "@/lib/pusher";
 
 interface SyncMessagesButtonProps {
   conversationId: string;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
 }
 
-export function SyncMessagesButton({ conversationId }: SyncMessagesButtonProps) {
-  const [open, setOpen] = useState(false);
+export function SyncMessagesButton({
+  conversationId,
+  open: openProp,
+  onOpenChange,
+}: SyncMessagesButtonProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const queryClient = useQueryClient();
 
   const mutation = useMutation(
@@ -63,17 +71,6 @@ export function SyncMessagesButton({ conversationId }: SyncMessagesButtonProps) 
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          title="Sincronizar mensagens"
-          className="gap-2"
-        >
-          <RefreshCwIcon className="size-4" />
-          Sincronizar
-        </Button>
-      </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Sincronizar mensagens</DialogTitle>
