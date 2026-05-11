@@ -3,6 +3,7 @@ import { HeadingBlock } from "@/features/form/components/common/blocks/heading-b
 import { RowLayoutBlock } from "@/features/form/components/common/blocks/row-layout";
 import { ParagraphBlock } from "@/features/form/components/common/blocks/paragraph-block";
 import { RadioSelectBlock } from "@/features/form/components/common/blocks/radio-select-block";
+import { RadioMatrixBlock } from "@/features/form/components/common/blocks/radio-matrix-block";
 import { StarRatingBlock } from "@/features/form/components/common/blocks/star-rating-block";
 import { TextAreaBlock } from "@/features/form/components/common/blocks/text-area-block";
 import { TextFieldBlock } from "@/features/form/components/common/blocks/text-field";
@@ -22,6 +23,10 @@ import {
   SignatureClientBlock,
 } from "@/features/form/components/common/blocks/signature-blocks";
 import { SliderBlock } from "@/features/form/components/common/blocks/slider-block";
+import { UrlBlock } from "@/features/form/components/common/blocks/url-block";
+import { MaskedFieldBlock } from "@/features/form/components/common/blocks/masked-field-block";
+import { PageBreakBlock } from "@/features/form/components/common/blocks/page-break-block";
+import { QrCodeMultiBlock } from "@/features/form/components/common/blocks/qr-code-multi-block";
 
 export const FormBlocks: FormBlocksType = {
   RowLayout: RowLayoutBlock,
@@ -30,6 +35,7 @@ export const FormBlocks: FormBlocksType = {
   TextField: TextFieldBlock,
   TextArea: TextAreaBlock,
   RadioSelect: RadioSelectBlock,
+  RadioMatrix: RadioMatrixBlock,
   StarRating: StarRatingBlock,
   Checkbox: CheckboxBlock,
   Dropdown: DropdownBlock,
@@ -43,4 +49,8 @@ export const FormBlocks: FormBlocksType = {
   SignatureUser: SignatureUserBlock,
   SignatureClient: SignatureClientBlock,
   Slider: SliderBlock,
+  Url: UrlBlock,
+  MaskedField: MaskedFieldBlock,
+  PageBreak: PageBreakBlock,
+  QrCodeMulti: QrCodeMultiBlock,
 };

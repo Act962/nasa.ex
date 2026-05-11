@@ -17,6 +17,28 @@ const settingsSchema = z.object({
   redirectUrl: z.string().nullable().optional(),
   idPixel: z.string().nullable().optional(),
   idTagManager: z.string().nullable().optional(),
+  stepMode: z.string().optional(),
+  nextButtonLabel: z.string().optional(),
+  progressMascots: z
+    .array(
+      z.object({
+        min: z.number(),
+        max: z.number(),
+        label: z.string(),
+        emoji: z.string().optional(),
+        imageUrl: z.string().optional(),
+      }),
+    )
+    .optional(),
+  nextButtonAction: z
+    .object({
+      type: z.enum(["next_block", "form", "external_link", "add_tag"]),
+      formId: z.string().optional().nullable(),
+      externalUrl: z.string().optional().nullable(),
+      tagId: z.string().optional().nullable(),
+      passLeadData: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export const updateForm = base

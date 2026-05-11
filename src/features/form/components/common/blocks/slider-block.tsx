@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
+import { usePrefillValue } from "@/features/form/context/form-prefill-context";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "Slider";
@@ -39,7 +40,7 @@ type AttributesType = {
 };
 
 const propertiesValidateSchema = z.object({
-  label: z.string().trim().min(2).max(255),
+  label: z.string().trim().max(255).optional(),
   helperText: z.string().trim().max(255).optional(),
   required: z.boolean().default(false).optional(),
   min: z.number().int(),
@@ -79,17 +80,19 @@ function CanvasView({ blockInstance }: { blockInstance: FormBlockInstance }) {
   const { label, required, helperText, min, max, defaultValue, unit } = (blockInstance as Instance).attributes;
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label className="text-base font-normal! mb-2">
-        {label}
-        {required && <span className="text-red-500">*</span>}
-        <span className="text-xs text-muted-foreground ml-2">
-          {min}–{max} {unit}
-        </span>
-      </Label>
+      {label?.trim() && (
+        <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug">
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+          <span className="text-xs text-muted-foreground ml-2">
+            {min}–{max} {unit}
+          </span>
+        </Label>
+      )}
       <div className="pointer-events-none">
         <Slider value={[defaultValue]} min={min} max={max} step={1} />
       </div>
-      {helperText && <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>}
+      {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
     </div>
   );
 }
@@ -103,7 +106,25 @@ function FormView({
 }) {
   const block = blockInstance as Instance;
   const { label, required, helperText, min, max, step, defaultValue, unit } = block.attributes;
-  const [value, setValue] = useState<number>(defaultValue);
+
+  // Prefill: a resposta salva é o número como string (`String(next)`).
+  const prefill = usePrefillValue(block.id);
+  const initialValue = prefill && !Number.isNaN(Number(prefill))
+    ? Number(prefill)
+    : defaultValue;
+  const [value, setValue] = useState<number>(initialValue);
+  // Sempre registra o valor inicial no formVals — em modo criação, o user
+  // já vê o slider no `defaultValue` e pode considerar o campo "preenchido"
+  // sem precisar arrastar. Em modo edit, propaga o valor salvo.
+  useEffect(() => {
+    if (handleBlur) {
+      handleBlur(block.id, {
+        value: String(initialValue),
+        meta: { num: initialValue, unit },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function commit(v: number[]) {
     const next = v[0] ?? defaultValue;
@@ -113,17 +134,23 @@ function FormView({
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label className="text-base font-normal! mb-2 flex items-center justify-between">
+      <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug flex items-center justify-between">
         <span>
-          {label}
-          {required && <span className="text-red-500">*</span>}
+          {label?.trim() ? (
+            <>
+              {label}
+              {required && <span className="text-red-500"> *</span>}
+            </>
+          ) : (
+            ""
+          )}
         </span>
         <span className="text-sm text-muted-foreground">
           {value} {unit}
         </span>
       </Label>
       <Slider value={[value]} min={min} max={max} step={step} onValueChange={commit} />
-      {helperText && <p className="text-[0.8rem] text-muted-foreground">{helperText}</p>}
+      {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}
     </div>
   );
 }

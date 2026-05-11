@@ -36,10 +36,12 @@ export const generateLeadPublicLink = base
         });
       }
 
+      // O grupo (public) é só organizacional — não aparece na URL final.
+      // A rota real é `/lead/[token]/page.tsx` em `src/app/(public)/lead/...`
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
       return {
         token,
-        url: `${baseUrl}/public/lead/${token}`,
+        url: `${baseUrl}/lead/${token}`,
       };
     } catch (err) {
       console.error(err);

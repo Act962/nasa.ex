@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { LeadInfo } from "./lead-info";
@@ -13,7 +14,7 @@ import {
   StickyNoteIcon,
 } from "lucide-react";
 import { TabNotes } from "./notes";
-import { LeadFiles } from "./lead-files/lead-files";
+import { LeadAttachmentsByFolder } from "./lead-files/lead-attachments-by-folder";
 import { ObservationLead } from "./observations";
 import { JourneyTimeline } from "./journey-timeline";
 import { LeadFormResponses } from "./lead-form-responses";
@@ -23,6 +24,10 @@ interface LeadDatailsProps {
 }
 
 export function LeadDetails({ initialData }: LeadDatailsProps) {
+  const searchParams = useSearchParams();
+  // Aceita `?tab=<value>` pra deep-link na tab desejada (ex: o ícone
+  // branco de form no card do kanban leva pra `/contatos/<id>?tab=forms`).
+  const tabFromUrl = searchParams?.get("tab") ?? null;
   const tabs = [
     {
       name: "Observações",
@@ -46,7 +51,7 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       name: "Arquivos",
       value: "files",
       icon: FileIcon,
-      content: <LeadFiles leadId={initialData.lead.id} />,
+      content: <LeadAttachmentsByFolder leadId={initialData.lead.id} />,
     },
     {
       name: "Formulários",
@@ -75,7 +80,11 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
 
       <aside className="flex-1 px-8 overflow-hidden">
         <Tabs
-          defaultValue={tabs[0].value}
+          defaultValue={
+            tabFromUrl && tabs.some((t) => t.value === tabFromUrl)
+              ? tabFromUrl
+              : tabs[0].value
+          }
           className="flex flex-col h-full gap-4 w-full mt-8 pb-8"
         >
           <TabsList className="p-0 w-full bg-muted/20 shrink-0">
