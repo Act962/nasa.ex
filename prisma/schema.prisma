@@ -1715,6 +1715,12 @@ enum AppointmentStatus {
   DONE
 }
 
+// Tipo de reunião do agendamento
+enum MeetingType {
+  ONLINE
+  IN_PERSON
+}
+
 model Appointment {
   id          String            @id @default(cuid())
   title       String?
@@ -1722,6 +1728,8 @@ model Appointment {
   startsAt    DateTime          @map("starts_at")
   endsAt      DateTime          @map("ends_at")
   status      AppointmentStatus @default(PENDING)
+  meetingType MeetingType       @default(ONLINE) @map("meeting_type")
+  gcalEventId String?           @map("gcal_event_id") // ID do evento criado no Google Calendar
   cancelledBy String?           @map("cancelled_by") // "CLIENT" | "SYSTEM"
   agendaId    String            @map("agenda_id")
   leadId      String?           @map("lead_id")
