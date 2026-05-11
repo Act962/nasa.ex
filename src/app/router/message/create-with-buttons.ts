@@ -7,6 +7,7 @@ import { pusherServer } from "@/lib/pusher";
 import { ORPCError } from "@orpc/server";
 import z from "zod";
 import { v4 as uuidv4 } from "uuid";
+import { triggerFirstChatInteractionIfFirst } from "./utils";
 
 const buttonSchema = z.object({
   text: z.string().min(1).max(20),
@@ -153,6 +154,11 @@ export const createButtonsMessage = base
     };
 
     await pusherServer.trigger(message.conversationId, "message:created", messageCreated);
+
+    await triggerFirstChatInteractionIfFirst({
+      conversationId: input.conversationId,
+      leadId: message.conversation.lead.id,
+    });
 
     return { message };
   });

@@ -13,6 +13,7 @@ import { responsibleExecutor } from "../components/responsible/executor";
 import { moveLeadStatusTriggerExecutor } from "@/features/triggers/components/move-lead-status/executor";
 import { leadTaggedTriggerExecutor } from "@/features/triggers/components/lead-tagged/executor";
 import { aiFinishedTriggerExecutor } from "@/features/triggers/components/ai-finished/executor";
+import { firstChatInteractionTriggerExecutor } from "@/features/triggers/components/first-chat-interaction/executor";
 import { filterLeadExecutor } from "../components/filter-lead/executor";
 
 export const executorRegistry: Partial<Record<NodeType, NodeExecutor>> = {
@@ -30,6 +31,7 @@ export const executorRegistry: Partial<Record<NodeType, NodeExecutor>> = {
   [NodeType.MOVE_LEAD_STATUS]: moveLeadStatusTriggerExecutor,
   [NodeType.LEAD_TAGGED]: leadTaggedTriggerExecutor,
   [NodeType.AI_FINISHED]: aiFinishedTriggerExecutor,
+  [NodeType.FIRST_CHAT_INTERACTION]: firstChatInteractionTriggerExecutor,
   [NodeType.FILTER_LEAD]: filterLeadExecutor,
 };
 

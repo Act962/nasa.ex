@@ -9,7 +9,11 @@ import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { MessageChannel } from "@/generated/prisma/enums";
 import z from "zod";
-import { attendLeadIfWaiting, logChatMessageSent } from "./utils";
+import {
+  attendLeadIfWaiting,
+  logChatMessageSent,
+  triggerFirstChatInteractionIfFirst,
+} from "./utils";
 
 export const createLocationMessage = base
   .use(requiredAuthMiddleware)
@@ -117,6 +121,11 @@ export const createLocationMessage = base
       );
 
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+
+      await triggerFirstChatInteractionIfFirst({
+        conversationId: input.conversationId,
+        leadId: message.conversation.lead.id,
+      });
 
       await logChatMessageSent({
         organizationId,

@@ -1204,6 +1204,7 @@ enum NodeType {
   MOVE_LEAD_STATUS
   LEAD_TAGGED
   AI_FINISHED
+  FIRST_CHAT_INTERACTION
   // LEAD_UNTAGGED
 
   // Execuções
@@ -1381,6 +1382,11 @@ model Conversation {
   profilePicUrl String?        @map("profile_pic_url")
   isActive      Boolean        @default(true) @map("is_active")
   channel       MessageChannel @default(WHATSAPP) @map("channel")
+
+  // Marca a 1ª mensagem enviada pelo usuário do app (fromMe=true) nesta
+  // conversa. Usado para disparar o gatilho FIRST_CHAT_INTERACTION de forma
+  // atômica via updateMany condicional — evita race em envios concorrentes.
+  firstUserMessageAt DateTime? @map("first_user_message_at")
 
   lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
   leadId     String   @unique @map("lead_id")
