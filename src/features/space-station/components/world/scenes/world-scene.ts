@@ -190,6 +190,8 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
   private tileFloorGfx:    Phaser.GameObjects.Graphics | null = null;
   private tileWallGfx:     Phaser.GameObjects.Graphics | null = null;
   private tileDecoGfx:     Phaser.GameObjects.Graphics | null = null;
+  /** Camada que renderiza acima do avatar (telhado, copa, etc.) */
+  private tileOverlayGfx:  Phaser.GameObjects.Graphics | null = null;
   private tileWallBodies   = new Map<string, Phaser.Physics.Arcade.Image>();
   private tileLayerState:  TileLayer | null = null;
   private tileGridGfx:     Phaser.GameObjects.Graphics | null = null;
@@ -238,7 +240,11 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
   }
 
   preload(this: Phaser.Scene & WorldScene) {
-    // Canvas já pré-renderizado — nada a carregar aqui
+    // Cenário "image" — pré-carrega a imagem de fundo do user
+    const raw = this.worldConfig?.mapData as WorldMapData | null;
+    if (raw?.scenario === "image" && raw.backgroundImageUrl) {
+      this.load.image("__bg_image__", raw.backgroundImageUrl);
+    }
   }
 
   create(this: Phaser.Scene & WorldScene) {
@@ -262,6 +268,7 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     const meetingCount    = raw?.meetingRoomCount  ?? 2;
 
     if      (scenario === "tiled")            this.renderTiledMap();
+    else if (scenario === "image")            this.renderImageBackground();
     else if (scenario === "station")         this.drawStation(elements, rooms, meetingCount);
     else if (scenario === "space")           this.drawSpace();
     else if (scenario === "rocket")          this.drawRocket();
@@ -282,9 +289,11 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     const tileLayer = raw?.tileLayer;
     if (tileLayer) {
       this.tileLayerState = tileLayer;
-      this.tileFloorGfx = this.add.graphics().setDepth(1);
-      this.tileWallGfx  = this.add.graphics().setDepth(3);
-      this.tileDecoGfx  = this.add.graphics().setDepth(15);
+      this.tileFloorGfx   = this.add.graphics().setDepth(1);
+      this.tileWallGfx    = this.add.graphics().setDepth(3);
+      this.tileDecoGfx    = this.add.graphics().setDepth(15);
+      // Avatar fica em ~depth 20-21 → overlay em 30 fica acima dele
+      this.tileOverlayGfx = this.add.graphics().setDepth(30);
       this.syncTileRendering();
     }
 
@@ -294,12 +303,17 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     this.generatePlayerTextures();
 
     const isTiled = scenario === "tiled";
+    const isImage = scenario === "image";
     let startX  = isTiled
       ? (this.tiledSpawnX || this.tiledMapW / 2)
-      : WORLD_W / 4;
+      : isImage
+        ? (raw?.backgroundImageWidth ?? WORLD_W) / 2
+        : WORLD_W / 4;
     let startY  = isTiled
       ? (this.tiledSpawnY || this.tiledMapH / 2)
-      : OFFICE_H / 2;
+      : isImage
+        ? (raw?.backgroundImageHeight ?? WORLD_H) / 2
+        : OFFICE_H / 2;
 
     // Restore last position from localStorage (persisted by useWorldPresence)
     try {
@@ -323,10 +337,41 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
       backgroundColor: "#00000099", padding: { x: 3, y: 1 },
     }).setOrigin(0.5).setDepth(21);
 
-    const boundsW = isTiled ? this.tiledMapW : WORLD_W;
-    const boundsH = isTiled ? this.tiledMapH : WORLD_H;
+    const boundsW = isTiled
+      ? this.tiledMapW
+      : isImage
+        ? raw?.backgroundImageWidth ?? WORLD_W
+        : WORLD_W;
+    const boundsH = isTiled
+      ? this.tiledMapH
+      : isImage
+        ? raw?.backgroundImageHeight ?? WORLD_H
+        : WORLD_H;
     this.cameras.main.setBounds(0, 0, boundsW, boundsH);
-    this.cameras.main.setZoom(this.currentZoom);
+    this.physics.world.setBounds(0, 0, boundsW, boundsH);
+    // Aplica zoom passando pelo clamp dinâmico (evita viewport maior que mapa
+    // → fundo preto). Se o viewport for maior que o mapa, force o mínimo.
+    this.setZoom(this.currentZoom);
+
+    // Cenário "image" → auto-fit pra mostrar a imagem inteira na tela.
+    // Centro da câmera no centro da imagem (player ainda spawna em 1/2,1/2).
+    if (isImage) {
+      const zx = this.cameras.main.width  / boundsW;
+      const zy = this.cameras.main.height / boundsH;
+      const fit = Math.min(zx, zy) * 0.95;
+      this.setZoom(fit);
+      this.cameras.main.centerOn(boundsW / 2, boundsH / 2);
+    }
+
+    // Re-clamp do zoom em resize da janela: viewport muda, min dinâmico muda.
+    const onResize = () => {
+      if (!this.cameras?.main) return;
+      this.setZoom(this.currentZoom);
+    };
+    this.scale.on("resize", onResize);
+    this.events.once("shutdown", () => {
+      this.scale.off("resize", onResize);
+    });
     // startFollow is called inside loadLpcSpritesheet → setupSprite once the sprite is created
 
     // ── Mouse wheel + trackpad zoom/pan ──────────────────────────────────
@@ -355,6 +400,11 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     };
 
     const onWheel = (ev: WheelEvent) => {
+      // Scene pode estar em processo de destroy (cameras=undefined). Sair
+      // silenciosamente em vez de jogar TypeError em loop, o que polui o
+      // console e pode interferir em handlers React de overlays acima.
+      if (!this.cameras?.main) return;
+
       const target = ev.target as Element | null;
       const overCanvas = target === canvasEl
         || (canvasEl.parentElement?.contains(target) ?? false)
@@ -504,6 +554,51 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     // disableGlobalCapture() garante que nenhum input HTML perca o espaço.
     this.input.keyboard!.disableGlobalCapture();
 
+    // ── Destravar teclas quando o foco sai (avatar "andando sozinho") ─────
+    // Quando user abre um dropdown/input do editor enquanto segura uma seta,
+    // o keyup vai pro DOM e nunca chega no Phaser → tecla fica "isDown=true"
+    // pra sempre e o avatar anda pra um lado sem parar. Reseta no blur e
+    // quando a aba sai de foco.
+    const resetKeys = () => {
+      try {
+        this.input.keyboard?.resetKeys();
+        const body = (this.lpcSprite ?? this.player)?.body as
+          | Phaser.Physics.Arcade.Body
+          | undefined;
+        body?.setVelocity(0, 0);
+      } catch {
+        /* ignora se scene em destroy */
+      }
+    };
+    window.addEventListener("blur", resetKeys);
+    const onVisibility = () => {
+      if (document.hidden) resetKeys();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    // Também reseta quando foco entra em qualquer input/select/textarea —
+    // evita tecla travada quando user abre dropdown do editor segurando seta.
+    const onFocusIn = (e: FocusEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!t) return;
+      const tag = t.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        t.isContentEditable
+      ) {
+        resetKeys();
+      }
+    };
+    window.addEventListener("focusin", onFocusIn, true);
+
+    this.events.once("shutdown", () => {
+      window.removeEventListener("blur", resetKeys);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focusin", onFocusIn, true);
+    });
+
     this.createGalaxyPortal();
 
     // ── Remote player events (dispatched by useWorldPresence hook) ──
@@ -552,6 +647,9 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
       this.syncPlacedObjects(objects);
     };
     const onEditorActive = (e: Event) => {
+      // Scene pode estar em destroy quando o user fecha o editor; sai cedo
+      // pra evitar TypeError em chains que tocam this.cameras / this.sys.
+      if (!this.cameras?.main) return;
       const { active } = (e as CustomEvent).detail as { active: boolean };
       this.editorActive = active;
       this.setupEditorDOMDrop(active);
@@ -572,6 +670,7 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
       this.refreshAreaSelection();
     };
     const onRequestCenter = () => {
+      if (!this.cameras?.main) return;
       const cam = this.cameras.main;
       const x = cam.worldView.x + cam.worldView.width  / 2;
       const y = cam.worldView.y + cam.worldView.height / 2;
@@ -585,11 +684,32 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
       this.refreshSelectionHighlights();
       if (id) {
         const spr = this.placedObjectSprites.get(id);
-        if (spr) this.cameras.main.pan(spr.x, spr.y, 350, "Sine.easeInOut", false);
+        if (spr && this.cameras?.main) this.cameras.main.pan(spr.x, spr.y, 350, "Sine.easeInOut", false);
+      }
+    };
+
+    // Force depth direto: usado pelo toggle "À frente do avatar" pra evitar
+    // race condition com syncPlacedObjects. Aplica setDepth no sprite agora.
+    const onForceObjectDepth = (e: Event) => {
+      const { id, depth } = (e as CustomEvent).detail as {
+        id: string;
+        depth: number;
+      };
+      const spr = this.placedObjectSprites.get(id);
+      if (spr && spr.scene) {
+        try {
+          spr.setDepth(depth);
+          // Também atualiza highlight pra continuar acima do sprite
+          const hl = this.placedObjectHighlights.get(id);
+          if (hl && hl.scene) hl.setDepth(depth + 0.1);
+        } catch {
+          // sprite pode ter sido destruído entre a captura e o setDepth
+        }
       }
     };
 
     window.addEventListener("space-station:placed-objects",     onObjectsChanged);
+    window.addEventListener("space-station:force-object-depth", onForceObjectDepth);
     window.addEventListener("space-station:map-editor-active",  onEditorActive);
     window.addEventListener("space-station:request-center",     onRequestCenter);
     window.addEventListener("space-station:focus-object",       onFocusObject);
@@ -614,7 +734,7 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
       this.drawingAreaType = type;
       this.drawStart = null;
       if (this.drawPreview) { this.drawPreview.destroy(); this.drawPreview = null; }
-      const canvas = this.sys.game.canvas as HTMLCanvasElement;
+      const canvas = (this.sys?.game?.canvas ?? null) as HTMLCanvasElement | null;
       if (canvas) canvas.style.cursor = type ? "crosshair" : "";
     };
     const onAreaFocus = (e: Event) => {
@@ -622,23 +742,29 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
       this.areaSelectedId = id;
       this.refreshAreaSelection();
       const area = this.areasState.find(a => a.id === id);
-      if (area) this.cameras.main.pan(area.x + area.w / 2, area.y + area.h / 2, 350, "Sine.easeInOut", false);
+      if (area && this.cameras?.main) this.cameras.main.pan(area.x + area.w / 2, area.y + area.h / 2, 350, "Sine.easeInOut", false);
     };
     const onRoomCfg = (e: Event) => {
       const { config } = (e as CustomEvent).detail as { config: { showGrid?: boolean; gridSize?: number } };
       this.toggleEditorGrid(config.showGrid === true, config.gridSize ?? 32);
     };
     const onZoomFit = () => {
-      // Fit both dimensions of the world in the viewport
+      if (!this.cameras?.main) return;
+      // Fit both dimensions do MAPA atual no viewport (usa os bounds reais
+      // que mudam por cenário: tiled, image, station, etc.)
       const cam = this.cameras.main;
-      const zx = cam.width  / WORLD_W;
-      const zy = cam.height / WORLD_H;
+      const bounds = cam.getBounds();
+      const mapW = bounds.width  || WORLD_W;
+      const mapH = bounds.height || WORLD_H;
+      const zx = cam.width  / mapW;
+      const zy = cam.height / mapH;
       const z  = Math.min(zx, zy) * 0.95;
       this.setZoom(Math.max(this.ZOOM_MIN, z));
-      cam.centerOn(WORLD_W / 2, WORLD_H / 2);
+      cam.centerOn(mapW / 2, mapH / 2);
     };
     const onCamPan = (e: Event) => {
       const { x, y } = (e as CustomEvent).detail as { x: number; y: number };
+      if (!this.cameras?.main) return;
       this.cameras.main.pan(x, y, 400, "Sine.easeInOut", false);
     };
     const onRequestCamView = () => this.emitCameraView();
@@ -665,7 +791,7 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     this.input.on("pointermove", (ptr: Phaser.Input.Pointer) => {
       if (!this.drawStart || !this.drawPreview || !this.drawingAreaType) return;
       const wp = this.cameras.main.getWorldPoint(ptr.x, ptr.y);
-      const meta = AREA_TYPE_META[this.drawingAreaType];
+      const meta = this.getAreaMeta(this.drawingAreaType);
       const color = parseInt(meta.color.slice(1), 16);
       const x = Math.min(this.drawStart.x, wp.x);
       const y = Math.min(this.drawStart.y, wp.y);
@@ -698,7 +824,7 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     const onTileEditorActive = (e: Event) => {
       const { active } = (e as CustomEvent).detail as { active: boolean };
       this.tileEditActive = active;
-      const canvas = this.sys.game.canvas as HTMLCanvasElement;
+      const canvas = (this.sys?.game?.canvas ?? null) as HTMLCanvasElement | null;
       if (active) {
         this.showTileGrid();
         if (canvas) canvas.style.cursor = this.currentTileTool === "pan" ? "grab" : "crosshair";
@@ -726,23 +852,24 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
       this.tilePainting = false;
       this.tilePanning  = false;
       // Atualiza cursor do canvas
-      const canvas = this.sys.game.canvas as HTMLCanvasElement;
+      const canvas = (this.sys?.game?.canvas ?? null) as HTMLCanvasElement | null;
       if (canvas) canvas.style.cursor = tool === "pan" ? "grab" : "crosshair";
     };
     const onTileLayerSet = (e: Event) => {
       const { tileLayer } = (e as CustomEvent).detail as { tileLayer: TileLayer };
       this.tileLayerState = tileLayer;
       if (!this.tileFloorGfx) {
-        this.tileFloorGfx = this.add.graphics().setDepth(1);
-        this.tileWallGfx  = this.add.graphics().setDepth(3);
-        this.tileDecoGfx  = this.add.graphics().setDepth(15);
+        this.tileFloorGfx   = this.add.graphics().setDepth(1);
+        this.tileWallGfx    = this.add.graphics().setDepth(3);
+        this.tileDecoGfx    = this.add.graphics().setDepth(15);
+        this.tileOverlayGfx = this.add.graphics().setDepth(30);
       }
       this.syncTileRendering();
     };
 
     // ── helper: atualiza cursor do canvas de acordo com o estado ──
     const setTileCanvas = (cur: string) => {
-      const canvas = this.sys.game.canvas as HTMLCanvasElement;
+      const canvas = (this.sys?.game?.canvas ?? null) as HTMLCanvasElement | null;
       if (canvas) canvas.style.cursor = cur;
     };
 
@@ -827,6 +954,7 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
       window.removeEventListener("space-station:map-editor-active",  onEditorActive);
       window.removeEventListener("space-station:request-center",     onRequestCenter);
       window.removeEventListener("space-station:focus-object",       onFocusObject);
+      window.removeEventListener("space-station:force-object-depth", onForceObjectDepth);
       window.removeEventListener("space-station:areas",              onAreasChanged);
       window.removeEventListener("space-station:area-draw-mode",     onAreaDrawMode);
       window.removeEventListener("space-station:area-focus",         onAreaFocus);
@@ -843,8 +971,22 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
   }
 
   /* ─── Areas: render / sync / select ──────────────────────────── */
+  private getAreaMeta(this: Phaser.Scene & WorldScene, type: AreaType) {
+    // Fallback se o tipo da área não existir mais no enum (ex: tipo
+    // removido como `mood`). Sem isso, areas legadas crashavam o render
+    // todo da scene → station ficava preta.
+    return (
+      AREA_TYPE_META[type] ?? {
+        label: type as string,
+        emoji: "🏷️",
+        color: "#94a3b8",
+        description: "",
+      }
+    );
+  }
+
   private renderArea(this: Phaser.Scene & WorldScene, area: MapArea) {
-    const meta = AREA_TYPE_META[area.type];
+    const meta = this.getAreaMeta(area.type);
     const color = parseInt((area.color ?? meta.color).slice(1), 16);
 
     const g = this.add.graphics().setDepth(100);
@@ -862,7 +1004,7 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
   }
 
   private renderAreaHitzone(this: Phaser.Scene & WorldScene, area: MapArea) {
-    const meta = AREA_TYPE_META[area.type];
+    const meta = this.getAreaMeta(area.type);
     const color = parseInt((area.color ?? meta.color).slice(1), 16);
     const hit = this.add.rectangle(area.x + area.w / 2, area.y + area.h / 2, area.w, area.h, 0xffffff, 0)
       .setDepth(99)
@@ -913,6 +1055,7 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
   }
 
   private syncAreas(this: Phaser.Scene & WorldScene, next: MapArea[]) {
+    if (!this.scene || !this.add) return;
     const nextIds = new Set(next.map(a => a.id));
     // remove
     this.areaGraphics.forEach((g, id) => {
@@ -933,7 +1076,7 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     next.forEach(a => this.syncAreaCollisionBody(a));
     // add / update
     next.forEach(a => {
-      const meta = AREA_TYPE_META[a.type];
+      const meta = this.getAreaMeta(a.type);
       const color = parseInt((a.color ?? meta.color).slice(1), 16);
       const existing = this.areaGraphics.get(a.id);
       if (existing) {
@@ -976,24 +1119,51 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     const cy = area.y + area.h / 2;
     const w  = Math.max(area.w, 4);
     const h  = Math.max(area.h, 4);
-    if (existing) {
-      existing.setPosition(cx, cy).setDisplaySize(w, h);
-      const eb = existing.body as Phaser.Physics.Arcade.StaticBody;
-      eb.setSize(w, h, true);
-      eb.updateFromGameObject();
-    } else {
-      const img = this.walls.create(cx, cy, "__blank__") as Phaser.Physics.Arcade.Image;
-      img.setDisplaySize(w, h).setVisible(false).setDepth(0);
-      const sBody = img.body as Phaser.Physics.Arcade.StaticBody;
-      sBody.setSize(w, h, true);
-      sBody.updateFromGameObject();
-      this.areaCollisionBodies.set(area.id, img);
+
+    // Defensive: scene em destroy ou textura __blank__ perdida →
+    // setDisplaySize joga TypeError lendo `texture.sourceSize`.
+    // Se algo está estranho, descarta e recria.
+    const isStale =
+      !existing ||
+      !existing.scene ||
+      !existing.texture ||
+      !this.textures.exists("__blank__") ||
+      // body ausente: aconteceu se destroy parcial ocorreu
+      !existing.body;
+
+    if (existing && !isStale) {
+      try {
+        existing.setPosition(cx, cy).setDisplaySize(w, h);
+        const eb = existing.body as Phaser.Physics.Arcade.StaticBody;
+        eb.setSize(w, h, true);
+        eb.updateFromGameObject();
+        return;
+      } catch (err) {
+        console.warn("[syncAreaCollisionBody] update fail, recriando:", err);
+        try { existing.destroy(); } catch { /* ignore */ }
+        this.areaCollisionBodies.delete(area.id);
+      }
+    } else if (existing && isStale) {
+      try { existing.destroy(); } catch { /* ignore */ }
+      this.areaCollisionBodies.delete(area.id);
     }
+
+    // Recria do zero
+    if (!this.textures.exists("__blank__")) {
+      // textura base perdida — não dá pra criar agora; espera próxima sync
+      return;
+    }
+    const img = this.walls.create(cx, cy, "__blank__") as Phaser.Physics.Arcade.Image;
+    img.setDisplaySize(w, h).setVisible(false).setDepth(0);
+    const sBody = img.body as Phaser.Physics.Arcade.StaticBody;
+    sBody.setSize(w, h, true);
+    sBody.updateFromGameObject();
+    this.areaCollisionBodies.set(area.id, img);
   }
 
   private refreshAreaSelection(this: Phaser.Scene & WorldScene) {
     this.areasState.forEach(a => {
-      const meta = AREA_TYPE_META[a.type];
+      const meta = this.getAreaMeta(a.type);
       const color = parseInt((a.color ?? meta.color).slice(1), 16);
       const g = this.areaGraphics.get(a.id);
       if (g) this.redrawArea(g, a, color, this.areaSelectedId === a.id);
@@ -1028,16 +1198,23 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
   // ─── Map Editor: rendering & interaction ───────────────────────
 
   private renderPlacedObject(this: Phaser.Scene & WorldScene, obj: PlacedMapObject) {
+    // Defensive: scene pode estar em destroy quando o React dispara eventos.
+    if (!this.scene || !this.add || !this.load || !this.textures) return;
     // Cada objeto usa uma key baseada na URL para evitar reload de imagens idênticas
     const key = `pl-img-${hashString(obj.url)}`;
 
     const finalize = () => {
       // Evita duplicar quando a imagem termina de carregar
       if (this.placedObjectSprites.has(obj.id)) return;
-      const img = this.add.image(obj.x, obj.y, key)
-        .setDepth(obj.depth ?? 5)
-        .setScale(obj.scale ?? 1)
-        .setRotation(((obj.rotation ?? 0) * Math.PI) / 180)
+      // Resolve o objeto atual a partir do state (pode ter mudado entre o
+      // start do load async e o finalize — ex: user toggle "À frente do
+      // avatar" enquanto imagem carregava → depth atualizado).
+      const current =
+        this.placedObjectsState.find((o) => o.id === obj.id) ?? obj;
+      const img = this.add.image(current.x, current.y, key)
+        .setDepth(current.depth ?? 5)
+        .setScale(current.scale ?? 1)
+        .setRotation(((current.rotation ?? 0) * Math.PI) / 180)
         .setInteractive({ useHandCursor: true, draggable: true })
         .setData("objId", obj.id);
 
@@ -1067,7 +1244,7 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
       this.placedObjectSprites.set(obj.id, img);
 
       // ── Colisão: se solid, cria corpo estático no grupo de paredes ──
-      if (obj.solid) {
+      if (current.solid) {
         this.addPlacedObjectBody(obj.id, img.x, img.y, img.displayWidth, img.displayHeight);
       }
 
@@ -1088,6 +1265,7 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
   }
 
   private syncPlacedObjects(this: Phaser.Scene & WorldScene, next: PlacedMapObject[]) {
+    if (!this.scene || !this.add) return;
     const nextIds = new Set(next.map(o => o.id));
 
     // Remove objetos que não estão mais na lista
@@ -1165,12 +1343,15 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
   }
 
   private refreshSelectionHighlights(this: Phaser.Scene & WorldScene) {
-    this.placedObjectHighlights.forEach(h => h.destroy());
+    if (!this.scene || !this.add) return;
+    this.placedObjectHighlights.forEach(h => {
+      try { h.destroy(); } catch { /* ignore */ }
+    });
     this.placedObjectHighlights.clear();
     this.clearResizeHandles();
     if (!this.editorSelectedId) return;
     const spr = this.placedObjectSprites.get(this.editorSelectedId);
-    if (!spr) return;
+    if (!spr || !spr.scene) return;
     const w = spr.displayWidth;
     const h = spr.displayHeight;
     const g = this.add.graphics().setDepth((spr.depth ?? 5) + 0.1);
@@ -1193,8 +1374,12 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
    */
   private resolveTileLayer(
     texture: string | undefined,
-    fallback: "floor" | "wall" | "decoration",
-  ): "floor" | "wall" | "decoration" {
+    fallback: "floor" | "wall" | "decoration" | "overlay",
+  ): "floor" | "wall" | "decoration" | "overlay" {
+    // Quando o user explicitamente setou "overlay" (toggle "À frente do
+    // avatar"), respeita — mesmo pra texturas `wall_*` (telhado/parede
+    // de cima vista de cima sem colisão).
+    if (fallback === "overlay") return "overlay";
     if (typeof texture === "string") {
       if (texture.startsWith("wall_"))  return "wall";
       if (texture.startsWith("floor_")) return "floor";
@@ -1210,6 +1395,7 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     this.tileFloorGfx.clear();
     this.tileWallGfx.clear();
     this.tileDecoGfx.clear();
+    this.tileOverlayGfx?.clear();
 
     // Destroy old wall tile physics bodies
     this.tileWallBodies.forEach(b => b.destroy());
@@ -1241,6 +1427,10 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
         sBody.setSize(T, T, true);   // true = re-center on gameObject
         sBody.updateFromGameObject();
         this.tileWallBodies.set(key, img);
+      } else if (effectiveLayer === "overlay" && this.tileOverlayGfx) {
+        // Camada acima do avatar (telhado, copa, vidraça etc.) — sem
+        // colisão, só renderização com depth 30.
+        this.drawTilePattern(this.tileOverlayGfx, cell, px, py);
       } else {
         this.drawTilePattern(this.tileDecoGfx, cell, px, py);
       }
@@ -1822,6 +2012,8 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
   }
 
   private showTileGrid(this: Phaser.Scene & WorldScene) {
+    // Scene pode estar em destroy → this.add é null
+    if (!this.add) return;
     if (this.tileGridGfx) { this.tileGridGfx.destroy(); this.tileGridGfx = null; }
     this.tileGridGfx = this.add.graphics().setDepth(50).setAlpha(0.18);
     this.tileGridGfx.lineStyle(1, 0xffffff, 1);
@@ -1842,9 +2034,10 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     if (!this.tileLayerState) {
       this.tileLayerState = { gridW: MW, gridH: MH, tileSize: T, cells: {} };
       if (!this.tileFloorGfx) {
-        this.tileFloorGfx = this.add.graphics().setDepth(1);
-        this.tileWallGfx  = this.add.graphics().setDepth(3);
-        this.tileDecoGfx  = this.add.graphics().setDepth(15);
+        this.tileFloorGfx   = this.add.graphics().setDepth(1);
+        this.tileWallGfx    = this.add.graphics().setDepth(3);
+        this.tileDecoGfx    = this.add.graphics().setDepth(15);
+        this.tileOverlayGfx = this.add.graphics().setDepth(30);
       }
     }
     const wp = this.cameras.main.getWorldPoint(ptr.x, ptr.y);
@@ -1894,9 +2087,10 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     if (!this.tileLayerState) {
       this.tileLayerState = { gridW: MW, gridH: MH, tileSize: T, cells: {} };
       if (!this.tileFloorGfx) {
-        this.tileFloorGfx = this.add.graphics().setDepth(1);
-        this.tileWallGfx  = this.add.graphics().setDepth(3);
-        this.tileDecoGfx  = this.add.graphics().setDepth(15);
+        this.tileFloorGfx   = this.add.graphics().setDepth(1);
+        this.tileWallGfx    = this.add.graphics().setDepth(3);
+        this.tileDecoGfx    = this.add.graphics().setDepth(15);
+        this.tileOverlayGfx = this.add.graphics().setDepth(30);
       }
     }
     const xMin = Math.max(0, Math.min(x1, x2));
@@ -2065,7 +2259,9 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
   }
 
   private clearResizeHandles(this: Phaser.Scene & WorldScene) {
-    this.resizeHandles.forEach(h => h.destroy());
+    this.resizeHandles.forEach(h => {
+      try { h.destroy(); } catch { /* ignore destroyed sprites */ }
+    });
     this.resizeHandles = [];
   }
 
@@ -2081,7 +2277,7 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
 
   /** Habilita/desabilita drop HTML → coordenadas do mundo Phaser. */
   private setupEditorDOMDrop(active: boolean) {
-    const canvas = this.sys.game.canvas as HTMLCanvasElement;
+    const canvas = (this.sys?.game?.canvas ?? null) as HTMLCanvasElement | null;
     if (!canvas) return;
     // Remove listeners anteriores (armazenados em dataset para idempotência)
     const existing = (canvas as unknown as { __editorDropCleanup?: () => void }).__editorDropCleanup;
@@ -2142,6 +2338,32 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
 
     // Ajusta bounds do mundo ao tamanho do mapa Tiled
     this.physics.world.setBounds(0, 0, this.tiledMapW, this.tiledMapH);
+  }
+
+  /** Renderiza imagem única (cenário "image") como fundo do mundo.
+   *  O usuário sobe uma imagem (pixel-art ou foto) e o avatar anda em
+   *  cima dela. Áreas de colisão (Map Editor → Áreas → Colisão) controlam
+   *  paredes / móveis em que ele não pode passar. */
+  private renderImageBackground(this: Phaser.Scene & WorldScene) {
+    const raw = this.worldConfig?.mapData as WorldMapData | null;
+    if (!this.textures.exists("__bg_image__")) {
+      // Imagem ainda não carregou (preload pulou ou falhou) — desenha um
+      // fallback neutro pra o avatar não ficar no preto.
+      const w = raw?.backgroundImageWidth ?? WORLD_W;
+      const h = raw?.backgroundImageHeight ?? WORLD_H;
+      this.add.rectangle(0, 0, w, h, 0x1a1a2e).setOrigin(0, 0).setDepth(0);
+      return;
+    }
+    const img = this.add
+      .image(0, 0, "__bg_image__")
+      .setOrigin(0, 0)
+      .setDepth(0);
+    // Se o user definiu dimensões customizadas, escala a imagem
+    const customW = raw?.backgroundImageWidth;
+    const customH = raw?.backgroundImageHeight;
+    if (customW && customH) {
+      img.setDisplaySize(customW, customH);
+    }
   }
 
   // ─── Station scenario ─────────────────────────────────────────
@@ -3692,7 +3914,12 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
 
     // Reescala o body de colisão proporcionalmente — o body cresce
     // junto com o sprite pra colisão continuar coerente.
-    const body = this.lpcSprite.body as Phaser.Physics.Arcade.Body;
+    // Defensive: body pode ser undefined se a scene está em destroy ou se
+    // o sprite ainda não foi adicionado ao physics manager.
+    const body = this.lpcSprite.body as
+      | Phaser.Physics.Arcade.Body
+      | undefined;
+    if (!body) return;
     if (isPipoya) {
       body.setSize(20 * userScale, 28 * userScale).setOffset(6 * userScale, 4 * userScale);
     } else {
@@ -3706,12 +3933,30 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     this.setZoom(this.currentZoom + delta);
   }
 
+  /** Zoom mínimo dinâmico que ainda mantém o viewport DENTRO do mapa.
+   *  Sem isso o user pode dar zoom out até ver o fundo preto além das
+   *  bordas. Calcula `viewportSize / mapSize` em ambas as dimensões — o
+   *  maior dos dois garante que nenhuma direção sobre. */
+  private getDynamicMinZoom(this: Phaser.Scene & WorldScene): number {
+    if (!this.cameras?.main) return this.ZOOM_MIN;
+    const cam = this.cameras.main;
+    const bounds = cam.getBounds();
+    const mapW = bounds.width || 1;
+    const mapH = bounds.height || 1;
+    const need = Math.max(cam.width / mapW, cam.height / mapH);
+    // Nunca abaixo de ZOOM_MIN absoluto; nunca acima de ZOOM_MAX.
+    return Math.min(this.ZOOM_MAX, Math.max(this.ZOOM_MIN, need));
+  }
+
   private setZoom(this: Phaser.Scene & WorldScene, value: number) {
-    this.currentZoom = Math.min(this.ZOOM_MAX, Math.max(this.ZOOM_MIN, value));
+    // Defensive: scene pode estar em destroy quando recebe um zoom event.
+    if (!this.cameras?.main) return;
+    const dynMin = this.getDynamicMinZoom();
+    this.currentZoom = Math.min(this.ZOOM_MAX, Math.max(dynMin, value));
     this.cameras.main.setZoom(this.currentZoom);
     // Notify React of the current zoom level
     window.dispatchEvent(new CustomEvent("space-station:zoom-changed", {
-      detail: { zoom: this.currentZoom, min: this.ZOOM_MIN, max: this.ZOOM_MAX },
+      detail: { zoom: this.currentZoom, min: dynMin, max: this.ZOOM_MAX },
     }));
   }
 

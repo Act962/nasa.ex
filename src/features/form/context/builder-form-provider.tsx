@@ -6,11 +6,20 @@ import { v4 as uuidv4 } from "uuid";
 import { client } from "@/lib/orpc";
 import { FormSettings } from "@/generated/prisma/client";
 
+type HistorySnapshot = {
+  blockLayouts: FormBlockInstance[];
+  settings: FormWithSettings["settings"] | null;
+};
+
 type BuilderState = {
   loading: boolean;
   formData: FormWithSettings | null;
   blockLayouts: FormBlockInstance[];
   selectedBlockLayout: FormBlockInstance | null;
+  selectedChildId: string | null;
+  history: HistorySnapshot[];
+  historyIndex: number;
+  isApplyingHistory: boolean;
 };
 
 type BuilderActions = {
@@ -28,6 +37,7 @@ type BuilderActions = {
   duplicateBlockLayout: (id: string) => void;
 
   handleSelectedLayout: (blockLayout: FormBlockInstance | null) => void;
+  setSelectedChildId: (id: string | null) => void;
 
   updateBlockLayout: (id: string, childrenBlocks: FormBlockInstance[]) => void;
 
@@ -56,6 +66,13 @@ type BuilderActions = {
   ) => void;
 
   updateSettings: (updates: Partial<FormSettings>) => void;
+
+  // ─── Histórico (undo/redo) ─────────────────────────────────────────────
+  pushHistorySnapshot: () => void;
+  undo: () => boolean;
+  redo: () => boolean;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
 };
 
 export type BuilderStore = BuilderState & BuilderActions;
@@ -66,6 +83,10 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
   formData: null,
   blockLayouts: [],
   selectedBlockLayout: null,
+  selectedChildId: null,
+  history: [],
+  historyIndex: -1,
+  isApplyingHistory: false,
 
   // ─── Setters simples ─────────────────────────────────────────────────────────
   setFormData: (formData) => set({ formData }),
@@ -178,8 +199,17 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
 
   // ─── Select ──────────────────────────────────────────────────────────────────
   handleSelectedLayout: (blockLayout) => {
-    set({ selectedBlockLayout: blockLayout });
+    // Trocar de layout reseta o child selecionado
+    set((state) => ({
+      selectedBlockLayout: blockLayout,
+      selectedChildId:
+        state.selectedBlockLayout?.id === blockLayout?.id
+          ? state.selectedChildId
+          : null,
+    }));
   },
+
+  setSelectedChildId: (id) => set({ selectedChildId: id }),
 
   // ─── Reposition ──────────────────────────────────────────────────────────────
   repositionBlockLayout: (activeId, overId, position) => {
@@ -267,5 +297,69 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
             }
           : state.selectedBlockLayout,
     }));
+  },
+
+  // ─── Histórico (undo/redo) ─────────────────────────────────────────────
+  pushHistorySnapshot: () => {
+    const state = get();
+    if (state.isApplyingHistory) return;
+    const snapshot: HistorySnapshot = {
+      // deep-ish clone via JSON pra garantir isolamento das referências
+      blockLayouts: JSON.parse(JSON.stringify(state.blockLayouts)),
+      settings: state.formData?.settings
+        ? JSON.parse(JSON.stringify(state.formData.settings))
+        : null,
+    };
+    // Truncar futuro (descarta redos pendentes) e limitar tamanho a 80
+    const truncated = state.history.slice(0, state.historyIndex + 1);
+    const next = [...truncated, snapshot].slice(-80);
+    set({
+      history: next,
+      historyIndex: next.length - 1,
+    });
+  },
+
+  undo: () => {
+    const state = get();
+    if (state.historyIndex <= 0) return false;
+    const targetIndex = state.historyIndex - 1;
+    const target = state.history[targetIndex];
+    if (!target) return false;
+    set((s) => ({
+      isApplyingHistory: true,
+      blockLayouts: JSON.parse(JSON.stringify(target.blockLayouts)),
+      historyIndex: targetIndex,
+      formData:
+        s.formData && target.settings
+          ? { ...s.formData, settings: JSON.parse(JSON.stringify(target.settings)) }
+          : s.formData,
+    }));
+    setTimeout(() => set({ isApplyingHistory: false }), 0);
+    return true;
+  },
+
+  redo: () => {
+    const state = get();
+    if (state.historyIndex >= state.history.length - 1) return false;
+    const targetIndex = state.historyIndex + 1;
+    const target = state.history[targetIndex];
+    if (!target) return false;
+    set((s) => ({
+      isApplyingHistory: true,
+      blockLayouts: JSON.parse(JSON.stringify(target.blockLayouts)),
+      historyIndex: targetIndex,
+      formData:
+        s.formData && target.settings
+          ? { ...s.formData, settings: JSON.parse(JSON.stringify(target.settings)) }
+          : s.formData,
+    }));
+    setTimeout(() => set({ isApplyingHistory: false }), 0);
+    return true;
+  },
+
+  canUndo: () => get().historyIndex > 0,
+  canRedo: () => {
+    const s = get();
+    return s.historyIndex < s.history.length - 1;
   },
 }));

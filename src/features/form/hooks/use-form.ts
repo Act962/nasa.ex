@@ -172,6 +172,65 @@ export const useMutationPublishForm = () => {
   );
 };
 
+/**
+ * Busca uma `FormResponses` por ID (fluxo de continuar preenchimento em
+ * `/formulario/[slug]/[responseId]`). Retorna form + lead + status atual.
+ */
+export const useQueryFormResponseById = (id: string) => {
+  const { data, isLoading, isError, error, ...query } = useQuery(
+    orpc.form.getResponseById.queryOptions({
+      input: { id },
+      enabled: !!id,
+      retry: false,
+    }),
+  );
+  return {
+    response: data?.response,
+    isLoading,
+    isError,
+    error,
+    ...query,
+  };
+};
+
+/**
+ * Cria uma `FormResponses` em nome de um consultor logado, vinculada a um
+ * lead já existente. Usado pela página `/formulario/novo/<formId>/<leadId>`.
+ */
+export const useMutationCreateResponseForLead = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.form.createResponseForLead.mutationOptions({
+      onSuccess: (_data, variables) => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.listFormResponses.queryKey({
+            input: { leadId: variables.leadId },
+          }),
+        });
+      },
+    }),
+  );
+};
+
+/**
+ * Atualiza uma `FormResponses` existente (fluxo de continuar preenchimento).
+ * Não cria lead nem incrementa contadores.
+ */
+export const useMutationUpdateResponse = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.form.updateResponse.mutationOptions({
+      onSuccess: (_data, variables) => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.form.getResponseById.queryKey({
+            input: { id: variables.id },
+          }),
+        });
+      },
+    }),
+  );
+};
+
 export const useMutationSubmitResponse = () => {
   const queryClient = useQueryClient();
 

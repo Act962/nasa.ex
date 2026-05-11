@@ -32,3 +32,18 @@ export function useCreateLeadFile(leadId: string) {
     }),
   );
 }
+
+export function useDeleteLeadFile(leadId: string) {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.leads.deleteFile.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.leads.listFiles.queryKey({
+            input: { leadId },
+          }),
+        });
+      },
+    }),
+  );
+}

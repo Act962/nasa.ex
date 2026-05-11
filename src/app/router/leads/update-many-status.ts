@@ -5,6 +5,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { z } from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
+import { recordLeadEvent } from "@/features/leads/lib/history";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 
 // 🟦 UPDATE
@@ -64,6 +65,29 @@ export const updateManyStatusLead = base
             }),
           ),
         );
+
+        // Eventos granulares de status para a Jornada (timeline pública).
+        // Cada lead que de fato MUDOU de status emite um STATUS_CHANGE com
+        // os IDs anterior/novo.
+        if (input.statusId) {
+          const newStatusId = input.statusId;
+          await Promise.all(
+            leadExists
+              .filter((l) => l.statusId !== newStatusId)
+              .map((l) =>
+                recordLeadEvent(
+                  {
+                    leadId: l.id,
+                    eventType: "STATUS_CHANGE",
+                    userId: context.user.id,
+                    previousStatusId: l.statusId,
+                    newStatusId,
+                  },
+                  tx,
+                ),
+              ),
+          );
+        }
 
         return { lead };
       });

@@ -97,7 +97,7 @@ export function ExploreRoom({
         >
           {/* Áreas */}
           {areas.map(a => {
-            const meta = AREA_TYPE_META[a.type];
+            const meta = AREA_TYPE_META[a.type] ?? { label: a.type as string, emoji: "🏷️", color: "#94a3b8", description: "" };
             const color = a.color ?? meta.color;
             return (
               <div
@@ -155,7 +155,7 @@ export function ExploreRoom({
             </div>
             <div className="space-y-1">
               {areas.map(a => {
-                const meta = AREA_TYPE_META[a.type];
+                const meta = AREA_TYPE_META[a.type] ?? { label: a.type as string, emoji: "🏷️", color: "#94a3b8", description: "" };
                 return (
                   <button
                     key={a.id}

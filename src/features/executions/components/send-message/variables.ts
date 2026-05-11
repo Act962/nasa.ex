@@ -10,5 +10,6 @@ export const variables = {
   "{{fonte}}": "Fonte",
   "{{track}}": "Nome do Tracking",
   "{{status}}": "Nome do status",
+  "{{public_link}}": "Link público de acompanhamento do lead",
 };
 

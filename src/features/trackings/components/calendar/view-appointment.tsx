@@ -28,6 +28,8 @@ import {
   useCompleteAppointment,
   useDeleteAppointment,
   useRescheduleAppointment,
+  useSetAppointmentMeetingType,
+  useSyncAppointmentToGoogleCalendar,
 } from "@/features/agenda/hooks/use-agenda";
 import { useQueryPublicAgendaTimeSlots } from "@/features/agenda/hooks/use-public-agenda";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -66,7 +68,12 @@ import {
   PencilIcon,
   CheckIcon,
   Trash2Icon,
+  PersonStanding,
+  MonitorSmartphone,
+  CalendarPlus,
+  LinkIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 
 /* ─────────────────────────────────────────────── */
 
@@ -116,6 +123,8 @@ export const ViewAppointment = ({
   const { appointment, isLoading } = useQueryAppointment({ appointmentId });
   const { data: session } = authClient.useSession();
   const { data: activeOrganization } = authClient.useActiveOrganization();
+  const setMeetingType = useSetAppointmentMeetingType();
+  const syncToGoogle = useSyncAppointmentToGoogleCalendar();
 
   const [cancelOpen, setCancelOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
@@ -279,6 +288,92 @@ export const ViewAppointment = ({
                   )}
                 </div>
               )}
+
+              {/* ── Tipo de reunião ── */}
+              <div className="px-1 mt-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Tipo de reunião
+                </p>
+                {(() => {
+                  const currentType =
+                    ((appointment as unknown as { meetingType?: "ONLINE" | "IN_PERSON" })
+                      .meetingType ?? "ONLINE") as "ONLINE" | "IN_PERSON";
+                  const isPending = setMeetingType.isPending;
+                  const handleSet = (value: "ONLINE" | "IN_PERSON") => {
+                    if (value === currentType || isPending) return;
+                    setMeetingType.mutate({
+                      appointmentId: appointment.id,
+                      meetingType: value,
+                    });
+                  };
+                  return (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant={currentType === "ONLINE" ? "default" : "outline"}
+                        size="sm"
+                        className="gap-1.5"
+                        disabled={isPending || isCancelled || isDone}
+                        onClick={() => handleSet("ONLINE")}
+                      >
+                        <MonitorSmartphone className="size-4" />
+                        On-line
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={currentType === "IN_PERSON" ? "default" : "outline"}
+                        size="sm"
+                        className="gap-1.5"
+                        disabled={isPending || isCancelled || isDone}
+                        onClick={() => handleSet("IN_PERSON")}
+                      >
+                        <PersonStanding className="size-4" />
+                        Presencial
+                      </Button>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* ── Sincronização Google Calendar ── */}
+              <div className="px-1 mt-3 flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-1.5"
+                  disabled={
+                    isCancelled || isDone || syncToGoogle.isPending
+                  }
+                  onClick={() =>
+                    syncToGoogle.mutate({ appointmentId: appointment.id })
+                  }
+                >
+                  <CalendarPlus className="size-4" />
+                  {syncToGoogle.isPending
+                    ? "Sincronizando..."
+                    : "Sincronizar com meu Google Calendar e enviar convite para o lead"}
+                </Button>
+
+                {/* Link público — usado pelo lead pra cancelar/reagendar */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-1.5"
+                  onClick={() => {
+                    const url = `${process.env.NEXT_PUBLIC_BASE_URL ?? window.location.origin}/agenda/appointment/${appointment.id}`;
+                    navigator.clipboard.writeText(url);
+                    toast.success("Link público copiado", {
+                      description:
+                        "Mande pro lead — ele pode reagendar ou cancelar por aí.",
+                    });
+                  }}
+                >
+                  <LinkIcon className="size-4" />
+                  Copiar link público (reagendar / cancelar)
+                </Button>
+              </div>
 
               <Separator className="my-4" />
 

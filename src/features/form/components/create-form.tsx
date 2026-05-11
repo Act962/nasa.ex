@@ -30,7 +30,19 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useMutationCreateForm } from "../hooks/use-form";
 
-export function CreateForm() {
+type CreateFormProps = {
+  trackingId?: string;
+  statusId?: string;
+  trigger?: React.ReactNode;
+  defaultName?: string;
+};
+
+export function CreateForm({
+  trackingId,
+  statusId,
+  trigger,
+  defaultName,
+}: CreateFormProps = {}) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const mutate = useMutationCreateForm();
@@ -45,7 +57,7 @@ export function CreateForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
+      name: defaultName ?? "",
       description: "",
     },
   });
@@ -55,6 +67,8 @@ export function CreateForm() {
       {
         name: values.name,
         description: values.description,
+        ...(trackingId && { trackingId }),
+        ...(statusId && { statusId }),
       },
       {
         onSuccess: (data) => {
@@ -74,10 +88,12 @@ export function CreateForm() {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-primary! font-medium! gap-1">
-          <PlusIcon />
-          Criar formulário
-        </Button>
+        {trigger ?? (
+          <Button className="bg-primary! font-medium! gap-1">
+            <PlusIcon />
+            Criar formulário
+          </Button>
+        )}
       </DialogTrigger>
 
       <DialogContent className="max-w-2xl">

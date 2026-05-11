@@ -43,7 +43,10 @@ export function FormBuilder({ formId }: { formId: string }) {
             } as React.CSSProperties
           }
         >
-          <Builder {...{ isSidebarOpen }} />
+          <Builder
+            isSidebarOpen={isSidebarOpen}
+            setIsSidebarOpen={setIsSidebarOpen}
+          />
         </SidebarProvider>
       </DndContext>
     </div>

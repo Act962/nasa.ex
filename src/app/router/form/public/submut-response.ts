@@ -11,6 +11,8 @@ import {
   trackingToLeadData,
   shouldLogUtmLanding,
 } from "@/lib/tracking/tracking-params";
+import { recordLeadEvent } from "@/features/leads/lib/history";
+import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
 
 export const submitResponse = base
   .route({
@@ -23,14 +25,32 @@ export const submitResponse = base
       id: z.string(),
       response: z.string(),
       tracking: trackingParamsSchema.optional(),
+      // Tag a aplicar no lead recém-criado (Configurações > Modo passo-a-passo
+      // > Botão "Próximo" > Adicionar tag). A validação de existência é feita
+      // dentro da transação.
+      nextActionTagId: z.string().optional().nullable(),
     }),
   )
   .handler(async ({ input, errors }) => {
     try {
-      const { id, response, tracking: trackingParams } = input;
+      const {
+        id,
+        response,
+        tracking: trackingParams,
+        nextActionTagId,
+      } = input;
       const tagIds: string[] = Object.values(JSON.parse(response))
         .map((field: any) => field?.meta?.tagId)
         .filter((tagId): tagId is string => Boolean(tagId));
+
+      // Coletados durante a transação pra retornar ao cliente (usado pelas
+      // ações do botão "Próximo" do form: redirecionar pra outro form ou link
+      // externo levando dados do lead).
+      let outLeadId: string | null = null;
+      let outLeadName: string | null = null;
+      let outLeadEmail: string | null = null;
+      let outLeadPhone: string | null = null;
+      let outLeadPublicToken: string | null = null;
 
       await prisma.$transaction(async (tx) => {
         const form = await tx.form.findUnique({
@@ -39,6 +59,7 @@ export const submitResponse = base
             published: true,
           },
           select: {
+            jsonBlock: true,
             settings: {
               select: {
                 trackingId: true,
@@ -88,6 +109,13 @@ export const submitResponse = base
 
           if (existingLead) {
             leadId = existingLead.id;
+            outLeadId = existingLead.id;
+            outLeadName = existingLead.name;
+            outLeadEmail = existingLead.email;
+            outLeadPhone = existingLead.phone;
+            outLeadPublicToken =
+              (existingLead as unknown as { publicToken?: string | null })
+                .publicToken ?? null;
             // Lead já existia — registra o resubmit como evento, sem alterar UTMs
             // do "primeiro touch".
             await trackLeadEvent({
@@ -114,6 +142,13 @@ export const submitResponse = base
               })),
             });
             leadId = newLead.id;
+            outLeadId = newLead.id;
+            outLeadName = newLead.name;
+            outLeadEmail = newLead.email;
+            outLeadPhone = newLead.phone;
+            outLeadPublicToken =
+              (newLead as unknown as { publicToken?: string | null })
+                .publicToken ?? null;
 
             await trackLeadEvent({
               leadId: newLead.id,
@@ -149,6 +184,14 @@ export const submitResponse = base
           }
         }
 
+        // Auto-deriva o título customizado da resposta (label) a partir do
+        // bloco do form marcado com `attributes.useAsResponseLabel`. Submit
+        // público sempre nasce com `labelManuallyEdited=false` (default).
+        const autoLabel = deriveResponseLabel({
+          jsonBlock: form.jsonBlock,
+          jsonResponse: response,
+        });
+
         const updatedForm = await tx.form.update({
           where: {
             id,
@@ -159,6 +202,7 @@ export const submitResponse = base
               create: {
                 jsonResponse: response,
                 ...(leadId && { leadId }),
+                label: autoLabel,
               },
             },
             responses: {
@@ -169,8 +213,72 @@ export const submitResponse = base
             responses: true,
             userId: true,
             organizationId: true,
+            formSubmissions: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { id: true, label: true },
+            },
           },
         });
+
+        if (leadId) {
+          const lastSub = updatedForm.formSubmissions?.[0];
+          const newResponseId = lastSub?.id ?? null;
+          const newResponseLabel = lastSub?.label ?? null;
+          await recordLeadEvent(
+            {
+              leadId,
+              eventType: "FORM_SUBMITTED",
+              metadata: newResponseId
+                ? {
+                    formResponseId: newResponseId,
+                    formId: id,
+                    label: newResponseLabel,
+                  }
+                : { formId: id, label: newResponseLabel },
+            },
+            tx,
+          );
+
+          // Action: "add_tag" do botão Próximo — aplica tag escolhida no lead.
+          // Idempotente: ignora se já existir.
+          if (nextActionTagId) {
+            const tagExists = await tx.tag.findUnique({
+              where: { id: nextActionTagId },
+              select: { id: true },
+            });
+            if (tagExists) {
+              await tx.leadTag.upsert({
+                where: {
+                  leadId_tagId: {
+                    leadId,
+                    tagId: nextActionTagId,
+                  },
+                },
+                create: { leadId, tagId: nextActionTagId },
+                update: {},
+              });
+              await recordLeadEvent(
+                {
+                  leadId,
+                  eventType: "TAG_ADDED",
+                  metadata: { tagId: nextActionTagId, source: "form_next_button" },
+                },
+                tx,
+              );
+            }
+          }
+
+          // Se ainda não temos publicToken (lead novo criado nesta tx sem
+          // generatePublicLink), tentamos buscar agora — opcional.
+          if (!outLeadPublicToken) {
+            const refreshed = await tx.lead.findUnique({
+              where: { id: leadId },
+              select: { publicToken: true },
+            });
+            outLeadPublicToken = refreshed?.publicToken ?? null;
+          }
+        }
 
         // Gamificação em tempo real: Marcos de 10 e 100 respostas
         if (updatedForm.responses === 10 || updatedForm.responses === 100) {
@@ -251,6 +359,15 @@ export const submitResponse = base
       return {
         id,
         message: "Response submitted",
+        lead: outLeadId
+          ? {
+              id: outLeadId,
+              name: outLeadName,
+              email: outLeadEmail,
+              phone: outLeadPhone,
+              publicToken: outLeadPublicToken,
+            }
+          : null,
       };
     } catch (error) {
       console.log(error);

@@ -2,6 +2,8 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { deriveResponseState } from "@/features/form/lib/form-response-state";
+import { buildResponseSlug } from "@/features/form/lib/response-slug";
 
 const sortOptions = z.enum(["order", "createdAt", "updatedAt"]);
 type SortOption = z.infer<typeof sortOptions>;
@@ -158,10 +160,38 @@ export const listLeadsByStatus = base
         temperature: true,
         statusFlow: true,
         profile: true,
+        // Campos novos: existem no client após `prisma generate` rodar pós-migration
+        ...({ slaDeadline: true, statusEnteredAt: true } as any),
         responsible: {
           select: {
             image: true,
             name: true,
+          },
+        },
+        // Conversation do lead — usado pelo ícone WhatsApp do card pra
+        // direcionar pro chat (substituiu o ícone "Em atendimento").
+        conversation: {
+          select: { id: true },
+        },
+        // Form responses do lead — usados pra renderizar os ícones de
+        // estado do formulário no card. Carregamos jsonResponse +
+        // jsonBlock pra derivar o estado SERVER-SIDE; só o resumo
+        // (formId, name, state, slug) volta pro cliente, evitando que
+        // dados grandes (jsonBlock pesado) viajem na rede do kanban.
+        formResponses: {
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: {
+            id: true,
+            createdAt: true,
+            jsonResponse: true,
+            form: {
+              select: {
+                id: true,
+                name: true,
+                jsonBlock: true,
+              },
+            },
           },
         },
         leadTags: {
@@ -192,10 +222,42 @@ export const listLeadsByStatus = base
     }
 
     return {
-      leads: leads.map((lead) => ({
-        ...lead,
-        order: lead.order.toString(),
-      })),
+      leads: leads.map((lead) => {
+        // Deriva estado server-side pra cada formResponse e remove
+        // jsonResponse/jsonBlock do payload (são dados pesados).
+        const responses = (
+          (lead as unknown as {
+            formResponses?: Array<{
+              id: string;
+              createdAt: Date;
+              jsonResponse: unknown;
+              form: { id: string; name: string; jsonBlock: string };
+            }>;
+          }).formResponses ?? []
+        ).map((r) => ({
+          responseId: r.id,
+          createdAt: r.createdAt,
+          formId: r.form.id,
+          formName: r.form.name,
+          state: deriveResponseState({
+            jsonResponse: r.jsonResponse,
+            jsonBlock: r.form.jsonBlock,
+            createdAt: r.createdAt,
+          }),
+          // slug legível pra URL de edit (`/formulario/<slug>/<id>`).
+          slug: buildResponseSlug(r.form.name, r.createdAt),
+        }));
+        // Remove os fields originais grandes do payload final.
+        const {
+          formResponses: _strip,
+          ...rest
+        } = lead as unknown as { formResponses?: unknown } & typeof lead;
+        return {
+          ...rest,
+          order: lead.order.toString(),
+          forms: responses,
+        };
+      }),
       nextCursorId,
       nextCursorValue,
     };

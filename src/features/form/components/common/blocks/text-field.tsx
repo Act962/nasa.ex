@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Form,
   FormControl,
@@ -25,6 +25,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Switch } from "@/components/ui/switch";
 import { FormSettings } from "@/generated/prisma/client";
 import { getContrastColor } from "@/utils/get-contrast-color";
+import { usePrefillValue } from "@/features/form/context/form-prefill-context";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "TextField";
@@ -40,7 +41,7 @@ type propertiesValidateSchemaType = z.input<typeof propertiesValidateSchema>;
 
 const propertiesValidateSchema = z.object({
   placeHolder: z.string().trim().optional(),
-  label: z.string().trim().min(2).max(255),
+  label: z.string().trim().max(255).optional(),
   required: z.boolean().default(false).optional(),
   helperText: z.string().trim().max(255).optional(),
 });
@@ -87,18 +88,20 @@ function TextFieldCanvasComponent({
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label
-        className="text-base font-normal! mb-2"
-        style={{ color: textColor || undefined }}
-      >
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
-      <Input
+      {label?.trim() && (
+        <Label className="text-base font-normal! mb-2 whitespace-normal break-words leading-snug"
+        style={{ color: textColor || undefined }}>
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+        </Label>
+      )}
+      <textarea
         readOnly
-        className="pointer-events-none!
-        cursor-default h-10"
+        rows={1}
+        wrap="soft"
         placeholder={placeHolder}
+        className="pointer-events-none! cursor-default w-full min-w-0 min-h-10 resize-none rounded-md border bg-transparent px-3 py-2 text-base shadow-xs leading-snug focus-visible:outline-none placeholder:text-muted-foreground"
+        style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
       />
       {helperText && (
         <p
@@ -134,8 +137,20 @@ function TextFieldFormComponent({
     ? getContrastColor(settings.backgroundColor)
     : undefined;
 
-  const [value, setValue] = useState("");
+  // Pré-preenche com a resposta salva no fluxo de edição
+  // (`/formulario/[slug]/[responseId]`). No fluxo público fica undefined.
+  const prefill = usePrefillValue(block.id);
+  const [value, setValue] = useState(prefill ?? "");
   const [isError, setIsError] = useState(false);
+
+  // Sincroniza valor pré-preenchido com o ref de respostas no mount,
+  // pra que mesmo sem interação o blur já tenha registrado a resposta.
+  useEffect(() => {
+    if (prefill && prefill.trim().length > 0 && handleBlur) {
+      handleBlur(block.id, { value: prefill });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const validateField = (val: string) => {
     if (required) {
@@ -145,29 +160,24 @@ function TextFieldFormComponent({
   };
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Label
-        className={`text-base font-normal! mb-2 ${
+      {label?.trim() && (
+        <Label className={`text-base font-normal! mb-2 whitespace-normal break-words leading-snug ${
           isError || isSubmitError ? "text-red-500" : ""
-        }`}
-      >
-        {label}
-        {required && <span className="text-red-500">*</span>}
-      </Label>
-      <Input
+        }`}>
+          {label}
+          {required && <span className="text-red-500"> *</span>}
+        </Label>
+      )}
+      <AutoGrowTextarea
         value={value}
-        onChange={(event) => setValue(event.target.value)}
-        onBlur={(event) => {
-          const inputValue = event.target.value;
-          const isValid = validateField(inputValue);
-          setIsError(!isValid); // Set error state based on validation.
-          if (handleBlur) {
-            handleBlur(block.id, {
-              value: inputValue,
-            });
-          }
+        onChange={(v) => setValue(v)}
+        onBlur={(v) => {
+          const isValid = validateField(v);
+          setIsError(!isValid);
+          if (handleBlur) handleBlur(block.id, { value: v });
         }}
-        className={`h-10 ${isError || isSubmitError ? "border-red-500!" : ""}`}
         placeholder={placeHolder}
+        className={`min-h-10 ${isError || isSubmitError ? "border-red-500!" : ""}`}
       />
       {helperText && (
         <p
@@ -181,14 +191,14 @@ function TextFieldFormComponent({
       )}
 
       {isError || isSubmitError ? (
-        <p className="text-red-500 text-[0.8rem]">
+        <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">
           {required && value.trim().length === 0
             ? `This field is required.`
             : ""}
         </p>
       ) : (
         errorMessage && (
-          <p className="text-red-500 text-[0.8rem]">{errorMessage}</p>
+          <p className="text-red-500 text-[0.8rem] break-words whitespace-normal">{errorMessage}</p>
         )
       )}
     </div>
@@ -377,5 +387,49 @@ function TextFieldPropertiesComponent({
         </form>
       </Form>
     </div>
+  );
+}
+
+/**
+ * Textarea que se comporta como input single-line mas QUEBRA o texto quando
+ * cabe e CRESCE em altura conforme necessário. Substitui `<input>` no Campo
+ * de Texto pra resolver o problema de "texto linear que vaza" em larguras
+ * estreitas.
+ */
+function AutoGrowTextarea({
+  value,
+  onChange,
+  onBlur,
+  placeholder,
+  className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onBlur: (v: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize altura conforme conteúdo
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      wrap="soft"
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={(e) => onBlur(e.target.value)}
+      className={`w-full min-w-0 min-h-10 resize-none rounded-md border bg-transparent px-3 py-2 text-base shadow-xs leading-snug focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground ${className ?? ""}`}
+      style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
+    />
   );
 }

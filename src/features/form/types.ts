@@ -5,11 +5,28 @@ export type FormCategoryType = "Layout" | "Field";
 export type FormBlockType =
   | "RowLayout"
   | "RadioSelect"
+  | "RadioMatrix"
   | "TextField"
   | "TextArea"
+  | "Url"
+  | "MaskedField"
+  | "PageBreak"
+  | "QrCodeMulti"
   | "StarRating"
   | "Heading"
-  | "Paragraph";
+  | "Paragraph"
+  | "Checkbox"
+  | "Dropdown"
+  | "DatePicker"
+  | "UserSelect"
+  | "MultiUserSelect"
+  | "FileUpload"
+  | "ImageUpload"
+  | "ImageDisplay"
+  | "ParagraphWithTitle"
+  | "SignatureUser"
+  | "SignatureClient"
+  | "Slider";
 
 export type HandleBlurFuncWithTagId = (
   key: string,

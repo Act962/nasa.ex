@@ -30,6 +30,9 @@ import { Input } from "@/components/ui/input";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { getContrastColor } from "@/utils/get-contrast-color";
 
+// Heading aparece no painel "Field" do builder por convenção, mas não é
+// preenchível — `isFillableBlock` (em features/form/lib/fillable-blocks.ts)
+// trata-o como decorativo no cálculo de progresso e validação de grupo.
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "Heading";
 
@@ -53,7 +56,7 @@ type attributesType = {
 type propertiesValidateSchemaType = z.input<typeof propertiesValidateSchema>;
 
 const propertiesValidateSchema = z.object({
-  label: z.string().trim().min(2).max(255),
+  label: z.string().trim().max(255).optional(),
   level: z.number().min(1).max(6).default(1), // Defaults to H1
   fontSize: z
     .enum(["small", "medium", "large", "x-large", "2x-large", "4x-large"])
@@ -109,7 +112,7 @@ function HeadingCanvasFormComponent({
     >
       {React.createElement(
         `h${level}`, // Dynamically create heading tag based on 'level'
-        {}, // No additional props for the heading element
+        { className: "break-words whitespace-normal leading-snug" },
         label, // Label for the heading
       )}
     </div>

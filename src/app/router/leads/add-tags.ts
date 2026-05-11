@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { requireOrgMiddleware } from "../../middlewares/org";
 import { recordLeadHistory } from "./utils/history";
+import { recordLeadEvent } from "@/features/leads/lib/history";
 import { sendWorkflowExecution } from "@/inngest/utils";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 
@@ -45,6 +46,23 @@ export const addTagsToLead = base
         notes: "Tags adicionadas ao lead",
         tx,
       });
+
+      // Evento granular pra Jornada — uma entrada por tag, com tagId no
+      // metadata. Permite que a timeline do lead (interna e pública)
+      // mostre exatamente qual tag foi aplicada, com cor e nome.
+      await Promise.all(
+        input.tagIds.map((tagId) =>
+          recordLeadEvent(
+            {
+              leadId: input.leadId,
+              eventType: "TAG_ADDED",
+              userId: context.user.id,
+              metadata: { tagId },
+            },
+            tx,
+          ),
+        ),
+      );
 
       const workflows = await tx.workflow.findMany({
         where: {
