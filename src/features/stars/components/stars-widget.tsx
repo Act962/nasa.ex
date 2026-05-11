@@ -146,7 +146,9 @@ export function StarsWidget() {
                   <span className="tabular-nums">
                     {consumed.toLocaleString("pt-BR")}
                   </span>
-                  <span className="text-muted-foreground font-normal hidden sm:inline">/</span>
+                  <span className="text-muted-foreground font-normal hidden sm:inline">
+                    /
+                  </span>
                   <span className="tabular-nums text-muted-foreground font-normal hidden sm:inline">
                     {planMonthlyStars.toLocaleString("pt-BR")}
                   </span>
@@ -316,7 +318,7 @@ export function StarsWidget() {
           >
             <Sparkles className="size-3.5 shrink-0" />
             <span className="sm:hidden">Plano</span>
-            <span className="hidden sm:block">Adquirir um plano</span>
+            <span className="hidden sm:block">Gratuito (Suite)</span>
           </button>
         )}
       </div>
