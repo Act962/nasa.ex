@@ -6,6 +6,7 @@ import { createMessageWithAudio } from "./create-audio";
 import { createButtonsMessage } from "./create-with-buttons";
 import { createLocationMessage } from "./create-with-location";
 import { deleteMessageHandler } from "./delet-message";
+import { syncFromUazapi } from "./sync-from-uazapi";
 import { editMessageHandler } from "./edit";
 import { markReadMessageHandler } from "./mark-read";
 import { forwardMessageHandler } from "./forward";
@@ -18,6 +19,7 @@ export const messageRouter = {
   createAudio: createMessageWithAudio,
   createWithButtons: createButtonsMessage,
   createLocation: createLocationMessage,
+  syncFromUazapi: syncFromUazapi,
   delete: deleteMessageHandler,
   edit: editMessageHandler,
   markRead: markReadMessageHandler,

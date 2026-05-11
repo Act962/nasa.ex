@@ -40,10 +40,8 @@ const step1Schema = z.object({
 });
 
 const step2Schema = z.object({
-  companyNiche: z.string().min(1, "Nicho é obrigatório"),
-  companyCep: z
-    .string()
-    .regex(/^\d{5}-\d{3}$/, "CEP inválido (formato: 00000-000)"),
+  companyNiche: z.string().optional(),
+  companyCep: z.string().optional(),
 });
 
 type Step1Data = z.infer<typeof step1Schema>;
