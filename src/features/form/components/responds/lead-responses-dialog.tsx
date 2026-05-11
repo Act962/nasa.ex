@@ -13,6 +13,7 @@ import { FormBlockInstance } from "@/features/form/types";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { ResponseValue, resolveBlockLabel } from "./response-value";
 
 type Response = {
   formId: string;
@@ -50,7 +51,9 @@ export function LeadResponsesDialog({
     .reduce(
       (acc, childblock) => {
         if (childblock) {
-          acc[childblock.id] = childblock?.attributes?.label || "Sem label";
+          acc[childblock.id] =
+            resolveBlockLabel(childblock?.attributes as Record<string, unknown>) ||
+            "Sem label";
         }
         return acc;
       },
@@ -194,9 +197,9 @@ export function LeadResponsesDialog({
                 return (
                   <Card
                     key={response.id}
-                    className="bg-foreground/5 border-foreground/10"
+                    className="bg-foreground/5 border-foreground/10 min-w-0 overflow-hidden"
                   >
-                    <CardContent className="px-4">
+                    <CardContent className="px-4 min-w-0">
                       <div className="flex items-center justify-between mb-4 pb-2 border-b border-foreground/10">
                         <div className="flex flex-col">
                           <CardTitle className="text-sm font-semibold">
@@ -241,17 +244,15 @@ export function LeadResponsesDialog({
                           // Check if value is a string or has a responseValue property
                           const displayValue =
                             typeof value === "object" && value !== null
-                              ? value.value
+                              ? (value as { value?: unknown }).value
                               : value;
 
                           return (
-                            <div key={key} className="flex flex-col">
-                              <span className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">
+                            <div key={key} className="flex flex-col min-w-0">
+                              <span className="text-xs font-semibold text-foreground/70 uppercase tracking-wider break-words">
                                 {childblockMap[key] || "Campo desconhecido"}
                               </span>
-                              <span className="text-sm text-foreground">
-                                {displayValue || "-"}
-                              </span>
+                              <ResponseValue value={displayValue} />
                             </div>
                           );
                         })}

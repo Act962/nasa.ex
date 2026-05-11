@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FieldValue,
   FormBlockInstance,
@@ -24,8 +24,6 @@ import { useConstructUrl } from "@/hooks/use-construct-url";
 import { toast } from "sonner";
 import { useMutationSubmitResponse } from "../../hooks/use-form";
 import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
-import { computeFillProgress } from "@/features/form/lib/form-fill-progress";
-import { FormFillProgressBar } from "./form-fill-progress-bar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -99,6 +97,13 @@ export function FormSubmitComponent({
     initialResponseValues ? { ...initialResponseValues } : {},
   );
 
+  // Chave única por montagem (id do form + epoch ms). Propagada via
+  // FormPrefillProvider; blocos que persistem em sessionStorage (ImageUpload)
+  // a usam como prefixo, isolando cada submission. Sem isso, abrir um form
+  // novo após submeter uma resposta restaurava as imagens da resposta
+  // anterior (mesmo `block.id`).
+  const sessionKeyRef = useRef<string>(`form-${id}-${Date.now()}`);
+
   // Mapa de prefill (FieldValue completo: value + meta) pra o contexto que
   // alimenta os blocos. Blocos simples consomem só `.value` via
   // `usePrefillValue`; blocos compostos (UserSelect, FileUpload, Signature)
@@ -117,15 +122,6 @@ export function FormSubmitComponent({
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setSubmitted] = useState(false);
-
-  // Tick incrementado a cada handleBlur — força re-render pra atualizar a
-  // barra de progresso em tempo real (formVals é useRef, não dispara).
-  const [fillTick, setFillTick] = useState(0);
-  // Set de IDs de campos obrigatórios em destaque (vermelho) — vem do
-  // submit attempt OU do click no item "faltando" da progress bar.
-  const [highlightedIds, setHighlightedIds] = useState<Set<string>>(
-    new Set(),
-  );
 
   // ─── Phone DDI ─────────────────────────────────────────────
   const [selectedCountry, setSelectedCountry] = useState(countries[0]);
@@ -260,64 +256,34 @@ export function FormSubmitComponent({
 
   const validateFormBlocks = () => {
     const errors: { [key: string]: string } = {};
-    const ids = new Set<string>();
     const walk = (block: FormBlockInstance) => {
       if (block.attributes?.required) {
         const v = formVals.current?.[block.id];
         if (!isFieldFilled(v)) {
           errors[block.id] = "Este campo é obrigatório";
-          ids.add(block.id);
         }
       }
       block.childblocks?.forEach(walk);
     };
     blocks.forEach(walk);
     setFormErrors(errors);
-    setHighlightedIds(ids);
     return Object.keys(errors).length === 0;
   };
 
   const handleBlur = (key: string, value: FieldValue) => {
     formVals.current[key] = { value: value.value, meta: value.meta };
-    // Dispara re-render pra atualizar a barra de progresso live.
-    setFillTick((t) => t + 1);
-
-    // Se o campo virou "preenchido", remove highlight vermelho.
-    if (highlightedIds.has(key) && isFieldFilled({ value: value.value, meta: value.meta })) {
-      setHighlightedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
-    }
-    if (formErrors[key] && isFieldFilled({ value: value.value, meta: value.meta })) {
+    // StepBlocks tem seu próprio `tick` (incrementado via wrappedHandleBlur)
+    // que dispara re-render pra barra de progresso + mascote atualizarem.
+    if (
+      formErrors[key] &&
+      isFieldFilled({ value: value.value, meta: value.meta })
+    ) {
       setFormErrors((prev) => {
         const updated = { ...prev };
         delete updated[key];
         return updated;
       });
     }
-  };
-
-  // Computa progresso a cada tick. `fillTick` muda → useMemo recomputa.
-  const fillProgress = useMemo(() => {
-    void fillTick; // dep p/ rerun
-    return computeFillProgress(blocks, formVals.current);
-  }, [blocks, fillTick]);
-
-  // Scroll até o campo faltando + adiciona ao highlight (vermelho pulsante).
-  const focusBlock = (blockId: string) => {
-    const el = document.querySelector(
-      `[data-form-block-id="${blockId}"]`,
-    ) as HTMLElement | null;
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-    setHighlightedIds((prev) => {
-      const next = new Set(prev);
-      next.add(blockId);
-      return next;
-    });
   };
 
   const handleSubmit = async () => {
@@ -381,6 +347,25 @@ export function FormSubmitComponent({
       {
         onSuccess: (res) => {
           setSubmitted(true);
+          // Limpa o backup em sessionStorage agora que a submissão foi
+          // persistida no servidor — evita que o "redirect pra mesma rota"
+          // ou "abrir form novamente" inicialize com dados velhos.
+          try {
+            const keys: string[] = [];
+            for (let i = 0; i < sessionStorage.length; i++) {
+              const k = sessionStorage.key(i);
+              if (
+                k &&
+                (k.startsWith("nasa.form.image-upload.") ||
+                  k.startsWith("nasa.form.signature."))
+              ) {
+                keys.push(k);
+              }
+            }
+            keys.forEach((k) => sessionStorage.removeItem(k));
+          } catch {
+            /* ignore */
+          }
           const leadInfoOut =
             (res as unknown as {
               lead?: {
@@ -440,8 +425,34 @@ export function FormSubmitComponent({
     color: primaryColor ? getContrastColor(primaryColor) : undefined,
   };
 
+  // Limpa quaisquer backups de sessionStorage de submissions anteriores
+  // (chaves com prefixo `nasa.form.image-upload.`) ao montar uma NOVA
+  // resposta (sem initialResponseValues). Em modo edição preservamos —
+  // o prefill já cobre o restore via `meta.images`.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (initialResponseValues) return;
+    try {
+      const keys: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const k = sessionStorage.key(i);
+        if (
+          k &&
+          (k.startsWith("nasa.form.image-upload.") ||
+            k.startsWith("nasa.form.signature."))
+        ) {
+          keys.push(k);
+        }
+      }
+      keys.forEach((k) => sessionStorage.removeItem(k));
+    } catch {
+      /* sessionStorage indisponível (private mode, quota) — ignorar */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <FormPrefillProvider values={prefillMap}>
+    <FormPrefillProvider values={prefillMap} sessionKey={sessionKeyRef.current}>
       <style>{`
         #lead_name::placeholder  { color: ${textColor}; }
         #lead_email::placeholder { color: ${textColor}; }
@@ -489,8 +500,12 @@ export function FormSubmitComponent({
           color: textColor || undefined,
         }}
       >
-        <div className="w-full h-full max-w-[650px] mx-auto">
-          <div className="w-full relative bg-transparent px-2 flex flex-col items-center justify-start pt-1 pb-14">
+        {/* Largura: até desktop real (xl = 1280px+), o form ocupa a tela
+            toda respeitando seu próprio padding interno. Só em desktop
+            (≥ 1280px, laptops 13"+/monitores) limita a 650px centralizado.
+            iPad Pro (1194px) e tudo abaixo agora usa full-width. */}
+        <div className="w-full h-full mx-auto max-w-full xl:max-w-[650px]">
+          <div className="w-full relative bg-transparent px-4 sm:px-6 md:px-8 xl:px-2 flex flex-col items-center justify-start pt-1 pb-14">
             <div className="w-full h-auto">
               {isSubmitted ? (
                 <Card
@@ -527,10 +542,13 @@ export function FormSubmitComponent({
                 blocks.length > 0 && (
                   <div
                     className={cn(
-                      "flex flex-col w-full gap-4 p-4 rounded-md",
+                      // Contorno único do formulário: vive AQUI no container
+                      // externo (não em cada grupo). Os RowLayout públicos
+                      // ficam transparentes — visual limpo, sem card-em-card.
+                      "flex flex-col w-full gap-3 xl:gap-4 p-3 xl:p-4 rounded-md border shadow-sm",
                       backgroundImage
-                        ? "bg-white/20 backdrop-blur-md"
-                        : "bg-foreground/10",
+                        ? "bg-white/20 backdrop-blur-md border-white/30"
+                        : "bg-foreground/10 border-foreground/15",
                     )}
                   >
                     {/* ── Etapa 1: dados do lead ── */}
@@ -677,7 +695,7 @@ export function FormSubmitComponent({
                         </Card>
 
                         <Button
-                          className="w-full"
+                          className="w-full max-w-[80%] mx-auto"
                           style={primaryBtnStyle}
                           onClick={() => {
                             if (validateLeadFields()) setStep(2);
@@ -691,33 +709,21 @@ export function FormSubmitComponent({
 
                     {/* ── Etapa 2: blocos do formulário ── */}
                     {step === 2 && (
-                      <>
-                        {/* Barra "X% preenchido" — atualiza em tempo
-                            real conforme o lead responde os campos
-                            obrigatórios. Clicar abre a lista dos que
-                            faltam e rola até o bloco (que pisca). */}
-                        <FormFillProgressBar
-                          progress={fillProgress}
-                          primaryColor={primaryColor}
-                          textColor={textColor}
-                          onFocusBlock={focusBlock}
-                        />
-                        <StepBlocks
-                          blocks={blocks}
-                          settings={settings}
-                          handleBlur={handleBlur}
-                          formErrors={formErrors}
-                          isLoading={isLoading}
-                          textColor={textColor}
-                          primaryColor={primaryColor}
-                          primaryBtnStyle={primaryBtnStyle}
-                          showLeadFields={showLeadFields}
-                          formValsRef={formVals}
-                          onBack={() => setStep(1)}
-                          onSubmit={handleSubmit}
-                          submitLabel={submitLabel}
-                        />
-                      </>
+                      <StepBlocks
+                        blocks={blocks}
+                        settings={settings}
+                        handleBlur={handleBlur}
+                        formErrors={formErrors}
+                        isLoading={isLoading}
+                        textColor={textColor}
+                        primaryColor={primaryColor}
+                        primaryBtnStyle={primaryBtnStyle}
+                        showLeadFields={showLeadFields}
+                        formValsRef={formVals}
+                        onBack={() => setStep(1)}
+                        onSubmit={handleSubmit}
+                        submitLabel={submitLabel}
+                      />
                     )}
                   </div>
                 )
@@ -778,17 +784,77 @@ function StepBlocks({
     setTick((t) => t + 1);
   };
 
+  // ─── Progresso de preenchimento (computado em TODOS os modos) ───
+  // Comum: % de campos preenchíveis (Heading/Paragraph/ImageDisplay
+  // ficam fora via isFillableBlock). Atualiza em tempo real graças ao
+  // tick incrementado em wrappedHandleBlur.
+  void tick; // referenciar pra evitar dead-state warning + forçar re-render
+  const allChildrenAll = blocks
+    .flatMap((b) => b.childblocks ?? [])
+    .filter((c) =>
+      isFillableBlock(c.blockType, FormBlocks[c.blockType]?.blockCategory),
+    );
+  const totalFieldsAll = allChildrenAll.length;
+  const filledFieldsAll = allChildrenAll.filter((c) => {
+    const v = formValsRef.current?.[c.id]?.value?.trim();
+    return Boolean(v);
+  }).length;
+  const progressPctAll =
+    totalFieldsAll > 0
+      ? Math.round((filledFieldsAll / totalFieldsAll) * 100)
+      : 0;
+  const mascotsAll = resolveProgressMascots(
+    (settings as unknown as { progressMascots?: unknown })?.progressMascots,
+  );
+  const currentMascotAll = getCurrentMascot(mascotsAll, progressPctAll);
+
+  // ─── Header de progresso + mascote — único, reutilizado em ambos modos ───
+  // Mobile/tablet/iPad Pro: barra ocupa toda largura, texto em cima.
+  // Desktop (xl+): texto à esquerda + barra ocupando max 60%.
+  const ProgressHeader = (
+    <div className="w-full max-w-[80%] mx-auto flex flex-col gap-1.5 px-1 xl:flex-row xl:items-center xl:justify-between xl:gap-3">
+      <span className="text-[11px] xl:text-xs text-muted-foreground/80 shrink-0">
+        {stepMode === "off"
+          ? `${filledFieldsAll} de ${totalFieldsAll} campos`
+          : `Passo ${currentStep + 1} de ${blocks.length}`}
+      </span>
+      <div className="flex items-center gap-2 flex-1 w-full xl:max-w-[60%]">
+        <div className="relative h-1.5 flex-1 rounded-full bg-foreground/10 overflow-visible">
+          <div
+            className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ease-out"
+            style={{
+              width: `${progressPctAll}%`,
+              backgroundColor: primaryColor || "hsl(var(--primary))",
+            }}
+          />
+          <ProgressMascotIcon
+            mascot={currentMascotAll}
+            progressPct={progressPctAll}
+          />
+        </div>
+        <span
+          className="text-[11px] font-medium tabular-nums shrink-0"
+          style={{ color: textColor || undefined }}
+          title={`${filledFieldsAll} de ${totalFieldsAll} campos preenchidos`}
+        >
+          {progressPctAll}%
+        </span>
+      </div>
+    </div>
+  );
+
   // Modo "tudo de uma vez"
   if (stepMode === "off") {
     return (
       <>
+        {ProgressHeader}
         {blocks.map((block) => {
           const FormBlockComponent = FormBlocks[block.blockType].formComponent;
           return (
             <FormBlockComponent
               key={block.id}
               blockInstance={block}
-              handleBlur={handleBlur}
+              handleBlur={wrappedHandleBlur}
               formErrors={formErrors}
               settings={settings}
             />
@@ -848,66 +914,11 @@ function StepBlocks({
   const isLast = currentStep === blocks.length - 1;
   const canAdvance = isGroupComplete(currentBlock);
 
-  void tick; // referenciar pra evitar dead-state warning
-
   if (!currentBlock) return null;
-
-  // Progresso simples: campos preenchidos / total de blocos preenchíveis.
-  // Form vazio → 0%. Cada campo que ganha valor incrementa proporcional.
-  // Heading/Paragraph/ImageDisplay (decorativos) ficam fora via
-  // `isFillableBlock`. Sliders commitam o `defaultValue` no mount, então
-  // contam desde o início — correto, já que o default é uma resposta válida.
-  const allChildren = blocks
-    .flatMap((b) => b.childblocks ?? [])
-    .filter((c) =>
-      isFillableBlock(c.blockType, FormBlocks[c.blockType]?.blockCategory),
-    );
-  const totalFields = allChildren.length;
-  const filledFields = allChildren.filter((c) => {
-    const v = formValsRef.current?.[c.id]?.value?.trim();
-    return Boolean(v);
-  }).length;
-  const progressPct =
-    totalFields > 0 ? Math.round((filledFields / totalFields) * 100) : 0;
-
-  // Mascote da barra de progresso — pode ser customizado em
-  // settings.progressMascots (lista de { min, max, emoji?, imageUrl?, label }).
-  // Cai no default se não houver configuração.
-  const mascots = resolveProgressMascots(
-    (settings as unknown as { progressMascots?: unknown })?.progressMascots,
-  );
-  const currentMascot = getCurrentMascot(mascots, progressPct);
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3 px-1">
-        <span className="text-xs text-muted-foreground/80">
-          Passo {currentStep + 1} de {blocks.length}
-        </span>
-        <div className="flex items-center gap-2 flex-1 max-w-[60%]">
-          <div className="relative h-1.5 flex-1 rounded-full bg-foreground/10 overflow-visible">
-            {/* Faixa de fill */}
-            <div
-              className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ease-out"
-              style={{
-                width: `${progressPct}%`,
-                backgroundColor: primaryColor || "hsl(var(--primary))",
-              }}
-            />
-            <ProgressMascotIcon
-              mascot={currentMascot}
-              progressPct={progressPct}
-            />
-          </div>
-          <span
-            className="text-[11px] font-medium tabular-nums shrink-0"
-            style={{ color: textColor || undefined }}
-            title={`${filledFields} de ${totalFields} campos preenchidos`}
-          >
-            {progressPct}%
-          </span>
-        </div>
-      </div>
+      {ProgressHeader}
       {/* Mantém TODOS os passos montados, escondendo os que não são o atual.
           Isso preserva o estado local (texto digitado, escolhas, etc.) quando
           o usuário navega entre passos com Próximo/Voltar — o componente não
@@ -932,11 +943,11 @@ function StepBlocks({
         );
       })}
 
-      <div className="w-full flex justify-between gap-4">
+      <div className="w-full max-w-[80%] mx-auto flex flex-col-reverse xl:flex-row justify-between gap-3 xl:gap-4">
         {currentStep > 0 ? (
           <Button
             variant="outline"
-            className="bg-transparent border-primary/20"
+            className="w-full xl:w-auto bg-transparent border-primary/20"
             style={{
               color: textColor || undefined,
               borderColor: primaryColor || undefined,
@@ -949,7 +960,7 @@ function StepBlocks({
           showLeadFields && (
             <Button
               variant="outline"
-              className="bg-transparent border-primary/20"
+              className="w-full xl:w-auto bg-transparent border-primary/20"
               style={{
                 color: textColor || undefined,
                 borderColor: primaryColor || undefined,
@@ -964,7 +975,7 @@ function StepBlocks({
         {isLast ? (
           <Button
             data-form-submit
-            className="flex-1"
+            className="w-full xl:flex-1"
             disabled={isLoading}
             style={primaryBtnStyle}
             onClick={onSubmit}
@@ -975,7 +986,7 @@ function StepBlocks({
         ) : (
           stepMode === "manual" && (
             <Button
-              className="flex-1"
+              className="w-full xl:flex-1"
               // Visual de disabled mas continua clicável pra mostrar
               // a mensagem de gate (assinatura faltando ou não autorizada).
               aria-disabled={!canAdvance}
@@ -1036,11 +1047,15 @@ function SubmitButtons({
   submitLabel?: string;
 }) {
   return (
-    <div className="w-full flex justify-between gap-4">
+    // Mobile/tablet: empilha (full-width buttons, mais tappáveis).
+    // Desktop (lg+): inline lado a lado.
+    // Botões ficam centralizados a 80% da largura disponível, conforme
+    // requisito de UX (não esticar borda-a-borda no tablet/desktop).
+    <div className="w-full max-w-[80%] mx-auto flex flex-col-reverse xl:flex-row justify-between gap-3 xl:gap-4">
       {showLeadFields && (
         <Button
           variant="outline"
-          className="bg-transparent border-primary/20"
+          className="w-full xl:w-auto bg-transparent border-primary/20"
           style={{
             color: textColor || undefined,
             borderColor: primaryColor || undefined,
@@ -1052,7 +1067,7 @@ function SubmitButtons({
       )}
       <Button
         data-form-submit
-        className={showLeadFields ? "flex-1" : "w-full"}
+        className={showLeadFields ? "w-full xl:flex-1" : "w-full"}
         disabled={isLoading}
         style={primaryBtnStyle}
         onClick={onSubmit}

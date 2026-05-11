@@ -26,7 +26,10 @@ import { Button } from "@/components/ui/button";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { Uploader } from "@/components/file-uploader/uploader";
 import { useConstructUrl } from "@/hooks/use-construct-url";
-import { usePrefillFieldValue } from "@/features/form/context/form-prefill-context";
+import {
+  usePrefillFieldValue,
+  useFormSessionKey,
+} from "@/features/form/context/form-prefill-context";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "ImageUpload";
@@ -207,7 +210,14 @@ function FormView({
   // Backup persistente extra das imagens em sessionStorage por blockId —
   // sobrevive a re-renders mesmo sem prefill (caso o user esteja preenchendo
   // pela primeira vez e algum rerender acidental dispare).
-  const storageKey = `nasa.form.image-upload.${block.id}`;
+  //
+  // Escopo: chave inclui `sessionKey` único por mount do form. Sem isso,
+  // ao abrir uma nova resposta do mesmo form (mesmo `block.id`), o
+  // sessionStorage da resposta anterior vazaria — usuário via a imagem
+  // antiga já carregada no campo "vazio". Com o sessionKey, cada mount
+  // tem seu próprio namespace.
+  const sessionKey = useFormSessionKey();
+  const storageKey = `nasa.form.image-upload.${sessionKey}.${block.id}`;
   const initialRestoreRef = useRef(false);
 
   // Sincroniza o prefill com o formVals no mount.
@@ -249,9 +259,14 @@ function FormView({
   // Restaura na montagem inicial — sessionStorage tem prioridade sobre
   // useState vazio. Re-emite pro formVals.current pra garantir que o
   // submit final inclua as imagens.
+  //
+  // IMPORTANTE: só restaura quando NÃO há prefill. Em modo edição
+  // (`initialResponseValues`), o prefill é a fonte da verdade — restaurar
+  // do sessionStorage poderia sobrescrever a resposta salva.
   useEffect(() => {
     if (initialRestoreRef.current) return;
     initialRestoreRef.current = true;
+    if (initialImages.length > 0) return; // prefill já populou o estado
     try {
       const raw = sessionStorage.getItem(storageKey);
       if (!raw) return;

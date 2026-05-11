@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useMemo } from "react";
 import type { FieldValue } from "@/features/form/types";
 
 /**
@@ -22,17 +22,40 @@ import type { FieldValue } from "@/features/form/types";
  */
 export type PrefillFieldMap = Record<string, FieldValue | undefined>;
 
-const FormPrefillContext = createContext<PrefillFieldMap | null>(null);
+type FormPrefillContextValue = {
+  values: PrefillFieldMap;
+  /**
+   * Chave única por montagem do form, usada por blocos que persistem estado
+   * em sessionStorage (ex: ImageUpload). Isola entre submissions diferentes
+   * do mesmo form (mesmo `block.id`) — sem isso, ao abrir uma nova resposta
+   * o sessionStorage da resposta anterior vazaria, restaurando imagens
+   * antigas no campo vazio.
+   */
+  sessionKey: string;
+};
+
+const FormPrefillContext = createContext<FormPrefillContextValue | null>(null);
 
 export function FormPrefillProvider({
   values,
+  sessionKey,
   children,
 }: {
   values: PrefillFieldMap;
+  /**
+   * Identificador único do "mount" do form. Quando o componente remonta
+   * (ex: navegou pra outra resposta ou submeteu e voltou pro form novo),
+   * a chave muda e o storage da sessão anterior é descartado.
+   */
+  sessionKey: string;
   children: React.ReactNode;
 }) {
+  const ctx = useMemo(
+    () => ({ values, sessionKey }),
+    [values, sessionKey],
+  );
   return (
-    <FormPrefillContext.Provider value={values}>
+    <FormPrefillContext.Provider value={ctx}>
       {children}
     </FormPrefillContext.Provider>
   );
@@ -45,7 +68,7 @@ export function FormPrefillProvider({
 export function usePrefillValue(blockId: string): string | undefined {
   const ctx = useContext(FormPrefillContext);
   if (!ctx) return undefined;
-  return ctx[blockId]?.value;
+  return ctx.values[blockId]?.value;
 }
 
 /**
@@ -55,7 +78,18 @@ export function usePrefillValue(blockId: string): string | undefined {
 export function usePrefillFieldValue(blockId: string): FieldValue | undefined {
   const ctx = useContext(FormPrefillContext);
   if (!ctx) return undefined;
-  return ctx[blockId];
+  return ctx.values[blockId];
+}
+
+/**
+ * Retorna a `sessionKey` única do mount atual do form. Quando não há
+ * provider (fluxo público sem prefill), devolve uma string fixa — nesse
+ * caso os blocos podem cair no padrão antigo (que era seguro pra um
+ * único form preenchido sem submissions repetidas).
+ */
+export function useFormSessionKey(): string {
+  const ctx = useContext(FormPrefillContext);
+  return ctx?.sessionKey ?? "default";
 }
 
 /**

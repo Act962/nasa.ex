@@ -12,7 +12,6 @@ import {
   SquarePenIcon,
 } from "lucide-react";
 import { orpc } from "@/lib/orpc";
-import { CreateForm } from "@/features/form/components/create-form";
 import {
   STATE_COLOR,
   STATE_LABEL,
@@ -127,12 +126,8 @@ function buildGroups(
 
 export function LeadFormResponses({
   leadId,
-  trackingId,
-  statusId,
 }: {
   leadId: string;
-  trackingId?: string;
-  statusId?: string;
 }) {
   const { data: respData, isLoading: respLoading } = useQuery(
     orpc.leads.listFormResponses.queryOptions({ input: { leadId } }),
@@ -203,11 +198,9 @@ export function LeadFormResponses({
             <h2 className="text-2xl font-semibold tracking-tight">
               Formulários do lead
             </h2>
-            <CreateForm
-              trackingId={trackingId}
-              statusId={statusId}
-              defaultName={`Formulário do lead`}
-            />
+            {/* Botão "Criar formulário" removido daqui — criação de form é
+                fluxo global, não pertence ao detalhe do lead. Lead continua
+                preenchendo forms via "Preencher" na listagem abaixo. */}
           </div>
           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
             <StatsCard

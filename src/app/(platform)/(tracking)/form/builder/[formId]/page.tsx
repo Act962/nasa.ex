@@ -1,4 +1,4 @@
-import { FormBuilder } from "@/features/form/components/build/form-builder";
+import { FormBuilderClient } from "./form-builder-client";
 
 export default async function Page({
   params,
@@ -6,5 +6,5 @@ export default async function Page({
   params: Promise<{ formId: string }>;
 }) {
   const { formId } = await params;
-  return <FormBuilder formId={formId} />;
+  return <FormBuilderClient formId={formId} />;
 }

@@ -95,13 +95,31 @@ function View({ blockInstance }: { blockInstance: FormBlockInstance }) {
   const justify = align === "left" ? "justify-start" : align === "right" ? "justify-end" : "justify-center";
 
   // Quando `fitToPage` ligado, estica 100% da largura disponível e altura
-  // automática (preserva aspect ratio). Caso contrário, respeita width/height.
+  // automática (preserva aspect ratio). Caso contrário, respeita width/height
+  // — mas converte o tamanho em px pra percentual relativo à largura de
+  // referência do builder (650px). Assim, uma imagem configurada com 320px
+  // ocupa ~49% do container; em iPad/desktop maior ela cresce
+  // proporcionalmente em vez de ficar travada em 320px. `aspectRatio`
+  // calcula a altura automaticamente preservando a proporção.
+  const REFERENCE_WIDTH = 650;
+  const widthPct = Math.min(100, (width / REFERENCE_WIDTH) * 100);
   const imgStyle: React.CSSProperties = fitToPage
     ? { width: "100%", height: "auto", maxWidth: "100%", objectFit: "contain" }
-    : { width: `${width}px`, height: `${height}px`, maxWidth: "100%", objectFit: "cover" };
+    : {
+        width: `${widthPct}%`,
+        aspectRatio: `${width} / ${height}`,
+        height: "auto",
+        maxWidth: "100%",
+        objectFit: "cover",
+      };
   const placeholderStyle: React.CSSProperties = fitToPage
     ? { width: "100%", minHeight: "120px", maxWidth: "100%" }
-    : { width: `${width}px`, height: `${height}px`, maxWidth: "100%" };
+    : {
+        width: `${widthPct}%`,
+        aspectRatio: `${width} / ${height}`,
+        height: "auto",
+        maxWidth: "100%",
+      };
 
   if (!url) {
     return (

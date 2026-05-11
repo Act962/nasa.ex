@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { recordLeadEvent } from "@/features/leads/lib/history";
+import { trackLeadEvent } from "@/lib/lead-journey/track";
 import {
   checkLeadTrackingParticipant,
   NOT_TRACKING_PARTICIPANT_MESSAGE,
@@ -128,6 +129,24 @@ export const createResponseForLead = base
           createdBy: userId,
           // Label vai no metadata pra renderização imediata em timelines
           // sem precisar de outra query.
+          label: created.label ?? null,
+        },
+      });
+
+      // Espelha em LeadJourneyEvent pra que a jornada do lead mostre QUEM
+      // preencheu o formulário (avatar + nome). Sem isso, o entry caía pro
+      // fallback de FormResponses na timeline com `actor: null`. O dedup
+      // por (kind, segundo) faz este journey_event "vencer" o fallback —
+      // ele tem score maior e carrega o actorId.
+      await trackLeadEvent({
+        leadId,
+        kind: "form_submit",
+        actorId: userId,
+        occurredAt: created.createdAt,
+        metadata: {
+          formId,
+          formResponseId: created.id,
+          source: "internal",
           label: created.label ?? null,
         },
       });
