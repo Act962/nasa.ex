@@ -73,14 +73,16 @@ export default function Page() {
     const parsed = parsePhone(sessionPhone);
     setSelectedCountry(parsed.country);
     setPhone(phoneMask(parsed.number));
-  }, [session?.user]);
+    // Depende do id para rodar uma vez por usuário; usar `session.user` (referência)
+    // fazia o effect re-disparar a cada refetch pós-mutate e sobrescrever a digitação.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
 
   const updateMut = useMutation({
     mutationFn: (input: { name?: string; image?: string; phone?: string }) =>
       orpc.user.updateProfile.call(input),
     onSuccess: async () => {
       await refetch();
-      toast.success("Perfil atualizado!");
     },
     onError: (err: Error) => {
       toast.error(err.message ?? "Erro ao atualizar perfil.");
@@ -117,8 +119,8 @@ export default function Page() {
 
   const debouncedName = useDebouncedValue(name, 5000);
   const phoneDigits = normalizePhone(phone);
-  const debouncedPhoneDigits = useDebouncedValue(phoneDigits, 5000);
-  const debouncedDdi = useDebouncedValue(selectedCountry.ddi, 5000);
+  const debouncedPhoneDigits = useDebouncedValue(phoneDigits, 500);
+  const debouncedDdi = useDebouncedValue(selectedCountry.ddi, 500);
 
   // Auto-save name
   useEffect(() => {
@@ -156,7 +158,7 @@ export default function Page() {
         <div>
           <h2 className="font-medium">Foto de perfil</h2>
           <span className="text-xs text-muted-foreground">
-            Clique na foto para trocar a imagem (salva em base64)
+            Clique na foto para trocar a imagem
           </span>
         </div>
 
@@ -179,7 +181,7 @@ export default function Page() {
                 unoptimized
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-primary/80 to-primary/40 flex items-center justify-center text-primary-foreground text-2xl font-bold select-none">
+              <div className="w-full h-full bg-linear-to-br from-primary/80 to-primary/40 flex items-center justify-center text-primary-foreground text-2xl font-bold select-none">
                 {initials}
               </div>
             )}
@@ -209,7 +211,7 @@ export default function Page() {
         <div>
           <h2 className="font-medium">Nome</h2>
           <span className="text-xs text-muted-foreground">
-            Mude o nome exibido na interface (salvo automaticamente)
+            Mude o nome exibido na interface
           </span>
         </div>
         <div className="flex items-center gap-2 w-72">
@@ -229,7 +231,7 @@ export default function Page() {
         <div>
           <h2 className="font-medium">Telefone</h2>
           <span className="text-xs text-muted-foreground">
-            Selecione o país e digite seu telefone (salvo automaticamente)
+            Selecione o país e digite seu telefone
           </span>
         </div>
         <div className="w-72">
@@ -315,7 +317,7 @@ export default function Page() {
             Seu identificador único na plataforma
           </span>
         </div>
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/5 border border-violet-200 dark:border-violet-800 min-h-[52px] w-72">
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/5 border border-violet-200 dark:border-violet-800 min-h-13 w-72">
           {isPending ? (
             <div className="flex-1 flex items-center justify-center">
               <span className="text-xs text-muted-foreground animate-pulse">
@@ -356,7 +358,7 @@ export default function Page() {
             Compartilhe e ganhe comissão por cada empresa cadastrada
           </span>
         </div>
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/5 border border-violet-200 dark:border-violet-800 min-h-[52px] w-72">
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/5 border border-violet-200 dark:border-violet-800 min-h-13 w-72">
           {isLoadingLink || !referralLink ? (
             <div className="flex-1 flex items-center justify-center">
               <span className="text-xs text-muted-foreground animate-pulse">

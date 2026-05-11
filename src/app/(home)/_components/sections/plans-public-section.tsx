@@ -139,8 +139,7 @@ function PublicPlanCard({
   const slug = plan.planSlug ?? plan.id;
   const externalHref = isExternalCta(plan.ctaHref) ? plan.ctaHref : null;
   // Plano com link externo (ex: "Falar com consultor") nunca é "plano atual".
-  const isCurrentPlan =
-    !externalHref && isLoggedIn && currentPlanSlug === slug;
+  const isCurrentPlan = !externalHref && isLoggedIn && currentPlanSlug === slug;
 
   const handleCtaClick = () => {
     if (externalHref) {
@@ -231,7 +230,7 @@ function PublicPlanCard({
           </div>
           <div className="text-right shrink-0">
             {plan.price === 0 ? (
-              <p className="text-xl font-bold text-emerald-400">Grátis</p>
+              <p className="text-xl font-bold text-emerald-400">Consultar</p>
             ) : (
               <p className="text-xl font-bold text-white">
                 R$ {plan.price.toLocaleString("pt-BR")}
