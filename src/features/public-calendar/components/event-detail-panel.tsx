@@ -11,6 +11,7 @@ import {
   MapPin,
   ExternalLink,
   ArrowRight,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -20,6 +21,8 @@ import { EventBadges } from "./event-badges";
 import { LikeButton } from "./like-button";
 import { ShareButtons } from "./share-buttons";
 import { Visualizometro } from "./visualizometro";
+import { RichDescription } from "./rich-description";
+import { ImageLightbox } from "./image-lightbox";
 import type { PublicEvent } from "../types";
 
 dayjs.locale("pt-br");
@@ -28,12 +31,18 @@ interface EventDetailPanelProps {
   event: PublicEvent;
   isLiked?: boolean;
   showFullCTA?: boolean;
+  /** Permite renderizar o botão "Editar no Workspace" pra criador/owner. */
+  canEdit?: boolean;
+  /** Workspace ID do evento — usado pelo botão "Editar no Workspace". */
+  workspaceId?: string | null;
 }
 
 export function EventDetailPanel({
   event,
   isLiked = false,
   showFullCTA,
+  canEdit,
+  workspaceId,
 }: EventDetailPanelProps) {
   const category = event.eventCategory
     ? EVENT_CATEGORIES.find((c) => c.value === event.eventCategory)
@@ -43,12 +52,29 @@ export function EventDetailPanel({
   const end = event.endDate ? dayjs(event.endDate) : null;
 
   const [coverFailed, setCoverFailed] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const showCover = !!event.coverImage && !coverFailed;
   const coverSrc = event.coverImage ? imgSrc(event.coverImage) : null;
 
   return (
     <article className="flex h-full w-full flex-col gap-4 p-4">
-      <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/20 to-pink-500/20">
+      <div
+        className={`relative aspect-[16/9] w-full overflow-hidden rounded-xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/20 to-pink-500/20 ${
+          showCover && coverSrc ? "cursor-zoom-in" : ""
+        }`}
+        onClick={() => {
+          if (showCover && coverSrc) setLightboxOpen(true);
+        }}
+        role={showCover && coverSrc ? "button" : undefined}
+        tabIndex={showCover && coverSrc ? 0 : undefined}
+        aria-label={showCover && coverSrc ? "Ampliar imagem" : undefined}
+        onKeyDown={(e) => {
+          if (showCover && coverSrc && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            setLightboxOpen(true);
+          }
+        }}
+      >
         {showCover && coverSrc ? (
           <Image
             src={coverSrc}
@@ -57,6 +83,7 @@ export function EventDetailPanel({
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 768px"
             onError={() => setCoverFailed(true)}
+            unoptimized
           />
         ) : (
           <div className="flex h-full items-center justify-center text-6xl">
@@ -67,6 +94,15 @@ export function EventDetailPanel({
           <EventBadges event={event} />
         </div>
       </div>
+
+      {showCover && coverSrc && (
+        <ImageLightbox
+          src={coverSrc}
+          alt={event.title}
+          open={lightboxOpen}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
 
       <div className="space-y-2">
         {category && (
@@ -117,13 +153,7 @@ export function EventDetailPanel({
         )}
       </div>
 
-      {event.description && (
-        <div className="prose prose-sm max-w-none dark:prose-invert">
-          <p className="whitespace-pre-wrap text-sm text-foreground/90">
-            {event.description}
-          </p>
-        </div>
-      )}
+      {event.description && <RichDescription text={event.description} />}
 
       {event.registrationUrl && (
         <Button asChild size="lg" className="w-full">
@@ -134,6 +164,22 @@ export function EventDetailPanel({
           >
             Inscrever-se <ExternalLink className="ml-2 h-4 w-4" />
           </a>
+        </Button>
+      )}
+
+      {canEdit && workspaceId && (
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="w-full border-orange-500/40 text-orange-300 hover:bg-orange-500/10"
+        >
+          <Link
+            href={`/workspaces/${workspaceId}?actionId=${event.id}`}
+          >
+            <Pencil className="mr-1.5 h-4 w-4" />
+            Editar no Workspace
+          </Link>
         </Button>
       )}
 

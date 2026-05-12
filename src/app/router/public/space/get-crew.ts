@@ -51,9 +51,13 @@ export const getCrew = base
           userId:      m.user!.id,
           displayName: m.user!.name ?? "Sem nome",
           image:       m.user!.image ?? null,
-          jobTitle:    position?.label ?? (isOwner ? "CEO / Sócio-Fundador" : "Membro"),
+          jobTitle:    position?.label ?? (isOwner ? "CEO" : "Membro"),
           level:       position?.level ?? (isOwner ? 1 : 10),
-          group:       position?.group ?? (isOwner ? "lideranca" : "operacional"),
+          // 6 tiers: n1 (fundadores) → n2 (C-level) → n3 (gerência sr.) →
+          // gestão → operacional → entrada. Legacy `lideranca` é remapeado
+          // pra n1 pra clientes antigos não quebrarem.
+          group:       (position?.group === "lideranca" ? "n1" : position?.group)
+                         ?? (isOwner ? "n1" : "operacional"),
           role:        m.role,
         };
       })

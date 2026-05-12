@@ -110,3 +110,25 @@ export const useDeleteNBoxItem = () => {
     }),
   );
 };
+
+/**
+ * Alterna a flag isPublic do item do N-Box. Quando ligando, o caller
+ * DEVE passar `consent: true` (validado pelo backend) — a UI mostra
+ * AlertDialog com aviso antes de chamar.
+ */
+export const useToggleNBoxItemPublic = () => {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.nbox.items.togglePublic.mutationOptions({
+      onSuccess: (data) => {
+        qc.invalidateQueries(orpc.nbox.items.getMany.queryOptions({ input: {} }));
+        toast.success(
+          data.item.isPublic
+            ? "Arquivo agora é público — qualquer pessoa com o link pode acessar."
+            : "Arquivo voltou a ser privado.",
+        );
+      },
+      onError: (e) => toast.error("Erro: " + e.message),
+    }),
+  );
+};

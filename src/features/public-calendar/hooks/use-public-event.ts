@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { useFingerprint } from "./use-fingerprint";
 
@@ -10,6 +10,7 @@ export function usePublicEvent(
   sharerToken?: string | null,
   initialData?: Record<string, unknown>,
 ) {
+  const qc = useQueryClient();
   const { fingerprint, ready } = useFingerprint();
 
   const query = useQuery({
@@ -23,6 +24,17 @@ export function usePublicEvent(
 
   const recordView = useMutation({
     ...orpc.public.calendar.recordView.mutationOptions(),
+    onSuccess: (res) => {
+      // Só invalida quando a view foi NOVA — evita refetch redundante
+      // quando o mesmo fingerprint volta no mesmo evento.
+      if (res?.wasNew) {
+        qc.invalidateQueries({
+          queryKey: orpc.public.calendar.getPublicEvent.queryKey({
+            input: { slug },
+          }),
+        });
+      }
+    },
   });
 
   useEffect(() => {

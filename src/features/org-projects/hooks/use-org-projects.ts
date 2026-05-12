@@ -62,3 +62,30 @@ export function useDeleteOrgProject() {
     }),
   );
 }
+
+/**
+ * Alterna visibilidade pública do Project (Workspace compartilhado) na
+ * Spacehome. Quando ligando, o caller DEVE passar `consent: true`
+ * (validado no backend) — UI mostra `<PublicVisibilityDialog>` antes.
+ */
+export function useToggleOrgProjectPublic() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.orgProjects.togglePublic.mutationOptions({
+      onSuccess: (data) => {
+        qc.invalidateQueries({ queryKey: orpc.orgProjects.list.key() });
+        qc.invalidateQueries({
+          queryKey: orpc.orgProjects.get.key({
+            input: { projectId: data.project.id },
+          }),
+        });
+        toast.success(
+          data.project.isPublicOnSpace
+            ? "Projeto agora aparece na Spacehome pública."
+            : "Projeto removido da Spacehome pública.",
+        );
+      },
+      onError: (err: any) => toast.error(err?.message ?? "Erro ao atualizar visibilidade."),
+    }),
+  );
+}

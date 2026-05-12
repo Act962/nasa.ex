@@ -23,20 +23,26 @@ interface PyramidRow {
 }
 
 /**
- * Agrupa por tier hierárquico (4 níveis) → cada tier vira uma linha da
- * pirâmide. Liderança no topo, descendo até Entrada na base.
+ * Agrupa por tier hierárquico (6 níveis) → cada tier vira uma linha da
+ * pirâmide. N1 no topo (fundadores), descendo até Entrada/Suporte na base.
+ *
+ * Aliases legados: `lideranca` é remapeado pra `n1` (caso ainda apareça
+ * em payloads antigos de cache).
  */
 function buildPyramid(crew: CrewMemberData[]): PyramidRow[] {
   const tiers: Record<string, CrewMemberData[]> = {
-    lideranca:   [],
+    n1:          [],
+    n2:          [],
+    n3:          [],
     gestao:      [],
     operacional: [],
     entrada:     [],
   };
   for (const m of crew) {
-    if (tiers[m.group]) tiers[m.group].push(m);
+    const key = m.group === "lideranca" ? "n1" : m.group;
+    if (tiers[key]) tiers[key].push(m);
   }
-  const order = ["lideranca", "gestao", "operacional", "entrada"];
+  const order = ["n1", "n2", "n3", "gestao", "operacional", "entrada"];
   return order
     .map((tier) => ({ tier, members: tiers[tier] }))
     .filter((r) => r.members.length > 0);

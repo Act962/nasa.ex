@@ -14,6 +14,7 @@ import {
   useDeleteNBoxFolder,
   useCreateNBoxItem,
   useDeleteNBoxItem,
+  useToggleNBoxItemPublic,
 } from "../hooks/use-nbox";
 import {
   Dialog,
@@ -31,6 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { PublicVisibilityDialog } from "@/components/public-visibility-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +62,10 @@ import {
   HardDriveIcon,
   FileCheckIcon as FileContractIcon,
   BoxIcon,
+  GlobeIcon,
+  LockIcon,
+  AlertTriangleIcon,
+  CopyIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSpacePointCtx } from "@/features/space-point/components/space-point-provider";
@@ -92,6 +98,8 @@ interface NBoxItem {
   folderId: string | null;
   createdAt: Date | string;
   createdBy: { name: string; image: string | null };
+  isPublic: boolean;
+  publicToken: string | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -256,6 +264,88 @@ function FolderTreeItem({
   );
 }
 
+// ─── Visibilidade pública — Menu item + AlertDialog reutilizáveis ────────────
+
+/**
+ * Quando o arquivo é privado: mostra item "Tornar público" → abre Alert
+ * com aviso explícito (qualquer pessoa com o link acessa e baixa) → ao
+ * confirmar, dispara a mutation com `consent: true`.
+ *
+ * Quando público: mostra "Tornar privado" + badge na linha + opção
+ * "Copiar link público".
+ *
+ * O log fica em "Atividades no admin" + insights via `logActivity` no
+ * backend (procedure `toggleItemPublic`).
+ */
+function PublicVisibilityActions({ item }: { item: NBoxItem }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const toggle = useToggleNBoxItemPublic();
+
+  function copyPublicLink() {
+    if (!item.publicToken) return;
+    const url = `${window.location.origin}/api/nbox/public/${item.publicToken}`;
+    navigator.clipboard.writeText(url).then(
+      () => toast.success("Link público copiado!"),
+      () => toast.error("Falha ao copiar o link."),
+    );
+  }
+
+  return (
+    <>
+      {item.isPublic ? (
+        <>
+          <DropdownMenuItem onClick={copyPublicLink}>
+            <CopyIcon className="size-3.5" />
+            Copiar link público
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() =>
+              toggle.mutate({ itemId: item.id, isPublic: false })
+            }
+          >
+            <LockIcon className="size-3.5" />
+            Tornar privado
+          </DropdownMenuItem>
+        </>
+      ) : (
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.preventDefault();
+            setConfirmOpen(true);
+          }}
+        >
+          <GlobeIcon className="size-3.5" />
+          Visualização Pública
+        </DropdownMenuItem>
+      )}
+
+      <PublicVisibilityDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        isPending={toggle.isPending}
+        onConfirm={() => {
+          toggle.mutate(
+            { itemId: item.id, isPublic: true, consent: true },
+            { onSuccess: () => setConfirmOpen(false) },
+          );
+        }}
+      />
+    </>
+  );
+}
+
+function PublicBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-300"
+      title="Este arquivo está visível publicamente"
+    >
+      <GlobeIcon className="size-2.5" />
+      Público
+    </span>
+  );
+}
+
 // ─── Item Card (Grid) ─────────────────────────────────────────────────────────
 
 function ItemCardGrid({
@@ -293,6 +383,13 @@ function ItemCardGrid({
         )}
       </div>
 
+      {/* Badge "Público" no canto sup. esquerdo */}
+      {item.isPublic && (
+        <div className="absolute top-2 left-2">
+          <PublicBadge />
+        </div>
+      )}
+
       {/* Info */}
       <div className="px-3 py-2.5">
         <p className="text-xs font-medium truncate leading-tight">
@@ -329,6 +426,8 @@ function ItemCardGrid({
                 </a>
               </DropdownMenuItem>
             )}
+            <DropdownMenuSeparator />
+            <PublicVisibilityActions item={item} />
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
@@ -380,7 +479,10 @@ function ItemRowList({
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{item.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium truncate">{item.name}</p>
+          {item.isPublic && <PublicBadge />}
+        </div>
         {item.description && (
           <p className="text-xs text-muted-foreground truncate">
             {item.description}
@@ -415,6 +517,8 @@ function ItemRowList({
               </a>
             </DropdownMenuItem>
           )}
+          <DropdownMenuSeparator />
+          <PublicVisibilityActions item={item} />
           <DropdownMenuSeparator />
           <DropdownMenuItem
             variant="destructive"

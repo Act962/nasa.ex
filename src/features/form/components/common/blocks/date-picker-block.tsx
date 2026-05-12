@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronDown, Clock } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -190,7 +190,11 @@ function FormView({
               }}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {date ? format(date, "PPP", { locale: ptBR }) : "Selecione uma data"}
+              {/* Formato explícito DD/MM/YYYY a pedido do produto (10/05/26).
+                  Placeholder também mostra o padrão pra orientar o usuário. */}
+              {date
+                ? format(date, "dd/MM/yyyy", { locale: ptBR })
+                : "DD/MM/AAAA"}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
@@ -204,16 +208,26 @@ function FormView({
           </PopoverContent>
         </Popover>
         {withTime && (
-          <Input
-            type="time"
-            className="w-32 bg-transparent!"
-            style={{
-              color: textColor || undefined,
-              borderColor: textColor ? `${textColor}40` : undefined,
-            }}
-            value={time}
-            onChange={(e) => commit(date, e.target.value)}
-          />
+          <div className="relative w-36">
+            <Clock
+              className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4"
+              style={{ color: textColor || "#000" }}
+            />
+            <Input
+              type="time"
+              value={time}
+              onChange={(e) => commit(date, e.target.value)}
+              className="pl-8 bg-transparent!"
+              style={{
+                // Sem textColor do tema → força preto sólido (default do
+                // <input type=time> fica cinza claro e some em fundos claros).
+                // Com textColor → respeita o tema do form.
+                colorScheme: "light",
+                color: textColor || "#000",
+                borderColor: textColor ? `${textColor}40` : undefined,
+              }}
+            />
+          </div>
         )}
       </div>
       {helperText && <p className="text-[0.8rem] text-muted-foreground break-words whitespace-normal">{helperText}</p>}

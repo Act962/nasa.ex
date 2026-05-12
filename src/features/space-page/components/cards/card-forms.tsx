@@ -1,16 +1,21 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/lib/orpc";
 import { SpaceCard } from "../space-card";
 import { Button } from "@/components/ui/button";
-import { FileText, ExternalLink } from "lucide-react";
+import { FileText, ExternalLink, Plus } from "lucide-react";
 
 interface CardFormsProps {
   nick: string;
 }
 
 export function CardForms({ nick }: CardFormsProps) {
+  const session = authClient.useSession();
+  const isAuthenticated = !!session.data?.user?.id;
+
   const { data, isLoading } = useQuery(
     orpc.public.space.listForms.queryOptions({ input: { nick } }),
   );
@@ -22,7 +27,21 @@ export function CardForms({ nick }: CardFormsProps) {
       title="Formulários públicos"
       subtitle="Trabalhe conosco · Comercial · Contato"
       isEmpty={!isLoading && forms.length === 0}
-      empty="A empresa ainda não publicou formulários."
+      empty={
+        isAuthenticated
+          ? "Você ainda não publicou formulários."
+          : "A empresa ainda não publicou formulários."
+      }
+      emptyAction={
+        isAuthenticated ? (
+          <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600">
+            <Link href="/formularios/novo">
+              <Plus className="mr-1 size-4" />
+              Criar meu primeiro formulário
+            </Link>
+          </Button>
+        ) : null
+      }
     >
       {isLoading ? (
         <div className="space-y-2">

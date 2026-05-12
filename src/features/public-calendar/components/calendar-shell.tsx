@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth-client";
+import { orpc } from "@/lib/orpc";
 import { type Dayjs } from "dayjs";
 import {
   Sheet,
@@ -156,9 +158,40 @@ export function CalendarShell({
           <SheetHeader className="p-4 pb-0">
             <SheetTitle>Detalhes do evento</SheetTitle>
           </SheetHeader>
-          {selected && <EventDetailPanel event={selected} showFullCTA />}
+          {selected && (
+            <SelectedEventDetail event={selected} />
+          )}
         </SheetContent>
       </Sheet>
     </div>
+  );
+}
+
+/**
+ * Painel lateral do evento selecionado. Faz uma query extra a
+ * `getPublicEvent` por `publicSlug` pra extrair `viewer.canEdit` +
+ * `viewer.workspaceId` — sem isso o `EventDetailPanel` não saberia se
+ * mostrar o botão "Editar no Workspace".
+ */
+function SelectedEventDetail({ event }: { event: PublicEvent }) {
+  const { data } = useQuery({
+    ...orpc.public.calendar.getPublicEvent.queryOptions({
+      input: { slug: event.publicSlug ?? "" },
+    }),
+    enabled: !!event.publicSlug,
+    staleTime: 60_000,
+  });
+
+  const viewer = (data as unknown as {
+    viewer?: { canEdit?: boolean; workspaceId?: string | null };
+  })?.viewer;
+
+  return (
+    <EventDetailPanel
+      event={event}
+      showFullCTA
+      canEdit={!!viewer?.canEdit}
+      workspaceId={viewer?.workspaceId ?? null}
+    />
   );
 }

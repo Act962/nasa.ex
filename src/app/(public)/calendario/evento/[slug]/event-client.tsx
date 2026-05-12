@@ -38,6 +38,9 @@ export function EventClient({
 
   const event = data.event as unknown as PublicEvent;
   const related = (data.related ?? []) as unknown as PublicEvent[];
+  const viewer = (data as unknown as {
+    viewer?: { canEdit?: boolean; workspaceId?: string | null };
+  }).viewer;
 
   return (
     <div className="min-h-dvh bg-background">
@@ -59,7 +62,12 @@ export function EventClient({
             : "mx-auto max-w-3xl p-4 lg:p-6"
         }
       >
-        <EventDetailPanel event={event} isLiked={!!data.isLikedByMe} />
+        <EventDetailPanel
+          event={event}
+          isLiked={!!data.isLikedByMe}
+          canEdit={!!viewer?.canEdit}
+          workspaceId={viewer?.workspaceId ?? null}
+        />
 
         {related.length > 0 && (
           <aside className="space-y-3">
