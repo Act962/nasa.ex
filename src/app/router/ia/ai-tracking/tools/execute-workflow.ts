@@ -14,13 +14,20 @@ export const executeWorkflowTool = (trackingId: string) =>
       try {
         const workflow = await prisma.workflow.findFirst({
           where: { id: workflowId, trackingId },
-          select: { id: true, name: true },
+          select: { id: true, name: true, isActive: true },
         });
 
         if (!workflow) {
           return {
             success: false,
             message: `Workflow "${workflowId}" não encontrado neste tracking.`,
+          };
+        }
+
+        if (!workflow.isActive) {
+          return {
+            success: false,
+            message: `Automação "${workflow.name}" está desativada.`,
           };
         }
 

@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogClose,
@@ -28,8 +29,30 @@ import {
   useDeleteWorkspaceWorkflow,
   useSuspenseWorkspaceWorkflow,
   useUpdateWorkspaceWorkflow,
+  useUpdateWorkspaceWorkflowIsActive,
   useUpdateWorkspaceWorkflowName,
 } from "../hooks/use-workspace-workflows";
+
+const WsEditorActiveToggle = ({ workflowId }: { workflowId: string }) => {
+  const { workspaceId } = useParams<{ workspaceId: string }>();
+  const { data } = useSuspenseWorkspaceWorkflow(workflowId);
+  const isActive = data.workflow.isActive;
+  const updateIsActive = useUpdateWorkspaceWorkflowIsActive(workspaceId);
+
+  return (
+    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+      <span>{isActive ? "Ativa" : "Inativa"}</span>
+      <Switch
+        checked={isActive}
+        disabled={updateIsActive.isPending}
+        onCheckedChange={(checked) =>
+          updateIsActive.mutate({ workflowId, isActive: checked })
+        }
+        aria-label={isActive ? "Desativar automação" : "Ativar automação"}
+      />
+    </label>
+  );
+};
 
 export const WsEditorHeader = ({ workflowId }: { workflowId: string }) => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -46,6 +69,7 @@ export const WsEditorHeader = ({ workflowId }: { workflowId: string }) => {
         <WsEditorBreadcrumbs workflowId={workflowId} />
       </div>
       <div className="flex items-center gap-2">
+        <WsEditorActiveToggle workflowId={workflowId} />
         <WsEditorOptions workflowId={workflowId} />
         <WsEditorSaveButton workflowId={workflowId} />
       </div>

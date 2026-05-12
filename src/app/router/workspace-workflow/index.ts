@@ -7,6 +7,7 @@ import {
   updateWorkspaceWorkflowName,
   updateWorkspaceWorkflowNodes,
 } from "./update";
+import { updateWorkspaceWorkflowIsActive } from "./update-is-active";
 
 export const workspaceWorkflowRoutes = {
   create: createWorkspaceWorkflow,
@@ -16,6 +17,7 @@ export const workspaceWorkflowRoutes = {
   update: {
     updateName: updateWorkspaceWorkflowName,
     updateNodes: updateWorkspaceWorkflowNodes,
+    updateIsActive: updateWorkspaceWorkflowIsActive,
   },
   execute: executeWorkspaceWorkflowRoute,
 };

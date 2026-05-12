@@ -48,6 +48,7 @@ export async function POST(req: Request) {
     const workflows = await prisma.workflow.findMany({
       where: {
         trackingId,
+        isActive: true,
         nodes: {
           some: {
             type: "NEW_LEAD",

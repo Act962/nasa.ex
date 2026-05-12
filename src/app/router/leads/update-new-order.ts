@@ -124,6 +124,7 @@ export const updateNewOrder = base
         workflows = await tx.workflow.findMany({
           where: {
             trackingId,
+            isActive: true,
             nodes: {
               some: {
                 type: "MOVE_LEAD_STATUS",
