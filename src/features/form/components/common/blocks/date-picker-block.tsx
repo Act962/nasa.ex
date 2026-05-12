@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Calendar as CalendarIcon, ChevronDown, Clock } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -208,16 +208,16 @@ function FormView({
           </PopoverContent>
         </Popover>
         {withTime && (
-          <div className="relative w-36">
-            <Clock
-              className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4"
-              style={{ color: textColor || "#000" }}
-            />
+          // O <input type="time"> já renderiza um ícone de relógio nativo
+          // (lado direito no Chrome, fim do campo no Safari/Firefox). Não
+          // precisa de um <Clock> extra à esquerda — dois ícones confunde
+          // o user. Mantemos só o nativo, mais consistente com o calendário.
+          <div className="w-36">
             <Input
               type="time"
               value={time}
               onChange={(e) => commit(date, e.target.value)}
-              className="pl-8 bg-transparent!"
+              className="bg-transparent!"
               style={{
                 // Sem textColor do tema → força preto sólido (default do
                 // <input type=time> fica cinza claro e some em fundos claros).

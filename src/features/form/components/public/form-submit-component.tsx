@@ -487,6 +487,7 @@ export function FormSubmitComponent({
 
       <div
         data-form-readonly={readOnly ? "true" : undefined}
+        data-form-scroll-container
         className="scrollbar w-full h-full overflow-y-auto pt-3 transition-all duration-300"
         style={{
           backgroundColor: backgroundColor || undefined,
@@ -783,6 +784,23 @@ function StepBlocks({
     handleBlur(key, value);
     setTick((t) => t + 1);
   };
+
+  // Scroll-to-top sempre que muda de passo (Próximo OU Voltar). Sem isso,
+  // o user clicava em "Próximo" e ficava no scroll do passo anterior,
+  // tendo que rolar de volta pro topo manualmente. Tenta primeiro o
+  // container interno do form (`[data-form-scroll-container]`); se não
+  // encontrar (form embedado em outro layout), cai pro window.scrollTo.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const scrollEl = document.querySelector(
+      "[data-form-scroll-container]",
+    ) as HTMLElement | null;
+    if (scrollEl) {
+      scrollEl.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [currentStep]);
 
   // ─── Progresso de preenchimento (computado em TODOS os modos) ───
   // Comum: % de campos preenchíveis (Heading/Paragraph/ImageDisplay
