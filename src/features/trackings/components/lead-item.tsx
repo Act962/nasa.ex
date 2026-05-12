@@ -59,6 +59,11 @@ import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import { TagModal } from "@/features/trackings/components/modal/add-tag-sheet";
 import { SlaTimer } from "@/features/leads/components/sla-timer";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const TEMP_COLOR = {
   COLD: "#3498db",
