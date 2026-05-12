@@ -237,7 +237,7 @@ export const listLeadsByStatus = base
     // que já foram "cumpridos" (status mudou, tag adicionada, form
     // submetido depois do form com a data). 1 query pros 50 leads,
     // indexed por (leadId, occurredAt). N+1 evitado.
-    const leadIds = leads.map((l) => l.id);
+    const leadIds = leads.map((l) => l.id) as unknown as string[];
     const triggerEvents = leadIds.length
       ? await prisma.leadJourneyEvent.findMany({
           where: {
@@ -305,7 +305,7 @@ export const listLeadsByStatus = base
         // DatePicker): se algum evento (status mudou / tag adicionada /
         // form submetido) configurado como trigger aconteceu APÓS a
         // criação do response, o prazo some.
-        const leadEvents = eventsByLead.get(lead.id) ?? [];
+        const leadEvents = eventsByLead.get(lead.id as unknown as string) ?? [];
         const allDeadlines = rawResponses
           .flatMap((r) => {
             const configs = extractDeadlineConfigsFromResponse({

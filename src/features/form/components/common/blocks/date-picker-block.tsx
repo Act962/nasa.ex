@@ -440,7 +440,7 @@ function ResetTriggersSection({
 
   // Trackings da org
   const trackingsQ = useQuery({
-    ...orpc.tracking.list.queryOptions({ input: {} }),
+    ...orpc.tracking.list.queryOptions(),
     staleTime: 5 * 60 * 1000,
   });
   // Status do tracking atual do form
