@@ -36,10 +36,7 @@ function checkBlock(block: FormBlockInstance): string | null {
     // Fields que exigem `label` mínimo
     case "TextField":
     case "TextArea":
-    case "Email":
-    case "Phone":
     case "Url":
-    case "Number":
     case "DatePicker":
     case "Slider":
     case "MaskedField":
@@ -47,7 +44,6 @@ function checkBlock(block: FormBlockInstance): string | null {
     case "ImageUpload":
     case "SignatureUser":
     case "SignatureClient":
-    case "Switch":
     case "Checkbox": {
       const label = (attrs.label as string | undefined)?.trim();
       if (!label) return "Defina um título pro campo.";
