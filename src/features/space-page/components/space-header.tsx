@@ -1,13 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { authClient } from "@/lib/auth-client";
+import { orpc } from "@/lib/orpc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Star, UserPlus } from "lucide-react";
+import { ExternalLink, Star, UserPlus, UserCheck, Pencil } from "lucide-react";
 import { HeaderMembersHierarchy } from "./header-members-hierarchy";
+import { EditSpaceDialog } from "./edit-space-dialog";
+import { toast } from "sonner";
 
 interface SpaceHeaderProps {
+  orgId: string;
   name: string;
   slug: string | null;
   nick: string;
@@ -23,6 +30,7 @@ interface SpaceHeaderProps {
 }
 
 export function SpaceHeader({
+  orgId,
   name,
   nick,
   logo,
@@ -34,6 +42,47 @@ export function SpaceHeader({
   followersCount,
   starsReceived,
 }: SpaceHeaderProps) {
+  const router = useRouter();
+  const qc = useQueryClient();
+  const session = authClient.useSession();
+  const isAuthenticated = !!session.data?.user?.id;
+
+  const [editOpen, setEditOpen] = useState(false);
+
+  // Estado "está seguindo?" — vem de getSpace; mantemos local pra UI rápida
+  const { data: space } = useQuery(
+    orpc.public.space.getSpace.queryOptions({ input: { nick } }),
+  );
+  const isFollowing = !!space?.viewer?.isFollowing;
+
+  const toggleFollow = useMutation(
+    orpc.public.space.toggleFollow.mutationOptions({
+      onSuccess: (res) => {
+        toast.success(res.isFollowing ? "Seguindo!" : "Você deixou de seguir.");
+        qc.invalidateQueries({
+          queryKey: orpc.public.space.getSpace.queryKey({ input: { nick } }),
+        });
+        qc.invalidateQueries({
+          queryKey: orpc.public.space.listFollowers.queryKey({ input: { nick } }),
+        });
+      },
+      onError: (err) => toast.error(err.message ?? "Erro ao atualizar."),
+    }),
+  );
+
+  function handleFollow() {
+    if (!isAuthenticated) {
+      toast.message("Faça login pra seguir a empresa.", {
+        action: {
+          label: "Entrar",
+          onClick: () => router.push(`/sign-in?redirect=/space/${nick}`),
+        },
+      });
+      return;
+    }
+    toggleFollow.mutate({ nick });
+  }
+
   return (
     <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900 to-slate-950 shadow-xl">
       {/* Banner */}
@@ -126,31 +175,72 @@ export function SpaceHeader({
             <Button
               size="sm"
               variant="outline"
-              className="border-white/20 bg-white/5 text-white hover:bg-white/10"
+              className={
+                isFollowing
+                  ? "border-orange-400/40 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20"
+                  : "border-white/20 bg-white/5 text-white hover:bg-white/10"
+              }
+              onClick={handleFollow}
+              disabled={toggleFollow.isPending}
             >
-              <UserPlus className="mr-1 size-4" />
-              Seguir
+              {isFollowing ? (
+                <>
+                  <UserCheck className="mr-1 size-4" />
+                  Seguindo
+                </>
+              ) : (
+                <>
+                  <UserPlus className="mr-1 size-4" />
+                  Seguir
+                </>
+              )}
             </Button>
+
             <Button
               size="sm"
               className="bg-yellow-500 text-slate-950 hover:bg-yellow-400"
+              onClick={() => {
+                if (!isAuthenticated) {
+                  toast.message("Faça login pra enviar STAR.", {
+                    action: {
+                      label: "Entrar",
+                      onClick: () => router.push(`/sign-in?redirect=/space/${nick}`),
+                    },
+                  });
+                  return;
+                }
+                // O fluxo de STAR completo fica em outra tela; por enquanto
+                // dispara o link da carteira/STAR (existente no header de
+                // tracking) — quando a página dedicada vier, troca aqui.
+                router.push(`/space/${nick}/star`);
+              }}
             >
               <Star className="mr-1 size-4 fill-current" />
               Enviar STAR
             </Button>
+
             {isViewerAdmin && (
               <Button
-                asChild
                 size="sm"
                 variant="outline"
                 className="border-orange-500 text-orange-400 hover:bg-orange-500/10"
+                onClick={() => setEditOpen(true)}
               >
-                <Link href={`/space/${nick}/edit`}>Editar</Link>
+                <Pencil className="mr-1 size-4" />
+                Editar
               </Button>
             )}
           </div>
         </div>
       </div>
+
+      {isViewerAdmin && (
+        <EditSpaceDialog
+          orgId={orgId}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
+      )}
     </section>
   );
 }

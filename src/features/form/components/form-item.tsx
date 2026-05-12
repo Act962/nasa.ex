@@ -36,6 +36,7 @@ import {
   ItemTitle,
   ItemDescription,
 } from "@/components/ui/item";
+import { PublicVisibilityDialog } from "@/components/public-visibility-dialog";
 
 type PropsType = {
   id: string;
@@ -60,6 +61,7 @@ export const FormItem = (props: PropsType) => {
   } = props;
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [publicConfirmOpen, setPublicConfirmOpen] = useState(false);
   const router = useRouter();
 
   // Mutation para alternar visibilidade na Spacehome
@@ -155,7 +157,16 @@ export const FormItem = (props: PropsType) => {
               disabled={togglePublicOnSpace.isPending}
               onClick={(e) => {
                 e.stopPropagation();
-                togglePublicOnSpace.mutate({ id: formId, isPublicOnSpace: !isPublicOnSpace });
+                if (isPublicOnSpace) {
+                  // desligar é seguro — dispensa confirmação
+                  togglePublicOnSpace.mutate({
+                    id: formId,
+                    isPublicOnSpace: false,
+                  });
+                } else {
+                  // ligar → abre dialog de consentimento
+                  setPublicConfirmOpen(true);
+                }
               }}
             >
               {isPublicOnSpace ? (
@@ -166,7 +177,7 @@ export const FormItem = (props: PropsType) => {
               ) : (
                 <>
                   <Globe className="h-4 w-4" />
-                  Exibir na Spacehome
+                  Visualização Pública
                 </>
               )}
             </DropdownMenuItem>
@@ -183,6 +194,18 @@ export const FormItem = (props: PropsType) => {
           </DropdownMenuContent>
         </DropdownMenu>
       </ItemActions>
+
+      <PublicVisibilityDialog
+        open={publicConfirmOpen}
+        onOpenChange={setPublicConfirmOpen}
+        isPending={togglePublicOnSpace.isPending}
+        onConfirm={() => {
+          togglePublicOnSpace.mutate(
+            { id: formId, isPublicOnSpace: true, consent: true },
+            { onSuccess: () => setPublicConfirmOpen(false) },
+          );
+        }}
+      />
     </Item>
   );
 };

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FieldValue,
   FormBlockInstance,
@@ -24,6 +24,8 @@ import { useConstructUrl } from "@/hooks/use-construct-url";
 import { toast } from "sonner";
 import { useMutationSubmitResponse } from "../../hooks/use-form";
 import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
+import { computeFillProgress } from "@/features/form/lib/form-fill-progress";
+import { FormFillProgressBar } from "./form-fill-progress-bar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -115,6 +117,15 @@ export function FormSubmitComponent({
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setSubmitted] = useState(false);
+
+  // Tick incrementado a cada handleBlur — força re-render pra atualizar a
+  // barra de progresso em tempo real (formVals é useRef, não dispara).
+  const [fillTick, setFillTick] = useState(0);
+  // Set de IDs de campos obrigatórios em destaque (vermelho) — vem do
+  // submit attempt OU do click no item "faltando" da progress bar.
+  const [highlightedIds, setHighlightedIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   // ─── Phone DDI ─────────────────────────────────────────────
   const [selectedCountry, setSelectedCountry] = useState(countries[0]);
@@ -232,30 +243,81 @@ export function FormSubmitComponent({
     return Object.keys(errors).length === 0;
   };
 
+  // Helper que funciona pra string, array, dataURL etc. Antes, `.trim()`
+  // direto no value crashava quando o valor não era string (assinatura
+  // canvas dataURL, upload array, etc.).
+  const isFieldFilled = (v: FieldValue | undefined): boolean => {
+    if (!v) return false;
+    const val = v.value as unknown;
+    if (val == null) return false;
+    if (typeof val === "string") return val.trim().length > 0;
+    if (typeof val === "number") return !Number.isNaN(val);
+    if (typeof val === "boolean") return val;
+    if (Array.isArray(val)) return val.length > 0;
+    if (typeof val === "object") return Object.keys(val).length > 0;
+    return false;
+  };
+
   const validateFormBlocks = () => {
     const errors: { [key: string]: string } = {};
-    blocks.forEach((block) => {
-      block.childblocks?.forEach((childblock) => {
-        const required = childblock.attributes?.required;
-        const blockValue = formVals.current?.[childblock.id]?.value?.trim();
-        if (required && (!blockValue || blockValue.trim() === "")) {
-          errors[childblock.id] = "Este campo é obrigatório";
+    const ids = new Set<string>();
+    const walk = (block: FormBlockInstance) => {
+      if (block.attributes?.required) {
+        const v = formVals.current?.[block.id];
+        if (!isFieldFilled(v)) {
+          errors[block.id] = "Este campo é obrigatório";
+          ids.add(block.id);
         }
-      });
-    });
+      }
+      block.childblocks?.forEach(walk);
+    };
+    blocks.forEach(walk);
     setFormErrors(errors);
+    setHighlightedIds(ids);
     return Object.keys(errors).length === 0;
   };
 
   const handleBlur = (key: string, value: FieldValue) => {
     formVals.current[key] = { value: value.value, meta: value.meta };
-    if (formErrors[key] && value.value.trim() !== "") {
+    // Dispara re-render pra atualizar a barra de progresso live.
+    setFillTick((t) => t + 1);
+
+    // Se o campo virou "preenchido", remove highlight vermelho.
+    if (highlightedIds.has(key) && isFieldFilled({ value: value.value, meta: value.meta })) {
+      setHighlightedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+    if (formErrors[key] && isFieldFilled({ value: value.value, meta: value.meta })) {
       setFormErrors((prev) => {
         const updated = { ...prev };
         delete updated[key];
         return updated;
       });
     }
+  };
+
+  // Computa progresso a cada tick. `fillTick` muda → useMemo recomputa.
+  const fillProgress = useMemo(() => {
+    void fillTick; // dep p/ rerun
+    return computeFillProgress(blocks, formVals.current);
+  }, [blocks, fillTick]);
+
+  // Scroll até o campo faltando + adiciona ao highlight (vermelho pulsante).
+  const focusBlock = (blockId: string) => {
+    const el = document.querySelector(
+      `[data-form-block-id="${blockId}"]`,
+    ) as HTMLElement | null;
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    setHighlightedIds((prev) => {
+      const next = new Set(prev);
+      next.add(blockId);
+      return next;
+    });
   };
 
   const handleSubmit = async () => {
@@ -629,21 +691,33 @@ export function FormSubmitComponent({
 
                     {/* ── Etapa 2: blocos do formulário ── */}
                     {step === 2 && (
-                      <StepBlocks
-                        blocks={blocks}
-                        settings={settings}
-                        handleBlur={handleBlur}
-                        formErrors={formErrors}
-                        isLoading={isLoading}
-                        textColor={textColor}
-                        primaryColor={primaryColor}
-                        primaryBtnStyle={primaryBtnStyle}
-                        showLeadFields={showLeadFields}
-                        formValsRef={formVals}
-                        onBack={() => setStep(1)}
-                        onSubmit={handleSubmit}
-                        submitLabel={submitLabel}
-                      />
+                      <>
+                        {/* Barra "X% preenchido" — atualiza em tempo
+                            real conforme o lead responde os campos
+                            obrigatórios. Clicar abre a lista dos que
+                            faltam e rola até o bloco (que pisca). */}
+                        <FormFillProgressBar
+                          progress={fillProgress}
+                          primaryColor={primaryColor}
+                          textColor={textColor}
+                          onFocusBlock={focusBlock}
+                        />
+                        <StepBlocks
+                          blocks={blocks}
+                          settings={settings}
+                          handleBlur={handleBlur}
+                          formErrors={formErrors}
+                          isLoading={isLoading}
+                          textColor={textColor}
+                          primaryColor={primaryColor}
+                          primaryBtnStyle={primaryBtnStyle}
+                          showLeadFields={showLeadFields}
+                          formValsRef={formVals}
+                          onBack={() => setStep(1)}
+                          onSubmit={handleSubmit}
+                          submitLabel={submitLabel}
+                        />
+                      </>
                     )}
                   </div>
                 )

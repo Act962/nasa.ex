@@ -4,6 +4,7 @@ import { createOrgProject } from "./create";
 import { updateOrgProject } from "./update";
 import { deleteOrgProject } from "./delete";
 import { updateProjectBrand } from "./update-brand";
+import { togglePublic } from "./toggle-public";
 
 export const orgProjectsRouter = {
   list: listOrgProjects,
@@ -12,4 +13,5 @@ export const orgProjectsRouter = {
   update: updateOrgProject,
   delete: deleteOrgProject,
   updateBrand: updateProjectBrand,
+  togglePublic,
 };

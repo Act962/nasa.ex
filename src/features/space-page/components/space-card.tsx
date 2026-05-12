@@ -6,6 +6,10 @@ import type { ReactNode } from "react";
 /**
  * Wrapper padrão dos cards da Spacehome — tema escuro consistente,
  * título + subtítulo + conteúdo flexível.
+ *
+ * Empty state aceita `emptyAction` (ReactNode) que renderiza embaixo do
+ * texto — usado pra exibir CTA "Criar meu primeiro X" pra membros/admins
+ * em cards sem conteúdo.
  */
 interface SpaceCardProps {
   title?: string;
@@ -15,6 +19,8 @@ interface SpaceCardProps {
   className?: string;
   empty?: string;
   isEmpty?: boolean;
+  /** CTA renderizado no empty state (ex: botão "Criar meu primeiro X"). */
+  emptyAction?: ReactNode;
 }
 
 export function SpaceCard({
@@ -25,6 +31,7 @@ export function SpaceCard({
   className,
   empty,
   isEmpty,
+  emptyAction,
 }: SpaceCardProps) {
   return (
     <section
@@ -48,9 +55,12 @@ export function SpaceCard({
       )}
 
       {isEmpty ? (
-        <p className="rounded-xl border border-dashed border-white/10 p-6 text-center text-sm text-white/50">
-          {empty ?? "Nada por aqui ainda."}
-        </p>
+        <div className="rounded-xl border border-dashed border-white/10 p-6 text-center">
+          <p className="text-sm text-white/50">
+            {empty ?? "Nada por aqui ainda."}
+          </p>
+          {emptyAction && <div className="mt-3 flex justify-center">{emptyAction}</div>}
+        </div>
       ) : (
         children
       )}
