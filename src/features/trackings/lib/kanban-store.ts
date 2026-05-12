@@ -81,7 +81,17 @@ export const useKanbanStore = create<KanbanStore>()(
           current.every((c) => list.some((l) => l.id === c.id))
         ) {
           const byId = new Map(list.map((l) => [l.id, l]));
-          const merged = current.map((c) => byId.get(c.id) ?? c);
+          // Preserva o ref antigo quando o conteúdo da coluna é idêntico:
+          // refetch da query traz objetos novos com mesmo conteúdo, e
+          // re-renderizar StatusColumn cascateia em ScrollArea ref churn
+          // (causa do "Maximum update depth").
+          const merged = current.map((c) => {
+            const incoming = byId.get(c.id);
+            if (!incoming) return c;
+            return JSON.stringify(c) === JSON.stringify(incoming)
+              ? c
+              : incoming;
+          });
           const changed = merged.some((m, i) => m !== current[i]);
           if (changed) set({ columnList: merged });
           return;
@@ -120,35 +130,23 @@ export const useKanbanStore = create<KanbanStore>()(
       registerColumn: (columnId, leads) => {
         if (get().isDragging) return;
 
-        const currentLeads = get().columns[columnId]?.leads;
+        const current = get().columns[columnId]?.leads;
+        const next = leads ?? EMPTY_LEADS;
 
-        // Se ambos forem iguais por referência, não faz nada
-        if (currentLeads === leads) return;
+        if (current === next) return;
 
-        // Se a quantidade for a mesma, verifica se os leads são os mesmos (inclusive conteúdo)
-        if (currentLeads && leads && currentLeads.length === leads.length) {
-          // Verifica se todos os objetos de lead na store estão exatamente iguais aos que vieram da query
-          // Isso permite que reordenações otimistas sejam preservadas se o conteúdo e a ordem forem os mesmos
-          const isSameContent = currentLeads.every((l, index) => {
-            const incoming = leads[index];
-            return (
-              incoming &&
-              incoming.id === l.id &&
-              incoming.description === l.description &&
-              incoming.name === l.name &&
-              incoming.updatedAt === (incoming as any).updatedAt // caso tenha updatedAt
-            );
-          });
-
-          if (isSameContent) {
-            return;
-          }
-        }
+        // Compara conteúdo serializado: evita set() quando a query refetch
+        // retornou nova referência mas dados idênticos (causa do loop de
+        // re-render no drag). Captura mudanças em qualquer campo (description,
+        // name, statusId, etc.) — essencial pra que edições de campo via
+        // mutation cheguem ao Zustand store e ao LeadItem que sincroniza
+        // estado local com data.description.
+        if (current && JSON.stringify(current) === JSON.stringify(next)) return;
 
         set((state) => ({
           columns: {
             ...state.columns,
-            [columnId]: { id: columnId, leads: leads ?? EMPTY_LEADS },
+            [columnId]: { id: columnId, leads: next },
           },
         }));
       },

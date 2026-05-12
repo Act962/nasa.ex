@@ -95,23 +95,22 @@ const KanbanBoard = ({ workspaceId }: Props) => {
   useEffect(() => {
     if (!fetchedColumns.length || isDragging) return;
 
-    const currentSignature = columnList
-      .map(
-        (column) =>
-          `${column.id}:${column.name}:${column.color}:${column.actionsCount}:${column.order}`,
-      )
-      .join(",");
-    const nextSignature = fetchedColumns
-      .map(
-        (column) =>
-          `${column.id}:${column.name}:${column.color}:${column.actionsCount}:${column.order}`,
-      )
-      .join(",");
+    // Lê o snapshot atual via getState() em vez de incluir columnList nas deps
+    // — caso contrário, o setColumnList logo abaixo dispararia o efeito de novo.
+    const sig = (cols: any[]) =>
+      cols
+        .map(
+          (column) =>
+            `${column.id}:${column.name}:${column.color}:${column.actionsCount}:${column.order}`,
+        )
+        .join(",");
 
-    if (currentSignature !== nextSignature) {
+    const current = useActionKanbanStore.getState().columnList;
+
+    if (sig(current) !== sig(fetchedColumns)) {
       setColumnList(fetchedColumns);
     }
-  }, [fetchedColumns, setColumnList, isDragging, columnList]);
+  }, [fetchedColumns, setColumnList, isDragging]);
 
   const columnIds = useMemo(() => columnList.map((c) => c.id), [columnList]);
 
@@ -215,6 +214,24 @@ const KanbanBoard = ({ workspaceId }: Props) => {
           return;
         }
 
+        // Aplica o movimento (cross-column OU within-column) APENAS no drop.
+        // Mid-drag não mutamos o store — dnd-kit lida com o visual via
+        // DragOverlay. Isso evita unmount/mount em loop.
+        const currentColumnId = useActionKanbanStore
+          .getState()
+          .findActionColumn(action.id);
+
+        if (currentColumnId !== targetColumnId) {
+          moveActionToColumn(
+            action.id,
+            currentColumnId ?? action.columnId ?? targetColumnId,
+            targetColumnId,
+            overType === "Action" ? (over.id as string) : undefined,
+          );
+        } else if (overType === "Action" && (over.id as string) !== action.id) {
+          moveActionInColumn(targetColumnId, action.id, over.id as string);
+        }
+
         const currentNeighbors = useActionKanbanStore
           .getState()
           .getActionNeighbors(targetColumnId, action.id);
@@ -234,6 +251,7 @@ const KanbanBoard = ({ workspaceId }: Props) => {
             columnId: targetColumnId,
             beforeId: currentNeighbors.beforeId,
             afterId: currentNeighbors.afterId,
+            previousColumnId: originalNeighbors?.columnId,
           },
           { onSettled: () => setIsDragging(false) },
         );
@@ -242,7 +260,14 @@ const KanbanBoard = ({ workspaceId }: Props) => {
 
       setIsDragging(false);
     },
-    [columnList, reorderAction, reorderColumn, setIsDragging],
+    [
+      moveActionInColumn,
+      moveActionToColumn,
+      originalNeighbors,
+      reorderAction,
+      reorderColumn,
+      setIsDragging,
+    ],
   );
 
   const onDragOver = useCallback(
@@ -252,41 +277,33 @@ const KanbanBoard = ({ workspaceId }: Props) => {
 
       const activeId = active.id as string;
       const overId = over.id as string;
+      if (activeId === overId) return;
+
       const activeType = active.data?.current?.type;
       const overType = over.data?.current?.type;
-
-      if (activeId === overId) return;
 
       if (activeType === "Column" && overType === "Column") {
         moveColumn(activeId, overId);
         return;
       }
 
-      if (activeType !== "Action") return;
-
-      const activeColumnId = useActionKanbanStore
-        .getState()
-        .findActionColumn(activeId);
-      if (!activeColumnId) return;
-
-      const overColumnId =
-        overType === "Action"
-          ? (useActionKanbanStore.getState().findActionColumn(overId) ??
-            over.data?.current?.action.columnId)
-          : over.id;
-
-      if (activeColumnId !== overColumnId) {
-        moveActionToColumn(
-          activeId,
-          activeColumnId,
-          overColumnId,
-          overType === "Action" ? overId : undefined,
-        );
-      } else if (overType === "Action") {
-        moveActionInColumn(activeColumnId, activeId, overId);
+      // Within-column é seguro: KanbanCard fica montado na mesma SortableContext,
+      // dnd-kit só aplica CSS transforms (sem unmount/mount → sem ref churn nos
+      // Radix internos). Cross-column NÃO entra aqui — fica pro onDragEnd, senão
+      // o ciclo unmount/remount dispara "Maximum update depth".
+      if (activeType === "Action" && overType === "Action") {
+        const activeAction = active.data?.current?.action;
+        const overAction = over.data?.current?.action;
+        if (
+          activeAction &&
+          overAction &&
+          activeAction.columnId === overAction.columnId
+        ) {
+          moveActionInColumn(activeAction.columnId, activeId, overId);
+        }
       }
     },
-    [moveColumn, moveActionToColumn, moveActionInColumn],
+    [moveColumn, moveActionInColumn],
   );
 
   return (
