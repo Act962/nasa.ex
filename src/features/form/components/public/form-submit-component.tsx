@@ -1174,6 +1174,25 @@ function StepBlocks({
     return true;
   };
 
+  // Marca o id do grupo (RowLayout) que o lead acabou de entrar. Lido
+  // pelo server pra cruzar com `resetTriggers.nextGroupIds` dos
+  // DatePickers — quando o lead alcança um grupo configurado como
+  // trigger, o cronômetro vira "cumprido" e o badge some.
+  const markGroupReached = (groupId: string | undefined) => {
+    if (!groupId) return;
+    const existing = formValsRef.current["__groupsReached"] as
+      | { meta?: { groups?: string[] } }
+      | undefined;
+    const prev = Array.isArray(existing?.meta?.groups)
+      ? existing!.meta!.groups
+      : [];
+    if (prev.includes(groupId)) return;
+    formValsRef.current["__groupsReached"] = {
+      value: "",
+      meta: { groups: [...prev, groupId] },
+    };
+  };
+
   // Auto-advance: quando o grupo atual fica completo, avança sozinho
   if (
     stepMode === "auto" &&
@@ -1182,6 +1201,8 @@ function StepBlocks({
   ) {
     // setTimeout pra evitar update durante render
     setTimeout(() => {
+      // Marca o próximo grupo como alcançado (trigger "Próximo Grupo").
+      markGroupReached(blocks[currentStep + 1]?.id);
       // Auto-save: persiste o estado do grupo atual antes de avançar.
       // fire-and-forget — falha não bloqueia o auto-advance.
       onStepAdvance?.();
@@ -1276,6 +1297,9 @@ function StepBlocks({
               }}
               onClick={() => {
                 if (canAdvance) {
+                  // Marca o próximo grupo como alcançado (trigger
+                  // "Próximo Grupo" do DatePicker resetTriggers).
+                  markGroupReached(blocks[currentStep + 1]?.id);
                   // Auto-save antes de avançar: fire-and-forget.
                   // O primeiro Próximo cria o FormResponses no servidor —
                   // o lead já aparece em "Detalhes do lead > Formulários"

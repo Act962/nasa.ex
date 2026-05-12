@@ -420,6 +420,15 @@ function FormStatusIcon({
  * "escrever no campo Observações" — campo separado (`deadlineHint`)
  * é mais limpo e atualiza em tempo real via Pusher sem corromper o
  * texto editável pelo user.
+ *
+ * Cores (4 tiers):
+ *  - verde   ≥3 dias
+ *  - amarelo entre 24h e 3 dias
+ *  - laranja ≤24h
+ *  - vermelho atrasado
+ *
+ * Formato: ultra-compacto ("2d 14h" / "10h 05m" / "-2d 14h") pra
+ * caber no card do kanban sem estourar. Tooltip mostra o full.
  */
 function DeadlineBadge({
   hint,
@@ -434,8 +443,23 @@ function DeadlineBadge({
     const id = setInterval(() => setTick((t) => t + 1), 30 * 1000);
     return () => clearInterval(id);
   }, []);
-  const info = formatTimeUntil(new Date(hint.deadline));
+  const info = formatTimeUntil(new Date(hint.deadline), { compact: true });
+  const full = formatTimeUntil(new Date(hint.deadline));
   if (!info) return null;
+
+  // 4-tier color map. Stylesheet único pra cada tier, sem alternativas
+  // light/dark complicadas (manteve consistência com paleta usada nos
+  // badges de SLA do tracking).
+  const tierClass = {
+    safe: "border-emerald-400/60 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+    warning:
+      "border-yellow-400/60 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300",
+    urgent:
+      "border-orange-400/60 bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300",
+    expired:
+      "border-red-400/60 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300",
+  }[info.tier];
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -443,9 +467,7 @@ function DeadlineBadge({
           onPointerDown={(e) => e.stopPropagation()}
           className={
             "inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[9px] font-medium tabular-nums whitespace-nowrap border " +
-            (info.expired
-              ? "border-red-400/60 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300"
-              : "border-amber-400/60 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300")
+            tierClass
           }
         >
           <Timer className="size-2.5" />
@@ -455,6 +477,7 @@ function DeadlineBadge({
       <TooltipContent>
         <div className="text-xs flex flex-col">
           <strong>{hint.formName}</strong>
+          <span>{full?.label}</span>
           <span className="text-muted-foreground">
             Prazo: {new Date(hint.deadline).toLocaleString("pt-BR")}
           </span>

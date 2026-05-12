@@ -136,8 +136,10 @@ export function deriveResponseState(input: {
   createdAt: Date | string;
 }): FormResponseState {
   const parsed = parseResponse(input.jsonResponse);
+  // Filtra também chaves com prefixo `__` (meta-campos internos do
+  // sistema, ex: `__groupsReached` do reset trigger do DatePicker).
   const userKeys = Object.keys(parsed).filter(
-    (k) => !SYSTEM_KEYS.has(k),
+    (k) => !SYSTEM_KEYS.has(k) && !k.startsWith("__"),
   );
   const filledKeys = userKeys.filter((k) => hasValue(parsed[k]));
 
