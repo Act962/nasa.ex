@@ -16,7 +16,9 @@ import {
   Sparkles,
   Clock,
   CheckCircle2,
+  Timer,
 } from "lucide-react";
+import { formatTimeUntil } from "@/features/form/lib/extract-deadline";
 import { WhatsappIcon } from "@/components/whatsapp";
 import { Badge } from "@/components/ui/badge";
 import { useQueryTagByLead } from "@/features/tracking-chat/hooks/use-leads-conversation";
@@ -317,6 +319,15 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           {(data.forms ?? []).map((f) => (
             <FormStatusIcon key={f.responseId} form={f} leadId={data.id} />
           ))}
+
+          {/* Prazo mais urgente entre todos os forms do lead.
+              `data.deadlineHint` é computado server-side a partir do
+              DatePicker marcado com `useAsDeadline=true`. Substitui o
+              que iria pra "Observações" (decisão de design: campo
+              separado, sem mexer em description). */}
+          {data.deadlineHint && (
+            <DeadlineBadge hint={data.deadlineHint} />
+          )}
         </div>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -415,6 +426,56 @@ function FormStatusIcon({
         <div className="text-xs flex flex-col">
           <strong>{form.formName}</strong>
           <span className="text-muted-foreground">{stateLabel}</span>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * Badge compacto que mostra o tempo restante (ou ultrapassado) do prazo
+ * mais urgente entre os formulários do lead. Substitui a ideia de
+ * "escrever no campo Observações" — campo separado (`deadlineHint`)
+ * é mais limpo e atualiza em tempo real via Pusher sem corromper o
+ * texto editável pelo user.
+ */
+function DeadlineBadge({
+  hint,
+}: {
+  hint: NonNullable<Lead["deadlineHint"]>;
+}) {
+  // Tick a cada 30s — suficiente pra mostrar "Faltam Xd Yh" se atualizando.
+  // Card do kanban tem muitos leads visíveis ao mesmo tempo; 1s por badge
+  // ficaria pesado.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30 * 1000);
+    return () => clearInterval(id);
+  }, []);
+  const info = formatTimeUntil(new Date(hint.deadline));
+  if (!info) return null;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          onPointerDown={(e) => e.stopPropagation()}
+          className={
+            "inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[9px] font-medium tabular-nums whitespace-nowrap border " +
+            (info.expired
+              ? "border-red-400/60 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300"
+              : "border-amber-400/60 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300")
+          }
+        >
+          <Timer className="size-2.5" />
+          {info.label}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <div className="text-xs flex flex-col">
+          <strong>{hint.formName}</strong>
+          <span className="text-muted-foreground">
+            Prazo: {new Date(hint.deadline).toLocaleString("pt-BR")}
+          </span>
         </div>
       </TooltipContent>
     </Tooltip>
