@@ -444,14 +444,24 @@ function FormGroupItem({
         <ItemActions onClick={(e) => e.stopPropagation()}>
           {/* Countdown do prazo — só aparece quando algum DatePicker do
               form foi marcado com `useAsDeadline=true` E o campo foi
-              preenchido. Vermelho quando atrasado, âmbar quando normal. */}
+              preenchido. 4 tiers de cor:
+                verde   ≥3 dias
+                amarelo entre 24h e 3 dias
+                laranja ≤24h
+                vermelho atrasado */}
           {deadlineInfo && (
             <span
               className={
                 "inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-medium tabular-nums whitespace-nowrap " +
-                (deadlineInfo.expired
-                  ? "border-red-300 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300"
-                  : "border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300")
+                {
+                  safe: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+                  warning:
+                    "border-yellow-300 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300",
+                  urgent:
+                    "border-orange-300 bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300",
+                  expired:
+                    "border-red-300 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300",
+                }[deadlineInfo.tier]
               }
               title={`Prazo: ${group.lastDeadline?.toLocaleString("pt-BR")}`}
             >

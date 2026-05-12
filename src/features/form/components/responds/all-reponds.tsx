@@ -139,11 +139,14 @@ export function AllReponds({ blocks, responses }: Props) {
                   </h4>
                   <div className="space-y-2">
                     {Object.entries(parsedResponses).map(([key, value]) => {
-                      // Skip internal identifier fields in the card content list
+                      // Skip internal identifier fields in the card content list.
+                      // `__` prefix = meta-campo do sistema (ex: __groupsReached
+                      // do DatePicker reset trigger).
                       if (
                         key === "user_name" ||
                         key === "user_phone" ||
-                        key === "user_email"
+                        key === "user_email" ||
+                        key.startsWith("__")
                       )
                         return null;
 
