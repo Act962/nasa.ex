@@ -19,6 +19,10 @@ export function useInfinityConversation(
   statusId: string | null,
   search: string | null,
   currentConversationId?: string,
+  statusFlowFilter?: "FINISHED" | "ACTIVE" | null,
+  selectedChannel?: string,
+  selectedTagIds?: string[],
+  favoritesOnly?: boolean,
 ) {
   const queryClient = useQueryClient();
   const reopenLead = useMutation(orpc.leads.update.mutationOptions({}));
@@ -27,7 +31,16 @@ export function useInfinityConversation(
   useEffect(() => {
     if (!trackingId) return;
 
-    const queryKey = ["conversations.list", trackingId, statusId, search];
+    const queryKey = [
+      "conversations.list",
+      trackingId,
+      statusId,
+      search,
+      statusFlowFilter ?? null,
+      selectedChannel ?? "ALL",
+      selectedTagIds ?? [],
+      favoritesOnly ?? false,
+    ];
 
     const conversationHandler = (body: conversationProps) => {
       playSoundNotification(settings);
@@ -135,6 +148,10 @@ export function useInfinityConversation(
     trackingId,
     statusId,
     search,
+    statusFlowFilter,
+    selectedChannel,
+    selectedTagIds,
+    favoritesOnly,
     queryClient,
     currentConversationId,
     reopenLead,

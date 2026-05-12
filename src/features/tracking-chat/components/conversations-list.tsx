@@ -17,7 +17,6 @@ import {
 import { CreateChatDialog } from "./create-chat-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryTracking } from "@/features/tracking-settings/hooks/use-tracking";
-import { LeadSource } from "@/generated/prisma/enums";
 import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import { pusherClient } from "@/lib/pusher";
 import { orpc } from "@/lib/orpc";
@@ -70,6 +69,10 @@ export function ConversationsList() {
     selectedStatus,
     debouncedSearch,
     conversationId,
+    statusFlowFilter,
+    selectedChannel,
+    selectedTagIds,
+    favoritesOnly,
   );
 
   const infinitiOptions = orpc.conversation.list.infiniteOptions({
@@ -79,12 +82,20 @@ export function ConversationsList() {
       search: debouncedSearch,
       cursor: pageParam,
       limit: 15,
+      statusFlow: statusFlowFilter,
+      channel: selectedChannel === "ALL" ? null : selectedChannel,
+      tagIds: selectedTagIds,
+      favoritesOnly: favoritesOnly || undefined,
     }),
     queryKey: [
       "conversations.list",
       selectedTracking,
       selectedStatus,
       debouncedSearch,
+      statusFlowFilter ?? null,
+      selectedChannel,
+      selectedTagIds,
+      favoritesOnly,
     ],
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -101,33 +112,6 @@ export function ConversationsList() {
   const items = useMemo(() => {
     return data?.pages.flatMap((p) => p.items) ?? [];
   }, [data]);
-
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      if (!matchesChannel(item, selectedChannel)) {
-        return false;
-      }
-
-      if (statusFlowFilter && item.lead.statusFlow !== statusFlowFilter) {
-        return false;
-      }
-
-      if (favoritesOnly && !isFavoriteConversation(item)) {
-        return false;
-      }
-
-      if (
-        selectedTagIds.length > 0 &&
-        !selectedTagIds.some((tagId) =>
-          item.lead.leadTags?.some((leadTag) => leadTag.tag.id === tagId),
-        )
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [items, selectedChannel, statusFlowFilter, favoritesOnly, selectedTagIds]);
 
   const isNearBottom = (el: HTMLDivElement) =>
     el.scrollHeight - el.scrollTop - el.clientHeight <= 80;
@@ -256,7 +240,7 @@ export function ConversationsList() {
             </div>
           ) : (
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              {filteredItems.length === 0 && (
+              {items.length === 0 && (
                 <Empty>
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
@@ -279,7 +263,7 @@ export function ConversationsList() {
                 onScroll={handleScroll}
                 className="overflow-y-auto flex flex-col gap-2 flex-1 pb-4 scroll-cols-tracking min-h-0"
               >
-                {filteredItems.map((item) => (
+                {items.map((item) => (
                   <LeadBox
                     instance={instance}
                     key={item.id}
@@ -313,50 +297,3 @@ export function ConversationsList() {
   );
 }
 
-function matchesChannel(
-  item: {
-    channel?: string | null;
-    lead: {
-      source: LeadSource;
-    };
-  },
-  selectedChannel: "ALL" | "WHATSAPP" | "INSTAGRAM" | "TIKTOK" | "FACEBOOK",
-) {
-  if (selectedChannel === "ALL") {
-    return true;
-  }
-
-  // Use conversation.channel when available (new field), fall back to lead.source
-  const channel = item.channel ?? "WHATSAPP";
-
-  if (selectedChannel === "WHATSAPP") {
-    return channel === "WHATSAPP";
-  }
-
-  return channel === selectedChannel;
-}
-
-function isFavoriteConversation(item: {
-  lead: {
-    leadTags?: {
-      tag: {
-        name: string;
-        slug: string;
-      };
-    }[];
-  };
-}) {
-  return (
-    item.lead.leadTags?.some(({ tag }) => {
-      const normalizedName = tag.name.toLowerCase();
-      const normalizedSlug = tag.slug.toLowerCase();
-
-      return (
-        normalizedName.includes("favorit") ||
-        normalizedSlug.includes("favorit") ||
-        normalizedName.includes("star") ||
-        normalizedSlug.includes("star")
-      );
-    }) ?? false
-  );
-}

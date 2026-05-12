@@ -17,6 +17,13 @@ export const listConversation = base
       search: z.string().nullable(),
       limit: z.number().min(1).max(100).optional(),
       cursor: z.string().optional(),
+      statusFlow: z
+        .enum(["NEW", "ACTIVE", "WAITING", "FINISHED"])
+        .nullable()
+        .optional(),
+      channel: z.string().nullable().optional(),
+      tagIds: z.array(z.string()).optional(),
+      favoritesOnly: z.boolean().optional(),
     }),
   )
 
@@ -26,8 +33,11 @@ export const listConversation = base
       const conversations = await prisma.conversation.findMany({
         where: {
           trackingId: input.trackingId,
+          ...(input.channel && { channel: input.channel as any }),
           lead: {
-            statusFlow: { not: "FINISHED" },
+            statusFlow: input.statusFlow
+              ? { equals: input.statusFlow }
+              : { not: "FINISHED" },
             ...(input.statusId && { statusId: input.statusId }),
             ...(input.search && {
               OR: [
@@ -44,6 +54,23 @@ export const listConversation = base
                   },
                 },
               ],
+            }),
+            ...(input.tagIds?.length && {
+              leadTags: { some: { tagId: { in: input.tagIds } } },
+            }),
+            ...(input.favoritesOnly && {
+              leadTags: {
+                some: {
+                  tag: {
+                    OR: [
+                      { name: { contains: "favorit", mode: "insensitive" } },
+                      { slug: { contains: "favorit", mode: "insensitive" } },
+                      { name: { contains: "star", mode: "insensitive" } },
+                      { slug: { contains: "star", mode: "insensitive" } },
+                    ],
+                  },
+                },
+              },
             }),
           },
         },
