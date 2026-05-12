@@ -27,6 +27,8 @@ import {
   useMutationSavePartialResponse,
 } from "../../hooks/use-form";
 import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
+import { useMutation } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -113,6 +115,16 @@ export function FormSubmitComponent({
   const submitResponse = useMutationSubmitResponse();
   const savePartialResponse = useMutationSavePartialResponse();
 
+  // Cross-device resume: ao digitar o telefone na etapa 1, busca um draft
+  // existente desse lead pra esse form. Se achar, hidrata o prefillMap e
+  // o responseIdRef ANTES de montar a etapa 2 → user continua de onde
+  // parou em qualquer dispositivo. Mutation (não query) porque queremos
+  // disparar uma vez no clique de "Continuar", não auto-fetch.
+  const findDraft = useMutation(
+    orpc.form.findDraftByPhone.mutationOptions({}),
+  );
+  const [resumeLoading, setResumeLoading] = useState(false);
+
   // Id do draft de FormResponses criado pelo primeiro "Próximo" via
   // savePartialResponse. Reusado nas chamadas seguintes (modo update) e
   // passado pro submit final (modo "finalize" — atualiza em vez de criar
@@ -148,7 +160,12 @@ export function FormSubmitComponent({
   // `usePrefillValue`; blocos compostos (UserSelect, FileUpload, Signature)
   // leem o FieldValue inteiro via `usePrefillFieldValue` pra extrair IDs,
   // URLs S3, dataURLs etc. salvos em `meta`.
-  const prefillMap: PrefillFieldMap = (() => {
+  //
+  // É state (não const) pra permitir hidratação dinâmica: quando o user
+  // digita o telefone na etapa 1, consultamos o servidor por drafts em
+  // aberto (cross-device resume) e injetamos aqui ANTES da etapa 2
+  // montar — os blocos pegam os valores via usePrefillValue no mount.
+  const [prefillMap, setPrefillMap] = useState<PrefillFieldMap>(() => {
     if (!initialResponseValues) return {};
     const map: PrefillFieldMap = {};
     for (const [k, v] of Object.entries(initialResponseValues)) {
@@ -157,7 +174,7 @@ export function FormSubmitComponent({
       }
     }
     return map;
-  })();
+  });
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setSubmitted] = useState(false);
@@ -820,12 +837,101 @@ export function FormSubmitComponent({
                         <Button
                           className="w-full max-w-[80%] mx-auto"
                           style={primaryBtnStyle}
-                          onClick={() => {
-                            if (validateLeadFields()) setStep(2);
-                            else toast("Campos obrigatórios não preenchidos");
+                          disabled={resumeLoading}
+                          onClick={async () => {
+                            if (!validateLeadFields()) {
+                              toast("Campos obrigatórios não preenchidos");
+                              return;
+                            }
+                            // Cross-device resume: tenta achar draft pelo
+                            // telefone+formId. Best-effort — qualquer erro
+                            // não bloqueia o fluxo (apenas avança fresh).
+                            if (
+                              showPhone &&
+                              leadInfo.phone.trim() &&
+                              !onSubmitOverride
+                            ) {
+                              setResumeLoading(true);
+                              try {
+                                const phoneNormalized = normalizePhone(
+                                  `${selectedCountry.ddi} ${leadInfo.phone}`,
+                                );
+                                const result = await findDraft.mutateAsync({
+                                  formId: id,
+                                  phone: phoneNormalized,
+                                });
+                                const draft = (
+                                  result as {
+                                    draft?: {
+                                      responseId: string;
+                                      jsonResponse: unknown;
+                                      createdAt: string | Date;
+                                    } | null;
+                                  } | null
+                                )?.draft;
+                                if (draft) {
+                                  // Parse jsonResponse → FieldValue map.
+                                  // Hidrata formVals.current (pra submit) +
+                                  // setPrefillMap (pra blocks renderizarem
+                                  // com os valores antigos).
+                                  let parsed: Record<string, unknown> = {};
+                                  try {
+                                    parsed =
+                                      typeof draft.jsonResponse === "string"
+                                        ? JSON.parse(draft.jsonResponse)
+                                        : (draft.jsonResponse as Record<
+                                            string,
+                                            unknown
+                                          >);
+                                  } catch {
+                                    /* ignore parse error */
+                                  }
+                                  const hydrated: PrefillFieldMap = {};
+                                  for (const [k, v] of Object.entries(parsed)) {
+                                    if (
+                                      v &&
+                                      typeof v === "object" &&
+                                      "value" in (v as Record<string, unknown>) &&
+                                      typeof (v as { value?: unknown }).value ===
+                                        "string"
+                                    ) {
+                                      hydrated[k] = v as {
+                                        value: string;
+                                        meta?: Record<string, unknown>;
+                                      };
+                                      formVals.current[k] = hydrated[k] as {
+                                        value: string;
+                                        meta?: Record<string, unknown>;
+                                      };
+                                    }
+                                  }
+                                  if (Object.keys(hydrated).length > 0) {
+                                    setPrefillMap(hydrated);
+                                    responseIdRef.current = draft.responseId;
+                                    try {
+                                      sessionStorage.setItem(
+                                        responseIdStorageKey,
+                                        draft.responseId,
+                                      );
+                                    } catch {
+                                      /* ignore */
+                                    }
+                                    toast.success(
+                                      "Continuando rascunho salvo",
+                                      { description: "Os campos preenchidos antes foram restaurados." },
+                                    );
+                                  }
+                                }
+                              } catch (err) {
+                                console.warn("[form] findDraft failed", err);
+                              } finally {
+                                setResumeLoading(false);
+                              }
+                            }
+                            setStep(2);
                           }}
                         >
-                          Continuar
+                          {resumeLoading ? "Verificando..." : "Continuar"}
                         </Button>
                       </>
                     )}
@@ -909,11 +1015,30 @@ function StepBlocks({
   const [currentStep, setCurrentStep] = useState(0);
   const [tick, setTick] = useState(0); // re-render quando formVals muda
 
+  // Auto-save com debounce de 1.5s: salva o estado parcial 1.5s depois
+  // do ÚLTIMO blur (cada novo blur reinicia o timer). Cobre o cenário
+  // "user preenche vários campos e fecha o tab antes de clicar Próximo".
+  // Aplicado SOMENTE em stepMode='manual' — onde o Próximo é explícito.
+  // Em 'auto' o avanço já dispara persist; em 'off' o submit final cobre.
+  const blurDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (blurDebounceRef.current) clearTimeout(blurDebounceRef.current);
+    };
+  }, []);
+
   // re-render automático ao receber preenchimento — pra que o auto-advance e
   // o botão habilitado/desabilitado reflitam o estado atual de `formValsRef`.
   const wrappedHandleBlur: HandleBlurFunc = (key, value) => {
     handleBlur(key, value);
     setTick((t) => t + 1);
+    if (stepMode === "manual" && onStepAdvance) {
+      if (blurDebounceRef.current) clearTimeout(blurDebounceRef.current);
+      blurDebounceRef.current = setTimeout(() => {
+        // fire-and-forget — falha não impacta UX.
+        onStepAdvance();
+      }, 1500);
+    }
   };
 
   // Scroll-to-top sempre que muda de passo (Próximo OU Voltar). Sem isso,
