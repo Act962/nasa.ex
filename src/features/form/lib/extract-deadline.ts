@@ -118,12 +118,52 @@ export function extractDeadlineFromResponse(input: {
 }
 
 /**
- * Formata o tempo restante até `deadline` numa string curta tipo
- * "Faltam 02d 14h 03m" ou "Atrasado 01d 06h". `null` se inválido.
+ * Tier de criticidade do prazo, usado pra escolher a cor do badge.
+ *  - `safe`     → verde   (≥ 3 dias restantes)
+ *  - `warning`  → amarelo (entre 24h e 3 dias)
+ *  - `urgent`   → laranja (≤ 24h restantes — "no mesmo dia")
+ *  - `expired`  → vermelho (passou da data)
+ *
+ * Threshold em horas: 24h (urgent) e 72h (warning) — define duas
+ * fronteiras a partir do "tempo restante", coerente com a regra de
+ * negócio (verde 3d+ / amarelo ≤3d / laranja ≤24h / vermelho atrasado).
  */
-export function formatTimeUntil(deadline: Date | null): {
+export type DeadlineTier = "safe" | "warning" | "urgent" | "expired";
+
+export function getDeadlineTier(deadline: Date | null): DeadlineTier | null {
+  if (!deadline) return null;
+  const diffMs = deadline.getTime() - Date.now();
+  if (diffMs < 0) return "expired";
+  const hours = diffMs / (1000 * 60 * 60);
+  if (hours <= 24) return "urgent";
+  if (hours < 24 * 3) return "warning";
+  return "safe";
+}
+
+type FormatOptions = {
+  /**
+   * `compact: true` devolve string CURTA pra cards apertados (kanban):
+   *   - >=1d: "Xd Yh"  (sem minutos)
+   *   - <1d:  "Hh Mm"  (sem segundos)
+   *   - expired: "-Xd Yh" ou "-Hh"  (curto)
+   * `compact: false` (default) devolve string COMPLETA com prefixo
+   * "Faltam"/"Atrasado" pra UIs com mais espaço (lead-form-responses).
+   */
+  compact?: boolean;
+};
+
+/**
+ * Formata o tempo restante até `deadline`. Pode devolver formato longo
+ * ("Faltam 02d 14h 03m") ou compacto ("2d 14h") via `opts.compact`.
+ * Tier de criticidade vem junto pra UI decidir cor.
+ */
+export function formatTimeUntil(
+  deadline: Date | null,
+  opts: FormatOptions = {},
+): {
   label: string;
   expired: boolean;
+  tier: DeadlineTier;
 } | null {
   if (!deadline) return null;
   const diffMs = deadline.getTime() - Date.now();
@@ -132,17 +172,38 @@ export function formatTimeUntil(deadline: Date | null): {
   const hh = Math.floor((absMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const mm = Math.floor((absMs % (1000 * 60 * 60)) / (1000 * 60));
   const ss = Math.floor((absMs % (1000 * 60)) / 1000);
+  const tier = (getDeadlineTier(deadline) ?? "safe") as DeadlineTier;
 
-  // Formato compacto: pra >1 dia mostra "Xd Yh", pra <1 dia mostra "HH:MM:SS"
+  if (opts.compact) {
+    // Formato curto: max ~6 chars sem prefixo. Cabe em qualquer card.
+    let core: string;
+    if (dd > 0) {
+      // "2d 14h" — sem minutos pra economizar espaço
+      core = `${dd}d ${hh}h`;
+    } else if (hh > 0) {
+      // "14h 03m"
+      core = `${hh}h ${String(mm).padStart(2, "0")}m`;
+    } else {
+      // <1h: "59m" (sem segundos no compacto pra reduzir tick visual)
+      core = `${mm}m`;
+    }
+    return {
+      label: diffMs < 0 ? `-${core}` : core,
+      expired: diffMs < 0,
+      tier,
+    };
+  }
+
+  // Formato longo com prefixo
   let core: string;
   if (dd > 0) {
     core = `${dd}d ${String(hh).padStart(2, "0")}h ${String(mm).padStart(2, "0")}m`;
   } else {
     core = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
   }
-
-  if (diffMs < 0) {
-    return { label: `Atrasado ${core}`, expired: true };
-  }
-  return { label: `Faltam ${core}`, expired: false };
+  return {
+    label: diffMs < 0 ? `Atrasado ${core}` : `Faltam ${core}`,
+    expired: diffMs < 0,
+    tier,
+  };
 }
