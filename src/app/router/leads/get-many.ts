@@ -4,7 +4,10 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { deriveResponseState } from "@/features/form/lib/form-response-state";
 import { buildResponseSlug } from "@/features/form/lib/response-slug";
-import { extractDeadlineFromResponse } from "@/features/form/lib/extract-deadline";
+import {
+  extractDeadlineConfigsFromResponse,
+  isDeadlineFulfilled,
+} from "@/features/form/lib/extract-deadline";
 
 const sortOptions = z.enum(["order", "createdAt", "updatedAt"]);
 type SortOption = z.infer<typeof sortOptions>;
@@ -229,6 +232,40 @@ export const listLeadsByStatus = base
           : last[sortBy].toISOString();
     }
 
+    // Batch fetch dos eventos relevantes pros leads desta página — usados
+    // pra cruzar com `resetTriggers` dos DatePickers e ocultar deadlines
+    // que já foram "cumpridos" (status mudou, tag adicionada, form
+    // submetido depois do form com a data). 1 query pros 50 leads,
+    // indexed por (leadId, occurredAt). N+1 evitado.
+    const leadIds = leads.map((l) => l.id);
+    const triggerEvents = leadIds.length
+      ? await prisma.leadJourneyEvent.findMany({
+          where: {
+            leadId: { in: leadIds },
+            kind: { in: ["status_changed", "tag_added", "form_submit"] },
+          },
+          select: {
+            leadId: true,
+            kind: true,
+            occurredAt: true,
+            metadata: true,
+          },
+        })
+      : [];
+    const eventsByLead = new Map<
+      string,
+      Array<{ kind: string; occurredAt: Date; metadata: unknown }>
+    >();
+    for (const e of triggerEvents) {
+      const arr = eventsByLead.get(e.leadId) ?? [];
+      arr.push({
+        kind: e.kind,
+        occurredAt: e.occurredAt,
+        metadata: e.metadata,
+      });
+      eventsByLead.set(e.leadId, arr);
+    }
+
     return {
       leads: leads.map((lead) => {
         // Deriva estado server-side pra cada formResponse e remove
@@ -263,15 +300,30 @@ export const listLeadsByStatus = base
         // se TODOS estiverem vencidos, mostra o mais recentemente vencido.
         // Computed-on-the-fly — sem mudar schema do banco. UI usa pra
         // mostrar badge no card do kanban.
+        //
+        // Filtra prazos CUMPRIDOS via `resetTriggers` (configurado no
+        // DatePicker): se algum evento (status mudou / tag adicionada /
+        // form submetido) configurado como trigger aconteceu APÓS a
+        // criação do response, o prazo some.
+        const leadEvents = eventsByLead.get(lead.id) ?? [];
         const allDeadlines = rawResponses
-          .map((r) => {
-            const d = extractDeadlineFromResponse({
+          .flatMap((r) => {
+            const configs = extractDeadlineConfigsFromResponse({
               jsonResponse: r.jsonResponse,
               jsonBlock: r.form.jsonBlock,
             });
-            return d ? { date: d, formName: r.form.name } : null;
-          })
-          .filter((x): x is { date: Date; formName: string } => x !== null);
+            return configs
+              .filter(
+                (c) =>
+                  !isDeadlineFulfilled({
+                    resetTriggers: c.resetTriggers,
+                    leadEvents,
+                    formCreatedAt: r.createdAt,
+                    jsonResponse: r.jsonResponse,
+                  }),
+              )
+              .map((c) => ({ date: c.date, formName: r.form.name }));
+          });
         const now = Date.now();
         const future = allDeadlines
           .filter((x) => x.date.getTime() >= now)

@@ -3,7 +3,10 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { deriveResponseState } from "@/features/form/lib/form-response-state";
-import { extractDeadlineFromResponse } from "@/features/form/lib/extract-deadline";
+import {
+  extractDeadlineConfigsFromResponse,
+  isDeadlineFulfilled,
+} from "@/features/form/lib/extract-deadline";
 
 /**
  * Lista todas as respostas de formulários vinculadas a um lead.
@@ -46,16 +49,42 @@ export const listFormResponsesByLead = base
         },
       });
 
+      // Eventos do lead pros últimos 90 dias — usados pra checar se algum
+      // trigger configurado em `resetTriggers` dos DatePickers já foi
+      // satisfeito (status mudou, tag, form submetido). 1 query batched.
+      const since = new Date();
+      since.setDate(since.getDate() - 90);
+      const leadEvents = await prisma.leadJourneyEvent.findMany({
+        where: {
+          leadId: input.leadId,
+          kind: { in: ["status_changed", "tag_added", "form_submit"] },
+          occurredAt: { gte: since },
+        },
+        select: { kind: true, occurredAt: true, metadata: true },
+      });
+
       // Deriva o estado server-side e remove `jsonResponse`/`jsonBlock` do
       // payload. Cliente recebe só o que precisa pra renderizar resumo.
       // Também extrai o `deadline` (date field marcado com useAsDeadline)
       // pra que a UI mostre countdown ao lado do botão "Abrir" sem precisar
       // baixar o jsonResponse inteiro.
+      //
+      // Se `resetTriggers` foi configurado E algum trigger já aconteceu,
+      // devolve `deadline: null` (badge some na UI).
       const enriched = responses.map((r) => {
-        const deadline = extractDeadlineFromResponse({
+        const configs = extractDeadlineConfigsFromResponse({
           jsonResponse: r.jsonResponse,
           jsonBlock: r.form.jsonBlock,
         });
+        const activeConfig = configs.find(
+          (c) =>
+            !isDeadlineFulfilled({
+              resetTriggers: c.resetTriggers,
+              leadEvents,
+              formCreatedAt: r.createdAt,
+              jsonResponse: r.jsonResponse,
+            }),
+        );
         return {
           id: r.id,
           createdAt: r.createdAt,
@@ -65,7 +94,7 @@ export const listFormResponsesByLead = base
             jsonBlock: r.form.jsonBlock,
             createdAt: r.createdAt,
           }),
-          deadline: deadline ? deadline.toISOString() : null,
+          deadline: activeConfig ? activeConfig.date.toISOString() : null,
           form: { id: r.form.id, name: r.form.name },
         };
       });

@@ -11,12 +11,29 @@
  * parsear (formato inesperado), retorna null em vez de quebrar.
  */
 
+/**
+ * Configuração de "Zerar Cronômetro quando..." — quando QUALQUER um
+ * dos triggers acontecer, o badge do cronômetro deixa de aparecer
+ * (prazo cumprido).
+ *
+ * Estrutura `ids[]` (multi-select): lógica OR entre os items de cada
+ * trigger E lógica OR entre os triggers.
+ */
+export type ResetTriggers = {
+  trackingIds?: string[];
+  statusIds?: string[];
+  tagIds?: string[];
+  formIds?: string[];
+  nextGroupIds?: string[];
+};
+
 type AnyBlock = {
   id?: string;
   blockType?: string;
   attributes?: {
     useAsDeadline?: boolean;
     withTime?: boolean;
+    resetTriggers?: ResetTriggers;
   };
   childblocks?: AnyBlock[];
 };
@@ -98,10 +115,30 @@ export function extractDeadlineFromResponse(input: {
   jsonBlock: unknown;
   jsonResponse: unknown;
 }): Date | null {
+  const configs = extractDeadlineConfigsFromResponse(input);
+  return configs.length > 0 ? configs[0].date : null;
+}
+
+/**
+ * Versão completa que devolve TODOS os deadlines (com triggers) — usada
+ * pelo server pra cruzar com `LeadJourneyEvent` e descartar prazos
+ * cumpridos antes de agregar `deadlineHint`.
+ */
+export type DeadlineConfig = {
+  date: Date;
+  blockId: string;
+  resetTriggers?: ResetTriggers;
+};
+
+export function extractDeadlineConfigsFromResponse(input: {
+  jsonBlock: unknown;
+  jsonResponse: unknown;
+}): DeadlineConfig[] {
   const blocks = parseBlocks(input.jsonBlock);
   const deadlineBlocks = findDeadlineBlocks(blocks);
-  if (deadlineBlocks.length === 0) return null;
+  if (deadlineBlocks.length === 0) return [];
   const response = parseResponse(input.jsonResponse);
+  const out: DeadlineConfig[] = [];
   for (const b of deadlineBlocks) {
     if (!b.id) continue;
     const entry = response[b.id];
@@ -112,9 +149,101 @@ export function extractDeadlineFromResponse(input: {
           ? String((entry as { value?: unknown }).value ?? "")
           : "";
     const d = parseDateString(raw);
-    if (d) return d;
+    if (d) {
+      out.push({
+        date: d,
+        blockId: b.id,
+        resetTriggers: b.attributes?.resetTriggers,
+      });
+    }
   }
-  return null;
+  return out;
+}
+
+type EventLike = {
+  kind: string;
+  occurredAt: Date | string;
+  metadata?: unknown;
+};
+
+function intersects(a?: string[], b?: unknown): boolean {
+  if (!a || a.length === 0) return false;
+  if (Array.isArray(b)) return a.some((x) => (b as unknown[]).includes(x));
+  if (typeof b === "string") return a.includes(b);
+  return false;
+}
+
+function includesValue(arr?: string[], val?: unknown): boolean {
+  if (!arr || arr.length === 0 || typeof val !== "string") return false;
+  return arr.includes(val);
+}
+
+/**
+ * Verifica se algum dos triggers configurados foi satisfeito por eventos
+ * que aconteceram APÓS a criação da resposta do formulário. Lógica OR:
+ * primeiro trigger satisfeito → cumprido.
+ *
+ *   - status_changed → bate se `metadata.newStatusId` ∈ statusIds OU
+ *     `metadata.newTrackingId` ∈ trackingIds.
+ *   - tag_added → bate se interseção (`metadata.tagIds[]` OU
+ *     `metadata.tagId`) ∩ tagIds não-vazia.
+ *   - form_submit → bate se `metadata.formId` ∈ formIds.
+ *   - Próximo grupo → lê `jsonResponse.__groupsReached.meta.groups` (escrito
+ *     pelo FormSubmitComponent on-step-advance). Se interseção com
+ *     `nextGroupIds` não-vazia → cumprido.
+ */
+export function isDeadlineFulfilled(input: {
+  resetTriggers?: ResetTriggers;
+  leadEvents: EventLike[];
+  formCreatedAt: Date | string;
+  jsonResponse: unknown;
+}): boolean {
+  const t = input.resetTriggers;
+  if (!t) return false;
+  const hasAnyConfig =
+    !!t.trackingIds?.length ||
+    !!t.statusIds?.length ||
+    !!t.tagIds?.length ||
+    !!t.formIds?.length ||
+    !!t.nextGroupIds?.length;
+  if (!hasAnyConfig) return false;
+
+  // Trigger "Próximo grupo" — lê marker do jsonResponse, não depende de
+  // LeadJourneyEvent (é um sinal interno do form fill).
+  if (t.nextGroupIds && t.nextGroupIds.length > 0) {
+    const resp = parseResponse(input.jsonResponse);
+    const marker = resp["__groupsReached"] as
+      | { meta?: { groups?: unknown } }
+      | undefined;
+    const groups = marker?.meta?.groups;
+    if (intersects(t.nextGroupIds, groups)) return true;
+  }
+
+  const formAt =
+    typeof input.formCreatedAt === "string"
+      ? new Date(input.formCreatedAt).getTime()
+      : input.formCreatedAt.getTime();
+
+  for (const evt of input.leadEvents) {
+    const evtAt =
+      typeof evt.occurredAt === "string"
+        ? new Date(evt.occurredAt).getTime()
+        : evt.occurredAt.getTime();
+    if (evtAt <= formAt) continue;
+    const meta = (evt.metadata ?? {}) as Record<string, unknown>;
+    if (evt.kind === "status_changed") {
+      if (includesValue(t.statusIds, meta.newStatusId)) return true;
+      if (includesValue(t.trackingIds, meta.newTrackingId)) return true;
+    } else if (evt.kind === "tag_added") {
+      // metadata pode trazer `tagId` (singular) ou `tagIds` (array)
+      if (intersects(t.tagIds, meta.tagIds)) return true;
+      if (includesValue(t.tagIds, meta.tagId)) return true;
+    } else if (evt.kind === "form_submit") {
+      if (includesValue(t.formIds, meta.formId)) return true;
+    }
+  }
+
+  return false;
 }
 
 /**

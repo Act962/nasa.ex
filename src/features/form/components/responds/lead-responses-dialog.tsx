@@ -121,7 +121,8 @@ export function LeadResponsesDialog({
               key === "user_phone" ||
               key === "user_email" ||
               key === "name" ||
-              key === "phone"
+              key === "phone" ||
+              key.startsWith("__")
             )
               return;
 
@@ -234,10 +235,12 @@ export function LeadResponsesDialog({
                       <div className="space-y-3">
                         {Object.entries(parsedResponses).map(([key, value]) => {
                           // Ignore system fields in the list if they are just identifiers
+                          // ou marcadores internos com prefixo `__`.
                           if (
                             key === "user_name" ||
                             key === "user_phone" ||
-                            key === "user_email"
+                            key === "user_email" ||
+                            key.startsWith("__")
                           )
                             return null;
 
