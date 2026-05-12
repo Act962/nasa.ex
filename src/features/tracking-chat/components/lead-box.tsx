@@ -4,7 +4,7 @@ import type { Conversation, Lead } from "@/generated/prisma/client";
 import { LeadSource } from "@/generated/prisma/enums";
 import { format, isToday, isYesterday } from "date-fns";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { MouseEvent, useCallback } from "react";
 import { AvatarLead } from "./avatar-lead";
 import { colorsByTemperature, LeadSourceColors } from "../utils/card-lead";
 import {
@@ -32,11 +32,14 @@ import {
 import { WhatsappIcon } from "@/components/whatsapp";
 import type { LucideIcon } from "lucide-react";
 
-const STATUS_FLOW_CONFIG: Record<string, { label: string; color: string; Icon: LucideIcon }> = {
-  NEW:      { label: "Novo lead",             color: "#8b5cf6", Icon: Sparkles      },
-  ACTIVE:   { label: "Em atendimento",         color: "#22c55e", Icon: MessageCircle },
-  WAITING:  { label: "Aguardando atendimento", color: "#f59e0b", Icon: Clock         },
-  FINISHED: { label: "Finalizado",             color: "#6b7280", Icon: CheckCircle2  },
+const STATUS_FLOW_CONFIG: Record<
+  string,
+  { label: string; color: string; Icon: LucideIcon }
+> = {
+  NEW: { label: "Novo lead", color: "#8b5cf6", Icon: Sparkles },
+  ACTIVE: { label: "Em atendimento", color: "#22c55e", Icon: MessageCircle },
+  WAITING: { label: "Aguardando atendimento", color: "#f59e0b", Icon: Clock },
+  FINISHED: { label: "Finalizado", color: "#6b7280", Icon: CheckCircle2 },
 };
 import { Instance } from "../types";
 import { phoneMaskFull } from "@/utils/format-phone";
@@ -96,6 +99,11 @@ export function LeadBox({
 
   const messageBody = lastMessage?.body?.split("*")[2] || lastMessage?.body;
 
+  const goToLead = (e: any) => {
+    e.stopPropagation();
+    router.replace(`/contatos/${item.lead.id}`);
+  };
+
   return (
     <>
       <div
@@ -151,12 +159,15 @@ export function LeadBox({
             />
           </div>
         </div>
-        <div className="flex flex-col items-end justify-between h-full min-w-[60px] py-1">
+        <div className="flex flex-col items-end justify-between h-full min-w-15 py-1">
           <div className="flex items-center gap-1">
             <p className="text-[10px] font-light">
               <FormatTime date={lastMessage?.createdAt || item.createdAt} />
             </p>
-            <ArrowUpRightIcon className="size-4 text-muted-foreground" />
+            <ArrowUpRightIcon
+              onClick={goToLead}
+              className="size-4 text-muted-foreground"
+            />
           </div>
           <div className="flex items-center gap-x-1.5 h-full overflow-hidden">
             {unreadCount && unreadCount >= 1 ? (
@@ -169,19 +180,22 @@ export function LeadBox({
             ) : null}
           </div>
           <div className="flex items-center gap-x-2">
-            {item.lead.statusFlow && STATUS_FLOW_CONFIG[item.lead.statusFlow] && (() => {
-              const { label, color, Icon } = STATUS_FLOW_CONFIG[item.lead.statusFlow];
-              return (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Icon className="size-3" style={{ color }} />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{label}</p>
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })()}
+            {item.lead.statusFlow &&
+              STATUS_FLOW_CONFIG[item.lead.statusFlow] &&
+              (() => {
+                const { label, color, Icon } =
+                  STATUS_FLOW_CONFIG[item.lead.statusFlow];
+                return (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Icon className="size-3" style={{ color }} />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{label}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })()}
             <Tooltip>
               <TooltipTrigger asChild>
                 <RocketIcon
