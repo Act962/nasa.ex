@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { LeadResponsesDialog } from "./lead-responses-dialog";
 import { Button } from "@/components/ui/button";
+import { ResponseValue, resolveBlockLabel } from "./response-value";
 
 type Props = {
   blocks: FormBlockInstance[];
@@ -36,7 +37,12 @@ export function AllReponds({ blocks, responses }: Props) {
     .reduce(
       (acc, childblock) => {
         if (childblock) {
-          acc[childblock.id] = childblock?.attributes?.label || "Sem label";
+          // Tenta label, title, question, etc. — diferentes blocos usam
+          // diferentes attrs pra rotular. Sem isso, blocos sem `label`
+          // (heading-style, image-display custom) caíam como "Sem label".
+          acc[childblock.id] =
+            resolveBlockLabel(childblock?.attributes as Record<string, unknown>) ||
+            "Sem label";
         }
         return acc;
       },
@@ -84,8 +90,8 @@ export function AllReponds({ blocks, responses }: Props) {
         const identifier = leadPhone || leadId || leadName;
 
         return (
-          <Card key={response.id} className="bg-foreground/15 p-3 mb-2 w-full">
-            <CardContent className="pb-0 px-1">
+          <Card key={response.id} className="bg-foreground/15 p-3 mb-2 w-full min-w-0 overflow-hidden">
+            <CardContent className="pb-0 px-1 min-w-0">
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-1 mb-2 px-1">
                   <div
@@ -143,17 +149,15 @@ export function AllReponds({ blocks, responses }: Props) {
 
                       const displayValue =
                         typeof value === "object" && value !== null
-                          ? value.value
+                          ? (value as { value?: unknown }).value
                           : value;
 
                       return (
-                        <div key={key} className="flex flex-col px-1">
-                          <div className="font-semibold text-xs text-foreground/80 lowercase">
+                        <div key={key} className="flex flex-col px-1 min-w-0">
+                          <div className="font-semibold text-xs text-foreground/80 lowercase break-words">
                             {childblockMap[key] || "Campo desconhecido"}
                           </div>
-                          <div className="text-sm text-foreground">
-                            {displayValue || "-"}
-                          </div>
+                          <ResponseValue value={displayValue} />
                         </div>
                       );
                     })}

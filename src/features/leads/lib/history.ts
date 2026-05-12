@@ -115,6 +115,30 @@ async function notifyPublicChannel(
 }
 
 /**
+ * Canal interno do lead — usado por "Detalhes do lead" (consultor logado)
+ * pra atualizar Jornada/Tags/Status em tempo real. Dispara SEMPRE (não
+ * depende de publicToken nem do tipo de evento). Quem assina:
+ * `lead-details.tsx` e quaisquer outras telas internas que mostram o lead.
+ *
+ * Diferente do canal público que filtra por `PUBLIC_TIMELINE_EVENTS`:
+ * aqui tudo dispara — admin/consultor quer ver tudo. Inclui tag_added,
+ * tag_removed e mudanças de campo que o público não vê.
+ */
+export async function notifyInternalLeadChannel(
+  leadId: string,
+  eventType: string = "lead_updated",
+) {
+  try {
+    await pusherServer.trigger(`lead-internal-${leadId}`, "update", {
+      eventType,
+      at: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn("[notifyInternalLeadChannel] pusher notify failed", e);
+  }
+}
+
+/**
  * Grava o evento na timeline unificada do lead (`LeadJourneyEvent` via
  * `trackLeadEvent`) e dispara Pusher pro canal público do lead, se ele tiver
  * `publicToken`. Eventos sem mapeamento pra `LeadJourneyEventKind` só
@@ -136,6 +160,8 @@ export async function recordLeadEvent(
     });
   }
   await notifyPublicChannel(input.leadId, input.eventType, client);
+  // Canal interno sempre — atualiza "Detalhes do lead" em tempo real.
+  await notifyInternalLeadChannel(input.leadId, input.eventType);
   return result;
 }
 

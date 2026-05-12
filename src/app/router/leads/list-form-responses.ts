@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { deriveResponseState } from "@/features/form/lib/form-response-state";
+import { extractDeadlineFromResponse } from "@/features/form/lib/extract-deadline";
 
 /**
  * Lista todas as respostas de formulários vinculadas a um lead.
@@ -47,17 +48,27 @@ export const listFormResponsesByLead = base
 
       // Deriva o estado server-side e remove `jsonResponse`/`jsonBlock` do
       // payload. Cliente recebe só o que precisa pra renderizar resumo.
-      const enriched = responses.map((r) => ({
-        id: r.id,
-        createdAt: r.createdAt,
-        label: r.label,
-        state: deriveResponseState({
+      // Também extrai o `deadline` (date field marcado com useAsDeadline)
+      // pra que a UI mostre countdown ao lado do botão "Abrir" sem precisar
+      // baixar o jsonResponse inteiro.
+      const enriched = responses.map((r) => {
+        const deadline = extractDeadlineFromResponse({
           jsonResponse: r.jsonResponse,
           jsonBlock: r.form.jsonBlock,
+        });
+        return {
+          id: r.id,
           createdAt: r.createdAt,
-        }),
-        form: { id: r.form.id, name: r.form.name },
-      }));
+          label: r.label,
+          state: deriveResponseState({
+            jsonResponse: r.jsonResponse,
+            jsonBlock: r.form.jsonBlock,
+            createdAt: r.createdAt,
+          }),
+          deadline: deadline ? deadline.toISOString() : null,
+          form: { id: r.form.id, name: r.form.name },
+        };
+      });
 
       return { responses: enriched };
     } catch (err) {

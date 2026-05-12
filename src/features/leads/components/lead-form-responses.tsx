@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { format, formatDistanceToNowStrict } from "date-fns";
@@ -10,9 +10,10 @@ import {
   Loader,
   PencilLine,
   SquarePenIcon,
+  Timer,
 } from "lucide-react";
 import { orpc } from "@/lib/orpc";
-import { CreateForm } from "@/features/form/components/create-form";
+import { formatTimeUntil } from "@/features/form/lib/extract-deadline";
 import {
   STATE_COLOR,
   STATE_LABEL,
@@ -49,6 +50,11 @@ type ResponseEntry = {
   createdAt: Date | string;
   label: string | null;
   state: FormResponseState;
+  /**
+   * Prazo do form quando algum DatePicker do form é marcado com
+   * `useAsDeadline=true` e foi preenchido. ISO string ou null.
+   */
+  deadline?: string | null;
   form: { id: string; name: string };
 };
 
@@ -62,6 +68,8 @@ type FormGroup = {
   firstAt: Date | null;
   lastLabel: string | null;
   lastState: FormResponseState | null;
+  /** Prazo da última resposta (se houver). Usado no countdown. */
+  lastDeadline: Date | null;
 };
 
 function indexByForm(
@@ -110,6 +118,9 @@ function buildGroups(
       firstAt,
       lastLabel: lastResponse?.label ?? null,
       lastState: lastResponse?.state ?? null,
+      lastDeadline: lastResponse?.deadline
+        ? new Date(lastResponse.deadline)
+        : null,
     };
   });
   // Ordena: forms com respostas (mais recentes primeiro), depois forms sem
@@ -127,12 +138,8 @@ function buildGroups(
 
 export function LeadFormResponses({
   leadId,
-  trackingId,
-  statusId,
 }: {
   leadId: string;
-  trackingId?: string;
-  statusId?: string;
 }) {
   const { data: respData, isLoading: respLoading } = useQuery(
     orpc.leads.listFormResponses.queryOptions({ input: { leadId } }),
@@ -203,11 +210,9 @@ export function LeadFormResponses({
             <h2 className="text-2xl font-semibold tracking-tight">
               Formulários do lead
             </h2>
-            <CreateForm
-              trackingId={trackingId}
-              statusId={statusId}
-              defaultName={`Formulário do lead`}
-            />
+            {/* Botão "Criar formulário" removido daqui — criação de form é
+                fluxo global, não pertence ao detalhe do lead. Lead continua
+                preenchendo forms via "Preencher" na listagem abaixo. */}
           </div>
           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
             <StatsCard
@@ -341,6 +346,21 @@ function FormGroupItem({
   const router = useRouter();
   const hasResponses = group.responses.length > 0;
 
+  // Countdown ao vivo do prazo (se houver). Atualiza a cada 1s pra mostrar
+  // segundos rolando quando faltam menos de 24h. Acima de 24h o componente
+  // formata como "Xd Yh Zm" (sem segundos), então 1s/tick é overkill — mas
+  // o custo é desprezível e mantém o código simples.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!group.lastDeadline) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [group.lastDeadline]);
+  // `now` é referenciada implicitamente via Date.now() em formatTimeUntil,
+  // mas a função usa Date.now() interno. Garantimos o re-render via tick.
+  void now;
+  const deadlineInfo = formatTimeUntil(group.lastDeadline);
+
   // "Abrir" → página dedicada que lista todas as respostas deste form pra
   // este lead, com botão "Preencher novo" e edição inline do título.
   function openFormPage() {
@@ -422,6 +442,24 @@ function FormGroupItem({
         </ItemContent>
 
         <ItemActions onClick={(e) => e.stopPropagation()}>
+          {/* Countdown do prazo — só aparece quando algum DatePicker do
+              form foi marcado com `useAsDeadline=true` E o campo foi
+              preenchido. Vermelho quando atrasado, âmbar quando normal. */}
+          {deadlineInfo && (
+            <span
+              className={
+                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-medium tabular-nums whitespace-nowrap " +
+                (deadlineInfo.expired
+                  ? "border-red-300 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300"
+                  : "border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300")
+              }
+              title={`Prazo: ${group.lastDeadline?.toLocaleString("pt-BR")}`}
+            >
+              <Timer className="size-3" />
+              {deadlineInfo.label}
+            </span>
+          )}
+
           {/* Form ainda não preenchido por este lead → consultor inicia
               um preenchimento em nome do lead (`/formulario/novo/...`). */}
           {!hasResponses && (

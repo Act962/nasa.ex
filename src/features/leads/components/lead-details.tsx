@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { LeadInfo } from "./lead-info";
@@ -18,6 +20,8 @@ import { LeadAttachmentsByFolder } from "./lead-files/lead-attachments-by-folder
 import { ObservationLead } from "./observations";
 import { JourneyTimeline } from "./journey-timeline";
 import { LeadFormResponses } from "./lead-form-responses";
+import { pusherClient } from "@/lib/pusher";
+import { orpc } from "@/lib/orpc";
 
 interface LeadDatailsProps {
   initialData: LeadFull;
@@ -25,9 +29,39 @@ interface LeadDatailsProps {
 
 export function LeadDetails({ initialData }: LeadDatailsProps) {
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const leadId = initialData.lead.id;
   // Aceita `?tab=<value>` pra deep-link na tab desejada (ex: o ícone
   // branco de form no card do kanban leva pra `/contatos/<id>?tab=forms`).
   const tabFromUrl = searchParams?.get("tab") ?? null;
+
+  // Real-time: assina o canal interno do lead pra que tags, status,
+  // jornada e respostas de formulário atualizem sem F5. O servidor
+  // dispara `update` no canal `lead-internal-<id>` em todo update via
+  // `notifyInternalLeadChannel` (chamado em recordLeadEvent + leads/update).
+  // Invalida as queries que cobrem a UI atual.
+  useEffect(() => {
+    if (!leadId) return;
+    const channel = pusherClient.subscribe(`lead-internal-${leadId}`);
+    const handler = () => {
+      queryClient.invalidateQueries({
+        queryKey: orpc.leads.get.queryKey({ input: { id: leadId } }),
+      });
+      queryClient.invalidateQueries({
+        queryKey: orpc.leads.getJourney.queryKey({ input: { leadId } }),
+      });
+      queryClient.invalidateQueries({
+        queryKey: orpc.leads.listFormResponses.queryKey({ input: { leadId } }),
+      });
+      // tags do lead — view list e dropdown lateral
+      queryClient.invalidateQueries({ queryKey: orpc.leads.list.queryKey() });
+    };
+    channel.bind("update", handler);
+    return () => {
+      channel.unbind("update", handler);
+      pusherClient.unsubscribe(`lead-internal-${leadId}`);
+    };
+  }, [leadId, queryClient]);
   const tabs = [
     {
       name: "Observações",
@@ -58,11 +92,7 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       value: "forms",
       icon: ClipboardListIcon,
       content: (
-        <LeadFormResponses
-          leadId={initialData.lead.id}
-          trackingId={initialData.lead.trackingId}
-          statusId={initialData.lead.statusId}
-        />
+        <LeadFormResponses leadId={initialData.lead.id} />
       ),
     },
   ];
