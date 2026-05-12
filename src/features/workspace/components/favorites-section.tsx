@@ -63,7 +63,7 @@ export function FavoritesSection({ workspaceId }: Props) {
         {/* Header */}
         <button
           className="flex items-center gap-1.5 mb-2 group"
-          onClick={() => setCollapsed((v) => !v)}
+          onClick={() => setCollapsed((isCollapsed) => !isCollapsed)}
         >
           <span className="text-xs font-semibold text-foreground/80">
             Meus Favoritos

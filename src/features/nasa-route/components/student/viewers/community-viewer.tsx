@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { ChevronLeft, ExternalLink, Loader2, MessageCircle } from "lucide-react";
+import {
+  ChevronLeft,
+  ExternalLink,
+  Loader2,
+  MessageCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +26,12 @@ interface Props {
     description: string | null;
     coverUrl: string | null;
     communityType: CommunityType | string | null;
-    creatorOrg?: { id: string; name: string; slug: string; logo: string | null } | null;
+    creatorOrg?: {
+      id: string;
+      name: string;
+      slug: string;
+      logo: string | null;
+    } | null;
     creator?: { id: string; name: string; image: string | null } | null;
   };
 }
@@ -82,7 +92,7 @@ export function CommunityViewer({ course }: Props) {
             />
           </div>
         ) : (
-          <div className="aspect-video bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/30 dark:to-emerald-950/30" />
+          <div className="aspect-video bg-linear-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/30 dark:to-emerald-950/30" />
         )}
 
         <div className="space-y-5 p-6">

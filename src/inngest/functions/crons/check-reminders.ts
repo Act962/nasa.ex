@@ -59,7 +59,15 @@ export const processReminder = inngest.createFunction(
             select: {
               id: true,
               name: true,
+              email: true,
+              phone: true,
+              temperature: true,
+              createdAt: true,
+              publicToken: true,
+              source: true,
               conversation: { select: { id: true } },
+              status: { select: { name: true } },
+              tracking: { select: { name: true } },
             },
           },
           conversation: { select: { id: true, leadId: true } },
@@ -93,8 +101,32 @@ export const processReminder = inngest.createFunction(
     const phone = fresh.notifyPhone;
     let sent = false;
 
+    const lead = fresh.lead;
+    const variableMap: Record<string, string> = {
+      "{{name}}": lead?.name ?? "",
+      "{{nome}}": lead?.name ?? "",
+      "{{email}}": lead?.email ?? "",
+      "{{phone}}": lead?.phone ?? "",
+      "{{contato}}": lead?.phone ?? "",
+      "{{data}}": lead?.createdAt
+        ? dayjs(lead.createdAt).locale("pt-br").format("DD/MM/YYYY")
+        : "",
+      "{{data-t}}": lead?.createdAt
+        ? dayjs(lead.createdAt).locale("pt-br").format("DD/MM/YYYY HH:mm")
+        : "",
+      "{{temp}}": lead?.temperature ?? "",
+      "{{track}}": lead?.tracking?.name ?? "",
+      "{{status}}": lead?.status?.name ?? "",
+      "{{fonte}}": lead?.source ?? "",
+      "{{public_link}}": lead?.publicToken ?? "",
+    };
+    let resolvedMessage = fresh.message;
+    for (const [key, val] of Object.entries(variableMap)) {
+      resolvedMessage = resolvedMessage.replaceAll(key, val);
+    }
+
     if (phone && instance?.status === "CONNECTED") {
-      const message = fresh.message;
+      const message = resolvedMessage;
 
       const sendResponse = await step.run("send-whatsapp", () =>
         sendText(
@@ -182,9 +214,9 @@ export const processReminder = inngest.createFunction(
       const action = fresh.action;
       const targetIds = action.participants.map((p) => p.userId);
       const truncated =
-        fresh.message.length > 60
-          ? fresh.message.slice(0, 60) + "…"
-          : fresh.message;
+        resolvedMessage.length > 60
+          ? resolvedMessage.slice(0, 60) + "…"
+          : resolvedMessage;
       const actionUrl = `/workspaces/${action.workspaceId}?actionId=${action.id}`;
 
       await step.run("notify-action-participants", () =>

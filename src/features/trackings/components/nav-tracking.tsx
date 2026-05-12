@@ -6,9 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -22,11 +20,9 @@ import { orpc } from "@/lib/orpc";
 import { DropdownMenu } from "@radix-ui/react-dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import {
+  ArrowLeftIcon,
   CalendarDaysIcon,
-  CalendarPlusIcon,
-  ClockIcon,
   Columns3Icon,
-  Grid2x2Plus,
   MoreHorizontalIcon,
   Plus,
   Search,
@@ -34,7 +30,7 @@ import {
   ZapIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { AddParticipantDialog } from "./add-participant-dialog";
 import { cn } from "@/lib/utils";
@@ -42,6 +38,7 @@ import { cn } from "@/lib/utils";
 export function NavTracking() {
   const params = useParams<{ trackingId: string; workflowId: string }>();
   const pathname = usePathname();
+  const router = useRouter();
   const searchLead = useSearchModal();
   const [addMemberDialogIsOpen, setAddMemberDialogIsOpen] = useState(false);
   const { data, isPending } = useQuery(
@@ -84,6 +81,9 @@ export function NavTracking() {
     <>
       <div className="sticky top-0 bg-background z-10 flex justify-between items-center px-4 py-2 gap-2 border-b border-border">
         <div className="flex items-center gap-x-2">
+          <Button variant="ghost" size="icon" className="size-7" onClick={() => router.back()}>
+            <ArrowLeftIcon className="size-4" />
+          </Button>
           <SidebarTrigger />
 
           <InputGroup onClick={() => searchLead.setIsOpen(true)}>
