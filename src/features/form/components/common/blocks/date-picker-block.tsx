@@ -30,9 +30,20 @@ import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { FormSettings } from "@/generated/prisma/client";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { usePrefillValue } from "@/features/form/context/form-prefill-context";
+import { MultiSelectChips } from "@/features/form/components/common/multi-select-chips";
+import { useQuery } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
 
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "DatePicker";
+
+type ResetTriggersType = {
+  trackingIds?: string[];
+  statusIds?: string[];
+  tagIds?: string[];
+  formIds?: string[];
+  nextGroupIds?: string[];
+};
 
 type AttributesType = {
   label: string;
@@ -47,7 +58,24 @@ type AttributesType = {
    * do tracking (kanban).
    */
   useAsDeadline: boolean;
+  /**
+   * "Zerar Cronômetro quando..." — quando QUALQUER um dos eventos
+   * configurados acontecer (status mudou, tag adicionada, form submetido,
+   * grupo alcançado), o badge do cronômetro deixa de aparecer (prazo
+   * cumprido). Multi-select por categoria, lógica OR entre tudo.
+   */
+  resetTriggers?: ResetTriggersType;
 };
+
+const resetTriggersSchema = z
+  .object({
+    trackingIds: z.array(z.string()).optional(),
+    statusIds: z.array(z.string()).optional(),
+    tagIds: z.array(z.string()).optional(),
+    formIds: z.array(z.string()).optional(),
+    nextGroupIds: z.array(z.string()).optional(),
+  })
+  .optional();
 
 const propertiesValidateSchema = z.object({
   label: z.string().trim().max(255).optional(),
@@ -55,6 +83,7 @@ const propertiesValidateSchema = z.object({
   required: z.boolean().default(false).optional(),
   withTime: z.boolean().default(false).optional(),
   useAsDeadline: z.boolean().default(false).optional(),
+  resetTriggers: resetTriggersSchema,
 });
 type PropertiesType = z.input<typeof propertiesValidateSchema>;
 
@@ -349,6 +378,13 @@ function PropertiesView({
                     do lead {">"} Formulários" aparece o countdown ("Faltam
                     HH:MM:SS") ao lado do botão "Abrir".
                   </p>
+                  {field.value && (
+                    <ResetTriggersSection
+                      value={block.attributes.resetTriggers ?? {}}
+                      onChange={(v) => commit({ resetTriggers: v })}
+                      currentBlockId={block.id}
+                    />
+                  )}
                 </div>
               </FormItem>
             )}
@@ -369,6 +405,196 @@ function PropertiesView({
           />
         </form>
       </Form>
+    </div>
+  );
+}
+
+/**
+ * Seção "Zerar Cronômetro quando..." — aparece embaixo do toggle
+ * `useAsDeadline` quando ele está ON. 5 multi-selects (Tracking, Status,
+ * Tags, Próximo Formulário, Próximo Grupo). Lógica entre triggers é OR:
+ * ANY um deles satisfeito → cronômetro cumprido (badge some).
+ *
+ * Fonte de dados:
+ *  - Tracking: orpc.tracking.list (todos os trackings da org)
+ *  - Status:   orpc.status.listSimple({trackingId}) — limitado ao tracking do form
+ *  - Tags:     orpc.tags.listTags({query.trackingId}) — idem
+ *  - Forms:    orpc.form.list (todos os forms da org, exclui o atual)
+ *  - Grupos:   useBuilderStore().blockLayouts (RowLayouts do form, exclui o pai)
+ */
+function ResetTriggersSection({
+  value,
+  onChange,
+  currentBlockId,
+}: {
+  value: ResetTriggersType;
+  onChange: (v: ResetTriggersType) => void;
+  currentBlockId: string;
+}) {
+  const { formData, blockLayouts, selectedBlockLayout } = useBuilderStore();
+  const trackingId = formData?.settings?.trackingId ?? null;
+  const currentFormId = formData?.id ?? null;
+  // Grupo pai do DatePicker atual — não faz sentido escolher o próprio
+  // grupo como "próximo grupo".
+  const parentGroupId = selectedBlockLayout?.id ?? null;
+
+  // Trackings da org
+  const trackingsQ = useQuery({
+    ...orpc.tracking.list.queryOptions(),
+    staleTime: 5 * 60 * 1000,
+  });
+  // Status do tracking atual do form
+  const statusQ = useQuery({
+    ...orpc.status.listSimple.queryOptions({
+      input: { trackingId: trackingId ?? "" },
+    }),
+    enabled: !!trackingId,
+    staleTime: 5 * 60 * 1000,
+  });
+  // Tags do tracking atual
+  const tagsQ = useQuery({
+    ...orpc.tags.listTags.queryOptions({
+      input: { query: { trackingId: trackingId ?? "" } },
+    }),
+    enabled: !!trackingId,
+    staleTime: 5 * 60 * 1000,
+  });
+  // Forms da org (exclui o atual)
+  const formsQ = useQuery({
+    ...orpc.form.list.queryOptions({ input: {} }),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Grupos do form atual — só RowLayout, filtra fora o grupo pai.
+  // Label cai pra "Grupo N" quando não tem label custom.
+  const groupOptions = (blockLayouts ?? [])
+    .filter((b) => b.id !== parentGroupId)
+    .map((b, idx) => ({
+      id: b.id,
+      label:
+        ((b.attributes as { label?: string } | undefined)?.label?.trim() ||
+          `Grupo ${idx + 1}`),
+    }));
+
+  const trackingOptions = (
+    ((trackingsQ.data as { trackings?: Array<{ id: string; name: string }> } | undefined)
+      ?.trackings) ?? []
+  ).map((t) => ({ id: t.id, label: t.name }));
+
+  const statusOptions = (
+    ((statusQ.data as { status?: Array<{ id: string; name: string; color?: string | null }> } | undefined)
+      ?.status) ?? []
+  ).map((s) => ({ id: s.id, label: s.name, color: s.color ?? null }));
+
+  const tagOptions = (
+    ((tagsQ.data as { tags?: Array<{ id: string; name: string; color?: string | null }> } | undefined)
+      ?.tags) ?? []
+  ).map((t) => ({ id: t.id, label: t.name, color: t.color ?? null }));
+
+  const formOptions = (
+    ((formsQ.data as { forms?: Array<{ id: string; name: string }> } | undefined)
+      ?.forms) ?? []
+  )
+    .filter((f) => f.id !== currentFormId)
+    .map((f) => ({ id: f.id, label: f.name }));
+
+  // Helper pra atualizar uma chave preservando as outras.
+  const updateKey = (
+    key: keyof ResetTriggersType,
+  ): ((next: string[]) => void) => {
+    return (next) => {
+      const merged: ResetTriggersType = { ...value, [key]: next };
+      // Limpa keys vazias pra não inflar o JSON salvo.
+      const cleaned: ResetTriggersType = {};
+      for (const k of [
+        "trackingIds",
+        "statusIds",
+        "tagIds",
+        "formIds",
+        "nextGroupIds",
+      ] as Array<keyof ResetTriggersType>) {
+        const arr = merged[k];
+        if (arr && arr.length > 0) cleaned[k] = arr;
+      }
+      onChange(cleaned);
+    };
+  };
+
+  // Referencia currentBlockId pra futuro uso (ex: filtrar self do formOptions
+  // quando este date-picker virar um campo de form principal). Suprime
+  // "declared but never used" sem mudar a API pública.
+  void currentBlockId;
+
+  return (
+    <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-border/60">
+      <p className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
+        Zerar Cronômetro quando…
+      </p>
+      <p className="text-[11px] text-muted-foreground leading-tight">
+        Qualquer um dos eventos abaixo cumpre o prazo. O badge do
+        cronômetro some do card do lead.
+      </p>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[11px] text-muted-foreground">Tracking</label>
+        <MultiSelectChips
+          options={trackingOptions}
+          value={value.trackingIds ?? []}
+          onChange={updateKey("trackingIds")}
+          placeholder="Selecione trackings…"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[11px] text-muted-foreground">Status</label>
+        <MultiSelectChips
+          options={statusOptions}
+          value={value.statusIds ?? []}
+          onChange={updateKey("statusIds")}
+          placeholder={trackingId ? "Selecione status…" : "Sem tracking no form"}
+          disabled={!trackingId}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[11px] text-muted-foreground">Tags</label>
+        <MultiSelectChips
+          options={tagOptions}
+          value={value.tagIds ?? []}
+          onChange={updateKey("tagIds")}
+          placeholder={trackingId ? "Selecione tags…" : "Sem tracking no form"}
+          disabled={!trackingId}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[11px] text-muted-foreground">
+          Próximo Formulário
+        </label>
+        <MultiSelectChips
+          options={formOptions}
+          value={value.formIds ?? []}
+          onChange={updateKey("formIds")}
+          placeholder="Selecione forms…"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[11px] text-muted-foreground">
+          Próximo Grupo (deste form)
+        </label>
+        <MultiSelectChips
+          options={groupOptions}
+          value={value.nextGroupIds ?? []}
+          onChange={updateKey("nextGroupIds")}
+          placeholder={
+            groupOptions.length > 0
+              ? "Selecione grupos…"
+              : "Sem outros grupos neste form"
+          }
+          disabled={groupOptions.length === 0}
+        />
+      </div>
     </div>
   );
 }
