@@ -7,7 +7,10 @@ import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
 import { sendWorkflowExecution } from "@/inngest/utils";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
-import { recordLeadEvent } from "@/features/leads/lib/history";
+import {
+  recordLeadEvent,
+  notifyInternalLeadChannel,
+} from "@/features/leads/lib/history";
 import { computeSlaDeadline } from "@/features/leads/lib/sla";
 
 // 🟦 UPDATE
@@ -291,6 +294,12 @@ export const updateLead = base
           metadata: { tagIds: input.tagIds },
         });
       }
+
+      // Canal interno sempre — `recordLeadEvent` cobre status/tracking/
+      // responsible. Aqui garantimos que tag_added e qualquer outro update
+      // (name, phone, email, amount, etc) também propaguem em tempo real
+      // pra "Detalhes do lead" do consultor.
+      await notifyInternalLeadChannel(result.lead.id, "lead_updated");
 
       // Log activity for meaningful changes only
       const tracking = await prisma.tracking.findUnique({
