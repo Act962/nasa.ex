@@ -39,6 +39,14 @@ type AttributesType = {
   helperText: string;
   required: boolean;
   withTime: boolean;
+  /**
+   * Quando true, esta data vira o "prazo" do formulário. Na listagem
+   * de "Detalhes do lead > Formulários > Todos os forms" aparece um
+   * countdown ao lado do botão "Abrir" mostrando "Faltam X dias HH:MM:SS".
+   * Também é refletido na observação do lead pra ser visível no card
+   * do tracking (kanban).
+   */
+  useAsDeadline: boolean;
 };
 
 const propertiesValidateSchema = z.object({
@@ -46,6 +54,7 @@ const propertiesValidateSchema = z.object({
   helperText: z.string().trim().max(255).optional(),
   required: z.boolean().default(false).optional(),
   withTime: z.boolean().default(false).optional(),
+  useAsDeadline: z.boolean().default(false).optional(),
 });
 type PropertiesType = z.input<typeof propertiesValidateSchema>;
 
@@ -60,6 +69,7 @@ export const DatePickerBlock: ObjectBlockType = {
       helperText: "",
       required: false,
       withTime: false,
+      useAsDeadline: false,
     } satisfies AttributesType,
   }),
   blockBtnElement: { icon: CalendarIcon, label: "Data" },
@@ -310,6 +320,35 @@ function PropertiesView({
                   <FormControl>
                     <Switch checked={!!field.value} onCheckedChange={(v) => { field.onChange(v); commit({ withTime: v }); }} />
                   </FormControl>
+                </div>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="useAsDeadline"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex flex-col gap-1.5 rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <FormLabel className="text-[13px] font-normal">
+                      Cronometrar a partir desta data
+                    </FormLabel>
+                    <FormControl>
+                      <Switch
+                        checked={!!field.value}
+                        onCheckedChange={(v) => {
+                          field.onChange(v);
+                          commit({ useAsDeadline: v });
+                        }}
+                      />
+                    </FormControl>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    A data preenchida vira o prazo do form. Em "Detalhes
+                    do lead {">"} Formulários" aparece o countdown ("Faltam
+                    HH:MM:SS") ao lado do botão "Abrir".
+                  </p>
                 </div>
               </FormItem>
             )}
