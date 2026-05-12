@@ -33,13 +33,12 @@ function checkBlock(block: FormBlockInstance): string | null {
   const attrs = (block.attributes ?? {}) as Record<string, unknown>;
 
   switch (block.blockType) {
-    // Fields que exigem `label` mínimo
+    // Fields que exigem `label` mínimo. Removidos cases "Email", "Phone",
+    // "Number", "Switch" — não existem no union FormBlockType, eram
+    // unreachable. TS2678 reportava cada um como erro.
     case "TextField":
     case "TextArea":
-    case "Email":
-    case "Phone":
     case "Url":
-    case "Number":
     case "DatePicker":
     case "Slider":
     case "MaskedField":
@@ -47,7 +46,6 @@ function checkBlock(block: FormBlockInstance): string | null {
     case "ImageUpload":
     case "SignatureUser":
     case "SignatureClient":
-    case "Switch":
     case "Checkbox": {
       const label = (attrs.label as string | undefined)?.trim();
       if (!label) return "Defina um título pro campo.";
