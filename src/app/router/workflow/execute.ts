@@ -24,6 +24,12 @@ export const executeWorkflow = base
       });
     }
 
+    if (!workflow.isActive) {
+      throw errors.BAD_REQUEST({
+        message: "Automação está desativada",
+      });
+    }
+
     await sendWorkflowExecution({
       workflowId: input.id,
       initialData: {

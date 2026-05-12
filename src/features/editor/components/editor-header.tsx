@@ -9,10 +9,12 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   useDeleteWorkflow,
   useSuspenseWorkflow,
   useUpdateWorkflow,
+  useUpdateWorkflowIsActive,
   useUpdateWorkflowName,
 } from "@/features/workflows/hooks/use-workflows";
 import { useAtomValue } from "jotai";
@@ -202,11 +204,33 @@ export const EditorBreadcrumbs = ({ workflowId }: { workflowId: string }) => {
   );
 };
 
+const EditorActiveToggle = ({ workflowId }: { workflowId: string }) => {
+  const { trackingId } = useParams<{ trackingId: string }>();
+  const { data } = useSuspenseWorkflow(workflowId);
+  const isActive = data.workflow.isActive;
+  const updateIsActive = useUpdateWorkflowIsActive(trackingId);
+
+  return (
+    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+      <span>{isActive ? "Ativa" : "Inativa"}</span>
+      <Switch
+        checked={isActive}
+        disabled={updateIsActive.isPending}
+        onCheckedChange={(checked) =>
+          updateIsActive.mutate({ workflowId, isActive: checked })
+        }
+        aria-label={isActive ? "Desativar automação" : "Ativar automação"}
+      />
+    </label>
+  );
+};
+
 export const EditorHeader = ({ workflowId }: { workflowId: string }) => {
   return (
     <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4 bg-background">
       <EditorBreadcrumbs workflowId={workflowId} />
       <div className="flex items-center gap-2">
+        <EditorActiveToggle workflowId={workflowId} />
         <EditorOptions workflowId={workflowId} />
         <EditorSaveButton workflowId={workflowId} />
       </div>

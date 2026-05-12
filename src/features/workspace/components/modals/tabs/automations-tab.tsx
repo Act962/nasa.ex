@@ -14,9 +14,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Switch } from "@/components/ui/switch";
 import {
   useCreateWorkspaceWorkflow,
   useSuspenseWorkspaceWorkflows,
+  useUpdateWorkspaceWorkflowIsActive,
 } from "@/features/workspace-editor/hooks/use-workspace-workflows";
 import { getWorkflowStepsPreview } from "@/features/workspace/lib/workflow-preview";
 import { cn } from "@/lib/utils";
@@ -40,6 +42,7 @@ function AutomationsTabContent({ workspaceId }: { workspaceId: string }) {
     data: { workflows },
   } = useSuspenseWorkspaceWorkflows(workspaceId);
   const create = useCreateWorkspaceWorkflow();
+  const updateIsActive = useUpdateWorkspaceWorkflowIsActive(workspaceId);
   const router = useRouter();
 
   const handleCreate = async () => {
@@ -102,9 +105,8 @@ function AutomationsTabContent({ workspaceId }: { workspaceId: string }) {
                 : labels.join(" → ") + (total > labels.length ? " → …" : "");
 
             return (
-              <Link
+              <div
                 key={wf.id}
-                href={`/workspaces/${workspaceId}/automations/${wf.id}`}
                 className="group flex items-center gap-3 rounded-lg border bg-muted/30 p-3 transition-colors hover:bg-muted/60"
               >
                 <div
@@ -113,7 +115,10 @@ function AutomationsTabContent({ workspaceId }: { workspaceId: string }) {
                     wf.isActive ? "bg-emerald-500" : "bg-muted-foreground",
                   )}
                 />
-                <div className="min-w-0 flex-1">
+                <Link
+                  href={`/workspaces/${workspaceId}/automations/${wf.id}`}
+                  className="min-w-0 flex-1"
+                >
                   <div className="flex items-center gap-2">
                     <span className="truncate text-sm font-medium">
                       {wf.name}
@@ -125,9 +130,29 @@ function AutomationsTabContent({ workspaceId }: { workspaceId: string }) {
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {description}
                   </p>
-                </div>
-                <ArrowUpRightIcon className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-              </Link>
+                </Link>
+                <Switch
+                  checked={wf.isActive}
+                  disabled={updateIsActive.isPending}
+                  onCheckedChange={(checked) =>
+                    updateIsActive.mutate({
+                      workflowId: wf.id,
+                      isActive: checked,
+                    })
+                  }
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={
+                    wf.isActive ? "Desativar automação" : "Ativar automação"
+                  }
+                />
+                <Link
+                  href={`/workspaces/${workspaceId}/automations/${wf.id}`}
+                  aria-label="Abrir automação"
+                  className="shrink-0"
+                >
+                  <ArrowUpRightIcon className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                </Link>
+              </div>
             );
           })}
         </div>

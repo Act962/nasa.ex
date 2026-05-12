@@ -50,6 +50,10 @@ export const executeWorkflow = inngest.createFunction(
         },
       });
 
+      if (!workflow.isActive) {
+        throw new NonRetriableError("Workflow is inactive");
+      }
+
       return topologicalSort(workflow.nodes, workflow.connections);
     });
 

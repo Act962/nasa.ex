@@ -108,6 +108,30 @@ export const useUpdateWorkflow = () => {
   );
 };
 
+export const useUpdateWorkflowIsActive = (trackingId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.workflow.update.updateIsActive.mutationOptions({
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.workflow.list.queryKey({
+            input: { trackingId },
+          }),
+        });
+        queryClient.invalidateQueries({
+          queryKey: orpc.workflow.getOne.queryKey({
+            input: { workflowId: data.id },
+          }),
+        });
+      },
+      onError: (error) => {
+        toast.error(`Falha ao alterar status do workflow: ${error.message}`);
+      },
+    }),
+  );
+};
+
 export const useDeleteWorkflow = () => {
   const queryClient = useQueryClient();
 

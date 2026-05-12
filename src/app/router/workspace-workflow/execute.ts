@@ -22,6 +22,11 @@ export const executeWorkspaceWorkflowRoute = base
         message: "Workflow não pertence a um workspace",
       });
     }
+    if (!wf.isActive) {
+      throw errors.BAD_REQUEST({
+        message: "Automação está desativada",
+      });
+    }
 
     await sendWorkspaceWorkflowEvent({
       trigger: "WS_MANUAL_TRIGGER",
