@@ -64,6 +64,7 @@ export const processReminder = inngest.createFunction(
               temperature: true,
               createdAt: true,
               publicToken: true,
+              source: true,
               conversation: { select: { id: true } },
               status: { select: { name: true } },
               tracking: { select: { name: true } },
@@ -116,6 +117,8 @@ export const processReminder = inngest.createFunction(
       "{{temp}}": lead?.temperature ?? "",
       "{{track}}": lead?.tracking?.name ?? "",
       "{{status}}": lead?.status?.name ?? "",
+      "{{fonte}}": lead?.source ?? "",
+      "{{public_link}}": lead?.publicToken ?? "",
     };
     let resolvedMessage = fresh.message;
     for (const [key, val] of Object.entries(variableMap)) {

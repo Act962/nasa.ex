@@ -3,7 +3,14 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { TrashIcon, CalendarIcon, ClockIcon, PhoneIcon, BellIcon, CheckCircle2Icon } from "lucide-react";
+import {
+  TrashIcon,
+  CalendarIcon,
+  ClockIcon,
+  PhoneIcon,
+  BellIcon,
+  CheckCircle2Icon,
+} from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import dayjs from "dayjs";
 import { RECURRENCE_LABELS } from "./data";
@@ -92,79 +99,83 @@ export function ReminderListTab({
 
   return (
     <>
-      <div className="flex flex-col gap-3 px-5 py-4 overflow-y-auto max-h-[400px] scroll-cols-tracking">
+      <div className="flex flex-col gap-3 px-5 py-4 overflow-y-auto max-h-100 scroll-cols-tracking">
         {reminders.map((reminder) => {
           const isDone = !reminder.isActive;
           return (
-          <div
-            key={reminder.id}
-            className={`flex items-start justify-between gap-4 p-3 border rounded-lg bg-card ${
-              isDone
-                ? "border-success/40 opacity-80"
-                : reminder.nextRemindAt && dayjs(reminder.nextRemindAt).isAfter(dayjs())
-                  ? "border-warning/40"
-                  : ""
-            }`}
-          >
-            <div className="flex flex-col gap-1.5 overflow-hidden">
-              <div className="flex items-start gap-1.5">
-                {isDone && (
-                  <CheckCircle2Icon
-                    className="size-4 text-success shrink-0 mt-0.5"
-                    aria-label="Lembrete concluído"
-                  />
-                )}
-                <p
-                  className={`text-sm font-medium leading-snug wrap-break-word ${
-                    isDone ? "line-through text-muted-foreground" : ""
-                  }`}
-                >
-                  {reminder.message}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CalendarIcon className="size-3.5" />
-                  <span>
-                    {reminder.nextRemindAt
-                      ? dayjs(reminder.nextRemindAt).format("DD/MM/YYYY")
-                      : "-"}
-                  </span>
+            <div
+              key={reminder.id}
+              className={`flex items-start justify-between gap-4 p-3 border rounded-lg bg-card ${
+                isDone
+                  ? "border-success/40 opacity-80"
+                  : reminder.nextRemindAt &&
+                      dayjs(reminder.nextRemindAt).isAfter(dayjs())
+                    ? "border-warning/40"
+                    : ""
+              }`}
+            >
+              <div className="flex flex-col gap-1.5 overflow-hidden">
+                <div className="flex items-start gap-1.5">
+                  {isDone && (
+                    <CheckCircle2Icon
+                      className="size-4 text-success shrink-0 mt-0.5"
+                      aria-label="Lembrete concluído"
+                    />
+                  )}
+                  <p
+                    className={`text-sm font-medium leading-snug wrap-break-word ${
+                      isDone ? "line-through text-muted-foreground" : ""
+                    }`}
+                  >
+                    {reminder.message}
+                  </p>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <ClockIcon className="size-3.5" />
-                  <span>{reminder.remindTime}</span>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <CalendarIcon className="size-3.5" />
+                    <span>
+                      {reminder.nextRemindAt
+                        ? dayjs(reminder.nextRemindAt).format("DD/MM/YYYY")
+                        : "-"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <ClockIcon className="size-3.5" />
+                    <span>{reminder.remindTime}</span>
+                  </div>
+                  <div className="px-1.5 py-0.5 rounded-sm bg-muted text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                    {RECURRENCE_LABELS[reminder.recurrenceType]}
+                  </div>
                 </div>
-                <div className="px-1.5 py-0.5 rounded-sm bg-muted text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                  {RECURRENCE_LABELS[reminder.recurrenceType]}
-                </div>
-              </div>
 
-              {reminder.nextRemindAt && dayjs(reminder.nextRemindAt).isAfter(dayjs()) && (
-                <div className="flex items-center gap-1.5 mt-1.5 w-fit rounded-md bg-warning/10 border border-warning/30 px-2 py-1">
-                  <BellIcon className="size-3 text-warning-foreground shrink-0" />
-                  <span className="text-[11px] font-medium text-warning-foreground">
-                    Próximo envio:{" "}
-                    {dayjs(reminder.nextRemindAt).format("DD/MM [às] HH:mm")}
-                  </span>
-                </div>
-              )}
+                {reminder.nextRemindAt &&
+                  dayjs(reminder.nextRemindAt).isAfter(dayjs()) && (
+                    <div className="flex items-center gap-1.5 mt-1.5 w-fit rounded-md bg-warning/10 border border-warning/30 px-2 py-1">
+                      <BellIcon className="size-3 text-warning-foreground shrink-0" />
+                      <span className="text-[11px] font-medium text-warning-foreground">
+                        Próximo envio:{" "}
+                        {dayjs(reminder.nextRemindAt).format(
+                          "DD/MM [às] HH:mm",
+                        )}
+                      </span>
+                    </div>
+                  )}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <ReminderOccurrencesPopover reminderId={reminder.id} />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-destructive size-8"
+                  disabled={deleteReminder.isPending}
+                  onClick={() => setPendingDeleteId(reminder.id)}
+                >
+                  <TrashIcon className="size-4" />
+                  <span className="sr-only">Remover</span>
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <ReminderOccurrencesPopover reminderId={reminder.id} />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-destructive size-8"
-                disabled={deleteReminder.isPending}
-                onClick={() => setPendingDeleteId(reminder.id)}
-              >
-                <TrashIcon className="size-4" />
-                <span className="sr-only">Remover</span>
-              </Button>
-            </div>
-          </div>
           );
         })}
       </div>
@@ -203,9 +214,13 @@ export function ReminderListTab({
 
           <div className="space-y-2">
             <Label htmlFor="confirmDelete">
-              {confirmTarget
-                ? <>Digite <strong>{confirmTarget}</strong> para confirmar</>
-                : 'Digite "Confirmar" para confirmar'}
+              {confirmTarget ? (
+                <>
+                  Digite <strong>{confirmTarget}</strong> para confirmar
+                </>
+              ) : (
+                'Digite "Confirmar" para confirmar'
+              )}
             </Label>
             <Input
               id="confirmDelete"
@@ -217,10 +232,7 @@ export function ReminderListTab({
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setPendingDeleteId(null)}
-            >
+            <Button variant="outline" onClick={() => setPendingDeleteId(null)}>
               Cancelar
             </Button>
             <Button
