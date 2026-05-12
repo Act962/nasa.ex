@@ -81,6 +81,22 @@ type FormSubmitProps = {
    * `onSubmitOverride` apenas com as alterações de assinatura.
    */
   readOnly?: boolean;
+  /**
+   * Callback de auto-save chamado a cada transição de step (Próximo OU
+   * auto-advance). Quando presente, sobrescreve o auto-save padrão que
+   * usa `form.savePartialResponse` (fluxo público). Usado pelo fluxo
+   * INTERNO (`/formulario/novo/<formId>/<leadId>`) pra criar/atualizar
+   * via `createResponseForLead`/`updateResponse` — sem isso, consultor
+   * preenchendo internamente só persistia no submit final.
+   *
+   * Recebe o JSON da resposta atual e o id do draft (null na 1ª chamada).
+   * Deve devolver `{ responseId }` pra que o componente guarde o id
+   * pras chamadas seguintes. Erro propaga — componente ignora silenciosamente.
+   */
+  onPartialSave?: (
+    responseJson: string,
+    currentResponseId: string | null,
+  ) => Promise<{ responseId: string } | null | undefined>;
 };
 
 export function FormSubmitComponent({
@@ -92,6 +108,7 @@ export function FormSubmitComponent({
   onSubmitOverride,
   submitLabel,
   readOnly,
+  onPartialSave,
 }: FormSubmitProps) {
   const submitResponse = useMutationSubmitResponse();
   const savePartialResponse = useMutationSavePartialResponse();
@@ -322,7 +339,10 @@ export function FormSubmitComponent({
    * updateResponse no submit final).
    */
   const persistPartial = async () => {
-    if (onSubmitOverride) return; // edit/internal flow tem outro caminho
+    // Fluxo edit (responseId fixo da URL) NÃO faz auto-save — o save final
+    // do consultor já passa por updateResponse. Sem onPartialSave externo,
+    // skipamos pra evitar criar respostas paralelas.
+    if (onSubmitOverride && !onPartialSave) return;
     if (savingPartialRef.current) return; // dedupe parallel calls
     savingPartialRef.current = true;
     try {
@@ -338,6 +358,22 @@ export function FormSubmitComponent({
           }),
         }),
       });
+
+      // Fluxo INTERNO (consultor): parent forneceu onPartialSave que
+      // decide qual procedure usar (createResponseForLead na 1ª chamada,
+      // updateResponse nas seguintes). Aqui só passamos os dados.
+      if (onPartialSave) {
+        const result = await onPartialSave(
+          responseJson,
+          responseIdRef.current,
+        );
+        if (result?.responseId) {
+          responseIdRef.current = result.responseId;
+        }
+        return;
+      }
+
+      // Fluxo PÚBLICO: usa a procedure pública savePartialResponse.
       const tracking = getTrackingParamsClient();
       const result = await savePartialResponse.mutateAsync({
         id,
