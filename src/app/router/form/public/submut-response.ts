@@ -29,6 +29,15 @@ export const submitResponse = base
       // > Botão "Próximo" > Adicionar tag). A validação de existência é feita
       // dentro da transação.
       nextActionTagId: z.string().optional().nullable(),
+      /**
+       * Quando presente, o submit "finaliza" um draft criado anteriormente
+       * via `savePartialResponse` em vez de criar uma nova FormResponses.
+       * Atualiza o jsonResponse com a versão final e dispara os efeitos
+       * de submissão (workflows, activity log, onboarding inngest) mas
+       * NÃO incrementa o contador (já incrementado no save partial inicial)
+       * nem recria o lead.
+       */
+      responseId: z.string().optional().nullable(),
     }),
   )
   .handler(async ({ input, errors }) => {
@@ -38,6 +47,7 @@ export const submitResponse = base
         response,
         tracking: trackingParams,
         nextActionTagId,
+        responseId: finalizingResponseId,
       } = input;
       const tagIds: string[] = Object.values(JSON.parse(response))
         .map((field: any) => field?.meta?.tagId)
@@ -94,7 +104,57 @@ export const submitResponse = base
 
         const { trackingId, statusId } = form.settings ?? {};
 
-        if (trackingId && statusId) {
+        // ── Modo FINALIZE: já existe um draft criado via savePartialResponse ─
+        // Pula toda a lógica de "achar/criar lead". O lead foi criado na
+        // primeira chamada de savePartial; aqui só recuperamos o `leadId`
+        // pra associar os tags/events e popular o `outLead*` pro redirect.
+        if (finalizingResponseId) {
+          const draft = await tx.formResponses.findFirst({
+            where: { id: finalizingResponseId, formId: id },
+            select: { id: true, leadId: true },
+          });
+          if (!draft) {
+            throw errors.NOT_FOUND({ message: "Draft não encontrado" });
+          }
+          if (draft.leadId) {
+            const draftLead = await tx.lead.findUnique({
+              where: { id: draft.leadId },
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                publicToken: true,
+              },
+            });
+            if (draftLead) {
+              leadId = draftLead.id;
+              outLeadId = draftLead.id;
+              outLeadName = draftLead.name;
+              outLeadEmail = draftLead.email;
+              outLeadPhone = draftLead.phone;
+              outLeadPublicToken =
+                (draftLead as unknown as { publicToken?: string | null })
+                  .publicToken ?? null;
+              // Garante que tags vindas das respostas (radio com tagId) sejam
+              // aplicadas — savePartial não toca em tags.
+              if (tagsFind.length > 0) {
+                await tx.leadTag.createMany({
+                  data: tagsFind.map((tag) => ({
+                    leadId: draftLead.id,
+                    tagId: tag.id,
+                  })),
+                  skipDuplicates: true,
+                });
+              }
+              await trackLeadEvent({
+                leadId,
+                kind: "form_submit",
+                metadata: { formId: id, finalized: true },
+              });
+            }
+          }
+        } else if (trackingId && statusId) {
           let existingLead = null;
           if (userPhone) {
             existingLead = await tx.lead.findUnique({
@@ -192,34 +252,65 @@ export const submitResponse = base
           jsonResponse: response,
         });
 
-        const updatedForm = await tx.form.update({
-          where: {
-            id,
-            published: true,
-          },
-          data: {
-            formSubmissions: {
-              create: {
-                jsonResponse: response,
-                ...(leadId && { leadId }),
-                label: autoLabel,
+        // Modo finalize: atualiza o draft existente em vez de criar duplicata.
+        // NÃO incrementa o contador (já foi incrementado no save partial).
+        let updatedForm: {
+          responses: number;
+          userId: string;
+          organizationId: string;
+          formSubmissions: { id: string; label: string | null }[];
+        };
+        if (finalizingResponseId) {
+          await tx.formResponses.update({
+            where: { id: finalizingResponseId },
+            data: { jsonResponse: response, label: autoLabel },
+          });
+          const formAfter = await tx.form.findUnique({
+            where: { id },
+            select: {
+              responses: true,
+              userId: true,
+              organizationId: true,
+            },
+          });
+          updatedForm = {
+            responses: formAfter?.responses ?? 0,
+            userId: formAfter?.userId ?? "",
+            organizationId: formAfter?.organizationId ?? "",
+            formSubmissions: [
+              { id: finalizingResponseId, label: autoLabel ?? null },
+            ],
+          };
+        } else {
+          updatedForm = await tx.form.update({
+            where: {
+              id,
+              published: true,
+            },
+            data: {
+              formSubmissions: {
+                create: {
+                  jsonResponse: response,
+                  ...(leadId && { leadId }),
+                  label: autoLabel,
+                },
+              },
+              responses: {
+                increment: 1,
               },
             },
-            responses: {
-              increment: 1,
+            select: {
+              responses: true,
+              userId: true,
+              organizationId: true,
+              formSubmissions: {
+                orderBy: { createdAt: "desc" },
+                take: 1,
+                select: { id: true, label: true },
+              },
             },
-          },
-          select: {
-            responses: true,
-            userId: true,
-            organizationId: true,
-            formSubmissions: {
-              orderBy: { createdAt: "desc" },
-              take: 1,
-              select: { id: true, label: true },
-            },
-          },
-        });
+          });
+        }
 
         if (leadId) {
           const lastSub = updatedForm.formSubmissions?.[0];

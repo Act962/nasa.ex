@@ -22,7 +22,10 @@ import {
 } from "@/features/form/context/form-prefill-context";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { toast } from "sonner";
-import { useMutationSubmitResponse } from "../../hooks/use-form";
+import {
+  useMutationSubmitResponse,
+  useMutationSavePartialResponse,
+} from "../../hooks/use-form";
 import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -91,6 +94,25 @@ export function FormSubmitComponent({
   readOnly,
 }: FormSubmitProps) {
   const submitResponse = useMutationSubmitResponse();
+  const savePartialResponse = useMutationSavePartialResponse();
+
+  // Id do draft de FormResponses criado pelo primeiro "Próximo" via
+  // savePartialResponse. Reusado nas chamadas seguintes (modo update) e
+  // passado pro submit final (modo "finalize" — atualiza em vez de criar
+  // duplicata, mantém o counter intacto).
+  //
+  // Backup em sessionStorage permite "continuar de onde parou" após
+  // refresh ou queda de conexão no mesmo tab. Key inclui o formId pra
+  // não embaralhar drafts de forms diferentes.
+  const responseIdStorageKey = `nasa.form.draft.${id}`;
+  const responseIdRef = useRef<string | null>(
+    typeof window !== "undefined" && !initialResponseValues
+      ? sessionStorage.getItem(responseIdStorageKey)
+      : null,
+  );
+  // Dedupe: evita disparos paralelos do mesmo save quando o user clica
+  // Próximo várias vezes rápido. NÃO bloqueia tipping no formulário.
+  const savingPartialRef = useRef(false);
 
   const formVals = useRef<{ [key: string]: FieldValue }>(
     // Inicializa com valores existentes no fluxo edit. No fluxo público fica vazio.
@@ -286,6 +308,62 @@ export function FormSubmitComponent({
     }
   };
 
+  /**
+   * Auto-save: persiste o estado atual do form no servidor. Chamado nas
+   * transições de step (Próximo). Cria o `FormResponses` na primeira chamada
+   * (e o lead se necessário) — daí em diante atualiza. O `responseIdRef`
+   * guarda o id pra reusar nas chamadas seguintes e no submit final.
+   *
+   * Best-effort: falhas NÃO bloqueiam a navegação. Se rede cair, o user
+   * continua no form e o próximo Próximo tenta de novo.
+   *
+   * Não roda no modo edição (`onSubmitOverride` presente) — esse fluxo
+   * já tem seu próprio mecanismo de salvar (createResponseForLead/
+   * updateResponse no submit final).
+   */
+  const persistPartial = async () => {
+    if (onSubmitOverride) return; // edit/internal flow tem outro caminho
+    if (savingPartialRef.current) return; // dedupe parallel calls
+    savingPartialRef.current = true;
+    try {
+      const responseJson = JSON.stringify({
+        ...formVals.current,
+        ...(needLogin && {
+          ...(showName && { user_name: leadInfo.name }),
+          ...(showEmail && { user_email: leadInfo.email }),
+          ...(showPhone && {
+            user_phone: normalizePhone(
+              `${selectedCountry.ddi} ${leadInfo.phone}`,
+            ),
+          }),
+        }),
+      });
+      const tracking = getTrackingParamsClient();
+      const result = await savePartialResponse.mutateAsync({
+        id,
+        response: responseJson,
+        tracking,
+        ...(responseIdRef.current
+          ? { responseId: responseIdRef.current }
+          : {}),
+      });
+      if (result?.responseId) {
+        responseIdRef.current = result.responseId;
+        try {
+          sessionStorage.setItem(responseIdStorageKey, result.responseId);
+        } catch {
+          /* private mode / quota — ignore */
+        }
+      }
+    } catch (err) {
+      // Falha silenciosa pra não atrapalhar UX. O submit final ainda
+      // funciona (cria do zero se responseIdRef nunca foi setado).
+      console.warn("[form] auto-save falhou", err);
+    } finally {
+      savingPartialRef.current = false;
+    }
+  };
+
   const handleSubmit = async () => {
     if (!validateFormBlocks()) {
       toast("Campos obrigatórios não preenchidos");
@@ -340,6 +418,12 @@ export function FormSubmitComponent({
         id,
         response: responseJson,
         tracking,
+        // Quando houve auto-save via savePartialResponse, passa o id do
+        // draft pro servidor "finalizar" em vez de criar nova FormResponses.
+        // Sem isso, cada submit final criaria 2 rows (draft + final).
+        ...(responseIdRef.current
+          ? { responseId: responseIdRef.current }
+          : {}),
         ...(nextAction.type === "add_tag" && nextAction.tagId
           ? { nextActionTagId: nextAction.tagId }
           : {}),
@@ -357,12 +441,14 @@ export function FormSubmitComponent({
               if (
                 k &&
                 (k.startsWith("nasa.form.image-upload.") ||
-                  k.startsWith("nasa.form.signature."))
+                  k.startsWith("nasa.form.signature.") ||
+                  k.startsWith("nasa.form.draft."))
               ) {
                 keys.push(k);
               }
             }
             keys.forEach((k) => sessionStorage.removeItem(k));
+            responseIdRef.current = null;
           } catch {
             /* ignore */
           }
@@ -724,6 +810,7 @@ export function FormSubmitComponent({
                         onBack={() => setStep(1)}
                         onSubmit={handleSubmit}
                         submitLabel={submitLabel}
+                        onStepAdvance={persistPartial}
                       />
                     )}
                   </div>
@@ -751,6 +838,7 @@ function StepBlocks({
   onBack,
   onSubmit,
   submitLabel,
+  onStepAdvance,
 }: {
   blocks: FormBlockInstance[];
   settings?: FormSettings | null;
@@ -765,6 +853,13 @@ function StepBlocks({
   onBack: () => void;
   onSubmit: () => void;
   submitLabel?: string;
+  /**
+   * Callback opcional invocado SEMPRE que o user avança um passo (Próximo
+   * em manual mode OU auto-advance quando o grupo fica completo). O parent
+   * usa pra persistir o estado parcial no servidor (savePartialResponse).
+   * Falhas não bloqueiam — é fire-and-forget.
+   */
+  onStepAdvance?: () => Promise<void> | void;
 }) {
   const stepMode =
     ((settings as unknown as { stepMode?: string })?.stepMode ?? "off") as
@@ -925,7 +1020,12 @@ function StepBlocks({
     isGroupComplete(blocks[currentStep])
   ) {
     // setTimeout pra evitar update durante render
-    setTimeout(() => setCurrentStep((s) => Math.min(s + 1, blocks.length - 1)), 0);
+    setTimeout(() => {
+      // Auto-save: persiste o estado do grupo atual antes de avançar.
+      // fire-and-forget — falha não bloqueia o auto-advance.
+      onStepAdvance?.();
+      setCurrentStep((s) => Math.min(s + 1, blocks.length - 1));
+    }, 0);
   }
 
   const currentBlock = blocks[currentStep];
@@ -1015,6 +1115,11 @@ function StepBlocks({
               }}
               onClick={() => {
                 if (canAdvance) {
+                  // Auto-save antes de avançar: fire-and-forget.
+                  // O primeiro Próximo cria o FormResponses no servidor —
+                  // o lead já aparece em "Detalhes do lead > Formulários"
+                  // com o botão "Abrir" liberado.
+                  onStepAdvance?.();
                   setCurrentStep((s) => Math.min(s + 1, blocks.length - 1));
                   return;
                 }
