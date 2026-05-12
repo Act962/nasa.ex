@@ -105,6 +105,11 @@ function getChildWidth(child: FormBlockInstance): ChildWidth {
 }
 
 function getBasisClass(width: ChildWidth): string {
+  // Respeita as posições configuradas no builder a partir de `sm` (640px):
+  // mobile pequeno empilha vertical (espaço apertado), mas tablet e maior
+  // mantêm o layout side-by-side configurado (third / half / two-thirds).
+  // Em desktop o form ganha cap de 650px (no parent), mas as proporções
+  // internas ficam idênticas ao que o admin desenhou.
   switch (width) {
     case "third":
       return "basis-full sm:basis-[calc(33.3333%-0.5rem)]";
@@ -575,14 +580,15 @@ function RowLayoutFormComponent({
     <div className="max-w-full">
       {blockInstance.isLocked && <Border />}
 
-      <Card
-        className={cn(
-          `w-full! bg-foreground/10 relative border shadow-sm min-h-[120px] max-w-[768px] rounded-md p-0!`,
-          blockInstance.isLocked && "rounded-t-none!",
-        )}
+      {/* Grupo (RowLayout) no form público: SEM contorno/fundo/sombra própria.
+          O contorno único do formulário fica no container externo (no
+          form-submit-component). Manter o Card transparente evita
+          "card-dentro-de-card" visual. */}
+      <div
+        className={cn("w-full relative min-h-[120px] max-w-[768px]")}
         style={{ color: textColor || undefined }}
       >
-        <CardContent className="px-2 pb-2 py-4">
+        <div className="px-2 pb-2 py-4">
           <div
             className={cn(
               "flex w-full flex-row flex-wrap items-stretch gap-3 px-3",
@@ -616,8 +622,8 @@ function RowLayoutFormComponent({
               );
             })}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

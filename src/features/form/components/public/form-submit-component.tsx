@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FieldValue,
   FormBlockInstance,
@@ -22,10 +22,13 @@ import {
 } from "@/features/form/context/form-prefill-context";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { toast } from "sonner";
-import { useMutationSubmitResponse } from "../../hooks/use-form";
+import {
+  useMutationSubmitResponse,
+  useMutationSavePartialResponse,
+} from "../../hooks/use-form";
 import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
-import { computeFillProgress } from "@/features/form/lib/form-fill-progress";
-import { FormFillProgressBar } from "./form-fill-progress-bar";
+import { useMutation } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -80,6 +83,22 @@ type FormSubmitProps = {
    * `onSubmitOverride` apenas com as alterações de assinatura.
    */
   readOnly?: boolean;
+  /**
+   * Callback de auto-save chamado a cada transição de step (Próximo OU
+   * auto-advance). Quando presente, sobrescreve o auto-save padrão que
+   * usa `form.savePartialResponse` (fluxo público). Usado pelo fluxo
+   * INTERNO (`/formulario/novo/<formId>/<leadId>`) pra criar/atualizar
+   * via `createResponseForLead`/`updateResponse` — sem isso, consultor
+   * preenchendo internamente só persistia no submit final.
+   *
+   * Recebe o JSON da resposta atual e o id do draft (null na 1ª chamada).
+   * Deve devolver `{ responseId }` pra que o componente guarde o id
+   * pras chamadas seguintes. Erro propaga — componente ignora silenciosamente.
+   */
+  onPartialSave?: (
+    responseJson: string,
+    currentResponseId: string | null,
+  ) => Promise<{ responseId: string } | null | undefined>;
 };
 
 export function FormSubmitComponent({
@@ -91,20 +110,62 @@ export function FormSubmitComponent({
   onSubmitOverride,
   submitLabel,
   readOnly,
+  onPartialSave,
 }: FormSubmitProps) {
   const submitResponse = useMutationSubmitResponse();
+  const savePartialResponse = useMutationSavePartialResponse();
+
+  // Cross-device resume: ao digitar o telefone na etapa 1, busca um draft
+  // existente desse lead pra esse form. Se achar, hidrata o prefillMap e
+  // o responseIdRef ANTES de montar a etapa 2 → user continua de onde
+  // parou em qualquer dispositivo. Mutation (não query) porque queremos
+  // disparar uma vez no clique de "Continuar", não auto-fetch.
+  const findDraft = useMutation(
+    orpc.form.findDraftByPhone.mutationOptions({}),
+  );
+  const [resumeLoading, setResumeLoading] = useState(false);
+
+  // Id do draft de FormResponses criado pelo primeiro "Próximo" via
+  // savePartialResponse. Reusado nas chamadas seguintes (modo update) e
+  // passado pro submit final (modo "finalize" — atualiza em vez de criar
+  // duplicata, mantém o counter intacto).
+  //
+  // Backup em sessionStorage permite "continuar de onde parou" após
+  // refresh ou queda de conexão no mesmo tab. Key inclui o formId pra
+  // não embaralhar drafts de forms diferentes.
+  const responseIdStorageKey = `nasa.form.draft.${id}`;
+  const responseIdRef = useRef<string | null>(
+    typeof window !== "undefined" && !initialResponseValues
+      ? sessionStorage.getItem(responseIdStorageKey)
+      : null,
+  );
+  // Dedupe: evita disparos paralelos do mesmo save quando o user clica
+  // Próximo várias vezes rápido. NÃO bloqueia tipping no formulário.
+  const savingPartialRef = useRef(false);
 
   const formVals = useRef<{ [key: string]: FieldValue }>(
     // Inicializa com valores existentes no fluxo edit. No fluxo público fica vazio.
     initialResponseValues ? { ...initialResponseValues } : {},
   );
 
+  // Chave única por montagem (id do form + epoch ms). Propagada via
+  // FormPrefillProvider; blocos que persistem em sessionStorage (ImageUpload)
+  // a usam como prefixo, isolando cada submission. Sem isso, abrir um form
+  // novo após submeter uma resposta restaurava as imagens da resposta
+  // anterior (mesmo `block.id`).
+  const sessionKeyRef = useRef<string>(`form-${id}-${Date.now()}`);
+
   // Mapa de prefill (FieldValue completo: value + meta) pra o contexto que
   // alimenta os blocos. Blocos simples consomem só `.value` via
   // `usePrefillValue`; blocos compostos (UserSelect, FileUpload, Signature)
   // leem o FieldValue inteiro via `usePrefillFieldValue` pra extrair IDs,
   // URLs S3, dataURLs etc. salvos em `meta`.
-  const prefillMap: PrefillFieldMap = (() => {
+  //
+  // É state (não const) pra permitir hidratação dinâmica: quando o user
+  // digita o telefone na etapa 1, consultamos o servidor por drafts em
+  // aberto (cross-device resume) e injetamos aqui ANTES da etapa 2
+  // montar — os blocos pegam os valores via usePrefillValue no mount.
+  const [prefillMap, setPrefillMap] = useState<PrefillFieldMap>(() => {
     if (!initialResponseValues) return {};
     const map: PrefillFieldMap = {};
     for (const [k, v] of Object.entries(initialResponseValues)) {
@@ -113,19 +174,10 @@ export function FormSubmitComponent({
       }
     }
     return map;
-  })();
+  });
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setSubmitted] = useState(false);
-
-  // Tick incrementado a cada handleBlur — força re-render pra atualizar a
-  // barra de progresso em tempo real (formVals é useRef, não dispara).
-  const [fillTick, setFillTick] = useState(0);
-  // Set de IDs de campos obrigatórios em destaque (vermelho) — vem do
-  // submit attempt OU do click no item "faltando" da progress bar.
-  const [highlightedIds, setHighlightedIds] = useState<Set<string>>(
-    new Set(),
-  );
 
   // ─── Phone DDI ─────────────────────────────────────────────
   const [selectedCountry, setSelectedCountry] = useState(countries[0]);
@@ -260,37 +312,28 @@ export function FormSubmitComponent({
 
   const validateFormBlocks = () => {
     const errors: { [key: string]: string } = {};
-    const ids = new Set<string>();
     const walk = (block: FormBlockInstance) => {
       if (block.attributes?.required) {
         const v = formVals.current?.[block.id];
         if (!isFieldFilled(v)) {
           errors[block.id] = "Este campo é obrigatório";
-          ids.add(block.id);
         }
       }
       block.childblocks?.forEach(walk);
     };
     blocks.forEach(walk);
     setFormErrors(errors);
-    setHighlightedIds(ids);
     return Object.keys(errors).length === 0;
   };
 
   const handleBlur = (key: string, value: FieldValue) => {
     formVals.current[key] = { value: value.value, meta: value.meta };
-    // Dispara re-render pra atualizar a barra de progresso live.
-    setFillTick((t) => t + 1);
-
-    // Se o campo virou "preenchido", remove highlight vermelho.
-    if (highlightedIds.has(key) && isFieldFilled({ value: value.value, meta: value.meta })) {
-      setHighlightedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
-    }
-    if (formErrors[key] && isFieldFilled({ value: value.value, meta: value.meta })) {
+    // StepBlocks tem seu próprio `tick` (incrementado via wrappedHandleBlur)
+    // que dispara re-render pra barra de progresso + mascote atualizarem.
+    if (
+      formErrors[key] &&
+      isFieldFilled({ value: value.value, meta: value.meta })
+    ) {
       setFormErrors((prev) => {
         const updated = { ...prev };
         delete updated[key];
@@ -299,25 +342,79 @@ export function FormSubmitComponent({
     }
   };
 
-  // Computa progresso a cada tick. `fillTick` muda → useMemo recomputa.
-  const fillProgress = useMemo(() => {
-    void fillTick; // dep p/ rerun
-    return computeFillProgress(blocks, formVals.current);
-  }, [blocks, fillTick]);
+  /**
+   * Auto-save: persiste o estado atual do form no servidor. Chamado nas
+   * transições de step (Próximo). Cria o `FormResponses` na primeira chamada
+   * (e o lead se necessário) — daí em diante atualiza. O `responseIdRef`
+   * guarda o id pra reusar nas chamadas seguintes e no submit final.
+   *
+   * Best-effort: falhas NÃO bloqueiam a navegação. Se rede cair, o user
+   * continua no form e o próximo Próximo tenta de novo.
+   *
+   * Não roda no modo edição (`onSubmitOverride` presente) — esse fluxo
+   * já tem seu próprio mecanismo de salvar (createResponseForLead/
+   * updateResponse no submit final).
+   */
+  const persistPartial = async () => {
+    // Fluxo edit (responseId fixo da URL) NÃO faz auto-save — o save final
+    // do consultor já passa por updateResponse. Sem onPartialSave externo,
+    // skipamos pra evitar criar respostas paralelas.
+    if (onSubmitOverride && !onPartialSave) return;
+    if (savingPartialRef.current) return; // dedupe parallel calls
+    savingPartialRef.current = true;
+    try {
+      const responseJson = JSON.stringify({
+        ...formVals.current,
+        ...(needLogin && {
+          ...(showName && { user_name: leadInfo.name }),
+          ...(showEmail && { user_email: leadInfo.email }),
+          ...(showPhone && {
+            user_phone: normalizePhone(
+              `${selectedCountry.ddi} ${leadInfo.phone}`,
+            ),
+          }),
+        }),
+      });
 
-  // Scroll até o campo faltando + adiciona ao highlight (vermelho pulsante).
-  const focusBlock = (blockId: string) => {
-    const el = document.querySelector(
-      `[data-form-block-id="${blockId}"]`,
-    ) as HTMLElement | null;
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Fluxo INTERNO (consultor): parent forneceu onPartialSave que
+      // decide qual procedure usar (createResponseForLead na 1ª chamada,
+      // updateResponse nas seguintes). Aqui só passamos os dados.
+      if (onPartialSave) {
+        const result = await onPartialSave(
+          responseJson,
+          responseIdRef.current,
+        );
+        if (result?.responseId) {
+          responseIdRef.current = result.responseId;
+        }
+        return;
+      }
+
+      // Fluxo PÚBLICO: usa a procedure pública savePartialResponse.
+      const tracking = getTrackingParamsClient();
+      const result = await savePartialResponse.mutateAsync({
+        id,
+        response: responseJson,
+        tracking,
+        ...(responseIdRef.current
+          ? { responseId: responseIdRef.current }
+          : {}),
+      });
+      if (result?.responseId) {
+        responseIdRef.current = result.responseId;
+        try {
+          sessionStorage.setItem(responseIdStorageKey, result.responseId);
+        } catch {
+          /* private mode / quota — ignore */
+        }
+      }
+    } catch (err) {
+      // Falha silenciosa pra não atrapalhar UX. O submit final ainda
+      // funciona (cria do zero se responseIdRef nunca foi setado).
+      console.warn("[form] auto-save falhou", err);
+    } finally {
+      savingPartialRef.current = false;
     }
-    setHighlightedIds((prev) => {
-      const next = new Set(prev);
-      next.add(blockId);
-      return next;
-    });
   };
 
   const handleSubmit = async () => {
@@ -374,6 +471,12 @@ export function FormSubmitComponent({
         id,
         response: responseJson,
         tracking,
+        // Quando houve auto-save via savePartialResponse, passa o id do
+        // draft pro servidor "finalizar" em vez de criar nova FormResponses.
+        // Sem isso, cada submit final criaria 2 rows (draft + final).
+        ...(responseIdRef.current
+          ? { responseId: responseIdRef.current }
+          : {}),
         ...(nextAction.type === "add_tag" && nextAction.tagId
           ? { nextActionTagId: nextAction.tagId }
           : {}),
@@ -381,6 +484,27 @@ export function FormSubmitComponent({
       {
         onSuccess: (res) => {
           setSubmitted(true);
+          // Limpa o backup em sessionStorage agora que a submissão foi
+          // persistida no servidor — evita que o "redirect pra mesma rota"
+          // ou "abrir form novamente" inicialize com dados velhos.
+          try {
+            const keys: string[] = [];
+            for (let i = 0; i < sessionStorage.length; i++) {
+              const k = sessionStorage.key(i);
+              if (
+                k &&
+                (k.startsWith("nasa.form.image-upload.") ||
+                  k.startsWith("nasa.form.signature.") ||
+                  k.startsWith("nasa.form.draft."))
+              ) {
+                keys.push(k);
+              }
+            }
+            keys.forEach((k) => sessionStorage.removeItem(k));
+            responseIdRef.current = null;
+          } catch {
+            /* ignore */
+          }
           const leadInfoOut =
             (res as unknown as {
               lead?: {
@@ -440,8 +564,34 @@ export function FormSubmitComponent({
     color: primaryColor ? getContrastColor(primaryColor) : undefined,
   };
 
+  // Limpa quaisquer backups de sessionStorage de submissions anteriores
+  // (chaves com prefixo `nasa.form.image-upload.`) ao montar uma NOVA
+  // resposta (sem initialResponseValues). Em modo edição preservamos —
+  // o prefill já cobre o restore via `meta.images`.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (initialResponseValues) return;
+    try {
+      const keys: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const k = sessionStorage.key(i);
+        if (
+          k &&
+          (k.startsWith("nasa.form.image-upload.") ||
+            k.startsWith("nasa.form.signature."))
+        ) {
+          keys.push(k);
+        }
+      }
+      keys.forEach((k) => sessionStorage.removeItem(k));
+    } catch {
+      /* sessionStorage indisponível (private mode, quota) — ignorar */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <FormPrefillProvider values={prefillMap}>
+    <FormPrefillProvider values={prefillMap} sessionKey={sessionKeyRef.current}>
       <style>{`
         #lead_name::placeholder  { color: ${textColor}; }
         #lead_email::placeholder { color: ${textColor}; }
@@ -476,6 +626,7 @@ export function FormSubmitComponent({
 
       <div
         data-form-readonly={readOnly ? "true" : undefined}
+        data-form-scroll-container
         className="scrollbar w-full h-full overflow-y-auto pt-3 transition-all duration-300"
         style={{
           backgroundColor: backgroundColor || undefined,
@@ -489,8 +640,12 @@ export function FormSubmitComponent({
           color: textColor || undefined,
         }}
       >
-        <div className="w-full h-full max-w-[650px] mx-auto">
-          <div className="w-full relative bg-transparent px-2 flex flex-col items-center justify-start pt-1 pb-14">
+        {/* Largura: até desktop real (xl = 1280px+), o form ocupa a tela
+            toda respeitando seu próprio padding interno. Só em desktop
+            (≥ 1280px, laptops 13"+/monitores) limita a 650px centralizado.
+            iPad Pro (1194px) e tudo abaixo agora usa full-width. */}
+        <div className="w-full h-full mx-auto max-w-full xl:max-w-[650px]">
+          <div className="w-full relative bg-transparent px-4 sm:px-6 md:px-8 xl:px-2 flex flex-col items-center justify-start pt-1 pb-14">
             <div className="w-full h-auto">
               {isSubmitted ? (
                 <Card
@@ -527,10 +682,13 @@ export function FormSubmitComponent({
                 blocks.length > 0 && (
                   <div
                     className={cn(
-                      "flex flex-col w-full gap-4 p-4 rounded-md",
+                      // Contorno único do formulário: vive AQUI no container
+                      // externo (não em cada grupo). Os RowLayout públicos
+                      // ficam transparentes — visual limpo, sem card-em-card.
+                      "flex flex-col w-full gap-3 xl:gap-4 p-3 xl:p-4 rounded-md border shadow-sm",
                       backgroundImage
-                        ? "bg-white/20 backdrop-blur-md"
-                        : "bg-foreground/10",
+                        ? "bg-white/20 backdrop-blur-md border-white/30"
+                        : "bg-foreground/10 border-foreground/15",
                     )}
                   >
                     {/* ── Etapa 1: dados do lead ── */}
@@ -677,47 +835,125 @@ export function FormSubmitComponent({
                         </Card>
 
                         <Button
-                          className="w-full"
+                          className="w-full max-w-[80%] mx-auto"
                           style={primaryBtnStyle}
-                          onClick={() => {
-                            if (validateLeadFields()) setStep(2);
-                            else toast("Campos obrigatórios não preenchidos");
+                          disabled={resumeLoading}
+                          onClick={async () => {
+                            if (!validateLeadFields()) {
+                              toast("Campos obrigatórios não preenchidos");
+                              return;
+                            }
+                            // Cross-device resume: tenta achar draft pelo
+                            // telefone+formId. Best-effort — qualquer erro
+                            // não bloqueia o fluxo (apenas avança fresh).
+                            if (
+                              showPhone &&
+                              leadInfo.phone.trim() &&
+                              !onSubmitOverride
+                            ) {
+                              setResumeLoading(true);
+                              try {
+                                const phoneNormalized = normalizePhone(
+                                  `${selectedCountry.ddi} ${leadInfo.phone}`,
+                                );
+                                const result = await findDraft.mutateAsync({
+                                  formId: id,
+                                  phone: phoneNormalized,
+                                });
+                                const draft = (
+                                  result as {
+                                    draft?: {
+                                      responseId: string;
+                                      jsonResponse: unknown;
+                                      createdAt: string | Date;
+                                    } | null;
+                                  } | null
+                                )?.draft;
+                                if (draft) {
+                                  // Parse jsonResponse → FieldValue map.
+                                  // Hidrata formVals.current (pra submit) +
+                                  // setPrefillMap (pra blocks renderizarem
+                                  // com os valores antigos).
+                                  let parsed: Record<string, unknown> = {};
+                                  try {
+                                    parsed =
+                                      typeof draft.jsonResponse === "string"
+                                        ? JSON.parse(draft.jsonResponse)
+                                        : (draft.jsonResponse as Record<
+                                            string,
+                                            unknown
+                                          >);
+                                  } catch {
+                                    /* ignore parse error */
+                                  }
+                                  const hydrated: PrefillFieldMap = {};
+                                  for (const [k, v] of Object.entries(parsed)) {
+                                    if (
+                                      v &&
+                                      typeof v === "object" &&
+                                      "value" in (v as Record<string, unknown>) &&
+                                      typeof (v as { value?: unknown }).value ===
+                                        "string"
+                                    ) {
+                                      hydrated[k] = v as {
+                                        value: string;
+                                        meta?: Record<string, unknown>;
+                                      };
+                                      formVals.current[k] = hydrated[k] as {
+                                        value: string;
+                                        meta?: Record<string, unknown>;
+                                      };
+                                    }
+                                  }
+                                  if (Object.keys(hydrated).length > 0) {
+                                    setPrefillMap(hydrated);
+                                    responseIdRef.current = draft.responseId;
+                                    try {
+                                      sessionStorage.setItem(
+                                        responseIdStorageKey,
+                                        draft.responseId,
+                                      );
+                                    } catch {
+                                      /* ignore */
+                                    }
+                                    toast.success(
+                                      "Continuando rascunho salvo",
+                                      { description: "Os campos preenchidos antes foram restaurados." },
+                                    );
+                                  }
+                                }
+                              } catch (err) {
+                                console.warn("[form] findDraft failed", err);
+                              } finally {
+                                setResumeLoading(false);
+                              }
+                            }
+                            setStep(2);
                           }}
                         >
-                          Continuar
+                          {resumeLoading ? "Verificando..." : "Continuar"}
                         </Button>
                       </>
                     )}
 
                     {/* ── Etapa 2: blocos do formulário ── */}
                     {step === 2 && (
-                      <>
-                        {/* Barra "X% preenchido" — atualiza em tempo
-                            real conforme o lead responde os campos
-                            obrigatórios. Clicar abre a lista dos que
-                            faltam e rola até o bloco (que pisca). */}
-                        <FormFillProgressBar
-                          progress={fillProgress}
-                          primaryColor={primaryColor}
-                          textColor={textColor}
-                          onFocusBlock={focusBlock}
-                        />
-                        <StepBlocks
-                          blocks={blocks}
-                          settings={settings}
-                          handleBlur={handleBlur}
-                          formErrors={formErrors}
-                          isLoading={isLoading}
-                          textColor={textColor}
-                          primaryColor={primaryColor}
-                          primaryBtnStyle={primaryBtnStyle}
-                          showLeadFields={showLeadFields}
-                          formValsRef={formVals}
-                          onBack={() => setStep(1)}
-                          onSubmit={handleSubmit}
-                          submitLabel={submitLabel}
-                        />
-                      </>
+                      <StepBlocks
+                        blocks={blocks}
+                        settings={settings}
+                        handleBlur={handleBlur}
+                        formErrors={formErrors}
+                        isLoading={isLoading}
+                        textColor={textColor}
+                        primaryColor={primaryColor}
+                        primaryBtnStyle={primaryBtnStyle}
+                        showLeadFields={showLeadFields}
+                        formValsRef={formVals}
+                        onBack={() => setStep(1)}
+                        onSubmit={handleSubmit}
+                        submitLabel={submitLabel}
+                        onStepAdvance={persistPartial}
+                      />
                     )}
                   </div>
                 )
@@ -744,6 +980,7 @@ function StepBlocks({
   onBack,
   onSubmit,
   submitLabel,
+  onStepAdvance,
 }: {
   blocks: FormBlockInstance[];
   settings?: FormSettings | null;
@@ -758,6 +995,13 @@ function StepBlocks({
   onBack: () => void;
   onSubmit: () => void;
   submitLabel?: string;
+  /**
+   * Callback opcional invocado SEMPRE que o user avança um passo (Próximo
+   * em manual mode OU auto-advance quando o grupo fica completo). O parent
+   * usa pra persistir o estado parcial no servidor (savePartialResponse).
+   * Falhas não bloqueiam — é fire-and-forget.
+   */
+  onStepAdvance?: () => Promise<void> | void;
 }) {
   const stepMode =
     ((settings as unknown as { stepMode?: string })?.stepMode ?? "off") as
@@ -771,24 +1015,120 @@ function StepBlocks({
   const [currentStep, setCurrentStep] = useState(0);
   const [tick, setTick] = useState(0); // re-render quando formVals muda
 
+  // Auto-save com debounce de 1.5s: salva o estado parcial 1.5s depois
+  // do ÚLTIMO blur (cada novo blur reinicia o timer). Cobre o cenário
+  // "user preenche vários campos e fecha o tab antes de clicar Próximo".
+  // Aplicado SOMENTE em stepMode='manual' — onde o Próximo é explícito.
+  // Em 'auto' o avanço já dispara persist; em 'off' o submit final cobre.
+  const blurDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (blurDebounceRef.current) clearTimeout(blurDebounceRef.current);
+    };
+  }, []);
+
   // re-render automático ao receber preenchimento — pra que o auto-advance e
   // o botão habilitado/desabilitado reflitam o estado atual de `formValsRef`.
   const wrappedHandleBlur: HandleBlurFunc = (key, value) => {
     handleBlur(key, value);
     setTick((t) => t + 1);
+    if (stepMode === "manual" && onStepAdvance) {
+      if (blurDebounceRef.current) clearTimeout(blurDebounceRef.current);
+      blurDebounceRef.current = setTimeout(() => {
+        // fire-and-forget — falha não impacta UX.
+        onStepAdvance();
+      }, 1500);
+    }
   };
+
+  // Scroll-to-top sempre que muda de passo (Próximo OU Voltar). Sem isso,
+  // o user clicava em "Próximo" e ficava no scroll do passo anterior,
+  // tendo que rolar de volta pro topo manualmente. Tenta primeiro o
+  // container interno do form (`[data-form-scroll-container]`); se não
+  // encontrar (form embedado em outro layout), cai pro window.scrollTo.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const scrollEl = document.querySelector(
+      "[data-form-scroll-container]",
+    ) as HTMLElement | null;
+    if (scrollEl) {
+      scrollEl.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [currentStep]);
+
+  // ─── Progresso de preenchimento (computado em TODOS os modos) ───
+  // Comum: % de campos preenchíveis (Heading/Paragraph/ImageDisplay
+  // ficam fora via isFillableBlock). Atualiza em tempo real graças ao
+  // tick incrementado em wrappedHandleBlur.
+  void tick; // referenciar pra evitar dead-state warning + forçar re-render
+  const allChildrenAll = blocks
+    .flatMap((b) => b.childblocks ?? [])
+    .filter((c) =>
+      isFillableBlock(c.blockType, FormBlocks[c.blockType]?.blockCategory),
+    );
+  const totalFieldsAll = allChildrenAll.length;
+  const filledFieldsAll = allChildrenAll.filter((c) => {
+    const v = formValsRef.current?.[c.id]?.value?.trim();
+    return Boolean(v);
+  }).length;
+  const progressPctAll =
+    totalFieldsAll > 0
+      ? Math.round((filledFieldsAll / totalFieldsAll) * 100)
+      : 0;
+  const mascotsAll = resolveProgressMascots(
+    (settings as unknown as { progressMascots?: unknown })?.progressMascots,
+  );
+  const currentMascotAll = getCurrentMascot(mascotsAll, progressPctAll);
+
+  // ─── Header de progresso + mascote — único, reutilizado em ambos modos ───
+  // Mobile/tablet/iPad Pro: barra ocupa toda largura, texto em cima.
+  // Desktop (xl+): texto à esquerda + barra ocupando max 60%.
+  const ProgressHeader = (
+    <div className="w-full max-w-[80%] mx-auto flex flex-col gap-1.5 px-1 xl:flex-row xl:items-center xl:justify-between xl:gap-3">
+      <span className="text-[11px] xl:text-xs text-muted-foreground/80 shrink-0">
+        {stepMode === "off"
+          ? `${filledFieldsAll} de ${totalFieldsAll} campos`
+          : `Passo ${currentStep + 1} de ${blocks.length}`}
+      </span>
+      <div className="flex items-center gap-2 flex-1 w-full xl:max-w-[60%]">
+        <div className="relative h-1.5 flex-1 rounded-full bg-foreground/10 overflow-visible">
+          <div
+            className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ease-out"
+            style={{
+              width: `${progressPctAll}%`,
+              backgroundColor: primaryColor || "hsl(var(--primary))",
+            }}
+          />
+          <ProgressMascotIcon
+            mascot={currentMascotAll}
+            progressPct={progressPctAll}
+          />
+        </div>
+        <span
+          className="text-[11px] font-medium tabular-nums shrink-0"
+          style={{ color: textColor || undefined }}
+          title={`${filledFieldsAll} de ${totalFieldsAll} campos preenchidos`}
+        >
+          {progressPctAll}%
+        </span>
+      </div>
+    </div>
+  );
 
   // Modo "tudo de uma vez"
   if (stepMode === "off") {
     return (
       <>
+        {ProgressHeader}
         {blocks.map((block) => {
           const FormBlockComponent = FormBlocks[block.blockType].formComponent;
           return (
             <FormBlockComponent
               key={block.id}
               blockInstance={block}
-              handleBlur={handleBlur}
+              handleBlur={wrappedHandleBlur}
               formErrors={formErrors}
               settings={settings}
             />
@@ -841,73 +1181,23 @@ function StepBlocks({
     isGroupComplete(blocks[currentStep])
   ) {
     // setTimeout pra evitar update durante render
-    setTimeout(() => setCurrentStep((s) => Math.min(s + 1, blocks.length - 1)), 0);
+    setTimeout(() => {
+      // Auto-save: persiste o estado do grupo atual antes de avançar.
+      // fire-and-forget — falha não bloqueia o auto-advance.
+      onStepAdvance?.();
+      setCurrentStep((s) => Math.min(s + 1, blocks.length - 1));
+    }, 0);
   }
 
   const currentBlock = blocks[currentStep];
   const isLast = currentStep === blocks.length - 1;
   const canAdvance = isGroupComplete(currentBlock);
 
-  void tick; // referenciar pra evitar dead-state warning
-
   if (!currentBlock) return null;
-
-  // Progresso simples: campos preenchidos / total de blocos preenchíveis.
-  // Form vazio → 0%. Cada campo que ganha valor incrementa proporcional.
-  // Heading/Paragraph/ImageDisplay (decorativos) ficam fora via
-  // `isFillableBlock`. Sliders commitam o `defaultValue` no mount, então
-  // contam desde o início — correto, já que o default é uma resposta válida.
-  const allChildren = blocks
-    .flatMap((b) => b.childblocks ?? [])
-    .filter((c) =>
-      isFillableBlock(c.blockType, FormBlocks[c.blockType]?.blockCategory),
-    );
-  const totalFields = allChildren.length;
-  const filledFields = allChildren.filter((c) => {
-    const v = formValsRef.current?.[c.id]?.value?.trim();
-    return Boolean(v);
-  }).length;
-  const progressPct =
-    totalFields > 0 ? Math.round((filledFields / totalFields) * 100) : 0;
-
-  // Mascote da barra de progresso — pode ser customizado em
-  // settings.progressMascots (lista de { min, max, emoji?, imageUrl?, label }).
-  // Cai no default se não houver configuração.
-  const mascots = resolveProgressMascots(
-    (settings as unknown as { progressMascots?: unknown })?.progressMascots,
-  );
-  const currentMascot = getCurrentMascot(mascots, progressPct);
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3 px-1">
-        <span className="text-xs text-muted-foreground/80">
-          Passo {currentStep + 1} de {blocks.length}
-        </span>
-        <div className="flex items-center gap-2 flex-1 max-w-[60%]">
-          <div className="relative h-1.5 flex-1 rounded-full bg-foreground/10 overflow-visible">
-            {/* Faixa de fill */}
-            <div
-              className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ease-out"
-              style={{
-                width: `${progressPct}%`,
-                backgroundColor: primaryColor || "hsl(var(--primary))",
-              }}
-            />
-            <ProgressMascotIcon
-              mascot={currentMascot}
-              progressPct={progressPct}
-            />
-          </div>
-          <span
-            className="text-[11px] font-medium tabular-nums shrink-0"
-            style={{ color: textColor || undefined }}
-            title={`${filledFields} de ${totalFields} campos preenchidos`}
-          >
-            {progressPct}%
-          </span>
-        </div>
-      </div>
+      {ProgressHeader}
       {/* Mantém TODOS os passos montados, escondendo os que não são o atual.
           Isso preserva o estado local (texto digitado, escolhas, etc.) quando
           o usuário navega entre passos com Próximo/Voltar — o componente não
@@ -932,11 +1222,11 @@ function StepBlocks({
         );
       })}
 
-      <div className="w-full flex justify-between gap-4">
+      <div className="w-full max-w-[80%] mx-auto flex flex-col-reverse xl:flex-row justify-between gap-3 xl:gap-4">
         {currentStep > 0 ? (
           <Button
             variant="outline"
-            className="bg-transparent border-primary/20"
+            className="w-full xl:w-auto bg-transparent border-primary/20"
             style={{
               color: textColor || undefined,
               borderColor: primaryColor || undefined,
@@ -949,7 +1239,7 @@ function StepBlocks({
           showLeadFields && (
             <Button
               variant="outline"
-              className="bg-transparent border-primary/20"
+              className="w-full xl:w-auto bg-transparent border-primary/20"
               style={{
                 color: textColor || undefined,
                 borderColor: primaryColor || undefined,
@@ -964,7 +1254,7 @@ function StepBlocks({
         {isLast ? (
           <Button
             data-form-submit
-            className="flex-1"
+            className="w-full xl:flex-1"
             disabled={isLoading}
             style={primaryBtnStyle}
             onClick={onSubmit}
@@ -975,7 +1265,7 @@ function StepBlocks({
         ) : (
           stepMode === "manual" && (
             <Button
-              className="flex-1"
+              className="w-full xl:flex-1"
               // Visual de disabled mas continua clicável pra mostrar
               // a mensagem de gate (assinatura faltando ou não autorizada).
               aria-disabled={!canAdvance}
@@ -986,6 +1276,11 @@ function StepBlocks({
               }}
               onClick={() => {
                 if (canAdvance) {
+                  // Auto-save antes de avançar: fire-and-forget.
+                  // O primeiro Próximo cria o FormResponses no servidor —
+                  // o lead já aparece em "Detalhes do lead > Formulários"
+                  // com o botão "Abrir" liberado.
+                  onStepAdvance?.();
                   setCurrentStep((s) => Math.min(s + 1, blocks.length - 1));
                   return;
                 }
@@ -1036,11 +1331,15 @@ function SubmitButtons({
   submitLabel?: string;
 }) {
   return (
-    <div className="w-full flex justify-between gap-4">
+    // Mobile/tablet: empilha (full-width buttons, mais tappáveis).
+    // Desktop (lg+): inline lado a lado.
+    // Botões ficam centralizados a 80% da largura disponível, conforme
+    // requisito de UX (não esticar borda-a-borda no tablet/desktop).
+    <div className="w-full max-w-[80%] mx-auto flex flex-col-reverse xl:flex-row justify-between gap-3 xl:gap-4">
       {showLeadFields && (
         <Button
           variant="outline"
-          className="bg-transparent border-primary/20"
+          className="w-full xl:w-auto bg-transparent border-primary/20"
           style={{
             color: textColor || undefined,
             borderColor: primaryColor || undefined,
@@ -1052,7 +1351,7 @@ function SubmitButtons({
       )}
       <Button
         data-form-submit
-        className={showLeadFields ? "flex-1" : "w-full"}
+        className={showLeadFields ? "w-full xl:flex-1" : "w-full"}
         disabled={isLoading}
         style={primaryBtnStyle}
         onClick={onSubmit}

@@ -188,22 +188,57 @@ function RadioSelectFormComponent({
   // Prefill (modo edição): se a resposta tem valor salvo, preenche o estado
   // inicial e propaga via handleBlur no mount pra que o salvamento subsequente
   // não sobrescreva com vazio mesmo se o user não tocar no campo.
+  //
+  // Múltipla escolha: o valor é salvo como CSV ("Opção 1, Opção 3"). Aqui
+  // reconstruímos a lista de selected[] e fazemos cross-check com options
+  // pra ignorar opções que foram removidas no builder depois do save.
   const prefill = usePrefillValue(block.id);
   const initialOption = prefill
     ? options.find((o) => o.value === prefill)
     : undefined;
+  const initialSelected = (() => {
+    if (!prefill || !allowMultiple) return [] as string[];
+    const optionValues = new Set(options.map((o) => o.value));
+    return prefill
+      .split(",")
+      .map((s) => s.trim())
+      .filter((v) => v && optionValues.has(v));
+  })();
   const [value, setValue] = useState<{
     value: string;
     meta: Record<string, unknown>;
-  }>({
-    value: prefill ?? "",
-    meta: { tagId: initialOption?.tagId || null },
+  }>(() => {
+    if (allowMultiple && initialSelected.length > 0) {
+      const tagIds = initialSelected
+        .map((v) => options.find((o) => o.value === v)?.tagId)
+        .filter((t): t is string => !!t);
+      return {
+        value: initialSelected.join(", "),
+        meta: { tagIds, selected: initialSelected },
+      };
+    }
+    return {
+      value: prefill ?? "",
+      meta: { tagId: initialOption?.tagId || null },
+    };
   });
   // Pra múltipla escolha mantemos lista das opções marcadas.
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>(initialSelected);
   const [isError, setIsError] = useState(false);
   useEffect(() => {
-    if (prefill && handleBlur) {
+    if (!handleBlur) return;
+    // Re-propaga o valor inicial pra que o `formVals` do submit-component
+    // tenha o estado já preenchido — sem isso, sair sem tocar no campo
+    // salvava vazio mesmo com prefill carregado.
+    if (allowMultiple && initialSelected.length > 0) {
+      const tagIds = initialSelected
+        .map((v) => options.find((o) => o.value === v)?.tagId)
+        .filter((t): t is string => !!t);
+      handleBlur(block.id, {
+        value: initialSelected.join(", "),
+        meta: { tagIds, selected: initialSelected },
+      });
+    } else if (prefill) {
       handleBlur(block.id, {
         value: prefill,
         meta: { tagId: initialOption?.tagId || null },

@@ -46,5 +46,15 @@ export type Lead = {
       | "complete";
     slug: string;
   }>;
+  /**
+   * Prazo mais urgente entre todos os formulários do lead (computado
+   * server-side a partir do DatePicker com `useAsDeadline=true`).
+   * `null` quando nenhum form tem campo de prazo preenchido.
+   */
+  deadlineHint?: {
+    deadline: string;
+    formName: string;
+    expired: boolean;
+  } | null;
 };
 

@@ -33,8 +33,17 @@ export function useMutationLeadUpdate(leadId: string, trackingId: string) {
 
         earn("update_lead", "Lead editado ✏️");
       },
-      onError: () => {
-        toast.error(`Erro ao atualizar lead`, {
+      onError: (err) => {
+        // Pega a mensagem do servidor quando disponível (procedure retorna
+        // BAD_REQUEST com `message` específico em casos de violação de FK,
+        // status inválido pro tracking, etc). Caso genérico cai pro fallback
+        // pra não vazar internals.
+        const message =
+          (err as { message?: string })?.message &&
+          !/internal/i.test((err as { message: string }).message)
+            ? (err as { message: string }).message
+            : "Erro ao atualizar lead";
+        toast.error(message, {
           position: "bottom-right",
         });
       },

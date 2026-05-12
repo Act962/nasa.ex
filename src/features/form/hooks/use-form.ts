@@ -231,6 +231,21 @@ export const useMutationUpdateResponse = () => {
   );
 };
 
+/**
+ * Auto-save incremental de resposta de form público (botão "Próximo").
+ * Cria `FormResponses` na primeira chamada (sem responseId), atualiza nas
+ * seguintes (com responseId). Não dispara workflows nem submit final —
+ * só persiste o estado pra que o lead apareça em "Detalhes do lead >
+ * Formulários" assim que clicar o primeiro Próximo.
+ *
+ * NÃO invalida queries (silencioso, não muda UI do form em preenchimento).
+ */
+export const useMutationSavePartialResponse = () => {
+  return useMutation(
+    orpc.form.savePartialResponse.mutationOptions({}),
+  );
+};
+
 export const useMutationSubmitResponse = () => {
   const queryClient = useQueryClient();
 

@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { deriveResponseState } from "@/features/form/lib/form-response-state";
 import { buildResponseSlug } from "@/features/form/lib/response-slug";
+import { extractDeadlineFromResponse } from "@/features/form/lib/extract-deadline";
 
 const sortOptions = z.enum(["order", "createdAt", "updatedAt"]);
 type SortOption = z.infer<typeof sortOptions>;
@@ -232,16 +233,18 @@ export const listLeadsByStatus = base
       leads: leads.map((lead) => {
         // Deriva estado server-side pra cada formResponse e remove
         // jsonResponse/jsonBlock do payload (são dados pesados).
-        const responses = (
-          (lead as unknown as {
+        const rawResponses = (
+          lead as unknown as {
             formResponses?: Array<{
               id: string;
               createdAt: Date;
               jsonResponse: unknown;
               form: { id: string; name: string; jsonBlock: string };
             }>;
-          }).formResponses ?? []
-        ).map((r) => ({
+          }
+        ).formResponses ?? [];
+
+        const responses = rawResponses.map((r) => ({
           responseId: r.id,
           createdAt: r.createdAt,
           formId: r.form.id,
@@ -254,6 +257,37 @@ export const listLeadsByStatus = base
           // slug legível pra URL de edit (`/formulario/<slug>/<id>`).
           slug: buildResponseSlug(r.form.name, r.createdAt),
         }));
+
+        // deadlineHint: computa o prazo MAIS URGENTE entre todos os
+        // forms do lead. Prefere prazos não-vencidos (o mais próximo);
+        // se TODOS estiverem vencidos, mostra o mais recentemente vencido.
+        // Computed-on-the-fly — sem mudar schema do banco. UI usa pra
+        // mostrar badge no card do kanban.
+        const allDeadlines = rawResponses
+          .map((r) => {
+            const d = extractDeadlineFromResponse({
+              jsonResponse: r.jsonResponse,
+              jsonBlock: r.form.jsonBlock,
+            });
+            return d ? { date: d, formName: r.form.name } : null;
+          })
+          .filter((x): x is { date: Date; formName: string } => x !== null);
+        const now = Date.now();
+        const future = allDeadlines
+          .filter((x) => x.date.getTime() >= now)
+          .sort((a, b) => a.date.getTime() - b.date.getTime());
+        const past = allDeadlines
+          .filter((x) => x.date.getTime() < now)
+          .sort((a, b) => b.date.getTime() - a.date.getTime());
+        const picked = future[0] ?? past[0] ?? null;
+        const deadlineHint = picked
+          ? {
+              deadline: picked.date.toISOString(),
+              formName: picked.formName,
+              expired: picked.date.getTime() < now,
+            }
+          : null;
+
         // Remove os fields originais grandes do payload final.
         const {
           formResponses: _strip,
@@ -263,6 +297,7 @@ export const listLeadsByStatus = base
           ...rest,
           order: lead.order.toString(),
           forms: responses,
+          deadlineHint,
         };
       }),
       nextCursorId,

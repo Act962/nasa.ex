@@ -36,27 +36,18 @@ const nextConfig: NextConfig = {
   },
   images: {
     remotePatterns: [
-      {
-        hostname: "images.unsplash.com",
-      },
-      {
-        hostname: "mmg.whatsapp.net",
-      },
-      {
-        hostname: "uazapi.com",
-      },
-      {
-        hostname: "nasa-ex.t3.storage.dev",
-      },
-      {
-        hostname: "pub-f9e718fa60aa4e1092c20a791898d931.r2.dev",
-      },
-      {
-        hostname: "lh3.googleusercontent.com",
-      },
-      {
-        hostname: "api.dicebear.com",
-      },
+      { hostname: "images.unsplash.com" },
+      { hostname: "mmg.whatsapp.net" },
+      { hostname: "uazapi.com" },
+      { hostname: "nasa-ex.t3.storage.dev" },
+      // Wildcard pra todos buckets Cloudflare R2 dev (`pub-<hash>.r2.dev`).
+      // Cobre o bucket atual + qualquer bucket novo sem precisar reconfig
+      // a cada vez que uma key roda no R2 e gera URL nova.
+      { hostname: "*.r2.dev" },
+      // Wildcard pra storage buckets do T3 (similar ao R2).
+      { hostname: "*.t3.storage.dev" },
+      { hostname: "lh3.googleusercontent.com" },
+      { hostname: "api.dicebear.com" },
     ],
   },
 };

@@ -5,6 +5,8 @@ import { getPublic } from "./public/get";
 import { fetchForms } from "./list";
 import { updateForm } from "./update";
 import { submitResponse } from "./public/submut-response";
+import { savePartialResponse } from "./public/save-partial-response";
+import { findDraftByPhone } from "./public/find-draft";
 import { PublishForm } from "./publish";
 import { insightForm } from "./status";
 import { deleteForm } from "./delete";
@@ -33,6 +35,8 @@ export const formRouter = {
   updateClientSignatures,
   getPublic,
   submitResponse,
+  savePartialResponse,
+  findDraftByPhone,
   PublishForm,
   togglePublicOnSpace,
   insightForm,

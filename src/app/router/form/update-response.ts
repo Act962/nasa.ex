@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { recordLeadEvent } from "@/features/leads/lib/history";
+import { trackLeadEvent } from "@/lib/lead-journey/track";
 import {
   checkLeadTrackingParticipant,
   NOT_TRACKING_PARTICIPANT_MESSAGE,
@@ -116,6 +117,22 @@ export const updateResponse = base
             formId: existing.formId,
             edited: true,
             editedBy: userId,
+            label: updated.label ?? null,
+          },
+        });
+
+        // Espelha em LeadJourneyEvent com `actorId` pra que a jornada do
+        // lead mostre QUEM atualizou. `occurredAt = now` (não o createdAt
+        // da resposta) pra que cada edição vire um entry separado na
+        // timeline em vez de colidir com a criação original via dedup.
+        await trackLeadEvent({
+          leadId: updated.leadId,
+          kind: "form_submit",
+          actorId: userId,
+          metadata: {
+            formId: existing.formId,
+            formResponseId: updated.id,
+            edited: true,
             label: updated.label ?? null,
           },
         });

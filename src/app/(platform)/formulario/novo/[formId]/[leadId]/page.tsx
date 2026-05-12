@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   useQueryFormById,
   useMutationCreateResponseForLead,
+  useMutationUpdateResponse,
 } from "@/features/form/hooks/use-form";
 import { useQueryLead } from "@/features/leads/hooks/use-lead";
 import { FormSubmitComponent } from "@/features/form/components/public/form-submit-component";
@@ -39,6 +40,13 @@ export default function Page() {
   const { form, isLoading: formLoading } = useQueryFormById({ formId });
   const { data: leadData, isLoading: leadLoading } = useQueryLead(leadId);
   const createMutation = useMutationCreateResponseForLead();
+  const updateMutation = useMutationUpdateResponse();
+
+  // Rastreia o id da FormResponses criada pelo auto-save (1º Próximo).
+  // Reusado no onSubmitOverride pra que o submit final ATUALIZE em vez
+  // de criar uma 2ª resposta. Sem isso, cada submit criaria duplicata
+  // (draft do auto-save + final do submit).
+  const autoSavedResponseIdRef = useRef<string | null>(null);
 
   // Notifica a timeline (interna + pública via Pusher) que o consultor abriu
   // o formulário. A procedure é idempotente (10min de janela) — refresh ou
@@ -234,8 +242,57 @@ export default function Page() {
             phone: lead.phone ?? "",
           }}
           submitLabel="Enviar"
+          // Auto-save no fluxo interno: a cada Próximo, cria (1ª) ou
+          // atualiza (próximas) a FormResponses. Resultado: assim que o
+          // consultor clica o primeiro Próximo, o lead já aparece em
+          // "Detalhes do lead > Formulários" com o botão "Abrir" liberado,
+          // permitindo acompanhamento em tempo real (Pusher).
+          onPartialSave={async (responseJson, currentResponseId) => {
+            try {
+              const existingId = currentResponseId ?? autoSavedResponseIdRef.current;
+              if (existingId) {
+                await updateMutation.mutateAsync({
+                  id: existingId,
+                  response: responseJson,
+                });
+                return { responseId: existingId };
+              }
+              const res = await createMutation.mutateAsync({
+                formId,
+                leadId,
+                response: responseJson,
+              });
+              const newId = (
+                res as { response?: { id?: string } } | null | undefined
+              )?.response?.id;
+              if (newId) autoSavedResponseIdRef.current = newId;
+              return newId ? { responseId: newId } : null;
+            } catch (err) {
+              // Falha silenciosa: usuário continua preenchendo. O submit
+              // final ainda funciona porque persistPartial ignora erros.
+              console.warn("[formulario/novo] auto-save falhou", err);
+              return null;
+            }
+          }}
           onSubmitOverride={async (responseJson) => {
             try {
+              // Se já existe draft criado pelo auto-save, ATUALIZA em vez de
+              // criar duplicata. Sem isso o submit final criaria uma 2ª
+              // FormResponses (incrementando contador errado, gerando 2
+              // entradas na timeline, etc.).
+              const draftId = autoSavedResponseIdRef.current;
+              if (draftId) {
+                await updateMutation.mutateAsync({
+                  id: draftId,
+                  response: responseJson,
+                });
+                toast.success("Resposta enviada");
+                const slug = buildResponseSlug(form.name, new Date());
+                router.replace(`/formulario/${slug}/${draftId}`);
+                return;
+              }
+              // Caminho original (consultor clicou direto em Enviar sem
+              // passar por nenhum Próximo): cria a resposta normalmente.
               const res = await createMutation.mutateAsync({
                 formId,
                 leadId,
