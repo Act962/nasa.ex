@@ -191,45 +191,57 @@ export const updateLead = base
           );
         }
 
-        let workflows: { id: string }[] = [];
-        if (input.tagIds) {
-          workflows = await tx.workflow.findMany({
-            where: {
-              trackingId: lead.trackingId,
-              nodes: {
-                some: {
-                  type: "LEAD_TAGGED",
-                  data: {
-                    path: ["action", "tagIds"],
-                    array_contains: input.tagIds,
+        // Workflows: ACUMULA disparos de tag + status. Antes, o branch de
+        // `statusId` sobrescrevia o array de tagIds — se o user mudasse
+        // tag E status no mesmo update, só os workflows de status rodavam.
+        // Cada lookup é try/catch porque `data.path` em JSON pode falhar em
+        // versões antigas do Prisma; falha aqui NÃO deve quebrar o update
+        // do lead.
+        const workflows: { id: string }[] = [];
+        if (input.tagIds && input.tagIds.length > 0) {
+          try {
+            const tagWorkflows = await tx.workflow.findMany({
+              where: {
+                trackingId: lead.trackingId,
+                nodes: {
+                  some: {
+                    type: "LEAD_TAGGED",
+                    data: {
+                      path: ["action", "tagIds"],
+                      array_contains: input.tagIds,
+                    },
                   },
                 },
               },
-            },
-            select: {
-              id: true,
-            },
-          });
+              select: { id: true },
+            });
+            workflows.push(...tagWorkflows);
+          } catch (wfErr) {
+            console.warn("[leads/update] tag workflows lookup failed", wfErr);
+          }
         }
 
         if (input.statusId) {
-          workflows = await tx.workflow.findMany({
-            where: {
-              trackingId: lead.trackingId,
-              nodes: {
-                some: {
-                  type: "MOVE_LEAD_STATUS",
-                  data: {
-                    path: ["action", "statusId"],
-                    equals: input.statusId,
+          try {
+            const statusWorkflows = await tx.workflow.findMany({
+              where: {
+                trackingId: lead.trackingId,
+                nodes: {
+                  some: {
+                    type: "MOVE_LEAD_STATUS",
+                    data: {
+                      path: ["action", "statusId"],
+                      equals: input.statusId,
+                    },
                   },
                 },
               },
-            },
-            select: {
-              id: true,
-            },
-          });
+              select: { id: true },
+            });
+            workflows.push(...statusWorkflows);
+          } catch (wfErr) {
+            console.warn("[leads/update] status workflows lookup failed", wfErr);
+          }
         }
 
         return { lead, workflows };
@@ -340,7 +352,24 @@ export const updateLead = base
 
       return result;
     } catch (err) {
-      console.error(err);
+      // Loga COM contexto pra investigação posterior. O erro genérico
+      // "INTERNAL_SERVER_ERROR" no client escondia a causa real (foreign
+      // key, coluna inexistente em drift de DB, status pertencente a
+      // outro tracking etc). Repropaga mensagem específica quando seguro.
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[leads/update] failed", {
+        leadId: input.id,
+        trackingId: input.trackingId,
+        statusId: input.statusId,
+        error: msg,
+      });
+      // Erros conhecidos de validação/integridade — devolve mensagem
+      // amigável pro user em vez de "Algo deu errado".
+      if (/foreign key|constraint|not found|does not exist/i.test(msg)) {
+        throw errors.BAD_REQUEST({
+          message: `Não foi possível mover o lead: ${msg}`,
+        });
+      }
       throw errors.INTERNAL_SERVER_ERROR;
     }
   });
