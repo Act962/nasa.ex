@@ -18,6 +18,7 @@ import { useQueryState } from "nuqs";
 import { cn } from "@/lib/utils";
 import { EVENT_CATEGORIES, BR_STATES } from "../utils/categories";
 import type { EventCategory } from "@/generated/prisma/enums";
+import { PublicVisibilityDialog } from "@/components/public-visibility-dialog";
 
 interface PublicVisibilityFieldProps {
   isPublic?: boolean;
@@ -27,8 +28,14 @@ interface PublicVisibilityFieldProps {
   city?: string | null;
   address?: string | null;
   registrationUrl?: string | null;
+  /**
+   * Atualiza o Action. Quando `isPublic=true` é enviado pela primeira vez
+   * (ou seja, depois do user confirmar o consent dialog), `consent: true`
+   * acompanha — sem isso o backend rejeita.
+   */
   onUpdate: (data: {
     isPublic?: boolean;
+    consent?: boolean;
     eventCategory?: EventCategory | null;
     state?: string | null;
     city?: string | null;
@@ -53,6 +60,7 @@ export function PublicVisibilityField({
   const [localAddress, setLocalAddress] = useState(address ?? "");
   const [localCity, setLocalCity] = useState(city ?? "");
   const [localUrl, setLocalUrl] = useState(registrationUrl ?? "");
+  const [publicConfirmOpen, setPublicConfirmOpen] = useState(false);
 
   const publicUrl = publicSlug
     ? `${typeof window !== "undefined" ? window.location.origin : ""}/calendario/evento/${publicSlug}`
@@ -127,7 +135,15 @@ export function PublicVisibilityField({
         </div>
         <Switch
           checked={isPublic}
-          onCheckedChange={(checked) => onUpdate({ isPublic: checked })}
+          onCheckedChange={(checked) => {
+            if (checked && !isPublic) {
+              // false → true: precisa confirmar visualização pública
+              setPublicConfirmOpen(true);
+            } else if (!checked && isPublic) {
+              // true → false: desligar é seguro, dispensa confirmação
+              onUpdate({ isPublic: false });
+            }
+          }}
           disabled={disabled}
         />
       </div>
@@ -262,6 +278,15 @@ export function PublicVisibilityField({
           </div>
         </div>
       )}
+
+      <PublicVisibilityDialog
+        open={publicConfirmOpen}
+        onOpenChange={setPublicConfirmOpen}
+        onConfirm={() => {
+          onUpdate({ isPublic: true, consent: true });
+          setPublicConfirmOpen(false);
+        }}
+      />
     </div>
   );
 }

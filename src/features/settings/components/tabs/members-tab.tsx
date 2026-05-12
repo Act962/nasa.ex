@@ -243,7 +243,7 @@ function CargoCell({
         <SelectValue placeholder="Definir cargo…" />
       </SelectTrigger>
       <SelectContent>
-        {(["lideranca", "gestao", "operacional", "entrada"] as const).map((group) => {
+        {(["n1", "n2", "n3", "gestao", "operacional", "entrada"] as const).map((group) => {
           const items = POSITIONS.filter((p) => p.group === group);
           if (items.length === 0) return null;
           return (

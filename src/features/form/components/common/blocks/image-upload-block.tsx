@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, EyeIcon, ImagePlus, Trash } from "lucide-react";
 import { ImagePreviewDialog } from "@/features/actions/components/view-modal/image-preview-dialog";
 import { useForm } from "react-hook-form";
@@ -204,6 +204,11 @@ function FormView({
   const [isError, setIsError] = useState(false);
   const [uploaderEpoch, setUploaderEpoch] = useState(0);
   const constructedBg = useConstructUrl(backgroundUrl || "");
+  // Backup persistente extra das imagens em sessionStorage por blockId —
+  // sobrevive a re-renders mesmo sem prefill (caso o user esteja preenchendo
+  // pela primeira vez e algum rerender acidental dispare).
+  const storageKey = `nasa.form.image-upload.${block.id}`;
+  const initialRestoreRef = useRef(false);
 
   // Sincroniza o prefill com o formVals no mount.
   useEffect(() => {
@@ -220,6 +225,11 @@ function FormView({
     setImages(next);
     const isValid = !required || next.length > 0;
     setIsError(!isValid);
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(next));
+    } catch {
+      /* quota / private mode — ignorar */
+    }
     handleBlur?.(block.id, {
       value: next.map((i) => i.url).join(","),
       meta: { images: next, dimensions: { width, height } },
@@ -235,6 +245,29 @@ function FormView({
       setUploaderEpoch((e) => e + 1);
     }
   }
+
+  // Restaura na montagem inicial — sessionStorage tem prioridade sobre
+  // useState vazio. Re-emite pro formVals.current pra garantir que o
+  // submit final inclua as imagens.
+  useEffect(() => {
+    if (initialRestoreRef.current) return;
+    initialRestoreRef.current = true;
+    try {
+      const raw = sessionStorage.getItem(storageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as ImageItem[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setImages(parsed);
+        handleBlur?.(block.id, {
+          value: parsed.map((i) => i.url).join(","),
+          meta: { images: parsed, dimensions: { width, height }, restored: true },
+        });
+      }
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex flex-col gap-2 w-full">

@@ -18,6 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { Uploader } from "@/components/file-uploader/uploader";
 import { useConstructUrl } from "@/hooks/use-construct-url";
@@ -31,6 +32,13 @@ type AttributesType = {
   width: number;
   height: number;
   align: "left" | "center" | "right";
+  /**
+   * Quando true, ignora width/height e estica a imagem pra ocupar 100%
+   * da largura da página do formulário (com altura automática). Útil
+   * pra banners e capas. Quando false (default), respeita width/height
+   * informados em pixels.
+   */
+  fitToPage: boolean;
 };
 
 const propertiesValidateSchema = z.object({
@@ -39,6 +47,7 @@ const propertiesValidateSchema = z.object({
   width: z.number().int().min(40).max(2000),
   height: z.number().int().min(40).max(2000),
   align: z.enum(["left", "center", "right"]),
+  fitToPage: z.boolean().default(false).optional(),
 });
 type PropertiesType = z.input<typeof propertiesValidateSchema>;
 
@@ -54,6 +63,7 @@ export const ImageDisplayBlock: ObjectBlockType = {
       width: 320,
       height: 200,
       align: "center",
+      fitToPage: false,
     } satisfies AttributesType,
   }),
   blockBtnElement: { icon: ImageIcon, label: "Imagem fixa" },
@@ -66,7 +76,7 @@ type Instance = FormBlockInstance & { attributes: AttributesType };
 
 function View({ blockInstance }: { blockInstance: FormBlockInstance }) {
   const attrs = (blockInstance as Instance).attributes;
-  const { url, alt, align } = attrs;
+  const { url, alt, align, fitToPage } = attrs;
   const wRaw = attrs.width as unknown;
   const hRaw = attrs.height as unknown;
   const width =
@@ -83,12 +93,22 @@ function View({ blockInstance }: { blockInstance: FormBlockInstance }) {
         : 200;
   const constructed = useConstructUrl(url || "");
   const justify = align === "left" ? "justify-start" : align === "right" ? "justify-end" : "justify-center";
+
+  // Quando `fitToPage` ligado, estica 100% da largura disponível e altura
+  // automática (preserva aspect ratio). Caso contrário, respeita width/height.
+  const imgStyle: React.CSSProperties = fitToPage
+    ? { width: "100%", height: "auto", maxWidth: "100%", objectFit: "contain" }
+    : { width: `${width}px`, height: `${height}px`, maxWidth: "100%", objectFit: "cover" };
+  const placeholderStyle: React.CSSProperties = fitToPage
+    ? { width: "100%", minHeight: "120px", maxWidth: "100%" }
+    : { width: `${width}px`, height: `${height}px`, maxWidth: "100%" };
+
   if (!url) {
     return (
-      <div className={`flex w-full ${justify}`}>
+      <div className={`flex w-full ${fitToPage ? "" : justify}`}>
         <div
           className="border border-dashed rounded-md flex items-center justify-center text-sm text-muted-foreground"
-          style={{ width: `${width}px`, height: `${height}px`, maxWidth: "100%" }}
+          style={placeholderStyle}
         >
           <ImageIcon className="w-5 h-5 mr-2" />
           Imagem decorativa
@@ -97,12 +117,12 @@ function View({ blockInstance }: { blockInstance: FormBlockInstance }) {
     );
   }
   return (
-    <div className={`flex w-full ${justify}`}>
+    <div className={`flex w-full ${fitToPage ? "" : justify}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={constructed}
         alt={alt}
-        style={{ width: `${width}px`, height: `${height}px`, maxWidth: "100%", objectFit: "cover" }}
+        style={imgStyle}
         className="rounded-md"
       />
     </div>
@@ -190,50 +210,80 @@ function PropertiesView({
               </FormItem>
             )}
           />
-          <div className="grid grid-cols-2 gap-2">
-            <FormField
-              control={form.control}
-              name="width"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[13px] font-normal">Largura (px)</FormLabel>
+          <FormField
+            control={form.control}
+            name="fitToPage"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-[13px] font-normal">
+                      Dimensionar no limite da página
+                    </FormLabel>
+                    <p className="text-[11px] text-muted-foreground">
+                      A imagem ocupa 100% da largura disponível.
+                    </p>
+                  </div>
                   <FormControl>
-                    <Input
-                      type="number"
-                      className="h-7 text-xs"
-                      value={field.value}
-                      onChange={(e) => {
-                        const v = Number(e.target.value) || 0;
+                    <Switch
+                      checked={!!field.value}
+                      onCheckedChange={(v) => {
                         field.onChange(v);
-                        commit({ width: v });
+                        commit({ fitToPage: v });
                       }}
                     />
                   </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="height"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[13px] font-normal">Altura (px)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      className="h-7 text-xs"
-                      value={field.value}
-                      onChange={(e) => {
-                        const v = Number(e.target.value) || 0;
-                        field.onChange(v);
-                        commit({ height: v });
-                      }}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          </div>
+                </div>
+              </FormItem>
+            )}
+          />
+
+          {!block.attributes.fitToPage && (
+            <div className="grid grid-cols-2 gap-2">
+              <FormField
+                control={form.control}
+                name="width"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[13px] font-normal">Largura (px)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        className="h-7 text-xs"
+                        value={field.value}
+                        onChange={(e) => {
+                          const v = Number(e.target.value) || 0;
+                          field.onChange(v);
+                          commit({ width: v });
+                        }}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="height"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[13px] font-normal">Altura (px)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        className="h-7 text-xs"
+                        value={field.value}
+                        onChange={(e) => {
+                          const v = Number(e.target.value) || 0;
+                          field.onChange(v);
+                          commit({ height: v });
+                        }}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
           <FormField
             control={form.control}
             name="align"

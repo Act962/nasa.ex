@@ -215,10 +215,7 @@ function HeadingPropertiesComponent({
             name="fontSize"
             render={({ field }) => (
               <FormItem>
-                <div
-                  className="flex items-baseline justify-between 
-                w-full gap-2"
-                >
+                <div className="flex items-baseline justify-between w-full gap-2">
                   <FormLabel className="text-[13px] font-normal">
                     Tamanho da fonte
                   </FormLabel>

@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/lib/orpc";
 import { SpaceCard } from "../space-card";
-import { FileDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { FileDown, Plus } from "lucide-react";
 
 interface CardNBoxProps {
   nick: string;
@@ -17,6 +20,9 @@ function formatBytes(size: number | null | undefined): string {
 }
 
 export function CardNBox({ nick }: CardNBoxProps) {
+  const session = authClient.useSession();
+  const isAuthenticated = !!session.data?.user?.id;
+
   const { data, isLoading } = useQuery(
     orpc.public.space.listPublicNBox.queryOptions({ input: { nick } }),
   );
@@ -28,7 +34,21 @@ export function CardNBox({ nick }: CardNBoxProps) {
       title="Arquivos públicos"
       subtitle="Downloads liberados pela empresa"
       isEmpty={!isLoading && items.length === 0}
-      empty="Nenhum arquivo público disponível."
+      empty={
+        isAuthenticated
+          ? "Você ainda não marcou arquivos como públicos no N-Box."
+          : "Nenhum arquivo público disponível."
+      }
+      emptyAction={
+        isAuthenticated ? (
+          <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600">
+            <Link href="/nbox">
+              <Plus className="mr-1 size-4" />
+              Enviar meu primeiro arquivo
+            </Link>
+          </Button>
+        ) : null
+      }
     >
       {isLoading ? (
         <div className="space-y-2">
