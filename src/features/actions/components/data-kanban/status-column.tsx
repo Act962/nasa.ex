@@ -1,6 +1,5 @@
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { useInfiniteActionsByStatus } from "../../hooks/use-tasks";
 import { useActionFilters } from "../../hooks/use-action-filters";
 import { KanbanCard } from "./kanban-card";
@@ -12,6 +11,7 @@ import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { EMPTY_ACTIONS, useActionKanbanStore } from "../../lib/kanban-store";
 import { StatusHeader } from "./status-header";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Props {
   id: string;
@@ -21,7 +21,7 @@ interface Props {
   actionsCount: number;
 }
 
-export function WorkspaceColumn({
+function WorkspaceColumnImpl({
   id,
   color,
   workspaceId,
@@ -78,7 +78,7 @@ export function WorkspaceColumn({
 
     const sentinel = sentinelRef.current;
     const scrollContainer = sentinel?.closest(
-      "[data-radix-scroll-area-viewport]",
+      "[data-kanban-scroll-viewport]",
     ) as HTMLElement | null;
 
     if (!sentinel || !scrollContainer) return;
@@ -110,12 +110,6 @@ export function WorkspaceColumn({
     registerColumn(id, data);
   }, [data, registerColumn, id]);
 
-  const actions = useActionKanbanStore(
-    (state) => state.columns[id]?.actions ?? EMPTY_ACTIONS,
-  );
-
-  const actionIds = useMemo(() => actions.map((a) => a.id), [actions]);
-
   return (
     <li
       ref={setNodeRef}
@@ -132,21 +126,19 @@ export function WorkspaceColumn({
           listeners={listeners}
         />
 
-        <ScrollArea className="flex-1 min-h-0">
+        {/* Caso der bug novamente
+          <div
+          data-kanban-scroll-viewport
+          className="flex-1 min-h-0 overflow-y-auto scrollbar-thin"
+        >
+        */}
+
+        <ScrollArea
+          data-kanban-scroll-viewport
+          className="flex-1 min-h-0 scrollbar-thin"
+        >
           <ol className="mx-1 px-1 py-2 flex flex-col gap-y-2">
-            <SortableContext items={actionIds}>
-              {isLoading && (
-                <div className="flex flex-col gap-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-24 rounded-md shadow-sm" />
-                  ))}
-                </div>
-              )}
-              {!isLoading &&
-                actions.map((action) => (
-                  <KanbanCard key={action.id} action={action} />
-                ))}
-            </SortableContext>
+            <ActionsList columnId={id} isLoading={isLoading} />
 
             {hasNextPage && (
               <li className="list-none">
@@ -183,6 +175,53 @@ export function WorkspaceColumn({
   );
 }
 
+// Subscriber isolado: lê actions do store + renderiza a lista. Quando user
+// faz drag (moveActionInColumn/ToColumn muda `state.columns[id].actions`),
+// SÓ este componente re-renderiza, NÃO o WorkspaceColumn pai. Isso evita
+// re-render dos botões Radix em StatusHeader, que tinham ref churn em loop.
+function ActionsList({
+  columnId,
+  isLoading,
+}: {
+  columnId: string;
+  isLoading: boolean;
+}) {
+  const actions = useActionKanbanStore(
+    (state) => state.columns[columnId]?.actions ?? EMPTY_ACTIONS,
+  );
+  const actionIds = useMemo(() => actions.map((a) => a.id), [actions]);
+
+  return (
+    <SortableContext items={actionIds}>
+      {isLoading && (
+        <div className="flex flex-col gap-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-md shadow-sm" />
+          ))}
+        </div>
+      )}
+      {!isLoading &&
+        actions.map((action) => (
+          <KanbanCard key={action.id} action={action} />
+        ))}
+    </SortableContext>
+  );
+}
+
+// memo + custom equality: rerender só quando props que o componente usa
+// mudam. Evita o cascade de ScrollArea ref churn quando columnList vira
+// nova ref após refetch mas o conteúdo desta coluna específica é igual.
+export const WorkspaceColumn = memo(WorkspaceColumnImpl, (prev, next) => {
+  return (
+    prev.id === next.id &&
+    prev.name === next.name &&
+    prev.color === next.color &&
+    prev.actionsCount === next.actionsCount &&
+    prev.workspaceId === next.workspaceId
+  );
+});
+WorkspaceColumn.displayName = "WorkspaceColumn";
+
 export const StatusItemSkeleton = () => {
   return (
     <li className="shrink-0 w-68 h-full flex flex-col select-none">
@@ -190,13 +229,13 @@ export const StatusItemSkeleton = () => {
         <div className="p-3">
           <Skeleton className="h-7 w-3/4 rounded-md" />
         </div>
-        <ScrollArea className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
           <ol className="mx-2 px-1 py-3 flex flex-col gap-y-3">
             <Skeleton className="h-24 rounded-md" />
             <Skeleton className="h-24 rounded-md" />
             <Skeleton className="h-24 rounded-md" />
           </ol>
-        </ScrollArea>
+        </div>
       </div>
     </li>
   );

@@ -22,11 +22,6 @@ import { Badge } from "@/components/ui/badge";
 import { useQueryTagByLead } from "@/features/tracking-chat/hooks/use-leads-conversation";
 import { Button } from "@/components/ui/button";
 import { phoneMaskFull } from "@/utils/format-phone";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import dayjs from "dayjs";
 import { memo, useMemo, useState, useEffect } from "react";
 import { Lead } from "../types";
@@ -182,16 +177,11 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
               {data.name.split(" ")[0][0]}
             </AvatarFallback>
           </Avatar>
-          <Tooltip>
-            <TooltipTrigger>
-              <div className="max-w-40 truncate">
-                <span className="font-medium text-xs truncate">
-                  {data.name || "Sem nome"}
-                </span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>{data.name || "Sem nome"}</TooltipContent>
-          </Tooltip>
+          <div className="max-w-40 truncate" title={data.name || "Sem nome"}>
+            <span className="font-medium text-xs truncate">
+              {data.name || "Sem nome"}
+            </span>
+          </div>
         </div>
 
         <div
@@ -253,17 +243,15 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           <span className="text-xs text-muted-foreground">
             {dayjs(data.createdAt).format("DD/MM/YYYY HH:mm")}
           </span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <RocketIcon
-                className="size-3"
-                style={{ color: TEMP_COLOR[data.temperature] }}
-              />
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{TEMP_TEXT[data.temperature]}</p>
-            </TooltipContent>
-          </Tooltip>
+          <span
+            className="inline-flex"
+            title={TEMP_TEXT[data.temperature]}
+          >
+            <RocketIcon
+              className="size-3"
+              style={{ color: TEMP_COLOR[data.temperature] }}
+            />
+          </span>
           {data.slaDeadline && (
             <SlaTimer
               compact
@@ -291,27 +279,20 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
                 );
               };
               return (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={goToChat}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      className="inline-flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer"
-                      aria-label={`${label} — abrir conversa`}
-                    >
-                      <Icon className="size-3" style={{ color }} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {label}
-                      {conversationId
-                        ? " — clique para abrir a conversa"
-                        : " — clique para iniciar uma conversa"}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
+                <button
+                  type="button"
+                  onClick={goToChat}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="inline-flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer"
+                  aria-label={`${label} — abrir conversa`}
+                  title={`${label}${
+                    conversationId
+                      ? " — clique para abrir a conversa"
+                      : " — clique para iniciar uma conversa"
+                  }`}
+                >
+                  <Icon className="size-3" style={{ color }} />
+                </button>
               );
             })()}
 
@@ -322,25 +303,29 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
             <FormStatusIcon key={f.responseId} form={f} leadId={data.id} />
           ))}
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Avatar className="size-4">
-              <AvatarImage
-                src={data.responsible?.image || "/user-placeholder.png"}
-                alt="photo user"
-              />
-              <AvatarFallback>
-                {data.responsible?.name.split(" ")[0][0]}
-              </AvatarFallback>
-            </Avatar>
-          </TooltipTrigger>
-          <TooltipContent>
-            {data.responsible?.name || "Sem responsável"}
-          </TooltipContent>
-        </Tooltip>
+        <span title={data.responsible?.name || "Sem responsável"}>
+          <Avatar className="size-4">
+            <AvatarImage
+              src={data.responsible?.image || "/user-placeholder.png"}
+              alt="photo user"
+            />
+            <AvatarFallback>
+              {data.responsible?.name.split(" ")[0][0]}
+            </AvatarFallback>
+          </Avatar>
+        </span>
       </div>
     </div>
   );
+}, (prev, next) => {
+  // Custom equality: skip render quando o conteúdo do lead é idêntico
+  // por valor (não apenas por referência). Isso é crítico durante drag
+  // cross-coluna: moveLeadToColumn cria { ...lead, statusId: novoCol }
+  // que é nova ref mas com mesmo conteúdo visual após primeira move.
+  // Sem isso, cada onDragOver dispara re-render do LeadItem, que cascateia
+  // em ref churn dos Radix internos (Switch, Popover, etc.) → loop.
+  if (prev.data === next.data) return true;
+  return JSON.stringify(prev.data) === JSON.stringify(next.data);
 });
 
 LeadItem.displayName = "LeadItem";
@@ -391,37 +376,25 @@ function FormStatusIcon({
   };
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          onClick={goToForm}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="inline-flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer"
-          aria-label={`Formulário "${form.formName}" — ${stateLabel}`}
-        >
-          {/* Ícone de prancheta colorido conforme o estado. Borda discreta
-              pra branco ficar visível sobre fundo claro. */}
-          <ClipboardListIcon
-            className="size-3"
-            style={{
-              color,
-              // Stroke escuro pra branco não desaparecer em fundo claro.
-              filter:
-                form.state === "empty"
-                  ? "drop-shadow(0 0 0.5px rgba(0,0,0,0.6))"
-                  : undefined,
-            }}
-          />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <div className="text-xs flex flex-col">
-          <strong>{form.formName}</strong>
-          <span className="text-muted-foreground">{stateLabel}</span>
-        </div>
-      </TooltipContent>
-    </Tooltip>
+    <button
+      type="button"
+      onClick={goToForm}
+      onPointerDown={(e) => e.stopPropagation()}
+      className="inline-flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer"
+      aria-label={`Formulário "${form.formName}" — ${stateLabel}`}
+      title={`${form.formName} — ${stateLabel}`}
+    >
+      <ClipboardListIcon
+        className="size-3"
+        style={{
+          color,
+          filter:
+            form.state === "empty"
+              ? "drop-shadow(0 0 0.5px rgba(0,0,0,0.6))"
+              : undefined,
+        }}
+      />
+    </button>
   );
 }
 
@@ -450,20 +423,17 @@ function ListLeadTags({ leadId, tags }: { leadId: string; tags: any[] }) {
       {leadTags && leadTags.length > 0 && (
         <>
           {leadTags.slice(0, 8).map((tag) => (
-            <Tooltip key={tag.id}>
-              <TooltipTrigger asChild>
-                <Badge
-                  className="px-1 py-0 text-[10px] h-4 font-normal max-w-50 inline-block truncate"
-                  style={{
-                    backgroundColor: tag.color || "#000000",
-                    color: getContrastColor(tag.color || "#000000"),
-                  }}
-                >
-                  {tag.name}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>{tag.name}</TooltipContent>
-            </Tooltip>
+            <Badge
+              key={tag.id}
+              title={tag.name}
+              className="px-1 py-0 text-[10px] h-4 font-normal max-w-50 inline-block truncate"
+              style={{
+                backgroundColor: tag.color || "#000000",
+                color: getContrastColor(tag.color || "#000000"),
+              }}
+            >
+              {tag.name}
+            </Badge>
           ))}
           {leadTags.length > 8 && (
             <Badge

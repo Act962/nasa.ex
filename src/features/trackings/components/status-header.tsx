@@ -34,6 +34,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useQuery } from "@tanstack/react-query";
+import { useQueryState } from "nuqs";
+import dayjs from "dayjs";
+import { orpc } from "@/lib/orpc";
 
 interface StatusHeaderProps {
   id: string;
@@ -147,9 +151,11 @@ export const StatusHeader = ({
             </TooltipTrigger>
             <TooltipContent>{data.name}</TooltipContent>
           </Tooltip>
-          <span className="text-xs text-muted-foreground ml-2">
-            {data.leads}
-          </span>
+          <StatusLeadsCount
+            columnId={data.id}
+            trackingId={data.trackingId}
+            fallback={data.leads}
+          />
         </div>
       )}
       <ListOption
@@ -160,6 +166,59 @@ export const StatusHeader = ({
     </div>
   );
 };
+
+// Leaf component que subscreve sozinho ao count via TanStack Query.
+// Quando o count muda (drag de lead, refetch), só ESTE componente
+// re-renderiza — não cascateia pro StatusColumn (que está memoizado
+// ignorando leads count) nem pro StatusHeader. Isso quebra o ciclo
+// de ref churn que o memo do StatusColumn deixava passar quando o
+// count mudava.
+function StatusLeadsCount({
+  columnId,
+  trackingId,
+  fallback,
+}: {
+  columnId: string;
+  trackingId: string;
+  fallback: number;
+}) {
+  const [dateInit] = useQueryState("date_init");
+  const [dateEnd] = useQueryState("date_end");
+  const [participantFilter] = useQueryState("participant");
+  const [tagsFilter] = useQueryState("tags");
+  const [temperatureFilter] = useQueryState("temperature");
+  const [actionFilter] = useQueryState("filter");
+
+  const baseOptions = orpc.status.getMany.queryOptions({
+    input: {
+      trackingId,
+      dateInit: dateInit
+        ? dayjs(dateInit).startOf("day").toDate().toISOString()
+        : undefined,
+      dateEnd: dateEnd
+        ? dayjs(dateEnd).endOf("day").toDate().toISOString()
+        : undefined,
+      participantFilter: participantFilter || undefined,
+      tagsFilter: tagsFilter ? tagsFilter.split(",") : undefined,
+      temperatureFilter: temperatureFilter
+        ? temperatureFilter.split(",")
+        : undefined,
+      actionFilter: (actionFilter || "ACTIVE") as any,
+    },
+  });
+
+  const { data: count } = useQuery({
+    ...baseOptions,
+    select: (data: any) =>
+      data?.find((s: any) => s.id === columnId)?.leads ?? fallback,
+  });
+
+  return (
+    <span className="text-xs text-muted-foreground ml-2">
+      {count ?? fallback}
+    </span>
+  );
+}
 
 interface ListOptionProps {
   currentColor: string;
