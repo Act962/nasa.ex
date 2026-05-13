@@ -2,6 +2,7 @@ import { NodeExecutor } from "@/features/workspace-executions/types";
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { wsAddParticipantChannel } from "@/inngest/channels/workspace";
+import { publishActionChanged } from "@/features/actions/realtime/publish";
 import { ActionContext } from "../../schemas";
 
 type Data = {
@@ -45,6 +46,11 @@ export const wsAddParticipantExecutor: NodeExecutor<Data> = async ({
         throw new NonRetriableError("Action or users missing");
       }
 
+      const dbAction = await prisma.action.findUnique({
+        where: { id: action.id },
+        select: { columnId: true, workspaceId: true },
+      });
+
       await prisma.$transaction(
         userIds.map((userId) =>
           prisma.actionsUserParticipant.upsert({
@@ -54,6 +60,15 @@ export const wsAddParticipantExecutor: NodeExecutor<Data> = async ({
           }),
         ),
       );
+
+      if (dbAction?.columnId && dbAction?.workspaceId) {
+        await publishActionChanged(publish, {
+          actionId: action.id,
+          columnId: dbAction.columnId,
+          workspaceId: dbAction.workspaceId,
+          fields: ["participant"],
+        });
+      }
 
       if (realTime) {
         await publish(

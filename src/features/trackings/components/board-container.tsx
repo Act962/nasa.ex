@@ -38,6 +38,7 @@ import { NavOptionsTracking } from "./nav-options-trancking";
 import { useQueryState } from "nuqs";
 import dayjs from "dayjs";
 import { useLeadSoundAlert } from "@/hooks/use-lead-sound-alert";
+import { useBoardRealtimeSync } from "../hooks/use-board-realtime-sync";
 
 
 interface BoardContainerProps {
@@ -96,6 +97,8 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
     trackingId: trackingId,
     ...queryInput,
   });
+
+  useBoardRealtimeSync({ trackingId });
 
   // Mantém status acessível via ref para callbacks sem inclui-lo nas deps
   // — tira `status` das deps de onDragEnd, evitando recriação a cada refetch.
