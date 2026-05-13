@@ -30,6 +30,7 @@ import { Action } from "../../types";
 import { useUpdateColumnOrder } from "../../hooks/use-columns";
 import { useColumnsByWorkspace } from "@/features/workspace/hooks/use-workspace";
 import { useActionFilters } from "../../hooks/use-action-filters";
+import { useBoardActionsRealtimeSync } from "../../hooks/use-board-actions-realtime-sync";
 
 interface Props {
   workspaceId: string;
@@ -53,6 +54,7 @@ const KanbanBoard = ({ workspaceId }: Props) => {
       dueDateFrom: filters.dueDateFrom,
       dueDateTo: filters.dueDateTo,
     });
+  useBoardActionsRealtimeSync({ workspaceId });
   const reorderAction = useReorderAction();
   const reorderColumn = useUpdateColumnOrder();
 

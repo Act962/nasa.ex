@@ -4,6 +4,7 @@ import { LeadContext } from "../../schemas";
 import { responsibleChannel } from "@/inngest/channels/responsible";
 import prisma from "@/lib/prisma";
 import { recordLeadEvent } from "@/features/leads/lib/history";
+import { publishLeadChanged } from "@/features/leads/realtime/publish";
 
 type ResponsibleNodeData = {
   action?: ResponsibleFormValues;
@@ -53,6 +54,12 @@ export const responsibleExecutor: NodeExecutor<ResponsibleNodeData> = async ({
               previousResponsibleId: before?.responsibleId ?? null,
               newResponsibleId: responsibleId,
             });
+            await publishLeadChanged(publish, {
+              leadId: lead.id,
+              trackingId: lead.trackingId,
+              statusId: lead.statusId,
+              fields: ["responsible"],
+            });
           }
         }
       } else if (action?.type === "REMOVE") {
@@ -75,6 +82,12 @@ export const responsibleExecutor: NodeExecutor<ResponsibleNodeData> = async ({
               eventType: "RESPONSIBLE_CHANGE",
               previousResponsibleId: idToRemove,
               newResponsibleId: null,
+            });
+            await publishLeadChanged(publish, {
+              leadId: lead.id,
+              trackingId: lead.trackingId,
+              statusId: lead.statusId,
+              fields: ["responsible"],
             });
           }
         }
