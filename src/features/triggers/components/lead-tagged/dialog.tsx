@@ -34,9 +34,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { useCreateTag } from "@/features/tags/hooks/use-tag";
 import { useTags } from "@/features/tags/hooks/use-tags";
 import { cn } from "@/lib/utils";
+import { DEFAULT_UI_COLORS } from "@/utils/whatsapp-utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, PlusIcon, Trash2Icon, X } from "lucide-react";
 import { useParams } from "next/navigation";
@@ -216,6 +219,17 @@ export const LeadTaggedTriggerDialog = ({
                             </>
                           )}
                         </CommandList>
+                        {trackingId && (
+                          <CreateTagInline
+                            trackingId={trackingId}
+                            onCreated={(tagId) => {
+                              const current = field.value || [];
+                              if (!current.includes(tagId)) {
+                                field.onChange([...current, tagId]);
+                              }
+                            }}
+                          />
+                        )}
                       </Command>
                     </PopoverContent>
                   </Popover>
@@ -290,6 +304,7 @@ export const LeadTaggedTriggerDialog = ({
                                   onChange={tagField.onChange}
                                   tags={tags as any[]}
                                   placeholder="Tags..."
+                                  trackingId={trackingId}
                                 />
                               )}
                             />
@@ -333,6 +348,7 @@ interface TagMultiSelectProps {
   onChange: (ids: string[]) => void;
   tags: any[];
   placeholder?: string;
+  trackingId?: string;
 }
 
 const TagMultiSelect = ({
@@ -340,6 +356,7 @@ const TagMultiSelect = ({
   onChange,
   tags,
   placeholder,
+  trackingId,
 }: TagMultiSelectProps) => {
   const [open, setOpen] = useState(false);
 
@@ -424,8 +441,131 @@ const TagMultiSelect = ({
               ))}
             </CommandGroup>
           </CommandList>
+          {trackingId && (
+            <CreateTagInline
+              trackingId={trackingId}
+              onCreated={(tagId) => {
+                if (!selectedTagIds.includes(tagId)) {
+                  onChange([...selectedTagIds, tagId]);
+                }
+              }}
+            />
+          )}
         </Command>
       </PopoverContent>
     </Popover>
+  );
+};
+
+interface CreateTagInlineProps {
+  trackingId: string;
+  onCreated: (tagId: string) => void;
+}
+
+const CreateTagInline = ({ trackingId, onCreated }: CreateTagInlineProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [color, setColor] = useState(DEFAULT_UI_COLORS[0]);
+  const createTag = useCreateTag();
+
+  const handleCreate = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    createTag.mutate(
+      { name: trimmed, trackingId, color },
+      {
+        onSuccess: (data) => {
+          onCreated(data.tagId);
+          setName("");
+          setColor(DEFAULT_UI_COLORS[0]);
+          setIsOpen(false);
+        },
+      },
+    );
+  };
+
+  if (!isOpen) {
+    return (
+      <div className="border-t p-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start font-normal"
+          onClick={() => setIsOpen(true)}
+        >
+          <PlusIcon className="mr-2 h-4 w-4" />
+          Criar nova tag
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-t p-2 space-y-2">
+      <div className="flex items-center gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="size-7 shrink-0 rounded-sm border cursor-pointer"
+              style={{ backgroundColor: color }}
+              aria-label="Selecionar cor"
+            />
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-2" align="start">
+            <div className="flex flex-wrap gap-1.5 max-w-[200px]">
+              {DEFAULT_UI_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={cn(
+                    "size-5 rounded-sm cursor-pointer hover:scale-110 transition-transform",
+                    color === c && "ring-1 ring-offset-1 ring-primary",
+                  )}
+                  style={{ backgroundColor: c }}
+                  onClick={() => setColor(c)}
+                />
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+        <Input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleCreate();
+            }
+            if (e.key === "Escape") {
+              e.preventDefault();
+              setIsOpen(false);
+            }
+          }}
+          placeholder="Nome da tag"
+          className="h-8"
+        />
+      </div>
+      <div className="flex items-center justify-end gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsOpen(false)}
+        >
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={handleCreate}
+          disabled={!name.trim() || createTag.isPending}
+        >
+          {createTag.isPending ? <Spinner /> : "Criar"}
+        </Button>
+      </div>
+    </div>
   );
 };

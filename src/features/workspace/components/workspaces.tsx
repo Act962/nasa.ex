@@ -90,7 +90,7 @@ export const WorkspaceAnalytics = () => {
       <div className="grid gap-4 md:gap-5 lg:grid-cols-2 xl:grid-cols-3">
         <AnalyticsCard
           isLoading={isLoading}
-          title="Total Actions"
+          title="Ações"
           value={data?.total ?? 0}
           type="task"
           onClick={() => setBucket("total")}
@@ -110,10 +110,7 @@ export const WorkspaceAnalytics = () => {
           onClick={() => setBucket("completed")}
         />
       </div>
-      <AnalyticsDetailsModal
-        bucket={bucket}
-        onClose={() => setBucket(null)}
-      />
+      <AnalyticsDetailsModal bucket={bucket} onClose={() => setBucket(null)} />
     </>
   );
 };

@@ -35,9 +35,14 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { useListTags } from "@/features/workspace/hooks/use-workspace";
+import {
+  useCreateTag,
+  useListTags,
+} from "@/features/workspace/hooks/use-workspace";
 import { cn } from "@/lib/utils";
+import { PlusIcon } from "lucide-react";
 
 type Values = { tagIds: string[] };
 type Data = { action?: Partial<Values> & { tagId?: string } };
@@ -195,6 +200,17 @@ export const WsActionTaggedNode = memo((props: NodeProps<Node<Data>>) => {
                         </>
                       )}
                     </CommandList>
+                    {workspaceId && (
+                      <CreateActionTagInline
+                        workspaceId={workspaceId}
+                        onCreated={(tagId) => {
+                          setError(null);
+                          setSelected((prev) =>
+                            prev.includes(tagId) ? prev : [...prev, tagId],
+                          );
+                        }}
+                      />
+                    )}
                   </Command>
                 </PopoverContent>
               </Popover>
@@ -225,3 +241,132 @@ export const WsActionTaggedNode = memo((props: NodeProps<Node<Data>>) => {
   );
 });
 WsActionTaggedNode.displayName = "WsActionTaggedNode";
+
+const PRESET_COLORS = [
+  "#7C3AED",
+  "#DB2777",
+  "#DC2626",
+  "#D97706",
+  "#16A34A",
+  "#0891B2",
+  "#2563EB",
+  "#9333EA",
+  "#374151",
+  "#6B7280",
+];
+
+interface CreateActionTagInlineProps {
+  workspaceId: string;
+  onCreated: (tagId: string) => void;
+}
+
+const CreateActionTagInline = ({
+  workspaceId,
+  onCreated,
+}: CreateActionTagInlineProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [color, setColor] = useState(PRESET_COLORS[0]);
+  const createTag = useCreateTag();
+
+  const handleCreate = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    createTag.mutate(
+      { workspaceId, name: trimmed, color },
+      {
+        onSuccess: (data) => {
+          onCreated(data.tag.id);
+          setName("");
+          setColor(PRESET_COLORS[0]);
+          setIsOpen(false);
+        },
+      },
+    );
+  };
+
+  if (!isOpen) {
+    return (
+      <div className="border-t p-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start font-normal"
+          onClick={() => setIsOpen(true)}
+        >
+          <PlusIcon className="mr-2 h-4 w-4" />
+          Criar nova etiqueta
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-t p-2 space-y-2">
+      <div className="flex items-center gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="size-7 shrink-0 rounded-sm border cursor-pointer"
+              style={{ backgroundColor: color }}
+              aria-label="Selecionar cor"
+            />
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-2" align="start">
+            <div className="flex flex-wrap gap-1.5 max-w-[200px]">
+              {PRESET_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={cn(
+                    "size-5 rounded-sm cursor-pointer hover:scale-110 transition-transform",
+                    color === c && "ring-1 ring-offset-1 ring-primary",
+                  )}
+                  style={{ backgroundColor: c }}
+                  onClick={() => setColor(c)}
+                />
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+        <Input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleCreate();
+            }
+            if (e.key === "Escape") {
+              e.preventDefault();
+              setIsOpen(false);
+            }
+          }}
+          placeholder="Nome da etiqueta"
+          className="h-8"
+        />
+      </div>
+      <div className="flex items-center justify-end gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsOpen(false)}
+        >
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={handleCreate}
+          disabled={!name.trim() || createTag.isPending}
+        >
+          {createTag.isPending ? <Spinner /> : "Criar"}
+        </Button>
+      </div>
+    </div>
+  );
+};
