@@ -5,7 +5,10 @@ import { z } from "zod";
 import { managementLabels } from "@/http/uazapi/management-labels";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
-import { recordLeadEvent } from "@/features/leads/lib/history";
+import {
+  recordLeadEvent,
+  type RecordLeadEventInput,
+} from "@/features/leads/lib/history";
 
 // 🟦 UPDATE
 export const updateWhatsappTagsLead = base
@@ -55,6 +58,8 @@ export const updateWhatsappTagsLead = base
 
       const validTagIds = validTags.map((t) => t.id);
 
+      const pendingLeadEvents: RecordLeadEventInput[] = [];
+
       const result = await prisma.$transaction(async (tx) => {
         const lead = await tx.lead.update({
           where: { id: input.id },
@@ -97,35 +102,31 @@ export const updateWhatsappTagsLead = base
           (id) => !newTagIds.has(id),
         );
 
-        await Promise.all([
-          ...added.map((tagId) =>
-            recordLeadEvent(
-              {
-                leadId: input.id,
-                eventType: "TAG_ADDED",
-                userId: context.user.id,
-                metadata: { tagId, source: "whatsapp_sync" },
-              },
-              tx,
-            ),
-          ),
-          ...removed.map((tagId) =>
-            recordLeadEvent(
-              {
-                leadId: input.id,
-                eventType: "TAG_REMOVED",
-                userId: context.user.id,
-                metadata: { tagId, source: "whatsapp_sync" },
-              },
-              tx,
-            ),
-          ),
-        ]);
+        for (const tagId of added) {
+          pendingLeadEvents.push({
+            leadId: input.id,
+            eventType: "TAG_ADDED",
+            userId: context.user.id,
+            metadata: { tagId, source: "whatsapp_sync" },
+          });
+        }
+        for (const tagId of removed) {
+          pendingLeadEvents.push({
+            leadId: input.id,
+            eventType: "TAG_REMOVED",
+            userId: context.user.id,
+            metadata: { tagId, source: "whatsapp_sync" },
+          });
+        }
 
         return lead;
       });
 
       const lead = result;
+
+      if (pendingLeadEvents.length > 0) {
+        await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
+      }
 
       const WhatsAppInstance = await prisma.whatsAppInstance.findUnique({
         where: {

@@ -6,7 +6,10 @@ import { Prisma, Workflow } from "@/generated/prisma/client";
 import { sendWorkflowExecution } from "@/inngest/utils";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
-import { recordLeadEvent } from "@/features/leads/lib/history";
+import {
+  recordLeadEvent,
+  type RecordLeadEventInput,
+} from "@/features/leads/lib/history";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 
 export const updateNewOrder = base
@@ -26,6 +29,8 @@ export const updateNewOrder = base
   )
   .handler(async ({ input, errors, context }) => {
     const { leadId, targetStatusId, beforeId, afterId, trackingId } = input;
+
+    const pendingLeadEvents: RecordLeadEventInput[] = [];
 
     const result = await prisma.$transaction(async (tx) => {
       const currentLead = await tx.lead.findUnique({
@@ -103,19 +108,16 @@ export const updateNewOrder = base
       });
 
       // Evento granular pra Jornada (alimenta a timeline pública do lead).
-      // Sem isso, a página `/lead/<token>` só veria o LeadHistory genérico
-      // ("Lead reativado") sem detalhes de qual etapa.
+      // Coletado aqui, disparado DEPOIS do commit — recordLeadEvent chama
+      // Pusher e rodar dentro da tx estoura timeout.
       if (statusChanged) {
-        await recordLeadEvent(
-          {
-            leadId,
-            eventType: "STATUS_CHANGE",
-            userId: context.user.id,
-            previousStatusId: currentLead.statusId,
-            newStatusId: targetStatusId,
-          },
-          tx,
-        );
+        pendingLeadEvents.push({
+          leadId,
+          eventType: "STATUS_CHANGE",
+          userId: context.user.id,
+          previousStatusId: currentLead.statusId,
+          newStatusId: targetStatusId,
+        });
       }
 
       let workflows: { id: string }[] = [];
@@ -148,6 +150,10 @@ export const updateNewOrder = base
         statusChanged,
       };
     });
+
+    if (pendingLeadEvents.length > 0) {
+      await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
+    }
 
     if (result.statusChanged && result.workflows.length > 0) {
       await Promise.all(

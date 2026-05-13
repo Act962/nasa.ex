@@ -23,6 +23,7 @@ import { authClient } from "@/lib/auth-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KPIAtendimentCards } from "./kpi/atendiment-cards";
 import { cn } from "@/lib/utils";
+import { useHeaderPin } from "../context/use-header-pin";
 
 import { WidgetList } from "./widget";
 import { ChannelInsights } from "./channel-insights";
@@ -102,6 +103,7 @@ export function TrackingDashboard({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSentRemindersModalOpen, setIsSentRemindersModalOpen] =
     useState(false);
+  const isHeaderPinned = useHeaderPin((s) => s.isPinned);
 
   const handleChartClick = (leadIds?: string[]) => {
     if (leadIds && leadIds.length > 0) {
@@ -277,7 +279,12 @@ export function TrackingDashboard({
       <div className="flex flex-col h-full w-full">
         <HeaderTracking title="Insights" />
         <InsightsTabsNav />
-        <div className="sm:sticky top-10 z-10 bg-background/95 backdrop-blur-sm border-b py-4 space-y-4 px-2 sm:px-6">
+        <div
+          className={cn(
+            "bg-background/95 backdrop-blur-sm border-b py-4 space-y-4 px-2 sm:px-6",
+            isHeaderPinned && "sm:sticky top-10 z-10",
+          )}
+        >
           <DashboardHeader
             settings={settings}
             onToggleSection={toggleSection}

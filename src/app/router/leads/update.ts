@@ -10,6 +10,7 @@ import { trackLeadEvent } from "@/lib/lead-journey/track";
 import {
   recordLeadEvent,
   notifyInternalLeadChannel,
+  type RecordLeadEventInput,
 } from "@/features/leads/lib/history";
 import { computeSlaDeadline } from "@/features/leads/lib/sla";
 
@@ -85,6 +86,8 @@ export const updateLead = base
         !!input.responsibleId && input.responsibleId !== leadExists.responsibleId;
       const now = new Date();
 
+      const pendingLeadEvents: RecordLeadEventInput[] = [];
+
       const result = await prisma.$transaction(async (tx) => {
         // Recompute SLA deadline when status changes
         let slaPatch: { statusEnteredAt?: Date | null; slaDeadline?: Date | null } = {};
@@ -153,45 +156,38 @@ export const updateLead = base
           tx,
         });
 
-        // Eventos granulares para a Jornada
+        // Eventos granulares pra Jornada — coletados aqui e disparados
+        // DEPOIS do commit. recordLeadEvent chama Pusher; rodar dentro da
+        // tx segura o commit aguardando HTTP externo → timeout.
         if (input.statusId && input.statusId !== leadExists.statusId) {
-          await recordLeadEvent(
-            {
-              leadId: lead.id,
-              eventType: "STATUS_CHANGE",
-              userId: context.user.id,
-              previousStatusId: leadExists.statusId,
-              newStatusId: input.statusId,
-            },
-            tx,
-          );
+          pendingLeadEvents.push({
+            leadId: lead.id,
+            eventType: "STATUS_CHANGE",
+            userId: context.user.id,
+            previousStatusId: leadExists.statusId,
+            newStatusId: input.statusId,
+          });
         }
         if (input.trackingId && input.trackingId !== leadExists.trackingId) {
-          await recordLeadEvent(
-            {
-              leadId: lead.id,
-              eventType: "TRACKING_CHANGE",
-              userId: context.user.id,
-              previousTrackingId: leadExists.trackingId,
-              newTrackingId: input.trackingId,
-            },
-            tx,
-          );
+          pendingLeadEvents.push({
+            leadId: lead.id,
+            eventType: "TRACKING_CHANGE",
+            userId: context.user.id,
+            previousTrackingId: leadExists.trackingId,
+            newTrackingId: input.trackingId,
+          });
         }
         if (
           input.responsibleId !== undefined &&
           input.responsibleId !== leadExists.responsibleId
         ) {
-          await recordLeadEvent(
-            {
-              leadId: lead.id,
-              eventType: "RESPONSIBLE_CHANGE",
-              userId: context.user.id,
-              previousResponsibleId: leadExists.responsibleId,
-              newResponsibleId: input.responsibleId ?? null,
-            },
-            tx,
-          );
+          pendingLeadEvents.push({
+            leadId: lead.id,
+            eventType: "RESPONSIBLE_CHANGE",
+            userId: context.user.id,
+            previousResponsibleId: leadExists.responsibleId,
+            newResponsibleId: input.responsibleId ?? null,
+          });
         }
 
         // Workflows: ACUMULA disparos de tag + status. Antes, o branch de
@@ -251,6 +247,12 @@ export const updateLead = base
 
         return { lead, workflows };
       });
+
+      // Dispara Pusher/journey FORA da transaction. Falha aqui não derruba
+      // o update do lead já commitado.
+      if (pendingLeadEvents.length > 0) {
+        await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
+      }
 
       if (result.workflows && result.workflows.length > 0) {
         await Promise.all(

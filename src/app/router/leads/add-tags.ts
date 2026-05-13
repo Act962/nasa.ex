@@ -4,7 +4,10 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { requireOrgMiddleware } from "../../middlewares/org";
 import { recordLeadHistory } from "./utils/history";
-import { recordLeadEvent } from "@/features/leads/lib/history";
+import {
+  recordLeadEvent,
+  type RecordLeadEventInput,
+} from "@/features/leads/lib/history";
 import { sendWorkflowExecution } from "@/inngest/utils";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 
@@ -30,6 +33,8 @@ export const addTagsToLead = base
       throw errors.UNAUTHORIZED;
     }
 
+    const pendingLeadEvents: RecordLeadEventInput[] = [];
+
     const result = await prisma.$transaction(async (tx) => {
       const created = await tx.leadTag.createMany({
         data: input.tagIds.map((tagId) => ({
@@ -48,21 +53,15 @@ export const addTagsToLead = base
       });
 
       // Evento granular pra Jornada — uma entrada por tag, com tagId no
-      // metadata. Permite que a timeline do lead (interna e pública)
-      // mostre exatamente qual tag foi aplicada, com cor e nome.
-      await Promise.all(
-        input.tagIds.map((tagId) =>
-          recordLeadEvent(
-            {
-              leadId: input.leadId,
-              eventType: "TAG_ADDED",
-              userId: context.user.id,
-              metadata: { tagId },
-            },
-            tx,
-          ),
-        ),
-      );
+      // metadata. Coletado aqui e disparado FORA da tx (Pusher).
+      for (const tagId of input.tagIds) {
+        pendingLeadEvents.push({
+          leadId: input.leadId,
+          eventType: "TAG_ADDED",
+          userId: context.user.id,
+          metadata: { tagId },
+        });
+      }
 
       const workflows = await tx.workflow.findMany({
         where: {
@@ -88,6 +87,10 @@ export const addTagsToLead = base
         workflows,
       };
     });
+
+    if (pendingLeadEvents.length > 0) {
+      await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
+    }
 
     if (result.workflows.length > 0) {
       await Promise.all(

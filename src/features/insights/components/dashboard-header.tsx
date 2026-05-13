@@ -7,8 +7,11 @@ import {
   FullscreenIcon,
   LayoutDashboard,
   Link2Icon,
+  PinIcon,
+  PinOffIcon,
   RefreshCwIcon,
 } from "lucide-react";
+import { useHeaderPin } from "../context/use-header-pin";
 import { SettingsPanel } from "./settings-panel";
 import type {
   AppModule,
@@ -62,6 +65,8 @@ export function DashboardHeader({
   const store = useDashboardStore();
   const session = authClient.useSession();
   const { isFullscreen, toggleFullscreen } = useFullscreen();
+  const isPinned = useHeaderPin((s) => s.isPinned);
+  const togglePin = useHeaderPin((s) => s.toggle);
 
   return (
     <div className="flex items-center justify-between">
@@ -112,10 +117,9 @@ export function DashboardHeader({
           </Button>
           <Button
             variant="outline"
-            size="sm"
             onClick={() => setSaveOpen(true)}
             disabled={isLoading}
-            className="self-end sm:self-auto gap-1"
+            className="self-end sm:self-auto"
           >
             <BookmarkPlusIcon className="h-4 w-4" />
             Salvar Relatório
@@ -126,6 +130,20 @@ export function DashboardHeader({
             onChartTypeChange={onChartTypeChange}
             onReset={onReset}
           />
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={togglePin}
+            disabled={isLoading}
+            className="self-end sm:self-auto"
+            title={isPinned ? "Desafixar header" : "Fixar header"}
+          >
+            {isPinned ? (
+              <PinOffIcon className="h-4 w-4" />
+            ) : (
+              <PinIcon className="h-4 w-4" />
+            )}
+          </Button>
           <Button
             variant="outline"
             size="icon"

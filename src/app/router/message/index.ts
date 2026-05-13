@@ -5,6 +5,7 @@ import { createMessageWithFile } from "./create-with-file";
 import { createMessageWithAudio } from "./create-audio";
 import { createButtonsMessage } from "./create-with-buttons";
 import { createLocationMessage } from "./create-with-location";
+import { createContactMessage } from "./create-with-contact";
 import { deleteMessageHandler } from "./delet-message";
 import { syncFromUazapi } from "./sync-from-uazapi";
 import { editMessageHandler } from "./edit";
@@ -19,6 +20,7 @@ export const messageRouter = {
   createAudio: createMessageWithAudio,
   createWithButtons: createButtonsMessage,
   createLocation: createLocationMessage,
+  createContact: createContactMessage,
   syncFromUazapi: syncFromUazapi,
   delete: deleteMessageHandler,
   edit: editMessageHandler,

@@ -323,6 +323,21 @@ export interface SendLocationPayload {
 
 export type SendLocationResponse = SendTextResponse;
 
+export interface SendContactPayload {
+  number: string;
+  fullName: string;
+  phoneNumber: string;
+  organization?: string;
+  email?: string;
+  url?: string;
+  replyid?: string;
+  readchat?: boolean;
+  readmessages?: boolean;
+  delay?: number;
+}
+
+export type SendContactResponse = SendTextResponse;
+
 export type MediaType =
   | "image"
   | "video"

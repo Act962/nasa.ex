@@ -140,6 +140,22 @@ export const updateManyStatusLead = base
 
       return result;
     } catch (err) {
+      if (
+        err != null &&
+        typeof err === "object" &&
+        "code" in err &&
+        (err as { code: string }).code === "P2002"
+      ) {
+        const target =
+          ((err as { meta?: { target?: string[] } }).meta?.target) ?? [];
+        const isPhoneConflict =
+          target.includes("phone") || target.includes("tracking_id");
+        throw errors.BAD_REQUEST({
+          message: isPhoneConflict
+            ? "Um ou mais leads já existem neste tracking com o mesmo telefone"
+            : "Conflito de dados únicos ao mover os leads",
+        });
+      }
       console.error(err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
