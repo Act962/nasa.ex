@@ -41,5 +41,19 @@ export function imgSrc(path: string | null | undefined): string {
   // Sem bucket configurado → cai pra `/uploads/...` (funciona em dev).
   // Em prod sem env var setada, isso vai 404, mas no mínimo NÃO gera
   // `https://undefined/...` que polui o console.
+  //
+  // Avisa UMA vez por sessão pra ajudar a diagnosticar "imagem não
+  // abre em produção" — quase sempre é env var faltando na Vercel.
+  if (typeof window !== "undefined") {
+    const w = window as unknown as { __nasaImgSrcWarn?: boolean };
+    if (!w.__nasaImgSrcWarn) {
+      w.__nasaImgSrcWarn = true;
+      // eslint-disable-next-line no-console
+      console.warn(
+        "[imgSrc] NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL não configurado — " +
+          "imagens armazenadas como keys vão cair pra /uploads/ e 404 em produção.",
+      );
+    }
+  }
   return `/uploads/${path.replace(/^\/+/, "")}`;
 }

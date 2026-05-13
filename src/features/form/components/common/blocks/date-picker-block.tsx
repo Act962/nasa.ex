@@ -438,9 +438,10 @@ function ResetTriggersSection({
   // grupo como "próximo grupo".
   const parentGroupId = selectedBlockLayout?.id ?? null;
 
-  // Trackings da org
+  // Trackings da org — procedure usa `z.void()` no input, então
+  // passamos `undefined` (não `{}`) pra casar com o tipo.
   const trackingsQ = useQuery({
-    ...orpc.tracking.list.queryOptions({ input: {} }),
+    ...orpc.tracking.list.queryOptions({ input: undefined }),
     staleTime: 5 * 60 * 1000,
   });
   // Status do tracking atual do form

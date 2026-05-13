@@ -207,6 +207,15 @@ model Organization {
   // pode alternar entre 60 (padrão, menos tráfego) e 30 (granularidade maior).
   heartbeatIntervalSeconds Int @default(60) @map("heartbeat_interval_seconds")
 
+  // ── Verificação de Marca ──────────────────────────────────
+  // Usado pelo sistema de reivindicação de eventos públicos (Action.isPublic).
+  // Org verificada: reports daquela org pesam 5 (vs 1 padrão) e ganha badge
+  // visual nos eventos. Verificação é manual via admin por enquanto — não há
+  // fluxo de "solicitar verificação" automático.
+  isVerified Boolean   @default(false) @map("is_verified")
+  verifiedAt DateTime? @map("verified_at")
+  verifiedBy String?   @map("verified_by") // userId do admin que verificou
+
   members                Member[]
   invitations            Invitation[]
   inviteLinks            OrganizationInviteLink[]
@@ -1022,6 +1031,18 @@ model Action {
   isGuestDraft    Boolean @default(false) @map("is_guest_draft")
   guestDraftToken String? @unique @map("guest_draft_token")
 
+  // ── Sistema de reivindicação/denúncia ──────────────────────
+  // Quando criador rejeita um claim, evento ganha banner "ownership
+  // contestado" via `isDisputed=true` (não despublica — admin decide).
+  // `reportScore` acumula peso de reports PENDING; score >= threshold
+  // (env CALENDAR_REPORT_SCORE_THRESHOLD, default 10) marca disputed.
+  isDisputed    Boolean @default(false) @map("is_disputed")
+  disputeReason String? @map("dispute_reason") // resumo curto pro banner
+  reportScore   Int     @default(0) @map("report_score")
+
+  claims  EventClaim[]
+  reports EventReport[]
+
   likes        ActionLike[]
   favorites    ActionFavorite[]
   views        ActionView[]
@@ -1045,6 +1066,97 @@ model Action {
   @@index([eventCategory])
   @@index([organizationId, isPublic, publishedAt])
   @@map("actions")
+}
+
+// ─── Calendário Público: Reivindicação e Denúncia ───────────────────────────
+//
+// Sistema pra controle de "uso de marca de terceiros" em eventos públicos.
+// Marca legítima usa "Reivindicar este evento" → cria EventClaim → criador
+// recebe email + in-app → responde aceitando (despublica) ou rejeitando
+// (vira disputa, admin decide). 7 dias sem resposta → auto-despublica.
+// Reports leves (denúncia rápida) acumulam score; threshold dispara flag.
+
+enum EventClaimStatus {
+  PENDING        // aguardando resposta do criador (7 dias)
+  ACCEPTED       // criador aceitou — evento despublicado
+  REJECTED       // criador rejeitou — virou disputa pra admin
+  EXPIRED        // 7 dias sem resposta — auto-despublicado
+  ADMIN_RESOLVED // admin decidiu manualmente (uphold ou dismiss)
+}
+
+model EventClaim {
+  id             String @id @default(cuid())
+  actionId       String @map("action_id")
+  action         Action @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  claimantUserId String? @map("claimant_user_id")
+  claimantOrgId  String? @map("claimant_org_id")
+  claimantEmail  String  @map("claimant_email")
+  claimantName   String  @map("claimant_name")
+
+  // Magic-links — criador responde sem auth, claimant acompanha o status.
+  responseToken String @unique @default(cuid()) @map("response_token")
+  trackingToken String @unique @default(cuid()) @map("tracking_token")
+
+  reason          String  @db.Text
+  evidence        Json? // URLs de prova, descrições adicionais
+  status          EventClaimStatus @default(PENDING)
+  creatorResponse String? @map("creator_response") @db.Text // resposta do criador ao rejeitar
+  adminNote       String? @map("admin_note") @db.Text
+
+  expiresAt        DateTime  @map("expires_at") // createdAt + 7 dias
+  resolvedAt       DateTime? @map("resolved_at")
+  resolvedByUserId String?   @map("resolved_by_user_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([actionId, status])
+  @@index([expiresAt, status]) // pra Inngest job de auto-resolve
+  @@index([claimantEmail])
+  @@map("event_claims")
+}
+
+enum EventReportReason {
+  BRAND_MISUSE
+  FAKE
+  OFFENSIVE
+  DUPLICATE
+  OTHER
+}
+
+enum EventReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+model EventReport {
+  id             String  @id @default(cuid())
+  actionId       String  @map("action_id")
+  action         Action  @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  reporterUserId String? @map("reporter_user_id")
+  reporterEmail  String? @map("reporter_email")
+  reporterIp     String? @map("reporter_ip") // anti-spam, rate-limit
+
+  reason EventReportReason
+  detail String? @db.Text
+
+  // Peso do report: 1 padrão, 5 quando reporter pertence a org verificada
+  // ou é admin. Soma de PENDING vai pra Action.reportScore — threshold
+  // (env CALENDAR_REPORT_SCORE_THRESHOLD, default 10) marca isDisputed.
+  weight Int @default(1)
+
+  status           EventReportStatus @default(PENDING)
+  adminNote        String?           @map("admin_note") @db.Text
+  resolvedByUserId String?           @map("resolved_by_user_id")
+  resolvedAt       DateTime?         @map("resolved_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([actionId, status])
+  @@index([status, createdAt])
+  @@index([reporterIp]) // rate-limit lookups
+  @@map("event_reports")
 }
 
 // ─── Calendário Público: Likes / Views / Shares / Reminders ─────────────────

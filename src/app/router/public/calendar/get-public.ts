@@ -23,7 +23,9 @@ export const getPublicEvent = base
         publishedAt: { not: null },
       },
       include: {
-        organization: { select: { id: true, name: true, logo: true } },
+        organization: {
+          select: { id: true, name: true, logo: true, isVerified: true },
+        },
         user: { select: { id: true, name: true, image: true } },
         participants: {
           include: { user: { select: { id: true, name: true, image: true } } },

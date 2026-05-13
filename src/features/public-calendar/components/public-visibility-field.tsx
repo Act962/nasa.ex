@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Globe, Copy, ExternalLink, Check } from "lucide-react";
+import { Globe, Copy, ExternalLink, Check, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -15,8 +15,11 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useQueryState } from "nuqs";
+import { useMutation } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import { EVENT_CATEGORIES, BR_STATES } from "../utils/categories";
+import { isGoogleMapsUrl } from "../utils/maps";
 import type { EventCategory } from "@/generated/prisma/enums";
 import { PublicVisibilityDialog } from "@/components/public-visibility-dialog";
 
@@ -61,6 +64,18 @@ export function PublicVisibilityField({
   const [localCity, setLocalCity] = useState(city ?? "");
   const [localUrl, setLocalUrl] = useState(registrationUrl ?? "");
   const [publicConfirmOpen, setPublicConfirmOpen] = useState(false);
+  // Estado local pro select de UF/Estado: quando resolveMapsLocation
+  // devolve um estado novo, atualizamos aqui pra select refletir antes
+  // mesmo do parent re-renderizar via prop.
+  const [localState, setLocalState] = useState(state ?? "");
+
+  // Auto-fill de cidade/estado quando o user cola um link do Google
+  // Maps no campo Endereço. Servidor segue redirect de short links
+  // (maps.app.goo.gl) e chama Nominatim — pode demorar 1-2s. Falhas
+  // são silenciosas (UI fica como tá, user preenche manual).
+  const resolveMaps = useMutation(
+    orpc.public.calendar.resolveMapsLocation.mutationOptions({}),
+  );
 
   const publicUrl = publicSlug
     ? `${typeof window !== "undefined" ? window.location.origin : ""}/calendario/evento/${publicSlug}`
@@ -97,6 +112,16 @@ export function PublicVisibilityField({
     }, 4000);
     return () => clearTimeout(t);
   }, [isHighlighted, setHighlight, highlight]);
+
+  // Sync local fields quando a prop muda (ex: auto-fill via resolveMaps
+  // atualiza o Action, parent re-renderiza com novos `state`/`city`,
+  // local sync mantém o input/select consistente).
+  useEffect(() => {
+    setLocalState(state ?? "");
+  }, [state]);
+  useEffect(() => {
+    setLocalCity(city ?? "");
+  }, [city]);
 
   const handleCopy = async () => {
     if (!publicUrl) return;
@@ -216,10 +241,12 @@ export function PublicVisibilityField({
             <div className="space-y-1">
               <Label className="text-xs">Estado</Label>
               <Select
-                value={state ?? "__none"}
-                onValueChange={(v) =>
-                  onUpdate({ state: v === "__none" ? null : v })
-                }
+                value={localState || "__none"}
+                onValueChange={(v) => {
+                  const next = v === "__none" ? null : v;
+                  setLocalState(next ?? "");
+                  onUpdate({ state: next });
+                }}
               >
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="UF" />
@@ -251,16 +278,58 @@ export function PublicVisibilityField({
 
           <div className="space-y-1">
             <Label className="text-xs">Endereço</Label>
-            <Input
-              value={localAddress}
-              onChange={(e) => setLocalAddress(e.target.value)}
-              onBlur={() =>
-                (localAddress || null) !== (address ?? null) &&
-                onUpdate({ address: localAddress || null })
-              }
-              className="h-8 text-xs"
-              placeholder="Rua, número, complemento…"
-            />
+            <div className="relative">
+              <Input
+                value={localAddress}
+                onChange={(e) => setLocalAddress(e.target.value)}
+                onBlur={async () => {
+                  const next = localAddress || null;
+                  if (next !== (address ?? null)) {
+                    onUpdate({ address: next });
+                  }
+                  // Se o user colou um link do Google Maps, tenta puxar
+                  // cidade/estado server-side (Nominatim) e auto-preencher.
+                  // Roda em paralelo ao save — não bloqueia o blur.
+                  if (next && isGoogleMapsUrl(next)) {
+                    try {
+                      const result = await resolveMaps.mutateAsync({
+                        url: next,
+                      });
+                      if (result.city || result.state) {
+                        const patch: {
+                          city?: string | null;
+                          state?: string | null;
+                        } = {};
+                        if (result.city) {
+                          patch.city = result.city;
+                          setLocalCity(result.city);
+                        }
+                        if (result.state) {
+                          patch.state = result.state;
+                          setLocalState(result.state);
+                        }
+                        onUpdate(patch);
+                        toast.success(
+                          "Cidade e estado preenchidos pelo Google Maps",
+                        );
+                      }
+                    } catch {
+                      // Silencioso — user pode preencher manualmente.
+                    }
+                  }
+                }}
+                className="h-8 text-xs pr-7"
+                placeholder="Endereço ou link do Google Maps"
+              />
+              {resolveMaps.isPending && (
+                <Loader2 className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 size-3 animate-spin text-muted-foreground" />
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-tight">
+              Pode digitar o endereço ou colar um link do Google Maps. Se
+              colar link (incluindo `maps.app.goo.gl/...`), cidade e estado
+              são preenchidos automaticamente.
+            </p>
           </div>
 
           <div className="space-y-1">

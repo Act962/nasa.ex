@@ -24,6 +24,15 @@ import { Visualizometro } from "./visualizometro";
 import { RichDescription } from "./rich-description";
 import { ImageLightbox } from "./image-lightbox";
 import type { PublicEvent } from "../types";
+import {
+  getMapDisplayLabel,
+  getMapEmbedUrl,
+  isGoogleMapsUrl,
+} from "../utils/maps";
+import { ClaimEventDialog } from "./claim-event-dialog";
+import { ReportEventDialog } from "./report-event-dialog";
+import { DisputedBanner } from "./disputed-banner";
+import { VerifiedBadge } from "./verified-badge";
 
 dayjs.locale("pt-br");
 
@@ -82,14 +91,46 @@ export function EventDetailPanel({
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 768px"
-            onError={() => setCoverFailed(true)}
+            onError={() => {
+              // Log da URL que falhou — em produção esse warn no F12
+              // mostra se a env var resolveu pro host correto e se o
+              // arquivo realmente existe no bucket.
+              // eslint-disable-next-line no-console
+              console.warn(
+                "[event-detail-panel] cover image falhou ao carregar:",
+                { src: coverSrc, coverImage: event.coverImage },
+              );
+              setCoverFailed(true);
+            }}
             unoptimized
           />
         ) : (
           <div className="flex h-full items-center justify-center text-6xl">
-            {category?.emoji ?? "✨"}
+            {/* Quando a imagem ESTAVA configurada mas falhou (`coverFailed`),
+                mostra emoji + dica abaixo. Quando nunca teve imagem,
+                mostra só o emoji da categoria. Diferencia "sem capa" de
+                "capa quebrada" no UX. */}
+            {event.coverImage && coverFailed ? (
+              <div className="flex flex-col items-center gap-1 text-center">
+                <span>📷</span>
+                <span className="text-xs font-normal text-foreground/60">
+                  Imagem indisponível
+                </span>
+              </div>
+            ) : (
+              <span>{category?.emoji ?? "✨"}</span>
+            )}
           </div>
         )}
+        {/* Gradiente preto→transparente no topo da capa. Fica ATRÁS das
+            badges (mesmo container `absolute`, mas vem antes no DOM),
+            dando contraste pra "Novo", "Quase começando" etc serem
+            lidas mesmo sobre fotos claras. `pointer-events-none` pra
+            não bloquear o click de ampliar a imagem. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/90 via-black/60 to-transparent"
+        />
         <div className="absolute left-3 top-3">
           <EventBadges event={event} />
         </div>
@@ -142,14 +183,11 @@ export function EventDetailPanel({
           </div>
         )}
         {(event.address || event.city || event.state) && (
-          <div className="flex items-start gap-2">
-            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <span>
-              {[event.address, event.city, event.state]
-                .filter(Boolean)
-                .join(", ")}
-            </span>
-          </div>
+          <EventAddress
+            address={event.address ?? null}
+            city={event.city ?? null}
+            state={event.state ?? null}
+          />
         )}
       </div>
 
@@ -183,6 +221,26 @@ export function EventDetailPanel({
         </Button>
       )}
 
+      {/* Banner "ownership contestado" — só aparece quando há disputa
+          ativa (criador rejeitou claim OU score de reports atingiu
+          threshold). Aviso visual sem esconder o evento. */}
+      {(event as unknown as { isDisputed?: boolean }).isDisputed && (
+        <DisputedBanner
+          reason={(event as unknown as { disputeReason?: string | null }).disputeReason ?? null}
+        />
+      )}
+
+      {/* Ações de moderação — qualquer visitante (exceto criador) pode
+          reivindicar. Denúncia é leve, todos podem submeter. Os 2
+          ficam abaixo do botão de editar pra não competir visualmente
+          com a CTA principal de inscrição. */}
+      {!canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <ClaimEventDialog actionId={event.id} />
+          <ReportEventDialog actionId={event.id} />
+        </div>
+      )}
+
       {event.user && (
         <div className="flex items-center gap-3 rounded-lg border border-border/60 p-3">
           <Avatar className="h-10 w-10">
@@ -191,9 +249,17 @@ export function EventDetailPanel({
               {event.user.name?.slice(0, 2).toUpperCase() ?? "??"}
             </AvatarFallback>
           </Avatar>
-          <div>
+          <div className="min-w-0">
             <div className="text-xs text-muted-foreground">Criado por</div>
-            <div className="text-sm font-medium">{event.user.name}</div>
+            <div className="flex items-center gap-1 text-sm font-medium">
+              <span className="truncate">{event.user.name}</span>
+              {/* Badge "Verificado" quando a org do criador tem
+                  isVerified=true. Sinaliza marca legítima — fortalece
+                  confiança no evento. */}
+              {(event as unknown as {
+                organization?: { isVerified?: boolean };
+              }).organization?.isVerified && <VerifiedBadge />}
+            </div>
           </div>
         </div>
       )}
@@ -213,5 +279,91 @@ export function EventDetailPanel({
         </Button>
       )}
     </article>
+  );
+}
+
+/**
+ * Bloco "endereço + mapa". Comportamento:
+ *
+ *  - Renderiza o texto do endereço (cidade/estado quando presentes).
+ *  - Se `address` for uma URL do Google Maps, mostra "Ver no Google Maps"
+ *    como link clicável; senão mostra o texto puro.
+ *  - Renderiza `<iframe>` do Google Maps abaixo (sempre que houver
+ *    `address` ou pelo menos cidade/estado).
+ *
+ * Iframe usa o endpoint sem API key (`maps.google.com/maps?q=...&output=embed`).
+ * Suporta texto puro, URLs longas E short links (`maps.app.goo.gl`,
+ * `goo.gl/maps`) porque o Google interpreta tudo como busca textual.
+ */
+function EventAddress({
+  address,
+  city,
+  state,
+}: {
+  address: string | null;
+  city: string | null;
+  state: string | null;
+}) {
+  // Pra busca do mapa preferimos a URL do Maps (mais preciso); senão
+  // monta `endereço, cidade, estado` pra a busca de texto.
+  const mapQuery =
+    address && isGoogleMapsUrl(address)
+      ? address
+      : [address, city, state].filter(Boolean).join(", ");
+  const embedUrl = getMapEmbedUrl(mapQuery);
+
+  // Texto de exibição: se endereço é URL, mostra "Ver no Google Maps"
+  // como link; senão concatena endereço + cidade + estado.
+  const addressLabel = address ? getMapDisplayLabel(address) : "";
+  const locationLine = [
+    addressLabel,
+    !address || !isGoogleMapsUrl(address) ? city : null,
+    !address || !isGoogleMapsUrl(address) ? state : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-start gap-2">
+        <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        {address && isGoogleMapsUrl(address) ? (
+          <span className="flex flex-col gap-1">
+            <a
+              href={address}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline-offset-2 hover:underline"
+            >
+              {addressLabel}
+              <ExternalLink className="ml-1 inline h-3 w-3" />
+            </a>
+            {(city || state) && (
+              <span className="text-xs text-muted-foreground">
+                {[city, state].filter(Boolean).join(", ")}
+              </span>
+            )}
+          </span>
+        ) : (
+          <span>{locationLine}</span>
+        )}
+      </div>
+      {embedUrl && (
+        <div className="overflow-hidden rounded-lg border border-border/60">
+          <iframe
+            src={embedUrl}
+            title="Mapa do local do evento"
+            width="100%"
+            height="240"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            className="block"
+            // `allow=fullscreen` permite o user expandir; sem outras
+            // permissões (sem geolocation/microphone) pra evitar warns.
+            allow="fullscreen"
+          />
+        </div>
+      )}
+    </div>
   );
 }
