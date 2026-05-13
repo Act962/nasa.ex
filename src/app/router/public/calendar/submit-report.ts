@@ -39,7 +39,7 @@ export const submitReport = base
     const rateKey = `report:${ipKey}:${emailKey}`;
     const rate = checkRateLimit(rateKey, 5, ONE_DAY_MS);
     if (!rate.allowed) {
-      throw errors.TOO_MANY_REQUESTS({
+      throw errors.BAD_REQUEST({
         message: "Muitas denúncias em pouco tempo. Tente em algumas horas.",
       });
     }

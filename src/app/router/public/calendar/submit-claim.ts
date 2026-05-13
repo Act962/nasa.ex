@@ -49,7 +49,7 @@ export const submitClaim = base
     const rateKey = `claim:${ipKey}:${input.email.toLowerCase()}`;
     const rate = checkRateLimit(rateKey, 3, ONE_DAY_MS);
     if (!rate.allowed) {
-      throw errors.TOO_MANY_REQUESTS({
+      throw errors.BAD_REQUEST({
         message: "Muitas reivindicações em pouco tempo. Tente em algumas horas.",
       });
     }
@@ -61,7 +61,7 @@ export const submitClaim = base
         title: true,
         publicSlug: true,
         createdBy: true,
-        creator: {
+        user: {
           select: {
             id: true,
             name: true,
@@ -103,17 +103,17 @@ export const submitClaim = base
     });
 
     // Email pro criador (best-effort; falha não bloqueia a criação)
-    if (action.creator?.email) {
+    if (action.user?.email) {
       const baseUrl =
         process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
       const responseUrl = `${baseUrl}/calendario/disputa/${claim.responseToken}`;
       try {
         await resend.emails.send({
           from: "Nasaex <noreply@notifications.nasaex.com>",
-          to: action.creator.email,
+          to: action.user.email,
           subject: `Reivindicação do evento "${action.title}"`,
           react: ClaimReceivedEmail({
-            creatorName: action.creator.name ?? "criador",
+            creatorName: action.user.name ?? "criador",
             eventTitle: action.title,
             claimantName: input.name,
             claimantEmail: input.email,

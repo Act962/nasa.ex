@@ -50,7 +50,7 @@ export const getClaimByToken = base
             isPublic: true,
             isDisputed: true,
             createdBy: true,
-            creator: {
+            user: {
               select: { name: true, email: true },
             },
             organization: {

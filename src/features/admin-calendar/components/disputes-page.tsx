@@ -233,7 +233,7 @@ function ResolveActions({ claim }: { claim: DisputeRow }) {
         setOpen(null);
         setNote("");
         queryClient.invalidateQueries({
-          queryKey: orpc.admin.calendarDisputes.list.queryKey(),
+          queryKey: orpc.admin.calendarDisputes.list.queryKey({ input: {} }),
         });
       },
       onError: (err) => {

@@ -47,7 +47,7 @@ export const respondToClaim = base
             title: true,
             publicSlug: true,
             createdBy: true,
-            creator: { select: { name: true, email: true } },
+            user: { select: { name: true, email: true } },
           },
         },
       },

@@ -54,7 +54,7 @@ export function QuickAddFromLink() {
         setUrl("");
         setOpen(false);
         queryClient.invalidateQueries({
-          queryKey: orpc.public.calendar.listPublic.queryKey(),
+          queryKey: orpc.public.calendar.listPublic.queryKey({ input: {} }),
         });
       },
       onError: (err) => {
@@ -106,7 +106,7 @@ export function QuickAddFromLink() {
       if (fileInputRef.current) fileInputRef.current.value = "";
       setOpen(false);
       queryClient.invalidateQueries({
-        queryKey: orpc.public.calendar.listPublic.queryKey(),
+        queryKey: orpc.public.calendar.listPublic.queryKey({ input: {} }),
       });
     } catch {
       toast.error("Erro inesperado ao processar imagem");

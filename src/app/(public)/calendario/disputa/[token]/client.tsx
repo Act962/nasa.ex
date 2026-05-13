@@ -87,7 +87,9 @@ export function ClaimResponseClient({ token }: { token: string }) {
     );
   }
 
-  const { claim } = claimQuery.data as { claim: {
+  // Cast via unknown — schema retornado pelo Prisma é mais rico que
+  // o tipo que usamos aqui; cast direto é "mistake" pro TS.
+  const { claim } = claimQuery.data as unknown as { claim: {
     id: string;
     status: string;
     claimantEmail: string;

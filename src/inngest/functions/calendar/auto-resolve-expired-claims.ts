@@ -41,7 +41,7 @@ export const autoResolveExpiredClaims = inngest.createFunction(
               title: true,
               publicSlug: true,
               createdBy: true,
-              creator: { select: { email: true, name: true } },
+              user: { select: { email: true, name: true } },
             },
           },
         },

@@ -43,7 +43,7 @@ export const listDisputes = base
               disputeReason: true,
               reportScore: true,
               createdBy: true,
-              creator: { select: { name: true, email: true } },
+              user: { select: { name: true, email: true } },
               organization: { select: { name: true, isVerified: true } },
               _count: {
                 select: {
