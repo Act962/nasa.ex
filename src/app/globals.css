@@ -502,3 +502,35 @@ input::placeholder {
 .animate-pulse-ring {
   animation: pulse-ring 1.6s ease-in-out infinite;
 }
+
+
+/* ─── Mobile: previne auto-zoom do iOS Safari ao focar inputs ─────
+ * Quando o input tem font-size < 16px, o iOS zooma a viewport pra
+ * 'ajudar' o user. Forçando 16px em mobile (≤ 768px), zoom para de
+ * disparar. Combinado com o viewport meta (maximumScale=1) no
+ * layout root, o auto-zoom fica completamente desligado.
+ *
+ * Mantém a aparência do design >= 769px (text-xs continua xs em
+ * desktop). Aplica só ao tipo text, search, email, tel, password,
+ * url, number, date, time + textarea + select — onde o foco dispara
+ * o zoom no iOS.
+ */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  input[type="url"],
+  input[type="number"],
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="time"],
+  input[type="week"],
+  input:not([type]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

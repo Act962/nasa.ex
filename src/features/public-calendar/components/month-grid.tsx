@@ -3,16 +3,19 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/pt-br";
-import { ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { EVENT_CATEGORIES } from "../utils/categories";
 import { imgSrc } from "../utils/img-src";
+import { groupEventsByDay } from "../utils/event-days";
 import {
   buildVariableHolidays,
   getHoliday,
@@ -145,18 +148,15 @@ export function MonthGrid({
   onCreateForDate,
 }: MonthGridProps) {
   const [cursor, setCursor] = useState<Dayjs>(dayjs().startOf("month"));
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
   const todayCellRef = useRef<HTMLDivElement>(null);
 
   const eventsByDay = useMemo(() => {
-    const map = new Map<string, PublicEvent[]>();
-    for (const ev of events) {
-      if (!ev.startDate) continue;
-      const key = dayjs(ev.startDate).format("YYYY-MM-DD");
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(ev);
-    }
-    return map;
+    // Agrupa por dia REPETINDO eventos multi-dia em cada um dos seus
+    // dias (helper `groupEventsByDay` expande startDate..endDate). Sem
+    // isso, um evento de 09 a 11 só aparecia na célula "09" do mês.
+    return groupEventsByDay(events);
   }, [events]);
 
   const grid = useMemo(() => {
@@ -242,19 +242,64 @@ export function MonthGrid({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3">
-        <h2 className="text-xl font-bold capitalize">
-          <span>{cursor.format("MMMM")}</span>
-          <span className="ml-2 font-normal text-muted-foreground">
-            {cursor.format("YYYY")}
-          </span>
-        </h2>
-        <div className="flex items-center gap-1">
+      {/* Header — título clicável abre date picker. Em mobile, fica
+          compacto (texto menor + chevrons reduzidos). */}
+      <div className="flex items-center justify-between gap-2 px-3 py-3 sm:px-4">
+        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              className="h-9 px-2 gap-1.5 -ml-2 text-base sm:text-xl font-bold capitalize hover:bg-muted"
+              title="Escolher mês/ano"
+            >
+              <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
+              <span>{cursor.format("MMMM")}</span>
+              <span className="font-normal text-muted-foreground">
+                {cursor.format("YYYY")}
+              </span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={cursor.toDate()}
+              // `month` controlled: dropdowns de mês/ano e chevrons
+              // internos do Calendar atualizam o cursor do grid via
+              // `onMonthChange`. Sem isso, mudar pelo dropdown não
+              // afetava o grid principal (só clicando num dia disparava).
+              //
+              // Fecha o popover em AMBOS: mudou mês (dropdown ou chevron
+              // interno) OU clicou num dia. O user vê só a grade
+              // principal atualizada — sem ficar com o popover ocupando
+              // tela.
+              month={cursor.toDate()}
+              onMonthChange={(m) => {
+                setCursor(dayjs(m).startOf("month"));
+                setDatePickerOpen(false);
+              }}
+              onSelect={(date) => {
+                if (date) {
+                  setCursor(dayjs(date).startOf("month"));
+                  setDatePickerOpen(false);
+                }
+              }}
+              // Dropdowns de mês + ano no header do calendar — saltar
+              // pra qualquer mês/ano em 1 clique sem ficar trocando
+              // mês a mês com os chevrons.
+              captionLayout="dropdown"
+              startMonth={new Date(2020, 0)}
+              endMonth={new Date(2030, 11)}
+              locale={ptBR}
+              autoFocus
+            />
+          </PopoverContent>
+        </Popover>
+
+        <div className="flex items-center gap-1 shrink-0">
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-xs"
+            className="h-8 px-2 text-xs sm:px-3"
             onClick={() => setCursor(dayjs().startOf("month"))}
           >
             Hoje
@@ -264,6 +309,7 @@ export function MonthGrid({
             size="icon"
             className="h-8 w-8"
             onClick={() => setCursor(cursor.subtract(1, "month"))}
+            aria-label="Mês anterior"
           >
             <ChevronsLeft className="h-4 w-4" />
           </Button>
@@ -272,6 +318,7 @@ export function MonthGrid({
             size="icon"
             className="h-8 w-8"
             onClick={() => setCursor(cursor.add(1, "month"))}
+            aria-label="Próximo mês"
           >
             <ChevronsRight className="h-4 w-4" />
           </Button>

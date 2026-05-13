@@ -23,10 +23,15 @@ export interface PublicEvent {
   links: { title: string; url: string }[];
   attachments: { name: string; url: string; type?: string }[];
   youtubeUrl: string | null;
+  // Sistema de reivindicação/denúncia — controla banner amarelo
+  // "ownership contestado" e selo de marca verificada.
+  isDisputed?: boolean;
+  disputeReason?: string | null;
   organization?: {
     id: string;
     name: string;
     logo?: string | null;
+    isVerified?: boolean;
   } | null;
   user?: {
     id: string;

@@ -31,6 +31,7 @@ import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route
 import { astroIngestKnowledge } from "@/inngest/functions/astro/ingest-knowledge";
 import { astroAgentTrigger } from "@/inngest/functions/astro/agent-trigger";
 import { chatSyncMessages } from "@/inngest/functions/chat/sync-conversation-messages";
+import { autoResolveExpiredClaims } from "@/inngest/functions/calendar/auto-resolve-expired-claims";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -62,6 +63,8 @@ export const { GET, POST, PUT } = serve({
     astroAgentTrigger,
     // ── Chat sync ──
     chatSyncMessages,
+    // ── Calendário Público: auto-resolução de reivindicações expiradas ──
+    autoResolveExpiredClaims,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

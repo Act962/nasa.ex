@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import { CalendarShell } from "@/features/public-calendar/components/calendar-shell";
 import { CreateEventEntry } from "@/features/public-calendar/components/create-event-entry";
+import { QuickAddFromLink } from "@/features/public-calendar/components/quick-add-from-link";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NasaFooterPublic } from "@/components/nasa-footer-public";
 
@@ -64,21 +65,28 @@ export default async function CalendarPage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
-      <header className="relative border-b border-border/60 px-4 py-4 lg:px-6 lg:py-5">
+      <header className="border-b border-border/60 px-4 py-4 lg:relative lg:px-6 lg:py-5">
         <div className="mx-auto max-w-screen-2xl">
-          {/* Título centralizado */}
+          {/* Ações:
+              - Mobile: linha própria acima do título (evita sobreposição
+                com o título centralizado que estourava embaixo do botão
+                "+ Criar Evento" em telas estreitas).
+              - lg+: absolute no canto superior direito (o título cabe
+                centralizado sem colidir). */}
+          <div className="flex items-center justify-end gap-2 mb-3 lg:absolute lg:right-6 lg:top-5 lg:mb-0">
+            <ModeToggle />
+            <QuickAddFromLink />
+            <CreateEventEntry />
+          </div>
+          {/* Título centralizado. Texto menor em mobile pra reforçar o
+              caber-em-tudo. */}
           <div className="text-center">
-            <h1 className="text-2xl font-bold lg:text-3xl">
+            <h1 className="text-xl font-bold sm:text-2xl lg:text-3xl">
               Calendário Público
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Crie seus eventos e reuniões e divulgue para a comunidade
             </p>
-          </div>
-          {/* Ações no canto superior direito (não interferem com a centralização) */}
-          <div className="absolute right-4 top-4 flex items-center gap-2 lg:right-6 lg:top-5">
-            <ModeToggle />
-            <CreateEventEntry />
           </div>
         </div>
       </header>

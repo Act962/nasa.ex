@@ -96,46 +96,108 @@ export function Uploader({
 
         const { presignedUrl, key } = await presignedResponse.json();
 
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
+        // ── Tentativa 1: PUT direto pro bucket via presigned URL.
+        // Rápido (não passa pelo nosso server) MAS requer CORS configurado
+        // no bucket R2. Se falhar (CORS, rede, timeout), cai pro fallback
+        // server-side abaixo — silencioso pro user (mesmo `key`).
+        let uploadedKey: string | null = null;
+        let presignedOk = false;
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
 
-          xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable) {
-              const precentageCompleted = (event.loaded / event.total) * 100;
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable) {
+                const precentageCompleted =
+                  (event.loaded / event.total) * 100;
+                setFileState((prev) => ({
+                  ...prev,
+                  progress: Math.round(precentageCompleted),
+                }));
+              }
+            };
 
-              setFileState((prev) => ({
-                ...prev,
-                progress: Math.round(precentageCompleted),
-              }));
+            xhr.onload = () => {
+              if (xhr.status === 200 || xhr.status === 204) {
+                resolve();
+              } else {
+                reject(new Error(`Upload failed: HTTP ${xhr.status}`));
+              }
+            };
+
+            xhr.onerror = () => {
+              // Browser não consegue distinguir falha de CORS de outras;
+              // ambas viram um onerror genérico. Logamos pra debug.
+              // eslint-disable-next-line no-console
+              console.warn(
+                "[uploader] PUT presigned falhou (provável CORS) — tentando fallback server-side",
+              );
+              reject(new Error("Upload failed (likely CORS)"));
+            };
+
+            xhr.open("PUT", presignedUrl);
+            xhr.setRequestHeader("Content-Type", file.type);
+            xhr.send(file);
+          });
+          uploadedKey = key;
+          presignedOk = true;
+        } catch {
+          // Cai no fallback abaixo — silencioso.
+          presignedOk = false;
+        }
+
+        // ── Tentativa 2: fallback server-side.
+        // Browser → nosso /api/s3/upload-direct (same-origin, sem CORS)
+        // → server faz PUT no bucket via SDK (server-to-server, sem CORS).
+        // Devolve `key` no mesmo formato.
+        if (!presignedOk) {
+          try {
+            // Reset progress — vai contar de novo no upload-direct
+            // (server-side ainda não emite progress, mas isso evita o
+            // user achar que travou).
+            setFileState((prev) => ({ ...prev, progress: 0 }));
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const directRes = await fetch("/api/s3/upload-direct", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!directRes.ok) {
+              const errData = await directRes.json().catch(() => ({}));
+              throw new Error(errData?.error ?? "Falha no upload server-side");
             }
-          };
 
-          xhr.onload = () => {
-            if (xhr.status === 200 || xhr.status === 204) {
-              setFileState((prev) => ({
-                ...prev,
-                progress: 100,
-                uploading: false,
-                key: key,
-              }));
+            const direct = (await directRes.json()) as { key: string };
+            uploadedKey = direct.key;
+          } catch (err) {
+            const msg =
+              (err as { message?: string })?.message ??
+              "Falha ao enviar arquivo";
+            toast.error(msg);
+            setFileState((prev) => ({
+              ...prev,
+              progress: 0,
+              error: true,
+              uploading: false,
+            }));
+            return;
+          }
+        }
 
-              onConfirm?.(key, file.name);
-              onUpload?.(key, file.name);
-
-              resolve();
-            } else {
-              reject(new Error("Upload failed..."));
-            }
-          };
-
-          xhr.onerror = () => {
-            reject(new Error("Upload failed..."));
-          };
-
-          xhr.open("PUT", presignedUrl);
-          xhr.setRequestHeader("Content-Type", file.type);
-          xhr.send(file);
-        });
+        // Sucesso (via presigned OU fallback) — propaga a key.
+        if (uploadedKey) {
+          setFileState((prev) => ({
+            ...prev,
+            progress: 100,
+            uploading: false,
+            key: uploadedKey!,
+          }));
+          onConfirm?.(uploadedKey, file.name);
+          onUpload?.(uploadedKey, file.name);
+        }
       } catch {
         toast.error("Falha ao enviar arquivo");
 
@@ -147,7 +209,7 @@ export function Uploader({
         }));
       }
     },
-    [fileTypeAccepted, onConfirm],
+    [fileTypeAccepted, onConfirm, onUpload],
   );
 
   async function removeFile() {

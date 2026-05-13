@@ -1,6 +1,6 @@
 import "../lib/orpc.server"; // for pre-rendering
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Bungee } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
@@ -19,6 +19,26 @@ const bungee = Bungee({
 });
 
 // 1918 x 850
+
+/**
+ * Viewport global — `maximumScale: 1` + `userScalable: false` matam
+ * o auto-zoom irritante do iOS Safari ao focar inputs com font-size
+ * abaixo de 16px. Defesa em profundidade junto com a regra CSS em
+ * `globals.css` que força `font-size: 16px` em inputs no mobile.
+ *
+ * Trade-off conhecido: também desabilita pinch-zoom (a11y). Pedido
+ * explícito do user pra remover o auto-zoom.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(

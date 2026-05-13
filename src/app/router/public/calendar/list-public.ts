@@ -79,7 +79,12 @@ export const listPublic = base
         youtubeUrl: true,
         links: true,
         attachments: true,
-        organization: { select: { id: true, name: true, logo: true } },
+        // Reivindicação/denúncia — flags pro UI
+        isDisputed: true,
+        disputeReason: true,
+        organization: {
+          select: { id: true, name: true, logo: true, isVerified: true },
+        },
         user: { select: { id: true, name: true, image: true } },
         tags: { select: { tag: { select: { id: true, name: true, color: true } } } },
       },
