@@ -1,8 +1,13 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { Workflow } from "@/generated/prisma/client";
+import { Connection, Node, Workflow } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+
+type WorkflowWithGraph = Workflow & {
+  nodes: Node[];
+  connections: Connection[];
+};
 
 export const listWorkflows = base
   .use(requiredAuthMiddleware)
@@ -13,7 +18,7 @@ export const listWorkflows = base
   )
   .output(
     z.object({
-      workflows: z.array(z.custom<Workflow>()),
+      workflows: z.array(z.custom<WorkflowWithGraph>()),
     })
   )
   .handler(async ({ input, errors }) => {
@@ -32,6 +37,10 @@ export const listWorkflows = base
     const workflows = await prisma.workflow.findMany({
       where: {
         trackingId: input.trackingId,
+      },
+      include: {
+        nodes: true,
+        connections: true,
       },
       orderBy: {
         createdAt: "desc",

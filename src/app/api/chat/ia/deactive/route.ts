@@ -47,6 +47,7 @@ export async function POST(request: Request) {
   const workflow = await prisma.workflow.findMany({
     where: {
       trackingId,
+      isActive: true,
       nodes: {
         some: {
           type: "AI_FINISHED",

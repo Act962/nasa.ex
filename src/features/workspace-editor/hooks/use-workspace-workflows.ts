@@ -77,6 +77,28 @@ export const useUpdateWorkspaceWorkflow = () => {
   );
 };
 
+export const useUpdateWorkspaceWorkflowIsActive = (workspaceId: string) => {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.workspaceWorkflow.update.updateIsActive.mutationOptions({
+      onSuccess: (data) => {
+        qc.invalidateQueries({
+          queryKey: orpc.workspaceWorkflow.list.queryKey({
+            input: { workspaceId },
+          }),
+        });
+        qc.invalidateQueries({
+          queryKey: orpc.workspaceWorkflow.getOne.queryKey({
+            input: { workflowId: data.id },
+          }),
+        });
+      },
+      onError: (err) =>
+        toast.error(`Falha ao alterar status: ${err.message}`),
+    }),
+  );
+};
+
 export const useDeleteWorkspaceWorkflow = () => {
   const qc = useQueryClient();
   return useMutation(

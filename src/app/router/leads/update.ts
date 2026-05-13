@@ -206,6 +206,7 @@ export const updateLead = base
             const tagWorkflows = await tx.workflow.findMany({
               where: {
                 trackingId: lead.trackingId,
+                isActive: true,
                 nodes: {
                   some: {
                     type: "LEAD_TAGGED",
@@ -229,6 +230,7 @@ export const updateLead = base
             const statusWorkflows = await tx.workflow.findMany({
               where: {
                 trackingId: lead.trackingId,
+                isActive: true,
                 nodes: {
                   some: {
                     type: "MOVE_LEAD_STATUS",

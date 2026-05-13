@@ -22,13 +22,13 @@ import {
 import {
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
 import type { TagData, ChartType } from "@/features/insights/types";
 import { useIsMobile, useIsTinyMobile } from "@/hooks/use-mobile";
+import { OthersTable } from "./others-table";
 
 interface TagsChartProps {
   data: TagData[];
@@ -47,17 +47,42 @@ const TAG_COLORS = [
   "hsl(199, 89%, 48%)",
 ];
 
+const MAX_VISIBLE = 8;
+const OTHERS_FILL = "hsl(220, 9%, 46%)";
+
 export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
   const isMobile = useIsMobile();
   const isTinyMobile = useIsTinyMobile();
 
-  const chartData = data.map((item, index) => ({
+  const allChartData = data.map((item, index) => ({
     tag: item.tag.name,
     count: item.count,
     breakdown: item.breakdown,
     leadIds: item.leadIds,
     fill: item.tag.color || TAG_COLORS[index % TAG_COLORS.length],
   }));
+
+  const totalTags = allChartData.reduce((sum, item) => sum + item.count, 0);
+
+  const sortedData = [...allChartData].sort((a, b) => b.count - a.count);
+  const hasOthers = sortedData.length > MAX_VISIBLE;
+  const visibleData = hasOthers
+    ? [
+        ...sortedData.slice(0, MAX_VISIBLE),
+        {
+          tag: "Outros",
+          count: sortedData.slice(MAX_VISIBLE).reduce((s, i) => s + i.count, 0),
+          leadIds: sortedData.slice(MAX_VISIBLE).flatMap((i) => i.leadIds),
+          fill: OTHERS_FILL,
+          breakdown: undefined,
+        },
+      ]
+    : sortedData;
+  const hiddenItems = hasOthers
+    ? sortedData
+        .slice(MAX_VISIBLE)
+        .map((i) => ({ name: i.tag, count: i.count, leadIds: i.leadIds, fill: i.fill }))
+    : [];
 
   const chartConfig = data.reduce<ChartConfig>(
     (acc, item, index) => ({
@@ -72,29 +97,27 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
     },
   );
 
-  const totalTags = chartData.reduce((sum, item) => sum + item.count, 0);
-
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      const d = payload[0].payload;
       return (
         <div className="rounded-lg border bg-background p-2 shadow-sm">
           <div className="grid gap-2">
             <div className="flex items-center gap-2 border-b pb-1">
               <div
                 className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: data.fill }}
+                style={{ backgroundColor: d.fill }}
               />
-              <span className="font-bold">{data.tag}</span>
+              <span className="font-bold">{d.tag}</span>
             </div>
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between gap-4">
                 <span className="text-muted-foreground">Total:</span>
-                <span className="font-mono font-medium">{data.count}</span>
+                <span className="font-mono font-medium">{d.count}</span>
               </div>
-              {data.breakdown && data.breakdown.length > 1 && (
+              {d.breakdown && d.breakdown.length > 1 && (
                 <div className="mt-1 border-t pt-1">
-                  {data.breakdown.map((item: any, i: number) => (
+                  {d.breakdown.map((item: any, i: number) => (
                     <div
                       key={i}
                       className="flex items-center justify-between gap-4 text-xs"
@@ -115,13 +138,15 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
     return null;
   };
 
+  let chartContent: React.ReactNode;
+
   switch (chartType) {
     case "bar":
-      return (
+      chartContent = (
         <ChartContainer config={chartConfig} className={`${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}>
           <BarChart
             accessibilityLayer
-            data={chartData}
+            data={visibleData}
             className={onClick ? "cursor-pointer" : ""}
           >
             <CartesianGrid vertical={false} />
@@ -142,9 +167,9 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
             <Bar
               dataKey="count"
               radius={8}
-              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
+              onClick={(d: any) => onClick?.(d?.payload?.leadIds || d?.leadIds)}
             >
-              {chartData.map((entry, index) => (
+              {visibleData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
               <LabelList
@@ -157,29 +182,27 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
           </BarChart>
         </ChartContainer>
       );
+      break;
 
     case "pie":
-      return (
+      chartContent = (
         <ChartContainer
           config={chartConfig}
           className={`mx-auto ${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}
         >
           <PieChart>
-            <ChartTooltip
-              cursor={false}
-              content={<CustomTooltip />}
-            />
+            <ChartTooltip cursor={false} content={<CustomTooltip />} />
             <Pie
-              data={chartData}
+              data={visibleData}
               dataKey="count"
               nameKey="tag"
               innerRadius={isTinyMobile ? 50 : 60}
               outerRadius={isTinyMobile ? 70 : 80}
               strokeWidth={5}
-              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
+              onClick={(d: any) => onClick?.(d?.payload?.leadIds || d?.leadIds)}
               className={onClick ? "cursor-pointer" : ""}
             >
-              {chartData.map((entry, index) => (
+              {visibleData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
               <Label
@@ -212,25 +235,24 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
                 }}
               />
             </Pie>
-            {chartData && chartData.length <= 9 && (
-              <ChartLegend
-                content={<ChartLegendContent nameKey="tag" />}
-                className={`-translate-y-2 flex-wrap gap-2 ${isTinyMobile ? "*:basis-1/2 text-[9px]" : (isMobile ? "*:basis-1/3" : "*:basis-1/4")} *:justify-center`}
-              />
-            )}
+            <ChartLegend
+              content={<ChartLegendContent nameKey="tag" />}
+              className={`-translate-y-2 flex-wrap gap-2 ${isTinyMobile ? "*:basis-1/2 text-[9px]" : (isMobile ? "*:basis-1/3" : "*:basis-1/4")} *:justify-center`}
+            />
           </PieChart>
         </ChartContainer>
       );
+      break;
 
     case "line":
-      return (
+      chartContent = (
         <ChartContainer config={chartConfig} className={`${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}>
           <LineChart
             accessibilityLayer
-            data={chartData}
+            data={visibleData}
             margin={{ left: 12, right: 12, bottom: 40 }}
             onClick={(e: any) => {
-              if (e && e.activePayload && e.activePayload.length > 0) {
+              if (e?.activePayload?.length > 0) {
                 onClick?.(e.activePayload[0].payload.leadIds);
               }
             }}
@@ -261,16 +283,17 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
           </LineChart>
         </ChartContainer>
       );
+      break;
 
     case "area":
-      return (
+      chartContent = (
         <ChartContainer config={chartConfig} className={`${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}>
           <AreaChart
             accessibilityLayer
-            data={chartData}
+            data={visibleData}
             margin={{ left: 12, right: 12, bottom: 40 }}
             onClick={(e: any) => {
-              if (e && e.activePayload && e.activePayload.length > 0) {
+              if (e?.activePayload?.length > 0) {
                 onClick?.(e.activePayload[0].payload.leadIds);
               }
             }}
@@ -289,22 +312,11 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
               hide={isTinyMobile}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} hide={isTinyMobile} />
-            <ChartTooltip
-              cursor={false}
-              content={<CustomTooltip />}
-            />
+            <ChartTooltip cursor={false} content={<CustomTooltip />} />
             <defs>
               <linearGradient id="fillTags" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor="hsl(262, 83%, 58%)"
-                  stopOpacity={0.8}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="hsl(262, 83%, 58%)"
-                  stopOpacity={0.1}
-                />
+                <stop offset="5%" stopColor="hsl(262, 83%, 58%)" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="hsl(262, 83%, 58%)" stopOpacity={0.1} />
               </linearGradient>
             </defs>
             <Area
@@ -318,15 +330,16 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
           </AreaChart>
         </ChartContainer>
       );
+      break;
 
     case "radial":
-      return (
+      chartContent = (
         <ChartContainer
           config={chartConfig}
           className={`mx-auto ${isMobile ? "h-[250px]" : "h-[300px]"} w-full`}
         >
           <RadialBarChart
-            data={chartData}
+            data={visibleData}
             startAngle={-90}
             endAngle={380}
             innerRadius={isTinyMobile ? 25 : 30}
@@ -339,32 +352,37 @@ export function TagsChart({ data, chartType, onClick }: TagsChartProps) {
               className="first:fill-muted last:fill-background"
               polarRadius={isTinyMobile ? [70, 60] : [86, 74]}
             />
-            <ChartTooltip
-              cursor={false}
-              content={<CustomTooltip />}
-            />
+            <ChartTooltip cursor={false} content={<CustomTooltip />} />
             <RadialBar
               dataKey="count"
               background
               cornerRadius={10}
-              onClick={(data: any) => onClick?.(data?.payload?.leadIds || data?.leadIds)}
+              onClick={(d: any) => onClick?.(d?.payload?.leadIds || d?.leadIds)}
               className={onClick ? "cursor-pointer" : ""}
             >
-              {chartData.map((entry, index) => (
+              {visibleData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
             </RadialBar>
-            {chartData && chartData.length <= 9 && (
-              <ChartLegend
-                content={<ChartLegendContent nameKey="tag" />}
-                className={`-translate-y-2 flex-wrap gap-2 ${isTinyMobile ? "*:basis-1/2 text-[9px]" : (isMobile ? "*:basis-1/3" : "*:basis-1/4")} *:justify-center`}
-              />
-            )}
+            <ChartLegend
+              content={<ChartLegendContent nameKey="tag" />}
+              className={`-translate-y-2 flex-wrap gap-2 ${isTinyMobile ? "*:basis-1/2 text-[9px]" : (isMobile ? "*:basis-1/3" : "*:basis-1/4")} *:justify-center`}
+            />
           </RadialBarChart>
         </ChartContainer>
       );
+      break;
 
     default:
       return null;
   }
+
+  return (
+    <div>
+      {chartContent}
+      {hasOthers && (
+        <OthersTable items={hiddenItems} total={totalTags} onClick={onClick} />
+      )}
+    </div>
+  );
 }

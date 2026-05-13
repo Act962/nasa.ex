@@ -67,6 +67,7 @@ export const addTagsToLead = base
       const workflows = await tx.workflow.findMany({
         where: {
           trackingId: lead.trackingId,
+          isActive: true,
           nodes: {
             some: {
               type: "LEAD_TAGGED",
