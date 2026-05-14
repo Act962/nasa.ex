@@ -1325,7 +1325,7 @@ model SubActions {
   actionId     String                     @map("action_id")
   groupId      String?                    @map("group_id")
   order        Int                        @default(0)
-  action       Action                     @relation(fields: [actionId], references: [id])
+  action       Action                     @relation(fields: [actionId], references: [id], onDelete: Cascade)
   group        SubActionGroup?            @relation(fields: [groupId], references: [id], onDelete: SetNull)
   responsibles SubActionUserResponsible[]
 
