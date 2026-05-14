@@ -27,6 +27,7 @@ import {
 } from "./templates";
 import { getForgeSettings, updateForgeSettings } from "./settings";
 import { getForgeDashboard } from "./dashboard";
+import { acceptProposalAsContract } from "./accept-proposal";
 
 export const forgeRouter = {
   products: {
@@ -43,6 +44,7 @@ export const forgeRouter = {
     delete: deleteForgeProposal,
     getPublic: getForgeProposalPublic,
     trackProposalView: trackProposalView,
+    acceptAsContract: acceptProposalAsContract,
   },
   contracts: {
     list: listForgeContracts,

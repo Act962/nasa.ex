@@ -18,6 +18,7 @@ export default async function PublicProposalPage({ params }: Props) {
         select: {
           id: true,
           name: true,
+          slug: true,
           logo: true,
           cnpj: true,
           contactEmail: true,
@@ -26,11 +27,22 @@ export default async function PublicProposalPage({ params }: Props) {
           city: true,
           state: true,
           postalCode: true,
+          website: true,
+          bio: true,
         },
       },
-      client: { select: { id: true, name: true, email: true, phone: true, document: true } },
-      // Include the responsible person for the PDF footer
-      responsible: { select: { name: true } },
+      client: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          document: true,
+          profile: true,
+        },
+      },
+      // Include the responsible person for the PDF footer + avatar
+      responsible: { select: { id: true, name: true, image: true } },
       products: {
         include: {
           product: {
@@ -47,6 +59,49 @@ export default async function PublicProposalPage({ params }: Props) {
   const settings = await prisma.forgeSettings.findUnique({
     where: { organizationId: proposal.organizationId },
   });
+
+  // ── Ecosystem links da org (best-effort, server-side) ──────────
+  // Descobre quais integrações da empresa proposante exibir como CTAs
+  // na proposta: agenda pública, SpaceHome, Linnker, NASA Route.
+  const orgSlug = proposal.organization.slug;
+  const [agenda, spaceStation, linnkerPage, courseCount] = await Promise.all([
+    prisma.agenda.findFirst({
+      where: { organizationId: proposal.organizationId, isActive: true },
+      select: { slug: true, name: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.spaceStation.findFirst({
+      where: {
+        orgId: proposal.organizationId,
+        type: "ORG",
+        isPublic: true,
+      },
+      select: { nick: true },
+    }),
+    prisma.linnkerPage.findFirst({
+      where: { organizationId: proposal.organizationId, isPublished: true },
+      select: { slug: true, title: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.nasaRouteCourse.count({
+      where: {
+        creatorOrgId: proposal.organizationId,
+        isPublished: true,
+      },
+    }),
+  ]);
+
+  const ecosystemLinks = {
+    agendaUrl:
+      agenda && orgSlug ? `/agenda/${orgSlug}/${agenda.slug}` : null,
+    agendaLabel: agenda?.name ?? null,
+    spaceHomeUrl: spaceStation?.nick
+      ? `/space/${spaceStation.nick}`
+      : null,
+    linnkerUrl: linnkerPage ? `/l/${linnkerPage.slug}` : null,
+    nasaRouteUrl: courseCount > 0 && orgSlug ? `/c/${orgSlug}` : null,
+    nasaRouteCount: courseCount,
+  };
 
   const ctx: RenderContext = {
     organization: {
@@ -113,7 +168,11 @@ export default async function PublicProposalPage({ params }: Props) {
         responsibleId={proposal.responsibleId}
         createdById={proposal.createdById}
       />
-      <PublicProposalView proposal={serialized} />
+      <PublicProposalView
+        proposal={serialized}
+        token={token}
+        ecosystemLinks={ecosystemLinks}
+      />
     </>
   );
 }
