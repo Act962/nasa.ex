@@ -4,6 +4,7 @@ import { base } from "../../middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { requireOrgMiddleware } from "../../middlewares/org";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 export const createTracking = base
   .use(requiredAuthMiddleware)
@@ -105,10 +106,16 @@ export const createTracking = base
       userEmail: user.email,
       userImage: (user as any).image,
       appSlug: "tracking",
-      action: "tracking.created",
+      action: "lead_tracking_create",
       actionLabel: `Criou o tracking "${tracking.name}"`,
       resource: tracking.name,
       resourceId: tracking.id,
+    });
+
+    await chargeStarsByAction(org.id, "lead_tracking_create", {
+      userId: user.id,
+      description: `Criou tracking "${tracking.name}"`,
+      appSlug: "tracking",
     });
 
     return {

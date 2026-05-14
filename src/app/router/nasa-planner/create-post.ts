@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 export const createPost = base
   .use(requiredAuthMiddleware)
@@ -48,11 +49,17 @@ export const createPost = base
       appSlug: "nasa-planner",
       subAppSlug: "planner-posts",
       featureKey: "planner.post.created",
-      action: "planner.post.created",
+      action: "nasa_planner_post_create",
       actionLabel: `Criou um post (${input.type})${input.title ? `: "${input.title}"` : ""}`,
       resource: input.title ?? input.type,
       resourceId: post.id,
       metadata: { type: input.type, hasReferenceLinks: (input.referenceLinks?.length ?? 0) > 0 },
+    });
+
+    await chargeStarsByAction(context.org.id, "nasa_planner_post_create", {
+      userId: context.user.id,
+      description: `Criou post (${input.type})`,
+      appSlug: "nasa-planner",
     });
 
     return { post };

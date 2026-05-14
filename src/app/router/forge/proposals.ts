@@ -6,6 +6,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 import { inngest } from "@/inngest/client";
 import { awardPoints } from "../space-point/utils";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 const proposalProductShape = z.object({
   id: z.string(),
@@ -250,6 +251,14 @@ export const createForgeProposal = base
           select: { id: true, number: true },
         });
       });
+
+      // Cobra Stars conforme regra global `forge_proposal_create`.
+      await chargeStarsByAction(context.org.id, "forge_proposal_create", {
+        userId: context.user.id,
+        description: `Criou proposta "${input.title}"`,
+        appSlug: "forge",
+      });
+
       return { proposal };
     } catch (err) {
       console.error("[forge/proposals create]", err);
@@ -372,6 +381,17 @@ export const updateForgeProposal = base
           }
         }
       });
+
+      // Cobra Stars quando a proposta é enviada ao cliente
+      // (regra global `forge_proposal_send`). Idempotência fica por conta
+      // do admin desligar a regra ou o user evitar reenviar.
+      if (input.status === "ENVIADA") {
+        await chargeStarsByAction(context.org.id, "forge_proposal_send", {
+          userId: context.user.id,
+          description: `Enviou proposta ao cliente`,
+          appSlug: "forge",
+        });
+      }
 
       // Disparar automação de onboarding quando proposta for paga
       if (input.status === "PAGA") {

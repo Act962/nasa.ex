@@ -12,12 +12,11 @@
  * `/admin/stars > Regras`.
  */
 import { PrismaPg } from "@prisma/adapter-pg";
+import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { DEFAULT_STAR_RULES } from "../src/data/star-rules";
 
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL ?? "",
-});
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 // `as any` segue o padrão dos outros seeds — type do PrismaClient ainda
 // não conhece `adapter` como prop oficial.
 const prisma = new PrismaClient({ adapter } as any);
