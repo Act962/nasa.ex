@@ -1,5 +1,7 @@
 "use client";
 
+import { ChevronDown, ChevronUp, Filter as FilterIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { DashboardHeader } from "./dashboard-header";
 import { DashboardFilters } from "./dashboard-filters";
 import { KPIGeneralCards } from "./kpi/general-cards";
@@ -49,6 +51,7 @@ import {
   StarsSection,
   SpaceStationSection,
   NasaRouteSection,
+  TrackingDynamicSection,
 } from "./apps-sections";
 import { SortableDashboardSections } from "./sortable-dashboard-sections";
 import { useQueryAppsInsights } from "@/features/insights/hooks/use-dashboard";
@@ -56,8 +59,7 @@ import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { CustomizableChart } from "./customizable-chart";
 import { InsightReport } from "./insight-report";
-import { HeaderTracking } from "@/features/leads/components/header-tracking";
-import { InsightsTabsNav } from "./insights-tabs-nav";
+import { InsightsSidebar } from "./insights-sidebar";
 
 interface TrackingDashboardProps {
   initialData?: DashboardReport;
@@ -103,6 +105,10 @@ export function TrackingDashboard({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSentRemindersModalOpen, setIsSentRemindersModalOpen] =
     useState(false);
+  // Collapse do bloco "Todos os Apps" + "Filtros". Default expandido —
+  // primeira sessão do user vê tudo. Pode recolher pra economizar espaço
+  // vertical no scroll.
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   const isHeaderPinned = useHeaderPin((s) => s.isPinned);
 
   const handleChartClick = (leadIds?: string[]) => {
@@ -273,134 +279,183 @@ export function TrackingDashboard({
 
   const showTrackingFilters = selectedModules.includes("tracking");
 
+  // Conteúdo dos botões de ação que vão dentro da sidebar — extraído pra
+  // variável só pra deixar o JSX da estrutura raiz mais legível.
+  const sidebarActions = (
+    <DashboardHeader
+      settings={settings}
+      onToggleSection={toggleSection}
+      onChartTypeChange={setChartType}
+      onReset={resetSettings}
+      onRefresh={refresh}
+      isLoading={isLoading}
+      filters={{
+        trackingId,
+        organizationIds,
+        tagIds,
+        dateRange,
+      }}
+      modules={selectedModules}
+      snapshotData={{
+        period: {
+          startDate: appsInput.startDate,
+          endDate: appsInput.endDate,
+        },
+        // ── Tracking (KPIs base + charts) ─────────────────────────
+        summary: data?.summary,
+        charts: data
+          ? {
+              byStatus: data.byStatus,
+              byChannel: data.byChannel,
+              byAttendant: data.byAttendant,
+              topTags: data.topTags,
+            }
+          : undefined,
+        // ── Apps insights (payload completo de getAppsInsights) ───
+        // Salva todos os campos calculados pelo backend — a página de
+        // relatório reproduz a mesma seção de cada app usando a
+        // section-prefs salva.
+        apps: appsInsights ?? undefined,
+        // ── Tracking compatibilidade legado ───────────────────────
+        // Mantém o shape antigo `tracking: { totalLeads, wonLeads, ... }`
+        // pra não quebrar campaigns-evolution e relatórios já salvos.
+        tracking: data?.summary
+          ? {
+              totalLeads: data.summary.totalLeads,
+              wonLeads: data.summary.wonLeads,
+              activeLeads: data.summary.activeLeads,
+              conversionRate: data.summary.conversionRate,
+            }
+          : undefined,
+        // ── Meta Ads ──────────────────────────────────────────────
+        metaAds:
+          metaInsights?.connected && metaInsights.data
+            ? {
+                spend: metaInsights.data.spend,
+                leads: metaInsights.data.leads,
+                cpl: metaInsights.data.cpl,
+                roas: metaInsights.data.roas,
+                impressions: metaInsights.data.impressions,
+                clicks: metaInsights.data.clicks,
+                ctr: metaInsights.data.ctr,
+                // Rastreabilidade: qual ad account gerou estes números
+                adAccountId: activeAdAccountId,
+                adAccountName: activeAdAccountName,
+                capturedAt: new Date().toISOString(),
+                // Granularidade por campanha — usada pelo gráfico de
+                // evolução em /insights/relatorios.
+                campaigns: metaCampaignsSnapshot,
+              }
+            : metaCampaignsSnapshot.length > 0
+              ? {
+                  // Fallback: sem live mas há snapshots persistidos
+                  adAccountId: activeAdAccountId,
+                  adAccountName: activeAdAccountName,
+                  capturedAt: new Date().toISOString(),
+                  campaigns: metaCampaignsSnapshot,
+                }
+              : undefined,
+        filters: {
+          trackingId,
+          organizationIds,
+          tagIds,
+          dateRange,
+        },
+        modules: selectedModules,
+      }}
+    />
+  );
+
   return (
     <OrgLayoutProvider>
-    <Tabs defaultValue="general">
-      <div className="flex flex-col h-full w-full">
-        <HeaderTracking title="Insights" />
-        <InsightsTabsNav />
-        <div
-          className={cn(
-            "bg-background/95 backdrop-blur-sm border-b py-4 space-y-4 px-2 sm:px-6",
-            isHeaderPinned && "sm:sticky top-10 z-10",
+      <Tabs defaultValue="general">
+        <div className="flex h-full w-full">
+          <InsightsSidebar actions={sidebarActions} />
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            {/* Header sticky só quando o user fixou (botão de pin no
+                sidebar). Permite scroll livre ou header fixo conforme
+                preferência. */}
+            <div
+              className={cn(
+                "bg-background/95 backdrop-blur-sm border-b py-4 space-y-4 px-2 sm:px-6",
+                isHeaderPinned && "sm:sticky top-0 z-10",
+              )}
+            >
+              <LayoutEditToolbar />
+
+          {/* Toggle pra recolher "Todos os Apps" + "Filtros" — bloco que
+              ocupa bastante espaço vertical e nem sempre precisa ficar à
+              vista. Contador mostra quantos filtros estão ativos pra dar
+              feedback mesmo recolhido. */}
+          <div className="flex items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
+              onClick={() => setFiltersCollapsed((v) => !v)}
+              title={
+                filtersCollapsed
+                  ? "Expandir apps e filtros"
+                  : "Recolher apps e filtros"
+              }
+              aria-expanded={!filtersCollapsed}
+            >
+              <FilterIcon className="size-3.5" />
+              <span>Apps e Filtros</span>
+              {(() => {
+                const count =
+                  (organizationIds.length > 0 ? 1 : 0) +
+                  (workspaceIds.length > 0 ? 1 : 0) +
+                  (showTrackingFilters && trackingId ? 1 : 0) +
+                  (showTrackingFilters && tagIds.length > 0 ? 1 : 0);
+                if (count === 0) return null;
+                return (
+                  <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                    {count} {count === 1 ? "ativo" : "ativos"}
+                  </span>
+                );
+              })()}
+              {filtersCollapsed ? (
+                <ChevronDown className="size-3.5" />
+              ) : (
+                <ChevronUp className="size-3.5" />
+              )}
+            </Button>
+          </div>
+
+          {!filtersCollapsed && (
+            <>
+              {/* App Selector */}
+              <AppSelector
+                selected={selectedModules}
+                onChange={setSelectedModules}
+              />
+
+              {/* Filters — tracking/tags only when tracking module selected */}
+              <DashboardFilters
+                trackingId={
+                  showTrackingFilters ? trackingId || "ALL" : undefined
+                }
+                organizationIds={organizationIds}
+                tagIds={showTrackingFilters ? tagIds : []}
+                dateRange={dateRange}
+                trackingOptions={showTrackingFilters ? trackingOptions : []}
+                organizationOptions={organizationOptions}
+                onTrackingChange={(id) =>
+                  setTrackingId(id === "ALL" ? "" : id)
+                }
+                onOrganizationToggle={toggleOrganizationId}
+                onTagToggle={toggleTagId}
+                onDateRangeChange={setDateRange}
+                workspaceIds={workspaceIds}
+                workspaceOptions={workspaceOptions}
+                onWorkspaceToggle={toggleWorkspaceId}
+                showTrackingFilter={showTrackingFilters}
+                showTagsFilter={showTrackingFilters}
+              />
+            </>
           )}
-        >
-          <DashboardHeader
-            settings={settings}
-            onToggleSection={toggleSection}
-            onChartTypeChange={setChartType}
-            onReset={resetSettings}
-            onRefresh={refresh}
-            isLoading={isLoading}
-            filters={{
-              trackingId,
-              organizationIds,
-              tagIds,
-              dateRange,
-            }}
-            modules={selectedModules}
-            snapshotData={{
-              period: {
-                startDate: appsInput.startDate,
-                endDate: appsInput.endDate,
-              },
-              tracking: data?.summary
-                ? {
-                    totalLeads: data.summary.totalLeads,
-                    wonLeads: data.summary.wonLeads,
-                    activeLeads: data.summary.activeLeads,
-                    conversionRate: data.summary.conversionRate,
-                  }
-                : undefined,
-              chat: appsInsights?.chat
-                ? {
-                    totalConversations: appsInsights.chat.totalConversations,
-                    totalMessages: appsInsights.chat.totalMessages,
-                    attendedConversations:
-                      appsInsights.chat.attendedConversations,
-                    attendanceRate: appsInsights.chat.attendanceRate,
-                  }
-                : undefined,
-              forge: appsInsights?.forge
-                ? {
-                    totalProposals: appsInsights.forge.totalProposals,
-                    pagas: appsInsights.forge.pagas,
-                    revenueTotal: appsInsights.forge.revenueTotal,
-                  }
-                : undefined,
-              spacetime: appsInsights?.spacetime
-                ? {
-                    total: appsInsights.spacetime.total,
-                    confirmed: appsInsights.spacetime.confirmed,
-                    done: appsInsights.spacetime.done,
-                  }
-                : undefined,
-              nasaPlanner: appsInsights?.nasaPlanner
-                ? {
-                    total: appsInsights.nasaPlanner.total,
-                    published: appsInsights.nasaPlanner.published,
-                    starsSpent: appsInsights.nasaPlanner.starsSpent,
-                  }
-                : undefined,
-              metaAds:
-                metaInsights?.connected && metaInsights.data
-                  ? {
-                      spend: metaInsights.data.spend,
-                      leads: metaInsights.data.leads,
-                      cpl: metaInsights.data.cpl,
-                      roas: metaInsights.data.roas,
-                      // Rastreabilidade: qual ad account gerou estes números
-                      adAccountId: activeAdAccountId,
-                      adAccountName: activeAdAccountName,
-                      capturedAt: new Date().toISOString(),
-                      // Granularidade por campanha — usada pelo gráfico de
-                      // evolução em /insights/relatorios.
-                      campaigns: metaCampaignsSnapshot,
-                    }
-                  : metaCampaignsSnapshot.length > 0
-                    ? {
-                        // Fallback: sem live mas há snapshots persistidos
-                        adAccountId: activeAdAccountId,
-                        adAccountName: activeAdAccountName,
-                        capturedAt: new Date().toISOString(),
-                        campaigns: metaCampaignsSnapshot,
-                      }
-                    : undefined,
-              filters: {
-                trackingId,
-                organizationIds,
-                tagIds,
-                dateRange,
-              },
-              modules: selectedModules,
-            }}
-          />
-          <LayoutEditToolbar />
-
-          {/* App Selector */}
-          <AppSelector
-            selected={selectedModules}
-            onChange={setSelectedModules}
-          />
-
-          {/* Filters — tracking/tags only when tracking module selected */}
-          <DashboardFilters
-            trackingId={showTrackingFilters ? trackingId || "ALL" : undefined}
-            organizationIds={organizationIds}
-            tagIds={showTrackingFilters ? tagIds : []}
-            dateRange={dateRange}
-            trackingOptions={showTrackingFilters ? trackingOptions : []}
-            organizationOptions={organizationOptions}
-            onTrackingChange={(id) => setTrackingId(id === "ALL" ? "" : id)}
-            onOrganizationToggle={toggleOrganizationId}
-            onTagToggle={toggleTagId}
-            onDateRangeChange={setDateRange}
-            workspaceIds={workspaceIds}
-            workspaceOptions={workspaceOptions}
-            onWorkspaceToggle={toggleWorkspaceId}
-            showTrackingFilter={showTrackingFilters}
-            showTagsFilter={showTrackingFilters}
-          />
           <TabsList className="overflow-x-auto w-full justify-start">
             <TabsTrigger value="general">Visão Geral</TabsTrigger>
             {showTrackingFilters && (
@@ -659,6 +714,12 @@ export function TrackingDashboard({
                   )}
                 </section>
               )}
+              {/* Seção de performance personalizável — começa vazia,
+                  user adiciona via "+ Adicionar Insight". Mostra tempo
+                  por status, performance por atendente, etc. */}
+              {!isLoading && (
+                <TrackingDynamicSection summary={data.summary} />
+              )}
               <div className={cn("grid gap-6 lg:grid-cols-2")}>
                 {settings.visibleSections.byStatus &&
                   (isLoading ? (
@@ -771,24 +832,25 @@ export function TrackingDashboard({
               <ChannelInsights />
             </TabsContent>
           )}
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="px-2 sm:px-6">
-        <ListLeadByRelatoryModal
-          isOpen={isModalOpen}
-          onOpenChange={setIsModalOpen}
-          leadIds={selectedLeadIds}
-        />
-        <SentRemindersModal
-          isOpen={isSentRemindersModalOpen}
-          onOpenChange={setIsSentRemindersModalOpen}
-          trackingId={trackingId}
-          organizationIds={organizationIds}
-          dateRange={dateRange}
-        />
-      </div>
-    </Tabs>
+        <div className="px-2 sm:px-6">
+          <ListLeadByRelatoryModal
+            isOpen={isModalOpen}
+            onOpenChange={setIsModalOpen}
+            leadIds={selectedLeadIds}
+          />
+          <SentRemindersModal
+            isOpen={isSentRemindersModalOpen}
+            onOpenChange={setIsSentRemindersModalOpen}
+            trackingId={trackingId}
+            organizationIds={organizationIds}
+            dateRange={dateRange}
+          />
+        </div>
+      </Tabs>
     </OrgLayoutProvider>
   );
 }

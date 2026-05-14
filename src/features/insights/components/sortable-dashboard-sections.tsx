@@ -63,6 +63,9 @@ export function SortableDashboardSections({
           selectedModules.includes(b.appModule) && sections[b.appModule] != null
         );
       }
+      // `section-prefs` é só container de preferências de visibilidade
+      // — nunca renderiza nada visualmente.
+      if (b.type === "section-prefs") return false;
       return true;
     });
   }, [blocks, selectedModules, sections]);

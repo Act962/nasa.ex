@@ -18,6 +18,12 @@ import { Switch } from "@/components/ui/switch";
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useOrgLayout } from "@/features/insights/context/org-layout-provider";
+import {
+  getDefaultVisibleKeys,
+} from "@/features/insights/lib/insights-metric-catalog";
+import { ALL_MODULES, type AppModule } from "@/features/insights/types";
+import type { InsightBlock } from "@/features/insights/lib/app-metrics";
 
 interface SaveReportModalProps {
   open: boolean;
@@ -43,6 +49,9 @@ export function SaveReportModal({
   const [makePublic, setMakePublic] = useState(true);
   const [savedToken, setSavedToken] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  // Captura as preferências de visibilidade de KPIs por seção (section-prefs)
+  // do layout da org — congelado no snapshot pra reproduzir a UI no relatório.
+  const { blocks } = useOrgLayout();
 
   const { mutate, isPending } = useMutation({
     mutationFn: (vars: {
@@ -69,12 +78,32 @@ export function SaveReportModal({
       toast.error("Dê um nome ao relatório");
       return;
     }
+    // Mescla sectionPrefs (visibleKeys por app) do layout corrente da org
+    // no snapshot. Pra apps sem section-prefs persistido, congela os
+    // defaultVisible do catálogo — assim o relatório sempre reproduz a
+    // mesma combinação de KPIs que estava no dashboard no momento do save.
+    const sectionPrefs: Record<string, string[]> = {};
+    for (const appModule of ALL_MODULES) {
+      const prefsBlock = blocks.find(
+        (b): b is Extract<InsightBlock, { type: "section-prefs" }> =>
+          b.type === "section-prefs" && b.appModule === appModule,
+      );
+      sectionPrefs[appModule] = prefsBlock
+        ? prefsBlock.visibleKeys
+        : getDefaultVisibleKeys(appModule as AppModule);
+    }
+
+    const enrichedSnapshot = {
+      ...(snapshot ?? {}),
+      sectionPrefs,
+    };
+
     mutate({
       name: name.trim(),
       description: description.trim() || undefined,
       filters,
       modules,
-      snapshot,
+      snapshot: enrichedSnapshot,
       aiNarrative,
       generateShareToken: makePublic,
     });

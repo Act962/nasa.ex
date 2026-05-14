@@ -1,16 +1,63 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
+import { useOrgRole } from "@/hooks/use-org-role";
 import { cn } from "@/lib/utils";
-import {
-  Flame, Calendar, Sparkles, Plug,
-  FileText, CheckCircle2, XCircle, Clock,
-  DollarSign, Instagram, Twitter, Facebook,
-  MessageSquare, Users, TrendingUp, AlertCircle,
-  ListTodo, FormInput, Inbox, Wallet, Link2, Coins, Star,
-  Activity, Eye, Award, ShoppingCart, Receipt,
-  Rocket, Map as MapIcon, GraduationCap, BookOpen,
-} from "lucide-react";
+import { XIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import type { AppModule } from "@/features/insights/types";
+import { useDashboardStore } from "../hooks/use-dashboard-store";
+import { useOrgLayout } from "@/features/insights/context/org-layout-provider";
+import {
+  METRIC_CATALOG,
+  SECTION_META,
+  getDefaultVisibleKeys,
+  resolveDataPath,
+  formatMetricValue,
+  type MetricDef,
+} from "@/features/insights/lib/insights-metric-catalog";
+import type { InsightBlock } from "@/features/insights/lib/app-metrics";
+import {
+  LeadsByMetricDialog,
+  type LeadMetricApp,
+  type LeadMetricKey,
+} from "./leads-by-metric-dialog";
+import { AddSectionInsightButton } from "./add-section-insight-button";
+
+// ─── Mapas de leadMetric pra cada (appModule, key) ──────────────────────────
+// Quando preenchido, o card vira clicável e abre o popup de leads.
+const LEAD_METRIC_MAP: Partial<
+  Record<AppModule, Partial<Record<string, { app: LeadMetricApp; metric: LeadMetricKey }>>>
+> = {
+  forge: {
+    totalProposals: { app: "forge", metric: "forge.totalProposals" },
+    pagas: { app: "forge", metric: "forge.pagas" },
+    revenueTotal: { app: "forge", metric: "forge.pagas" },
+    revenuePipeline: { app: "forge", metric: "forge.enviadas" },
+    enviadas: { app: "forge", metric: "forge.enviadas" },
+    visualizadas: { app: "forge", metric: "forge.visualizadas" },
+    expiradas: { app: "forge", metric: "forge.expiradas" },
+    canceladas: { app: "forge", metric: "forge.canceladas" },
+  },
+  spacetime: {
+    total: { app: "spacetime", metric: "spacetime.total" },
+    done: { app: "spacetime", metric: "spacetime.done" },
+    confirmed: { app: "spacetime", metric: "spacetime.confirmed" },
+    pending: { app: "spacetime", metric: "spacetime.pending" },
+    cancelled: { app: "spacetime", metric: "spacetime.cancelled" },
+    noShow: { app: "spacetime", metric: "spacetime.noShow" },
+    withLead: { app: "spacetime", metric: "spacetime.withLead" },
+  },
+};
 
 // ─── Shared KPI Card ─────────────────────────────────────────────────────────
 
@@ -23,11 +70,67 @@ interface KpiCardProps {
   sub?: string;
   badge?: string;
   badgeVariant?: "default" | "secondary" | "destructive" | "outline";
+  leadMetric?: { app: LeadMetricApp; metric: LeadMetricKey };
+  /**
+   * Quando preenchido E o usuário tem permissão de editar layout, mostra
+   * um X de "ocultar" no canto do card (visível no hover).
+   */
+  onHide?: () => void;
+  canEdit?: boolean;
+  /**
+   * Conteúdo customizado pra substituir o número (ex: ranking de users
+   * pro KPI `topFastestCreator`).
+   */
+  children?: React.ReactNode;
 }
 
-function KpiCard({ label, value, icon: Icon, color, bg, sub, badge, badgeVariant }: KpiCardProps) {
-  return (
-    <div className="rounded-xl border bg-card p-4 flex flex-col gap-3">
+function KpiCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+  bg,
+  sub,
+  badge,
+  badgeVariant,
+  leadMetric,
+  onHide,
+  canEdit,
+  children,
+}: KpiCardProps) {
+  const [popupOpen, setPopupOpen] = useState(false);
+  const clickable = !!leadMetric;
+
+  const hideButton =
+    onHide && canEdit ? (
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onHide();
+              }}
+              aria-label={`Ocultar ${label}`}
+              className="absolute top-1.5 right-1.5 size-6 rounded-md flex items-center justify-center text-muted-foreground bg-background/80 backdrop-blur-sm border opacity-0 group-hover:opacity-100 hover:text-foreground hover:bg-muted transition-opacity"
+            >
+              <XIcon className="size-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="left">Ocultar este indicador</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    ) : null;
+
+  const card = (
+    <div
+      className={cn(
+        "group relative rounded-xl border bg-card p-4 flex flex-col gap-3 text-left w-full",
+        clickable && "cursor-pointer hover:border-foreground/30 hover:shadow-sm transition-all",
+      )}
+    >
+      {hideButton}
       <div className="flex items-center justify-between">
         <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", bg)}>
           <Icon className={cn("size-4", color)} />
@@ -35,810 +138,430 @@ function KpiCard({ label, value, icon: Icon, color, bg, sub, badge, badgeVariant
         {badge && <Badge variant={badgeVariant ?? "secondary"} className="text-[10px]">{badge}</Badge>}
       </div>
       <div>
-        <p className="text-2xl font-bold leading-tight">{value}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-        {sub && <p className="text-[11px] text-muted-foreground/80 mt-1">{sub}</p>}
+        {children ? (
+          children
+        ) : (
+          <>
+            <p className="text-2xl font-bold leading-tight">{value}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+            {sub && <p className="text-[11px] text-muted-foreground/80 mt-1">{sub}</p>}
+          </>
+        )}
       </div>
     </div>
   );
+
+  if (!clickable) return card;
+
+  return (
+    <>
+      <button type="button" onClick={() => setPopupOpen(true)} className="text-left">
+        {card}
+      </button>
+      <LeadsByMetricDialog
+        open={popupOpen}
+        onOpenChange={setPopupOpen}
+        app={leadMetric.app}
+        metric={leadMetric.metric}
+        title={label}
+      />
+    </>
+  );
 }
 
-function SectionHeader({ icon: Icon, label, color, bg, description }: {
-  icon: React.FC<{ className?: string }>;
-  label: string;
-  color: string;
-  bg: string;
-  description?: string;
+// ─── Section Header com slot pra "+ Adicionar Insight" ──────────────────────
+
+function SectionHeader({
+  appModule,
+}: {
+  appModule: AppModule;
 }) {
+  const meta = SECTION_META[appModule];
+  if (!meta) return null;
+  const Icon = meta.icon;
   return (
     <div className="flex items-center gap-3 mb-4">
-      <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", bg)}>
-        <Icon className={cn("size-5", color)} />
+      <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", meta.bg)}>
+        <Icon className={cn("size-5", meta.color)} />
       </div>
-      <div>
-        <h3 className="text-sm font-semibold">{label}</h3>
-        {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      <div className="flex-1 min-w-0">
+        <h3 className="text-sm font-semibold">{meta.label}</h3>
+        {meta.description && (
+          <p className="text-xs text-muted-foreground">{meta.description}</p>
+        )}
       </div>
+      <AddSectionInsightButton appModule={appModule} />
     </div>
   );
 }
 
-function fmt(n: number) { return n.toLocaleString("pt-BR"); }
-function fmtBRL(n: number) {
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
+// ─── Conteúdo customizado pro KPI "topFastestCreator" ───────────────────────
 
-// ─── Forge Section ───────────────────────────────────────────────────────────
-
-interface ForgeData {
-  totalProposals: number;
-  rascunho: number;
-  enviadas: number;
-  visualizadas: number;
-  pagas: number;
-  expiradas: number;
-  canceladas: number;
-  revenueTotal: number;
-  revenuePipeline: number;
-  totalContracts: number;
-  contractsAtivo: number;
-}
-
-export function ForgeSection({ data }: { data: ForgeData }) {
+function TopFastestCreatorContent({ value }: { value: unknown }) {
+  if (!value || typeof value !== "object") {
+    return (
+      <>
+        <p className="text-sm text-muted-foreground">Sem dados suficientes</p>
+        <p className="text-xs text-muted-foreground/80 mt-0.5">
+          Criador mais rápido
+        </p>
+      </>
+    );
+  }
+  const v = value as { id: string; name: string; avgHours: number; count: number };
+  const initial = v.name?.[0]?.toUpperCase() ?? "?";
   return (
-    <div className="space-y-3">
-      <SectionHeader
-        icon={Flame}
-        label="Forge — Propostas & Contratos"
-        color="text-orange-600"
-        bg="bg-orange-50 dark:bg-orange-950/40"
-        description="Propostas comerciais geradas e contratos assinados no período"
-      />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <KpiCard label="Total de propostas" value={fmt(data.totalProposals)}
-          icon={FileText} color="text-orange-600" bg="bg-orange-50 dark:bg-orange-950/40" />
-        <KpiCard label="Propostas pagas" value={fmt(data.pagas)}
-          icon={CheckCircle2} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950/40"
-          badge={data.totalProposals > 0 ? `${((data.pagas / data.totalProposals) * 100).toFixed(0)}%` : "0%"}
-          badgeVariant="default" />
-        <KpiCard label="Receita fechada" value={fmtBRL(data.revenueTotal)}
-          icon={DollarSign} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950/40"
-          sub="Propostas com status PAGA" />
-        <KpiCard label="Pipeline em aberto" value={fmtBRL(data.revenuePipeline)}
-          icon={TrendingUp} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-950/40"
-          sub="Enviadas + Visualizadas" />
-        <KpiCard label="Enviadas" value={fmt(data.enviadas)}
-          icon={FileText} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-950/40" />
-        <KpiCard label="Visualizadas" value={fmt(data.visualizadas)}
-          icon={FileText} color="text-indigo-500" bg="bg-indigo-50 dark:bg-indigo-950/40" />
-        <KpiCard label="Expiradas" value={fmt(data.expiradas)}
-          icon={Clock} color="text-amber-500" bg="bg-amber-50 dark:bg-amber-950/40" />
-        <KpiCard label="Canceladas" value={fmt(data.canceladas)}
-          icon={XCircle} color="text-red-500" bg="bg-red-50 dark:bg-red-950/40" />
+    <div className="flex items-center gap-2">
+      <Avatar className="size-8">
+        <AvatarImage src={undefined} alt={v.name} />
+        <AvatarFallback className="text-xs">{initial}</AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold leading-tight truncate">{v.name}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Média {formatMetricValue(v.avgHours, "duration")} · {v.count} ações
+        </p>
       </div>
     </div>
   );
 }
 
-// ─── SpaceTime Section ───────────────────────────────────────────────────────
+// ─── Conteúdo customizado pra rankings (top atendentes / tempo por status) ──
 
-interface SpacetimeData {
-  total: number;
-  pending: number;
-  confirmed: number;
-  done: number;
-  cancelled: number;
-  noShow: number;
-  withLead: number;
-  conversionRate: number;
-}
-
-export function SpacetimeSection({ data }: { data: SpacetimeData }) {
-  return (
-    <div className="space-y-3">
-      <SectionHeader
-        icon={Calendar}
-        label="SpaceTime — Agendamentos"
-        color="text-blue-600"
-        bg="bg-blue-50 dark:bg-blue-950/40"
-        description="Reuniões e compromissos agendados no período"
-      />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <KpiCard label="Total de agendamentos" value={fmt(data.total)}
-          icon={Calendar} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-950/40" />
-        <KpiCard label="Realizados" value={fmt(data.done)}
-          icon={CheckCircle2} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950/40"
-          badge={`${data.conversionRate.toFixed(0)}%`} badgeVariant="default" />
-        <KpiCard label="Confirmados" value={fmt(data.confirmed)}
-          icon={CheckCircle2} color="text-indigo-500" bg="bg-indigo-50 dark:bg-indigo-950/40" />
-        <KpiCard label="Pendentes" value={fmt(data.pending)}
-          icon={Clock} color="text-amber-500" bg="bg-amber-50 dark:bg-amber-950/40" />
-        <KpiCard label="Cancelados" value={fmt(data.cancelled)}
-          icon={XCircle} color="text-red-500" bg="bg-red-50 dark:bg-red-950/40" />
-        <KpiCard label="No-show" value={fmt(data.noShow)}
-          icon={AlertCircle} color="text-orange-500" bg="bg-orange-50 dark:bg-orange-950/40"
-          sub="Não compareceu" />
-        <KpiCard label="Com lead vinculado" value={fmt(data.withLead)}
-          icon={Users} color="text-violet-500" bg="bg-violet-50 dark:bg-violet-950/40"
-          sub="Agendamentos rastreáveis" />
-      </div>
-    </div>
-  );
-}
-
-// ─── NASA Post Section ───────────────────────────────────────────────────────
-
-interface NasaPlannerData {
-  total: number;
-  draft: number;
-  published: number;
-  scheduled: number;
-  approved: number;
-  starsSpent: number;
-  byNetwork: Record<string, number>;
-}
-
-const NETWORK_LABELS: Record<string, { label: string; icon: React.FC<{ className?: string }> }> = {
-  instagram: { label: "Instagram", icon: Instagram },
-  facebook:  { label: "Facebook",  icon: Facebook },
-  twitter:   { label: "Twitter/X", icon: Twitter },
-  linkedin:  { label: "LinkedIn",  icon: MessageSquare },
-  tiktok:    { label: "TikTok",    icon: MessageSquare },
-};
-
-export function NasaPlannerSection({ data }: { data: NasaPlannerData }) {
-  const networks = Object.entries(data.byNetwork).sort((a, b) => b[1] - a[1]);
-
-  return (
-    <div className="space-y-3">
-      <SectionHeader
-        icon={Sparkles}
-        label="NASA Post — Conteúdo"
-        color="text-pink-600"
-        bg="bg-pink-50 dark:bg-pink-950/40"
-        description="Posts criados e publicados no período"
-      />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <KpiCard label="Posts criados" value={fmt(data.total)}
-          icon={Sparkles} color="text-pink-600" bg="bg-pink-50 dark:bg-pink-950/40" />
-        <KpiCard label="Publicados" value={fmt(data.published)}
-          icon={CheckCircle2} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950/40"
-          badge={data.total > 0 ? `${((data.published / data.total) * 100).toFixed(0)}%` : "0%"}
-          badgeVariant="default" />
-        <KpiCard label="Agendados" value={fmt(data.scheduled)}
-          icon={Clock} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-950/40" />
-        <KpiCard label="Rascunhos" value={fmt(data.draft)}
-          icon={FileText} color="text-zinc-500" bg="bg-zinc-100 dark:bg-zinc-800" />
-        <KpiCard label="Stars gastos" value={fmt(data.starsSpent)}
-          icon={Sparkles} color="text-amber-500" bg="bg-amber-50 dark:bg-amber-950/40"
-          sub="Créditos consumidos na geração IA" />
-      </div>
-
-      {networks.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Posts por rede social</p>
-          <div className="flex flex-wrap gap-2">
-            {networks.map(([net, count]) => {
-              const def = NETWORK_LABELS[net.toLowerCase()];
-              const Icon = def?.icon ?? Sparkles;
-              return (
-                <div key={net} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-muted/40 text-xs font-medium">
-                  <Icon className="size-3.5 text-muted-foreground" />
-                  {def?.label ?? net}: <span className="font-bold ml-1">{fmt(count)}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Integrations (Meta Ads summary) ─────────────────────────────────────────
-
-export function IntegrationsSection({ metaAds }: {
-  metaAds?: {
-    connected: boolean;
-    data?: {
-      spend: number; impressions: number; clicks: number;
-      ctr: number; cpl: number; leads: number; roas: number;
-      conversions: number; conversionRate: number;
-    } | null;
-  };
+function RankingListContent({
+  value,
+  format,
+  labelKey,
+  metricKey,
+  metricFormatter,
+  emptyLabel,
+}: {
+  value: unknown;
+  format: "duration" | "percent";
+  labelKey: string; // ex: "name" ou "statusId"
+  metricKey: string; // ex: "avgHours" ou "rate"
+  metricFormatter?: (n: number) => string;
+  emptyLabel: string;
 }) {
+  if (!Array.isArray(value) || value.length === 0) {
+    return (
+      <>
+        <p className="text-sm text-muted-foreground">{emptyLabel}</p>
+      </>
+    );
+  }
+  const items = value.slice(0, 5) as Array<Record<string, unknown>>;
   return (
-    <div className="space-y-3">
-      <SectionHeader
-        icon={Plug}
-        label="Integrações — Meta Ads"
-        color="text-[#0082FB]"
-        bg="bg-blue-50 dark:bg-blue-950/40"
-        description="Métricas de campanhas conectadas via Meta Marketing API"
-      />
-      {!metaAds?.connected || !metaAds?.data ? (
-        <div className="rounded-xl border bg-card p-6 flex flex-col items-center gap-3 text-center">
-          <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center">
-            <Plug className="size-5 text-blue-500" />
+    <div className="space-y-1.5 -mt-1">
+      {items.map((item, idx) => {
+        const label = (item[labelKey] ?? item["name"]) as string;
+        const metricRaw = item[metricKey] as number;
+        const formatted = metricFormatter
+          ? metricFormatter(metricRaw)
+          : formatMetricValue(metricRaw, format);
+        return (
+          <div key={idx} className="flex items-center justify-between gap-2 text-xs">
+            <span className="truncate font-medium">
+              {idx + 1}. {label}
+            </span>
+            <span className="text-muted-foreground tabular-nums shrink-0">
+              {formatted}
+            </span>
           </div>
-          <p className="text-sm font-medium">Meta Ads não conectado</p>
-          <p className="text-xs text-muted-foreground max-w-xs">
-            Configure o Token de Acesso e Ad Account ID em{" "}
-            <a href="/integrations" className="text-primary hover:underline">Integrações → Meta Ads</a>{" "}
-            para visualizar métricas de campanhas aqui.
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── DynamicSection ─────────────────────────────────────────────────────────
+
+interface DynamicSectionProps {
+  appModule: AppModule;
+  /** Payload completo retornado por `getAppsInsights` (e opcionalmente
+   *  inclui `summary` + `trackingPerformance` pro app tracking). */
+  data: Record<string, unknown> | null | undefined;
+}
+
+/**
+ * Renderiza a seção de um app no dashboard de Insights de forma
+ * data-driven: lê do `OrgLayoutProvider` quais KPIs estão visíveis
+ * (`section-prefs` block) e mapeia cada um para um `<KpiCard>`.
+ *
+ * Quando não há `section-prefs` pra esse app, usa `defaultVisible`
+ * do catálogo como fallback — preserva o comportamento original.
+ */
+export function DynamicSection({ appModule, data }: DynamicSectionProps) {
+  const { blocks, canEdit, addBlock, updateBlock } = useOrgLayout();
+
+  // Acha o block de prefs pra esse app
+  const prefsBlock = useMemo(() => {
+    return blocks.find(
+      (b): b is Extract<InsightBlock, { type: "section-prefs" }> =>
+        b.type === "section-prefs" && b.appModule === appModule,
+    );
+  }, [blocks, appModule]);
+
+  const visibleKeys = useMemo(() => {
+    if (prefsBlock) return prefsBlock.visibleKeys;
+    return getDefaultVisibleKeys(appModule);
+  }, [prefsBlock, appModule]);
+
+  const visibleMetrics: MetricDef[] = useMemo(() => {
+    const all = METRIC_CATALOG.filter((m) => m.appModule === appModule);
+    return visibleKeys
+      .map((k) => all.find((m) => m.key === k))
+      .filter((m): m is MetricDef => !!m);
+  }, [visibleKeys, appModule]);
+
+  const handleHide = (key: string) => {
+    const nextKeys = visibleKeys.filter((k) => k !== key);
+    if (prefsBlock) {
+      updateBlock(prefsBlock.id, { visibleKeys: nextKeys });
+    } else {
+      addBlock({
+        id: `section-prefs-${appModule}-${Date.now()}`,
+        type: "section-prefs",
+        order: blocks.length,
+        appModule,
+        visibleKeys: nextKeys,
+      });
+    }
+  };
+
+  if (visibleMetrics.length === 0) {
+    // Mostra header com botão de adicionar mesmo sem KPIs visíveis
+    return (
+      <div className="space-y-3">
+        <SectionHeader appModule={appModule} />
+        <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center">
+          <p className="text-sm font-medium">Nenhum indicador selecionado</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {canEdit
+              ? 'Clique em "Adicionar Insight" pra escolher os KPIs desta seção.'
+              : "Peça pro administrador da empresa habilitar indicadores nesta seção."}
           </p>
         </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          <KpiCard label="Investimento" value={fmtBRL(metaAds.data.spend)}
-            icon={DollarSign} color="text-[#0082FB]" bg="bg-blue-50 dark:bg-blue-950/40" />
-          <KpiCard label="ROAS" value={`${metaAds.data.roas.toFixed(2)}x`}
-            icon={TrendingUp} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950/40"
-            badge={metaAds.data.roas > 2 ? "Bom" : "Atenção"}
-            badgeVariant={metaAds.data.roas > 2 ? "default" : "secondary"} />
-          <KpiCard label="Leads gerados" value={fmt(metaAds.data.leads)}
-            icon={Users} color="text-violet-600" bg="bg-violet-50 dark:bg-violet-950/40"
-            sub={`CPL ${fmtBRL(metaAds.data.cpl)}`} />
-          <KpiCard label="Cliques" value={fmt(metaAds.data.clicks)}
-            icon={TrendingUp} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-950/40"
-            sub={`CTR ${metaAds.data.ctr.toFixed(2)}%`} />
-          <KpiCard label="Impressões" value={fmt(metaAds.data.impressions)}
-            icon={MessageSquare} color="text-indigo-500" bg="bg-indigo-50 dark:bg-indigo-950/40" />
-          <KpiCard label="Conversões" value={fmt(metaAds.data.conversions)}
-            icon={CheckCircle2} color="text-emerald-500" bg="bg-emerald-50 dark:bg-emerald-950/40"
-            sub={`Taxa ${metaAds.data.conversionRate.toFixed(1)}%`} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Workspace Section ───────────────────────────────────────────────────────
-
-interface WorkspaceData {
-  total: number;
-  done: number;
-  open: number;
-  overdue: number;
-  byType: Record<string, number>;
-  topCreators: Array<{
-    id: string;
-    name: string;
-    image: string | null;
-    count: number;
-  }>;
-}
-
-const ACTION_TYPE_LABELS: Record<string, string> = {
-  TASK: "Tarefas",
-  EVENT: "Eventos",
-  MEETING: "Reuniões",
-  CALL: "Ligações",
-  EMAIL: "E-mails",
-  NOTE: "Notas",
-  DEADLINE: "Prazos",
-};
-
-export function WorkspaceSection({ data }: { data: WorkspaceData }) {
-  const types = Object.entries(data.byType).sort((a, b) => b[1] - a[1]);
-  const completionRate = data.total > 0 ? (data.done / data.total) * 100 : 0;
-
-  return (
-    <div className="space-y-3">
-      <SectionHeader
-        icon={ListTodo}
-        label="Workspace — Ações"
-        color="text-amber-600"
-        bg="bg-amber-50 dark:bg-amber-950/40"
-        description="Tarefas, eventos e ações criadas no período"
-      />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <KpiCard label="Total de ações" value={fmt(data.total)}
-          icon={ListTodo} color="text-amber-600" bg="bg-amber-50 dark:bg-amber-950/40" />
-        <KpiCard label="Concluídas" value={fmt(data.done)}
-          icon={CheckCircle2} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950/40"
-          badge={`${completionRate.toFixed(0)}%`} badgeVariant="default" />
-        <KpiCard label="Em aberto" value={fmt(data.open)}
-          icon={Clock} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-950/40" />
-        <KpiCard label="Atrasadas" value={fmt(data.overdue)}
-          icon={AlertCircle} color="text-red-500" bg="bg-red-50 dark:bg-red-950/40"
-          sub="Vencidas e não concluídas" />
       </div>
-
-      {types.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Por tipo</p>
-          <div className="flex flex-wrap gap-2">
-            {types.map(([type, count]) => (
-              <div key={type} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-muted/40 text-xs font-medium">
-                {ACTION_TYPE_LABELS[type] ?? type}: <span className="font-bold ml-1">{fmt(count)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {data.topCreators.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Top criadores</p>
-          <div className="space-y-2">
-            {data.topCreators.map((u, i) => (
-              <div key={u.id} className="flex items-center justify-between gap-3 py-1.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs font-bold text-muted-foreground w-5">{i + 1}º</span>
-                  <div className="w-6 h-6 rounded-full bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-[10px] font-bold text-amber-600 shrink-0 overflow-hidden">
-                    {u.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={u.image} alt={u.name} className="w-full h-full object-cover" />
-                    ) : (
-                      u.name.charAt(0).toUpperCase()
-                    )}
-                  </div>
-                  <p className="text-sm truncate">{u.name}</p>
-                </div>
-                <Badge variant="secondary" className="text-[10px]">{fmt(u.count)} ações</Badge>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Forms Section ───────────────────────────────────────────────────────────
-
-interface FormsData {
-  totalForms: number;
-  publishedForms: number;
-  totalResponses: number;
-  responsesWithLead: number;
-  totalViews: number;
-  topForms: Array<{ id: string; name: string; responses: number }>;
-}
-
-export function FormsSection({ data }: { data: FormsData }) {
-  const conversionRate = data.totalViews > 0 ? (data.totalResponses / data.totalViews) * 100 : 0;
-  const leadRate = data.totalResponses > 0 ? (data.responsesWithLead / data.totalResponses) * 100 : 0;
+    );
+  }
 
   return (
     <div className="space-y-3">
-      <SectionHeader
-        icon={FormInput}
-        label="Formulários"
-        color="text-teal-600"
-        bg="bg-teal-50 dark:bg-teal-950/40"
-        description="Formulários publicados e respostas captadas"
-      />
+      <SectionHeader appModule={appModule} />
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <KpiCard label="Formulários" value={fmt(data.totalForms)}
-          icon={FormInput} color="text-teal-600" bg="bg-teal-50 dark:bg-teal-950/40"
-          sub={`${data.publishedForms} publicados`} />
-        <KpiCard label="Respostas" value={fmt(data.totalResponses)}
-          icon={CheckCircle2} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950/40"
-          badge={`${conversionRate.toFixed(0)}%`} badgeVariant="default"
-          sub="Taxa de conversão" />
-        <KpiCard label="Visualizações" value={fmt(data.totalViews)}
-          icon={Eye} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-950/40" />
-        <KpiCard label="Geraram lead" value={fmt(data.responsesWithLead)}
-          icon={Users} color="text-violet-600" bg="bg-violet-50 dark:bg-violet-950/40"
-          sub={`${leadRate.toFixed(0)}% das respostas`} />
-      </div>
+        {visibleMetrics.map((metric) => {
+          const rawValue = resolveDataPath(data, metric.dataPath);
+          const leadMetric =
+            LEAD_METRIC_MAP[appModule]?.[metric.key] ?? undefined;
 
-      {data.topForms.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Top formulários por respostas</p>
-          <div className="space-y-2">
-            {data.topForms.map((f, i) => (
-              <div key={f.id} className="flex items-center justify-between gap-3 py-1.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs font-bold text-muted-foreground w-5">{i + 1}º</span>
-                  <p className="text-sm truncate">{f.name}</p>
-                </div>
-                <Badge variant="secondary" className="text-[10px]">{fmt(f.responses)} respostas</Badge>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+          // Conteúdo customizado pra KPIs especiais (ranking, etc.)
+          let customChildren: React.ReactNode | undefined;
+          if (metric.key === "topFastestCreator" && appModule === "workspace") {
+            customChildren = <TopFastestCreatorContent value={rawValue} />;
+          } else if (
+            appModule === "tracking" &&
+            metric.key === "avgTimePerStatus"
+          ) {
+            customChildren = (
+              <RankingListContent
+                value={rawValue}
+                format="duration"
+                labelKey="name"
+                metricKey="avgHours"
+                emptyLabel="Sem dados ainda"
+              />
+            );
+          } else if (
+            appModule === "tracking" &&
+            metric.key === "avgFirstResponseByAttendant"
+          ) {
+            customChildren = (
+              <RankingListContent
+                value={rawValue}
+                format="duration"
+                labelKey="name"
+                metricKey="avgHours"
+                emptyLabel="Sem dados ainda"
+              />
+            );
+          } else if (
+            appModule === "tracking" &&
+            metric.key === "conversionRateByAttendant"
+          ) {
+            customChildren = (
+              <RankingListContent
+                value={rawValue}
+                format="percent"
+                labelKey="name"
+                metricKey="rate"
+                emptyLabel="Sem dados ainda"
+              />
+            );
+          }
 
-// ─── N-Box Section ───────────────────────────────────────────────────────────
-
-interface NBoxData {
-  totalItems: number;
-  publicItems: number;
-  totalSize: number;
-  byType: Record<string, number>;
-}
-
-const NBOX_TYPE_LABELS: Record<string, string> = {
-  FILE: "Arquivos",
-  FOLDER: "Pastas",
-  LINK: "Links",
-  NOTE: "Notas",
-  IMAGE: "Imagens",
-  VIDEO: "Vídeos",
-};
-
-function fmtSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
-
-export function NBoxSection({ data }: { data: NBoxData }) {
-  const types = Object.entries(data.byType).sort((a, b) => b[1] - a[1]);
-
-  return (
-    <div className="space-y-3">
-      <SectionHeader
-        icon={Inbox}
-        label="N-Box — Arquivos"
-        color="text-slate-600"
-        bg="bg-slate-50 dark:bg-slate-950/40"
-        description="Itens armazenados no N-Box"
-      />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <KpiCard label="Total de itens" value={fmt(data.totalItems)}
-          icon={Inbox} color="text-slate-600" bg="bg-slate-50 dark:bg-slate-950/40" />
-        <KpiCard label="Públicos" value={fmt(data.publicItems)}
-          icon={Eye} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-950/40" />
-        <KpiCard label="Espaço usado" value={fmtSize(data.totalSize)}
-          icon={Activity} color="text-violet-600" bg="bg-violet-50 dark:bg-violet-950/40"
-          sub="Soma do tamanho dos arquivos" />
-      </div>
-
-      {types.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Por tipo</p>
-          <div className="flex flex-wrap gap-2">
-            {types.map(([type, count]) => (
-              <div key={type} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-muted/40 text-xs font-medium">
-                {NBOX_TYPE_LABELS[type] ?? type}: <span className="font-bold ml-1">{fmt(count)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Payment Section ─────────────────────────────────────────────────────────
-
-interface PaymentData {
-  totalEntries: number;
-  revenue: number;
-  expense: number;
-  pendingCount: number;
-  pendingAmount: number;
-  overdueCount: number;
-  overdueAmount: number;
-  avgTicket: number;
-}
-
-export function PaymentSection({ data }: { data: PaymentData }) {
-  const profit = data.revenue - data.expense;
-  const margin = data.revenue > 0 ? (profit / data.revenue) * 100 : 0;
-
-  return (
-    <div className="space-y-3">
-      <SectionHeader
-        icon={Wallet}
-        label="Pagamentos — Hub Financeiro"
-        color="text-green-600"
-        bg="bg-green-50 dark:bg-green-950/40"
-        description="Fluxo financeiro: receitas, despesas e pendências"
-      />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <KpiCard label="Receita realizada" value={fmtBRL(data.revenue)}
-          icon={TrendingUp} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950/40"
-          sub="Recebimentos pagos" />
-        <KpiCard label="Despesa realizada" value={fmtBRL(data.expense)}
-          icon={ShoppingCart} color="text-red-500" bg="bg-red-50 dark:bg-red-950/40"
-          sub="Pagamentos efetuados" />
-        <KpiCard label="Resultado líquido" value={fmtBRL(profit)}
-          icon={DollarSign}
-          color={profit >= 0 ? "text-emerald-600" : "text-red-500"}
-          bg={profit >= 0 ? "bg-emerald-50 dark:bg-emerald-950/40" : "bg-red-50 dark:bg-red-950/40"}
-          badge={`${margin.toFixed(0)}%`}
-          badgeVariant={profit >= 0 ? "default" : "destructive"}
-          sub="Margem do período" />
-        <KpiCard label="Ticket médio" value={fmtBRL(data.avgTicket)}
-          icon={Receipt} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-950/40"
-          sub="Por entrada paga" />
-        <KpiCard label="A receber/pagar" value={fmt(data.pendingCount)}
-          icon={Clock} color="text-amber-500" bg="bg-amber-50 dark:bg-amber-950/40"
-          sub={fmtBRL(data.pendingAmount)} />
-        <KpiCard label="Em atraso" value={fmt(data.overdueCount)}
-          icon={AlertCircle} color="text-red-500" bg="bg-red-50 dark:bg-red-950/40"
-          sub={fmtBRL(data.overdueAmount)}
-          badge={data.overdueCount > 0 ? "Atenção" : undefined}
-          badgeVariant="destructive" />
-        <KpiCard label="Total de lançamentos" value={fmt(data.totalEntries)}
-          icon={FileText} color="text-zinc-500" bg="bg-zinc-100 dark:bg-zinc-800" />
+          return (
+            <KpiCard
+              key={metric.key}
+              label={metric.label}
+              value={formatMetricValue(rawValue, metric.format)}
+              icon={metric.icon}
+              color={metric.color}
+              bg={metric.bg}
+              sub={metric.description}
+              leadMetric={leadMetric}
+              onHide={() => handleHide(metric.key)}
+              canEdit={canEdit}
+            >
+              {customChildren}
+            </KpiCard>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-// ─── Linnker Section ─────────────────────────────────────────────────────────
+// ─── Tracking Performance loader — chamado sob demanda quando algum KPI
+//     de tracking-performance está visível ───────────────────────────────────
 
-interface LinnkerData {
-  totalScans: number;
-  scansWithLead: number;
-  totalClicks: number;
-  topLinks: Array<{ id: string; title: string; clicks: number }>;
+const TRACKING_PERF_KEYS = new Set([
+  "avgTimePerStatus",
+  "avgFirstResponseByAttendant",
+  "conversionRateByAttendant",
+]);
+
+interface TrackingDynamicSectionProps {
+  /** Mesma estrutura de DashboardSummary que vem do tracking-dashboard. */
+  summary: Record<string, unknown> | undefined;
 }
 
-export function LinnkerSection({ data }: { data: LinnkerData }) {
-  const captureRate = data.totalScans > 0 ? (data.scansWithLead / data.totalScans) * 100 : 0;
+/**
+ * Wrapper específico pro app `tracking` — chama `getTrackingPerformance`
+ * sob demanda apenas quando o usuário tem pelo menos 1 KPI de
+ * performance ativado.
+ */
+export function TrackingDynamicSection({ summary }: TrackingDynamicSectionProps) {
+  const { blocks } = useOrgLayout();
+  const { organizationIds, dateRange, trackingId } = useDashboardStore();
+  const { isSingle } = useOrgRole();
 
-  return (
-    <div className="space-y-3">
-      <SectionHeader
-        icon={Link2}
-        label="Linnker — Páginas & QR"
-        color="text-purple-600"
-        bg="bg-purple-50 dark:bg-purple-950/40"
-        description="Acessos a páginas e cliques em links"
-      />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <KpiCard label="Acessos" value={fmt(data.totalScans)}
-          icon={Activity} color="text-purple-600" bg="bg-purple-50 dark:bg-purple-950/40" />
-        <KpiCard label="Capturaram lead" value={fmt(data.scansWithLead)}
-          icon={Users} color="text-violet-600" bg="bg-violet-50 dark:bg-violet-950/40"
-          badge={`${captureRate.toFixed(0)}%`} badgeVariant="default" />
-        <KpiCard label="Total de cliques" value={fmt(data.totalClicks)}
-          icon={TrendingUp} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-950/40"
-          sub="Em links ativos" />
-      </div>
-
-      {data.topLinks.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Top links por cliques</p>
-          <div className="space-y-2">
-            {data.topLinks.map((l, i) => (
-              <div key={l.id} className="flex items-center justify-between gap-3 py-1.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs font-bold text-muted-foreground w-5">{i + 1}º</span>
-                  <p className="text-sm truncate">{l.title}</p>
-                </div>
-                <Badge variant="secondary" className="text-[10px]">{fmt(l.clicks)} cliques</Badge>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+  const prefs = blocks.find(
+    (b): b is Extract<InsightBlock, { type: "section-prefs" }> =>
+      b.type === "section-prefs" && b.appModule === "tracking",
   );
-}
+  const visibleKeys = prefs ? prefs.visibleKeys : getDefaultVisibleKeys("tracking");
+  const needsPerformance = visibleKeys.some((k) => TRACKING_PERF_KEYS.has(k));
 
-// ─── Space Points Section ────────────────────────────────────────────────────
+  // Single (member comum) não roda query pesada — vê só os dados base.
+  const enabled = needsPerformance && !isSingle;
 
-interface SpacePointsData {
-  totalBalance: number;
-  weeklyBalance: number;
-  granted: number;
-  spent: number;
-  activeUsers: number;
-  totalUsers: number;
-}
+  const { data: perf } = useQuery({
+    ...orpc.insights.getTrackingPerformance.queryOptions({
+      input: {
+        organizationIds: organizationIds.length > 0 ? organizationIds : undefined,
+        trackingId: trackingId || undefined,
+        startDate: dateRange.from?.toISOString(),
+        endDate: dateRange.to?.toISOString(),
+      },
+    }),
+    enabled,
+    staleTime: 60_000,
+  });
 
-export function SpacePointsSection({ data }: { data: SpacePointsData }) {
-  const engagementRate = data.totalUsers > 0 ? (data.activeUsers / data.totalUsers) * 100 : 0;
-
-  return (
-    <div className="space-y-3">
-      <SectionHeader
-        icon={Coins}
-        label="Space Points — Gamificação"
-        color="text-yellow-600"
-        bg="bg-yellow-50 dark:bg-yellow-950/40"
-        description="Pontos distribuídos e consumidos pela equipe"
-      />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <KpiCard label="Saldo total" value={fmt(data.totalBalance)}
-          icon={Coins} color="text-yellow-600" bg="bg-yellow-50 dark:bg-yellow-950/40"
-          sub="SP acumulados pelos usuários" />
-        <KpiCard label="Saldo semanal" value={fmt(data.weeklyBalance)}
-          icon={Activity} color="text-orange-500" bg="bg-orange-50 dark:bg-orange-950/40" />
-        <KpiCard label="SP distribuídos" value={fmt(data.granted)}
-          icon={Award} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950/40"
-          sub="Ganhos no período" />
-        <KpiCard label="SP gastos" value={fmt(data.spent)}
-          icon={ShoppingCart} color="text-red-500" bg="bg-red-50 dark:bg-red-950/40"
-          sub="Resgates no período" />
-        <KpiCard label="Usuários ativos" value={fmt(data.activeUsers)}
-          icon={Users} color="text-violet-600" bg="bg-violet-50 dark:bg-violet-950/40"
-          badge={`${engagementRate.toFixed(0)}%`} badgeVariant="default"
-          sub={`${data.totalUsers} total`} />
-      </div>
-    </div>
+  const data = useMemo(
+    () => ({ summary, trackingPerformance: perf }),
+    [summary, perf],
   );
+
+  return <DynamicSection appModule="tracking" data={data} />;
 }
 
-// ─── Stars Section ───────────────────────────────────────────────────────────
+// ─── Wrappers de compat — preservam API dos chamadores existentes ──────────
+// Cada wrapper aceita a mesma prop `data` que tinha antes e injeta no
+// `DynamicSection` no envelope esperado pelo catálogo (`{appKey: data}`).
 
-interface StarsData {
-  lastBalance: number;
-  topupTotal: number;
-  appCharges: number;
-  planCredit: number;
-  byApp: Record<string, number>;
+interface ForgeData { totalProposals: number; rascunho: number; enviadas: number; visualizadas: number; pagas: number; expiradas: number; canceladas: number; revenueTotal: number; revenuePipeline: number; totalContracts: number; contractsAtivo: number; }
+export function ForgeSection({ data }: { data: ForgeData & Record<string, unknown> }) {
+  return <DynamicSection appModule="forge" data={{ forge: data }} />;
 }
 
-export function StarsSection({ data }: { data: StarsData }) {
-  const apps = Object.entries(data.byApp).sort((a, b) => b[1] - a[1]).slice(0, 5);
-
-  return (
-    <div className="space-y-3">
-      <SectionHeader
-        icon={Star}
-        label="Stars — Créditos de IA"
-        color="text-fuchsia-600"
-        bg="bg-fuchsia-50 dark:bg-fuchsia-950/40"
-        description="Consumo de créditos para apps com IA"
-      />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <KpiCard label="Saldo atual" value={fmt(data.lastBalance)}
-          icon={Star} color="text-fuchsia-600" bg="bg-fuchsia-50 dark:bg-fuchsia-950/40"
-          sub="Stars disponíveis" />
-        <KpiCard label="Comprados" value={fmt(data.topupTotal)}
-          icon={ShoppingCart} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950/40"
-          sub="Recargas no período" />
-        <KpiCard label="Crédito do plano" value={fmt(data.planCredit)}
-          icon={Award} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-950/40"
-          sub="Mensalidade" />
-        <KpiCard label="Consumidos" value={fmt(data.appCharges)}
-          icon={Activity} color="text-red-500" bg="bg-red-50 dark:bg-red-950/40"
-          sub="Gastos por apps no período" />
-      </div>
-
-      {apps.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Top apps por consumo</p>
-          <div className="space-y-2">
-            {apps.map(([app, amount], i) => (
-              <div key={app} className="flex items-center justify-between gap-3 py-1.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs font-bold text-muted-foreground w-5">{i + 1}º</span>
-                  <p className="text-sm truncate capitalize">{app.replace(/-/g, " ")}</p>
-                </div>
-                <Badge variant="secondary" className="text-[10px]">{fmt(amount)} ⭐</Badge>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+interface SpacetimeData { total: number; pending: number; confirmed: number; done: number; cancelled: number; noShow: number; withLead: number; conversionRate: number; }
+export function SpacetimeSection({ data }: { data: SpacetimeData & Record<string, unknown> }) {
+  return <DynamicSection appModule="spacetime" data={{ spacetime: data }} />;
 }
 
-// ─── Space Station Section ───────────────────────────────────────────────────
-
-interface SpaceStationData {
-  totalStations: number;
-  publicStations: number;
-  orgStations: number;
-  userStations: number;
-  totalStarsReceived: number;
-  starsSentInPeriod: number;
-  starsReceivedInPeriod: number;
-  pendingAccessRequests: number;
-  approvedAccessRequests: number;
+interface NasaPlannerData { total: number; draft: number; published: number; scheduled: number; approved: number; starsSpent: number; byNetwork: Record<string, number>; }
+export function NasaPlannerSection({ data }: { data: NasaPlannerData & Record<string, unknown> }) {
+  return <DynamicSection appModule="nasa-planner" data={{ nasaPlanner: data }} />;
 }
 
-export function SpaceStationSection({ data }: { data: SpaceStationData }) {
-  return (
-    <div className="space-y-3">
-      <SectionHeader
-        icon={Rocket}
-        label="Space Station — Mundos & Comunidade"
-        color="text-indigo-600"
-        bg="bg-indigo-50 dark:bg-indigo-950/40"
-        description="Estações, mundos públicos e engajamento com Stars"
-      />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <KpiCard label="Estações" value={fmt(data.totalStations)}
-          icon={Rocket} color="text-indigo-600" bg="bg-indigo-50 dark:bg-indigo-950/40"
-          sub={`${data.orgStations} org · ${data.userStations} pessoais`} />
-        <KpiCard label="Públicas" value={fmt(data.publicStations)}
-          icon={Eye} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-950/40"
-          sub="Visíveis em /space" />
-        <KpiCard label="Stars enviados" value={fmt(data.starsSentInPeriod)}
-          icon={Star} color="text-amber-500" bg="bg-amber-50 dark:bg-amber-950/40"
-          sub="No período" />
-        <KpiCard label="Stars recebidos" value={fmt(data.starsReceivedInPeriod)}
-          icon={Star} color="text-fuchsia-600" bg="bg-fuchsia-50 dark:bg-fuchsia-950/40"
-          sub={`${fmt(data.totalStarsReceived)} total`} />
-        <KpiCard label="Pedidos de acesso" value={fmt(data.pendingAccessRequests)}
-          icon={Clock} color="text-orange-500" bg="bg-orange-50 dark:bg-orange-950/40"
-          sub="Pendentes"
-          badge={data.pendingAccessRequests > 0 ? "Atenção" : undefined}
-          badgeVariant="secondary" />
-        <KpiCard label="Acessos aprovados" value={fmt(data.approvedAccessRequests)}
-          icon={CheckCircle2} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950/40"
-          sub="No período" />
-      </div>
-    </div>
-  );
+interface IntegrationsProps { metaAds?: { connected?: boolean; data?: { spend?: number; leads?: number; clicks?: number; impressions?: number; ctr?: number; cpl?: number; roas?: number; }; }; }
+export function IntegrationsSection({ metaAds }: IntegrationsProps) {
+  // Mapeia o payload de meta pro formato esperado pelo catálogo
+  const data = metaAds?.connected && metaAds.data ? metaAds.data : {};
+  return <DynamicSection appModule="integrations" data={{ metaAds: data }} />;
 }
 
-// ─── NASA Route Section ──────────────────────────────────────────────────────
-
-interface NasaRouteData {
-  totalCourses: number;
-  publishedCourses: number;
-  totalStudents: number;
-  totalEnrollments: number;
-  paidEnrollments: number;
-  freeEnrollments: number;
-  starsRevenue: number;
-  completedCourses: number;
-  completedLessons: number;
-  certificatesIssued: number;
-  topCourses: Array<{ id: string; title: string; enrollments: number }>;
+interface WorkspaceData { total: number; done: number; open: number; overdue: number; byType: Record<string, number>; topCreators: Array<{ id: string; name: string; image: string | null; count: number }>; }
+export function WorkspaceSection({ data }: { data: WorkspaceData & Record<string, unknown> }) {
+  return <DynamicSection appModule="workspace" data={{ workspace: data }} />;
 }
 
-export function NasaRouteSection({ data }: { data: NasaRouteData }) {
-  const completionRate = data.totalEnrollments > 0
-    ? (data.completedCourses / data.totalEnrollments) * 100
-    : 0;
+interface FormsData { totalForms: number; publishedForms: number; totalResponses: number; responsesWithLead: number; totalViews: number; topForms: Array<{ id: string; name: string; responses: number }>; }
+export function FormsSection({ data }: { data: FormsData & Record<string, unknown> }) {
+  return <DynamicSection appModule="forms" data={{ forms: data }} />;
+}
 
-  return (
-    <div className="space-y-3">
-      <SectionHeader
-        icon={MapIcon}
-        label="NASA Route — Cursos & Trilhas"
-        color="text-sky-600"
-        bg="bg-sky-50 dark:bg-sky-950/40"
-        description="Cursos publicados, alunos e progresso"
-      />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <KpiCard label="Cursos" value={fmt(data.totalCourses)}
-          icon={BookOpen} color="text-sky-600" bg="bg-sky-50 dark:bg-sky-950/40"
-          sub={`${data.publishedCourses} publicados`} />
-        <KpiCard label="Alunos" value={fmt(data.totalStudents)}
-          icon={Users} color="text-violet-600" bg="bg-violet-50 dark:bg-violet-950/40"
-          sub="Total de matrículas únicas" />
-        <KpiCard label="Matrículas" value={fmt(data.totalEnrollments)}
-          icon={GraduationCap} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-950/40"
-          sub={`${data.paidEnrollments} pagas · ${data.freeEnrollments} livres`} />
-        <KpiCard label="Receita em Stars" value={fmt(data.starsRevenue)}
-          icon={Star} color="text-fuchsia-600" bg="bg-fuchsia-50 dark:bg-fuchsia-950/40"
-          sub="Stars arrecadados" />
-        <KpiCard label="Cursos concluídos" value={fmt(data.completedCourses)}
-          icon={CheckCircle2} color="text-emerald-600" bg="bg-emerald-50 dark:bg-emerald-950/40"
-          badge={`${completionRate.toFixed(0)}%`} badgeVariant="default"
-          sub="Taxa de conclusão" />
-        <KpiCard label="Aulas assistidas" value={fmt(data.completedLessons)}
-          icon={Activity} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-950/40" />
-        <KpiCard label="Certificados" value={fmt(data.certificatesIssued)}
-          icon={Award} color="text-amber-500" bg="bg-amber-50 dark:bg-amber-950/40"
-          sub="Emitidos no período" />
-      </div>
+interface NBoxData { totalItems: number; publicItems: number; totalSize: number; byType: Record<string, number>; }
+export function NBoxSection({ data }: { data: NBoxData & Record<string, unknown> }) {
+  return <DynamicSection appModule="nbox" data={{ nbox: data }} />;
+}
 
-      {data.topCourses.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Top cursos por matrículas</p>
-          <div className="space-y-2">
-            {data.topCourses.map((c, i) => (
-              <div key={c.id} className="flex items-center justify-between gap-3 py-1.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xs font-bold text-muted-foreground w-5">{i + 1}º</span>
-                  <p className="text-sm truncate">{c.title}</p>
-                </div>
-                <Badge variant="secondary" className="text-[10px]">{fmt(c.enrollments)} matrículas</Badge>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+interface PaymentData { totalEntries: number; revenue: number; expense: number; pendingCount: number; pendingAmount: number; overdueCount: number; overdueAmount: number; avgTicket: number; }
+export function PaymentSection({ data }: { data: PaymentData & Record<string, unknown> }) {
+  return <DynamicSection appModule="payment" data={{ payment: data }} />;
+}
+
+interface LinnkerData { totalScans: number; scansWithLead: number; totalClicks: number; topLinks: Array<{ id: string; title: string; clicks: number }>; }
+export function LinnkerSection({ data }: { data: LinnkerData & Record<string, unknown> }) {
+  return <DynamicSection appModule="linnker" data={{ linnker: data }} />;
+}
+
+interface SpacePointsData { totalBalance: number; weeklyBalance: number; granted: number; spent: number; activeUsers: number; totalUsers: number; }
+export function SpacePointsSection({ data }: { data: SpacePointsData & Record<string, unknown> }) {
+  return <DynamicSection appModule="space-points" data={{ spacePoints: data }} />;
+}
+
+interface StarsData { lastBalance: number; topupTotal: number; appCharges: number; planCredit: number; byApp: Record<string, number>; }
+export function StarsSection({ data }: { data: StarsData & Record<string, unknown> }) {
+  return <DynamicSection appModule="stars" data={{ stars: data }} />;
+}
+
+interface SpaceStationData { totalStations: number; publicStations: number; orgStations: number; userStations: number; totalStarsReceived: number; starsSentInPeriod: number; starsReceivedInPeriod: number; pendingAccessRequests: number; approvedAccessRequests: number; }
+export function SpaceStationSection({ data }: { data: SpaceStationData & Record<string, unknown> }) {
+  // Map keys to catalog: catalog uses stations/publicStations/starsSent/starsReceived
+  const mapped = {
+    stations: data.totalStations,
+    publicStations: data.publicStations,
+    starsSent: data.starsSentInPeriod,
+    starsReceived: data.starsReceivedInPeriod,
+  };
+  return <DynamicSection appModule="space-station" data={{ spaceStation: mapped }} />;
+}
+
+interface NasaRouteData { totalCourses: number; publishedCourses: number; totalStudents: number; totalEnrollments: number; paidEnrollments: number; freeEnrollments: number; starsRevenue: number; completedCourses: number; completedLessons: number; certificatesIssued: number; topCourses: Array<{ id: string; title: string; enrollments: number }>; }
+export function NasaRouteSection({ data }: { data: NasaRouteData & Record<string, unknown> }) {
+  // Map keys to catalog
+  const mapped = {
+    courses: data.totalCourses,
+    students: data.totalStudents,
+    enrollmentsPaid: data.paidEnrollments,
+    revenueStars: data.starsRevenue,
+    completed: data.completedCourses,
+    certificates: data.certificatesIssued,
+    completionRate: data.completionRate,
+    avgTimeToCertificate: data.avgTimeToCertificate,
+  };
+  return <DynamicSection appModule="nasa-route" data={{ nasaRoute: mapped }} />;
 }

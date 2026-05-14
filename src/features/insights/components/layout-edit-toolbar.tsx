@@ -1,33 +1,26 @@
 "use client";
 
-import { CheckIcon, GripVerticalIcon, Loader2Icon, RotateCcwIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { CheckIcon, Loader2Icon } from "lucide-react";
 import { useOrgLayout } from "@/features/insights/context/org-layout-provider";
 import { cn } from "@/lib/utils";
 
+/**
+ * Toolbar minimal de status de salvamento. Antes mostrava hint de drag e
+ * botão de restaurar, mas:
+ *  - Botão de restaurar foi pra SettingsPanel (Configurações)
+ *  - Hint de drag foi removido pra não poluir o topo do dashboard
+ *
+ * Agora só renderiza quando há status de save pra mostrar — fica
+ * invisível 99% do tempo.
+ */
 export function LayoutEditToolbar() {
-  const { canEdit, saveStatus, resetLayout } = useOrgLayout();
+  const { canEdit, saveStatus } = useOrgLayout();
 
-  if (!canEdit) return null;
+  if (!canEdit || saveStatus === "idle") return null;
 
   return (
-    <div className="flex items-center justify-between rounded-lg border border-dashed bg-muted/30 px-3 py-2">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <GripVerticalIcon className="size-3.5" />
-          <span>Arraste os blocos para reorganizar</span>
-        </div>
-        <SaveIndicator status={saveStatus} />
-      </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={resetLayout}
-        className="text-xs"
-      >
-        <RotateCcwIcon className="size-3 mr-1" />
-        Restaurar layout padrão
-      </Button>
+    <div className="flex items-center rounded-lg border border-dashed bg-muted/30 px-3 py-2">
+      <SaveIndicator status={saveStatus} />
     </div>
   );
 }

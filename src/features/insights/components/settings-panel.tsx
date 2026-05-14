@@ -45,6 +45,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import { useDashboardStore } from "../hooks/use-dashboard-store";
+import { useOrgLayout } from "@/features/insights/context/org-layout-provider";
+import type { InsightBlock } from "@/features/insights/lib/app-metrics";
 import { MODULE_DEFS } from "./app-selector";
 
 interface SettingsPanelProps {
@@ -90,6 +92,15 @@ export function SettingsPanel({
     setModuleOrder,
     resetModuleOrder,
   } = useDashboardStore();
+  // resetLayout = restaura a posição/tamanho dos blocos (widgets/cards)
+  // pro padrão. Só admin/moderador (`canEdit`) consegue executar — pra
+  // org's whole layout, não só layout local do usuário.
+  const {
+    canEdit: canEditLayout,
+    resetLayout,
+    blocks,
+    reorderBlocks,
+  } = useOrgLayout();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -104,7 +115,36 @@ export function SettingsPanel({
     const newIndex = moduleOrder.indexOf(over.id as AppModule);
     if (oldIndex < 0 || newIndex < 0) return;
 
-    setModuleOrder(arrayMove(moduleOrder, oldIndex, newIndex));
+    const nextOrder = arrayMove(moduleOrder, oldIndex, newIndex);
+    setModuleOrder(nextOrder);
+
+    // Sincroniza com as seções do body (layout da org). Apenas
+    // owner/moderador (`canEditLayout`) tem permissão de gravar o
+    // novo layout — pra membros comuns, só as pills do AppSelector
+    // mudam de ordem (local).
+    if (canEditLayout && blocks.length > 0) {
+      // Reordena somente os blocos do tipo "section" segundo nextOrder,
+      // preservando posição relativa de blocos não-section (métricas,
+      // tags, custom charts etc).
+      const reorderedSections = nextOrder
+        .map((appModule) =>
+          blocks.find(
+            (b) => b.type === "section" && b.appModule === appModule,
+          ),
+        )
+        .filter((b): b is InsightBlock => !!b);
+
+      let sectionIdx = 0;
+      const newBlocks = blocks.map((b) => {
+        if (b.type === "section") {
+          const next = reorderedSections[sectionIdx++];
+          return next ?? b;
+        }
+        return b;
+      });
+
+      reorderBlocks(newBlocks);
+    }
   };
 
   const handleResetAll = () => {
@@ -127,7 +167,10 @@ export function SettingsPanel({
           </SheetDescription>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 px-6">
+        {/* min-h-0 é obrigatório pro flex-1 dentro de flex-col conseguir
+            shrinkar — sem isso, conteúdo grande estoura e o scroll do
+            ScrollArea não ativa. Bug clássico do flexbox. */}
+        <ScrollArea className="flex-1 min-h-0 px-6">
           <div className="space-y-6 py-4">
             {/* App modules — sortable */}
             <div>
@@ -245,6 +288,30 @@ export function SettingsPanel({
                       </div>
                     ))}
                   </div>
+                </div>
+              </>
+            )}
+
+            {/* Layout dos blocos — só aparece pra quem pode editar o
+                layout da org (owner/moderador). Restaura a posição/tamanho
+                dos cards arrastáveis pro padrão. */}
+            {canEditLayout && (
+              <>
+                <Separator />
+                <div>
+                  <h3 className="mb-1 text-sm font-medium">Layout dos blocos</h3>
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Restaura a posição padrão dos cards arrastáveis do dashboard.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-1.5"
+                    onClick={resetLayout}
+                  >
+                    <RotateCcw className="size-3.5" />
+                    Restaurar layout padrão
+                  </Button>
                 </div>
               </>
             )}

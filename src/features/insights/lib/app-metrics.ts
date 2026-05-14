@@ -113,7 +113,8 @@ export type InsightBlockType =
   | "tag-tile"
   | "app-metric"
   | "custom-chart"
-  | "add-anchor";
+  | "add-anchor"
+  | "section-prefs";
 
 export interface InsightBlockBase {
   id: string;
@@ -149,9 +150,23 @@ export interface InsightBlockAddAnchor extends InsightBlockBase {
   type: "add-anchor";
 }
 
+/**
+ * Container "invisível" das preferências de visibilidade de KPIs de uma
+ * seção de app. `visibleKeys` lista as métricas do `METRIC_CATALOG` que
+ * o usuário (owner/moderador da org) escolheu mostrar pra esse app.
+ * Quando não existe um `section-prefs` pra um app, o catálogo usa os
+ * `defaultVisible: true` como fallback — preserva o comportamento atual.
+ */
+export interface InsightBlockSectionPrefs extends InsightBlockBase {
+  type: "section-prefs";
+  appModule: AppModule;
+  visibleKeys: string[];
+}
+
 export type InsightBlock =
   | InsightBlockSection
   | InsightBlockTagTile
   | InsightBlockAppMetric
   | InsightBlockCustomChart
-  | InsightBlockAddAnchor;
+  | InsightBlockAddAnchor
+  | InsightBlockSectionPrefs;

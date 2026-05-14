@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   TrendingUp,
   TrendingDown,
@@ -14,6 +15,10 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DashboardSummary } from "@/features/insights/types";
 import { cn } from "@/lib/utils";
+import {
+  LeadsByMetricDialog,
+  type LeadMetricKey,
+} from "@/features/insights/components/leads-by-metric-dialog";
 
 interface KPICardsProps {
   summary: DashboardSummary;
@@ -121,12 +126,25 @@ export function KPIAtendimentCards({
   summary,
   onSentRemindersClick,
 }: KPICardsProps) {
+  // Estado do popup de leads — só um aberto por vez. Reuso o mesmo Dialog
+  // pra todas as métricas de chat clicáveis.
+  const [leadMetric, setLeadMetric] = useState<{
+    key: LeadMetricKey;
+    label: string;
+  } | null>(null);
+
+  const openChatMetric = (key: LeadMetricKey, label: string) =>
+    setLeadMetric({ key, label });
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <KPICard
         title="Total de Conversas"
         value={summary.totalConversations.toLocaleString("pt-BR")}
         icon={<MessageSquare className="size-4" />}
+        onClick={() =>
+          openChatMetric("chat.totalConversations", "Total de Conversas")
+        }
       />
       <KPICard
         title="Total de Mensagens"
@@ -138,12 +156,21 @@ export function KPIAtendimentCards({
         value={summary.leadsWaiting.toLocaleString("pt-BR")}
         icon={<Clock className="size-4" />}
         variant="warning"
+        onClick={() =>
+          openChatMetric(
+            "chat.unattendedConversations",
+            "Aguardando atendimento",
+          )
+        }
       />
       <KPICard
         title="Em atendimento"
         value={summary.leadsActive.toLocaleString("pt-BR")}
         icon={<Activity className="size-4" />}
         variant="success"
+        onClick={() =>
+          openChatMetric("chat.attendedConversations", "Em atendimento")
+        }
       />
       <KPICard
         title="Mensagens Enviadas"
@@ -175,6 +202,15 @@ export function KPIAtendimentCards({
         variant="success"
         onClick={onSentRemindersClick}
       />
+      {leadMetric && (
+        <LeadsByMetricDialog
+          open={!!leadMetric}
+          onOpenChange={(o) => !o && setLeadMetric(null)}
+          app="chat"
+          metric={leadMetric.key}
+          title={leadMetric.label}
+        />
+      )}
     </div>
   );
 }

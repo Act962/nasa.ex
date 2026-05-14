@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   TrendingUp,
   TrendingDown,
@@ -13,6 +14,10 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DashboardSummary } from "@/features/insights/types";
 import { cn } from "@/lib/utils";
+import {
+  LeadsByMetricDialog,
+  type LeadMetricKey,
+} from "@/features/insights/components/leads-by-metric-dialog";
 
 interface KPICardsProps {
   summary: DashboardSummary;
@@ -25,6 +30,7 @@ interface KPICardProps {
   trend?: number | null;
   trendLabel?: string;
   variant?: "default" | "success" | "warning" | "destructive";
+  onClick?: () => void;
 }
 
 function KPICard({
@@ -34,6 +40,7 @@ function KPICard({
   trend,
   trendLabel,
   variant = "default",
+  onClick,
 }: KPICardProps) {
   const variantStyles = {
     default: "bg-card",
@@ -51,7 +58,24 @@ function KPICard({
 
   return (
     <Card
-      className={cn("transition-all hover:shadow-md", variantStyles[variant])}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      className={cn(
+        "transition-all hover:shadow-md",
+        variantStyles[variant],
+        onClick && "cursor-pointer hover:border-primary",
+      )}
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -88,36 +112,53 @@ function KPICard({
 }
 
 export function KPIGeneralCards({ summary }: KPICardsProps) {
+  // Estado do popup — só uma métrica de cada vez. Os cards de valor
+  // monetário e taxa de conversão também abrem o popup (apontando pra
+  // métrica de lead correspondente: active, won...). Crescimento Mensal
+  // é meta-métrica → sem popup.
+  const [leadMetric, setLeadMetric] = useState<{
+    key: LeadMetricKey;
+    label: string;
+  } | null>(null);
+
+  const open = (key: LeadMetricKey, label: string) =>
+    setLeadMetric({ key, label });
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <KPICard
         title="Total de Leads"
         value={summary.totalLeads.toLocaleString("pt-BR")}
         icon={<Users className="size-4" />}
+        onClick={() => open("lead.total", "Total de Leads")}
       />
       <KPICard
         title="Leads Ativos"
         value={summary.activeLeads.toLocaleString("pt-BR")}
         icon={<Target className="size-4" />}
         variant="warning"
+        onClick={() => open("lead.active", "Leads Ativos")}
       />
       <KPICard
         title="Leads Ganhos"
         value={summary.wonLeads.toLocaleString("pt-BR")}
         icon={<Trophy className="size-4" />}
         variant="success"
+        onClick={() => open("lead.won", "Leads Ganhos")}
       />
       <KPICard
         title="Leads Perdidos"
         value={summary.lostLeads.toLocaleString("pt-BR")}
         icon={<XCircle className="size-4" />}
         variant="destructive"
+        onClick={() => open("lead.lost", "Leads Perdidos")}
       />
       <KPICard
         title="Taxa de Conversão"
         value={`${summary.conversionRate}%`}
         icon={<Percent className="size-4" />}
         variant="success"
+        onClick={() => open("lead.won", "Leads Ganhos (Conversão)")}
       />
       <KPICard
         title="Valor de leads Ativos"
@@ -128,6 +169,7 @@ export function KPIGeneralCards({ summary }: KPICardsProps) {
         icon={<CalendarDays className="size-4" />}
         trend={summary.monthGrowthRate}
         trendLabel="vs mês anterior"
+        onClick={() => open("lead.active", "Leads Ativos")}
       />
       <KPICard
         title="Valor de leads ganhos"
@@ -136,6 +178,7 @@ export function KPIGeneralCards({ summary }: KPICardsProps) {
           currency: "BRL",
         })}
         icon={<CalendarDays className="size-4" />}
+        onClick={() => open("lead.won", "Leads Ganhos")}
       />
       <KPICard
         title="Crescimento Mensal"
@@ -157,6 +200,15 @@ export function KPIGeneralCards({ summary }: KPICardsProps) {
             : "destructive"
         }
       />
+      {leadMetric && (
+        <LeadsByMetricDialog
+          open={!!leadMetric}
+          onOpenChange={(o) => !o && setLeadMetric(null)}
+          app="lead"
+          metric={leadMetric.key}
+          title={leadMetric.label}
+        />
+      )}
     </div>
   );
 }
