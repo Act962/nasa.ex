@@ -5,7 +5,6 @@ import {
   BookmarkPlusIcon,
   ExpandIcon,
   FullscreenIcon,
-  LayoutDashboard,
   Link2Icon,
   RefreshCwIcon,
 } from "lucide-react";
@@ -21,9 +20,14 @@ import { cn } from "@/lib/utils";
 import { SharingInsights } from "./sharing-insight-modal";
 import { useDashboardStore } from "../hooks/use-dashboard-store";
 import { authClient } from "@/lib/auth-client";
-import { ButtonGroup } from "@/components/ui/button-group";
 import { useFullscreen } from "@/hooks/use-full-screen";
 import { SaveReportModal } from "./reports/save-report-modal";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface DashboardHeaderProps {
   settings: DashboardSettings;
@@ -47,6 +51,14 @@ interface DashboardHeaderProps {
   snapshotData?: Record<string, unknown>;
 }
 
+/**
+ * Botões de ação do dashboard de Insights — pensados pra serem
+ * renderizados dentro do `<InsightsSidebar actions={...}>`. Cada botão
+ * usa ícone + Tooltip (no estado retraído da sidebar só o ícone aparece).
+ *
+ * O componente não tem mais o título "Insights" porque ele agora vive
+ * no header da própria sidebar.
+ */
 export function DashboardHeader({
   settings,
   onToggleSection,
@@ -64,93 +76,100 @@ export function DashboardHeader({
   const { isFullscreen, toggleFullscreen } = useFullscreen();
 
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className="rounded-lg bg-foreground/10 p-2">
-          <LayoutDashboard className="size-4 text-foreground" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-medium tracking-tight">Insights</h1>
-          <p className="text-sm text-muted-foreground">
-            Acompanhe suas métricas de leads e conversões em tempo real
-          </p>
-        </div>
-      </div>
-      <div className="space-x-2">
-        <ButtonGroup className="sm:block hidden">
-          <SharingInsights
-            filters={{
-              trackingId: store.trackingId,
-              organizationIds:
-                store.organizationIds.length === 0
-                  ? [session.data?.session.activeOrganizationId]
-                  : store.organizationIds,
-              tagIds: store.tagIds,
-              dateRange: store.dateRange,
-            }}
-            settings={settings}
-          >
-            <Button
-              variant="outline"
-              size="icon"
-              disabled={isLoading}
-              className="self-end sm:self-auto"
-            >
-              <Link2Icon className="size-4" />
-            </Button>
-          </SharingInsights>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onRefresh}
+    <TooltipProvider delayDuration={200}>
+      {/* `contents` deixa cada botão flutuar direto no flex container da
+          sidebar (que decide layout coluna-coluna vs linha conforme retraído). */}
+      <div className="contents">
+        <SharingInsights
+          filters={{
+            trackingId: store.trackingId,
+            organizationIds:
+              store.organizationIds.length === 0
+                ? [session.data?.session.activeOrganizationId]
+                : store.organizationIds,
+            tagIds: store.tagIds,
+            dateRange: store.dateRange,
+          }}
+          settings={settings}
+        >
+          <ActionButton
+            label="Compartilhar"
+            icon={<Link2Icon className="size-4" />}
             disabled={isLoading}
-            className="self-end sm:self-auto"
-          >
-            <RefreshCwIcon
-              className={cn("h-4 w-4", isLoading && "animate-spin")}
-            />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSaveOpen(true)}
-            disabled={isLoading}
-            className="self-end sm:self-auto gap-1"
-          >
-            <BookmarkPlusIcon className="h-4 w-4" />
-            Salvar Relatório
-          </Button>
-          <SettingsPanel
-            settings={settings}
-            onToggleSection={onToggleSection}
-            onChartTypeChange={onChartTypeChange}
-            onReset={onReset}
           />
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={toggleFullscreen}
-            disabled={isLoading}
-            className="self-end sm:self-auto"
-          >
-            {isFullscreen ? (
-              <FullscreenIcon className="h-4 w-4" />
+        </SharingInsights>
+        <ActionButton
+          label="Atualizar"
+          icon={
+            <RefreshCwIcon
+              className={cn("size-4", isLoading && "animate-spin")}
+            />
+          }
+          onClick={onRefresh}
+          disabled={isLoading}
+        />
+        <ActionButton
+          label="Salvar Relatório"
+          icon={<BookmarkPlusIcon className="size-4" />}
+          onClick={() => setSaveOpen(true)}
+          disabled={isLoading}
+        />
+        <SettingsPanel
+          settings={settings}
+          onToggleSection={onToggleSection}
+          onChartTypeChange={onChartTypeChange}
+          onReset={onReset}
+        />
+        <ActionButton
+          label={isFullscreen ? "Sair da tela cheia" : "Modo tela cheia"}
+          icon={
+            isFullscreen ? (
+              <FullscreenIcon className="size-4" />
             ) : (
-              <ExpandIcon className="h-4 w-4" />
-            )}
-          </Button>
-        </ButtonGroup>
+              <ExpandIcon className="size-4" />
+            )
+          }
+          onClick={toggleFullscreen}
+          disabled={isLoading}
+        />
+        <SaveReportModal
+          open={saveOpen}
+          onOpenChange={setSaveOpen}
+          defaultName={`Relatório ${new Date().toLocaleDateString("pt-BR")}`}
+          filters={filters ?? store}
+          modules={modules ?? []}
+          snapshot={
+            snapshotData ??
+            { filters: filters ?? store, modules: modules ?? [] }
+          }
+        />
       </div>
-      <SaveReportModal
-        open={saveOpen}
-        onOpenChange={setSaveOpen}
-        defaultName={`Relatório ${new Date().toLocaleDateString("pt-BR")}`}
-        filters={filters ?? store}
-        modules={modules ?? []}
-        snapshot={
-          snapshotData ?? { filters: filters ?? store, modules: modules ?? [] }
-        }
-      />
-    </div>
+    </TooltipProvider>
+  );
+}
+
+interface ActionButtonProps {
+  label: string;
+  icon: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+}
+
+function ActionButton({ label, icon, onClick, disabled }: ActionButtonProps) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onClick}
+          disabled={disabled}
+          aria-label={label}
+        >
+          {icon}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
   );
 }

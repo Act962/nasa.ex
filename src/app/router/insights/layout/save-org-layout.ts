@@ -8,7 +8,14 @@ import { z } from "zod";
 
 const insightBlockSchema = z.object({
   id: z.string(),
-  type: z.enum(["section", "tag-tile", "app-metric", "custom-chart", "add-anchor"]),
+  type: z.enum([
+    "section",
+    "tag-tile",
+    "app-metric",
+    "custom-chart",
+    "add-anchor",
+    "section-prefs",
+  ]),
   order: z.number(),
   pinnedToApps: z.array(z.string()).optional(),
   appModule: z.string().optional(),
@@ -18,6 +25,8 @@ const insightBlockSchema = z.object({
   chartId: z.string().optional(),
   title: z.string().optional(),
   label: z.string().optional(),
+  // Pra blocos do tipo `section-prefs`: lista de métricas visíveis na seção.
+  visibleKeys: z.array(z.string()).optional(),
 });
 
 export const saveOrgLayout = base

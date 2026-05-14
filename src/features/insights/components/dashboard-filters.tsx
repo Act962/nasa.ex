@@ -94,18 +94,31 @@ export function DashboardFilters({
             onToggle={onWorkspaceToggle}
           />
         )}
-        {showTrackingFilter && <Select value={trackingId ?? "ALL"} onValueChange={onTrackingChange}>
-          <SelectTrigger className="w-full sm:w-50">
-            <SelectValue placeholder="Selecione um tracking" />
-          </SelectTrigger>
-          <SelectContent>
-            {trackingOptions.map((option) => (
-              <SelectItem key={option.id} value={option.id}>
-                {option.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>}
+        {showTrackingFilter && (
+          (() => {
+            // Se o trackingId persistido (localStorage) não está mais
+            // disponível (tracking deletado/sem acesso), cai pra "ALL"
+            // pra não exibir placeholder vazio.
+            const resolvedValue =
+              trackingId && trackingOptions.some((o) => o.id === trackingId)
+                ? trackingId
+                : "ALL";
+            return (
+              <Select value={resolvedValue} onValueChange={onTrackingChange}>
+                <SelectTrigger className="w-full sm:w-50">
+                  <SelectValue placeholder="Todos os Trackings" />
+                </SelectTrigger>
+                <SelectContent>
+                  {trackingOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            );
+          })()
+        )}
 
         <Popover>
           <PopoverTrigger asChild>

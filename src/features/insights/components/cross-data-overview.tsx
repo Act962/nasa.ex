@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   TrendingUp,
@@ -13,6 +14,11 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import type { AppModule } from "./app-selector";
+import {
+  LeadsByMetricDialog,
+  type LeadMetricApp,
+  type LeadMetricKey,
+} from "./leads-by-metric-dialog";
 
 interface CrossDataProps {
   selectedModules: AppModule[];
@@ -60,11 +66,20 @@ interface CrossCardProps {
   bg: string;
   trend?: "up" | "down" | "neutral";
   alert?: string;
+  leadMetric?: { app: LeadMetricApp; metric: LeadMetricKey };
 }
 
-function CrossCard({ label, value, sub, icon: Icon, color, bg, trend, alert }: CrossCardProps) {
-  return (
-    <div className={cn("rounded-xl border p-4 flex flex-col gap-2 bg-card relative overflow-hidden")}>
+function CrossCard({ label, value, sub, icon: Icon, color, bg, trend, alert, leadMetric }: CrossCardProps) {
+  const [open, setOpen] = useState(false);
+  const clickable = !!leadMetric;
+
+  const card = (
+    <div
+      className={cn(
+        "rounded-xl border p-4 flex flex-col gap-2 bg-card relative overflow-hidden text-left w-full",
+        clickable && "cursor-pointer hover:border-foreground/30 hover:shadow-sm transition-all",
+      )}
+    >
       <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", bg)}>
         <Icon className={cn("size-4", color)} />
       </div>
@@ -82,6 +97,22 @@ function CrossCard({ label, value, sub, icon: Icon, color, bg, trend, alert }: C
         </div>
       )}
     </div>
+  );
+
+  if (!clickable) return card;
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="text-left">
+        {card}
+      </button>
+      <LeadsByMetricDialog
+        open={open}
+        onOpenChange={setOpen}
+        app={leadMetric.app}
+        metric={leadMetric.metric}
+        title={label}
+      />
+    </>
   );
 }
 
@@ -104,6 +135,7 @@ export function CrossDataOverview({ selectedModules, tracking, chat, forge, spac
       color: "text-emerald-600",
       bg: "bg-emerald-50 dark:bg-emerald-950/40",
       trend: tracking.conversionRate > 20 ? "up" : "neutral",
+      leadMetric: { app: "lead", metric: "lead.active" },
     });
   }
 
@@ -122,6 +154,7 @@ export function CrossDataOverview({ selectedModules, tracking, chat, forge, spac
         unattended > 0
           ? `${fmt(unattended)} conversas sem atendente`
           : undefined,
+      leadMetric: { app: "chat", metric: "chat.totalConversations" },
     });
   }
 
@@ -135,6 +168,7 @@ export function CrossDataOverview({ selectedModules, tracking, chat, forge, spac
       color: "text-orange-600",
       bg: "bg-orange-50 dark:bg-orange-950/40",
       trend: forge.pagas > 0 ? "up" : "neutral",
+      leadMetric: { app: "forge", metric: "forge.pagas" },
     });
   }
 
@@ -148,6 +182,7 @@ export function CrossDataOverview({ selectedModules, tracking, chat, forge, spac
       color: "text-blue-600",
       bg: "bg-blue-50 dark:bg-blue-950/40",
       trend: spacetime.conversionRate > 70 ? "up" : "neutral",
+      leadMetric: { app: "spacetime", metric: "spacetime.done" },
     });
   }
 
