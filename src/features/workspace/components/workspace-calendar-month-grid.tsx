@@ -245,9 +245,20 @@ function MiniCard({
         )}
       </div>
 
-      {/* Workspace tag no topo esquerdo */}
+      {/* Workspace tag no topo esquerdo.
+          Quando há orgProject ou lead à direita, limitamos workspace a 42%
+          pra deixar 4% de respiro entre os dois badges (42% + 42% + ~16% gap).
+          Sem outro badge, workspace pode ocupar até 60%. */}
       {action.workspace?.name && (
-        <div className="absolute left-1.5 top-1.5 max-w-[60%] truncate rounded bg-black/60 px-1 py-0.5 text-[8px] font-semibold text-white backdrop-blur-sm">
+        <div
+          className={cn(
+            "absolute left-1.5 top-1.5 truncate rounded bg-black/10 px-1 py-0.5 text-[6.4px] font-semibold text-white backdrop-blur-sm",
+            action.orgProject?.name || action.lead?.name
+              ? "max-w-[42%]"
+              : "max-w-[60%]",
+          )}
+          title={`Workspace: ${action.workspace.name}`}
+        >
           {action.workspace.name}
         </div>
       )}
@@ -255,11 +266,12 @@ function MiniCard({
       {/* Cliente/Projeto (orgProject) ou Lead — topo direito */}
       {action.orgProject?.name ? (
         <div
-          className="absolute right-1.5 top-1.5 max-w-[55%] truncate rounded px-1 py-0.5 text-[8px] font-bold text-white backdrop-blur-sm"
+          className="absolute right-1.5 top-1.5 max-w-[42%] truncate rounded px-1 py-0.5 text-[6.4px] font-bold text-white backdrop-blur-sm"
           style={{
+            // 1A = 10% opacity em hex — alinha com o bg-black/10 do workspace
             backgroundColor: action.orgProject.color
-              ? `${action.orgProject.color}E6`
-              : "rgba(0,0,0,0.6)",
+              ? `${action.orgProject.color}1A`
+              : "rgba(0,0,0,0.1)",
           }}
           title={`${action.orgProject.type === "client" ? "Cliente" : "Projeto"}: ${action.orgProject.name}`}
         >
@@ -268,7 +280,7 @@ function MiniCard({
         </div>
       ) : action.lead?.name ? (
         <div
-          className="absolute right-1.5 top-1.5 max-w-[55%] truncate rounded bg-amber-500/80 px-1 py-0.5 text-[8px] font-bold text-white backdrop-blur-sm"
+          className="absolute right-1.5 top-1.5 max-w-[42%] truncate rounded bg-amber-500/10 px-1 py-0.5 text-[6.4px] font-bold text-white backdrop-blur-sm"
           title={`Lead: ${action.lead.name}`}
         >
           👤 {action.lead.name}
@@ -351,12 +363,32 @@ export function WorkspaceCalendarMonthGrid({
 
   const actionsByDay = useMemo(() => {
     const map = new Map<string, WorkspaceCalendarAction[]>();
+    // Mesma regra do /calendario (public-calendar/utils/event-days.ts):
+    // expandir o evento em TODOS os dias entre `startDate` e o MAIOR entre
+    // `endDate` e `dueDate`. Sem startDate, cai pra dueDate como ponto único.
+    // Hard limit 90 dias pra evitar dado ruim travar UI.
+    const MAX_DAYS = 90;
     for (const a of actions) {
-      const dateStr = a.dueDate || a.startDate;
-      if (!dateStr) continue;
-      const key = dayjs(dateStr).format("YYYY-MM-DD");
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(a);
+      const startStr = a.startDate || a.dueDate;
+      if (!startStr) continue;
+      const start = dayjs(startStr).startOf("day");
+      const endCandidates = [a.endDate, a.dueDate]
+        .filter((d): d is Date | string => !!d)
+        .map((d) => dayjs(d).startOf("day"));
+      let end = start;
+      for (const c of endCandidates) {
+        if (c.isAfter(end)) end = c;
+      }
+      let cursor = start;
+      let i = 0;
+      while (!cursor.isAfter(end) && i < MAX_DAYS) {
+        const key = cursor.format("YYYY-MM-DD");
+        const arr = map.get(key);
+        if (arr) arr.push(a);
+        else map.set(key, [a]);
+        cursor = cursor.add(1, "day");
+        i++;
+      }
     }
     return map;
   }, [actions]);
