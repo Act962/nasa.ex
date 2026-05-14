@@ -1,5 +1,6 @@
 import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -181,7 +182,7 @@ async function fetchLead({
     ...(metric === "lead.bySource" && source ? { source: source as "DEFAULT" } : {}),
     ...(metric === "lead.byUtmCampaign" && utmCampaign ? { utmCampaign } : {}),
     ...(metric === "lead.byUtmSource" && utmSource ? { utmSource } : {}),
-  } as Parameters<typeof prisma.lead.findMany>[0]["where"];
+  } as Prisma.LeadWhereInput;
 
   const total = await prisma.lead.count({ where });
 
@@ -252,7 +253,7 @@ async function fetchForge({ metric, orgIds, dateRange, trackingId, tagWhereLead,
     ...(trackingId ? { client: { is: { trackingId } } } : {}),
     // Tag filter aplicado via lead
     ...(tagWhereLead ? { client: { is: tagWhereLead } } : {}),
-  } as Parameters<typeof prisma.forgeProposal.findMany>[0]["where"];
+  } as Prisma.ForgeProposalWhereInput;
 
   // Se trackingId + tagWhereLead estiverem ambos presentes, precisamos
   // combinar AND no Lead. Caso raro mas precisa funcionar:
@@ -314,7 +315,7 @@ async function fetchSpacetime({ metric, orgIds, dateRange, trackingId, tagWhereL
     ...(dateRange ? { startsAt: dateRange } : {}),
     ...(trackingId ? { trackingId } : {}),
     ...(tagWhereLead ? { lead: { is: tagWhereLead } } : {}),
-  } as Parameters<typeof prisma.appointment.findMany>[0]["where"];
+  } as Prisma.AppointmentWhereInput;
 
   const total = await prisma.appointment.count({ where });
 
@@ -361,7 +362,7 @@ async function fetchChat({ metric, orgIds, dateRange, trackingId, tagWhereLead, 
     ...(tagWhereLead ? { lead: { is: tagWhereLead } } : {}),
     ...(isAttended ? { isActive: true } : {}),
     ...(isUnattended ? { isActive: false } : {}),
-  } as Parameters<typeof prisma.conversation.findMany>[0]["where"];
+  } as Prisma.ConversationWhereInput;
 
   const total = await prisma.conversation.count({ where });
 
