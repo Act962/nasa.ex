@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { streamAstro } from "@/features/astro/server/orchestrator";
 import { astroChatRequestSchema } from "@/features/astro/schemas/chat-message";
 import type { AgentKey } from "@/features/astro/schemas/agent-config";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -89,6 +90,27 @@ export async function POST(req: Request) {
       { error: "Sessão não encontrada" },
       { status: 404 },
     );
+  }
+
+  // ── Cobrança de Stars (regra global em AppStarCost: "astro_prompt") ─────
+  // Custo zero ou regra ausente = não cobra. Saldo insuficiente = 402.
+  try {
+    const charge = await chargeStarsByAction(organizationId, "astro_prompt", {
+      userId,
+      description: "Astro IA — prompt",
+      appSlug: "astro",
+    });
+    if (!charge.skipped && !charge.success) {
+      return NextResponse.json(
+        {
+          error:
+            "Saldo de Stars insuficiente pra usar o Astro. Recarregue ou ajuste o plano.",
+        },
+        { status: 402 },
+      );
+    }
+  } catch (e) {
+    console.error("[ASTRO/chat] charge failed (continuing)", e);
   }
 
   let result;

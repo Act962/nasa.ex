@@ -77,6 +77,15 @@ export function StarsWidget() {
     staleTime: 0,
   });
 
+  // Novo: consumo real do ciclo + breakdown por app/usuário.
+  // Usado pra calcular `consumed` corretamente (antes era confundido
+  // com saldo) e popular a seção "Uso do plano por app".
+  const { data: usage } = useQuery({
+    ...orpc.stars.getUsageBreakdown.queryOptions(),
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  });
+
   const { data: activeSubscriptions } = useQuery({
     queryKey: ["activeSubscriptionsWidget"],
     queryFn: async () => {
@@ -113,12 +122,21 @@ export function StarsWidget() {
   // hasPlan is true if we have a valid slug from Stripe or DB
   const hasPlan = planSlug !== "free" && (planMonthlyStars > 0 || !!activeSub);
 
-  const consumed = hasPlan ? balance : 0;
-  const remaining = hasPlan ? Math.max(0, planMonthlyStars - consumed) : 0;
-  const pctUsed =
-    hasPlan && planMonthlyStars > 0 ? (consumed / planMonthlyStars) * 100 : 0;
-  const isLow = hasPlan && pctUsed >= 80;
-  const isCritical = hasPlan && pctUsed >= 95;
+  // SUITE = pay-per-use (consumo livre). Não tem limite mensal pra mostrar
+  // como `X / Y` — só mostra o consumido + saldo.
+  const isPayPerUse = planSlug === "suite";
+
+  // Consumed agora vem do agregado real de débitos no ciclo (via
+  // `stars.getUsageBreakdown`). NÃO confunde mais com saldo restante —
+  // o bug do `consumed = balance` está corrigido aqui.
+  const consumed = usage?.consumedInCycle ?? 0;
+  // Saldo restante = direto do `org.starsBalance` (não calculado).
+  const remaining = balance;
+  // Mostra barra/% só pros planos com limite definido (Earth, Explore, etc.)
+  const showLimitBar = hasPlan && !isPayPerUse && planMonthlyStars > 0;
+  const pctUsed = showLimitBar ? (consumed / planMonthlyStars) * 100 : 0;
+  const isLow = showLimitBar && pctUsed >= 80;
+  const isCritical = showLimitBar && pctUsed >= 95;
 
   return (
     <>
@@ -141,7 +159,7 @@ export function StarsWidget() {
               ) : (
                 <StarIcon className="size-3.5 shrink-0" />
               )}
-              {hasPlan ? (
+              {showLimitBar ? (
                 <>
                   <span className="tabular-nums">
                     {consumed.toLocaleString("pt-BR")}
@@ -154,6 +172,7 @@ export function StarsWidget() {
                   </span>
                 </>
               ) : (
+                // SUITE / free: mostra só o saldo no pill (sem /limite)
                 <span className="tabular-nums">
                   {balance.toLocaleString("pt-BR")}
                 </span>
@@ -176,7 +195,7 @@ export function StarsWidget() {
                 )}
               </div>
 
-              {hasPlan ? (
+              {showLimitBar ? (
                 <>
                   <div className="flex items-baseline gap-1">
                     <StarIcon className="size-5 mb-0.5" />
@@ -190,6 +209,22 @@ export function StarsWidget() {
                   <p className="text-[11px] text-muted-foreground mt-0.5">
                     Saldo restante:{" "}
                     <strong>{remaining.toLocaleString("pt-BR")} ★</strong>
+                  </p>
+                </>
+              ) : isPayPerUse ? (
+                // SUITE: pay-per-use. Mostra consumo do ciclo + saldo, sem /limite.
+                <>
+                  <div className="flex items-baseline gap-1">
+                    <StarIcon className="size-5 mb-0.5" />
+                    <span className="text-3xl font-extrabold tabular-nums leading-none">
+                      {consumed.toLocaleString("pt-BR")}
+                    </span>
+                    <span className="text-xs text-muted-foreground">no ciclo</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Saldo:{" "}
+                    <strong>{balance.toLocaleString("pt-BR")} ★</strong>{" "}
+                    · consumo livre
                   </p>
                 </>
               ) : (
@@ -213,7 +248,7 @@ export function StarsWidget() {
 
             {/* Bar + stats */}
             <div className="px-4 py-3 space-y-3">
-              {hasPlan && (
+              {showLimitBar && (
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-[11px] text-muted-foreground">
                     <span>Consumo do ciclo</span>
@@ -231,6 +266,45 @@ export function StarsWidget() {
                     </span>
                   </div>
                   <ConsumedBar consumed={consumed} total={planMonthlyStars} />
+                </div>
+              )}
+
+              {isPayPerUse && consumed > 0 && (
+                <div className="text-[11px] text-muted-foreground">
+                  Plano <strong>SUITE</strong> · consumo livre · ★ {consumed.toLocaleString("pt-BR")} no ciclo
+                </div>
+              )}
+
+              {/* Uso do plano por app — top 5 ordenado por consumo */}
+              {usage?.byApp && usage.byApp.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <p className="text-[11px] font-semibold text-muted-foreground">
+                    Uso do plano por app
+                  </p>
+                  <div className="space-y-1.5">
+                    {usage.byApp.map((app) => {
+                      const pct = showLimitBar
+                        ? (app.total / planMonthlyStars) * 100
+                        : (app.total / Math.max(consumed, 1)) * 100;
+                      return (
+                        <div key={app.appSlug} className="space-y-0.5">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="font-medium truncate">{app.label}</span>
+                            <span className="text-muted-foreground tabular-nums shrink-0">
+                              {app.total} ★
+                              {showLimitBar ? ` (${pct.toFixed(0)}%)` : ""}
+                            </span>
+                          </div>
+                          <div className="h-1 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full bg-yellow-500"
+                              style={{ width: `${Math.min(100, pct)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 

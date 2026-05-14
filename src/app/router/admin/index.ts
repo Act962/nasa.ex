@@ -54,6 +54,7 @@ import {
   adminGetStarRules,
   adminCreateStarRule,
   adminUpdateStarRule,
+  adminDeleteStarRule,
 } from "./star-rules";
 import { adminPartnersRouter } from "./partners";
 import { calendarDisputesRouter } from "./calendar-disputes";
@@ -112,6 +113,7 @@ export const adminRouter = {
   adminGetStarRules,
   adminCreateStarRule,
   adminUpdateStarRule,
+  adminDeleteStarRule,
   // Partners
   partners: adminPartnersRouter,
   // Router payment settings (cotação STAR/BRL pra checkout público)
