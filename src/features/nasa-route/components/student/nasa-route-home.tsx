@@ -286,6 +286,8 @@ interface EnrollmentLite {
     format: string;
     level: string;
     durationMin?: number | null;
+    eventStartsAt?: Date | string | null;
+    eventEndsAt?: Date | string | null;
     creatorOrg?: { name: string; logo?: string | null } | null;
   };
 }
@@ -311,6 +313,8 @@ function ContinueWatchingPoster({
         level: enrollment.course.level,
         durationMin: enrollment.course.durationMin,
         format: enrollment.course.format,
+        eventStartsAt: enrollment.course.eventStartsAt,
+        eventEndsAt: enrollment.course.eventEndsAt,
         priceStars: 0,
         creatorOrg: enrollment.course.creatorOrg,
       }}

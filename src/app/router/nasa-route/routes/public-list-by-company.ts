@@ -35,6 +35,10 @@ export const publicListByCompany = base
         format: true,
         priceStars: true,
         studentsCount: true,
+        // Datas (format = "event") — usadas pelo card pra mostrar badge na capa.
+        eventStartsAt: true,
+        eventEndsAt: true,
+        eventTimezone: true,
         category: { select: { id: true, slug: true, name: true, iconKey: true } },
         _count: { select: { lessons: true } },
       },

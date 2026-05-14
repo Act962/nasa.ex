@@ -13,9 +13,10 @@
 BEGIN;
 
 -- ═══ Organization: verificação de marca ═══
-ALTER TABLE "Organization" ADD COLUMN IF NOT EXISTS "is_verified" BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE "Organization" ADD COLUMN IF NOT EXISTS "verified_at" TIMESTAMP(3);
-ALTER TABLE "Organization" ADD COLUMN IF NOT EXISTS "verified_by" TEXT;
+-- (tabela física é "organization" — Prisma model mapeia via @@map)
+ALTER TABLE "organization" ADD COLUMN IF NOT EXISTS "is_verified" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "organization" ADD COLUMN IF NOT EXISTS "verified_at" TIMESTAMP(3);
+ALTER TABLE "organization" ADD COLUMN IF NOT EXISTS "verified_by" TEXT;
 
 -- ═══ Action: disputa + score ═══
 ALTER TABLE "actions" ADD COLUMN IF NOT EXISTS "is_disputed" BOOLEAN NOT NULL DEFAULT false;
@@ -97,4 +98,4 @@ COMMIT;
 -- ═══ Verificar resultado ═══
 -- SELECT 'event_claims' AS table, COUNT(*) FROM "event_claims";
 -- SELECT 'event_reports' AS table, COUNT(*) FROM "event_reports";
--- SELECT 'organization is_verified count', COUNT(*) FROM "Organization" WHERE "is_verified" = true;
+-- SELECT 'organization is_verified count', COUNT(*) FROM "organization" WHERE "is_verified" = true;

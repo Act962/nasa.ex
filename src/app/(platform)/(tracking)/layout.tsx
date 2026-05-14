@@ -5,6 +5,7 @@ import { currentOrganization } from "@/lib/auth-utils";
 import { EmptyOrganization } from "../../../features/leads/components/empty-organization";
 import { cookies } from "next/headers";
 import { PlatformProviders } from "@/features/astro/components/platform-providers";
+import { UploadManagerDock } from "@/features/nasa-route/components/upload-manager-dock";
 
 export default async function RouteLayout({
   children,
@@ -29,6 +30,8 @@ export default async function RouteLayout({
             </div>
           </SidebarInset>
         )}
+
+        <UploadManagerDock />
       </SidebarProvider>
     </PlatformProviders>
   );
