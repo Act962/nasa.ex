@@ -120,9 +120,7 @@ export function FormSubmitComponent({
   // o responseIdRef ANTES de montar a etapa 2 → user continua de onde
   // parou em qualquer dispositivo. Mutation (não query) porque queremos
   // disparar uma vez no clique de "Continuar", não auto-fetch.
-  const findDraft = useMutation(
-    orpc.form.findDraftByPhone.mutationOptions({}),
-  );
+  const findDraft = useMutation(orpc.form.findDraftByPhone.mutationOptions({}));
   const [resumeLoading, setResumeLoading] = useState(false);
 
   // Id do draft de FormResponses criado pelo primeiro "Próximo" via
@@ -198,7 +196,8 @@ export function FormSubmitComponent({
   // No modo edição (override presente), o lead já existe — pulamos a etapa
   // de coleta de dados pessoais e vamos direto pros blocos do formulário.
   const isEditMode = !!onSubmitOverride;
-  const showLeadFields = !isEditMode && needLogin && (showName || showEmail || showPhone);
+  const showLeadFields =
+    !isEditMode && needLogin && (showName || showEmail || showPhone);
   const [step, setStep] = useState(showLeadFields ? 1 : 2);
   const textColor = backgroundColor
     ? getContrastColor(backgroundColor)
@@ -230,13 +229,11 @@ export function FormSubmitComponent({
   useEffect(() => {
     if (!idTagManager) return;
     const script = document.createElement("script");
-    script.innerHTML = `
-      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    script.innerHTML = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
       new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
       j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-      })(window,document,'script','dataLayer','${idTagManager}');
-    `;
+      })(window,document,'script','dataLayer','${idTagManager}');`;
     document.head.appendChild(script);
     return () => {
       document.head.removeChild(script);
@@ -380,10 +377,7 @@ export function FormSubmitComponent({
       // decide qual procedure usar (createResponseForLead na 1ª chamada,
       // updateResponse nas seguintes). Aqui só passamos os dados.
       if (onPartialSave) {
-        const result = await onPartialSave(
-          responseJson,
-          responseIdRef.current,
-        );
+        const result = await onPartialSave(responseJson, responseIdRef.current);
         if (result?.responseId) {
           responseIdRef.current = result.responseId;
         }
@@ -396,9 +390,7 @@ export function FormSubmitComponent({
         id,
         response: responseJson,
         tracking,
-        ...(responseIdRef.current
-          ? { responseId: responseIdRef.current }
-          : {}),
+        ...(responseIdRef.current ? { responseId: responseIdRef.current } : {}),
       });
       if (result?.responseId) {
         responseIdRef.current = result.responseId;
@@ -474,9 +466,7 @@ export function FormSubmitComponent({
         // Quando houve auto-save via savePartialResponse, passa o id do
         // draft pro servidor "finalizar" em vez de criar nova FormResponses.
         // Sem isso, cada submit final criaria 2 rows (draft + final).
-        ...(responseIdRef.current
-          ? { responseId: responseIdRef.current }
-          : {}),
+        ...(responseIdRef.current ? { responseId: responseIdRef.current } : {}),
         ...(nextAction.type === "add_tag" && nextAction.tagId
           ? { nextActionTagId: nextAction.tagId }
           : {}),
@@ -506,15 +496,17 @@ export function FormSubmitComponent({
             /* ignore */
           }
           const leadInfoOut =
-            (res as unknown as {
-              lead?: {
-                id: string | null;
-                name: string | null;
-                email: string | null;
-                phone: string | null;
-                publicToken: string | null;
-              } | null;
-            })?.lead ?? null;
+            (
+              res as unknown as {
+                lead?: {
+                  id: string | null;
+                  name: string | null;
+                  email: string | null;
+                  phone: string | null;
+                  publicToken: string | null;
+                } | null;
+              }
+            )?.lead ?? null;
 
           // Redireciona pra outro form
           if (nextAction.type === "form" && nextAction.formId) {
@@ -891,9 +883,10 @@ export function FormSubmitComponent({
                                     if (
                                       v &&
                                       typeof v === "object" &&
-                                      "value" in (v as Record<string, unknown>) &&
-                                      typeof (v as { value?: unknown }).value ===
-                                        "string"
+                                      "value" in
+                                        (v as Record<string, unknown>) &&
+                                      typeof (v as { value?: unknown })
+                                        .value === "string"
                                     ) {
                                       hydrated[k] = v as {
                                         value: string;
@@ -918,7 +911,10 @@ export function FormSubmitComponent({
                                     }
                                     toast.success(
                                       "Continuando rascunho salvo",
-                                      { description: "Os campos preenchidos antes foram restaurados." },
+                                      {
+                                        description:
+                                          "Os campos preenchidos antes foram restaurados.",
+                                      },
                                     );
                                   }
                                 }
@@ -1003,11 +999,8 @@ function StepBlocks({
    */
   onStepAdvance?: () => Promise<void> | void;
 }) {
-  const stepMode =
-    ((settings as unknown as { stepMode?: string })?.stepMode ?? "off") as
-      | "off"
-      | "auto"
-      | "manual";
+  const stepMode = ((settings as unknown as { stepMode?: string })?.stepMode ??
+    "off") as "off" | "auto" | "manual";
   const nextLabel =
     (settings as unknown as { nextButtonLabel?: string })?.nextButtonLabel ||
     "Próximo";
@@ -1155,7 +1148,10 @@ function StepBlocks({
     for (const child of childs) {
       // Pula blocos não-preenchíveis (Heading, Paragraph, ImageDisplay, etc.)
       if (
-        !isFillableBlock(child.blockType, FormBlocks[child.blockType]?.blockCategory)
+        !isFillableBlock(
+          child.blockType,
+          FormBlocks[child.blockType]?.blockCategory,
+        )
       )
         continue;
 
