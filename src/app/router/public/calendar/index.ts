@@ -1,5 +1,6 @@
 import { listPublic } from "./list-public";
 import { getPublicEvent } from "./get-public";
+import { getByOrgShare } from "./get-by-org-share";
 import { toggleLike } from "./toggle-like";
 import { recordView } from "./record-view";
 import { generateShareToken } from "./generate-share-token";
@@ -17,6 +18,7 @@ import { respondToClaim } from "./respond-to-claim";
 export const calendarRouter = {
   listPublic,
   getPublicEvent,
+  getByOrgShare,
   toggleLike,
   recordView,
   generateShareToken,

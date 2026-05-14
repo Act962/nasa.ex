@@ -33,6 +33,11 @@ export const useCreateTask = () => {
             },
           }),
         );
+
+        // Workspace Calendar — pra que ação recém-criada apareça sem reload.
+        queryClient.invalidateQueries({
+          queryKey: [["action", "getWorkspaceCalendar"]] as const,
+        });
       },
     }),
   );
@@ -268,7 +273,7 @@ export const useUpdateAction = () => {
         // Calendário consolidado (Workspace Calendar) — refrescar pra
         // refletir mudanças de data via drag-and-drop.
         queryClient.invalidateQueries({
-          queryKey: ["action.getWorkspaceCalendar"],
+          queryKey: [["action", "getWorkspaceCalendar"]] as const,
         });
       },
     }),
@@ -293,6 +298,9 @@ export const useDeleteAction = () => {
             input: { workspaceId: data.action.workspaceId },
           }),
         );
+        queryClient.invalidateQueries({
+          queryKey: [["action", "getWorkspaceCalendar"]] as const,
+        });
       },
     }),
   );
@@ -377,6 +385,9 @@ export const useAddParticipant = (actionId: string) => {
             input: { workspaceId: data.participant.action.workspaceId },
           }),
         );
+        queryClient.invalidateQueries({
+          queryKey: [["action", "getWorkspaceCalendar"]] as const,
+        });
       },
     }),
   );
@@ -398,6 +409,9 @@ export const useRemoveParticipant = (actionId: string) => {
             input: { workspaceId: data.participant.action.workspaceId },
           }),
         );
+        queryClient.invalidateQueries({
+          queryKey: [["action", "getWorkspaceCalendar"]] as const,
+        });
       },
     }),
   );
@@ -419,6 +433,9 @@ export const useAddResponsible = (actionId: string) => {
             input: { workspaceId: data.responsible.action.workspaceId },
           }),
         );
+        queryClient.invalidateQueries({
+          queryKey: [["action", "getWorkspaceCalendar"]] as const,
+        });
       },
     }),
   );
@@ -440,6 +457,9 @@ export const useRemoveResponsible = (actionId: string) => {
             input: { workspaceId: data.responsible.action.workspaceId },
           }),
         );
+        queryClient.invalidateQueries({
+          queryKey: [["action", "getWorkspaceCalendar"]] as const,
+        });
       },
     }),
   );
@@ -475,11 +495,17 @@ export const useWorkspaceCalendar = ({
   startDate: string;
   endDate: string;
 }) => {
-  const { data, isLoading } = useQuery(
-    orpc.action.getWorkspaceCalendar.queryOptions({
+  const { data, isLoading } = useQuery({
+    ...orpc.action.getWorkspaceCalendar.queryOptions({
       input: { startDate, endDate },
     }),
-  );
+    // Refetch quando o usuário volta pra aba — pega mudanças feitas em
+    // outras telas/abas (kanban, lista) sem precisar de reload.
+    refetchOnWindowFocus: true,
+    // Considera dados velhos rapidamente, pra que voltar pro calendar
+    // sempre dispare refetch.
+    staleTime: 0,
+  });
 
   return {
     actions: data?.actions ?? [],

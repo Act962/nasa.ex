@@ -94,6 +94,10 @@ export function DatePicker({
         <Calendar
           mode="single"
           selected={value}
+          // `defaultMonth` faz o calendário abrir no mês da data já
+          // selecionada — sem isso o react-day-picker sempre abre no mês
+          // atual, mesmo que o campo já tenha valor.
+          defaultMonth={value ?? undefined}
           onSelect={(date) => handleDaySelect(date as Date)}
           disabled={[
             ...(fromDate ? [{ before: fromDate }] : []),

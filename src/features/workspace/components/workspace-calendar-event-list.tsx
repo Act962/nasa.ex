@@ -31,7 +31,39 @@ function ActionListCard({
 
   const start = action.startDate ? dayjs(action.startDate) : null;
   const due = action.dueDate ? dayjs(action.dueDate) : null;
-  const date = due || start;
+  const date = start || due;
+
+  // Range de data (dia diferente) e/ou hora (mesmo dia, horas diferentes):
+  // - 11 a 13 Mai 2026 (multi-dia)
+  // - 13 Mai 2026 (mesmo dia)
+  // - 08:00 às 18:00 (range no mesmo dia)
+  // - 08:00 (sem entrega ou horas iguais)
+  const isMultiDay = start && due && !start.isSame(due, "day");
+  const hasTimeRange = start && due && !start.isSame(due, "minute");
+
+  const dateLabel = (() => {
+    if (!date) return null;
+    if (isMultiDay && start && due) {
+      const sameMonth = start.month() === due.month() && start.year() === due.year();
+      const sameYear = start.year() === due.year();
+      if (sameMonth) {
+        return `${start.format("DD")} a ${due.format("DD MMM YYYY")}`;
+      }
+      if (sameYear) {
+        return `${start.format("DD MMM")} a ${due.format("DD MMM YYYY")}`;
+      }
+      return `${start.format("DD MMM YYYY")} a ${due.format("DD MMM YYYY")}`;
+    }
+    return date.format("DD MMM YYYY");
+  })();
+
+  const timeLabel = (() => {
+    if (!date) return null;
+    if (hasTimeRange && start && due) {
+      return `${start.format("HH:mm")} às ${due.format("HH:mm")}`;
+    }
+    return date.format("HH:mm");
+  })();
 
   const actionCover =
     action.coverImage && !coverFailed ? imgSrc(action.coverImage) : null;
@@ -105,19 +137,19 @@ function ActionListCard({
 
       {/* Info */}
       <div className="min-w-0 flex-1">
-        {date && (
+        {dateLabel && (
           <div className="mb-0.5 flex items-center gap-1 text-[10px] font-medium text-primary">
             <Calendar className="h-2.5 w-2.5" />
-            <span className="capitalize">{date.format("DD MMM YYYY")}</span>
+            <span className="capitalize">{dateLabel}</span>
           </div>
         )}
         <div className="truncate text-sm font-semibold leading-tight">
           {action.title}
         </div>
-        {date && (
+        {timeLabel && (
           <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
             <Clock className="h-2.5 w-2.5 shrink-0" />
-            <span>{date.format("HH:mm")}</span>
+            <span>{timeLabel}</span>
           </div>
         )}
         {action.workspace?.name && (

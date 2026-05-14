@@ -208,6 +208,19 @@ model Organization {
   // pode alternar entre 60 (padrão, menos tráfego) e 30 (granularidade maior).
   heartbeatIntervalSeconds Int @default(60) @map("heartbeat_interval_seconds")
 
+  // ── Compartilhamento público do Calendário Workspace ──────
+  // Quando enabled=true E expiresAt > now(), qualquer pessoa com slug+token
+  // acessa o calendário consolidado via /calendario/equipe/<slug>/<token>.
+  // Token nasce com expiração de 1h; pode ser rotacionado a qualquer momento.
+  // Detalhes completos pra membros logados; cards minimais pros demais.
+  calendarPublicEnabled   Boolean   @default(false) @map("calendar_public_enabled")
+  calendarPublicToken     String?   @unique @map("calendar_public_token")
+  calendarPublicExpiresAt DateTime? @map("calendar_public_expires_at")
+  calendarPublicEnabledAt DateTime? @map("calendar_public_enabled_at")
+  calendarPublicEnabledBy String?   @map("calendar_public_enabled_by")
+  // Audit do aceite do disclaimer pra requisitos de compliance.
+  calendarPublicConsentAt DateTime? @map("calendar_public_consent_at")
+
   // ── Verificação de Marca ──────────────────────────────────
   // Usado pelo sistema de reivindicação de eventos públicos (Action.isPublic).
   // Org verificada: reports daquela org pesam 5 (vs 1 padrão) e ganha badge
