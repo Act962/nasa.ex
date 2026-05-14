@@ -2,6 +2,7 @@ import { NodeExecutor } from "@/features/workspace-executions/types";
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { wsArchiveActionChannel } from "@/inngest/channels/workspace";
+import { publishActionArchived } from "@/features/actions/realtime/publish";
 import { ActionContext } from "../../schemas";
 
 export const wsArchiveActionExecutor: NodeExecutor = async ({
@@ -22,10 +23,23 @@ export const wsArchiveActionExecutor: NodeExecutor = async ({
       const action = context.action as ActionContext | undefined;
       if (!action) throw new NonRetriableError("Action missing");
 
+      const dbAction = await prisma.action.findUnique({
+        where: { id: action.id },
+        select: { columnId: true, workspaceId: true },
+      });
+
       await prisma.action.update({
         where: { id: action.id },
         data: { isArchived: true },
       });
+
+      if (dbAction?.columnId && dbAction?.workspaceId) {
+        await publishActionArchived(publish, {
+          actionId: action.id,
+          columnId: dbAction.columnId,
+          workspaceId: dbAction.workspaceId,
+        });
+      }
 
       if (realTime) {
         await publish(

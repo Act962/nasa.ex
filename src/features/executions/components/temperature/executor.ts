@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { moveLeadChannel } from "@/inngest/channels/move-lead";
 import { TemperatureFormValues } from "./dialog";
 import { temperatureChannel } from "@/inngest/channels/temperature";
+import { publishLeadChanged } from "@/features/leads/realtime/publish";
 
 type TemperatureNodeData = {
   action?: TemperatureFormValues;
@@ -47,6 +48,13 @@ export const temperatureExecutor: NodeExecutor<TemperatureNodeData> = async ({
       data: {
         temperature: data.action.temperature,
       },
+    });
+
+    await publishLeadChanged(publish, {
+      leadId: lead.id,
+      trackingId: lead.trackingId,
+      statusId: lead.statusId,
+      fields: ["temperature"],
     });
 
     if (realTime) {

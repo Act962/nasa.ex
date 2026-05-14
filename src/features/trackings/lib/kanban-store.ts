@@ -141,14 +141,39 @@ export const useKanbanStore = create<KanbanStore>()(
         // name, statusId, etc.) — essencial pra que edições de campo via
         // mutation cheguem ao Zustand store e ao LeadItem que sincroniza
         // estado local com data.description.
-        if (current && JSON.stringify(current) === JSON.stringify(next)) return;
+        const sameContent =
+          !!current && JSON.stringify(current) === JSON.stringify(next);
 
-        set((state) => ({
-          columns: {
-            ...state.columns,
-            [columnId]: { id: columnId, leads: next },
-          },
-        }));
+        // Unicidade cross-column: leads presentes no snapshot DESTA coluna
+        // não podem permanecer em outras colunas do store. Cobre o caso em
+        // que uma automação move um lead A→B e a refetch de B chega antes da
+        // refetch de A — sem este expurgo o lead aparece em ambas até a
+        // refetch de A retornar (e em paginação infinita pode nunca retornar).
+        const incomingIds = new Set(next.map((l: { id: string }) => l.id));
+
+        set((state) => {
+          const updatedColumns: Record<string, ColumnState> = { ...state.columns };
+          let crossColumnChanged = false;
+
+          for (const otherId of Object.keys(updatedColumns)) {
+            if (otherId === columnId) continue;
+            const other = updatedColumns[otherId];
+            if (!other.leads.length) continue;
+            const filtered = other.leads.filter((l) => !incomingIds.has(l.id));
+            if (filtered.length !== other.leads.length) {
+              updatedColumns[otherId] = { ...other, leads: filtered };
+              crossColumnChanged = true;
+            }
+          }
+
+          if (sameContent && !crossColumnChanged) return state;
+
+          if (!sameContent) {
+            updatedColumns[columnId] = { id: columnId, leads: next };
+          }
+
+          return { columns: updatedColumns };
+        });
       },
 
       // Reordena leads dentro da mesma coluna (UI Otimista)
