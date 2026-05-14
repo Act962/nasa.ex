@@ -4,6 +4,7 @@ import { TagFormValues } from "./dialog";
 import { LeadContext } from "../../schemas";
 import prisma from "@/lib/prisma";
 import { tagChannel } from "@/inngest/channels/tag";
+import { publishLeadChanged } from "@/features/leads/realtime/publish";
 
 type TagNodeData = {
   action?: TagFormValues;
@@ -75,6 +76,13 @@ export const tagExecutor: NodeExecutor<TagNodeData> = async ({
           },
         });
       }
+
+      await publishLeadChanged(publish, {
+        leadId: lead.id,
+        trackingId: lead.trackingId,
+        statusId: lead.statusId,
+        fields: ["tag"],
+      });
 
       if (realTime) {
         await publish(

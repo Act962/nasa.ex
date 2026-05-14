@@ -4,6 +4,7 @@ import { WinLossFormValues } from "./dialog";
 import { LeadContext } from "../../schemas";
 import prisma from "@/lib/prisma";
 import { winLossChannel } from "@/inngest/channels/win-loss";
+import { publishLeadClosed } from "@/features/leads/realtime/publish";
 
 type WinLossNodeData = {
   action?: WinLossFormValues;
@@ -71,6 +72,13 @@ export const winLossExecutor: NodeExecutor<WinLossNodeData> = async ({
           currentAction: leadAction,
           closedAt: new Date(),
         },
+      });
+
+      await publishLeadClosed(publish, {
+        leadId: lead.id,
+        trackingId: lead.trackingId,
+        statusId: lead.statusId,
+        outcome: leadAction,
       });
 
       return {

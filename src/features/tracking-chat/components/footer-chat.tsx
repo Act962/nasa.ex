@@ -15,6 +15,7 @@ import {
   ScrollTextIcon,
   SendIcon,
   StickerIcon,
+  UserPlusIcon,
 } from "lucide-react";
 import pt from "emoji-picker-react/dist/data/emojis-pt.json";
 import EmojiPicker, { Theme } from "emoji-picker-react";
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/popover";
 import {
   useMutationAudioMessage,
+  useMutationContactMessage,
   useMutationLocationMessage,
   useMutationTextMessage,
 } from "../hooks/use-messages";
@@ -57,6 +59,7 @@ import { NBoxPanel } from "./nbox-panel";
 import { ButtonsPanel } from "./buttons-panel";
 import { ReminderPanel } from "./reminder-panel";
 import { SendLocationDialog } from "./send-location-dialog";
+import { ContactsPanel } from "./contacts-panel";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
@@ -114,6 +117,7 @@ export function Footer({
   const [showNBox, setShowNBox] = useState(false);
   const [showButtons, setShowButtons] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
+  const [showContact, setShowContact] = useState(false);
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [pendingLocation, setPendingLocation] = useState<{
     latitude: number;
@@ -139,6 +143,11 @@ export function Footer({
     messageSelected,
   });
   const mutationLocation = useMutationLocationMessage({
+    conversationId,
+    lead,
+    messageSelected,
+  });
+  const mutationContact = useMutationContactMessage({
     conversationId,
     lead,
     messageSelected,
@@ -226,6 +235,27 @@ export function Footer({
     closeMessageSelected();
     setLocationDialogOpen(false);
     setPendingLocation(null);
+  };
+
+  const handleSendContact = ({
+    name,
+    phone,
+  }: {
+    name: string;
+    phone: string;
+  }) => {
+    if (!instance.instance) return toast.error("Instância não encontrada");
+    if (!lead.phone) return toast.error("Lead sem telefone");
+    mutationContact.mutate({
+      conversationId,
+      leadPhone: lead.phone,
+      token: instance.instance.apiKey,
+      contactName: name,
+      contactPhone: phone,
+      replyId: messageSelected?.messageId,
+      id: messageSelected?.id,
+    });
+    closeMessageSelected();
   };
 
   const handleFileChange = (
@@ -316,6 +346,14 @@ export function Footer({
               }}
             />
           )}
+          {showContact && (
+            <ContactsPanel
+              onClose={() => setShowContact(false)}
+              trackingId={trackingId}
+              excludeConversationId={conversationId}
+              onSelect={handleSendContact}
+            />
+          )}
           {showReminder && (
             <ReminderPanel
               onClose={() => setShowReminder(false)}
@@ -353,6 +391,7 @@ export function Footer({
                             setShowScripts(false);
                             setShowForge(false);
                             setShowReminder(false);
+                            setShowContact(false);
                             setOpen(false);
                           }}
                         >
@@ -369,6 +408,7 @@ export function Footer({
                             setShowScripts(false);
                             setShowForge(false);
                             setShowReminder(false);
+                            setShowContact(false);
                             setOpen(false);
                           }}
                         >
@@ -385,6 +425,7 @@ export function Footer({
                             setShowScripts(false);
                             setShowForge(false);
                             setShowReminder(false);
+                            setShowContact(false);
                             setOpen(false);
                           }}
                         >
@@ -401,6 +442,7 @@ export function Footer({
                             setShowNBox(false);
                             setShowButtons(false);
                             setShowReminder(false);
+                            setShowContact(false);
                             setOpen(false);
                           }}
                         >
@@ -417,6 +459,7 @@ export function Footer({
                             setShowNBox(false);
                             setShowButtons(false);
                             setShowReminder(false);
+                            setShowContact(false);
                             setOpen(false);
                           }}
                         >
@@ -433,6 +476,7 @@ export function Footer({
                             setShowNBox(false);
                             setShowButtons(false);
                             setShowReminder(false);
+                            setShowContact(false);
                             setOpen(false);
                           }}
                         >
@@ -461,6 +505,23 @@ export function Footer({
                         >
                           <MapPinIcon className="size-4" />
                           <p className="text-sm">Localização</p>
+                        </div>
+                        <div
+                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
+                          onClick={() => {
+                            setShowContact((v) => !v);
+                            setShowReminder(false);
+                            setShowForge(false);
+                            setShowScripts(false);
+                            setShowAgenda(false);
+                            setShowForms(false);
+                            setShowNBox(false);
+                            setShowButtons(false);
+                            setOpen(false);
+                          }}
+                        >
+                          <UserPlusIcon className="size-4" />
+                          <p className="text-sm">Contato</p>
                         </div>
                         <div className="relative w-full h-full cursor-pointer overflow-hidden">
                           <div className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4">

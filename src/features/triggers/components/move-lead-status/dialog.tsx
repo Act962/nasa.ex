@@ -272,7 +272,7 @@ const TagMultiSelect = ({
       <PopoverTrigger asChild>
         <div
           className={cn(
-            "flex flex-wrap gap-1 min-h-10 p-2 border rounded-md cursor-pointer bg-background hover:bg-accent/50 transition-colors",
+            "flex flex-wrap gap-1 min-h-10 p-2 border rounded-md cursor-pointer bg-background hover:bg-accent/50 transition-colors overflow-y-auto",
             open && "ring-1 ring-ring border-primary",
           )}
         >

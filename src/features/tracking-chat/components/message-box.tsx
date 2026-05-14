@@ -10,6 +10,7 @@ import { useConstructUrl } from "@/hooks/use-construct-url";
 import { FileMessageBox } from "./file-message-box";
 import { AudioMessageBox } from "./audio-message-box";
 import { LocationMessageBox } from "./location-message-box";
+import { ContactMessageBox } from "./contact-message-box";
 import { PendingMediaNotice } from "./pending-media-notice";
 import {
   CheckCheckIcon,
@@ -64,8 +65,11 @@ export function MessageBox({
     Number.isFinite(message.latitude) &&
     Number.isFinite(message.longitude);
 
+  const isContact = message.mediaType === "contact";
+
   const isPendingMedia =
     !isLocation &&
+    !isContact &&
     !message.mediaUrl &&
     !!message.mediaType &&
     ["image", "audio", "video", "document", "sticker"].includes(
@@ -78,6 +82,7 @@ export function MessageBox({
     message.mimetype?.startsWith("image/") ||
     message.mimetype?.startsWith("video/") ||
     isLocation ||
+    isContact ||
     isPendingMedia;
 
   const onDeleteMessage = () => {
@@ -147,6 +152,14 @@ export function MessageBox({
                       name={message.body}
                     />
                   )}
+                  {isContact && (
+                    <ContactMessageBox
+                      name={message.body}
+                      phone={message.fileName}
+                      trackingId={trackingId}
+                      token={token ?? undefined}
+                    />
+                  )}
                   {isPendingMedia && (
                     <PendingMediaNotice mediaType={message.mediaType!} />
                   )}
@@ -201,7 +214,7 @@ export function MessageBox({
                         mimetype={message.mimetype}
                       />
                     )}
-                  {!isLocation && message.body && (
+                  {!isLocation && !isContact && message.body && (
                     <div className="whitespace-pre-wrap px-1.5 pt-1 ">
                       <BodyMessage message={message} />
                     </div>

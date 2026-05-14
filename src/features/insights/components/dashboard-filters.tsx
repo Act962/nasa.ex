@@ -81,7 +81,7 @@ export function DashboardFilters({
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center overflow-x-auto">
         <OrganizationFilterButton
           options={organizationOptions}
           selectedIds={organizationIds}
@@ -94,18 +94,20 @@ export function DashboardFilters({
             onToggle={onWorkspaceToggle}
           />
         )}
-        {showTrackingFilter && <Select value={trackingId ?? "ALL"} onValueChange={onTrackingChange}>
-          <SelectTrigger className="w-full sm:w-50">
-            <SelectValue placeholder="Selecione um tracking" />
-          </SelectTrigger>
-          <SelectContent>
-            {trackingOptions.map((option) => (
-              <SelectItem key={option.id} value={option.id}>
-                {option.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>}
+        {showTrackingFilter && (
+          <Select value={trackingId ?? "ALL"} onValueChange={onTrackingChange}>
+            <SelectTrigger className="w-full sm:w-50">
+              <SelectValue placeholder="Selecione um tracking" />
+            </SelectTrigger>
+            <SelectContent>
+              {trackingOptions.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <Popover>
           <PopoverTrigger asChild>

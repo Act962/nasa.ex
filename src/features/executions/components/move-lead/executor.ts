@@ -3,6 +3,7 @@ import { LeadContext } from "../../schemas";
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { moveLeadChannel } from "@/inngest/channels/move-lead";
+import { publishLeadMoved } from "@/features/leads/realtime/publish";
 import { recordLeadEvent } from "@/features/leads/lib/history";
 import { computeSlaDeadline } from "@/features/leads/lib/sla";
 
@@ -113,6 +114,23 @@ export const moveLeadExecutor: NodeExecutor<MoveLeadNodeData> = async ({
           eventType: "TRACKING_CHANGE",
           previousTrackingId,
           newTrackingId: data.trackingId,
+        });
+      }
+
+      const trackingChanged =
+        !!data.trackingId && data.trackingId !== previousTrackingId;
+      const statusChanged =
+        !!data.statusId && data.statusId !== previousStatusId;
+
+      if (trackingChanged || statusChanged) {
+        const targetTrackingId = data.trackingId ?? previousTrackingId!;
+        await publishLeadMoved(publish, {
+          leadId: lead.id,
+          fromTrackingId: previousTrackingId,
+          toTrackingId: targetTrackingId,
+          fromStatusId: previousStatusId,
+          toStatusId: data.statusId ?? previousStatusId!,
+          movedAt: enteredAt.toISOString(),
         });
       }
 

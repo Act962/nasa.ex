@@ -3,6 +3,7 @@ import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { logOrgActivity } from "@/features/admin/lib/org-activity-log";
 import { wsMoveActionChannel } from "@/inngest/channels/workspace";
+import { publishActionMoved } from "@/features/actions/realtime/publish";
 import { ActionContext } from "../../schemas";
 
 type Data = {
@@ -41,12 +42,15 @@ export const wsMoveActionExecutor: NodeExecutor<Data> = async ({
           organizationId: true,
           createdBy: true,
           workspaceId: true,
+          columnId: true,
         },
       });
       if (!dbAction) {
         throw new NonRetriableError("Action not found");
       }
       const workspaceId = cfg.workspaceId ?? dbAction.workspaceId;
+      const previousColumnId = dbAction.columnId ?? null;
+      const previousWorkspaceId = dbAction.workspaceId ?? null;
 
       await prisma.action.update({
         where: { id: action.id },
@@ -55,6 +59,23 @@ export const wsMoveActionExecutor: NodeExecutor<Data> = async ({
           workspaceId,
         },
       });
+
+      const targetColumnId = cfg.columnId;
+      const targetWorkspaceId = workspaceId;
+
+      if (
+        targetColumnId !== previousColumnId ||
+        targetWorkspaceId !== previousWorkspaceId
+      ) {
+        await publishActionMoved(publish, {
+          actionId: action.id,
+          fromColumnId: previousColumnId,
+          toColumnId: targetColumnId,
+          fromWorkspaceId: previousWorkspaceId,
+          toWorkspaceId: targetWorkspaceId,
+          movedAt: new Date().toISOString(),
+        });
+      }
 
       if (dbAction?.organizationId) {
         await logOrgActivity({

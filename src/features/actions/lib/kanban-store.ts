@@ -134,14 +134,39 @@ export const useActionKanbanStore = create<ActionKanbanStore>()(
         // re-render no drag). Captura mudanças em qualquer campo — essencial
         // para que edições de title/description via mutation cheguem ao
         // Zustand store e a componentes filhos que sincronizam state com props.
-        if (current && JSON.stringify(current) === JSON.stringify(next)) return;
+        const sameContent =
+          !!current && JSON.stringify(current) === JSON.stringify(next);
 
-        set((state) => ({
-          columns: {
-            ...state.columns,
-            [columnId]: { id: columnId, actions: next },
-          },
-        }));
+        // Unicidade cross-column: actions presentes no snapshot DESTA coluna
+        // não podem permanecer em outras colunas do store. Cobre o caso em
+        // que uma automação move uma action A→B e a refetch de B chega antes
+        // da refetch de A — sem este expurgo a action aparece em ambas até a
+        // refetch de A retornar (e em paginação infinita pode nunca retornar).
+        const incomingIds = new Set(next.map((a: { id: string }) => a.id));
+
+        set((state) => {
+          const updatedColumns: Record<string, ColumnState> = { ...state.columns };
+          let crossColumnChanged = false;
+
+          for (const otherId of Object.keys(updatedColumns)) {
+            if (otherId === columnId) continue;
+            const other = updatedColumns[otherId];
+            if (!other.actions.length) continue;
+            const filtered = other.actions.filter((a) => !incomingIds.has(a.id));
+            if (filtered.length !== other.actions.length) {
+              updatedColumns[otherId] = { ...other, actions: filtered };
+              crossColumnChanged = true;
+            }
+          }
+
+          if (sameContent && !crossColumnChanged) return state;
+
+          if (!sameContent) {
+            updatedColumns[columnId] = { id: columnId, actions: next };
+          }
+
+          return { columns: updatedColumns };
+        });
       },
 
       moveActionInColumn: (columnId, activeId, overId) => {

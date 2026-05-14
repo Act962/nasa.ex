@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const json = await request.json();
+    console.log(json);
     const base = webhookBaseSchema.safeParse(json);
     if (!base.success) {
       console.warn("[webhook:chat] invalid_base", {
@@ -678,6 +679,78 @@ export async function POST(request: NextRequest) {
             },
           },
         });
+      }
+
+      if (
+        messageType === "ContactMessage" ||
+        messageType === "ContactsArrayMessage"
+      ) {
+        const content = (
+          typeof json.message.content === "object" && json.message.content
+            ? json.message.content
+            : {}
+        ) as Record<string, any>;
+
+        const extractFromVcard = (vcard: string | undefined | null) => {
+          if (!vcard || typeof vcard !== "string") return null;
+          const fnMatch = vcard.match(
+            /(?:^|\r?\n)(?:item\d+\.)?FN[^:]*:([^\r\n]+)/i,
+          );
+          const telLine = vcard.match(
+            /(?:^|\r?\n)(?:item\d+\.)?TEL[^:]*:([^\r\n]+)/i,
+          );
+          let phone: string | null = null;
+          if (telLine) {
+            const waidMatch = telLine[0].match(/waid=([0-9]+)/i);
+            phone = waidMatch
+              ? waidMatch[1]
+              : telLine[1].replace(/[^0-9+]/g, "");
+          }
+          return {
+            name: fnMatch?.[1]?.trim() || null,
+            phone,
+          };
+        };
+
+        const firstContact =
+          (Array.isArray(content.contacts) && content.contacts[0]) || content;
+
+        const parsed = extractFromVcard(firstContact.vcard);
+        const contactName =
+          firstContact.displayName ||
+          firstContact.fullName ||
+          parsed?.name ||
+          null;
+        const contactPhone = parsed?.phone || firstContact.phoneNumber || null;
+
+        if (contactName || contactPhone) {
+          messageData = await prisma.message.upsert({
+            where: { messageId },
+            update: {
+              status: MessageStatus.SEEN,
+              body: contactName,
+              fileName: contactPhone,
+              createdAt,
+            },
+            create: {
+              fromMe,
+              conversationId: lead.conversation?.id!,
+              senderId,
+              messageId,
+              status: MessageStatus.SEEN,
+              quotedMessageId: quotedMessageData?.id,
+              createdAt,
+              senderName: name,
+              mediaType: "contact",
+              body: contactName,
+              fileName: contactPhone,
+            },
+            include: {
+              quotedMessage: true,
+              conversation: { include: { lead: true } },
+            },
+          });
+        }
       }
 
       if (!messageData) {

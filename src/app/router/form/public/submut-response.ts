@@ -11,7 +11,10 @@ import {
   trackingToLeadData,
   shouldLogUtmLanding,
 } from "@/lib/tracking/tracking-params";
-import { recordLeadEvent } from "@/features/leads/lib/history";
+import {
+  recordLeadEvent,
+  type RecordLeadEventInput,
+} from "@/features/leads/lib/history";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
 
 export const submitResponse = base
@@ -61,6 +64,8 @@ export const submitResponse = base
       let outLeadEmail: string | null = null;
       let outLeadPhone: string | null = null;
       let outLeadPublicToken: string | null = null;
+
+      const pendingLeadEvents: RecordLeadEventInput[] = [];
 
       await prisma.$transaction(async (tx) => {
         const form = await tx.form.findUnique({
@@ -316,20 +321,17 @@ export const submitResponse = base
           const lastSub = updatedForm.formSubmissions?.[0];
           const newResponseId = lastSub?.id ?? null;
           const newResponseLabel = lastSub?.label ?? null;
-          await recordLeadEvent(
-            {
-              leadId,
-              eventType: "FORM_SUBMITTED",
-              metadata: newResponseId
-                ? {
-                    formResponseId: newResponseId,
-                    formId: id,
-                    label: newResponseLabel,
-                  }
-                : { formId: id, label: newResponseLabel },
-            },
-            tx,
-          );
+          pendingLeadEvents.push({
+            leadId,
+            eventType: "FORM_SUBMITTED",
+            metadata: newResponseId
+              ? {
+                  formResponseId: newResponseId,
+                  formId: id,
+                  label: newResponseLabel,
+                }
+              : { formId: id, label: newResponseLabel },
+          });
 
           // Action: "add_tag" do botão Próximo — aplica tag escolhida no lead.
           // Idempotente: ignora se já existir.
@@ -349,14 +351,11 @@ export const submitResponse = base
                 create: { leadId, tagId: nextActionTagId },
                 update: {},
               });
-              await recordLeadEvent(
-                {
-                  leadId,
-                  eventType: "TAG_ADDED",
-                  metadata: { tagId: nextActionTagId, source: "form_next_button" },
-                },
-                tx,
-              );
+              pendingLeadEvents.push({
+                leadId,
+                eventType: "TAG_ADDED",
+                metadata: { tagId: nextActionTagId, source: "form_next_button" },
+              });
             }
           }
 
@@ -392,6 +391,12 @@ export const submitResponse = base
           }
         }
       });
+
+      // Dispara Pusher/journey FORA da tx — recordLeadEvent chama Pusher e
+      // não pode rodar dentro do $transaction (causa timeout).
+      if (pendingLeadEvents.length > 0) {
+        await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
+      }
 
       // Log activity (form owner como ator — submissão pública)
       try {
