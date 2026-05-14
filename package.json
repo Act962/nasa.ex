@@ -111,6 +111,7 @@
     "emoji-picker-react": "^4.18.0",
     "html-react-parser": "^5.2.17",
     "html2canvas": "^1.4.1",
+    "idb-keyval": "^6.2.2",
     "inngest": "^3.54.0",
     "input-otp": "^1.4.2",
     "isomorphic-dompurify": "^3.10.0",

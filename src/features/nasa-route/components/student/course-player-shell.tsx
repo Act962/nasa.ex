@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { imgSrc } from "@/features/public-calendar/utils/img-src";
 import { VideoEmbed } from "../shared/video-embed";
+import { r2NasaRouteVideoUrl } from "../../lib/video-storage-url";
 import { LessonListSidebar } from "./lesson-list-sidebar";
 import { CourseCompletionCelebration } from "./course-completion-celebration";
 import { COURSE_LEVEL_LABELS } from "../../types";
@@ -262,6 +263,8 @@ interface LessonPlayerProps {
     awardSp: number;
     includedInPlan: boolean;
     video: { provider: string | null; videoId: string | null; embedUrl: string | null };
+    videoFileKey?: string | null;
+    videoFileSize?: number | null;
   };
   isCompleted: boolean;
   isLoading: boolean;
@@ -316,6 +319,16 @@ function LessonPlayer({
               </p>
             </div>
           </div>
+        ) : lesson.videoFileKey ? (
+          // Vídeo hospedado no R2 NASA Route — <video> nativo, sem iframe.
+          <video
+            key={lesson.videoFileKey}
+            controls
+            playsInline
+            preload="metadata"
+            className="aspect-video w-full rounded-xl bg-black"
+            src={r2NasaRouteVideoUrl(lesson.videoFileKey)}
+          />
         ) : lesson.video.embedUrl ? (
           <VideoEmbed url={lesson.video.embedUrl} title={lesson.title} />
         ) : (

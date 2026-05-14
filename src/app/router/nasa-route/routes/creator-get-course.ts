@@ -74,6 +74,8 @@ export const creatorGetCourse = base
           videoUrl: l.videoUrl,
           videoProvider: l.videoProvider,
           videoId: l.videoId,
+          videoFileKey: l.videoFileKey,
+          videoFileSize: l.videoFileSize ? Number(l.videoFileSize) : null,
           durationMin: l.durationMin,
           isFreePreview: l.isFreePreview,
           awardSp: l.awardSp,

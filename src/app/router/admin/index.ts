@@ -56,6 +56,7 @@ import {
   adminUpdateStarRule,
 } from "./star-rules";
 import { adminPartnersRouter } from "./partners";
+import { calendarDisputesRouter } from "./calendar-disputes";
 import { getRouterPaymentSettings } from "./get-router-payment-settings";
 import { updateRouterPaymentSettings } from "./update-router-payment-settings";
 
@@ -116,4 +117,6 @@ export const adminRouter = {
   // Router payment settings (cotação STAR/BRL pra checkout público)
   getRouterPaymentSettings,
   updateRouterPaymentSettings,
+  // Calendário Público — disputas/reivindicações
+  calendarDisputes: calendarDisputesRouter,
 };

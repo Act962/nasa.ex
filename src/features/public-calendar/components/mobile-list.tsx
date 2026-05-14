@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
 import { ChevronRight, ChevronDown } from "lucide-react";
@@ -8,7 +8,17 @@ import { cn } from "@/lib/utils";
 import { EventCard } from "./event-card";
 import { EVENT_CATEGORIES } from "../utils/categories";
 import { imgSrc } from "../utils/img-src";
+import { groupEventsByDay } from "../utils/event-days";
 import type { PublicEvent } from "../types";
+import { CalendarDays } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ptBR } from "date-fns/locale";
 
 dayjs.locale("pt-br");
 
@@ -80,34 +90,123 @@ function MiniThumb({ ev }: { ev: PublicEvent }) {
 
 export function MobileList({ events, onSelect }: MobileListProps) {
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  // Map de YYYY-MM-DD → ref do `<div>` daquele dia. Permite scrollar
+  // suavemente até a data selecionada no picker. Quando a data não
+  // tem evento (não aparece na lista), procura o próximo dia com
+  // eventos pra ter um destino útil.
+  const dayRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
 
   const grouped = useMemo(() => {
-    const map = new Map<string, PublicEvent[]>();
-    for (const ev of events) {
-      if (!ev.startDate) continue;
-      const key = dayjs(ev.startDate).format("YYYY-MM-DD");
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(ev);
-    }
+    // Agrupa por dia REPETINDO eventos multi-dia em cada um dos seus
+    // dias (helper `groupEventsByDay` expande startDate..endDate). Sem
+    // isso, um evento de 09 a 11 só aparecia no card de "09".
+    const map = groupEventsByDay(events);
     return Array.from(map.entries()).sort(([a], [b]) => (a > b ? 1 : -1));
   }, [events]);
 
+  // Header com date picker — sempre renderizado (mesmo sem eventos)
+  // pra o user conseguir mudar a data e ver outros meses.
+  const today = dayjs().format("YYYY-MM-DD");
+  const headerDate =
+    grouped.find(([k]) => k >= today)?.[0] ?? grouped[0]?.[0] ?? today;
+  const headerDay = dayjs(headerDate);
+
+  const jumpToDate = (date: Date) => {
+    const key = dayjs(date).format("YYYY-MM-DD");
+    // Tenta achar o dia exato; senão, o próximo dia com evento.
+    let target = grouped.find(([k]) => k === key)?.[0];
+    if (!target) {
+      target = grouped.find(([k]) => k >= key)?.[0];
+    }
+    if (!target) {
+      // Sem evento depois — fica no último.
+      target = grouped[grouped.length - 1]?.[0];
+    }
+    if (target) {
+      const el = dayRefs.current.get(target);
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Expande o card pra ver os eventos imediatamente
+      setExpandedDay(target);
+    }
+    setDatePickerOpen(false);
+  };
+
+  const headerEl = (
+    <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/40 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 px-2 gap-1.5 -ml-2 text-sm font-semibold capitalize hover:bg-muted"
+            title="Escolher data"
+          >
+            <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
+            <span>{headerDay.format("MMMM")}</span>
+            <span className="font-normal text-muted-foreground">
+              {headerDay.format("YYYY")}
+            </span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            defaultMonth={headerDay.toDate()}
+            onSelect={(date) => date && jumpToDate(date)}
+            // Mudou mês/ano pelos dropdowns? Já scrolla pro primeiro
+            // dia daquele mês (com evento, ou o mais próximo). Sem
+            // isso, usar só os dropdowns não fazia nada visível.
+            onMonthChange={(m) => jumpToDate(m)}
+            captionLayout="dropdown"
+            startMonth={new Date(2020, 0)}
+            endMonth={new Date(2030, 11)}
+            locale={ptBR}
+            autoFocus
+          />
+        </PopoverContent>
+      </Popover>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 px-2 text-xs"
+        onClick={() => jumpToDate(new Date())}
+      >
+        Hoje
+      </Button>
+    </div>
+  );
+
   if (!grouped.length) {
     return (
-      <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">
-        Nenhum evento encontrado com esses filtros.
+      <div className="flex flex-col">
+        {headerEl}
+        <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">
+          Nenhum evento encontrado com esses filtros.
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col divide-y divide-border/40">
+      {headerEl}
       {grouped.map(([dayKey, dayEvents]) => {
         const d = dayjs(dayKey);
         const isExpanded = expandedDay === dayKey;
 
         return (
-          <div key={dayKey}>
+          <div
+            key={dayKey}
+            ref={(el) => {
+              // Ref por dia pra scrollIntoView do date picker.
+              if (el) dayRefs.current.set(dayKey, el);
+              else dayRefs.current.delete(dayKey);
+            }}
+            // Compensa o sticky header pra o dia escolhido não ficar
+            // escondido atrás dele após o scroll.
+            style={{ scrollMarginTop: "60px" }}
+          >
             <button
               type="button"
               onClick={() => setExpandedDay(isExpanded ? null : dayKey)}

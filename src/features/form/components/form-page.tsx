@@ -3,6 +3,7 @@ import { CreateForm } from "./create-form";
 import { FormList } from "./form-list";
 import StatsCards from "./stats-card";
 import { FormPatterns } from "./form-patterns";
+import { RecentResponsesCarousel } from "./recent-responses-carousel";
 
 export function FormPage() {
   return (
@@ -18,6 +19,10 @@ export function FormPage() {
         </section>
         <FormPatterns />
         <div className="mt-10">
+          <Separator />
+        </div>
+        <RecentResponsesCarousel />
+        <div className="mt-2">
           <Separator />
         </div>
         <section className="w-full pt-7 pb-10">

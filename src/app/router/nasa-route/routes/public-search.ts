@@ -44,6 +44,10 @@ export const publicSearch = base
         format: true,
         priceStars: true,
         studentsCount: true,
+        // Datas (format = "event") — exibidas como badge na capa do card.
+        eventStartsAt: true,
+        eventEndsAt: true,
+        eventTimezone: true,
         creatorOrg: { select: { id: true, name: true, slug: true, logo: true } },
         category: { select: { id: true, slug: true, name: true } },
       },

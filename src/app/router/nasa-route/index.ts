@@ -30,6 +30,13 @@ import { creatorReorderLessons } from "./routes/creator-reorder-lessons";
 import { creatorListSales } from "./routes/creator-list-sales";
 import { creatorListStudents } from "./routes/creator-list-students";
 
+// ── Upload de vídeo (R2 bucket dedicado) ────────────────────────────────
+import { creatorQuoteVideoUpload } from "./routes/creator-quote-video-upload";
+import { creatorStartVideoUpload } from "./routes/creator-start-video-upload";
+import { creatorGetUploadPartUrl } from "./routes/creator-get-upload-part-url";
+import { creatorCompleteVideoUpload } from "./routes/creator-complete-video-upload";
+import { creatorAbortVideoUpload } from "./routes/creator-abort-video-upload";
+
 // ── Plans (criador) ─────────────────────────────────────────────────────
 import { creatorListPlans } from "./routes/creator-list-plans";
 import { creatorUpsertPlan } from "./routes/creator-upsert-plan";
@@ -73,6 +80,12 @@ export const nasaRouteRouter = {
   creatorReorderLessons,
   creatorListSales,
   creatorListStudents,
+  // upload de vídeo (R2 bucket dedicado)
+  creatorQuoteVideoUpload,
+  creatorStartVideoUpload,
+  creatorGetUploadPartUrl,
+  creatorCompleteVideoUpload,
+  creatorAbortVideoUpload,
   // plans (criador)
   creatorListPlans,
   creatorUpsertPlan,

@@ -12,6 +12,15 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  // Força cookie-secure baseado SÓ em NODE_ENV. Sem isso, better-auth
+  // marcava cookies como `__Secure-` + `Secure` quando `BETTER_AUTH_URL`
+  // apontava pra HTTPS (produção), mesmo em dev rodando `http://localhost`.
+  // Resultado: browser rejeitava silenciosamente o cookie → login API
+  // retornava 200 mas a sessão não persistia. Em dev volta sempre a
+  // cookie regular; em prod (NODE_ENV=production) continua secure.
+  advanced: {
+    useSecureCookies: process.env.NODE_ENV === "production",
+  },
   trustedOrigins: [
     "http://localhost:3000",
     ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : []),

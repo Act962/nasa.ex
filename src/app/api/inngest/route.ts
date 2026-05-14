@@ -28,9 +28,11 @@ import { syncPostMetricsCron } from "@/inngest/functions/nasa-planner/sync-post-
 import { syncMetaAdsKpis } from "@/inngest/functions/crons/sync-meta-ads-kpis";
 import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-structure";
 import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route-subscription-renew";
+import { nasaRouteVideoUploadsCleanup } from "@/inngest/functions/crons/nasa-route-video-uploads-cleanup";
 import { astroIngestKnowledge } from "@/inngest/functions/astro/ingest-knowledge";
 import { astroAgentTrigger } from "@/inngest/functions/astro/agent-trigger";
 import { chatSyncMessages } from "@/inngest/functions/chat/sync-conversation-messages";
+import { autoResolveExpiredClaims } from "@/inngest/functions/calendar/auto-resolve-expired-claims";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -57,11 +59,14 @@ export const { GET, POST, PUT } = serve({
     syncMetaAdsStructure,
     // ── NASA Route ──
     nasaRouteSubscriptionRenew,
+    nasaRouteVideoUploadsCleanup,
     // ── ASTRO ──
     astroIngestKnowledge,
     astroAgentTrigger,
     // ── Chat sync ──
     chatSyncMessages,
+    // ── Calendário Público: auto-resolução de reivindicações expiradas ──
+    autoResolveExpiredClaims,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

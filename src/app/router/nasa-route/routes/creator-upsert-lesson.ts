@@ -35,6 +35,11 @@ export const creatorUpsertLesson = base
       if (!existing || existing.courseId !== input.courseId) {
         throw new ORPCError("NOT_FOUND", { message: "Aula não encontrada" });
       }
+      // Regra "um vídeo só": se o criador define videoUrl (YouTube/Vimeo),
+      // zeramos qualquer vídeo upado pro R2 (e vice-versa, via
+      // creatorCompleteVideoUpload). O arquivo no R2 vira órfão até cleanup
+      // manual — aceito pra v1 (raro mudar de link depois de upar).
+      const clearR2Video = !!input.videoUrl;
       const updated = await prisma.nasaRouteLesson.update({
         where: { id: input.id },
         data: {
@@ -45,6 +50,9 @@ export const creatorUpsertLesson = base
           videoUrl: input.videoUrl ?? null,
           videoProvider: video.provider,
           videoId: video.videoId,
+          ...(clearR2Video
+            ? { videoFileKey: null, videoFileSize: null }
+            : {}),
           durationMin: input.durationMin ?? null,
           isFreePreview: input.isFreePreview,
           awardSp: input.awardSp,
