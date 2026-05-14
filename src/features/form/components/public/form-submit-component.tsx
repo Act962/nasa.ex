@@ -190,8 +190,11 @@ export function FormSubmitComponent({
   const backgroundColor = settings?.backgroundColor ?? undefined;
   const backgroundImage = settings?.backgroundImage ?? undefined;
   const redirectUrl = settings?.redirectUrl ?? undefined;
-  const idPixel = settings?.idPixel ?? undefined;
-  const idTagManager = settings?.idTagManager ?? undefined;
+
+  // Pixel e Google Tag Manager agora são renderizados pelas pages que carregam
+  // este componente (via <FormTrackingScripts />). Mantemos esse caminho fora
+  // do client component pra usar next/script + @next/third-parties/google
+  // (carregamento mais cedo, noscript fallback, sem reinjeção em remount).
 
   // No modo edição (override presente), o lead já existe — pulamos a etapa
   // de coleta de dados pessoais e vamos direto pros blocos do formulário.
@@ -202,43 +205,6 @@ export function FormSubmitComponent({
   const textColor = backgroundColor
     ? getContrastColor(backgroundColor)
     : undefined;
-
-  // ─── Facebook Pixel ────────────────────────────────────────
-  useEffect(() => {
-    if (!idPixel) return;
-    const script = document.createElement("script");
-    script.innerHTML = `
-      !function(f,b,e,v,n,t,s)
-      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-      n.queue=[];t=b.createElement(e);t.async=!0;
-      t.src=v;s=b.getElementsByTagName(e)[0];
-      s.parentNode.insertBefore(t,s)}(window,document,'script',
-      'https://connect.facebook.net/en_US/fbevents.js');
-      fbq('init', '${idPixel}');
-      fbq('track', 'PageView');
-    `;
-    document.head.appendChild(script);
-    return () => {
-      document.head.removeChild(script);
-    };
-  }, [idPixel]);
-
-  // ─── Google Tag Manager ────────────────────────────────────
-  useEffect(() => {
-    if (!idTagManager) return;
-    const script = document.createElement("script");
-    script.innerHTML = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-      })(window,document,'script','dataLayer','${idTagManager}');`;
-    document.head.appendChild(script);
-    return () => {
-      document.head.removeChild(script);
-    };
-  }, [idTagManager]);
 
   // ─── Lead info ─────────────────────────────────────────────
   const [leadInfo, setLeadInfo] = useState({

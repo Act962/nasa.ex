@@ -121,7 +121,7 @@ export function CommandInput({
   const highlightedHTML = buildHighlightedHTML(command);
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className="dark relative">
       <style>{`
         @keyframes explorerBorder {
           0%   { background-position: 0% 50%; }
