@@ -5,6 +5,7 @@ import { z } from "zod";
 import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { ORPCError } from "@orpc/server";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 export const generateReport = base
   .use(requiredAuthMiddleware)
@@ -87,6 +88,22 @@ export const generateReport = base
     const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
     if (!anthropicApiKey) {
       throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "ANTHROPIC_API_KEY não configurada" });
+    }
+
+    // Cobra Stars antes de chamar o LLM (regra global "insights_report_ai").
+    const charge = await chargeStarsByAction(
+      context.org.id,
+      "insights_report_ai",
+      {
+        userId: context.user.id,
+        description: "Insights — relatório com IA",
+        appSlug: "insights",
+      },
+    );
+    if (!charge.skipped && !charge.success) {
+      throw new ORPCError("PRECONDITION_FAILED", {
+        message: "Saldo de Stars insuficiente pra gerar relatório com IA.",
+      });
     }
 
     const anthropic = createAnthropic({ apiKey: anthropicApiKey });

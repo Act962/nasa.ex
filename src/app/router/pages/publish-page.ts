@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 export const publishPage = base
   .use(requiredAuthMiddleware)
@@ -38,6 +39,12 @@ export const publishPage = base
           publishedAt: new Date(),
         },
       });
+    });
+
+    await chargeStarsByAction(organizationId, "page_publish", {
+      userId: context.user.id,
+      description: `Publicou página`,
+      appSlug: "pages",
     });
 
     return { page };

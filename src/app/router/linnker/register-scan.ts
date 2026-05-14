@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { LeadSource } from "@/generated/prisma/enums";
 import z from "zod";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import {
   trackingParamsSchema,
   trackingToLeadData,
@@ -106,6 +107,13 @@ export const registerLinnkerScan = base
         leadId,
         kind: "linnker_scan",
         metadata: { pageId: page.id, slug, hasGeo: !!(latitude && longitude) },
+      });
+
+      // Cobra a org da página apenas quando o scan REALMENTE capturou
+      // um lead (cria/identifica). Endpoint público — sem userId.
+      await chargeStarsByAction(page.organizationId, "linnker_scan_capture", {
+        description: `Scan Linnker capturou lead (${slug})`,
+        appSlug: "linnker",
       });
     }
 

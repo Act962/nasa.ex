@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
@@ -129,7 +130,7 @@ export const createAdminAppointment = base
       }
     }
 
-    // Log activity
+    // Log activity (action alinhada com a regra global "appointment_create")
     await logActivity({
       organizationId: context.org.id,
       userId: context.user.id,
@@ -137,11 +138,18 @@ export const createAdminAppointment = base
       userEmail: context.user.email,
       userImage: (context.user as any).image,
       appSlug: "spacetime",
-      action: "appointment.created",
+      action: "appointment_create",
       actionLabel: `Criou agendamento para ${input.name} em ${input.date} às ${input.time} (${agenda.name})`,
       resource: input.name,
       resourceId: appointment.id,
       metadata: { agendaName: agenda.name, date: input.date, time: input.time, phone: input.phone },
+    });
+
+    // Cobra Stars conforme regra global `appointment_create`.
+    await chargeStarsByAction(context.org.id, "appointment_create", {
+      userId: context.user.id,
+      description: `Criou agendamento (${agenda.name})`,
+      appSlug: "spacetime",
     });
 
     return { success: true, appointment };

@@ -7,6 +7,7 @@ import { ORPCError } from "@orpc/server";
 import { customAlphabet } from "nanoid";
 import { CALENDAR_SHARE_TTL_MS } from "@/features/settings/lib/calendar-share";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 const MODERATOR_ROLES = ["owner", "moderador"];
 // Alfabeto sem chars ambíguos (0/O, 1/l, I) pra colar bem em qualquer fonte.
@@ -51,6 +52,18 @@ export const enableCalendarShare = base
     if (!member || !MODERATOR_ROLES.includes(member.role)) {
       throw new ORPCError("FORBIDDEN", {
         message: "Apenas owner/moderador pode ativar compartilhamento",
+      });
+    }
+
+    // Cobra Stars antes (regra global "calendar_share_enable")
+    const charge = await chargeStarsByAction(orgId, "calendar_share_enable", {
+      userId,
+      description: "Calendário público — ativação de link",
+      appSlug: "calendar",
+    });
+    if (!charge.skipped && !charge.success) {
+      throw new ORPCError("PRECONDITION_FAILED", {
+        message: "Saldo de Stars insuficiente pra ativar o link público.",
       });
     }
 

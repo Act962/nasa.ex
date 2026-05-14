@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -50,11 +51,17 @@ export const createLinnkerPage = base
       appSlug: "linnker",
       subAppSlug: "linnker-pages",
       featureKey: "linnker.page.created",
-      action: "linnker.page.created",
+      action: "linnker_page_create",
       actionLabel: `Criou a página Linnker "${page.title}" (/${page.slug})`,
       resource: page.title,
       resourceId: page.id,
       metadata: { slug: page.slug },
+    });
+
+    await chargeStarsByAction(organizationId, "linnker_page_create", {
+      userId: context.user.id,
+      description: `Criou página Linnker "${page.title}"`,
+      appSlug: "linnker",
     });
 
     return { message: "Página criada com sucesso", page };

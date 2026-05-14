@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { z } from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
@@ -99,7 +100,7 @@ export const updateManyStatusLead = base
             userEmail: context.user.email,
             userImage: (context.user as any).image,
             appSlug: "tracking",
-            action: "lead.moved",
+            action: "lead_stage_move",
             actionLabel:
               fromStatusName && fromStatuses.length === 1
                 ? `Moveu ${input.leadsIds.length} lead(s) de "${fromStatusName}" para "${newStatus?.name ?? input.statusId}"`
@@ -115,6 +116,19 @@ export const updateManyStatusLead = base
               toStatusId: input.statusId,
             },
           });
+
+          // Cobra 1× por lead movido (regra `lead_stage_move`).
+          for (let i = 0; i < input.leadsIds.length; i++) {
+            await chargeStarsByAction(
+              tracking.organizationId,
+              "lead_stage_move",
+              {
+                userId: context.user.id,
+                description: `Moveu lead pra "${newStatus?.name ?? input.statusId}"`,
+                appSlug: "tracking",
+              },
+            );
+          }
         }
       }
 

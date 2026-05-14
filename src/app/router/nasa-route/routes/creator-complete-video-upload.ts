@@ -6,6 +6,7 @@ import { ORPCError } from "@orpc/server";
 import { CompleteMultipartUploadCommand } from "@aws-sdk/client-s3";
 import { S3 } from "@/lib/s3-client";
 import { r2NasaRouteVideoUrl } from "@/features/nasa-route/lib/video-storage-url";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 const VIDEO_BUCKET_ENV = "R2_NASA_ROUTE_BUCKET";
 
@@ -123,6 +124,32 @@ export const creatorCompleteVideoUpload = base
         data: { status: "completed", completedAt: new Date() },
       }),
     ]);
+
+    // Cobra Stars do criador pelo processamento do vídeo finalizado.
+    // O upload em si (start) pode ter cobrança própria — aqui é o
+    // "fechamento" da operação. Regra global "nasa_route_video_upload_complete".
+    // Best-effort: se a cobrança falhar, o upload ainda foi salvo
+    // (não estornamos R2). Operação continua com sucesso.
+    const orgMember = await prisma.member.findFirst({
+      where: { userId: upload.userId },
+      select: { organizationId: true },
+      orderBy: { createdAt: "asc" },
+    });
+    if (orgMember) {
+      try {
+        await chargeStarsByAction(
+          orgMember.organizationId,
+          "nasa_route_video_upload_complete",
+          {
+            userId: upload.userId,
+            description: "NASA Route — vídeo de aula finalizado",
+            appSlug: "nasa-route",
+          },
+        );
+      } catch (e) {
+        console.error("[creatorCompleteVideoUpload] charge failed:", e);
+      }
+    }
 
     return {
       success: true,

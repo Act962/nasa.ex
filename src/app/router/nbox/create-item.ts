@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { NBoxItemType } from "@/generated/prisma/enums";
@@ -48,12 +49,21 @@ export const createItem = base
       appSlug: "nbox",
       subAppSlug: "nbox-items",
       featureKey: input.type === NBoxItemType.FILE ? "nbox.file.uploaded" : "nbox.link.added",
-      action: "nbox.item.created",
+      action: input.type === NBoxItemType.FILE ? "nbox_upload" : "nbox.item.created",
       actionLabel: `Adicionou o ${input.type === NBoxItemType.FILE ? "arquivo" : "link"} "${item.name}" no NBox`,
       resource: item.name,
       resourceId: item.id,
       metadata: { type: item.type, hasFolder: !!input.folderId, size: item.size },
     });
+
+    // Cobra só pra uploads (FILE) — links externos são gratuitos.
+    if (input.type === NBoxItemType.FILE) {
+      await chargeStarsByAction(context.org.id, "nbox_upload", {
+        userId: context.user.id,
+        description: `Upload N-Box: ${item.name}`,
+        appSlug: "nbox",
+      });
+    }
 
     return { item };
   });
