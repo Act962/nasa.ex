@@ -5,6 +5,7 @@ import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import z from "zod";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import {
   trackingParamsSchema,
   trackingToLeadData,
@@ -48,6 +49,7 @@ export const createAppointment = base
         name: true,
         slotDuration: true,
         trackingId: true,
+        organizationId: true,
       },
     });
 
@@ -155,6 +157,13 @@ export const createAppointment = base
         appointmentId: appointment.id,
         startsAt: appointment.startsAt,
       },
+    });
+
+    // Cobra Stars da org dona da agenda (regra global `appointment_create`).
+    // Endpoint público — não tem userId; charge fica no nível org só.
+    await chargeStarsByAction(agenda.organizationId, "appointment_create", {
+      description: `Novo agendamento: ${input.name}`,
+      appSlug: "spacetime",
     });
 
     return {

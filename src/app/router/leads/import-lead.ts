@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import { LeadAction } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import { normalizePhone } from "@/utils/format-phone";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { Decimal } from "@prisma/client/runtime/client";
 import z from "zod";
 
@@ -219,6 +220,29 @@ export const importLeadsBatch = base
     }
 
     results.imported = insertedIds.length;
+
+    // Cobra Stars 1 vez por lead importado (regra `lead_import_batch`).
+    // Best-effort: se falhar, leads já foram criados.
+    if (insertedIds.length > 0) {
+      const tracking = await prisma.tracking.findUnique({
+        where: { id: input.trackingId },
+        select: { organizationId: true },
+      });
+      if (tracking) {
+        for (let i = 0; i < insertedIds.length; i++) {
+          await chargeStarsByAction(
+            tracking.organizationId,
+            "lead_import_batch",
+            {
+              userId: context.user.id,
+              description: "Lead importado via planilha",
+              appSlug: "tracking",
+            },
+          );
+        }
+      }
+    }
+
     return results;
   });
 

@@ -4,7 +4,10 @@ import prisma from "@/lib/prisma";
 import z from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
-import { recordLeadEvent } from "@/features/leads/lib/history";
+import {
+  recordLeadEvent,
+  type RecordLeadEventInput,
+} from "@/features/leads/lib/history";
 
 export const deleteLeadFile = base
   .use(requiredAuthMiddleware)
@@ -22,6 +25,8 @@ export const deleteLeadFile = base
   )
   .handler(async ({ input, errors, context }) => {
     try {
+      const pendingLeadEvents: RecordLeadEventInput[] = [];
+
       await prisma.$transaction(async (tx) => {
         const file = await tx.leadFile.findFirst({
           where: { id: input.fileId, leadId: input.leadId },
@@ -39,17 +44,18 @@ export const deleteLeadFile = base
           tx,
         });
 
-        await recordLeadEvent(
-          {
-            leadId: input.leadId,
-            eventType: "FILE_UPLOADED",
-            userId: context.user.id,
-            notes: `Removido: ${file.name}`,
-            metadata: { action: "removed", fileId: file.id, name: file.name },
-          },
-          tx,
-        );
+        pendingLeadEvents.push({
+          leadId: input.leadId,
+          eventType: "FILE_UPLOADED",
+          userId: context.user.id,
+          notes: `Removido: ${file.name}`,
+          metadata: { action: "removed", fileId: file.id, name: file.name },
+        });
       });
+
+      if (pendingLeadEvents.length > 0) {
+        await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
+      }
 
       return { ok: true };
     } catch (error) {

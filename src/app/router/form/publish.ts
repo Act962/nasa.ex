@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -35,13 +36,22 @@ export const PublishForm = base
       appSlug: "forms",
       subAppSlug: "forms-builder",
       featureKey: published ? "forms.form.published" : "forms.form.unpublished",
-      action: published ? "forms.form.published" : "forms.form.unpublished",
+      action: published ? "form_publish" : "forms.form.unpublished",
       actionLabel: published
         ? `Publicou o formulário "${form.name}"`
         : `Despublicou o formulário "${form.name}"`,
       resource: form.name,
       resourceId: form.id,
     });
+
+    // Cobra Stars só quando publica (desativar não cobra).
+    if (published) {
+      await chargeStarsByAction(form.organizationId, "form_publish", {
+        userId: context.user.id,
+        description: `Publicou form "${form.name}"`,
+        appSlug: "forms",
+      });
+    }
 
     return {
       message: `Formulário ${published ? "publicado" : "despublicado"} com sucesso`,

@@ -59,7 +59,7 @@ export function NavOptionsTracking() {
   const { status } = useQueryStatus({
     trackingId: selectedTrackingId,
   });
-  const mutationUpdate = useMutationUpdateLeads();
+  const mutationUpdate = useMutationUpdateLeads(selectedTrackingId);
   const mutationDelete = useDeleteLead();
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -199,7 +199,7 @@ export function NavOptionsTracking() {
               <ScrollArea className="max-h-37-5 px-1 overflow-y-auto">
                 {trackings.map((tracking) => (
                   <div
-                    className="flex items-center gap-x-2 cursor-pointer hover:bg-secondary rounded-md px-2 py-1 text-sm transition-colors"
+                    className="flex items-center cursor-pointer gap-x-2 hover:bg-secondary rounded-md px-2 py-1 text-sm transition-colors w-full"
                     key={tracking.id}
                     onClick={() => setSelectedTrackingId(tracking.id)}
                   >
@@ -217,23 +217,24 @@ export function NavOptionsTracking() {
               <h3 className="text-sm font-medium px-2 py-1">Status</h3>
               <Separator />
               <ScrollArea className="max-h-37-5 px-1 overflow-y-auto">
-                {status?.map((s) => {
+                {status?.map((status) => {
                   const statusSelected = selectedLeads.every(
-                    (lead) => lead.statusId === s.id,
+                    (lead) => lead.statusId === status.id,
                   );
                   return (
-                    <div
-                      className="flex items-center gap-x-2 cursor-pointer hover:bg-secondary rounded-md px-2 py-1 text-sm transition-colors"
-                      key={s.id}
-                      onClick={() => handleMoveToStatus(s.id)}
+                    <button
+                      className="flex w-full items-center gap-x-2 cursor-pointer hover:bg-secondary rounded-md px-2 py-1 text-sm transition-colors disabled:opacity-50 disabled:cursor-default"
+                      key={status.id}
+                      disabled={mutationUpdate.isPending}
+                      onClick={() => handleMoveToStatus(status.id)}
                     >
                       {statusSelected ? (
                         <CircleCheckIcon className="size-4" />
                       ) : (
                         <CircleIcon className="size-4 " />
                       )}
-                      {s.name}
-                    </div>
+                      {status.name}
+                    </button>
                   );
                 })}
               </ScrollArea>

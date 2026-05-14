@@ -2,6 +2,7 @@ import { NodeExecutor } from "@/features/workspace-executions/types";
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { wsCreateSubActionChannel } from "@/inngest/channels/workspace";
+import { publishSubActionCreated } from "@/features/actions/realtime/publish";
 import { ActionContext } from "../../schemas";
 
 type SubActionItem = {
@@ -36,6 +37,11 @@ export const wsCreateSubActionExecutor: NodeExecutor<Data> = async ({
         throw new NonRetriableError("Action context missing");
       }
 
+      const dbAction = await prisma.action.findUnique({
+        where: { id: action.id },
+        select: { columnId: true, workspaceId: true },
+      });
+
       const items: SubActionItem[] =
         data.subActions && data.subActions.length > 0
           ? data.subActions
@@ -66,6 +72,15 @@ export const wsCreateSubActionExecutor: NodeExecutor<Data> = async ({
             },
           });
         }
+      }
+
+      if (dbAction?.columnId && dbAction?.workspaceId) {
+        await publishSubActionCreated(publish, {
+          actionId: action.id,
+          columnId: dbAction.columnId,
+          workspaceId: dbAction.workspaceId,
+          count: valid.length,
+        });
       }
 
       if (realTime) {

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Clock, GraduationCap, Play, Users } from "lucide-react";
+import { CalendarDays, Clock, GraduationCap, Play, Users } from "lucide-react";
 import { PriceStarsDisplay } from "./price-stars-display";
 import { COURSE_FORMAT_LABELS } from "../../types";
 import { cn } from "@/lib/utils";
 import { imgSrc } from "@/features/public-calendar/utils/img-src";
+import { formatEventDate } from "../../lib/event-date";
 
 export interface PosterCourse {
   id: string;
@@ -18,6 +19,9 @@ export interface PosterCourse {
   format?: string;
   priceStars: number;
   studentsCount?: number;
+  // Datas do evento — exibidas como badge compacta na capa quando format = "event".
+  eventStartsAt?: Date | string | null;
+  eventEndsAt?: Date | string | null;
   creatorOrg?: { name: string; logo?: string | null } | null;
 }
 
@@ -32,6 +36,14 @@ interface Props {
 export function CoursePoster({ href, course, size = "md", progressPct, completed }: Props) {
   const widthClass =
     size === "sm" ? "w-44" : size === "lg" ? "w-80" : "w-64";
+
+  const eventDate =
+    course.format === "event"
+      ? formatEventDate({
+          startsAt: course.eventStartsAt,
+          endsAt: course.eventEndsAt,
+        })
+      : null;
 
   return (
     <Link
@@ -52,6 +64,18 @@ export function CoursePoster({ href, course, size = "md", progressPct, completed
         ) : (
           <div className="flex h-full w-full items-center justify-center text-violet-500/40">
             <GraduationCap className="size-10" />
+          </div>
+        )}
+
+        {eventDate && (
+          <div className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-black/75 px-1.5 py-1 text-white backdrop-blur-sm">
+            <CalendarDays className="size-3" />
+            <div className="leading-tight">
+              <div className="text-[10px] font-semibold">{eventDate.dateLine}</div>
+              {eventDate.timeLine && (
+                <div className="text-[9px] text-white/85">{eventDate.timeLine}</div>
+              )}
+            </div>
           </div>
         )}
 

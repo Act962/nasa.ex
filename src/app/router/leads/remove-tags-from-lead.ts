@@ -4,7 +4,10 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { requireOrgMiddleware } from "../../middlewares/org";
 import { recordLeadHistory } from "./utils/history";
-import { recordLeadEvent } from "@/features/leads/lib/history";
+import {
+  recordLeadEvent,
+  type RecordLeadEventInput,
+} from "@/features/leads/lib/history";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 
 export const removeTagsFromLead = base
@@ -29,6 +32,8 @@ export const removeTagsFromLead = base
       throw errors.UNAUTHORIZED;
     }
 
+    const pendingLeadEvents: RecordLeadEventInput[] = [];
+
     const result = await prisma.$transaction(async (tx) => {
       const deleted = await tx.leadTag.deleteMany({
         where: {
@@ -47,23 +52,23 @@ export const removeTagsFromLead = base
         tx,
       });
 
-      // Evento granular por tag (mesmo padrão do add-tags).
-      await Promise.all(
-        input.tagIds.map((tagId) =>
-          recordLeadEvent(
-            {
-              leadId: input.leadId,
-              eventType: "TAG_REMOVED",
-              userId: context.user.id,
-              metadata: { tagId },
-            },
-            tx,
-          ),
-        ),
-      );
+      // Evento granular por tag (mesmo padrão do add-tags) — coletado pra
+      // disparar Pusher FORA da tx.
+      for (const tagId of input.tagIds) {
+        pendingLeadEvents.push({
+          leadId: input.leadId,
+          eventType: "TAG_REMOVED",
+          userId: context.user.id,
+          metadata: { tagId },
+        });
+      }
 
       return deleted;
     });
+
+    if (pendingLeadEvents.length > 0) {
+      await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
+    }
 
     const tracking = await prisma.tracking.findUnique({
       where: { id: lead.trackingId },

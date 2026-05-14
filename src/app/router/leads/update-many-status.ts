@@ -2,10 +2,10 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { z } from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
-import { recordLeadEvent } from "@/features/leads/lib/history";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 
 // 🟦 UPDATE
@@ -53,7 +53,6 @@ export const updateManyStatusLead = base
           },
         });
 
-        // Loop to create history entries for each lead
         await Promise.all(
           input.leadsIds.map((leadId) =>
             recordLeadHistory({
@@ -66,42 +65,30 @@ export const updateManyStatusLead = base
           ),
         );
 
-        // Eventos granulares de status para a Jornada (timeline pública).
-        // Cada lead que de fato MUDOU de status emite um STATUS_CHANGE com
-        // os IDs anterior/novo.
-        if (input.statusId) {
-          const newStatusId = input.statusId;
-          await Promise.all(
-            leadExists
-              .filter((l) => l.statusId !== newStatusId)
-              .map((l) =>
-                recordLeadEvent(
-                  {
-                    leadId: l.id,
-                    eventType: "STATUS_CHANGE",
-                    userId: context.user.id,
-                    previousStatusId: l.statusId,
-                    newStatusId,
-                  },
-                  tx,
-                ),
-              ),
-          );
-        }
-
         return { lead };
       });
 
       // Log activity
       if (input.statusId && input.trackingId) {
         const fromStatusIds = Array.from(
-          new Set(leadExists.map((l) => l.statusId).filter(Boolean) as string[]),
+          new Set(
+            leadExists.map((lead) => lead.statusId).filter(Boolean) as string[],
+          ),
         );
         const [tracking, newStatus, fromStatuses] = await Promise.all([
-          prisma.tracking.findUnique({ where: { id: input.trackingId }, select: { organizationId: true, name: true } }),
-          prisma.status.findUnique({ where: { id: input.statusId }, select: { name: true } }),
+          prisma.tracking.findUnique({
+            where: { id: input.trackingId },
+            select: { organizationId: true, name: true },
+          }),
+          prisma.status.findUnique({
+            where: { id: input.statusId },
+            select: { name: true },
+          }),
           fromStatusIds.length
-            ? prisma.status.findMany({ where: { id: { in: fromStatusIds } }, select: { id: true, name: true } })
+            ? prisma.status.findMany({
+                where: { id: { in: fromStatusIds } },
+                select: { id: true, name: true },
+              })
             : Promise.resolve([]),
         ]);
         if (tracking) {
@@ -113,7 +100,7 @@ export const updateManyStatusLead = base
             userEmail: context.user.email,
             userImage: (context.user as any).image,
             appSlug: "tracking",
-            action: "lead.moved",
+            action: "lead_stage_move",
             actionLabel:
               fromStatusName && fromStatuses.length === 1
                 ? `Moveu ${input.leadsIds.length} lead(s) de "${fromStatusName}" para "${newStatus?.name ?? input.statusId}"`
@@ -129,12 +116,25 @@ export const updateManyStatusLead = base
               toStatusId: input.statusId,
             },
           });
+
+          // Cobra 1× por lead movido (regra `lead_stage_move`).
+          for (let i = 0; i < input.leadsIds.length; i++) {
+            await chargeStarsByAction(
+              tracking.organizationId,
+              "lead_stage_move",
+              {
+                userId: context.user.id,
+                description: `Moveu lead pra "${newStatus?.name ?? input.statusId}"`,
+                appSlug: "tracking",
+              },
+            );
+          }
         }
       }
 
       if (input.statusId) {
         const leadStatusBefore = new Map(
-          leadExists.map((l) => [l.id, l.statusId]),
+          leadExists.map((lead) => [lead.id, lead.statusId]),
         );
         await Promise.all(
           input.leadsIds.map((leadId) =>
@@ -154,6 +154,22 @@ export const updateManyStatusLead = base
 
       return result;
     } catch (err) {
+      if (
+        err != null &&
+        typeof err === "object" &&
+        "code" in err &&
+        (err as { code: string }).code === "P2002"
+      ) {
+        const target =
+          ((err as { meta?: { target?: string[] } }).meta?.target) ?? [];
+        const isPhoneConflict =
+          target.includes("phone") || target.includes("tracking_id");
+        throw errors.BAD_REQUEST({
+          message: isPhoneConflict
+            ? "Um ou mais leads já existem neste tracking com o mesmo telefone"
+            : "Conflito de dados únicos ao mover os leads",
+        });
+      }
       console.error(err);
       throw errors.INTERNAL_SERVER_ERROR;
     }

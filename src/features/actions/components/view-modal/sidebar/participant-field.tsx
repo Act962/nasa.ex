@@ -1,4 +1,4 @@
-import { UserPlusIcon, XIcon, CheckIcon } from "lucide-react";
+import { UserPlusIcon, XIcon, CheckIcon, UsersIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +24,29 @@ export function ParticipantsField({
   isAdding,
   isRemoving,
 }: ParticipantsFieldProps) {
+  const allSelected =
+    members.length > 0 && members.every((m: any) =>
+      participants.some((p: any) => p.user.id === m.user.id),
+    );
+  // "Selecionar todos" dispara `onToggle` apenas pros membros que ainda não
+  // são participantes; "Limpar" idem pros que SÃO. Como `onToggle` faz
+  // add-or-remove, esta é a única forma sem mudar a API do componente.
+  const handleSelectAll = () => {
+    if (isAdding || isRemoving) return;
+    if (allSelected) {
+      for (const m of members as any[]) {
+        if (participants.some((p: any) => p.user.id === m.user.id)) {
+          onToggle(m.user.id);
+        }
+      }
+    } else {
+      for (const m of members as any[]) {
+        if (!participants.some((p: any) => p.user.id === m.user.id)) {
+          onToggle(m.user.id);
+        }
+      }
+    }
+  };
   return (
     <SidebarField label="Participantes">
       <div className="space-y-1.5">
@@ -60,9 +83,24 @@ export function ParticipantsField({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-56 p-2" align="start">
-            <p className="text-xs font-medium text-muted-foreground mb-2 px-1">
-              Membros do workspace
-            </p>
+            <div className="mb-2 flex items-center justify-between px-1">
+              <p className="text-xs font-medium text-muted-foreground">
+                Membros do workspace
+              </p>
+              {members.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 gap-1 px-1.5 text-[10px]"
+                  onClick={handleSelectAll}
+                  disabled={isAdding || isRemoving}
+                >
+                  <UsersIcon className="size-3" />
+                  {allSelected ? "Limpar" : "Selecionar todos"}
+                </Button>
+              )}
+            </div>
             <div className="space-y-0.5">
               {members.map((m: any) => {
                 const isResponsible = participants.some(

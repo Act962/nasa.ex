@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 const clientDataShape = z
   .object({
@@ -111,6 +112,13 @@ export const createForgeContract = base
           select: { id: true, number: true },
         });
       });
+
+      await chargeStarsByAction(context.org.id, "forge_contract_create", {
+        userId: context.user.id,
+        description: `Gerou contrato #${contract.number}`,
+        appSlug: "forge",
+      });
+
       return { contract };
     } catch (err) {
       console.error("[forge/contracts create]", err);

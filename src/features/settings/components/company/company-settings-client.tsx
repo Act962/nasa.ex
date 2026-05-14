@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { FormCompany } from "../form-compnay";
 import { BrandTab } from "../brand/brand-tab";
 import { CompanyDetailsTab } from "./company-details-tab";
+import { CalendarShareSection } from "./calendar-share-section";
 
 interface Company {
   id: string;
@@ -50,7 +51,12 @@ export function CompanySettingsClient({ company }: { company: Company }) {
         ))}
       </div>
 
-      {activeTab === "geral" && <FormCompany company={company} />}
+      {activeTab === "geral" && (
+        <div className="space-y-6">
+          <FormCompany company={company} />
+          <CalendarShareSection />
+        </div>
+      )}
       {activeTab === "empresa" && (
         <CompanyDetailsTab
           orgId={company.id}

@@ -25,6 +25,7 @@ import { authClient } from "@/lib/auth-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KPIAtendimentCards } from "./kpi/atendiment-cards";
 import { cn } from "@/lib/utils";
+import { useHeaderPin } from "../context/use-header-pin";
 
 import { WidgetList } from "./widget";
 import { ChannelInsights } from "./channel-insights";
@@ -108,6 +109,7 @@ export function TrackingDashboard({
   // primeira sessão do user vê tudo. Pode recolher pra economizar espaço
   // vertical no scroll.
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  const isHeaderPinned = useHeaderPin((s) => s.isPinned);
 
   const handleChartClick = (leadIds?: string[]) => {
     if (leadIds && leadIds.length > 0) {
@@ -370,7 +372,15 @@ export function TrackingDashboard({
         <div className="flex h-full w-full">
           <InsightsSidebar actions={sidebarActions} />
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            <div className="sm:sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b py-4 space-y-4 px-2 sm:px-6">
+            {/* Header sticky só quando o user fixou (botão de pin no
+                sidebar). Permite scroll livre ou header fixo conforme
+                preferência. */}
+            <div
+              className={cn(
+                "bg-background/95 backdrop-blur-sm border-b py-4 space-y-4 px-2 sm:px-6",
+                isHeaderPinned && "sm:sticky top-0 z-10",
+              )}
+            >
               <LayoutEditToolbar />
 
           {/* Toggle pra recolher "Todos os Apps" + "Filtros" — bloco que

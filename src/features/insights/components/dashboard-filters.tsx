@@ -81,7 +81,7 @@ export function DashboardFilters({
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center overflow-x-auto">
         <OrganizationFilterButton
           options={organizationOptions}
           selectedIds={organizationIds}

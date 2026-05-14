@@ -407,6 +407,11 @@ export const useUpdateActionFields = () => {
         queryClient.invalidateQueries({
           queryKey: ["action.listByWorkspace"],
         });
+        // Workspace Calendar — pra cover image, attachments etc refletirem
+        // imediatamente nos cards do calendar.
+        queryClient.invalidateQueries({
+          queryKey: [["action", "getWorkspaceCalendar"]] as const,
+        });
       },
       onError: () => toast.error("Erro ao atualizar ação!"),
     }),

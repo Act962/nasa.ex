@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/client";
 import { LeadAction } from "@/generated/prisma/enums";
@@ -138,11 +139,17 @@ export const createLead = base
           appSlug: "tracking",
           subAppSlug: "tracking-pipeline",
           featureKey: "lead.created",
-          action: "lead.created",
+          action: "lead_create",
           actionLabel: `Criou o lead "${input.name}"`,
           resource: input.name,
           resourceId: lead.id,
           metadata: { phone: input.phone, trackingName: tracking.name },
+        });
+
+        await chargeStarsByAction(tracking.organizationId, "lead_create", {
+          userId: context.user.id,
+          description: `Criou lead "${input.name}"`,
+          appSlug: "tracking",
         });
       }
 

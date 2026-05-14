@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Clock, GraduationCap, Info, Play, Users } from "lucide-react";
+import { CalendarDays, Clock, GraduationCap, Info, Play, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PriceStarsDisplay } from "./price-stars-display";
 import { COURSE_FORMAT_LABELS, COURSE_LEVEL_LABELS } from "../../types";
 import { imgSrc } from "@/features/public-calendar/utils/img-src";
+import { formatEventDate } from "../../lib/event-date";
 
 interface HeroCourse {
   id: string;
@@ -18,6 +19,9 @@ interface HeroCourse {
   durationMin?: number | null;
   priceStars: number;
   studentsCount?: number;
+  // Datas do evento (format = "event") — exibidas como badge proeminente no hero.
+  eventStartsAt?: Date | string | null;
+  eventEndsAt?: Date | string | null;
   creatorOrg?: { slug?: string; name?: string; logo?: string | null } | null;
 }
 
@@ -28,6 +32,14 @@ interface Props {
 }
 
 export function CourseHero({ course, href, publicHref }: Props) {
+  const eventDate =
+    course.format === "event"
+      ? formatEventDate({
+          startsAt: course.eventStartsAt,
+          endsAt: course.eventEndsAt,
+        })
+      : null;
+
   return (
     <div className="relative h-[58vh] min-h-[420px] w-full overflow-hidden">
       <div className="absolute inset-0">
@@ -59,6 +71,15 @@ export function CourseHero({ course, href, publicHref }: Props) {
             {course.level && (
               <span className="rounded-sm bg-white/10 px-2 py-1 text-white backdrop-blur-sm">
                 {COURSE_LEVEL_LABELS[course.level] ?? course.level}
+              </span>
+            )}
+            {eventDate && (
+              <span className="inline-flex items-center gap-1.5 rounded-sm bg-violet-600/95 px-2 py-1 text-white">
+                <CalendarDays className="size-3.5" />
+                <span>{eventDate.dateLine}</span>
+                {eventDate.timeLine && (
+                  <span className="text-white/85">· {eventDate.timeLine}</span>
+                )}
               </span>
             )}
           </div>

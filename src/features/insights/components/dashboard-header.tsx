@@ -6,8 +6,11 @@ import {
   ExpandIcon,
   FullscreenIcon,
   Link2Icon,
+  PinIcon,
+  PinOffIcon,
   RefreshCwIcon,
 } from "lucide-react";
+import { useHeaderPin } from "../context/use-header-pin";
 import { SettingsPanel } from "./settings-panel";
 import type {
   AppModule,
@@ -74,6 +77,8 @@ export function DashboardHeader({
   const store = useDashboardStore();
   const session = authClient.useSession();
   const { isFullscreen, toggleFullscreen } = useFullscreen();
+  const isPinned = useHeaderPin((s) => s.isPinned);
+  const togglePin = useHeaderPin((s) => s.toggle);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -119,6 +124,18 @@ export function DashboardHeader({
           onToggleSection={onToggleSection}
           onChartTypeChange={onChartTypeChange}
           onReset={onReset}
+        />
+        <ActionButton
+          label={isPinned ? "Desafixar header" : "Fixar header"}
+          icon={
+            isPinned ? (
+              <PinOffIcon className="size-4" />
+            ) : (
+              <PinIcon className="size-4" />
+            )
+          }
+          onClick={togglePin}
+          disabled={isLoading}
         />
         <ActionButton
           label={isFullscreen ? "Sair da tela cheia" : "Modo tela cheia"}

@@ -18,6 +18,7 @@ import { createResponseForLead } from "./create-response-for-lead";
 import { getResponseByToken } from "./get-response-by-token";
 import { updateClientSignatures } from "./update-client-signatures";
 import { recordFormOpening } from "./record-form-opening";
+import { listRecentResponses } from "./list-recent-responses";
 
 export const formRouter = {
   get: fetchFormById,
@@ -26,6 +27,7 @@ export const formRouter = {
   update: updateForm,
   delete: deleteForm,
   listResponse: getManyResponses,
+  listRecentResponses,
   getResponseById,
   updateResponse,
   updateResponseLabel,

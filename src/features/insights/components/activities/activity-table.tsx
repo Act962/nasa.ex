@@ -11,6 +11,7 @@ import { Clock, Download, ExternalLink } from "lucide-react";
 import { APP_LABELS } from "@/features/admin/lib/activity-constants";
 import { cn } from "@/lib/utils";
 import { buildResourceUrl } from "@/features/insights/lib/build-resource-url";
+import { StarConsumptionBadge } from "./star-consumption-badge";
 
 interface Props {
   userIds?: string[];
@@ -110,6 +111,15 @@ export function ActivityTable({
     }),
   });
 
+  // Catálogo global de custos de Stars por ação — alimenta a coluna
+  // "Consumo" da tabela. Cacheado (staleTime alto) porque muda só
+  // quando admin edita as regras em /admin/stars > Regras.
+  const { data: actionCostsData } = useQuery({
+    ...orpc.stars.listActionCosts.queryOptions(),
+    staleTime: 5 * 60_000,
+  });
+  const actionCosts = actionCostsData?.costs ?? {};
+
   const members = stats?.members ?? [];
   const logs = data?.logs ?? [];
 
@@ -141,6 +151,7 @@ export function ActivityTable({
                 <th className="px-3 py-2 font-semibold whitespace-nowrap">App</th>
                 <th className="px-3 py-2 font-semibold whitespace-nowrap">Funcionalidade</th>
                 <th className="px-3 py-2 font-semibold">O que fez</th>
+                <th className="px-3 py-2 font-semibold whitespace-nowrap">Consumo</th>
                 <th className="px-3 py-2 font-semibold whitespace-nowrap">Tempo</th>
                 <th className="px-3 py-2 font-semibold whitespace-nowrap">Data</th>
                 <th className="px-3 py-2 font-semibold whitespace-nowrap text-right">Ações</th>
@@ -150,14 +161,14 @@ export function ActivityTable({
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>
-                    <td colSpan={7} className="px-3 py-3">
+                    <td colSpan={8} className="px-3 py-3">
                       <Skeleton className="h-5 w-full" />
                     </td>
                   </tr>
                 ))
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-3 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-3 py-12 text-center text-muted-foreground">
                     Nenhuma atividade encontrada para os filtros selecionados.
                   </td>
                 </tr>
@@ -204,6 +215,9 @@ export function ActivityTable({
                       </td>
                       <td className="px-3 py-2 max-w-[300px] truncate" title={log.actionLabel}>
                         {log.actionLabel}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <StarConsumptionBadge action={log.action} costs={actionCosts} />
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-muted-foreground tabular-nums">
                         {formatDuration(log.durationMs)}

@@ -3,14 +3,17 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSpacePointCtx } from "@/features/space-point/components/space-point-provider";
 
-export function useMutationUpdateLeads() {
+export function useMutationUpdateLeads(trackingId: string) {
   const queryClient = useQueryClient();
   const { earn } = useSpacePointCtx();
   return useMutation(
     orpc.leads.updateManyStatus.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data) => {
         queryClient.invalidateQueries({
           queryKey: ["leads.listLeadsByStatus"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: orpc.status.getMany.queryKey({ input: { trackingId } }),
         });
         toast.success("Lead atualizado");
         earn("move_lead_stage", "Lead movimentado 🚀");
