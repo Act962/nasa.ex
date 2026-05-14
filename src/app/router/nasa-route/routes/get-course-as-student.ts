@@ -130,6 +130,10 @@ export const getCourseAsStudent = base
             isFreePreview: l.isFreePreview,
             awardSp: l.awardSp,
             video: includedInPlan ? video : { provider: null, videoId: null, embedUrl: null },
+            // Vídeo R2 hospedado — só exposto se aula faz parte do plano do aluno.
+            videoFileKey: includedInPlan ? l.videoFileKey : null,
+            videoFileSize:
+              includedInPlan && l.videoFileSize ? Number(l.videoFileSize) : null,
             includedInPlan,
           };
         }),

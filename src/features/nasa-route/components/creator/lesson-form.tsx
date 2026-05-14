@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
-import { Loader2, Save, Eye } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { parseVideoUrl } from "../../lib/video-url";
+import { LessonFormVideoSection } from "./lesson-form-video-section";
 
 interface Lesson {
   id?: string;
@@ -33,6 +33,8 @@ interface Lesson {
   summary?: string | null;
   contentMd?: string | null;
   videoUrl?: string | null;
+  videoFileKey?: string | null;
+  videoFileSize?: number | null;
   durationMin?: number | null;
   isFreePreview?: boolean;
   awardSp?: number;
@@ -65,8 +67,6 @@ export function LessonForm({ open, onClose, courseId, modules, initial }: Props)
   const [isFreePreview, setIsFreePreview] = useState(initial?.isFreePreview ?? false);
   const [awardSp, setAwardSp] = useState(initial?.awardSp?.toString() ?? "10");
   const [moduleId, setModuleId] = useState<string>(initial?.moduleId ?? "");
-
-  const videoInfo = useMemo(() => parseVideoUrl(videoUrl), [videoUrl]);
 
   const upsert = useMutation({
     ...orpc.nasaRoute.creatorUpsertLesson.mutationOptions(),
@@ -155,27 +155,15 @@ export function LessonForm({ open, onClose, courseId, modules, initial }: Props)
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="lesson-video">URL do vídeo (YouTube ou Vimeo)</Label>
-            <Input
-              id="lesson-video"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="https://youtube.com/watch?v=… ou https://vimeo.com/…"
-            />
-            {videoUrl && videoInfo.provider && (
-              <p className="inline-flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-300">
-                <Eye className="size-3" />
-                Detectado: <strong className="capitalize">{videoInfo.provider}</strong>
-                {videoInfo.videoId && <span> · ID: {videoInfo.videoId}</span>}
-              </p>
-            )}
-            {videoUrl && !videoInfo.provider && (
-              <p className="text-xs text-amber-700 dark:text-amber-300">
-                URL não reconhecida. Use links do YouTube ou Vimeo.
-              </p>
-            )}
-          </div>
+          <LessonFormVideoSection
+            videoUrl={videoUrl}
+            onVideoUrlChange={setVideoUrl}
+            courseId={courseId}
+            lessonId={initial?.id}
+            lessonTitle={title || "Nova aula"}
+            videoFileKey={initial?.videoFileKey ?? null}
+            videoFileSize={initial?.videoFileSize ?? null}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="lesson-content">Conteúdo complementar (texto)</Label>
