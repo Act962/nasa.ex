@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { AppModule } from "@/features/insights/types";
 import { ALL_MODULES } from "@/features/insights/types";
+import { useDashboardStore } from "../hooks/use-dashboard-store";
 
 export type { AppModule };
 export { ALL_MODULES };
@@ -180,6 +181,14 @@ interface AppSelectorProps {
 
 export function AppSelector({ selected, onChange }: AppSelectorProps) {
   const allSelected = selected.length === ALL_MODULES.length;
+  // moduleOrder vem do store (persistido em localStorage). É a ordem que
+  // o usuário definiu via drag-and-drop em Configurações. Sem isso, o
+  // AppSelector mostrava sempre a ordem fixa de MODULE_DEFS — bug que
+  // fazia o drag não ter efeito visível.
+  const { moduleOrder } = useDashboardStore();
+  const orderedModules = moduleOrder
+    .map((id: AppModule) => MODULE_DEFS.find((m) => m.id === id))
+    .filter((m): m is NonNullable<typeof m> => !!m);
 
   const toggle = (id: AppModule) => {
     const isActive = selected.includes(id);
@@ -213,7 +222,7 @@ export function AppSelector({ selected, onChange }: AppSelectorProps) {
 
       <div className="w-px h-5 bg-border" />
 
-      {MODULE_DEFS.map((mod) => {
+      {orderedModules.map((mod) => {
         const isActive = selected.includes(mod.id);
         const Icon = mod.icon;
         return (

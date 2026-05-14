@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import z from "zod";
 import { recordLeadEvent } from "@/features/leads/lib/history";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import {
   checkLeadTrackingParticipant,
   NOT_TRACKING_PARTICIPANT_MESSAGE,
@@ -150,6 +151,17 @@ export const createResponseForLead = base
           label: created.label ?? null,
         },
       });
+
+      // Cobra Stars conforme regra global `form_response_with_lead`.
+      await chargeStarsByAction(
+        form.organizationId,
+        "form_response_with_lead",
+        {
+          userId,
+          description: "Resposta de formulário (lead vinculado)",
+          appSlug: "forms",
+        },
+      );
 
       return {
         message: "Resposta criada com sucesso",

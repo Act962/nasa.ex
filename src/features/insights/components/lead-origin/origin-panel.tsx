@@ -1,10 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Megaphone, Tag, Globe } from "lucide-react";
+import {
+  LeadsByMetricDialog,
+  type LeadMetricKey,
+} from "@/features/insights/components/leads-by-metric-dialog";
 import {
   PieChart,
   Pie,
@@ -44,6 +49,12 @@ export function OriginPanel({
   startDate,
   endDate,
 }: OriginPanelProps) {
+  const [selected, setSelected] = useState<{
+    metric: LeadMetricKey;
+    title: string;
+    extra: { source?: string; utmCampaign?: string; utmSource?: string };
+  } | null>(null);
+
   const { data, isLoading } = useQuery(
     orpc.insights.getLeadOrigin.queryOptions({
       input: {
@@ -111,7 +122,18 @@ export function OriginPanel({
           </div>
           <div className="mt-2 space-y-1 text-xs">
             {data.channels.map((c, idx) => (
-              <div key={c.source} className="flex items-center justify-between">
+              <button
+                key={c.source}
+                type="button"
+                onClick={() =>
+                  setSelected({
+                    metric: "lead.bySource",
+                    title: `Leads por canal: ${c.label}`,
+                    extra: { source: c.source },
+                  })
+                }
+                className="flex items-center justify-between w-full text-left hover:bg-accent/40 rounded-md px-2 py-1 transition-colors"
+              >
                 <div className="flex items-center gap-2">
                   <span
                     className="size-2 rounded-full"
@@ -122,7 +144,7 @@ export function OriginPanel({
                 <div className="text-muted-foreground">
                   {c.count} ({c.conversionRate}% WON)
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </CardContent>
@@ -183,13 +205,21 @@ export function OriginPanel({
           ) : (
             <div className="space-y-1">
               {data.topUtmCampaigns.map((c) => (
-                <div
+                <button
                   key={c.utmCampaign}
-                  className="flex items-center justify-between text-sm py-1.5 border-b last:border-0"
+                  type="button"
+                  onClick={() =>
+                    setSelected({
+                      metric: "lead.byUtmCampaign",
+                      title: `Leads por campanha: ${c.utmCampaign}`,
+                      extra: { utmCampaign: c.utmCampaign },
+                    })
+                  }
+                  className="flex items-center justify-between text-sm py-1.5 border-b last:border-0 w-full text-left hover:bg-accent/40 rounded-md px-2 transition-colors"
                 >
                   <span className="truncate font-medium">{c.utmCampaign}</span>
                   <span className="text-muted-foreground tabular-nums">{c.count}</span>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -215,18 +245,36 @@ export function OriginPanel({
           ) : (
             <div className="space-y-1">
               {data.topUtmSources.map((c) => (
-                <div
+                <button
                   key={c.utmSource}
-                  className="flex items-center justify-between text-sm py-1.5 border-b last:border-0"
+                  type="button"
+                  onClick={() =>
+                    setSelected({
+                      metric: "lead.byUtmSource",
+                      title: `Leads por origem: ${c.utmSource}`,
+                      extra: { utmSource: c.utmSource },
+                    })
+                  }
+                  className="flex items-center justify-between text-sm py-1.5 border-b last:border-0 w-full text-left hover:bg-accent/40 rounded-md px-2 transition-colors"
                 >
                   <span className="truncate font-medium">{c.utmSource}</span>
                   <span className="text-muted-foreground tabular-nums">{c.count}</span>
-                </div>
+                </button>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+      {selected && (
+        <LeadsByMetricDialog
+          open={!!selected}
+          onOpenChange={(o) => !o && setSelected(null)}
+          app="lead"
+          metric={selected.metric}
+          title={selected.title}
+          extra={selected.extra}
+        />
+      )}
     </div>
   );
 }

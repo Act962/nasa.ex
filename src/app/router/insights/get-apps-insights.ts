@@ -65,6 +65,57 @@ export const getAppsInsights = base
         return sum + base - disc;
       }, 0);
 
+    // Tempo médio entre criação e mudança pra PAGA — usa updatedAt como
+    // proxy do paidAt (não há campo dedicado no schema). Vale só pra
+    // propostas com status final PAGA. Resultado em horas.
+    const paidProposals = proposals.filter((p) => p.status === "PAGA");
+    const avgTimeToPaid =
+      paidProposals.length > 0
+        ? paidProposals.reduce(
+            (sum, p) => sum + (p.updatedAt.getTime() - p.createdAt.getTime()),
+            0,
+          ) /
+          paidProposals.length /
+          (1000 * 60 * 60)
+        : 0;
+
+    // Desconto médio aplicado — combina o discount top-level (ForgeProposal)
+    // com o discount por produto. Calculado como % sobre valor bruto.
+    const discountStats = proposals.reduce(
+      (acc, p) => {
+        const gross = p.products.reduce(
+          (s, prod) => s + Number(prod.unitValue) * Number(prod.quantity ?? 1),
+          0,
+        );
+        if (gross <= 0) return acc;
+        const productDiscount = p.products.reduce(
+          (s, prod) => s + Number(prod.discount ?? 0),
+          0,
+        );
+        const topDiscount = Number(p.discount ?? 0);
+        // Assume top-level discount em valor absoluto quando type=FIXED, ou
+        // % quando PERCENT — defensivo: trata sempre como absoluto se < gross
+        const totalDiscount =
+          p.discountType === "PERCENTAGE"
+            ? (gross * topDiscount) / 100 + productDiscount
+            : topDiscount + productDiscount;
+        acc.totalGross += gross;
+        acc.totalDiscount += totalDiscount;
+        acc.count++;
+        return acc;
+      },
+      { totalGross: 0, totalDiscount: 0, count: 0 },
+    );
+    const avgDiscount =
+      discountStats.totalGross > 0
+        ? (discountStats.totalDiscount / discountStats.totalGross) * 100
+        : 0;
+
+    // Receita "perdida" — propostas que nunca vão converter (canceladas + expiradas)
+    const lostRevenue = proposals
+      .filter((p) => p.status === "CANCELADA" || p.status === "EXPIRADA")
+      .reduce((sum, p) => sum + calcProposalValue(p), 0);
+
     const forgeData = {
       totalProposals: proposals.length,
       rascunho:    proposals.filter((p) => p.status === "RASCUNHO").length,
@@ -82,6 +133,10 @@ export const getAppsInsights = base
       totalContracts: contracts.length,
       contractsAtivo: contracts.filter((c) => c.status === "ATIVO").length,
       contractsAssinado: contracts.filter((c) => c.status === "PENDENTE_ASSINATURA").length,
+      // Novos KPIs
+      avgTimeToPaid,
+      avgDiscount,
+      lostRevenue,
     };
 
     // ── Spacetime: Appointments ──────────────────────────────────────────────
@@ -93,8 +148,26 @@ export const getAppsInsights = base
         ...(input.trackingId ? { trackingId: input.trackingId } : {}),
         ...(tagWhereLead ? { lead: { is: tagWhereLead } } : {}),
       },
-      select: { id: true, status: true, startsAt: true, leadId: true },
+      select: {
+        id: true,
+        status: true,
+        startsAt: true,
+        endsAt: true,
+        leadId: true,
+      },
     });
+
+    const noShowCount = appointments.filter((a) => a.status === "NO_SHOW").length;
+    // Duração média em horas (entre `startsAt` e `endsAt`)
+    const avgDurationSpacetime =
+      appointments.length > 0
+        ? appointments.reduce(
+            (sum, a) => sum + (a.endsAt.getTime() - a.startsAt.getTime()),
+            0,
+          ) /
+          appointments.length /
+          (1000 * 60 * 60)
+        : 0;
 
     const spacetimeData = {
       total:     appointments.length,
@@ -102,12 +175,16 @@ export const getAppsInsights = base
       confirmed: appointments.filter((a) => a.status === "CONFIRMED").length,
       done:      appointments.filter((a) => a.status === "DONE").length,
       cancelled: appointments.filter((a) => a.status === "CANCELLED").length,
-      noShow:    appointments.filter((a) => a.status === "NO_SHOW").length,
+      noShow:    noShowCount,
       withLead:  appointments.filter((a) => a.leadId).length,
       conversionRate:
         appointments.length > 0
           ? (appointments.filter((a) => a.status === "DONE").length / appointments.length) * 100
           : 0,
+      // Novos KPIs
+      noShowRate:
+        appointments.length > 0 ? (noShowCount / appointments.length) * 100 : 0,
+      avgDuration: avgDurationSpacetime,
     };
 
     // ── NASA Planner ────────────────────────────────────────────────────────────
@@ -135,7 +212,7 @@ export const getAppsInsights = base
 
     // ── Chat: Conversations & Messages ───────────────────────────────────────
     // tagIds: Conversation.lead é obrigatório → filtro funciona sem perda.
-    const [conversations, totalMessages] = await Promise.all([
+    const [conversations, totalMessages, fromMeMessages] = await Promise.all([
       prisma.conversation.findMany({
         where: {
           tracking: { organizationId: { in: orgIds } },
@@ -143,10 +220,23 @@ export const getAppsInsights = base
           ...(input.trackingId ? { trackingId: input.trackingId } : {}),
           ...(tagWhereLead ? { lead: { is: tagWhereLead } } : {}),
         },
-        select: { id: true, isActive: true },
+        // createdAt + lastMessageAt pra calcular duração média
+        select: { id: true, isActive: true, createdAt: true, lastMessageAt: true },
       }),
       prisma.message.count({
         where: {
+          conversation: {
+            tracking: { organizationId: { in: orgIds } },
+            ...(input.trackingId ? { trackingId: input.trackingId } : {}),
+            ...(tagWhereLead ? { lead: { is: tagWhereLead } } : {}),
+          },
+          ...(dateFilter ? { createdAt: dateFilter } : {}),
+        },
+      }),
+      // Mensagens enviadas pelo time (fromMe=true) — pro fromMeRatio
+      prisma.message.count({
+        where: {
+          fromMe: true,
           conversation: {
             tracking: { organizationId: { in: orgIds } },
             ...(input.trackingId ? { trackingId: input.trackingId } : {}),
@@ -160,6 +250,18 @@ export const getAppsInsights = base
     // Active conversations as proxy for "attended"
     const attendedCount = conversations.filter((c) => c.isActive).length;
 
+    // Duração média da conversa em horas (criação → última mensagem)
+    const avgConversationDuration =
+      conversations.length > 0
+        ? conversations.reduce(
+            (sum, c) =>
+              sum + (c.lastMessageAt.getTime() - c.createdAt.getTime()),
+            0,
+          ) /
+          conversations.length /
+          (1000 * 60 * 60)
+        : 0;
+
     const chatData = {
       totalConversations: conversations.length,
       totalMessages,
@@ -169,6 +271,10 @@ export const getAppsInsights = base
         conversations.length > 0
           ? (attendedCount / conversations.length) * 100
           : 0,
+      // Novos KPIs
+      avgConversationDuration,
+      fromMeRatio:
+        totalMessages > 0 ? (fromMeMessages / totalMessages) * 100 : 0,
     };
 
     // ── Workspace: Actions ───────────────────────────────────────────────────
@@ -191,8 +297,18 @@ export const getAppsInsights = base
         isDone: true,
         dueDate: true,
         createdBy: true,
+        createdAt: true,
+        closedAt: true,
       },
     });
+
+    // Subactions vinculadas — usadas pro KPI `subactionRatio`
+    const subactionCount =
+      actions.length > 0
+        ? await prisma.subActions.count({
+            where: { actionId: { in: actions.map((a) => a.id) } },
+          })
+        : 0;
 
     const actionCreatorCount = actions.reduce<Record<string, number>>((acc, a) => {
       acc[a.createdBy] = (acc[a.createdBy] ?? 0) + 1;
@@ -209,6 +325,48 @@ export const getAppsInsights = base
         })
       : [];
 
+    // Tempo médio entre criação e fechamento (Actions finalizadas) em horas
+    const closedActions = actions.filter((a) => a.isDone && a.closedAt);
+    const avgCompletionTime =
+      closedActions.length > 0
+        ? closedActions.reduce(
+            (sum, a) =>
+              sum + (a.closedAt!.getTime() - a.createdAt.getTime()),
+            0,
+          ) /
+          closedActions.length /
+          (1000 * 60 * 60)
+        : 0;
+
+    // Top criador mais rápido — agrupa por createdBy entre closedActions
+    // (média de tempo em horas) e pega o user com menor média.
+    const closeTimeByCreator = new Map<string, { sum: number; count: number }>();
+    for (const a of closedActions) {
+      const cur = closeTimeByCreator.get(a.createdBy) ?? { sum: 0, count: 0 };
+      cur.sum += a.closedAt!.getTime() - a.createdAt.getTime();
+      cur.count++;
+      closeTimeByCreator.set(a.createdBy, cur);
+    }
+    const fastestCreatorEntry = Array.from(closeTimeByCreator.entries())
+      .filter(([, v]) => v.count >= 2) // exige pelo menos 2 ações pra ranking justo
+      .map(([id, v]) => ({
+        id,
+        avgHours: v.sum / v.count / (1000 * 60 * 60),
+        count: v.count,
+      }))
+      .sort((a, b) => a.avgHours - b.avgHours)[0];
+
+    const topFastestCreator = fastestCreatorEntry
+      ? {
+          id: fastestCreatorEntry.id,
+          name:
+            topCreators.find((u) => u.id === fastestCreatorEntry.id)?.name ??
+            "—",
+          avgHours: fastestCreatorEntry.avgHours,
+          count: fastestCreatorEntry.count,
+        }
+      : null;
+
     const workspaceData = {
       total: actions.length,
       done: actions.filter((a) => a.isDone).length,
@@ -224,6 +382,10 @@ export const getAppsInsights = base
         image: u.image,
         count: actionCreatorCount[u.id] ?? 0,
       })),
+      // Novos KPIs
+      avgCompletionTime,
+      topFastestCreator,
+      subactionRatio: actions.length > 0 ? subactionCount / actions.length : 0,
     };
 
     // ── Forms ────────────────────────────────────────────────────────────────
@@ -259,13 +421,19 @@ export const getAppsInsights = base
         responses: count,
       }));
 
+    const totalFormViews = forms.reduce((s, f) => s + f.views, 0);
     const formsData = {
       totalForms: forms.length,
       publishedForms: forms.filter((f) => f.published).length,
       totalResponses: formResponses.length,
       responsesWithLead: formResponses.filter((r) => r.leadId).length,
-      totalViews: forms.reduce((s, f) => s + f.views, 0),
+      totalViews: totalFormViews,
       topForms,
+      // Novo KPI: 1 - (responses/views); fica 0% quando não tem views.
+      abandonRate:
+        totalFormViews > 0
+          ? Math.max(0, (1 - formResponses.length / totalFormViews) * 100)
+          : 0,
     };
 
     // ── N-Box ────────────────────────────────────────────────────────────────
@@ -311,6 +479,7 @@ export const getAppsInsights = base
         amount: true,
         paidAmount: true,
         dueDate: true,
+        paidAt: true,
       },
     });
 
@@ -321,6 +490,21 @@ export const getAppsInsights = base
     );
     const revenueEntries = paid.filter((e) => e.type === "RECEIVABLE");
     const expenseEntries = paid.filter((e) => e.type === "PAYABLE");
+
+    // DSR (Days Sales Receivable) — média de dias entre vencimento e
+    // pagamento pra entries RECEIVABLE pagas. Pode ser negativo quando
+    // o pagamento aconteceu antes do vencimento.
+    const dsrSamples = revenueEntries.filter((e) => e.paidAt && e.dueDate);
+    const avgDSR =
+      dsrSamples.length > 0
+        ? dsrSamples.reduce(
+            (sum, e) =>
+              sum + (e.paidAt!.getTime() - e.dueDate.getTime()),
+            0,
+          ) /
+          dsrSamples.length /
+          (1000 * 60 * 60 * 24)
+        : 0;
 
     const paymentData = {
       totalEntries: paymentEntries.length,
@@ -334,6 +518,8 @@ export const getAppsInsights = base
         paid.length > 0
           ? paid.reduce((s, e) => s + e.paidAmount, 0) / paid.length / 100
           : 0,
+      // Novo KPI — em dias. O catálogo converte exibição.
+      avgDSR: avgDSR * 24, // converte dias → horas pro format=duration
     };
 
     // ── Linnker ──────────────────────────────────────────────────────────────
@@ -551,7 +737,16 @@ export const getAppsInsights = base
           ],
           ...(dateFilter ? { enrolledAt: dateFilter } : {}),
         },
-        select: { id: true, source: true, paidStars: true, completedAt: true, courseId: true },
+        select: {
+          id: true,
+          source: true,
+          paidStars: true,
+          completedAt: true,
+          courseId: true,
+          enrolledAt: true,
+          userId: true,
+          certificate: { select: { id: true, issuedAt: true } },
+        },
       }),
       prisma.nasaRouteProgress.findMany({
         where: {
@@ -582,6 +777,31 @@ export const getAppsInsights = base
         enrollments: count,
       }));
 
+    // % de matrículas com curso concluído (usa `completedAt` do enrollment)
+    const completedEnrollments = enrollments.filter((e) => e.completedAt);
+    const completionRate =
+      enrollments.length > 0
+        ? (completedEnrollments.length / enrollments.length) * 100
+        : 0;
+
+    // Tempo médio (horas) entre matrícula e emissão do certificado pra
+    // enrollments que receberam certificado.
+    const certifiedEnrollments = enrollments.filter(
+      (e): e is typeof e & { certificate: { id: string; issuedAt: Date } } =>
+        !!e.certificate?.issuedAt,
+    );
+    const avgTimeToCertificate =
+      certifiedEnrollments.length > 0
+        ? certifiedEnrollments.reduce(
+            (sum, e) =>
+              sum +
+              (e.certificate.issuedAt.getTime() - e.enrolledAt.getTime()),
+            0,
+          ) /
+          certifiedEnrollments.length /
+          (1000 * 60 * 60)
+        : 0;
+
     const nasaRouteData = {
       totalCourses: routeCourses.length,
       publishedCourses: routeCourses.filter((c) => c.isPublished).length,
@@ -594,6 +814,9 @@ export const getAppsInsights = base
       completedLessons: progress.reduce((s, p) => s + p.completedLessonIds.length, 0),
       certificatesIssued: certificates.length,
       topCourses,
+      // Novos KPIs
+      completionRate,
+      avgTimeToCertificate,
     };
 
     return {

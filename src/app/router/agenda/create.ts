@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { slugify } from "@/lib/utils";
 import z from "zod";
 
@@ -72,10 +73,19 @@ export const createAgenda = base
       userEmail: context.user.email,
       userImage: (context.user as any).image,
       appSlug: "spacetime",
-      action: "agenda.created",
+      action: "agenda_create",
       actionLabel: `Criou a agenda "${agenda.name}"`,
       resource: agenda.name,
       resourceId: agenda.id,
+    });
+
+    // Cobra Stars conforme regra global `agenda_create`. Best-effort —
+    // se cobrança falhar (saldo zero, regra inativa), agenda já foi
+    // criada e nao revertemos.
+    await chargeStarsByAction(context.org.id, "agenda_create", {
+      userId: context.user.id,
+      description: `Criou agenda "${agenda.name}"`,
+      appSlug: "spacetime",
     });
 
     return { agenda };

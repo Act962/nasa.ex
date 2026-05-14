@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { TrendingDown, ArrowDown } from "lucide-react";
+import { LeadsByMetricDialog } from "@/features/insights/components/leads-by-metric-dialog";
 
 interface FunnelPanelProps {
   trackingId?: string;
@@ -12,6 +14,9 @@ interface FunnelPanelProps {
 }
 
 export function FunnelPanel({ trackingId, organizationIds }: FunnelPanelProps) {
+  const [stage, setStage] = useState<{ statusId: string; name: string } | null>(
+    null,
+  );
   const { data, isLoading } = useQuery({
     ...orpc.insights.getFunnel.queryOptions({
       input: {
@@ -65,44 +70,58 @@ export function FunnelPanel({ trackingId, organizationIds }: FunnelPanelProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {data.stages.map((stage, idx) => {
-            const widthPct = (stage.count / maxCount) * 100;
+          {data.stages.map((s, idx) => {
+            const widthPct = (s.count / maxCount) * 100;
             return (
-              <div key={stage.statusId}>
-                {idx > 0 && stage.dropoffFromPrevious > 0 && (
+              <div key={s.statusId}>
+                {idx > 0 && s.dropoffFromPrevious > 0 && (
                   <div className="flex items-center gap-1 text-xs text-rose-600 px-2 py-1">
                     <ArrowDown className="size-3" />
-                    {stage.dropoffFromPrevious} leads ({stage.dropoffPercent}%) de queda
+                    {s.dropoffFromPrevious} leads ({s.dropoffPercent}%) de queda
                   </div>
                 )}
-                <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStage({ statusId: s.statusId, name: s.name })}
+                  className="flex items-center gap-3 w-full text-left hover:bg-accent/30 rounded-md p-1 transition-colors"
+                >
                   <div className="w-32 text-sm font-medium truncate">
-                    {stage.name}
+                    {s.name}
                   </div>
                   <div className="flex-1 relative h-9 rounded-md bg-muted overflow-hidden">
                     <div
                       className="absolute inset-y-0 left-0 transition-all"
                       style={{
                         width: `${widthPct}%`,
-                        backgroundColor: stage.color ?? "hsl(220 80% 60%)",
+                        backgroundColor: s.color ?? "hsl(220 80% 60%)",
                         opacity: 0.85,
                       }}
                     />
                     <div className="relative z-10 flex items-center h-full px-3 text-sm text-white font-medium drop-shadow">
-                      {stage.count}
+                      {s.count}
                     </div>
                   </div>
                   <div className="w-32 text-right text-xs text-muted-foreground">
-                    {stage.avgTimeHours > 24
-                      ? `${Math.round(stage.avgTimeHours / 24)}d médios`
-                      : `${stage.avgTimeHours}h médios`}
+                    {s.avgTimeHours > 24
+                      ? `${Math.round(s.avgTimeHours / 24)}d médios`
+                      : `${s.avgTimeHours}h médios`}
                   </div>
-                </div>
+                </button>
               </div>
             );
           })}
         </div>
       </CardContent>
+      {stage && (
+        <LeadsByMetricDialog
+          open={!!stage}
+          onOpenChange={(o) => !o && setStage(null)}
+          app="lead"
+          metric="lead.byStatus"
+          title={`Leads em "${stage.name}"`}
+          extra={{ statusId: stage.statusId }}
+        />
+      )}
     </Card>
   );
 }

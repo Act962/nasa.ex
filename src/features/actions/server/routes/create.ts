@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { generatePublicSlug } from "@/features/public-calendar/utils/slug";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import {
   hasActionCreatedWorkflow,
   sendWorkspaceWorkflowEvent,
@@ -148,7 +149,7 @@ export const createAction = base
         featureKey: input.isPublic
           ? "workspace.action.created.public"
           : "workspace.action.created",
-        action: "workspace.action.created",
+        action: "workspace_action_create",
         actionLabel: `Criou a ação "${action.title}"`,
         resource: action.title,
         resourceId: action.id,
@@ -156,6 +157,12 @@ export const createAction = base
           priority: input.priority,
           isPublic: input.isPublic ?? false,
         },
+      });
+
+      await chargeStarsByAction(orgId, "workspace_action_create", {
+        userId: context.user.id,
+        description: `Criou ação "${action.title}"`,
+        appSlug: "workspace",
       });
     }
 

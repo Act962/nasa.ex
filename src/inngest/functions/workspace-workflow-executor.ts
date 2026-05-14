@@ -5,6 +5,7 @@ import { topologicalSort } from "../utils";
 import { NodeType } from "@/generated/prisma/enums";
 import { getWorkspaceExecutor } from "@/features/workspace-executions/lib/executor-registry";
 import { loadActionContext } from "@/features/workspace-executions/lib/load-action-context";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import {
   wsAddParticipantChannel,
   wsAddTagChannel,
@@ -157,6 +158,23 @@ export const executeWorkspaceWorkflow = inngest.createFunction(
     });
 
     const wf = workflows[0];
+
+    // Cobra Stars da org dona do workspace por executar este workflow.
+    // Regra global "workflow_execute". Best-effort: se falhar, executa
+    // mesmo assim (não bloqueia automação por saldo zero — falha
+    // silenciosa fica em activity log).
+    await step.run("charge-workflow-execution", async () => {
+      const ws = await prisma.workspace.findUnique({
+        where: { id: wf.workspaceId! },
+        select: { organizationId: true },
+      });
+      if (!ws) return { skipped: "no-workspace" };
+      return chargeStarsByAction(ws.organizationId, "workflow_execute", {
+        description: `Workflow: ${wf.name ?? wf.id}`,
+        appSlug: "workflow",
+      });
+    });
+
     const sortedNodes = topologicalSort(wf.nodes as any, wf.connections as any);
     let context: Record<string, any> = {
       ...(initialData ?? {}),

@@ -11,6 +11,8 @@ import { createGatewayCheckout } from "./create-gateway-checkout";
 import { getStarDistribution } from "./get-distribution";
 import { setStarDistribution } from "./set-distribution";
 import { setMemberBudget } from "./set-member-budget";
+import { getStarsUsageBreakdown } from "./get-usage-breakdown";
+import { listStarActionCosts } from "./list-action-costs";
 
 export const starsRouter = {
   getBalance: getStarBalance,
@@ -26,4 +28,6 @@ export const starsRouter = {
   getDistribution: getStarDistribution,
   setDistribution: setStarDistribution,
   setMemberBudget,
+  getUsageBreakdown: getStarsUsageBreakdown,
+  listActionCosts: listStarActionCosts,
 };
