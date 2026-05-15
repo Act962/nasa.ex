@@ -7,6 +7,7 @@ import { z } from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
+import { eventBus } from "@/features/alerts/lib/event-bus";
 
 // 🟦 UPDATE
 export const updateManyStatusLead = base
@@ -147,6 +148,28 @@ export const updateManyStatusLead = base
                 to: input.statusId,
                 bulk: true,
               },
+            }),
+          ),
+        );
+
+        // Alert engine — 1 publish por lead movido. Audiência resolve via
+        // payload.responsibleId quando rule kind=lead_responsible.
+        const responsibleMap = new Map(
+          leadExists.map((l) => [l.id, l.responsibleId]),
+        );
+        const orgIds = await prisma.tracking.findMany({
+          where: { id: { in: leadExists.map((l) => l.trackingId).filter(Boolean) as string[] } },
+          select: { id: true, organizationId: true },
+        });
+        const trackingOrgMap = new Map(orgIds.map((t) => [t.id, t.organizationId]));
+        await Promise.all(
+          leadExists.map((lead) =>
+            eventBus.publish("lead.status_changed", {
+              leadId: lead.id,
+              fromStatusId: lead.statusId,
+              toStatusId: input.statusId!,
+              orgId: trackingOrgMap.get(lead.trackingId) ?? null,
+              responsibleId: responsibleMap.get(lead.id) ?? null,
             }),
           ),
         );

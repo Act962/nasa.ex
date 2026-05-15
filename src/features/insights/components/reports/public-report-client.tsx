@@ -6,7 +6,14 @@ import { ChannelChart } from "@/features/insights/components/charts/channel-char
 import { AttendantChart } from "@/features/insights/components/charts/attendant-chart";
 import { TagsChart } from "@/features/insights/components/charts/tags-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ALL_MODULES, type AppModule } from "@/features/insights/types";
+import {
+  ALL_MODULES,
+  type AppModule,
+  type StatusData,
+  type ChannelData,
+  type AttendantData,
+  type TagData,
+} from "@/features/insights/types";
 import { getDefaultVisibleKeys } from "@/features/insights/lib/insights-metric-catalog";
 
 interface PublicReportClientProps {
@@ -39,6 +46,43 @@ export function PublicReportClient({
         topTags?: Array<{ name: string; value: number; fill?: string }>;
       }
     | undefined;
+
+  // O snapshot guarda os charts no formato simplificado `{ name, value, fill }`
+  // para reduzir tamanho. Adaptamos de volta pro shape esperado pelos
+  // componentes de chart (que esperam o domínio completo).
+  const toStatusData = (
+    arr: Array<{ name: string; value: number; fill?: string }>,
+  ): StatusData[] =>
+    arr.map((it, i) => ({
+      status: { id: String(i), name: it.name, color: it.fill ?? null },
+      count: it.value,
+      leadIds: [],
+    }));
+
+  const toChannelData = (
+    arr: Array<{ name: string; value: number; fill?: string }>,
+  ): ChannelData[] =>
+    arr.map((it) => ({ source: it.name, count: it.value, leadIds: [] }));
+
+  const toAttendantData = (
+    arr: Array<{ name: string; value: number; fill?: string }>,
+  ): AttendantData[] =>
+    arr.map((it, i) => ({
+      responsible: { id: String(i), name: it.name, image: null },
+      isUnassigned: false,
+      total: it.value,
+      won: 0,
+      leadIds: [],
+    }));
+
+  const toTagData = (
+    arr: Array<{ name: string; value: number; fill?: string }>,
+  ): TagData[] =>
+    arr.map((it, i) => ({
+      tag: { id: String(i), name: it.name, color: it.fill ?? null },
+      count: it.value,
+      leadIds: [],
+    }));
 
   // Lista de apps a renderizar: usa `modules` do relatório se disponível,
   // senão renderiza todos os apps que têm dados no snapshot.
@@ -132,9 +176,7 @@ export function PublicReportClient({
       })}
 
       {/* Gráficos do Tracking — só renderiza quando o módulo tracking
-          está selecionado E o snapshot tem dados de gráfico capturados.
-          Adapta o shape slim do snapshot pra rich type que os charts esperam
-          (leadIds=[] porque snapshot não persiste IDs). */}
+          está selecionado E o snapshot tem dados de gráfico capturados. */}
       {selectedModules.includes("tracking") && charts && (
         <div className="grid gap-4 lg:grid-cols-2">
           {charts.byStatus && charts.byStatus.length > 0 && (
@@ -143,18 +185,7 @@ export function PublicReportClient({
                 <CardTitle className="text-base">Leads por Status</CardTitle>
               </CardHeader>
               <CardContent>
-                <StatusChart
-                  data={charts.byStatus.map((item, i) => ({
-                    status: {
-                      id: `snapshot-${i}`,
-                      name: item.name,
-                      color: item.fill ?? null,
-                    },
-                    count: item.value,
-                    leadIds: [],
-                  }))}
-                  chartType="bar"
-                />
+                <StatusChart data={toStatusData(charts.byStatus)} chartType="bar" />
               </CardContent>
             </Card>
           )}
@@ -164,14 +195,7 @@ export function PublicReportClient({
                 <CardTitle className="text-base">Leads por Canal</CardTitle>
               </CardHeader>
               <CardContent>
-                <ChannelChart
-                  data={charts.byChannel.map((item) => ({
-                    source: item.name,
-                    count: item.value,
-                    leadIds: [],
-                  }))}
-                  chartType="pie"
-                />
+                <ChannelChart data={toChannelData(charts.byChannel)} chartType="pie" />
               </CardContent>
             </Card>
           )}
@@ -183,20 +207,7 @@ export function PublicReportClient({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <AttendantChart
-                  data={charts.byAttendant.map((item, i) => ({
-                    responsible: {
-                      id: `snapshot-${i}`,
-                      name: item.name,
-                      image: null,
-                    },
-                    isUnassigned: false,
-                    total: item.value,
-                    won: 0,
-                    leadIds: [],
-                  }))}
-                  chartType="bar"
-                />
+                <AttendantChart data={toAttendantData(charts.byAttendant)} chartType="bar" />
               </CardContent>
             </Card>
           )}
@@ -206,18 +217,7 @@ export function PublicReportClient({
                 <CardTitle className="text-base">Top Tags</CardTitle>
               </CardHeader>
               <CardContent>
-                <TagsChart
-                  data={charts.topTags.map((item, i) => ({
-                    tag: {
-                      id: `snapshot-${i}`,
-                      name: item.name,
-                      color: item.fill ?? null,
-                    },
-                    count: item.value,
-                    leadIds: [],
-                  }))}
-                  chartType="bar"
-                />
+                <TagsChart data={toTagData(charts.topTags)} chartType="bar" />
               </CardContent>
             </Card>
           )}

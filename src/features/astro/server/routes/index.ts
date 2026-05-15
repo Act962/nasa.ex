@@ -4,6 +4,7 @@ import { deleteAstroSession } from "./delete-session";
 import { createAstroSession } from "./create-session";
 import { listAstroAgentConfigs } from "./list-agent-configs";
 import { updateAstroAgentConfig } from "./update-agent-config";
+import { searchEntities } from "@/app/router/astro/search-entities";
 
 export const astroRoutes = {
   sessions: {
@@ -16,4 +17,5 @@ export const astroRoutes = {
     list: listAstroAgentConfigs,
     update: updateAstroAgentConfig,
   },
+  searchEntities,
 };
