@@ -1,8 +1,9 @@
-# Piper TTS — Setup local
+# Piper TTS — Voz oficial do Astro 🎙️
 
-Voz **pt-BR Faber** (VITS open source, ~63MB) rodando num container Docker
-local. Substitui o Web Speech do browser por uma síntese MUITO mais
-natural — leve em CPU, gratuito, sem cobrança Stars.
+**Faber (pt_BR-faber-medium)** é a voz oficial do Astro. VITS open
+source, ~63MB, roda num container Docker local. Pré-requisito pra que
+o Astro fale de verdade — sem o container, o sistema cai pra Web Speech
+do browser como fallback degradado.
 
 ## Subir
 
