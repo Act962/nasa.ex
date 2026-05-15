@@ -14,6 +14,9 @@ import { HeaderTracking } from "@/features/leads/components/header-tracking";
 import { useAstroChat } from "@/features/astro/hooks/use-astro-chat";
 import { useAstro } from "@/features/astro/components/astro-provider";
 import { AstroMessage } from "@/features/astro/components/astro-message";
+import { useAutoNarrate } from "@/features/astro/voice/use-auto-narrate";
+import { VoiceOutputToggle } from "@/features/astro/voice/voice-output-toggle";
+import { useVoiceModeStore } from "@/features/astro/voice/use-voice-mode-store";
 
 import type { DropdownType, ModelType } from "../types";
 import type { CommandInputProps } from "./command-input";
@@ -128,13 +131,24 @@ export function NasaCommandCenter() {
     await submitCommand(command.trim());
   };
 
+  const setLastInputWasVoice = useVoiceModeStore(
+    (s) => s.setLastInputWasVoice,
+  );
+
   const handleVoiceTranscript = useCallback(
     (text: string) => {
       if (!text.trim()) return;
+      // Marca a entrada como voz — usado pelo modo "match-input" do TTS
+      // pra decidir se Astro responde em áudio.
+      setLastInputWasVoice(true);
       void submitCommand(text.trim());
     },
-    [submitCommand],
+    [submitCommand, setLastInputWasVoice],
   );
+
+  // Auto-narração: quando o stream termina, narra a resposta do Astro
+  // se o modo de output permitir (match + last input por voz, ou "audio").
+  useAutoNarrate({ messages, status });
 
   const fillExample = (example: string) => {
     setCommand(example);
@@ -218,6 +232,9 @@ export function NasaCommandCenter() {
       {hasMessages && (
         <div className="border-t border-zinc-800/60 bg-[#050510]/90 backdrop-blur px-3 sm:px-4 py-3 shrink-0 relative z-10">
           <div className="max-w-3xl mx-auto">
+            <div className="mb-2 flex items-center justify-end">
+              <VoiceOutputToggle />
+            </div>
             <CommandInput {...commandInputProps} />
           </div>
         </div>
