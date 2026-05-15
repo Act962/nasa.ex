@@ -42,8 +42,31 @@ interface Proposal {
   paymentLink: string | null;
   responsibleName?: string | null;
   products: ProposalProduct[];
-  organization: { id: string; name: string; logo: string | null };
-  client: { id: string; name: string; email: string | null; phone: string | null } | null;
+  organization: {
+    id: string;
+    name: string;
+    slug: string | null;
+    logo: string | null;
+    cnpj?: string | null;
+    contactEmail?: string | null;
+    contactPhone?: string | null;
+    addressLine?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postalCode?: string | null;
+    website?: string | null;
+    bio?: string | null;
+  };
+  client: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    document?: string | null;
+    profile?: string | null;
+  } | null;
+  responsible?: { id: string; name: string; image: string | null } | null;
+  responsibleId?: string | null;
   headerConfig?: Record<string, unknown> | null;
   settings: {
     logoUrl: string | null;
@@ -51,6 +74,15 @@ interface Proposal {
     letterheadFooter: string | null;
     proposalBgColor: string;
   } | null;
+}
+
+export interface EcosystemLinks {
+  agendaUrl: string | null;
+  agendaLabel: string | null;
+  spaceHomeUrl: string | null;
+  linnkerUrl: string | null;
+  nasaRouteUrl: string | null;
+  nasaRouteCount: number;
 }
 
 // ─── Filename slug: OrgName_TituloProposita_0001 ──────────────────────────────
@@ -73,13 +105,17 @@ function TemplateRouter({
   template,
   isExpired,
   isPaid,
+  token,
+  ecosystemLinks,
 }: {
   proposal: TemplateProposal;
   template: TemplateId;
   isExpired: boolean;
   isPaid: boolean;
+  token: string;
+  ecosystemLinks: EcosystemLinks;
 }) {
-  const props = { proposal, isExpired, isPaid };
+  const props = { proposal, isExpired, isPaid, token, ecosystemLinks };
   switch (template) {
     case "clean":     return <TemplateClean     {...props} />;
     case "corporate": return <TemplateCorporate {...props} />;
@@ -91,7 +127,15 @@ function TemplateRouter({
 
 // ─── Main view ────────────────────────────────────────────────────────────────
 
-export function PublicProposalView({ proposal }: { proposal: Proposal }) {
+export function PublicProposalView({
+  proposal,
+  token,
+  ecosystemLinks,
+}: {
+  proposal: Proposal;
+  token: string;
+  ecosystemLinks: EcosystemLinks;
+}) {
   const isExpired = proposal.validUntil
     ? new Date(proposal.validUntil) < new Date()
     : false;
@@ -115,6 +159,35 @@ export function PublicProposalView({ proposal }: { proposal: Proposal }) {
     ...proposal,
     createdAt: proposal.createdAt,
     responsibleName: proposal.responsibleName ?? null,
+    organization: {
+      name: proposal.organization.name,
+      logo: proposal.organization.logo,
+      slug: proposal.organization.slug,
+      cnpj: proposal.organization.cnpj ?? null,
+      contactEmail: proposal.organization.contactEmail ?? null,
+      contactPhone: proposal.organization.contactPhone ?? null,
+      addressLine: proposal.organization.addressLine ?? null,
+      city: proposal.organization.city ?? null,
+      state: proposal.organization.state ?? null,
+      postalCode: proposal.organization.postalCode ?? null,
+      website: proposal.organization.website ?? null,
+      bio: proposal.organization.bio ?? null,
+    },
+    client: proposal.client
+      ? {
+          name: proposal.client.name,
+          email: proposal.client.email,
+          phone: proposal.client.phone,
+          document: proposal.client.document ?? null,
+          profile: proposal.client.profile ?? null,
+        }
+      : null,
+    responsible: proposal.responsible
+      ? {
+          name: proposal.responsible.name,
+          image: proposal.responsible.image,
+        }
+      : null,
   };
 
   return (
@@ -134,6 +207,8 @@ export function PublicProposalView({ proposal }: { proposal: Proposal }) {
         template={template}
         isExpired={isExpired}
         isPaid={isPaid}
+        token={token}
+        ecosystemLinks={ecosystemLinks}
       />
     </div>
   );

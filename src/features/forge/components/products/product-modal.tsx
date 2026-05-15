@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -92,6 +92,23 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
     },
   });
 
+  // `useForm` só inicializa `defaultValues` na montagem. Como o modal é
+  // mantido montado entre aberturas, precisamos sincronizar manualmente
+  // quando `product` muda (ou quando troca de "novo" pra "editar X"
+  // e vice-versa).
+  useEffect(() => {
+    if (!open) return;
+    form.reset({
+      name: product?.name ?? "",
+      sku: product?.sku ?? "",
+      unit: product?.unit ?? "un",
+      description: product?.description ?? "",
+      value: product?.value ?? "",
+      imageUrl: product?.imageUrl ?? "",
+    });
+    setImageKey(product?.imageUrl ?? "");
+  }, [open, product, form]);
+
   const onSubmit = async (data: ProductFormData) => {
     try {
       const payload = { ...data, imageUrl: imageKey || undefined };
@@ -147,7 +164,7 @@ export function ProductModal({ open, onClose, product }: ProductModalProps) {
             <div className="space-y-1.5">
               <Label>Unidade *</Label>
               <Select
-                defaultValue={form.getValues("unit")}
+                value={form.watch("unit")}
                 onValueChange={(v) => form.setValue("unit", v)}
               >
                 <SelectTrigger>
