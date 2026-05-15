@@ -1,4 +1,10 @@
-import React, { useRef, useEffect, useCallback } from "react";
+import React, {
+  useRef,
+  useEffect,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { Mic, MicOff, Plus, Send, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useVoiceInput } from "../hooks/use-voice-input";
@@ -23,20 +29,49 @@ export interface CommandInputProps {
   setDropdownSearch: (v: string) => void;
 }
 
-export function CommandInput({
-  command,
-  setCommand,
-  loading,
-  onSubmit,
-  onVoiceTranscript,
-  model,
-  setModel,
-  dropdown,
-  setDropdown,
-  dropdownSearch,
-  setDropdownSearch,
-}: CommandInputProps) {
+/**
+ * Handle imperativo expondo controle de voz pra quem detém o ref
+ * (NasaCommandCenter). Usado pra auto-continue: depois do Astro
+ * responder por voz, command-center chama startListening pra reabrir
+ * o mic sem o user precisar clicar de novo.
+ */
+export interface CommandInputHandle {
+  startListening: () => void;
+  isListening: () => boolean;
+}
+
+export const CommandInput = forwardRef<
+  CommandInputHandle,
+  CommandInputProps
+>((props, handleRef) => {
+  const {
+    command,
+    setCommand,
+    loading,
+    onSubmit,
+    onVoiceTranscript,
+    model,
+    setModel,
+    dropdown,
+    setDropdown,
+    dropdownSearch,
+    setDropdownSearch,
+  } = props;
   const { voiceState, startListening } = useVoiceInput(onVoiceTranscript);
+
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      startListening: () => {
+        // Só inicia se o browser suporta E não tá ouvindo já
+        if (voiceState !== "unsupported" && voiceState !== "listening") {
+          startListening();
+        }
+      },
+      isListening: () => voiceState === "listening",
+    }),
+    [voiceState, startListening],
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -57,6 +92,19 @@ export function CommandInput({
   useEffect(() => {
     autoResize();
   }, [command, autoResize]);
+
+  // Foco automático sempre — input do explorer fica pronto pra digitar:
+  //  - on mount (entrou na área)
+  //  - sempre que `loading` solta (acabou de receber resposta)
+  // Mantém a "vibe terminal" — usuário não precisa clicar.
+  useEffect(() => {
+    if (!loading) {
+      const t = setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(t);
+    }
+  }, [loading]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -270,4 +318,4 @@ export function CommandInput({
       </div>
     </div>
   );
-}
+});

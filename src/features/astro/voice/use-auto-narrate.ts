@@ -6,15 +6,13 @@ import { speak, cancel, isTtsSupported } from "./tts";
 import { useVoiceModeStore, shouldSpeak } from "./use-voice-mode-store";
 
 /**
- * Auto-narração das respostas finais do Astro.
+ * Auto-narração das respostas do Astro.
  *
- * Observa o array `messages` do useAstroChat. Quando o status do chat
- * volta pra "ready" (stream terminou) E a última mensagem é do assistente,
- * extrai o texto consolidado das `parts.text` e dispara TTS — mas só se
- * o modo de output permitir (audio || match+lastInputWasVoice).
+ * Quando o stream termina (status==="ready") E a última mensagem é do
+ * assistente, extrai o texto consolidado das `parts.text` e dispara TTS
+ * — mas só se o modo de output permitir (audio || match+lastInputWasVoice).
  *
- * Idempotente: usa ref do último ID + tail length narrados pra evitar
- * narrar 2× quando React re-renderiza.
+ * Idempotente: usa ref do último ID narrado pra evitar repetir.
  */
 export function useAutoNarrate(opts: {
   messages: UIMessage[];
@@ -33,13 +31,11 @@ export function useAutoNarrate(opts: {
     if (status !== "ready") return;
     if (!isTtsSupported()) return;
     if (!shouldSpeak(outputMode, lastInputWasVoice)) {
-      // Mesmo se não narrarmos esta vez, reseta o "lastInputWasVoice"
-      // pra próxima entrada começar zerada.
+      // Reset pra próxima entrada começar zerada
       if (lastInputWasVoice) setLastInputWasVoice(false);
       return;
     }
 
-    // Última mensagem do assistente.
     const lastAssistant = [...messages]
       .reverse()
       .find((m) => m.role === "assistant");
@@ -60,7 +56,7 @@ export function useAutoNarrate(opts: {
       onError: () => setSpeaking(false),
     });
 
-    // Consumiu a flag de voice — próxima entrada deve setar de novo se for por voz.
+    // Consumiu a flag — próxima entrada deve setar de novo se for voz
     if (lastInputWasVoice) setLastInputWasVoice(false);
   }, [
     messages,
@@ -71,8 +67,7 @@ export function useAutoNarrate(opts: {
     setLastInputWasVoice,
   ]);
 
-  // Quando o componente desmonta, interrompe TTS — evita Astro continuar
-  // falando depois que o usuário navegou pra outra página.
+  // Interrompe TTS quando o componente desmonta
   useEffect(() => {
     return () => {
       cancel();

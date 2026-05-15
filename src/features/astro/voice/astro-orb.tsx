@@ -231,8 +231,10 @@ export function AstroOrb() {
     try {
       if (navigator.permissions) {
         const status = await navigator.permissions.query({
-          // @ts-expect-error - 'microphone' não tá no tipo padrão mas funciona
-          name: "microphone",
+          // 'microphone' é válido em browsers modernos mas o tipo padrão
+          // do TS aceita ele desde lib.dom recente — cast pra evitar atrito
+          // entre versões.
+          name: "microphone" as PermissionName,
         });
         permState = status.state;
       }

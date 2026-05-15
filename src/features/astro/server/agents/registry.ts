@@ -3,6 +3,7 @@ import type { AgentKey } from "@/features/astro/schemas/agent-config";
 import { closerAgent } from "./closer";
 import { taskAgent } from "./task-agent";
 import { automationAgent } from "./automation-agent";
+import { analyticsAgent } from "./analytics-agent";
 import type { AgentDefinition } from "./types";
 
 /**
@@ -19,6 +20,7 @@ export const AGENTS: AgentDefinition[] = [
   closerAgent,
   taskAgent,
   automationAgent,
+  analyticsAgent,
 ];
 
 const byKey = new Map(AGENTS.map((a) => [a.key, a]));
