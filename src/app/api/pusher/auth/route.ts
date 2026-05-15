@@ -129,6 +129,31 @@ async function validatePrivateChannel(
     return Boolean(member);
   }
 
+  // private-rtc-{stationId} — WebRTC do Space Station. Só member da org
+  // que é dona da SpaceStation. Sinaliza ofertas/answers/ICE candidates
+  // entre clientes; sem auth, qualquer um espionava chamadas alheias.
+  const rtcMatch = /^private-rtc-(.+)$/.exec(channel);
+  if (rtcMatch) {
+    const stationId = rtcMatch[1]!;
+    const station = await prisma.spaceStation.findUnique({
+      where: { id: stationId },
+      select: { orgId: true, userId: true },
+    });
+    if (!station) return false;
+    // Pessoal (type=USER) → só o dono. Org station → qualquer member.
+    if (station.userId) {
+      return station.userId === userId;
+    }
+    if (station.orgId) {
+      const member = await prisma.member.findFirst({
+        where: { userId, organizationId: station.orgId },
+        select: { id: true },
+      });
+      return Boolean(member);
+    }
+    return false;
+  }
+
   // Padrão: rejeita. Novos canais devem ser adicionados explicitamente.
   return false;
 }
