@@ -15,7 +15,6 @@ import { useAstroChat } from "@/features/astro/hooks/use-astro-chat";
 import { useAstro } from "@/features/astro/components/astro-provider";
 import { AstroMessage } from "@/features/astro/components/astro-message";
 import { useAutoNarrate } from "@/features/astro/voice/use-auto-narrate";
-import { VoiceOutputToggle } from "@/features/astro/voice/voice-output-toggle";
 import { useVoiceModeStore } from "@/features/astro/voice/use-voice-mode-store";
 import { useAstroOrbStore } from "@/features/astro/voice/use-astro-orb-store";
 import { SlashComposer } from "@/features/astro/composer/slash-composer";
@@ -23,7 +22,7 @@ import { MessageSquare, SquareSlash } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 import type { DropdownType, ModelType } from "../types";
-import type { CommandInputProps } from "./command-input";
+import type { CommandInputHandle, CommandInputProps } from "./command-input";
 import { StarField } from "./star-field";
 import { WelcomeScreen } from "./welcome-screen";
 import { ThinkingDisplay } from "./thinking-display";
@@ -37,6 +36,19 @@ import { CommandInput } from "./command-input";
  * orquestrador via `useAstroChat`. Sessões são listadas/restauradas via oRPC
  * `astro.sessions.*`.
  */
+
+/**
+ * Labels amigáveis quando o orchestrator delega pra um sub-agente.
+ * Chave: agentKey snake_case (matches `route_to_${key.replace(/-/g, "_")}`).
+ * Fallback: "Explorando no universo NASA" pra qualquer agente novo.
+ */
+const ROUTE_AGENT_LABELS: Record<string, string> = {
+  closer: "Pensando na melhor resposta…",
+  task_agent: "Organizando suas tarefas no espaço…",
+  automation_agent: "Configurando automação na nave…",
+  analytics_agent: "Explorando no universo NASA…",
+};
+
 export function NasaCommandCenter() {
   const [command, setCommand] = useState("");
   const [dropdown, setDropdown] = useState<DropdownType>(null);
@@ -48,6 +60,7 @@ export function NasaCommandCenter() {
   // fica para iteração futura.
   const [model, setModel] = useState<ModelType>("astro");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const commandInputRef = useRef<CommandInputHandle>(null);
   const queryClient = useQueryClient();
   const { setSessionId } = useAstro();
 
@@ -156,6 +169,29 @@ export function NasaCommandCenter() {
   // se o modo de output permitir (match + last input por voz, ou "audio").
   useAutoNarrate({ messages, status });
 
+  // ── Auto-continue do mic: conversa contínua ─────────────────────────
+  // Quando user faz pedido por voz, Astro responde e narra. Assim que o
+  // TTS termina (isSpeaking volta a false) E a última entrada foi voz,
+  // o mic reabre automaticamente — user não precisa apertar o botão a
+  // cada turno. Sai do loop quando user digitar ou cancelar manualmente.
+  const isSpeaking = useVoiceModeStore((s) => s.isSpeaking);
+  const lastInputWasVoiceFlag = useVoiceModeStore(
+    (s) => s.lastInputWasVoice,
+  );
+  const prevSpeakingRef = useRef(false);
+  useEffect(() => {
+    const wasSpeaking = prevSpeakingRef.current;
+    prevSpeakingRef.current = isSpeaking;
+    // Trigger só na borda "speaking → not speaking" (TTS acabou agora)
+    if (wasSpeaking && !isSpeaking && lastInputWasVoiceFlag) {
+      // Pequeno delay pra Web Speech assentar antes de reabrir o mic
+      const t = setTimeout(() => {
+        commandInputRef.current?.startListening();
+      }, 250);
+      return () => clearTimeout(t);
+    }
+  }, [isSpeaking, lastInputWasVoiceFlag]);
+
   // ── Wake word integration ──────────────────────────────────────────
   // O AstroOrb (montado globalmente em platform-providers) captura
   // utterance após detectar "ASTRO" e grava em:
@@ -212,8 +248,8 @@ export function NasaCommandCenter() {
   const loading = status === "streaming" || status === "submitted";
 
   // Steps "thinking": deriva das tool-parts ainda em execução na última msg
-  // do assistente. Mantém o ThinkingDisplay alimentado por dados reais sem
-  // mudar o componente visual.
+  // do assistente. Tools `route_to_*` (delegação pro sub-agente) ganham
+  // label amigável + foguete animado em vez do nome cru.
   const thinkingSteps = useMemo(() => {
     if (!loading) return [];
     const last = [...messages].reverse().find((m) => m.role === "assistant");
@@ -224,7 +260,20 @@ export function NasaCommandCenter() {
         const state = (p as { state?: string }).state;
         return state === "input-streaming" || state === "input-available";
       })
-      .map((p) => `Executando ${p.type.replace(/^tool-/, "")}…`);
+      .map((p) => {
+        const toolName = p.type.replace(/^tool-/, "");
+        // Detecta delegação pra sub-agente (route_to_X) e mostra com tema
+        // de exploração NASA + foguete animado.
+        const routeMatch = /^route_to_(.+)$/.exec(toolName);
+        if (routeMatch) {
+          const agentKey = routeMatch[1]!;
+          return {
+            label: ROUTE_AGENT_LABELS[agentKey] ?? "Explorando no universo NASA",
+            mode: "rocket" as const,
+          };
+        }
+        return `Executando ${toolName}…`;
+      });
     return inflight.length ? inflight : ["Pensando…"];
   }, [messages, loading]);
 
@@ -269,9 +318,29 @@ export function NasaCommandCenter() {
           />
         ) : (
           <div className="max-w-3xl mx-auto px-3 sm:px-4 pt-4 pb-4 space-y-2">
-            {messages.map((msg) => (
-              <AstroMessage key={msg.id} message={msg} />
-            ))}
+            {(() => {
+              // Somatória cumulativa de tokens por mensagem assistant.
+              // Cada AstroMessage recebe o total da sessão até ele (não só
+              // os tokens da requisição que gerou aquela resposta).
+              let runningTotal = 0;
+              return messages.map((msg) => {
+                const msgTokens =
+                  (msg as { metadata?: { tokens?: number } }).metadata
+                    ?.tokens ?? 0;
+                if (msg.role === "assistant" && msgTokens > 0) {
+                  runningTotal += msgTokens;
+                }
+                return (
+                  <AstroMessage
+                    key={msg.id}
+                    message={msg}
+                    cumulativeTokens={
+                      msg.role === "assistant" ? runningTotal : undefined
+                    }
+                  />
+                );
+              });
+            })()}
             {loading && <ThinkingDisplay steps={thinkingSteps} />}
             {error && (
               <div className="rounded-md bg-destructive/10 p-2 text-xs text-destructive">
@@ -286,9 +355,11 @@ export function NasaCommandCenter() {
       {hasMessages && (
         <div className="border-t border-zinc-800/60 bg-[#050510]/90 backdrop-blur px-3 sm:px-4 py-3 shrink-0 relative z-10">
           <div className="max-w-3xl mx-auto">
-            <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="mb-2 flex items-center justify-start gap-2">
               <ModeToggle mode={inputMode} onChange={setInputMode} />
-              <VoiceOutputToggle />
+              {/* VoiceOutputToggle removido — voz é controlada pelo AstroOrb
+                  (canto inferior direito). Modo "match-input" continua ativo
+                  como default via useVoiceModeStore. */}
             </div>
             {inputMode === "composer" ? (
               <SlashComposer
@@ -296,7 +367,7 @@ export function NasaCommandCenter() {
                 onSubmit={(prompt) => void submitCommand(prompt)}
               />
             ) : (
-              <CommandInput {...commandInputProps} />
+              <CommandInput {...commandInputProps} ref={commandInputRef} />
             )}
           </div>
         </div>

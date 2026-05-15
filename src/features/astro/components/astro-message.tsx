@@ -25,7 +25,18 @@ import {
  *
  * Não tenta ser exaustivo (file/source/data parts ficam sem render no MVP).
  */
-export function AstroMessage({ message }: { message: UIMessage }) {
+export function AstroMessage({
+  message,
+  cumulativeTokens,
+}: {
+  message: UIMessage;
+  /**
+   * Total acumulado de tokens da sessão até (e incluindo) esta mensagem.
+   * Passado pelo parent que itera todas as mensagens — assim o footer
+   * mostra a somatória, não só a requisição atual.
+   */
+  cumulativeTokens?: number;
+}) {
   const isUser = message.role === "user";
 
   return (
@@ -43,8 +54,8 @@ export function AstroMessage({ message }: { message: UIMessage }) {
               className={cn(
                 "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm",
                 isUser
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-foreground",
+                  ? "bg-transparent text-white"
+                  : "bg-blue-500/10 text-blue-300",
               )}
             >
               {part.text}
@@ -64,11 +75,33 @@ export function AstroMessage({ message }: { message: UIMessage }) {
         }
 
         if (isToolUIPart(part)) {
+          // Tools de roteamento pra sub-agente são representadas pelo
+          // foguete + label no ThinkingDisplay. Esconde o chip cru aqui
+          // pra não duplicar info e poluir a conversa.
+          const toolName =
+            part.type === "dynamic-tool"
+              ? ((part as { toolName?: string }).toolName ?? "")
+              : part.type.replace(/^tool-/, "");
+          if (toolName.startsWith("route_to_")) {
+            return null;
+          }
           return <ToolPart key={idx} part={part} />;
         }
 
         return null;
       })}
+
+      {/* Token counter no rodapé das respostas do assistant (silencioso —
+          sem mostrar valor em Stars; cobrança é debitada server-side).
+          Mostra somatória acumulada da sessão até esta mensagem, não só
+          o gasto da requisição atual. */}
+      {!isUser &&
+        typeof cumulativeTokens === "number" &&
+        cumulativeTokens > 0 && (
+          <span className="text-[10px] text-muted-foreground/60 px-1">
+            {cumulativeTokens.toLocaleString("pt-BR")} tokens
+          </span>
+        )}
     </div>
   );
 }

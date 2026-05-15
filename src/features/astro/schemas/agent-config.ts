@@ -6,6 +6,7 @@ export const AGENT_KEYS = [
   "closer",
   "task-agent",
   "automation-agent",
+  "analytics-agent",
 ] as const;
 export type AgentKey = (typeof AGENT_KEYS)[number];
 
