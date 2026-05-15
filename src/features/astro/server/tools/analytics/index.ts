@@ -3,7 +3,6 @@ import { tool } from "ai";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
-import { userBelongsToOrg } from "@/features/astro/server/tools/_shared/permissions";
 
 /**
  * Tools de ANALYTICS pro Astro responder perguntas sobre indicadores
@@ -65,9 +64,9 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           return { error: "Sem acesso a nenhuma organização" };
         }
 
-        // Member sem privilégio só vê próprios dados
-        const isMemberOnly = memberships.every((m) => m.role === "member");
-        const userFilter = isMemberOnly ? [ctx.userId] : userIds;
+        // Todos os membros da org veem os dados da org — só usa `userIds`
+        // se o caller filtrou explicitamente.
+        const userFilter = userIds;
 
         const from = fromIso
           ? new Date(fromIso)
@@ -227,9 +226,6 @@ export function buildAnalyticsTools(ctx: AgentContext) {
             : myOrgIds;
         if (targetOrgs.length === 0) {
           return { error: "Sem acesso a nenhuma organização" };
-        }
-        if (!(await userBelongsToOrg(ctx.userId, targetOrgs[0]!))) {
-          return { error: "Sem acesso" };
         }
 
         const from = fromIso
