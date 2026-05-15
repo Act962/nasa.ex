@@ -231,9 +231,8 @@ export function AstroOrb() {
     try {
       if (navigator.permissions) {
         const status = await navigator.permissions.query({
-          // 'microphone' é válido em browsers modernos mas o tipo padrão
-          // do TS aceita ele desde lib.dom recente — cast pra evitar atrito
-          // entre versões.
+          // 'microphone' não consta no PermissionName padrão em alguns lib.dom,
+          // mas é amplamente suportado (Chrome/Edge/Firefox).
           name: "microphone" as PermissionName,
         });
         permState = status.state;
