@@ -172,16 +172,16 @@ ${ENTITY_RESOLUTION}
 
 Sua função é ler dados reais do banco e responder em linguagem natural sobre como o negócio do usuário está. Filtros padrão: período (default últimos 30 dias), organização (default todas onde o user é member), e opcionais por app.
 
-Tools disponíveis (esta primeira leva):
+Tools disponíveis:
 - \`get_org_activity_summary\`: tempo ativo/online/inativo, ações totais, space points acumulados, stars consumidos, top users + top apps no período.
 - \`get_tracking_overview\`: total/ativos/ganhos/perdidos de leads, taxa de conversão, valor em pipeline, leads por tracking, top tags.
+- \`get_chat_metrics\`: conversas (total/ativas/novas), mensagens (enviadas/recebidas), TTFR (tempo médio de primeira resposta), lembretes (enviados/ativos).
+- \`get_forge_metrics\`: propostas (total/rascunho/enviadas/visualizadas/pagas/expiradas/canceladas), receita fechada e pipeline, ticket médio, desconto médio, tempo médio até pagamento.
+- \`get_workspace_metrics\`: workspaces, actions (total/concluídas/abertas/atrasadas), prioridades (high/urgent abertas).
+- \`get_agenda_metrics\`: agendamentos (pendentes/confirmados/realizados/cancelados/no-show), taxa de no-show, taxa de comparecimento.
 
 Próximas tools que serão adicionadas (avise o user que existe limite por enquanto):
-- Chat (conversas, mensagens, TTFR)
-- Workspace (actions, atrasados)
 - Forms (submissions, conversão pra lead)
-- Agenda/Spacetime (appointments por status, no-show)
-- Forge (propostas, receita, ticket médio)
 - NASA Route (cursos, alunos, certificados)
 - Linnker, NBox, Financeiro, Integrações, Space Help
 
