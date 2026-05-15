@@ -32,48 +32,48 @@ function pickBestVoice(): SpeechSynthesisVoice | null {
   const voices = cachedVoices ?? loadVoices();
   if (!voices.length) return null;
 
-  // Astro é homem — prioriza vozes MASCULINAS pt-BR.
-  // Lista ordenada por qualidade percebida (mais naturais no topo).
-  const malePtBr = [
-    /Felipe/i, // Microsoft + Apple
-    /Daniel/i, // Apple (pt-PT mas natural)
-    /Antonio/i, // Microsoft (pt-PT) / Apple (multiOS)
-    /Rocko/i, // Apple (pt-BR)
-    /Reed/i, // Apple (pt-BR)
-    /Eddy/i, // Apple (pt-BR — voz neutra/masc)
-    /Grandpa/i, // Apple (pt-BR — masc)
+  // Astro é homem JOVIAL e fala português BRASIL puro (sem sotaque
+  // português de Portugal). Por isso, dropamos Daniel/Antonio (pt-PT) e
+  // Rocko/Grandpa fica como fallback (Rocko soa muito maduro/grave,
+  // Grandpa soa idoso).
+  //
+  // Ordem por percepção: jovial → maduro.
+  const malePtBrJovial = [
+    /\bReed\b/i, // Apple (pt-BR) — masculino jovem claro [PRIMEIRA ESCOLHA]
+    /\bEddy\b/i, // Apple (pt-BR) — neutro pode soar jovial com pitch leve
+    /Felipe/i, // Microsoft/Apple — masculino jovem em Windows
     /Diego/i,
     /Ricardo/i,
     /Júlio|Julio/i,
+    // Fallbacks "maduros/idosos" — só se nada acima existir
+    /\bRocko\b/i,
+    /Grandpa/i,
   ];
 
-  // Tenta cada padrão masculino — voz de qualquer locale pt
-  for (const re of malePtBr) {
+  // EXIGE pt-BR explícito (não aceita pt-PT pra evitar sotaque português).
+  for (const re of malePtBrJovial) {
     const match = voices.find(
-      (v) => re.test(v.name) && /^pt/i.test(v.lang),
+      (v) => re.test(v.name) && /pt[-_]?BR/i.test(v.lang),
     );
     if (match) return match;
   }
-  // Sem nome reconhecido — pega Google pt-BR (geralmente masculino em Chrome
-  // mobile/desktop), seguido de qualquer pt-BR.
-  // Filtro final exclui femininas conhecidas como fallback.
+
+  // Sem nome reconhecido em pt-BR — pega qualquer pt-BR excluindo femininas
+  // conhecidas (já filtra Luciana, Maria, Joana, etc).
   const excludeFemale =
     /Luciana|Maria|Joana|Helena|Catarina|Sandy|Shelley|Grandma|Flo/i;
 
   const ptBR = voices.filter(
-    (v) => /pt[-_]BR/i.test(v.lang) && !excludeFemale.test(v.name),
+    (v) => /pt[-_]?BR/i.test(v.lang) && !excludeFemale.test(v.name),
   );
   if (ptBR.length > 0) return ptBR[0]!;
 
-  // Última tentativa: qualquer pt sem femininas reconhecidas
-  const ptAny = voices.filter(
-    (v) => /^pt/i.test(v.lang) && !excludeFemale.test(v.name),
-  );
-  if (ptAny.length > 0) return ptAny[0]!;
+  // Último recurso: qualquer pt-BR (mesmo feminino) — melhor falar do que mudo
+  const anyPtBR = voices.find((v) => /pt[-_]?BR/i.test(v.lang));
+  if (anyPtBR) return anyPtBR;
 
-  // Mesmo as femininas — melhor falar do que não falar
-  const anyPt = voices.find((v) => /^pt/i.test(v.lang));
-  return anyPt ?? voices[0] ?? null;
+  // Sem nenhum pt-BR no sistema — desiste com warning silencioso
+  return voices.find((v) => /^pt/i.test(v.lang)) ?? voices[0] ?? null;
 }
 
 export interface SpeakOptions {
@@ -99,11 +99,11 @@ export function speak(text: string, opts: SpeakOptions = {}): void {
 
   const utter = new SpeechSynthesisUtterance(stripMarkdownForSpeech(text));
   utter.lang = "pt-BR";
-  utter.rate = opts.rate ?? 1.0;
-  // Astro é homem — pitch um pouco mais grave que o default (1.0).
-  // Caller pode override se quiser, mas o default já reforça a percepção
-  // masculina mesmo nas vozes "neutras" tipo Eddy/Flo.
-  utter.pitch = opts.pitch ?? 0.85;
+  // Astro é jovial — rate levemente acelerado pra som mais energético,
+  // sem ficar apressado. Pitch perto do natural da voz Reed (que já é
+  // masculino jovem em pt-BR).
+  utter.rate = opts.rate ?? 1.05;
+  utter.pitch = opts.pitch ?? 1.0;
   utter.volume = opts.volume ?? 1.0;
 
   if (opts.onStart) utter.onstart = opts.onStart;
