@@ -14,6 +14,12 @@
 import { ShoppingCart, CheckCircle2, Zap, Star, ExternalLink } from "lucide-react";
 import DOMPurify from "isomorphic-dompurify";
 import { cn } from "@/lib/utils";
+import { useConstructUrl as constructUrl } from "@/hooks/use-construct-url";
+import { IdentityBlock } from "./parts/identity-block";
+import { CompanyInfoBlock } from "./parts/company-info-block";
+import { EcosystemLinksBlock } from "./parts/ecosystem-links-block";
+import { AcceptButton } from "./parts/accept-button";
+import { NasaPoweredBy } from "./parts/nasa-powered-by";
 
 const sanitizeDescription = (html: string) => DOMPurify.sanitize(html);
 
@@ -56,14 +62,43 @@ export interface TemplateProposal {
   createdAt?: string | null;
   responsibleName?: string | null;
   products: TemplateProduct[];
-  organization: { name: string; logo: string | null };
-  client: { name: string; email: string | null; phone: string | null } | null;
+  organization: {
+    name: string;
+    logo: string | null;
+    slug?: string | null;
+    cnpj?: string | null;
+    contactEmail?: string | null;
+    contactPhone?: string | null;
+    addressLine?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postalCode?: string | null;
+    website?: string | null;
+    bio?: string | null;
+  };
+  client: {
+    name: string;
+    email: string | null;
+    phone: string | null;
+    document?: string | null;
+    profile?: string | null;
+  } | null;
+  responsible?: { name: string; image: string | null } | null;
   settings: {
     logoUrl: string | null;
     letterheadHeader: string | null;
     letterheadFooter: string | null;
     proposalBgColor: string;
   } | null;
+}
+
+export interface TemplateEcosystemLinks {
+  agendaUrl: string | null;
+  agendaLabel: string | null;
+  spaceHomeUrl: string | null;
+  linnkerUrl: string | null;
+  nasaRouteUrl: string | null;
+  nasaRouteCount: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -157,10 +192,14 @@ export function TemplateModern({
   proposal,
   isExpired,
   isPaid,
+  token,
+  ecosystemLinks,
 }: {
   proposal: TemplateProposal;
   isExpired: boolean;
   isPaid: boolean;
+  token: string;
+  ecosystemLinks: TemplateEcosystemLinks;
 }) {
   const { total, subtotal, discountAmount } = calcTotals(proposal);
   const logo = proposal.settings?.logoUrl ?? proposal.organization.logo;
@@ -211,17 +250,32 @@ export function TemplateModern({
             </p>
           )}
           {proposal.validUntil && (
-            <p className="text-slate-500 text-xs">
+            <p className="text-slate-500 text-sm">
               Válida até {new Date(proposal.validUntil).toLocaleDateString("pt-BR")}
             </p>
           )}
         </div>
       </div>
 
+      {/* Identity */}
+      <IdentityBlock
+        responsible={
+          proposal.responsible
+            ? { name: proposal.responsible.name, imageKey: proposal.responsible.image }
+            : null
+        }
+        client={
+          proposal.client
+            ? { name: proposal.client.name, imageKey: proposal.client.profile }
+            : null
+        }
+        variant="dark"
+      />
+
       {/* Description */}
       {proposal.description && (
         <div
-          className="max-w-3xl mx-auto px-8 py-8 text-slate-300 text-sm leading-relaxed whitespace-pre-wrap"
+          className="max-w-3xl mx-auto px-8 py-8 text-slate-300 text-base leading-relaxed whitespace-pre-wrap"
           dangerouslySetInnerHTML={{ __html: sanitizeDescription(proposal.description) }}
         />
       )}
@@ -233,11 +287,11 @@ export function TemplateModern({
             O que está incluído
           </p>
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-              gap: "16px",
-            }}
+            className={cn(
+              proposal.products.length === 1
+                ? "flex justify-center"
+                : "flex flex-wrap justify-center gap-4",
+            )}
           >
             {proposal.products.map((pp) => {
               const lineTotal =
@@ -245,12 +299,17 @@ export function TemplateModern({
               return (
                 <div
                   key={pp.id}
-                  className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col forge-avoid-break"
+                  className={cn(
+                    "bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col forge-avoid-break",
+                    proposal.products.length === 1
+                      ? "w-full md:w-1/2"
+                      : "w-full sm:w-[260px] md:w-[300px]",
+                  )}
                 >
                   {/* Product image — always rendered, prominent */}
                   {pp.product.imageUrl ? (
                     <img
-                      src={pp.product.imageUrl}
+                      src={constructUrl(pp.product.imageUrl)}
                       alt={pp.product.name}
                       style={{
                         width: "100%",
@@ -267,11 +326,11 @@ export function TemplateModern({
                   )}
                   <div className="p-5 flex-1 flex flex-col gap-3">
                     <div className="flex-1">
-                      <p className="font-bold text-base">{pp.product.name}</p>
-                      <p className="text-slate-400 text-xs mt-1 leading-relaxed">
+                      <p className="font-bold text-lg">{pp.product.name}</p>
+                      <p className="text-slate-400 text-sm mt-1.5 leading-relaxed">
                         {pp.description ?? pp.product.description}
                       </p>
-                      <p className="text-slate-600 text-xs mt-1">
+                      <p className="text-slate-600 text-xs mt-1.5">
                         {Number(pp.quantity).toLocaleString("pt-BR")} {pp.product.unit}
                       </p>
                     </div>
@@ -328,6 +387,24 @@ export function TemplateModern({
         </div>
       </div>
 
+      {/* Aceitar proposta */}
+      <AcceptButton
+        token={token}
+        client={proposal.client}
+        isExpired={isExpired}
+        isPaid={isPaid}
+        variant="dark"
+      />
+
+      {/* Sobre a empresa */}
+      <CompanyInfoBlock organization={proposal.organization} variant="dark" />
+
+      {/* Ecosystem links */}
+      <EcosystemLinksBlock links={ecosystemLinks} variant="dark" />
+
+      {/* Powered by NASA */}
+      <NasaPoweredBy variant="dark" />
+
       {/* Screen footer */}
       <div className="border-t border-slate-800 px-8 py-4 text-center text-xs text-slate-600 forge-no-print">
         {proposal.organization.name} · Proposta gerada via FORGE · N.A.S.A®
@@ -342,10 +419,14 @@ export function TemplateClean({
   proposal,
   isExpired,
   isPaid,
+  token,
+  ecosystemLinks,
 }: {
   proposal: TemplateProposal;
   isExpired: boolean;
   isPaid: boolean;
+  token: string;
+  ecosystemLinks: TemplateEcosystemLinks;
 }) {
   const { total, subtotal, discountAmount } = calcTotals(proposal);
   const logo = proposal.settings?.logoUrl ?? proposal.organization.logo;
@@ -411,9 +492,31 @@ export function TemplateClean({
           )}
         </div>
 
+        {/* Identity */}
+        <IdentityBlock
+          responsible={
+            proposal.responsible
+              ? { name: proposal.responsible.name, imageKey: proposal.responsible.image }
+              : null
+          }
+          client={
+            proposal.client
+              ? { name: proposal.client.name, imageKey: proposal.client.profile }
+              : null
+          }
+          variant="light"
+        />
+
         {/* Products */}
         {proposal.products.length > 0 && (
-          <div className="px-10 pb-8 space-y-4">
+          <div
+            className={cn(
+              "px-10 pb-8",
+              proposal.products.length === 1
+                ? "flex flex-col items-center gap-4"
+                : "space-y-4",
+            )}
+          >
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
               Itens da proposta
             </p>
@@ -423,12 +526,15 @@ export function TemplateClean({
               return (
                 <div
                   key={pp.id}
-                  className="border border-gray-100 rounded-xl overflow-hidden forge-avoid-break"
+                  className={cn(
+                    "border border-gray-100 rounded-xl overflow-hidden forge-avoid-break",
+                    proposal.products.length === 1 ? "w-full md:w-1/2" : "w-full",
+                  )}
                 >
                   {/* Product image (full-width strip) */}
                   {pp.product.imageUrl && (
                     <img
-                      src={pp.product.imageUrl}
+                      src={constructUrl(pp.product.imageUrl)}
                       alt={pp.product.name}
                       style={{
                         width: "100%",
@@ -500,6 +606,24 @@ export function TemplateClean({
           )}
         </div>
 
+        {/* Aceitar proposta */}
+        <AcceptButton
+          token={token}
+          client={proposal.client}
+          isExpired={isExpired}
+          isPaid={isPaid}
+          variant="light"
+        />
+
+        {/* Sobre a empresa */}
+        <CompanyInfoBlock organization={proposal.organization} variant="light" />
+
+        {/* Ecosystem links */}
+        <EcosystemLinksBlock links={ecosystemLinks} variant="light" />
+
+        {/* Powered by NASA */}
+        <NasaPoweredBy variant="light" />
+
         <div className="border-t px-10 py-4 text-xs text-gray-300 text-center forge-no-print">
           {proposal.organization.name} · FORGE · N.A.S.A®
         </div>
@@ -514,10 +638,14 @@ export function TemplateCorporate({
   proposal,
   isExpired,
   isPaid,
+  token,
+  ecosystemLinks,
 }: {
   proposal: TemplateProposal;
   isExpired: boolean;
   isPaid: boolean;
+  token: string;
+  ecosystemLinks: TemplateEcosystemLinks;
 }) {
   const { total, subtotal, discountAmount } = calcTotals(proposal);
   const logo = proposal.settings?.logoUrl ?? proposal.organization.logo;
@@ -598,10 +726,31 @@ export function TemplateCorporate({
           )}
         </div>
 
+        {/* Identity */}
+        <IdentityBlock
+          responsible={
+            proposal.responsible
+              ? { name: proposal.responsible.name, imageKey: proposal.responsible.image }
+              : null
+          }
+          client={
+            proposal.client
+              ? { name: proposal.client.name, imageKey: proposal.client.profile }
+              : null
+          }
+          variant="light"
+        />
+
         {/* Products — card per item with image */}
         {proposal.products.length > 0 && (
-          <div className="space-y-4">
-            <div className="bg-slate-50 rounded-xl border border-slate-200 px-8 py-3">
+          <div
+            className={cn(
+              proposal.products.length === 1
+                ? "flex flex-col items-center gap-4"
+                : "space-y-4",
+            )}
+          >
+            <div className="bg-slate-50 rounded-xl border border-slate-200 px-8 py-3 w-full">
               <p className="font-semibold text-slate-700 text-sm">Produtos e Serviços</p>
             </div>
             {proposal.products.map((pp, i) => {
@@ -610,12 +759,15 @@ export function TemplateCorporate({
               return (
                 <div
                   key={pp.id}
-                  className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm forge-avoid-break"
+                  className={cn(
+                    "bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm forge-avoid-break",
+                    proposal.products.length === 1 ? "w-full md:w-1/2" : "w-full",
+                  )}
                 >
                   {/* Product image */}
                   {pp.product.imageUrl && (
                     <img
-                      src={pp.product.imageUrl}
+                      src={constructUrl(pp.product.imageUrl)}
                       alt={pp.product.name}
                       style={{
                         width: "100%",
@@ -696,6 +848,24 @@ export function TemplateCorporate({
             </a>
           )}
         </div>
+
+        {/* Aceitar proposta */}
+        <AcceptButton
+          token={token}
+          client={proposal.client}
+          isExpired={isExpired}
+          isPaid={isPaid}
+          variant="light"
+        />
+
+        {/* Sobre a empresa */}
+        <CompanyInfoBlock organization={proposal.organization} variant="light" />
+
+        {/* Ecosystem links */}
+        <EcosystemLinksBlock links={ecosystemLinks} variant="light" />
+
+        {/* Powered by NASA */}
+        <NasaPoweredBy variant="light" />
       </div>
 
       <div className="text-center text-xs text-slate-400 pb-8 forge-no-print">
@@ -711,10 +881,14 @@ export function TemplateBold({
   proposal,
   isExpired,
   isPaid,
+  token,
+  ecosystemLinks,
 }: {
   proposal: TemplateProposal;
   isExpired: boolean;
   isPaid: boolean;
+  token: string;
+  ecosystemLinks: TemplateEcosystemLinks;
 }) {
   const { total, discountAmount } = calcTotals(proposal);
   const logo = proposal.settings?.logoUrl ?? proposal.organization.logo;
@@ -783,21 +957,45 @@ export function TemplateBold({
           )}
         </div>
 
+        {/* Identity */}
+        <IdentityBlock
+          responsible={
+            proposal.responsible
+              ? { name: proposal.responsible.name, imageKey: proposal.responsible.image }
+              : null
+          }
+          client={
+            proposal.client
+              ? { name: proposal.client.name, imageKey: proposal.client.profile }
+              : null
+          }
+          variant="dark"
+        />
+
         {/* Products */}
         {proposal.products.length > 0 && (
-          <div className="space-y-6">
+          <div
+            className={cn(
+              proposal.products.length === 1
+                ? "flex flex-col items-center gap-6"
+                : "space-y-6",
+            )}
+          >
             {proposal.products.map((pp, i) => {
               const lineTotal =
                 Number(pp.quantity) * Number(pp.unitValue) - Number(pp.discount ?? 0);
               return (
                 <div
                   key={pp.id}
-                  className="border border-gray-800 rounded-2xl overflow-hidden forge-avoid-break"
+                  className={cn(
+                    "border border-gray-800 rounded-2xl overflow-hidden forge-avoid-break",
+                    proposal.products.length === 1 ? "w-full md:w-1/2" : "w-full",
+                  )}
                 >
                   {/* Product image */}
                   {pp.product.imageUrl && (
                     <img
-                      src={pp.product.imageUrl}
+                      src={constructUrl(pp.product.imageUrl)}
                       alt={pp.product.name}
                       style={{
                         width: "100%",
@@ -878,6 +1076,24 @@ export function TemplateBold({
             </a>
           )}
         </div>
+
+        {/* Aceitar proposta */}
+        <AcceptButton
+          token={token}
+          client={proposal.client}
+          isExpired={isExpired}
+          isPaid={isPaid}
+          variant="dark"
+        />
+
+        {/* Sobre a empresa */}
+        <CompanyInfoBlock organization={proposal.organization} variant="dark" />
+
+        {/* Ecosystem links */}
+        <EcosystemLinksBlock links={ecosystemLinks} variant="dark" />
+
+        {/* Powered by NASA */}
+        <NasaPoweredBy variant="dark" />
       </div>
 
       <div className="border-t border-gray-900 text-center text-xs text-gray-700 py-4 forge-no-print">
@@ -893,10 +1109,14 @@ export function TemplatePremium({
   proposal,
   isExpired,
   isPaid,
+  token,
+  ecosystemLinks,
 }: {
   proposal: TemplateProposal;
   isExpired: boolean;
   isPaid: boolean;
+  token: string;
+  ecosystemLinks: TemplateEcosystemLinks;
 }) {
   const { total, subtotal, discountAmount } = calcTotals(proposal);
   const logo = proposal.settings?.logoUrl ?? proposal.organization.logo;
@@ -977,22 +1197,46 @@ export function TemplatePremium({
           )}
         </div>
 
+        {/* Identity */}
+        <IdentityBlock
+          responsible={
+            proposal.responsible
+              ? { name: proposal.responsible.name, imageKey: proposal.responsible.image }
+              : null
+          }
+          client={
+            proposal.client
+              ? { name: proposal.client.name, imageKey: proposal.client.profile }
+              : null
+          }
+          variant="dark"
+        />
+
         {/* Products */}
         {proposal.products.length > 0 && (
-          <div className="space-y-4">
-            <p className="text-yellow-700/60 text-xs uppercase tracking-widest">Itens</p>
+          <div
+            className={cn(
+              proposal.products.length === 1
+                ? "flex flex-col items-center gap-4"
+                : "space-y-4",
+            )}
+          >
+            <p className="text-yellow-700/60 text-xs uppercase tracking-widest w-full">Itens</p>
             {proposal.products.map((pp) => {
               const lineTotal =
                 Number(pp.quantity) * Number(pp.unitValue) - Number(pp.discount ?? 0);
               return (
                 <div
                   key={pp.id}
-                  className="border border-stone-800 rounded-xl overflow-hidden bg-stone-900/40 forge-avoid-break"
+                  className={cn(
+                    "border border-stone-800 rounded-xl overflow-hidden bg-stone-900/40 forge-avoid-break",
+                    proposal.products.length === 1 ? "w-full md:w-1/2" : "w-full",
+                  )}
                 >
                   {/* Product image */}
                   {pp.product.imageUrl && (
                     <img
-                      src={pp.product.imageUrl}
+                      src={constructUrl(pp.product.imageUrl)}
                       alt={pp.product.name}
                       style={{
                         width: "100%",
@@ -1071,6 +1315,25 @@ export function TemplatePremium({
             </a>
           )}
         </div>
+
+        {/* Aceitar proposta */}
+        <AcceptButton
+          token={token}
+          client={proposal.client}
+          isExpired={isExpired}
+          isPaid={isPaid}
+          variant="dark"
+          accentClassName="bg-gradient-to-r from-yellow-600 to-amber-700 hover:brightness-110 text-black shadow-lg shadow-yellow-900/30"
+        />
+
+        {/* Sobre a empresa */}
+        <CompanyInfoBlock organization={proposal.organization} variant="dark" />
+
+        {/* Ecosystem links */}
+        <EcosystemLinksBlock links={ecosystemLinks} variant="dark" />
+
+        {/* Powered by NASA */}
+        <NasaPoweredBy variant="dark" />
       </div>
 
       <div className="h-0.5 bg-gradient-to-r from-transparent via-yellow-800/50 to-transparent" />

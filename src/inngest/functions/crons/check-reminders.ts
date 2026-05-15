@@ -240,6 +240,21 @@ export const processReminder = inngest.createFunction(
         ),
       );
 
+      // Alert engine — aditivo. Permite que o user configure regras
+      // específicas pra `agenda.reminder_fired` com severidade/canal
+      // diferente (ex: WhatsApp + popup crítico pra lembretes VIP).
+      // O createNotification acima continua disparando a notif passiva
+      // padrão pra retrocompat.
+      await step.run("alert-engine-reminder-fired", async () => {
+        const { eventBus } = await import("@/features/alerts/lib/event-bus");
+        await eventBus.publish("agenda.reminder_fired", {
+          actionId: action.id,
+          reminderId: fresh.id,
+          orgId: action.organizationId ?? "",
+          participantUserIds: targetIds,
+        });
+      });
+
       sent = true;
     }
 

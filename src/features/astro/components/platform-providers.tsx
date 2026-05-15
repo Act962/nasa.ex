@@ -6,6 +6,9 @@ import { AstroAgent } from "./astro-agent";
 import { AstroProvider } from "./astro-provider";
 import { HeartbeatProvider } from "@/components/heartbeat-provider";
 import { SpacePointProvider } from "@/features/space-point";
+import { AlertProvider } from "@/features/alerts/components/alert-provider";
+import { AstroOrb } from "@/features/astro/voice/astro-orb";
+import { CmdkPalette } from "@/features/astro/composer/cmdk-palette";
 import { TourProvider } from "@/features/tour/context";
 import { TourOverlay } from "@/features/tour/overlay";
 import { useGlobalShortcuts } from "@/features/admin/components/shortcuts-client";
@@ -30,11 +33,13 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
       <TourProvider>
         <MarketplaceProvider>
           <SpacePointProvider>
-            <AstroProvider>
-              {children}
-              <TourOverlay />
-              <HeartbeatProvider />
-            </AstroProvider>
+            <AlertProvider>
+              <AstroProvider>
+                {children}
+                <TourOverlay />
+                <HeartbeatProvider />
+              </AstroProvider>
+            </AlertProvider>
           </SpacePointProvider>
         </MarketplaceProvider>
       </TourProvider>
@@ -45,14 +50,18 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
     <TourProvider>
       <MarketplaceProvider>
         <SpacePointProvider>
-          <AstroProvider>
-            {children}
-            <GlobalShortcutsRegistrar />
-            <AstroAgent />
-            <ConnectionWizardDialog />
-            <TourOverlay />
-            <HeartbeatProvider />
-          </AstroProvider>
+          <AlertProvider>
+            <AstroProvider>
+              {children}
+              <GlobalShortcutsRegistrar />
+              <AstroAgent />
+              <AstroOrb />
+              <CmdkPalette />
+              <ConnectionWizardDialog />
+              <TourOverlay />
+              <HeartbeatProvider />
+            </AstroProvider>
+          </AlertProvider>
         </SpacePointProvider>
       </MarketplaceProvider>
     </TourProvider>

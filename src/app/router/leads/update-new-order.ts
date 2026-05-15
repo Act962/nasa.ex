@@ -11,6 +11,7 @@ import {
   type RecordLeadEventInput,
 } from "@/features/leads/lib/history";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { eventBus } from "@/features/alerts/lib/event-bus";
 
 export const updateNewOrder = base
   .use(requiredAuthMiddleware)
@@ -197,6 +198,17 @@ export const updateNewOrder = base
           dragSource: "kanban",
         },
       });
+
+      // Alert engine — só dispara se status realmente mudou.
+      if (result.statusChanged) {
+        await eventBus.publish("lead.status_changed", {
+          leadId: result.updatedLead.id,
+          fromStatusId: result.previousLead.statusId,
+          toStatusId: result.updatedLead.statusId,
+          orgId: tracking.organizationId,
+          responsibleId: result.updatedLead.responsibleId,
+        });
+      }
     }
 
     return result.updatedLead;

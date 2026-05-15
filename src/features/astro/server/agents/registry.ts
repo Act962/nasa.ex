@@ -2,6 +2,7 @@ import "server-only";
 import type { AgentKey } from "@/features/astro/schemas/agent-config";
 import { closerAgent } from "./closer";
 import { taskAgent } from "./task-agent";
+import { automationAgent } from "./automation-agent";
 import type { AgentDefinition } from "./types";
 
 /**
@@ -14,7 +15,11 @@ import type { AgentDefinition } from "./types";
  *
  * O orquestrador descobre via este array — não há outro ponto de registro.
  */
-export const AGENTS: AgentDefinition[] = [closerAgent, taskAgent];
+export const AGENTS: AgentDefinition[] = [
+  closerAgent,
+  taskAgent,
+  automationAgent,
+];
 
 const byKey = new Map(AGENTS.map((a) => [a.key, a]));
 

@@ -660,7 +660,26 @@ export function TrackingDashboard({
                 forge: appsInsights?.forge ? <ForgeSection data={appsInsights.forge} /> : null,
                 spacetime: appsInsights?.spacetime ? <SpacetimeSection data={appsInsights.spacetime} /> : null,
                 "nasa-planner": appsInsights?.nasaPlanner ? <NasaPlannerSection data={appsInsights.nasaPlanner} /> : null,
-                integrations: <IntegrationsSection metaAds={metaInsights ?? undefined} />,
+                integrations: (
+                  <IntegrationsSection
+                    metaAds={
+                      metaInsights?.connected && metaInsights.data
+                        ? {
+                            connected: true,
+                            data: {
+                              spend: metaInsights.data.spend,
+                              leads: metaInsights.data.leads,
+                              clicks: metaInsights.data.clicks,
+                              impressions: metaInsights.data.impressions,
+                              ctr: metaInsights.data.ctr,
+                              cpl: metaInsights.data.cpl,
+                              roas: metaInsights.data.roas,
+                            },
+                          }
+                        : undefined
+                    }
+                  />
+                ),
                 workspace: appsInsights?.workspace ? <WorkspaceSection data={appsInsights.workspace} /> : null,
                 forms: appsInsights?.forms ? <FormsSection data={appsInsights.forms} /> : null,
                 nbox: appsInsights?.nbox ? <NBoxSection data={appsInsights.nbox} /> : null,
@@ -718,7 +737,9 @@ export function TrackingDashboard({
                   user adiciona via "+ Adicionar Insight". Mostra tempo
                   por status, performance por atendente, etc. */}
               {!isLoading && (
-                <TrackingDynamicSection summary={data.summary} />
+                <TrackingDynamicSection
+                  summary={data.summary as unknown as Record<string, unknown>}
+                />
               )}
               <div className={cn("grid gap-6 lg:grid-cols-2")}>
                 {settings.visibleSections.byStatus &&

@@ -14,6 +14,13 @@ import { HeaderTracking } from "@/features/leads/components/header-tracking";
 import { useAstroChat } from "@/features/astro/hooks/use-astro-chat";
 import { useAstro } from "@/features/astro/components/astro-provider";
 import { AstroMessage } from "@/features/astro/components/astro-message";
+import { useAutoNarrate } from "@/features/astro/voice/use-auto-narrate";
+import { VoiceOutputToggle } from "@/features/astro/voice/voice-output-toggle";
+import { useVoiceModeStore } from "@/features/astro/voice/use-voice-mode-store";
+import { useAstroOrbStore } from "@/features/astro/voice/use-astro-orb-store";
+import { SlashComposer } from "@/features/astro/composer/slash-composer";
+import { MessageSquare, SquareSlash } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
 
 import type { DropdownType, ModelType } from "../types";
 import type { CommandInputProps } from "./command-input";
@@ -34,6 +41,8 @@ export function NasaCommandCenter() {
   const [command, setCommand] = useState("");
   const [dropdown, setDropdown] = useState<DropdownType>(null);
   const [dropdownSearch, setDropdownSearch] = useState("");
+  // Modo de input: "chat" (texto livre + voz) ou "composer" (chips coloridos).
+  const [inputMode, setInputMode] = useState<"chat" | "composer">("chat");
   // `model` continua na UI (model-selector) mas no MVP não influencia o
   // backend — o orquestrador usa ASTRO_DEFAULT_MODEL. Override do usuário
   // fica para iteração futura.
@@ -128,13 +137,72 @@ export function NasaCommandCenter() {
     await submitCommand(command.trim());
   };
 
+  const setLastInputWasVoice = useVoiceModeStore(
+    (s) => s.setLastInputWasVoice,
+  );
+
   const handleVoiceTranscript = useCallback(
     (text: string) => {
       if (!text.trim()) return;
+      // Marca a entrada como voz — usado pelo modo "match-input" do TTS
+      // pra decidir se Astro responde em áudio.
+      setLastInputWasVoice(true);
       void submitCommand(text.trim());
     },
-    [submitCommand],
+    [submitCommand, setLastInputWasVoice],
   );
+
+  // Auto-narração: quando o stream termina, narra a resposta do Astro
+  // se o modo de output permitir (match + last input por voz, ou "audio").
+  useAutoNarrate({ messages, status });
+
+  // ── Wake word integration ──────────────────────────────────────────
+  // O AstroOrb (montado globalmente em platform-providers) captura
+  // utterance após detectar "ASTRO" e grava em:
+  //   - useAstroOrbStore.pendingUtterance (quando já estamos no /home)
+  //   - URL ?prompt= (quando veio de outra página)
+  // Aqui consumimos ambos, auto-submetemos e limpamos.
+  const pendingUtterance = useAstroOrbStore((s) => s.pendingUtterance);
+  const setPendingUtterance = useAstroOrbStore((s) => s.setPendingUtterance);
+  const setOrbPhase = useAstroOrbStore((s) => s.setPhase);
+  const searchParams = useSearchParams();
+  const routerNav = useRouter();
+  const consumedRef = useRef(false);
+
+  // Quando stream termina, devolve o orb pra idle (a menos que TTS esteja falando — phase=speaking é gerenciado pelo orb a partir do useVoiceModeStore.isSpeaking).
+  useEffect(() => {
+    if (status === "ready") {
+      const phase = useAstroOrbStore.getState().phase;
+      if (phase === "thinking") setOrbPhase("idle");
+    }
+  }, [status, setOrbPhase]);
+
+  useEffect(() => {
+    if (consumedRef.current) return;
+    const fromUrl = searchParams.get("prompt");
+    const fromStore = pendingUtterance;
+    const text = (fromStore || fromUrl || "").trim();
+    if (!text) return;
+    consumedRef.current = true;
+
+    // Tudo que veio do orb é por voz — força modo voice
+    setLastInputWasVoice(true);
+    // Limpa fontes pra evitar resubmit
+    if (fromStore) setPendingUtterance(null);
+    if (fromUrl) {
+      const sp = new URLSearchParams(searchParams.toString());
+      sp.delete("prompt");
+      routerNav.replace(`/home${sp.toString() ? `?${sp.toString()}` : ""}`);
+    }
+    // O orb está em "thinking" enquanto Astro processa
+    setOrbPhase("thinking");
+    void submitCommand(text);
+    // Idempotência: reset após pequena janela
+    setTimeout(() => {
+      consumedRef.current = false;
+    }, 2000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingUtterance, searchParams]);
 
   const fillExample = (example: string) => {
     setCommand(example);
@@ -218,10 +286,68 @@ export function NasaCommandCenter() {
       {hasMessages && (
         <div className="border-t border-zinc-800/60 bg-[#050510]/90 backdrop-blur px-3 sm:px-4 py-3 shrink-0 relative z-10">
           <div className="max-w-3xl mx-auto">
-            <CommandInput {...commandInputProps} />
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <ModeToggle mode={inputMode} onChange={setInputMode} />
+              <VoiceOutputToggle />
+            </div>
+            {inputMode === "composer" ? (
+              <SlashComposer
+                loading={loading}
+                onSubmit={(prompt) => void submitCommand(prompt)}
+              />
+            ) : (
+              <CommandInput {...commandInputProps} />
+            )}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: "chat" | "composer";
+  onChange: (m: "chat" | "composer") => void;
+}) {
+  return (
+    <div
+      className="inline-flex rounded-lg border border-zinc-800 bg-zinc-900/60 p-0.5"
+      role="radiogroup"
+      aria-label="Modo de input"
+    >
+      <button
+        type="button"
+        role="radio"
+        aria-checked={mode === "chat"}
+        onClick={() => onChange("chat")}
+        title="Texto livre + voz"
+        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] transition-colors ${
+          mode === "chat"
+            ? "bg-violet-600/30 text-violet-200 ring-1 ring-violet-500/50"
+            : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
+        }`}
+      >
+        <MessageSquare className="size-3" />
+        <span className="hidden sm:inline">Conversa</span>
+      </button>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={mode === "composer"}
+        onClick={() => onChange("composer")}
+        title="Chips estruturados (/CRIAR /LEAD…)"
+        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] transition-colors ${
+          mode === "composer"
+            ? "bg-violet-600/30 text-violet-200 ring-1 ring-violet-500/50"
+            : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
+        }`}
+      >
+        <SquareSlash className="size-3" />
+        <span className="hidden sm:inline">Comando</span>
+      </button>
     </div>
   );
 }

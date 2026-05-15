@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { AiAgentMode } from "@/generated/prisma/enums";
 
-export const AGENT_KEYS = ["astro", "closer", "task-agent"] as const;
+export const AGENT_KEYS = [
+  "astro",
+  "closer",
+  "task-agent",
+  "automation-agent",
+] as const;
 export type AgentKey = (typeof AGENT_KEYS)[number];
 
 export const agentConfigInputSchema = z.object({
