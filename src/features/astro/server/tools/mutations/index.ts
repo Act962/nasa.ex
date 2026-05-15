@@ -243,35 +243,6 @@ export function buildMutationTools(ctx: AgentContext) {
       },
     }),
 
-    delete_lead: tool({
-      description:
-        "Soft-delete de lead (marca isActive=false). Operação reversível via UI. SEMPRE confirme com o usuário antes de chamar.",
-      inputSchema: z.object({
-        leadId: z.string(),
-      }),
-      execute: async ({ leadId }) => {
-        if (!(await userCanAccessLead(ctx.userId, leadId))) {
-          return { error: "Sem acesso a esse lead" };
-        }
-        const lead = await prisma.lead.findUnique({
-          where: { id: leadId },
-          select: { id: true, name: true, isActive: true },
-        });
-        if (!lead) return { error: "Lead não encontrado" };
-        if (!lead.isActive) {
-          return { error: `"${lead.name}" já estava desativado.` };
-        }
-        await prisma.lead.update({
-          where: { id: leadId },
-          data: { isActive: false },
-        });
-        return {
-          success: true,
-          summary: `Lead "${lead.name}" desativado. Pode reativar pelo CRM.`,
-        };
-      },
-    }),
-
     send_whatsapp_message: tool({
       description:
         "Envia mensagem de WhatsApp pro lead via instância conectada da org. Usa o telefone do lead. CONFIRME O TEXTO COM O USUÁRIO ANTES — mensagem cai direto pro cliente.",

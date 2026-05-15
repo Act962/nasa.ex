@@ -260,30 +260,10 @@ export function buildAutomationTools(ctx: AgentContext) {
       },
     }),
 
-    delete_alert_rule: tool({
-      description:
-        "Deleta uma regra permanentemente. Use SOMENTE depois de confirmar com o usuário. Para pausar temporariamente, use toggle_alert_rule.",
-      inputSchema: z.object({
-        ruleId: z.string(),
-      }),
-      execute: async ({ ruleId }) => {
-        if (!(await userIsOrgAdmin(ctx.userId, ctx.organizationId))) {
-          return { error: "Sem permissão (precisa ser admin/owner)" };
-        }
-        const rule = await prisma.alertRule.findUnique({
-          where: { id: ruleId },
-          select: { organizationId: true, name: true },
-        });
-        if (!rule) return { error: "Regra não encontrada" };
-        if (rule.organizationId !== ctx.organizationId) {
-          return {
-            error: "Regra global do sistema — só Master pode deletar.",
-          };
-        }
-        await prisma.alertRule.delete({ where: { id: ruleId } });
-        return { success: true, summary: `Regra "${rule.name}" deletada.` };
-      },
-    }),
+    // Deleção NÃO está disponível via Astro/LLM — por política de segurança,
+    // user precisa deletar regras manualmente pela UI. Use toggle_alert_rule
+    // pra desativar temporariamente. Veja PERSONA_CORE pra a frase exata
+    // que o agent deve usar quando user pedir pra deletar.
   };
 }
 

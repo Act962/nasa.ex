@@ -87,7 +87,9 @@ export const VERBS = [
   { id: "editar", label: "Editar", icon: "Pencil" },
   { id: "mover", label: "Mover", icon: "MoveRight" },
   { id: "enviar", label: "Enviar", icon: "Send" },
-  { id: "excluir", label: "Excluir", icon: "Trash2" },
+  // EXCLUIR removido por política de segurança: deleção só via app manual.
+  // O Astro recusa pedidos de delete com a mensagem padrão (ver
+  // PERSONA_CORE em src/features/astro/lib/prompts).
 ] as const;
 
 export type VerbId = (typeof VERBS)[number]["id"];
@@ -108,7 +110,6 @@ export const APPS_BY_VERB: Record<VerbId, ReadonlyArray<{ id: string; label: str
   editar: [{ id: "lead", label: "Lead", icon: "User" }],
   mover: [{ id: "lead", label: "Lead", icon: "User" }],
   enviar: [{ id: "whatsapp", label: "WhatsApp", icon: "MessageCircle" }],
-  excluir: [{ id: "lead", label: "Lead", icon: "User" }],
 };
 
 // ─── Templates ───────────────────────────────────────────────────────────────
@@ -472,27 +473,6 @@ const TEMPLATES: CommandTemplate[] = [
       }".`,
   },
 
-  // ── EXCLUIR LEAD ─────────────────────────────────────────────────────────
-  {
-    verb: "excluir",
-    app: "lead",
-    title: "Excluir lead",
-    icon: "Trash2",
-    steps: [
-      {
-        key: "lead",
-        category: "entity",
-        label: "Lead",
-        prompt: "Qual lead desativar?",
-        required: true,
-        entityKind: "lead",
-      },
-    ],
-    buildPrompt: (v) =>
-      `Desativar (soft-delete) o lead "${
-        v.lead?.entityLabel ?? ""
-      }". CONFIRME antes — operação reversível pela UI.`,
-  },
 ];
 
 const byKey = new Map(TEMPLATES.map((t) => [`${t.verb}:${t.app}`, t]));
