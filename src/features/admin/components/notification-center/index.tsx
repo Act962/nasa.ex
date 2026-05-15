@@ -76,6 +76,8 @@ export function NotificationCenterV2({
     type: "info" as "info" | "warning" | "success" | "error",
     targetType: "all" as "all" | "org" | "user",
     targetId: "",
+    severity: "info" as "info" | "warning" | "critical",
+    urgentPopup: false,
   });
 
   // Template form state
@@ -107,6 +109,12 @@ export function NotificationCenterV2({
         type: form.type,
         targetType: form.targetType,
         targetId: form.targetId || null,
+        severity: form.severity,
+        // Quando "urgentPopup" está ligado, força displaySurface=popup + requiresAck
+        // independente da severity (Master pode promover um info pra popup
+        // se realmente precisar parar todos pra ler).
+        displaySurface: form.urgentPopup ? "popup" : undefined,
+        requiresAck: form.urgentPopup || form.severity === "critical",
       }),
     onSuccess: () => {
       setSent(true);
@@ -126,6 +134,8 @@ export function NotificationCenterV2({
       type: "info",
       targetType: "all",
       targetId: "",
+      severity: "info",
+      urgentPopup: false,
     });
   };
 
@@ -150,6 +160,8 @@ export function NotificationCenterV2({
         type: selectedTemplate.type,
         targetType: "all",
         targetId: "",
+        severity: "info",
+        urgentPopup: false,
       });
       setShowTemplateModal(false);
       setShowFormModal(true);
@@ -399,6 +411,84 @@ export function NotificationCenterV2({
                 <option value="user">Usuário específico (ID)</option>
               </select>
             </div>
+          </div>
+
+          {/* ── Severidade (camada de alertas) ─────────────────────────── */}
+          <div className="rounded-lg border border-zinc-700/80 bg-zinc-900/40 p-3 space-y-3">
+            <p className="text-xs text-zinc-400 font-medium">
+              Severidade do alerta
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {(
+                [
+                  {
+                    value: "info",
+                    label: "Info",
+                    sub: "Cai no sininho",
+                    color: "blue",
+                  },
+                  {
+                    value: "warning",
+                    label: "Atenção",
+                    sub: "Toast + sininho",
+                    color: "amber",
+                  },
+                  {
+                    value: "critical",
+                    label: "Crítico",
+                    sub: "Popup full-screen",
+                    color: "red",
+                  },
+                ] as const
+              ).map((opt) => {
+                const isActive = form.severity === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({ ...f, severity: opt.value }))
+                    }
+                    className={`text-left rounded-lg border px-3 py-2 transition-colors ${
+                      isActive
+                        ? opt.color === "blue"
+                          ? "border-blue-500 bg-blue-500/15"
+                          : opt.color === "amber"
+                            ? "border-amber-500 bg-amber-500/15"
+                            : "border-red-500 bg-red-500/15"
+                        : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-600"
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-white">
+                      {opt.label}
+                    </p>
+                    <p className="text-[10px] text-zinc-400 mt-0.5">{opt.sub}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            <label className="flex items-start gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={form.urgentPopup}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, urgentPopup: e.target.checked }))
+                }
+                className="mt-0.5 accent-red-500"
+              />
+              <div>
+                <p className="text-sm text-white font-medium">
+                  Mostrar como popup urgente
+                </p>
+                <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
+                  Independente da severidade, força popup full-screen que
+                  exige confirmação do usuário pra fechar. Use só em situações
+                  realmente urgentes — interrompe o que o destinatário
+                  estiver fazendo.
+                </p>
+              </div>
+            </label>
           </div>
 
           {form.targetType === "org" && (
