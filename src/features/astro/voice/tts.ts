@@ -37,10 +37,14 @@ function pickBestVoice(): SpeechSynthesisVoice | null {
   // Rocko/Grandpa fica como fallback (Rocko soa muito maduro/grave,
   // Grandpa soa idoso).
   //
-  // Ordem por percepção: jovial → maduro.
+  // Ordem por percepção CONVERSACIONAL:
+  //   Eddy = neutro expressivo, ótimo pra fala natural casual
+  //   Reed = jovem claro, levemente formal
+  //   Eddy fica em primeiro porque tem prosódia mais natural em frases
+  //   conversacionais; Reed soa "lendo" às vezes.
   const malePtBrJovial = [
-    /\bReed\b/i, // Apple (pt-BR) — masculino jovem claro [PRIMEIRA ESCOLHA]
-    /\bEddy\b/i, // Apple (pt-BR) — neutro pode soar jovial com pitch leve
+    /\bEddy\b/i, // Apple (pt-BR) — neutro expressivo conversacional [PRIMEIRA]
+    /\bReed\b/i, // Apple (pt-BR) — masculino jovem claro
     /Felipe/i, // Microsoft/Apple — masculino jovem em Windows
     /Diego/i,
     /Ricardo/i,
@@ -97,47 +101,143 @@ export function speak(text: string, opts: SpeakOptions = {}): void {
   const synth = window.speechSynthesis;
   if (!synth || !text.trim()) return;
 
-  const utter = new SpeechSynthesisUtterance(stripMarkdownForSpeech(text));
-  utter.lang = "pt-BR";
-  // Astro é jovial — rate levemente acelerado pra som mais energético,
-  // sem ficar apressado. Pitch perto do natural da voz Reed (que já é
-  // masculino jovem em pt-BR).
-  utter.rate = opts.rate ?? 1.05;
-  utter.pitch = opts.pitch ?? 1.0;
-  utter.volume = opts.volume ?? 1.0;
+  const processedText = humanizeForSpeech(stripMarkdownForSpeech(text));
 
-  if (opts.onStart) utter.onstart = opts.onStart;
-  if (opts.onEnd) utter.onend = opts.onEnd;
-  utter.onerror = () => opts.onError?.();
+  // Quebra em sentenças e enfileira cada uma como utterance separada com
+  // micro-pausa entre. Isso reproduz prosódia natural de fala humana
+  // (respiro entre frases) muito melhor que uma utterance única longa,
+  // que costuma ter ritmo "leitura mecânica".
+  const sentences = splitIntoSentences(processedText);
+  if (sentences.length === 0) return;
 
-  const tryPlay = () => {
+  // Rate moderado conversacional: 0.97 = levemente desacelerado pra
+  // pausas e flow natural; 1.05 soava apressado/robotizado.
+  const rate = opts.rate ?? 0.97;
+  // Pitch natural da voz; Astro homem mas Eddy/Reed já são masc.
+  const pitch = opts.pitch ?? 1.0;
+  const volume = opts.volume ?? 1.0;
+
+  const playQueue = () => {
     const voice = pickBestVoice();
-    if (voice) utter.voice = voice;
-    synth.speak(utter);
+    let started = false;
+    sentences.forEach((sentence, idx) => {
+      const utter = new SpeechSynthesisUtterance(sentence);
+      utter.lang = "pt-BR";
+      utter.rate = rate;
+      utter.pitch = pitch;
+      utter.volume = volume;
+      if (voice) utter.voice = voice;
+      // onStart no PRIMEIRO utterance, onEnd no ÚLTIMO
+      if (idx === 0 && opts.onStart) {
+        utter.onstart = () => {
+          if (!started) {
+            started = true;
+            opts.onStart?.();
+          }
+        };
+      }
+      if (idx === sentences.length - 1 && opts.onEnd) {
+        utter.onend = opts.onEnd;
+      }
+      utter.onerror = () => opts.onError?.();
+      synth.speak(utter);
+    });
   };
 
   if (voicesLoaded || cachedVoices?.length) {
-    tryPlay();
+    playQueue();
   } else {
-    // Voices ainda não carregadas — aguarda 1× e tenta.
     const handler = () => {
       synth.removeEventListener("voiceschanged", handler);
       loadVoices();
-      tryPlay();
+      playQueue();
     };
     synth.addEventListener("voiceschanged", handler);
-    // Fallback: timeout 500ms — algumas browsers não disparam o evento
-    // mas têm voices populadas após delay.
     setTimeout(() => {
       if (!voicesLoaded) {
         loadVoices();
         if (cachedVoices?.length) {
           synth.removeEventListener("voiceschanged", handler);
-          tryPlay();
+          playQueue();
         }
       }
     }, 500);
   }
+}
+
+/**
+ * Quebra texto em sentenças aproveitando ponto/exclamação/interrogação.
+ * Mantém os terminadores na sentença pra Web Speech respeitar entonação.
+ * Cap em ~140 chars por sentença — sentenças muito longas comem o ritmo
+ * (Web Speech tende a "correr"). Quando exceder, quebra em vírgula natural.
+ */
+function splitIntoSentences(text: string): string[] {
+  if (!text.trim()) return [];
+  // Primeiro split por terminadores fortes (?! .)
+  const rough = text
+    .split(/([.!?]+)\s+/)
+    .reduce<string[]>((acc, chunk, i, arr) => {
+      // Junta cada chunk com o terminador que vem depois
+      if (/^[.!?]+$/.test(chunk)) {
+        const prev = acc.pop() ?? "";
+        acc.push((prev + chunk).trim());
+      } else if (chunk.trim()) {
+        acc.push(chunk.trim());
+      }
+      void arr;
+      void i;
+      return acc;
+    }, []);
+
+  // Quebra adicional em vírgulas pra sentenças longas (>140 chars)
+  const final: string[] = [];
+  for (const s of rough) {
+    if (s.length <= 140) {
+      final.push(s);
+      continue;
+    }
+    // Tenta dividir em vírgula no meio
+    const commaParts = s.split(/,\s+/);
+    let buffer = "";
+    for (const part of commaParts) {
+      if ((buffer + part).length > 140 && buffer) {
+        final.push(buffer.trim() + ",");
+        buffer = part;
+      } else {
+        buffer = buffer ? `${buffer}, ${part}` : part;
+      }
+    }
+    if (buffer.trim()) final.push(buffer.trim());
+  }
+  return final.filter((s) => s.trim().length > 0);
+}
+
+/**
+ * Injeta pausas naturais de fala brasileira via pontuação estratégica.
+ * Não inventa palavras — só ajuda Web Speech a respeitar pausas que
+ * fariam falta num discurso natural pt-BR.
+ */
+function humanizeForSpeech(text: string): string {
+  return (
+    text
+      // "Opa Weydson" → "Opa, Weydson" (vocativo brasileiro pede vírgula)
+      .replace(
+        /^(opa|olha|beleza|escuta|cara|amigo|mano|gente|po|nossa|caraca)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇa-záéíóúâêôãõç])/i,
+        "$1, $2",
+      )
+      // Conjunções no meio sem vírgula → adiciona pausa
+      .replace(
+        /\s+(mas|porém|então|aliás|enfim|inclusive|tipo)\s+/gi,
+        ", $1, ",
+      )
+      // Reticências viram pausa mais longa via duplo ponto
+      .replace(/\.{3,}/g, ".. ")
+      // Hífen no meio de frase vira pausa pequena (vírgula)
+      .replace(/(\w)\s*[—–-]\s*(\w)/g, "$1, $2")
+      // Espaços múltiplos → 1 só
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 /** Interrompe a fala atual + esvazia a fila. */
