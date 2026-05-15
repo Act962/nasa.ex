@@ -36,6 +36,8 @@ import { autoResolveExpiredClaims } from "@/inngest/functions/calendar/auto-reso
 import { detectStaleLeads } from "@/inngest/functions/crons/detect-stale-leads";
 import { detectBrokenIntegrations } from "@/inngest/functions/crons/detect-broken-integrations";
 import { detectAgendaStarting } from "@/inngest/functions/crons/detect-agenda-starting";
+import { detectFormAbandoned } from "@/inngest/functions/crons/detect-form-abandoned";
+import { detectLowMetrics } from "@/inngest/functions/crons/detect-low-metrics";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -74,6 +76,8 @@ export const { GET, POST, PUT } = serve({
     detectStaleLeads,
     detectBrokenIntegrations,
     detectAgendaStarting,
+    detectFormAbandoned,
+    detectLowMetrics,
     detectOverdue,
     // bookingNotification,
     // processUserAction,

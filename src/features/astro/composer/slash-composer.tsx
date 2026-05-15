@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { orpc } from "@/lib/orpc";
 import { useDebouncedValue } from "@/hooks/use-debounced";
+import { useComposerStore } from "./use-composer-store";
 import {
   APPS_BY_VERB,
   CHIP_STYLE,
@@ -86,9 +87,12 @@ export function SlashComposer({
 
   const reset = () => setState(initialState);
 
+  const pushRecent = useComposerStore((s) => s.pushRecent);
+
   const handleSubmit = () => {
     if (!template || !canSubmit) return;
     const prompt = template.buildPrompt(state.values);
+    pushRecent({ prompt, label: template.title });
     onSubmit(prompt);
     reset();
   };
@@ -163,6 +167,11 @@ export function SlashComposer({
         onSelectVerb={(v) => setState({ verb: v, app: null, values: {} })}
         onSelectApp={(a) => setState((s) => ({ ...s, app: a, values: {} }))}
         onSetValue={setValue}
+        onSubmitPrompt={(prompt) => {
+          // 1-click pra reenviar recente
+          pushRecent({ prompt, label: prompt.slice(0, 32) });
+          onSubmit(prompt);
+        }}
       />
 
       {/* Action bar */}
@@ -250,25 +259,54 @@ function StepPicker(props: {
   onSelectVerb: (v: VerbId) => void;
   onSelectApp: (a: string) => void;
   onSetValue: (key: string, value: ChipValue) => void;
+  onSubmitPrompt?: (prompt: string) => void;
 }) {
   const { state, template, nextStep, onSelectVerb, onSelectApp, onSetValue } =
     props;
+  const recent = useComposerStore((s) => s.recent);
 
-  // 1) Sem verbo ainda → picker de verbo
+  // 1) Sem verbo ainda → picker de verbo + recentes
   if (!state.verb) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-        {VERBS.map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            onClick={() => onSelectVerb(v.id)}
-            className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-100 hover:border-violet-500/50 hover:bg-zinc-900 transition-colors"
-          >
-            <Slash className="size-3 text-blue-400" />
-            <span className="font-mono">/{v.label}</span>
-          </button>
-        ))}
+      <div className="space-y-3">
+        {recent.length > 0 && props.onSubmitPrompt && (
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+              Recentes
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {recent.slice(0, 4).map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => props.onSubmitPrompt?.(r.prompt)}
+                  title={r.prompt}
+                  className="inline-flex items-center gap-1 rounded-md border border-violet-500/30 bg-violet-500/10 text-violet-200 px-2 py-1 text-[11px] hover:bg-violet-500/20"
+                >
+                  <span className="truncate max-w-[200px]">{r.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+            Verbos
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            {VERBS.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => onSelectVerb(v.id)}
+                className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-100 hover:border-violet-500/50 hover:bg-zinc-900 transition-colors"
+              >
+                <Slash className="size-3 text-blue-400" />
+                <span className="font-mono">/{v.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

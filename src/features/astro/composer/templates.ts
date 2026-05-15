@@ -84,7 +84,10 @@ export interface ChipValue {
 export const VERBS = [
   { id: "criar", label: "Criar", icon: "Plus" },
   { id: "buscar", label: "Buscar", icon: "Search" },
-  // futuros: editar, mover, excluir, enviar
+  { id: "editar", label: "Editar", icon: "Pencil" },
+  { id: "mover", label: "Mover", icon: "MoveRight" },
+  { id: "enviar", label: "Enviar", icon: "Send" },
+  { id: "excluir", label: "Excluir", icon: "Trash2" },
 ] as const;
 
 export type VerbId = (typeof VERBS)[number]["id"];
@@ -102,6 +105,10 @@ export const APPS_BY_VERB: Record<VerbId, ReadonlyArray<{ id: string; label: str
     { id: "lead", label: "Lead", icon: "User" },
     { id: "proposta", label: "Proposta", icon: "FileText" },
   ],
+  editar: [{ id: "lead", label: "Lead", icon: "User" }],
+  mover: [{ id: "lead", label: "Lead", icon: "User" }],
+  enviar: [{ id: "whatsapp", label: "WhatsApp", icon: "MessageCircle" }],
+  excluir: [{ id: "lead", label: "Lead", icon: "User" }],
 };
 
 // ─── Templates ───────────────────────────────────────────────────────────────
@@ -359,6 +366,132 @@ const TEMPLATES: CommandTemplate[] = [
       },
     ],
     buildPrompt: (v) => `Buscar proposta "${v.termo?.raw ?? ""}".`,
+  },
+
+  // ── EDITAR LEAD ──────────────────────────────────────────────────────────
+  {
+    verb: "editar",
+    app: "lead",
+    title: "Editar lead",
+    icon: "Pencil",
+    steps: [
+      {
+        key: "lead",
+        category: "entity",
+        label: "Lead",
+        prompt: "Qual lead?",
+        required: true,
+        entityKind: "lead",
+      },
+      {
+        key: "campo",
+        category: "enum",
+        label: "Campo",
+        prompt: "O que quer atualizar?",
+        required: true,
+        options: [
+          { value: "name", label: "Nome" },
+          { value: "phone", label: "Telefone" },
+          { value: "email", label: "Email" },
+          { value: "document", label: "CPF/CNPJ" },
+          { value: "description", label: "Descrição" },
+        ],
+      },
+      {
+        key: "valor",
+        category: "param",
+        label: "Novo valor",
+        prompt: "Novo valor",
+        required: true,
+        placeholder: "Ex: 11 99999-9999",
+      },
+    ],
+    buildPrompt: (v) =>
+      `Atualizar lead "${v.lead?.entityLabel ?? ""}": ${
+        v.campo?.display ?? ""
+      } = "${v.valor?.raw ?? ""}".`,
+  },
+
+  // ── MOVER LEAD ───────────────────────────────────────────────────────────
+  {
+    verb: "mover",
+    app: "lead",
+    title: "Mover lead",
+    icon: "MoveRight",
+    steps: [
+      {
+        key: "lead",
+        category: "entity",
+        label: "Lead",
+        prompt: "Qual lead?",
+        required: true,
+        entityKind: "lead",
+      },
+      {
+        key: "status",
+        category: "entity",
+        label: "Status",
+        prompt: "Pra qual status (do mesmo tracking)?",
+        required: true,
+        entityKind: "status",
+      },
+    ],
+    buildPrompt: (v) =>
+      `Mover lead "${v.lead?.entityLabel ?? ""}" pro status "${
+        v.status?.entityLabel ?? ""
+      }".`,
+  },
+
+  // ── ENVIAR WHATSAPP ──────────────────────────────────────────────────────
+  {
+    verb: "enviar",
+    app: "whatsapp",
+    title: "Enviar WhatsApp",
+    icon: "MessageCircle",
+    steps: [
+      {
+        key: "lead",
+        category: "entity",
+        label: "Lead",
+        prompt: "Pra qual lead?",
+        required: true,
+        entityKind: "lead",
+      },
+      {
+        key: "mensagem",
+        category: "param",
+        label: "Mensagem",
+        prompt: "O que vai mandar?",
+        required: true,
+        placeholder: "Ex: Olá! Tudo bem? Quando podemos conversar?",
+      },
+    ],
+    buildPrompt: (v) =>
+      `Enviar WhatsApp pro lead "${v.lead?.entityLabel ?? ""}" com texto: "${
+        v.mensagem?.raw ?? ""
+      }".`,
+  },
+
+  // ── EXCLUIR LEAD ─────────────────────────────────────────────────────────
+  {
+    verb: "excluir",
+    app: "lead",
+    title: "Excluir lead",
+    icon: "Trash2",
+    steps: [
+      {
+        key: "lead",
+        category: "entity",
+        label: "Lead",
+        prompt: "Qual lead desativar?",
+        required: true,
+        entityKind: "lead",
+      },
+    ],
+    buildPrompt: (v) =>
+      `Desativar (soft-delete) o lead "${
+        v.lead?.entityLabel ?? ""
+      }". CONFIRME antes — operação reversível pela UI.`,
   },
 ];
 

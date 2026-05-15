@@ -269,7 +269,11 @@ export const submitResponse = base
         if (finalizingResponseId) {
           await tx.formResponses.update({
             where: { id: finalizingResponseId },
-            data: { jsonResponse: response, label: autoLabel },
+            data: {
+              jsonResponse: response,
+              label: autoLabel,
+              completedAt: new Date(),
+            },
           });
           const formAfter = await tx.form.findUnique({
             where: { id },
@@ -299,6 +303,7 @@ export const submitResponse = base
                   jsonResponse: response,
                   ...(leadId && { leadId }),
                   label: autoLabel,
+                  completedAt: new Date(),
                 },
               },
               responses: {

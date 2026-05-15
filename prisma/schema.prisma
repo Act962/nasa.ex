@@ -1537,12 +1537,16 @@ model FormSettings {
 }
 
 model FormResponses {
-  id           String   @id @default(cuid())
-  formId       String   @map("form_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-  jsonResponse Json     @default("[]")
-  leadId       String?  @map("lead_id")
-  lead         Lead?    @relation(fields: [leadId], references: [id])
+  id           String    @id @default(cuid())
+  formId       String    @map("form_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  /// NULL = resposta iniciada via save-partial mas não finalizada;
+  /// preenchido = enviada via submit. Cron detect-form-abandoned varre
+  /// onde completedAt IS NULL AND createdAt < now() - N min.
+  completedAt  DateTime? @map("completed_at")
+  jsonResponse Json      @default("[]")
+  leadId       String?   @map("lead_id")
+  lead         Lead?     @relation(fields: [leadId], references: [id])
 
   // Título customizado da resposta (ex: "#00123" — número da O.S).
   // - `label` é exibido como sufixo após o nome do form: "Checklist · #00123".
@@ -1555,6 +1559,7 @@ model FormResponses {
 
   form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
 
+  @@index([completedAt])
   @@map("form_responses")
 }
 
