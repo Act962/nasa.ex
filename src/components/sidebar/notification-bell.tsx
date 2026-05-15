@@ -56,6 +56,24 @@ const TARGET_STYLE: Record<string, string> = {
   user: "bg-purple-500/10 text-purple-400 border-purple-500/20",
 };
 
+const SEVERITY_LABEL: Record<string, string> = {
+  info: "Info",
+  warning: "Atenção",
+  critical: "Crítico",
+};
+
+const SEVERITY_STYLE: Record<string, string> = {
+  info: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  warning: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  critical: "bg-red-500/10 text-red-400 border-red-500/30",
+};
+
+const SEVERITY_ITEM_BORDER: Record<string, string> = {
+  info: "",
+  warning: "border-l-2 border-l-amber-500/60",
+  critical: "border-l-2 border-l-red-500/70",
+};
+
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
@@ -184,14 +202,18 @@ export function NotificationBell() {
                 className={cn(
                   "flex gap-3 px-4 py-3 border-b border-zinc-800/50 cursor-pointer transition-all hover:bg-zinc-900",
                   !n.isRead && "bg-zinc-900/40",
+                  // severity opcional — só aparece pra warning/critical
+                  SEVERITY_ITEM_BORDER[
+                    (n as { severity?: string }).severity ?? ""
+                  ] ?? "",
                 )}
               >
                 <span className="text-base shrink-0 mt-0.5">
                   {TYPE_ICON[n.type] ?? "🔔"}
                 </span>
                 <div className="flex-1 min-w-0">
-                  {n.targetType && (
-                    <div className="mb-1">
+                  <div className="mb-1 flex flex-wrap items-center gap-1">
+                    {n.targetType && (
                       <span
                         className={cn(
                           "px-1.5 py-0.5 rounded-[4px] text-[9px] font-bold uppercase tracking-wider border",
@@ -201,8 +223,23 @@ export function NotificationBell() {
                       >
                         {TARGET_LABEL[n.targetType] ?? n.targetType}
                       </span>
-                    </div>
-                  )}
+                    )}
+                    {(n as { severity?: string }).severity &&
+                      (n as { severity: string }).severity !== "info" && (
+                        <span
+                          className={cn(
+                            "px-1.5 py-0.5 rounded-[4px] text-[9px] font-bold uppercase tracking-wider border",
+                            SEVERITY_STYLE[
+                              (n as { severity: string }).severity
+                            ] ?? "bg-zinc-800 text-zinc-400 border-zinc-700",
+                          )}
+                        >
+                          {SEVERITY_LABEL[
+                            (n as { severity: string }).severity
+                          ] ?? (n as { severity: string }).severity}
+                        </span>
+                      )}
+                  </div>
                   <div className="flex items-start justify-between gap-2">
                     <p
                       className={cn(

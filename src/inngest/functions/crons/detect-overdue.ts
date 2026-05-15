@@ -7,6 +7,7 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { emitTrackingBatch, type TrackingEvent } from "@/features/space-point/lib/tracking-emitter";
+import { eventBus } from "@/features/alerts/lib/event-bus";
 
 export const detectOverdue = inngest.createFunction(
   { id: "detect-overdue-demands", retries: 1 },
@@ -66,6 +67,27 @@ export const detectOverdue = inngest.createFunction(
 
     for (let i = 0; i < events.length; i += 100) {
       await emitTrackingBatch(events.slice(i, i + 100));
+    }
+
+    // Alert engine — aditivo, NÃO substitui penalty SP acima.
+    // Publica 1× por action vencida (resolve via regra ativa).
+    for (const action of overdueActions) {
+      const orgId = action.organizationId;
+      const userId = action.responsibles[0]?.userId;
+      if (!orgId || !userId || !action.dueDate) continue;
+      const daysOverdue = Math.max(
+        1,
+        Math.floor(
+          (now.getTime() - new Date(action.dueDate).getTime()) /
+            (24 * 60 * 60 * 1000),
+        ),
+      );
+      await eventBus.publish("action.overdue", {
+        actionId: action.id,
+        userId,
+        orgId,
+        daysOverdue,
+      });
     }
 
     return { processed: events.length };

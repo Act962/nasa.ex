@@ -7,6 +7,7 @@ import { z } from "zod";
 import { inngest } from "@/inngest/client";
 import { awardPoints } from "../space-point/utils";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
+import { eventBus } from "@/features/alerts/lib/event-bus";
 
 const proposalProductShape = z.object({
   id: z.string(),
@@ -307,6 +308,18 @@ export const updateForgeProposal = base
       const strOrUndef = (v?: string | null) =>
         v && v.trim() !== "" ? v : undefined;
 
+      // Pega o status atual antes do update — usado pra disparar evento
+      // de mudança de status no alert engine.
+      const prevProposal = await prisma.forgeProposal.findUnique({
+        where: { id: input.id, organizationId: context.org.id },
+        select: {
+          status: true,
+          clientId: true,
+          responsibleId: true,
+          client: { select: { id: true } },
+        },
+      });
+
       await prisma.$transaction(async (tx) => {
         await tx.forgeProposal.update({
           where: { id: input.id, organizationId: context.org.id },
@@ -390,6 +403,24 @@ export const updateForgeProposal = base
           userId: context.user.id,
           description: `Enviou proposta ao cliente`,
           appSlug: "forge",
+        });
+      }
+
+      // Alert engine — só dispara se o status REALMENTE mudou.
+      // Captura todas as transições (RASCUNHO/ENVIADA/VISUALIZADA/ACEITA/PAGA/EXPIRADA/CANCELADA).
+      if (
+        input.status &&
+        prevProposal &&
+        prevProposal.status !== input.status
+      ) {
+        await eventBus.publish("forge.proposal_status_changed", {
+          proposalId: input.id,
+          fromStatus: prevProposal.status,
+          toStatus: input.status,
+          orgId: context.org.id,
+          leadId: prevProposal.client?.id ?? null,
+          responsibleId: prevProposal.responsibleId ?? null,
+          amount: null,
         });
       }
 

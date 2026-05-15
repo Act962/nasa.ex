@@ -2,6 +2,14 @@ import "server-only";
 
 import prisma from "@/lib/prisma";
 import { sendText } from "@/http/uazapi/send-text";
+import { pusherServer } from "@/lib/pusher";
+import {
+  isSeverity,
+  resolveDisplaySurface,
+  requiresAckBySeverity,
+  type Severity,
+  type DisplaySurface,
+} from "@/features/alerts/lib/severity";
 
 export const NOTIF_TYPES = {
   NEW_LEAD:             "NEW_LEAD",
@@ -38,6 +46,12 @@ interface CreateNotificationOptions {
   appKey?:        string;
   actionUrl?:     string;
   metadata?:      Record<string, unknown>;
+  /** Camada de alertas: default "info" preserva comportamento legado. */
+  severity?:       Severity;
+  /** Override do default deduzido da severity. */
+  displaySurface?: DisplaySurface;
+  /** Default deriva de severity (critical=true). */
+  requiresAck?:    boolean;
 }
 
 /**
@@ -45,7 +59,24 @@ interface CreateNotificationOptions {
  * if the user has that preference enabled.
  */
 export async function createNotification(opts: CreateNotificationOptions) {
-  const { userId, organizationId, type, title, body, appKey, actionUrl, metadata } = opts;
+  const {
+    userId,
+    organizationId,
+    type,
+    title,
+    body,
+    appKey,
+    actionUrl,
+    metadata,
+    severity: severityRaw,
+    displaySurface: displaySurfaceRaw,
+    requiresAck: requiresAckRaw,
+  } = opts;
+
+  const severity: Severity = isSeverity(severityRaw) ? severityRaw : "info";
+  const displaySurface: DisplaySurface =
+    displaySurfaceRaw ?? resolveDisplaySurface(severity);
+  const requiresAck = requiresAckRaw ?? requiresAckBySeverity(severity);
 
   // Check preference: should we create in-app + maybe WhatsApp?
   let sendWA = false;
@@ -74,9 +105,47 @@ export async function createNotification(opts: CreateNotificationOptions) {
       metadata: metadata ? (metadata as object) : undefined,
       createdBy: "SYSTEM",
       sentWhatsApp: false,
+      severity,
+      displaySurface,
+      requiresAck,
     },
     select: { id: true },
   });
+
+  // Pusher real-time — best-effort. Quando severity > info, isso garante
+  // entrega instantânea sem esperar polling de 30s do bell.
+  if (severity !== "info") {
+    try {
+      await pusherServer.trigger(`private-user-${userId}`, "alert:new", {
+        notificationId: notif.id,
+        severity,
+        displaySurface,
+        requiresAck,
+        title,
+        body,
+        actionUrl: actionUrl ?? null,
+        eventType: type,
+      });
+    } catch (err) {
+      console.error("[notification-service] pusher trigger falhou:", err);
+    }
+  } else {
+    // Info também ganha real-time pra atualizar badge do bell sem esperar polling.
+    try {
+      await pusherServer.trigger(`private-user-${userId}`, "alert:new", {
+        notificationId: notif.id,
+        severity: "info",
+        displaySurface: "bell",
+        requiresAck: false,
+        title,
+        body,
+        actionUrl: actionUrl ?? null,
+        eventType: type,
+      });
+    } catch {
+      /* silencioso pra info */
+    }
+  }
 
   // WhatsApp delivery
   if (sendWA && organizationId) {
@@ -146,6 +215,9 @@ export async function createOrgNotification({
   appKey,
   actionUrl,
   metadata,
+  severity: severityRaw,
+  displaySurface: displaySurfaceRaw,
+  requiresAck: requiresAckRaw,
 }: {
   organizationId: string;
   type:           NotifType;
@@ -154,7 +226,15 @@ export async function createOrgNotification({
   appKey?:        string;
   actionUrl?:     string;
   metadata?:      Record<string, unknown>;
+  severity?:       Severity;
+  displaySurface?: DisplaySurface;
+  requiresAck?:    boolean;
 }) {
+  const severity: Severity = isSeverity(severityRaw) ? severityRaw : "info";
+  const displaySurface: DisplaySurface =
+    displaySurfaceRaw ?? resolveDisplaySurface(severity);
+  const requiresAck = requiresAckRaw ?? requiresAckBySeverity(severity);
+
   // Create BROADCAST notification (one row for all members)
   const notif = await prisma.adminNotification.create({
     data: {
@@ -169,9 +249,28 @@ export async function createOrgNotification({
       metadata: metadata ? (metadata as object) : undefined,
       createdBy: "SYSTEM",
       sentWhatsApp: false,
+      severity,
+      displaySurface,
+      requiresAck,
     },
     select: { id: true },
   });
+
+  // Pusher real-time pra TODOS os membros via canal da org.
+  try {
+    await pusherServer.trigger(`private-org-${organizationId}`, "alert:new", {
+      notificationId: notif.id,
+      severity,
+      displaySurface,
+      requiresAck,
+      title,
+      body,
+      actionUrl: actionUrl ?? null,
+      eventType: type,
+    });
+  } catch (err) {
+    console.error("[notification-service] pusher org trigger falhou:", err);
+  }
 
   // For WhatsApp, we still need to check preferences and send individually
   const membersWithWAPref = await prisma.userNotificationPreference.findMany({

@@ -29,6 +29,7 @@ import { activityRouter } from "./activity";
 import { formRouter } from "./form";
 import { adminRouter } from "./admin";
 import { userNotificationsRouter } from "./user-notifications";
+import { alertsRouter } from "./alerts";
 import { sidebarPrefsRouter } from "./sidebar-prefs";
 import { spacePointRouter } from "./space-point";
 import { userRouter } from "./user";
@@ -85,6 +86,7 @@ export const router = {
   form: formRouter,
   admin: adminRouter,
   userNotifications: userNotificationsRouter,
+  alerts: alertsRouter,
   sidebarPrefs: sidebarPrefsRouter,
   spacePoint: spacePointRouter,
   user: userRouter,
