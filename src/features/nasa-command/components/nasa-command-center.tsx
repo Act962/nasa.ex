@@ -15,7 +15,6 @@ import { useAstroChat } from "@/features/astro/hooks/use-astro-chat";
 import { useAstro } from "@/features/astro/components/astro-provider";
 import { AstroMessage } from "@/features/astro/components/astro-message";
 import { useAutoNarrate } from "@/features/astro/voice/use-auto-narrate";
-import { VoiceOutputToggle } from "@/features/astro/voice/voice-output-toggle";
 import { useVoiceModeStore } from "@/features/astro/voice/use-voice-mode-store";
 import { useAstroOrbStore } from "@/features/astro/voice/use-astro-orb-store";
 import { SlashComposer } from "@/features/astro/composer/slash-composer";
@@ -23,7 +22,7 @@ import { MessageSquare, SquareSlash } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 import type { DropdownType, ModelType } from "../types";
-import type { CommandInputProps } from "./command-input";
+import type { CommandInputHandle, CommandInputProps } from "./command-input";
 import { StarField } from "./star-field";
 import { WelcomeScreen } from "./welcome-screen";
 import { ThinkingDisplay } from "./thinking-display";
@@ -61,6 +60,7 @@ export function NasaCommandCenter() {
   // fica para iteração futura.
   const [model, setModel] = useState<ModelType>("astro");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const commandInputRef = useRef<CommandInputHandle>(null);
   const queryClient = useQueryClient();
   const { setSessionId } = useAstro();
 
@@ -168,6 +168,29 @@ export function NasaCommandCenter() {
   // Auto-narração: quando o stream termina, narra a resposta do Astro
   // se o modo de output permitir (match + last input por voz, ou "audio").
   useAutoNarrate({ messages, status });
+
+  // ── Auto-continue do mic: conversa contínua ─────────────────────────
+  // Quando user faz pedido por voz, Astro responde e narra. Assim que o
+  // TTS termina (isSpeaking volta a false) E a última entrada foi voz,
+  // o mic reabre automaticamente — user não precisa apertar o botão a
+  // cada turno. Sai do loop quando user digitar ou cancelar manualmente.
+  const isSpeaking = useVoiceModeStore((s) => s.isSpeaking);
+  const lastInputWasVoiceFlag = useVoiceModeStore(
+    (s) => s.lastInputWasVoice,
+  );
+  const prevSpeakingRef = useRef(false);
+  useEffect(() => {
+    const wasSpeaking = prevSpeakingRef.current;
+    prevSpeakingRef.current = isSpeaking;
+    // Trigger só na borda "speaking → not speaking" (TTS acabou agora)
+    if (wasSpeaking && !isSpeaking && lastInputWasVoiceFlag) {
+      // Pequeno delay pra Web Speech assentar antes de reabrir o mic
+      const t = setTimeout(() => {
+        commandInputRef.current?.startListening();
+      }, 250);
+      return () => clearTimeout(t);
+    }
+  }, [isSpeaking, lastInputWasVoiceFlag]);
 
   // ── Wake word integration ──────────────────────────────────────────
   // O AstroOrb (montado globalmente em platform-providers) captura
@@ -312,9 +335,11 @@ export function NasaCommandCenter() {
       {hasMessages && (
         <div className="border-t border-zinc-800/60 bg-[#050510]/90 backdrop-blur px-3 sm:px-4 py-3 shrink-0 relative z-10">
           <div className="max-w-3xl mx-auto">
-            <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="mb-2 flex items-center justify-start gap-2">
               <ModeToggle mode={inputMode} onChange={setInputMode} />
-              <VoiceOutputToggle />
+              {/* VoiceOutputToggle removido — voz é controlada pelo AstroOrb
+                  (canto inferior direito). Modo "match-input" continua ativo
+                  como default via useVoiceModeStore. */}
             </div>
             {inputMode === "composer" ? (
               <SlashComposer
@@ -322,7 +347,7 @@ export function NasaCommandCenter() {
                 onSubmit={(prompt) => void submitCommand(prompt)}
               />
             ) : (
-              <CommandInput {...commandInputProps} />
+              <CommandInput {...commandInputProps} ref={commandInputRef} />
             )}
           </div>
         </div>
