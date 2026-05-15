@@ -276,11 +276,8 @@ export function FormSettings() {
 
       {/* ─── Navegação entre grupos ──────────────────────── */}
       {(() => {
-        const stepMode =
-          ((settings as unknown as { stepMode?: string }).stepMode ?? "off") as
-            | "off"
-            | "auto"
-            | "manual";
+        const stepMode = ((settings as unknown as { stepMode?: string })
+          .stepMode ?? "off") as "off" | "auto" | "manual";
         const nextLabel =
           (settings as unknown as { nextButtonLabel?: string })
             .nextButtonLabel ?? "Próximo";
@@ -385,7 +382,10 @@ export function FormSettings() {
       })()}
 
       {/* ─── Mascote da barra de progresso ───────────────── */}
-      <ProgressMascotsSection settings={settings} updateSettings={updateSettings} />
+      <ProgressMascotsSection
+        settings={settings}
+        updateSettings={updateSettings}
+      />
 
       <Separator />
 
@@ -484,7 +484,8 @@ function ProgressMascotsSection({
 
   function commit(next: ProgressMascot[]) {
     updateSettings({
-      progressMascots: next as unknown as Partial<FormSettings>["progressMascots"],
+      progressMascots:
+        next as unknown as Partial<FormSettings>["progressMascots"],
     });
   }
 
@@ -540,12 +541,13 @@ function MascotRow({
   onChange: (patch: Partial<ProgressMascot>) => void;
 }) {
   const imgSrc = useConstructUrl(mascot.imageUrl || "");
-  const range = mascot.min === mascot.max
-    ? `${mascot.min}%`
-    : `${mascot.min}–${mascot.max}%`;
+  const range =
+    mascot.min === mascot.max
+      ? `${mascot.min}%`
+      : `${mascot.min}–${mascot.max}%`;
 
   return (
-    <div className="flex items-center gap-2 px-2 py-1.5 rounded border bg-foreground/[0.02]">
+    <div className="flex items-center gap-2 px-2 py-1.5 rounded border bg-foreground/2">
       {/* Preview */}
       <div className="size-8 shrink-0 rounded border bg-background flex items-center justify-center overflow-hidden">
         {mascot.imageUrl ? (
@@ -704,7 +706,8 @@ function NextButtonActionSection({
   function commit(patch: Partial<NextButtonAction>) {
     const next: NextButtonAction = { ...action, ...patch };
     updateSettings({
-      nextButtonAction: next as unknown as Partial<FormSettings>["nextButtonAction"],
+      nextButtonAction:
+        next as unknown as Partial<FormSettings>["nextButtonAction"],
     });
   }
 
@@ -742,7 +745,10 @@ function NextButtonActionSection({
         <TooltipProvider delayDuration={200}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button type="button" className="text-muted-foreground hover:text-foreground">
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-foreground"
+              >
                 <InfoIcon className="size-3.5" />
               </button>
             </TooltipTrigger>
@@ -850,7 +856,10 @@ function NextButtonFormPicker({
               : currentForm?.name || "Selecionar formulário"}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-72 max-h-72 overflow-auto" align="start">
+        <DropdownMenuContent
+          className="w-72 max-h-72 overflow-auto"
+          align="start"
+        >
           <DropdownMenuGroup>
             <DropdownMenuLabel>Formulários disponíveis</DropdownMenuLabel>
             {forms.length === 0 && (
@@ -908,7 +917,10 @@ function NextButtonTagPicker({
               : currentTag?.name || "Selecionar tag"}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-72 max-h-72 overflow-auto" align="start">
+        <DropdownMenuContent
+          className="w-72 max-h-72 overflow-auto"
+          align="start"
+        >
           <DropdownMenuGroup>
             <DropdownMenuLabel>Tags do tracking</DropdownMenuLabel>
             {tags.length === 0 && (
@@ -924,7 +936,9 @@ function NextButtonTagPicker({
               >
                 <span
                   className="inline-block size-2 rounded-full mr-2"
-                  style={{ background: (t as { color?: string }).color || "#888" }}
+                  style={{
+                    background: (t as { color?: string }).color || "#888",
+                  }}
                 />
                 {t.name}
               </DropdownMenuItem>
