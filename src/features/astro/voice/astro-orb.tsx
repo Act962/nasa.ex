@@ -233,13 +233,31 @@ export function AstroOrb() {
         // (só os elementos interativos abaixo têm pointer-events).
       }}
     >
-      {/* Hint flutuante */}
+      {/* Hint flutuante — pequeno balão acima do orb */}
       {hint && (
         <div
-          className="pointer-events-auto rounded-2xl bg-zinc-900/95 backdrop-blur border border-zinc-700/60 px-3 py-1.5 text-xs text-zinc-100 shadow-lg max-w-xs animate-in fade-in slide-in-from-bottom-1 duration-200"
+          className="pointer-events-auto relative rounded-2xl px-3 py-1.5 text-xs text-zinc-100 shadow-xl max-w-xs animate-in fade-in slide-in-from-bottom-1 duration-200"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(24,24,27,0.96) 0%, rgba(39,39,42,0.96) 100%)",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(124,58,237,0.25)",
+            boxShadow:
+              "0 8px 24px -8px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
+          }}
           aria-live="polite"
         >
           {hint}
+          {/* Tail apontando pro orb */}
+          <span
+            className="absolute -bottom-1 right-6 size-2 rotate-45"
+            style={{
+              background: "rgba(39,39,42,0.96)",
+              borderRight: "1px solid rgba(124,58,237,0.25)",
+              borderBottom: "1px solid rgba(124,58,237,0.25)",
+            }}
+            aria-hidden
+          />
         </div>
       )}
 
@@ -288,6 +306,9 @@ export function AstroOrb() {
         </div>
       )}
 
+      {/* Keyframes locais — evita plugin do Tailwind */}
+      <style>{ORB_KEYFRAMES}</style>
+
       {/* O orb propriamente */}
       <button
         type="button"
@@ -305,28 +326,113 @@ export function AstroOrb() {
         }
         aria-label="Astro Orb"
         className={cn(
-          "pointer-events-auto relative size-12 rounded-full flex items-center justify-center shadow-xl transition-all hover:scale-105 active:scale-95",
+          "pointer-events-auto relative size-12 rounded-full flex items-center justify-center shadow-xl transition-all duration-500 hover:scale-105 active:scale-95",
           phaseStyle.bg,
           phaseStyle.ring,
-          phase === "listening" && "animate-pulse",
         )}
+        style={{
+          boxShadow: phaseStyle.glow,
+        }}
       >
-        {/* Halo de pulso pra listening — anel externo expandindo */}
+        {/* ── LISTENING: 3 ondas concêntricas em delay ──────────────── */}
         {phase === "listening" && (
-          <span
-            className="absolute inset-0 rounded-full bg-blue-500/30 animate-ping"
-            aria-hidden
-          />
+          <>
+            <span
+              className="absolute inset-0 rounded-full pointer-events-none"
+              style={{
+                background: "radial-gradient(circle, rgba(59,130,246,0.35) 0%, rgba(59,130,246,0) 70%)",
+                animation: "orb-ripple 1.6s ease-out infinite",
+              }}
+              aria-hidden
+            />
+            <span
+              className="absolute inset-0 rounded-full pointer-events-none"
+              style={{
+                background: "radial-gradient(circle, rgba(59,130,246,0.25) 0%, rgba(59,130,246,0) 70%)",
+                animation: "orb-ripple 1.6s ease-out infinite",
+                animationDelay: "0.53s",
+              }}
+              aria-hidden
+            />
+            <span
+              className="absolute inset-0 rounded-full pointer-events-none"
+              style={{
+                background: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0) 70%)",
+                animation: "orb-ripple 1.6s ease-out infinite",
+                animationDelay: "1.06s",
+              }}
+              aria-hidden
+            />
+          </>
         )}
-        {/* Halo permanente sutil quando wake word ON */}
-        {wakeWordEnabled && phase === "idle" && (
+
+        {/* ── SPEAKING: aurora gradiente rotacionando ───────────────── */}
+        {phase === "speaking" && (
           <span
-            className="absolute -inset-1 rounded-full bg-emerald-500/20 blur-sm"
+            className="absolute -inset-2 rounded-full pointer-events-none"
+            style={{
+              background:
+                "conic-gradient(from 0deg, rgba(16,185,129,0.6), rgba(59,130,246,0.6), rgba(168,85,247,0.6), rgba(16,185,129,0.6))",
+              filter: "blur(8px)",
+              animation: "orb-aurora 4s linear infinite",
+            }}
             aria-hidden
           />
         )}
 
-        <span className="relative z-10 text-white">
+        {/* ── IDLE + wake ON: halo respirando + ring sutil ──────────── */}
+        {wakeWordEnabled && phase === "idle" && (
+          <>
+            <span
+              className="absolute -inset-1 rounded-full pointer-events-none"
+              style={{
+                background: "radial-gradient(circle, rgba(16,185,129,0.35) 0%, rgba(16,185,129,0) 70%)",
+                animation: "orb-breathe 3.6s ease-in-out infinite",
+              }}
+              aria-hidden
+            />
+            {/* 3 partículas esparsas orbitando */}
+            <span
+              className="absolute size-1 rounded-full bg-emerald-300 pointer-events-none"
+              style={{
+                top: "50%",
+                left: "50%",
+                animation: "orb-orbit 6s linear infinite",
+                animationDelay: "0s",
+              }}
+              aria-hidden
+            />
+            <span
+              className="absolute size-1 rounded-full bg-violet-300 pointer-events-none"
+              style={{
+                top: "50%",
+                left: "50%",
+                animation: "orb-orbit 6s linear infinite",
+                animationDelay: "2s",
+                opacity: 0.7,
+              }}
+              aria-hidden
+            />
+            <span
+              className="absolute size-0.5 rounded-full bg-blue-300 pointer-events-none"
+              style={{
+                top: "50%",
+                left: "50%",
+                animation: "orb-orbit 6s linear infinite",
+                animationDelay: "4s",
+                opacity: 0.6,
+              }}
+              aria-hidden
+            />
+          </>
+        )}
+
+        {/* Icone central — cross-fade entre phases */}
+        <span
+          key={phase}
+          className="relative z-10 text-white"
+          style={{ animation: "orb-icon-in 0.35s ease-out" }}
+        >
           {phase === "listening" ? (
             <Mic className="size-5" />
           ) : phase === "thinking" ? (
@@ -341,7 +447,8 @@ export function AstroOrb() {
         {/* Indicador de wake word ativo no canto */}
         {wakeWordEnabled && phase === "idle" && (
           <span
-            className="absolute -top-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-zinc-950"
+            className="absolute -top-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-zinc-950 pointer-events-none"
+            style={{ animation: "orb-breathe 3.6s ease-in-out infinite" }}
             aria-label="Escuta ativa"
           />
         )}
@@ -364,25 +471,76 @@ export function AstroOrb() {
 
 const ORB_PHASES: Record<
   "idle" | "listening" | "thinking" | "speaking",
-  { bg: string; ring: string }
+  { bg: string; ring: string; glow: string }
 > = {
   idle: {
     bg: "bg-gradient-to-br from-violet-600 to-purple-700",
     ring: "ring-2 ring-violet-500/40",
+    glow: "0 8px 32px -8px rgba(124,58,237,0.55), 0 0 0 1px rgba(255,255,255,0.06)",
   },
   listening: {
     bg: "bg-gradient-to-br from-blue-500 to-blue-700",
-    ring: "ring-4 ring-blue-400/60",
+    ring: "ring-2 ring-blue-400/40",
+    glow: "0 10px 36px -6px rgba(59,130,246,0.7), 0 0 0 1px rgba(255,255,255,0.08)",
   },
   thinking: {
     bg: "bg-gradient-to-br from-purple-500 to-fuchsia-700",
-    ring: "ring-2 ring-fuchsia-400/60",
+    ring: "ring-2 ring-fuchsia-400/40",
+    glow: "0 10px 36px -6px rgba(217,70,239,0.65), 0 0 0 1px rgba(255,255,255,0.06)",
   },
   speaking: {
     bg: "bg-gradient-to-br from-emerald-500 to-teal-700",
-    ring: "ring-4 ring-emerald-400/60",
+    ring: "ring-2 ring-emerald-400/40",
+    glow: "0 12px 40px -4px rgba(16,185,129,0.75), 0 0 0 1px rgba(255,255,255,0.1)",
   },
 };
+
+/**
+ * Keyframes do orb. Tudo respeita `prefers-reduced-motion: reduce`
+ * (animações são desabilitadas via media query).
+ */
+const ORB_KEYFRAMES = `
+  @keyframes orb-ripple {
+    0%   { transform: scale(0.8); opacity: 0.9; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
+  @keyframes orb-aurora {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  @keyframes orb-breathe {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50%      { opacity: 1;   transform: scale(1.06); }
+  }
+  /* Órbita dos sparkles — cada um nasce no centro, vai pra borda e some.
+     Combinação de translate + scale + opacity pra criar "respiração de luz". */
+  @keyframes orb-orbit {
+    0% {
+      transform: translate(-50%, -50%) rotate(0deg) translateX(0px) scale(0);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+      transform: translate(-50%, -50%) rotate(72deg) translateX(20px) scale(1);
+    }
+    80% {
+      opacity: 1;
+      transform: translate(-50%, -50%) rotate(288deg) translateX(28px) scale(1);
+    }
+    100% {
+      transform: translate(-50%, -50%) rotate(360deg) translateX(0px) scale(0);
+      opacity: 0;
+    }
+  }
+  @keyframes orb-icon-in {
+    0%   { transform: scale(0.6) rotate(-12deg); opacity: 0; }
+    60%  { transform: scale(1.12) rotate(4deg);  opacity: 1; }
+    100% { transform: scale(1) rotate(0deg);     opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    /* Mantém apenas indicação estática — sem motion */
+  }
+`;
 
 /**
  * Pega só o primeiro nome do usuário pra usar em saudações.
