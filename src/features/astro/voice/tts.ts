@@ -31,6 +31,64 @@ const PIPER_ENABLED =
 
 // Estado do <audio> atual quando Piper está tocando — pra cancel() poder pausar.
 let currentPiperAudio: HTMLAudioElement | null = null;
+
+// ─── iOS unlock ─────────────────────────────────────────────────────────
+//
+// iOS Safari bloqueia `audio.play()` E `speechSynthesis.speak()` quando
+// chamados fora de um handler de evento síncrono iniciado pelo usuário.
+// Nosso fluxo é assíncrono (mic → STT → LLM → TTS), então quando o speak
+// roda já perdeu o "token de gesto" do clique original.
+//
+// `unlockAudio()` deve ser chamado DENTRO do onClick do mic (ou de
+// qualquer outro botão que dispare áudio depois). Ele:
+//   1. Toca um WAV silencioso de 100ms pra "destravar" HTMLAudioElement
+//      pra próximas chamadas programáticas na mesma sessão.
+//   2. Fala uma utterance vazia + cancela pra destravar speechSynthesis.
+//
+// No desktop é no-op (sem custo). No iOS, sem isso o Astro fica mudo
+// porque o browser silenciosamente engole o play.
+//
+// Referências:
+//   https://developer.apple.com/documentation/webkit/delivering_video_content_for_safari
+//   https://developer.mozilla.org/en-US/docs/Web/Media/Autoplay_guide
+let audioUnlocked = false;
+
+// WAV silencioso de 100ms — mínimo necessário pra um play() registrar
+// como "media playback iniciado pelo user" no iOS.
+const SILENT_WAV_DATA_URI =
+  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+
+export function unlockAudio(): void {
+  if (typeof window === "undefined") return;
+  if (audioUnlocked) return;
+  try {
+    const a = new Audio(SILENT_WAV_DATA_URI);
+    a.volume = 0;
+    const p = a.play();
+    if (p && typeof p.then === "function") {
+      p.then(() => {
+        a.pause();
+        a.src = "";
+      }).catch(() => {
+        /* iOS pode rejeitar mesmo com gesto se algo bloqueou; ignora */
+      });
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    const synth = window.speechSynthesis;
+    if (synth) {
+      const u = new SpeechSynthesisUtterance("");
+      u.volume = 0;
+      synth.speak(u);
+      synth.cancel();
+    }
+  } catch {
+    /* ignore */
+  }
+  audioUnlocked = true;
+}
 // Cache de health-check do Piper — evita pingar /api/astro/tts/health a cada
 // fala. TTL curto (30s) pra reagir se o container subir/cair durante a sessão.
 let piperHealthCache: { isUp: boolean; checkedAt: number } | null = null;
