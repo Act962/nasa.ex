@@ -93,6 +93,19 @@ export const CommandInput = forwardRef<
     autoResize();
   }, [command, autoResize]);
 
+  // Foco automático sempre — input do explorer fica pronto pra digitar:
+  //  - on mount (entrou na área)
+  //  - sempre que `loading` solta (acabou de receber resposta)
+  // Mantém a "vibe terminal" — usuário não precisa clicar.
+  useEffect(() => {
+    if (!loading) {
+      const t = setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(t);
+    }
+  }, [loading]);
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (

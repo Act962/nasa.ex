@@ -112,27 +112,83 @@ export interface SpeakOptions {
   onError?: () => void;
 }
 
+// ─── Fila FIFO global ───────────────────────────────────────────────────
+//
+// Streaming TTS chama speak() múltiplas vezes em sequência (uma por chunk
+// de frase). Sem fila, requests Piper paralelas geravam 2 áudios tocando
+// simultâneo (1 cancelando o outro no meio). A fila garante uma utterance
+// por vez, na ordem que chegou.
+
+interface QueueItem {
+  text: string;
+  opts: SpeakOptions;
+}
+
+const speakQueue: QueueItem[] = [];
+let isProcessingQueue = false;
+
 /**
  * Fala o texto. Best-effort — silencia se browser não suportar ou usuário
  * não tiver interagido ainda (autoplay policy).
  *
- * Garantia: voices async load. Se `onvoiceschanged` ainda não disparou,
- * aguarda 1× antes de tocar.
+ * Enfileira a chamada e processa em ordem. Cada utterance termina
+ * (engine.onEnd) antes da próxima começar. Chamadas concorrentes não
+ * geram áudios sobrepostos.
  */
 export function speak(text: string, opts: SpeakOptions = {}): void {
   if (typeof window === "undefined") return;
-  const synth = window.speechSynthesis;
-  if (!synth || !text.trim()) return;
+  if (!text.trim()) return;
 
-  // Piper preferido se habilitado E o endpoint responde. Fallback silencioso
-  // pro Web Speech se Piper estiver offline.
-  if (PIPER_ENABLED) {
-    void trySpeakViaPiper(text, opts).then((handled) => {
-      if (!handled) speakViaWebSpeech(text, opts);
-    });
-    return;
+  speakQueue.push({ text, opts });
+  void processQueue();
+}
+
+async function processQueue(): Promise<void> {
+  if (isProcessingQueue) return;
+  if (speakQueue.length === 0) return;
+  isProcessingQueue = true;
+
+  while (speakQueue.length > 0) {
+    const item = speakQueue.shift()!;
+    await speakOne(item.text, item.opts);
   }
-  speakViaWebSpeech(text, opts);
+
+  isProcessingQueue = false;
+}
+
+/**
+ * Toca UM item da fila e resolve quando termina (ou falha). Tenta Piper
+ * primeiro se habilitado; cai pro Web Speech como fallback.
+ */
+function speakOne(text: string, opts: SpeakOptions): Promise<void> {
+  return new Promise<void>((resolve) => {
+    let resolved = false;
+    const done = () => {
+      if (resolved) return;
+      resolved = true;
+      resolve();
+    };
+
+    const wrappedOpts: SpeakOptions = {
+      ...opts,
+      onEnd: () => {
+        opts.onEnd?.();
+        done();
+      },
+      onError: () => {
+        opts.onError?.();
+        done();
+      },
+    };
+
+    if (PIPER_ENABLED) {
+      void trySpeakViaPiper(text, wrappedOpts).then((handled) => {
+        if (!handled) speakViaWebSpeech(text, wrappedOpts);
+      });
+    } else {
+      speakViaWebSpeech(text, wrappedOpts);
+    }
+  });
 }
 
 // ─── Piper engine ───────────────────────────────────────────────────────
@@ -409,6 +465,8 @@ function humanizeForSpeech(text: string): string {
 /** Interrompe a fala atual + esvazia a fila (Web Speech + Piper). */
 export function cancel(): void {
   if (typeof window === "undefined") return;
+  // Esvazia fila pendente — utterances ainda não tocadas não tocam mais
+  speakQueue.length = 0;
   window.speechSynthesis?.cancel();
   if (currentPiperAudio) {
     try {

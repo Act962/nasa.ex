@@ -318,9 +318,29 @@ export function NasaCommandCenter() {
           />
         ) : (
           <div className="max-w-3xl mx-auto px-3 sm:px-4 pt-4 pb-4 space-y-2">
-            {messages.map((msg) => (
-              <AstroMessage key={msg.id} message={msg} />
-            ))}
+            {(() => {
+              // Somatória cumulativa de tokens por mensagem assistant.
+              // Cada AstroMessage recebe o total da sessão até ele (não só
+              // os tokens da requisição que gerou aquela resposta).
+              let runningTotal = 0;
+              return messages.map((msg) => {
+                const msgTokens =
+                  (msg as { metadata?: { tokens?: number } }).metadata
+                    ?.tokens ?? 0;
+                if (msg.role === "assistant" && msgTokens > 0) {
+                  runningTotal += msgTokens;
+                }
+                return (
+                  <AstroMessage
+                    key={msg.id}
+                    message={msg}
+                    cumulativeTokens={
+                      msg.role === "assistant" ? runningTotal : undefined
+                    }
+                  />
+                );
+              });
+            })()}
             {loading && <ThinkingDisplay steps={thinkingSteps} />}
             {error && (
               <div className="rounded-md bg-destructive/10 p-2 text-xs text-destructive">

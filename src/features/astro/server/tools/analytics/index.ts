@@ -119,13 +119,13 @@ export function buildAnalyticsTools(ctx: AgentContext) {
             }),
             prisma.spacePointTransaction.findMany({
               where: {
-                organizationId: { in: targetOrgs },
+                orgId: { in: targetOrgs },
                 createdAt: { gte: from, lte: to },
                 ...(userFilter && userFilter.length > 0
-                  ? { userId: { in: userFilter } }
+                  ? { userPoint: { userId: { in: userFilter } } }
                   : {}),
               },
-              select: { amount: true, action: true },
+              select: { points: true },
             }),
           ]);
 
@@ -169,7 +169,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           0,
         );
         const spacePointsEarned = spTransactions.reduce(
-          (sum, t) => sum + (t.amount > 0 ? t.amount : 0),
+          (sum, t) => sum + (t.points > 0 ? t.points : 0),
           0,
         );
 
@@ -954,6 +954,632 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           },
           noShowRate,
           attendanceRate,
+        };
+      },
+    }),
+
+    // ── FORMS (formulários: submissões, conversão, abandono) ─────────────
+    get_forms_metrics: tool({
+      description:
+        "Resume métricas de FORMS (formulários): total de formulários publicados/rascunho, submissões completas vs abandonadas, taxa de conversão pra lead, top forms por volume. Use quando o user perguntar sobre formulários, submissões, leads via form, taxa de abandono.",
+      inputSchema: z.object({
+        fromIso: z.string().optional(),
+        toIso: z.string().optional(),
+        orgIds: z.array(z.string()).optional(),
+        formIds: z
+          .array(z.string())
+          .optional()
+          .describe("Filtra forms específicos"),
+      }),
+      execute: async ({ fromIso, toIso, orgIds, formIds }) => {
+        const memberships = await prisma.member.findMany({
+          where: { userId: ctx.userId },
+          select: { organizationId: true, role: true },
+        });
+        const myOrgIds = memberships.map((m) => m.organizationId);
+        const targetOrgs =
+          orgIds && orgIds.length > 0
+            ? orgIds.filter((id) => myOrgIds.includes(id))
+            : myOrgIds;
+        if (targetOrgs.length === 0) {
+          return { error: "Sem acesso a nenhuma organização" };
+        }
+
+        const from = fromIso
+          ? new Date(fromIso)
+          : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const to = toIso ? new Date(toIso) : new Date();
+
+        const formWhere = {
+          organizationId: { in: targetOrgs },
+          ...(formIds && formIds.length > 0 ? { id: { in: formIds } } : {}),
+        };
+
+        const responseWhere = {
+          form: {
+            organizationId: { in: targetOrgs },
+            ...(formIds && formIds.length > 0 ? { id: { in: formIds } } : {}),
+          },
+        };
+
+        const [
+          totalForms,
+          publishedForms,
+          totalResponses,
+          completedInPeriod,
+          abandonedInPeriod,
+          responsesWithLead,
+          topForms,
+        ] = await Promise.all([
+          prisma.form.count({ where: formWhere }),
+          prisma.form.count({ where: { ...formWhere, published: true } }),
+          prisma.formResponses.count({ where: responseWhere }),
+          prisma.formResponses.count({
+            where: {
+              ...responseWhere,
+              completedAt: { gte: from, lte: to, not: null },
+            },
+          }),
+          prisma.formResponses.count({
+            where: {
+              ...responseWhere,
+              createdAt: { gte: from, lte: to },
+              completedAt: null,
+            },
+          }),
+          prisma.formResponses.count({
+            where: {
+              ...responseWhere,
+              completedAt: { gte: from, lte: to, not: null },
+              leadId: { not: null },
+            },
+          }),
+          prisma.form.findMany({
+            where: formWhere,
+            select: {
+              id: true,
+              name: true,
+              published: true,
+              views: true,
+              responses: true,
+              _count: { select: { formSubmissions: true } },
+            },
+            orderBy: { responses: "desc" },
+            take: 5,
+          }),
+        ]);
+
+        const conversionToLeadRate =
+          completedInPeriod > 0
+            ? Math.round((responsesWithLead / completedInPeriod) * 100 * 10) /
+              10
+            : 0;
+        const totalInPeriod = completedInPeriod + abandonedInPeriod;
+        const abandonRate =
+          totalInPeriod > 0
+            ? Math.round((abandonedInPeriod / totalInPeriod) * 100 * 10) / 10
+            : 0;
+
+        return {
+          period: { from: from.toISOString(), to: to.toISOString() },
+          forms: {
+            total: totalForms,
+            published: publishedForms,
+            draft: totalForms - publishedForms,
+          },
+          responses: {
+            total: totalResponses,
+            completedInPeriod,
+            abandonedInPeriod,
+            convertedToLead: responsesWithLead,
+            conversionToLeadRate,
+            abandonRate,
+          },
+          topForms: topForms.map((f) => ({
+            id: f.id,
+            name: f.name,
+            published: f.published,
+            views: f.views,
+            responses: f.responses,
+          })),
+        };
+      },
+    }),
+
+    // ── NASA ROUTE (cursos, matrículas, certificados, receita Stars) ────
+    get_route_metrics: tool({
+      description:
+        "Resume métricas de NASA ROUTE (cursos): total de cursos publicados/rascunho, matrículas ativas vs reembolsadas, certificados emitidos, receita em Stars (paidStars), top cursos por alunos. Use quando o user perguntar sobre cursos, alunos, certificados, receita de cursos.",
+      inputSchema: z.object({
+        fromIso: z.string().optional(),
+        toIso: z.string().optional(),
+        orgIds: z.array(z.string()).optional(),
+        courseIds: z.array(z.string()).optional(),
+      }),
+      execute: async ({ fromIso, toIso, orgIds, courseIds }) => {
+        const memberships = await prisma.member.findMany({
+          where: { userId: ctx.userId },
+          select: { organizationId: true, role: true },
+        });
+        const myOrgIds = memberships.map((m) => m.organizationId);
+        const targetOrgs =
+          orgIds && orgIds.length > 0
+            ? orgIds.filter((id) => myOrgIds.includes(id))
+            : myOrgIds;
+        if (targetOrgs.length === 0) {
+          return { error: "Sem acesso a nenhuma organização" };
+        }
+
+        const from = fromIso
+          ? new Date(fromIso)
+          : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const to = toIso ? new Date(toIso) : new Date();
+
+        const courseWhere = {
+          creatorOrgId: { in: targetOrgs },
+          ...(courseIds && courseIds.length > 0
+            ? { id: { in: courseIds } }
+            : {}),
+        };
+
+        const enrollmentWhere = {
+          course: courseWhere,
+        };
+
+        const [
+          totalCourses,
+          publishedCourses,
+          totalEnrollments,
+          enrollmentsInPeriod,
+          activeEnrollments,
+          refundedEnrollments,
+          completedEnrollments,
+          certificatesIssued,
+          revenueAgg,
+          topCourses,
+        ] = await Promise.all([
+          prisma.nasaRouteCourse.count({ where: courseWhere }),
+          prisma.nasaRouteCourse.count({
+            where: { ...courseWhere, isPublished: true },
+          }),
+          prisma.nasaRouteEnrollment.count({ where: enrollmentWhere }),
+          prisma.nasaRouteEnrollment.count({
+            where: {
+              ...enrollmentWhere,
+              enrolledAt: { gte: from, lte: to },
+            },
+          }),
+          prisma.nasaRouteEnrollment.count({
+            where: { ...enrollmentWhere, status: "active" },
+          }),
+          prisma.nasaRouteEnrollment.count({
+            where: { ...enrollmentWhere, status: "refunded" },
+          }),
+          prisma.nasaRouteEnrollment.count({
+            where: { ...enrollmentWhere, completedAt: { not: null } },
+          }),
+          prisma.nasaRouteCertificate.count({
+            where: {
+              enrollment: enrollmentWhere,
+            },
+          }),
+          prisma.nasaRouteEnrollment.aggregate({
+            where: {
+              ...enrollmentWhere,
+              enrolledAt: { gte: from, lte: to },
+            },
+            _sum: { paidStars: true },
+          }),
+          prisma.nasaRouteCourse.findMany({
+            where: courseWhere,
+            select: {
+              id: true,
+              title: true,
+              format: true,
+              isPublished: true,
+              studentsCount: true,
+              priceStars: true,
+              _count: { select: { enrollments: true } },
+            },
+            orderBy: { studentsCount: "desc" },
+            take: 5,
+          }),
+        ]);
+
+        const completionRate =
+          totalEnrollments > 0
+            ? Math.round(
+                (completedEnrollments / totalEnrollments) * 100 * 10,
+              ) / 10
+            : 0;
+
+        return {
+          period: { from: from.toISOString(), to: to.toISOString() },
+          courses: {
+            total: totalCourses,
+            published: publishedCourses,
+            draft: totalCourses - publishedCourses,
+          },
+          enrollments: {
+            total: totalEnrollments,
+            inPeriod: enrollmentsInPeriod,
+            active: activeEnrollments,
+            refunded: refundedEnrollments,
+            completed: completedEnrollments,
+            completionRate,
+          },
+          certificatesIssued,
+          revenueStarsInPeriod: revenueAgg._sum.paidStars ?? 0,
+          topCourses: topCourses.map((c) => ({
+            id: c.id,
+            title: c.title,
+            format: c.format,
+            published: c.isPublished,
+            students: c.studentsCount,
+            priceStars: c.priceStars,
+            totalEnrollments: c._count.enrollments,
+          })),
+        };
+      },
+    }),
+
+    // ── LINNKER / NASA PAGE (landing pages, visitas) ─────────────────────
+    get_linnker_metrics: tool({
+      description:
+        "Resume métricas de LINNKER (NasaPage / landing pages): total publicadas/rascunho/arquivadas, total de visitas, visitas no período, top páginas por visitas. Use quando o user perguntar sobre landing pages, páginas públicas, visitas, bio link.",
+      inputSchema: z.object({
+        fromIso: z.string().optional(),
+        toIso: z.string().optional(),
+        orgIds: z.array(z.string()).optional(),
+        pageIds: z.array(z.string()).optional(),
+      }),
+      execute: async ({ fromIso, toIso, orgIds, pageIds }) => {
+        const memberships = await prisma.member.findMany({
+          where: { userId: ctx.userId },
+          select: { organizationId: true, role: true },
+        });
+        const myOrgIds = memberships.map((m) => m.organizationId);
+        const targetOrgs =
+          orgIds && orgIds.length > 0
+            ? orgIds.filter((id) => myOrgIds.includes(id))
+            : myOrgIds;
+        if (targetOrgs.length === 0) {
+          return { error: "Sem acesso a nenhuma organização" };
+        }
+
+        const from = fromIso
+          ? new Date(fromIso)
+          : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const to = toIso ? new Date(toIso) : new Date();
+
+        const pageWhere = {
+          organizationId: { in: targetOrgs },
+          ...(pageIds && pageIds.length > 0 ? { id: { in: pageIds } } : {}),
+        };
+
+        const [
+          totalPages,
+          publishedPages,
+          archivedPages,
+          totalVisits,
+          visitsInPeriod,
+          topPages,
+        ] = await Promise.all([
+          prisma.nasaPage.count({ where: pageWhere }),
+          prisma.nasaPage.count({
+            where: { ...pageWhere, status: "PUBLISHED" },
+          }),
+          prisma.nasaPage.count({
+            where: { ...pageWhere, status: "ARCHIVED" },
+          }),
+          prisma.nasaPageVisit.count({
+            where: { page: pageWhere },
+          }),
+          prisma.nasaPageVisit.count({
+            where: {
+              page: pageWhere,
+              createdAt: { gte: from, lte: to },
+            },
+          }),
+          prisma.nasaPage.findMany({
+            where: pageWhere,
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              status: true,
+              customDomain: true,
+              _count: { select: { visits: true } },
+            },
+            orderBy: { visits: { _count: "desc" } },
+            take: 5,
+          }),
+        ]);
+
+        return {
+          period: { from: from.toISOString(), to: to.toISOString() },
+          pages: {
+            total: totalPages,
+            published: publishedPages,
+            draft: totalPages - publishedPages - archivedPages,
+            archived: archivedPages,
+          },
+          visits: {
+            total: totalVisits,
+            inPeriod: visitsInPeriod,
+          },
+          topPages: topPages.map((p) => ({
+            id: p.id,
+            title: p.title,
+            slug: p.slug,
+            status: p.status,
+            customDomain: p.customDomain,
+            visits: p._count.visits,
+          })),
+        };
+      },
+    }),
+
+    // ── NBOX (storage: folders, items, size, tipos) ──────────────────────
+    get_nbox_metrics: tool({
+      description:
+        "Resume métricas de NBOX (storage): total de pastas, itens por tipo (arquivo/imagem/link/contrato/proposta), tamanho total armazenado, itens públicos compartilháveis. Use quando o user perguntar sobre storage, arquivos, itens compartilhados, NBox.",
+      inputSchema: z.object({
+        fromIso: z.string().optional(),
+        toIso: z.string().optional(),
+        orgIds: z.array(z.string()).optional(),
+      }),
+      execute: async ({ fromIso, toIso, orgIds }) => {
+        const memberships = await prisma.member.findMany({
+          where: { userId: ctx.userId },
+          select: { organizationId: true, role: true },
+        });
+        const myOrgIds = memberships.map((m) => m.organizationId);
+        const targetOrgs =
+          orgIds && orgIds.length > 0
+            ? orgIds.filter((id) => myOrgIds.includes(id))
+            : myOrgIds;
+        if (targetOrgs.length === 0) {
+          return { error: "Sem acesso a nenhuma organização" };
+        }
+
+        const from = fromIso
+          ? new Date(fromIso)
+          : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const to = toIso ? new Date(toIso) : new Date();
+
+        const baseOrg = { organizationId: { in: targetOrgs } };
+
+        const [
+          folders,
+          totalItems,
+          itemsInPeriod,
+          fileItems,
+          imageItems,
+          linkItems,
+          contractItems,
+          proposalItems,
+          publicItems,
+          sizeAgg,
+        ] = await Promise.all([
+          prisma.nBoxFolder.count({ where: baseOrg }),
+          prisma.nBoxItem.count({ where: baseOrg }),
+          prisma.nBoxItem.count({
+            where: { ...baseOrg, createdAt: { gte: from, lte: to } },
+          }),
+          prisma.nBoxItem.count({ where: { ...baseOrg, type: "FILE" } }),
+          prisma.nBoxItem.count({ where: { ...baseOrg, type: "IMAGE" } }),
+          prisma.nBoxItem.count({ where: { ...baseOrg, type: "LINK" } }),
+          prisma.nBoxItem.count({ where: { ...baseOrg, type: "CONTRACT" } }),
+          prisma.nBoxItem.count({ where: { ...baseOrg, type: "PROPOSAL" } }),
+          prisma.nBoxItem.count({ where: { ...baseOrg, isPublic: true } }),
+          prisma.nBoxItem.aggregate({
+            where: baseOrg,
+            _sum: { size: true },
+          }),
+        ]);
+
+        const totalSizeBytes = sizeAgg._sum.size ?? 0;
+        const totalSizeMB = Math.round((totalSizeBytes / (1024 * 1024)) * 10) /
+          10;
+
+        return {
+          period: { from: from.toISOString(), to: to.toISOString() },
+          folders,
+          items: {
+            total: totalItems,
+            inPeriod: itemsInPeriod,
+            byType: {
+              file: fileItems,
+              image: imageItems,
+              link: linkItems,
+              contract: contractItems,
+              proposal: proposalItems,
+            },
+            public: publicItems,
+          },
+          storage: {
+            totalBytes: totalSizeBytes,
+            totalMB: totalSizeMB,
+          },
+        };
+      },
+    }),
+
+    // ── PLATFORM STATUS (Financeiro + Integrações + Space Help) ──────────
+    // Combinado em uma tool — três áreas leves que costumam ser perguntadas
+    // em conjunto ("como tá o financeiro?", "minhas integrações tão ok?",
+    // "qual meu progresso em space help?"). Retorna 3 seções tipadas.
+    get_platform_status_metrics: tool({
+      description:
+        "Resume status de FINANCEIRO (contas a pagar/receber/vencidas/pagas, valores em centavos), INTEGRAÇÕES (plataformas conectadas, ativas, com erro) e SPACE HELP (trilhas iniciadas/concluídas pelo user, badges conquistados). Use quando o user perguntar sobre financeiro, contas, integrações conectadas, trilhas de educação, progresso no space help.",
+      inputSchema: z.object({
+        fromIso: z.string().optional(),
+        toIso: z.string().optional(),
+        orgIds: z.array(z.string()).optional(),
+      }),
+      execute: async ({ fromIso, toIso, orgIds }) => {
+        const memberships = await prisma.member.findMany({
+          where: { userId: ctx.userId },
+          select: { organizationId: true, role: true },
+        });
+        const myOrgIds = memberships.map((m) => m.organizationId);
+        const targetOrgs =
+          orgIds && orgIds.length > 0
+            ? orgIds.filter((id) => myOrgIds.includes(id))
+            : myOrgIds;
+        if (targetOrgs.length === 0) {
+          return { error: "Sem acesso a nenhuma organização" };
+        }
+
+        const from = fromIso
+          ? new Date(fromIso)
+          : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const to = toIso ? new Date(toIso) : new Date();
+
+        const baseOrg = { organizationId: { in: targetOrgs } };
+
+        const [
+          // Finance
+          receivablePending,
+          receivablePaid,
+          receivableOverdue,
+          payablePending,
+          payablePaid,
+          payableOverdue,
+          totalReceivablePending,
+          totalPayablePending,
+          totalReceivedInPeriod,
+          totalPaidInPeriod,
+          // Integrations
+          integrations,
+          // Space Help (do user logado)
+          spaceHelpTracksTotal,
+          spaceHelpProgressList,
+          spaceHelpBadges,
+        ] = await Promise.all([
+          prisma.paymentEntry.count({
+            where: { ...baseOrg, type: "RECEIVABLE", status: "PENDING" },
+          }),
+          prisma.paymentEntry.count({
+            where: { ...baseOrg, type: "RECEIVABLE", status: "PAID" },
+          }),
+          prisma.paymentEntry.count({
+            where: { ...baseOrg, type: "RECEIVABLE", status: "OVERDUE" },
+          }),
+          prisma.paymentEntry.count({
+            where: { ...baseOrg, type: "PAYABLE", status: "PENDING" },
+          }),
+          prisma.paymentEntry.count({
+            where: { ...baseOrg, type: "PAYABLE", status: "PAID" },
+          }),
+          prisma.paymentEntry.count({
+            where: { ...baseOrg, type: "PAYABLE", status: "OVERDUE" },
+          }),
+          prisma.paymentEntry.aggregate({
+            where: {
+              ...baseOrg,
+              type: "RECEIVABLE",
+              status: { in: ["PENDING", "PARTIAL", "OVERDUE"] },
+            },
+            _sum: { amount: true },
+          }),
+          prisma.paymentEntry.aggregate({
+            where: {
+              ...baseOrg,
+              type: "PAYABLE",
+              status: { in: ["PENDING", "PARTIAL", "OVERDUE"] },
+            },
+            _sum: { amount: true },
+          }),
+          prisma.paymentEntry.aggregate({
+            where: {
+              ...baseOrg,
+              type: "RECEIVABLE",
+              status: "PAID",
+              paidAt: { gte: from, lte: to },
+            },
+            _sum: { paidAmount: true },
+          }),
+          prisma.paymentEntry.aggregate({
+            where: {
+              ...baseOrg,
+              type: "PAYABLE",
+              status: "PAID",
+              paidAt: { gte: from, lte: to },
+            },
+            _sum: { paidAmount: true },
+          }),
+          prisma.platformIntegration.findMany({
+            where: baseOrg,
+            select: {
+              platform: true,
+              isActive: true,
+              lastSyncAt: true,
+              lastErrorAt: true,
+              lastErrorMessage: true,
+            },
+          }),
+          prisma.spaceHelpTrack.count({ where: { isPublished: true } }),
+          prisma.spaceHelpProgress.findMany({
+            where: { userId: ctx.userId },
+            select: { trackId: true, completedAt: true },
+          }),
+          prisma.userSpaceHelpBadge.count({
+            where: { userId: ctx.userId },
+          }),
+        ]);
+
+        const tracksStarted = spaceHelpProgressList.length;
+        const tracksCompleted = spaceHelpProgressList.filter(
+          (p) => p.completedAt !== null,
+        ).length;
+        const tracksInProgress = tracksStarted - tracksCompleted;
+
+        const integrationsActive = integrations.filter((i) => i.isActive).length;
+        const integrationsWithError = integrations.filter(
+          (i) => i.lastErrorAt !== null,
+        ).length;
+
+        return {
+          period: { from: from.toISOString(), to: to.toISOString() },
+          finance: {
+            receivable: {
+              pending: receivablePending,
+              paid: receivablePaid,
+              overdue: receivableOverdue,
+              totalPendingCents: totalReceivablePending._sum.amount ?? 0,
+              receivedInPeriodCents:
+                totalReceivedInPeriod._sum.paidAmount ?? 0,
+            },
+            payable: {
+              pending: payablePending,
+              paid: payablePaid,
+              overdue: payableOverdue,
+              totalPendingCents: totalPayablePending._sum.amount ?? 0,
+              paidInPeriodCents: totalPaidInPeriod._sum.paidAmount ?? 0,
+            },
+          },
+          integrations: {
+            total: integrations.length,
+            active: integrationsActive,
+            inactive: integrations.length - integrationsActive,
+            withError: integrationsWithError,
+            list: integrations.map((i) => ({
+              platform: i.platform,
+              active: i.isActive,
+              lastSyncAt: i.lastSyncAt?.toISOString() ?? null,
+              hasError: i.lastErrorAt !== null,
+              errorMessage: i.lastErrorMessage,
+            })),
+          },
+          spaceHelp: {
+            totalTracksAvailable: spaceHelpTracksTotal,
+            tracksStarted,
+            tracksInProgress,
+            tracksCompleted,
+            badgesEarned: spaceHelpBadges,
+          },
         };
       },
     }),
