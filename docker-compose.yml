@@ -8,3 +8,36 @@ services:
       POSTGRES_USER: docker
       POSTGRES_PASSWORD: docker
       POSTGRES_DB: nasa_db
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Piper TTS HTTP — voz natural pt-BR (Faber, VITS open source).
+  #
+  # Habilita: docker compose up piper -d
+  # Logs:     docker compose logs -f piper
+  # Stop:     docker compose stop piper
+  #
+  # Próximo passo no app: setar NEXT_PUBLIC_PIPER_ENABLED=true em
+  # .env.local pra o client usar essa voz em vez do Web Speech.
+  # ─────────────────────────────────────────────────────────────────────
+  piper:
+    build:
+      context: ./docker/piper
+      dockerfile: Dockerfile
+    container_name: nasa-piper
+    ports:
+      - "10200:10200"
+    volumes:
+      # Cache do voice model (~63MB) persiste entre rebuilds
+      - piper_voices:/voices
+    environment:
+      PIPER_ALLOWED_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:10200/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  piper_voices:
