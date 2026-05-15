@@ -433,7 +433,7 @@ const TRACKING_PERF_KEYS = new Set([
 
 interface TrackingDynamicSectionProps {
   /** Mesma estrutura de DashboardSummary que vem do tracking-dashboard. */
-  summary: Record<string, unknown> | undefined;
+  summary: object | undefined;
 }
 
 /**
@@ -496,7 +496,11 @@ export function NasaPlannerSection({ data }: { data: NasaPlannerData & Record<st
   return <DynamicSection appModule="nasa-planner" data={{ nasaPlanner: data }} />;
 }
 
-interface IntegrationsProps { metaAds?: { connected?: boolean; data?: { spend?: number; leads?: number; clicks?: number; impressions?: number; ctr?: number; cpl?: number; roas?: number; }; }; }
+interface IntegrationsProps {
+  // `data` aceita o shape rico vindo de `getMetaInsights` (que pode ter
+  // diversos campos extras). O catálogo só lê spend/leads/clicks/etc.
+  metaAds?: { connected?: boolean; data?: Record<string, unknown> | null } | null;
+}
 export function IntegrationsSection({ metaAds }: IntegrationsProps) {
   // Mapeia o payload de meta pro formato esperado pelo catálogo
   const data = metaAds?.connected && metaAds.data ? metaAds.data : {};

@@ -181,7 +181,7 @@ async function fetchLead({
     ...(metric === "lead.bySource" && source ? { source: source as "DEFAULT" } : {}),
     ...(metric === "lead.byUtmCampaign" && utmCampaign ? { utmCampaign } : {}),
     ...(metric === "lead.byUtmSource" && utmSource ? { utmSource } : {}),
-  } as Parameters<typeof prisma.lead.findMany>[0]["where"];
+  } as NonNullable<Parameters<typeof prisma.lead.findMany>[0]>["where"];
 
   const total = await prisma.lead.count({ where });
 
@@ -252,7 +252,7 @@ async function fetchForge({ metric, orgIds, dateRange, trackingId, tagWhereLead,
     ...(trackingId ? { client: { is: { trackingId } } } : {}),
     // Tag filter aplicado via lead
     ...(tagWhereLead ? { client: { is: tagWhereLead } } : {}),
-  } as Parameters<typeof prisma.forgeProposal.findMany>[0]["where"];
+  } as NonNullable<Parameters<typeof prisma.forgeProposal.findMany>[0]>["where"];
 
   // Se trackingId + tagWhereLead estiverem ambos presentes, precisamos
   // combinar AND no Lead. Caso raro mas precisa funcionar:
@@ -314,7 +314,7 @@ async function fetchSpacetime({ metric, orgIds, dateRange, trackingId, tagWhereL
     ...(dateRange ? { startsAt: dateRange } : {}),
     ...(trackingId ? { trackingId } : {}),
     ...(tagWhereLead ? { lead: { is: tagWhereLead } } : {}),
-  } as Parameters<typeof prisma.appointment.findMany>[0]["where"];
+  } as NonNullable<Parameters<typeof prisma.appointment.findMany>[0]>["where"];
 
   const total = await prisma.appointment.count({ where });
 
@@ -361,7 +361,7 @@ async function fetchChat({ metric, orgIds, dateRange, trackingId, tagWhereLead, 
     ...(tagWhereLead ? { lead: { is: tagWhereLead } } : {}),
     ...(isAttended ? { isActive: true } : {}),
     ...(isUnattended ? { isActive: false } : {}),
-  } as Parameters<typeof prisma.conversation.findMany>[0]["where"];
+  } as NonNullable<Parameters<typeof prisma.conversation.findMany>[0]>["where"];
 
   const total = await prisma.conversation.count({ where });
 

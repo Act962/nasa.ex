@@ -93,10 +93,10 @@ export const getAppsInsights = base
           0,
         );
         const topDiscount = Number(p.discount ?? 0);
-        // Assume top-level discount em valor absoluto quando type=FIXED, ou
-        // % quando PERCENT — defensivo: trata sempre como absoluto se < gross
+        // Assume top-level discount em valor absoluto quando type=FIXO, ou
+        // % quando PERCENTUAL — defensivo: trata sempre como absoluto se < gross
         const totalDiscount =
-          p.discountType === "PERCENTAGE"
+          p.discountType === "PERCENTUAL"
             ? (gross * topDiscount) / 100 + productDiscount
             : topDiscount + productDiscount;
         acc.totalGross += gross;
