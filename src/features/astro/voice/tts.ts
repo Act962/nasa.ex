@@ -32,24 +32,48 @@ function pickBestVoice(): SpeechSynthesisVoice | null {
   const voices = cachedVoices ?? loadVoices();
   if (!voices.length) return null;
 
-  // Preferências em ordem: Google Brasil > Microsoft Maria > qualquer pt-BR > qualquer pt
-  const candidates = [
-    /Google português do Brasil/i,
-    /Microsoft Maria/i,
-    /Luciana/i, // Apple
-    /Felipe/i, // Apple
-    /pt[-_]BR/i,
-    /portugues|portuguese/i,
-    /^pt/i,
+  // Astro é homem — prioriza vozes MASCULINAS pt-BR.
+  // Lista ordenada por qualidade percebida (mais naturais no topo).
+  const malePtBr = [
+    /Felipe/i, // Microsoft + Apple
+    /Daniel/i, // Apple (pt-PT mas natural)
+    /Antonio/i, // Microsoft (pt-PT) / Apple (multiOS)
+    /Rocko/i, // Apple (pt-BR)
+    /Reed/i, // Apple (pt-BR)
+    /Eddy/i, // Apple (pt-BR — voz neutra/masc)
+    /Grandpa/i, // Apple (pt-BR — masc)
+    /Diego/i,
+    /Ricardo/i,
+    /Júlio|Julio/i,
   ];
 
-  for (const re of candidates) {
+  // Tenta cada padrão masculino — voz de qualquer locale pt
+  for (const re of malePtBr) {
     const match = voices.find(
-      (v) => re.test(v.name) || re.test(v.lang),
+      (v) => re.test(v.name) && /^pt/i.test(v.lang),
     );
     if (match) return match;
   }
-  return voices[0] ?? null;
+  // Sem nome reconhecido — pega Google pt-BR (geralmente masculino em Chrome
+  // mobile/desktop), seguido de qualquer pt-BR.
+  // Filtro final exclui femininas conhecidas como fallback.
+  const excludeFemale =
+    /Luciana|Maria|Joana|Helena|Catarina|Sandy|Shelley|Grandma|Flo/i;
+
+  const ptBR = voices.filter(
+    (v) => /pt[-_]BR/i.test(v.lang) && !excludeFemale.test(v.name),
+  );
+  if (ptBR.length > 0) return ptBR[0]!;
+
+  // Última tentativa: qualquer pt sem femininas reconhecidas
+  const ptAny = voices.filter(
+    (v) => /^pt/i.test(v.lang) && !excludeFemale.test(v.name),
+  );
+  if (ptAny.length > 0) return ptAny[0]!;
+
+  // Mesmo as femininas — melhor falar do que não falar
+  const anyPt = voices.find((v) => /^pt/i.test(v.lang));
+  return anyPt ?? voices[0] ?? null;
 }
 
 export interface SpeakOptions {
@@ -76,7 +100,10 @@ export function speak(text: string, opts: SpeakOptions = {}): void {
   const utter = new SpeechSynthesisUtterance(stripMarkdownForSpeech(text));
   utter.lang = "pt-BR";
   utter.rate = opts.rate ?? 1.0;
-  utter.pitch = opts.pitch ?? 1.0;
+  // Astro é homem — pitch um pouco mais grave que o default (1.0).
+  // Caller pode override se quiser, mas o default já reforça a percepção
+  // masculina mesmo nas vozes "neutras" tipo Eddy/Flo.
+  utter.pitch = opts.pitch ?? 0.85;
   utter.volume = opts.volume ?? 1.0;
 
   if (opts.onStart) utter.onstart = opts.onStart;
