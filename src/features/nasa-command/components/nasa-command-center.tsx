@@ -17,6 +17,8 @@ import { AstroMessage } from "@/features/astro/components/astro-message";
 import { useAutoNarrate } from "@/features/astro/voice/use-auto-narrate";
 import { VoiceOutputToggle } from "@/features/astro/voice/voice-output-toggle";
 import { useVoiceModeStore } from "@/features/astro/voice/use-voice-mode-store";
+import { useAstroOrbStore } from "@/features/astro/voice/use-astro-orb-store";
+import { useSearchParams, useRouter } from "next/navigation";
 
 import type { DropdownType, ModelType } from "../types";
 import type { CommandInputProps } from "./command-input";
@@ -149,6 +151,54 @@ export function NasaCommandCenter() {
   // Auto-narração: quando o stream termina, narra a resposta do Astro
   // se o modo de output permitir (match + last input por voz, ou "audio").
   useAutoNarrate({ messages, status });
+
+  // ── Wake word integration ──────────────────────────────────────────
+  // O AstroOrb (montado globalmente em platform-providers) captura
+  // utterance após detectar "ASTRO" e grava em:
+  //   - useAstroOrbStore.pendingUtterance (quando já estamos no /home)
+  //   - URL ?prompt= (quando veio de outra página)
+  // Aqui consumimos ambos, auto-submetemos e limpamos.
+  const pendingUtterance = useAstroOrbStore((s) => s.pendingUtterance);
+  const setPendingUtterance = useAstroOrbStore((s) => s.setPendingUtterance);
+  const setOrbPhase = useAstroOrbStore((s) => s.setPhase);
+  const searchParams = useSearchParams();
+  const routerNav = useRouter();
+  const consumedRef = useRef(false);
+
+  // Quando stream termina, devolve o orb pra idle (a menos que TTS esteja falando — phase=speaking é gerenciado pelo orb a partir do useVoiceModeStore.isSpeaking).
+  useEffect(() => {
+    if (status === "ready") {
+      const phase = useAstroOrbStore.getState().phase;
+      if (phase === "thinking") setOrbPhase("idle");
+    }
+  }, [status, setOrbPhase]);
+
+  useEffect(() => {
+    if (consumedRef.current) return;
+    const fromUrl = searchParams.get("prompt");
+    const fromStore = pendingUtterance;
+    const text = (fromStore || fromUrl || "").trim();
+    if (!text) return;
+    consumedRef.current = true;
+
+    // Tudo que veio do orb é por voz — força modo voice
+    setLastInputWasVoice(true);
+    // Limpa fontes pra evitar resubmit
+    if (fromStore) setPendingUtterance(null);
+    if (fromUrl) {
+      const sp = new URLSearchParams(searchParams.toString());
+      sp.delete("prompt");
+      routerNav.replace(`/home${sp.toString() ? `?${sp.toString()}` : ""}`);
+    }
+    // O orb está em "thinking" enquanto Astro processa
+    setOrbPhase("thinking");
+    void submitCommand(text);
+    // Idempotência: reset após pequena janela
+    setTimeout(() => {
+      consumedRef.current = false;
+    }, 2000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingUtterance, searchParams]);
 
   const fillExample = (example: string) => {
     setCommand(example);

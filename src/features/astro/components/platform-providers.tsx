@@ -7,6 +7,7 @@ import { AstroProvider } from "./astro-provider";
 import { HeartbeatProvider } from "@/components/heartbeat-provider";
 import { SpacePointProvider } from "@/features/space-point";
 import { AlertProvider } from "@/features/alerts/components/alert-provider";
+import { AstroOrb } from "@/features/astro/voice/astro-orb";
 import { TourProvider } from "@/features/tour/context";
 import { TourOverlay } from "@/features/tour/overlay";
 import { useGlobalShortcuts } from "@/features/admin/components/shortcuts-client";
@@ -53,6 +54,7 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
               {children}
               <GlobalShortcutsRegistrar />
               <AstroAgent />
+              <AstroOrb />
               <ConnectionWizardDialog />
               <TourOverlay />
               <HeartbeatProvider />
