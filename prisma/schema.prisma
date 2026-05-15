@@ -298,6 +298,9 @@ model Organization {
   // Space Station
   spaceStation SpaceStation?
 
+  // Alerts (regras configuráveis de notificação)
+  alertRules AlertRule[]
+
   // Marca / Brand
   brandSlogan         String? @map("brand_slogan")
   brandWebsite        String? @map("brand_website")
@@ -3063,11 +3066,25 @@ model AdminNotification {
   sentWhatsApp   Boolean  @default(false) @map("sent_whatsapp")
   createdAt      DateTime @default(now()) @map("created_at")
 
+  // ─── Camada de Alertas ────────────────────────────────────────────
+  // severity governa o tratamento visual (info=bell, warning=toast,
+  // critical=popup). displaySurface permite override por regra.
+  // requiresAck=true só fecha o popup quando user confirmar explicitamente.
+  severity       String   @default("info") // info | warning | critical
+  displaySurface String   @default("bell") @map("display_surface") // bell | toast | popup
+  requiresAck    Boolean  @default(false) @map("requires_ack")
+  alertRuleId    String?  @map("alert_rule_id")
+  alertRule      AlertRule? @relation(fields: [alertRuleId], references: [id], onDelete: SetNull)
+  eventType      String?  @map("event_type")
+  eventPayload   Json?    @map("event_payload")
+
   reads AdminNotificationRead[]
 
   @@index([targetType])
   @@index([createdAt])
   @@index([organizationId])
+  @@index([severity, requiresAck])
+  @@index([alertRuleId])
   @@map("admin_notification")
 }
 
@@ -3077,10 +3094,59 @@ model AdminNotificationRead {
   notification   AdminNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
   userId         String            @map("user_id")
   readAt         DateTime          @default(now()) @map("read_at")
+  // Confirmação explícita do popup crítico (separado de readAt — bell pode
+  // "ler" passivamente mas critical exige click no botão de confirmar).
+  acknowledgedAt DateTime?         @map("acknowledged_at")
 
   @@unique([notificationId, userId])
   @@index([userId])
   @@map("admin_notification_read")
+}
+
+// ─────────────────────────────────────────────
+// ALERTS — Regras configuráveis + dedupe
+// ─────────────────────────────────────────────
+
+/// Regra de alerta — criada via Astro Command (sem UI dedicada).
+/// organizationId=null → regra global do Master.
+model AlertRule {
+  id              String   @id @default(cuid())
+  organizationId  String?  @map("organization_id")
+  name            String
+  description     String?
+  eventType       String   @map("event_type") // chave do AlertCatalog
+  params          Json     @default("{}") // params específicos (ex: { statusId, days, threshold })
+  severity        String   @default("info") // info | warning | critical
+  audience        Json // { kind: "lead_responsible" | "org_supervisors" | "org_admins" | "user" | "whole_org", userIds?: string[] }
+  channels        Json     @default("[\"in_app\"]") // ["in_app", "whatsapp"] — override de prefs
+  displaySurface  String   @default("bell") @map("display_surface") // bell | toast | popup
+  isActive        Boolean  @default(true) @map("is_active")
+  createdBy       String   @map("created_by")
+  cooldownMinutes Int?     @map("cooldown_minutes")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization  Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  notifications AdminNotification[]
+  dispatches    AlertDispatch[]
+
+  @@index([eventType, isActive])
+  @@index([organizationId])
+  @@map("alert_rule")
+}
+
+/// Ledger de idempotência — uma chave (alertRuleId, entityKey) só dispara 1x.
+/// entityKey é construído pelo handler do evento (ex: "lead-stale:<id>:<YYYY-MM-DD>").
+model AlertDispatch {
+  id           String   @id @default(cuid())
+  alertRuleId  String   @map("alert_rule_id")
+  alertRule    AlertRule @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+  entityKey    String   @map("entity_key")
+  dispatchedAt DateTime @default(now()) @map("dispatched_at")
+
+  @@unique([alertRuleId, entityKey])
+  @@index([alertRuleId, dispatchedAt])
+  @@map("alert_dispatch")
 }
 
 // ─────────────────────────────────────────────
