@@ -3,15 +3,26 @@
 /**
  * TTS (Text-to-Speech) — Astro fala de volta.
  *
- * MVP usa Web Speech Synthesis API nativa do browser. Zero custo, pt-BR
- * em qualquer Chromium/Safari/Edge moderno.
+ * 2 engines:
+ *   1) Piper TTS (preferido se NEXT_PUBLIC_PIPER_ENABLED=true E o
+ *      endpoint /api/astro/tts responde) — voz VITS pt-BR Faber, muito
+ *      mais natural. Roda em container Docker local; ver PIPER_SETUP.md.
+ *   2) Web Speech Synthesis (fallback automático sempre que Piper falha
+ *      ou não está habilitado).
  *
- * Upgrade futuro: OpenAI TTS (voz mais natural, cobra em Stars via
- * action `astro_tts_minute`) ou ElevenLabs (premium voz brasileira).
- *
- * Fila simples: chamadas sucessivas enfileiram; user pode interromper
- * com `cancel()`.
+ * Fila e interrupção via cancel() funcionam pros dois engines.
  */
+
+const PIPER_ENABLED =
+  typeof process !== "undefined" &&
+  process.env.NEXT_PUBLIC_PIPER_ENABLED === "true";
+
+// Estado do <audio> atual quando Piper está tocando — pra cancel() poder pausar.
+let currentPiperAudio: HTMLAudioElement | null = null;
+// Cache de health-check do Piper — evita pingar /api/astro/tts/health a cada
+// fala. TTL curto (30s) pra reagir se o container subir/cair durante a sessão.
+let piperHealthCache: { isUp: boolean; checkedAt: number } | null = null;
+const PIPER_HEALTH_TTL_MS = 30_000;
 
 let cachedVoices: SpeechSynthesisVoice[] | null = null;
 let voicesLoaded = false;
@@ -97,6 +108,116 @@ export interface SpeakOptions {
  * aguarda 1× antes de tocar.
  */
 export function speak(text: string, opts: SpeakOptions = {}): void {
+  if (typeof window === "undefined") return;
+  const synth = window.speechSynthesis;
+  if (!synth || !text.trim()) return;
+
+  // Piper preferido se habilitado E o endpoint responde. Fallback silencioso
+  // pro Web Speech se Piper estiver offline.
+  if (PIPER_ENABLED) {
+    void trySpeakViaPiper(text, opts).then((handled) => {
+      if (!handled) speakViaWebSpeech(text, opts);
+    });
+    return;
+  }
+  speakViaWebSpeech(text, opts);
+}
+
+// ─── Piper engine ───────────────────────────────────────────────────────
+
+async function isPiperUp(): Promise<boolean> {
+  const now = Date.now();
+  if (piperHealthCache && now - piperHealthCache.checkedAt < PIPER_HEALTH_TTL_MS) {
+    return piperHealthCache.isUp;
+  }
+  try {
+    const r = await fetch("/api/astro/tts", {
+      method: "GET",
+      signal: AbortSignal.timeout(2_000),
+    });
+    const isUp = r.ok;
+    piperHealthCache = { isUp, checkedAt: now };
+    return isUp;
+  } catch {
+    piperHealthCache = { isUp: false, checkedAt: now };
+    return false;
+  }
+}
+
+/**
+ * Tenta TTS via Piper. Retorna true se conseguiu tocar (ou disparou
+ * onError/onEnd). False = não conseguiu, caller deve fallback.
+ */
+async function trySpeakViaPiper(
+  text: string,
+  opts: SpeakOptions,
+): Promise<boolean> {
+  if (!(await isPiperUp())) return false;
+
+  // Preprocessing: aplica humanização leve (vocativos, conjunções) pro Piper
+  // — ele já tem prosódia VITS boa, mas pausas extras ainda ajudam.
+  const processed = humanizeForSpeech(stripMarkdownForSpeech(text));
+  if (!processed.trim()) return false;
+
+  try {
+    const res = await fetch("/api/astro/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: processed,
+        // Piper: length_scale > 1 = mais lento. 1.05 = leve pausa conversacional.
+        length_scale: 1.05,
+        noise_scale: 0.667,
+        noise_w: 0.8,
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) {
+      // 503 = Piper offline → marca cache + caller fallback
+      if (res.status === 503) {
+        piperHealthCache = { isUp: false, checkedAt: Date.now() };
+      }
+      return false;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+
+    // Cancela qualquer áudio Piper anterior
+    if (currentPiperAudio) {
+      currentPiperAudio.pause();
+      currentPiperAudio.src = "";
+    }
+
+    const audio = new Audio(url);
+    audio.volume = opts.volume ?? 1.0;
+    // Piper TTS tem rate controlado via length_scale acima; rate do <audio>
+    // (playbackRate) também funciona mas distorce pitch. Mantemos 1.0.
+    audio.playbackRate = 1.0;
+    currentPiperAudio = audio;
+
+    audio.addEventListener("play", () => opts.onStart?.(), { once: true });
+    audio.addEventListener("ended", () => {
+      URL.revokeObjectURL(url);
+      if (currentPiperAudio === audio) currentPiperAudio = null;
+      opts.onEnd?.();
+    });
+    audio.addEventListener("error", () => {
+      URL.revokeObjectURL(url);
+      if (currentPiperAudio === audio) currentPiperAudio = null;
+      opts.onError?.();
+    });
+
+    await audio.play();
+    return true;
+  } catch (err) {
+    console.warn("[tts] Piper falhou, fallback Web Speech:", err);
+    return false;
+  }
+}
+
+// ─── Web Speech engine (renomeado pra ficar claro qual é qual) ──────────
+
+function speakViaWebSpeech(text: string, opts: SpeakOptions): void {
   if (typeof window === "undefined") return;
   const synth = window.speechSynthesis;
   if (!synth || !text.trim()) return;
@@ -273,16 +394,31 @@ function humanizeForSpeech(text: string): string {
   );
 }
 
-/** Interrompe a fala atual + esvazia a fila. */
+/** Interrompe a fala atual + esvazia a fila (Web Speech + Piper). */
 export function cancel(): void {
   if (typeof window === "undefined") return;
   window.speechSynthesis?.cancel();
+  if (currentPiperAudio) {
+    try {
+      currentPiperAudio.pause();
+      currentPiperAudio.src = "";
+    } catch {
+      /* ignore */
+    }
+    currentPiperAudio = null;
+  }
 }
 
-/** Retorna true se o browser suporta Web Speech Synthesis. */
+/**
+ * Retorna true se algum engine TTS pode rodar:
+ *   - Piper habilitado e online (verificação assíncrona, mas se PIPER_ENABLED
+ *     pelo menos pode tentar)
+ *   - Web Speech Synthesis nativo do browser
+ */
 export function isTtsSupported(): boolean {
+  if (typeof window === "undefined") return false;
+  if (PIPER_ENABLED) return true; // mesmo se Piper estiver down, vai fallback Web
   return (
-    typeof window !== "undefined" &&
     "speechSynthesis" in window &&
     typeof SpeechSynthesisUtterance !== "undefined"
   );
