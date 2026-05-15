@@ -113,22 +113,44 @@ export function speak(text: string, opts: SpeakOptions = {}): void {
   // Rate moderado conversacional: 0.97 = levemente desacelerado pra
   // pausas e flow natural; 1.05 soava apressado/robotizado.
   const rate = opts.rate ?? 0.97;
-  // Pitch natural da voz; Astro homem mas Eddy/Reed já são masc.
-  const pitch = opts.pitch ?? 1.0;
+  // Pitch 0.95 (era 1.0) — levemente mais grave, transmite calma e
+  // confiança. Web Speech compensa internamente sem soar processado.
+  const pitch = opts.pitch ?? 0.95;
   const volume = opts.volume ?? 1.0;
+
+  /**
+   * Pausa entre sentenças em ms. Web Speech enfileira utterances com
+   * gap nativo ~50ms — muito apertado pra parecer respiração. 350ms
+   * dá tempo de "respirar" mas sem soar arrastado.
+   */
+  const SENTENCE_PAUSE_MS = 350;
 
   const playQueue = () => {
     const voice = pickBestVoice();
     let started = false;
-    sentences.forEach((sentence, idx) => {
+
+    // Encadeia sequencialmente: speak → onend → setTimeout(pause) → next.
+    // Isso dá pausa REAL controlável entre frases, em vez do gap nativo
+    // mínimo do .speak() chamado em loop.
+    let i = 0;
+    const speakNext = () => {
+      if (i >= sentences.length) {
+        opts.onEnd?.();
+        return;
+      }
+      const sentence = sentences[i]!;
+      const isFirst = i === 0;
+      const isLast = i === sentences.length - 1;
+      i++;
+
       const utter = new SpeechSynthesisUtterance(sentence);
       utter.lang = "pt-BR";
       utter.rate = rate;
       utter.pitch = pitch;
       utter.volume = volume;
       if (voice) utter.voice = voice;
-      // onStart no PRIMEIRO utterance, onEnd no ÚLTIMO
-      if (idx === 0 && opts.onStart) {
+
+      if (isFirst && opts.onStart) {
         utter.onstart = () => {
           if (!started) {
             started = true;
@@ -136,12 +158,23 @@ export function speak(text: string, opts: SpeakOptions = {}): void {
           }
         };
       }
-      if (idx === sentences.length - 1 && opts.onEnd) {
-        utter.onend = opts.onEnd;
-      }
-      utter.onerror = () => opts.onError?.();
+
+      utter.onend = () => {
+        if (isLast) {
+          opts.onEnd?.();
+        } else {
+          setTimeout(speakNext, SENTENCE_PAUSE_MS);
+        }
+      };
+      utter.onerror = () => {
+        opts.onError?.();
+        // Mesmo com erro, tenta próxima — não trava a fila inteira
+        if (!isLast) setTimeout(speakNext, SENTENCE_PAUSE_MS);
+      };
+
       synth.speak(utter);
-    });
+    };
+    speakNext();
   };
 
   if (voicesLoaded || cachedVoices?.length) {
