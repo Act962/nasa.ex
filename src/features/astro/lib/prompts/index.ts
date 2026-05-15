@@ -185,7 +185,7 @@ Tools disponíveis (escolha a mais específica pra cada pergunta):
 - \`get_nbox_metrics\`: pastas, itens por tipo (arquivo/imagem/link/contrato/proposta), tamanho total armazenado, itens públicos. Filtros: empresa, período, criadores.
 - \`get_finance_metrics\`: receita (a receber pendente + recebida no período), despesa (a pagar pendente + paga), resultado (caixa), ticket médio, inadimplência, distribuição por categoria. Filtros: empresa, período, categorias, contas bancárias.
 - \`get_insights_reports\`: lista relatórios salvos no app Insights — nome, autor, data. Filtros: empresa, período.
-- \`get_space_help_catalog\`: lista trilhas SPACE HELP com link `/space-help/trilhas/{slug}`, descrição, nível, recompensas, progresso do user. Filtros: search, nível, categoria.
+- \`get_space_help_catalog\`: lista trilhas SPACE HELP com link \`/space-help/trilhas/{slug}\`, descrição, nível, recompensas, progresso do user. Filtros: search, nível, categoria.
 - \`get_platform_status_metrics\`: visão combinada rápida de FINANCEIRO + INTEGRAÇÕES (plataformas conectadas/ativas/com erro) + SPACE HELP (progresso). Use quando quiser tudo de uma vez; pra detalhes use as tools dedicadas.
 
 Quando o user perguntar como INSTALAR uma integração, NÃO tente instalar — diga "Vai no app Integrações pelo menu e siga os passos lá; cada plataforma tem fluxo próprio (OAuth, token, etc) que precisa ser feito na UI."
