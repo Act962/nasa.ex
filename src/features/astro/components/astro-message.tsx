@@ -64,11 +64,35 @@ export function AstroMessage({ message }: { message: UIMessage }) {
         }
 
         if (isToolUIPart(part)) {
+          // Tools de roteamento pra sub-agente são representadas pelo
+          // foguete + label no ThinkingDisplay. Esconde o chip cru aqui
+          // pra não duplicar info e poluir a conversa.
+          const toolName =
+            part.type === "dynamic-tool"
+              ? ((part as { toolName?: string }).toolName ?? "")
+              : part.type.replace(/^tool-/, "");
+          if (toolName.startsWith("route_to_")) {
+            return null;
+          }
           return <ToolPart key={idx} part={part} />;
         }
 
         return null;
       })}
+
+      {/* Token counter no rodapé das respostas do assistant (silencioso —
+          sem mostrar valor em Stars; cobrança é debitada server-side). */}
+      {!isUser &&
+        (() => {
+          const tokens = (message as { metadata?: { tokens?: number } })
+            .metadata?.tokens;
+          if (typeof tokens !== "number" || tokens <= 0) return null;
+          return (
+            <span className="text-[10px] text-muted-foreground/60 px-1">
+              {tokens.toLocaleString("pt-BR")} tokens
+            </span>
+          );
+        })()}
     </div>
   );
 }
