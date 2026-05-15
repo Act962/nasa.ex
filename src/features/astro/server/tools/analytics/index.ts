@@ -193,7 +193,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
 
     get_tracking_overview: tool({
       description:
-        "Resume métricas de TRACKING (CRM): quantidade de trackings, leads por status (ativo/ganho/perdido), taxa de conversão, valor total em pipeline, top tags, crescimento mensal. Use quando perguntar 'como tá a venda', 'quantos leads novos', 'qual a conversão', etc.",
+        "Resume métricas de TRACKING (CRM): quantidade de trackings, leads totais/no período, ativos/ganhos/perdidos, taxa de conversão, valor em pipeline, breakdown por etapa do funil (statusBreakdown — novo lead/em atendimento/aguardando/finalizado conforme configuração da org), crescimento mensal (últimos 6 meses), automações cadastradas (total/ativas), top tags. Filtros: empresa (orgIds), trackings, tags, responsáveis. Use quando perguntar 'como tá a venda', 'quantos leads em cada etapa', 'qual a conversão', 'tá crescendo?', 'quantas automações tenho'.",
       inputSchema: z.object({
         fromIso: z.string().optional(),
         toIso: z.string().optional(),
@@ -333,6 +333,77 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           take: 5,
         });
 
+        // ── Breakdown por STATUS (etapa do funil) ───────────────────────
+        // Conta leads agrupados por statusId e enriquece com o nome do
+        // status. Mostra "novo lead", "em atendimento", "aguardando",
+        // "finalizado" — o que o user configurou em cada tracking.
+        const statusCounts = await prisma.lead.groupBy({
+          by: ["statusId"],
+          where: leadWhere,
+          _count: { _all: true },
+        });
+        const statusIds = statusCounts.map((s) => s.statusId);
+        const statuses = await prisma.status.findMany({
+          where: { id: { in: statusIds } },
+          select: { id: true, name: true, color: true, trackingId: true },
+        });
+        const statusMap = new Map(statuses.map((s) => [s.id, s]));
+        const statusBreakdown = statusCounts
+          .map((sc) => {
+            const s = statusMap.get(sc.statusId);
+            return {
+              statusId: sc.statusId,
+              name: s?.name ?? "(removido)",
+              color: s?.color ?? null,
+              trackingId: s?.trackingId ?? null,
+              count: sc._count._all,
+            };
+          })
+          .sort((a, b) => b.count - a.count);
+
+        // ── Crescimento mensal: últimos 6 meses ─────────────────────────
+        // Conta leads criados em cada mês fechado (não usa o filtro de
+        // período pra mostrar tendência — sempre últimos 6 meses).
+        const now = new Date();
+        const monthlyGrowth: { month: string; count: number }[] = [];
+        for (let i = 5; i >= 0; i--) {
+          const start = new Date(
+            now.getFullYear(),
+            now.getMonth() - i,
+            1,
+            0,
+            0,
+            0,
+            0,
+          );
+          const end = new Date(
+            now.getFullYear(),
+            now.getMonth() - i + 1,
+            1,
+            0,
+            0,
+            0,
+            0,
+          );
+          const count = await prisma.lead.count({
+            where: { ...leadWhere, createdAt: { gte: start, lt: end } },
+          });
+          monthlyGrowth.push({
+            month: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}`,
+            count,
+          });
+        }
+
+        // Quantidade de automações (regras de alerta) ativas/total na org
+        const [automationsTotal, automationsActive] = await Promise.all([
+          prisma.alertRule.count({
+            where: { organizationId: { in: targetOrgs } },
+          }),
+          prisma.alertRule.count({
+            where: { organizationId: { in: targetOrgs }, isActive: true },
+          }),
+        ]);
+
         return {
           period: { from: from.toISOString(), to: to.toISOString() },
           trackings: trackings.length,
@@ -346,6 +417,12 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           },
           pipelineValueBRL: pipelineValue,
           byTracking: byTracking.sort((a, b) => b.total - a.total),
+          statusBreakdown,
+          monthlyGrowth,
+          automations: {
+            total: automationsTotal,
+            active: automationsActive,
+          },
           topTags: topTags.map((t) => ({
             id: t.id,
             name: t.name,
@@ -359,13 +436,17 @@ export function buildAnalyticsTools(ctx: AgentContext) {
     // ── CHAT (conversas, mensagens, TTFR, lembretes) ────────────────────
     get_chat_metrics: tool({
       description:
-        "Resume métricas de CHAT: total de conversas (ativas/inativas), mensagens enviadas vs recebidas, tempo médio de primeira resposta (TTFR), lembretes enviados. Use quando o usuário perguntar 'quantas conversas', 'quantas mensagens', 'tempo de resposta', 'quantos lembretes', etc.",
+        "Resume métricas de CHAT: conversas (total/ativas/novas), mensagens enviadas vs recebidas, tempo médio de primeira resposta (TTFR), lembretes enviados, breakdown de leads por etapa do funil (novo lead/em atendimento/aguardando/finalizado). Filtros: empresa, tag, período, atendente (responsibleIds), tracking. Use quando o usuário perguntar 'quantas conversas', 'quantas mensagens', 'tempo de resposta', 'quantos leads em cada etapa pelo chat'.",
       inputSchema: z.object({
         fromIso: z.string().optional(),
         toIso: z.string().optional(),
         orgIds: z.array(z.string()).optional(),
         trackingIds: z.array(z.string()).optional(),
         responsibleIds: z.array(z.string()).optional(),
+        tagIds: z
+          .array(z.string())
+          .optional()
+          .describe("Filtra conversas cujo lead tem essas tags"),
       }),
       execute: async ({
         fromIso,
@@ -373,6 +454,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         orgIds,
         trackingIds,
         responsibleIds,
+        tagIds,
       }) => {
         const memberships = await prisma.member.findMany({
           where: { userId: ctx.userId },
@@ -407,12 +489,21 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           return { error: "Nenhum tracking encontrado nas orgs alvo" };
         }
 
-        // Filtro de lead.responsibleId opcional
+        // Filtro de lead.responsibleId + leadTags opcional
+        const leadSubFilter = {
+          ...(responsibleIds && responsibleIds.length > 0
+            ? { responsibleId: { in: responsibleIds } }
+            : {}),
+          ...(tagIds && tagIds.length > 0
+            ? { leadTags: { some: { tagId: { in: tagIds } } } }
+            : {}),
+        };
+        const hasLeadFilter =
+          (responsibleIds && responsibleIds.length > 0) ||
+          (tagIds && tagIds.length > 0);
         const convWhere = {
           trackingId: { in: tIds },
-          ...(responsibleIds && responsibleIds.length > 0
-            ? { lead: { responsibleId: { in: responsibleIds } } }
-            : {}),
+          ...(hasLeadFilter ? { lead: leadSubFilter } : {}),
         };
 
         const [
@@ -503,6 +594,25 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         const ttfrAvgMinutes =
           ttfrAvgSeconds !== null ? Math.round(ttfrAvgSeconds / 60) : null;
 
+        // ── Breakdown por STATUS dos leads que estão no chat ────────────
+        // Para cada conversa existe um lead (geralmente). Agrupa os leads
+        // dessas conversas por statusId pra mostrar onde estão no funil.
+        const leadStatusBreakdown = await prisma.lead.groupBy({
+          by: ["statusId"],
+          where: {
+            ...leadSubFilter,
+            trackingId: { in: tIds },
+            conversation: { isNot: null },
+          },
+          _count: { _all: true },
+        });
+        const statusIdsChat = leadStatusBreakdown.map((s) => s.statusId);
+        const statusesChat = await prisma.status.findMany({
+          where: { id: { in: statusIdsChat } },
+          select: { id: true, name: true, color: true },
+        });
+        const statusMapChat = new Map(statusesChat.map((s) => [s.id, s]));
+
         return {
           period: { from: from.toISOString(), to: to.toISOString() },
           conversations: {
@@ -521,6 +631,14 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           },
           ttfrAvgSeconds,
           ttfrAvgMinutes,
+          leadStatusBreakdown: leadStatusBreakdown
+            .map((g) => ({
+              statusId: g.statusId,
+              name: statusMapChat.get(g.statusId)?.name ?? "(removido)",
+              color: statusMapChat.get(g.statusId)?.color ?? null,
+              count: g._count._all,
+            }))
+            .sort((a, b) => b.count - a.count),
         };
       },
     }),
@@ -528,7 +646,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
     // ── FORGE (propostas, receita, ticket médio) ─────────────────────────
     get_forge_metrics: tool({
       description:
-        "Resume métricas de FORGE (propostas comerciais): total/rascunho/enviadas/visualizadas/pagas/expiradas/canceladas, receita total fechada (PAGAS), receita em pipeline (ENVIADAS+VISUALIZADAS), ticket médio, desconto médio, tempo médio até pagamento. Use quando o usuário perguntar sobre vendas, propostas, receita, valor.",
+        "Resume métricas de FORGE (propostas comerciais): total/rascunho/enviadas/visualizadas/pagas/expiradas/canceladas, receita fechada (PAGAS), valores em aberto (ENVIADAS+VISUALIZADAS), receita perdida (CANCELADAS+EXPIRADAS), ticket médio, desconto médio, tempo médio até pagamento. Filtros: empresa, período, criadores (responsibleIds), leads. Use quando o usuário perguntar sobre vendas, propostas, receita fechada, receita perdida, valores em aberto.",
       inputSchema: z.object({
         fromIso: z.string().optional(),
         toIso: z.string().optional(),
@@ -602,11 +720,19 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           prisma.forgeProposal.count({
             where: { ...baseWhere, status: "CANCELADA" },
           }),
-          // Pra calcular receita + ticket — busca propostas com produtos
+          // Pra calcular receita (fechada / pipeline / perdida) + ticket
           prisma.forgeProposal.findMany({
             where: {
               ...baseWhere,
-              status: { in: ["PAGA", "ENVIADA", "VISUALIZADA"] },
+              status: {
+                in: [
+                  "PAGA",
+                  "ENVIADA",
+                  "VISUALIZADA",
+                  "EXPIRADA",
+                  "CANCELADA",
+                ],
+              },
               createdAt: { gte: from, lte: to },
             },
             select: {
@@ -653,9 +779,13 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         const pipelineValues = proposalsForRevenue
           .filter((p) => p.status === "ENVIADA" || p.status === "VISUALIZADA")
           .map(calcValue);
+        const lostValues = proposalsForRevenue
+          .filter((p) => p.status === "EXPIRADA" || p.status === "CANCELADA")
+          .map(calcValue);
 
         const revenueClosed = pagasValues.reduce((a, b) => a + b, 0);
         const revenuePipeline = pipelineValues.reduce((a, b) => a + b, 0);
+        const revenueLost = lostValues.reduce((a, b) => a + b, 0);
         const avgTicket =
           pagasValues.length > 0
             ? Math.round((revenueClosed / pagasValues.length) * 100) / 100
@@ -707,7 +837,12 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           },
           revenue: {
             closedBRL: Math.round(revenueClosed * 100) / 100,
+            // "pipeline" = enviadas + visualizadas (esperando decisão do cliente)
             pipelineBRL: Math.round(revenuePipeline * 100) / 100,
+            // Alias mais claro pro usuário
+            openBRL: Math.round(revenuePipeline * 100) / 100,
+            // "perdida" = expiradas + canceladas (vendas que não fecharam)
+            lostBRL: Math.round(revenueLost * 100) / 100,
           },
           avgTicketBRL: avgTicket,
           avgDiscount,
@@ -719,7 +854,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
     // ── WORKSPACE (actions: abertas/concluídas/atrasadas) ────────────────
     get_workspace_metrics: tool({
       description:
-        "Resume métricas de WORKSPACE: quantidade de workspaces, total de actions (concluídas/abertas/atrasadas), por prioridade. Use quando perguntar sobre tarefas, atrasadas, workspaces.",
+        "Resume métricas de WORKSPACE: quantidade de workspaces, total de actions (concluídas/abertas/atrasadas), por prioridade. Filtros: empresa, período, participante (responsável ou criador), workspace, tag, prioridade, projeto/cliente. Use quando perguntar sobre tarefas, atrasadas, workspaces.",
       inputSchema: z.object({
         fromIso: z.string().optional(),
         toIso: z.string().optional(),
@@ -729,6 +864,18 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           .array(z.string())
           .optional()
           .describe("Users que são responsáveis ou participantes da action"),
+        tagIds: z
+          .array(z.string())
+          .optional()
+          .describe("Filtra actions com essas tags"),
+        priorities: z
+          .array(z.enum(["NONE", "LOW", "MEDIUM", "HIGH", "URGENT"]))
+          .optional()
+          .describe("Filtra por prioridades específicas"),
+        orgProjectIds: z
+          .array(z.string())
+          .optional()
+          .describe("Filtra por projetos/clientes específicos"),
       }),
       execute: async ({
         fromIso,
@@ -736,6 +883,9 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         orgIds,
         workspaceIds,
         participantIds,
+        tagIds,
+        priorities,
+        orgProjectIds,
       }) => {
         const memberships = await prisma.member.findMany({
           where: { userId: ctx.userId },
@@ -761,6 +911,15 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           isArchived: false,
           ...(workspaceIds && workspaceIds.length > 0
             ? { workspaceId: { in: workspaceIds } }
+            : {}),
+          ...(tagIds && tagIds.length > 0
+            ? { tags: { some: { tagId: { in: tagIds } } } }
+            : {}),
+          ...(priorities && priorities.length > 0
+            ? { priority: { in: priorities } }
+            : {}),
+          ...(orgProjectIds && orgProjectIds.length > 0
+            ? { orgProjectId: { in: orgProjectIds } }
             : {}),
           ...(participantIds && participantIds.length > 0
             ? {
@@ -838,7 +997,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
     // ── AGENDA / SPACETIME (appointments por status, no-show) ────────────
     get_agenda_metrics: tool({
       description:
-        "Resume métricas de AGENDA (spacetime/agendamentos): total/no período, por status (pendente/confirmado/realizado/cancelado/no-show), taxa de no-show, taxa de comparecimento. Use quando perguntar sobre agenda, reuniões, agendamentos, faltas.",
+        "Resume métricas de AGENDA (spacetime/agendamentos): total/no período, por status (pendente/confirmado/realizado/cancelado/no-show), taxa de no-show, taxa de comparecimento. Filtros: empresa, período, agenda, participante, tracking, projeto/cliente. Use quando perguntar sobre agenda, reuniões, agendamentos, faltas.",
       inputSchema: z.object({
         fromIso: z.string().optional(),
         toIso: z.string().optional(),
@@ -851,6 +1010,14 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           .array(z.string())
           .optional()
           .describe("Users responsáveis pelo appointment"),
+        trackingIds: z
+          .array(z.string())
+          .optional()
+          .describe("Filtra appointments por tracking de origem"),
+        orgProjectIds: z
+          .array(z.string())
+          .optional()
+          .describe("Filtra appointments por projeto/cliente"),
       }),
       execute: async ({
         fromIso,
@@ -858,6 +1025,8 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         orgIds,
         agendaIds,
         participantIds,
+        trackingIds,
+        orgProjectIds,
       }) => {
         const memberships = await prisma.member.findMany({
           where: { userId: ctx.userId },
@@ -886,6 +1055,12 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           },
           ...(participantIds && participantIds.length > 0
             ? { userId: { in: participantIds } }
+            : {}),
+          ...(trackingIds && trackingIds.length > 0
+            ? { trackingId: { in: trackingIds } }
+            : {}),
+          ...(orgProjectIds && orgProjectIds.length > 0
+            ? { orgProjectId: { in: orgProjectIds } }
             : {}),
         };
 
@@ -961,7 +1136,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
     // ── FORMS (formulários: submissões, conversão, abandono) ─────────────
     get_forms_metrics: tool({
       description:
-        "Resume métricas de FORMS (formulários): total de formulários publicados/rascunho, submissões completas vs abandonadas, taxa de conversão pra lead, top forms por volume. Use quando o user perguntar sobre formulários, submissões, leads via form, taxa de abandono.",
+        "Resume métricas de FORMS (formulários): total de formulários publicados/rascunho, total visualizados (views), submissões completas vs abandonadas, total que geraram leads, taxa de conversão pra lead, top forms por volume. Filtros: empresa, período, forms específicos, trackings (forms cujo settings aponta pra esses trackings). Use quando o user perguntar sobre formulários, submissões, leads via form, taxa de abandono.",
       inputSchema: z.object({
         fromIso: z.string().optional(),
         toIso: z.string().optional(),
@@ -970,8 +1145,14 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           .array(z.string())
           .optional()
           .describe("Filtra forms específicos"),
+        trackingIds: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "Filtra forms cujas configurações apontam pra esses trackings",
+          ),
       }),
-      execute: async ({ fromIso, toIso, orgIds, formIds }) => {
+      execute: async ({ fromIso, toIso, orgIds, formIds, trackingIds }) => {
         const memberships = await prisma.member.findMany({
           where: { userId: ctx.userId },
           select: { organizationId: true, role: true },
@@ -993,13 +1174,13 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         const formWhere = {
           organizationId: { in: targetOrgs },
           ...(formIds && formIds.length > 0 ? { id: { in: formIds } } : {}),
+          ...(trackingIds && trackingIds.length > 0
+            ? { settings: { trackingId: { in: trackingIds } } }
+            : {}),
         };
 
         const responseWhere = {
-          form: {
-            organizationId: { in: targetOrgs },
-            ...(formIds && formIds.length > 0 ? { id: { in: formIds } } : {}),
-          },
+          form: formWhere,
         };
 
         const [
@@ -1010,6 +1191,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           abandonedInPeriod,
           responsesWithLead,
           topForms,
+          totalViewsAgg,
         ] = await Promise.all([
           prisma.form.count({ where: formWhere }),
           prisma.form.count({ where: { ...formWhere, published: true } }),
@@ -1047,6 +1229,10 @@ export function buildAnalyticsTools(ctx: AgentContext) {
             orderBy: { responses: "desc" },
             take: 5,
           }),
+          prisma.form.aggregate({
+            where: formWhere,
+            _sum: { views: true },
+          }),
         ]);
 
         const conversionToLeadRate =
@@ -1066,6 +1252,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
             total: totalForms,
             published: publishedForms,
             draft: totalForms - publishedForms,
+            totalViews: totalViewsAgg._sum.views ?? 0,
           },
           responses: {
             total: totalResponses,
@@ -1226,104 +1413,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
     // ── LINNKER / NASA PAGE (landing pages, visitas) ─────────────────────
     get_linnker_metrics: tool({
       description:
-        "Resume métricas de LINNKER (NasaPage / landing pages): total publicadas/rascunho/arquivadas, total de visitas, visitas no período, top páginas por visitas. Use quando o user perguntar sobre landing pages, páginas públicas, visitas, bio link.",
-      inputSchema: z.object({
-        fromIso: z.string().optional(),
-        toIso: z.string().optional(),
-        orgIds: z.array(z.string()).optional(),
-        pageIds: z.array(z.string()).optional(),
-      }),
-      execute: async ({ fromIso, toIso, orgIds, pageIds }) => {
-        const memberships = await prisma.member.findMany({
-          where: { userId: ctx.userId },
-          select: { organizationId: true, role: true },
-        });
-        const myOrgIds = memberships.map((m) => m.organizationId);
-        const targetOrgs =
-          orgIds && orgIds.length > 0
-            ? orgIds.filter((id) => myOrgIds.includes(id))
-            : myOrgIds;
-        if (targetOrgs.length === 0) {
-          return { error: "Sem acesso a nenhuma organização" };
-        }
-
-        const from = fromIso
-          ? new Date(fromIso)
-          : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const to = toIso ? new Date(toIso) : new Date();
-
-        const pageWhere = {
-          organizationId: { in: targetOrgs },
-          ...(pageIds && pageIds.length > 0 ? { id: { in: pageIds } } : {}),
-        };
-
-        const [
-          totalPages,
-          publishedPages,
-          archivedPages,
-          totalVisits,
-          visitsInPeriod,
-          topPages,
-        ] = await Promise.all([
-          prisma.nasaPage.count({ where: pageWhere }),
-          prisma.nasaPage.count({
-            where: { ...pageWhere, status: "PUBLISHED" },
-          }),
-          prisma.nasaPage.count({
-            where: { ...pageWhere, status: "ARCHIVED" },
-          }),
-          prisma.nasaPageVisit.count({
-            where: { page: pageWhere },
-          }),
-          prisma.nasaPageVisit.count({
-            where: {
-              page: pageWhere,
-              createdAt: { gte: from, lte: to },
-            },
-          }),
-          prisma.nasaPage.findMany({
-            where: pageWhere,
-            select: {
-              id: true,
-              title: true,
-              slug: true,
-              status: true,
-              customDomain: true,
-              _count: { select: { visits: true } },
-            },
-            orderBy: { visits: { _count: "desc" } },
-            take: 5,
-          }),
-        ]);
-
-        return {
-          period: { from: from.toISOString(), to: to.toISOString() },
-          pages: {
-            total: totalPages,
-            published: publishedPages,
-            draft: totalPages - publishedPages - archivedPages,
-            archived: archivedPages,
-          },
-          visits: {
-            total: totalVisits,
-            inPeriod: visitsInPeriod,
-          },
-          topPages: topPages.map((p) => ({
-            id: p.id,
-            title: p.title,
-            slug: p.slug,
-            status: p.status,
-            customDomain: p.customDomain,
-            visits: p._count.visits,
-          })),
-        };
-      },
-    }),
-
-    // ── NBOX (storage: folders, items, size, tipos) ──────────────────────
-    get_nbox_metrics: tool({
-      description:
-        "Resume métricas de NBOX (storage): total de pastas, itens por tipo (arquivo/imagem/link/contrato/proposta), tamanho total armazenado, itens públicos compartilháveis. Use quando o user perguntar sobre storage, arquivos, itens compartilhados, NBox.",
+        "Resume métricas de LINNKER (bio-link pages): total de páginas publicadas/rascunho, total de acessos/scans (LinnkerScan), scans que capturaram lead, cliques em links (LinnkerLink.clicks somados), top páginas por acessos. Filtros: empresa, período. Use quando o user perguntar sobre Linnker, bio link, página de links, quantos acessos, captura de lead, cliques nos botões.",
       inputSchema: z.object({
         fromIso: z.string().optional(),
         toIso: z.string().optional(),
@@ -1348,7 +1438,127 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         const to = toIso ? new Date(toIso) : new Date();
 
-        const baseOrg = { organizationId: { in: targetOrgs } };
+        const pageWhere = { organizationId: { in: targetOrgs } };
+
+        const [
+          totalPages,
+          publishedPages,
+          totalScans,
+          scansInPeriod,
+          scansWithLead,
+          clicksAgg,
+          topPages,
+        ] = await Promise.all([
+          prisma.linnkerPage.count({ where: pageWhere }),
+          prisma.linnkerPage.count({
+            where: { ...pageWhere, isPublished: true },
+          }),
+          prisma.linnkerScan.count({ where: { page: pageWhere } }),
+          prisma.linnkerScan.count({
+            where: {
+              page: pageWhere,
+              createdAt: { gte: from, lte: to },
+            },
+          }),
+          prisma.linnkerScan.count({
+            where: {
+              page: pageWhere,
+              leadId: { not: null },
+              createdAt: { gte: from, lte: to },
+            },
+          }),
+          prisma.linnkerLink.aggregate({
+            where: { page: pageWhere },
+            _sum: { clicks: true },
+          }),
+          prisma.linnkerPage.findMany({
+            where: pageWhere,
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              isPublished: true,
+              _count: { select: { scans: true } },
+            },
+            orderBy: { scans: { _count: "desc" } },
+            take: 5,
+          }),
+        ]);
+
+        const leadCaptureRate =
+          scansInPeriod > 0
+            ? Math.round((scansWithLead / scansInPeriod) * 100 * 10) / 10
+            : 0;
+
+        return {
+          period: { from: from.toISOString(), to: to.toISOString() },
+          pages: {
+            total: totalPages,
+            published: publishedPages,
+            draft: totalPages - publishedPages,
+          },
+          access: {
+            totalScans,
+            scansInPeriod,
+            scansWithLead,
+            leadCaptureRate,
+          },
+          clicks: clicksAgg._sum.clicks ?? 0,
+          topPages: topPages.map((p) => ({
+            id: p.id,
+            title: p.title,
+            slug: p.slug,
+            published: p.isPublished,
+            scans: p._count.scans,
+          })),
+        };
+      },
+    }),
+
+    // ── NBOX (storage: folders, items, size, tipos) ──────────────────────
+    get_nbox_metrics: tool({
+      description:
+        "Resume métricas de NBOX (storage): total de pastas, total de itens, itens por tipo (arquivo/imagem/link/contrato/proposta), tamanho total armazenado, itens públicos compartilháveis. Filtros: empresa, período, criadores (createdByIds). Use quando o user perguntar sobre storage, arquivos, itens compartilhados, NBox.",
+      inputSchema: z.object({
+        fromIso: z.string().optional(),
+        toIso: z.string().optional(),
+        orgIds: z.array(z.string()).optional(),
+        createdByIds: z
+          .array(z.string())
+          .optional()
+          .describe("Filtra itens/pastas criados por users específicos"),
+      }),
+      execute: async ({ fromIso, toIso, orgIds, createdByIds }) => {
+        const memberships = await prisma.member.findMany({
+          where: { userId: ctx.userId },
+          select: { organizationId: true, role: true },
+        });
+        const myOrgIds = memberships.map((m) => m.organizationId);
+        const targetOrgs =
+          orgIds && orgIds.length > 0
+            ? orgIds.filter((id) => myOrgIds.includes(id))
+            : myOrgIds;
+        if (targetOrgs.length === 0) {
+          return { error: "Sem acesso a nenhuma organização" };
+        }
+
+        const from = fromIso
+          ? new Date(fromIso)
+          : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const to = toIso ? new Date(toIso) : new Date();
+
+        const baseOrg = {
+          organizationId: { in: targetOrgs },
+          ...(createdByIds && createdByIds.length > 0
+            ? { createdById: { in: createdByIds } }
+            : {}),
+        };
+        const folderBase = {
+          organizationId: { in: targetOrgs },
+          ...(createdByIds && createdByIds.length > 0
+            ? { createdById: { in: createdByIds } }
+            : {}),
+        };
 
         const [
           folders,
@@ -1362,7 +1572,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           publicItems,
           sizeAgg,
         ] = await Promise.all([
-          prisma.nBoxFolder.count({ where: baseOrg }),
+          prisma.nBoxFolder.count({ where: folderBase }),
           prisma.nBoxItem.count({ where: baseOrg }),
           prisma.nBoxItem.count({
             where: { ...baseOrg, createdAt: { gte: from, lte: to } },
@@ -1580,6 +1790,419 @@ export function buildAnalyticsTools(ctx: AgentContext) {
             tracksCompleted,
             badgesEarned: spaceHelpBadges,
           },
+        };
+      },
+    }),
+
+    // ── INSIGHTS (relatórios salvos pela org) ─────────────────────────────
+    // SavedInsightReport contém snapshots de dashboards/comparativos que
+    // os usuários montam no app Insights. Aqui só listamos quantos e
+    // quem criou — pra detalhes/abrir, user vai no app.
+    get_insights_reports: tool({
+      description:
+        "Lista relatórios de INSIGHTS salvos pela empresa: nome, autor, data, descrição. Mostra contagem total e os mais recentes. Filtros: empresa, período. Use quando o user perguntar 'quantos relatórios temos', 'quais relatórios foram criados', 'meus insights'.",
+      inputSchema: z.object({
+        fromIso: z.string().optional(),
+        toIso: z.string().optional(),
+        orgIds: z.array(z.string()).optional(),
+      }),
+      execute: async ({ fromIso, toIso, orgIds }) => {
+        const memberships = await prisma.member.findMany({
+          where: { userId: ctx.userId },
+          select: { organizationId: true, role: true },
+        });
+        const myOrgIds = memberships.map((m) => m.organizationId);
+        const targetOrgs =
+          orgIds && orgIds.length > 0
+            ? orgIds.filter((id) => myOrgIds.includes(id))
+            : myOrgIds;
+        if (targetOrgs.length === 0) {
+          return { error: "Sem acesso a nenhuma organização" };
+        }
+
+        const from = fromIso
+          ? new Date(fromIso)
+          : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const to = toIso ? new Date(toIso) : new Date();
+
+        const reportWhere = {
+          organizationId: { in: targetOrgs },
+        };
+
+        const [total, inPeriod, recent] = await Promise.all([
+          prisma.savedInsightReport.count({ where: reportWhere }),
+          prisma.savedInsightReport.count({
+            where: { ...reportWhere, createdAt: { gte: from, lte: to } },
+          }),
+          prisma.savedInsightReport.findMany({
+            where: reportWhere,
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              createdAt: true,
+              createdBy: { select: { name: true } },
+            },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+          }),
+        ]);
+
+        return {
+          period: { from: from.toISOString(), to: to.toISOString() },
+          reports: {
+            total,
+            createdInPeriod: inPeriod,
+          },
+          recent: recent.map((r) => ({
+            id: r.id,
+            name: r.name,
+            description: r.description,
+            createdAt: r.createdAt.toISOString(),
+            author: r.createdBy.name,
+          })),
+        };
+      },
+    }),
+
+    // ── FINANCEIRO dedicado (receita/despesa/ticket/saldo/inadimplência) ──
+    // get_platform_status_metrics já tem um resumo de finance, mas aqui
+    // dá pra ir fundo: ticket médio, saldo (receita - despesa pagas),
+    // inadimplência (vencidos / total a receber), por categoria + conta.
+    get_finance_metrics: tool({
+      description:
+        "Resume métricas detalhadas de FINANCEIRO: receita (a receber pendente + recebida no período), despesa (a pagar pendente + paga no período), resultado (receita - despesa) no período, ticket médio das contas pagas, saldo, taxa de inadimplência (vencidos a receber / total a receber), distribuição por categoria e por conta bancária. Filtros: empresa, período, categorias, contas bancárias. Use quando o user perguntar 'qual minha receita', 'quanto recebi', 'quanto paguei', 'qual o saldo', 'estou em inadimplência', 'ticket médio'.",
+      inputSchema: z.object({
+        fromIso: z.string().optional(),
+        toIso: z.string().optional(),
+        orgIds: z.array(z.string()).optional(),
+        categoryIds: z
+          .array(z.string())
+          .optional()
+          .describe("Filtra por categorias de receita/despesa"),
+        accountIds: z
+          .array(z.string())
+          .optional()
+          .describe("Filtra por contas bancárias específicas"),
+      }),
+      execute: async ({
+        fromIso,
+        toIso,
+        orgIds,
+        categoryIds,
+        accountIds,
+      }) => {
+        const memberships = await prisma.member.findMany({
+          where: { userId: ctx.userId },
+          select: { organizationId: true, role: true },
+        });
+        const myOrgIds = memberships.map((m) => m.organizationId);
+        const targetOrgs =
+          orgIds && orgIds.length > 0
+            ? orgIds.filter((id) => myOrgIds.includes(id))
+            : myOrgIds;
+        if (targetOrgs.length === 0) {
+          return { error: "Sem acesso a nenhuma organização" };
+        }
+
+        const from = fromIso
+          ? new Date(fromIso)
+          : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const to = toIso ? new Date(toIso) : new Date();
+
+        const baseWhere = {
+          organizationId: { in: targetOrgs },
+          ...(categoryIds && categoryIds.length > 0
+            ? { categoryId: { in: categoryIds } }
+            : {}),
+          ...(accountIds && accountIds.length > 0
+            ? { accountId: { in: accountIds } }
+            : {}),
+        };
+
+        const [
+          // Recebível
+          receivablePendingAgg,
+          receivableOverdueAgg,
+          receivablePaidAgg,
+          receivablePaidCount,
+          // Pagável
+          payablePendingAgg,
+          payableOverdueAgg,
+          payablePaidAgg,
+          payablePaidCount,
+          // Distribuição por categoria
+          byCategoryReceivable,
+          byCategoryPayable,
+        ] = await Promise.all([
+          prisma.paymentEntry.aggregate({
+            where: {
+              ...baseWhere,
+              type: "RECEIVABLE",
+              status: { in: ["PENDING", "PARTIAL"] },
+            },
+            _sum: { amount: true },
+            _count: { _all: true },
+          }),
+          prisma.paymentEntry.aggregate({
+            where: { ...baseWhere, type: "RECEIVABLE", status: "OVERDUE" },
+            _sum: { amount: true },
+            _count: { _all: true },
+          }),
+          prisma.paymentEntry.aggregate({
+            where: {
+              ...baseWhere,
+              type: "RECEIVABLE",
+              status: "PAID",
+              paidAt: { gte: from, lte: to },
+            },
+            _sum: { paidAmount: true },
+            _count: { _all: true },
+          }),
+          prisma.paymentEntry.count({
+            where: {
+              ...baseWhere,
+              type: "RECEIVABLE",
+              status: "PAID",
+              paidAt: { gte: from, lte: to },
+            },
+          }),
+          prisma.paymentEntry.aggregate({
+            where: {
+              ...baseWhere,
+              type: "PAYABLE",
+              status: { in: ["PENDING", "PARTIAL"] },
+            },
+            _sum: { amount: true },
+            _count: { _all: true },
+          }),
+          prisma.paymentEntry.aggregate({
+            where: { ...baseWhere, type: "PAYABLE", status: "OVERDUE" },
+            _sum: { amount: true },
+            _count: { _all: true },
+          }),
+          prisma.paymentEntry.aggregate({
+            where: {
+              ...baseWhere,
+              type: "PAYABLE",
+              status: "PAID",
+              paidAt: { gte: from, lte: to },
+            },
+            _sum: { paidAmount: true },
+            _count: { _all: true },
+          }),
+          prisma.paymentEntry.count({
+            where: {
+              ...baseWhere,
+              type: "PAYABLE",
+              status: "PAID",
+              paidAt: { gte: from, lte: to },
+            },
+          }),
+          prisma.paymentEntry.groupBy({
+            by: ["categoryId"],
+            where: {
+              ...baseWhere,
+              type: "RECEIVABLE",
+              paidAt: { gte: from, lte: to },
+              status: "PAID",
+            },
+            _sum: { paidAmount: true },
+            _count: { _all: true },
+          }),
+          prisma.paymentEntry.groupBy({
+            by: ["categoryId"],
+            where: {
+              ...baseWhere,
+              type: "PAYABLE",
+              paidAt: { gte: from, lte: to },
+              status: "PAID",
+            },
+            _sum: { paidAmount: true },
+            _count: { _all: true },
+          }),
+        ]);
+
+        // Enriquece categorias com nome
+        const allCategoryIds = [
+          ...byCategoryReceivable.map((c) => c.categoryId),
+          ...byCategoryPayable.map((c) => c.categoryId),
+        ].filter((id): id is string => id !== null);
+        const categories =
+          allCategoryIds.length > 0
+            ? await prisma.paymentCategory.findMany({
+                where: { id: { in: allCategoryIds } },
+                select: { id: true, name: true, type: true },
+              })
+            : [];
+        const categoryMap = new Map(categories.map((c) => [c.id, c]));
+
+        const receivedCents = receivablePaidAgg._sum.paidAmount ?? 0;
+        const paidCents = payablePaidAgg._sum.paidAmount ?? 0;
+        const resultCents = receivedCents - paidCents;
+        const pendingReceivableCents = receivablePendingAgg._sum.amount ?? 0;
+        const overdueReceivableCents = receivableOverdueAgg._sum.amount ?? 0;
+        const totalReceivableCents =
+          pendingReceivableCents + overdueReceivableCents + receivedCents;
+        const overdueRate =
+          totalReceivableCents > 0
+            ? Math.round(
+                (overdueReceivableCents / totalReceivableCents) * 100 * 10,
+              ) / 10
+            : 0;
+        const avgTicketCents =
+          receivablePaidCount > 0
+            ? Math.round(receivedCents / receivablePaidCount)
+            : 0;
+
+        return {
+          period: { from: from.toISOString(), to: to.toISOString() },
+          receivable: {
+            pendingCents: pendingReceivableCents,
+            pendingCount: receivablePendingAgg._count._all,
+            overdueCents: overdueReceivableCents,
+            overdueCount: receivableOverdueAgg._count._all,
+            receivedInPeriodCents: receivedCents,
+            receivedCount: receivablePaidCount,
+          },
+          payable: {
+            pendingCents: payablePendingAgg._sum.amount ?? 0,
+            pendingCount: payablePendingAgg._count._all,
+            overdueCents: payableOverdueAgg._sum.amount ?? 0,
+            overdueCount: payableOverdueAgg._count._all,
+            paidInPeriodCents: paidCents,
+            paidCount: payablePaidCount,
+          },
+          result: {
+            // Resultado = recebido - pago (caixa real, não competência)
+            netCents: resultCents,
+          },
+          avgTicketReceivedCents: avgTicketCents,
+          overdueRatePercent: overdueRate,
+          byCategory: {
+            receivable: byCategoryReceivable.map((c) => ({
+              categoryId: c.categoryId,
+              name: c.categoryId
+                ? categoryMap.get(c.categoryId)?.name ?? "(sem categoria)"
+                : "(sem categoria)",
+              totalCents: c._sum.paidAmount ?? 0,
+              count: c._count._all,
+            })),
+            payable: byCategoryPayable.map((c) => ({
+              categoryId: c.categoryId,
+              name: c.categoryId
+                ? categoryMap.get(c.categoryId)?.name ?? "(sem categoria)"
+                : "(sem categoria)",
+              totalCents: c._sum.paidAmount ?? 0,
+              count: c._count._all,
+            })),
+          },
+        };
+      },
+    }),
+
+    // ── SPACE HELP catalog (trilhas + lições + links pra navegação) ──────
+    // get_platform_status_metrics já tem o progresso do user. Aqui o Astro
+    // consegue LISTAR as trilhas disponíveis (título, descrição, slug) pra
+    // recomendar pro user — ex: "qual trilha aprendo sobre Tracking?".
+    get_space_help_catalog: tool({
+      description:
+        "Lista todas as trilhas + features do SPACE HELP (educação). Cada trilha tem título, descrição, slug (link `/space-help/trilhas/{slug}`), nível, duração, recompensas (Stars/SP/badge), e progresso do user logado (iniciada/concluída). Filtros: nível, categoria, palavras-chave no título. Use quando o user perguntar 'como aprendo X', 'qual trilha sobre Y', 'tem tutorial de Z'.",
+      inputSchema: z.object({
+        search: z
+          .string()
+          .optional()
+          .describe("Palavra-chave pra filtrar trilhas por título/subtítulo"),
+        level: z
+          .enum(["beginner", "intermediate", "advanced"])
+          .optional()
+          .describe("Filtra por nível"),
+        categoryIds: z.array(z.string()).optional(),
+        limit: z.number().int().min(1).max(50).optional(),
+      }),
+      execute: async ({ search, level, categoryIds, limit }) => {
+        const tracks = await prisma.spaceHelpTrack.findMany({
+          where: {
+            isPublished: true,
+            ...(level ? { level } : {}),
+            ...(categoryIds && categoryIds.length > 0
+              ? { categoryId: { in: categoryIds } }
+              : {}),
+            ...(search
+              ? {
+                  OR: [
+                    { title: { contains: search, mode: "insensitive" } },
+                    { subtitle: { contains: search, mode: "insensitive" } },
+                    {
+                      description: {
+                        contains: search,
+                        mode: "insensitive",
+                      },
+                    },
+                  ],
+                }
+              : {}),
+          },
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            subtitle: true,
+            description: true,
+            level: true,
+            durationMin: true,
+            rewardStars: true,
+            rewardSpacePoints: true,
+            category: { select: { id: true, name: true } },
+            rewardBadge: { select: { id: true, name: true } },
+            _count: { select: { lessons: true } },
+          },
+          orderBy: { order: "asc" },
+          take: limit ?? 20,
+        });
+
+        // Progresso do user logado por trilha
+        const progress = await prisma.spaceHelpProgress.findMany({
+          where: {
+            userId: ctx.userId,
+            trackId: { in: tracks.map((t) => t.id) },
+          },
+          select: { trackId: true, completedAt: true, completedLessonIds: true },
+        });
+        const progressMap = new Map(progress.map((p) => [p.trackId, p]));
+
+        return {
+          totalAvailable: tracks.length,
+          tracks: tracks.map((t) => {
+            const p = progressMap.get(t.id);
+            const completedLessons = p?.completedLessonIds.length ?? 0;
+            const status: "not-started" | "in-progress" | "completed" =
+              p?.completedAt
+                ? "completed"
+                : p
+                  ? "in-progress"
+                  : "not-started";
+            return {
+              id: t.id,
+              slug: t.slug,
+              title: t.title,
+              subtitle: t.subtitle,
+              description: t.description,
+              level: t.level,
+              durationMin: t.durationMin,
+              category: t.category?.name ?? null,
+              rewards: {
+                stars: t.rewardStars,
+                spacePoints: t.rewardSpacePoints,
+                badge: t.rewardBadge?.name ?? null,
+              },
+              lessonsTotal: t._count.lessons,
+              lessonsCompletedByUser: completedLessons,
+              status,
+              // Link interno pra abrir no app — Astro pode citar isso na resposta.
+              link: `/space-help/trilhas/${t.slug}`,
+            };
+          }),
         };
       },
     }),
