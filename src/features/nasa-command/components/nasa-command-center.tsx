@@ -37,6 +37,19 @@ import { CommandInput } from "./command-input";
  * orquestrador via `useAstroChat`. Sessões são listadas/restauradas via oRPC
  * `astro.sessions.*`.
  */
+
+/**
+ * Labels amigáveis quando o orchestrator delega pra um sub-agente.
+ * Chave: agentKey snake_case (matches `route_to_${key.replace(/-/g, "_")}`).
+ * Fallback: "Explorando no universo NASA" pra qualquer agente novo.
+ */
+const ROUTE_AGENT_LABELS: Record<string, string> = {
+  closer: "Pensando na melhor resposta…",
+  task_agent: "Organizando suas tarefas no espaço…",
+  automation_agent: "Configurando automação na nave…",
+  analytics_agent: "Explorando no universo NASA…",
+};
+
 export function NasaCommandCenter() {
   const [command, setCommand] = useState("");
   const [dropdown, setDropdown] = useState<DropdownType>(null);
@@ -212,8 +225,8 @@ export function NasaCommandCenter() {
   const loading = status === "streaming" || status === "submitted";
 
   // Steps "thinking": deriva das tool-parts ainda em execução na última msg
-  // do assistente. Mantém o ThinkingDisplay alimentado por dados reais sem
-  // mudar o componente visual.
+  // do assistente. Tools `route_to_*` (delegação pro sub-agente) ganham
+  // label amigável + foguete animado em vez do nome cru.
   const thinkingSteps = useMemo(() => {
     if (!loading) return [];
     const last = [...messages].reverse().find((m) => m.role === "assistant");
@@ -224,7 +237,20 @@ export function NasaCommandCenter() {
         const state = (p as { state?: string }).state;
         return state === "input-streaming" || state === "input-available";
       })
-      .map((p) => `Executando ${p.type.replace(/^tool-/, "")}…`);
+      .map((p) => {
+        const toolName = p.type.replace(/^tool-/, "");
+        // Detecta delegação pra sub-agente (route_to_X) e mostra com tema
+        // de exploração NASA + foguete animado.
+        const routeMatch = /^route_to_(.+)$/.exec(toolName);
+        if (routeMatch) {
+          const agentKey = routeMatch[1]!;
+          return {
+            label: ROUTE_AGENT_LABELS[agentKey] ?? "Explorando no universo NASA",
+            mode: "rocket" as const,
+          };
+        }
+        return `Executando ${toolName}…`;
+      });
     return inflight.length ? inflight : ["Pensando…"];
   }, [messages, loading]);
 

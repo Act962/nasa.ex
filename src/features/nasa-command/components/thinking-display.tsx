@@ -1,7 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { Search, Sparkles } from "lucide-react";
+import { RocketLoader } from "./rocket-loader";
 
-export function ThinkingDisplay({ steps }: { steps: string[] }) {
+/**
+ * Step de thinking — pode ser:
+ *  - string: passo padrão ("Executando search_lead…")
+ *  - { label, mode: "rocket" }: passo com foguete temático
+ *    ("Explorando no universo NASA" + RocketLoader)
+ *
+ * Modo "rocket" é usado quando o orchestrator delega pra um sub-agente
+ * (route_to_*). Cada agente pode ter sua própria label amigável.
+ */
+export type ThinkingStep =
+  | string
+  | { label: string; mode: "rocket" };
+
+export function ThinkingDisplay({ steps }: { steps: ThinkingStep[] }) {
   const [visibleCount, setVisibleCount] = useState(1);
 
   useEffect(() => {
@@ -10,6 +24,15 @@ export function ThinkingDisplay({ steps }: { steps: string[] }) {
     return () => clearTimeout(t);
   }, [visibleCount, steps.length]);
 
+  // Step ATIVO (mais recente visível) — decide o modo visual do bloco.
+  const activeStep = steps[Math.max(0, visibleCount - 1)];
+  const isRocketMode =
+    typeof activeStep === "object" && activeStep.mode === "rocket";
+
+  const visibleLabels = steps
+    .slice(0, visibleCount)
+    .map((s) => (typeof s === "string" ? s : s.label));
+
   return (
     <div className="flex items-start gap-3 py-2">
       <div className="w-9 h-9 rounded-full bg-linear-to-br from-violet-600 to-purple-800 flex items-center justify-center shrink-0 shadow-lg shadow-violet-900/40">
@@ -17,28 +40,36 @@ export function ThinkingDisplay({ steps }: { steps: string[] }) {
       </div>
       <div className="flex-1 min-w-0 bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-4 py-3">
         <div className="flex items-center gap-2 text-xs text-zinc-400 mb-2">
-          <Search className="w-3 h-3 shrink-0" />
+          {isRocketMode ? (
+            <RocketLoader size={18} />
+          ) : (
+            <Search className="w-3 h-3 shrink-0" />
+          )}
           <span className="truncate">
-            {steps.slice(0, visibleCount).join(" · ")}
+            {visibleLabels.join(" · ")}
           </span>
           {visibleCount < steps.length && (
             <span className="shrink-0 text-zinc-600">
               {visibleCount}/{steps.length} resultados
             </span>
           )}
-          {visibleCount >= steps.length && (
+          {visibleCount >= steps.length && !isRocketMode && (
             <span className="shrink-0 text-violet-400">✓ concluído</span>
           )}
         </div>
-        <div className="flex gap-1">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-bounce"
-              style={{ animationDelay: `${i * 0.15}s` }}
-            />
-          ))}
-        </div>
+        {/* No modo rocket, escondemos os bouncing dots — o foguete + chama
+            já carrega o "tá rolando alguma coisa". */}
+        {!isRocketMode && (
+          <div className="flex gap-1">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-bounce"
+                style={{ animationDelay: `${i * 0.15}s` }}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
