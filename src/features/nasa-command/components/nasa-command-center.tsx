@@ -18,6 +18,8 @@ import { useAutoNarrate } from "@/features/astro/voice/use-auto-narrate";
 import { VoiceOutputToggle } from "@/features/astro/voice/voice-output-toggle";
 import { useVoiceModeStore } from "@/features/astro/voice/use-voice-mode-store";
 import { useAstroOrbStore } from "@/features/astro/voice/use-astro-orb-store";
+import { SlashComposer } from "@/features/astro/composer/slash-composer";
+import { MessageSquare, SquareSlash } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 import type { DropdownType, ModelType } from "../types";
@@ -39,6 +41,8 @@ export function NasaCommandCenter() {
   const [command, setCommand] = useState("");
   const [dropdown, setDropdown] = useState<DropdownType>(null);
   const [dropdownSearch, setDropdownSearch] = useState("");
+  // Modo de input: "chat" (texto livre + voz) ou "composer" (chips coloridos).
+  const [inputMode, setInputMode] = useState<"chat" | "composer">("chat");
   // `model` continua na UI (model-selector) mas no MVP não influencia o
   // backend — o orquestrador usa ASTRO_DEFAULT_MODEL. Override do usuário
   // fica para iteração futura.
@@ -282,13 +286,68 @@ export function NasaCommandCenter() {
       {hasMessages && (
         <div className="border-t border-zinc-800/60 bg-[#050510]/90 backdrop-blur px-3 sm:px-4 py-3 shrink-0 relative z-10">
           <div className="max-w-3xl mx-auto">
-            <div className="mb-2 flex items-center justify-end">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <ModeToggle mode={inputMode} onChange={setInputMode} />
               <VoiceOutputToggle />
             </div>
-            <CommandInput {...commandInputProps} />
+            {inputMode === "composer" ? (
+              <SlashComposer
+                loading={loading}
+                onSubmit={(prompt) => void submitCommand(prompt)}
+              />
+            ) : (
+              <CommandInput {...commandInputProps} />
+            )}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: "chat" | "composer";
+  onChange: (m: "chat" | "composer") => void;
+}) {
+  return (
+    <div
+      className="inline-flex rounded-lg border border-zinc-800 bg-zinc-900/60 p-0.5"
+      role="radiogroup"
+      aria-label="Modo de input"
+    >
+      <button
+        type="button"
+        role="radio"
+        aria-checked={mode === "chat"}
+        onClick={() => onChange("chat")}
+        title="Texto livre + voz"
+        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] transition-colors ${
+          mode === "chat"
+            ? "bg-violet-600/30 text-violet-200 ring-1 ring-violet-500/50"
+            : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
+        }`}
+      >
+        <MessageSquare className="size-3" />
+        <span className="hidden sm:inline">Conversa</span>
+      </button>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={mode === "composer"}
+        onClick={() => onChange("composer")}
+        title="Chips estruturados (/CRIAR /LEAD…)"
+        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] transition-colors ${
+          mode === "composer"
+            ? "bg-violet-600/30 text-violet-200 ring-1 ring-violet-500/50"
+            : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
+        }`}
+      >
+        <SquareSlash className="size-3" />
+        <span className="hidden sm:inline">Comando</span>
+      </button>
     </div>
   );
 }
