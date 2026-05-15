@@ -2,7 +2,9 @@
 
 import { type ReactNode } from "react";
 import { MarketplaceProvider } from "@/features/integrations/context/marketplace-context";
-import { AstroAgent } from "./astro-agent";
+// AstroAgent (widget flutuante legado) substituído pelo AstroOrb. Mantemos
+// o componente no codebase pra referência mas não é mais montado.
+// import { AstroAgent } from "./astro-agent";
 import { AstroProvider } from "./astro-provider";
 import { HeartbeatProvider } from "@/components/heartbeat-provider";
 import { SpacePointProvider } from "@/features/space-point";
@@ -54,7 +56,6 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
             <AstroProvider>
               {children}
               <GlobalShortcutsRegistrar />
-              <AstroAgent />
               <AstroOrb />
               <CmdkPalette />
               <ConnectionWizardDialog />
