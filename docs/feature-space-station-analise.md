@@ -251,7 +251,249 @@ Ordem proposta, do maior impacto/menor custo para o oposto:
 
 ---
 
-## 9. Resumo executivo
+## 9. Roadmap detalhado — próximos passos por bug e por área
+
+> Esta seção é o plano de ataque "pegar e executar". Cada item traz: **objetivo**, **arquivos a tocar**, **passos concretos**, **critério de pronto** e **risco/efeito colateral**. A ideia é poder retomar isso em outra sessão e saber exatamente por onde começar.
+
+### 9.1 — Bloco de segurança (P0)
+
+#### 9.1.1 — Autenticar endpoints de sinalização (B1)
+- **Objetivo**: garantir que `userId` enviado nas APIs de Pusher venha da sessão, não do body.
+- **Arquivos**:
+  - `src/app/api/pusher/world/route.ts`
+  - `src/app/api/pusher/rtc/route.ts`
+  - `src/app/api/pusher/auth/route.ts` (conferir consistência)
+- **Passos**:
+  1. Importar `auth` (better-auth) e ler `headers()` no início de cada handler.
+  2. Se não autenticado → `return new Response("unauthorized", { status: 401 })`.
+  3. Substituir `body.userId` por `session.user.id` antes de propagar no Pusher.
+  4. Manter `body.userId` apenas como hint para *log*, nunca como source-of-truth.
+  5. Adicionar Zod schema para o body: `{ type, x?, y?, payload? }` — rejeitar campos extras com `.strict()`.
+- **Critério de pronto**: tentar `POST /api/pusher/world` com `userId` diferente da sessão (via DevTools) retorna 401 ou substitui silenciosamente. Manual QA com 2 contas confirma que ninguém consegue impersonar.
+- **Risco**: baixo. Pode quebrar clientes desatualizados se houver alguma chamada pública não autenticada — improvável aqui.
+
+#### 9.1.2 — Validar bounds de posição (B9)
+- **Objetivo**: rejeitar `{x, y}` fora do mapa.
+- **Arquivos**: mesmos do 9.1.1.
+- **Passos**:
+  1. Definir constantes `WORLD_BOUNDS = { minX, minY, maxX, maxY }` por cenário, em `src/features/space-station/lib/world-bounds.ts` (criar).
+  2. Buscar bounds do cenário atual pelo `worldKey` da station (DB ou map fixo).
+  3. Clamp: `x = clamp(x, minX, maxX)`; `y = clamp(y, minY, maxY)`.
+  4. Se diferença pré/pós-clamp > 50px → logar `[space-station] suspicious position`.
+- **Critério de pronto**: cliente envia `{x: 999999, y: -1}` → broadcast traz coordenada clampeada. Log aparece para divergências grandes.
+- **Risco**: nenhum. É puro defensivo.
+
+#### 9.1.3 — Whitelist de domínios em URLs externas
+- **Objetivo**: evitar XSS/SSRF via spritesheets remotos.
+- **Arquivos**: `src/features/space-station/types.ts`, `src/features/space-station/server/update-world.ts` (ou onde está o input do oRPC).
+- **Passos**:
+  1. Criar `ALLOWED_ASSET_HOSTS` em `src/features/space-station/lib/asset-whitelist.ts` — incluir CDN próprio (R2) + tilesets oficiais.
+  2. Substituir `z.string().url()` por `.refine(url => isAllowedHost(url), { message: "host não permitido" })`.
+  3. Aplicar em `lpcSpritesheetUrl`, `wokaEyesUrl`, `wokaHairUrl`, `wokaClothesUrl`, `wokaHatUrl`, `wokaAccessoryUrl`, `tiledMapUrl`.
+- **Critério de pronto**: tentar salvar URL `https://evil.com/x.png` → erro de validação. URLs válidos do R2 passam.
+- **Risco**: pode bloquear assets de desenvolvimento — mitigar com flag `NODE_ENV === "development"` que afrouxa a whitelist.
+
+---
+
+### 9.2 — Bugs visíveis ao usuário (P1)
+
+#### 9.2.1 — Re-check de áreas após teleporte (B5)
+- **Objetivo**: parar de gerar `area-leave` falso quando o player teleporta.
+- **Arquivos**: `src/features/space-station/components/world/scenes/world-scene.ts` (handler `space-station:teleport-to` + update loop ~linha 779).
+- **Passos**:
+  1. No handler de teleport: após mover o player, chamar `this.recomputeAreaOverlaps()` no próximo `update` (flag `_pendingAreaRecheck = true`).
+  2. No `update`, se a flag estiver true: rodar `Phaser.Physics.Arcade.overlap` manualmente para popular `insideAreaIds` ANTES do diff que dispara `enter/leave`.
+  3. Resetar a flag.
+- **Critério de pronto**: teleportar entre duas áreas com `play-audio` não interrompe o áudio se o destino estiver na mesma área-chave. QA manual com `space-station:teleport-to` no console.
+- **Risco**: médio — mexer no update loop é cirúrgico. Cobrir com log antes/depois.
+
+#### 9.2.2 — Limpar screen share ao fechar peer (B12)
+- **Objetivo**: garantir que `screenStream` e `screenSendersRef` não vazem.
+- **Arquivos**: `src/features/space-station/hooks/use-webrtc.ts` (função `closePeer`).
+- **Passos**:
+  1. Em `closePeer(peerId)`: iterar `screenSendersRef.current[peerId]` e chamar `pc.removeTrack(sender)`.
+  2. Deletar a entrada do dicionário.
+  3. Se foi o último peer recebendo o screen share local: parar tracks do `screenStream` e setar ref como `null`.
+  4. Emitir evento `space-station:screen-share-stopped` se aplicável.
+- **Critério de pronto**: abrir DevTools → `chrome://webrtc-internals` → entrar/sair de proximidade durante screen share: contagem de PCs zera, sem senders pendurados.
+- **Risco**: baixo, mas testar com 3+ peers simultâneos.
+
+#### 9.2.3 — Serializar trocas de device (B3)
+- **Objetivo**: evitar que cliques rápidos em "trocar mic/câmera" capturem o device anterior.
+- **Arquivos**: `src/features/space-station/hooks/use-webrtc.ts` (`acquireStream`, `applyDeviceChange`).
+- **Passos**:
+  1. Introduzir um `AbortController` global por tipo de device (`audioAbortRef`, `videoAbortRef`).
+  2. No início de `applyDeviceChange`: abortar o anterior, criar novo.
+  3. Passar `signal` para todo `getUserMedia` (Chrome 95+ aceita).
+  4. Se `signal.aborted` após `await`, parar tracks recém-obtidos e retornar.
+- **Critério de pronto**: clicar 5x rápido em "trocar câmera" → estado final reflete a última escolha. Sem stream zumbi.
+- **Risco**: baixo. `AbortController` em `getUserMedia` é seguro de polyfillar.
+
+#### 9.2.4 — Tracking de geração no sprite remoto (B4)
+- **Objetivo**: ignorar updates de sprite que chegam fora de ordem.
+- **Arquivos**: `src/features/space-station/hooks/use-webrtc.ts:220–244` (`onPeerSprite`).
+- **Passos**:
+  1. Manter `Map<peerId, number>` chamado `spriteGenRef`.
+  2. Cada update de sprite incrementa o gen.
+  3. Comparar com `worldScene` (que já usa `loadGen`) — se evento for mais antigo, ignorar.
+  4. Documentar a ordem esperada de eventos em comentário no topo do hook.
+- **Critério de pronto**: log mostra "ignorando sprite stale" quando provocado artificialmente (delay de 500ms em um dos canais). Avatar remoto não pisca entre dois sprites.
+- **Risco**: baixo.
+
+---
+
+### 9.3 — Leaks e estabilidade do editor (P2)
+
+#### 9.3.1 — Inventário de cleanup da WorldScene (B2, B6, B7)
+- **Objetivo**: garantir que `shutdown()` da scene libere 100% dos recursos.
+- **Arquivos**: `src/features/space-station/components/world/scenes/world-scene.ts`.
+- **Checklist a executar dentro do `shutdown`**:
+  - [ ] Remover *todos* os event listeners adicionados via `window.addEventListener` (manter array `_disposers: Array<() => void>` e iterar).
+  - [ ] `clearTimeout` em `_tileSyncTimer`, `_areaCheckTimer`, qualquer outro timer.
+  - [ ] `clearInterval` se houver.
+  - [ ] Destruir todos os sprites em `_remotePlayers`, `_placedObjects`, `_areaHitzones`.
+  - [ ] Cancelar `requestAnimationFrame` pendente (se houver).
+  - [ ] Revogar `URL.createObjectURL` criados para overlays/sprites compostos.
+  - [ ] Anular refs (`this._player = null` etc.) para liberar GC.
+- **Padrão recomendado**: substituir `window.addEventListener("x", fn)` direto por um helper:
+  ```ts
+  this.on(window, "x", fn); // helper que registra disposer
+  ```
+- **Critério de pronto**: abrir/fechar editor 20x → Memory tab do DevTools mostra heap estável (com tolerância). Listeners no `getEventListeners(window)` voltam ao baseline.
+- **Risco**: alto se feito de uma vez. Fazer incremental: primeiro o helper `this.on`, depois migrar listener por listener.
+
+#### 9.3.2 — Destruir sprite antes de recarregar (B6)
+- **Objetivo**: evitar sprites/physics bodies órfãos ao trocar avatar.
+- **Arquivos**: `world-scene.ts:333+` (`loadLpcSpritesheet`).
+- **Passos**:
+  1. No início da função: se `this._playerSprite` existe → `this._playerSprite.destroy(true)` (destroi physics body também).
+  2. Resetar `this._playerSprite = null` antes de criar o novo.
+  3. Conferir que `this.physics.world.colliders` não tem colliders apontando para o body antigo (Phaser geralmente limpa, mas confirmar).
+- **Critério de pronto**: trocar avatar 10x seguidas → `scene.children.list.length` não cresce ilimitadamente.
+- **Risco**: médio. Se houver código que mantém referência ao sprite antigo, vai quebrar — buscar por `_playerSprite` em todo `world-scene.ts`.
+
+---
+
+### 9.4 — Dívida estrutural (P3)
+
+#### 9.4.1 — Refatorar `world-scene.ts` em módulos
+- **Objetivo**: quebrar god object de 4.2k LOC em peças testáveis.
+- **Estratégia** (não fazer tudo de uma vez):
+
+  | Módulo proposto | Responsabilidade | LOC alvo |
+  | --- | --- | --- |
+  | `InputManager` | Teclado, mouse, touch, pinch, zoom, pan. Foco em inputs HTML. | ~400 |
+  | `ProximityManager` | Calcula distância entre player local e remotos, dispara `proximity-enter/leave`. | ~200 |
+  | `AreaManager` | Overlap player↔áreas, triggers, toasts. | ~400 |
+  | `EditorManager` | Tile painter, área editor, placed objects, undo/redo. | ~800 |
+  | `RemotePlayersManager` | Sprite remoto, interpolação de posição, animação. | ~400 |
+  | `RenderingManager` | Tile layers, profundidade, ordering, render-on-top. | ~300 |
+  | `WorldScene` (residual) | Lifecycle (create/update/shutdown) + cola entre managers. | ~400 |
+
+- **Passos por módulo** (repetir):
+  1. Criar classe `XxxManager` em `src/features/space-station/components/world/scenes/managers/`.
+  2. Construtor recebe `scene: WorldScene`.
+  3. Mover métodos um a um, deixando wrapper em `WorldScene` que delega (para não quebrar quem chama via `scene.foo()`).
+  4. Quando todos os call-sites estiverem migrados, remover os wrappers.
+- **Critério de pronto**: cada módulo cabe em uma tela, tem responsabilidade clara, e o `world-scene.ts` residual é navegável em <5min.
+- **Risco**: alto se feito sem testes. Antes de começar, criar smoke test Playwright que entra, anda, entra em área, sai. Rodar a cada módulo migrado.
+
+#### 9.4.2 — Substituir `window.dispatchEvent` por Zustand store
+- **Objetivo**: ter uma fonte da verdade tipada e rastreável.
+- **Arquivos novos**: `src/features/space-station/stores/use-station-runtime-store.ts`.
+- **Passos**:
+  1. Inventariar todos os eventos `space-station:*` (grep no projeto).
+  2. Modelar como ações da store: `setProximityPeers`, `setActiveArea`, `setLocalAvatar`, `teleportTo`, etc.
+  3. Migrar Phaser para `subscribe` da store (usar `subscribeWithSelector`).
+  4. Migrar React para `useStationRuntimeStore`.
+  5. Deletar listeners `window`.
+- **Critério de pronto**: zero `window.dispatchEvent("space-station:*")` no codebase. Todos os fluxos visíveis em uma única store inspecionável via Redux DevTools (Zustand plugin).
+- **Risco**: alto. Phaser fica fora do ciclo de React e precisa de `subscribe` manual — fácil esquecer de unsubscribe. Fazer junto com 9.3.1.
+- **Alinhamento**: bate com `CLAUDE.md` ("estado global com Zustand stores (nunca Context providers)").
+
+#### 9.4.3 — Implementar composição visual dos overlays Woka (B10)
+- **Objetivo**: avatar customizado aparecer para os outros peers.
+- **Estratégia**:
+  1. Criar `composite-woka.ts` em `utils/` que recebe `{ base, eyes, hair, clothes, hat, accessory }` (URLs) e devolve um `OffscreenCanvas` (ou `HTMLCanvasElement` fallback).
+  2. Cachear o resultado por hash dos URLs (`crypto.subtle.digest` + `btoa`).
+  3. Compor em Web Worker se o browser suportar (lazy import).
+  4. Substituir `spriteUrl` no `peer-sprite` event pelo blob URL composto.
+  5. Persistir no servidor um único campo `compositeSpriteUrl` (opcional) ou só os componentes (cliente compõe sempre).
+- **Critério de pronto**: dois clientes vendo o mesmo avatar customizado, com chapéu, cabelo e roupa renderizados.
+- **Risco**: médio. Worker + OffscreenCanvas tem caveats em Safari iOS.
+
+---
+
+### 9.5 — Robustez de assets externos (P4)
+
+#### 9.5.1 — Timeout + retry no Tiled loader (B8)
+- **Arquivo**: `src/features/space-station/utils/tiled-canvas-renderer.ts` e `components/world/space-game.tsx:176–191`.
+- **Passos**:
+  1. Envolver fetch em `Promise.race([fetch(url), timeout(10000)])`.
+  2. Retry exponencial: 3 tentativas com backoff 500ms / 1500ms / 4500ms.
+  3. Se falhar todas: renderizar fallback (cenário "station" padrão) + toast "mapa indisponível, usando fallback".
+  4. Logar para Sentry (se existir) ou `console.error` estruturado.
+- **Critério de pronto**: bloquear URL no DevTools (Network → Block request URL) → app entra com fallback em ≤15s, nunca trava em loading.
+- **Risco**: nenhum.
+
+#### 9.5.2 — Sanitização de tilesets externos
+- **Objetivo**: garantir que tilesets vindos de URL não sejam SVG malicioso.
+- **Passos**:
+  1. Validar `Content-Type` da resposta (`image/png`, `image/jpeg`, `image/webp` apenas).
+  2. Recusar tudo que não seja imagem raster.
+  3. Logar para auditoria.
+- **Critério de pronto**: tileset com `Content-Type: image/svg+xml` é rejeitado.
+
+---
+
+### 9.6 — Cobertura de testes (P5)
+
+#### 9.6.1 — Testes unitários priorizados
+- `use-webrtc.test.ts` — mock de `RTCPeerConnection`, verificar: criar offer, aceitar answer, ICE candidate, fechar peer, troca de device.
+- `use-world-presence.test.ts` — mock do Pusher, verificar: join, leave, posição, reconnect.
+- `composite-woka.test.ts` (após 9.4.3) — verificar que hash idêntico → cache hit.
+- `world-bounds.test.ts` (após 9.1.2) — clamp em todos os cenários.
+
+#### 9.6.2 — Smoke test Playwright
+- **Fluxo**:
+  1. Login → entrar em station.
+  2. Andar 5 segundos com setas.
+  3. Aproximar de um segundo player (mockado via segunda BrowserContext).
+  4. Confirmar que `proximity-enter` aconteceu (DOM da `proximity-bar`).
+  5. Entrar em área de website → toast aparece.
+  6. Sair da área → toast some.
+- **Critério de pronto**: roda no CI, falha em <2min se algo quebrar.
+
+---
+
+### 9.7 — Cronograma sugerido (1 engenheiro)
+
+| Sprint | Foco | Itens |
+| --- | --- | --- |
+| 1 (1 semana) | Segurança + bugs críticos | 9.1.1, 9.1.2, 9.2.1, 9.2.2, 9.2.3 |
+| 2 (1 semana) | Estabilidade | 9.2.4, 9.3.1 (helper + 50% dos listeners), 9.3.2, 9.5.1 |
+| 3 (1 semana) | Resto do cleanup + whitelist | 9.3.1 (resto), 9.1.3, 9.5.2 |
+| 4–5 (2 semanas) | Refator estrutural | 9.4.1 (3 managers mais simples), smoke test Playwright |
+| 6 (1 semana) | Store + overlays | 9.4.2 (parcial), 9.4.3 |
+| 7 (1 semana) | Resto do refator + testes | 9.4.1 (3 managers restantes), 9.6.1 |
+
+Total estimado: ~7 semanas com 1 engenheiro full-time, podendo paralelizar P0–P2 (semanas 1–3) com um segundo dev em P3 (4–7).
+
+---
+
+### 9.8 — Princípios para reutilizar essa feature em outras seções
+
+Se a ideia é tirar partes da `space-station` para usar em outros lugares (ex: avatares em outras telas, multiplayer noutra feature):
+
+1. **`use-webrtc` deve virar um pacote agnóstico** — hoje conhece `space-station` por nome de eventos. Renomear para `useP2PMedia` e parametrizar canal/eventos.
+2. **`use-world-presence` idem** — abstrair como `usePresenceChannel<TPayload>` em `src/lib/pusher/` (alinhado com `CLAUDE.md`, que coloca `pusher` em `lib`).
+3. **Sprite handling** (`sprite-defaults`, `composite-*`) pode subir para `src/lib/avatar/` se outras features precisarem de avatares 2D.
+4. **`tiled-canvas-renderer`** é genérico — pode virar `src/lib/tiled/` se houver outro uso de mapas Tiled.
+5. **NÃO subir antes da hora** — espere ter um segundo consumidor real. Abstrair preventivamente é o que cria os god objects que estamos limpando aqui.
+
+---
+
+## 10. Resumo executivo
 
 A feature é **ambiciosa e bem construída no nível de UX e arquitetura multiplayer**, mas carrega três classes de risco:
 
@@ -259,4 +501,4 @@ A feature é **ambiciosa e bem construída no nível de UX e arquitetura multipl
 2. **Concorrência** (B3, B4, B5, B12) — origem provável dos bugs intermitentes de áudio/vídeo e sprites.
 3. **Dívida estrutural** (god object + event spaghetti + overlays não compostos) — o custo de cada nova feature cresce não-linearmente até isso ser endereçado.
 
-Recomendação: tratar P0 + P1 antes de adicionar novas features; planejar P3 (refator estrutural) como sprint dedicado.
+**Recomendação**: tratar Sprint 1 (segurança + bugs visíveis) imediatamente; planejar Sprints 4–7 (refator estrutural) como bloco dedicado quando o produto estabilizar. Antes de pensar em reutilizar partes em outras seções, fechar Sprint 3 — abstrações prematuras vão multiplicar a dívida atual em vez de aliviá-la.
