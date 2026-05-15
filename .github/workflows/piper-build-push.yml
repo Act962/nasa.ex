@@ -1,3 +1,24 @@
+# ============================================================
+# Build & publish Piper TTS image to GHCR.
+# ============================================================
+#
+# 🚨 DEV / PROD CHECKLIST (uma vez por repo):
+#
+# 1. Primeira execução desse workflow vai criar o package em
+#    https://github.com/users/Weydsonlima/packages/container/
+#      nasaex-wey%2Fpiper-tts
+#    Por padrão é PRIVADO. Pra o servidor de prod conseguir puxar
+#    sem auth, torne público:
+#       Package Settings → Danger Zone → Change visibility → Public
+#
+# 2. Em prod, o docker-compose.prod.yml puxa
+#       ghcr.io/weydsonlima/nasaex-wey/piper-tts:latest
+#    Se mantiver privado, configure docker login no host de prod com
+#    um PAT (Personal Access Token) que tenha read:packages.
+#
+# 3. Imagens são multi-arch (amd64 + arm64), serve qualquer host Linux.
+# ============================================================
+
 name: Build & Push Piper TTS image
 
 on:

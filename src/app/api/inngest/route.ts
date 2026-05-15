@@ -1,3 +1,39 @@
+/**
+ * ============================================================
+ * Inngest serve endpoint — registra todos os jobs/crons do NASA.
+ * ============================================================
+ *
+ * 🚨 DEV / PROD CHECKLIST (precisa fazer em produção):
+ *
+ * 1. Env vars obrigatórios (sem isso, Inngest não autentica e crons
+ *    não rodam):
+ *      INNGEST_EVENT_KEY=evt_...
+ *      INNGEST_SIGNING_KEY=signkey_...
+ *    Obtidos em https://app.inngest.com → Apps → SDK keys.
+ *
+ * 2. Registrar a app no Inngest Cloud:
+ *    a. Crie um app "nasa-production" em https://app.inngest.com
+ *    b. Em "Sync Methods" cole a URL pública desse endpoint:
+ *         https://app.SEU-DOMINIO.com/api/inngest
+ *    c. Click "Sync" — Inngest faz GET, descobre todos os functions
+ *       declarados aqui e registra os crons no scheduler.
+ *
+ * 3. Verificar crons ativos:
+ *    No dashboard Inngest, aba "Functions" deve listar (entre outros):
+ *      detect-stale-leads          (a cada 30 min — Astro alerts)
+ *      detect-broken-integrations  (hourly      — Astro alerts)
+ *      detect-agenda-starting      (a cada 5 min  — Astro alerts)
+ *      detect-form-abandoned       (a cada 15 min — Astro alerts)
+ *      detect-low-metrics          (9h e 15h    — Astro alerts)
+ *      detect-overdue              (hourly)
+ *
+ * 4. Se você adicionar uma function nova nesse array, faça um redeploy
+ *    + click "Sync" de novo no painel pra Inngest descobrir.
+ *
+ * Dev local: o Inngest Dev Server (`pnpm inngest:dev`) descobre
+ * automaticamente via :3000/api/inngest sem precisar de env keys.
+ * ============================================================
+ */
 import { serve } from "inngest/next";
 import { inngest } from "@/inngest/client";
 import { executeWorkflow } from "@/inngest/functions";

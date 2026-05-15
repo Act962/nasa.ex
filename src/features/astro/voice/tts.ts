@@ -11,6 +11,18 @@
  *      ou não está habilitado).
  *
  * Fila e interrupção via cancel() funcionam pros dois engines.
+ *
+ * 🚨 DEV / PROD CHECKLIST:
+ *
+ * Pra Piper funcionar em produção (voz oficial Faber):
+ *   1. Container Piper rodando + acessível pelo Next.js. Ver
+ *      docker/piper/PIPER_SETUP.md (subir local) ou DEPLOYMENT.md
+ *      §4 (Fly.io / VPS / mesmo host).
+ *   2. Env vars no host do app:
+ *        NEXT_PUBLIC_PIPER_ENABLED=true       (client lê isso)
+ *        PIPER_HTTP_URL=https://piper.dom     (server-side, /api/astro/tts proxy)
+ *   3. Sem (1) + (2), o cliente cai automaticamente pro Web Speech do
+ *      browser (sem erro, só qualidade inferior).
  */
 
 const PIPER_ENABLED =
