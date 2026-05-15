@@ -13,9 +13,11 @@ import {
   EyeOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { authClient } from "@/lib/auth-client";
 import { useAstroOrbStore } from "./use-astro-orb-store";
 import { useVoiceModeStore } from "./use-voice-mode-store";
 import { useWakeWord } from "./use-wake-word";
+import { speak } from "./tts";
 
 /**
  * AstroOrb — o "pet" flutuante do Astro.
@@ -45,10 +47,16 @@ export function AstroOrb() {
   const setPendingUtterance = useAstroOrbStore((s) => s.setPendingUtterance);
 
   const isSpeaking = useVoiceModeStore((s) => s.isSpeaking);
+  const setVoiceSpeaking = useVoiceModeStore((s) => s.setSpeaking);
 
   const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Saudação proativa: precisa do primeiro nome do usuário pra falar
+  // "Opa Wey…" quando o wake word dispara.
+  const { data: session } = authClient.useSession();
+  const firstName = extractFirstName(session?.user?.name);
 
   // Sync TTS speaking → phase visual
   useEffect(() => {
@@ -59,85 +67,128 @@ export function AstroOrb() {
     }
   }, [isSpeaking, phase, setPhase]);
 
-  // Captura utterance após wake word
-  const captureUtterance = useCallback(() => {
-    if (typeof window === "undefined") return;
-    const SRApi = window as unknown as {
-      SpeechRecognition?: typeof SpeechRecognition;
-      webkitSpeechRecognition?: typeof SpeechRecognition;
-    };
-    const SR = SRApi.SpeechRecognition ?? SRApi.webkitSpeechRecognition;
-    if (!SR) return;
+  // Captura utterance — quando triggerada por wake word, fala uma saudação
+  // proativa antes ("Opa Wey, como posso ajudar?"). Quando triggerada por
+  // click manual, pula direto pra escuta (user já abriu o menu).
+  const captureUtterance = useCallback(
+    (opts: { withGreeting?: boolean } = {}) => {
+      if (typeof window === "undefined") return;
+      const SRApi = window as unknown as {
+        SpeechRecognition?: typeof SpeechRecognition;
+        webkitSpeechRecognition?: typeof SpeechRecognition;
+      };
+      const SRCtor = SRApi.SpeechRecognition ?? SRApi.webkitSpeechRecognition;
+      if (!SRCtor) return;
+      // Narrow para closure interna
+      const SR: NonNullable<typeof SRCtor> = SRCtor;
 
-    setPhase("listening");
-    setHint("Te ouvindo…");
+      const startCapture = () => {
+        // Estado visual já está em listening por causa do effect do TTS;
+        // garante explicitamente caso a saudação não tenha disparado.
+        setPhase("listening");
+        setHint("Te ouvindo…");
+        runRecognition();
+      };
 
-    const rec = new SR();
-    rec.lang = "pt-BR";
-    rec.continuous = false;
-    rec.interimResults = false;
-    rec.maxAlternatives = 1;
-
-    let captured = "";
-    let resolved = false;
-
-    const resolve = (text: string) => {
-      if (resolved) return;
-      resolved = true;
-      try {
-        rec.stop();
-      } catch {
-        /* ignore */
+      if (opts.withGreeting) {
+        // Saudação contextual — usa primeiro nome + hora do dia
+        const greeting = buildGreeting(firstName);
+        setPhase("speaking");
+        setHint(greeting);
+        setVoiceSpeaking(true);
+        speak(greeting, {
+          onEnd: () => {
+            setVoiceSpeaking(false);
+            startCapture();
+          },
+          onError: () => {
+            setVoiceSpeaking(false);
+            startCapture();
+          },
+        });
+        return;
       }
-      const t = text.trim();
-      if (t) {
-        setPhase("thinking");
-        setHint(`"${t}"`);
-        setPendingUtterance(t);
-        // Se não estamos no /home, navegar com prompt na URL.
-        if (pathname !== "/home") {
-          const url = `/home?prompt=${encodeURIComponent(t)}`;
-          router.push(url);
+
+      startCapture();
+
+      function runRecognition() {
+        const rec = new SR();
+        rec.lang = "pt-BR";
+        rec.continuous = false;
+        rec.interimResults = false;
+        rec.maxAlternatives = 1;
+
+        let captured = "";
+        let resolved = false;
+
+        const resolve = (text: string) => {
+          if (resolved) return;
+          resolved = true;
+          try {
+            rec.stop();
+          } catch {
+            /* ignore */
+          }
+          const t = text.trim();
+          if (t) {
+            setPhase("thinking");
+            setHint(`"${t}"`);
+            setPendingUtterance(t);
+            // Se não estamos no /home, navegar com prompt na URL.
+            if (pathname !== "/home") {
+              const url = `/home?prompt=${encodeURIComponent(t)}`;
+              router.push(url);
+            }
+          } else {
+            setPhase("idle");
+            setHint(null);
+          }
+          // Limpa hint depois de 2s
+          setTimeout(() => setHint(null), 2500);
+        };
+
+        rec.onresult = (event: SpeechRecognitionEvent) => {
+          const last = event.results[event.results.length - 1];
+          const transcript = last?.[0]?.transcript ?? "";
+          captured = transcript;
+        };
+        rec.onerror = () => resolve(captured);
+        rec.onend = () => resolve(captured);
+
+        try {
+          rec.start();
+        } catch {
+          resolve("");
         }
-      } else {
-        setPhase("idle");
-        setHint(null);
+
+        // Timeout 8s — fecha mesmo se o STT não disparar `end`
+        setTimeout(() => {
+          try {
+            rec.stop();
+          } catch {
+            /* ignore */
+          }
+          resolve(captured);
+        }, 8000);
       }
-      // Limpa hint depois de 2s
-      setTimeout(() => setHint(null), 2500);
-    };
+    },
+    [
+      pathname,
+      router,
+      setPhase,
+      setHint,
+      setPendingUtterance,
+      setVoiceSpeaking,
+      firstName,
+    ],
+  );
 
-    rec.onresult = (event: SpeechRecognitionEvent) => {
-      const last = event.results[event.results.length - 1];
-      const transcript = last?.[0]?.transcript ?? "";
-      captured = transcript;
-    };
-    rec.onerror = () => resolve(captured);
-    rec.onend = () => resolve(captured);
-
-    try {
-      rec.start();
-    } catch {
-      resolve("");
-    }
-
-    // Timeout 8s — fecha mesmo se o STT não disparar `end`
-    setTimeout(() => {
-      try {
-        rec.stop();
-      } catch {
-        /* ignore */
-      }
-      resolve(captured);
-    }, 8000);
-  }, [pathname, router, setPhase, setHint, setPendingUtterance]);
-
-  // Wake word loop
+  // Wake word loop — quando dispara, Astro saúda antes de escutar
   useWakeWord({
     enabled: wakeWordEnabled && phase === "idle",
     paused: isSpeaking, // não pega a própria voz do TTS
     onWake: () => {
-      captureUtterance();
+      captureUtterance({ withGreeting: true });
     },
     onError: (err) => {
       // Erro de permissão → desliga wake word + avisa
@@ -164,7 +215,8 @@ export function AstroOrb() {
 
   const handleManualActivate = () => {
     setMenuOpen(false);
-    captureUtterance();
+    // Manual click: pula saudação — user já decidiu falar.
+    captureUtterance({ withGreeting: false });
   };
 
   const handleToggleWakeWord = () => {
@@ -331,3 +383,44 @@ const ORB_PHASES: Record<
     ring: "ring-4 ring-emerald-400/60",
   },
 };
+
+/**
+ * Pega só o primeiro nome do usuário pra usar em saudações.
+ * Fallback: "amigo" — neutro, evita "Opa undefined, como posso te ajudar?".
+ */
+function extractFirstName(fullName?: string | null): string {
+  if (!fullName) return "amigo";
+  const first = fullName.trim().split(/\s+/)[0];
+  return first || "amigo";
+}
+
+/**
+ * Saudação contextual baseada na hora do dia (fuso local do browser).
+ * Curta — não soa robótico em TTS. Varia pra não cansar o ouvido (3 templates
+ * por turno).
+ */
+function buildGreeting(firstName: string): string {
+  const hour = new Date().getHours();
+  const timeBucket =
+    hour < 6 ? "noite" : hour < 12 ? "manhã" : hour < 18 ? "tarde" : "noite";
+
+  const templates: Record<string, string[]> = {
+    manhã: [
+      `Bom dia ${firstName}, como posso te ajudar?`,
+      `Opa ${firstName}, bom dia. O que você precisa?`,
+      `Oi ${firstName}, no que posso te ajudar hoje?`,
+    ],
+    tarde: [
+      `Boa tarde ${firstName}, como posso te ajudar?`,
+      `E aí ${firstName}, o que precisa?`,
+      `Opa ${firstName}, tô aqui. O que você quer fazer?`,
+    ],
+    noite: [
+      `Boa noite ${firstName}, como posso te ajudar?`,
+      `Oi ${firstName}, ainda na ativa? O que precisa?`,
+      `${firstName}, tô aqui. Manda ver.`,
+    ],
+  };
+  const pool = templates[timeBucket]!;
+  return pool[Math.floor(Math.random() * pool.length)]!;
+}

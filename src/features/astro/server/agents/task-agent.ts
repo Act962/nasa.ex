@@ -2,6 +2,7 @@ import "server-only";
 import { TASK_AGENT_PROMPT } from "@/features/astro/lib/prompts";
 import { buildActionTools } from "@/features/astro/server/tools/actions";
 import { buildKnowledgeTools } from "@/features/astro/server/tools/knowledge";
+import { buildSearchTools } from "@/features/astro/server/tools/search";
 import type { AgentDefinition } from "./types";
 
 export const taskAgent: AgentDefinition = {
@@ -12,6 +13,7 @@ export const taskAgent: AgentDefinition = {
   systemPrompt: TASK_AGENT_PROMPT,
   buildTools: (ctx) => ({
     ...buildActionTools(ctx),
+    ...buildSearchTools(ctx),
     ...buildKnowledgeTools(ctx, "task-agent"),
   }),
 };

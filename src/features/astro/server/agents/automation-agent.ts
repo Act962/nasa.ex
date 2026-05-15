@@ -2,6 +2,7 @@ import "server-only";
 import { AUTOMATION_AGENT_PROMPT } from "@/features/astro/lib/prompts";
 import { buildAutomationTools } from "@/features/astro/server/tools/automation";
 import { buildKnowledgeTools } from "@/features/astro/server/tools/knowledge";
+import { buildSearchTools } from "@/features/astro/server/tools/search";
 import type { AgentDefinition } from "./types";
 
 /**
@@ -25,6 +26,7 @@ export const automationAgent: AgentDefinition = {
   systemPrompt: AUTOMATION_AGENT_PROMPT,
   buildTools: (ctx) => ({
     ...buildAutomationTools(ctx),
+    ...buildSearchTools(ctx),
     ...buildKnowledgeTools(ctx, "automation-agent"),
   }),
 };
