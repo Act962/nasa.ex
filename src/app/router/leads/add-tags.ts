@@ -10,6 +10,7 @@ import {
 } from "@/features/leads/lib/history";
 import { sendWorkflowExecution } from "@/inngest/utils";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { eventBus } from "@/features/alerts/lib/event-bus";
 
 export const addTagsToLead = base
   .use(requiredAuthMiddleware)
@@ -134,6 +135,18 @@ export const addTagsToLead = base
           count: result.count,
         },
       });
+
+      // Alert engine — 1 publish por tag adicionada.
+      await Promise.all(
+        input.tagIds.map((tagId) =>
+          eventBus.publish("lead.tag_added", {
+            leadId: lead.id,
+            tagId,
+            orgId: tracking.organizationId,
+            responsibleId: lead.responsibleId ?? null,
+          }),
+        ),
+      );
     }
 
     return {

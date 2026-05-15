@@ -33,6 +33,7 @@ import { astroIngestKnowledge } from "@/inngest/functions/astro/ingest-knowledge
 import { astroAgentTrigger } from "@/inngest/functions/astro/agent-trigger";
 import { chatSyncMessages } from "@/inngest/functions/chat/sync-conversation-messages";
 import { autoResolveExpiredClaims } from "@/inngest/functions/calendar/auto-resolve-expired-claims";
+import { detectStaleLeads } from "@/inngest/functions/crons/detect-stale-leads";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -67,6 +68,8 @@ export const { GET, POST, PUT } = serve({
     chatSyncMessages,
     // ── Calendário Público: auto-resolução de reivindicações expiradas ──
     autoResolveExpiredClaims,
+    // ── Alerts: detecção time-based ──
+    detectStaleLeads,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

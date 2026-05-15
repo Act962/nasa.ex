@@ -16,6 +16,7 @@ import {
   type RecordLeadEventInput,
 } from "@/features/leads/lib/history";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
+import { eventBus } from "@/features/alerts/lib/event-bus";
 
 export const submitResponse = base
   .route({
@@ -428,6 +429,33 @@ export const submitResponse = base
         }
       } catch (logErr) {
         console.error("[form/submit] logActivity error:", logErr);
+      }
+
+      // Alert engine — form preenchido (event-based).
+      // Coleta dados da última submissão pro payload tipado.
+      try {
+        const submitMeta = await prisma.form.findUnique({
+          where: { id },
+          select: {
+            organizationId: true,
+            formSubmissions: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { id: true, leadId: true },
+            },
+          },
+        });
+        const lastSub = submitMeta?.formSubmissions?.[0];
+        if (submitMeta && lastSub) {
+          await eventBus.publish("form.submitted", {
+            formId: id,
+            responseId: lastSub.id,
+            leadId: lastSub.leadId ?? null,
+            orgId: submitMeta.organizationId,
+          });
+        }
+      } catch (err) {
+        console.error("[form/submit] eventBus publish falhou:", err);
       }
 
       // Verificar se este form faz parte de um processo de onboarding
