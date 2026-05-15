@@ -34,6 +34,8 @@ import { astroAgentTrigger } from "@/inngest/functions/astro/agent-trigger";
 import { chatSyncMessages } from "@/inngest/functions/chat/sync-conversation-messages";
 import { autoResolveExpiredClaims } from "@/inngest/functions/calendar/auto-resolve-expired-claims";
 import { detectStaleLeads } from "@/inngest/functions/crons/detect-stale-leads";
+import { detectBrokenIntegrations } from "@/inngest/functions/crons/detect-broken-integrations";
+import { detectAgendaStarting } from "@/inngest/functions/crons/detect-agenda-starting";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -70,6 +72,9 @@ export const { GET, POST, PUT } = serve({
     autoResolveExpiredClaims,
     // ── Alerts: detecção time-based ──
     detectStaleLeads,
+    detectBrokenIntegrations,
+    detectAgendaStarting,
+    detectOverdue,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,
