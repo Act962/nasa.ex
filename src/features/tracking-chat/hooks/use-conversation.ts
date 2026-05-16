@@ -246,4 +246,31 @@ export function useCreateConversation({ trackingId }: { trackingId: string }) {
   );
 }
 
-export function
+export function useFindChat({
+  trackingId,
+  phone,
+  name,
+  isGroup,
+  limit = 20,
+  offset = 0,
+  enabled = true,
+}: {
+  trackingId: string;
+  phone: string;
+  name: string;
+  isGroup?: boolean;
+  limit?: number;
+  offset?: number;
+  enabled?: boolean;
+}) {
+  return useQuery(
+    orpc.conversation.findChat.queryOptions({
+      input: { trackingId, phone, name, isGroup, limit, offset },
+      enabled:
+        enabled &&
+        !!trackingId &&
+        (phone.trim().length > 0 || name.trim().length > 0),
+      staleTime: 15_000,
+    }),
+  );
+}

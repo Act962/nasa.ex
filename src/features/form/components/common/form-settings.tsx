@@ -43,10 +43,14 @@ import {
   type NextButtonAction,
   type NextButtonActionType,
 } from "@/features/form/lib/next-button-action";
+import { SendMessageDialog } from "./send-whatsapp-message";
+import { VariablePicker } from "@/features/executions/components/send-message/variable-picker";
+import { useVariableAutocomplete } from "@/features/executions/components/send-message/use-variable-autocomplete";
 
 export function FormSettings() {
   const { formData, updateSettings } = useBuilderStore();
   const formId = formData?.id;
+  const [chatDialogOpen, setChatDialogOpen] = useState(false);
   const { trackings } = useQueryTrackings();
   const { status } = useQueryStatus({
     trackingId: formData?.settings?.trackingId || "",
@@ -54,6 +58,13 @@ export function FormSettings() {
 
   const settings = formData?.settings;
   if (!settings) return null;
+
+  const whatsappChats = ((settings as any).whatsappChats ?? []) as {
+    chatId: string;
+    chatName: string;
+  }[];
+
+  const whatsappMessage = ((settings as any).whatsappMessage ?? "") as string;
 
   const trackingName = trackings?.find(
     (t) => t.id === settings.trackingId,
@@ -76,6 +87,14 @@ export function FormSettings() {
     if (!url) return "";
     const parts = url.split("/");
     return parts[parts.length - 1];
+  };
+
+  const onSelectSendMessage = (chatId: string, chatName: string) => {
+    const already = whatsappChats.some((e) => e.chatId === chatId);
+    if (already) return;
+    updateSettings({
+      whatsappChats: [...whatsappChats, { chatId, chatName }],
+    } as any);
   };
 
   return (
@@ -451,6 +470,72 @@ export function FormSettings() {
           </Field>
         </div>
       </section>
+
+      <Separator />
+
+      {/* ─── WhatsApp ────────────────────────────────── */}
+      <section>
+        <h3 className="text-sm font-semibold text-muted-foreground mb-3">
+          WhatsApp
+        </h3>
+        <div className="flex flex-col gap-2">
+          <FieldLabel>Chats de destino</FieldLabel>
+
+          {whatsappChats.map((entry, idx) => (
+            <div
+              key={entry.chatId}
+              className="flex items-center gap-2 rounded border px-3 py-2"
+            >
+              <span className="text-sm flex-1 truncate">{entry.chatName}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  const next = whatsappChats.filter((_, i) => i !== idx);
+                  updateSettings({ whatsappChats: next } as any);
+                }}
+              >
+                <XIcon className="size-4" />
+              </Button>
+            </div>
+          ))}
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-start"
+            disabled={!settings.trackingId}
+            onClick={() => setChatDialogOpen(true)}
+          >
+            {settings.trackingId
+              ? "Adicionar chat"
+              : "Selecione um tracking primeiro"}
+          </Button>
+        </div>
+
+        <Field className="mt-3">
+          <FieldLabel>Mensagem personalizada</FieldLabel>
+          <p className="text-xs text-muted-foreground mb-1.5">
+            Digite <code className="text-xs bg-muted px-1 rounded">/</code> para
+            inserir variáveis (nome, e-mail, telefone…). Deixe vazio para usar a
+            mensagem padrão.
+          </p>
+          <WhatsappMessageTextarea
+            value={whatsappMessage}
+            onChange={(val) =>
+              updateSettings({ whatsappMessage: val || null } as any)
+            }
+          />
+        </Field>
+      </section>
+      <SendMessageDialog
+        trackingId={settings.trackingId ?? ""}
+        open={chatDialogOpen}
+        onOpenChange={setChatDialogOpen}
+        selectedChatIds={whatsappChats.map((e) => e.chatId)}
+        onSelect={onSelectSendMessage}
+      />
       {/* ─── Padrão NASA ────────────────────────────────── */}
       {formId && (
         <>
@@ -952,5 +1037,53 @@ function NextButtonTagPicker({
         </p>
       )}
     </Field>
+  );
+}
+
+/**
+ * Textarea com suporte a variáveis via "/" — mesmo padrão do ReminderCreateTab.
+ */
+function WhatsappMessageTextarea({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const {
+    open,
+    setOpen,
+    search,
+    setSearch,
+    inputRef,
+    handleKeyDown,
+    handleSelect,
+    handleValueChange,
+  } = useVariableAutocomplete(value, onChange);
+
+  return (
+    <div className="relative">
+      <Textarea
+        ref={inputRef as any}
+        value={value}
+        onChange={handleValueChange}
+        onKeyDown={handleKeyDown}
+        placeholder={
+          "📋 *Novo formulário recebido!*\n\n*Nome:* {{nome}}\n*Telefone:* {{phone}}\n*E-mail:* {{email}}"
+        }
+        rows={5}
+        className="resize-none"
+      />
+      <div className="absolute top-0 left-0">
+        <VariablePicker
+          open={open}
+          onOpenChange={setOpen}
+          search={search}
+          onSearchChange={setSearch}
+          onSelect={handleSelect}
+          triggerRef={inputRef}
+        />
+      </div>
+    </div>
   );
 }

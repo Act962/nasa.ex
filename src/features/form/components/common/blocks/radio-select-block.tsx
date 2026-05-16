@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { v4 as uuidv4 } from "uuid";
 import { FormSettings } from "@/generated/prisma/client";
+import type { FormSettingsTyped } from "@/features/form/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { TagDropdown } from "./dropdown-select-tag";
 import { usePrefillValue } from "@/features/form/context/form-prefill-context";
@@ -94,7 +95,7 @@ function RadioSelectCanvasComponent({
   settings,
 }: {
   blockInstance: FormBlockInstance;
-  settings?: FormSettings | null;
+  settings?: FormSettings | FormSettingsTyped | null;
 }) {
   const block = blockInstance as NewInstance;
 
@@ -178,7 +179,7 @@ function RadioSelectFormComponent({
   handleBlur?: HandleBlurFunc;
   isError?: boolean;
   errorMessage?: string;
-  settings?: FormSettings | null;
+  settings?: FormSettings | FormSettingsTyped | null;
 }) {
   const block = blockInstance as NewInstance;
   const { label, options, required, allowMultiple } = block.attributes;

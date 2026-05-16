@@ -25,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { defaultPrimaryColor } from "@/features/form/constants";
 import { Label } from "@/components/ui/label";
 import { FormSettings } from "@/generated/prisma/client";
+import type { FormSettingsTyped } from "@/features/form/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { usePrefillValue } from "@/features/form/context/form-prefill-context";
 
@@ -128,7 +129,7 @@ function StarRatingFormComponent({
   handleBlur?: HandleBlurFunc;
   isError?: boolean;
   errorMessage?: string;
-  settings?: FormSettings | null;
+  settings?: FormSettings | FormSettingsTyped | null;
 }) {
   const block = blockInstance as any;
   const { label, required, maxStars, helperText } = block.attributes;

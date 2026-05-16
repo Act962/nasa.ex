@@ -1525,6 +1525,8 @@ model FormSettings {
   nextButtonLabel String   @default("Próximo") @map("next_button_label")
   progressMascots Json     @default("[]") @map("progress_mascots")
   nextButtonAction Json    @default("{\"type\":\"next_block\"}") @map("next_button_action")
+  whatsappChats    Json    @default("[]") @map("whatsapp_chats")
+  whatsappMessage  String? @map("whatsapp_message")
 
   tracking Tracking? @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   status   Status?   @relation(fields: [statusId], references: [id], onDelete: SetNull)

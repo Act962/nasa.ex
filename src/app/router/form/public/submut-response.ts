@@ -3,8 +3,8 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { inngest } from "@/inngest/client";
+import type { WhatsappChat } from "@/features/form/types";
 import { awardPoints } from "@/app/router/space-point/utils";
-import { pusherServer } from "@/lib/pusher";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import {
   trackingParamsSchema,
@@ -28,18 +28,7 @@ export const submitResponse = base
       id: z.string(),
       response: z.string(),
       tracking: trackingParamsSchema.optional(),
-      // Tag a aplicar no lead recém-criado (Configurações > Modo passo-a-passo
-      // > Botão "Próximo" > Adicionar tag). A validação de existência é feita
-      // dentro da transação.
       nextActionTagId: z.string().optional().nullable(),
-      /**
-       * Quando presente, o submit "finaliza" um draft criado anteriormente
-       * via `savePartialResponse` em vez de criar uma nova FormResponses.
-       * Atualiza o jsonResponse com a versão final e dispara os efeitos
-       * de submissão (workflows, activity log, onboarding inngest) mas
-       * NÃO incrementa o contador (já incrementado no save partial inicial)
-       * nem recria o lead.
-       */
       responseId: z.string().optional().nullable(),
     }),
   )
@@ -55,10 +44,6 @@ export const submitResponse = base
       const tagIds: string[] = Object.values(JSON.parse(response))
         .map((field: any) => field?.meta?.tagId)
         .filter((tagId): tagId is string => Boolean(tagId));
-
-      // Coletados durante a transação pra retornar ao cliente (usado pelas
-      // ações do botão "Próximo" do form: redirecionar pra outro form ou link
-      // externo levando dados do lead).
       let outLeadId: string | null = null;
       let outLeadName: string | null = null;
       let outLeadEmail: string | null = null;
@@ -67,26 +52,42 @@ export const submitResponse = base
 
       const pendingLeadEvents: RecordLeadEventInput[] = [];
 
-      await prisma.$transaction(async (tx) => {
-        const form = await tx.form.findUnique({
+      const { formMeta } = await prisma.$transaction(async (tx) => {
+        const rawForm = await tx.form.findUnique({
           where: {
             id,
             published: true,
           },
           select: {
+            name: true,
             jsonBlock: true,
             settings: {
               select: {
                 trackingId: true,
                 statusId: true,
+                whatsappChats: true,
+                whatsappMessage: true,
               },
             },
           },
         });
 
-        if (!form) {
+        if (!rawForm) {
           throw errors.NOT_FOUND();
         }
+
+        // Casta apenas whatsappChats de Prisma.JsonValue para o tipo concreto,
+        // mantendo todos os outros campos com os tipos originais do Prisma.
+        const form = {
+          ...rawForm,
+          settings: rawForm.settings
+            ? {
+                ...rawForm.settings,
+                whatsappChats: (rawForm.settings.whatsappChats ??
+                  []) as WhatsappChat[],
+              }
+            : null,
+        };
 
         let parsedResponse: Record<string, string> = {};
         try {
@@ -109,10 +110,6 @@ export const submitResponse = base
 
         const { trackingId, statusId } = form.settings ?? {};
 
-        // ── Modo FINALIZE: já existe um draft criado via savePartialResponse ─
-        // Pula toda a lógica de "achar/criar lead". O lead foi criado na
-        // primeira chamada de savePartial; aqui só recuperamos o `leadId`
-        // pra associar os tags/events e popular o `outLead*` pro redirect.
         if (finalizingResponseId) {
           const draft = await tx.formResponses.findFirst({
             where: { id: finalizingResponseId, formId: id },
@@ -354,7 +351,10 @@ export const submitResponse = base
               pendingLeadEvents.push({
                 leadId,
                 eventType: "TAG_ADDED",
-                metadata: { tagId: nextActionTagId, source: "form_next_button" },
+                metadata: {
+                  tagId: nextActionTagId,
+                  source: "form_next_button",
+                },
               });
             }
           }
@@ -390,6 +390,8 @@ export const submitResponse = base
             // Não bloqueia o submit do formulário se a pontuação falhar
           }
         }
+
+        return { formMeta: form };
       });
 
       // Dispara Pusher/journey FORA da tx — recordLeadEvent chama Pusher e
@@ -406,7 +408,9 @@ export const submitResponse = base
             id: true,
             name: true,
             organizationId: true,
-            createdBy: { select: { id: true, name: true, email: true, image: true } },
+            createdBy: {
+              select: { id: true, name: true, email: true, image: true },
+            },
           },
         });
         if (formMeta?.createdBy) {
@@ -450,6 +454,37 @@ export const submitResponse = base
       } catch (inngestErr) {
         console.error("[form/submit] Inngest send error:", inngestErr);
         // não bloqueia o submit do form
+      }
+
+      // ── Notificação WhatsApp (fire-and-forget via Inngest) ────────────────
+      try {
+        const whatsappChats = formMeta.settings?.whatsappChats ?? [];
+        const trackingId = formMeta.settings?.trackingId;
+
+        if (whatsappChats.length > 0 && trackingId) {
+          await inngest.send({
+            name: "form/whatsapp.send",
+            data: {
+              formId: id,
+              formName: formMeta.name,
+              trackingId,
+              whatsappChats,
+              whatsappMessage: formMeta.settings?.whatsappMessage ?? null,
+              leadData: {
+                id: outLeadId,
+                name: outLeadName,
+                phone: outLeadPhone,
+                email: outLeadEmail,
+              },
+            },
+          });
+        }
+      } catch (whatsappErr) {
+        console.error(
+          "[form/submit] Inngest whatsapp send error:",
+          whatsappErr,
+        );
+        // Não bloqueia o retorno do submit
       }
 
       return {
