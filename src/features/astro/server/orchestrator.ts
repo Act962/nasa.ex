@@ -19,6 +19,8 @@ import {
 import type { AgentDefinition } from "@/features/astro/server/agents/types";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import type { AgentKey } from "@/features/astro/schemas/agent-config";
+import { buildAnalyticsTools } from "@/features/astro/server/tools/analytics";
+import { buildListTools } from "@/features/astro/server/tools/lists";
 
 /**
  * Modelo default — OpenAI. Reaproveita a `OPENAI_API_KEY` que já é usada
@@ -145,14 +147,31 @@ export function streamAstro(opts: {
     }
 
     const routingTools = buildRoutingTools({ ctx, enabled });
+    // Tools de LEITURA expostas direto no orchestrator (não vão via
+    // sub-agent). Motivos:
+    //   1. Sub-agent consome o output da tool internamente e devolve
+    //      só texto — payloads `kind:"astro_table"` (list_*) nunca
+    //      chegariam na UI. Aqui os outputs viram tool-parts no
+    //      stream e o AstroDataTable renderiza no cliente.
+    //   2. GPT-4o-mini tava hesitando em delegar pra analytics-agent
+    //      e inventando "não consigo acessar". Com as tools 1-hop,
+    //      ele chama direto.
+    // Mutações (closer, task-agent, automation-agent) seguem via
+    // route_to_* — precisam do system prompt especializado + multi-turn.
+    const directTools: ToolSet = {
+      ...buildAnalyticsTools(ctx),
+      ...buildListTools(ctx),
+    };
     const systemSuffix = buildAgentsBriefing(enabled);
 
     return streamText({
       model: defaultModel(),
       system: `${ASTRO_ORCHESTRATOR_PROMPT}\n\n${systemSuffix}`,
-      tools: routingTools,
+      tools: { ...directTools, ...routingTools },
       messages: modelMessages,
-      stopWhen: ({ steps }) => steps.length >= 6,
+      // Mais steps: orchestrator pode chamar várias tools de leitura
+      // antes de responder (ex: get_tracking_overview + list_leads).
+      stopWhen: ({ steps }) => steps.length >= 10,
     });
   })();
 }
