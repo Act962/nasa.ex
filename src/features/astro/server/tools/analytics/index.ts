@@ -2298,19 +2298,58 @@ export function buildAnalyticsTools(ctx: AgentContext) {
         limit: z.number().int().min(1).max(30).optional(),
       }),
       execute: async ({ search, categorySlugs, includeSteps, limit }) => {
-        // Tokeniza search em palavras significativas (≥3 chars), normaliza
-        // acento+case via "insensitive" mode do Postgres. OR de cada
-        // token contra title/summary/category.name pra recall amplo.
+        // Tokeniza search em palavras (≥3 chars), normaliza acentos.
+        // OR de cada token contra title/summary/category.name pra
+        // recall amplo. "criar produto" vira ["criar","produto"] e
+        // pega "Criar Proposta" (via token "criar").
         const tokens = (search ?? "")
           .toLowerCase()
           .normalize("NFD")
-          // Remove diacríticos (acentos): U+0300–U+036F é o bloco
-          // Combining Diacritical Marks (forma decomposta NFD).
+          // Remove diacríticos: U+0300–U+036F (Combining Diacritical Marks).
           .replace(/[̀-ͯ]/g, "")
           .split(/\s+/)
           .filter((t) => t.length >= 3);
 
-        const searchClauses =
+        const selectShape = {
+          id: true,
+          slug: true,
+          title: true,
+          summary: true,
+          youtubeUrl: true,
+          order: true,
+          category: { select: { slug: true, name: true } },
+          _count: { select: { steps: true } },
+          ...(includeSteps
+            ? {
+                steps: {
+                  select: {
+                    id: true,
+                    order: true,
+                    title: true,
+                    description: true,
+                    screenshotUrl: true,
+                  },
+                  orderBy: { order: "asc" as const },
+                },
+              }
+            : {}),
+        } as const;
+
+        const baseOrderBy = [
+          { category: { order: "asc" as const } },
+          { order: "asc" as const },
+        ];
+
+        // 1ª tentativa: com filtros do user (categoria + tokens de search).
+        // NÃO filtra por category.isPublished — algumas bases têm features
+        // legítimas em categorias com isPublished=false e o user só não
+        // tem como ver pela UI, mas via Astro faz sentido sempre achar.
+        const baseWhere = {
+          ...(categorySlugs && categorySlugs.length > 0
+            ? { category: { slug: { in: categorySlugs } } }
+            : {}),
+        };
+        const searchWhere =
           tokens.length > 0
             ? {
                 OR: tokens.flatMap((t) => [
@@ -2325,73 +2364,83 @@ export function buildAnalyticsTools(ctx: AgentContext) {
               }
             : {};
 
-        const features = await prisma.spaceHelpFeature.findMany({
-          where: {
-            category: { isPublished: true },
-            ...(categorySlugs && categorySlugs.length > 0
-              ? { category: { slug: { in: categorySlugs } } }
-              : {}),
-            ...searchClauses,
-          },
-          select: {
-            id: true,
-            slug: true,
-            title: true,
-            summary: true,
-            youtubeUrl: true,
-            order: true,
-            category: { select: { slug: true, name: true } },
-            _count: { select: { steps: true } },
-            ...(includeSteps
-              ? {
-                  steps: {
-                    select: {
-                      id: true,
-                      order: true,
-                      title: true,
-                      description: true,
-                      screenshotUrl: true,
-                    },
-                    orderBy: { order: "asc" as const },
-                  },
-                }
-              : {}),
-          },
-          orderBy: [{ category: { order: "asc" } }, { order: "asc" }],
+        let features = await prisma.spaceHelpFeature.findMany({
+          where: { ...baseWhere, ...searchWhere },
+          select: selectShape,
+          orderBy: baseOrderBy,
           take: limit ?? 10,
         });
 
-        // Só features COM youtubeUrl entram nos cards de vídeo —
-        // outras (que só têm passo-a-passo escrito) ficariam com
-        // thumbnail vazia. Mantemos elas no payload meta pro LLM
-        // mencionar caso queira.
+        // FALLBACK 1: 0 hits + havia search → refaz só por categoria (ou
+        // pega tudo se sem categoria). Garante que o user veja ALGO em
+        // vez do Astro responder "não achei".
+        let fallbackUsed: "none" | "broadened" | "global" = "none";
+        if (features.length === 0 && tokens.length > 0) {
+          features = await prisma.spaceHelpFeature.findMany({
+            where: baseWhere,
+            select: selectShape,
+            orderBy: baseOrderBy,
+            take: limit ?? 10,
+          });
+          fallbackUsed = "broadened";
+        }
+
+        // FALLBACK 2: ainda 0 + havia categoria → busca global (qualquer
+        // feature). Backstop final pra Astro sempre ter algo a oferecer.
+        if (features.length === 0 && categorySlugs && categorySlugs.length > 0) {
+          features = await prisma.spaceHelpFeature.findMany({
+            select: selectShape,
+            orderBy: baseOrderBy,
+            take: limit ?? 10,
+          });
+          fallbackUsed = "global";
+        }
+
         const withVideo = features.filter((f) => f.youtubeUrl);
         const withoutVideo = features.filter((f) => !f.youtubeUrl);
+
+        // Caption baseada em (a) houve hit direto vs fallback, (b)
+        // teve video, (c) tem tutorial só escrito. Sempre dá um
+        // próximo passo — nunca beco sem saída tipo "tenta outra
+        // palavra".
+        const totalAny = withVideo.length + withoutVideo.length;
+        let caption: string;
+        if (totalAny === 0) {
+          caption =
+            "Não encontrei tutoriais cadastrados ainda. Veja a [biblioteca completa](/space-help) — vai ter mais novidade por lá.";
+        } else if (fallbackUsed === "global") {
+          caption = `Não achei tutorial específico sobre "${search ?? ""}", mas aqui tão alguns que podem ajudar. Veja todos em [Space Help](/space-help).`;
+        } else if (fallbackUsed === "broadened") {
+          caption = `Não achei match exato pra "${search ?? ""}", aqui tão tutoriais da mesma área. Ver todos: [Space Help](/space-help).`;
+        } else if (withVideo.length === 0 && withoutVideo.length > 0) {
+          caption = `Achei ${withoutVideo.length} tutorial(is) escrito(s) (passo-a-passo) — sem vídeo ainda. Clica no link de cada um pra ver o detalhe.`;
+        } else if (withVideo.length === 1) {
+          caption =
+            "Achei 1 tutorial — clica no card pra abrir o player com passo-a-passo.";
+        } else {
+          caption = `Achei ${withVideo.length} tutoriais — clica em qualquer card pra abrir.`;
+        }
 
         return {
           kind: "astro_videos" as const,
           title:
-            withVideo.length > 0
+            totalAny > 0
               ? search
-                ? `Tutoriais sobre "${search}"`
+                ? `Tutoriais relacionados a "${search}"`
                 : "Tutoriais do Space Help"
               : undefined,
-          caption:
-            withVideo.length === 0
-              ? "Não achei vídeos pra esse termo. Tenta com outra palavra-chave ou navega em /space-help."
-              : withVideo.length === 1
-                ? "Achei 1 tutorial — clica no card pra abrir o player com passo-a-passo."
-                : `Achei ${withVideo.length} tutoriais — clica em qualquer card pra abrir.`,
+          caption,
           videos: withVideo.map((f) => ({
             id: f.id,
             title: f.title,
             summary: f.summary,
             youtubeUrl: f.youtubeUrl!,
             category: f.category?.name ?? null,
-            durationMin: null, // SpaceHelpFeature não tem duration; manter null
+            durationMin: null,
             link: `/space-help/${f.category?.slug ?? ""}/${f.slug}`,
           })),
-          // Meta extra pra o LLM ter contexto (não vira card visual):
+          // Tutoriais sem vídeo (só passo-a-passo escrito) — pro LLM
+          // mencionar como link interno na resposta.
           textOnlyTutorials: withoutVideo.map((f) => ({
             title: f.title,
             summary: f.summary,
@@ -2400,6 +2449,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
             stepsCount: f._count.steps,
           })),
           totalFound: features.length,
+          fallbackUsed,
           ...(includeSteps
             ? {
                 stepsByFeature: features

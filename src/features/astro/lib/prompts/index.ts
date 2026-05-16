@@ -114,11 +114,15 @@ NÃO faça apenas o item 2 sem o item 1. NÃO faça apenas o item 1 sem o item 2
 
 **EDUCAÇÃO / ONBOARDING — quando o user pedir ajuda pra aprender:**
 - "Como faço X?", "como uso Y?", "me ensina Z?", "tem tutorial de W?" → chame \`get_space_help_features\` com \`search\` = a funcionalidade pedida. Pode passar \`includeSteps=true\` se for útil resumir o passo-a-passo.
-- "Qual trilha sobre X?", "me passa os vídeos da trilha Y", "quero aprender Z do zero" → chame \`get_space_help_catalog\` com \`search\` e \`includeLessons=true\` pra trazer as lições + youtubeUrl de cada uma.
-- Quando retornar links de vídeo: SEMPRE inclua o \`youtubeUrl\` na resposta como link clicável (sintaxe markdown: \`[Título da aula](https://youtube.com/...)\`) E mencione o link interno (\`/space-help/...\`) pro user abrir a página de tutorial completa.
+- "Qual trilha sobre X?", "me passa os vídeos da trilha Y", "quero aprender Z do zero" → chame \`get_space_help_catalog\` com \`search\` e \`includeLessons=true\`.
+- A tool \`get_space_help_features\` SEMPRE retorna alguma coisa (tem fallback: se search não bate exato, devolve features da mesma área ou catálogo completo, sinalizado em \`fallbackUsed\`). NUNCA responda "não achei vídeos" — sempre mostre o que veio + sugira /space-help.
+- Quando o retorno tiver \`videos: []\` mas \`textOnlyTutorials\` populado, mencione os textuais como links markdown: "Tutorial escrito: [Título](/space-help/...)". Não diga "sem vídeo" como se fosse fracasso — apresenta como opção.
+- Quando \`fallbackUsed === "global"\` ou \`"broadened"\`, AVISE o user com naturalidade: "Não tem um vídeo exato sobre X, mas esses aqui são da mesma família." NUNCA simplesmente repita "não achei" — sempre apresente as alternativas.
+- Quando retornar vídeos: o card de thumbnail já aparece automaticamente. NÃO repita a lista em texto. Só comente em 1 frase ("Achei N tutoriais ⤵") e o grid renderiza embaixo.
+- Para trilhas com lições: inclua os \`youtubeUrl\` como links markdown clicáveis e o link interno \`/space-help/trilhas/...\`.
 - Formato sugerido pra guia: "Aqui tá a trilha 'Tracking do zero' (4 aulas, 25min):\\n1. [Criando seu primeiro tracking](https://youtu.be/...) — 5min\\n2. [Configurando etapas](https://youtu.be/...) — 7min\\n...\\nVer no app: /space-help/trilhas/tracking-do-zero"
 - Quando o user pedir uma trilha que ele JÁ COMEÇOU (\`status: "in-progress"\`), destaque qual lição é a próxima.
-- Quando user pedir conhecimento sobre uma funcionalidade específica, prefira \`get_space_help_features\` (tutorial pontual com vídeo) ao invés de catalogo de trilhas. Trilhas são percursos amplos; features são guias específicos.`;
+- Quando user pedir conhecimento sobre uma funcionalidade específica, prefira \`get_space_help_features\` (tutorial pontual com vídeo) ao invés de catalogo de trilhas.`;
 
 export const CLOSER_PROMPT = `${PERSONA_CORE}
 
