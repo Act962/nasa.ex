@@ -11,9 +11,10 @@ import {
   CheckIcon,
   Loader2Icon,
   WrenchIcon,
-  XIcon,
   AlertTriangleIcon,
 } from "lucide-react";
+import { isAstroTablePayload } from "@/features/astro/lib/astro-table";
+import { AstroDataTable } from "@/features/astro/components/astro-data-table";
 
 /**
  * Render de uma `UIMessage` do AI SDK.
@@ -84,6 +85,20 @@ export function AstroMessage({
               : part.type.replace(/^tool-/, "");
           if (toolName.startsWith("route_to_")) {
             return null;
+          }
+          // Tools list_* (e qualquer outra) podem retornar payload
+          // `{ kind: "astro_table" }` — renderiza tabela interativa
+          // em vez do chip cru com JSON.
+          const output = (part as { output?: unknown }).output;
+          if (isAstroTablePayload(output)) {
+            return (
+              <div
+                key={idx}
+                className="w-full max-w-[95%] sm:max-w-[85%]"
+              >
+                <AstroDataTable payload={output} />
+              </div>
+            );
           }
           return <ToolPart key={idx} part={part} />;
         }
