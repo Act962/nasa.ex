@@ -2103,7 +2103,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
     // recomendar pro user — ex: "qual trilha aprendo sobre Tracking?".
     get_space_help_catalog: tool({
       description:
-        "Lista todas as trilhas + features do SPACE HELP (educação). Cada trilha tem título, descrição, slug (link `/space-help/trilhas/{slug}`), nível, duração, recompensas (Stars/SP/badge), e progresso do user logado (iniciada/concluída). Filtros: nível, categoria, palavras-chave no título. Use quando o user perguntar 'como aprendo X', 'qual trilha sobre Y', 'tem tutorial de Z'.",
+        "Lista trilhas do SPACE HELP (educação). Cada trilha tem título, descrição, link `/space-help/trilhas/{slug}`, nível, duração, recompensas (Stars/SP/badge), progresso do user. Quando `includeLessons=true`, retorna também TODAS as lições da trilha com `youtubeUrl` (link do vídeo no YouTube), `contentMd` resumido, `durationMin` e flag `completedByUser`. Use quando user perguntar 'qual trilha sobre X', 'como aprendo Y', 'me passe os vídeos da trilha Z'.",
       inputSchema: z.object({
         search: z
           .string()
@@ -2114,9 +2114,21 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           .optional()
           .describe("Filtra por nível"),
         categoryIds: z.array(z.string()).optional(),
+        includeLessons: z
+          .boolean()
+          .optional()
+          .describe(
+            "Se true, traz as lições de cada trilha com youtubeUrl. Use quando o user pedir 'vídeos da trilha', 'lições', 'aulas', 'me passa o link do vídeo'.",
+          ),
         limit: z.number().int().min(1).max(50).optional(),
       }),
-      execute: async ({ search, level, categoryIds, limit }) => {
+      execute: async ({
+        search,
+        level,
+        categoryIds,
+        includeLessons,
+        limit,
+      }) => {
         const tracks = await prisma.spaceHelpTrack.findMany({
           where: {
             isPublished: true,
@@ -2152,6 +2164,23 @@ export function buildAnalyticsTools(ctx: AgentContext) {
             category: { select: { id: true, name: true } },
             rewardBadge: { select: { id: true, name: true } },
             _count: { select: { lessons: true } },
+            // Lições inline só quando o caller pediu — evita payload
+            // gigante quando user só quer listar trilhas.
+            ...(includeLessons
+              ? {
+                  lessons: {
+                    select: {
+                      id: true,
+                      title: true,
+                      summary: true,
+                      youtubeUrl: true,
+                      durationMin: true,
+                      order: true,
+                    },
+                    orderBy: { order: "asc" as const },
+                  },
+                }
+              : {}),
           },
           orderBy: { order: "asc" },
           take: limit ?? 20,
@@ -2171,7 +2200,8 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           totalAvailable: tracks.length,
           tracks: tracks.map((t) => {
             const p = progressMap.get(t.id);
-            const completedLessons = p?.completedLessonIds.length ?? 0;
+            const completedIds = new Set(p?.completedLessonIds ?? []);
+            const completedLessons = completedIds.size;
             const status: "not-started" | "in-progress" | "completed" =
               p?.completedAt
                 ? "completed"
@@ -2195,10 +2225,142 @@ export function buildAnalyticsTools(ctx: AgentContext) {
               lessonsTotal: t._count.lessons,
               lessonsCompletedByUser: completedLessons,
               status,
-              // Link interno pra abrir no app — Astro pode citar isso na resposta.
+              // Link interno pra abrir a trilha no app.
               link: `/space-help/trilhas/${t.slug}`,
+              // Lições com link do YouTube — Astro deve citar/enviar
+              // direto esses URLs quando o user pedir vídeos.
+              ...(includeLessons && "lessons" in t
+                ? {
+                    lessons: (
+                      t as typeof t & {
+                        lessons: {
+                          id: string;
+                          title: string;
+                          summary: string | null;
+                          youtubeUrl: string | null;
+                          durationMin: number | null;
+                          order: number;
+                        }[];
+                      }
+                    ).lessons.map((l) => ({
+                      id: l.id,
+                      order: l.order,
+                      title: l.title,
+                      summary: l.summary,
+                      youtubeUrl: l.youtubeUrl,
+                      durationMin: l.durationMin,
+                      completedByUser: completedIds.has(l.id),
+                    })),
+                  }
+                : {}),
             };
           }),
+        };
+      },
+    }),
+
+    // ── SPACE HELP — FEATURES (tutoriais por funcionalidade) ──────────────
+    // Cada feature representa um tutorial pra UM recurso/funcionalidade do
+    // app (ex: "Como criar um lead", "Configurar agenda", "Disparar
+    // automação"). Tem vídeo do YouTube + steps passo-a-passo com print.
+    //
+    // Use quando o user perguntar COMO FAZER algo específico — diferente
+    // de trilhas (que são percursos amplos), features são guias pontuais.
+    get_space_help_features: tool({
+      description:
+        "Busca tutoriais por funcionalidade no SPACE HELP (guias passo-a-passo com vídeo do YouTube). Cada feature tem `youtubeUrl` (link direto do vídeo no YouTube), `steps` (passo-a-passo com screenshots) e `link` (rota interna `/space-help/{categorySlug}/{featureSlug}`). Use SEMPRE quando o user perguntar 'como faço X', 'como uso Y', 'me ensina a Z', 'tem tutorial de W' — assim você pode mandar o link do vídeo direto pra ele.",
+      inputSchema: z.object({
+        search: z
+          .string()
+          .optional()
+          .describe(
+            "Palavra-chave (ex: 'criar lead', 'agenda', 'automação'). Faz match em title/summary.",
+          ),
+        categorySlugs: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "Filtra por categorias específicas (ex: 'tracking', 'chat', 'forge'). Slug da SpaceHelpCategory.",
+          ),
+        includeSteps: z
+          .boolean()
+          .optional()
+          .describe(
+            "Se true, retorna os steps detalhados (passo-a-passo). Default false (só metadados + link).",
+          ),
+        limit: z.number().int().min(1).max(30).optional(),
+      }),
+      execute: async ({ search, categorySlugs, includeSteps, limit }) => {
+        const features = await prisma.spaceHelpFeature.findMany({
+          where: {
+            category: { isPublished: true },
+            ...(categorySlugs && categorySlugs.length > 0
+              ? { category: { slug: { in: categorySlugs } } }
+              : {}),
+            ...(search
+              ? {
+                  OR: [
+                    { title: { contains: search, mode: "insensitive" } },
+                    { summary: { contains: search, mode: "insensitive" } },
+                  ],
+                }
+              : {}),
+          },
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            summary: true,
+            youtubeUrl: true,
+            order: true,
+            category: { select: { slug: true, name: true } },
+            _count: { select: { steps: true } },
+            ...(includeSteps
+              ? {
+                  steps: {
+                    select: {
+                      id: true,
+                      order: true,
+                      title: true,
+                      description: true,
+                      screenshotUrl: true,
+                    },
+                    orderBy: { order: "asc" as const },
+                  },
+                }
+              : {}),
+          },
+          orderBy: [{ category: { order: "asc" } }, { order: "asc" }],
+          take: limit ?? 10,
+        });
+
+        return {
+          totalFound: features.length,
+          features: features.map((f) => ({
+            id: f.id,
+            title: f.title,
+            summary: f.summary,
+            youtubeUrl: f.youtubeUrl,
+            category: f.category?.name ?? null,
+            stepsCount: f._count.steps,
+            // Link interno do app — abre o tutorial com player + steps.
+            link: `/space-help/${f.category?.slug ?? ""}/${f.slug}`,
+            ...(includeSteps && "steps" in f
+              ? {
+                  steps: (
+                    f as typeof f & {
+                      steps: {
+                        id: string;
+                        order: number;
+                        title: string;
+                        description: string;
+                        screenshotUrl: string | null;
+                      }[];
+                    }
+                  ).steps,
+                }
+              : {}),
+          })),
         };
       },
     }),
