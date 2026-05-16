@@ -2260,51 +2260,78 @@ export function buildAnalyticsTools(ctx: AgentContext) {
     }),
 
     // ── SPACE HELP — FEATURES (tutoriais por funcionalidade) ──────────────
-    // Cada feature representa um tutorial pra UM recurso/funcionalidade do
-    // app (ex: "Como criar um lead", "Configurar agenda", "Disparar
-    // automação"). Tem vídeo do YouTube + steps passo-a-passo com print.
+    // Cada feature = tutorial dum recurso/funcionalidade (ex: "Como criar
+    // um lead", "Criar proposta", "Configurar agenda"). Tem vídeo do
+    // YouTube + steps passo-a-passo com screenshots.
     //
-    // Use quando o user perguntar COMO FAZER algo específico — diferente
-    // de trilhas (que são percursos amplos), features são guias pontuais.
+    // Retorna `{ kind: "astro_videos", videos: [...] }` quando há features
+    // — o cliente renderiza grid de cards com thumbnail. Senão retorna
+    // `{ kind: "astro_videos", videos: [] }` com caption explicando.
+    //
+    // Busca FUZZY: tokeniza a query em palavras, OR'eia cada token contra
+    // title/summary/categoria. Match parcial — "criar produto" pega
+    // features tipo "criar proposta" (token "criar" match), e o LLM
+    // decide se é útil. Aumenta recall em troca de precision (que o
+    // próprio LLM filtra na resposta).
     get_space_help_features: tool({
       description:
-        "Busca tutoriais por funcionalidade no SPACE HELP (guias passo-a-passo com vídeo do YouTube). Cada feature tem `youtubeUrl` (link direto do vídeo no YouTube), `steps` (passo-a-passo com screenshots) e `link` (rota interna `/space-help/{categorySlug}/{featureSlug}`). Use SEMPRE quando o user perguntar 'como faço X', 'como uso Y', 'me ensina a Z', 'tem tutorial de W' — assim você pode mandar o link do vídeo direto pra ele.",
+        "Busca tutoriais por funcionalidade no SPACE HELP. Cada feature tem vídeo do YouTube (`youtubeUrl`), steps com screenshots, e link interno `/space-help/{categorySlug}/{featureSlug}`. RETORNA payload `astro_videos` — o cliente renderiza cards com thumbnail automaticamente, NÃO precisa repetir a lista em texto. Use SEMPRE quando user pedir 'como faço X', 'como uso Y', 'me ensina a Z', 'video de W', 'tutorial de K'. Busca FUZZY — tenta com a query do user direto, palavras parciais funcionam.",
       inputSchema: z.object({
         search: z
           .string()
           .optional()
           .describe(
-            "Palavra-chave (ex: 'criar lead', 'agenda', 'automação'). Faz match em title/summary.",
+            "Palavra-chave (ex: 'criar lead', 'proposta', 'agenda', 'automação'). Multi-palavra é OK — tokeniza e busca cada termo.",
           ),
         categorySlugs: z
           .array(z.string())
           .optional()
           .describe(
-            "Filtra por categorias específicas (ex: 'tracking', 'chat', 'forge'). Slug da SpaceHelpCategory.",
+            "Filtra por categorias (slug: 'tracking', 'chat', 'forge', 'workspace', etc).",
           ),
         includeSteps: z
           .boolean()
           .optional()
           .describe(
-            "Se true, retorna os steps detalhados (passo-a-passo). Default false (só metadados + link).",
+            "Se true, retorna os steps detalhados no payload em campo separado pro LLM ler (não afeta o card). Default false.",
           ),
         limit: z.number().int().min(1).max(30).optional(),
       }),
       execute: async ({ search, categorySlugs, includeSteps, limit }) => {
+        // Tokeniza search em palavras significativas (≥3 chars), normaliza
+        // acento+case via "insensitive" mode do Postgres. OR de cada
+        // token contra title/summary/category.name pra recall amplo.
+        const tokens = (search ?? "")
+          .toLowerCase()
+          .normalize("NFD")
+          // Remove diacríticos (acentos): U+0300–U+036F é o bloco
+          // Combining Diacritical Marks (forma decomposta NFD).
+          .replace(/[̀-ͯ]/g, "")
+          .split(/\s+/)
+          .filter((t) => t.length >= 3);
+
+        const searchClauses =
+          tokens.length > 0
+            ? {
+                OR: tokens.flatMap((t) => [
+                  { title: { contains: t, mode: "insensitive" as const } },
+                  { summary: { contains: t, mode: "insensitive" as const } },
+                  {
+                    category: {
+                      name: { contains: t, mode: "insensitive" as const },
+                    },
+                  },
+                ]),
+              }
+            : {};
+
         const features = await prisma.spaceHelpFeature.findMany({
           where: {
             category: { isPublished: true },
             ...(categorySlugs && categorySlugs.length > 0
               ? { category: { slug: { in: categorySlugs } } }
               : {}),
-            ...(search
-              ? {
-                  OR: [
-                    { title: { contains: search, mode: "insensitive" } },
-                    { summary: { contains: search, mode: "insensitive" } },
-                  ],
-                }
-              : {}),
+            ...searchClauses,
           },
           select: {
             id: true,
@@ -2334,21 +2361,52 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           take: limit ?? 10,
         });
 
+        // Só features COM youtubeUrl entram nos cards de vídeo —
+        // outras (que só têm passo-a-passo escrito) ficariam com
+        // thumbnail vazia. Mantemos elas no payload meta pro LLM
+        // mencionar caso queira.
+        const withVideo = features.filter((f) => f.youtubeUrl);
+        const withoutVideo = features.filter((f) => !f.youtubeUrl);
+
         return {
-          totalFound: features.length,
-          features: features.map((f) => ({
+          kind: "astro_videos" as const,
+          title:
+            withVideo.length > 0
+              ? search
+                ? `Tutoriais sobre "${search}"`
+                : "Tutoriais do Space Help"
+              : undefined,
+          caption:
+            withVideo.length === 0
+              ? "Não achei vídeos pra esse termo. Tenta com outra palavra-chave ou navega em /space-help."
+              : withVideo.length === 1
+                ? "Achei 1 tutorial — clica no card pra abrir o player com passo-a-passo."
+                : `Achei ${withVideo.length} tutoriais — clica em qualquer card pra abrir.`,
+          videos: withVideo.map((f) => ({
             id: f.id,
             title: f.title,
             summary: f.summary,
-            youtubeUrl: f.youtubeUrl,
+            youtubeUrl: f.youtubeUrl!,
             category: f.category?.name ?? null,
-            stepsCount: f._count.steps,
-            // Link interno do app — abre o tutorial com player + steps.
+            durationMin: null, // SpaceHelpFeature não tem duration; manter null
             link: `/space-help/${f.category?.slug ?? ""}/${f.slug}`,
-            ...(includeSteps && "steps" in f
-              ? {
-                  steps: (
-                    f as typeof f & {
+          })),
+          // Meta extra pra o LLM ter contexto (não vira card visual):
+          textOnlyTutorials: withoutVideo.map((f) => ({
+            title: f.title,
+            summary: f.summary,
+            category: f.category?.name ?? null,
+            link: `/space-help/${f.category?.slug ?? ""}/${f.slug}`,
+            stepsCount: f._count.steps,
+          })),
+          totalFound: features.length,
+          ...(includeSteps
+            ? {
+                stepsByFeature: features
+                  .filter(
+                    (
+                      f,
+                    ): f is typeof f & {
                       steps: {
                         id: string;
                         order: number;
@@ -2356,11 +2414,15 @@ export function buildAnalyticsTools(ctx: AgentContext) {
                         description: string;
                         screenshotUrl: string | null;
                       }[];
-                    }
-                  ).steps,
-                }
-              : {}),
-          })),
+                    } => "steps" in f && Array.isArray((f as { steps?: unknown }).steps),
+                  )
+                  .map((f) => ({
+                    featureId: f.id,
+                    featureTitle: f.title,
+                    steps: f.steps,
+                  })),
+              }
+            : {}),
         };
       },
     }),

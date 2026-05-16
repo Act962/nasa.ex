@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { isAstroTablePayload } from "@/features/astro/lib/astro-table";
 import { AstroDataTable } from "@/features/astro/components/astro-data-table";
+import { isAstroVideosPayload } from "@/features/astro/lib/astro-video";
+import { AstroVideoCardList } from "@/features/astro/components/astro-video-card";
 
 /**
  * Render de uma `UIMessage` do AI SDK.
@@ -86,9 +88,10 @@ export function AstroMessage({
           if (toolName.startsWith("route_to_")) {
             return null;
           }
-          // Tools list_* (e qualquer outra) podem retornar payload
-          // `{ kind: "astro_table" }` — renderiza tabela interativa
-          // em vez do chip cru com JSON.
+          // Tools list_* podem retornar `{ kind: "astro_table" }` —
+          // renderiza tabela interativa em vez do chip cru.
+          // Tools de SPACE HELP podem retornar `{ kind: "astro_videos" }`
+          // — renderiza grid de cards com thumbnail do YouTube.
           const output = (part as { output?: unknown }).output;
           if (isAstroTablePayload(output)) {
             return (
@@ -97,6 +100,16 @@ export function AstroMessage({
                 className="w-full max-w-[95%] sm:max-w-[85%]"
               >
                 <AstroDataTable payload={output} />
+              </div>
+            );
+          }
+          if (isAstroVideosPayload(output)) {
+            return (
+              <div
+                key={idx}
+                className="w-full max-w-[95%] sm:max-w-[85%]"
+              >
+                <AstroVideoCardList payload={output} />
               </div>
             );
           }
