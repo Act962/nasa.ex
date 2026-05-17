@@ -19,7 +19,9 @@ import {
 } from "@/features/nerp/hooks/use-nerp-connection";
 import { NerpConnectionStatus } from "./nerp-connection-status";
 
-const RETURN_URL = "/settings/integration?from=nerp";
+// Após o consent no nerp o usuário volta pra `/apps`, onde fica o card do
+// NERP. Centraliza o fluxo pós-conexão em um só destino.
+const RETURN_URL = "/apps?from=nerp";
 
 export function NerpConnectCard() {
   const conn = useNerpConnection();

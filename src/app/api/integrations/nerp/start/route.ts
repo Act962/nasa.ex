@@ -24,8 +24,10 @@ export async function GET(req: NextRequest) {
   }
 
   const url = new URL(req.url);
-  const returnUrl =
-    url.searchParams.get("returnUrl") || "/settings/integration";
+  // Volta pra `/apps` por default — é onde o card do NERP vive. Callers que
+  // disparam o fluxo de dentro de outra página podem sobrescrever via
+  // `?returnUrl=`.
+  const returnUrl = url.searchParams.get("returnUrl") || "/apps";
 
   try {
     const state = encodeState({

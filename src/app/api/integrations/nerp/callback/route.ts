@@ -21,20 +21,19 @@ export async function GET(req: NextRequest) {
   const stateRaw = url.searchParams.get("state");
   const remoteError = url.searchParams.get("error");
 
+  // Fallback de erro antes de conseguir resolver o state aponta pra /apps —
+  // garante que o usuário sempre volta pro card do NERP, mesmo quando perdemos
+  // o `returnUrl` original.
   if (remoteError) {
-    return errorRedirect(origin, "/settings/integration", remoteError);
+    return errorRedirect(origin, "/apps", remoteError);
   }
   if (!code || !stateRaw) {
-    return errorRedirect(
-      origin,
-      "/settings/integration",
-      "missing_code_or_state",
-    );
+    return errorRedirect(origin, "/apps", "missing_code_or_state");
   }
 
   const state = await consumeState(stateRaw);
   if (!state || state.provider !== "nerp") {
-    return errorRedirect(origin, "/settings/integration", "invalid_state");
+    return errorRedirect(origin, "/apps", "invalid_state");
   }
 
   try {
@@ -82,10 +81,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(target);
   } catch (err) {
     console.error("[nerp/callback] exchange falhou:", err);
-    return errorRedirect(
-      origin,
-      state.returnUrl || "/settings/integration",
-      "exchange_failed",
-    );
+    return errorRedirect(origin, state.returnUrl || "/apps", "exchange_failed");
   }
 }
