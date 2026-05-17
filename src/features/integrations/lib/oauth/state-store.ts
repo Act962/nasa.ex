@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 const COOKIE_NAME = "nasa_oauth_state";
 const TTL_MS = 10 * 60 * 1000;
 
-export type OAuthProvider = "meta" | "google";
+export type OAuthProvider = "meta" | "google" | "nerp";
 
 export type OAuthStatePayload = {
   orgId: string;

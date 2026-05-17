@@ -1993,6 +1993,7 @@ enum IntegrationPlatform {
   PIPEDRIVE
   HUGGING_FACE
   POLLINATIONS
+  NERP
 }
 
 // Armazena credenciais de integração por plataforma/organização.

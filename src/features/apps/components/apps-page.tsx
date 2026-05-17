@@ -10,6 +10,7 @@ import { APPS, type AppDef } from "./apps-data";
 import { AppCard, ComingSoonModal } from "./app-card";
 import { PersonalizarMenu } from "./personalizar-menu";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
+import { NerpConnectCard } from "@/features/nerp/components/nerp-connect-card";
 
 // ─── Filter Bar ───────────────────────────────────────────────────────────────
 
@@ -153,6 +154,13 @@ export function AppsPage() {
           })}
         </div>
       </div>
+
+      {/* Integrações destacadas */}
+      {filter !== "personalizar" && (
+        <div className="px-6 pb-4 mx-auto">
+          <NerpConnectCard />
+        </div>
+      )}
 
       {/* Grid / Personalizar */}
       <div className="px-6 pb-10  mx-auto">
