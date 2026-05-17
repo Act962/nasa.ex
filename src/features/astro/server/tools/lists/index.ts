@@ -173,6 +173,10 @@ export function buildListTools(ctx: AgentContext) {
         orgProjectIds: z.array(z.string()).optional(),
         tagIds: z.array(z.string()).optional(),
         leadIds: z.array(z.string()).optional(),
+        ids: z
+          .array(z.string())
+          .optional()
+          .describe("Filtra actions pelos IDs específicos."),
         search: z.string().optional(),
         limit: z.number().int().min(1).max(50).optional(),
       }),
@@ -186,6 +190,7 @@ export function buildListTools(ctx: AgentContext) {
         orgProjectIds,
         tagIds,
         leadIds,
+        ids,
         search,
         limit,
       }) => {
@@ -242,6 +247,7 @@ export function buildListTools(ctx: AgentContext) {
                 ],
               }
             : {}),
+          ...(ids && ids.length > 0 ? { id: { in: ids } } : {}),
           ...(search
             ? {
                 OR: [
@@ -316,7 +322,7 @@ export function buildListTools(ctx: AgentContext) {
     // ── APPOINTMENTS (agenda) ─────────────────────────────────────────────
     list_appointments: tool({
       description:
-        "Lista agendamentos (Spacetime) com filtros + tabela clicável (cada linha abre /agendas/{agendaId} onde o appointment está). Use quando o user pedir 'meus compromissos de hoje', 'reuniões da semana', 'agendamentos pendentes'.",
+        "Lista agendamentos (Spacetime) com filtros + tabela clicável (cada linha abre /agendas/{agendaId} onde o appointment está). Use quando o user pedir 'meus compromissos de hoje', 'reuniões da semana', 'agendamentos pendentes'. Use `ids` ou `search` pra mostrar um appointment específico (ex: após criar).",
       inputSchema: z.object({
         orgIds: z.array(z.string()).optional(),
         agendaIds: z.array(z.string()).optional(),
@@ -335,6 +341,14 @@ export function buildListTools(ctx: AgentContext) {
           .optional(),
         fromIso: z.string().optional(),
         toIso: z.string().optional(),
+        ids: z
+          .array(z.string())
+          .optional()
+          .describe("Filtra appointments pelos IDs específicos."),
+        search: z
+          .string()
+          .optional()
+          .describe("Busca no título do appointment."),
         limit: z.number().int().min(1).max(50).optional(),
       }),
       execute: async ({
@@ -345,6 +359,8 @@ export function buildListTools(ctx: AgentContext) {
         statuses,
         fromIso,
         toIso,
+        ids,
+        search,
         limit,
       }) => {
         const memberships = await prisma.member.findMany({
@@ -383,6 +399,10 @@ export function buildListTools(ctx: AgentContext) {
                   ...(toIso ? { lte: new Date(toIso) } : {}),
                 },
               }
+            : {}),
+          ...(ids && ids.length > 0 ? { id: { in: ids } } : {}),
+          ...(search
+            ? { title: { contains: search, mode: "insensitive" as const } }
             : {}),
         };
 
@@ -454,6 +474,14 @@ export function buildListTools(ctx: AgentContext) {
           .optional(),
         responsibleIds: z.array(z.string()).optional(),
         leadIds: z.array(z.string()).optional(),
+        ids: z
+          .array(z.string())
+          .optional()
+          .describe("Filtra propostas pelos IDs específicos."),
+        search: z
+          .string()
+          .optional()
+          .describe("Busca no título da proposta."),
         limit: z.number().int().min(1).max(50).optional(),
       }),
       execute: async ({
@@ -461,6 +489,8 @@ export function buildListTools(ctx: AgentContext) {
         statuses,
         responsibleIds,
         leadIds,
+        ids,
+        search,
         limit,
       }) => {
         const memberships = await prisma.member.findMany({
@@ -486,6 +516,10 @@ export function buildListTools(ctx: AgentContext) {
             : {}),
           ...(leadIds && leadIds.length > 0
             ? { clientId: { in: leadIds } }
+            : {}),
+          ...(ids && ids.length > 0 ? { id: { in: ids } } : {}),
+          ...(search
+            ? { title: { contains: search, mode: "insensitive" as const } }
             : {}),
         };
 
@@ -765,6 +799,467 @@ export function buildListTools(ctx: AgentContext) {
             title: a.name,
             appointmentCount: a._count.appointments,
             createdAt: a.createdAt.toISOString(),
+          })),
+        };
+        return payload;
+      },
+    }),
+
+    // ── PAYMENT ENTRIES (lançamentos financeiros) ────────────────────────
+    list_payment_entries: tool({
+      description:
+        "Lista lançamentos financeiros (despesas/receitas) com filtros + tabela. Filtros: tipo (RECEIVABLE/PAYABLE), status (PENDING/PAID/OVERDUE/etc), categoria, fornecedor (contact), conta bancária, período, valor min/max, parcelas. Use pra 'lista despesas', 'minhas receitas do mês', 'pagamentos pendentes acima de R$ 500', etc.",
+      inputSchema: z.object({
+        orgIds: z.array(z.string()).optional(),
+        type: z
+          .enum(["RECEIVABLE", "PAYABLE"])
+          .optional()
+          .describe("RECEIVABLE = receita, PAYABLE = despesa. Sem isso, mostra ambos."),
+        statuses: z
+          .array(z.enum(["PENDING", "PARTIAL", "PAID", "OVERDUE", "CANCELLED"]))
+          .optional(),
+        categoryIds: z.array(z.string()).optional(),
+        contactIds: z
+          .array(z.string())
+          .optional()
+          .describe("IDs de fornecedores/clientes (PaymentContact)."),
+        accountIds: z
+          .array(z.string())
+          .optional()
+          .describe("IDs de contas bancárias (PaymentBankAccount)."),
+        fromIso: z
+          .string()
+          .optional()
+          .describe("Filtra por dueDate ≥ fromIso (vencimento)."),
+        toIso: z
+          .string()
+          .optional()
+          .describe("Filtra por dueDate ≤ toIso."),
+        amountMinCents: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe(
+            "Valor mínimo EM CENTAVOS (ex: 'acima de R$ 500' → 50000).",
+          ),
+        amountMaxCents: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("Valor máximo em centavos (ex: 'abaixo de R$ 100' → 10000)."),
+        installmentTotal: z
+          .number()
+          .int()
+          .min(1)
+          .optional()
+          .describe(
+            "Filtra por total de parcelas (1 = à vista, 2+ = parcelado).",
+          ),
+        limit: z.number().int().min(1).max(50).optional(),
+      }),
+      execute: async ({
+        orgIds,
+        type,
+        statuses,
+        categoryIds,
+        contactIds,
+        accountIds,
+        fromIso,
+        toIso,
+        amountMinCents,
+        amountMaxCents,
+        installmentTotal,
+        limit,
+      }) => {
+        const memberships = await prisma.member.findMany({
+          where: { userId: ctx.userId },
+          select: { organizationId: true },
+        });
+        const myOrgIds = memberships.map((m) => m.organizationId);
+        const targetOrgs =
+          orgIds && orgIds.length > 0
+            ? orgIds.filter((id) => myOrgIds.includes(id))
+            : myOrgIds;
+        if (targetOrgs.length === 0) {
+          return { error: "Sem acesso a nenhuma organização" };
+        }
+
+        const where = {
+          organizationId: { in: targetOrgs },
+          ...(type ? { type } : {}),
+          ...(statuses && statuses.length > 0
+            ? { status: { in: statuses } }
+            : {}),
+          ...(categoryIds && categoryIds.length > 0
+            ? { categoryId: { in: categoryIds } }
+            : {}),
+          ...(contactIds && contactIds.length > 0
+            ? { contactId: { in: contactIds } }
+            : {}),
+          ...(accountIds && accountIds.length > 0
+            ? { accountId: { in: accountIds } }
+            : {}),
+          ...(typeof installmentTotal === "number"
+            ? { installmentTotal }
+            : {}),
+          ...(fromIso || toIso
+            ? {
+                dueDate: {
+                  ...(fromIso ? { gte: new Date(fromIso) } : {}),
+                  ...(toIso ? { lte: new Date(toIso) } : {}),
+                },
+              }
+            : {}),
+          ...(typeof amountMinCents === "number" ||
+          typeof amountMaxCents === "number"
+            ? {
+                amount: {
+                  ...(typeof amountMinCents === "number"
+                    ? { gte: amountMinCents }
+                    : {}),
+                  ...(typeof amountMaxCents === "number"
+                    ? { lte: amountMaxCents }
+                    : {}),
+                },
+              }
+            : {}),
+        };
+
+        const [entries, totalCount] = await Promise.all([
+          prisma.paymentEntry.findMany({
+            where,
+            select: {
+              id: true,
+              type: true,
+              status: true,
+              description: true,
+              amount: true,
+              dueDate: true,
+              installmentCurrent: true,
+              installmentTotal: true,
+              documentNumber: true,
+              category: { select: { name: true } },
+              contact: { select: { name: true } },
+              account: { select: { name: true } },
+            },
+            orderBy: { dueDate: "desc" },
+            take: limit ?? 20,
+          }),
+          prisma.paymentEntry.count({ where }),
+        ]);
+
+        const payload: AstroTablePayload = {
+          kind: "astro_table",
+          entityType: "user", // PaymentEntry sem rota de detalhe direta — abre via /financeiro
+          title: type === "PAYABLE"
+            ? "Despesas"
+            : type === "RECEIVABLE"
+              ? "Receitas"
+              : "Lançamentos financeiros",
+          caption: `${totalCount} lançamento(s)`,
+          totalCount,
+          columns: [
+            { key: "description", label: "Descrição" },
+            { key: "typeLabel", label: "Tipo", type: "badge" },
+            { key: "amount", label: "Valor", type: "currency" },
+            { key: "status", label: "Status", type: "badge" },
+            { key: "dueDate", label: "Vencimento", type: "date" },
+            { key: "installments", label: "Parcelas" },
+            { key: "category", label: "Categoria" },
+            { key: "contact", label: "Fornecedor/Cliente" },
+            { key: "account", label: "Conta" },
+            { key: "documentNumber", label: "Documento" },
+          ],
+          rows: entries.map((e) => ({
+            id: e.id,
+            description: e.description,
+            typeLabel: e.type === "PAYABLE" ? "Despesa" : "Receita",
+            amount: e.amount, // já em centavos
+            status: e.status,
+            dueDate: e.dueDate.toISOString(),
+            installments: `${e.installmentCurrent ?? 1}/${e.installmentTotal ?? 1}`,
+            category: e.category?.name ?? "—",
+            contact: e.contact?.name ?? "—",
+            account: e.account?.name ?? "—",
+            documentNumber: e.documentNumber ?? "—",
+          })),
+        };
+        return payload;
+      },
+    }),
+
+    // ── PAYMENT CATEGORIES (lista clicável) ──────────────────────────────
+    list_payment_categories: tool({
+      description:
+        "Lista categorias financeiras disponíveis pra classificar PaymentEntries (despesas/receitas). Retorna TABELA. Use após create_payment_entry pra mostrar opções ao user, ou quando o user pedir 'minhas categorias financeiras'.",
+      inputSchema: z.object({
+        type: z
+          .enum(["REVENUE", "EXPENSE", "COST"])
+          .optional()
+          .describe("Filtra por tipo. Sem isso, retorna todas."),
+      }),
+      execute: async ({ type }) => {
+        const memberships = await prisma.member.findMany({
+          where: { userId: ctx.userId },
+          select: { organizationId: true },
+        });
+        const myOrgIds = memberships.map((m) => m.organizationId);
+        if (myOrgIds.length === 0) {
+          return { error: "Sem acesso a nenhuma organização" };
+        }
+
+        const categories = await prisma.paymentCategory.findMany({
+          where: {
+            organizationId: { in: myOrgIds },
+            isActive: true,
+            ...(type ? { type } : {}),
+          },
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            type: true,
+          },
+          orderBy: [{ type: "asc" }, { name: "asc" }],
+          take: 50,
+        });
+
+        const typeLabel: Record<string, string> = {
+          REVENUE: "Receita",
+          EXPENSE: "Despesa",
+          COST: "Custo",
+        };
+
+        const payload: AstroTablePayload = {
+          kind: "astro_table",
+          entityType: "user", // entityType genérico não-clicável
+          title: "Categorias financeiras",
+          caption: `${categories.length} categoria(s)${type ? ` do tipo ${typeLabel[type] ?? type}` : ""}`,
+          totalCount: categories.length,
+          columns: [
+            { key: "name", label: "Nome" },
+            { key: "type", label: "Tipo", type: "badge" },
+            { key: "color", label: "Cor" },
+          ],
+          rows: categories.map((c) => ({
+            id: c.id,
+            name: c.name,
+            type: typeLabel[c.type] ?? c.type,
+            color: c.color ?? "—",
+          })),
+        };
+        return payload;
+      },
+    }),
+
+    // ── APPOINTMENT CREATORS (ranking de colaboradores) ──────────────────
+    // Tabela de quem mais criou agendamentos no período. Use quando o
+    // user perguntar "lista dos colaboradores que criaram", "top
+    // atendentes", "quem marcou mais reuniões". Não-clicável (user não
+    // tem rota de detalhe).
+    list_appointment_creators: tool({
+      description:
+        "Lista TOP COLABORADORES que criaram agendamentos no período + tabela com nome/email/total. Use sempre que o user pedir 'lista dos colaboradores que criaram', 'quem marcou mais reuniões', 'ranking de atendentes', etc. Combine com get_agenda_metrics se precisar dos totais agregados.",
+      inputSchema: z.object({
+        orgIds: z.array(z.string()).optional(),
+        fromIso: z.string().optional(),
+        toIso: z.string().optional(),
+        agendaIds: z.array(z.string()).optional(),
+        trackingIds: z.array(z.string()).optional(),
+        limit: z.number().int().min(1).max(50).optional(),
+      }),
+      execute: async ({
+        orgIds,
+        fromIso,
+        toIso,
+        agendaIds,
+        trackingIds,
+        limit,
+      }) => {
+        const memberships = await prisma.member.findMany({
+          where: { userId: ctx.userId },
+          select: { organizationId: true },
+        });
+        const myOrgIds = memberships.map((m) => m.organizationId);
+        const targetOrgs =
+          orgIds && orgIds.length > 0
+            ? orgIds.filter((id) => myOrgIds.includes(id))
+            : myOrgIds;
+        if (targetOrgs.length === 0) {
+          return { error: "Sem acesso a nenhuma organização" };
+        }
+
+        const from = fromIso
+          ? new Date(fromIso)
+          : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const to = toIso ? new Date(toIso) : new Date();
+
+        const apptWhere = {
+          agenda: {
+            organizationId: { in: targetOrgs },
+            ...(agendaIds && agendaIds.length > 0
+              ? { id: { in: agendaIds } }
+              : {}),
+          },
+          ...(trackingIds && trackingIds.length > 0
+            ? { trackingId: { in: trackingIds } }
+            : {}),
+          startsAt: { gte: from, lte: to },
+        };
+
+        const grouped = await prisma.appointment.groupBy({
+          by: ["userId"],
+          where: apptWhere,
+          _count: { _all: true },
+        });
+
+        const userIds = grouped
+          .map((g) => g.userId)
+          .filter((id): id is string => id !== null);
+        const users =
+          userIds.length > 0
+            ? await prisma.user.findMany({
+                where: { id: { in: userIds } },
+                select: { id: true, name: true, email: true },
+              })
+            : [];
+        const userMap = new Map(users.map((u) => [u.id, u]));
+
+        const sorted = grouped
+          .map((g) => ({
+            userId: g.userId,
+            name: g.userId
+              ? userMap.get(g.userId)?.name ?? "(usuário removido)"
+              : "(sem criador)",
+            email: g.userId ? userMap.get(g.userId)?.email ?? "—" : "—",
+            count: g._count._all,
+          }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, limit ?? 20);
+
+        const payload: AstroTablePayload = {
+          kind: "astro_table",
+          entityType: "user",
+          title: "Colaboradores que criaram agendamentos",
+          caption: `${sorted.length} colaborador(es) — período ${from.toLocaleDateString("pt-BR")} a ${to.toLocaleDateString("pt-BR")}`,
+          totalCount: sorted.length,
+          columns: [
+            { key: "name", label: "Nome" },
+            { key: "email", label: "Email" },
+            { key: "count", label: "Agendamentos", type: "number" },
+          ],
+          rows: sorted.map((r) => ({
+            id: r.userId ?? "none",
+            name: r.name,
+            email: r.email,
+            count: r.count,
+          })),
+        };
+        return payload;
+      },
+    }),
+
+    // ── FORGE CONTRACTS ───────────────────────────────────────────────────
+    list_contracts: tool({
+      description:
+        "Lista contratos Forge (ForgeContract) com filtros + tabela. Cols: número, cliente, valor, status, criado por, data de criação. Filtros: empresa, período, status, criadores. Linha abre /forge (sem deep-link interno ainda). Use quando o user pedir 'lista de contratos', 'contratos fechados', 'contratos ativos'.",
+      inputSchema: z.object({
+        orgIds: z.array(z.string()).optional(),
+        fromIso: z.string().optional(),
+        toIso: z.string().optional(),
+        statuses: z
+          .array(z.enum(["ATIVO", "ENCERRADO", "CANCELADO", "PENDENTE_ASSINATURA"]))
+          .optional(),
+        createdByIds: z
+          .array(z.string())
+          .optional()
+          .describe("Filtra contratos criados por estes users."),
+        limit: z.number().int().min(1).max(50).optional(),
+      }),
+      execute: async ({
+        orgIds,
+        fromIso,
+        toIso,
+        statuses,
+        createdByIds,
+        limit,
+      }) => {
+        const memberships = await prisma.member.findMany({
+          where: { userId: ctx.userId },
+          select: { organizationId: true },
+        });
+        const myOrgIds = memberships.map((m) => m.organizationId);
+        const targetOrgs =
+          orgIds && orgIds.length > 0
+            ? orgIds.filter((id) => myOrgIds.includes(id))
+            : myOrgIds;
+        if (targetOrgs.length === 0) {
+          return { error: "Sem acesso a nenhuma organização" };
+        }
+
+        const where = {
+          organizationId: { in: targetOrgs },
+          ...(statuses && statuses.length > 0
+            ? { status: { in: statuses } }
+            : {}),
+          ...(createdByIds && createdByIds.length > 0
+            ? { createdById: { in: createdByIds } }
+            : {}),
+          ...(fromIso || toIso
+            ? {
+                createdAt: {
+                  ...(fromIso ? { gte: new Date(fromIso) } : {}),
+                  ...(toIso ? { lte: new Date(toIso) } : {}),
+                },
+              }
+            : {}),
+        };
+
+        const [contracts, totalCount] = await Promise.all([
+          prisma.forgeContract.findMany({
+            where,
+            select: {
+              id: true,
+              number: true,
+              status: true,
+              value: true,
+              createdAt: true,
+              proposal: {
+                select: { client: { select: { name: true } } },
+              },
+              createdBy: { select: { name: true } },
+            },
+            orderBy: { createdAt: "desc" },
+            take: limit ?? 20,
+          }),
+          prisma.forgeContract.count({ where }),
+        ]);
+
+        const payload: AstroTablePayload = {
+          kind: "astro_table",
+          entityType: "contract",
+          title: "Contratos",
+          caption: `${totalCount} contrato(s)`,
+          totalCount,
+          columns: [
+            { key: "number", label: "Nº", type: "number" },
+            { key: "client", label: "Cliente" },
+            { key: "value", label: "Valor", type: "currency" },
+            { key: "status", label: "Status", type: "badge" },
+            { key: "creator", label: "Criado por" },
+            { key: "createdAt", label: "Criado em", type: "date" },
+          ],
+          rows: contracts.map((c) => ({
+            id: c.id,
+            number: c.number,
+            client: c.proposal?.client?.name ?? "—",
+            // value é Decimal de reais → multiplica por 100 pra renderer "currency"
+            value: Math.round(Number(c.value) * 100),
+            status: c.status,
+            creator: c.createdBy?.name ?? "—",
+            createdAt: c.createdAt.toISOString(),
           })),
         };
         return payload;

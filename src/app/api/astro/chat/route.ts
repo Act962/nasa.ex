@@ -8,6 +8,7 @@ import { astroChatRequestSchema } from "@/features/astro/schemas/chat-message";
 import type { AgentKey } from "@/features/astro/schemas/agent-config";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { debitStars } from "@/features/stars/lib/star-service";
+import { generateAutoTitle } from "@/features/astro/lib/auto-title";
 
 /**
  * Ratio de cobrança em Stars por tokens consumidos pelo Astro.
@@ -213,15 +214,23 @@ export async function POST(req: Request) {
               .map((p: any) => p.text)
               .join(" ")
           : "";
-      const autoTitle =
-        titleSrc.trim().slice(0, 60) || "Conversa com ASTRO";
+      const autoTitle = generateAutoTitle(titleSrc);
+
+      // Só atualiza o título se a sessão ainda não tem um — assim o user
+      // pode renomear (via /astro/sessions/update-title) sem ser
+      // sobrescrito a cada nova mensagem.
+      const current = await prisma.aiSession.findUnique({
+        where: { id: sessionId },
+        select: { title: true },
+      });
+      const shouldSetTitle =
+        !current?.title || current.title === "Conversa com ASTRO";
 
       await prisma.aiSession.update({
         where: { id: sessionId },
         data: {
           messages: finalMessages as unknown as object,
-          // Auto-título só na primeira persistência
-          title: autoTitle,
+          ...(shouldSetTitle ? { title: autoTitle } : {}),
         },
       });
     },

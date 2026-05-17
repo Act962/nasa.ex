@@ -27,6 +27,8 @@ import { StarField } from "./star-field";
 import { WelcomeScreen } from "./welcome-screen";
 import { ThinkingDisplay } from "./thinking-display";
 import { CommandInput } from "./command-input";
+import { HistoryDropdown } from "./history-dropdown";
+import { SessionHeader } from "./session-header";
 
 /**
  * `/home` — superfície de tela cheia do ASTRO.
@@ -129,6 +131,19 @@ export function NasaCommandCenter() {
     },
     [sessionId, deleteSessionMutation, setMessages, setSessionId],
   );
+
+  /**
+   * "Nova sessão" — limpa o estado local; a próxima mensagem cria um
+   * AiSession novo via `ensureSession()` no useAstroChat. O histórico
+   * antigo continua salvo na lista.
+   */
+  const handleNewSession = useCallback(() => {
+    setMessages([]);
+    setSessionId(null);
+    setHydrated(undefined);
+    setCommand("");
+    clearError();
+  }, [setMessages, setSessionId, clearError]);
 
   const submitCommand = useCallback(
     async (userText: string) => {
@@ -253,7 +268,7 @@ export function NasaCommandCenter() {
   const thinkingSteps = useMemo(() => {
     if (!loading) return [];
     const last = [...messages].reverse().find((m) => m.role === "assistant");
-    if (!last) return ["Pensando…"];
+    if (!last) return ["Explorando…"];
     const inflight = last.parts
       .filter(isToolUIPart)
       .filter((p) => {
@@ -274,7 +289,7 @@ export function NasaCommandCenter() {
         }
         return `Executando ${toolName}…`;
       });
-    return inflight.length ? inflight : ["Pensando…"];
+    return inflight.length ? inflight : ["Explorando…"];
   }, [messages, loading]);
 
   const commandInputProps: CommandInputProps = {
@@ -315,9 +330,19 @@ export function NasaCommandCenter() {
             recentLoading={sessionsQuery.isLoading}
             onSelectSession={handleSelectSession}
             onDeleteSession={handleDeleteSession}
+            onAfterRenameSession={() => sessionsQuery.refetch()}
+            onNewSession={handleNewSession}
           />
         ) : (
           <div className="max-w-3xl mx-auto px-3 sm:px-4 pt-4 pb-4 space-y-2">
+            <SessionHeader
+              sessionId={sessionId}
+              title={
+                recentSessions.find((s) => s.id === sessionId)?.title ?? null
+              }
+              onNewSession={handleNewSession}
+              onAfterRename={() => sessionsQuery.refetch()}
+            />
             {(() => {
               // Somatória cumulativa de tokens por mensagem assistant.
               // Cada AstroMessage recebe o total da sessão até ele (não só
@@ -355,11 +380,19 @@ export function NasaCommandCenter() {
       {hasMessages && (
         <div className="border-t border-zinc-800/60 bg-[#050510]/90 backdrop-blur px-3 sm:px-4 py-3 shrink-0 relative z-10">
           <div className="max-w-3xl mx-auto">
-            <div className="mb-2 flex items-center justify-start gap-2">
+            <div className="mb-2 flex items-center justify-between gap-2">
               <ModeToggle mode={inputMode} onChange={setInputMode} />
-              {/* VoiceOutputToggle removido — voz é controlada pelo AstroOrb
-                  (canto inferior direito). Modo "match-input" continua ativo
-                  como default via useVoiceModeStore. */}
+              {/* Histórico Astro Explorer acessível também durante a conversa
+                  — antes só aparecia no WelcomeScreen (sem mensagens), o que
+                  fazia o user perder acesso depois de mandar a 1ª mensagem. */}
+              <HistoryDropdown
+                sessions={recentSessions}
+                loading={sessionsQuery.isLoading}
+                onSelect={handleSelectSession}
+                onDelete={handleDeleteSession}
+                onAfterRename={() => sessionsQuery.refetch()}
+                onNewSession={handleNewSession}
+              />
             </div>
             {inputMode === "composer" ? (
               <SlashComposer

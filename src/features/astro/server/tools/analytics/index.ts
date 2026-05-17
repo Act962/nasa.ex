@@ -642,7 +642,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
     // ── FORGE (propostas, receita, ticket médio) ─────────────────────────
     get_forge_metrics: tool({
       description:
-        "Resume métricas de FORGE (propostas comerciais): total/rascunho/enviadas/visualizadas/pagas/expiradas/canceladas, receita fechada (PAGAS), valores em aberto (ENVIADAS+VISUALIZADAS), receita perdida (CANCELADAS+EXPIRADAS), ticket médio, desconto médio, tempo médio até pagamento. Filtros: empresa, período, criadores (responsibleIds), leads. Use quando o usuário perguntar sobre vendas, propostas, receita fechada, receita perdida, valores em aberto.",
+        "Resume métricas de FORGE: PROPOSTAS (total/rascunho/enviadas/visualizadas/pagas/expiradas/canceladas, receita fechada/pipeline/perdida, ticket médio, desconto médio, tempo até pagamento) E CONTRATOS (total fechados/ativos/encerrados/cancelados/pendentes de assinatura, valor total). Filtros: empresa, período, criadores, leads. Use pra 'quantos contratos fechei', 'quantas propostas pagas', 'receita do mês'.",
       inputSchema: z.object({
         fromIso: z.string().optional(),
         toIso: z.string().optional(),
@@ -817,6 +817,54 @@ export function buildAnalyticsTools(ctx: AgentContext) {
               ) / 100
             : 0;
 
+        // ── CONTRATOS (ForgeContract — gerados a partir de propostas pagas) ──
+        // Filtra por criador se vier; usa mesma janela de período (createdAt).
+        const contractWhere = {
+          organizationId: { in: targetOrgs },
+          ...(responsibleIds && responsibleIds.length > 0
+            ? { createdById: { in: responsibleIds } }
+            : {}),
+        };
+        const [
+          totalContracts,
+          contractsInPeriod,
+          contractsAtivos,
+          contractsEncerrados,
+          contractsCancelados,
+          contractsPendentesAssinatura,
+          contractsValueAgg,
+        ] = await Promise.all([
+          prisma.forgeContract.count({ where: contractWhere }),
+          prisma.forgeContract.count({
+            where: {
+              ...contractWhere,
+              createdAt: { gte: from, lte: to },
+            },
+          }),
+          prisma.forgeContract.count({
+            where: { ...contractWhere, status: "ATIVO" },
+          }),
+          prisma.forgeContract.count({
+            where: { ...contractWhere, status: "ENCERRADO" },
+          }),
+          prisma.forgeContract.count({
+            where: { ...contractWhere, status: "CANCELADO" },
+          }),
+          prisma.forgeContract.count({
+            where: { ...contractWhere, status: "PENDENTE_ASSINATURA" },
+          }),
+          prisma.forgeContract.aggregate({
+            where: {
+              ...contractWhere,
+              createdAt: { gte: from, lte: to },
+              status: { in: ["ATIVO", "ENCERRADO"] },
+            },
+            _sum: { value: true },
+          }),
+        ]);
+        const contractsValueClosedBRL =
+          Math.round(Number(contractsValueAgg._sum.value ?? 0) * 100) / 100;
+
         return {
           period: { from: from.toISOString(), to: to.toISOString() },
           proposals: {
@@ -830,6 +878,19 @@ export function buildAnalyticsTools(ctx: AgentContext) {
               expiradas,
               canceladas,
             },
+          },
+          contracts: {
+            total: totalContracts,
+            inPeriod: contractsInPeriod,
+            byStatus: {
+              ativo: contractsAtivos,
+              encerrado: contractsEncerrados,
+              cancelado: contractsCancelados,
+              pendenteAssinatura: contractsPendentesAssinatura,
+            },
+            // Valor somado dos contratos fechados (ativos + encerrados)
+            // criados no período.
+            closedValueBRL: contractsValueClosedBRL,
           },
           revenue: {
             closedBRL: Math.round(revenueClosed * 100) / 100,
@@ -993,7 +1054,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
     // ── AGENDA / SPACETIME (appointments por status, no-show) ────────────
     get_agenda_metrics: tool({
       description:
-        "Resume métricas de AGENDA (spacetime/agendamentos): total/no período, por status (pendente/confirmado/realizado/cancelado/no-show), taxa de no-show, taxa de comparecimento. Filtros: empresa, período, agenda, participante, tracking, projeto/cliente. Use quando perguntar sobre agenda, reuniões, agendamentos, faltas.",
+        "Resume métricas de AGENDA (spacetime/agendamentos): total/no período, por status (pendente/confirmado/realizado/cancelado/no-show), taxa de no-show, taxa de comparecimento, e breakdown POR CRIADOR (lista dos colaboradores que mais criaram appointments com count). Filtros: empresa, período, agenda, participante, tracking, projeto/cliente. Use quando perguntar sobre agenda, reuniões, agendamentos, faltas, ou 'lista dos colaboradores que criaram'.",
       inputSchema: z.object({
         fromIso: z.string().optional(),
         toIso: z.string().optional(),
@@ -1109,6 +1170,36 @@ export function buildAnalyticsTools(ctx: AgentContext) {
             ? Math.round((done / concluded) * 100 * 10) / 10
             : 0;
 
+        // ── Breakdown por CRIADOR (Appointment.userId) ──
+        // groupBy userId pra ranking de colaboradores que mais marcam
+        // — útil pra perguntas tipo "lista os colaboradores que criaram".
+        const byCreatorRaw = await prisma.appointment.groupBy({
+          by: ["userId"],
+          where: { ...apptWhere, startsAt: { gte: from, lte: to } },
+          _count: { _all: true },
+        });
+        const creatorIds = byCreatorRaw
+          .map((g) => g.userId)
+          .filter((id): id is string => id !== null);
+        const creators =
+          creatorIds.length > 0
+            ? await prisma.user.findMany({
+                where: { id: { in: creatorIds } },
+                select: { id: true, name: true, email: true },
+              })
+            : [];
+        const creatorMap = new Map(creators.map((c) => [c.id, c]));
+        const byCreator = byCreatorRaw
+          .map((g) => ({
+            userId: g.userId,
+            name: g.userId
+              ? creatorMap.get(g.userId)?.name ?? "(usuário removido)"
+              : "(sem criador)",
+            email: g.userId ? creatorMap.get(g.userId)?.email ?? null : null,
+            count: g._count._all,
+          }))
+          .sort((a, b) => b.count - a.count);
+
         return {
           period: { from: from.toISOString(), to: to.toISOString() },
           agendas: totalAgendas,
@@ -1125,6 +1216,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           },
           noShowRate,
           attendanceRate,
+          byCreator,
         };
       },
     }),

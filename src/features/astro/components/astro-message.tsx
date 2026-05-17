@@ -7,16 +7,12 @@ import {
   type UIMessage,
 } from "ai";
 import { cn } from "@/lib/utils";
-import {
-  CheckIcon,
-  Loader2Icon,
-  WrenchIcon,
-  AlertTriangleIcon,
-} from "lucide-react";
 import { isAstroTablePayload } from "@/features/astro/lib/astro-table";
 import { AstroDataTable } from "@/features/astro/components/astro-data-table";
 import { isAstroVideosPayload } from "@/features/astro/lib/astro-video";
 import { AstroVideoCardList } from "@/features/astro/components/astro-video-card";
+import { isAstroChartPayload } from "@/features/astro/lib/astro-chart";
+import { AstroChartCard } from "@/features/astro/components/astro-chart-card";
 
 /**
  * Render de uma `UIMessage` do AI SDK.
@@ -42,6 +38,24 @@ export function AstroMessage({
 }) {
   const isUser = message.role === "user";
 
+  // ENFORCEMENT NO CLIENT: se a mensagem do assistant tem ALGUMA tool
+  // que retorna `kind:"astro_table"` ou `kind:"astro_videos"`, suprime
+  // TODAS as partes de texto dessa mensagem. Sem isso, o modelo continua
+  // verbalizando uma versão em prosa da tabela mesmo com o prompt
+  // dizendo "responda vazio" — agora é garantido na UI: tabela + zero
+  // texto duplicado.
+  const hasStructuredOutput =
+    !isUser &&
+    message.parts.some((p) => {
+      if (!isToolUIPart(p)) return false;
+      const out = (p as { output?: unknown }).output;
+      return (
+        isAstroTablePayload(out) ||
+        isAstroVideosPayload(out) ||
+        isAstroChartPayload(out)
+      );
+    });
+
   return (
     <div
       className={cn(
@@ -51,6 +65,9 @@ export function AstroMessage({
     >
       {message.parts.map((part, idx) => {
         if (isTextUIPart(part)) {
+          // Suprime texto duplicado quando há tabela/vídeos na mesma
+          // mensagem. User pediu APENAS a tabela — sem prosa redundante.
+          if (hasStructuredOutput) return null;
           return (
             <div
               key={idx}
@@ -78,20 +95,13 @@ export function AstroMessage({
         }
 
         if (isToolUIPart(part)) {
-          // Tools de roteamento pra sub-agente são representadas pelo
-          // foguete + label no ThinkingDisplay. Esconde o chip cru aqui
-          // pra não duplicar info e poluir a conversa.
-          const toolName =
-            part.type === "dynamic-tool"
-              ? ((part as { toolName?: string }).toolName ?? "")
-              : part.type.replace(/^tool-/, "");
-          if (toolName.startsWith("route_to_")) {
-            return null;
-          }
-          // Tools list_* podem retornar `{ kind: "astro_table" }` —
-          // renderiza tabela interativa em vez do chip cru.
-          // Tools de SPACE HELP podem retornar `{ kind: "astro_videos" }`
-          // — renderiza grid de cards com thumbnail do YouTube.
+          // POLÍTICA: tools são detalhe de backend — NUNCA mostre o
+          // chip cru pro usuário. O thinking loader (foguete) já
+          // sinaliza atividade.
+          //
+          // Exceções: outputs estruturados que renderizam UI rica
+          // (tabela clicável, cards de vídeo). Esses SIM renderizam,
+          // mas como componente próprio — não como chip "tool-name".
           const output = (part as { output?: unknown }).output;
           if (isAstroTablePayload(output)) {
             return (
@@ -113,7 +123,22 @@ export function AstroMessage({
               </div>
             );
           }
-          return <ToolPart key={idx} part={part} />;
+          if (isAstroChartPayload(output)) {
+            return (
+              // `self-stretch` força o filho do flex-column-items-start a
+              // ocupar a largura total disponível. Sem isso, o wrapper
+              // ficava com width=0 e o ResponsiveContainer do recharts
+              // não desenhava nada (chart "vazio" mesmo com data).
+              <div
+                key={idx}
+                className="self-stretch w-full max-w-[95%] sm:max-w-[85%]"
+              >
+                <AstroChartCard payload={output} />
+              </div>
+            );
+          }
+          // Qualquer outra tool: invisível no UI.
+          return null;
         }
 
         return null;
@@ -134,96 +159,7 @@ export function AstroMessage({
   );
 }
 
-function ToolPart({
-  part,
-}: {
-  part: Extract<
-    UIMessage["parts"][number],
-    { type: `tool-${string}` } | { type: "dynamic-tool" }
-  >;
-}) {
-  // type vem como "tool-search_lead", "tool-route_to_closer", "dynamic-tool", etc.
-  const toolName =
-    part.type === "dynamic-tool"
-      ? ((part as { toolName?: string }).toolName ?? "dynamic")
-      : part.type.replace(/^tool-/, "");
-  const state = (part as { state?: string }).state ?? "input-streaming";
-
-  const { Icon, label, tone } = stateUI(state);
-
-  const input = (part as { input?: unknown }).input;
-  const output = (part as { output?: unknown }).output;
-  const errorText = (part as { errorText?: string }).errorText;
-
-  return (
-    <div
-      className={cn(
-        "flex w-full max-w-[85%] flex-col gap-1 rounded-md border bg-background px-2.5 py-1.5 text-xs",
-        tone,
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <WrenchIcon className="size-3.5" />
-        <span className="font-mono text-[11px]">{toolName}</span>
-        <span className="ml-auto flex items-center gap-1 text-[10px] uppercase tracking-wide">
-          <Icon className="size-3" />
-          {label}
-        </span>
-      </div>
-      {(input !== undefined ||
-        output !== undefined ||
-        errorText !== undefined) && (
-        <details className="text-[11px]">
-          <summary className="cursor-pointer select-none text-muted-foreground">
-            detalhes
-          </summary>
-          {input !== undefined && (
-            <pre className="mt-1 overflow-x-auto rounded bg-muted/50 p-1.5">
-              {JSON.stringify(input, null, 2)}
-            </pre>
-          )}
-          {output !== undefined && (
-            <pre className="mt-1 overflow-x-auto rounded bg-muted/50 p-1.5">
-              {JSON.stringify(output, null, 2)}
-            </pre>
-          )}
-          {errorText && (
-            <pre className="mt-1 overflow-x-auto rounded bg-destructive/10 p-1.5 text-destructive">
-              {errorText}
-            </pre>
-          )}
-        </details>
-      )}
-    </div>
-  );
-}
-
-function stateUI(state: string) {
-  switch (state) {
-    case "output-available":
-      return {
-        Icon: CheckIcon,
-        label: "ok",
-        tone: "border-emerald-500/40 bg-emerald-500/5",
-      };
-    case "output-error":
-      return {
-        Icon: AlertTriangleIcon,
-        label: "erro",
-        tone: "border-destructive/40 bg-destructive/5 text-destructive",
-      };
-    case "input-available":
-      return {
-        Icon: Loader2Icon,
-        label: "executando",
-        tone: "border-amber-500/40 bg-amber-500/5",
-      };
-    case "input-streaming":
-    default:
-      return {
-        Icon: Loader2Icon,
-        label: "preparando",
-        tone: "border-muted bg-muted/30",
-      };
-  }
-}
+// Nota: o componente <ToolPart> antigo (chip "tool-name OK/ERRO/...") foi
+// REMOVIDO. Tools são detalhe de backend — usuário só vê texto + payloads
+// estruturados (AstroDataTable, AstroVideoCardList). Atividade durante o
+// thinking é representada pelo foguete (ThinkingDisplay).
