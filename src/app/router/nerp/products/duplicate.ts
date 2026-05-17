@@ -12,6 +12,5 @@ export const duplicateNerpProduct = base
   .input(duplicateProductInputSchema)
   .handler(async ({ input, context }) => {
     const { integrationId, config } = await getNerpConfig(context.org.id);
-    const product = await withNerpErrorTracking(integrationId, () => duplicateProduct(config, input));
-    return { product };
+    return withNerpErrorTracking(integrationId, () => duplicateProduct(config, input));
   });

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
-import { Loader2, Plug, PlugZap, Power } from "lucide-react";
+import { ArrowRight, Loader2, Plug, PlugZap, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -66,6 +67,12 @@ export function NerpConnectCard() {
         <div className="flex flex-wrap gap-2">
           {conn.connected ? (
             <>
+              <Button asChild size="sm">
+                <Link href="/nerp">
+                  Abrir nerp
+                  <ArrowRight className="size-3.5" />
+                </Link>
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -103,14 +110,22 @@ export function NerpConnectCard() {
               </Button>
             </>
           ) : (
-            <Button onClick={handleConnect} disabled={isRedirecting}>
-              {isRedirecting ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Plug className="size-3.5" />
-              )}
-              Conectar com nerp
-            </Button>
+            <>
+              <Button onClick={handleConnect} disabled={isRedirecting}>
+                {isRedirecting ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Plug className="size-3.5" />
+                )}
+                Conectar com nerp
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/nerp">
+                  Ver nerp
+                  <ArrowRight className="size-3.5" />
+                </Link>
+              </Button>
+            </>
           )}
         </div>
       </CardContent>

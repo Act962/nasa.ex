@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Loader2, Plus, Pencil, RefreshCw } from "lucide-react";
+import { slugify } from "@/utils/create-slug";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,13 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { NerpShell } from "../../../../../features/nerp/components/nerp-shell";
 import { NerpConnectionGuard } from "../../../../../features/nerp/components/connection-guard";
 import { DeleteButton } from "../../../../../features/nerp/components/delete-button";
@@ -46,15 +54,39 @@ import {
   useDeleteNerpCategory,
 } from "../../../../../features/nerp/hooks/use-nerp-categories";
 
+// `slug` é obrigatório no nerp (`categories.create`/`update`). `isActive` não
+// existe no payload — categorias do nerp não têm flag de ativa/inativa.
 const formSchema = z.object({
   name: z.string().min(1, "Nome obrigatório"),
+  slug: z.string().min(1, "Slug obrigatório"),
   description: z.string().optional(),
   parentId: z.string().optional(),
-  isActive: z.boolean().optional(),
 });
 type FormValues = z.infer<typeof formSchema>;
 
-type Category = { id: string; name: string; slug?: string | null; description?: string | null; parentId?: string | null; isActive?: boolean; productsCount?: number };
+// Select não aceita `""` como value; usamos sentinela e convertemos pra
+// string vazia no form quando o usuário marca "sem pai".
+const NO_PARENT_VALUE = "__none__";
+
+// Lista enxuta passada pro dropdown — só id+name.
+type ParentOption = { id: string; name: string };
+
+type CategoryChild = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  productsCount: number;
+  parentId: string | null;
+};
+type Category = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  productsCount: number;
+  children: CategoryChild[];
+};
 
 function CategoryFormDialog({
   trigger,
@@ -62,12 +94,17 @@ function CategoryFormDialog({
   onSubmit,
   isPending,
   title,
+  parentOptions,
+  selfId,
 }: {
   trigger: React.ReactNode;
   initialValues?: Partial<FormValues>;
   onSubmit: (values: FormValues) => Promise<void> | void;
   isPending?: boolean;
   title: string;
+  parentOptions: ParentOption[];
+  // Ao editar, exclui a própria categoria do dropdown (não pode ser pai de si).
+  selfId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const form = useForm<FormValues>({
@@ -75,11 +112,28 @@ function CategoryFormDialog({
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
       name: initialValues?.name ?? "",
+      slug: initialValues?.slug ?? "",
       description: initialValues?.description ?? "",
       parentId: initialValues?.parentId ?? "",
-      isActive: initialValues?.isActive ?? true,
     },
   });
+
+  // Auto-deriva o slug do nome. Para a sincronização assim que o usuário
+  // edita o slug manualmente (não queremos sobrescrever a customização dele).
+  // Em edição, começamos com `userTouchedSlug = true` quando o slug existente
+  // não bate com o slugify do nome — sinal de que já foi customizado.
+  const userTouchedSlugRef = useRef(
+    initialValues?.slug
+      ? initialValues.slug !== slugify(initialValues.name ?? "")
+      : false,
+  );
+  const watchedName = form.watch("name");
+  useEffect(() => {
+    if (userTouchedSlugRef.current) return;
+    form.setValue("slug", slugify(watchedName ?? ""), {
+      shouldValidate: false,
+    });
+  }, [watchedName, form]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -97,6 +151,7 @@ function CategoryFormDialog({
               await onSubmit(v);
               setOpen(false);
               form.reset();
+              userTouchedSlugRef.current = false;
             })}
             className="space-y-3"
           >
@@ -115,12 +170,38 @@ function CategoryFormDialog({
             />
             <FormField
               control={form.control}
+              name="slug"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Slug</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="ex-eletronicos"
+                      // Gerado automaticamente a partir do nome. Ao digitar
+                      // aqui, paramos de sincronizar pra respeitar a edição.
+                      onChange={(e) => {
+                        userTouchedSlugRef.current = true;
+                        field.onChange(e);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="description"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Descrição</FormLabel>
                   <FormControl>
-                    <Textarea {...field} rows={3} placeholder="Opcional" />
+                    <Textarea
+                      {...field}
+                      rows={3}
+                      placeholder="Ex: Dispositivos eletrônicos como celulares, fones e tablets"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -131,10 +212,36 @@ function CategoryFormDialog({
               name="parentId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Categoria-pai (ID)</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Opcional" />
-                  </FormControl>
+                  <FormLabel>Categoria-pai</FormLabel>
+                  <Select
+                    value={field.value ? field.value : NO_PARENT_VALUE}
+                    onValueChange={(v) =>
+                      field.onChange(v === NO_PARENT_VALUE ? "" : v)
+                    }
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecionar categoria-pai" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value={NO_PARENT_VALUE}>
+                        Sem pai (top-level)
+                      </SelectItem>
+                      {parentOptions
+                        .filter((c) => c.id !== selfId)
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      {parentOptions.length === 0 && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          Nenhuma categoria disponível.
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -158,6 +265,12 @@ export default function NerpCategoriesPage() {
   const update = useUpdateNerpCategory();
   const remove = useDeleteNerpCategory();
 
+  // nerp suporta só 1 nível de hierarquia (parent + children) — apenas
+  // top-level pode ser pai. `query.data.categories` já é a lista top-level.
+  const parentOptions: ParentOption[] = (query.data?.categories ?? []).map(
+    (c) => ({ id: c.id, name: c.name }),
+  );
+
   return (
     <NerpShell
       title="Categorias"
@@ -170,6 +283,7 @@ export default function NerpCategoriesPage() {
           <CategoryFormDialog
             title="Nova categoria"
             isPending={create.isPending}
+            parentOptions={parentOptions}
             onSubmit={async (v) => {
               await create.mutateAsync(
                 { ...v, parentId: v.parentId || undefined },
@@ -197,8 +311,8 @@ export default function NerpCategoriesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead>Pai</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Slug</TableHead>
+                  <TableHead className="text-right">Subcategorias</TableHead>
                   <TableHead className="text-right">Produtos</TableHead>
                   <TableHead className="w-32 text-right">Ações</TableHead>
                 </TableRow>
@@ -226,14 +340,12 @@ export default function NerpCategoriesPage() {
                         <div className="text-xs text-muted-foreground">{cat.description}</div>
                       )}
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{cat.parentId ?? "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant={cat.isActive === false ? "secondary" : "default"}>
-                        {cat.isActive === false ? "Inativa" : "Ativa"}
-                      </Badge>
+                    <TableCell className="font-mono text-xs">{cat.slug}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="secondary">{cat.children.length}</Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {cat.productsCount ?? "—"}
+                      {cat.productsCount}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
@@ -241,11 +353,13 @@ export default function NerpCategoriesPage() {
                           title="Editar categoria"
                           initialValues={{
                             name: cat.name,
+                            slug: cat.slug,
                             description: cat.description ?? "",
-                            parentId: cat.parentId ?? "",
-                            isActive: cat.isActive,
+                            parentId: "",
                           }}
                           isPending={update.isPending}
+                          parentOptions={parentOptions}
+                          selfId={cat.id}
                           onSubmit={async (v) => {
                             await update.mutateAsync(
                               {

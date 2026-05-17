@@ -12,6 +12,5 @@ export const createNerpCustomer = base
   .input(createCustomerInputSchema)
   .handler(async ({ input, context }) => {
     const { integrationId, config } = await getNerpConfig(context.org.id);
-    const customer = await withNerpErrorTracking(integrationId, () => createCustomer(config, input));
-    return { customer };
+    return withNerpErrorTracking(integrationId, () => createCustomer(config, input));
   });

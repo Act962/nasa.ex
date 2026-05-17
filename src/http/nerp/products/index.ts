@@ -10,7 +10,7 @@ import {
   updateProductInputSchema,
   duplicateProductInputSchema,
   deleteProductInputSchema,
-  nerpProductSchema,
+  mutateProductOutputSchema,
 } from "./schemas";
 
 export type ListProductsInput = z.infer<typeof listProductsInputSchema>;
@@ -32,19 +32,23 @@ export async function getProduct(cfg: NerpOrgConfig, input: GetProductInput) {
 
 export async function createProduct(cfg: NerpOrgConfig, input: CreateProductInput) {
   const raw = await callNerpProcedure<unknown>(cfg, "products.create", input);
-  return z.object({ product: nerpProductSchema }).parse(raw).product;
+  return mutateProductOutputSchema.parse(raw);
 }
 
 export async function updateProduct(cfg: NerpOrgConfig, input: UpdateProductInput) {
   const raw = await callNerpProcedure<unknown>(cfg, "products.update", input);
-  return z.object({ product: nerpProductSchema }).parse(raw).product;
+  return mutateProductOutputSchema.parse(raw);
 }
 
+// `products.duplicate` no nerp é declarado como GET (`.route({ method: "GET" })`).
 export async function duplicateProduct(cfg: NerpOrgConfig, input: DuplicateProductInput) {
-  const raw = await callNerpProcedure<unknown>(cfg, "products.duplicate", input);
-  return z.object({ product: nerpProductSchema }).parse(raw).product;
+  const raw = await callNerpProcedure<unknown>(cfg, "products.duplicate", input, {
+    method: "GET",
+  });
+  return mutateProductOutputSchema.parse(raw);
 }
 
 export async function deleteProduct(cfg: NerpOrgConfig, input: DeleteProductInput) {
-  return callNerpProcedure<unknown>(cfg, "products.delete", input);
+  const raw = await callNerpProcedure<unknown>(cfg, "products.delete", input);
+  return mutateProductOutputSchema.parse(raw);
 }

@@ -29,12 +29,20 @@ export async function nerpFetch<T>(opts: NerpFetchOptions): Promise<T> {
   const baseUrl = resolveBaseUrl(opts.cfg);
   const path = opts.path.startsWith("/") ? opts.path : `/${opts.path}`;
   const url = `${baseUrl}${path}`;
-  const bodyJson = opts.body === undefined ? "" : JSON.stringify(opts.body);
+  // O verificador HMAC do nerp assina `url.pathname` (sem query) e usa body
+  // vazio em GET. Espelhamos isso aqui pra evitar mismatch de assinatura.
+  const pathnameForSigning = path.split("?")[0];
+  const bodyJson =
+    method === "GET"
+      ? ""
+      : opts.body === undefined
+        ? ""
+        : JSON.stringify(opts.body);
   const timestamp = String(Date.now());
 
   const signature = signRequest({
     method,
-    path,
+    path: pathnameForSigning,
     body: bodyJson,
     timestamp,
     secret: opts.cfg.secret,

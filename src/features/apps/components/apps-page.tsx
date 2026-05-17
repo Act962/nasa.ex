@@ -10,7 +10,7 @@ import { APPS, type AppDef } from "./apps-data";
 import { AppCard, ComingSoonModal } from "./app-card";
 import { PersonalizarMenu } from "./personalizar-menu";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
-import { NerpConnectCard } from "@/features/nerp/components/nerp-connect-card";
+import { NerpAppCard } from "@/features/nerp/components/nerp-app-card";
 
 // ─── Filter Bar ───────────────────────────────────────────────────────────────
 
@@ -155,13 +155,6 @@ export function AppsPage() {
         </div>
       </div>
 
-      {/* Integrações destacadas */}
-      {filter !== "personalizar" && (
-        <div className="px-6 pb-4 mx-auto">
-          <NerpConnectCard />
-        </div>
-      )}
-
       {/* Grid / Personalizar */}
       <div className="px-6 pb-10  mx-auto">
         {filter === "personalizar" ? (
@@ -177,9 +170,13 @@ export function AppsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredApps.map((app) => (
-              <AppCard key={app.id} app={app} onAction={handleAction} />
-            ))}
+            {filteredApps.map((app) =>
+              app.id === "nerp" ? (
+                <NerpAppCard key={app.id} app={app} />
+              ) : (
+                <AppCard key={app.id} app={app} onAction={handleAction} />
+              ),
+            )}
           </div>
         )}
       </div>

@@ -12,6 +12,5 @@ export const updateNerpCategory = base
   .input(updateCategoryInputSchema)
   .handler(async ({ input, context }) => {
     const { integrationId, config } = await getNerpConfig(context.org.id);
-    const category = await withNerpErrorTracking(integrationId, () => updateCategory(config, input));
-    return { category };
+    return withNerpErrorTracking(integrationId, () => updateCategory(config, input));
   });

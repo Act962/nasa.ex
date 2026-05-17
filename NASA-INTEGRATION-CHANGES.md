@@ -44,7 +44,7 @@ Os shapes reais que o nerp retorna hoje:
 | `stocks.list` | `{ movements: StockMovement[] }` |
 | `catalogSettings.list` (não tem `get` ainda) | `{ catalogSettings: CatalogSettings }` (confirmar) |
 | `sales.list` | confirmar |
-| `org.get` | `{ org: Organization }` (confirmar) |
+| `org.get` | `{ organization: Organization }` |
 
 **Importante:** os nomes das chaves são **plural pra list, singular pra get** — bate com o que costuma ser convenção do oRPC. Mas não bate com `{ items }`.
 

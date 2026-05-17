@@ -8,7 +8,6 @@ import { Loader2, Plus, RefreshCw, Trash2, Eye } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -36,6 +35,13 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { NerpShell } from "../../../../../features/nerp/components/nerp-shell";
 import { NerpConnectionGuard } from "../../../../../features/nerp/components/connection-guard";
 import {
@@ -44,15 +50,21 @@ import {
   useCreateNerpSale,
 } from "../../../../../features/nerp/hooks/use-nerp-sales";
 
+// Espelha `sales.create` no nerp: status/paymentMethod são enums fechados,
+// totals viajam pré-calculados. Sem `notes` — o handler de create não copia.
+const SALE_STATUSES = ["DRAFT", "CONFIRMED", "PROCESSING", "COMPLETED", "CANCELLED"] as const;
+const PAYMENT_METHODS = ["DINHEIRO", "PIX", "DEBITO", "CREDITO", "BOLETO", "TRANSFERENCIA", "OUTROS"] as const;
+
 const formSchema = z.object({
   customerId: z.string().optional(),
-  paymentMethod: z.string().optional(),
-  notes: z.string().optional(),
-  discount: z.coerce.number().nonnegative().optional(),
+  status: z.enum(SALE_STATUSES),
+  paymentMethod: z.enum(PAYMENT_METHODS),
+  discount: z.coerce.number().nonnegative(),
   items: z
     .array(
       z.object({
         productId: z.string().min(1, "ID obrigatório"),
+        productName: z.string().min(1, "Nome obrigatório"),
         quantity: z.coerce.number().positive("Qtd > 0"),
         unitPrice: z.coerce.number().nonnegative(),
       }),
@@ -68,11 +80,11 @@ function formatBRL(n?: number | null) {
 }
 
 const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  paid: "default",
-  pending: "secondary",
-  draft: "outline",
-  canceled: "destructive",
-  refunded: "destructive",
+  COMPLETED: "default",
+  CONFIRMED: "default",
+  PROCESSING: "secondary",
+  DRAFT: "outline",
+  CANCELLED: "destructive",
 };
 
 function CreateSaleDialog({
@@ -81,7 +93,7 @@ function CreateSaleDialog({
   isPending,
 }: {
   trigger: React.ReactNode;
-  onSubmit: (values: FormValues) => Promise<void> | void;
+  onSubmit: (values: FormValues & { subtotal: number; total: number }) => Promise<void> | void;
   isPending?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -90,9 +102,10 @@ function CreateSaleDialog({
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
       customerId: "",
-      paymentMethod: "",
-      notes: "",
-      items: [{ productId: "", quantity: 1, unitPrice: 0 }],
+      status: "CONFIRMED",
+      paymentMethod: "PIX",
+      discount: 0,
+      items: [{ productId: "", productName: "", quantity: 1, unitPrice: 0 }],
     },
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
@@ -113,20 +126,47 @@ function CreateSaleDialog({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(async (v) => {
-              await onSubmit(v);
+              await onSubmit({ ...v, subtotal, total });
               setOpen(false);
               form.reset();
             })}
             className="space-y-4"
           >
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <FormField
                 control={form.control}
                 name="customerId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cliente (ID)</FormLabel>
-                    <FormControl><Input {...field} placeholder="Opcional" /></FormControl>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Opcional — venda anônima se vazio"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecionar status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {SALE_STATUSES.map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -136,8 +176,19 @@ function CreateSaleDialog({
                 name="paymentMethod"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Método de pagamento</FormLabel>
-                    <FormControl><Input {...field} placeholder="pix, credito, …" /></FormControl>
+                    <FormLabel>Pagamento</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecionar método" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {PAYMENT_METHODS.map((m) => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -151,7 +202,7 @@ function CreateSaleDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => append({ productId: "", quantity: 1, unitPrice: 0 })}
+                  onClick={() => append({ productId: "", productName: "", quantity: 1, unitPrice: 0 })}
                 >
                   <Plus className="size-3.5" /> Adicionar item
                 </Button>
@@ -161,9 +212,10 @@ function CreateSaleDialog({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Produto (ID)</TableHead>
-                      <TableHead className="w-24">Qtd</TableHead>
-                      <TableHead className="w-32">Preço unit.</TableHead>
-                      <TableHead className="w-32 text-right">Subtotal</TableHead>
+                      <TableHead>Nome</TableHead>
+                      <TableHead className="w-20">Qtd</TableHead>
+                      <TableHead className="w-28">Preço unit.</TableHead>
+                      <TableHead className="w-28 text-right">Subtotal</TableHead>
                       <TableHead className="w-12" />
                     </TableRow>
                   </TableHeader>
@@ -179,7 +231,31 @@ function CreateSaleDialog({
                               name={`items.${idx}.productId`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormControl><Input {...field} className="h-8" /></FormControl>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      className="h-8"
+                                      placeholder="ID do produto"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`items.${idx}.productName`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      className="h-8"
+                                      placeholder="Nome no momento da venda"
+                                    />
+                                  </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -191,7 +267,14 @@ function CreateSaleDialog({
                               name={`items.${idx}.quantity`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormControl><Input {...field} type="number" className="h-8" /></FormControl>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      type="number"
+                                      className="h-8"
+                                      placeholder="1"
+                                    />
+                                  </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -203,7 +286,15 @@ function CreateSaleDialog({
                               name={`items.${idx}.unitPrice`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormControl><Input {...field} type="number" step="0.01" className="h-8" /></FormControl>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      type="number"
+                                      step="0.01"
+                                      className="h-8"
+                                      placeholder="0,00"
+                                    />
+                                  </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -234,32 +325,26 @@ function CreateSaleDialog({
             <div className="grid grid-cols-2 gap-3 items-start">
               <FormField
                 control={form.control}
-                name="notes"
+                name="discount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Observações</FormLabel>
-                    <FormControl><Textarea {...field} rows={3} /></FormControl>
+                    <FormLabel>Desconto</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        step="0.01"
+                        placeholder="0,00"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <div className="space-y-2">
-                <FormField
-                  control={form.control}
-                  name="discount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Desconto</FormLabel>
-                      <FormControl><Input {...field} type="number" step="0.01" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="rounded bg-muted/50 p-3 text-sm space-y-1">
-                  <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{formatBRL(subtotal)}</span></div>
-                  <div className="flex justify-between text-muted-foreground"><span>Desconto</span><span className="tabular-nums">- {formatBRL(discount)}</span></div>
-                  <div className="flex justify-between font-medium border-t pt-1"><span>Total</span><span className="tabular-nums">{formatBRL(total)}</span></div>
-                </div>
+              <div className="rounded bg-muted/50 p-3 text-sm space-y-1">
+                <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{formatBRL(subtotal)}</span></div>
+                <div className="flex justify-between text-muted-foreground"><span>Desconto</span><span className="tabular-nums">- {formatBRL(discount)}</span></div>
+                <div className="flex justify-between font-medium border-t pt-1"><span>Total</span><span className="tabular-nums">{formatBRL(total)}</span></div>
               </div>
             </div>
 
@@ -279,6 +364,7 @@ function CreateSaleDialog({
 function SaleDetailDialog({ saleId, trigger }: { saleId: string; trigger: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const query = useNerpSale(saleId, open);
+  const sale = query.data;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -293,17 +379,17 @@ function SaleDetailDialog({ saleId, trigger }: { saleId: string; trigger: React.
             <Loader2 className="size-4 animate-spin inline mr-2" /> Carregando…
           </div>
         )}
-        {query.data && (
+        {sale && (
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Status</span>
-              <Badge variant={STATUS_VARIANTS[query.data.sale.status ?? ""] ?? "outline"}>
-                {query.data.sale.status ?? "—"}
+              <Badge variant={STATUS_VARIANTS[sale.status] ?? "outline"}>
+                {sale.status}
               </Badge>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Cliente</span>
-              <span className="font-mono text-xs">{query.data.sale.customerId ?? "—"}</span>
+              <span>{sale.customer?.name ?? "—"}</span>
             </div>
             <div className="rounded border">
               <Table>
@@ -312,30 +398,31 @@ function SaleDetailDialog({ saleId, trigger }: { saleId: string; trigger: React.
                     <TableHead>Produto</TableHead>
                     <TableHead className="text-right">Qtd</TableHead>
                     <TableHead className="text-right">Preço</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {query.data.sale.items.map((i, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="font-mono text-xs">{i.productId}</TableCell>
+                  {sale.items.map((i) => (
+                    <TableRow key={i.id}>
+                      <TableCell>
+                        <div className="font-medium">{i.productName}</div>
+                        {i.sku && (
+                          <div className="text-xs text-muted-foreground">SKU {i.sku}</div>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">{i.quantity}</TableCell>
                       <TableCell className="text-right tabular-nums">{formatBRL(i.unitPrice)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatBRL(i.total)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
             <div className="rounded bg-muted/50 p-3 space-y-1">
-              <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{formatBRL(query.data.sale.subtotal)}</span></div>
-              <div className="flex justify-between text-muted-foreground"><span>Desconto</span><span className="tabular-nums">{formatBRL(query.data.sale.discount)}</span></div>
-              <div className="flex justify-between font-medium border-t pt-1"><span>Total</span><span className="tabular-nums">{formatBRL(query.data.sale.total)}</span></div>
+              <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{formatBRL(sale.subtotal)}</span></div>
+              <div className="flex justify-between text-muted-foreground"><span>Desconto</span><span className="tabular-nums">{formatBRL(sale.discount)}</span></div>
+              <div className="flex justify-between font-medium border-t pt-1"><span>Total</span><span className="tabular-nums">{formatBRL(sale.total)}</span></div>
             </div>
-            {query.data.sale.notes && (
-              <div>
-                <div className="text-xs uppercase text-muted-foreground mb-1">Observações</div>
-                <div className="rounded border p-2 text-sm">{query.data.sale.notes}</div>
-              </div>
-            )}
           </div>
         )}
       </DialogContent>
@@ -362,13 +449,16 @@ export default function NerpSalesPage() {
               await create.mutateAsync(
                 {
                   customerId: v.customerId || undefined,
-                  paymentMethod: v.paymentMethod || undefined,
-                  notes: v.notes || undefined,
+                  status: v.status,
+                  paymentMethod: v.paymentMethod,
+                  subtotal: v.subtotal,
                   discount: v.discount,
+                  total: v.total,
                   items: v.items,
                 },
                 {
-                  onSuccess: () => toast.success("Venda criada"),
+                  onSuccess: (res) =>
+                    toast.success(`Venda #${res.saleNumber} criada`),
                   onError: (err: { message?: string }) =>
                     toast.error(err?.message ?? "Falhou"),
                 },
@@ -389,7 +479,7 @@ export default function NerpSalesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
+                  <TableHead>Venda</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Total</TableHead>
@@ -415,16 +505,18 @@ export default function NerpSalesPage() {
                 )}
                 {query.data?.sales.map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell className="font-mono text-xs">{s.id.slice(0, 8)}…</TableCell>
-                    <TableCell className="font-mono text-xs">{s.customerId ?? "—"}</TableCell>
+                    <TableCell className="font-medium">#{s.saleNumber}</TableCell>
+                    <TableCell>{s.customer || "—"}</TableCell>
                     <TableCell>
-                      <Badge variant={STATUS_VARIANTS[s.status ?? ""] ?? "outline"}>
-                        {s.status ?? "—"}
+                      <Badge variant={STATUS_VARIANTS[s.status] ?? "outline"}>
+                        {s.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{formatBRL(s.total)}</TableCell>
                     <TableCell className="text-sm">{s.paymentMethod ?? "—"}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{s.createdAt ?? "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {new Date(s.date).toLocaleString("pt-BR")}
+                    </TableCell>
                     <TableCell className="text-right">
                       <SaleDetailDialog
                         saleId={s.id}

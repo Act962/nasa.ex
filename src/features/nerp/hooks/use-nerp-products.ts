@@ -8,7 +8,7 @@ export function useNerpProducts(input?: {
   categoryId?: string;
   page?: number;
   pageSize?: number;
-  sortBy?: "name" | "createdAt" | "price";
+  sortBy?: "name" | "createdAt" | "salePrice" | "currentStock";
   sortDir?: "asc" | "desc";
 }) {
   return useQuery(orpc.nerp.products.list.queryOptions({ input: input ?? {} }));

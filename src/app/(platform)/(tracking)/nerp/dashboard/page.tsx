@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,19 +9,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { NerpShell } from "../../../../../features/nerp/components/nerp-shell";
 import { NerpConnectionGuard } from "../../../../../features/nerp/components/connection-guard";
-import {
-  useNerpDashboard,
-  type NerpDashboardRange,
-} from "../../../../../features/nerp/hooks/use-nerp-dashboard";
+import { useNerpDashboard } from "../../../../../features/nerp/hooks/use-nerp-dashboard";
 
 function formatNumber(n: number | undefined) {
   return typeof n === "number" ? n.toLocaleString("pt-BR") : "—";
@@ -34,42 +24,46 @@ function formatCurrency(n: number | undefined) {
     : "—";
 }
 
-export default function NerpDashboardPage() {
-  const [range, setRange] = useState<NerpDashboardRange>("30d");
-  const query = useNerpDashboard({ range });
+function DeltaBadge({ value, label }: { value: number; label: string }) {
+  const positive = value > 0;
+  return (
+    <span className="text-xs text-muted-foreground">
+      {value === 0 ? (
+        <>Sem variação {label}</>
+      ) : (
+        <>
+          <span className={positive ? "text-emerald-600" : "text-red-600"}>
+            {positive ? "+" : ""}
+            {formatNumber(value)}
+          </span>{" "}
+          {label}
+        </>
+      )}
+    </span>
+  );
+}
 
-  const totals = query.data?.dashboard.totals ?? {};
+export default function NerpDashboardPage() {
+  const query = useNerpDashboard();
+  const data = query.data;
 
   return (
     <NerpShell
       title="Dashboard nerp"
-      description="Resumo de receita, vendas, produtos e clientes do período."
+      description="Resumo do dia: vendas, produtos, estoque e últimas movimentações."
       actions={
-        <div className="flex items-center gap-2">
-          <Select value={range} onValueChange={(v) => setRange(v as NerpDashboardRange)}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">7 dias</SelectItem>
-              <SelectItem value="30d">30 dias</SelectItem>
-              <SelectItem value="90d">90 dias</SelectItem>
-              <SelectItem value="365d">365 dias</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => query.refetch()}
-            disabled={query.isFetching}
-          >
-            {query.isFetching ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="size-3.5" />
-            )}
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => query.refetch()}
+          disabled={query.isFetching}
+        >
+          {query.isFetching ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="size-3.5" />
+          )}
+        </Button>
       }
     >
       <NerpConnectionGuard>
@@ -84,91 +78,122 @@ export default function NerpDashboardPage() {
             {(query.error as Error).message}
           </div>
         )}
-        {query.data && (
+        {data && (
           <div className="space-y-6">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription>Receita</CardDescription>
+                  <CardDescription>Receita total</CardDescription>
                   <CardTitle className="text-2xl">
-                    {formatCurrency(totals.revenue)}
+                    {formatCurrency(data.salesTotal)}
                   </CardTitle>
+                  <DeltaBadge
+                    value={data.totalSinceLastMonth}
+                    label="mês passado"
+                  />
                 </CardHeader>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription>Vendas</CardDescription>
+                  <CardDescription>Vendas hoje</CardDescription>
                   <CardTitle className="text-2xl">
-                    {formatNumber(totals.sales)}
+                    {formatNumber(data.salesToday)}
                   </CardTitle>
+                  <DeltaBadge
+                    value={data.salesFromYesterdayToToday}
+                    label="vs. ontem"
+                  />
                 </CardHeader>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription>Produtos</CardDescription>
+                  <CardDescription>Produtos ativos</CardDescription>
                   <CardTitle className="text-2xl">
-                    {formatNumber(totals.products)}
+                    {formatNumber(data.productsActive)}
                   </CardTitle>
+                  <DeltaBadge
+                    value={data.productAddedToday}
+                    label="adicionados hoje"
+                  />
                 </CardHeader>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription>Clientes</CardDescription>
+                  <CardDescription>Estoque baixo</CardDescription>
                   <CardTitle className="text-2xl">
-                    {formatNumber(totals.customers)}
+                    {formatNumber(data.productsLowStock)}
                   </CardTitle>
+                  <DeltaBadge
+                    value={data.lowStockFromYesterdayToToday}
+                    label="vs. ontem"
+                  />
                 </CardHeader>
               </Card>
             </div>
 
-            {query.data.dashboard.topProducts &&
-              query.data.dashboard.topProducts.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Top produtos</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="divide-y">
-                      {query.data.dashboard.topProducts.map((p) => (
-                        <li
-                          key={p.productId}
-                          className="flex items-center justify-between py-2 text-sm"
-                        >
-                          <span>{p.name}</span>
-                          <span className="text-muted-foreground">
-                            {p.units} un · {formatCurrency(p.revenue)}
+            {data.latestSales.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Últimas vendas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="divide-y">
+                    {data.latestSales.map((s) => (
+                      <li
+                        key={s.id}
+                        className="flex items-center justify-between py-2 text-sm"
+                      >
+                        <div>
+                          <div className="font-medium">{s.product.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {s.customer.name} · {s.quantity} un
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge variant="secondary">{s.status}</Badge>
+                          <span className="font-medium">
+                            {formatCurrency(s.total)}
                           </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
 
-            {query.data.dashboard.recentSales &&
-              query.data.dashboard.recentSales.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Vendas recentes</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="divide-y">
-                      {query.data.dashboard.recentSales.map((s) => (
-                        <li
-                          key={s.id}
-                          className="flex items-center justify-between py-2 text-sm"
-                        >
-                          <span className="font-mono text-xs">{s.id}</span>
-                          <span>{formatCurrency(s.total)}</span>
-                          <span className="text-muted-foreground text-xs">
-                            {s.createdAt}
+            {data.productWithLowStock.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Produtos com estoque baixo</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="divide-y">
+                    {data.productWithLowStock.map((p) => (
+                      <li
+                        key={p.id}
+                        className="flex items-center justify-between py-2 text-sm"
+                      >
+                        <div>
+                          <div className="font-medium">{p.name}</div>
+                          {p.sku && (
+                            <div className="text-xs text-muted-foreground">
+                              SKU {p.sku}
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-xs">
+                          <span className="font-medium">{formatNumber(p.stock)}</span>
+                          <span className="text-muted-foreground">
+                            {" "}/ mín {formatNumber(p.stockMin)}
                           </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
       </NerpConnectionGuard>

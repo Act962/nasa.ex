@@ -77,18 +77,32 @@ export default function NerpOrgPage() {
                 <Field
                   label="Logo"
                   value={
-                    query.data.org.logoUrl ? (
+                    query.data.org.logo ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={query.data.org.logoUrl}
+                        src={query.data.org.logo}
                         alt=""
                         className="size-12 rounded border object-contain"
                       />
                     ) : null
                   }
                 />
-                <Field label="Criada em" value={query.data.org.createdAt} />
-                <Field label="Atualizada em" value={query.data.org.updatedAt} />
+                <Field
+                  label="Criada em"
+                  value={
+                    query.data.org.createdAt
+                      ? new Date(query.data.org.createdAt).toLocaleString("pt-BR")
+                      : null
+                  }
+                />
+                <Field
+                  label="Atualizada em"
+                  value={
+                    query.data.org.updatedAt
+                      ? new Date(query.data.org.updatedAt).toLocaleString("pt-BR")
+                      : null
+                  }
+                />
               </div>
             )}
           </CardContent>

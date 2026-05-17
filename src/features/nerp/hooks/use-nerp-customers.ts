@@ -3,10 +3,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 
+// `customer.list` no nerp filtra por tipo, faixa de compras e datas — sem
+// busca textual nem paginação. Pra filtrar por nome/email/etc., faça
+// client-side sobre o resultado.
 export function useNerpCustomers(input?: {
-  search?: string;
-  page?: number;
-  pageSize?: number;
+  personType?: "FISICA" | "JURIDICA";
+  minPurchase?: number;
+  maxPurchase?: number;
+  dateIni?: Date;
+  dateEnd?: Date;
 }) {
   return useQuery(orpc.nerp.customer.list.queryOptions({ input: input ?? {} }));
 }

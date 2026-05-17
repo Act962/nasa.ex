@@ -12,6 +12,5 @@ export const createNerpCategory = base
   .input(createCategoryInputSchema)
   .handler(async ({ input, context }) => {
     const { integrationId, config } = await getNerpConfig(context.org.id);
-    const category = await withNerpErrorTracking(integrationId, () => createCategory(config, input));
-    return { category };
+    return withNerpErrorTracking(integrationId, () => createCategory(config, input));
   });

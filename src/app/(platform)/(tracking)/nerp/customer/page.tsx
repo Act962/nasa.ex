@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Loader2, Plus, Pencil, RefreshCw, Search } from "lucide-react";
+import { Loader2, Plus, Pencil, RefreshCw } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,9 +45,12 @@ import {
   useDeleteNerpCustomer,
 } from "../../../../../features/nerp/hooks/use-nerp-customers";
 
+// Espelha `customer.create` do nerp: `name` + `email` + `type` (FISICA/JURIDICA)
+// são obrigatórios; o resto opcional.
 const formSchema = z.object({
   name: z.string().min(1, "Nome obrigatório"),
-  email: z.string().email("Email inválido").optional().or(z.literal("")),
+  email: z.string().email("Email inválido"),
+  type: z.enum(["FISICA", "JURIDICA"]),
   phone: z.string().optional(),
   document: z.string().optional(),
 });
@@ -73,6 +76,7 @@ function CustomerFormDialog({
     defaultValues: {
       name: initialValues?.name ?? "",
       email: initialValues?.email ?? "",
+      type: initialValues?.type ?? "FISICA",
       phone: initialValues?.phone ?? "",
       document: initialValues?.document ?? "",
     },
@@ -101,7 +105,9 @@ function CustomerFormDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nome</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
+                  <FormControl>
+                    <Input {...field} placeholder="Ex: João da Silva" />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -113,7 +119,13 @@ function CustomerFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
-                    <FormControl><Input {...field} type="email" /></FormControl>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="email"
+                        placeholder="joao@exemplo.com"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -124,23 +136,48 @@ function CustomerFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Telefone</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl>
+                      <Input {...field} placeholder="(11) 91234-5678" />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-            <FormField
-              control={form.control}
-              name="document"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Documento (CPF/CNPJ)</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="document"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Documento (CPF/CNPJ)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="000.000.000-00" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo</FormLabel>
+                    <FormControl>
+                      <select
+                        {...field}
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+                      >
+                        <option value="FISICA">Pessoa Física</option>
+                        <option value="JURIDICA">Pessoa Jurídica</option>
+                      </select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <DialogFooter>
               <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="size-3.5 animate-spin" />}
@@ -155,11 +192,21 @@ function CustomerFormDialog({
 }
 
 export default function NerpCustomerPage() {
+  // `customer.list` no nerp filtra por tipo/faixa/data — busca textual fica
+  // client-side por nome/email/telefone/documento.
   const [search, setSearch] = useState("");
-  const query = useNerpCustomers(search ? { search } : undefined);
+  const query = useNerpCustomers();
   const create = useCreateNerpCustomer();
   const update = useUpdateNerpCustomer();
   const remove = useDeleteNerpCustomer();
+
+  const term = search.trim().toLowerCase();
+  const filtered = (query.data?.customers ?? []).filter((c) => {
+    if (!term) return true;
+    return [c.name, c.email, c.phone, c.document]
+      .filter(Boolean)
+      .some((field) => String(field).toLowerCase().includes(term));
+  });
 
   return (
     <NerpShell
@@ -177,7 +224,8 @@ export default function NerpCustomerPage() {
               await create.mutateAsync(
                 {
                   name: v.name,
-                  email: v.email || undefined,
+                  email: v.email,
+                  type: v.type,
                   phone: v.phone || undefined,
                   document: v.document || undefined,
                 },
@@ -200,12 +248,10 @@ export default function NerpCustomerPage() {
       <NerpConnectionGuard>
         <div className="space-y-4">
           <div className="relative max-w-md">
-            <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
             <Input
               placeholder="Buscar cliente…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8"
             />
           </div>
 
@@ -230,23 +276,21 @@ export default function NerpCustomerPage() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {query.data?.customers.length === 0 && (
+                  {!query.isLoading && filtered.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         Nenhum cliente encontrado.
                       </TableCell>
                     </TableRow>
                   )}
-                  {query.data?.customers.map((c) => (
+                  {filtered.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell className="font-medium">{c.name}</TableCell>
                       <TableCell className="text-sm">{c.email ?? "—"}</TableCell>
                       <TableCell className="text-sm">{c.phone ?? "—"}</TableCell>
                       <TableCell className="text-sm">{c.document ?? "—"}</TableCell>
                       <TableCell className="text-right">
-                        {typeof c.salesCount === "number" ? (
-                          <Badge variant="secondary">{c.salesCount}</Badge>
-                        ) : "—"}
+                        <Badge variant="secondary">{c.sales?.length ?? 0}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
@@ -255,6 +299,7 @@ export default function NerpCustomerPage() {
                             initialValues={{
                               name: c.name,
                               email: c.email ?? "",
+                              type: c.personType ?? "FISICA",
                               phone: c.phone ?? "",
                               document: c.document ?? "",
                             }}
@@ -264,7 +309,8 @@ export default function NerpCustomerPage() {
                                 {
                                   id: c.id,
                                   name: v.name,
-                                  email: v.email || undefined,
+                                  email: v.email,
+                                  personType: v.type,
                                   phone: v.phone || undefined,
                                   document: v.document || undefined,
                                 },

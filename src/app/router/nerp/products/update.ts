@@ -12,6 +12,5 @@ export const updateNerpProduct = base
   .input(updateProductInputSchema)
   .handler(async ({ input, context }) => {
     const { integrationId, config } = await getNerpConfig(context.org.id);
-    const product = await withNerpErrorTracking(integrationId, () => updateProduct(config, input));
-    return { product };
+    return withNerpErrorTracking(integrationId, () => updateProduct(config, input));
   });

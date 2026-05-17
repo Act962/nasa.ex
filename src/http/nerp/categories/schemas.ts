@@ -1,39 +1,55 @@
 import { z } from "zod";
 
+// Filho retornado dentro de `categories.list` no nerp. A própria resposta
+// inclui `children` aninhada (1 nível) — não é hierarquia arbitrária.
+export const nerpCategoryChildSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  description: z.string().nullable(),
+  productsCount: z.number().int(),
+  parentId: z.string().nullable(),
+});
+
 export const nerpCategorySchema = z.object({
   id: z.string(),
   name: z.string(),
-  slug: z.string().optional().nullable(),
-  description: z.string().optional().nullable(),
-  parentId: z.string().optional().nullable(),
-  isActive: z.boolean().optional(),
-  productsCount: z.number().int().optional(),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
+  slug: z.string(),
+  description: z.string().nullable(),
+  productsCount: z.number().int(),
+  children: z.array(nerpCategoryChildSchema).default([]),
 });
 
 export type NerpCategory = z.infer<typeof nerpCategorySchema>;
+export type NerpCategoryChild = z.infer<typeof nerpCategoryChildSchema>;
 
-export const listCategoriesInputSchema = z.object({
-  search: z.string().optional(),
-  parentId: z.string().optional(),
-  page: z.number().int().positive().optional(),
-  pageSize: z.number().int().positive().max(100).optional(),
-});
-
+// `categories.list` no nerp é GET puro (sem filtros — devolve todas
+// categorias top-level com children).
+export const listCategoriesInputSchema = z.object({}).optional();
 export const listCategoriesOutputSchema = z.object({
   categories: z.array(nerpCategorySchema),
 });
 
+// `categories.create`/`update` exigem `slug`. Retornam só `{ categoryName }`.
 export const createCategoryInputSchema = z.object({
   name: z.string().min(1),
+  slug: z.string().min(1),
   description: z.string().optional(),
   parentId: z.string().optional(),
-  isActive: z.boolean().optional(),
 });
 
-export const updateCategoryInputSchema = createCategoryInputSchema
-  .partial()
-  .extend({ id: z.string() });
+export const updateCategoryInputSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  slug: z.string().optional(),
+  description: z.string().optional(),
+  parentId: z.string().optional(),
+});
+
+export const mutateCategoryOutputSchema = z
+  .object({
+    categoryName: z.string().optional(),
+  })
+  .passthrough();
 
 export const deleteCategoryInputSchema = z.object({ id: z.string() });

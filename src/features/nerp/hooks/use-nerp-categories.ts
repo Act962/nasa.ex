@@ -3,13 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 
-export function useNerpCategories(input?: {
-  search?: string;
-  parentId?: string;
-  page?: number;
-  pageSize?: number;
-}) {
-  return useQuery(orpc.nerp.categories.list.queryOptions({ input: input ?? {} }));
+// `categories.list` no nerp não aceita filtros: o handler GET ignora o body
+// e devolve todas categorias top-level com `children` aninhada (1 nível).
+export function useNerpCategories() {
+  return useQuery(orpc.nerp.categories.list.queryOptions({ input: {} }));
 }
 
 function useInvalidate() {

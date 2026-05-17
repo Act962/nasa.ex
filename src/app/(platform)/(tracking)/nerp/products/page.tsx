@@ -44,6 +44,15 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { NerpShell } from "../../../../../features/nerp/components/nerp-shell";
 import { NerpConnectionGuard } from "../../../../../features/nerp/components/connection-guard";
 import { DeleteButton } from "../../../../../features/nerp/components/delete-button";
@@ -54,16 +63,22 @@ import {
   useDuplicateNerpProduct,
   useDeleteNerpProduct,
 } from "../../../../../features/nerp/hooks/use-nerp-products";
+import { useNerpCategories } from "../../../../../features/nerp/hooks/use-nerp-categories";
 
+const NO_CATEGORY_VALUE = "__none__";
+
+// Espelha o input do nerp em `products.create`: name/costPrice/salePrice
+// são obrigatórios; o resto é opcional.
 const formSchema = z.object({
   name: z.string().min(1, "Nome obrigatório"),
   sku: z.string().optional(),
+  barcode: z.string().optional(),
   description: z.string().optional(),
-  price: z.coerce.number().nonnegative().optional(),
-  cost: z.coerce.number().nonnegative().optional(),
-  stock: z.coerce.number().int().nonnegative().optional(),
+  costPrice: z.coerce.number().nonnegative("Custo inválido"),
+  salePrice: z.coerce.number().nonnegative("Preço inválido"),
+  currentStock: z.coerce.number().nonnegative().optional(),
   categoryId: z.string().optional(),
-  imageUrl: z.string().url("URL inválida").optional().or(z.literal("")),
+  thumbnail: z.string().url("URL inválida").optional().or(z.literal("")),
 });
 type FormValues = z.infer<typeof formSchema>;
 
@@ -81,18 +96,21 @@ function ProductFormDialog({
   title: string;
 }) {
   const [open, setOpen] = useState(false);
+  // Carrega categorias só quando o dialog abre — evita hit no nerp na lista.
+  const categoriesQuery = useNerpCategories();
   const form = useForm<FormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
       name: initialValues?.name ?? "",
       sku: initialValues?.sku ?? "",
+      barcode: initialValues?.barcode ?? "",
       description: initialValues?.description ?? "",
-      price: initialValues?.price,
-      cost: initialValues?.cost,
-      stock: initialValues?.stock,
+      costPrice: initialValues?.costPrice ?? 0,
+      salePrice: initialValues?.salePrice ?? 0,
+      currentStock: initialValues?.currentStock,
       categoryId: initialValues?.categoryId ?? "",
-      imageUrl: initialValues?.imageUrl ?? "",
+      thumbnail: initialValues?.thumbnail ?? "",
     },
   });
 
@@ -120,7 +138,9 @@ function ProductFormDialog({
                 render={({ field }) => (
                   <FormItem className="col-span-2">
                     <FormLabel>Nome</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl>
+                      <Input {...field} placeholder="Ex: Camiseta NASA Apollo" />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -131,7 +151,22 @@ function ProductFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>SKU</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl>
+                      <Input {...field} placeholder="Ex: NASA-CAM-001" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="barcode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Código de barras</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Ex: 7891234567890" />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -141,52 +176,128 @@ function ProductFormDialog({
                 name="categoryId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Categoria (ID)</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormLabel>Categoria</FormLabel>
+                    <Select
+                      // O componente Select não aceita `""` como value; usamos
+                      // sentinela e convertemos pra string vazia no form.
+                      value={field.value ? field.value : NO_CATEGORY_VALUE}
+                      onValueChange={(v) =>
+                        field.onChange(v === NO_CATEGORY_VALUE ? "" : v)
+                      }
+                      disabled={categoriesQuery.isLoading}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={
+                              categoriesQuery.isLoading
+                                ? "Carregando…"
+                                : "Selecionar categoria"
+                            }
+                          />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={NO_CATEGORY_VALUE}>
+                          Sem categoria
+                        </SelectItem>
+                        {categoriesQuery.data?.categories.map((cat) => (
+                          <SelectGroup key={cat.id}>
+                            <SelectItem value={cat.id}>{cat.name}</SelectItem>
+                            {cat.children.length > 0 && (
+                              <SelectLabel className="pl-6 text-[11px] text-muted-foreground">
+                                Subcategorias
+                              </SelectLabel>
+                            )}
+                            {cat.children.map((child) => (
+                              <SelectItem
+                                key={child.id}
+                                value={child.id}
+                                className="pl-8"
+                              >
+                                ↳ {child.name}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        ))}
+                        {categoriesQuery.data &&
+                          categoriesQuery.data.categories.length === 0 && (
+                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                              Nenhuma categoria no nerp.
+                            </div>
+                          )}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <FormField
                 control={form.control}
-                name="price"
+                name="salePrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Preço</FormLabel>
-                    <FormControl><Input {...field} type="number" step="0.01" /></FormControl>
+                    <FormLabel>Preço de venda</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        step="0.01"
+                        placeholder="0,00"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <FormField
                 control={form.control}
-                name="cost"
+                name="costPrice"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Custo</FormLabel>
-                    <FormControl><Input {...field} type="number" step="0.01" /></FormControl>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        step="0.01"
+                        placeholder="0,00"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <FormField
                 control={form.control}
-                name="stock"
+                name="currentStock"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Estoque inicial</FormLabel>
-                    <FormControl><Input {...field} type="number" /></FormControl>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        step="0.001"
+                        placeholder="Ex: 50"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <FormField
                 control={form.control}
-                name="imageUrl"
+                name="thumbnail"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Imagem (URL)</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="https://exemplo.com/imagem.jpg"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -197,7 +308,13 @@ function ProductFormDialog({
                 render={({ field }) => (
                   <FormItem className="col-span-2">
                     <FormLabel>Descrição</FormLabel>
-                    <FormControl><Textarea {...field} rows={3} /></FormControl>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        rows={3}
+                        placeholder="Breve descrição que vai aparecer no catálogo"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -254,12 +371,13 @@ export default function NerpProductsPage() {
                 {
                   name: v.name,
                   sku: v.sku || undefined,
+                  barcode: v.barcode || undefined,
                   description: v.description || undefined,
-                  price: v.price,
-                  cost: v.cost,
-                  stock: v.stock,
+                  costPrice: v.costPrice,
+                  salePrice: v.salePrice,
+                  currentStock: v.currentStock,
                   categoryId: v.categoryId || undefined,
-                  imageUrl: v.imageUrl || undefined,
+                  thumbnail: v.thumbnail || undefined,
                 },
                 {
                   onSuccess: () => toast.success("Produto criado"),
@@ -324,10 +442,10 @@ export default function NerpProductsPage() {
                   {query.data?.products.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell>
-                        {p.imageUrl ? (
+                        {p.image ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={p.imageUrl}
+                            src={p.image}
                             alt=""
                             className="size-8 rounded border object-cover"
                           />
@@ -337,15 +455,15 @@ export default function NerpProductsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">{p.name}</div>
-                        {p.description && (
+                        {p.category && (
                           <div className="text-xs text-muted-foreground line-clamp-1">
-                            {p.description}
+                            {p.category}
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{p.sku ?? "—"}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatBRL(p.price)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{p.stock ?? "—"}</TableCell>
+                      <TableCell className="font-mono text-xs">{p.sku || "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatBRL(p.salePrice)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{p.currentStock ?? "—"}</TableCell>
                       <TableCell>
                         <Badge variant={p.isActive === false ? "secondary" : "default"}>
                           {p.isActive === false ? "Inativo" : "Ativo"}
@@ -357,13 +475,12 @@ export default function NerpProductsPage() {
                             title="Editar produto"
                             initialValues={{
                               name: p.name,
-                              sku: p.sku ?? "",
-                              description: p.description ?? "",
-                              price: p.price ?? undefined,
-                              cost: p.cost ?? undefined,
-                              stock: p.stock ?? undefined,
-                              categoryId: p.categoryId ?? "",
-                              imageUrl: p.imageUrl ?? "",
+                              sku: p.sku || "",
+                              barcode: p.barcode || "",
+                              costPrice: p.costPrice,
+                              salePrice: p.salePrice,
+                              currentStock: p.currentStock,
+                              thumbnail: p.image || "",
                             }}
                             isPending={update.isPending}
                             onSubmit={async (v) => {
@@ -372,12 +489,13 @@ export default function NerpProductsPage() {
                                   id: p.id,
                                   name: v.name,
                                   sku: v.sku || undefined,
+                                  barcode: v.barcode || undefined,
                                   description: v.description || undefined,
-                                  price: v.price,
-                                  cost: v.cost,
-                                  stock: v.stock,
+                                  costPrice: v.costPrice,
+                                  salePrice: v.salePrice,
+                                  currentStock: v.currentStock,
                                   categoryId: v.categoryId || undefined,
-                                  imageUrl: v.imageUrl || undefined,
+                                  thumbnail: v.thumbnail || undefined,
                                 },
                                 {
                                   onSuccess: () => toast.success("Produto atualizado"),
@@ -397,7 +515,7 @@ export default function NerpProductsPage() {
                             size="icon"
                             onClick={() =>
                               duplicate.mutate(
-                                { id: p.id },
+                                { productId: p.id },
                                 {
                                   onSuccess: () => toast.success("Produto duplicado"),
                                   onError: (err: { message?: string }) =>
@@ -415,7 +533,7 @@ export default function NerpProductsPage() {
                             isPending={remove.isPending}
                             onConfirm={() =>
                               remove.mutate(
-                                { id: p.id },
+                                { productId: p.id },
                                 {
                                   onSuccess: () => toast.success("Produto removido"),
                                   onError: (err: { message?: string }) =>
