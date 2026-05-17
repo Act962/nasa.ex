@@ -74,6 +74,8 @@ import { detectBrokenIntegrations } from "@/inngest/functions/crons/detect-broke
 import { detectAgendaStarting } from "@/inngest/functions/crons/detect-agenda-starting";
 import { detectFormAbandoned } from "@/inngest/functions/crons/detect-form-abandoned";
 import { detectLowMetrics } from "@/inngest/functions/crons/detect-low-metrics";
+import { detectLeadsWaitingAttention } from "@/inngest/functions/crons/detect-leads-waiting-attention";
+import { detectActionsDueSoon } from "@/inngest/functions/crons/detect-actions-due-soon";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -115,6 +117,8 @@ export const { GET, POST, PUT } = serve({
     detectFormAbandoned,
     detectLowMetrics,
     detectOverdue,
+    detectLeadsWaitingAttention,
+    detectActionsDueSoon,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

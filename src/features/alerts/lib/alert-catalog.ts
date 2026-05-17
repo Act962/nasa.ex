@@ -28,6 +28,36 @@ export const ALERT_CATEGORIES = [
 ] as const;
 export type AlertCategory = (typeof ALERT_CATEGORIES)[number];
 
+// ─── App keys ────────────────────────────────────────────────────────────────
+// `appKey` é mais user-friendly que `category` — corresponde 1:1 com o app
+// que o user enxerga ("Tracking", "Workspace", etc), e é usado pra agrupar
+// os eventos na tela `/settings/notifications` aba Automações.
+
+export const APP_KEYS = [
+  "tracking",
+  "workspace",
+  "agenda",
+  "chat",
+  "forge",
+  "forms",
+  "integracoes",
+  "insights",
+  "admin",
+] as const;
+export type AppKey = (typeof APP_KEYS)[number];
+
+export const APP_LABELS: Record<AppKey, string> = {
+  tracking: "Tracking",
+  workspace: "Workspace",
+  agenda: "Agenda",
+  chat: "Chat",
+  forge: "Forge",
+  forms: "Formulários",
+  integracoes: "Integrações",
+  insights: "Insights",
+  admin: "Admin",
+};
+
 // ─── Audience shapes ─────────────────────────────────────────────────────────
 // Cada AlertRule resolve audiência em runtime; o catálogo só restringe quais
 // shapes fazem sentido por evento.
@@ -58,6 +88,13 @@ export interface AlertEventDefinition<
   label: string;
   description: string;
   category: AlertCategory;
+  /**
+   * App "público" do evento — usado pelas tabs do `/settings/notifications`
+   * Automações pra agrupar. Pode ser inferido por categoria, mas explícito
+   * permite eventos de uma categoria caírem em apps diferentes (ex:
+   * `metric.below_threshold` é `insights`, não `admin`).
+   */
+  appKey: AppKey;
   paramsSchema: P;
   payloadSchema: E;
   audienceOptions: readonly AudienceKind[];
@@ -76,6 +113,7 @@ const leadStatusChanged: AlertEventDefinition = {
   label: "Lead muda de status",
   description: "Dispara quando o card do lead é movido pra um status alvo.",
   category: "lead",
+  appKey: "tracking",
   paramsSchema: z.object({
     statusId: z.string().min(1),
   }),
@@ -86,7 +124,7 @@ const leadStatusChanged: AlertEventDefinition = {
     orgId: z.string(),
     responsibleId: z.string().nullable(),
   }),
-  audienceOptions: ["lead_responsible", "org_supervisors", "org_admins", "user"],
+  audienceOptions: ["lead_responsible", "org_supervisors", "org_admins", "user", "whole_org"],
   supportsCooldown: false,
   entityKey: (p) =>
     `lead-status:${(p as { leadId: string }).leadId}:${
@@ -106,6 +144,7 @@ const leadTagAdded: AlertEventDefinition = {
   label: "Lead recebe uma tag",
   description: "Dispara quando uma tag específica é adicionada ao lead.",
   category: "lead",
+  appKey: "tracking",
   paramsSchema: z.object({
     tagId: z.string().min(1),
   }),
@@ -115,7 +154,7 @@ const leadTagAdded: AlertEventDefinition = {
     orgId: z.string(),
     responsibleId: z.string().nullable(),
   }),
-  audienceOptions: ["lead_responsible", "org_supervisors", "org_admins", "user"],
+  audienceOptions: ["lead_responsible", "org_supervisors", "org_admins", "user", "whole_org"],
   supportsCooldown: false,
   entityKey: (p) =>
     `lead-tag:${(p as { leadId: string }).leadId}:${(p as { tagId: string }).tagId}`,
@@ -133,6 +172,7 @@ const leadStale: AlertEventDefinition = {
   description:
     "Cron dispara pra leads ativos cujo lastInboundAt ultrapassou os dias configurados.",
   category: "lead",
+  appKey: "tracking",
   paramsSchema: z.object({
     days: z.number().int().min(1).max(60),
   }),
@@ -142,7 +182,7 @@ const leadStale: AlertEventDefinition = {
     orgId: z.string(),
     responsibleId: z.string().nullable(),
   }),
-  audienceOptions: ["lead_responsible", "org_supervisors", "org_admins", "user"],
+  audienceOptions: ["lead_responsible", "org_supervisors", "org_admins", "user", "whole_org"],
   supportsCooldown: true,
   entityKey: (p) => {
     const leadId = (p as { leadId: string }).leadId;
@@ -163,6 +203,7 @@ const formSubmitted: AlertEventDefinition = {
   label: "Formulário preenchido",
   description: "Dispara assim que uma nova FormResponse é criada.",
   category: "form",
+  appKey: "forms",
   paramsSchema: z.object({
     formId: z.string().optional(), // se omitido, dispara pra qualquer form
   }),
@@ -189,6 +230,7 @@ const formAbandoned: AlertEventDefinition = {
   description:
     "Cron dispara pra FormResponses iniciadas mas sem complete em N minutos.",
   category: "form",
+  appKey: "forms",
   paramsSchema: z.object({
     minutes: z.number().int().min(5).max(1440),
   }),
@@ -197,7 +239,7 @@ const formAbandoned: AlertEventDefinition = {
     responseId: z.string(),
     orgId: z.string(),
   }),
-  audienceOptions: ["org_admins", "user"],
+  audienceOptions: ["org_admins", "org_supervisors", "user", "whole_org"],
   supportsCooldown: true,
   entityKey: (p) => `form-abandon:${(p as { responseId: string }).responseId}`,
   mockPayload: {
@@ -214,6 +256,7 @@ const chatMessageReceived: AlertEventDefinition = {
   description:
     "Dispara quando o suporte recebe uma mensagem inbound numa conversa.",
   category: "chat",
+  appKey: "chat",
   paramsSchema: z.object({
     workspaceId: z.string().optional(),
   }),
@@ -241,6 +284,7 @@ const forgeProposalStatusChanged: AlertEventDefinition = {
   description:
     "Toda transição de status do ForgeProposal — criada, enviada, visualizada, paga, expirada, cancelada.",
   category: "forge",
+  appKey: "forge",
   paramsSchema: z.object({
     toStatus: z
       .enum([
@@ -263,7 +307,7 @@ const forgeProposalStatusChanged: AlertEventDefinition = {
     responsibleId: z.string().nullable(),
     amount: z.number().nullable(),
   }),
-  audienceOptions: ["lead_responsible", "org_supervisors", "org_admins", "user"],
+  audienceOptions: ["lead_responsible", "org_supervisors", "org_admins", "user", "whole_org"],
   supportsCooldown: false,
   entityKey: (p) =>
     `forge-prop:${(p as { proposalId: string }).proposalId}:${
@@ -287,6 +331,7 @@ const agendaStartingSoon: AlertEventDefinition = {
   description:
     "Cron dispara X minutos antes de cada agendamento começar.",
   category: "agenda",
+  appKey: "agenda",
   paramsSchema: z.object({
     minutesBefore: z.number().int().min(1).max(1440),
   }),
@@ -297,7 +342,7 @@ const agendaStartingSoon: AlertEventDefinition = {
     orgId: z.string(),
     participantUserIds: z.array(z.string()),
   }),
-  audienceOptions: ["action_participants", "user"],
+  audienceOptions: ["action_participants", "user", "whole_org"],
   supportsCooldown: false,
   entityKey: (p) =>
     `agenda-start:${(p as { appointmentId: string }).appointmentId}`,
@@ -316,6 +361,7 @@ const agendaReminderFired: AlertEventDefinition = {
   description:
     "Dispara quando o cron check-reminders processa um Reminder.",
   category: "agenda",
+  appKey: "agenda",
   paramsSchema: z.object({}),
   payloadSchema: z.object({
     actionId: z.string(),
@@ -323,7 +369,7 @@ const agendaReminderFired: AlertEventDefinition = {
     orgId: z.string(),
     participantUserIds: z.array(z.string()),
   }),
-  audienceOptions: ["action_participants", "user"],
+  audienceOptions: ["action_participants", "user", "whole_org"],
   supportsCooldown: false,
   entityKey: (p) =>
     `agenda-rem:${(p as { reminderId: string }).reminderId}`,
@@ -342,13 +388,14 @@ const integrationWhatsappDown: AlertEventDefinition = {
   description:
     "Cron detecta WhatsAppInstance.status=DISCONNECTED há mais de 1h.",
   category: "integration",
+  appKey: "integracoes",
   paramsSchema: z.object({}),
   payloadSchema: z.object({
     instanceId: z.string(),
     orgId: z.string(),
     disconnectedSinceMinutes: z.number(),
   }),
-  audienceOptions: ["org_admins", "user"],
+  audienceOptions: ["org_admins", "org_supervisors", "user", "whole_org"],
   supportsCooldown: true,
   entityKey: (p) => {
     const today = new Date().toISOString().slice(0, 10);
@@ -366,12 +413,13 @@ const integrationMetaTokenExpired: AlertEventDefinition = {
   label: "Token Meta Ads expirou",
   description: "Token de PlatformIntegration meta perdeu validade.",
   category: "integration",
+  appKey: "integracoes",
   paramsSchema: z.object({}),
   payloadSchema: z.object({
     integrationId: z.string(),
     orgId: z.string(),
   }),
-  audienceOptions: ["org_admins", "user"],
+  audienceOptions: ["org_admins", "org_supervisors", "user", "whole_org"],
   supportsCooldown: true,
   entityKey: (p) => {
     const today = new Date().toISOString().slice(0, 10);
@@ -390,6 +438,7 @@ const metricBelowThreshold: AlertEventDefinition = {
   description:
     "Cron compara métricas (conversão, TTFR, saldo Stars, etc) vs threshold configurado.",
   category: "metric",
+  appKey: "insights",
   paramsSchema: z.object({
     metric: z.enum([
       "conversion_rate",
@@ -406,7 +455,7 @@ const metricBelowThreshold: AlertEventDefinition = {
     currentValue: z.number(),
     threshold: z.number(),
   }),
-  audienceOptions: ["org_admins", "org_supervisors", "user"],
+  audienceOptions: ["org_admins", "org_supervisors", "user", "whole_org"],
   supportsCooldown: true,
   entityKey: (p) => {
     const today = new Date().toISOString().slice(0, 10);
@@ -427,8 +476,10 @@ const actionOverdue: AlertEventDefinition = {
   description:
     "Cron detect-overdue publica quando uma Action está com dueDate passada e não concluída.",
   category: "action",
+  appKey: "workspace",
   paramsSchema: z.object({
-    daysOverdue: z.number().int().min(1).max(60).optional(),
+    // Convenção `min*`: filtra `payload.daysOverdue >= minDaysOverdue`.
+    minDaysOverdue: z.number().int().min(1).max(60).optional(),
   }),
   payloadSchema: z.object({
     actionId: z.string(),
@@ -436,7 +487,7 @@ const actionOverdue: AlertEventDefinition = {
     orgId: z.string(),
     daysOverdue: z.number(),
   }),
-  audienceOptions: ["user", "org_supervisors", "org_admins"],
+  audienceOptions: ["user", "org_supervisors", "org_admins", "whole_org"],
   supportsCooldown: true,
   entityKey: (p) => {
     const today = new Date().toISOString().slice(0, 10);
@@ -450,6 +501,68 @@ const actionOverdue: AlertEventDefinition = {
   },
 };
 
+// LEAD aguardando atendimento ───────────────
+const leadWaitingAttention: AlertEventDefinition = {
+  key: "lead.waiting_attention",
+  label: "Lead aguardando atendimento",
+  description:
+    "Lead criado há mais de X minutos sem `firstResponseAt`. Cron varre a cada 5min.",
+  category: "lead",
+  appKey: "tracking",
+  paramsSchema: z.object({
+    minMinutes: z.number().int().min(5).max(1440).default(30),
+  }),
+  payloadSchema: z.object({
+    leadId: z.string(),
+    orgId: z.string(),
+    minutesWaiting: z.number(),
+    responsibleId: z.string().nullable(),
+  }),
+  audienceOptions: ["lead_responsible", "org_supervisors", "org_admins", "user", "whole_org"],
+  supportsCooldown: true,
+  entityKey: (p) => {
+    const today = new Date().toISOString().slice(0, 10);
+    return `lead-wait:${(p as { leadId: string }).leadId}:${today}`;
+  },
+  mockPayload: {
+    leadId: "mock_lead",
+    orgId: "mock_org",
+    minutesWaiting: 35,
+    responsibleId: "mock_user",
+  },
+};
+
+// ACTION vencendo em breve ───────────────────
+const actionDueSoon: AlertEventDefinition = {
+  key: "action.due_soon",
+  label: "Tarefa vencendo em breve",
+  description:
+    "Action com `dueDate` em menos de X horas e não concluída. Cron varre a cada 10min.",
+  category: "action",
+  appKey: "workspace",
+  paramsSchema: z.object({
+    hoursBefore: z.number().int().min(1).max(168).default(1),
+  }),
+  payloadSchema: z.object({
+    actionId: z.string(),
+    userId: z.string(),
+    orgId: z.string(),
+    minutesUntil: z.number(),
+  }),
+  audienceOptions: ["user", "action_participants", "org_supervisors", "org_admins", "whole_org"],
+  supportsCooldown: true,
+  entityKey: (p) => {
+    const today = new Date().toISOString().slice(0, 10);
+    return `action-soon:${(p as { actionId: string }).actionId}:${today}`;
+  },
+  mockPayload: {
+    actionId: "mock_action",
+    userId: "mock_user",
+    orgId: "mock_org",
+    minutesUntil: 45,
+  },
+};
+
 // BROADCAST ──────────────────────────────────
 const broadcastManual: AlertEventDefinition = {
   key: "broadcast.manual",
@@ -457,6 +570,7 @@ const broadcastManual: AlertEventDefinition = {
   description:
     "Disparada via painel de broadcast — não tem regra, vai direto pra audience escolhida.",
   category: "broadcast",
+  appKey: "admin",
   paramsSchema: z.object({}),
   payloadSchema: z.object({
     title: z.string(),
@@ -483,6 +597,7 @@ export const ALERT_CATALOG = [
   leadStatusChanged,
   leadTagAdded,
   leadStale,
+  leadWaitingAttention,
   formSubmitted,
   formAbandoned,
   chatMessageReceived,
@@ -493,6 +608,7 @@ export const ALERT_CATALOG = [
   integrationMetaTokenExpired,
   metricBelowThreshold,
   actionOverdue,
+  actionDueSoon,
   broadcastManual,
 ] as const satisfies readonly AlertEventDefinition[];
 
@@ -512,6 +628,22 @@ export function getAlertEventsByCategory(
   category: AlertCategory,
 ): AlertEventDefinition[] {
   return ALERT_CATALOG.filter((d) => d.category === category);
+}
+
+export function getAlertEventsByAppKey(
+  appKey: AppKey,
+): AlertEventDefinition[] {
+  return ALERT_CATALOG.filter((d) => d.appKey === appKey);
+}
+
+/**
+ * Lista de apps que têm ao menos 1 evento no catálogo — usada pelas
+ * tabs do `/settings/notifications` aba Automações. Mantém ordem
+ * declarada em APP_KEYS (semantica: Tracking > Workspace > Agenda…).
+ */
+export function getActiveAppKeys(): AppKey[] {
+  const present = new Set(ALERT_CATALOG.map((d) => d.appKey));
+  return APP_KEYS.filter((k) => present.has(k));
 }
 
 export { audienceSchema };
