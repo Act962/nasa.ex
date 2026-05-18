@@ -20,6 +20,7 @@ import {
   useDashboardData,
   useQueryListAllTrackings,
 } from "@/features/insights/hooks/use-dashboard";
+import { useInsightsMembers } from "@/features/insights/hooks/use-insights-members";
 import type { DashboardReport } from "@/features/insights/types";
 import { authClient } from "@/lib/auth-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -122,6 +123,7 @@ export function TrackingDashboard({
     trackingId,
     organizationIds,
     tagIds,
+    memberIds,
     workspaceIds,
     dateRange,
     settings,
@@ -130,6 +132,7 @@ export function TrackingDashboard({
     toggleOrganizationId,
     setDateRange,
     toggleTagId,
+    toggleMemberId,
     toggleWorkspaceId,
     toggleSection,
     setChartType,
@@ -137,13 +140,38 @@ export function TrackingDashboard({
     setSelectedModules,
   } = useDashboardStore();
 
-  // Usando Tanstack Query para fetch dos dados
+  const showMembersFilter =
+    selectedModules.includes("chat") || selectedModules.includes("tracking");
+
+  // Usando Tanstack Query para fetch dos dados.
+  // memberIds recorta métricas das abas Tracking/Geral E Atendimento.
   const { data, isLoading, refresh } = useDashboardData({
     trackingId,
     organizationIds,
     tagIds,
+    memberIds: memberIds.length ? memberIds : undefined,
     dateRange,
   });
+
+  // Lista de atendentes para o filtro — respeita empresas e tracking
+  // selecionados. Trackings ainda é single-select no Select global, então
+  // empacotamos em array de 1 elemento (ou undefined quando "ALL"/vazio).
+  const trackingIdsForMembers =
+    trackingId && trackingId !== "ALL" ? [trackingId] : undefined;
+  const { members: insightsMembers } = useInsightsMembers({
+    organizationIds: organizationIds.length ? organizationIds : undefined,
+    trackingIds: trackingIdsForMembers,
+    enabled: showMembersFilter,
+  });
+  const memberOptions = useMemo(
+    () =>
+      insightsMembers.map((m) => ({
+        id: m.id,
+        name: m.name,
+        image: m.image,
+      })),
+    [insightsMembers],
+  );
   const { trackings } = useQueryListAllTrackings(organizationIds);
   const { data: organization } = authClient.useListOrganizations();
 
@@ -453,6 +481,10 @@ export function TrackingDashboard({
                 onWorkspaceToggle={toggleWorkspaceId}
                 showTrackingFilter={showTrackingFilters}
                 showTagsFilter={showTrackingFilters}
+                memberIds={memberIds}
+                memberOptions={memberOptions}
+                onMemberToggle={toggleMemberId}
+                showMembersFilter={showMembersFilter}
               />
             </>
           )}
