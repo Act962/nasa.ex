@@ -2331,6 +2331,8 @@ enum StarTransactionType {
   COURSE_PURCHASE // débito ao comprar curso NASA Route
   COURSE_PAYOUT // crédito ao criador por venda de curso NASA Route
   WELCOME_BONUS // bônus único de boas-vindas — credita em starsBonusBalance
+  EVENT_TICKET_PURCHASE // débito ao comprar ingresso de WorldEvent
+  EVENT_TICKET_PAYOUT // crédito ao organizador de WorldEvent
 }
 
 model StarTransaction {
@@ -4026,6 +4028,7 @@ model SpaceStation {
   worldConfig    SpaceStationWorld?
   publicModules  StationPublicModule[]
   accessRequests StationAccessRequest[]
+  worldEvents    WorldEvent[]
 
   @@map("space_stations")
 }
@@ -4135,10 +4138,118 @@ model WorldTemplate {
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
 
-  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  worldEvents WorldEvent[]
 
   @@index([isPublic, category])
   @@map("world_templates")
+}
+
+// ─── NASA World — Convention Centers / WorldEvent ─────────────────────────────
+//
+// Eventos timed dentro de uma SpaceStation. Cada WorldEvent tem janela
+// startsAt/endsAt, mapa próprio (cópia de mapData de um WorldTemplate),
+// capacidade soft-cap, zonas (hall, stage, booth), e ingressos (WorldEventTicket).
+//
+// Pagamento: STARs (debita orgs do usuário) ou Stripe BRL (cria
+// PendingPurchase, webhook gera ticket).
+//
+// Aditivo. Nenhum model existente foi modificado.
+
+enum WorldEventStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELLED
+}
+
+enum TicketStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+model WorldEvent {
+  id          String  @id @default(cuid())
+  stationId   String  @map("station_id")
+  slug        String  @unique
+  title       String
+  description String?
+  coverUrl    String? @map("cover_url")
+
+  // Janela do evento (UTC).
+  startsAt DateTime @map("starts_at")
+  endsAt   DateTime @map("ends_at")
+
+  // Mapa: snapshot do mapData de um WorldTemplate (cópia, pra evitar
+  // que mudanças no template afetem evento em curso).
+  mapData         Json    @map("map_data")
+  worldTemplateId String? @map("world_template_id")
+
+  // Capacidade. capacity = soft cap validado no redeem; currentOccupancy
+  // é atualizado por cron (best-effort, não autoritativo).
+  capacity         Int @default(200)
+  currentOccupancy Int @default(0) @map("current_occupancy")
+
+  // Ticketing
+  ticketPriceStars Int?     @map("ticket_price_stars")
+  ticketPriceBrl   Decimal? @map("ticket_price_brl") @db.Decimal(10, 2)
+  isFree           Boolean  @default(false) @map("is_free")
+  isPublic         Boolean  @default(true) @map("is_public")
+  // Split do payout (90 = 90% pro organizador / 10 plataforma). Espelha NASA Route.
+  payoutPercent    Int      @default(90) @map("payout_percent")
+
+  // Zones — array de objetos `{ name, kind, x, y, w, h, sfuRoomId? }`.
+  // kind: "stage" (SFU), "hall" (mesh), "booth" (mesh por estande), "portal".
+  zones Json @default("[]")
+
+  status WorldEventStatus @default(SCHEDULED)
+
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  station       SpaceStation       @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  worldTemplate WorldTemplate?     @relation(fields: [worldTemplateId], references: [id])
+  tickets       WorldEventTicket[]
+
+  @@index([stationId])
+  @@index([status, startsAt])
+  @@index([isPublic, startsAt])
+  @@map("world_events")
+}
+
+model WorldEventTicket {
+  id           String     @id @default(cuid())
+  worldEventId String     @map("world_event_id")
+  worldEvent   WorldEvent @relation(fields: [worldEventId], references: [id], onDelete: Cascade)
+
+  // Comprador (paid) vs portador (acessa). Convidado = buyer ≠ holder.
+  buyerOrgId   String? @map("buyer_org_id")
+  buyerUserId  String? @map("buyer_user_id")
+  holderUserId String  @map("holder_user_id")
+
+  // Pagamento
+  pricePaidStars  Int?     @map("price_paid_stars")
+  pricePaidBrl    Decimal? @map("price_paid_brl") @db.Decimal(10, 2)
+  paymentMethod   String   @map("payment_method") // "stars" | "stripe" | "free"
+  stripePaymentId String?  @map("stripe_payment_id")
+
+  status TicketStatus @default(ACTIVE)
+
+  // Token único pra entrar no evento (link mágico ou QR no app).
+  accessToken String @unique @map("access_token")
+
+  // Quando o portador entrou pela primeira vez no mapa.
+  redeemedAt DateTime? @map("redeemed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([holderUserId, status])
+  @@index([worldEventId])
+  @@index([accessToken])
+  @@map("world_event_tickets")
 }
 
 model AvatarTemplate {

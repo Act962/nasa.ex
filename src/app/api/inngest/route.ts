@@ -74,6 +74,7 @@ import { detectBrokenIntegrations } from "@/inngest/functions/crons/detect-broke
 import { detectAgendaStarting } from "@/inngest/functions/crons/detect-agenda-starting";
 import { detectFormAbandoned } from "@/inngest/functions/crons/detect-form-abandoned";
 import { detectLowMetrics } from "@/inngest/functions/crons/detect-low-metrics";
+import { worldEventOccupancyTick } from "@/inngest/functions/crons/world-event-occupancy-tick";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -115,6 +116,8 @@ export const { GET, POST, PUT } = serve({
     detectFormAbandoned,
     detectLowMetrics,
     detectOverdue,
+    // ── NASA World — convention occupancy ──
+    worldEventOccupancyTick,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,
