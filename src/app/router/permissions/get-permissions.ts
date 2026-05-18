@@ -75,13 +75,10 @@ export const getPermissions = base
       orderBy: { createdAt: "asc" },
     });
 
-    // Get stars consumed per user (approximate via activity logs later)
-    const starTxs = await prisma.starTransaction.findMany({
-      where: { organizationId: orgId, amount: { lt: 0 } },
-      select: { amount: true, description: true, appSlug: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
+    // (Removido) Antes buscávamos as últimas 200 starTransactions aqui pra
+    // popular o card "Consumo de Stars" na aba Permissões. O card foi movido
+    // pro popup "Histórico de consumo" do widget de Stars no header, que
+    // chama `stars.listTransactions` direto.
 
     // Fetch existing permission overrides
     const dbPerms = await prisma.orgPermission.findMany({
@@ -121,7 +118,6 @@ export const getPermissions = base
       roleLabels: ROLE_LABELS,
       roleColors: ROLE_COLORS,
       matrix,
-      starTransactions: starTxs,
       starsBalance: (context.org as any).starsBalance ?? 0,
       logs: logs.map((l) => ({
         id: l.id,

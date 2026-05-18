@@ -22,7 +22,6 @@ import { ROLE_META, RoleBadge } from "./role-config";
 import { PermissionMatrix } from "./permission-matrix";
 import { MemberList } from "./member-list";
 import { AddMemberDialog } from "./add-member-dialog";
-import { StarsHistory } from "./stars-history";
 import { MetaAccountsTab } from "./meta-accounts-tab";
 import { usePermissionsMutations } from "./hooks/use-permissions-mutations";
 
@@ -231,10 +230,10 @@ export function PermissionsTab() {
         </div>
       )}
 
-      {/* ── Stars usage ───────────────────────────────────────────────────── */}
-      {isMaster && (
-        <StarsHistory transactions={(data?.starTransactions as any) ?? []} />
-      )}
+      {/* ── Stars usage ──
+          O bloco "Consumo de Stars (últimas 200 transações)" foi movido pro
+          popup "Histórico de consumo" no widget de Stars do header — clica
+          no ícone ⭐ → Histórico. */}
 
       {/* ── Add User Dialog ───────────────────────────────────────────────── */}
       <AddMemberDialog
