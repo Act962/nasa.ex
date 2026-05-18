@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   useQueryAction,
   useUpdateAction,
+  useToggleActionDone,
   useDeleteAction,
   useCreateSubAction,
   useUpdateSubAction,
@@ -67,6 +68,7 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   const [historicOpen, setHistoricOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const updateAction = useUpdateAction();
+  const toggleActionDone = useToggleActionDone();
   const updateFields = useUpdateActionFields();
   const createSubAction = useCreateSubAction(actionId);
   const updateSubAction = useUpdateSubAction(actionId);
@@ -96,7 +98,11 @@ export function ViewActionModal({ actionId, open, onOpenChange }: Props) {
   };
 
   const handleToggleDone = () => {
-    handleUpdateAction({ isDone: !action?.isDone });
+    if (!action?.id) return;
+    toggleActionDone.mutate(
+      { actionId: action.id, isDone: !action.isDone },
+      { onError: () => toast.error("Erro ao atualizar ação") },
+    );
   };
 
   const handleAddSubAction = (title: string, groupId?: string | null) => {

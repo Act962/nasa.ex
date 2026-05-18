@@ -22,6 +22,7 @@ import {
   messagesEventSchema,
   webhookBaseSchema,
 } from "@/http/uazapi/webhook-schema";
+import { inngest } from "@/inngest/client";
 
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -365,26 +366,6 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        if (lead.isActive && tracking.globalAiActive) {
-          try {
-            await fetch(process.env.WEBHOOK_AI_AGENT_N8N!, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                type: "MESSAGE",
-                text: body,
-                phone: lead.phone,
-                trackingId,
-                leadId: lead.id,
-              }),
-              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-            });
-          } catch (error) {
-            console.error("[webhook:chat] n8n_agent_failed", error);
-          }
-        }
       }
 
       if (messageType === "ImageMessage") {
@@ -806,6 +787,28 @@ export async function POST(request: NextRequest) {
           kind: "message_in",
           metadata: { channel: "WHATSAPP", messageId },
         });
+      }
+
+      if (
+        !fromMe &&
+        lead.isActive &&
+        tracking.globalAiActive &&
+        lead.conversation?.id
+      ) {
+        try {
+          await inngest.send({
+            name: "chat/ai.whatsapp-message-received",
+            data: {
+              trackingId,
+              leadId: lead.id,
+              conversationId: lead.conversation.id,
+              messageId: messageData.id,
+              organizationId: tracking.organizationId,
+            },
+          });
+        } catch (error) {
+          console.error("[webhook:chat] inngest_send_failed", error);
+        }
       }
 
       await pusherServer.trigger(trackingId, "conversation:new", {
