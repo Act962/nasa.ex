@@ -48,6 +48,7 @@ import {
 import { ChevronDownIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { FormSettings } from "@/generated/prisma/client";
+import type { FormSettingsTyped } from "@/features/form/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { cn } from "@/lib/utils";
 import { countries } from "@/types/some";
@@ -56,7 +57,7 @@ import { normalizePhone, phoneMask } from "@/utils/format-phone";
 type FormSubmitProps = {
   id: string;
   blocks: FormBlockInstance[];
-  settings?: FormSettings | null;
+  settings?: FormSettings | FormSettingsTyped | null;
   initialLead?: { name?: string; email?: string; phone?: string };
   /**
    * Modo edição (`/formulario/[slug]/[responseId]`): valores iniciais que
@@ -979,7 +980,7 @@ function StepBlocks({
   onStepAdvance,
 }: {
   blocks: FormBlockInstance[];
-  settings?: FormSettings | null;
+  settings?: FormSettings | FormSettingsTyped | null;
   handleBlur: HandleBlurFunc;
   formErrors: { [key: string]: string };
   isLoading: boolean;

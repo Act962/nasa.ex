@@ -566,3 +566,32 @@ export interface FindMessagesResponse {
   nextOffset: number;
   hasMore: boolean;
 }
+
+export interface FindChatsPayload {
+  operator?: "AND" | "OR";
+  sort?: string;
+  limit?: number;
+  offset?: number;
+  wa_fastid?: string;
+  wa_chatid?: string;
+  wa_archived?: boolean;
+  wa_contactName?: string;
+  wa_name?: string;
+  name?: string;
+  wa_isBlocked?: boolean;
+  wa_isGroup?: boolean;
+  wa_isGroup_admin?: boolean;
+  wa_isGroup_announce?: boolean;
+  wa_isGroup_member?: boolean;
+  wa_isPinned?: boolean;
+  wa_label?: string;
+  wa_notes?: string;
+  lead_tags?: string;
+  lead_isTicketOpen?: boolean;
+  lead_assignedAttendant_id?: string;
+  lead_status?: string;
+}
+
+export interface FindChatsResponse {
+  chats: Chat[];
+}

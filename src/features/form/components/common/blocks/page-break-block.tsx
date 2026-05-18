@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { FormSettings } from "@/generated/prisma/client";
+import type { FormSettingsTyped } from "@/features/form/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
 
 /**
@@ -76,7 +77,7 @@ function PageBreakView({
   settings,
 }: {
   blockInstance: FormBlockInstance;
-  settings?: FormSettings | null;
+  settings?: FormSettings | FormSettingsTyped | null;
 }) {
   const block = blockInstance as Instance;
   const { title, subtitle } = block.attributes;

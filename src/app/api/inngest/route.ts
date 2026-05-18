@@ -108,6 +108,8 @@ export const { GET, POST, PUT } = serve({
     chatSyncMessages,
     // ── Calendário Público: auto-resolução de reivindicações expiradas ──
     autoResolveExpiredClaims,
+    // ── Forms: notificação WhatsApp ao submeter ──
+    formSendWhatsappNotification,
     // ── Alerts: detecção time-based ──
     detectStaleLeads,
     detectBrokenIntegrations,

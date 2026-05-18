@@ -27,10 +27,12 @@
 pnpm dev              # Iniciar projeto
 pnpm inngest:dev      # Iniciar Inngest (Automações)
 npm run db:generate   # Gerar cliente Prisma
-npm run db:migrate    # Rodar migrações
+npm run db:migrate    # Rodar migrações (USE ESTE — equivalente a pnpm prisma migrate dev)
 npm run db:studio     # Abrir Prisma Studio
 npm run build         # Build de produção
 ```
+
+> ⚠️ **PROIBIDO**: `pnpm prisma push` / `pnpm prisma db push`. Sempre `pnpm db:migrate`.
 
 ## Git Workflow (OBRIGATÓRIO)
 
@@ -129,6 +131,7 @@ src/features/<dominio>/
 ## Notas Importantes para o Claude Code
 
 1. **Sempre** checar `prisma/schema.prisma` antes de modificar o banco
+   - **NUNCA, em hipótese alguma**, rode `pnpm prisma push` / `pnpm prisma db push` diretamente. Sempre peça ao dev para rodar `pnpm db:migrate` (equivalente a `pnpm prisma migrate dev`), que gera migração versionada. `db push` quebra o histórico do banco e causa drift entre ambientes.
 2. Procedures oRPC ficam em `src/server/`
 3. Componentes UI via shadcn/ui (`npx shadcn@latest add <componente>`)
 4. Lógica assíncrona vai em Inngest — nunca em routes longas
