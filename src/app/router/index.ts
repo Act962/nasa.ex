@@ -55,6 +55,7 @@ import { metaAdsRouter } from "./meta-ads";
 import { metaMcpRouter } from "./meta-mcp";
 import { astroRoutes } from "@/features/astro/server/routes";
 import { nerpRouter } from "./nerp";
+import { commentsRouter } from "./comments";
 
 export const router = {
   tracking: trackingRoutes,
@@ -113,4 +114,5 @@ export const router = {
   metaMcp: metaMcpRouter,
   astro: astroRoutes,
   nerp: nerpRouter,
+  commentsApp: commentsRouter,
 };

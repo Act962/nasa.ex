@@ -1996,6 +1996,7 @@ enum IntegrationPlatform {
   HUGGING_FACE
   POLLINATIONS
   NERP
+  COMMENTS_APP
 }
 
 // Armazena credenciais de integração por plataforma/organização.
