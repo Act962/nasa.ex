@@ -5,6 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { copyActionToOrg } from "@/features/actions/lib/copy-action-to-org";
 
 /**
  * Compartilha uma action existente com 1+ organizações.
@@ -34,21 +35,7 @@ export const shareActionWithOrgs = base
   .handler(async ({ input, context }) => {
     const action = await prisma.action.findFirst({
       where: { id: input.actionId, organizationId: context.org.id },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        priority: true,
-        startDate: true,
-        dueDate: true,
-        isPublic: true,
-        eventCategory: true,
-        state: true,
-        city: true,
-        address: true,
-        registrationUrl: true,
-        createdBy: true,
-      },
+      select: { id: true, title: true, createdBy: true },
     });
     if (!action) throw new Error("Ação não encontrada");
 
@@ -161,28 +148,12 @@ export const shareActionWithOrgs = base
             ? Prisma.Decimal.sub(firstInCol.order, 1)
             : new Prisma.Decimal(0);
 
-          const copiedAction = await prisma.action.create({
-            data: {
-              title: action.title,
-              description: action.description,
-              priority: action.priority,
-              startDate: action.startDate,
-              dueDate: action.dueDate,
-              workspaceId: targetWorkspace.id,
-              organizationId: targetOrgId,
-              order: targetOrder,
-              columnId: targetWorkspace.columns[0].id,
-              createdBy: context.user.id,
-              isPublic: action.isPublic,
-              eventCategory: action.eventCategory ?? undefined,
-              state: action.state ?? undefined,
-              city: action.city ?? undefined,
-              address: action.address ?? undefined,
-              registrationUrl: action.registrationUrl ?? undefined,
-              participants: {
-                create: [{ userId: context.user.id }],
-              },
-            },
+          const copiedAction = await copyActionToOrg(action.id, {
+            workspaceId: targetWorkspace.id,
+            columnId: targetWorkspace.columns[0].id,
+            organizationId: targetOrgId,
+            order: targetOrder,
+            createdBy: context.user.id,
           });
 
           await prisma.actionShare.create({
