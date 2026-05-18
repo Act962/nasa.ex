@@ -40,10 +40,35 @@ const handler = new RPCHandler(router, {
 // });
 
 async function handleRequest(request: Request) {
-  const { response } = await handler.handle(request, {
+  // TEMP debug: log raw body for /api/rpc/nerp/* mutations. Remove after fix.
+  const url = new URL(request.url);
+  const isMutation = request.method !== "GET" && request.method !== "HEAD";
+  const isNerp = url.pathname.startsWith("/api/rpc/nerp/");
+  let handledRequest = request;
+  if (isMutation && isNerp) {
+    const raw = await request.text();
+    console.log(
+      "[rpc-debug]",
+      request.method,
+      url.pathname,
+      "ct=",
+      request.headers.get("content-type"),
+      "len=",
+      raw.length,
+      "body=",
+      raw.slice(0, 500),
+    );
+    handledRequest = new Request(request.url, {
+      method: request.method,
+      headers: request.headers,
+      body: raw,
+    });
+  }
+
+  const { response } = await handler.handle(handledRequest, {
     prefix: "/api/rpc",
     context: {
-      headers: request.headers,
+      headers: handledRequest.headers,
     }, // Provide initial context if needed
   });
 

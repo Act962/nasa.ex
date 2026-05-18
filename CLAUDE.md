@@ -139,6 +139,11 @@ src/features/<dominio>/
 6. **Sempre usar `pnpm add`** — nunca `npm install`
 7. TypeScript strict mode — sem `any` implícito
 8. Imports de servidor nunca dentro de Client Components
+9. **Toda chamada oRPC client-side (`orpc.<domain>.<proc>.queryOptions/mutationOptions`) vive dentro de um hook em `src/features/<domain>/hooks/use-<domain>-<recurso>.ts`** — nunca direto em `page.tsx`/`component.tsx`. Padrão:
+   - Um arquivo por recurso (`use-nerp-products.ts`, `use-nerp-categories.ts`), exportando múltiplos hooks (`useNerpProducts`, `useNerpProduct`, `useCreateNerpProduct`, `useUpdateNerpProduct`, `useDeleteNerpProduct`).
+   - Hooks de **mutation** já incluem invalidação default (`qc.invalidateQueries({ queryKey: [<domain>] })`) — toasts/redirects ficam no componente via `mutate(input, { onSuccess, onError })`.
+   - Hooks de **query** apenas embrulham `useQuery(orpc.<...>.queryOptions(...))`; pra fetch condicional, expor flag `enabled` no parâmetro.
+   - Componentes/pages importam **só os hooks** — não importam `orpc` direto. Isso facilita refatorar contratos, padronizar invalidações e testar isoladamente.
 
 ## Obsidian
 
