@@ -76,6 +76,7 @@ import { detectFormAbandoned } from "@/inngest/functions/crons/detect-form-aband
 import { detectLowMetrics } from "@/inngest/functions/crons/detect-low-metrics";
 import { detectLeadsWaitingAttention } from "@/inngest/functions/crons/detect-leads-waiting-attention";
 import { detectActionsDueSoon } from "@/inngest/functions/crons/detect-actions-due-soon";
+import { formSendWhatsappNotification } from "@/inngest/functions/form/send-whatsapp-notification";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -110,6 +111,8 @@ export const { GET, POST, PUT } = serve({
     chatSyncMessages,
     // ── Calendário Público: auto-resolução de reivindicações expiradas ──
     autoResolveExpiredClaims,
+    // ── Forms: notificação WhatsApp ao submeter ──
+    formSendWhatsappNotification,
     // ── Alerts: detecção time-based ──
     detectStaleLeads,
     detectBrokenIntegrations,

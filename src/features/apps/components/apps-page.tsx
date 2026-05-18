@@ -10,6 +10,8 @@ import { APPS, type AppDef } from "./apps-data";
 import { AppCard, ComingSoonModal } from "./app-card";
 import { PersonalizarMenu } from "./personalizar-menu";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
+import { NerpAppCard } from "@/features/nerp/components/nerp-app-card";
+import { CommentsAppCard } from "@/features/comments/components/comments-app-card";
 
 // ─── Filter Bar ───────────────────────────────────────────────────────────────
 
@@ -169,9 +171,15 @@ export function AppsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredApps.map((app) => (
-              <AppCard key={app.id} app={app} onAction={handleAction} />
-            ))}
+            {filteredApps.map((app) =>
+              app.id === "nerp" ? (
+                <NerpAppCard key={app.id} app={app} />
+              ) : app.id === "comments" ? (
+                <CommentsAppCard key={app.id} app={app} />
+              ) : (
+                <AppCard key={app.id} app={app} onAction={handleAction} />
+              ),
+            )}
           </div>
         )}
       </div>

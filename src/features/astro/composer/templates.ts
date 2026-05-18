@@ -99,12 +99,18 @@ export type VerbId = (typeof VERBS)[number]["id"];
 export const APPS_BY_VERB: Record<VerbId, ReadonlyArray<{ id: string; label: string; icon?: string }>> = {
   criar: [
     { id: "lead", label: "Lead", icon: "User" },
+    { id: "evento", label: "Evento", icon: "CalendarClock" },
     { id: "agendamento", label: "Agendamento", icon: "Calendar" },
+    { id: "despesa", label: "Despesa", icon: "TrendingDown" },
+    { id: "receita", label: "Receita", icon: "TrendingUp" },
     { id: "automacao", label: "Automação", icon: "Bell" },
     { id: "tag", label: "Tag", icon: "Tag" },
   ],
   buscar: [
     { id: "lead", label: "Lead", icon: "User" },
+    { id: "evento", label: "Evento", icon: "CalendarClock" },
+    { id: "despesa", label: "Despesa", icon: "TrendingDown" },
+    { id: "receita", label: "Receita", icon: "TrendingUp" },
     { id: "proposta", label: "Proposta", icon: "FileText" },
   ],
   editar: [{ id: "lead", label: "Lead", icon: "User" }],
@@ -310,6 +316,174 @@ const TEMPLATES: CommandTemplate[] = [
       if (extra) prompt += ` Detalhes: ${extra}.`;
       return prompt;
     },
+  },
+
+  // ── CRIAR EVENTO (workspace Action) ──────────────────────────────────────
+  {
+    verb: "criar",
+    app: "evento",
+    title: "Criar evento",
+    icon: "CalendarClock",
+    steps: [
+      {
+        key: "titulo",
+        category: "param",
+        label: "Título",
+        prompt: "Qual o título do evento?",
+        required: true,
+        placeholder: "Ex: Revisar campanha",
+      },
+      {
+        key: "data",
+        category: "date",
+        label: "Data",
+        prompt: 'Quando? (Ex: "hoje", "amanhã 10h", "16/05 14:30")',
+        required: false,
+        placeholder: "hoje",
+      },
+    ],
+    buildPrompt: (v) => {
+      const parts = [`Criar evento "${v.titulo?.raw ?? ""}"`];
+      if (v.data?.raw) parts.push(`pra ${v.data.raw}`);
+      return parts.join(" ") + ".";
+    },
+  },
+
+  // ── CRIAR DESPESA (PaymentEntry PAYABLE) ─────────────────────────────────
+  {
+    verb: "criar",
+    app: "despesa",
+    title: "Criar despesa",
+    icon: "TrendingDown",
+    steps: [
+      {
+        key: "valor",
+        category: "param",
+        label: "Valor",
+        prompt: "Quanto? (Ex: 100, R$ 1.250,50)",
+        required: true,
+        placeholder: "100",
+      },
+      {
+        key: "descricao",
+        category: "param",
+        label: "Descrição",
+        prompt: "Sobre o que? (ex: 'abastecimento no Posto Coruja')",
+        required: true,
+        placeholder: "Ex: Abastecimento",
+      },
+    ],
+    buildPrompt: (v) =>
+      `Insira ${v.valor?.raw ?? ""} reais de ${v.descricao?.raw ?? ""}.`,
+  },
+
+  // ── CRIAR RECEITA (PaymentEntry RECEIVABLE) ──────────────────────────────
+  {
+    verb: "criar",
+    app: "receita",
+    title: "Criar receita",
+    icon: "TrendingUp",
+    steps: [
+      {
+        key: "valor",
+        category: "param",
+        label: "Valor",
+        prompt: "Quanto? (Ex: 500, R$ 1.250,50)",
+        required: true,
+        placeholder: "500",
+      },
+      {
+        key: "descricao",
+        category: "param",
+        label: "Descrição",
+        prompt: "De que recebimento?",
+        required: true,
+        placeholder: "Ex: Pagamento de serviço",
+      },
+      {
+        key: "cliente",
+        category: "param",
+        label: "Cliente",
+        prompt: "De quem? (opcional)",
+        required: false,
+        placeholder: "Ex: João Silva",
+      },
+    ],
+    buildPrompt: (v) => {
+      const parts = [
+        `Recebi ${v.valor?.raw ?? ""} reais de ${v.descricao?.raw ?? ""}`,
+      ];
+      if (v.cliente?.raw) parts.push(`do ${v.cliente.raw}`);
+      return parts.join(" ") + ".";
+    },
+  },
+
+  // ── BUSCAR EVENTO ────────────────────────────────────────────────────────
+  {
+    verb: "buscar",
+    app: "evento",
+    title: "Buscar evento",
+    icon: "CalendarClock",
+    steps: [
+      {
+        key: "termo",
+        category: "param",
+        label: "Termo",
+        prompt: "Título ou descrição (opcional — vazio = lista todos)",
+        required: false,
+        placeholder: "Ex: Revisar campanha",
+      },
+    ],
+    buildPrompt: (v) =>
+      v.termo?.raw
+        ? `Lista de eventos: "${v.termo.raw}".`
+        : "Lista de eventos.",
+  },
+
+  // ── BUSCAR DESPESA ───────────────────────────────────────────────────────
+  {
+    verb: "buscar",
+    app: "despesa",
+    title: "Buscar despesa",
+    icon: "TrendingDown",
+    steps: [
+      {
+        key: "filtro",
+        category: "param",
+        label: "Filtro",
+        prompt:
+          "Filtro (opcional): período, valor, status — ex: 'desse mês acima de R$ 500 pendentes'",
+        required: false,
+        placeholder: "Ex: pendentes acima de 500",
+      },
+    ],
+    buildPrompt: (v) =>
+      v.filtro?.raw
+        ? `Lista de despesas ${v.filtro.raw}.`
+        : "Lista de despesas.",
+  },
+
+  // ── BUSCAR RECEITA ───────────────────────────────────────────────────────
+  {
+    verb: "buscar",
+    app: "receita",
+    title: "Buscar receita",
+    icon: "TrendingUp",
+    steps: [
+      {
+        key: "filtro",
+        category: "param",
+        label: "Filtro",
+        prompt:
+          "Filtro (opcional): período, valor, status, categoria, cliente",
+        required: false,
+        placeholder: "Ex: recebidas desse mês",
+      },
+    ],
+    buildPrompt: (v) =>
+      v.filtro?.raw
+        ? `Lista de receitas ${v.filtro.raw}.`
+        : "Lista de receitas.",
   },
 
   // ── CRIAR TAG ────────────────────────────────────────────────────────────

@@ -11,7 +11,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   FileTextIcon,
   HomeIcon,
@@ -74,9 +78,6 @@ export function BuilderSidebar({
     setIsEditing(false);
   };
 
-  // Apenas blocos ESTRUTURAIS (criam grupos/passos) são travados em forms
-  // publicados. Decorativos (PageBreak, ImageDisplay, ParagraphWithTitle)
-  // podem ser adicionados livremente mesmo após publicação.
   const STRUCTURAL_LAYOUT_BLOCKS = new Set(["RowLayout"]);
 
   if (!isOpen) {
@@ -110,8 +111,7 @@ export function BuilderSidebar({
               key={block.blockType}
               formBlock={block}
               disabled={
-                !!isPublished &&
-                STRUCTURAL_LAYOUT_BLOCKS.has(block.blockType)
+                !!isPublished && STRUCTURAL_LAYOUT_BLOCKS.has(block.blockType)
               }
             />
           ))}
@@ -133,7 +133,10 @@ export function BuilderSidebar({
   }
 
   return (
-    <div className="border-r left-12 h-full overflow-y-auto pb-12 w-[300px] shrink-0" {...rest}>
+    <div
+      className="border-r left-12 h-full overflow-y-auto pb-12 w-[300px] shrink-0"
+      {...rest}
+    >
       <div className="py-4 px-0">
         <header className="border-b border-border w-full pt-1 pb-2 flex shrink-0 items-center gap-2">
           <div className="flex items-center gap-2 px-4 flex-1 min-w-0">

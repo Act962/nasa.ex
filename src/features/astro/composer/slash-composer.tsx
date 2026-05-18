@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Search,
   Send,
-  Slash,
   X,
   ArrowRight,
   Loader2,
@@ -125,14 +124,14 @@ export function SlashComposer({
         {state.verb && (
           <Chip
             category="verb"
-            label={`/${labelForVerb(state.verb)}`}
+            label={labelForVerb(state.verb)}
             onRemove={() => removeChip("verb")}
           />
         )}
         {state.app && (
           <Chip
             category="app"
-            label={`/${labelForApp(state.verb, state.app)}`}
+            label={labelForApp(state.verb, state.app)}
             onRemove={() => removeChip("app")}
           />
         )}
@@ -143,18 +142,14 @@ export function SlashComposer({
             <Chip
               key={step.key}
               category={step.category}
-              label={`/${value.display}`}
+              label={value.display}
               onRemove={() => removeChip(step.key)}
             />
           );
         })}
         {!state.verb && (
           <p className="text-xs text-zinc-500 px-1">
-            Digite{" "}
-            <kbd className="px-1 py-0.5 rounded bg-zinc-800 text-zinc-300 text-[10px]">
-              /
-            </kbd>{" "}
-            ou escolha um verbo abaixo
+            Escolha um verbo abaixo
           </p>
         )}
       </div>
@@ -265,10 +260,27 @@ function StepPicker(props: {
     props;
   const recent = useComposerStore((s) => s.recent);
 
-  // 1) Sem verbo ainda → picker de verbo + recentes
+  // 1) Sem verbo ainda → picker de verbo + recentes ABAIXO
   if (!state.verb) {
     return (
       <div className="space-y-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+            Verbos
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            {VERBS.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => onSelectVerb(v.id)}
+                className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-100 hover:border-violet-500/50 hover:bg-zinc-900 transition-colors"
+              >
+                <span className="font-mono">{v.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
         {recent.length > 0 && props.onSubmitPrompt && (
           <div>
             <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
@@ -289,24 +301,6 @@ function StepPicker(props: {
             </div>
           </div>
         )}
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
-            Verbos
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-            {VERBS.map((v) => (
-              <button
-                key={v.id}
-                type="button"
-                onClick={() => onSelectVerb(v.id)}
-                className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-100 hover:border-violet-500/50 hover:bg-zinc-900 transition-colors"
-              >
-                <Slash className="size-3 text-blue-400" />
-                <span className="font-mono">/{v.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     );
   }
@@ -325,8 +319,7 @@ function StepPicker(props: {
               onClick={() => onSelectApp(a.id)}
               className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-100 hover:border-violet-500/50 hover:bg-zinc-900 transition-colors"
             >
-              <Slash className="size-3 text-violet-400" />
-              <span className="font-mono">/{a.label}</span>
+              <span className="font-mono">{a.label}</span>
             </button>
           ))}
         </div>

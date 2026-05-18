@@ -8,6 +8,7 @@ import React, {
 import { Mic, MicOff, Plus, Send, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useVoiceInput } from "../hooks/use-voice-input";
+import { unlockAudio } from "@/features/astro/voice/tts";
 import { ModelSelector } from "./model-selector";
 import { VariableDropdown } from "./variable-dropdown";
 import { AppDropdown } from "./app-dropdown";
@@ -146,6 +147,8 @@ export const CommandInput = forwardRef<
     }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      // Destrava audio dentro do gesto do Enter (iOS exige).
+      unlockAudio();
       onSubmit();
     }
   };
@@ -169,7 +172,7 @@ export const CommandInput = forwardRef<
   const highlightedHTML = buildHighlightedHTML(command);
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className="dark relative">
       <style>{`
         @keyframes explorerBorder {
           0%   { background-position: 0% 50%; }
@@ -252,7 +255,15 @@ export const CommandInput = forwardRef<
               {/* ── Mic button ── */}
               <button
                 type="button"
-                onClick={startListening}
+                onClick={() => {
+                  // iOS Safari precisa que audio/speechSynthesis sejam
+                  // "destravados" dentro de um handler de gesto do user.
+                  // Sem isso, o TTS depois (que roda assíncrono) é mudo
+                  // no iPhone. Chamamos aqui pra aproveitar o token de
+                  // gesto do clique no mic.
+                  unlockAudio();
+                  startListening();
+                }}
                 disabled={loading || voiceState === "unsupported"}
                 title={
                   voiceState === "unsupported"
@@ -282,7 +293,13 @@ export const CommandInput = forwardRef<
             <div className="flex items-center gap-2">
               <ModelSelector value={model} onChange={setModel} />
               <button
-                onClick={onSubmit}
+                onClick={() => {
+                  // Destrava audio no gesto do Send — se outputMode for
+                  // "audio" sempre, o TTS vai falar mesmo sem voz na
+                  // entrada, e iOS exige unlock prévio.
+                  unlockAudio();
+                  onSubmit();
+                }}
                 disabled={!command.trim() || loading}
                 className={cn(
                   "w-8 h-8 flex items-center justify-center rounded-lg transition-all",

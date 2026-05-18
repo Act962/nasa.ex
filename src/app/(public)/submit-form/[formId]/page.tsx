@@ -4,6 +4,7 @@ import { useQueryPublicForm } from "@/features/form/hooks/use-form";
 import { NotAvaliable } from "@/features/form/components/public/not-avaliable";
 import { FormBlockInstance } from "@/features/form/types";
 import { FormSubmitComponent } from "@/features/form/components/public/form-submit-component";
+import { FormTrackingScripts } from "@/features/form/components/public/form-tracking-scripts";
 import { useParams, useSearchParams } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
 import { useQuery } from "@tanstack/react-query";
@@ -41,11 +42,14 @@ export default function Page() {
   const initialLead = prefillData?.prefill ?? undefined;
 
   return (
-    <FormSubmitComponent
-      id={formId}
-      blocks={blocks}
-      settings={form.settings}
-      initialLead={initialLead}
-    />
+    <>
+      <FormTrackingScripts settings={form.settings} />
+      <FormSubmitComponent
+        id={formId}
+        blocks={blocks}
+        settings={form.settings}
+        initialLead={initialLead}
+      />
+    </>
   );
 }

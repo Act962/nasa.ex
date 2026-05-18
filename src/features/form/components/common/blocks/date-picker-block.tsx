@@ -28,6 +28,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { FormSettings } from "@/generated/prisma/client";
+import type { FormSettingsTyped } from "@/features/form/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { usePrefillValue } from "@/features/form/context/form-prefill-context";
 import { MultiSelectChips } from "@/features/form/components/common/multi-select-chips";
@@ -148,7 +149,7 @@ function FormView({
   handleBlur?: HandleBlurFunc;
   isError?: boolean;
   errorMessage?: string;
-  settings?: FormSettings | null;
+  settings?: FormSettings | FormSettingsTyped | null;
 }) {
   const block = blockInstance as Instance;
   const { label, required, helperText, withTime } = block.attributes;

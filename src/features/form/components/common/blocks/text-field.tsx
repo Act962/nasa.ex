@@ -24,6 +24,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Switch } from "@/components/ui/switch";
 import { FormSettings } from "@/generated/prisma/client";
+import type { FormSettingsTyped } from "@/features/form/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { usePrefillValue } from "@/features/form/context/form-prefill-context";
 
@@ -128,7 +129,7 @@ function TextFieldFormComponent({
   handleBlur?: HandleBlurFunc;
   isError?: boolean;
   errorMessage?: string;
-  settings?: FormSettings | null;
+  settings?: FormSettings | FormSettingsTyped | null;
 }) {
   const block = blockInstance as NewInstance;
   const { helperText, label, placeHolder, required } = block.attributes;

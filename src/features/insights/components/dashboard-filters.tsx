@@ -1,6 +1,13 @@
 "use client";
 
-import { CalendarIcon, PlusIcon, SettingsIcon, TagIcon } from "lucide-react";
+import {
+  CalendarIcon,
+  PlusIcon,
+  SettingsIcon,
+  TagIcon,
+  UsersIcon,
+} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -58,6 +65,13 @@ interface DashboardFiltersProps {
   workspaceIds?: string[];
   workspaceOptions?: { id: string; name: string }[];
   onWorkspaceToggle?: (id: string) => void;
+
+  // Filtro de atendentes — só aparece quando o módulo `chat` está
+  // selecionado. Recorta apenas as métricas da aba Atendimento.
+  memberIds?: string[];
+  memberOptions?: { id: string; name: string; image?: string | null }[];
+  onMemberToggle?: (id: string) => void;
+  showMembersFilter?: boolean;
 }
 
 export function DashboardFilters({
@@ -76,6 +90,10 @@ export function DashboardFilters({
   onWorkspaceToggle,
   showTrackingFilter = true,
   showTagsFilter = true,
+  memberIds = [],
+  memberOptions = [],
+  onMemberToggle,
+  showMembersFilter = false,
 }: DashboardFiltersProps) {
   const { tags: allTags } = useTags({ trackingId });
 
@@ -211,6 +229,14 @@ export function DashboardFilters({
               trackingId={trackingId ?? ""}
             />
           </div>
+        )}
+
+        {showMembersFilter && onMemberToggle && (
+          <MembersFilterButton
+            options={memberOptions}
+            selectedIds={memberIds}
+            onToggle={onMemberToggle}
+          />
         )}
       </div>
     </div>
@@ -402,6 +428,81 @@ function WorkspaceFilterButton({
                   className="flex items-center gap-2 cursor-pointer"
                 >
                   <Checkbox checked={selectedIds.includes(option.id)} />
+                  <span className="truncate">{option.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function MembersFilterButton({
+  options,
+  selectedIds,
+  onToggle,
+}: {
+  options: { id: string; name: string; image?: string | null }[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const initials = (name: string) =>
+    name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? "")
+      .join("");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button variant="outline">
+              {selectedIds.length > 0 ? (
+                <>
+                  <UsersIcon className="size-4" /> {selectedIds.length}{" "}
+                  {selectedIds.length === 1 ? "Atendente" : "Atendentes"}
+                </>
+              ) : (
+                <>
+                  <UsersIcon className="size-4" /> Atendentes
+                  <PlusIcon className="h-3 w-3" />
+                </>
+              )}
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Filtrar por atendente (responsável do lead)</p>
+        </TooltipContent>
+      </Tooltip>
+      <PopoverContent align="start" className="w-64 p-0">
+        <Command>
+          <CommandInput placeholder="Filtrar atendentes..." />
+          <CommandList>
+            <CommandEmpty>Nenhum atendente encontrado.</CommandEmpty>
+            <CommandGroup className="max-h-64 overflow-auto">
+              {options.map((option) => (
+                <CommandItem
+                  key={option.id}
+                  onSelect={() => onToggle(option.id)}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <Checkbox checked={selectedIds.includes(option.id)} />
+                  <Avatar className="h-6 w-6">
+                    {option.image ? (
+                      <AvatarImage src={option.image} alt={option.name} />
+                    ) : null}
+                    <AvatarFallback className="text-[10px]">
+                      {initials(option.name)}
+                    </AvatarFallback>
+                  </Avatar>
                   <span className="truncate">{option.name}</span>
                 </CommandItem>
               ))}

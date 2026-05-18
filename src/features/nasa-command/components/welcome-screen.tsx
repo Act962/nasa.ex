@@ -3,7 +3,8 @@ import { NasaLogo } from "./nasa-logo";
 import { RotatingExample } from "./rotating-example";
 import { CommandInput, CommandInputProps } from "./command-input";
 import { ExampleLibrary } from "./example-library";
-import { RecentRequests, type RecentAstroSession } from "./recent-requests";
+import { HistoryDropdown } from "./history-dropdown";
+import { type RecentAstroSession } from "./recent-requests";
 
 interface WelcomeScreenProps {
   onSelect: (e: string) => void;
@@ -12,6 +13,10 @@ interface WelcomeScreenProps {
   recentLoading?: boolean;
   onSelectSession: (sessionId: string) => void;
   onDeleteSession?: (sessionId: string) => void;
+  /** Disparado após rename — caller refetch a lista. */
+  onAfterRenameSession?: () => void;
+  /** Limpa o chat ativo + prepara sessão nova. */
+  onNewSession?: () => void;
 }
 
 export function WelcomeScreen({
@@ -21,6 +26,8 @@ export function WelcomeScreen({
   recentLoading,
   onSelectSession,
   onDeleteSession,
+  onAfterRenameSession,
+  onNewSession,
 }: WelcomeScreenProps) {
   const [mouse, setMouse] = useState({ x: -999, y: -999 });
 
@@ -61,18 +68,21 @@ export function WelcomeScreen({
           <CommandInput {...commandInputProps} />
         </div>
 
-        {/* 3. Biblioteca de exemplos */}
-        <div className="w-full flex flex-col items-center">
+        {/* 3. Toggles: Biblioteca de exemplos + Históricos Astro Explorer.
+            Centralizados em linha (flex-row) — sempre visíveis lado a lado
+            mesmo em telas pequenas. Antes era grid que escondia o Histórico
+            atrás do Examples no breakpoint mobile. */}
+        <div className="w-full flex flex-wrap items-start justify-center gap-x-10 gap-y-4">
           <ExampleLibrary onSelect={onSelect} />
+          <HistoryDropdown
+            sessions={recentSessions}
+            loading={recentLoading}
+            onSelect={onSelectSession}
+            onDelete={onDeleteSession}
+            onAfterRename={onAfterRenameSession}
+            onNewSession={onNewSession}
+          />
         </div>
-
-        {/* 4. Conversas recentes (AiSession) */}
-        <RecentRequests
-          sessions={recentSessions}
-          loading={recentLoading}
-          onSelect={onSelectSession}
-          onDelete={onDeleteSession}
-        />
       </div>
     </div>
   );
