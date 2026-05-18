@@ -1,12 +1,17 @@
 import Script from "next/script";
 import { GoogleTagManager } from "@next/third-parties/google";
-import type { FormSettings } from "@/generated/prisma/client";
 
 const PIXEL_ID_REGEX = /^\d+$/;
 const GTM_ID_REGEX = /^GTM-[A-Z0-9]+$/i;
 
+/**
+ * Componente só usa `idPixel` e `idTagManager`. Aceitamos qualquer
+ * objeto que tenha esses 2 campos (FormSettings do Prisma OU
+ * FormSettingsTyped do oRPC — JSON fields divergem entre eles, então
+ * narrowing o tipo evita o erro de incompatibilidade no consumer).
+ */
 type Props = {
-  settings?: FormSettings | null;
+  settings?: { idPixel?: string | null; idTagManager?: string | null } | null;
 };
 
 // Carrega Facebook Pixel + Google Tag Manager por formulário. IDs vêm de

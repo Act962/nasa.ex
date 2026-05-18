@@ -67,12 +67,17 @@ export const worldEventOccupancyTick = inngest.createFunction(
         },
       });
 
-      // Transição de status
+      // Transição de status. `startsAt`/`endsAt` podem vir como Date OU
+      // string (Inngest step.run serializa Date → ISO string ao salvar
+      // o checkpoint). Normaliza com new Date() pra ser seguro nos 2 casos.
       let nextStatus = e.status;
-      if (e.status === "SCHEDULED" && e.startsAt.getTime() <= now.getTime()) {
+      const startsAtMs = new Date(e.startsAt).getTime();
+      const endsAtMs = new Date(e.endsAt).getTime();
+      const nowMs = now.getTime();
+      if (e.status === "SCHEDULED" && startsAtMs <= nowMs) {
         nextStatus = "LIVE";
       }
-      if (e.endsAt.getTime() < now.getTime() && e.status !== "ENDED") {
+      if (endsAtMs < nowMs && e.status !== "ENDED") {
         nextStatus = "ENDED";
       }
 
