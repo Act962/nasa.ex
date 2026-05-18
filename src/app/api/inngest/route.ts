@@ -74,6 +74,7 @@ import { detectBrokenIntegrations } from "@/inngest/functions/crons/detect-broke
 import { detectAgendaStarting } from "@/inngest/functions/crons/detect-agenda-starting";
 import { detectFormAbandoned } from "@/inngest/functions/crons/detect-form-abandoned";
 import { detectLowMetrics } from "@/inngest/functions/crons/detect-low-metrics";
+import { formSendWhatsappNotification } from "@/inngest/functions/form/send-whatsapp-notification";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
