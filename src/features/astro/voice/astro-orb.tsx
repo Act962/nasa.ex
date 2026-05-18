@@ -17,7 +17,7 @@ import { authClient } from "@/lib/auth-client";
 import { useAstroOrbStore } from "./use-astro-orb-store";
 import { useVoiceModeStore } from "./use-voice-mode-store";
 import { useWakeWord } from "./use-wake-word";
-import { speak } from "./tts";
+import { speak, unlockAudio } from "./tts";
 
 /**
  * AstroOrb — o "pet" flutuante do Astro.
@@ -203,6 +203,9 @@ export function AstroOrb() {
   if (!visible) return null;
 
   const handleOrbClick = () => {
+    // iOS Safari: aproveita esse gesto pra destravar audio/speechSynth.
+    // Sem isso, primeiro speak() depois fica mudo no iPhone.
+    unlockAudio();
     // Se estamos em listening/thinking/speaking, click cancela
     if (phase !== "idle") {
       setPhase("idle");
@@ -214,6 +217,8 @@ export function AstroOrb() {
   };
 
   const handleManualActivate = () => {
+    // Destrava audio dentro do gesto antes de qualquer async.
+    unlockAudio();
     setMenuOpen(false);
     // Manual click: pula saudação — user já decidiu falar.
     captureUtterance({ withGreeting: false });
