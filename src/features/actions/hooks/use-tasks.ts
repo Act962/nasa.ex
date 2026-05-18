@@ -280,6 +280,37 @@ export const useUpdateAction = () => {
   );
 };
 
+export const useToggleActionDone = () => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.action.toggleDone.mutationOptions({
+      onSuccess: (data) => {
+        queryClient.invalidateQueries(
+          orpc.action.get.queryOptions({
+            input: { actionId: data.action.id },
+          }),
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["action.listByColumn"],
+        });
+        queryClient.invalidateQueries(
+          orpc.action.listByWorkspace.queryOptions({
+            input: { workspaceId: data.action.workspaceId },
+          }),
+        );
+        queryClient.invalidateQueries(
+          orpc.workspace.getColumnsByWorkspace.queryOptions({
+            input: { workspaceId: data.action.workspaceId },
+          }),
+        );
+        queryClient.invalidateQueries({
+          queryKey: [["action", "getWorkspaceCalendar"]] as const,
+        });
+      },
+    }),
+  );
+};
+
 export const useDeleteAction = () => {
   const queryClient = useQueryClient();
   return useMutation(
