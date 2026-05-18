@@ -131,7 +131,7 @@ export const TagDialog = ({
                         aria-expanded={openPopover}
                         className="w-full justify-start h-auto min-h-10 py-2"
                       >
-                        <div className="flex flex-wrap gap-1">
+                        <div className="min-h-0 max-h-60 overflow-y-auto scroll-cols-tracking flex flex-wrap gap-1">
                           {field.value && field.value.length > 0 ? (
                             <>
                               {field.value.slice(0, 5).map((id) => {
@@ -170,7 +170,7 @@ export const TagDialog = ({
                     <PopoverContent className="p-0 " align="start">
                       <Command>
                         <CommandInput placeholder="Pesquisar tag..." />
-                        <CommandList>
+                        <CommandList onWheel={(e)=>e.stopPropagation()} className="min-h-0 max-h-60 overflow-y-auto scroll-cols-tracking">
                           {isLoadingTags ? (
                             <div className="flex items-center justify-center p-4">
                               <Spinner />

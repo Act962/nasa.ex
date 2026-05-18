@@ -312,7 +312,7 @@ const TagMultiSelect = ({
       <PopoverContent className="w-[300px] p-0" align="start">
         <Command>
           <CommandInput placeholder="Buscar tag..." className="h-9" />
-          <CommandList className="max-h-[240px]">
+          <CommandList onWheel={(e)=>e.stopPropagation()} className="min-h-0 max-h-60 overflow-y-auto scroll-cols-tracking">
             <CommandEmpty>Nenhuma tag encontrada.</CommandEmpty>
             <CommandGroup>
               {tags.map((tag) => (

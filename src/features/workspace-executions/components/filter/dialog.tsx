@@ -232,6 +232,7 @@ export const WsFilterDialog = ({
             <div className="flex flex-col gap-3">
               <FieldLabel>Condições</FieldLabel>
 
+              <div className="flex max-h-[50vh] flex-col gap-3 overflow-y-auto pr-1">
               {fields.map((fieldItem, index) => {
                 const currentField = form.watch(`conditions.${index}.field`);
 
@@ -377,7 +378,7 @@ export const WsFilterDialog = ({
                                         : "Pesquisar etiqueta..."
                                     }
                                   />
-                                  <CommandList>
+                                  <CommandList className="max-h-[240px]">
                                     {(currentField === "column"
                                       ? isLoadingColumns
                                       : isLoadingTags) ? (
@@ -491,7 +492,7 @@ export const WsFilterDialog = ({
                               <PopoverContent className="p-0" align="start">
                                 <Command>
                                   <CommandInput placeholder="Pesquisar membro..." />
-                                  <CommandList>
+                                  <CommandList className="max-h-[240px]">
                                     <CommandEmpty>
                                       Nenhum membro encontrado.
                                     </CommandEmpty>
@@ -608,6 +609,7 @@ export const WsFilterDialog = ({
                   </div>
                 );
               })}
+              </div>
 
               {form.formState.errors.conditions?.root && (
                 <span className="text-xs text-destructive">
