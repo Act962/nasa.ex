@@ -22,6 +22,7 @@ import {
   messagesEventSchema,
   webhookBaseSchema,
 } from "@/http/uazapi/webhook-schema";
+import { eventBus } from "@/features/alerts/lib/event-bus";
 
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -806,6 +807,25 @@ export async function POST(request: NextRequest) {
           kind: "message_in",
           metadata: { channel: "WHATSAPP", messageId },
         });
+
+        // Alert engine — publica chat.message_received pra alertas de inbound.
+        // Best-effort: falha não pode quebrar o webhook.
+        try {
+          const tracking = await prisma.tracking.findUnique({
+            where: { id: trackingId },
+            select: { organizationId: true },
+          });
+          if (tracking && lead.conversation?.id) {
+            await eventBus.publish("chat.message_received", {
+              conversationId: lead.conversation.id,
+              messageId: messageData.id,
+              isInbound: true,
+              orgId: tracking.organizationId,
+            });
+          }
+        } catch (err) {
+          console.error("[webhook:chat] alert publish falhou:", err);
+        }
       }
 
       await pusherServer.trigger(trackingId, "conversation:new", {
