@@ -45,8 +45,15 @@ export async function resolveAudience(
     case "whole_org":
       return ctx.orgId ? resolveWholeOrg(ctx.orgId) : [];
 
-    case "user":
-      return dedupe(audience.userIds ?? ctx.explicitUserIds ?? []);
+    case "user": {
+      // userIds da regra tem prioridade; se vier vazio/undefined caímos no
+      // explicitUserIds passado pelo engine (que injeta o criador da regra).
+      const fromRule =
+        audience.userIds && audience.userIds.length > 0
+          ? audience.userIds
+          : null;
+      return dedupe(fromRule ?? ctx.explicitUserIds ?? []);
+    }
 
     default: {
       // exaustividade

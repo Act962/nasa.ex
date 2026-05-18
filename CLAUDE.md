@@ -27,10 +27,12 @@
 pnpm dev              # Iniciar projeto
 pnpm inngest:dev      # Iniciar Inngest (Automações)
 npm run db:generate   # Gerar cliente Prisma
-npm run db:migrate    # Rodar migrações
+npm run db:migrate    # Rodar migrações (USE ESTE — equivalente a pnpm prisma migrate dev)
 npm run db:studio     # Abrir Prisma Studio
 npm run build         # Build de produção
 ```
+
+> ⚠️ **PROIBIDO**: `pnpm prisma push` / `pnpm prisma db push`. Sempre `pnpm db:migrate`.
 
 ## Git Workflow (OBRIGATÓRIO)
 
@@ -129,6 +131,7 @@ src/features/<dominio>/
 ## Notas Importantes para o Claude Code
 
 1. **Sempre** checar `prisma/schema.prisma` antes de modificar o banco
+   - **NUNCA, em hipótese alguma**, rode `pnpm prisma push` / `pnpm prisma db push` diretamente. Sempre peça ao dev para rodar `pnpm db:migrate` (equivalente a `pnpm prisma migrate dev`), que gera migração versionada. `db push` quebra o histórico do banco e causa drift entre ambientes.
 2. Procedures oRPC ficam em `src/server/`
 3. Componentes UI via shadcn/ui (`npx shadcn@latest add <componente>`)
 4. Lógica assíncrona vai em Inngest — nunca em routes longas
@@ -136,6 +139,11 @@ src/features/<dominio>/
 6. **Sempre usar `pnpm add`** — nunca `npm install`
 7. TypeScript strict mode — sem `any` implícito
 8. Imports de servidor nunca dentro de Client Components
+9. **Toda chamada oRPC client-side (`orpc.<domain>.<proc>.queryOptions/mutationOptions`) vive dentro de um hook em `src/features/<domain>/hooks/use-<domain>-<recurso>.ts`** — nunca direto em `page.tsx`/`component.tsx`. Padrão:
+   - Um arquivo por recurso (`use-nerp-products.ts`, `use-nerp-categories.ts`), exportando múltiplos hooks (`useNerpProducts`, `useNerpProduct`, `useCreateNerpProduct`, `useUpdateNerpProduct`, `useDeleteNerpProduct`).
+   - Hooks de **mutation** já incluem invalidação default (`qc.invalidateQueries({ queryKey: [<domain>] })`) — toasts/redirects ficam no componente via `mutate(input, { onSuccess, onError })`.
+   - Hooks de **query** apenas embrulham `useQuery(orpc.<...>.queryOptions(...))`; pra fetch condicional, expor flag `enabled` no parâmetro.
+   - Componentes/pages importam **só os hooks** — não importam `orpc` direto. Isso facilita refatorar contratos, padronizar invalidações e testar isoladamente.
 
 ## Obsidian
 

@@ -1,5 +1,26 @@
 import { Form, FormSettings } from "@/generated/prisma/client";
 
+/** Um chat WhatsApp de destino configurado nas settings do formulário. */
+export type WhatsappChat = {
+  chatId: string;
+  chatName: string;
+};
+
+/**
+ * Versão tipada de FormSettings onde os campos `Json` do Prisma
+ * (que são `Prisma.JsonValue` — tipo recursivo) são substituídos por
+ * tipos concretos. Isso evita que a inferência de tipos do oRPC colapse
+ * o retorno do endpoint `getPublic` para `never`.
+ */
+export type FormSettingsTyped = Omit<
+  FormSettings,
+  "whatsappChats" | "progressMascots" | "nextButtonAction"
+> & {
+  whatsappChats: WhatsappChat[];
+  progressMascots: unknown;
+  nextButtonAction: unknown;
+};
+
 export type FormCategoryType = "Layout" | "Field";
 
 export type FormBlockType =
@@ -62,7 +83,7 @@ export type ObjectBlockType = {
 
   canvasComponent: React.FC<{
     blockInstance: FormBlockInstance;
-    settings?: FormSettings | null;
+    settings?: FormSettings | FormSettingsTyped | null;
   }>;
   formComponent: React.FC<{
     blockInstance: FormBlockInstance;
@@ -70,7 +91,7 @@ export type ObjectBlockType = {
     errorMessage?: string;
     handleBlur?: HandleBlurFunc;
     formErrors?: FormErrorsType;
-    settings?: FormSettings | null;
+    settings?: FormSettings | FormSettingsTyped | null;
   }>;
 
   propertiesComponent: React.FC<{

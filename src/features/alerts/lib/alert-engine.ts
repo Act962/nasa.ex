@@ -94,6 +94,12 @@ export async function dispatchAlert<P extends Record<string, unknown>>(
     },
   });
 
+  if (rules.length === 0) {
+    console.log(
+      `[alert-engine] ${eventType} disparado mas 0 regras ativas (org=${orgIdFromPayload ?? "n/a"}).`,
+    );
+  }
+
   let dispatchedCount = 0;
   let ruleMatches = 0;
   let skippedByCooldown = 0;
@@ -110,7 +116,13 @@ export async function dispatchAlert<P extends Record<string, unknown>>(
     }
 
     // Casa condições paramétricas (ex: statusId da regra === toStatusId do payload)
-    if (!matchesParametricConditions(rule.params, payload)) continue;
+    if (!matchesParametricConditions(rule.params, payload)) {
+      console.log(
+        `[alert-engine] regra ${rule.id} (${eventType}) não casou params:`,
+        { ruleParams: rule.params, payload },
+      );
+      continue;
+    }
 
     ruleMatches++;
 
@@ -152,9 +164,23 @@ export async function dispatchAlert<P extends Record<string, unknown>>(
         (payload as { responsibleId?: string }).responsibleId ?? null,
       participantUserIds:
         (payload as { participantUserIds?: string[] }).participantUserIds,
+      // Fallback: regras antigas salvas com kind=user sem userIds (criadas
+      // antes do fix em create-rule/update-rule) viram silenciosamente
+      // descartadas. Aqui assumimos que "user" = criador da regra.
+      explicitUserIds:
+        audience.kind === "user" && (!audience.userIds || audience.userIds.length === 0)
+          ? rule.createdBy
+            ? [rule.createdBy]
+            : []
+          : undefined,
     });
 
-    if (userIds.length === 0) continue;
+    if (userIds.length === 0) {
+      console.warn(
+        `[alert-engine] regra ${rule.id} (${eventType}) casou mas audiência ${audience.kind} resolveu pra 0 users.`,
+      );
+      continue;
+    }
 
     const severity = isSeverity(rule.severity) ? rule.severity : "info";
     const displaySurface = (rule.displaySurface ??
@@ -349,9 +375,16 @@ function parseAudience(raw: unknown): Audience | null {
 }
 
 /**
- * Bate condições paramétricas básicas: se a regra tem `statusId` declarado,
- * compara contra o `toStatusId` do payload; se tem `tagId`, contra `tagId`;
- * etc. Convenção: param da regra com mesmo nome ou variante "to{X}" do payload.
+ * Bate condições paramétricas básicas. Convenções de naming:
+ *
+ *   - `statusId`, `tagId`, `formId`: match exato. Engine também aceita
+ *     prefixo `to{X}` no payload (ex: `statusId` → `toStatusId`).
+ *   - `min{Field}` (ex: `minDaysOverdue`): payload.field deve ser ≥ valor.
+ *     Útil pra thresholds tipo "ação atrasada há pelo menos N dias".
+ *   - `max{Field}` (ex: `maxMinutes`): payload.field deve ser ≤ valor.
+ *
+ * Se a regra restringe mas o payload nem traz o campo, deixa passar
+ * (ex: form.submitted sem formId → match qualquer form).
  */
 function matchesParametricConditions(
   ruleParams: unknown,
@@ -360,14 +393,35 @@ function matchesParametricConditions(
   if (!ruleParams || typeof ruleParams !== "object") return true;
   for (const [key, value] of Object.entries(ruleParams)) {
     if (value === undefined || value === null) continue;
-    // Mapas comuns: statusId → toStatusId; tagId → tagId; formId → formId
-    const payloadKey = key in payload ? key : `to${capitalize(key)}`;
-    const payloadValue = payload[payloadKey];
-    if (payloadValue === undefined) {
-      // se a regra restringe mas o payload nem traz o campo, deixa passar
-      // (ex: form.submitted sem formId restrito → match qualquer form)
+
+    // Convenção min{Field}: payload.field >= value
+    if (key.length > 3 && key.startsWith("min") && /[A-Z]/.test(key[3]!)) {
+      const payloadKey = key[3]!.toLowerCase() + key.slice(4);
+      const payloadValue = payload[payloadKey];
+      if (payloadValue === undefined) continue;
+      if (typeof payloadValue !== "number" || typeof value !== "number") {
+        continue;
+      }
+      if (payloadValue < value) return false;
       continue;
     }
+
+    // Convenção max{Field}: payload.field <= value
+    if (key.length > 3 && key.startsWith("max") && /[A-Z]/.test(key[3]!)) {
+      const payloadKey = key[3]!.toLowerCase() + key.slice(4);
+      const payloadValue = payload[payloadKey];
+      if (payloadValue === undefined) continue;
+      if (typeof payloadValue !== "number" || typeof value !== "number") {
+        continue;
+      }
+      if (payloadValue > value) return false;
+      continue;
+    }
+
+    // Default: igualdade exata. statusId → toStatusId; tagId → tagId; etc.
+    const payloadKey = key in payload ? key : `to${capitalize(key)}`;
+    const payloadValue = payload[payloadKey];
+    if (payloadValue === undefined) continue;
     if (payloadValue !== value) return false;
   }
   return true;

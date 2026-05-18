@@ -20,12 +20,27 @@ export const getTrackingDashboardReport = base
       startDate: z.string().datetime().optional(),
       endDate: z.string().datetime().optional(),
       tagIds: z.array(z.string()).optional(),
+      memberIds: z.array(z.string()).optional(),
     }),
   )
   .handler(async ({ input, errors, context }) => {
     try {
       const { org, user } = context;
-      const { trackingId, organizationIds, startDate, endDate, tagIds } = input;
+      const {
+        trackingId,
+        organizationIds,
+        startDate,
+        endDate,
+        tagIds,
+        memberIds,
+      } = input;
+
+      // Filtro de atendentes — aplicado nas queries de Lead (Tracking/Geral)
+      // E nas de Conversation/Message/TTFR/sentReminders (Atendimento).
+      const hasMembers = !!memberIds && memberIds.length > 0;
+      const memberLeadFilter = hasMembers
+        ? { responsibleId: { in: memberIds } }
+        : {};
 
       const dateFilter =
         startDate || endDate
@@ -64,6 +79,7 @@ export const getTrackingDashboardReport = base
         },
         ...tagFilter,
         ...dateFilter,
+        ...memberLeadFilter,
       };
 
       const [
@@ -109,6 +125,7 @@ export const getTrackingDashboardReport = base
               },
             },
             ...tagFilter,
+            ...memberLeadFilter,
             history: {
               some: {
                 action: "ACTIVE",
@@ -143,6 +160,7 @@ export const getTrackingDashboardReport = base
               },
             },
             ...tagFilter,
+            ...memberLeadFilter,
             history: {
               some: {
                 action: "WON",
@@ -196,6 +214,7 @@ export const getTrackingDashboardReport = base
                 members: { some: { userId: user.id } },
               },
             },
+            ...(hasMembers ? { lead: memberLeadFilter } : {}),
             ...dateFilter,
           },
         }),
@@ -211,6 +230,7 @@ export const getTrackingDashboardReport = base
                   members: { some: { userId: user.id } },
                 },
               },
+              ...(hasMembers ? { lead: memberLeadFilter } : {}),
             },
             ...dateFilter,
           },
@@ -228,6 +248,7 @@ export const getTrackingDashboardReport = base
                   members: { some: { userId: user.id } },
                 },
               },
+              ...(hasMembers ? { lead: memberLeadFilter } : {}),
             },
             ...dateFilter,
           },
@@ -245,6 +266,7 @@ export const getTrackingDashboardReport = base
                   members: { some: { userId: user.id } },
                 },
               },
+              ...(hasMembers ? { lead: memberLeadFilter } : {}),
             },
             ...dateFilter,
           },
@@ -263,6 +285,7 @@ export const getTrackingDashboardReport = base
             JOIN "conversations" c ON m."conversationId" = c."id"
             JOIN "tracking" t ON c."tracking_id" = t."id"
             JOIN "member" mem ON t."organization_id" = mem."organizationId"
+            ${hasMembers ? Prisma.sql`JOIN "leads" l ON c."lead_id" = l."id"` : Prisma.empty}
             WHERE mem."userId" = ${user.id}
               ${trackingId ? Prisma.sql`AND c."tracking_id" = ${trackingId}` : Prisma.empty}
               ${
@@ -285,6 +308,11 @@ export const getTrackingDashboardReport = base
                   ? Prisma.sql`AND EXISTS (SELECT 1 FROM "lead_tags" lt WHERE lt."lead_id" = c."lead_id" AND lt."tag_id" IN (${Prisma.join(tagIds)}))`
                   : Prisma.empty
               }
+              ${
+                hasMembers
+                  ? Prisma.sql`AND l."responsible_id" IN (${Prisma.join(memberIds!)})`
+                  : Prisma.empty
+              }
             GROUP BY m."conversationId"
           ) AS first_msgs
           WHERE first_inbound IS NOT NULL
@@ -292,13 +320,22 @@ export const getTrackingDashboardReport = base
             AND first_outbound > first_inbound
         `,
 
-        // Leads aguardando atendimento (WAITING)
-        prisma.lead.count({ where: { ...baseWhere, statusFlow: "WAITING" } }),
+        // Leads aguardando atendimento (WAITING) — baseWhere já carrega
+        // memberLeadFilter quando aplicável.
+        prisma.lead.count({
+          where: { ...baseWhere, statusFlow: "WAITING" },
+        }),
 
         // Leads em atendimento (ACTIVE)
-        prisma.lead.count({ where: { ...baseWhere, statusFlow: "ACTIVE" } }),
+        prisma.lead.count({
+          where: { ...baseWhere, statusFlow: "ACTIVE" },
+        }),
 
-        // Lembretes enviados (ReminderOccurrence com sent=true) no período
+        // Lembretes enviados (ReminderOccurrence com sent=true) no período.
+        // Quando memberIds está setado, restringe o OR às branches que têm
+        // ligação com lead/conversation (e portanto com responsável). As
+        // branches "tracking-only" e "action" são descartadas pois não têm
+        // conceito de responsável.
         prisma.reminderOccurrence.count({
           where: {
             sent: true,
@@ -311,47 +348,74 @@ export const getTrackingDashboardReport = base
                 }
               : {}),
             reminder: {
-              OR: [
-                {
-                  tracking: {
-                    organization: {
-                      ...organizationFilter,
-                      members: { some: { userId: user.id } },
-                    },
-                    ...(trackingId ? { id: trackingId } : {}),
-                  },
-                },
-                {
-                  lead: {
-                    tracking: {
-                      organization: {
-                        ...organizationFilter,
-                        members: { some: { userId: user.id } },
+              OR: hasMembers
+                ? [
+                    {
+                      lead: {
+                        ...memberLeadFilter,
+                        tracking: {
+                          organization: {
+                            ...organizationFilter,
+                            members: { some: { userId: user.id } },
+                          },
+                          ...(trackingId ? { id: trackingId } : {}),
+                        },
                       },
-                      ...(trackingId ? { id: trackingId } : {}),
                     },
-                  },
-                },
-                {
-                  conversation: {
-                    tracking: {
-                      organization: {
-                        ...organizationFilter,
-                        members: { some: { userId: user.id } },
+                    {
+                      conversation: {
+                        lead: memberLeadFilter,
+                        tracking: {
+                          organization: {
+                            ...organizationFilter,
+                            members: { some: { userId: user.id } },
+                          },
+                          ...(trackingId ? { id: trackingId } : {}),
+                        },
                       },
-                      ...(trackingId ? { id: trackingId } : {}),
                     },
-                  },
-                },
-                {
-                  action: {
-                    organization: {
-                      ...organizationFilter,
-                      members: { some: { userId: user.id } },
+                  ]
+                : [
+                    {
+                      tracking: {
+                        organization: {
+                          ...organizationFilter,
+                          members: { some: { userId: user.id } },
+                        },
+                        ...(trackingId ? { id: trackingId } : {}),
+                      },
                     },
-                  },
-                },
-              ],
+                    {
+                      lead: {
+                        tracking: {
+                          organization: {
+                            ...organizationFilter,
+                            members: { some: { userId: user.id } },
+                          },
+                          ...(trackingId ? { id: trackingId } : {}),
+                        },
+                      },
+                    },
+                    {
+                      conversation: {
+                        tracking: {
+                          organization: {
+                            ...organizationFilter,
+                            members: { some: { userId: user.id } },
+                          },
+                          ...(trackingId ? { id: trackingId } : {}),
+                        },
+                      },
+                    },
+                    {
+                      action: {
+                        organization: {
+                          ...organizationFilter,
+                          members: { some: { userId: user.id } },
+                        },
+                      },
+                    },
+                  ],
             },
           },
         }),
@@ -395,6 +459,7 @@ export const getTrackingDashboardReport = base
           },
         },
         ...tagFilter,
+        ...memberLeadFilter,
       };
 
       const [amountThisMonthRes, amountLastMonthRes] = await Promise.all([

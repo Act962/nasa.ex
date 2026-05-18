@@ -40,6 +40,7 @@ import {
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { usePrefillValue } from "@/features/form/context/form-prefill-context";
 import { FormSettings } from "@/generated/prisma/client";
+import type { FormSettingsTyped } from "@/features/form/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import {
   applyMask,
@@ -176,7 +177,7 @@ function FormView({
   handleBlur?: HandleBlurFunc;
   isError?: boolean;
   errorMessage?: string;
-  settings?: FormSettings | null;
+  settings?: FormSettings | FormSettingsTyped | null;
 }) {
   const block = blockInstance as Instance;
   const { label, required, helperText, placeHolder, format } = block.attributes;

@@ -28,6 +28,7 @@ import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { v4 as uuidv4 } from "uuid";
 import { usePrefillFieldValue } from "@/features/form/context/form-prefill-context";
 import { FormSettings } from "@/generated/prisma/client";
+import type { FormSettingsTyped } from "@/features/form/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
 
 /**
@@ -135,7 +136,7 @@ function FormView({
   handleBlur?: HandleBlurFunc;
   isError?: boolean;
   errorMessage?: string;
-  settings?: FormSettings | null;
+  settings?: FormSettings | FormSettingsTyped | null;
 }) {
   const block = blockInstance as Instance;
   const { label, helperText, required, rows, columns } = block.attributes;

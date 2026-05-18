@@ -18,6 +18,7 @@ import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import { FormBlocks } from "@/features/form/lib/form-blocks";
 import { cn } from "@/lib/utils";
 import { FormSettings } from "@/generated/prisma/client";
+import type { FormSettingsTyped } from "@/features/form/types";
 import { v4 as uuidv4 } from "uuid";
 import {
   Active,
@@ -49,20 +50,22 @@ const WIDTH_CYCLE: ChildWidth[] = ["full", "two-thirds", "half", "third"];
 // Alinhamento horizontal dos child blocks dentro do RowLayout. Aplica
 // `justify-content` no flex container — relevante quando os children não
 // preenchem 100% da largura (ex: dois blocos de 33% cada).
-type RowAlign =
-  | "start"
-  | "center"
-  | "end"
-  | "between"
-  | "around"
-  | "evenly";
+type RowAlign = "start" | "center" | "end" | "between" | "around" | "evenly";
 
 const ROW_ALIGN_OPTIONS: { value: RowAlign; label: string; hint: string }[] = [
   { value: "start", label: "Esquerda", hint: "Blocos colados à esquerda" },
   { value: "center", label: "Centro", hint: "Blocos centralizados juntos" },
   { value: "end", label: "Direita", hint: "Blocos colados à direita" },
-  { value: "between", label: "Distribuídos (cantos)", hint: "Espaço só entre os blocos" },
-  { value: "around", label: "Distribuídos (com bordas)", hint: "Espaço igual entre e nas bordas" },
+  {
+    value: "between",
+    label: "Distribuídos (cantos)",
+    hint: "Espaço só entre os blocos",
+  },
+  {
+    value: "around",
+    label: "Distribuídos (com bordas)",
+    hint: "Espaço igual entre e nas bordas",
+  },
   { value: "evenly", label: "Uniforme", hint: "Mesmo espaço entre tudo" },
 ];
 
@@ -195,9 +198,7 @@ function getFieldFrameStyle(
   style.border = borderEnabled
     ? `1px solid ${customBorder || defaultBorder}`
     : "1px solid transparent";
-  style.backgroundColor = bgEnabled
-    ? customBg || defaultBg
-    : "transparent";
+  style.backgroundColor = bgEnabled ? customBg || defaultBg : "transparent";
   if (textColor) style.color = textColor;
 
   return style;
@@ -568,7 +569,7 @@ function RowLayoutFormComponent({
   blockInstance: FormBlockInstance;
   handleBlur?: HandleBlurFunc;
   formErrors?: FormErrorsType;
-  settings?: FormSettings | null;
+  settings?: FormSettings | FormSettingsTyped | null;
 }) {
   const childblocks = blockInstance.childblocks || [];
 
@@ -954,9 +955,10 @@ function SortableChildCanvas({
             className={cn(
               "absolute left-0 top-0 bottom-0 w-7 flex flex-col items-center justify-center",
               "rounded-l-md cursor-grab active:cursor-grabbing select-none touch-none",
-              "bg-foreground/[0.04] hover:bg-primary/15 transition-colors",
+              "bg-foreground/4 hover:bg-primary/15 transition-colors",
               "opacity-60 group-hover/child:opacity-100",
-              sortable.isDragging && "bg-primary/25 opacity-100 cursor-grabbing",
+              sortable.isDragging &&
+                "bg-primary/25 opacity-100 cursor-grabbing",
               isChildSelected && "opacity-100 bg-primary/15",
             )}
             style={{ color: textColor || undefined }}
@@ -1045,7 +1047,8 @@ function ChildActionButtons({
         }}
         className={cn(
           "text-[10px] font-mono px-1.5 py-0.5 rounded border shadow-sm",
-          useFallbackClasses && "bg-popover text-popover-foreground hover:bg-accent",
+          useFallbackClasses &&
+            "bg-popover text-popover-foreground hover:bg-accent",
         )}
         style={chipStyle}
         title="Ajustar largura (clique pra ciclar)"
@@ -1057,7 +1060,8 @@ function ChildActionButtons({
         variant="ghost"
         className={cn(
           "size-6 border shadow-sm",
-          useFallbackClasses && "bg-popover text-popover-foreground hover:bg-accent",
+          useFallbackClasses &&
+            "bg-popover text-popover-foreground hover:bg-accent",
         )}
         style={chipStyle}
         onClick={(e) => {

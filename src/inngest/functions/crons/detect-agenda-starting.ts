@@ -1,16 +1,15 @@
 /**
  * Cron: detect-agenda-starting
  *
- * A cada 5 min, dispara alertas pra agendamentos que estão prestes a começar
- * em [now+N-5min, now+N], onde N = `minutesBefore` da regra.
+ * Roda a CADA MINUTO — varre regras `agenda.starting_soon` ativas e dispara
+ * alerta pra appointments que vão começar dentro de `minutesBefore`.
  *
- * Por que separado do check-reminders? check-reminders é event-driven
- * (Reminder.nextRemindAt + step.sleepUntil) e dispara WhatsApp + notif
- * passiva. Esta detecção é varredor pra eventos que NÃO têm Reminder
- * configurado mas que a empresa quer alertar com severidade configurável.
+ * Por que 1 min? `minutesBefore` mínimo do paramsSchema é 1 — se o cron
+ * rodasse a cada 5 min como antes, regras com antecedência < 5 min eram
+ * uma roleta (só pegava o appt se ele começasse no minuto exato do tick).
  *
  * Idempotência: AlertDispatch entityKey="agenda-start:<appointmentId>" —
- * dispara só 1× por appointment.
+ * dispara só 1× por appointment, mesmo que o cron rode 60×/h.
  */
 
 import { inngest } from "@/inngest/client";
@@ -21,9 +20,11 @@ interface StartingParams {
   minutesBefore: number;
 }
 
+const SAFETY_MARGIN_SEC = 30;
+
 export const detectAgendaStarting = inngest.createFunction(
   { id: "detect-agenda-starting", retries: 1 },
-  { cron: "*/5 * * * *" }, // a cada 5 min
+  { cron: "* * * * *" }, // a cada 1 min — necessário pra minutesBefore=1
   async ({ step }) => {
     const rules = await step.run("fetch-rules", async () =>
       prisma.alertRule.findMany({
@@ -46,11 +47,13 @@ export const detectAgendaStarting = inngest.createFunction(
           : 0;
       if (!minutesBefore || minutesBefore < 1) continue;
 
-      // Janela: [now + (N-5)min, now + N min]
-      // 5 min de janela = sobrepõe com o próximo run (cron 5 min) → catch sem gap.
-      // Idempotência protege contra duplicação.
-      const start = new Date(Date.now() + (minutesBefore - 5) * 60_000);
-      const end = new Date(Date.now() + minutesBefore * 60_000);
+      // Janela: [now - 30s, now + minutesBefore*60s + 30s]
+      // 30s de buffer pra cobrir jitter de scheduling do Inngest.
+      // Idempotência protege contra duplicação se o cron disparar 2x na mesma janela.
+      const start = new Date(Date.now() - SAFETY_MARGIN_SEC * 1000);
+      const end = new Date(
+        Date.now() + minutesBefore * 60_000 + SAFETY_MARGIN_SEC * 1000,
+      );
 
       const upcoming = await step.run(`fetch-upcoming-${rule.id}`, async () =>
         prisma.appointment.findMany({

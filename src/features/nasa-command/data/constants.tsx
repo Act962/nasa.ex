@@ -6,73 +6,226 @@ import { ExampleCategory, ModelOption } from "../types";
 export const RECENT_KEY = "nasa-explorer:recent-commands";
 export const RECENT_MAX = 8;
 
+/**
+ * Biblioteca de exemplos do Explorer — agrupada por área do NASA.
+ * Cada categoria espelha um conjunto de tools que o Astro tem no
+ * analytics-agent + task-agent + automation-agent + closer.
+ *
+ * Sempre que abrir uma tool nova, adicione 2-4 exemplos aqui — é o
+ * principal canal de descoberta pro usuário.
+ */
 export const exampleCategories: ExampleCategory[] = [
-  // ── Agendamentos ──────────────────────────────────────────────────────────
+  // ── Tracking & Pipeline (CRM) ─────────────────────────────────────────────
+  {
+    emoji: "🎯",
+    label: "Tracking & Pipeline",
+    examples: [
+      "Quantos leads ativos tenho em cada tracking?",
+      "Quantos leads estão em cada etapa do funil?",
+      "Qual a taxa de conversão dos últimos 30 dias?",
+      "Quanto tenho em pipeline no tracking Vendas?",
+      "Mostra o crescimento mensal de leads dos últimos 6 meses",
+      "Quais são as top 5 tags dos meus leads?",
+      "Quantas automações eu tenho cadastradas e quantas estão ativas?",
+      "Crie um lead chamado João Pereira no tracking Vendas",
+      "Mova a Maria Costa para o status Proposta Enviada",
+    ],
+  },
+  // ── Chat & Atendimento ────────────────────────────────────────────────────
+  {
+    emoji: "💬",
+    label: "Chat & Atendimento",
+    examples: [
+      "Quantas conversas ativas eu tenho?",
+      "Quantas mensagens enviei vs recebi essa semana?",
+      "Qual o tempo médio de primeira resposta?",
+      "Quantos lembretes foram disparados nos últimos 7 dias?",
+      "Em quais etapas estão os leads que estão no chat?",
+      "Mostra as conversas com tag 'urgente' no tracking Vendas",
+    ],
+  },
+  // ── Forge (Propostas) ─────────────────────────────────────────────────────
+  {
+    emoji: "🔥",
+    label: "Forge — Propostas",
+    examples: [
+      "Quantas propostas estão pagas esse mês?",
+      "Qual a receita fechada nos últimos 30 dias?",
+      "Quanto tenho em valores em aberto?",
+      "Qual minha receita perdida (canceladas + expiradas)?",
+      "Qual o ticket médio e o desconto médio das propostas?",
+      "Quanto tempo em média leva uma proposta pra ser paga?",
+      "Crie uma proposta para Maria do Amparo com validade hoje",
+      "Liste todas as propostas abertas",
+    ],
+  },
+  // ── Agendamentos (Spacetime) ──────────────────────────────────────────────
   {
     emoji: "📅",
     label: "Agendamentos",
     examples: [
-      "Quero criar um agendamento para amanhã às 14h",
-      "Agende uma reunião com Maria Costa para hoje às 10h",
-      "Marque um follow-up com João Silva para semana que vem às 09h",
+      "Quantos agendamentos pendentes vs confirmados eu tenho?",
+      "Qual a taxa de no-show essa semana?",
+      "Qual minha taxa de comparecimento no mês?",
       "Quais são meus compromissos de hoje?",
+      "Agende uma reunião com Carlos Lima para sexta às 10h",
+      "Marque um follow-up com João Silva pra semana que vem 09h",
     ],
   },
-  // ── Leads & Pipeline ──────────────────────────────────────────────────────
+  // ── Workspace (Actions / Tarefas) ─────────────────────────────────────────
   {
-    emoji: "🎯",
-    label: "Leads & Pipeline",
+    emoji: "📋",
+    label: "Workspace & Tarefas",
     examples: [
-      "Crie um novo lead chamado João Pereira",
-      "Mova o lead Maria Costa para o status Proposta Enviada",
-      "Quantos leads ativos tenho no total?",
-      "Liste os leads do pipeline Vendas",
+      "Quantas tarefas atrasadas eu tenho?",
+      "Quantas actions urgentes estão abertas?",
+      "Quantas tarefas eu concluí esse mês?",
+      "Lista as tarefas do workspace Marketing com prioridade alta",
+      "Crie uma tarefa 'Ligar pro Wey' pra amanhã 10h",
+      "Mostra as actions do projeto Cliente X",
     ],
   },
-  // ── Propostas & Contratos ─────────────────────────────────────────────────
+  // ── Formulários ───────────────────────────────────────────────────────────
   {
-    emoji: "🔥",
-    label: "Propostas & Contratos",
+    emoji: "📝",
+    label: "Formulários",
     examples: [
-      "Crie uma proposta para Maria do Amparo com validade hoje",
-      "Gere um contrato para João Silva referente ao Plano Pro",
-      "Liste todas as propostas abertas",
+      "Quantos formulários tenho publicados?",
+      "Total de submissões vs visualizações no mês",
+      "Quantas submissões geraram leads?",
+      "Qual a taxa de abandono dos formulários?",
+      "Quais os 5 formulários com mais respostas?",
     ],
   },
-  // ── Conteúdo & Posts ──────────────────────────────────────────────────────
+  // ── NASA Route (cursos) ───────────────────────────────────────────────────
+  {
+    emoji: "🎓",
+    label: "NASA Route — Cursos",
+    examples: [
+      "Quantos cursos publicados eu tenho?",
+      "Quantos alunos no total e quantos concluíram?",
+      "Quanto faturei em Stars com cursos esse mês?",
+      "Quais os top 5 cursos por matrículas?",
+      "Quantos certificados foram emitidos?",
+    ],
+  },
+  // ── Linnker (bio-link) ────────────────────────────────────────────────────
+  {
+    emoji: "🔗",
+    label: "Linnker — Bio Link",
+    examples: [
+      "Quantos acessos minhas páginas Linnker receberam?",
+      "Quantos scans capturaram lead esse mês?",
+      "Qual a taxa de captura de lead do Linnker?",
+      "Quantos cliques nos links das minhas páginas?",
+      "Quais são as top páginas Linnker?",
+    ],
+  },
+  // ── NBox (storage) ────────────────────────────────────────────────────────
+  {
+    emoji: "📦",
+    label: "NBox — Storage",
+    examples: [
+      "Quanto espaço estou usando no NBox?",
+      "Quantos itens públicos eu tenho compartilhados?",
+      "Quantos arquivos vs imagens eu armazenei?",
+      "Quantos itens o usuário X criou esse mês?",
+    ],
+  },
+  // ── Financeiro ────────────────────────────────────────────────────────────
+  {
+    emoji: "💰",
+    label: "Financeiro",
+    examples: [
+      "Qual minha receita recebida esse mês?",
+      "Quanto tenho a receber pendente?",
+      "Quanto tenho de contas vencidas?",
+      "Qual meu saldo (receita - despesa) no período?",
+      "Qual minha taxa de inadimplência?",
+      "Qual o ticket médio das contas pagas?",
+      "Quanto recebi por categoria esse mês?",
+    ],
+  },
+  // ── Insights ──────────────────────────────────────────────────────────────
+  {
+    emoji: "📊",
+    label: "Insights — Relatórios",
+    examples: [
+      "Quantos relatórios de Insights minha empresa tem salvos?",
+      "Quais os últimos relatórios criados?",
+      "Quem criou o relatório de janeiro?",
+    ],
+  },
+  // ── Integrações ───────────────────────────────────────────────────────────
+  {
+    emoji: "🔌",
+    label: "Integrações",
+    examples: [
+      "Quais integrações estão conectadas?",
+      "Tem alguma integração com erro?",
+      "Quando foi a última sincronização do Meta Ads?",
+      "Como instalo a integração do WhatsApp?",
+    ],
+  },
+  // ── Space Help ────────────────────────────────────────────────────────────
+  {
+    emoji: "🚀",
+    label: "Space Help — Trilhas",
+    examples: [
+      "Qual trilha do Space Help me ensina sobre Tracking?",
+      "Quais trilhas eu já comecei?",
+      "Quantas trilhas eu já completei?",
+      "Tem trilha sobre Forge ou Propostas?",
+      "Quais badges eu já conquistei?",
+    ],
+  },
+  // ── Automações & Alertas ──────────────────────────────────────────────────
+  {
+    emoji: "⚡",
+    label: "Automações & Alertas",
+    examples: [
+      "Me avise quando um lead ficar 2 dias parado",
+      "Crie uma automação: quando lead vai pra 'Ganhou', alerta warning pro responsável",
+      "Quero alerta crítico se WhatsApp cair",
+      "Liste minhas automações ativas",
+    ],
+  },
+  // ── Atividade & Stars ─────────────────────────────────────────────────────
   {
     emoji: "✨",
-    label: "Conteúdo & Posts",
+    label: "Atividade & Stars",
     examples: [
-      "Crie um post sobre o lançamento do nosso produto",
-      "Gere uma legenda para Instagram sobre os resultados do mês",
-      "Escreva um carrossel com os benefícios do Plano Pro",
-    ],
-  },
-  // ── Consultas Rápidas ─────────────────────────────────────────────────────
-  {
-    emoji: "💡",
-    label: "Consultas Rápidas",
-    examples: [
-      "Qual é meu saldo de estrelas atual?",
-      "Quais são minhas reuniões de hoje?",
-      "Liste as propostas abertas",
-      "Quantos leads tenho no total?",
+      "Quem foi o mais ativo da equipe essa semana?",
+      "Quais apps consumiram mais Stars no mês?",
+      "Qual meu saldo de Stars atual?",
+      "Quanto tempo ativo a equipe acumulou?",
+      "Top 5 usuários por ações executadas",
     ],
   },
 ];
 
+/**
+ * Exemplos rotativos exibidos no placeholder do composer e no welcome.
+ * Mantém pelo menos um exemplo de cada área principal pra mostrar a
+ * variedade do Astro logo na primeira impressão.
+ */
 export const rotatingExamples = [
-  "Quero criar um agendamento para amanhã às 14h",
-  "Crie uma proposta para Maria do Amparo com validade hoje",
-  "Mova o lead João Silva para o status Proposta Enviada",
-  "Crie um post sobre o lançamento do nosso produto",
-  "Qual é meu saldo de estrelas atual?",
-  "Quantos leads ativos tenho no total?",
+  "Quantos leads ativos tenho em cada tracking?",
+  "Qual a taxa de conversão dos últimos 30 dias?",
+  "Quantas conversas ativas eu tenho?",
+  "Qual a receita fechada esse mês?",
+  "Quanto tenho em valores em aberto no Forge?",
+  "Qual a taxa de no-show da agenda?",
+  "Quantas tarefas atrasadas eu tenho?",
+  "Quanto espaço estou usando no NBox?",
+  "Qual minha receita recebida esse mês?",
+  "Quantos acessos minhas páginas Linnker receberam?",
+  "Quantos cursos publicados eu tenho?",
+  "Quais integrações estão conectadas?",
+  "Me avise quando um lead ficar 2 dias parado",
+  "Crie um lead chamado João Pereira no tracking Vendas",
   "Agende uma reunião com Carlos Lima para sexta às 10h",
-  "Gere uma legenda para Instagram sobre os resultados do mês",
-  "Liste as propostas abertas",
-  "Quais são meus compromissos de hoje?",
+  "Qual trilha do Space Help me ensina sobre Tracking?",
 ];
 
 export const PROVIDER_MODELS: Record<string, ModelOption[]> = {

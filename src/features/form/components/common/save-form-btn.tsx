@@ -92,6 +92,19 @@ export function SaveFormBtn() {
                     }).nextButtonAction,
                   }
                 : {}),
+              ...(Array.isArray(
+                ((formData.settings as unknown) as {
+                  whatsappChats?: unknown;
+                }).whatsappChats,
+              ) && {
+                whatsappChats: ((formData.settings as unknown) as {
+                  whatsappChats?: Array<{ chatId: string; chatName: string }>;
+                }).whatsappChats,
+              }),
+              whatsappMessage:
+                ((formData.settings as unknown) as {
+                  whatsappMessage?: string | null;
+                }).whatsappMessage ?? null,
             }
           : undefined,
       },

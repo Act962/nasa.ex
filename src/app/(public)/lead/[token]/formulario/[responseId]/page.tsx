@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { orpc } from "@/lib/orpc";
 import { FormSubmitComponent } from "@/features/form/components/public/form-submit-component";
+import { FormTrackingScripts } from "@/features/form/components/public/form-tracking-scripts";
 import { FormLeadProvider } from "@/features/form/context/form-lead-context";
 import type { FieldValue, FormBlockInstance } from "@/features/form/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
@@ -125,6 +126,7 @@ export default function Page() {
 
   return (
     <div className="w-full min-h-screen flex flex-col bg-background">
+      <FormTrackingScripts settings={response.form.settings} />
       {/* Cabeçalho — contexto do atendimento */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-20">
         <div className="max-w-[920px] mx-auto px-4 py-3 flex items-center gap-3">

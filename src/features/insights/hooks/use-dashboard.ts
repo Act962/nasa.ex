@@ -12,6 +12,7 @@ interface InsightFilter {
   endDate?: string;
   tagIds?: string[];
   workspaceIds?: string[];
+  memberIds?: string[];
 }
 
 export const useQueryAppsInsights = (input: InsightFilter) => {
@@ -36,6 +37,7 @@ interface UseDashboardDataOptions {
   trackingId?: string;
   organizationIds?: string[];
   tagIds?: string[];
+  memberIds?: string[];
   dateRange: DateRange;
 }
 
@@ -66,6 +68,7 @@ export function useDashboardData({
   trackingId,
   organizationIds,
   tagIds,
+  memberIds,
   dateRange,
 }: UseDashboardDataOptions) {
   const startDate = dateRange.from?.toISOString();
@@ -78,6 +81,7 @@ export function useDashboardData({
       startDate,
       endDate,
       tagIds,
+      memberIds,
     });
 
   return {

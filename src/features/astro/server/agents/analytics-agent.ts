@@ -1,6 +1,7 @@
 import "server-only";
 import { ANALYTICS_AGENT_PROMPT } from "@/features/astro/lib/prompts";
 import { buildAnalyticsTools } from "@/features/astro/server/tools/analytics";
+import { buildListTools } from "@/features/astro/server/tools/lists";
 import { buildSearchTools } from "@/features/astro/server/tools/search";
 import { buildKnowledgeTools } from "@/features/astro/server/tools/knowledge";
 import type { AgentDefinition } from "./types";
@@ -28,6 +29,7 @@ export const analyticsAgent: AgentDefinition = {
   systemPrompt: ANALYTICS_AGENT_PROMPT,
   buildTools: (ctx) => ({
     ...buildAnalyticsTools(ctx),
+    ...buildListTools(ctx),
     ...buildSearchTools(ctx),
     ...buildKnowledgeTools(ctx, "analytics-agent"),
   }),

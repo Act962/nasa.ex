@@ -75,6 +75,9 @@ import { detectAgendaStarting } from "@/inngest/functions/crons/detect-agenda-st
 import { detectFormAbandoned } from "@/inngest/functions/crons/detect-form-abandoned";
 import { detectLowMetrics } from "@/inngest/functions/crons/detect-low-metrics";
 import { worldEventOccupancyTick } from "@/inngest/functions/crons/world-event-occupancy-tick";
+import { detectLeadsWaitingAttention } from "@/inngest/functions/crons/detect-leads-waiting-attention";
+import { detectActionsDueSoon } from "@/inngest/functions/crons/detect-actions-due-soon";
+import { formSendWhatsappNotification } from "@/inngest/functions/form/send-whatsapp-notification";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -109,6 +112,8 @@ export const { GET, POST, PUT } = serve({
     chatSyncMessages,
     // ── Calendário Público: auto-resolução de reivindicações expiradas ──
     autoResolveExpiredClaims,
+    // ── Forms: notificação WhatsApp ao submeter ──
+    formSendWhatsappNotification,
     // ── Alerts: detecção time-based ──
     detectStaleLeads,
     detectBrokenIntegrations,
@@ -118,6 +123,8 @@ export const { GET, POST, PUT } = serve({
     detectOverdue,
     // ── NASA World — convention occupancy ──
     worldEventOccupancyTick,
+    detectLeadsWaitingAttention,
+    detectActionsDueSoon,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,
