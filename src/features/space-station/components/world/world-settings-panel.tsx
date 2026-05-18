@@ -135,7 +135,19 @@ const FACE_ACCESSORIES: { value: FaceAccessory; label: string; emoji: string }[]
 export function WorldSettingsPanel({ stationId, worldConfig, avatarConfig, nick, userImage, onClose, onApply }: Props) {
   const [wokaTab, setWokaTab] = useState<WokaTabId>("body");
   const [avatarDirty, setAvatarDirty] = useState(false);
+  // Ref síncrono pra requestClose ler o estado mais atual sem esperar re-render.
+  // BUG FIX: quando o user clicava "Terminar" no WokaCustomizer (upload de
+  // sprite custom), o customizer chamava `onChange(partial)` e logo em seguida
+  // `onClose()`. O onChange agendava setAvatarDirty(true), mas requestClose
+  // rodava no MESMO event tick e lia `avatarDirty=false` da closure stale →
+  // pulava o modal "Salvar?" e fechava sem persistir. Ref resolve isso.
+  const avatarDirtyRef = useRef(false);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+
+  function markAvatarDirty(v: boolean) {
+    avatarDirtyRef.current = v;
+    setAvatarDirty(v);
+  }
 
   function handleSaveAvatar(onDone?: () => void) {
     setSaveError(null);
@@ -143,7 +155,7 @@ export function WorldSettingsPanel({ stationId, worldConfig, avatarConfig, nick,
       { stationId, avatarConfig: avatar, mapData: buildMapData() },
       {
         onSuccess: () => {
-          setAvatarDirty(false);
+          markAvatarDirty(false);
           onDone?.();
         },
         onError: (err) => {
@@ -156,8 +168,9 @@ export function WorldSettingsPanel({ stationId, worldConfig, avatarConfig, nick,
   }
 
   // Fecha o painel — se houver alterações pendentes, abre o modal.
+  // Lê do ref (síncrono) pra cobrir o caso de onChange+onClose no mesmo tick.
   const requestClose = () => {
-    if (avatarDirty) {
+    if (avatarDirtyRef.current) {
       setCloseConfirmOpen(true);
       return;
     }
@@ -375,7 +388,9 @@ export function WorldSettingsPanel({ stationId, worldConfig, avatarConfig, nick,
           onChange={(partial) => {
             const next = { ...avatar, ...partial };
             setAvatar(next);
-            setAvatarDirty(true);
+            // markAvatarDirty atualiza ref + state — ref é lido por
+            // requestClose síncronamente no mesmo tick (evita stale closure).
+            markAvatarDirty(true);
             // Preview ao vivo — atualiza canvas SEM persistir no DB
             onApply({ ...worldConfig, mapData: buildMapData() }, next);
           }}
