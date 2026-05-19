@@ -1,5 +1,5 @@
 import "server-only";
-import { AccessToken } from "@livekit/server-sdk";
+import { AccessToken } from "livekit-server-sdk";
 
 /**
  * LiveKit server-side helpers.
