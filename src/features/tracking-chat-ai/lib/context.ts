@@ -12,57 +12,82 @@ export interface AgentEventData {
 }
 
 export async function loadAgentContext(data: AgentEventData) {
-  const [lead, conversation, settings, instance, organization, messages] =
-    await Promise.all([
-      prisma.lead.findUniqueOrThrow({
-        where: { id: data.leadId },
-        select: {
-          id: true,
-          name: true,
-          phone: true,
-          email: true,
-          description: true,
-          statusFlow: true,
-          isActive: true,
-          source: true,
-          temperature: true,
-          trackingId: true,
-          leadTags: { include: { tag: { select: { name: true } } } },
+  const [
+    lead,
+    conversation,
+    settings,
+    instance,
+    organization,
+    messages,
+    availableTags,
+  ] = await Promise.all([
+    prisma.lead.findUniqueOrThrow({
+      where: { id: data.leadId },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        description: true,
+        statusFlow: true,
+        isActive: true,
+        source: true,
+        temperature: true,
+        trackingId: true,
+        leadTags: {
+          include: { tag: { select: { id: true, name: true } } },
         },
-      }),
-      prisma.conversation.findUniqueOrThrow({
-        where: { id: data.conversationId },
-        select: { id: true, remoteJid: true, trackingId: true, isActive: true },
-      }),
-      prisma.aiSettings.findUnique({
-        where: { trackingId: data.trackingId },
-      }),
-      prisma.whatsAppInstance.findUnique({
-        where: { trackingId: data.trackingId },
-        select: { apiKey: true, baseUrl: true, status: true },
-      }),
-      prisma.organization.findUniqueOrThrow({
-        where: { id: data.organizationId },
-        select: { id: true, name: true },
-      }),
-      prisma.message.findMany({
-        where: { conversationId: data.conversationId },
-        orderBy: { createdAt: "desc" },
-        take: HISTORY_LIMIT,
-        select: {
-          fromMe: true,
-          body: true,
-          mediaType: true,
-          mediaCaption: true,
-          createdAt: true,
-        },
-      }),
-    ]);
+      },
+    }),
+    prisma.conversation.findUniqueOrThrow({
+      where: { id: data.conversationId },
+      select: { id: true, remoteJid: true, trackingId: true, isActive: true },
+    }),
+    prisma.aiSettings.findUnique({
+      where: { trackingId: data.trackingId },
+    }),
+    prisma.whatsAppInstance.findUnique({
+      where: { trackingId: data.trackingId },
+      select: { apiKey: true, baseUrl: true, status: true },
+    }),
+    prisma.organization.findUniqueOrThrow({
+      where: { id: data.organizationId },
+      select: { id: true, name: true },
+    }),
+    prisma.message.findMany({
+      where: { conversationId: data.conversationId },
+      orderBy: { createdAt: "desc" },
+      take: HISTORY_LIMIT,
+      select: {
+        fromMe: true,
+        body: true,
+        mediaType: true,
+        mediaCaption: true,
+        createdAt: true,
+      },
+    }),
+    // Catálogo de tags que a IA pode aplicar — só tags com descrição
+    // preenchida entram. Description vazia = invisível pra IA. Funciona
+    // como switch manual: o time controla o que a IA pode taggear.
+    prisma.tag.findMany({
+      where: {
+        organizationId: data.organizationId,
+        OR: [{ trackingId: data.trackingId }, { trackingId: null }],
+        description: { not: null },
+      },
+      select: { id: true, name: true, description: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   const history: ModelMessage[] = messages
     .reverse()
     .map((m) => toModelMessage(m))
     .filter((m): m is ModelMessage => m !== null);
+
+  const availableTagsFiltered = availableTags.filter(
+    (t) => t.description !== null && t.description.trim().length > 0,
+  );
 
   return {
     trackingId: data.trackingId,
@@ -73,6 +98,7 @@ export async function loadAgentContext(data: AgentEventData) {
     instance,
     organization,
     history,
+    availableTags: availableTagsFiltered,
   };
 }
 
