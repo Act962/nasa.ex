@@ -1,8 +1,10 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { fetchAdsInsights } from "@/http/meta/ads-management";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { getMetaAuth } from "./_helpers";
 
 /**
  * Top-N anúncios do período, com preview/thumbnail para o relatório de
@@ -25,26 +27,37 @@ export const getTopAds = base
       endDate: z.string(),
       limit: z.number().int().min(1).max(50).default(8),
       campaignId: z.string().optional(),
+      adAccountId: z.string().optional(),
     }),
   )
   .handler(async ({ input, context }) => {
     const start = new Date(input.startDate);
     const end = new Date(input.endDate);
 
-    const snaps = await prisma.metaAdsKpiSnapshot.findMany({
-      where: {
-        organizationId: context.org.id,
-        level: "AD",
-        date: { gte: start, lte: end },
-      },
+    // Filtro de ad account: pega só metaAdIds da conta ativa do user.
+    const auth = await getMetaAuth(context.org.id, {
+      userId: context.user.id,
+      adAccountIdOverride: input.adAccountId,
     });
+    let adAccountFilterIds: string[] | null = null;
+    if (auth) {
+      const adsInAccount = await prisma.metaAd.findMany({
+        where: {
+          organizationId: context.org.id,
+          campaign: { adAccountId: auth.adAccountId },
+        },
+        select: { metaAdId: true },
+      });
+      adAccountFilterIds = adsInAccount
+        .map((a) => a.metaAdId)
+        .filter(Boolean) as string[];
+      // Conta sem MetaAd cadastrado (cron não rodou) → não retornamos vazio
+      // aqui; deixamos o fallback live abaixo tentar puxar direto da API.
+    }
+    const noLocalAds =
+      adAccountFilterIds !== null && adAccountFilterIds.length === 0;
 
-    if (snaps.length === 0) return { ads: [] as TopAd[] };
-
-    const num = (v: unknown): number =>
-      typeof v === "string" ? parseFloat(v) : typeof v === "number" ? v : 0;
-
-    type Bucket = {
+    type SnapRow = {
       entityId: string;
       entityName: string | null;
       spend: number;
@@ -55,30 +68,83 @@ export const getTopAds = base
       leads: number;
       engagement: number;
     };
-    const byId = new Map<string, Bucket>();
 
-    for (const s of snaps) {
-      const ex = byId.get(s.entityId);
-      if (!ex) {
-        byId.set(s.entityId, {
+    let snapRows: SnapRow[] = noLocalAds
+      ? []
+      : (
+          await prisma.metaAdsKpiSnapshot.findMany({
+            where: {
+              organizationId: context.org.id,
+              level: "AD",
+              date: { gte: start, lte: end },
+              ...(adAccountFilterIds
+                ? { entityId: { in: adAccountFilterIds } }
+                : {}),
+            },
+          })
+        ).map((s) => ({
           entityId: s.entityId,
           entityName: s.entityName,
-          spend: num(s.spend),
-          reach: num(s.reach),
+          spend:
+            typeof s.spend === "string"
+              ? parseFloat(s.spend)
+              : Number(s.spend ?? 0),
+          reach:
+            typeof s.reach === "string"
+              ? parseFloat(s.reach)
+              : Number(s.reach ?? 0),
           impressions: s.impressions ?? 0,
           clicks: s.clicks ?? 0,
           conversions: s.conversions ?? 0,
           leads: s.leads ?? 0,
           engagement: s.engagement ?? 0,
+        }));
+
+    // Fallback live (read-only): banco vazio + Meta conectada → busca da API.
+    if (snapRows.length === 0 && auth) {
+      try {
+        const live = await fetchAdsInsights(auth, {
+          level: "ad",
+          timeRange: {
+            since: input.startDate.slice(0, 10),
+            until: input.endDate.slice(0, 10),
+          },
         });
+        snapRows = live
+          .filter((r) => r.adId)
+          .map((r) => ({
+            entityId: r.adId!,
+            entityName: r.adName ?? null,
+            spend: r.spend,
+            reach: r.reach,
+            impressions: r.impressions,
+            clicks: r.clicks,
+            conversions: r.conversions,
+            leads: r.leads,
+            engagement: r.engagement,
+          }));
+      } catch {
+        // Falha de API → mantém vazio
+      }
+    }
+
+    if (snapRows.length === 0) return { ads: [] as TopAd[] };
+
+    type Bucket = SnapRow;
+    const byId = new Map<string, Bucket>();
+
+    for (const s of snapRows) {
+      const ex = byId.get(s.entityId);
+      if (!ex) {
+        byId.set(s.entityId, { ...s });
       } else {
-        ex.spend += num(s.spend);
-        ex.reach = Math.max(ex.reach, num(s.reach));
-        ex.impressions += s.impressions ?? 0;
-        ex.clicks += s.clicks ?? 0;
-        ex.conversions += s.conversions ?? 0;
-        ex.leads += s.leads ?? 0;
-        ex.engagement += s.engagement ?? 0;
+        ex.spend += s.spend;
+        ex.reach = Math.max(ex.reach, s.reach);
+        ex.impressions += s.impressions;
+        ex.clicks += s.clicks;
+        ex.conversions += s.conversions;
+        ex.leads += s.leads;
+        ex.engagement += s.engagement;
       }
     }
 

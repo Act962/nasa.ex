@@ -1,115 +1,105 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import prisma from "@/lib/prisma";
+import { fetchAdsInsights } from "@/http/meta/ads-management";
+import { getMetaAuth } from "@/app/router/meta-ads/_helpers";
 import { z } from "zod";
 
-const DATE_PRESETS = ["today", "yesterday", "last_7d", "last_30d", "last_90d", "this_month", "last_month"] as const;
+const DATE_PRESETS = [
+  "today",
+  "yesterday",
+  "last_7d",
+  "last_14d",
+  "last_30d",
+  "last_90d",
+  "this_month",
+  "last_month",
+  "this_year",
+  "last_year",
+  "maximum",
+] as const;
 
-// Meta Marketing API fields we request
-const META_FIELDS = [
-  "reach", "impressions", "frequency",
-  "clicks", "ctr", "inline_post_engagement",
-  "spend", "cpm", "cpc", "cpp",
-  "conversions", "conversion_values",
-  "video_play_actions", "video_thruplay_watched_actions", "video_avg_time_watched_actions",
-  "actions", "cost_per_action_type", "cost_per_conversion",
-  "website_ctr",
-].join(",");
+/**
+ * Insights agregados da conta Meta (level=account por padrão).
+ *
+ * Delega o fetch pro helper compartilhado `fetchAdsInsights` (Graph v22.0 +
+ * Bearer auth + time_range/date_preset mutuamente exclusivos) — antes essa
+ * rota tinha o fetch hardcoded em v19.0 com `access_token` em querystring,
+ * o que ficou inconsistente com o resto da feature e com a doc oficial.
+ *
+ * Mapeia OAuth errors (token expirado/revogado, code 190) pra mensagem
+ * acionável em pt-BR.
+ */
+
+function friendlyMetaError(rawMsg: string): string {
+  // Code 190 = "OAuthException" — token expirado, revogado ou malformado
+  const lower = rawMsg.toLowerCase();
+  if (
+    lower.includes("oauth access token") ||
+    lower.includes("cannot parse access token") ||
+    lower.includes("session has expired") ||
+    lower.includes("the user has not authorized") ||
+    lower.includes("error validating access token")
+  ) {
+    return "Token Meta expirou ou foi revogado. Vá em Integrações e reconecte sua conta Meta.";
+  }
+  if (lower.includes("permission") || lower.includes("ads_read")) {
+    return "Faltam permissões na conta Meta (ads_read / ads_management). Reconecte e aprove os escopos.";
+  }
+  if (lower.includes("rate limit") || lower.includes("user request limit reached")) {
+    return "Limite de requisições da Meta atingido. Aguarde alguns minutos e tente novamente.";
+  }
+  return rawMsg;
+}
 
 export const getMetaInsights = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
-  .input(z.object({
-    datePreset: z.enum(DATE_PRESETS).default("last_30d"),
-    level: z.enum(["account", "campaign", "adset", "ad"]).default("account"),
-    startDate: z.string().optional(),
-    endDate: z.string().optional(),
-  }))
+  .input(
+    z.object({
+      datePreset: z.enum(DATE_PRESETS).default("last_30d"),
+      level: z.enum(["account", "campaign", "adset", "ad"]).default("account"),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+    }),
+  )
   .handler(async ({ input, context }) => {
-    // Get stored Meta integration credentials
-    const integration = await prisma.platformIntegration.findUnique({
-      where: {
-        organizationId_platform: {
-          organizationId: context.org.id,
-          platform: "META",
-        },
-      },
-    });
-
-    if (!integration || !integration.isActive) {
-      return { connected: false, data: null };
-    }
-
-    const config = integration.config as Record<string, string>;
-    const { accessToken, adAccountId } = config;
-
-    if (!accessToken || !adAccountId) {
-      return { connected: false, data: null };
-    }
-
-    const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
-    const apiVersion = "v19.0";
-
-    // Quando dateRange explícito vem do dashboard, prefere time_range. Senão, mantém date_preset.
-    const dateParam =
-      input.startDate && input.endDate
-        ? `time_range=${encodeURIComponent(
-            JSON.stringify({
-              since: input.startDate.slice(0, 10),
-              until: input.endDate.slice(0, 10),
-            }),
-          )}`
-        : `date_preset=${input.datePreset}`;
-
-    const url = `https://graph.facebook.com/${apiVersion}/${accountId}/insights?fields=${META_FIELDS}&${dateParam}&level=${input.level}&access_token=${accessToken}`;
+    const auth = await getMetaAuth(context.org.id, { userId: context.user.id });
+    if (!auth) return { connected: false, data: null };
 
     try {
-      const res = await fetch(url, { next: { revalidate: 300 } }); // cache 5 min
-      const json = await res.json() as Record<string, unknown>;
+      const rows = await fetchAdsInsights(auth, {
+        level: input.level,
+        datePreset: input.datePreset,
+        timeRange:
+          input.startDate && input.endDate
+            ? {
+                since: input.startDate.slice(0, 10),
+                until: input.endDate.slice(0, 10),
+              }
+            : undefined,
+      });
 
-      if (json.error) {
-        const err = json.error as { message: string; code: number };
-        return { connected: true, data: null, error: err.message };
+      const row = rows[0];
+      if (!row) {
+        return {
+          connected: true,
+          error: null,
+          data: {
+            datePreset: input.datePreset,
+            startDate: input.startDate ?? null,
+            endDate: input.endDate ?? null,
+            reach: 0, impressions: 0, frequency: 0,
+            clicks: 0, ctr: 0, engagement: 0,
+            spend: 0, cpm: 0, cpc: 0, cpp: 0, cpl: 0, cpa: 0, cpv: 0,
+            conversions: 0, leads: 0, conversionRate: 0, roas: 0, conversionValue: 0,
+            videoPlays: 0, thruPlays: 0, avgWatchTime: 0, videoRetention: 0,
+          },
+        };
       }
 
-      const rawData = (json.data as Record<string, unknown>[])?.[0] ?? {};
-
-      // Extract and normalize values
-      const reach        = Number(rawData.reach ?? 0);
-      const impressions  = Number(rawData.impressions ?? 0);
-      const frequency    = Number(rawData.frequency ?? 0);
-      const clicks       = Number(rawData.clicks ?? 0);
-      const ctr          = Number(rawData.ctr ?? 0);
-      const spend        = Number(rawData.spend ?? 0);
-      const cpm          = Number(rawData.cpm ?? 0);
-      const cpc          = Number(rawData.cpc ?? 0);
-      const cpp          = Number(rawData.cpp ?? 0);
-      const engagement   = Number(rawData.inline_post_engagement ?? 0);
-
-      // Parse actions array for conversions and video
-      const actions = (rawData.actions as { action_type: string; value: string }[]) ?? [];
-      const getAction = (type: string) => {
-        const a = actions.find((x) => x.action_type === type);
-        return Number(a?.value ?? 0);
-      };
-
-      const conversions      = getAction("offsite_conversion.fb_pixel_purchase") ||
-                               getAction("omni_purchase") ||
-                               getAction("lead") ||
-                               actions.filter(a => a.action_type.startsWith("offsite_conversion")).reduce((s, a) => s + Number(a.value), 0);
-      const leads            = getAction("lead");
-      const conversionValue  = Number((rawData.conversion_values as { value: string }[])?.[0]?.value ?? 0);
-      const roas             = spend > 0 && conversionValue > 0 ? conversionValue / spend : 0;
-      const conversionRate   = clicks > 0 ? (conversions / clicks) * 100 : 0;
-      const cpl              = leads > 0 ? spend / leads : 0;
-      const cpa              = conversions > 0 ? spend / conversions : 0;
-
-      // Video metrics
-      const videoPlays       = getAction("video_play");
-      const thruPlays        = Number((rawData.video_thruplay_watched_actions as { value: string }[])?.[0]?.value ?? 0);
-      const avgWatchTime     = Number((rawData.video_avg_time_watched_actions as { value: string }[])?.[0]?.value ?? 0);
-      const videoRetention   = videoPlays > 0 ? (thruPlays / videoPlays) * 100 : 0;
+      const videoRetention =
+        row.videoPlays > 0 ? (row.thruPlays / row.videoPlays) * 100 : 0;
 
       return {
         connected: true,
@@ -119,20 +109,36 @@ export const getMetaInsights = base
           startDate: input.startDate ?? null,
           endDate: input.endDate ?? null,
           // Delivery
-          reach, impressions, frequency,
+          reach: row.reach,
+          impressions: row.impressions,
+          frequency: row.frequency,
           // Engagement
-          clicks, ctr, engagement,
+          clicks: row.clicks,
+          ctr: row.ctr,
+          engagement: row.engagement,
           // Costs
-          spend, cpm, cpc, cpp, cpl, cpa,
-          cpv: videoPlays > 0 ? spend / videoPlays : 0,
+          spend: row.spend,
+          cpm: row.cpm,
+          cpc: row.cpc,
+          cpp: row.cpp,
+          cpl: row.cpl,
+          cpa: row.cpa,
+          cpv: row.cpv,
           // Conversion
-          conversions, leads, conversionRate, roas, conversionValue,
+          conversions: row.conversions,
+          leads: row.leads,
+          conversionRate: row.conversionRate,
+          roas: row.roas,
+          conversionValue: row.conversionValue,
           // Video
-          videoPlays, thruPlays, avgWatchTime, videoRetention,
+          videoPlays: row.videoPlays,
+          thruPlays: row.thruPlays,
+          avgWatchTime: row.avgWatchTime,
+          videoRetention,
         },
       };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao conectar com a API Meta";
-      return { connected: true, data: null, error: msg };
+      const raw = err instanceof Error ? err.message : "Erro ao conectar com a API Meta";
+      return { connected: true, data: null, error: friendlyMetaError(raw) };
     }
   });

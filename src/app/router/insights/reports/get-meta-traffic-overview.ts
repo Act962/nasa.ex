@@ -1,6 +1,9 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { getMetaAuth } from "@/app/router/meta-ads/_helpers";
+import { getMetaConversionTagId } from "@/app/router/meta-ads/_conversion-tag";
+import { fetchAdsInsights } from "@/http/meta/ads-management";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -9,6 +12,18 @@ import { z } from "zod";
  * solicitado. Retorna a mesma forma de `channelInsights.meta.data` para o
  * Relatório de Tráfego Meta funcionar mesmo sem OAuth ao vivo
  * (útil em dev com seed e em produção quando o cron já populou snapshots).
+ *
+ * Espelha a config do canal Meta (Insights > Integrações > Canais):
+ *  - Filtra por `adAccountId` ativa do usuário (resolvida via `getMetaAuth`).
+ *    Sem isso, agregava TODAS as ad accounts da org — números inflados.
+ *  - Aplica a tag de conversão configurada (se houver): override de
+ *    `conversions`/`cpa`/`conversionRate` baseado em leads do CRM.
+ *
+ * Fallback automático: quando não há snapshots no período (cron ainda não
+ * rodou pra essa conta) mas o token Meta é válido, busca **ao vivo** na Meta
+ * Marketing API (mesmo path do `channelInsights.meta`). A operação é
+ * **read-only** — não grava nada no banco, só serve a UI naquele request.
+ * Quando o cron popular, volta a usar o cache do banco automaticamente.
  */
 export const getMetaTrafficOverview = base
   .use(requiredAuthMiddleware)
@@ -17,23 +32,114 @@ export const getMetaTrafficOverview = base
     z.object({
       startDate: z.string(),
       endDate: z.string(),
+      adAccountId: z.string().optional(),
     }),
   )
   .handler(async ({ input, context }) => {
     const start = new Date(input.startDate);
     const end = new Date(input.endDate);
 
+    // Resolve a conta ativa do usuário (mesma lógica do drilldown e do canal).
+    const auth = await getMetaAuth(context.org.id, {
+      userId: context.user.id,
+      adAccountIdOverride: input.adAccountId,
+    });
+
     const snaps = await prisma.metaAdsKpiSnapshot.findMany({
       where: {
         organizationId: context.org.id,
         level: "ACCOUNT",
         date: { gte: start, lte: end },
+        // Pra ACCOUNT-level, entityId === adAccountId (ver `syncSnapshots`).
+        ...(auth ? { entityId: auth.adAccountId } : {}),
       },
       orderBy: { date: "asc" },
     });
 
+    // ── Fallback live (read-only) ─────────────────────────────────────────
+    // Sem snapshots no período. Se a Meta está conectada, busca direto da API
+    // pra a UI não ficar vazia até o cron popular o cache.
     if (snaps.length === 0) {
-      return { connected: false, source: "snapshot" as const, data: null };
+      if (!auth) {
+        return { connected: false, source: "snapshot" as const, data: null };
+      }
+      try {
+        const liveRows = await fetchAdsInsights(auth, {
+          level: "account",
+          timeRange: {
+            since: input.startDate.slice(0, 10),
+            until: input.endDate.slice(0, 10),
+          },
+        });
+        const live = liveRows[0];
+        if (!live) {
+          return { connected: false, source: "snapshot" as const, data: null };
+        }
+
+        // Aplica tag de conversão (mesma lógica do branch de snapshot abaixo).
+        const conversionTagId = await getMetaConversionTagId(context.org.id);
+        let liveConversions = live.conversions;
+        let conversionMode: "live" | "tag" = "live";
+        if (conversionTagId) {
+          liveConversions = await prisma.lead.count({
+            where: {
+              tracking: { organizationId: context.org.id },
+              leadTags: { some: { tagId: conversionTagId } },
+              createdAt: { gte: start, lte: end },
+              OR: [
+                { metaCampaignId: { not: null } },
+                { metaAdsetId: { not: null } },
+                { metaAdId: { not: null } },
+              ],
+            },
+          });
+          conversionMode = "tag";
+        }
+
+        const cpaLive =
+          liveConversions > 0 ? live.spend / liveConversions : 0;
+        const conversionRateLive =
+          live.clicks > 0 ? (liveConversions / live.clicks) * 100 : 0;
+        const videoRetentionLive =
+          live.videoPlays > 0 ? (live.thruPlays / live.videoPlays) * 100 : 0;
+
+        return {
+          connected: true,
+          source: "live" as const,
+          conversionMode,
+          adAccountId: auth.adAccountId,
+          data: {
+            datePreset: null,
+            startDate: input.startDate,
+            endDate: input.endDate,
+            reach: live.reach,
+            impressions: live.impressions,
+            frequency: live.frequency,
+            clicks: live.clicks,
+            ctr: live.ctr,
+            engagement: live.engagement,
+            spend: live.spend,
+            cpm: live.cpm,
+            cpc: live.cpc,
+            cpp: live.cpp,
+            cpl: live.cpl,
+            cpa: cpaLive,
+            cpv: live.cpv,
+            conversions: liveConversions,
+            leads: live.leads,
+            conversionRate: conversionRateLive,
+            roas: live.roas,
+            conversionValue: live.conversionValue,
+            videoPlays: live.videoPlays,
+            thruPlays: live.thruPlays,
+            avgWatchTime: live.avgWatchTime,
+            videoRetention: videoRetentionLive,
+          },
+        };
+      } catch {
+        // Token inválido / rate-limit / API down → degrade pra estado "sem dados"
+        return { connected: false, source: "snapshot" as const, data: null };
+      }
     }
 
     const num = (v: unknown): number =>
@@ -65,6 +171,29 @@ export const getMetaTrafficOverview = base
       reachMax = Math.max(reachMax, num(s.reach));
     }
 
+    // ── Override de conversão via tag (se configurada na org) ─────────────
+    // Conta leads únicos da org que tenham a tag E sejam atribuíveis a alguma
+    // campanha Meta (metaCampaignId/metaAdsetId/metaAdId), criados no período.
+    // Mesma fonte de verdade do drilldown — garante consistência entre as telas.
+    const conversionTagId = await getMetaConversionTagId(context.org.id);
+    let conversionMode: "snapshot" | "tag" = "snapshot";
+    if (conversionTagId) {
+      const matchedLeads = await prisma.lead.count({
+        where: {
+          tracking: { organizationId: context.org.id },
+          leadTags: { some: { tagId: conversionTagId } },
+          createdAt: { gte: start, lte: end },
+          OR: [
+            { metaCampaignId: { not: null } },
+            { metaAdsetId: { not: null } },
+            { metaAdId: { not: null } },
+          ],
+        },
+      });
+      conversions = matchedLeads;
+      conversionMode = "tag";
+    }
+
     // Reach não soma — usamos o max diário como aproximação
     const reach = reachMax;
     const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
@@ -83,6 +212,8 @@ export const getMetaTrafficOverview = base
     return {
       connected: true,
       source: "snapshot" as const,
+      conversionMode,
+      adAccountId: auth?.adAccountId ?? null,
       data: {
         datePreset: null,
         startDate: input.startDate,
