@@ -133,6 +133,9 @@ export function useInfinityConversation(
 
     const leadUpdatedHandler = () => {
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({
+        queryKey: orpc.conversation.get.queryKey(),
+      });
     };
 
     pusherClient.bind("conversation:new", conversationHandler);
