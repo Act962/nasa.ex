@@ -21,6 +21,8 @@ export const updateAgenda = base
       slug: z.string().optional(),
       slotDuration: z.coerce.number().optional(),
       trackingId: z.string().optional(),
+      statusId: z.string().nullable().optional(),
+      tagIds: z.array(z.string()).optional(),
       isActive: z.boolean().optional(),
     }),
   )
@@ -71,18 +73,90 @@ export const updateAgenda = base
       }
     }
 
-    const updatedAgenda = await prisma.agenda.update({
-      where: {
-        id: input.agendaId,
-      },
-      data: {
-        name: input.name,
-        description: input.description,
-        slug: input.slug,
-        slotDuration: input.slotDuration,
-        trackingId: input.trackingId,
-        isActive: input.isActive,
-      },
+    const trackingChanged =
+      input.trackingId !== undefined && input.trackingId !== agenda.trackingId;
+    const effectiveTrackingId = input.trackingId ?? agenda.trackingId;
+
+    // Status precisa pertencer ao tracking efetivo (o novo, se houve troca).
+    if (input.statusId) {
+      const status = await prisma.status.findUnique({
+        where: { id: input.statusId },
+      });
+      if (!status || status.trackingId !== effectiveTrackingId) {
+        throw errors.BAD_REQUEST({
+          message: "Status não pertence ao tracking selecionado.",
+        });
+      }
+    }
+
+    // Tags precisam ser da organização.
+    if (input.tagIds && input.tagIds.length > 0) {
+      const tags = await prisma.tag.findMany({
+        where: {
+          id: { in: input.tagIds },
+          organizationId: context.org.id,
+        },
+        select: { id: true },
+      });
+      if (tags.length !== input.tagIds.length) {
+        throw errors.BAD_REQUEST({
+          message: "Uma ou mais tags não pertencem à organização.",
+        });
+      }
+    }
+
+    const updatedAgenda = await prisma.$transaction(async (tx) => {
+      const updated = await tx.agenda.update({
+        where: { id: input.agendaId },
+        data: {
+          name: input.name,
+          description: input.description,
+          slug: input.slug,
+          slotDuration: input.slotDuration,
+          trackingId: input.trackingId,
+          isActive: input.isActive,
+          // Se trackingId mudou, força reset do status (mesmo se o cliente
+          // não enviou statusId). Caso contrário, só aplica se foi enviado.
+          ...(trackingChanged
+            ? { statusId: input.statusId ?? null }
+            : input.statusId !== undefined
+              ? { statusId: input.statusId }
+              : {}),
+        },
+      });
+
+      // Se o tracking mudou, desvincula todas as tags da agenda antiga antes
+      // de aplicar a nova lista. Tags do tracking antigo não fazem sentido.
+      if (trackingChanged) {
+        await tx.tag.updateMany({
+          where: { agendaId: input.agendaId },
+          data: { agendaId: null },
+        });
+      }
+
+      if (input.tagIds !== undefined) {
+        // Desvincula tags que estavam ligadas a esta agenda mas não estão
+        // mais na lista (essa updateMany é segura mesmo se já zerou acima).
+        await tx.tag.updateMany({
+          where: {
+            agendaId: input.agendaId,
+            id: { notIn: input.tagIds },
+          },
+          data: { agendaId: null },
+        });
+
+        if (input.tagIds.length > 0) {
+          await tx.tag.updateMany({
+            where: {
+              id: { in: input.tagIds },
+              organizationId: context.org.id,
+            },
+            data: { agendaId: input.agendaId },
+          });
+        }
+      }
+
+      return updated;
     });
 
     await logActivity({
