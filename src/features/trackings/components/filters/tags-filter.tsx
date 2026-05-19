@@ -17,7 +17,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useTags } from "@/features/tags/hooks/use-tags";
-import { TagModal } from "@/features/trackings/components/modal/add-tag-sheet";
+import { TagSheet } from "@/features/tags/components/tag-sheet";
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, SettingsIcon, TagsIcon, XIcon } from "lucide-react";
@@ -174,7 +174,7 @@ export function TagsFilter() {
           </Command>
         </PopoverContent>
       </Popover>
-      <TagModal
+      <TagSheet
         trackingId={params.trackingId}
         open={open}
         onOpenChange={setOpen}

@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { useQueryTags } from "@/features/tags/hooks/use-tags";
+import { useTags } from "@/features/tags/hooks/use-tags";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check } from "lucide-react";
@@ -74,7 +74,7 @@ export const TagDialog = ({
     },
   });
 
-  const { tags, isLoadingTags } = useQueryTags({
+  const { tags, isLoadingTags } = useTags({
     trackingId: "ALL",
   });
 

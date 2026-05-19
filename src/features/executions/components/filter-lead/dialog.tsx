@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { useQueryStatus } from "@/features/trackings/hooks/use-trackings";
-import { useQueryTags } from "@/features/tags/hooks/use-tags";
+import { useTags } from "@/features/tags/hooks/use-tags";
 import { cn } from "@/lib/utils";
 import z from "zod";
 
@@ -144,7 +144,7 @@ export const FilterNodeDialog = ({
   const { status, isLoading: isLoadingStatus } = useQueryStatus({
     trackingId: trackingId || "",
   });
-  const { tags, isLoadingTags } = useQueryTags({ trackingId: "ALL" });
+  const { tags, isLoadingTags } = useTags({ trackingId: "ALL" });
 
   const form = useForm<FilterLeadFormValues>({
     resolver: zodResolver(filterNodeFormSchema),

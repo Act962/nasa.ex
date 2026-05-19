@@ -43,7 +43,7 @@ import { useStatus } from "@/features/status/hooks/use-status";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useTags } from "@/features/tags/hooks/use-tags";
-import { useTag } from "@/features/tags/hooks/use-tag";
+import { useCreateTag } from "@/features/tags/hooks/use-tag";
 import {
   Tags,
   TagsContent,
@@ -159,7 +159,7 @@ export default function AddLeadSheet({
   );
 
   const { tags, isLoadingTags } = useTags({ trackingId });
-  const { createTag } = useTag();
+  const createTag = useCreateTag();
   const [newTag, setNewTag] = useState("");
 
   const selectedStatus = watch("statusId");
