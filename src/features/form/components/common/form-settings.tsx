@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/tooltip";
 import { AppTemplateToggle } from "@/features/admin/components/app-template-toggle";
 import { useQueryListForms } from "@/features/form/hooks/use-form";
-import { useQueryTags } from "@/features/tags/hooks/use-tags";
+import { useTags } from "@/features/tags/hooks/use-tags";
 import {
   resolveNextButtonAction,
   type NextButtonAction,
@@ -983,7 +983,7 @@ function NextButtonTagPicker({
   value: string | null;
   onChange: (id: string | null) => void;
 }) {
-  const { tags, isLoadingTags } = useQueryTags({
+  const { tags, isLoadingTags } = useTags({
     trackingId: trackingId || "ALL",
   });
   const currentTag = tags.find((t) => t.id === value);

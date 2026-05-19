@@ -11,6 +11,7 @@ export const updateTag = base
       tagId: z.string(),
       name: z.string(),
       color: z.string(),
+      description: z.string().trim().nullable().optional(),
     }),
   )
   .handler(async ({ input, errors }) => {
@@ -36,6 +37,7 @@ export const updateTag = base
         name: input.name,
         slug: slug,
         color: input.color,
+        ...(input.description !== undefined && { description: input.description }),
       },
     });
   });
