@@ -56,5 +56,18 @@ export type Lead = {
     formName: string;
     expired: boolean;
   } | null;
+  /**
+   * Próximo appointment futuro (PENDING ou CONFIRMED) do lead. Usado pelo
+   * ícone de agenda no card do board. `null` quando o lead não tem agenda
+   * pendente.
+   */
+  nextAppointment?: {
+    id: string;
+    startsAt: string;
+    endsAt: string;
+    title: string | null;
+    meetingType: "ONLINE" | "IN_PERSON";
+    agendaName: string;
+  } | null;
 };
 
