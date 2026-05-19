@@ -1,5 +1,5 @@
 import "server-only";
-import { AccessToken } from "@livekit/server-sdk";
+import { AccessToken, TrackSource } from "livekit-server-sdk";
 
 /**
  * LiveKit server-side helpers.
@@ -76,7 +76,9 @@ export async function mintLiveKitToken(input: MintTokenInput): Promise<string> {
     canSubscribe,
     canPublishData,
     // Source-level: speakers podem publicar mic+cam+screen; audience nada.
-    canPublishSources: canPublish ? ["microphone", "camera", "screen_share"] : [],
+    canPublishSources: canPublish
+      ? [TrackSource.MICROPHONE, TrackSource.CAMERA, TrackSource.SCREEN_SHARE]
+      : [],
     // Moderator: bypass de admin no LiveKit (kick, mute outros).
     roomAdmin: input.role === "moderator",
   });
