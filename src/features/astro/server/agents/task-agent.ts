@@ -10,7 +10,7 @@ export const taskAgent: AgentDefinition = {
   key: "task-agent",
   displayName: "Task Agent",
   shortDescription:
-    "Cria Leads, Tags, Actions, SubActions, Reminders e Appointments a partir de instrução em linguagem natural.",
+    "Cria Leads, Tags, Actions/eventos, SubActions, Reminders e Appointments. Antes de delegar, garanta que o user já informou os ESSENCIAIS de cada tipo: action/evento = título + data; agendamento = lead + data/horário; lead = nome + telefone. Demais campos (descrição, prioridade, responsável, projeto, etc) NÃO perguntar — defaults preenchem ou ficam vazios pro user editar depois.",
   systemPrompt: TASK_AGENT_PROMPT,
   buildTools: (ctx) => ({
     ...buildActionTools(ctx),

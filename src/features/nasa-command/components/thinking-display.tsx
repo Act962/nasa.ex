@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { RocketLoader } from "./rocket-loader";
 
 /**
@@ -56,7 +56,7 @@ export function ThinkingDisplay({ steps }: { steps: ThinkingStep[] }) {
       </div>
       <div className="flex-1 min-w-0 bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-4 py-3">
         <div className="flex items-center gap-2 text-xs text-zinc-400 mb-2">
-          <Search className="w-3 h-3 shrink-0" />
+          <RocketLoader size={16} />
           <span className="truncate">{visibleLabels.join(" · ")}</span>
           {visibleCount < steps.length && (
             <span className="shrink-0 text-zinc-600">

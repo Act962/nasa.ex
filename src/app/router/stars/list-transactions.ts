@@ -9,8 +9,14 @@ export const listStarTransactions = base
   .use(requireOrgMiddleware)
   .input(
     z.object({
-      limit: z.number().min(1).max(100).default(20),
+      // Max 200 pra alimentar o popup "Histórico de consumo" do stars-widget
+      // (antes o histórico ficava em Permissões com 200 tx fixas).
+      limit: z.number().min(1).max(200).default(20),
       offset: z.number().min(0).default(0),
+      // Quando true, retorna só débitos (amount<0) — usado pelo histórico
+      // de "consumo" no widget. Default false mantém compat com chamadas
+      // existentes que listam tudo (créditos + débitos).
+      consumptionOnly: z.boolean().optional().default(false),
     })
   )
   .output(
@@ -30,9 +36,14 @@ export const listStarTransactions = base
     })
   )
   .handler(async ({ input, context }) => {
+    const where = {
+      organizationId: context.org.id,
+      ...(input.consumptionOnly ? { amount: { lt: 0 } } : {}),
+    };
+
     const [transactions, total] = await Promise.all([
       prisma.starTransaction.findMany({
-        where: { organizationId: context.org.id },
+        where,
         orderBy: { createdAt: "desc" },
         take: input.limit,
         skip: input.offset,
@@ -46,9 +57,7 @@ export const listStarTransactions = base
           createdAt: true,
         },
       }),
-      prisma.starTransaction.count({
-        where: { organizationId: context.org.id },
-      }),
+      prisma.starTransaction.count({ where }),
     ]);
 
     return { transactions, total };

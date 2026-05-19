@@ -13,7 +13,8 @@ import {
 import { StarIcon } from "./star-icon";
 import { StarsPurchaseModal } from "./stars-purchase-modal";
 import { SubscriptionPlansModal } from "./subscription-plans-modal";
-import { Plus, TrendingUp, AlertTriangle, Zap, Sparkles } from "lucide-react";
+import { StarsHistoryDialog } from "./stars-history-dialog";
+import { History, Plus, TrendingUp, AlertTriangle, Zap, Sparkles } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 // ─── Consumed bar ─────────────────────────────────────────────────────────────
@@ -70,6 +71,7 @@ function PlanBadge({
 export function StarsWidget() {
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     ...orpc.stars.getBalance.queryOptions(),
@@ -186,13 +188,24 @@ export function StarsWidget() {
           >
             {/* Header */}
             <div className="px-4 py-3 border-b bg-linear-to-br from-[#7C3AED]/8 to-transparent">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-2 gap-2">
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Stars consumidas
                 </p>
-                {hasPlan && (
-                  <PlanBadge planSlug={planSlug} planName={planName} />
-                )}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setHistoryOpen(true)}
+                    className="inline-flex items-center gap-1 text-[10px] font-medium text-[#7C3AED] hover:text-[#6D28D9] hover:bg-[#7C3AED]/10 rounded px-1.5 py-0.5 transition-colors"
+                    title="Ver histórico completo de consumo"
+                  >
+                    <History className="size-3" />
+                    Histórico
+                  </button>
+                  {hasPlan && (
+                    <PlanBadge planSlug={planSlug} planName={planName} />
+                  )}
+                </div>
               </div>
 
               {showLimitBar ? (
@@ -406,6 +419,7 @@ export function StarsWidget() {
         onClose={() => setPlanOpen(false)}
         currentPlanSlug={planSlug}
       />
+      <StarsHistoryDialog open={historyOpen} onOpenChange={setHistoryOpen} />
     </>
   );
 }

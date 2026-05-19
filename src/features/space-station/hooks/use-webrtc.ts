@@ -23,9 +23,25 @@ interface UseWebRTCOptions {
   userImage?: string | null;
 }
 
-const ICE_SERVERS = [
+// STUN público sempre, TURN opcional via env (precisa em NAT simétrico
+// — sintoma típico: peer entra na sala mas não vê/ouve outros).
+//
+// Configure em produção:
+//   NEXT_PUBLIC_TURN_URL=turn:turn.example.com:3478
+//   NEXT_PUBLIC_TURN_USERNAME=<user>
+//   NEXT_PUBLIC_TURN_CREDENTIAL=<secret>
+//
+// Recomendo Twilio Network Traversal (~US$ 0.40/GB) ou self-hosted Coturn.
+// Sem TURN, ~10-15% dos usuários de produção falham em conectar peer-to-peer.
+const TURN_URL = process.env.NEXT_PUBLIC_TURN_URL;
+const TURN_USER = process.env.NEXT_PUBLIC_TURN_USERNAME;
+const TURN_CRED = process.env.NEXT_PUBLIC_TURN_CREDENTIAL;
+const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
+  ...(TURN_URL && TURN_USER && TURN_CRED
+    ? [{ urls: TURN_URL, username: TURN_USER, credential: TURN_CRED }]
+    : []),
 ];
 
 export function useWebRTC({ stationId, userId, userName, userImage }: UseWebRTCOptions) {
@@ -292,12 +308,13 @@ export function useWebRTC({ stationId, userId, userName, userImage }: UseWebRTCO
     };
 
     pc.ontrack = ({ streams, track }) => {
-      const stream = streams[0];
-      if (!stream) return;
+      const incomingStream = streams[0];
+      if (!incomingStream) return;
 
       // Detect screen track by: (1) server signal already set screenOn, OR
       // (2) track label contains "screen"/"window"/"tab" (Chrome display media), OR
-      // (3) peer already has a camera stream and this is a second video track
+      // (3) peer already tem stream principal de câmera/audio E o stream que
+      //     chega é DIFERENTE (id ≠) — sinal de 2º MediaStream = screen.
       const labelIsScreen = track.kind === "video" && (
         track.label?.toLowerCase().includes("screen") ||
         track.label?.toLowerCase().includes("window") ||
@@ -310,19 +327,27 @@ export function useWebRTC({ stationId, userId, userName, userImage }: UseWebRTCO
         const isScreenTrack = track.kind === "video" && (
           existing?.screenOn ||
           labelIsScreen ||
-          (existing?.camOn && existing?.stream != null)
+          (existing?.stream != null && existing.stream.id !== incomingStream.id)
         );
 
         if (isScreenTrack) {
           next.set(peerId, {
             ...(existing ?? { userId: peerId, name: peerName, image: peerImage, stream: null, micOn: true, camOn: false, spriteUrl: null }),
-            screenStream: stream,
+            screenStream: incomingStream,
             screenOn: true,
           });
         } else {
+          // BUG FIX: o código antigo fazia
+          //   `stream: track.kind !== "video" ? (existing?.stream ?? null) : stream`
+          // — pra tracks de áudio descartava o streams[0] que chegou. Resultado:
+          // peer só-com-mic (ou áudio chegando antes do vídeo) ficava com
+          // stream=null pra sempre e o áudio nunca tocava.
+          // Agora sempre armazenamos o incomingStream — é o MESMO MediaStream
+          // pra todas as tracks do mesmo peer (mic+cam), então atualizar com
+          // ele é seguro independentemente da ordem de chegada.
           next.set(peerId, {
             userId: peerId, name: peerName, image: peerImage,
-            stream: track.kind !== "video" ? (existing?.stream ?? null) : stream,
+            stream: incomingStream,
             screenStream: existing?.screenStream ?? null,
             screenOn: existing?.screenOn ?? false,
             micOn: existing?.micOn ?? true,
