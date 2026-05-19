@@ -50,6 +50,8 @@ export const createAppointment = base
         slotDuration: true,
         trackingId: true,
         organizationId: true,
+        statusId: true,
+        tags: { select: { id: true } },
       },
     });
 
@@ -96,15 +98,20 @@ export const createAppointment = base
     });
 
     if (!lead) {
-      const firstStatus = await prisma.status.findFirst({
-        where: { trackingId: agenda.trackingId },
-        orderBy: { order: "asc" },
-      });
-
-      if (!firstStatus) {
-        throw errors.BAD_REQUEST({
-          message: "A trilha da agenda não possui status configurados.",
+      let statusId = agenda.statusId;
+      if (!statusId) {
+        const firstStatus = await prisma.status.findFirst({
+          where: { trackingId: agenda.trackingId },
+          orderBy: { order: "asc" },
         });
+
+        if (!firstStatus) {
+          throw errors.BAD_REQUEST({
+            message: "A trilha da agenda não possui status configurados.",
+          });
+        }
+
+        statusId = firstStatus.id;
       }
 
       const t = input.tracking;
@@ -114,11 +121,23 @@ export const createAppointment = base
           phone: input.phone,
           email: input.email || null,
           trackingId: agenda.trackingId,
-          statusId: firstStatus.id,
+          statusId,
           source: "AGENDA",
           ...trackingToLeadData(t),
         },
       });
+
+      // Só ADICIONA tags da agenda ao lead novo. Nunca remove tags
+      // existentes (leads pré-existentes nem entram aqui).
+      if (agenda.tags.length > 0) {
+        await prisma.leadTag.createMany({
+          data: agenda.tags.map((tag) => ({
+            leadId: lead!.id,
+            tagId: tag.id,
+          })),
+          skipDuplicates: true,
+        });
+      }
 
       if (shouldLogUtmLanding(t)) {
         await trackLeadEvent({
