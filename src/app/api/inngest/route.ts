@@ -38,6 +38,9 @@ import { detectBrokenIntegrations } from "@/inngest/functions/crons/detect-broke
 import { detectAgendaStarting } from "@/inngest/functions/crons/detect-agenda-starting";
 import { detectFormAbandoned } from "@/inngest/functions/crons/detect-form-abandoned";
 import { detectLowMetrics } from "@/inngest/functions/crons/detect-low-metrics";
+import { worldEventOccupancyTick } from "@/inngest/functions/crons/world-event-occupancy-tick";
+import { detectLeadsWaitingAttention } from "@/inngest/functions/crons/detect-leads-waiting-attention";
+import { detectActionsDueSoon } from "@/inngest/functions/crons/detect-actions-due-soon";
 import { formSendWhatsappNotification } from "@/inngest/functions/form/send-whatsapp-notification";
 import { chatAiWhatsappAgent } from "@/inngest/functions/chat-ai/whatsapp-agent";
 
@@ -85,6 +88,10 @@ export const { GET, POST, PUT } = serve({
     detectFormAbandoned,
     detectLowMetrics,
     detectOverdue,
+    // ── NASA World — convention occupancy ──
+    worldEventOccupancyTick,
+    detectLeadsWaitingAttention,
+    detectActionsDueSoon,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

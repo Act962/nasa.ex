@@ -42,6 +42,7 @@ import { supportRouter } from "./support";
 import { scriptsRouter } from "./scripts";
 import { linnkerRouter } from "./linnker";
 import { spaceStationRouter } from "./space-station";
+import { worldEventsRouter } from "./world-events";
 import { companySpaceRouter } from "./company-space";
 import { profileCardRouter } from "./profile-card";
 import { spaceHelpRouter } from "./space-help";
@@ -101,6 +102,7 @@ export const router = {
   scripts: scriptsRouter,
   linnker: linnkerRouter,
   spaceStation: spaceStationRouter,
+  worldEvents: worldEventsRouter,
   companySpace: companySpaceRouter,
   profileCard: profileCardRouter,
   spaceHelp: spaceHelpRouter,

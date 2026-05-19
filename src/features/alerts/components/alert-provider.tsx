@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { pusherClient } from "@/lib/pusher";
 import { authClient } from "@/lib/auth-client";
 import { orpc, client } from "@/lib/orpc";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Info, AlertCircle } from "lucide-react";
 import { AlertCriticalPopup } from "./alert-critical-popup";
 import { useAlertStore } from "../store/use-alert-store";
 import {
@@ -129,10 +129,27 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (displaySurface === "toast") {
+      // Duração auto-hide por severity. Ficar "para sempre" travava a UI do
+      // user; agora some sozinho mas dá tempo de ler.
+      //   info     → 5s
+      //   warning  → 8s
+      //   critical → 12s (caso raro: critical configurado como toast)
+      const duration =
+        severity === "critical" ? 12_000 : severity === "warning" ? 8_000 : 5_000;
+
+      const icon =
+        severity === "critical" ? (
+          <AlertCircle className="size-4 text-red-500" />
+        ) : severity === "warning" ? (
+          <AlertTriangle className="size-4 text-amber-500" />
+        ) : (
+          <Info className="size-4 text-blue-500" />
+        );
+
       toast(data.title, {
         description: data.body,
-        duration: Infinity,
-        icon: <AlertTriangle className="size-4 text-amber-500" />,
+        duration,
+        icon,
         action: data.actionUrl
           ? {
               label: "Abrir",

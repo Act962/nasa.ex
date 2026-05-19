@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Command as CmdIcon, Slash } from "lucide-react";
+import { Command as CmdIcon, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -75,11 +75,11 @@ export function CmdkPalette() {
       <DialogContent className="sm:max-w-2xl p-0 gap-0 bg-zinc-950 border-zinc-800">
         <DialogHeader className="px-4 pt-4 pb-2">
           <DialogTitle className="text-sm text-zinc-200 flex items-center gap-2">
-            <Slash className="size-3.5 text-violet-400" />
+            <Sparkles className="size-3.5 text-violet-400" />
             Comando rápido
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Compose a command using slash chips. Submit sends to Astro.
+            Monte um comando escolhendo verbo, app e campos. Submit envia ao Astro.
           </DialogDescription>
         </DialogHeader>
         <div className="px-3 pb-3">
