@@ -14,6 +14,7 @@ import z from "zod";
 import { v4 as uuidv4 } from "uuid";
 import {
   attendLeadIfWaiting,
+  claimLeadForAttendant,
   logChatMessageSent,
   triggerFirstChatInteractionIfFirst,
 } from "./utils";
@@ -163,6 +164,7 @@ export const createTextMessage = base
 
       // Trigger gamification/attendance logic
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+      await claimLeadForAttendant(message.conversation.lead.id, context.user.id);
 
       await triggerFirstChatInteractionIfFirst({
         conversationId: input.conversationId,

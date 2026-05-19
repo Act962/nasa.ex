@@ -11,6 +11,7 @@ import { MessageChannel } from "@/generated/prisma/enums";
 import z from "zod";
 import {
   attendLeadIfWaiting,
+  claimLeadForAttendant,
   logChatMessageSent,
   triggerFirstChatInteractionIfFirst,
 } from "./utils";
@@ -113,6 +114,7 @@ export const createContactMessage = base
       );
 
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+      await claimLeadForAttendant(message.conversation.lead.id, context.user.id);
 
       await triggerFirstChatInteractionIfFirst({
         conversationId: input.conversationId,
