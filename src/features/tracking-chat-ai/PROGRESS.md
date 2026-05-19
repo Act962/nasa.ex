@@ -50,6 +50,7 @@ Uazapi → /api/chat/webhook
 | `send_document`      | `sendMedia` type=document, com `docName` (fileName) e caption opcional.                     |
 | `finish_conversation`| `Lead.statusFlow = FINISHED` + pusher `lead:updated`. IA não responde mais até nova msg.    |
 | `transfer_to_human`  | `Lead.isActive = false` + `statusFlow = ACTIVE` + pusher. IA pausada para esse lead.        |
+| `add_tags_to_lead`   | Aplica até 3 tags no lead, dispara workflows `LEAD_TAGGED` + alert bus. Só registra `LeadTag` (sem history/activity log nessa fase). Só exposta se a org tiver tag com `description`. |
 
 ### Mapa de arquivos
 
@@ -58,10 +59,11 @@ src/features/tracking-chat-ai/
 ├── PROGRESS.md                       ← este arquivo
 ├── lib/
 │   ├── agent.ts                      runWhatsappAgent(): orquestra context+guard+generateText+split+send
-│   ├── context.ts                    loadAgentContext() + tipo AgentContext + AgentEventData
-│   ├── system-prompt.ts              buildSystemPrompt(): regras de split, finishSentence, tools
+│   ├── context.ts                    loadAgentContext() + AgentContext (inclui availableTags) + AgentEventData
+│   ├── system-prompt.ts              buildSystemPrompt(): regras de split, finishSentence, catálogo de tags
 │   ├── split-message.ts              splitForWhatsapp(): ≤4 chunks de ≤500 chars
 │   ├── persist.ts                    persistOutboundMessage(): cria Message fromMe=true, lastOutboundAt, pusher
+│   ├── apply-tags-by-ai.ts           applyTagsByAi(): cria LeadTag + dispara workflows LEAD_TAGGED + eventBus
 │   └── model.ts                      defaultModel(): OpenAI com ASTRO_DEFAULT_MODEL
 └── server/
     └── tools/
@@ -70,7 +72,8 @@ src/features/tracking-chat-ai/
         ├── send-audio.ts
         ├── send-document.ts
         ├── finish-conversation.ts
-        └── transfer-to-human.ts
+        ├── transfer-to-human.ts
+        └── add-tags-to-lead.ts
 ```
 
 Arquivos externos modificados:
@@ -121,6 +124,8 @@ Arquivos externos modificados:
 ### Dívida técnica
 - [ ] Considerar mover `WEBHOOK_AI_AGENT_N8N` pra config por-tracking em vez de env global (multi-org). Provavelmente fica obsoleto com fase 2.
 - [ ] `ctx.lead.statusFlow` é checado como string literal `"FINISHED"` em `agent.ts` — usar o enum `StatusFlow.FINISHED` do prisma quando refatorar.
+- [ ] **Auditoria do `add_tags_to_lead`**: `applyTagsByAi` hoje pula `recordLeadHistory`, `recordLeadEvent("TAG_ADDED")` e `logActivity` porque essas funções exigem `userId` humano. Resultado: tags aplicadas pela IA não aparecem no feed de jornada do lead nem na timeline do admin. Resolver com User de sistema ("NASA IA") por organização ou refatorando essas APIs para aceitarem ator opcional. Antes disso, ações da IA são rastreáveis só via `LeadTag.createdAt` + logs de Inngest.
+- [ ] **Duplicação consciente do dispatch de workflows LEAD_TAGGED**: a query (`Workflow.findMany` com filtro `nodes.some.type=LEAD_TAGGED + array_contains tagIds`) está hoje em DOIS lugares — `src/app/router/leads/add-tags.ts` (humano) e `src/features/tracking-chat-ai/lib/apply-tags-by-ai.ts` (IA). Foi feito de propósito para não tocar no router de produção. Se o critério de match mudar, atualizar os dois.
 
 ---
 
@@ -142,3 +147,4 @@ Arquivos externos modificados:
 
 - **2026-05-18** — v1 inicial. Pipeline Inngest+AI SDK+Uazapi substituindo `WEBHOOK_AI_AGENT_N8N` para canal WhatsApp. Tools: send_image/send_audio/send_document/finish_conversation/transfer_to_human. Split de mensagem em até 4 partes. Debounce 3s + concurrency 1 por leadId.
 - **2026-05-19** — Pausa automática da IA quando atendente humano interage. Novo helper `claimLeadForAttendant(leadId, userId)` em [`src/app/router/message/utils.ts`](../../../app/router/message/utils.ts) seta `Lead.isActive=false` + `Lead.responsibleId=userId` e dispara pusher `lead:updated`. Chamado dos 6 endpoints de envio outbound (text/audio/image/file/location/contact). Sobrescreve responsável existente: último que respondeu vira o dono. `create-with-buttons` fora de escopo. Implica que o guard `lead.isActive` em [agent.ts](lib/agent.ts) agora tem dois disparadores: a tool `transfer_to_human` e qualquer mensagem manual do atendente.
+- **2026-05-19** — Tagging automático pela IA. Nova tool `add_tags_to_lead` registrada quando há ao menos uma `Tag.description` preenchida na org/tracking; aplica até 3 tags por chamada via novo helper [`apply-tags-by-ai.ts`](lib/apply-tags-by-ai.ts), que cria `LeadTag` (skipDuplicates), dispara workflows `LEAD_TAGGED` que casem com as tagIds e publica `lead.tag_added` no event bus de alertas. `loadAgentContext` ganhou `availableTags` (tags com descrição na org + tracking-scope) e o select dos `leadTags` atuais passou a incluir `id` (a tool precisa pra filtrar duplicatas e validar IDs do catálogo). `buildSystemPrompt` ganhou seções "Tags atuais do lead", "Catálogo de tags disponíveis" e "Quando tagear". **Não toca** em `src/app/router/leads/add-tags.ts` — caminho humano permanece intacto (com `recordLeadHistory`/`logActivity`/`recordLeadEvent`). **Dívida**: auditoria das ações da IA (ver "Dívida técnica") e duplicação do dispatch de workflows entre humano e IA.

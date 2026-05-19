@@ -39,6 +39,8 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
         settings: ctx.settings!,
         orgName: ctx.organization.name,
         leadName: ctx.lead.name,
+        currentTags: ctx.lead.leadTags,
+        availableTags: ctx.availableTags,
       }),
       tools: buildAgentTools(ctx),
       messages: ctx.history,

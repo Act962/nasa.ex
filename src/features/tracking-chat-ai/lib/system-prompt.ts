@@ -1,15 +1,29 @@
 import { AiSettings } from "@/generated/prisma/client";
 
+interface AvailableTag {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
+interface CurrentLeadTag {
+  tag: { id: string; name: string };
+}
+
 interface BuildPromptArgs {
   settings: AiSettings;
   orgName: string;
   leadName: string | null;
+  currentTags: CurrentLeadTag[];
+  availableTags: AvailableTag[];
 }
 
 export function buildSystemPrompt({
   settings,
   orgName,
   leadName,
+  currentTags,
+  availableTags,
 }: BuildPromptArgs): string {
   const assistantName = settings.assistantName?.trim() || "atendente";
   const finishSentence = settings.finishSentence?.trim();
@@ -24,6 +38,8 @@ passar pro humano" sem chamar a tool — a promessa não desliga a IA, só a too
 Quando o lead pedir para falar com humano, chame a tool \`transfer_to_human\`.
 NUNCA prometa "vou te passar pro humano" sem chamar a tool — a promessa não
 desliga a IA, só a tool faz isso.`;
+
+  const taggingBlock = buildTaggingBlock(currentTags, availableTags);
 
   return [
     `Você é ${assistantName} da empresa "${orgName}".`,
@@ -51,8 +67,47 @@ desliga a IA, só a tool faz isso.`;
     "  ```",
     "- Exemplo ruim (NÃO faça): tudo num parágrafo só, ou 7 mensagens picotadas.",
     "",
+    taggingBlock,
     finishBlock,
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function buildTaggingBlock(
+  currentTags: CurrentLeadTag[],
+  availableTags: AvailableTag[],
+): string {
+  if (availableTags.length === 0) {
+    // Sem catálogo → tool não é registrada (ver server/tools/index.ts).
+    return "";
+  }
+
+  const currentList =
+    currentTags.length > 0
+      ? currentTags.map((lt) => `- ${lt.tag.name} (id: ${lt.tag.id})`).join("\n")
+      : "- (nenhuma)";
+
+  const catalogList = availableTags
+    .map((t) => `- ${t.name} (id: ${t.id}): ${t.description}`)
+    .join("\n");
+
+  return [
+    "## Tags atuais do lead",
+    currentList,
+    "",
+    "## Catálogo de tags disponíveis",
+    "Cada linha tem `nome (id: ID): descrição`. Use a descrição para decidir quando aplicar a tag.",
+    catalogList,
+    "",
+    "## Quando tagear",
+    "- Sempre que algo importante na conversa case com a descrição de uma tag do catálogo, chame `add_tags_to_lead` passando o(s) `id`(s) correspondente(s).",
+    "- Pode aplicar até 3 tags na mesma chamada.",
+    "- NÃO anuncie ao lead que está tagueando — é registro interno.",
+    "- NÃO invente IDs — use exatamente os do catálogo acima.",
+    "- NÃO tente aplicar tag que já está em \"Tags atuais do lead\".",
+    "- **IMPORTANTE — depois de chamar `add_tags_to_lead`, SEMPRE continue a conversa com texto pro lead.** A tool é só registro interno; o lead continua esperando sua resposta. NÃO encerre a conversa por causa de uma tag — só `transfer_to_human` ou `finish_conversation` encerram.",
+    "- Se você ia responder algo e percebeu que cabe tagear, faça as duas coisas: chame `add_tags_to_lead` E em seguida escreva a resposta normal pro lead.",
+    "",
+  ].join("\n");
 }
