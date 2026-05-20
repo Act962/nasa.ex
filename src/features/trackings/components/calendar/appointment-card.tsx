@@ -34,7 +34,7 @@ export const AppointmentCard = ({
 
   return (
     <>
-      <div className="px-1 py-[2px] h-full" onClick={() => setOpenView(true)}>
+      <div className="px-1 py-0.5 h-full" onClick={() => setOpenView(true)}>
         <div
           className={cn(
             "p-1.5 text-xs border border-transparent rounded-md border-l-4 flex flex-col gap-1 cursor-pointer transition-colors overflow-hidden h-full shadow-sm",
