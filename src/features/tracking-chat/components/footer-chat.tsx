@@ -4,6 +4,7 @@ import {
   ArchiveIcon,
   BellIcon,
   CalendarIcon,
+  DollarSignIcon,
   FileIcon,
   FileTextIcon,
   HammerIcon,
@@ -60,6 +61,7 @@ import { ButtonsPanel } from "./buttons-panel";
 import { ReminderPanel } from "./reminder-panel";
 import { SendLocationDialog } from "./send-location-dialog";
 import { ContactsPanel } from "./contacts-panel";
+import { BudgetPanel } from "./budget-panel";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
@@ -118,6 +120,7 @@ export function Footer({
   const [showButtons, setShowButtons] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
   const [showContact, setShowContact] = useState(false);
+  const [showBudget, setShowBudget] = useState(false);
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [pendingLocation, setPendingLocation] = useState<{
     latitude: number;
@@ -354,6 +357,21 @@ export function Footer({
               onSelect={handleSendContact}
             />
           )}
+          {showBudget && instance.instance && lead.phone && (
+            <BudgetPanel
+              onClose={() => setShowBudget(false)}
+              conversationId={conversationId}
+              trackingId={trackingId}
+              leadId={lead.id}
+              leadName={lead.name}
+              leadPhone={lead.phone}
+              whatsappToken={instance.instance.apiKey}
+              onInsertMessage={(text) => {
+                setMessage((prev) => (prev ? prev + "\n" + text : text));
+                setShowBudget(false);
+              }}
+            />
+          )}
           {showReminder && (
             <ReminderPanel
               onClose={() => setShowReminder(false)}
@@ -486,7 +504,26 @@ export function Footer({
                         <div
                           className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
                           onClick={() => {
+                            setShowBudget((v) => !v);
+                            setShowReminder(false);
+                            setShowForge(false);
+                            setShowScripts(false);
+                            setShowAgenda(false);
+                            setShowForms(false);
+                            setShowNBox(false);
+                            setShowButtons(false);
+                            setShowContact(false);
+                            setOpen(false);
+                          }}
+                        >
+                          <DollarSignIcon className="size-4 text-emerald-500" />
+                          <p className="text-sm">Orçamento</p>
+                        </div>
+                        <div
+                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
+                          onClick={() => {
                             setShowReminder((v) => !v);
+                            setShowBudget(false);
                             setShowForge(false);
                             setShowScripts(false);
                             setShowAgenda(false);

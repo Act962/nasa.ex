@@ -210,6 +210,25 @@ export const listLeadsByStatus = base
             },
           },
         },
+        // Próximo appointment futuro do lead — usado pelo ícone de agenda
+        // no card do board. Só PENDING/CONFIRMED contam (cancelados não).
+        // `take: 1` garante payload mínimo; orderBy ASC pega o mais próximo.
+        appointments: {
+          where: {
+            startsAt: { gte: new Date() },
+            status: { in: ["PENDING", "CONFIRMED"] },
+          },
+          orderBy: { startsAt: "asc" },
+          take: 1,
+          select: {
+            id: true,
+            startsAt: true,
+            endsAt: true,
+            title: true,
+            meetingType: true,
+            agenda: { select: { id: true, name: true } },
+          },
+        },
       },
 
     });
@@ -349,15 +368,40 @@ export const listLeadsByStatus = base
           : null;
 
         // Remove os fields originais grandes do payload final.
+        // Também extrai `appointments` (lista) e remapeia pra `nextAppointment`
+        // (único objeto ou null) — o card só precisa do próximo agendamento.
         const {
           formResponses: _strip,
+          appointments: leadAppointments,
           ...rest
-        } = lead as unknown as { formResponses?: unknown } & typeof lead;
+        } = lead as unknown as {
+          formResponses?: unknown;
+          appointments?: Array<{
+            id: string;
+            startsAt: Date;
+            endsAt: Date;
+            title: string | null;
+            meetingType: "ONLINE" | "IN_PERSON";
+            agenda: { id: string; name: string };
+          }>;
+        } & typeof lead;
+        const next = leadAppointments?.[0] ?? null;
+        const nextAppointment = next
+          ? {
+              id: next.id,
+              startsAt: next.startsAt.toISOString(),
+              endsAt: next.endsAt.toISOString(),
+              title: next.title,
+              meetingType: next.meetingType,
+              agendaName: next.agenda.name,
+            }
+          : null;
         return {
           ...rest,
           order: lead.order.toString(),
           forms: responses,
           deadlineHint,
+          nextAppointment,
         };
       }),
       nextCursorId,

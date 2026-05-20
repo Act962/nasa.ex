@@ -6,6 +6,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowUpRight,
+  CalendarClock,
   CheckIcon,
   ClipboardList as ClipboardListIcon,
   Grip,
@@ -309,6 +310,28 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           {(data.forms ?? []).map((f) => (
             <FormStatusIcon key={f.responseId} form={f} leadId={data.id} />
           ))}
+
+          {/* Próximo agendamento (Agenda ou agenda do chat). Compact: só
+              ícone azul; tooltip nativo do title mostra data + hora + nome
+              da agenda. Não quebra largura do card — ocupa 12px (size-3),
+              mesma proporção dos outros ícones do footer. */}
+          {data.nextAppointment && (
+            <span
+              className="inline-flex items-center gap-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400"
+              title={`${dayjs(data.nextAppointment.startsAt).format("DD/MM HH:mm")} — ${
+                data.nextAppointment.agendaName
+              }${
+                data.nextAppointment.title
+                  ? ` (${data.nextAppointment.title})`
+                  : ""
+              }`}
+            >
+              <CalendarClock className="size-3 shrink-0" />
+              <span className="tabular-nums">
+                {dayjs(data.nextAppointment.startsAt).format("DD/MM HH:mm")}
+              </span>
+            </span>
+          )}
 
           {/* Prazo mais urgente entre todos os forms do lead.
               `data.deadlineHint` é computado server-side a partir do

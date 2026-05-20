@@ -24,6 +24,8 @@ const entryShape = z.object({
   costCenterId: z.string().nullable(),
   contactId: z.string().nullable(),
   accountId: z.string().nullable(),
+  trackingId: z.string().nullable(),
+  leadId: z.string().nullable(),
   installmentTotal: z.number().nullable(),
   installmentCurrent: z.number().nullable(),
   installmentGroupId: z.string().nullable(),
@@ -53,6 +55,9 @@ export const listPaymentEntries = base
     contactId: z.string().optional(),
     categoryId: z.string().optional(),
     accountId: z.string().optional(),
+    // Filtros novos pra histórico de orçamentos do lead no chat.
+    leadId: z.string().optional(),
+    trackingId: z.string().optional(),
     dateFrom: z.string().optional(),
     dateTo: z.string().optional(),
     search: z.string().optional(),
@@ -72,6 +77,8 @@ export const listPaymentEntries = base
         ...(input.contactId ? { contactId: input.contactId } : {}),
         ...(input.categoryId ? { categoryId: input.categoryId } : {}),
         ...(input.accountId ? { accountId: input.accountId } : {}),
+        ...(input.leadId ? { leadId: input.leadId } : {}),
+        ...(input.trackingId ? { trackingId: input.trackingId } : {}),
         ...(input.search ? { description: { contains: input.search, mode: "insensitive" as const } } : {}),
         ...(input.dateFrom || input.dateTo
           ? {
@@ -111,6 +118,10 @@ export const createPaymentEntry = base
     costCenterId: z.string().optional(),
     contactId: z.string().optional(),
     accountId: z.string().optional(),
+    // Vínculos opcionais com tracking/lead — usado pela feature de
+    // Orçamento (chat → "+") pra rastrear A receber por lead específico.
+    trackingId: z.string().optional(),
+    leadId: z.string().optional(),
     notes: z.string().optional(),
     documentNumber: z.string().optional(),
     competenceDate: z.string().optional(),
