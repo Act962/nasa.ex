@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json(
         { ok: false, reason: "invalid_payload" },
-        { status: 200 },
+        { status: 400 },
       );
     }
 
@@ -67,7 +67,8 @@ export async function POST(request: NextRequest) {
       }
 
       const fromMe = json.message.fromMe;
-      const name = fromMe ? json.chat.name : json.message.senderName;
+      const name =
+        json.message.senderName || json.chat?.name || "Sem nome";
 
       const phone = json.message.chatid.split("@")[0];
       const remoteJid = json.message.chatid;
@@ -173,7 +174,7 @@ export async function POST(request: NextRequest) {
 
         const createdLead = await prisma.lead.create({
           data: {
-            name: name ?? "Sem nome",
+            name,
             statusId: status.id,
             phone,
             trackingId: trackingId,
