@@ -620,7 +620,7 @@ export function CreateAppointmentModal({
             <Button
               type="submit"
               disabled={isSubmitting || !canSubmit}
-              className="flex-1 tiny:flex-none tiny:min-w-[160px]"
+              className="w-full tiny:min-w-40"
             >
               {isSubmitting ? (
                 <>

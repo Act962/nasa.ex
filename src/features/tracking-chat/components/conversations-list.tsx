@@ -135,8 +135,21 @@ export function ConversationsList() {
     if (isLoadingTrackings || trackings.length === 0 || selectedTracking) return;
     const fromQuery =
       trackingIdFromQuery && trackings.find((t) => t.id === trackingIdFromQuery);
-    setSelectedTracking(fromQuery ? fromQuery.id : trackings[0].id);
-  }, [trackings, isLoadingTrackings, selectedTracking, trackingIdFromQuery]);
+    const id = fromQuery ? fromQuery.id : trackings[0].id;
+    setSelectedTracking(id);
+    if (!trackingIdFromQuery) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("trackingId", id);
+      router.replace(`?${params.toString()}`, { scroll: false });
+    }
+  }, [
+    trackings,
+    isLoadingTrackings,
+    selectedTracking,
+    trackingIdFromQuery,
+    searchParams,
+    router,
+  ]);
 
   useEffect(() => {
     if (!selectedTracking) return;
@@ -164,6 +177,10 @@ export function ConversationsList() {
     setSelectedTracking(id);
     setSelectedStatus(null);
     setSelectedTagIds([]);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("trackingId", id);
+    router.replace(`?${params.toString()}`, { scroll: false });
   };
 
   return (

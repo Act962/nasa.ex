@@ -3,7 +3,8 @@
 import type { Conversation, Lead } from "@/generated/prisma/client";
 import { LeadSource } from "@/generated/prisma/enums";
 import { format, isToday, isYesterday } from "date-fns";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { withSearchParams } from "../utils/url";
 import { MouseEvent, useCallback } from "react";
 import { AvatarLead } from "./avatar-lead";
 import { colorsByTemperature, LeadSourceColors } from "../utils/card-lead";
@@ -81,10 +82,14 @@ export function LeadBox({
     conversationId: string;
     trackingId?: string;
   }>();
+  const searchParams = useSearchParams();
   const markRead = useMutationMarkReadMessage();
 
   const handleClick = useCallback(() => {
-    router.push(trackingId ? `${item.id}` : `/tracking-chat/${item.id}`);
+    const target = trackingId
+      ? withSearchParams(item.id, searchParams)
+      : withSearchParams(`/tracking-chat/${item.id}`, searchParams);
+    router.push(target);
     if (unreadCount && unreadCount > 0 && instance?.token) {
       markRead.mutate({
         conversationId: item.id,
@@ -92,7 +97,7 @@ export function LeadBox({
         token: instance.token,
       });
     }
-  }, [router, item, unreadCount, instance, markRead]);
+  }, [router, item, unreadCount, instance, markRead, searchParams, trackingId]);
 
   const selected = item.id === conversationId;
   const hasSeen = !unreadCount || unreadCount === 0;

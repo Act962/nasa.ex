@@ -11,10 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { MessageSquareIcon, PlusIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
+import { withSearchParams } from "../utils/url";
 
 interface ContactActionDialogProps {
   open: boolean;
@@ -34,6 +35,13 @@ export function ContactActionDialog({
   contactPhone,
 }: ContactActionDialogProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const buildHref = (conversationId: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (!params.has("trackingId")) params.set("trackingId", trackingId);
+    return withSearchParams(`/tracking-chat/${conversationId}`, params);
+  };
 
   const { data, isLoading } = useQuery(
     orpc.conversation.findByPhone.queryOptions({
@@ -47,7 +55,7 @@ export function ContactActionDialog({
       onSuccess: ({ conversationId }) => {
         toast.success("Conversa criada");
         onOpenChange(false);
-        router.push(`/tracking-chat/${conversationId}`);
+        router.push(buildHref(conversationId));
       },
       onError: (e: any) => {
         toast.error(e?.message || "Erro ao criar conversa");
@@ -60,7 +68,7 @@ export function ContactActionDialog({
   const handleGo = () => {
     if (!existingId) return;
     onOpenChange(false);
-    router.push(`/tracking-chat/${existingId}`);
+    router.push(buildHref(existingId));
   };
 
   const handleCreate = () => {
