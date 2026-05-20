@@ -316,18 +316,17 @@ export function Footer({
               }}
             />
           )}
-          {showScripts && (
-            <ScriptsPanel
-              trackingId={trackingId}
-              onClose={() => setShowScripts(false)}
-              onSelectScript={(content) => {
-                setMessage((prev) => prev + content);
-                setShowScripts(false);
-              }}
-              leadName={lead.name}
-              leadPhone={lead.phone ?? undefined}
-            />
-          )}
+          <ScriptsPanel
+            open={showScripts}
+            onOpenChange={setShowScripts}
+            trackingId={trackingId}
+            onSelectScript={(content) => {
+              setMessage((prev) => prev + content);
+              setShowScripts(false);
+            }}
+            leadName={lead.name}
+            leadPhone={lead.phone ?? undefined}
+          />
           {showForge && (
             <ForgePanel
               onClose={() => setShowForge(false)}

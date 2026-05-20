@@ -78,9 +78,10 @@ export function LeadsByMetricDialog({
   extra,
 }: LeadsByMetricDialogProps) {
   // Sincroniza filtros com o dashboard: organizationIds, dateRange,
-  // trackingId e tagIds. Sem isso o popup mostra leads que o card
-  // filtrou pra fora (cards com 0 abrindo lista).
-  const { organizationIds, dateRange, trackingId, tagIds } = useDashboardStore();
+  // trackingId, tagIds e memberIds. Sem isso o popup mostra leads que o
+  // card filtrou pra fora (cards com 0 abrindo lista).
+  const { organizationIds, dateRange, trackingId, tagIds, memberIds } =
+    useDashboardStore();
   const [limit, setLimit] = useState(10);
 
   const { data, isLoading } = useQuery({
@@ -93,6 +94,7 @@ export function LeadsByMetricDialog({
         endDate: dateRange.to?.toISOString(),
         trackingId: trackingId || undefined,
         tagIds: tagIds.length > 0 ? tagIds : undefined,
+        memberIds: memberIds.length > 0 ? memberIds : undefined,
         statusId: extra?.statusId,
         source: extra?.source,
         utmCampaign: extra?.utmCampaign,

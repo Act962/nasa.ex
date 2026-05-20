@@ -14,6 +14,7 @@ import { useConstructUrl } from "@/hooks/use-construct-url";
 import { phoneMaskFull } from "@/utils/format-phone";
 import {
   ArrowLeftIcon,
+  BotIcon,
   CheckIcon,
   EllipsisVerticalIcon,
   RefreshCwIcon,
@@ -21,12 +22,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { SummerizeConversation } from "./summerize-conversation";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { withSearchParams } from "../utils/url";
 import { CheckIaLead } from "./check-ia-lead";
 import { MessageChannel, StatusFlow } from "@/generated/prisma/enums";
 import { useMutationRodizio } from "../hooks/use-rodizio";
 import { SyncMessagesButton } from "./sync-messages-button";
-import type { SVGProps } from "react";
 import { FacebookIcon, InstagramIcon } from "./icons";
 
 interface HeaderProps {
@@ -77,12 +78,15 @@ export function Header({
   channel,
 }: HeaderProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const profileUrl = useConstructUrl(profile || "");
   const mutation = useMutationRodizio(conversationId);
   const [syncOpen, setSyncOpen] = useState(false);
 
+  const backHref = withSearchParams(`/tracking-chat`, searchParams);
+
   const onCloseChat = () => {
-    router.push(`/tracking-chat`);
+    router.push(backHref);
   };
 
   const handleFinishLead = () => {
@@ -96,7 +100,7 @@ export function Header({
     <div className="bg-accent-foreground/10 w-full flex border-b sm:px-4 py-3 px-4 lg:px-6 justify-between items-center shadow-sm">
       <div className="flex gap-3 items-center">
         <Button variant="ghost" size="sm" className="lg:hidden block">
-          <Link href={`/tracking-chat`}>
+          <Link href={backHref}>
             <ArrowLeftIcon className="size-4" />
           </Link>
         </Button>
@@ -167,6 +171,21 @@ export function Header({
             {/* Mobile/tablet-only actions */}
             <div className="lg:hidden">
               <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="flex items-center justify-between gap-2"
+                onSelect={(e) => e.preventDefault()}
+              >
+                <span className="flex items-center gap-2">
+                  <BotIcon className="size-4" />
+                  IA do lead
+                </span>
+                <CheckIaLead
+                  size="sm"
+                  active={initialActive}
+                  leadId={leadId}
+                  trackingId={trackingId}
+                />
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleFinishLead}
                 disabled={statusFlow === "FINISHED" || mutation.isPending}

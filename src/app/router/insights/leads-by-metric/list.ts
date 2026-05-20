@@ -48,6 +48,7 @@ const InputSchema = z.object({
   endDate: z.string().optional(),
   trackingId: z.string().optional(),
   tagIds: z.array(z.string()).optional(),
+  memberIds: z.array(z.string()).optional(),
   // Filtros extras pra métricas parametrizadas (lead.byStatus etc).
   statusId: z.string().optional(),
   source: z.string().optional(),
@@ -83,9 +84,11 @@ type LeadRow = {
 
 /**
  * Lista os leads vinculados a uma métrica específica de um app no
- * dashboard de Insights. Espelha exatamente os filtros usados em
- * `getAppsInsights` pra contar os cards — assim o número do card SEMPRE
- * bate com o total retornado aqui.
+ * dashboard de Insights. Para `app: "chat"` espelha
+ * `getTrackingDashboardReport` (que alimenta os KPI cards de atendimento)
+ * — Em atendimento/Aguardando contam Lead por statusFlow, Total de
+ * Conversas conta Conversation com escopo de membership + memberIds. Pros
+ * demais apps continua espelhando `getAppsInsights`.
  *
  * Apps suportados: Forge (Proposal.client), SpaceTime (Appointment.lead),
  * Chat (Conversation.lead). Payment e NASA Route não têm linkage direto
@@ -102,7 +105,7 @@ export const listLeadsByAppMetric = base
   })
   .input(InputSchema)
   .handler(async ({ input, context }) => {
-    const { org } = context;
+    const { org, user } = context;
     const orgIds =
       input.organizationIds && input.organizationIds.length > 0
         ? input.organizationIds
@@ -120,11 +123,18 @@ export const listLeadsByAppMetric = base
         ? { leadTags: { some: { tagId: { in: input.tagIds } } } }
         : undefined;
 
+    const memberIds =
+      input.memberIds && input.memberIds.length > 0
+        ? input.memberIds
+        : undefined;
+
     const ctx = {
       orgIds,
+      userId: user.id,
       dateRange,
       trackingId: input.trackingId,
       tagWhereLead,
+      memberIds,
       statusId: input.statusId,
       source: input.source,
       utmCampaign: input.utmCampaign,
@@ -215,9 +225,11 @@ async function fetchLead({
 interface FetchCtx {
   metric: string;
   orgIds: string[];
+  userId: string;
   dateRange: { gte: Date; lte: Date } | undefined;
   trackingId: string | undefined;
   tagWhereLead: { leadTags: { some: { tagId: { in: string[] } } } } | undefined;
+  memberIds: string[] | undefined;
   statusId: string | undefined;
   source: string | undefined;
   utmCampaign: string | undefined;
@@ -348,21 +360,88 @@ async function fetchSpacetime({ metric, orgIds, dateRange, trackingId, tagWhereL
 
 // ─── Chat ───────────────────────────────────────────────────────────────
 
-async function fetchChat({ metric, orgIds, dateRange, trackingId, tagWhereLead, limit, cursor }: FetchCtx) {
-  // Espelha exatamente getAppsInsights: attended = isActive=true,
-  // unattended = isActive=false. Mantém compatibilidade com a contagem
-  // dos cards.
+async function fetchChat({
+  metric,
+  orgIds,
+  userId,
+  dateRange,
+  trackingId,
+  tagWhereLead,
+  memberIds,
+  limit,
+  cursor,
+}: FetchCtx) {
+  // Espelha exatamente getTrackingDashboardReport (procedure que alimenta
+  // os cards de atendimento). Os cards de "Em atendimento" e "Aguardando
+  // atendimento" contam Lead por statusFlow — não Conversation por isActive
+  // —, então aqui listamos Leads. O card "Total de Conversas" continua
+  // sobre Conversation, mas com o mesmo where (membership + memberIds).
   const isAttended = metric === "chat.attendedConversations";
   const isUnattended = metric === "chat.unattendedConversations";
 
-  const where = {
-    tracking: { organizationId: { in: orgIds } },
-    ...(dateRange ? { createdAt: dateRange } : {}),
+  // ── Em atendimento / Aguardando atendimento → Lead por statusFlow ─────
+  if (isAttended || isUnattended) {
+    const statusFlow = isAttended ? "ACTIVE" : "WAITING";
+
+    const where: Prisma.LeadWhereInput = {
+      ...(trackingId ? { trackingId } : {}),
+      tracking: {
+        organization: {
+          id: { in: orgIds },
+          members: { some: { userId } },
+        },
+      },
+      ...(tagWhereLead ?? {}),
+      ...(dateRange ? { createdAt: dateRange } : {}),
+      ...(memberIds ? { responsibleId: { in: memberIds } } : {}),
+      statusFlow,
+    };
+
+    const total = await prisma.lead.count({ where });
+
+    const leadsRaw = await prisma.lead.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      select: { ...LEAD_SELECT, updatedAt: true },
+    });
+
+    const label = isAttended ? "Em atendimento" : "Aguardando atendimento";
+    const leads: LeadRow[] = leadsRaw.map((l) => ({
+      id: l.id,
+      name: l.name,
+      phone: l.phone,
+      email: l.email,
+      source: l.source,
+      responsible: l.responsible,
+      status: l.status,
+      tracking: l.tracking,
+      metricLabel: label,
+      metricAt: l.updatedAt,
+    }));
+
+    const hasMore = leadsRaw.length > limit - 1;
+    const nextCursor = hasMore
+      ? leadsRaw[leadsRaw.length - 1]?.id ?? null
+      : null;
+    return { leads: leads.slice(0, limit - 1), nextCursor, total };
+  }
+
+  // ── Total de Conversas → Conversation com where do summary ────────────
+  // Summary NÃO aplica tag filter no count de conversations, só nos counts
+  // de Lead — então também ignoramos tagWhereLead aqui pra bater 1:1.
+  const where: Prisma.ConversationWhereInput = {
     ...(trackingId ? { trackingId } : {}),
-    ...(tagWhereLead ? { lead: { is: tagWhereLead } } : {}),
-    ...(isAttended ? { isActive: true } : {}),
-    ...(isUnattended ? { isActive: false } : {}),
-  } as Prisma.ConversationWhereInput;
+    tracking: {
+      organization: {
+        id: { in: orgIds },
+        members: { some: { userId } },
+      },
+    },
+    ...(memberIds ? { lead: { responsibleId: { in: memberIds } } } : {}),
+    ...(dateRange ? { createdAt: dateRange } : {}),
+  };
 
   const total = await prisma.conversation.count({ where });
 
@@ -388,6 +467,8 @@ async function fetchChat({ metric, orgIds, dateRange, trackingId, tagWhereLead, 
     }));
 
   const hasMore = conversations.length > limit - 1;
-  const nextCursor = hasMore ? conversations[conversations.length - 1]?.id ?? null : null;
+  const nextCursor = hasMore
+    ? conversations[conversations.length - 1]?.id ?? null
+    : null;
   return { leads: leads.slice(0, limit - 1), nextCursor, total };
 }
