@@ -364,7 +364,9 @@ export function WorkspaceCalendarModal({ open, onOpenChange }: Props) {
                 sidebarOpen ? "lg:w-[260px]" : "lg:w-0 lg:border-r-0",
               )}
             >
-              <div className="w-[260px]">{filtersNode}</div>
+              <div className="h-full w-[260px] overflow-y-auto">
+                {filtersNode}
+              </div>
             </div>
 
             {/* Mobile filters trigger */}

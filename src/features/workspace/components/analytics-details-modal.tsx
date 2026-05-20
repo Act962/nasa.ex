@@ -1,9 +1,8 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { useQueryState } from "nuqs";
-import { toast } from "sonner";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
 import {
@@ -11,7 +10,6 @@ import {
   CheckCircle2Icon,
   ClockIcon,
   ListChecksIcon,
-  MailWarningIcon,
 } from "lucide-react";
 import {
   Dialog,
@@ -21,7 +19,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -179,22 +176,6 @@ interface ActionRowProps {
 }
 
 function ActionRow({ action, onSelect }: ActionRowProps) {
-  const queryClient = useQueryClient();
-  const requestDelivery = useMutation(
-    orpc.action.requestActionDelivery.mutationOptions({
-      onSuccess: (data) => {
-        toast.success(
-          `Cobrança enviada (${data.notified} participante${data.notified === 1 ? "" : "s"} notificado${data.notified === 1 ? "" : "s"}).`,
-        );
-        queryClient.invalidateQueries({
-          queryKey: ["action.listAnalyticsDetails"],
-        });
-      },
-      onError: (error: any) =>
-        toast.error(error.message || "Erro ao cobrar entrega"),
-    }),
-  );
-
   const dueDate = action.dueDate ? dayjs(action.dueDate) : null;
   const dueLabel = dueDate ? dueDate.format("DD MMM YYYY") : "Sem prazo";
   const validParticipants = action.participants.filter(Boolean) as NonNullable<
@@ -202,114 +183,93 @@ function ActionRow({ action, onSelect }: ActionRowProps) {
   >[];
 
   return (
-    <div className="flex items-start gap-3 px-5 py-3 transition-colors hover:bg-muted/30">
-      {/* Botão invisível que ocupa o conteúdo principal — clica em qualquer
-          parte da info abre o evento. Botão "Cobrar entrega" fica fora desse
-          botão (sem aninhamento) pra clicks nele não propagarem. */}
-      <button
-        type="button"
-        onClick={() => onSelect(action.id)}
-        className="min-w-0 flex-1 cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-      >
-        {/* Linha 1: Título + Workspace */}
-        <div className="flex items-baseline gap-2">
-          <span className="truncate font-medium">{action.title}</span>
-          {action.workspace && (
-            <Badge variant="outline" className="shrink-0 text-[10px]">
-              {action.workspace.name}
-            </Badge>
+    <button
+      type="button"
+      onClick={() => onSelect(action.id)}
+      className="w-full cursor-pointer px-5 py-3 text-center transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      {/* Linha 1: Título + Workspace */}
+      <div className="flex flex-wrap items-baseline justify-center gap-2">
+        <span className="truncate font-medium">{action.title}</span>
+        {action.workspace && (
+          <Badge variant="outline" className="shrink-0 text-[10px]">
+            {action.workspace.name}
+          </Badge>
+        )}
+      </div>
+
+      {/* Linha 2: meta */}
+      <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        {/* Data de vencimento */}
+        <span
+          className={cn(
+            "flex items-center gap-1",
+            action.isOverdue && "font-semibold text-red-600 dark:text-red-400",
           )}
-        </div>
-
-        {/* Linha 2: meta */}
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          {/* Data de vencimento */}
-          <span
-            className={cn(
-              "flex items-center gap-1",
-              action.isOverdue && "font-semibold text-red-600 dark:text-red-400",
-            )}
-          >
-            <ClockIcon className="size-3" />
-            {dueLabel}
-          </span>
-
-          {/* Status (coluna) */}
-          {action.column && (
-            <span className="flex items-center gap-1.5">
-              <span
-                className="size-2 rounded-full"
-                style={{
-                  backgroundColor: action.column.color ?? "#888",
-                }}
-              />
-              {action.column.name}
-            </span>
-          )}
-
-          {/* Subtarefas — só mostra quando há ao menos uma */}
-          {action.subActions.total > 0 && (
-            <span className="flex items-center gap-1">
-              <ListChecksIcon className="size-3" />
-              {action.subActions.done}/{action.subActions.total} subtarefa
-              {action.subActions.total > 1 ? "s" : ""}
-            </span>
-          )}
-
-          {/* Participantes */}
-          {validParticipants.length > 0 && (
-            <div className="flex -space-x-1.5">
-              {validParticipants.slice(0, 5).map((u) => {
-                const isCreator = u.id === action.createdBy;
-                return (
-                  <Tooltip key={u.id}>
-                    <TooltipTrigger asChild>
-                      <Avatar
-                        className={cn(
-                          "size-5 border",
-                          isCreator
-                            ? "border-2 border-white shadow ring-1 ring-violet-500"
-                            : "border-background",
-                        )}
-                      >
-                        <AvatarImage src={u.image ?? undefined} />
-                        <AvatarFallback className="text-[9px]">
-                          {u.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                      {u.name}
-                      {isCreator ? " (criador)" : ""}
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })}
-              {validParticipants.length > 5 && (
-                <span className="ml-1 text-[10px]">
-                  +{validParticipants.length - 5}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      </button>
-
-      {/* Botão Cobrar entrega — só pra atrasadas */}
-      {action.isOverdue && !action.isDone && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="shrink-0 gap-1.5 border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
-          disabled={requestDelivery.isPending}
-          onClick={() =>
-            requestDelivery.mutate({ actionId: action.id })
-          }
         >
-          <MailWarningIcon className="size-3.5" />
-          {requestDelivery.isPending ? "Cobrando..." : "Cobrar entrega"}
-        </Button>
-      )}
-    </div>
+          <ClockIcon className="size-3" />
+          {dueLabel}
+        </span>
+
+        {/* Status (coluna) */}
+        {action.column && (
+          <span className="flex items-center gap-1.5">
+            <span
+              className="size-2 rounded-full"
+              style={{
+                backgroundColor: action.column.color ?? "#888",
+              }}
+            />
+            {action.column.name}
+          </span>
+        )}
+
+        {/* Subtarefas — só mostra quando há ao menos uma */}
+        {action.subActions.total > 0 && (
+          <span className="flex items-center gap-1">
+            <ListChecksIcon className="size-3" />
+            {action.subActions.done}/{action.subActions.total} subtarefa
+            {action.subActions.total > 1 ? "s" : ""}
+          </span>
+        )}
+
+        {/* Participantes */}
+        {validParticipants.length > 0 && (
+          <div className="flex -space-x-1.5">
+            {validParticipants.slice(0, 5).map((u) => {
+              const isCreator = u.id === action.createdBy;
+              return (
+                <Tooltip key={u.id}>
+                  <TooltipTrigger asChild>
+                    <Avatar
+                      className={cn(
+                        "size-5 border",
+                        isCreator
+                          ? "border-2 border-white shadow ring-1 ring-violet-500"
+                          : "border-background",
+                      )}
+                    >
+                      <AvatarImage src={u.image ?? undefined} />
+                      <AvatarFallback className="text-[9px]">
+                        {u.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    {u.name}
+                    {isCreator ? " (criador)" : ""}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+            {validParticipants.length > 5 && (
+              <span className="ml-1 text-[10px]">
+                +{validParticipants.length - 5}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </button>
   );
 }

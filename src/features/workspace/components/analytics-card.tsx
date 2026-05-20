@@ -1,10 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Activity,
-  Loader,
-  ArrowBigDownIcon,
-  ArrowBigUpIcon,
-} from "lucide-react";
+import { Loader, ArrowBigDownIcon, ArrowBigUpIcon } from "lucide-react";
 
 export const AnalyticsCard = (props: {
   title: string;
@@ -44,7 +39,7 @@ export const AnalyticsCard = (props: {
   return (
     <Card
       className={
-        "shadow-none w-full bg-transparent transition-colors " +
+        "shadow-none w-full bg-transparent transition-colors gap-1 py-3 sm:gap-6 sm:py-6 " +
         (interactive
           ? "cursor-pointer hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           : "")
@@ -63,19 +58,19 @@ export const AnalyticsCard = (props: {
           : undefined
       }
     >
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <div className="flex items-center gap-1">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-          <div className="mb-[0.2px]">{getArrowIcon()}</div>
-        </div>
-        <Activity
-          strokeWidth={2.5}
-          className="h-4 w-4  text-muted-foreground"
-        />
+      <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 px-3 pb-1 sm:px-6 sm:pb-2">
+        <CardTitle className="min-w-0 text-[11px] font-medium leading-tight sm:text-sm">
+          {title}
+        </CardTitle>
+        <div className="shrink-0">{getArrowIcon()}</div>
       </CardHeader>
-      <CardContent className="w-full">
-        <div className="text-3xl font-bold">
-          {isLoading ? <Loader className="w-6 h-6 animate-spin" /> : value}
+      <CardContent className="flex w-full flex-1 items-end justify-center px-3 sm:px-6">
+        <div className="text-center text-3xl font-bold sm:text-5xl">
+          {isLoading ? (
+            <Loader className="mx-auto h-8 w-8 animate-spin sm:h-9 sm:w-9" />
+          ) : (
+            value
+          )}
         </div>
       </CardContent>
     </Card>
