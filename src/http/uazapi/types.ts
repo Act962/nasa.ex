@@ -524,6 +524,44 @@ export interface SendListPayload {
   delay?: number;
 }
 
+export type SendMenuType = "button" | "list" | "poll" | "carousel";
+
+/**
+ * Payload unificado para POST /send/menu (uazapi).
+ * Cobre os 4 tipos de mensagem interativa: button, list, poll, carousel.
+ *
+ * Formato de `choices` por tipo:
+ * - button   : "texto|id" | "texto|copy:código" | "texto|call:+5511..." | "texto|https://..."
+ * - list     : "[Seção]" para títulos, "texto|id|descrição" para linhas
+ * - poll     : array simples de opções
+ * - carousel : mesmo formato dos botões, com `imageButton` por item
+ *
+ * `|` e `\n` são intercambiáveis como separadores.
+ */
+export interface SendMenuPayload {
+  number: string;
+  type: SendMenuType;
+  text: string;
+  choices: string[];
+  footerText?: string;
+  /** Texto do botão principal (apenas para `type: "list"`) */
+  listButton?: string;
+  /** Máx. selecionáveis em enquete (apenas para `type: "poll"`) */
+  selectableCount?: number;
+  /** URL ou base64 da imagem do botão (recomendado para `type: "button"`) */
+  imageButton?: string;
+  replyid?: string;
+  /** Números separados por vírgula */
+  mentions?: string;
+  readchat?: boolean;
+  readmessages?: boolean;
+  /** Atraso em ms; durante esse tempo aparece "Digitando..." */
+  delay?: number;
+  track_source?: string;
+  track_id?: string;
+  async?: boolean;
+}
+
 export type SendMenuResponse = SendTextResponse;
 
 // ── Find messages (history sync) ──────────────────────────────────────────────

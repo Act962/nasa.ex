@@ -1,6 +1,11 @@
 "use server";
 import { uazapiFetch } from "./client";
-import { SendButtonsPayload, SendListPayload, SendMenuResponse } from "./types";
+import {
+  SendButtonsPayload,
+  SendListPayload,
+  SendMenuPayload,
+  SendMenuResponse,
+} from "./types";
 
 export async function sendButtons(
   token: string,
@@ -18,6 +23,19 @@ export async function sendButtons(
 export async function sendList(
   token: string,
   data: SendListPayload,
+  baseUrl?: string,
+) {
+  return await uazapiFetch<SendMenuResponse>("/send/menu", {
+    method: "POST",
+    token,
+    baseUrl,
+    body: data,
+  });
+}
+
+export async function sendMenu(
+  token: string,
+  data: SendMenuPayload,
   baseUrl?: string,
 ) {
   return await uazapiFetch<SendMenuResponse>("/send/menu", {
