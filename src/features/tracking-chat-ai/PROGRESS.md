@@ -45,7 +45,6 @@ Uazapi → /api/chat/webhook
 
 | Tool                 | O que faz                                                                                   |
 | -------------------- | ------------------------------------------------------------------------------------------- |
-| `send_image`         | `sendMedia` type=image, com caption opcional. Persiste Message + pusher.                    |
 | `send_audio`         | `sendMedia` type=ptt (voz). Sem caption.                                                    |
 | `send_document`      | `sendMedia` type=document, com `docName` (fileName) e caption opcional.                     |
 | `finish_conversation`| `Lead.statusFlow = FINISHED` + pusher `lead:updated`. IA não responde mais até nova msg.    |

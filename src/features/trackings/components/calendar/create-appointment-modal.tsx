@@ -596,7 +596,7 @@ export function CreateAppointmentModal({
           </div>
 
           {/* ── Footer ─────────────────────────────────────────────────────── */}
-          <DialogFooter className="px-4 tiny:px-6 py-3 tiny:py-4 border-t gap-2 flex-col-reverse tiny:flex-row">
+          <DialogFooter className="px-4 tiny:px-6 py-3 tiny:py-4 border-t gap-2 flex-row">
             {/* Summary pill */}
             {canSubmit && (
               <span className="mr-auto text-xs text-muted-foreground hidden sm:flex items-center gap-1">
@@ -613,7 +613,7 @@ export function CreateAppointmentModal({
               variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
-              className="w-full tiny:w-auto"
+              className="flex-1 tiny:flex-none"
             >
               Cancelar
             </Button>

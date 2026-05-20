@@ -207,7 +207,7 @@ export const CommandInput = forwardRef<
             <div
               ref={highlightRef}
               aria-hidden="true"
-              className="absolute inset-0 px-4 pt-4 pb-3 font-sans text-sm leading-relaxed pointer-events-none overflow-hidden whitespace-pre-wrap wrap-break-word"
+              className="absolute inset-0 px-4 pt-4 pb-3 font-sans text-sm leading-relaxed pointer-events-none overflow-hidden whitespace-pre-wrap wrap-break-word text-zinc-100"
               style={{
                 fontSize: "0.875rem",
                 lineHeight: "1.625",
