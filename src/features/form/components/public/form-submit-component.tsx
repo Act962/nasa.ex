@@ -15,6 +15,7 @@ import {
   appendLeadParams,
   resolveNextButtonAction,
 } from "@/features/form/lib/next-button-action";
+import { normalizeRedirectUrl } from "@/features/form/lib/normalize-redirect-url";
 import { isFillableBlock } from "@/features/form/lib/fillable-blocks";
 import {
   FormPrefillProvider,
@@ -476,35 +477,38 @@ export function FormSubmitComponent({
             )?.lead ?? null;
 
           // Redireciona pra outro form
-          if (nextAction.type === "form" && nextAction.formId) {
-            const url = `/submit-form/${nextAction.formId}`;
-            const target =
-              nextAction.passLeadData !== false && leadInfoOut
-                ? appendLeadParams(url, leadInfoOut)
-                : url;
-            setTimeout(() => {
-              window.location.href = target;
-            }, 1200);
-            return;
-          }
+          // if (nextAction.type === "form" && nextAction.formId) {
+          //   const url = `/submit-form/${nextAction.formId}`;
+          //   const target =
+          //     nextAction.passLeadData !== false && leadInfoOut
+          //       ? appendLeadParams(url, leadInfoOut)
+          //       : url;
+          //   setTimeout(() => {
+          //     window.location.href = target;
+          //   }, 1200);
+          //   return;
+          // }
 
           // Redireciona pra link externo
-          if (nextAction.type === "external_link" && nextAction.externalUrl) {
-            const target =
-              nextAction.passLeadData !== false && leadInfoOut
-                ? appendLeadParams(nextAction.externalUrl, leadInfoOut)
-                : nextAction.externalUrl;
-            setTimeout(() => {
-              window.location.href = target;
-            }, 1200);
-            return;
-          }
+          // if (nextAction.type === "external_link" && nextAction.externalUrl) {
+          //   const target =
+          //     nextAction.passLeadData !== false && leadInfoOut
+          //       ? appendLeadParams(nextAction.externalUrl, leadInfoOut)
+          //       : nextAction.externalUrl;
+          //   setTimeout(() => {
+          //     window.location.href = target;
+          //   }, 1200);
+          //   return;
+          // }
 
           // Redirecionamento legado (Settings > Integrações > URL de
           // redirecionamento) — só se não houver ação configurada.
-          if (redirectUrl) {
+          // normalizeRedirectUrl garante protocolo absoluto: "google.com"
+          // salvo no banco vira "https://google.com", não path relativo.
+          const normalizedRedirect = normalizeRedirectUrl(redirectUrl);
+          if (normalizedRedirect) {
             setTimeout(() => {
-              window.location.href = redirectUrl;
+              window.location.href = normalizedRedirect;
             }, 2000);
           }
         },

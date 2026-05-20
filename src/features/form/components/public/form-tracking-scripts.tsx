@@ -1,12 +1,13 @@
 import Script from "next/script";
 import { GoogleTagManager } from "@next/third-parties/google";
 import type { FormSettings } from "@/generated/prisma/client";
+import type { FormSettingsTyped } from "@/features/form/types";
 
 const PIXEL_ID_REGEX = /^\d+$/;
 const GTM_ID_REGEX = /^GTM-[A-Z0-9]+$/i;
 
 type Props = {
-  settings?: FormSettings | null;
+  settings?: FormSettings | FormSettingsTyped | null;
 };
 
 // Carrega Facebook Pixel + Google Tag Manager por formulário. IDs vêm de

@@ -17,7 +17,7 @@ import {
 } from "@/features/tags/hooks/use-tags";
 import {
   useSyncWhatsappTagsMutation,
-  useTag,
+  useCreateTag,
 } from "@/features/tags/hooks/use-tag";
 import {
   Plus,
@@ -56,7 +56,7 @@ export function AddTagLead({
   instance,
 }: AddTagLeadProps) {
   const { tags, isLoadingTags } = useTags({ trackingId });
-  const { createTag } = useTag();
+  const createTag = useCreateTag();
   const updateMutation = useMutationWhatsappTags({ trackingId });
   const syncWhatsappTags = useSyncWhatsappTagsMutation(trackingId);
 

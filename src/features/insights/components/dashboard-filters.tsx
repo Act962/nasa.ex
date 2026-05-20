@@ -41,7 +41,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TagModal } from "@/features/trackings/components/modal/add-tag-sheet";
+import { TagSheet } from "@/features/tags/components/tag-sheet";
 import { useState } from "react";
 import dayjs from "dayjs";
 import { pt } from "react-day-picker/locale";
@@ -318,7 +318,7 @@ function AddTagFilterButton({
         </PopoverContent>
       </Popover>
 
-      <TagModal
+      <TagSheet
         trackingId={trackingId === "ALL" ? undefined : trackingId}
         open={openTagModal}
         onOpenChange={setOpenTagModal}

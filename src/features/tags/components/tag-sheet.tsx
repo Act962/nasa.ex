@@ -38,18 +38,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCreateTag } from "@/features/tags/hooks/use-tag";
 import {
   useDeleteTag,
-  useQueryTags,
+  useTags,
   useUpdateTag,
 } from "@/features/tags/hooks/use-tags";
+import { tagFormSchema, type TagFormSchema } from "@/features/tags/schema";
 import { TagType } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { DEFAULT_UI_COLORS } from "@/utils/whatsapp-utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckIcon, TagIcon, Trash2Icon } from "lucide-react";
+import { CheckIcon, PlusIcon, TagIcon, Trash2Icon } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { useEffect, useRef, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
-import { z } from "zod";
+import { useForm } from "react-hook-form";
 import { useQueryListTrackings } from "@/features/insights/hooks/use-dashboard";
 import { toast } from "sonner";
 
@@ -59,41 +60,28 @@ interface Props {
   trackingId?: string;
 }
 
-const tagSchema = z.object({
-  name: z.string().min(1, "Campo obrigatório"),
-  color: z.string(),
-});
-
-export function TagModal({ open, onOpenChange, trackingId }: Props) {
+export function TagSheet({ open, onOpenChange, trackingId }: Props) {
   const [trackingSelected, setTrackingSelected] = useState<string | undefined>(
     trackingId,
   );
   const inputRef = useRef<HTMLInputElement>(null);
-  const form = useForm<z.infer<typeof tagSchema>>({
-    resolver: zodResolver(tagSchema),
+  const form = useForm<TagFormSchema>({
+    resolver: zodResolver(tagFormSchema),
     defaultValues: {
       name: "",
       color: DEFAULT_UI_COLORS[0],
+      description: "",
     },
   });
+  const [showDescription, setShowDescription] = useState(false);
 
-  const { tags, isLoadingTags } = useQueryTags({
-    trackingId: "ALL",
-  });
+  const { tags, isLoadingTags } = useTags({ trackingId: "ALL" });
 
   const { trackings } = useQueryListTrackings();
   const createTag = useCreateTag();
   const { ref: nameInputRegisterRef, ...nameInputProps } = form.register("name");
-  const tagName = useWatch({
-    control: form.control,
-    name: "name",
-    defaultValue: "",
-  });
-  const tagColor = useWatch({
-    control: form.control,
-    name: "color",
-    defaultValue: DEFAULT_UI_COLORS[0],
-  });
+  const tagName = form.watch("name");
+  const tagColor = form.watch("color");
 
   useEffect(() => {
     if (!open) {
@@ -111,23 +99,27 @@ export function TagModal({ open, onOpenChange, trackingId }: Props) {
     setTrackingSelected(trackingId);
   }, [trackingId]);
 
-  const handleCreateTag = (data: z.infer<typeof tagSchema>) => {
+  const handleCreateTag = (data: TagFormSchema) => {
     if (!trackingSelected) {
-      toast("Selecione um tracking");
+      toast.error("Selecione um tracking");
       return;
     }
+    const trimmedDescription = data.description?.trim() ?? "";
     createTag.mutate(
       {
         name: data.name,
         trackingId: trackingSelected,
         color: data.color,
+        description: trimmedDescription.length > 0 ? trimmedDescription : null,
       },
       {
         onSuccess: () => {
           form.reset({
             name: "",
             color: data.color,
+            description: "",
           });
+          setShowDescription(false);
           inputRef.current?.focus();
         },
       },
@@ -174,8 +166,10 @@ export function TagModal({ open, onOpenChange, trackingId }: Props) {
             <InputGroup>
               <InputGroupAddon>
                 <Popover>
-                  <PopoverTrigger>
-                    <div
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Selecionar cor"
                       className="size-5 rounded-sm cursor-pointer"
                       style={{ backgroundColor: tagColor }}
                     />
@@ -185,8 +179,10 @@ export function TagModal({ open, onOpenChange, trackingId }: Props) {
                       {DEFAULT_UI_COLORS.map((color) => {
                         const isSelected = tagColor === color;
                         return (
-                          <div
+                          <button
                             key={color}
+                            type="button"
+                            aria-label={`Cor ${color}`}
                             className={cn(
                               "size-5 rounded-sm cursor-pointer hover:scale-110 transition-transform",
                               isSelected && "ring-1 ring-offset-1 ring-primary",
@@ -219,6 +215,25 @@ export function TagModal({ open, onOpenChange, trackingId }: Props) {
                 </Button>
               </InputGroupAddon>
             </InputGroup>
+
+            {showDescription ? (
+              <Textarea
+                placeholder="Descrição da tag"
+                rows={3}
+                {...form.register("description")}
+              />
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={() => setShowDescription(true)}
+              >
+                <PlusIcon className="size-3" />
+                Adicionar descrição
+              </Button>
+            )}
           </form>
 
           <Separator className="my-4" />
@@ -266,32 +281,23 @@ interface TagItemProps {
   whatsappId: string | null;
 }
 
-const tagUpdateSchema = z.object({
-  tagName: z.string().min(1, "Campo obrigatório"),
-  colorName: z.string(),
-});
-
 export function TagItem(tag: TagItemProps) {
   const [open, setOpen] = useState(false);
-  const form = useForm<z.infer<typeof tagUpdateSchema>>({
-    resolver: zodResolver(tagUpdateSchema),
+  const form = useForm<TagFormSchema>({
+    resolver: zodResolver(tagFormSchema),
     defaultValues: {
-      tagName: tag.name,
-      colorName: tag.color,
+      name: tag.name,
+      color: tag.color,
+      description: tag.description ?? "",
     },
   });
+  const [showDescription, setShowDescription] = useState(
+    Boolean(tag.description),
+  );
   const updateTag = useUpdateTag();
   const deleteTag = useDeleteTag();
-  const tagName = useWatch({
-    control: form.control,
-    name: "tagName",
-    defaultValue: tag.name,
-  });
-  const tagColor = useWatch({
-    control: form.control,
-    name: "colorName",
-    defaultValue: tag.color,
-  });
+  const tagName = form.watch("name");
+  const tagColor = form.watch("color");
 
   const handleDeleteTag = () => {
     deleteTag.mutate(
@@ -304,12 +310,14 @@ export function TagItem(tag: TagItemProps) {
     );
   };
 
-  const handleUpdateTag = (data: z.infer<typeof tagUpdateSchema>) => {
+  const handleUpdateTag = (data: TagFormSchema) => {
+    const trimmedDescription = data.description?.trim() ?? "";
     updateTag.mutate(
       {
         tagId: tag.id,
-        name: data.tagName,
-        color: data.colorName,
+        name: data.name,
+        color: data.color,
+        description: trimmedDescription.length > 0 ? trimmedDescription : null,
       },
       {
         onSuccess: () => {
@@ -322,7 +330,7 @@ export function TagItem(tag: TagItemProps) {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger>
+      <PopoverTrigger asChild>
         <Badge
           key={tag.id}
           style={{
@@ -337,13 +345,15 @@ export function TagItem(tag: TagItemProps) {
       <PopoverContent align="center" side="top" className="p-0">
         <form
           onSubmit={form.handleSubmit(handleUpdateTag)}
-          className="flex items-center gap-2 p-2"
+          className="flex flex-col gap-2 p-2"
         >
           <InputGroup>
             <InputGroupAddon>
               <Popover>
-                <PopoverTrigger>
-                  <div
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Selecionar cor"
                     className="size-5 rounded-sm cursor-pointer"
                     style={{
                       backgroundColor: tagColor,
@@ -355,14 +365,16 @@ export function TagItem(tag: TagItemProps) {
                     {DEFAULT_UI_COLORS.map((color) => {
                       const isSelected = tagColor === color;
                       return (
-                        <div
+                        <button
                           key={color}
+                          type="button"
+                          aria-label={`Cor ${color}`}
                           className={cn(
                             "size-5 rounded-sm cursor-pointer hover:scale-110 transition-transform",
                             isSelected && "ring-1 ring-offset-1 ring-primary",
                           )}
                           style={{ backgroundColor: color }}
-                          onClick={() => form.setValue("colorName", color)}
+                          onClick={() => form.setValue("color", color)}
                         />
                       );
                     })}
@@ -372,7 +384,7 @@ export function TagItem(tag: TagItemProps) {
             </InputGroupAddon>
             <InputGroupInput
               placeholder="Nome da tag"
-              {...form.register("tagName")}
+              {...form.register("name")}
             />
             <InputGroupAddon align="inline-end">
               <Button
@@ -384,6 +396,25 @@ export function TagItem(tag: TagItemProps) {
               </Button>
             </InputGroupAddon>
           </InputGroup>
+
+          {showDescription ? (
+            <Textarea
+              placeholder="Descrição da tag"
+              rows={3}
+              {...form.register("description")}
+            />
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="self-start text-muted-foreground"
+              onClick={() => setShowDescription(true)}
+            >
+              <PlusIcon className="size-3" />
+              Adicionar descrição
+            </Button>
+          )}
         </form>
         <Separator />
         <div className="p-2 flex items-center justify-end">

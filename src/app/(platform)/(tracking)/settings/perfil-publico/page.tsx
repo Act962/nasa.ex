@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
+import { useMyStation } from "@/features/space-station/hooks/use-station";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +50,10 @@ import {
  */
 export default function PerfilPublicoPage() {
   const qc = useQueryClient();
+  // Station da org ativa — usada pra montar o link "Ver perfil público".
+  // O nick é o identifier compartilhado de `/space/<nick>`.
+  const { data: myStation } = useMyStation("ORG");
+  const stationNick = myStation?.station?.nick ?? null;
 
   const { data: card, isLoading } = useQuery(
     orpc.profileCard.getMyProfileCard.queryOptions({ input: undefined }),
@@ -148,10 +154,30 @@ export default function PerfilPublicoPage() {
           </p>
         </div>
 
-        <Button onClick={handleSave} disabled={upsert.isPending}>
-          {upsert.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-          Salvar
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Link pra Spacehome pública da org ativa — abre em nova aba.
+              Só aparece se o usuário tem uma SpaceStation ORG configurada
+              (nick definido). */}
+          {stationNick && (
+            <Button variant="outline" asChild>
+              <Link
+                href={`/space/${stationNick}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Abrir minha página pública em nova aba"
+              >
+                <ExternalLink className="mr-2 size-4" />
+                Ver perfil público
+              </Link>
+            </Button>
+          )}
+          <Button onClick={handleSave} disabled={upsert.isPending}>
+            {upsert.isPending && (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            )}
+            Salvar
+          </Button>
+        </div>
       </div>
 
       {/* Publicação geral */}

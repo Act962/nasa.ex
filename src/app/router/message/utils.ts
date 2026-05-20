@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { pusherServer } from "@/lib/pusher";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { NodeType } from "@/generated/prisma/enums";
 import { sendWorkflowExecution } from "@/inngest/utils";
@@ -14,6 +15,38 @@ export async function attendLeadIfWaiting(leadId: string, userId: string) {
   await prisma.lead.update({
     where: { id: lead.id },
     data: { statusFlow: "ACTIVE" },
+  });
+}
+
+// Disparado em toda mensagem outbound do atendente humano: pausa a IA
+// (isActive=false, mesmo mecanismo do tool transfer_to_human) e atribui o
+// atendente como responsável do lead. Sobrescreve responsável existente:
+// último que respondeu vira o dono. Fast-path quando já está nesse estado.
+export async function claimLeadForAttendant(leadId: string, userId: string) {
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: {
+      id: true,
+      isActive: true,
+      responsibleId: true,
+      trackingId: true,
+    },
+  });
+
+  if (!lead) return;
+
+  if (!lead.isActive && lead.responsibleId === userId) return;
+
+  await prisma.lead.update({
+    where: { id: lead.id },
+    data: {
+      isActive: false,
+      responsibleId: userId,
+    },
+  });
+
+  await pusherServer.trigger(lead.trackingId, "lead:updated", {
+    leadId: lead.id,
   });
 }
 

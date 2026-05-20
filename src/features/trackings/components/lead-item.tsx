@@ -44,7 +44,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { useQueryTags } from "@/features/tags/hooks/use-tags";
+import { useTags } from "@/features/tags/hooks/use-tags";
 import { useParams, useRouter } from "next/navigation";
 import {
   useAddTagsOptimistic,
@@ -57,7 +57,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useView } from "../contexts/use-view";
 import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
 import { useDebouncedValue } from "@/hooks/use-debounced";
-import { TagModal } from "@/features/trackings/components/modal/add-tag-sheet";
+import { TagSheet } from "@/features/tags/components/tag-sheet";
 import { SlaTimer } from "@/features/leads/components/sla-timer";
 import {
   Tooltip,
@@ -552,7 +552,7 @@ function AddTagsButton({
   const { trackingId } = useParams<{ trackingId: string }>();
   const [open, setOpen] = useState(false);
   const [openCreateTagSheet, setOpenCreateTagSheet] = useState(false);
-  const { tags } = useQueryTags({ trackingId: "ALL" });
+  const { tags } = useTags({ trackingId: "ALL" });
 
   const handleOpen = () => {
     setOpen(!open);
@@ -646,7 +646,7 @@ function AddTagsButton({
           </CommandList>
         </Command>
       </PopoverContent>
-      <TagModal
+      <TagSheet
         open={openCreateTagSheet}
         onOpenChange={setOpenCreateTagSheet}
         trackingId={trackingId}

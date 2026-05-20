@@ -25,7 +25,9 @@ export const auth = betterAuth({
     "http://localhost:3000",
     ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : []),
     ...(process.env.TRUSTED_ORIGINS
-      ? process.env.TRUSTED_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean)
+      ? process.env.TRUSTED_ORIGINS.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
       : []),
   ],
   user: {
@@ -72,13 +74,13 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
       // Pede acesso ao Google Calendar já no login pra reuso opcional
       // (sincronização de agendamentos sem precisar conectar a integração).
-      scope: [
-        "openid",
-        "email",
-        "profile",
-        "https://www.googleapis.com/auth/calendar.events",
-      ],
-      accessType: "offline",
+      // scope: [
+      //   "openid",
+      //   "email",
+      //   "profile",
+      //   "https://www.googleapis.com/auth/calendar.events",
+      // ],
+      // accessType: "offline",
     },
   },
   databaseHooks: {
@@ -102,7 +104,10 @@ export const auth = betterAuth({
                   data: { activeOrganizationId: memberships[0].organizationId },
                 });
               } catch (e) {
-                console.error("[auth hook] auto-set activeOrganizationId failed:", e);
+                console.error(
+                  "[auth hook] auto-set activeOrganizationId failed:",
+                  e,
+                );
               }
             }
 

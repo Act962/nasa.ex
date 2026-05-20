@@ -67,12 +67,15 @@ export const worldEventOccupancyTick = inngest.createFunction(
         },
       });
 
-      // Transição de status
+      // Transição de status. step.run() serializa o retorno em JSON, então
+      // startsAt/endsAt voltam como string — converter pra Date aqui.
+      const startsAt = new Date(e.startsAt);
+      const endsAt = new Date(e.endsAt);
       let nextStatus = e.status;
-      if (e.status === "SCHEDULED" && e.startsAt.getTime() <= now.getTime()) {
+      if (e.status === "SCHEDULED" && startsAt.getTime() <= now.getTime()) {
         nextStatus = "LIVE";
       }
-      if (e.endsAt.getTime() < now.getTime() && e.status !== "ENDED") {
+      if (endsAt.getTime() < now.getTime() && e.status !== "ENDED") {
         nextStatus = "ENDED";
       }
 

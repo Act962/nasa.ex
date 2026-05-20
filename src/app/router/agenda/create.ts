@@ -37,33 +37,78 @@ export const createAgenda = base
       description: z.string().optional(),
       duration: z.number().optional(),
       trackingId: z.string(),
+      statusId: z.string().nullable().optional(),
+      tagIds: z.array(z.string()).optional(),
     }),
   )
-  .handler(async ({ input, context }) => {
-    const agenda = await prisma.agenda.create({
-      data: {
-        name: input.name,
-        description: input.description,
-        slotDuration: input.duration,
-        trackingId: input.trackingId,
-        organizationId: context.org.id,
-        slug: input.slug || slugify(input.name),
-        responsibles: {
-          create: {
-            userId: context.user.id,
+  .handler(async ({ input, context, errors }) => {
+    // Status precisa pertencer ao tracking informado.
+    if (input.statusId) {
+      const status = await prisma.status.findUnique({
+        where: { id: input.statusId },
+      });
+      if (!status || status.trackingId !== input.trackingId) {
+        throw errors.BAD_REQUEST({
+          message: "Status não pertence ao tracking selecionado.",
+        });
+      }
+    }
+
+    // Tags precisam ser da organização.
+    if (input.tagIds && input.tagIds.length > 0) {
+      const tags = await prisma.tag.findMany({
+        where: {
+          id: { in: input.tagIds },
+          organizationId: context.org.id,
+        },
+        select: { id: true },
+      });
+      if (tags.length !== input.tagIds.length) {
+        throw errors.BAD_REQUEST({
+          message: "Uma ou mais tags não pertencem à organização.",
+        });
+      }
+    }
+
+    const agenda = await prisma.$transaction(async (tx) => {
+      const created = await tx.agenda.create({
+        data: {
+          name: input.name,
+          description: input.description,
+          slotDuration: input.duration,
+          trackingId: input.trackingId,
+          statusId: input.statusId ?? null,
+          organizationId: context.org.id,
+          slug: input.slug || slugify(input.name),
+          responsibles: {
+            create: {
+              userId: context.user.id,
+            },
+          },
+
+          availabilities: {
+            create: WEEK_DAYS.map((day) => ({
+              dayOfWeek: day.dayOfWeek,
+              isActive: day.isActive,
+              timeSlots: {
+                create: DEFAULT_TIME_SLOTS,
+              },
+            })),
           },
         },
+      });
 
-        availabilities: {
-          create: WEEK_DAYS.map((day) => ({
-            dayOfWeek: day.dayOfWeek,
-            isActive: day.isActive,
-            timeSlots: {
-              create: DEFAULT_TIME_SLOTS,
-            },
-          })),
-        },
-      },
+      if (input.tagIds && input.tagIds.length > 0) {
+        await tx.tag.updateMany({
+          where: {
+            id: { in: input.tagIds },
+            organizationId: context.org.id,
+          },
+          data: { agendaId: created.id },
+        });
+      }
+
+      return created;
     });
 
     await logActivity({

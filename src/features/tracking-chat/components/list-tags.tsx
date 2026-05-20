@@ -8,7 +8,7 @@ import {
 import { Lead } from "@/features/trackings/types";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { PlusIcon, SettingsIcon, TagIcon, XIcon } from "lucide-react";
-import { useQueryTags } from "@/features/tags/hooks/use-tags";
+import { useTags } from "@/features/tags/hooks/use-tags";
 import {
   useAddTagToLeadOptimistic,
   useQueryTagByLead,
@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/command";
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TagModal } from "@/features/trackings/components/modal/add-tag-sheet";
+import { TagSheet } from "@/features/tags/components/tag-sheet";
 
 interface listTagsProps {
   tags?: Lead["leadTags"];
@@ -120,7 +120,7 @@ export function AddTagsButton({
   trackingId: string;
 }) {
   const [open, setOpen] = useState(false);
-  const { tags } = useQueryTags({ trackingId: "ALL" });
+  const { tags } = useTags({ trackingId: "ALL" });
   const [openTagModal, setOpenTagModal] = useState(false);
   const { mutate: removeTag } = useRemoveTagFromLeadOptimistic(leadId);
 
@@ -211,7 +211,7 @@ export function AddTagsButton({
         </PopoverContent>
       </Popover>
       <div onClick={(e) => e.stopPropagation()}>
-        <TagModal
+        <TagSheet
           trackingId={trackingId}
           open={openTagModal}
           onOpenChange={setOpenTagModal}
