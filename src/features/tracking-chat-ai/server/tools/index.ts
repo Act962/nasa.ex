@@ -1,6 +1,5 @@
 import type { ToolSet } from "ai";
 import type { AgentContext } from "../../lib/context";
-import { makeSendImageTool } from "./send-image";
 import { makeSendAudioTool } from "./send-audio";
 import { makeSendDocumentTool } from "./send-document";
 import { makeFinishConversationTool } from "./finish-conversation";
@@ -9,7 +8,6 @@ import { makeAddTagsToLeadTool } from "./add-tags-to-lead";
 
 export function buildAgentTools(ctx: AgentContext): ToolSet {
   const tools: ToolSet = {
-    send_image: makeSendImageTool(ctx),
     send_audio: makeSendAudioTool(ctx),
     send_document: makeSendDocumentTool(ctx),
     finish_conversation: makeFinishConversationTool(ctx),
