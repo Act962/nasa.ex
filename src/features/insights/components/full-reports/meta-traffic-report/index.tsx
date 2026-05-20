@@ -32,6 +32,10 @@ import {
 import { cn } from "@/lib/utils";
 import { CampaignsBreakdown } from "./campaigns-breakdown";
 import { ReportHeader } from "./report-header";
+import { DistributionsSection } from "./distributions-section";
+import { RegionsSection } from "./regions-section";
+import { InstagramSection } from "./instagram-section";
+import { FacebookSection } from "./facebook-section";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -413,12 +417,7 @@ export function MetaTrafficReport() {
           title="Distribuições"
           subtitle="Quebras por idade, gênero, plataforma e investimento diário."
         />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <PlaceholderTile label="Impressões e alcance por idade" />
-          <PlaceholderTile label="Alcance por plataforma" />
-          <PlaceholderTile label="Impressões e alcance por gênero" />
-          <PlaceholderTile label="Valor investido por dia" />
-        </div>
+        <DistributionsSection from={fromDate} to={toDate} />
       </section>
 
       {/* ── 3. Regiões com maior alcance ─────────────────────────────────── */}
@@ -428,10 +427,7 @@ export function MetaTrafficReport() {
           subtitle="Top regiões por alcance, impressões, frequência, investimento e CPM."
           icon={MapPin}
         />
-        <PlaceholderTile
-          label="Tabela de regiões — requer breakdown geográfico (region) na sincronização Meta"
-          height={140}
-        />
+        <RegionsSection from={fromDate} to={toDate} />
       </section>
 
       {/* ── 4. Meta Ads — Bloco principal ─────────────────────────────────── */}
@@ -549,11 +545,8 @@ export function MetaTrafficReport() {
           />
         </div>
 
-        {/* Demográficos — 2 placeholders */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <PlaceholderTile label="Impressões e alcance por idade" />
-          <PlaceholderTile label="Impressões e alcance por gênero" />
-        </div>
+        {/* Demográficos detalhados já aparecem na seção "Distribuições" no
+            topo — evita duplicação visual. */}
 
         {/* 3 cards: CTR | CPC médio | Total de cliques no link */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -646,67 +639,7 @@ export function MetaTrafficReport() {
           subtitle="Alcance, audiência e desempenho de Reels orgânicos."
           icon={Instagram}
         />
-        {/* 4 cards no topo */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-          <KpiCard label="Visualizações totais (orgânicas + pagas)" value="—" delta={null} icon={Eye} />
-          <KpiCard label="Salvamentos" value="—" delta={null} icon={Heart} />
-          <KpiCard label="Taxa de Interação de Reels" value="—" delta={null} icon={Video} />
-          <KpiCard label="Visitas do perfil" value="—" delta={null} icon={UserSquare} />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <PlaceholderTile label="Alcance diário" />
-          <PlaceholderTile label="Audiência por idade e gênero" />
-          <PlaceholderTile label="Melhor horário para postagens" />
-          <PlaceholderTile label="Cidades com maior número de seguidores" />
-        </div>
-
-        {/* Postagens em destaque (placeholder grid visual) */}
-        <Card className="mt-3 border-dashed">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Postagens em destaque
-              </h4>
-              <Badge variant="outline" className="text-[10px]">
-                Em breve · Instagram Insights API
-              </Badge>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="aspect-square rounded-md bg-muted flex items-center justify-center"
-                >
-                  <ImageIcon className="size-5 text-muted-foreground/30" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Reels em destaque (placeholder grid visual) */}
-        <Card className="mt-3 border-dashed">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Reels em destaque
-              </h4>
-              <Badge variant="outline" className="text-[10px]">
-                Em breve · Instagram Insights API
-              </Badge>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="aspect-[9/16] rounded-md bg-muted flex items-center justify-center"
-                >
-                  <Video className="size-5 text-muted-foreground/30" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <InstagramSection from={fromDate} to={toDate} />
       </section>
 
       {/* ── 7. Facebook ─────────────────────────────────────────────────── */}
@@ -716,43 +649,7 @@ export function MetaTrafficReport() {
           subtitle="Seguidores, alcance da página e postagens em destaque."
           icon={Facebook}
         />
-        {/* 4 cards no topo */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-          <KpiCard label="Seguidores da página" value="—" delta={null} icon={Users} />
-          <KpiCard label="Novos seguidores da página" value="—" delta={null} icon={Users} />
-          <KpiCard label="Alcance total da página" value="—" delta={null} icon={Eye} />
-          <KpiCard label="Total de visualizações da página" value="—" delta={null} icon={Eye} />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <PlaceholderTile label="Crescimento de seguidores" />
-          <PlaceholderTile label="Evolução do alcance da página" />
-          <PlaceholderTile label="Cidades com maior número de seguidores" />
-          <PlaceholderTile label="Melhor dia para postagens" />
-        </div>
-
-        {/* Postagens em destaque (placeholder grid) */}
-        <Card className="mt-3 border-dashed">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Postagens em destaque
-              </h4>
-              <Badge variant="outline" className="text-[10px]">
-                Em breve · Facebook Pages Insights API
-              </Badge>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="aspect-square rounded-md bg-muted flex items-center justify-center"
-                >
-                  <ImageIcon className="size-5 text-muted-foreground/30" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <FacebookSection from={fromDate} to={toDate} />
       </section>
 
       {/* ── Rodapé ──────────────────────────────────────────────────────── */}
