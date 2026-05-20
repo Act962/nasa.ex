@@ -13,6 +13,8 @@ import { isAstroVideosPayload } from "@/features/astro/lib/astro-video";
 import { AstroVideoCardList } from "@/features/astro/components/astro-video-card";
 import { isAstroChartPayload } from "@/features/astro/lib/astro-chart";
 import { AstroChartCard } from "@/features/astro/components/astro-chart-card";
+import { isAstroTagSuggestionsPayload } from "@/features/astro/lib/astro-tag-suggestions";
+import { AstroTagSuggestionsCard } from "@/features/astro/components/astro-tag-suggestions-card";
 
 /**
  * Render de uma `UIMessage` do AI SDK.
@@ -52,7 +54,8 @@ export function AstroMessage({
       return (
         isAstroTablePayload(out) ||
         isAstroVideosPayload(out) ||
-        isAstroChartPayload(out)
+        isAstroChartPayload(out) ||
+        isAstroTagSuggestionsPayload(out)
       );
     });
 
@@ -134,6 +137,16 @@ export function AstroMessage({
                 className="self-stretch w-full max-w-[95%] sm:max-w-[85%]"
               >
                 <AstroChartCard payload={output} />
+              </div>
+            );
+          }
+          if (isAstroTagSuggestionsPayload(output)) {
+            return (
+              <div
+                key={idx}
+                className="self-stretch w-full max-w-[95%] sm:max-w-[85%]"
+              >
+                <AstroTagSuggestionsCard payload={output} />
               </div>
             );
           }

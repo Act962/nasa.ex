@@ -2,7 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Sparkles, X, Wand2 } from "lucide-react";
-import { isTextUIPart, type UIMessage } from "ai";
+import {
+  isTextUIPart,
+  isToolUIPart,
+  getToolName,
+  type UIMessage,
+  type ToolUIPart,
+  type DynamicToolUIPart,
+} from "ai";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -10,9 +17,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import {
-  AstroEmbedScope,
-} from "@/features/astro/components/astro-provider";
+import { AstroEmbedScope } from "@/features/astro/components/astro-provider";
 import { useAstroChat } from "@/features/astro/hooks/use-astro-chat";
 import { AstroMessage } from "@/features/astro/components/astro-message";
 import { AstroComposer } from "@/features/astro/components/astro-composer";
@@ -34,6 +39,7 @@ interface TrackingChatCopilotProps {
  * widget global. Sessão criada aqui é gravada com `context = { scope:
  * "tracking-chat", conversationId }` — não aparece no /home recents.
  */
+
 export function TrackingChatCopilot(props: TrackingChatCopilotProps) {
   const [open, setOpen] = useState(false);
   return (
@@ -50,11 +56,7 @@ export function TrackingChatCopilot(props: TrackingChatCopilotProps) {
           <Sparkles className="size-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        className="w-[420px] p-0"
-        sideOffset={8}
-      >
+      <PopoverContent align="end" className="w-[420px] p-0" sideOffset={8}>
         <AstroEmbedScope>
           <CopilotBody {...props} onClose={() => setOpen(false)} />
         </AstroEmbedScope>
@@ -80,12 +82,27 @@ function CopilotBody({
     }),
   });
 
+  // `sendMessage` é async (faz ensureSession antes do POST). Durante esse
+  // gap, `messages` ainda está vazio e `status` ainda é "ready" — sem isso
+  // o user clica e fica olhando pro EmptyState congelado. `isPreparing`
+  // segura o "Pensando…" da hora do clique até a chamada terminar.
+  const [isPreparing, setIsPreparing] = useState(false);
+  const isBusy =
+    isPreparing || status === "submitted" || status === "streaming";
+
+  const handleSend = (text: string) => {
+    setIsPreparing(true);
+    void Promise.resolve(sendMessage({ text })).finally(() =>
+      setIsPreparing(false),
+    );
+  };
+
   const scrollRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, status]);
+  }, [messages, status, isBusy]);
 
   const lastAssistantText = (() => {
     const last = [...messages].reverse().find((m) => m.role === "assistant");
@@ -104,19 +121,28 @@ function CopilotBody({
           <Sparkles className="size-4 text-primary" />
           ASTRO · Closer
         </div>
-        <Button size="icon" variant="ghost" onClick={onClose} aria-label="Fechar">
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={onClose}
+          aria-label="Fechar"
+        >
           <X className="size-4" />
         </Button>
       </header>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        {messages.length === 0 ? (
-          <EmptyState
-            onPick={(t) => sendMessage({ text: t })}
-            disabled={status === "streaming" || status === "submitted"}
-          />
+        {messages.length === 0 && !isBusy ? (
+          <EmptyState onPick={handleSend} disabled={isBusy} />
         ) : (
-          messages.map((m) => <AstroMessage key={m.id} message={m as UIMessage} />)
+          messages.map((m) => (
+            <AstroMessage key={m.id} message={m as UIMessage} />
+          ))
+        )}
+        {isBusy && (
+          <ThinkingIndicator
+            hint={deriveThinkingHint(messages as UIMessage[])}
+          />
         )}
         {error && (
           <div className="mx-3 my-2 rounded-md bg-destructive/10 p-2 text-xs text-destructive">
@@ -151,10 +177,54 @@ function CopilotBody({
 
       <AstroComposer
         status={status}
-        onSend={(text) => sendMessage({ text })}
+        onSend={handleSend}
         onStop={stop}
         placeholder="Peça uma sugestão de resposta…"
       />
+    </div>
+  );
+}
+
+/**
+ * Mapa tool name → hint pro usuário. Mostra o que o Closer está fazendo
+ * agora pra a espera não parecer congelada. Toda tool nova do Closer que
+ * impactar UX visível aqui deve ganhar uma entrada.
+ */
+const TOOL_HINTS: Record<string, string> = {
+  get_conversation: "Lendo a conversa…",
+  list_taggable_tags: "Carregando catálogo de tags…",
+  propose_tags_for_lead: "Selecionando tags relevantes…",
+  search_lead: "Buscando dados do lead…",
+  update_lead_tags: "Aplicando tags…",
+  search_knowledge: "Buscando base de conhecimento…",
+};
+
+/** Detecta a última tool em execução pra dar feedback contextual. */
+function deriveThinkingHint(messages: UIMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (!m || m.role !== "assistant") continue;
+    for (let j = m.parts.length - 1; j >= 0; j--) {
+      const part = m.parts[j];
+      if (!part || !isToolUIPart(part)) continue;
+      const name = getToolName(part as ToolUIPart | DynamicToolUIPart);
+      const hint = TOOL_HINTS[name];
+      if (hint) return hint;
+    }
+    break;
+  }
+  return "ASTRO está pensando…";
+}
+
+function ThinkingIndicator({ hint }: { hint: string }) {
+  return (
+    <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
+      <span className="flex gap-0.5" aria-hidden>
+        <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.3s]" />
+        <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.15s]" />
+        <span className="size-1.5 animate-bounce rounded-full bg-current" />
+      </span>
+      <span>{hint}</span>
     </div>
   );
 }
@@ -169,7 +239,7 @@ function EmptyState({
   const suggestions = [
     "Sugira a próxima resposta com base no histórico",
     "Quebre a última objeção do lead",
-    "Proponha tags para classificar este lead",
+    "Propor tags para este lead com base nos últimos 7 dias de conversa",
   ];
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
