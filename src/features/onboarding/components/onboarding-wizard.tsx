@@ -738,7 +738,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           </div>
 
           {/* Astro mascot */}
-          <AstroMascot pos={current.astroPos} glow={current.accentHex} />
+          {/* <AstroMascot pos={current.astroPos} glow={current.accentHex} /> */}
 
           {/* Content */}
           <div

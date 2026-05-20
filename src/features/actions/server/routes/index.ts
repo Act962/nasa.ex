@@ -5,6 +5,7 @@ import { listActionByWorkspace } from "./list-action-by-workspace";
 import { searchActions } from "./search-actions";
 import { reorderAction } from "./reorder";
 import { updateAction } from "./update";
+import { toggleDone } from "./toggle-done";
 import { deleteAction } from "./delete";
 import { createSubAction } from "./create-sub-action";
 import { updateSubAction } from "./update-sub-action";
@@ -45,6 +46,7 @@ export const actionRoutes = {
   reorder: reorderAction,
   get: getAction,
   update: updateAction,
+  toggleDone,
   delete: deleteAction,
   createSubAction,
   updateSubAction,

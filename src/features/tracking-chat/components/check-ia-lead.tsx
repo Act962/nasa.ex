@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
 
 import { cn } from "@/lib/utils";
@@ -31,6 +31,10 @@ export function CheckIaLead({
 }: HeaderProps) {
   const [active, setActive] = useState(initialActive);
   const mutationLeadUpdate = useMutationLeadUpdate(leadId, trackingId);
+
+  useEffect(() => {
+    setActive(initialActive);
+  }, [initialActive]);
 
   const onActiveChange = (checked: boolean) => {
     setActive(checked);

@@ -34,6 +34,14 @@ export const getAgenda = base
             slug: true,
           },
         },
+        status: true,
+        tags: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+          },
+        },
       },
     });
 

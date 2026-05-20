@@ -18,22 +18,6 @@ export function useTags({ trackingId }: { trackingId?: string }) {
   };
 }
 
-export function useQueryTags({ trackingId }: { trackingId?: string }) {
-  const { data, isLoading } = useQuery(
-    orpc.tags.listTags.queryOptions({
-      input: {
-        query: {
-          trackingId: trackingId === "ALL" ? undefined : trackingId,
-        },
-      },
-    }),
-  );
-
-  return {
-    tags: data?.tags || [],
-    isLoadingTags: isLoading,
-  };
-}
 export function useQueryWithoutWidgetTags({
   organizationIds,
 }: {
