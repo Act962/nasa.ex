@@ -216,9 +216,22 @@ export function streamAstro(opts: {
     if (ctx.pinnedAgentKey) {
       const pinned = getAgent(ctx.pinnedAgentKey);
       if (pinned && enabled[ctx.pinnedAgentKey]) {
+        // Mesmo contexto temporal + route snapshot do path principal —
+        // sem isso o sub-agent pinned (ex: Closer no copilot do
+        // tracking-chat) não enxerga conversationId/leadId/trackingId
+        // e responde "não consigo acessar a conversa".
+        const nowSPpin = new Date().toLocaleString("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+          dateStyle: "full",
+          timeStyle: "short",
+        });
+        const todayIsoPin = new Date()
+          .toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })
+          .slice(0, 10);
+        const dateContextPin = `\n\n[CONTEXTO TEMPORAL]\nHoje é ${nowSPpin} (fuso América/São Paulo, offset -03:00). Data ISO: ${todayIsoPin}. Use SEMPRE o ano corrente (${todayIsoPin.slice(0, 4)}).`;
         return streamText({
           model: defaultModel(),
-          system: pinned.systemPrompt,
+          system: `${pinned.systemPrompt}${buildRouteContextBlock(ctx.route)}${dateContextPin}`,
           tools: pinned.buildTools(ctx),
           messages: modelMessages,
           stopWhen: ({ steps }) => steps.length >= 8,
@@ -304,7 +317,7 @@ export function streamAstro(opts: {
 
     return streamText({
       model: modelFor(complexity),
-      system: `${ASTRO_ORCHESTRATOR_PROMPT}\n\n${systemSuffix}${dateContext}`,
+      system: `${ASTRO_ORCHESTRATOR_PROMPT}\n\n${systemSuffix}${buildRouteContextBlock(ctx.route)}${dateContext}`,
       tools: { ...directTools, ...routingTools },
       messages: modelMessages,
       // Mais steps: orchestrator pode chamar várias tools de leitura
@@ -312,6 +325,31 @@ export function streamAstro(opts: {
       stopWhen: ({ steps }) => steps.length >= 10,
     });
   })();
+}
+
+/**
+ * Constrói um bloco de [CONTEXTO DA ROTA] com os IDs do snapshot do cliente.
+ * Sem isso o LLM não conhece `leadId`/`conversationId` e tenta perguntar ao
+ * usuário (ou alucina dizendo que não consegue acessar). Reusado por
+ * orquestrador e sub-agentes pinned.
+ */
+function buildRouteContextBlock(
+  route: AgentContext["route"] | undefined,
+): string {
+  if (!route) return "";
+  const fields: Array<[string, string | undefined]> = [
+    ["trackingId", route.trackingId],
+    ["leadId", route.leadId],
+    ["conversationId", route.conversationId],
+    ["workspaceId", route.workspaceId],
+    ["actionId", route.actionId],
+    ["pathname", route.pathname],
+  ];
+  const lines = fields
+    .filter(([, v]) => typeof v === "string" && v.length > 0)
+    .map(([k, v]) => `- ${k}: ${v}`);
+  if (lines.length === 0) return "";
+  return `\n\n[CONTEXTO DA ROTA]\nO usuário está vendo esta tela agora. Use estes IDs DIRETAMENTE como input das tools — NÃO pergunte ao usuário e NÃO invente outros:\n${lines.join("\n")}`;
 }
 
 function buildAgentsBriefing(enabled: Record<AgentKey, boolean>) {

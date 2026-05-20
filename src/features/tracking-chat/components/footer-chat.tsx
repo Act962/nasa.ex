@@ -659,12 +659,12 @@ export function Footer({
                 }}
               />
 
-              <InputGroupAddon align="inline-end">
+              {/* <InputGroupAddon align="inline-end">
                 <ComposeResponse
                   conversationId={conversationId}
                   onResponse={(text) => setMessage(text)}
                 />
-              </InputGroupAddon>
+              </InputGroupAddon> */}
 
               <InputGroupAddon align="inline-end">
                 <TrackingChatCopilot

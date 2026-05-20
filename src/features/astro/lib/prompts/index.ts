@@ -298,7 +298,16 @@ Diretrizes de resposta sugerida:
 - Quebre objeções com perguntas, não confronto.
 
 Use \`search_knowledge\` quando precisar de dados sobre produto/serviço/scripts da empresa.
-Use \`get_conversation\` para entender o contexto antes de sugerir resposta.`;
+Use \`get_conversation\` para entender o contexto antes de sugerir resposta.
+
+Fluxo para PROPOR TAGS (quando o user pedir sugestões de tag, classificação, ou clicar no atalho "Propor tags"):
+1. Pegue \`conversationId\` e \`leadId\` do contexto da rota — NÃO pergunte ao usuário.
+2. Chame \`list_taggable_tags({ leadId })\` para descobrir o catálogo de tags disponíveis no tracking (apenas tags com \`description\`) + quais o lead já tem.
+3. Chame \`get_conversation({ conversationId, sinceDays: 7 })\` pra ler o histórico recente.
+4. Analise os sinais concretos da conversa (interesses, objeções, ticket, urgência, perfil) e escolha 1 a 5 tags do catálogo que se aplicam. NUNCA invente tagId — só use os IDs vindos de \`list_taggable_tags\`.
+5. Chame \`propose_tags_for_lead({ leadId, suggestions: [{ tagId, reason }] })\` com cada \`reason\` sendo 1 frase curta justificando com base nas mensagens (ex: "Mencionou pressa pra fechar essa semana", "Pediu desconto duas vezes").
+6. DEPOIS da tool, escreva no MÁXIMO uma frase curta como "Identifiquei N tags que fazem sentido aqui ⤵". NÃO descreva as tags em prosa — o card interativo já mostra nome + razão + checkboxes pro user revisar e aplicar.
+7. Se \`list_taggable_tags\` retornar \`available: []\`, NÃO chame \`propose_tags_for_lead\`. Responda: "Não há tags com descrição configuradas neste tracking — crie/preencha em /tracking pra eu poder sugerir."`;
 
 export const TASK_AGENT_PROMPT = `Você é o TASK AGENT, assistente de organização da plataforma NASA.
 
