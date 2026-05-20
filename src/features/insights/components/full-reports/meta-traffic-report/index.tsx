@@ -264,9 +264,15 @@ function useMetaData(from: Date, to: Date) {
   };
 }
 
-function distinctCount(snaps: { entityId: string }[] | undefined): number {
+function distinctCount(
+  snaps: ({ entityId: string } | null)[] | undefined,
+): number {
   if (!snaps) return 0;
-  return new Set(snaps.map((s) => s.entityId)).size;
+  const ids = new Set<string>();
+  for (const s of snaps) {
+    if (s) ids.add(s.entityId);
+  }
+  return ids.size;
 }
 
 // ─── Main component ──────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@
 
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import {
   listMetaCampaigns,
   listMetaAdSets,
@@ -204,7 +205,9 @@ export const syncMetaAdsStructure = inngest.createFunction(
                 name: ad.name,
                 effectiveStatus: ad.effective_status,
                 creativeId: creative?.id,
-                creative: creative as object | null,
+                creative: creative
+                  ? (creative as Prisma.InputJsonValue)
+                  : Prisma.JsonNull,
                 previewUrl,
                 lastSyncedAt: new Date(),
                 raw: ad as object,
@@ -213,7 +216,9 @@ export const syncMetaAdsStructure = inngest.createFunction(
                 name: ad.name,
                 effectiveStatus: ad.effective_status,
                 creativeId: creative?.id,
-                creative: creative as object | null,
+                creative: creative
+                  ? (creative as Prisma.InputJsonValue)
+                  : Prisma.JsonNull,
                 previewUrl,
                 lastSyncedAt: new Date(),
                 raw: ad as object,
