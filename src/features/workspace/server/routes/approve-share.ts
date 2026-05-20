@@ -1,9 +1,11 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { logOrgActivity } from "@/features/admin/lib/org-activity-log";
 import { z } from "zod";
+import { copyActionToOrg } from "@/features/actions/lib/copy-action-to-org";
 
 export const approveShare = base
   .use(requiredAuthMiddleware)
@@ -23,9 +25,7 @@ export const approveShare = base
         targetOrgId: context.org.id,
         status: "PENDING",
       },
-      include: {
-        sourceAction: true,
-      },
+      select: { id: true, sourceActionId: true, sourceOrgId: true },
     });
     if (!share)
       throw new Error(
@@ -42,25 +42,27 @@ export const approveShare = base
       );
     }
 
-    const source = share.sourceAction;
-
-    // Copy the action into target org
-    const copiedAction = await prisma.action.create({
-      data: {
-        title: source.title,
-        description: source.description,
-        workspaceId: input.targetWorkspaceId,
+    // Calcula order pra entrar no topo da coluna destino sem colidir.
+    const firstInCol = await prisma.action.findFirst({
+      where: {
         columnId: input.targetColumnId,
-        organizationId: context.org.id,
-        priority: source.priority,
-        type: source.type,
-        order: source.order,
-        createdBy: context.user.id,
-        attachments: source.attachments as any,
-        links: source.links as any,
-        coverImage: source.coverImage,
-        youtubeUrl: source.youtubeUrl,
+        workspaceId: input.targetWorkspaceId,
       },
+      orderBy: { order: "asc" },
+      select: { order: true },
+    });
+    const targetOrder = firstInCol
+      ? Prisma.Decimal.sub(firstInCol.order, 1)
+      : new Prisma.Decimal(0);
+
+    // Copia preservando descrição, datas, anexos, links, capa, vídeo,
+    // sub-ações e grupos.
+    const copiedAction = await copyActionToOrg(share.sourceActionId, {
+      workspaceId: input.targetWorkspaceId,
+      columnId: input.targetColumnId,
+      organizationId: context.org.id,
+      order: targetOrder,
+      createdBy: context.user.id,
     });
 
     await logOrgActivity({

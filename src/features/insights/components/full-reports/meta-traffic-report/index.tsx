@@ -22,6 +22,7 @@ import {
   Minus,
   MousePointerClick,
   Play,
+  Save,
   Target,
   Users,
   UserSquare,
@@ -36,6 +37,8 @@ import { DistributionsSection } from "./distributions-section";
 import { RegionsSection } from "./regions-section";
 import { InstagramSection } from "./instagram-section";
 import { FacebookSection } from "./facebook-section";
+import { SaveReportModal } from "../../reports/save-report-modal";
+import { useDashboardFilters } from "@/features/insights/hooks/use-dashboard-store";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -265,19 +268,37 @@ function useMetaData(from: Date, to: Date) {
   };
 }
 
-function distinctCount(snaps: { entityId: string }[] | undefined): number {
+function distinctCount(
+  snaps: ({ entityId: string } | null)[] | undefined,
+): number {
   if (!snaps) return 0;
-  return new Set(snaps.map((s) => s.entityId)).size;
+  // Procedure pode retornar array com entries nulas em modo fallback live
+  // (mapeamento condicional do `metaAds.snapshots.list`). Filtra antes do Set.
+  return new Set(snaps.filter((s): s is { entityId: string } => !!s).map((s) => s.entityId))
+    .size;
 }
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export function MetaTrafficReport() {
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>(
-    defaultDateRange(),
-  );
-  const fromDate = dateRange.from ?? defaultDateRange().from;
-  const toDate = dateRange.to ?? defaultDateRange().to;
+  // Lê o dateRange do mesmo store global usado em `/insights → Canais`. Assim
+  // o relatório reflete o período que você selecionou no dashboard de canais
+  // (não duplica state local). `setDateRange` aceita undefined nas pontas,
+  // mas o store sempre fornece um range válido pra evitar undefined.
+  const { dateRange: storeRange, setDateRange: setStoreRange } =
+    useDashboardFilters();
+  const dateRange = useMemo(() => {
+    if (storeRange.from && storeRange.to) {
+      return { from: storeRange.from, to: storeRange.to };
+    }
+    return defaultDateRange();
+  }, [storeRange]);
+  const fromDate = dateRange.from;
+  const toDate = dateRange.to;
+  const handleRangeChange = (next: { from?: Date; to?: Date }) => {
+    if (next.from && next.to) setStoreRange({ from: next.from, to: next.to });
+  };
+  const [saveOpen, setSaveOpen] = useState(false);
   const {
     current,
     previous,
@@ -309,7 +330,7 @@ export function MetaTrafficReport() {
         to={toDate}
         prevFrom={prev.from}
         prevTo={prev.to}
-        onChangeRange={setDateRange}
+        onChangeRange={handleRangeChange}
       />
 
       {!connected && !isLoading && (
@@ -653,20 +674,64 @@ export function MetaTrafficReport() {
       </section>
 
       {/* ── Rodapé ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between border-t pt-4 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4 text-xs text-muted-foreground">
         <span>
           Período: {fromDate.toLocaleDateString("pt-BR")} →{" "}
           {toDate.toLocaleDateString("pt-BR")} ({days} dias)
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => window.print()}
-          className="gap-2"
-        >
-          <Download className="size-3.5" /> Exportar (Imprimir / PDF)
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSaveOpen(true)}
+            className="gap-2"
+            disabled={!connected || isLoading || !data}
+          >
+            <Save className="size-3.5" /> Salvar relatório
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.print()}
+            className="gap-2"
+          >
+            <Download className="size-3.5" /> Exportar (Imprimir / PDF)
+          </Button>
+        </div>
       </div>
+
+      {/* Modal de salvar — congela o snapshot atual + período pra reabrir. */}
+      <SaveReportModal
+        open={saveOpen}
+        onOpenChange={setSaveOpen}
+        defaultName={`Tráfego Meta · ${fromDate.toLocaleDateString("pt-BR")} → ${toDate.toLocaleDateString("pt-BR")}`}
+        filters={{
+          source: "meta-traffic",
+          dateRange: {
+            from: fromDate.toISOString(),
+            to: toDate.toISOString(),
+          },
+        }}
+        modules={["meta"]}
+        snapshot={{
+          source: "meta-traffic",
+          period: {
+            from: fromDate.toISOString(),
+            to: toDate.toISOString(),
+            previousFrom: prev.from.toISOString(),
+            previousTo: prev.to.toISOString(),
+            days,
+          },
+          current: data ?? null,
+          previous: prevData ?? null,
+          counts: {
+            campaigns: numCampaigns,
+            campaignsPrev: numCampaignsPrev,
+            ads: numAds,
+            adsPrev: numAdsPrev,
+          },
+        }}
+      />
     </div>
   );
 }

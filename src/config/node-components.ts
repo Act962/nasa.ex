@@ -10,6 +10,7 @@ import { WaitNode } from "@/features/executions/components/wait/node";
 import { WinLossNode } from "@/features/executions/components/win_loss/node";
 import { AiFinishedTriggerNode } from "@/features/triggers/components/ai-finished/node";
 import { FirstChatInteractionTriggerNode } from "@/features/triggers/components/first-chat-interaction/node";
+import { LastInboundTimeoutTriggerNode } from "@/features/triggers/components/last-inbound-timeout/node";
 import { LeadTaggedTriggerNode } from "@/features/triggers/components/lead-tagged/node";
 import { ManualTriggerNode } from "@/features/triggers/components/manual-trigger/node";
 import { MoveLeadStatusTriggerNode } from "@/features/triggers/components/move-lead-status/node";
@@ -33,6 +34,7 @@ export const nodeComponents = {
   [NodeType.LEAD_TAGGED]: LeadTaggedTriggerNode,
   [NodeType.AI_FINISHED]: AiFinishedTriggerNode,
   [NodeType.FIRST_CHAT_INTERACTION]: FirstChatInteractionTriggerNode,
+  [NodeType.LAST_INBOUND_TIMEOUT]: LastInboundTimeoutTriggerNode,
   [NodeType.FILTER_LEAD]: FilterLeadNode,
 } as const satisfies NodeTypes;
 

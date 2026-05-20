@@ -758,6 +758,7 @@ model Lead {
   formResponses             FormResponses[]
   clientOnboardingProcesses ClientOnboardingProcess[]
   linnkerScans              LinnkerScan[]
+  paymentEntries            PaymentEntry[]
 
   @@unique([phone, trackingId])
   @@index([trackingId])
@@ -1393,6 +1394,9 @@ enum NodeType {
   LEAD_TAGGED
   AI_FINISHED
   FIRST_CHAT_INTERACTION
+  // Gatilho time-based: dispara quando o lead fica X minutos sem mandar
+  // mensagem nova (computado a partir de `Lead.lastInboundAt`).
+  LAST_INBOUND_TIMEOUT
   // LEAD_UNTAGGED
 
   // Execuções
@@ -3510,6 +3514,9 @@ model PaymentEntry {
   contactId    String? @map("contact_id")
   accountId    String? @map("account_id")
   trackingId   String? @map("tracking_id")
+  // Vínculo direto ao Lead — usado pela feature de Orçamento no chat:
+  // permite filtrar "A receber" por lead específico (em vez de só por tracking).
+  leadId       String? @map("lead_id")
 
   // Parcelamento
   installmentTotal   Int?    @map("installment_total")
@@ -3530,6 +3537,7 @@ model PaymentEntry {
   contact      PaymentContact?     @relation(fields: [contactId], references: [id])
   account      PaymentBankAccount? @relation(fields: [accountId], references: [id])
   tracking     Tracking?           @relation(fields: [trackingId], references: [id], onDelete: SetNull)
+  lead         Lead?               @relation(fields: [leadId], references: [id], onDelete: SetNull)
   createdBy    User?               @relation("PaymentEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
@@ -3540,6 +3548,7 @@ model PaymentEntry {
   @@index([categoryId])
   @@index([installmentGroupId])
   @@index([trackingId])
+  @@index([leadId])
   @@map("payment_entries")
 }
 

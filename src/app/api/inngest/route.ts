@@ -43,6 +43,10 @@ import { detectLeadsWaitingAttention } from "@/inngest/functions/crons/detect-le
 import { detectActionsDueSoon } from "@/inngest/functions/crons/detect-actions-due-soon";
 import { formSendWhatsappNotification } from "@/inngest/functions/form/send-whatsapp-notification";
 import { chatAiWhatsappAgent } from "@/inngest/functions/chat-ai/whatsapp-agent";
+import {
+  scheduleInboundTimeoutChecks,
+  checkInboundTimeout,
+} from "@/inngest/functions/triggers/last-inbound-timeout";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -92,6 +96,9 @@ export const { GET, POST, PUT } = serve({
     worldEventOccupancyTick,
     detectLeadsWaitingAttention,
     detectActionsDueSoon,
+    // ── Trigger LAST_INBOUND_TIMEOUT ──
+    scheduleInboundTimeoutChecks,
+    checkInboundTimeout,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

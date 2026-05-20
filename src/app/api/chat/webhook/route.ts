@@ -831,6 +831,28 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Gatilho LAST_INBOUND_TIMEOUT: notifica scheduler do Inngest que
+      // o lead recebeu mensagem inbound. O scheduler vai buscar workflows
+      // ativos com esse trigger no tracking e agendar checks com sleepUntil.
+      // Só dispara pra mensagens inbound (`!fromMe`) — outbound não conta.
+      if (!fromMe && lead.isActive) {
+        try {
+          await inngest.send({
+            name: "chat/inbound-message.received",
+            data: {
+              leadId: lead.id,
+              inboundAt: now.toISOString(),
+              trackingId,
+            },
+          });
+        } catch (error) {
+          console.error(
+            "[webhook:chat] inbound-timeout_inngest_send_failed",
+            error,
+          );
+        }
+      }
+
       await pusherServer.trigger(trackingId, "conversation:new", {
         ...lead.conversation,
         lead,

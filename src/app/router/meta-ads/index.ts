@@ -9,6 +9,7 @@ import {
 } from "./breakdowns";
 import { getInstagramOverview } from "./instagram";
 import { getFacebookOverview } from "./facebook";
+import { getConversionTag, setConversionTag } from "./conversion-tag";
 
 export const metaAdsRouter = {
   insightsDrilldown: getInsightsDrilldown,
@@ -29,4 +30,8 @@ export const metaAdsRouter = {
   executeMcpAction,
   cancelMcpAction,
   getTopAds,
+  conversionTag: {
+    get: getConversionTag,
+    set: setConversionTag,
+  },
 };

@@ -182,6 +182,17 @@ export const syncMetaAdsStructure = inngest.createFunction(
           const adsetLocalId = adsetByMeta.get(ad.adset_id);
           if (!campaignLocalId || !adsetLocalId) continue;
 
+          // Creative agora vem com field expansion (`creative{image_url,thumbnail_url,...}`).
+          // Persistimos o objeto inteiro em `creative` (JSON) e priorizamos
+          // image_url > thumbnail_url > preview_shareable_link como `previewUrl`
+          // pra usar como thumbnail nos relatórios.
+          const creative = ad.creative ?? null;
+          const previewUrl =
+            creative?.image_url ??
+            creative?.thumbnail_url ??
+            ad.preview_shareable_link ??
+            null;
+
           await prisma.metaAd
             .upsert({
               where: { metaAdId: ad.id },
@@ -192,16 +203,21 @@ export const syncMetaAdsStructure = inngest.createFunction(
                 metaAdId: ad.id,
                 name: ad.name,
                 effectiveStatus: ad.effective_status,
-                creativeId: ad.creative?.id,
-                previewUrl: ad.preview_shareable_link,
+                creativeId: creative?.id,
+                // `creative` é Json nullable no Prisma — quando null, omitimos
+                // a key (em vez de passar `null` que conflita com o tipo
+                // `NullableJsonNullValueInput | InputJsonValue`).
+                ...(creative ? { creative: creative as object } : {}),
+                previewUrl,
                 lastSyncedAt: new Date(),
                 raw: ad as object,
               },
               update: {
                 name: ad.name,
                 effectiveStatus: ad.effective_status,
-                creativeId: ad.creative?.id,
-                previewUrl: ad.preview_shareable_link,
+                creativeId: creative?.id,
+                ...(creative ? { creative: creative as object } : {}),
+                previewUrl,
                 lastSyncedAt: new Date(),
                 raw: ad as object,
               },

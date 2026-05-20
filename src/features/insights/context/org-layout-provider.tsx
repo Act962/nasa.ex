@@ -203,6 +203,16 @@ export function useOrgLayout(): LayoutContextValue {
   return ctx;
 }
 
+/**
+ * Versão tolerante — retorna `null` quando o componente está fora do
+ * `OrgLayoutProvider`, em vez de jogar. Usado pelo `SaveReportModal`, que
+ * agora é embutido também em rotas de relatórios full-screen (ex:
+ * `/insights/relatorios/trafego-meta`) que não envolvem o provider.
+ */
+export function useOrgLayoutOptional(): LayoutContextValue | null {
+  return useContext(Ctx);
+}
+
 function normalizeOrder(blocks: InsightBlock[]): InsightBlock[] {
   return blocks.map((b, i) => ({ ...b, order: i }) as InsightBlock);
 }
