@@ -1,5 +1,4 @@
 "use client";
-import { EntityHeader } from "@/components/entity-components";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Suspense, useState } from "react";
 import AnalyticsCard from "./analytics-card";
@@ -49,22 +48,28 @@ export const WorkspaceHeader = () => {
   return (
     <>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-x-4">
-        <EntityHeader
-          title="Workspace"
-          description="Aqui está uma visão geral deste espaço de trabalho!"
-        />
-        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+        <div className="flex flex-col">
+          <h1 className="text-lg font-semibold md:text-xl">Workspace</h1>
+          <p className="hidden text-xs text-muted-foreground sm:block md:text-sm">
+            Aqui está uma visão geral deste espaço de trabalho!
+          </p>
+        </div>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-wrap sm:items-center">
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5"
+            className="w-full gap-1.5 sm:w-auto"
             onClick={() => setCalendarOpen(true)}
           >
             <CalendarDaysIcon className="size-4" />
             <span className="hidden sm:inline">Calendário Workspace</span>
             <span className="sm:hidden">Calendário</span>
           </Button>
-          <Button size="sm" onClick={() => setOpen(true)} className="gap-1.5">
+          <Button
+            size="sm"
+            onClick={() => setOpen(true)}
+            className="w-full gap-1.5 sm:w-auto"
+          >
             <PlusIcon className="size-4" />
             <span className="hidden sm:inline">Novo workspace</span>
             <span className="sm:hidden">Novo</span>
@@ -87,7 +92,7 @@ export const WorkspaceAnalytics = () => {
 
   return (
     <>
-      <div className="grid gap-4 md:gap-5 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 md:gap-5 lg:grid-cols-2 xl:grid-cols-3">
         <AnalyticsCard
           isLoading={isLoading}
           title="Ações"
@@ -135,14 +140,14 @@ export const WorkspaceContainer = () => {
             className="w-full border rounded-lg p-2"
           >
             <div className="w-full overflow-x-auto">
-              <TabsList className=" justify-start border-0 w-fit">
-                <TabsTrigger className="py-2" value="projects">
+              <TabsList className="grid w-full grid-cols-3 border-0 sm:flex sm:w-fit sm:justify-start">
+                <TabsTrigger className="w-full py-2 sm:w-auto" value="projects">
                   Projetos
                 </TabsTrigger>
-                <TabsTrigger className="py-2" value="tasks">
+                <TabsTrigger className="w-full py-2 sm:w-auto" value="tasks">
                   Ações recentes
                 </TabsTrigger>
-                <TabsTrigger className="py-2" value="members">
+                <TabsTrigger className="w-full py-2 sm:w-auto" value="members">
                   Membros recentes
                 </TabsTrigger>
               </TabsList>

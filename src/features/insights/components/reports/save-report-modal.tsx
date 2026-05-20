@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useOrgLayout } from "@/features/insights/context/org-layout-provider";
+import { useOrgLayoutOptional } from "@/features/insights/context/org-layout-provider";
 import {
   getDefaultVisibleKeys,
 } from "@/features/insights/lib/insights-metric-catalog";
@@ -51,7 +51,11 @@ export function SaveReportModal({
   const queryClient = useQueryClient();
   // Captura as preferências de visibilidade de KPIs por seção (section-prefs)
   // do layout da org — congelado no snapshot pra reproduzir a UI no relatório.
-  const { blocks } = useOrgLayout();
+  // Usa variante opcional pra funcionar também em rotas full-screen (como
+  // `/insights/relatorios/trafego-meta`) que não envolvem o OrgLayoutProvider:
+  // sem layout custom, caímos no default do catálogo.
+  const layout = useOrgLayoutOptional();
+  const blocks = layout?.blocks ?? [];
 
   const { mutate, isPending } = useMutation({
     mutationFn: (vars: {
