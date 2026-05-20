@@ -76,6 +76,7 @@ export async function mintLiveKitToken(input: MintTokenInput): Promise<string> {
     canSubscribe,
     canPublishData,
     // Source-level: speakers podem publicar mic+cam+screen; audience nada.
+    // TrackSource é um enum re-exportado do sdk (`@livekit/protocol`).
     // TrackSource é um enum do `@livekit/protocol` (re-exportado pelo sdk).
     canPublishSources: canPublish
       ? [TrackSource.MICROPHONE, TrackSource.CAMERA, TrackSource.SCREEN_SHARE]

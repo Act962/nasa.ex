@@ -135,16 +135,28 @@ export function MetaInsights() {
   const loading = isLoading || isRefetching;
 
   if (!isLoading && data?.error) {
+    // Token Meta expirado/revogado vira CTA de reconectar; outros erros mantêm o "tentar novamente".
+    const isAuthError = /token meta expirou|reconecte|escopos/i.test(data.error);
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
         <AlertCircle className="size-8 text-destructive" />
         <div>
           <h3 className="font-semibold">Erro ao carregar dados</h3>
-          <p className="text-sm text-muted-foreground mt-1">{data.error}</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-md">{data.error}</p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => refetch()} className="gap-1.5">
-          <RefreshCw className="size-3.5" /> Tentar novamente
-        </Button>
+        <div className="flex gap-2">
+          {isAuthError ? (
+            <Button size="sm" asChild className="gap-1.5">
+              <Link href="/integrations">
+                <RefreshCw className="size-3.5" /> Reconectar Meta
+              </Link>
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" onClick={() => refetch()} className="gap-1.5">
+              <RefreshCw className="size-3.5" /> Tentar novamente
+            </Button>
+          )}
+        </div>
       </div>
     );
   }

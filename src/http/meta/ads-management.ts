@@ -1,15 +1,18 @@
 /**
  * Meta Ads Management HTTP layer.
  *
- * Wraps Graph API v19.0 calls for:
+ * Wraps Graph API v22.0 calls for:
  *  - Listing/CRUD de campaigns, adsets e ads
  *  - Insights drill-down (campaign/adset/ad)
  *
  * Recebe credenciais do PlatformIntegration.config (accessToken + adAccountId).
  * Não depende de oRPC — é puro fetch para ser usado em procedures e crons.
+ *
+ * Auth: prioriza `Authorization: Bearer <token>` (recomendação Meta), com fallback
+ * de `access_token` em querystring pra compatibilidade.
  */
 
-export const META_API_VERSION = "v19.0";
+export const META_API_VERSION = "v22.0";
 export const META_GRAPH = `https://graph.facebook.com/${META_API_VERSION}`;
 const GRAPH = META_GRAPH;
 
@@ -22,11 +25,19 @@ function actId(adAccountId: string) {
   return adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 }
 
+/**
+ * Faz fetch contra Graph API com Bearer token no header. Lança Error com
+ * `type` + `message` da Meta quando há `error` no payload.
+ */
 export async function graphFetch<T = unknown>(
   url: string,
-  init?: RequestInit,
+  init?: RequestInit & { accessToken?: string },
 ): Promise<T> {
-  const res = await fetch(url, init);
+  const headers = new Headers(init?.headers);
+  if (init?.accessToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${init.accessToken}`);
+  }
+  const res = await fetch(url, { ...init, headers });
   const json = (await res.json()) as Record<string, unknown>;
   if (json.error) {
     const err = json.error as { message: string; code: number; type: string };
@@ -45,6 +56,7 @@ const INSIGHTS_FIELDS = [
   "clicks", "ctr", "inline_post_engagement",
   "spend", "cpm", "cpc", "cpp",
   "conversions", "conversion_values",
+  "results", "cost_per_result",
   "video_play_actions", "video_thruplay_watched_actions",
   "video_avg_time_watched_actions",
   "actions", "cost_per_action_type", "cost_per_conversion",
@@ -135,6 +147,17 @@ function parseInsightRow(raw: Record<string, unknown>): InsightRow {
   };
 }
 
+/**
+ * Fetch Ads Insights conforme spec da Meta Marketing API.
+ *
+ * - `level`: account | campaign | adset | ad
+ * - Mutuamente exclusivos: `timeRange` (intervalo custom) ou `datePreset`
+ *   (presets fixos como `last_7d`, `last_30d`, `this_month`, etc.). Se ambos
+ *   forem passados, `timeRange` ganha (intervalo custom é mais específico).
+ *   Sem nenhum, default `last_30d`.
+ *
+ * Auth via Bearer header (não vaza token na URL/logs).
+ */
 export async function fetchAdsInsights(
   auth: MetaAuth,
   opts: {
@@ -143,12 +166,19 @@ export async function fetchAdsInsights(
     timeRange?: { since: string; until: string };
   },
 ): Promise<InsightRow[]> {
-  const dateParam = opts.timeRange
-    ? `time_range=${encodeURIComponent(JSON.stringify(opts.timeRange))}`
-    : `date_preset=${opts.datePreset ?? "last_30d"}`;
-
-  const url = `${GRAPH}/${actId(auth.adAccountId)}/insights?fields=${INSIGHTS_FIELDS}&${dateParam}&level=${opts.level}&limit=500&access_token=${auth.accessToken}`;
-  const json = await graphFetch<{ data: Record<string, unknown>[] }>(url);
+  const url = new URL(`${GRAPH}/${actId(auth.adAccountId)}/insights`);
+  url.searchParams.set("fields", INSIGHTS_FIELDS);
+  url.searchParams.set("level", opts.level);
+  url.searchParams.set("limit", "500");
+  if (opts.timeRange) {
+    url.searchParams.set("time_range", JSON.stringify(opts.timeRange));
+  } else {
+    url.searchParams.set("date_preset", opts.datePreset ?? "last_30d");
+  }
+  const json = await graphFetch<{ data: Record<string, unknown>[] }>(
+    url.toString(),
+    { accessToken: auth.accessToken },
+  );
   return (json.data ?? []).map(parseInsightRow);
 }
 
@@ -177,8 +207,10 @@ export interface MetaCampaignRaw {
 }
 
 export async function listMetaCampaigns(auth: MetaAuth): Promise<MetaCampaignRaw[]> {
-  const url = `${GRAPH}/${actId(auth.adAccountId)}/campaigns?fields=${CAMPAIGN_FIELDS}&limit=500&access_token=${auth.accessToken}`;
-  const json = await graphFetch<{ data: MetaCampaignRaw[] }>(url);
+  const url = `${GRAPH}/${actId(auth.adAccountId)}/campaigns?fields=${CAMPAIGN_FIELDS}&limit=500`;
+  const json = await graphFetch<{ data: MetaCampaignRaw[] }>(url, {
+    accessToken: auth.accessToken,
+  });
   return json.data ?? [];
 }
 
@@ -201,7 +233,6 @@ export async function createMetaCampaign(
     objective: body.objective,
     status: body.status ?? "PAUSED",
     special_ad_categories: JSON.stringify(body.specialAdCategories ?? []),
-    access_token: auth.accessToken,
   });
   if (body.dailyBudget) params.set("daily_budget", String(body.dailyBudget));
   if (body.lifetimeBudget) params.set("lifetime_budget", String(body.lifetimeBudget));
@@ -211,7 +242,7 @@ export async function createMetaCampaign(
 
   return graphFetch<{ id: string }>(
     `${GRAPH}/${actId(auth.adAccountId)}/campaigns`,
-    { method: "POST", body: params },
+    { method: "POST", body: params, accessToken: auth.accessToken },
   );
 }
 
@@ -228,7 +259,7 @@ export async function updateMetaCampaign(
     stopTime: string;
   }>,
 ): Promise<{ success: boolean }> {
-  const params = new URLSearchParams({ access_token: auth.accessToken });
+  const params = new URLSearchParams();
   if (patch.name) params.set("name", patch.name);
   if (patch.status) params.set("status", patch.status);
   if (patch.dailyBudget) params.set("daily_budget", String(patch.dailyBudget));
@@ -240,6 +271,7 @@ export async function updateMetaCampaign(
   return graphFetch<{ success: boolean }>(`${GRAPH}/${campaignId}`, {
     method: "POST",
     body: params,
+    accessToken: auth.accessToken,
   });
 }
 
@@ -247,10 +279,10 @@ export async function deleteMetaCampaign(
   auth: MetaAuth,
   campaignId: string,
 ): Promise<{ success: boolean }> {
-  return graphFetch<{ success: boolean }>(
-    `${GRAPH}/${campaignId}?access_token=${auth.accessToken}`,
-    { method: "DELETE" },
-  );
+  return graphFetch<{ success: boolean }>(`${GRAPH}/${campaignId}`, {
+    method: "DELETE",
+    accessToken: auth.accessToken,
+  });
 }
 
 // ─── Ad Sets ──────────────────────────────────────────────────────────────
@@ -282,8 +314,10 @@ export async function listMetaAdSets(auth: MetaAuth, campaignId?: string): Promi
   const path = campaignId
     ? `${GRAPH}/${campaignId}/adsets`
     : `${GRAPH}/${actId(auth.adAccountId)}/adsets`;
-  const url = `${path}?fields=${ADSET_FIELDS}&limit=500&access_token=${auth.accessToken}`;
-  const json = await graphFetch<{ data: MetaAdSetRaw[] }>(url);
+  const url = `${path}?fields=${ADSET_FIELDS}&limit=500`;
+  const json = await graphFetch<{ data: MetaAdSetRaw[] }>(url, {
+    accessToken: auth.accessToken,
+  });
   return json.data ?? [];
 }
 
@@ -310,7 +344,6 @@ export async function createMetaAdSet(
     billing_event: body.billingEvent,
     targeting: JSON.stringify(body.targeting),
     status: body.status ?? "PAUSED",
-    access_token: auth.accessToken,
   });
   if (body.dailyBudget) params.set("daily_budget", String(body.dailyBudget));
   if (body.lifetimeBudget) params.set("lifetime_budget", String(body.lifetimeBudget));
@@ -320,7 +353,7 @@ export async function createMetaAdSet(
 
   return graphFetch<{ id: string }>(
     `${GRAPH}/${actId(auth.adAccountId)}/adsets`,
-    { method: "POST", body: params },
+    { method: "POST", body: params, accessToken: auth.accessToken },
   );
 }
 
@@ -338,7 +371,7 @@ export async function updateMetaAdSet(
     endTime: string;
   }>,
 ): Promise<{ success: boolean }> {
-  const params = new URLSearchParams({ access_token: auth.accessToken });
+  const params = new URLSearchParams();
   if (patch.name) params.set("name", patch.name);
   if (patch.status) params.set("status", patch.status);
   if (patch.dailyBudget) params.set("daily_budget", String(patch.dailyBudget));
@@ -351,6 +384,7 @@ export async function updateMetaAdSet(
   return graphFetch<{ success: boolean }>(`${GRAPH}/${adsetId}`, {
     method: "POST",
     body: params,
+    accessToken: auth.accessToken,
   });
 }
 
@@ -358,18 +392,33 @@ export async function deleteMetaAdSet(
   auth: MetaAuth,
   adsetId: string,
 ): Promise<{ success: boolean }> {
-  return graphFetch<{ success: boolean }>(
-    `${GRAPH}/${adsetId}?access_token=${auth.accessToken}`,
-    { method: "DELETE" },
-  );
+  return graphFetch<{ success: boolean }>(`${GRAPH}/${adsetId}`, {
+    method: "DELETE",
+    accessToken: auth.accessToken,
+  });
 }
 
 // ─── Ads ──────────────────────────────────────────────────────────────────
 
+// `creative{...}` é field expansion da Graph API — sem isso o backend só
+// devolve `{ id }` e o thumbnail fica vazio. image_url/thumbnail_url são
+// as URLs públicas do CDN da Meta pra preview do criativo.
 const AD_FIELDS = [
   "id", "name", "campaign_id", "adset_id",
-  "status", "effective_status", "creative", "preview_shareable_link",
+  "status", "effective_status",
+  "creative{id,name,image_url,thumbnail_url,object_story_id,effective_object_story_id,object_story_spec}",
+  "preview_shareable_link",
 ].join(",");
+
+export interface MetaAdCreativeRaw {
+  id: string;
+  name?: string;
+  image_url?: string;
+  thumbnail_url?: string;
+  object_story_id?: string;
+  effective_object_story_id?: string;
+  object_story_spec?: Record<string, unknown>;
+}
 
 export interface MetaAdRaw {
   id: string;
@@ -378,7 +427,7 @@ export interface MetaAdRaw {
   adset_id: string;
   status?: string;
   effective_status?: string;
-  creative?: { id: string };
+  creative?: MetaAdCreativeRaw;
   preview_shareable_link?: string;
 }
 
@@ -391,8 +440,10 @@ export async function listMetaAds(
     : filter?.campaignId
       ? `${GRAPH}/${filter.campaignId}/ads`
       : `${GRAPH}/${actId(auth.adAccountId)}/ads`;
-  const url = `${path}?fields=${AD_FIELDS}&limit=500&access_token=${auth.accessToken}`;
-  const json = await graphFetch<{ data: MetaAdRaw[] }>(url);
+  const url = `${path}?fields=${AD_FIELDS}&limit=500`;
+  const json = await graphFetch<{ data: MetaAdRaw[] }>(url, {
+    accessToken: auth.accessToken,
+  });
   return json.data ?? [];
 }
 
@@ -410,11 +461,10 @@ export async function createMetaAd(
     adset_id: body.adsetId,
     creative: JSON.stringify({ creative_id: body.creativeId }),
     status: body.status ?? "PAUSED",
-    access_token: auth.accessToken,
   });
   return graphFetch<{ id: string }>(
     `${GRAPH}/${actId(auth.adAccountId)}/ads`,
-    { method: "POST", body: params },
+    { method: "POST", body: params, accessToken: auth.accessToken },
   );
 }
 
@@ -427,7 +477,7 @@ export async function updateMetaAd(
     creativeId: string;
   }>,
 ): Promise<{ success: boolean }> {
-  const params = new URLSearchParams({ access_token: auth.accessToken });
+  const params = new URLSearchParams();
   if (patch.name) params.set("name", patch.name);
   if (patch.status) params.set("status", patch.status);
   if (patch.creativeId) params.set("creative", JSON.stringify({ creative_id: patch.creativeId }));
@@ -435,6 +485,7 @@ export async function updateMetaAd(
   return graphFetch<{ success: boolean }>(`${GRAPH}/${adId}`, {
     method: "POST",
     body: params,
+    accessToken: auth.accessToken,
   });
 }
 
@@ -442,10 +493,10 @@ export async function deleteMetaAd(
   auth: MetaAuth,
   adId: string,
 ): Promise<{ success: boolean }> {
-  return graphFetch<{ success: boolean }>(
-    `${GRAPH}/${adId}?access_token=${auth.accessToken}`,
-    { method: "DELETE" },
-  );
+  return graphFetch<{ success: boolean }>(`${GRAPH}/${adId}`, {
+    method: "DELETE",
+    accessToken: auth.accessToken,
+  });
 }
 
 // ─── Ad Creatives (helper para criar creative antes do ad) ────────────────
@@ -479,10 +530,9 @@ export async function createMetaAdCreative(
   const params = new URLSearchParams({
     name: body.name,
     object_story_spec: JSON.stringify(spec),
-    access_token: auth.accessToken,
   });
   return graphFetch<{ id: string }>(
     `${GRAPH}/${actId(auth.adAccountId)}/adcreatives`,
-    { method: "POST", body: params },
+    { method: "POST", body: params, accessToken: auth.accessToken },
   );
 }
