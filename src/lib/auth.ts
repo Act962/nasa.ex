@@ -185,18 +185,18 @@ export const auth = betterAuth({
       subscription: {
         enabled: true,
         plans: async () => {
-          // TODO: o model Plan não tem mais `stripePriceId` — o mapeamento
-          // plan → Stripe price ID precisa vir de env ou de uma tabela
-          // PaymentGatewayConfig dedicada. Por enquanto resolvemos via
-          // env STRIPE_PRICE_<SLUG_UPPER>; planos sem price configurado
-          // ficam fora do checkout do better-auth/stripe.
+          // Mapeamento plan → Stripe price ID:
+          //  1. Prioridade: `Plan.stripePriceId` (configurável em /admin/plans)
+          //  2. Fallback: env var `STRIPE_PRICE_<SLUG_UPPER>` (retrocompat)
+          // Planos sem nenhum dos dois ficam fora do checkout do better-auth/stripe.
           const plans = await prisma.plan.findMany({
             where: { isActive: true },
           });
           return plans
             .map((p) => {
-              const envKey = `STRIPE_PRICE_${p.slug.toUpperCase()}`;
-              const priceId = process.env[envKey];
+              const priceId =
+                p.stripePriceId ||
+                process.env[`STRIPE_PRICE_${p.slug.toUpperCase()}`];
               if (!priceId) return null;
               return {
                 name: p.name.toLowerCase(),

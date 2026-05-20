@@ -66,6 +66,8 @@ interface PlanRow {
   ctaGatewayId: string | null;
   highlighted: boolean;
   isActive: boolean;
+  stripePriceId: string | null;
+  stripeProductId: string | null;
   orgCount: number;
 }
 
@@ -103,6 +105,8 @@ function PlanFormDialog({
     ctaGatewayId: null,
     highlighted: false,
     isActive: true,
+    stripePriceId: null,
+    stripeProductId: null,
   };
 
   const [name, setName] = useState(init.name);
@@ -121,6 +125,10 @@ function PlanFormDialog({
   );
   const [highlighted, setHighlighted] = useState(init.highlighted);
   const [isActive, setIsActive] = useState(init.isActive);
+  const [stripePriceId, setStripePriceId] = useState(init.stripePriceId ?? "");
+  const [stripeProductId, setStripeProductId] = useState(
+    init.stripeProductId ?? "",
+  );
   const [ctaType, setCtaType] = useState<"link" | "gateway">(
     init.ctaGatewayId ? "gateway" : "link",
   );
@@ -176,6 +184,8 @@ function PlanFormDialog({
         ctaType === "gateway" ? ctaGatewayId || undefined : undefined,
       highlighted,
       isActive,
+      stripePriceId: stripePriceId.trim() || undefined,
+      stripeProductId: stripeProductId.trim() || undefined,
     };
 
     if (editing) {
@@ -407,6 +417,31 @@ function PlanFormDialog({
                 </SelectContent>
               </Select>
             )}
+          </div>
+
+          {/* Vínculo Stripe */}
+          <div className="space-y-2 p-3 rounded-lg border border-zinc-700/60 bg-zinc-800/40">
+            <Label className="text-zinc-300 text-xs flex items-center gap-1.5">
+              <CreditCard className="w-3 h-3 text-violet-400" /> Vínculo Stripe
+            </Label>
+            <Input
+              value={stripePriceId}
+              onChange={(e) => setStripePriceId(e.target.value)}
+              placeholder="price_xxx (Stripe Price ID — obrigatório p/ checkout)"
+              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 font-mono text-xs"
+            />
+            <Input
+              value={stripeProductId}
+              onChange={(e) => setStripeProductId(e.target.value)}
+              placeholder="prod_xxx (Stripe Product ID — opcional, p/ sync de nome)"
+              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 font-mono text-xs"
+            />
+            <p className="text-[10px] text-zinc-500 leading-relaxed">
+              Pegue os IDs no painel do Stripe → Produtos. Sem o{" "}
+              <strong>Price ID</strong> o checkout deste plano não funciona. Se
+              alterar o valor do plano, gere um novo Price no Stripe (Prices
+              são imutáveis) e cole o novo ID aqui.
+            </p>
           </div>
 
           {/* Toggles */}
@@ -766,8 +801,12 @@ function PlanCard({
             )}
           </div>
 
-          {/* Stripe Product/Price IDs are now mapped via STRIPE_PRICE_<SLUG_UPPER>
-              env vars (see src/lib/auth.ts) — not stored in the Plan model. */}
+          {plan.stripePriceId && (
+            <div className="flex items-center gap-1.5 text-[10px] text-zinc-600 font-mono truncate">
+              <CreditCard className="w-3 h-3 shrink-0 text-violet-500/60" />
+              <span className="truncate">{plan.stripePriceId}</span>
+            </div>
+          )}
         </div>
 
         {/* Actions */}
