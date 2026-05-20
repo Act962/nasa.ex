@@ -182,6 +182,136 @@ export async function fetchAdsInsights(
   return (json.data ?? []).map(parseInsightRow);
 }
 
+// ─── Insights breakdowns (idade/gênero/plataforma/região) ─────────────────
+
+/**
+ * Tipos de breakdown suportados pela Meta Marketing API que vamos usar nos
+ * relatórios. A Meta exige que apenas certas combinações sejam consultadas
+ * juntas — por isso cada chamada pega um único breakdown por vez.
+ *
+ * Ref: https://developers.facebook.com/docs/marketing-api/insights/breakdowns
+ */
+export type MetaBreakdown =
+  | "age"
+  | "gender"
+  | "publisher_platform"
+  | "country"
+  | "region";
+
+export interface BreakdownRow {
+  /** Valor do segmento (ex: "25-34", "female", "facebook", "São Paulo"). */
+  segment: string;
+  reach: number;
+  impressions: number;
+  frequency: number;
+  clicks: number;
+  spend: number;
+  cpm: number;
+  cpc: number;
+}
+
+const BREAKDOWN_FIELDS = [
+  "reach",
+  "impressions",
+  "frequency",
+  "clicks",
+  "spend",
+  "cpm",
+  "cpc",
+].join(",");
+
+function parseBreakdownRow(
+  raw: Record<string, unknown>,
+  breakdown: MetaBreakdown,
+): BreakdownRow {
+  // Cada breakdown popula um campo diferente — `raw[breakdown]` contém o valor
+  // ("25-34" para age, "female" para gender, "facebook" para publisher_platform).
+  const segment = String(raw[breakdown] ?? "unknown");
+  return {
+    segment,
+    reach: Number(raw.reach ?? 0),
+    impressions: Number(raw.impressions ?? 0),
+    frequency: Number(raw.frequency ?? 0),
+    clicks: Number(raw.clicks ?? 0),
+    spend: Number(raw.spend ?? 0),
+    cpm: Number(raw.cpm ?? 0),
+    cpc: Number(raw.cpc ?? 0),
+  };
+}
+
+/**
+ * Busca insights da conta segmentados por um breakdown (idade/gênero/etc).
+ * Útil para os widgets de "Distribuições" e "Regiões" no relatório de Tráfego Meta.
+ */
+export async function fetchAdsBreakdowns(
+  auth: MetaAuth,
+  opts: {
+    breakdown: MetaBreakdown;
+    datePreset?: string;
+    timeRange?: { since: string; until: string };
+  },
+): Promise<BreakdownRow[]> {
+  const dateParam = opts.timeRange
+    ? `time_range=${encodeURIComponent(JSON.stringify(opts.timeRange))}`
+    : `date_preset=${opts.datePreset ?? "last_30d"}`;
+
+  const url =
+    `${GRAPH}/${actId(auth.adAccountId)}/insights?` +
+    `fields=${BREAKDOWN_FIELDS}` +
+    `&breakdowns=${opts.breakdown}` +
+    `&level=account` +
+    `&${dateParam}` +
+    `&limit=500` +
+    `&access_token=${auth.accessToken}`;
+
+  const json = await graphFetch<{ data: Record<string, unknown>[] }>(url);
+  return (json.data ?? []).map((r) => parseBreakdownRow(r, opts.breakdown));
+}
+
+// ─── Insights time series (investido por dia) ─────────────────────────────
+
+export interface TimeSeriesRow {
+  date: string; // YYYY-MM-DD
+  spend: number;
+  impressions: number;
+  reach: number;
+  clicks: number;
+}
+
+/**
+ * Série temporal diária das métricas básicas. Meta API expõe via
+ * `time_increment=1` (1 = 1 dia). Útil para chart "Investido por dia".
+ */
+export async function fetchAdsTimeSeries(
+  auth: MetaAuth,
+  opts: {
+    datePreset?: string;
+    timeRange?: { since: string; until: string };
+  },
+): Promise<TimeSeriesRow[]> {
+  const dateParam = opts.timeRange
+    ? `time_range=${encodeURIComponent(JSON.stringify(opts.timeRange))}`
+    : `date_preset=${opts.datePreset ?? "last_30d"}`;
+
+  const url =
+    `${GRAPH}/${actId(auth.adAccountId)}/insights?` +
+    `fields=spend,impressions,reach,clicks` +
+    `&time_increment=1` +
+    `&level=account` +
+    `&${dateParam}` +
+    `&limit=500` +
+    `&access_token=${auth.accessToken}`;
+
+  const json = await graphFetch<{ data: Record<string, unknown>[] }>(url);
+  return (json.data ?? []).map((r) => ({
+    date: String(r.date_start ?? ""),
+    spend: Number(r.spend ?? 0),
+    impressions: Number(r.impressions ?? 0),
+    reach: Number(r.reach ?? 0),
+    clicks: Number(r.clicks ?? 0),
+  }));
+}
+
 // ─── Campaigns ────────────────────────────────────────────────────────────
 
 const CAMPAIGN_FIELDS = [

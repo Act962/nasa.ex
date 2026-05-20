@@ -3,10 +3,20 @@ import * as campaigns from "./campaigns";
 import { syncSnapshots, listSnapshots } from "./snapshots";
 import { executeMcpAction, cancelMcpAction } from "./execute-mcp-action";
 import { getTopAds } from "./get-top-ads";
+import {
+  getInsightsBreakdown,
+  getInsightsTimeSeries,
+} from "./breakdowns";
+import { getInstagramOverview } from "./instagram";
+import { getFacebookOverview } from "./facebook";
 import { getConversionTag, setConversionTag } from "./conversion-tag";
 
 export const metaAdsRouter = {
   insightsDrilldown: getInsightsDrilldown,
+  insightsBreakdown: getInsightsBreakdown,
+  insightsTimeSeries: getInsightsTimeSeries,
+  instagramOverview: getInstagramOverview,
+  facebookOverview: getFacebookOverview,
   campaigns: {
     list: campaigns.list,
     create: campaigns.create,

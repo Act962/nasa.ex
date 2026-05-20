@@ -9,6 +9,9 @@ export const META_SCOPES = [
   "pages_read_engagement",
   "pages_manage_metadata",
   "pages_messaging",
+  // Necessário pra Facebook Pages Insights API (followers/impressions/views por
+  // dia da Page) — usado na seção Facebook do relatório de Tráfego Meta.
+  "read_insights",
   "instagram_basic",
   "instagram_manage_insights",
   "instagram_manage_messages",

@@ -204,7 +204,10 @@ export const syncMetaAdsStructure = inngest.createFunction(
                 name: ad.name,
                 effectiveStatus: ad.effective_status,
                 creativeId: creative?.id,
-                creative: creative as object | null,
+                // `creative` é Json nullable no Prisma — quando null, omitimos
+                // a key (em vez de passar `null` que conflita com o tipo
+                // `NullableJsonNullValueInput | InputJsonValue`).
+                ...(creative ? { creative: creative as object } : {}),
                 previewUrl,
                 lastSyncedAt: new Date(),
                 raw: ad as object,
@@ -213,7 +216,7 @@ export const syncMetaAdsStructure = inngest.createFunction(
                 name: ad.name,
                 effectiveStatus: ad.effective_status,
                 creativeId: creative?.id,
-                creative: creative as object | null,
+                ...(creative ? { creative: creative as object } : {}),
                 previewUrl,
                 lastSyncedAt: new Date(),
                 raw: ad as object,
