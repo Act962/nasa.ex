@@ -4,10 +4,9 @@ import {
   ArchiveIcon,
   BellIcon,
   CalendarIcon,
-  DollarSignIcon,
   FileIcon,
+  FileSignatureIcon,
   FileTextIcon,
-  HammerIcon,
   LayoutListIcon,
   ImageIcon,
   MapPinIcon,
@@ -53,7 +52,6 @@ import { MessageSelected } from "./message-selected";
 import { ComposeResponse } from "./compose-response";
 import { TrackingChatCopilot } from "@/features/astro/components/embeds/tracking-chat-copilot";
 import { ScriptsPanel } from "./scripts-panel";
-import { ForgePanel } from "./forge-panel";
 import { AgendaPanel } from "./agenda-panel";
 import { FormsPanel } from "./forms-panel";
 import { NBoxPanel } from "./nbox-panel";
@@ -61,9 +59,15 @@ import { ButtonsPanel } from "./buttons-panel";
 import { ReminderPanel } from "./reminder-panel";
 import { SendLocationDialog } from "./send-location-dialog";
 import { ContactsPanel } from "./contacts-panel";
-import { BudgetPanel } from "./budget-panel";
+// "Forge" e "Orçamento" foram MESCLADOS num único painel "Propostas e
+// Orçamentos" — o painel velho `BudgetPanel` ainda existe como código
+// legado (poderá ser deletado em iteração futura), mas o footer usa só
+// o novo painel mesclado.
+import { ProposalsAndBudgetsPanel } from "./proposals-and-budgets";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { useExtractBudget } from "../hooks/use-extract-budget";
+import { formatCurrency } from "@/features/payment/lib/format";
 
 interface FooterProps {
   conversationId: string;
@@ -113,7 +117,6 @@ export function Footer({
   const [message, setMessage] = useState("");
   const [fileName, setFileName] = useState<string | undefined>(undefined);
   const [showScripts, setShowScripts] = useState(false);
-  const [showForge, setShowForge] = useState(false);
   const [showAgenda, setShowAgenda] = useState(false);
   const [showForms, setShowForms] = useState(false);
   const [showNBox, setShowNBox] = useState(false);
@@ -121,7 +124,19 @@ export function Footer({
   const [showReminder, setShowReminder] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [showBudget, setShowBudget] = useState(false);
+  // Dados de pré-preenchimento do BudgetPanel quando vem de um upload
+  // regular que a IA detectou como proposta/OS (Phase 3 do fluxo). Reseta
+  // ao fechar o BudgetPanel.
+  const [budgetInitialAttach, setBudgetInitialAttach] = useState<{
+    key: string;
+    name: string;
+    mime: string;
+    valueCents: number | null;
+    description: string;
+    confidence: "high" | "medium" | "low";
+  } | null>(null);
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
+  const extractBudget = useExtractBudget();
   const [pendingLocation, setPendingLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -266,13 +281,55 @@ export function Footer({
     fileType: "image" | "pdf",
     name?: string,
   ) => {
-    if (file) {
-      setSelectedImage(file);
-      setSelectedFileType(fileType);
-      setSendImage(true);
-      setOpen(false);
-      setIsLoading(false);
-      setFileName(name);
+    if (!file) return;
+
+    setSelectedImage(file);
+    setSelectedFileType(fileType);
+    setSendImage(true);
+    setOpen(false);
+    setIsLoading(false);
+    setFileName(name);
+
+    // Detecção de orçamento via IA — só roda pra PDFs (formato mais
+    // comum de O.S./proposta/orçamento). Não bloqueia o SendFile dialog:
+    // se a IA identificar proposta, mostramos um toast com ação rápida
+    // pra abrir o BudgetPanel pré-preenchido, evitando o atalho que
+    // mata as métricas.
+    if (fileType === "pdf") {
+      extractBudget.mutate(
+        { fileKey: file },
+        {
+          onSuccess: (data) => {
+            if (data.isProposalLike && data.valueCents !== null) {
+              toast.warning("Detectei um orçamento/proposta neste arquivo", {
+                description: `Valor identificado: ${formatCurrency(data.valueCents)}. Registre em "Propostas e Orçamentos" pra capturar métricas de venda.`,
+                duration: 15000,
+                action: {
+                  label: "Registrar agora",
+                  onClick: () => {
+                    setBudgetInitialAttach({
+                      key: file,
+                      name: name ?? "orcamento.pdf",
+                      mime: "application/pdf",
+                      valueCents: data.valueCents,
+                      description: data.description,
+                      confidence: data.confidence,
+                    });
+                    // Fecha o SendFile e abre o BudgetPanel pré-preenchido.
+                    setSendImage(false);
+                    setShowBudget(true);
+                  },
+                },
+              });
+            }
+          },
+          // Erro de IA é silencioso — não atrapalha o fluxo normal de
+          // envio de arquivo. Log no console.
+          onError: (err) => {
+            console.warn("[footer-chat] extractBudget failed", err);
+          },
+        },
+      );
     }
   };
 
@@ -328,17 +385,7 @@ export function Footer({
               leadPhone={lead.phone ?? undefined}
             />
           )}
-          {showForge && (
-            <ForgePanel
-              onClose={() => setShowForge(false)}
-              onInsertLink={(text) => {
-                setMessage((prev) => (prev ? prev + "\n" + text : text));
-                setShowForge(false);
-              }}
-              leadId={lead.id}
-              leadName={lead.name}
-            />
-          )}
+          {/* Forge mesclado em "Propostas e Orçamentos" — JSX removido. */}
           {showAgenda && (
             <AgendaPanel
               onClose={() => setShowAgenda(false)}
@@ -358,8 +405,13 @@ export function Footer({
             />
           )}
           {showBudget && instance.instance && lead.phone && (
-            <BudgetPanel
-              onClose={() => setShowBudget(false)}
+            <ProposalsAndBudgetsPanel
+              onClose={() => {
+                setShowBudget(false);
+                // Limpa pré-preenchimento ao fechar — próxima abertura
+                // do "+" começa do zero.
+                setBudgetInitialAttach(null);
+              }}
               conversationId={conversationId}
               trackingId={trackingId}
               leadId={lead.id}
@@ -369,7 +421,9 @@ export function Footer({
               onInsertMessage={(text) => {
                 setMessage((prev) => (prev ? prev + "\n" + text : text));
                 setShowBudget(false);
+                setBudgetInitialAttach(null);
               }}
+              initialAttach={budgetInitialAttach}
             />
           )}
           {showReminder && (
@@ -407,7 +461,6 @@ export function Footer({
                             setShowForms(false);
                             setShowAgenda(false);
                             setShowScripts(false);
-                            setShowForge(false);
                             setShowReminder(false);
                             setShowContact(false);
                             setOpen(false);
@@ -424,7 +477,6 @@ export function Footer({
                             setShowForms(false);
                             setShowAgenda(false);
                             setShowScripts(false);
-                            setShowForge(false);
                             setShowReminder(false);
                             setShowContact(false);
                             setOpen(false);
@@ -441,7 +493,6 @@ export function Footer({
                             setShowButtons(false);
                             setShowAgenda(false);
                             setShowScripts(false);
-                            setShowForge(false);
                             setShowReminder(false);
                             setShowContact(false);
                             setOpen(false);
@@ -455,7 +506,6 @@ export function Footer({
                           onClick={() => {
                             setShowAgenda((v) => !v);
                             setShowScripts(false);
-                            setShowForge(false);
                             setShowForms(false);
                             setShowNBox(false);
                             setShowButtons(false);
@@ -471,7 +521,6 @@ export function Footer({
                           className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
                           onClick={() => {
                             setShowScripts((v) => !v);
-                            setShowForge(false);
                             setShowAgenda(false);
                             setShowForms(false);
                             setShowNBox(false);
@@ -484,29 +533,13 @@ export function Footer({
                           <ScrollTextIcon className="size-4" />
                           <p className="text-sm">Scripts</p>
                         </div>
-                        <div
-                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
-                          onClick={() => {
-                            setShowForge((v) => !v);
-                            setShowScripts(false);
-                            setShowAgenda(false);
-                            setShowForms(false);
-                            setShowNBox(false);
-                            setShowButtons(false);
-                            setShowReminder(false);
-                            setShowContact(false);
-                            setOpen(false);
-                          }}
-                        >
-                          <HammerIcon className="size-4" />
-                          <p className="text-sm">Forge</p>
-                        </div>
+                        {/* "Forge" mesclado em "Propostas e Orçamentos" —
+                            item de menu removido. */}
                         <div
                           className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
                           onClick={() => {
                             setShowBudget((v) => !v);
                             setShowReminder(false);
-                            setShowForge(false);
                             setShowScripts(false);
                             setShowAgenda(false);
                             setShowForms(false);
@@ -516,15 +549,14 @@ export function Footer({
                             setOpen(false);
                           }}
                         >
-                          <DollarSignIcon className="size-4 text-emerald-500" />
-                          <p className="text-sm">Orçamento</p>
+                          <FileSignatureIcon className="size-4 text-emerald-500" />
+                          <p className="text-sm">Propostas e Orçamentos</p>
                         </div>
                         <div
                           className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
                           onClick={() => {
                             setShowReminder((v) => !v);
                             setShowBudget(false);
-                            setShowForge(false);
                             setShowScripts(false);
                             setShowAgenda(false);
                             setShowForms(false);
@@ -548,7 +580,6 @@ export function Footer({
                           onClick={() => {
                             setShowContact((v) => !v);
                             setShowReminder(false);
-                            setShowForge(false);
                             setShowScripts(false);
                             setShowAgenda(false);
                             setShowForms(false);

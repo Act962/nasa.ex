@@ -5,6 +5,7 @@ import { Palette, Columns2, LayoutTemplate } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { CardAppearanceSection } from "./card-appearance-section";
+import { KanbanAppearanceSection } from "./kanban-appearance-section";
 
 export function Personalization({ trackingId }: { trackingId?: string }) {
   const { viewMode, setViewMode } = useView();
@@ -94,6 +95,9 @@ export function Personalization({ trackingId }: { trackingId?: string }) {
 
       {/* ── Aparência do card no Dashboard de Tracking ───────────── */}
       {trackingId && <CardAppearanceSection trackingId={trackingId} />}
+
+      {/* ── Aparência do Kanban (cards, colunas, fundo) ─────────── */}
+      {trackingId && <KanbanAppearanceSection trackingId={trackingId} />}
     </div>
   );
 }

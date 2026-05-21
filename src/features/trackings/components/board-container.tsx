@@ -54,6 +54,8 @@ interface Status {
 }
 
 export function BoardContainer({ trackingId }: BoardContainerProps) {
+  // Aparência customizada (bg/imagem) é aplicada agora no wrapper externo
+  // `KanbanCanvas` pra que a barra de filtros compartilhe o mesmo bg.
 
   const [activeLead, setActiveLead] = useState<any>(null);
   const [activeColumn, setActiveColumn] = useState<Status | null>(null);
@@ -397,6 +399,10 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
         onDragEnd={onDragEnd}
         onDragOver={onDragOver}
       >
+        {/* Bg/imagem do kanban agora ficam num wrapper externo
+            (`KanbanCanvas`) pra que a barra de filtros COMPARTILHE o
+            mesmo bg — sem isso, recolher a barra deixava um vazio com
+            `bg-background` do tema entre o NavTracking e o kanban. */}
         <div className="grid grid-rows-[1fr_auto] h-full">
           <ol className="flex gap-x-3 overflow-x-auto">
             <SortableContext items={columnIds}>

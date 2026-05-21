@@ -105,6 +105,13 @@ export function useUpdateStatus(trackingId: string) {
             },
           }),
         });
+
+        // Quando o `slaHours` muda, o servidor recalcula `slaDeadline` de
+        // todos os leads ATIVOS naquele status. Invalida o kanban pra
+        // refletir os novos timers nos cards sem precisar de refresh.
+        queryClient.invalidateQueries({
+          queryKey: ["leads.listLeadsByStatus"],
+        });
       },
       onError: () => {
         toast.error("Erro ao atualizar status, tente novamente");

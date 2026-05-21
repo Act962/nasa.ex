@@ -274,8 +274,9 @@ function distinctCount(
   if (!snaps) return 0;
   // Procedure pode retornar array com entries nulas em modo fallback live
   // (mapeamento condicional do `metaAds.snapshots.list`). Filtra antes do Set.
-  return new Set(snaps.filter((s): s is { entityId: string } => !!s).map((s) => s.entityId))
-    .size;
+  return new Set(
+    snaps.filter((s): s is { entityId: string } => !!s).map((s) => s.entityId),
+  ).size;
 }
 
 // ─── Main component ──────────────────────────────────────────────────────────

@@ -72,6 +72,10 @@ export const listForgeProposals = base
     z.object({
       status: z.string().optional(),
       responsibleId: z.string().optional(),
+      // Filtro por lead/cliente — usado no painel mesclado "Propostas e
+      // Orçamentos" do chat pra mostrar só as propostas deste lead na
+      // aba Histórico.
+      clientId: z.string().optional(),
     }),
   )
   .output(z.object({ proposals: z.array(proposalShape) }))
@@ -84,6 +88,7 @@ export const listForgeProposals = base
           ...(input.responsibleId
             ? { responsibleId: input.responsibleId }
             : {}),
+          ...(input.clientId ? { clientId: input.clientId } : {}),
         },
         include: {
           client: {

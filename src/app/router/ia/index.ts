@@ -4,6 +4,7 @@ import { generateCompose } from "./generate-compose";
 import { generateConversationSummary } from "./generate-conversation-summary";
 import { getAiSettings } from "./get-ai-settings";
 import { updateAiSettings } from "./update-ai-settings";
+import { extractBudget } from "./extract-budget";
 
 export const iaRouter = {
   compose: {
@@ -24,4 +25,5 @@ export const iaRouter = {
   tracking: {
     chat: createLeadWithAi,
   },
+  extractBudget,
 };
