@@ -1,13 +1,14 @@
 import React, { FC, useState } from "react";
 import { FieldValue, FormBlockInstance } from "@/features/form/types";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowUpRight, Clock, User } from "lucide-react";
+import { Clock, ExternalLink, History, User } from "lucide-react";
 import { JsonValue } from "@prisma/client/runtime/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { LeadResponsesDialog } from "./lead-responses-dialog";
 import { Button } from "@/components/ui/button";
 import { ResponseValue, resolveBlockLabel } from "./response-value";
+import { useRouter } from "next/navigation";
 
 type Props = {
   blocks: FormBlockInstance[];
@@ -31,6 +32,7 @@ type Props = {
 export function AllReponds({ blocks, responses }: Props) {
   const [selectedLead, setSelectedLead] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const route = useRouter()
 
   const childblockMap = blocks
     .flatMap((block) => block.childblocks || [])
@@ -82,9 +84,7 @@ export function AllReponds({ blocks, responses }: Props) {
         const leadName = extractValue(
           parsedResponses.user_name || parsedResponses.name,
         );
-        const leadEmail = extractValue(
-          parsedResponses.user_email || parsedResponses.email,
-        );
+     
         const leadId = response.leadId;
         const displayLead = leadName || leadPhone || "Lead Desconhecido";
         const identifier = leadPhone || leadId || leadName;
@@ -116,19 +116,30 @@ export function AllReponds({ blocks, responses }: Props) {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center ">
                     <span className="text-[10px] text-muted-foreground flex items-center whitespace-nowrap">
                       <Clock className="w-3 h-3 mr-1" />
                       {format(new Date(response.createdAt), "dd/MM HH:mm", {
                         locale: ptBR,
                       })}
                     </span>
+                    {leadId && (
+                      <Button size={"icon-sm"} variant={"ghost"} asChild>
+                        <span
+                          onClick={() => route.replace(`/contatos/${leadId}`)}
+                          
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </span>
+                      </Button>
+                    )}
                     <Button
                       size={"icon-sm"}
                       variant={"ghost"}
                       onClick={() => identifier && handleLeadClick(identifier)}
+                      title="Ver histórico de respostas"
                     >
-                      <ArrowUpRight />
+                      <History />
                     </Button>
                   </div>
                 </div>

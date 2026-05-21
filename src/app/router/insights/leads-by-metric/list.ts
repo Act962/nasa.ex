@@ -217,9 +217,10 @@ async function fetchLead({
     metricAt: l.createdAt,
   }));
 
+  const paginated = leads.slice(0, limit - 1);
   const hasMore = leadsRaw.length > limit - 1;
-  const nextCursor = hasMore ? leadsRaw[leadsRaw.length - 1]?.id ?? null : null;
-  return { leads: leads.slice(0, limit - 1), nextCursor, total };
+  const nextCursor = hasMore ? paginated[paginated.length - 1]?.id ?? null : null;
+  return { leads: paginated, nextCursor, total };
 }
 
 interface FetchCtx {
@@ -291,17 +292,17 @@ async function fetchForge({ metric, orgIds, dateRange, trackingId, tagWhereLead,
     },
   });
 
-  const leads: LeadRow[] = proposals
+  const paginated = proposals.slice(0, limit - 1);
+  const paginatedLeads: LeadRow[] = paginated
     .filter((p) => p.client)
     .map((p) => ({
       ...(p.client as NonNullable<typeof p.client>),
       metricLabel: p.title,
       metricAt: p.createdAt,
     }));
-
   const hasMore = proposals.length > limit - 1;
-  const nextCursor = hasMore ? proposals[proposals.length - 1]?.id ?? null : null;
-  return { leads: leads.slice(0, limit - 1), nextCursor, total };
+  const nextCursor = hasMore ? paginated[paginated.length - 1]?.id ?? null : null;
+  return { leads: paginatedLeads, nextCursor, total };
 }
 
 // ─── SpaceTime ──────────────────────────────────────────────────────────
@@ -345,17 +346,17 @@ async function fetchSpacetime({ metric, orgIds, dateRange, trackingId, tagWhereL
     },
   });
 
-  const leads: LeadRow[] = appointments
+  const paginated = appointments.slice(0, limit - 1);
+  const paginatedLeads: LeadRow[] = paginated
     .filter((a) => a.lead)
     .map((a) => ({
       ...(a.lead as NonNullable<typeof a.lead>),
       metricLabel: a.title,
       metricAt: a.startsAt,
     }));
-
   const hasMore = appointments.length > limit - 1;
-  const nextCursor = hasMore ? appointments[appointments.length - 1]?.id ?? null : null;
-  return { leads: leads.slice(0, limit - 1), nextCursor, total };
+  const nextCursor = hasMore ? paginated[paginated.length - 1]?.id ?? null : null;
+  return { leads: paginatedLeads, nextCursor, total };
 }
 
 // ─── Chat ───────────────────────────────────────────────────────────────
@@ -421,11 +422,10 @@ async function fetchChat({
       metricAt: l.updatedAt,
     }));
 
+    const paginated = leads.slice(0, limit - 1);
     const hasMore = leadsRaw.length > limit - 1;
-    const nextCursor = hasMore
-      ? leadsRaw[leadsRaw.length - 1]?.id ?? null
-      : null;
-    return { leads: leads.slice(0, limit - 1), nextCursor, total };
+    const nextCursor = hasMore ? paginated[paginated.length - 1]?.id ?? null : null;
+    return { leads: paginated, nextCursor, total };
   }
 
   // ── Total de Conversas → Conversation com where do summary ────────────
@@ -458,17 +458,15 @@ async function fetchChat({
     },
   });
 
-  const leads: LeadRow[] = conversations
+  const paginated = conversations.slice(0, limit - 1);
+  const paginatedLeads: LeadRow[] = paginated
     .filter((c) => c.lead)
     .map((c) => ({
       ...(c.lead as NonNullable<typeof c.lead>),
       metricLabel: c.name,
       metricAt: c.lastMessageAt,
     }));
-
   const hasMore = conversations.length > limit - 1;
-  const nextCursor = hasMore
-    ? conversations[conversations.length - 1]?.id ?? null
-    : null;
-  return { leads: leads.slice(0, limit - 1), nextCursor, total };
+  const nextCursor = hasMore ? paginated[paginated.length - 1]?.id ?? null : null;
+  return { leads: paginatedLeads, nextCursor, total };
 }

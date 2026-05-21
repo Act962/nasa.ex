@@ -30,6 +30,7 @@ export const getManyResponses = base
             createdAt: true,
             jsonResponse: true,
             formId: true,
+            leadId: true,
             form: {
               select: {
                 settings: {

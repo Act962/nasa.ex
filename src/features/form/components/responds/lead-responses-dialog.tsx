@@ -147,11 +147,7 @@ export function LeadResponsesDialog({
     }
   };
 
-  const firstParsed = filteredResponses[0]
-    ? typeof filteredResponses[0].jsonResponse === "string"
-      ? JSON.parse(filteredResponses[0].jsonResponse)
-      : filteredResponses[0].jsonResponse
-    : {};
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
