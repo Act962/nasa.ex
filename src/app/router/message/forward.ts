@@ -1,9 +1,11 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { MessageStatus } from "@/features/tracking-chat/types";
-import { sendText } from "@/http/uazapi/send-text";
-import prisma from "@/lib/prisma";
+import {
+  dispatchForward,
+  forwardPayloadSchema,
+} from "@/features/tracking-chat/lib/forward-strategies";
 import { MessageChannel } from "@/generated/prisma/enums";
+import prisma from "@/lib/prisma";
 import z from "zod";
 
 export const forwardMessageHandler = base
@@ -15,9 +17,9 @@ export const forwardMessageHandler = base
   })
   .input(
     z.object({
-      body: z.string(),
       conversationIds: z.array(z.string()).min(1),
       token: z.string(),
+      payload: forwardPayloadSchema,
     }),
   )
   .handler(async ({ input, context }) => {
@@ -37,40 +39,31 @@ export const forwardMessageHandler = base
         }
 
         const channel = conversation.channel ?? MessageChannel.WHATSAPP;
-
         if (channel !== MessageChannel.WHATSAPP) {
           throw new Error(`Channel ${channel} not supported for forwarding`);
         }
 
         const number =
-          conversation.lead.phone ?? conversation.remoteJid.replace("@s.whatsapp.net", "");
+          conversation.lead.phone ??
+          conversation.remoteJid.replace("@s.whatsapp.net", "");
 
-        const response = await sendText(input.token, {
-          text: input.body,
+        const ctx = {
+          conversationId,
           number,
-        });
+          token: input.token,
+          senderName: context.user.name,
+        };
 
-        const message = await prisma.message.create({
-          data: {
-            conversationId,
-            body: input.body,
-            messageId: response.messageid,
-            fromMe: true,
-            status: MessageStatus.SENT,
-            senderName: context.user.name,
-          },
-          select: {
-            id: true,
-            messageId: true,
-            body: true,
-            createdAt: true,
-          },
-        });
+        const message = await dispatchForward(input.payload, ctx);
 
         return {
           conversationId,
           messageId: message.messageId,
           body: message.body,
+          mediaUrl: message.mediaUrl,
+          mediaType: message.mediaType,
+          mimetype: message.mimetype,
+          fileName: message.fileName,
           createdAt: message.createdAt,
           success: true,
         };
@@ -78,10 +71,14 @@ export const forwardMessageHandler = base
     );
 
     return {
-      results: results.map((r, i) =>
-        r.status === "fulfilled"
-          ? r.value
-          : { conversationId: input.conversationIds[i], success: false, error: String((r as PromiseRejectedResult).reason) },
+      results: results.map((result, i) =>
+        result.status === "fulfilled"
+          ? result.value
+          : {
+              conversationId: input.conversationIds[i],
+              success: false,
+              error: String((result as PromiseRejectedResult).reason),
+            },
       ),
     };
   });

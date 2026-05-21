@@ -9,6 +9,7 @@ import {
 import { toast } from "sonner";
 import dayjs from "dayjs";
 import { authClient } from "@/lib/auth-client";
+import { forwardPreviewText } from "../lib/forward-strategies/build-payload";
 
 interface UseMutationTextMessageProps {
   conversationId: string;
@@ -854,12 +855,14 @@ export function useForwardMessage() {
 
   return useMutation(
     orpc.message.forward.mutationOptions({
-      onMutate: async ({ body, conversationIds }) => {
+      onMutate: async ({ payload, conversationIds }) => {
         await queryClient.cancelQueries({ queryKey: ["conversations.list"] });
 
         const previousLists = queryClient.getQueriesData({
           queryKey: ["conversations.list"],
         });
+
+        const previewBody = forwardPreviewText(payload);
 
         queryClient.setQueriesData(
           { queryKey: ["conversations.list"] },
@@ -873,7 +876,10 @@ export function useForwardMessage() {
                   conversationIds.includes(item.id)
                     ? {
                         ...item,
-                        lastMessage: { body, createdAt: new Date() },
+                        lastMessage: {
+                          body: previewBody,
+                          createdAt: new Date(),
+                        },
                         lastMessageAt: new Date(),
                       }
                     : item,

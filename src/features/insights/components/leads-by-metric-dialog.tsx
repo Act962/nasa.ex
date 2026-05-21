@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import {
   Dialog,
@@ -59,7 +59,6 @@ interface LeadsByMetricDialogProps {
   metric: LeadMetricKey;
   title: string;
   description?: string;
-  // Filtros adicionais pra métricas parametrizadas (lead.byStatus etc).
   extra?: {
     statusId?: string;
     source?: string;
@@ -67,6 +66,8 @@ interface LeadsByMetricDialogProps {
     utmSource?: string;
   };
 }
+
+const PAGE_SIZE = 10;
 
 export function LeadsByMetricDialog({
   open,
@@ -77,37 +78,51 @@ export function LeadsByMetricDialog({
   description,
   extra,
 }: LeadsByMetricDialogProps) {
-  // Sincroniza filtros com o dashboard: organizationIds, dateRange,
-  // trackingId, tagIds e memberIds. Sem isso o popup mostra leads que o
-  // card filtrou pra fora (cards com 0 abrindo lista).
   const { organizationIds, dateRange, trackingId, tagIds, memberIds } =
     useDashboardStore();
-  const [limit, setLimit] = useState(10);
 
-  const { data, isLoading } = useQuery({
-    ...orpc.insights.listLeadsByAppMetric.queryOptions({
-      input: {
-        app,
-        metric,
-        organizationIds: organizationIds.length > 0 ? organizationIds : undefined,
-        startDate: dateRange.from?.toISOString(),
-        endDate: dateRange.to?.toISOString(),
-        trackingId: trackingId || undefined,
-        tagIds: tagIds.length > 0 ? tagIds : undefined,
-        memberIds: memberIds.length > 0 ? memberIds : undefined,
-        statusId: extra?.statusId,
-        source: extra?.source,
-        utmCampaign: extra?.utmCampaign,
-        utmSource: extra?.utmSource,
-        limit,
-      },
-    }),
-    enabled: open,
-  });
+  const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } =
+    useInfiniteQuery({
+      ...orpc.insights.listLeadsByAppMetric.infiniteOptions({
+        input: (cursor: string | undefined) => ({
+          app,
+          metric,
+          organizationIds: organizationIds.length > 0 ? organizationIds : undefined,
+          startDate: dateRange.from?.toISOString(),
+          endDate: dateRange.to?.toISOString(),
+          trackingId: trackingId || undefined,
+          tagIds: tagIds.length > 0 ? tagIds : undefined,
+          memberIds: memberIds.length > 0 ? memberIds : undefined,
+          statusId: extra?.statusId,
+          source: extra?.source,
+          utmCampaign: extra?.utmCampaign,
+          utmSource: extra?.utmSource,
+          limit: PAGE_SIZE,
+          cursor,
+        }),
+        queryKey: [
+          "insights.listLeadsByAppMetric",
+          app,
+          metric,
+          organizationIds,
+          dateRange.from?.toISOString(),
+          dateRange.to?.toISOString(),
+          trackingId,
+          tagIds,
+          memberIds,
+          extra,
+        ],
+        initialPageParam: undefined,
+        getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+      }),
+      enabled: open,
+    });
 
-  const leads = data?.leads ?? [];
-  const total = data?.total ?? 0;
-  const hasMore = total > limit;
+  const leads = useMemo(
+    () => data?.pages.flatMap((p) => p.leads) ?? [],
+    [data],
+  );
+  const total = data?.pages[0]?.total ?? 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -152,15 +167,17 @@ export function LeadsByMetricDialog({
           )}
         </div>
 
-        {hasMore && (
+        {hasNextPage && (
           <div className="border-t px-6 py-3 flex justify-center shrink-0">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setLimit((v) => v + 10)}
-              disabled={isLoading}
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
             >
-              Ver mais ({total - leads.length} restantes)
+              {isFetchingNextPage
+                ? "Carregando..."
+                : `Ver mais (${total - leads.length} restantes)`}
             </Button>
           </div>
         )}
