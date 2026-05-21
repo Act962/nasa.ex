@@ -26,6 +26,7 @@ export const getLead = base
         select: {
           id: true,
           name: true,
+          nickname: true,
           email: true,
           phone: true,
           description: true,
@@ -34,6 +35,7 @@ export const getLead = base
           trackingId: true,
           orgProjectId: true,
           amount: true,
+          temperature: true,
           createdAt: true,
           updatedAt: true,
           responsible: {

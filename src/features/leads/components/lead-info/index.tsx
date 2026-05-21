@@ -31,6 +31,7 @@ import { FieldTracking } from "./fields/field-tracking";
 import { FieldMoney } from "./fields/field-money";
 import { FieldProject } from "./fields/field-project";
 import { SendMessageSheet } from "../send-message-sheet";
+import { TemperatureSelector } from "./temperature-selector";
 
 interface LeadInfoProps extends React.ComponentProps<"div"> {
   initialData: LeadFull;
@@ -44,8 +45,11 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
   const [openHistoric, setOpenHistoric] = useState(false);
   const [openSendMessage, setOpenSendMessage] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingNickname, setIsEditingNickname] = useState(false);
   const [name, setName] = useState(lead.name);
+  const [nickname, setNickname] = useState(lead.nickname ?? "");
   const inputRef = useRef<HTMLInputElement>(null);
+  const nicknameRef = useRef<HTMLInputElement>(null);
 
   const mutate = useMutationLeadUpdate(lead.id, lead.trackingId);
 
@@ -72,6 +76,31 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
     );
   };
 
+  const handleUpdateNickname = (raw: string) => {
+    // Normaliza: trim + vazio vira null (limpa o apelido).
+    const trimmed = raw.trim();
+    const next = trimmed.length ? trimmed : null;
+    const prev = lead.nickname ?? null;
+    if (next === prev) {
+      setIsEditingNickname(false);
+      return;
+    }
+    mutate.mutate(
+      { id: lead.id, nickname: next },
+      {
+        onSuccess: () => setIsEditingNickname(false),
+        onError: () => setNickname(lead.nickname ?? ""),
+      },
+    );
+  };
+
+  const handleUpdateTemperature = (
+    value: "COLD" | "WARM" | "HOT" | "VERY_HOT",
+  ) => {
+    if (value === lead.temperature) return;
+    mutate.mutate({ id: lead.id, temperature: value });
+  };
+
   useEffect(() => {
     if (isEditingName) {
       inputRef.current?.focus();
@@ -80,8 +109,19 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
   }, [isEditingName]);
 
   useEffect(() => {
+    if (isEditingNickname) {
+      nicknameRef.current?.focus();
+      nicknameRef.current?.select();
+    }
+  }, [isEditingNickname]);
+
+  useEffect(() => {
     setName(lead.name);
   }, [lead.name]);
+
+  useEffect(() => {
+    setNickname(lead.nickname ?? "");
+  }, [lead.nickname]);
 
   function goToTracking() {
     const idConversation = initialData.lead.conversation?.id;
@@ -128,7 +168,7 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
               </AvatarFallback>
             </Avatar>
 
-            <div className="w-full px-2 text-center">
+            <div className="w-full px-2 text-center space-y-1">
               {isEditingName ? (
                 <Input
                   disabled={mutate.isPending}
@@ -146,6 +186,36 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                 >
                   {lead.name || "Sem nome"}
                 </h1>
+              )}
+
+              {/* Apelido — auto-save igual ao nome. Quando vazio, vira null
+                  no banco (limpa o campo). Visual mais discreto pra deixar
+                  claro que é secundário ao nome. */}
+              {isEditingNickname ? (
+                <Input
+                  disabled={mutate.isPending}
+                  ref={nicknameRef}
+                  placeholder="Apelido"
+                  className="h-7 text-center text-xs"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  onBlur={() => handleUpdateNickname(nickname)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleUpdateNickname(nickname)
+                  }
+                />
+              ) : (
+                <p
+                  className="cursor-pointer text-xs text-muted-foreground"
+                  onClick={() => setIsEditingNickname(true)}
+                  title="Clique pra editar o apelido"
+                >
+                  {lead.nickname || (
+                    <span className="italic opacity-60">
+                      + adicionar apelido
+                    </span>
+                  )}
+                </p>
               )}
             </div>
 
@@ -242,6 +312,14 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
                   leadId={lead.id}
                   tags={lead.tags}
                   trackingId={lead.trackingId}
+                />
+                {/* Temperatura abaixo das tags — 2x2 com pills coloridas.
+                    Click salva imediatamente. Cores casam com a paleta do
+                    card no kanban. */}
+                <TemperatureSelector
+                  value={lead.temperature}
+                  onChange={handleUpdateTemperature}
+                  disabled={mutate.isPending}
                 />
               </div>
             </TabsContent>

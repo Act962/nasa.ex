@@ -40,6 +40,7 @@ export const getMany = base
         name: true,
         color: true,
         order: true,
+        slaHours: true,
         _count: {
           select: {
             leads: {
@@ -92,6 +93,7 @@ export const getMany = base
       name: s.name,
       color: s.color,
       order: s.order.toString(),
+      slaHours: s.slaHours,
       leads: s._count.leads,
     }));
 

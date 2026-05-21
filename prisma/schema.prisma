@@ -447,6 +447,24 @@ model Tracking {
   cardBackgroundImage       String?   @map("card_background_image")
   cardBackgroundBlur        Int       @default(8) @map("card_background_blur")
   cardBackgroundOpacity     Int       @default(25) @map("card_background_opacity")
+  // Aparência do Kanban (view de pipeline). Cor de fundo + borda dos
+  // cards de lead, da coluna de status e do canvas do tracking. Para o
+  // canvas suporta imagem com blur + opacity (mesclada com a cor base).
+  kanbanCardBackgroundColor    String? @map("kanban_card_background_color")
+  kanbanCardBorderColor        String? @map("kanban_card_border_color")
+  // Transparência do fundo do card (0-100). Default 100 = opaco. Só
+  // aplica quando `kanbanCardBackgroundColor` está definido.
+  kanbanCardBackgroundOpacity  Int     @default(100) @map("kanban_card_background_opacity")
+  kanbanColumnBackgroundColor  String? @map("kanban_column_background_color")
+  kanbanColumnBorderColor      String? @map("kanban_column_border_color")
+  // Transparência do fundo da coluna (0-100). Default 100 = opaco.
+  kanbanColumnBackgroundOpacity Int    @default(100) @map("kanban_column_background_opacity")
+  kanbanBackgroundColor        String? @map("kanban_background_color")
+  kanbanBackgroundImage        String? @map("kanban_background_image")
+  // Raio do blur da imagem de fundo (0-30px). Default 0 = sem desfoque.
+  kanbanBackgroundBlur         Int     @default(0) @map("kanban_background_blur")
+  // Opacidade da imagem em % (0-100). Default 50 = 50% mesclado com a cor.
+  kanbanBackgroundOpacity      Int     @default(50) @map("kanban_background_opacity")
   createdAt                 DateTime  @default(now()) @map("created_at")
   updatedAt                 DateTime  @updatedAt @map("updated_at")
 
@@ -752,6 +770,10 @@ model Lead {
   phone         String?
   document      String?
   profile       String?
+  // Apelido informal — usado pra distinguir leads com nomes parecidos
+  // (ex: "João pai", "João filho"). Exibido como pill ao lado do nome no
+  // card do board, editável no painel de detalhes com auto-save.
+  nickname      String?
   description   String?
   statusId      String      @map("status_id")
   trackingId    String      @map("tracking_id")

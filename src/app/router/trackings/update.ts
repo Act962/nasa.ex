@@ -25,6 +25,22 @@ export const updateTracking = base
       cardBackgroundBlur: z.number().int().min(0).max(30).optional(),
       // Opacidade da imagem em % (0-100). Default no DB = 25.
       cardBackgroundOpacity: z.number().int().min(0).max(100).optional(),
+      // Aparência do KANBAN (view de pipeline).
+      kanbanCardBackgroundColor: z.string().nullable().optional(),
+      kanbanCardBorderColor: z.string().nullable().optional(),
+      kanbanCardBackgroundOpacity: z.number().int().min(0).max(100).optional(),
+      kanbanColumnBackgroundColor: z.string().nullable().optional(),
+      kanbanColumnBorderColor: z.string().nullable().optional(),
+      kanbanColumnBackgroundOpacity: z
+        .number()
+        .int()
+        .min(0)
+        .max(100)
+        .optional(),
+      kanbanBackgroundColor: z.string().nullable().optional(),
+      kanbanBackgroundImage: z.string().nullable().optional(),
+      kanbanBackgroundBlur: z.number().int().min(0).max(30).optional(),
+      kanbanBackgroundOpacity: z.number().int().min(0).max(100).optional(),
     })
   )
   .output(
@@ -85,6 +101,66 @@ export const updateTracking = base
           "[tracking.update] appearance columns missing — run pnpm prisma migrate deploy",
           e,
         );
+      }
+    }
+
+    // Aparência do KANBAN (cards de lead, colunas, fundo do canvas).
+    if (
+      input.kanbanCardBackgroundColor !== undefined ||
+      input.kanbanCardBorderColor !== undefined ||
+      input.kanbanCardBackgroundOpacity !== undefined ||
+      input.kanbanColumnBackgroundColor !== undefined ||
+      input.kanbanColumnBorderColor !== undefined ||
+      input.kanbanColumnBackgroundOpacity !== undefined ||
+      input.kanbanBackgroundColor !== undefined ||
+      input.kanbanBackgroundImage !== undefined ||
+      input.kanbanBackgroundBlur !== undefined ||
+      input.kanbanBackgroundOpacity !== undefined
+    ) {
+      try {
+        if (input.kanbanCardBackgroundColor !== undefined) {
+          await prisma.$executeRaw`UPDATE tracking SET kanban_card_background_color = ${input.kanbanCardBackgroundColor} WHERE id = ${input.trackingId}`;
+        }
+        if (input.kanbanCardBorderColor !== undefined) {
+          await prisma.$executeRaw`UPDATE tracking SET kanban_card_border_color = ${input.kanbanCardBorderColor} WHERE id = ${input.trackingId}`;
+        }
+        if (input.kanbanCardBackgroundOpacity !== undefined) {
+          await prisma.$executeRaw`UPDATE tracking SET kanban_card_background_opacity = ${input.kanbanCardBackgroundOpacity} WHERE id = ${input.trackingId}`;
+        }
+        if (input.kanbanColumnBackgroundColor !== undefined) {
+          await prisma.$executeRaw`UPDATE tracking SET kanban_column_background_color = ${input.kanbanColumnBackgroundColor} WHERE id = ${input.trackingId}`;
+        }
+        if (input.kanbanColumnBorderColor !== undefined) {
+          await prisma.$executeRaw`UPDATE tracking SET kanban_column_border_color = ${input.kanbanColumnBorderColor} WHERE id = ${input.trackingId}`;
+        }
+        if (input.kanbanColumnBackgroundOpacity !== undefined) {
+          await prisma.$executeRaw`UPDATE tracking SET kanban_column_background_opacity = ${input.kanbanColumnBackgroundOpacity} WHERE id = ${input.trackingId}`;
+        }
+        if (input.kanbanBackgroundColor !== undefined) {
+          await prisma.$executeRaw`UPDATE tracking SET kanban_background_color = ${input.kanbanBackgroundColor} WHERE id = ${input.trackingId}`;
+        }
+        if (input.kanbanBackgroundImage !== undefined) {
+          await prisma.$executeRaw`UPDATE tracking SET kanban_background_image = ${input.kanbanBackgroundImage} WHERE id = ${input.trackingId}`;
+        }
+        if (input.kanbanBackgroundBlur !== undefined) {
+          await prisma.$executeRaw`UPDATE tracking SET kanban_background_blur = ${input.kanbanBackgroundBlur} WHERE id = ${input.trackingId}`;
+        }
+        if (input.kanbanBackgroundOpacity !== undefined) {
+          await prisma.$executeRaw`UPDATE tracking SET kanban_background_opacity = ${input.kanbanBackgroundOpacity} WHERE id = ${input.trackingId}`;
+        }
+      } catch (e: any) {
+        // Diferente da seção `card_*` (que degrada silenciosamente por
+        // historicidade), aqui FALHAMOS com erro visível: se o usuário
+        // tenta salvar e a migration `kanban_*` não foi aplicada, mostra
+        // toast claro em vez de fingir sucesso e perder os dados.
+        console.error(
+          "[tracking.update] kanban appearance columns missing — run pnpm db:migrate",
+          e,
+        );
+        throw errors.INTERNAL_SERVER_ERROR({
+          message:
+            "Migration de aparência do Kanban não aplicada. Rode `pnpm db:migrate --name kanban_appearance` no terminal.",
+        });
       }
     }
 

@@ -122,6 +122,31 @@ export function SoundNotification() {
 
         <FieldSeparator />
 
+        {/* Toggle pra som em cada mensagem nova do lead. Depende do switch
+            principal estar ligado — sem ele, o áudio não toca de qualquer
+            jeito (mesma checagem que `playSoundNotification`). */}
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldLabel htmlFor="sound-on-lead-message">
+              Reproduzir som sempre que um lead enviar uma mensagem
+            </FieldLabel>
+            <FieldDescription>
+              Toca o mesmo som a cada mensagem recebida de um lead, além do som
+              de novo lead
+            </FieldDescription>
+          </FieldContent>
+          <Switch
+            id="sound-on-lead-message"
+            checked={!!settings.playOnLeadMessage}
+            disabled={!settings.enabled}
+            onCheckedChange={(checked) =>
+              updateSettings({ playOnLeadMessage: checked })
+            }
+          />
+        </Field>
+
+        <FieldSeparator />
+
         {/* System sounds selector */}
         <Field>
           <FieldLabel>Sons do sistema</FieldLabel>

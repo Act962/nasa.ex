@@ -17,11 +17,18 @@ export interface SoundNotificationSettings {
   selectedSound: SystemSoundId | "custom";
   customSoundDataUrl?: string;
   customSoundName?: string;
+  /**
+   * Se true, também reproduz o som configurado sempre que um lead enviar
+   * uma mensagem nova (independente do som de "novo lead"). Default false
+   * pra não surpreender usuários antigos.
+   */
+  playOnLeadMessage?: boolean;
 }
 
 const DEFAULT_SETTINGS: SoundNotificationSettings = {
   enabled: false,
   selectedSound: "ding",
+  playOnLeadMessage: false,
 };
 
 function getStorageKey(trackingId: string) {

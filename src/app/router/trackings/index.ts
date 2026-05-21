@@ -13,11 +13,13 @@ import { listDashboard } from "./list-dashboard";
 import { getCardAppearance } from "./get-card-appearance";
 import { getTrackingIdleAutomation } from "./get-idle-automation";
 import { updateTrackingIdleAutomation } from "./update-idle-automation";
+import { getKanbanAppearance } from "./get-kanban-appearance";
 
 export const trackingRoutes = {
   list: listTrackings,
   listDashboard,
   getCardAppearance,
+  getKanbanAppearance,
   create: createTracking,
   get: getTracking,
   update: updateTracking,

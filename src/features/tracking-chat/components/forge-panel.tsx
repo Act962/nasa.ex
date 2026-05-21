@@ -54,7 +54,7 @@ interface ForgePanelProps {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function formatBRL(value: string | number | null | undefined) {
+export function formatBRL(value: string | number | null | undefined) {
   const num = Number(value ?? 0);
   return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -68,7 +68,11 @@ function proposalTotal(products: CartItem[]) {
 
 // ─── Create Proposal View ────────────────────────────────────────────────────
 
-function CreateProposalView({
+/**
+ * Form de criação de proposta estruturada (Forge). Exportado pra reuso
+ * no painel mesclado "Propostas e Orçamentos" (tab "Proposta Estruturada").
+ */
+export function CreateProposalView({
   leadId,
   leadName,
   onBack,

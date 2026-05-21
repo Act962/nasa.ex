@@ -8,6 +8,7 @@ import { getAiSettings } from "./get-ai-settings";
 import { listAiButtonPresets } from "./list-ai-button-presets";
 import { updateAiButtonPreset } from "./update-ai-button-preset";
 import { updateAiSettings } from "./update-ai-settings";
+import { extractBudget } from "./extract-budget";
 
 export const iaRouter = {
   compose: {
@@ -34,4 +35,5 @@ export const iaRouter = {
   tracking: {
     chat: createLeadWithAi,
   },
+  extractBudget,
 };

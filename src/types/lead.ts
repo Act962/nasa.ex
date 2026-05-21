@@ -2,6 +2,7 @@ export interface LeadFull {
   lead: {
     id: string;
     name: string;
+    nickname: string | null;
     email: string | null;
     phone: string | null;
     description: string | null;
@@ -10,6 +11,7 @@ export interface LeadFull {
     amount: number;
     trackingId: string;
     orgProjectId: string | null;
+    temperature: "COLD" | "WARM" | "HOT" | "VERY_HOT";
     createdAt: Date;
     updatedAt: Date;
     status: {

@@ -13,6 +13,8 @@ import { useQueryState } from "nuqs";
 import dayjs from "dayjs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useKanbanAppearance } from "../hooks/use-kanban-appearance";
+import { hexToRgba } from "@/utils/hex-to-rgba";
 
 interface StatusColumnProps {
   status: {
@@ -34,6 +36,7 @@ function StatusColumnImpl({
 }: StatusColumnProps) {
   const registerColumn = useKanbanStore((s) => s.registerColumn);
   const isMobile = useIsMobile();
+  const { data: appearance } = useKanbanAppearance(trackingId);
 
   const [dateInit] = useQueryState("date_init");
   const [dateEnd] = useQueryState("date_end");
@@ -157,7 +160,31 @@ function StatusColumnImpl({
         index === 0 && "ml-4",
       )}
     >
-      <div className="flex flex-col flex-1 min-h-0 rounded-md bg-muted/60 shadow-md">
+      {/* Cor + contorno customizados da coluna sobrescrevem `bg-muted/60`
+          quando definidos nas Configurações. Se a cor estiver setada,
+          aplicamos via style inline; senão usamos o fallback default. */}
+      <div
+        className={cn(
+          "flex flex-col flex-1 min-h-0 rounded-md shadow-md",
+          !appearance?.kanbanColumnBackgroundColor && "bg-muted/60",
+          appearance?.kanbanColumnBorderColor && "border",
+        )}
+        style={{
+          // Cor de fundo computada como `rgba()` — slider de transparência
+          // controla o alpha. Opacidade default = 100 (opaco). Sem cor =
+          // herda `bg-muted/60` do fallback.
+          ...(appearance?.kanbanColumnBackgroundColor && {
+            backgroundColor:
+              hexToRgba(
+                appearance.kanbanColumnBackgroundColor,
+                appearance.kanbanColumnBackgroundOpacity ?? 100,
+              ) ?? appearance.kanbanColumnBackgroundColor,
+          }),
+          ...(appearance?.kanbanColumnBorderColor && {
+            borderColor: appearance.kanbanColumnBorderColor,
+          }),
+        }}
+      >
         <StatusHeader
           data={headerData}
           attributes={attributes}
@@ -172,9 +199,13 @@ function StatusColumnImpl({
 
         <ScrollArea
           data-kanban-scroll-viewport
-          className="flex-1 min-h-0 scrollbar-thin"
+          // O viewport do Radix tem um wrapper interno com `display: table`
+          // que permite que o conteúdo cresça horizontalmente. Forçamos
+          // `display: block` + `width: 100%` pra travar na largura da coluna
+          // (cards com apelido longo não esticam mais o card).
+          className="flex-1 min-h-0 scrollbar-thin [&>div[data-radix-scroll-area-viewport]>div]:block! [&>div[data-radix-scroll-area-viewport]>div]:w-full!"
         >
-          <ol className="mx-1 px-1 py-2 flex flex-col gap-y-2">
+          <ol className="mx-1 px-1 py-2 flex flex-col gap-y-2 w-full min-w-0">
             <LeadsList columnId={status.id} isLoading={isLoading} />
 
             {hasNextPage && (

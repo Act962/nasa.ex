@@ -68,6 +68,13 @@ export function useInfinityConversation(
     };
 
     const messageHandler = (message: any) => {
+      // Som por mensagem do lead — opt-in via "Reproduzir som sempre que
+      // um lead enviar uma mensagem" nas configurações. Só toca pra
+      // mensagens recebidas (não tocar quando NÓS enviamos).
+      if (settings.playOnLeadMessage && !message.fromMe) {
+        playSoundNotification(settings);
+      }
+
       let found = false;
       let reopenLeadId: string | null = null;
       queryClient.setQueryData(queryKey, (old: any) => {
@@ -158,6 +165,9 @@ export function useInfinityConversation(
     queryClient,
     currentConversationId,
     reopenLead,
+    // Necessário pra que o handler capture sempre o `playOnLeadMessage`
+    // atual quando o usuário liga/desliga o toggle sem dar refresh.
+    settings,
   ]);
 }
 

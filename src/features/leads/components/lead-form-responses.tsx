@@ -8,11 +8,34 @@ import { ptBR } from "date-fns/locale";
 import {
   ArrowRight,
   Loader,
+  MoreVertical,
   PencilLine,
+  RotateCcw,
   SquarePenIcon,
   Timer,
 } from "lucide-react";
+import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
+import { useOrgRole } from "@/hooks/use-org-role";
+import { authClient } from "@/lib/auth-client";
+import { useQueryParticipants } from "@/features/trackings/hooks/use-trackings";
+import { useMutationCancelFormResponse } from "@/features/form/hooks/use-cancel-response";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatTimeUntil } from "@/features/form/lib/extract-deadline";
 import {
   STATE_COLOR,
@@ -138,9 +161,21 @@ function buildGroups(
 
 export function LeadFormResponses({
   leadId,
+  trackingId,
 }: {
   leadId: string;
+  trackingId: string;
 }) {
+  // Permissão pra "Cancelar formulário": Master (org owner) OU Tracking
+  // Owner do tracking atual do lead. Backend revalida — UI só esconde o
+  // item de menu pra quem não tem permissão.
+  const { isMaster } = useOrgRole();
+  const { data: session } = authClient.useSession();
+  const { participants } = useQueryParticipants({ trackingId });
+  const isTrackingOwner =
+    participants.find((p: any) => p.userId === session?.user?.id)?.role ===
+    "OWNER";
+  const canCancel = isMaster || isTrackingOwner;
   const { data: respData, isLoading: respLoading } = useQuery(
     orpc.leads.listFormResponses.queryOptions({ input: { leadId } }),
   );
@@ -283,6 +318,7 @@ export function LeadFormResponses({
                   key={g.formId}
                   group={g}
                   leadId={leadId}
+                  canCancel={canCancel}
                 />
               ))}
             </div>
@@ -339,12 +375,55 @@ function StatsCard({
 function FormGroupItem({
   group,
   leadId,
+  canCancel,
 }: {
   group: FormGroup;
   leadId: string;
+  /**
+   * Se o usuário pode cancelar a resposta deste form (Master da org ou
+   * Owner do tracking atual do lead). Backend revalida.
+   */
+  canCancel: boolean;
 }) {
   const router = useRouter();
   const hasResponses = group.responses.length > 0;
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const cancelMutation = useMutationCancelFormResponse(leadId);
+
+  // Última resposta = alvo do reset. `responses` vem ordenada por
+  // createdAt desc do server, mas pegamos via `lastResponseId` computado
+  // a partir do `lastAt` pra ser explícito.
+  const lastResponseId = useMemo(() => {
+    if (!group.responses.length) return null;
+    let lastId: string | null = null;
+    let lastTime = 0;
+    for (const r of group.responses) {
+      const t = new Date(r.createdAt).getTime();
+      if (t > lastTime) {
+        lastTime = t;
+        lastId = r.id;
+      }
+    }
+    return lastId;
+  }, [group.responses]);
+
+  function handleConfirmCancel() {
+    if (!lastResponseId) return;
+    cancelMutation.mutate(
+      { id: lastResponseId },
+      {
+        onSuccess: () => {
+          toast.success("Formulário cancelado e removido do card do lead.");
+          setCancelDialogOpen(false);
+        },
+        onError: (err: any) => {
+          toast.error(
+            err?.message ?? "Erro ao cancelar formulário. Tente novamente.",
+          );
+        },
+      },
+    );
+  }
 
   // Countdown ao vivo do prazo (se houver). Atualiza a cada 1s pra mostrar
   // segundos rolando quando faltam menos de 24h. Acima de 24h o componente
@@ -497,8 +576,80 @@ function FormGroupItem({
               <ArrowRight className="size-4" />
             </Button>
           )}
+
+          {/* Menu de ações destrutivas — só aparece pra Master da org OU
+              Tracking Owner E quando há uma resposta pra resetar. */}
+          {hasResponses && canCancel && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-8"
+                  title="Mais ações"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setCancelDialogOpen(true);
+                  }}
+                >
+                  <RotateCcw className="size-4" />
+                  Cancelar formulário
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </ItemActions>
       </Item>
+
+      {/* AlertDialog de confirmação — ação destrutiva, requer confirmação
+          explícita. Mensagem deixa claro que os campos serão resetados. */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Tem certeza que deseja cancelar este formulário?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação vai excluir a última resposta do formulário{" "}
+              <strong>{group.formName}</strong> deste lead. O formulário voltará
+              a aparecer como "não preenchido" no card e nos detalhes do lead.
+              <br />
+              <br />
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelMutation.isPending}>
+              Voltar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmCancel}
+              disabled={cancelMutation.isPending}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {cancelMutation.isPending ? (
+                <>
+                  <Loader className="size-4 animate-spin" />
+                  Cancelando...
+                </>
+              ) : (
+                "Cancelar formulário"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -21,9 +21,12 @@ export function SorterLead() {
           Ordenar
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-50" align={isMobile ? "end" : "start"}>
+      <DropdownMenuContent className="w-56" align={isMobile ? "end" : "start"}>
         <DropdownMenuItem onClick={() => setSortBy("order")}>
-          {sortBy === "order" && "✓ "}Personalizada (Padrão)
+          {sortBy === "order" && "✓ "}Personalizada
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setSortBy("statusEnteredAt")}>
+          {sortBy === "statusEnteredAt" && "✓ "}Data de entrada na etapa
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setSortBy("createdAt")}>
           {sortBy === "createdAt" && "✓ "}Data de chegada

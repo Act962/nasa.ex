@@ -128,6 +128,10 @@ export const createPaymentEntry = base
     installments: z.number().default(1),
     isRecurring: z.boolean().default(false),
     recurrenceType: z.string().optional(),
+    // Chave S3/R2 do anexo original (PDF/imagem do orçamento) — preenchido
+    // quando o usuário sobe um arquivo via "Adicione o Orçamento aqui" no
+    // BudgetPanel. Permite ver/baixar o arquivo no histórico.
+    attachmentUrl: z.string().optional(),
   }))
   .output(z.object({ entries: z.array(entryShape) }))
   .handler(async ({ input, context, errors }) => {

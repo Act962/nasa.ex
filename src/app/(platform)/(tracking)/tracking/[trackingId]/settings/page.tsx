@@ -13,6 +13,7 @@ import { ToastProvider } from "@/contexts/toast-context";
 import { TrackingDangerZone } from "@/features/tracking-settings/components/danger-zone";
 import { Personalization } from "@/features/tracking-settings/components/personalization";
 import { Interactions } from "@/features/tracking-settings/components/interactions";
+import { TimeOfStatus } from "@/features/tracking-settings/components/time-of-status";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
@@ -62,6 +63,11 @@ export default async function Page({
       name: "Fluxo de atendimento",
       value: "flow-attendance",
       content: <FlowAttendiment trackingId={trackingId} />,
+    },
+    {
+      name: "Time de Status",
+      value: "time-of-status",
+      content: <TimeOfStatus trackingId={trackingId} />,
     },
     {
       name: "Motivos de ganho",
