@@ -13,9 +13,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { useMutationButtonsMessage } from "../hooks/use-messages";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
+import { useAiButtonPresets } from "@/features/tracking-settings/hooks/use-ai-button-presets";
 
 interface ButtonsPanelProps {
   onClose: () => void;
@@ -26,8 +35,15 @@ interface ButtonsPanelProps {
 
 type Tab = "buttons" | "list";
 
-interface ButtonItem { text: string; id: string }
-interface ListRow { id: string; title: string; description: string }
+interface ButtonItem {
+  text: string;
+  id: string;
+}
+interface ListRow {
+  id: string;
+  title: string;
+  description: string;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -38,9 +54,26 @@ function newRow(idx: number): ListRow {
   return { id: `row_${idx}_${Date.now()}`, title: "", description: "" };
 }
 
+function parsePresetButtons(raw: unknown): ButtonItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (b): b is Record<string, unknown> => typeof b === "object" && b !== null,
+    )
+    .map((b, idx) => ({
+      text: typeof b.text === "string" ? b.text : "",
+      id: typeof b.id === "string" && b.id ? b.id : `btn_${idx}_${Date.now()}`,
+    }));
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
-export function ButtonsPanel({ onClose, conversationId, trackingId, lead }: ButtonsPanelProps) {
+export function ButtonsPanel({
+  onClose,
+  conversationId,
+  trackingId,
+  lead,
+}: ButtonsPanelProps) {
   const [tab, setTab] = useState<Tab>("buttons");
   const [text, setText] = useState("");
   const [footer, setFooter] = useState("");
@@ -54,9 +87,35 @@ export function ButtonsPanel({ onClose, conversationId, trackingId, lead }: Butt
 
   const instance = useQueryInstances(trackingId);
   const mutation = useMutationButtonsMessage({ conversationId });
+  const { presets } = useAiButtonPresets(trackingId);
+  const activePresets = presets.filter((p) => p.isActive);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>("");
 
   const isDisabled = !instance.instance;
   const canSend = text.trim().length > 0 && !isDisabled;
+
+  const handleLoadPreset = (presetId: string) => {
+    const preset = activePresets.find((p) => p.id === presetId);
+    if (!preset) return;
+
+    const parsed = parsePresetButtons(preset.buttons);
+    const truncated = parsed.slice(0, 3);
+
+    setText((preset.bodyText ?? "").slice(0, 1024));
+    setFooter((preset.footerText ?? "").slice(0, 60));
+    setButtons(
+      truncated.length > 0
+        ? truncated.map((b) => ({ ...b, text: b.text.slice(0, 20) }))
+        : [newButton(0)],
+    );
+    setSelectedPresetId(presetId);
+
+    if (parsed.length > truncated.length) {
+      toast.warning(
+        `Preset tinha ${parsed.length} botões — truncado para 3 (limite da Uazapi).`,
+      );
+    }
+  };
 
   const handleSendButtons = () => {
     if (!canSend || !lead.phone) return;
@@ -129,7 +188,10 @@ export function ButtonsPanel({ onClose, conversationId, trackingId, lead }: Butt
             <LayoutListIcon className="size-4 text-muted-foreground" />
             <span className="text-sm font-semibold">Mensagem interativa</span>
           </div>
-          <button onClick={onClose} className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+          <button
+            onClick={onClose}
+            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
             <XIcon className="size-4" />
           </button>
         </div>
@@ -146,7 +208,8 @@ export function ButtonsPanel({ onClose, conversationId, trackingId, lead }: Butt
             )}
           >
             <MousePointerClickIcon className="size-3.5" />
-            Botões <span className="text-muted-foreground font-normal">(máx 3)</span>
+            Botões{" "}
+            <span className="text-muted-foreground font-normal">(máx 3)</span>
           </button>
           <button
             onClick={() => setTab("list")}
@@ -158,12 +221,41 @@ export function ButtonsPanel({ onClose, conversationId, trackingId, lead }: Butt
             )}
           >
             <ChevronDownIcon className="size-3.5" />
-            Lista <span className="text-muted-foreground font-normal">(máx 10)</span>
+            Lista{" "}
+            <span className="text-muted-foreground font-normal">(máx 10)</span>
           </button>
         </div>
 
         {/* Corpo */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {/* Preset (só na aba Botões) */}
+          {tab === "buttons" && activePresets.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Carregar preset
+              </label>
+              <Select
+                value={selectedPresetId}
+                onValueChange={handleLoadPreset}
+              >
+                <SelectTrigger className="text-sm h-9 w-full">
+                  <SelectValue placeholder="Selecione um preset salvo…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activePresets.map((preset) => (
+                    <SelectItem key={preset.id} value={preset.id}>
+                      {preset.name || "Sem nome"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Os campos abaixo são preenchidos e você pode editar antes de
+                enviar.
+              </p>
+            </div>
+          )}
+
           {/* Mensagem */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -210,7 +302,9 @@ export function ButtonsPanel({ onClose, conversationId, trackingId, lead }: Butt
                       onChange={(e) =>
                         setButtons((prev) =>
                           prev.map((b, idx) =>
-                            idx === i ? { ...b, text: e.target.value.slice(0, 20) } : b,
+                            idx === i
+                              ? { ...b, text: e.target.value.slice(0, 20) }
+                              : b,
                           ),
                         )
                       }
@@ -221,7 +315,9 @@ export function ButtonsPanel({ onClose, conversationId, trackingId, lead }: Butt
                   </div>
                   {buttons.length > 1 && (
                     <button
-                      onClick={() => setButtons((prev) => prev.filter((_, idx) => idx !== i))}
+                      onClick={() =>
+                        setButtons((prev) => prev.filter((_, idx) => idx !== i))
+                      }
                       className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                     >
                       <Trash2Icon className="size-3.5" />
@@ -234,7 +330,9 @@ export function ButtonsPanel({ onClose, conversationId, trackingId, lead }: Butt
                   size="sm"
                   variant="outline"
                   className="h-7 text-xs gap-1.5 w-full"
-                  onClick={() => setButtons((prev) => [...prev, newButton(prev.length)])}
+                  onClick={() =>
+                    setButtons((prev) => [...prev, newButton(prev.length)])
+                  }
                 >
                   <PlusIcon className="size-3.5" />
                   Adicionar botão
@@ -254,7 +352,9 @@ export function ButtonsPanel({ onClose, conversationId, trackingId, lead }: Butt
                   placeholder="Ex: Ver opções (máx 20 chars)"
                   className="text-sm h-9"
                   value={listButtonLabel}
-                  onChange={(e) => setListButtonLabel(e.target.value.slice(0, 20))}
+                  onChange={(e) =>
+                    setListButtonLabel(e.target.value.slice(0, 20))
+                  }
                 />
               </div>
 
@@ -265,10 +365,16 @@ export function ButtonsPanel({ onClose, conversationId, trackingId, lead }: Butt
                 {rows.map((row, i) => (
                   <div key={row.id} className="border rounded-lg p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground font-medium">Item {i + 1}</span>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        Item {i + 1}
+                      </span>
                       {rows.length > 1 && (
                         <button
-                          onClick={() => setRows((prev) => prev.filter((_, idx) => idx !== i))}
+                          onClick={() =>
+                            setRows((prev) =>
+                              prev.filter((_, idx) => idx !== i),
+                            )
+                          }
                           className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                         >
                           <Trash2Icon className="size-3" />
@@ -282,7 +388,9 @@ export function ButtonsPanel({ onClose, conversationId, trackingId, lead }: Butt
                       onChange={(e) =>
                         setRows((prev) =>
                           prev.map((r, idx) =>
-                            idx === i ? { ...r, title: e.target.value.slice(0, 24) } : r,
+                            idx === i
+                              ? { ...r, title: e.target.value.slice(0, 24) }
+                              : r,
                           ),
                         )
                       }
@@ -294,7 +402,12 @@ export function ButtonsPanel({ onClose, conversationId, trackingId, lead }: Butt
                       onChange={(e) =>
                         setRows((prev) =>
                           prev.map((r, idx) =>
-                            idx === i ? { ...r, description: e.target.value.slice(0, 72) } : r,
+                            idx === i
+                              ? {
+                                  ...r,
+                                  description: e.target.value.slice(0, 72),
+                                }
+                              : r,
                           ),
                         )
                       }
@@ -306,7 +419,9 @@ export function ButtonsPanel({ onClose, conversationId, trackingId, lead }: Butt
                     size="sm"
                     variant="outline"
                     className="h-7 text-xs gap-1.5 w-full"
-                    onClick={() => setRows((prev) => [...prev, newRow(prev.length)])}
+                    onClick={() =>
+                      setRows((prev) => [...prev, newRow(prev.length)])
+                    }
                   >
                     <PlusIcon className="size-3.5" />
                     Adicionar item
@@ -320,15 +435,19 @@ export function ButtonsPanel({ onClose, conversationId, trackingId, lead }: Butt
         {/* Footer */}
         <div className="px-5 py-3 border-t shrink-0">
           {isDisabled && (
-            <p className="text-xs text-destructive mb-2">Instância WhatsApp não conectada.</p>
+            <p className="text-xs text-destructive mb-2">
+              Instância WhatsApp não conectada.
+            </p>
           )}
           <Button
             className="w-full gap-2"
             disabled={
               !canSend ||
               mutation.isPending ||
-              (tab === "buttons" && buttons.filter((b) => b.text.trim()).length === 0) ||
-              (tab === "list" && rows.filter((r) => r.title.trim()).length === 0)
+              (tab === "buttons" &&
+                buttons.filter((b) => b.text.trim()).length === 0) ||
+              (tab === "list" &&
+                rows.filter((r) => r.title.trim()).length === 0)
             }
             onClick={tab === "buttons" ? handleSendButtons : handleSendList}
           >

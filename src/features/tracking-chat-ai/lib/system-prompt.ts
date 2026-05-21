@@ -10,12 +10,22 @@ interface CurrentLeadTag {
   tag: { id: string; name: string };
 }
 
+interface AvailableButtonPreset {
+  id: string;
+  name: string;
+  description: string;
+  bodyText: string;
+  footerText: string | null;
+  buttons: unknown; // JSON do banco — parseado abaixo
+}
+
 interface BuildPromptArgs {
   settings: AiSettings;
   orgName: string;
   leadName: string | null;
   currentTags: CurrentLeadTag[];
   availableTags: AvailableTag[];
+  availableButtonPresets: AvailableButtonPreset[];
 }
 
 export function buildSystemPrompt({
@@ -24,6 +34,7 @@ export function buildSystemPrompt({
   leadName,
   currentTags,
   availableTags,
+  availableButtonPresets,
 }: BuildPromptArgs): string {
   const assistantName = settings.assistantName?.trim() || "atendente";
   const finishSentence = settings.finishSentence?.trim();
@@ -40,6 +51,7 @@ NUNCA prometa "vou te passar pro humano" sem chamar a tool — a promessa não
 desliga a IA, só a tool faz isso.`;
 
   const taggingBlock = buildTaggingBlock(currentTags, availableTags);
+  const buttonsBlock = buildButtonsBlock(availableButtonPresets);
 
   return [
     `Você é ${assistantName} da empresa "${orgName}".`,
@@ -67,11 +79,53 @@ desliga a IA, só a tool faz isso.`;
     "  ```",
     "- Exemplo ruim (NÃO faça): tudo num parágrafo só, ou 7 mensagens picotadas.",
     "",
+    buttonsBlock,
     taggingBlock,
     finishBlock,
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function buildButtonsBlock(presets: AvailableButtonPreset[]): string {
+  if (presets.length === 0) {
+    // Sem presets ativos → tool não é registrada (ver server/tools/index.ts).
+    return "";
+  }
+
+  const catalogLines = presets.map((p) => {
+    const buttons = parsePreview(p.buttons);
+    const preview =
+      buttons.length > 0 ? ` [${buttons.join(" | ")}]` : "";
+    return `- ${p.name} (id: ${p.id}): ${p.description}${preview}`;
+  });
+
+  return [
+    "## Catálogo de presets de botões",
+    "Cada linha tem `nome (id: ID): descrição [pré-visualização dos botões]`. Use a descrição para decidir quando enviar.",
+    ...catalogLines,
+    "",
+    "## Quando enviar botões",
+    "- Quando a conversa case com a descrição de um preset acima, chame `send_buttons` passando o `id` correspondente.",
+    "- NÃO invente IDs — use exatamente os do catálogo.",
+    "- Não anuncie ao lead que vai enviar botões — só chame a tool, ela já manda a mensagem com o texto e os botões.",
+    "- Depois de chamar `send_buttons`, você ainda pode continuar a conversa com texto se fizer sentido. A tool é só o envio dos botões; o texto final que você escrever vai como mensagem complementar.",
+    "- Se nenhum preset case com a situação, NÃO use a tool — responda em texto normal.",
+    "",
+  ].join("\n");
+}
+
+function parsePreview(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((b) => {
+      if (b && typeof b === "object" && "text" in b) {
+        const t = (b as { text: unknown }).text;
+        return typeof t === "string" ? t : "";
+      }
+      return "";
+    })
+    .filter((t) => t.length > 0);
 }
 
 function buildTaggingBlock(
