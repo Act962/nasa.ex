@@ -47,7 +47,7 @@ import {
   getMobilizationEvent,
 } from "@/features/public-calendar/utils/holidays";
 import { useRescheduleAppointment } from "../hooks/use-agenda";
-import { CreateAppointmentModal } from "@/features/trackings/components/calendar/create-appointment-modal";
+import { CreateAppointmentModal } from "@/features/agenda/components/create-appointment-modal";
 import { ViewAppointment } from "@/features/trackings/components/calendar/view-appointment";
 import { AgendaEventList } from "./agenda-event-list";
 

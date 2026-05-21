@@ -40,7 +40,7 @@ import { useSuspenseAgendas } from "../hooks/use-agenda";
 import dayjs from "dayjs";
 import { useLocale } from "react-aria";
 import "dayjs/locale/pt-br";
-import { CreateAppointmentModal } from "@/features/trackings/components/calendar/create-appointment-modal";
+import { CreateAppointmentModal } from "@/features/agenda/components/create-appointment-modal";
 import { ViewAppointment } from "@/features/trackings/components/calendar/view-appointment";
 import { DayEventsPopup } from "@/features/trackings/components/calendar/day-events-popup";
 import { cn } from "@/lib/utils";
