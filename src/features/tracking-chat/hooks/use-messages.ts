@@ -914,12 +914,69 @@ export function useMutationButtonsMessage({
 }: {
   conversationId: string;
 }) {
+  const queryClient = useQueryClient();
+  const { data: session } = authClient.useSession();
+
   return useMutation(
     orpc.message.createWithButtons.mutationOptions({
-      onSuccess: () => {
+      onMutate: async (data) => {
+        await queryClient.cancelQueries({
+          queryKey: ["message.list", conversationId],
+        });
+        const previousData = queryClient.getQueryData<InfiniteMessages>([
+          "message.list",
+          conversationId,
+        ]);
+
+        const tempId = `optimistic-${crypto.randomUUID()}`;
+
+        const summary =
+          data.type === "buttons"
+            ? `${data.text}\n\n[Botões]\n${data.buttons
+                .map((b) => `• ${b.text}`)
+                .join("\n")}`
+            : `${data.text}\n\n[Lista: ${data.button}]\n${data.sections
+                .flatMap((s) => s.rows)
+                .map((r) => `• ${r.title}`)
+                .join("\n")}`;
+
+        const optimisticMessage: Message = {
+          id: tempId,
+          messageId: tempId,
+          body: summary,
+          createdAt: new Date(),
+          status: MessageStatus.SENT,
+          fromMe: true,
+          senderName: session?.user.name,
+          mediaUrl: null,
+          quotedMessage: null,
+        } as Message;
+
+        queryClient.setQueryData(["message.list", conversationId], (old: any) =>
+          updateCacheWithOptimisticMessage(old, optimisticMessage),
+        );
+
+        return { previousData, tempId };
+      },
+      onSuccess: (data, _variables, context) => {
+        queryClient.setQueryData<InfiniteMessages>(
+          ["message.list", conversationId],
+          (old) =>
+            updateCacheMessageStatus(
+              old,
+              context?.tempId ?? "",
+              data.message as Message,
+            ),
+        );
         toast.success("Mensagem enviada!");
       },
-      onError: (err) => {
+      onError: (err, _variables, context) => {
+        if (context?.previousData) {
+          queryClient.setQueryData(
+            ["message.list", conversationId],
+            context.previousData,
+          );
+        }
         toast.error("Erro ao enviar botões: " + err.message);
       },
     }),
