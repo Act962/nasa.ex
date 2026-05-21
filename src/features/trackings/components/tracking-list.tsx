@@ -108,7 +108,7 @@ function TrackingCard({ tracking }: { tracking: TrackingDashboardItem }) {
             {tracking.cardBackgroundImage && (
               <div
                 aria-hidden
-                className="absolute inset-0 -z-0"
+                className="absolute inset-0 z-0"
                 style={{
                   backgroundImage: `url(${bgUrl})`,
                   backgroundSize: "cover",
@@ -124,10 +124,10 @@ function TrackingCard({ tracking }: { tracking: TrackingDashboardItem }) {
               <CardHeader>
                 <div className="flex justify-between items-start gap-2">
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="break-words">
+                    <CardTitle className="wrap-break-word">
                       {tracking.name}
                     </CardTitle>
-                    <CardDescription className="break-words line-clamp-2">
+                    <CardDescription className="wrap-break-word line-clamp-2">
                       {tracking.description || "Sem descrição"}
                     </CardDescription>
                   </div>

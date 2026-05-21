@@ -32,6 +32,7 @@ import { useState } from "react";
 import { ImageViewerDialog } from "./image-viewer-dialog";
 import { BodyMessage } from "./body-message";
 import { ForwardMessageDialog } from "./forward-message-dialog";
+import { isForwardable } from "../lib/forward-strategies/build-payload";
 
 export function MessageBox({
   message,
@@ -116,7 +117,11 @@ export function MessageBox({
         onDeleteMessage={onDeleteMessage}
         onCopyMessage={copyMessage}
         onSaveToNBox={onSaveToNBox ? () => onSaveToNBox(message) : undefined}
-        onForwardMessage={trackingId && message.body ? () => setForwardOpen(true) : undefined}
+        onForwardMessage={
+          trackingId && isForwardable(message)
+            ? () => setForwardOpen(true)
+            : undefined
+        }
         onChange={setOpen}
         disabled={showImageViewer}
       >
@@ -253,7 +258,11 @@ export function MessageBox({
                   onSelectMessage={onSelectMessage}
                   onDeleteMessage={onDeleteMessage}
                   onCopyMessage={copyMessage}
-                  onForwardMessage={trackingId && message.body ? () => setForwardOpen(true) : undefined}
+                  onForwardMessage={
+                    trackingId && isForwardable(message)
+                      ? () => setForwardOpen(true)
+                      : undefined
+                  }
                   onChange={setOpen}
                 >
                   <Button

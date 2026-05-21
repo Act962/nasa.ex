@@ -16,6 +16,10 @@ import { CheckIcon, MessageSquareIcon, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useConversationListInfinite } from "../hooks/use-conversation";
 import { useForwardMessage } from "../hooks/use-messages";
+import {
+  buildForwardPayload,
+  isForwardable,
+} from "../lib/forward-strategies/build-payload";
 import { Message } from "../types";
 
 interface Props {
@@ -57,10 +61,15 @@ export function ForwardMessageDialog({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedIds.length || !message.body) return;
+    if (!selectedIds.length) return;
+    if (!isForwardable(message)) return;
 
     forward.mutate(
-      { body: message.body, conversationIds: selectedIds, token },
+      {
+        conversationIds: selectedIds,
+        token,
+        payload: buildForwardPayload(message),
+      },
       {
         onSuccess: () => {
           onOpenChange(false);
