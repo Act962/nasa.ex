@@ -340,13 +340,29 @@ export async function POST(request: NextRequest) {
 
       if (
         messageType === "ExtendedTextMessage" ||
-        messageType === "Conversation"
+        messageType === "Conversation" ||
+        messageType === "TemplateButtonReplyMessage" ||
+        messageType === "ButtonsResponseMessage" ||
+        messageType === "ListResponseMessage" ||
+        messageType === "InteractiveResponseMessage"
       ) {
+        const content =
+          typeof json.message.content === "object" && json.message.content
+            ? (json.message.content as Record<string, any>)
+            : {};
+        const interactiveBody =
+          content.selectedDisplayText ||
+          content.selectedButtonId ||
+          content.title ||
+          json.message.vote ||
+          "";
+        const finalBody = body || interactiveBody;
+
         messageData = await prisma.message.upsert({
           where: { messageId: editedMessageData?.messageId || messageId },
           update: {
             status: MessageStatus.SEEN,
-            body: body || editedMessageData?.body,
+            body: finalBody || editedMessageData?.body,
             createdAt,
           },
           create: {
@@ -354,7 +370,7 @@ export async function POST(request: NextRequest) {
             conversationId: lead.conversation?.id!,
             senderId,
             messageId,
-            body,
+            body: finalBody,
             status: MessageStatus.SEEN,
             quotedMessageId: quotedMessageData?.id,
             createdAt,
