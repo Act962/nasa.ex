@@ -116,7 +116,7 @@ export default async function Page({
           orientation="horizontal"
           className="flex-col sm:flex-row gap-6"
         >
-          <TabsList className="bg-background h-full flex-row sm:flex-col rounded-none p-0 w-full sm:w-1/4 border-b sm:border-b-0 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 ">
+          <TabsList className="bg-background h-full flex-row sm:flex-col rounded-none p-0 w-full sm:w-1/4 border-b sm:border-b-0 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 sm:sticky sm:top-12 sm:self-start sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto">
             {tabs.map((tab) => (
               <TabsTrigger
                 key={tab.value}

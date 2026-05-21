@@ -20,6 +20,7 @@ export async function loadAgentContext(data: AgentEventData) {
     organization,
     messages,
     availableTags,
+    availableButtonPresets,
   ] = await Promise.all([
     prisma.lead.findUniqueOrThrow({
       where: { id: data.leadId },
@@ -66,6 +67,7 @@ export async function loadAgentContext(data: AgentEventData) {
         createdAt: true,
       },
     }),
+    // ↑ histórico é filtrado depois pelo `settings.updatedAt` (ver abaixo).
     // Catálogo de tags que a IA pode aplicar — só tags com descrição
     // preenchida entram. Description vazia = invisível pra IA. Funciona
     // como switch manual: o time controla o que a IA pode taggear.
@@ -78,9 +80,30 @@ export async function loadAgentContext(data: AgentEventData) {
       select: { id: true, name: true, description: true },
       orderBy: { name: "asc" },
     }),
+    // Presets de botões ativos. Mesmo critério das tags: só os ativos
+    // entram no catálogo da IA. Toggle isActive=false na UI pausa o
+    // preset sem deletar (alinha com o memorial "desativar vs deletar").
+    prisma.aiButtonPreset.findMany({
+      where: { trackingId: data.trackingId, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        bodyText: true,
+        footerText: true,
+        buttons: true,
+      },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
+  // Mudança no prompt zera o histórico visível pra IA. Sem isso, o modelo
+  // tende a manter tom/estilo das respostas anteriores (viés de continuidade)
+  // mesmo com instrução nova no system. Slate limpo é o caminho mais
+  // confiável até a v2 híbrida (ver PROGRESS.md "Backlog").
+  const promptUpdatedAt = settings?.updatedAt ?? null;
   const history: ModelMessage[] = messages
+    .filter((m) => !promptUpdatedAt || m.createdAt > promptUpdatedAt)
     .reverse()
     .map((m) => toModelMessage(m))
     .filter((m): m is ModelMessage => m !== null);
@@ -99,6 +122,7 @@ export async function loadAgentContext(data: AgentEventData) {
     organization,
     history,
     availableTags: availableTagsFiltered,
+    availableButtonPresets,
   };
 }
 

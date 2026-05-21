@@ -50,6 +50,7 @@ Uazapi → /api/chat/webhook
 | `finish_conversation`| `Lead.statusFlow = FINISHED` + pusher `lead:updated`. IA não responde mais até nova msg.    |
 | `transfer_to_human`  | `Lead.isActive = false` + `statusFlow = ACTIVE` + pusher. IA pausada para esse lead.        |
 | `add_tags_to_lead`   | Aplica até 3 tags no lead, dispara workflows `LEAD_TAGGED` + alert bus. Só registra `LeadTag` (sem history/activity log nessa fase). Só exposta se a org tiver tag com `description`. |
+| `send_buttons`       | Envia preset de botões interativos via Uazapi `/send/menu`. Recebe `presetId`, lê de `AiButtonPreset`, persiste outbound com resumo textual (`<body>\n\n[Botões]\n• B1...`). Só exposta se houver preset ativo. Não trunca botões — se >3, Uazapi recusa e o erro volta pro modelo. |
 
 ### Mapa de arquivos
 
@@ -72,7 +73,8 @@ src/features/tracking-chat-ai/
         ├── send-document.ts
         ├── finish-conversation.ts
         ├── transfer-to-human.ts
-        └── add-tags-to-lead.ts
+        ├── add-tags-to-lead.ts
+        └── send-buttons.ts
 ```
 
 Arquivos externos modificados:
@@ -106,13 +108,15 @@ Arquivos externos modificados:
 ### Tools adicionais (priorizadas)
 - [ ] `send_location` — envolver [src/http/uazapi/send-location.ts](../../http/uazapi/send-location.ts) (`sendLocation`). Útil para enviar endereço de loja/encontro.
 - [ ] `send_contact` — [src/http/uazapi/send-contact.ts](../../http/uazapi/send-contact.ts) (`sendContact`). Para indicar outro atendente/parceiro.
-- [ ] `send_buttons` / `send_list` — `sendButtons`/`sendList` em [src/http/uazapi/send-menu.ts](../../http/uazapi/send-menu.ts). Qualificação guiada com botões interativos.
+- [x] ~~`send_buttons` — modelo de dados já existe (`AiButtonPreset`, ver changelog 2026-05-20). Falta a tool em `server/tools/send-buttons.ts` que recebe `presetId`, lê do banco, chama `sendButtons` e persiste outbound. System prompt precisa listar presets ativos com `description` (campo "quando usar") pra IA escolher.~~ **Entregue em 2026-05-21.**
+- [ ] `send_list` — `sendList` em [src/http/uazapi/send-menu.ts](../../http/uazapi/send-menu.ts). Mesmo padrão de presets pode ser estendido (hoje só botões).
 - [ ] `search_knowledge` — consulta `AiKnowledgeChunk` via pgvector (já existe schema). Retorna trechos relevantes pro RAG.
 - [ ] `get_lead_context` — busca campos extras do lead (UTM, tags, histórico de status) quando o prompt principal não trouxer.
 - [ ] `schedule_followup` — cria `Reminder` para o lead em data futura.
 - [ ] `update_lead_field` — escrita controlada de campos do lead (name, email, amount, temperature) com whitelist.
 
 ### Funcionalidades
+- [ ] **Reset de histórico v2 (híbrido)** — hoje, ao alterar `AiSettings.prompt`, `loadAgentContext` corta TODAS as mensagens anteriores a `settings.updatedAt` (slate limpo). É confiável mas pode soar como "amnésia" se a mudança no prompt for pequena. Ideal: combinar reforço no system prompt ("estas instruções substituem qualquer tom anterior") com corte do histórico só quando `updatedAt` for recente (ex: ≤24h) ou quando a diff do prompt for grande. Decisão registrada em 2026-05-21 após relato de que a IA seguia o tom antigo mesmo com prompt novo.
 - [ ] Transcrição inbound de áudio (Whisper) antes do `generateText` — hoje áudio entra como `[audio]` no histórico, sem conteúdo.
 - [ ] OCR de imagens inbound — mesmo conceito.
 - [ ] Realtime UI feedback — disparar `agent:thinking` via pusher enquanto o `run-agent` step roda, pra UI mostrar "IA digitando..." sem depender só do delay do Uazapi.
@@ -124,6 +128,7 @@ Arquivos externos modificados:
 - [ ] Considerar mover `WEBHOOK_AI_AGENT_N8N` pra config por-tracking em vez de env global (multi-org). Provavelmente fica obsoleto com fase 2.
 - [ ] `ctx.lead.statusFlow` é checado como string literal `"FINISHED"` em `agent.ts` — usar o enum `StatusFlow.FINISHED` do prisma quando refatorar.
 - [ ] **Auditoria do `add_tags_to_lead`**: `applyTagsByAi` hoje pula `recordLeadHistory`, `recordLeadEvent("TAG_ADDED")` e `logActivity` porque essas funções exigem `userId` humano. Resultado: tags aplicadas pela IA não aparecem no feed de jornada do lead nem na timeline do admin. Resolver com User de sistema ("NASA IA") por organização ou refatorando essas APIs para aceitarem ator opcional. Antes disso, ações da IA são rastreáveis só via `LeadTag.createdAt` + logs de Inngest.
+- [ ] **Limite de botões por preset**: hoje `AiButtonPreset.buttons` é livre (decisão consciente do usuário em 2026-05-20, reconfirmada em 2026-05-21 ao implementar a tool). A Uazapi recomenda ≤3 quick replies. A tool `send_buttons` **não trunca** — envia tudo e, se >3, a Uazapi retorna 400; o `try/catch` da tool devolve `{ error: "uazapi_send_failed", message }` pro modelo, que segue a conversa em texto. Resultado: preset com 4+ botões "falha silenciosamente" do ponto de vista do lead (ele recebe só o texto da IA, sem botões). Resolver com `.max(3)` no schema de create/update do preset + ajuste do `useFieldArray` na UI quando virar dor real.
 - [ ] **Duplicação consciente do dispatch de workflows LEAD_TAGGED**: a query (`Workflow.findMany` com filtro `nodes.some.type=LEAD_TAGGED + array_contains tagIds`) está hoje em DOIS lugares — `src/app/router/leads/add-tags.ts` (humano) e `src/features/tracking-chat-ai/lib/apply-tags-by-ai.ts` (IA). Foi feito de propósito para não tocar no router de produção. Se o critério de match mudar, atualizar os dois.
 
 ---
@@ -146,4 +151,7 @@ Arquivos externos modificados:
 
 - **2026-05-18** — v1 inicial. Pipeline Inngest+AI SDK+Uazapi substituindo `WEBHOOK_AI_AGENT_N8N` para canal WhatsApp. Tools: send_image/send_audio/send_document/finish_conversation/transfer_to_human. Split de mensagem em até 4 partes. Debounce 3s + concurrency 1 por leadId.
 - **2026-05-19** — Pausa automática da IA quando atendente humano interage. Novo helper `claimLeadForAttendant(leadId, userId)` em [`src/app/router/message/utils.ts`](../../../app/router/message/utils.ts) seta `Lead.isActive=false` + `Lead.responsibleId=userId` e dispara pusher `lead:updated`. Chamado dos 6 endpoints de envio outbound (text/audio/image/file/location/contact). Sobrescreve responsável existente: último que respondeu vira o dono. `create-with-buttons` fora de escopo. Implica que o guard `lead.isActive` em [agent.ts](lib/agent.ts) agora tem dois disparadores: a tool `transfer_to_human` e qualquer mensagem manual do atendente.
+- **2026-05-20** — Configuração de presets de botões (UI only — tool ainda não existe). Nova model `AiButtonPreset` (N por tracking, JSON `buttons[{text,id}]`, flag `isActive`, campo `description` "quando usar" pra futura decisão da IA). Novo namespace oRPC `ia.buttonPresets` com `list/create/update/delete`. Tab "Botões" adicionada ao [chatbot-ia.tsx](../tracking-settings/components/chatbot-ia.tsx) (refactor pra Tabs Geral+Botões) com Accordion inline + toggle `isActive` no header + delete com confirmação. **Pendente**: tool `send_buttons` que consome esses presets e atualiza o system prompt pra IA escolher qual enviar via `description`. Migração: `add_ai_button_preset`.
 - **2026-05-19** — Tagging automático pela IA. Nova tool `add_tags_to_lead` registrada quando há ao menos uma `Tag.description` preenchida na org/tracking; aplica até 3 tags por chamada via novo helper [`apply-tags-by-ai.ts`](lib/apply-tags-by-ai.ts), que cria `LeadTag` (skipDuplicates), dispara workflows `LEAD_TAGGED` que casem com as tagIds e publica `lead.tag_added` no event bus de alertas. `loadAgentContext` ganhou `availableTags` (tags com descrição na org + tracking-scope) e o select dos `leadTags` atuais passou a incluir `id` (a tool precisa pra filtrar duplicatas e validar IDs do catálogo). `buildSystemPrompt` ganhou seções "Tags atuais do lead", "Catálogo de tags disponíveis" e "Quando tagear". **Não toca** em `src/app/router/leads/add-tags.ts` — caminho humano permanece intacto (com `recordLeadHistory`/`logActivity`/`recordLeadEvent`). **Dívida**: auditoria das ações da IA (ver "Dívida técnica") e duplicação do dispatch de workflows entre humano e IA.
+- **2026-05-21** — Reset de histórico ao alterar prompt. `AiSettings` ganhou `createdAt`/`updatedAt` (migração necessária). [loadAgentContext](lib/context.ts) agora filtra `messages` para incluir só as criadas após `settings.updatedAt` — quando o prompt muda, a IA começa com slate limpo e não fica presa ao tom das respostas anteriores. Decisão tomada por hoje; o ideal documentado no backlog é abordagem híbrida (reforço no system + corte só em mudanças recentes/grandes).
+- **2026-05-21** — Tool `send_buttons` habilitada. `loadAgentContext` agora carrega `AiButtonPreset` filtrados por `isActive=true` (ordem `createdAt asc`) e expõe como `availableButtonPresets`. `buildSystemPrompt` ganhou `buildButtonsBlock` (mesmo padrão de `buildTaggingBlock`): lista cada preset como `- nome (id: ID): descrição [B1 | B2 | ...]` + instruções pra IA escolher pelo `description` e nunca inventar id. Nova tool [`server/tools/send-buttons.ts`](server/tools/send-buttons.ts) recebe `presetId`, lê do `ctx.availableButtonPresets`, chama `sendButtons` da Uazapi (sem truncar) e persiste outbound via `persistOutboundMessage` com resumo textual idêntico ao envio manual (`<body>\n\n[Botões]\n• B1\n• B2`). Registro condicional em `buildAgentTools`: só expõe a tool se houver preset ativo, evitando que o modelo invente IDs. Reusa o fix do payload unificado em [send-menu.ts](../../http/uazapi/send-menu.ts) (`type:"button"` + `choices:["texto|id"]`). Sem mudança de schema. Dívida do limite de 3 botões mantida (ver "Dívida técnica").
