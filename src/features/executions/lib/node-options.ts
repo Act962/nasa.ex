@@ -3,7 +3,6 @@ import {
   ArrowLeftRightIcon,
   BotIcon,
   CircleGaugeIcon,
-  ClockAlertIcon,
   FunnelIcon,
   MessageSquareIcon,
   MousePointerIcon,
@@ -69,14 +68,6 @@ export const triggerNodes: NodeTypeOption[] = [
     description:
       "Executa o fluxo quando o usuário envia a primeira mensagem ao lead",
     icon: MessageSquareIcon,
-  },
-  {
-    type: NodeType.LAST_INBOUND_TIMEOUT,
-    category: "trigger",
-    label: "Última Interação do Lead",
-    description:
-      "Dispara quando o lead fica X minutos sem mandar nova mensagem no chat",
-    icon: ClockAlertIcon,
   },
 ];
 

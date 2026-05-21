@@ -23,7 +23,7 @@ interface DueSoonParams {
 
 export const detectActionsDueSoon = inngest.createFunction(
   { id: "detect-actions-due-soon", retries: 1 },
-  { cron: "*/10 * * * *" }, // a cada 10 min
+  { cron: "0 * * * *" }, // hora em hora
   async ({ step }) => {
     const rules = await step.run("fetch-rules", async () =>
       prisma.alertRule.findMany({

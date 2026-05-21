@@ -3,12 +3,21 @@ import type { ModelMessage } from "ai";
 
 const HISTORY_LIMIT = 20;
 
+export type AgentTrigger =
+  | "inbound"
+  | "idle-reopen"
+  | "idle-reopen-with-instruction";
+
 export interface AgentEventData {
   trackingId: string;
   leadId: string;
   conversationId: string;
   messageId: string;
   organizationId: string;
+  // Origem do disparo. Default "inbound" (mensagem do lead chegou).
+  // "idle-reopen-with-instruction" injeta system note pra IA reabrir a conversa.
+  trigger?: AgentTrigger;
+  idleMinutes?: number;
 }
 
 export async function loadAgentContext(data: AgentEventData) {
@@ -112,6 +121,12 @@ export async function loadAgentContext(data: AgentEventData) {
     (t) => t.description !== null && t.description.trim().length > 0,
   );
 
+  // Trigger de ociosidade — injeta system note pra IA entender que está
+  // reabrindo a conversa sem que o lead tenha mandado nova mensagem.
+  // O agente NÃO recebe esse trigger como user message; entra como instrução
+  // de comportamento via system prompt extra (gerado em agent.ts).
+  const trigger: AgentTrigger = data.trigger ?? "inbound";
+
   return {
     trackingId: data.trackingId,
     organizationId: data.organizationId,
@@ -123,6 +138,8 @@ export async function loadAgentContext(data: AgentEventData) {
     history,
     availableTags: availableTagsFiltered,
     availableButtonPresets,
+    trigger,
+    idleMinutes: data.idleMinutes,
   };
 }
 
