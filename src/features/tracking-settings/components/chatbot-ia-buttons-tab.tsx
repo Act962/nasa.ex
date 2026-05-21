@@ -49,9 +49,12 @@ const buttonItemSchema = z.object({
 
 const presetFormSchema = z.object({
   name: z.string().min(1, "Informe um nome"),
-  description: z.string().optional().default(""),
+  // description/footerText ficam como string vazia quando vazios (não
+  // optional) para o zodResolver inferir o mesmo tipo no input e no output
+  // do form. O router server aceita "" e converte conforme necessário.
+  description: z.string(),
   bodyText: z.string().min(1, "Informe o texto da mensagem"),
-  footerText: z.string().optional().default(""),
+  footerText: z.string(),
   buttons: z.array(buttonItemSchema).min(1, "Adicione pelo menos um botão"),
 });
 
