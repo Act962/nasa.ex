@@ -1,6 +1,7 @@
 import { requireAdminMiddleware } from "@/app/middlewares/admin";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
+import { stripeClient } from "@/lib/stripe";
 import { z } from "zod";
 
 const adminBase = base.use(requireAdminMiddleware);
@@ -22,8 +23,33 @@ const planShape = z.object({
   ctaGatewayId: z.string().nullable(),
   highlighted: z.boolean(),
   isActive: z.boolean(),
+  stripePriceId: z.string().nullable(),
+  stripeProductId: z.string().nullable(),
   orgCount: z.number(),
 });
+
+// Gera um slug estável e único a partir do nome. Sem timestamp — assim a
+// chave fica legível e pode ser usada como `STRIPE_PRICE_<SLUG_UPPER>` em env
+// var. Se já houver colisão, anexa `-2`, `-3`, etc.
+async function generateUniqueSlug(name: string): Promise<string> {
+  const base =
+    name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 40) || "plan";
+
+  let candidate = base;
+  let i = 2;
+  while (await prisma.plan.findUnique({ where: { slug: candidate } })) {
+    candidate = `${base}-${i++}`;
+  }
+  return candidate;
+}
 
 // ── List ──────────────────────────────────────────────────────────────────────
 
@@ -62,6 +88,8 @@ export const listPlans = adminBase
         ctaGatewayId: p.ctaGatewayId,
         highlighted: p.highlighted,
         isActive: p.isActive,
+        stripePriceId: p.stripePriceId,
+        stripeProductId: p.stripeProductId,
         orgCount: countByPlan.get(p.id) ?? 0,
       })),
     };
@@ -87,23 +115,17 @@ export const createPlan = adminBase
       ctaGatewayId: z.string().optional(),
       highlighted: z.boolean().default(false),
       isActive: z.boolean().default(true),
+      stripePriceId: z.string().optional(),
+      stripeProductId: z.string().optional(),
     }),
   )
   .output(z.object({ id: z.string() }))
   .handler(async ({ input }) => {
-    const slug = input.name
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "")
-      .slice(0, 40);
-
-    const unique = `${slug}-${Date.now().toString(36)}`;
+    const slug = await generateUniqueSlug(input.name);
 
     const plan = await prisma.plan.create({
       data: {
-        slug: unique,
+        slug,
         name: input.name,
         slogan: input.slogan ?? null,
         sortOrder: input.sortOrder,
@@ -118,12 +140,14 @@ export const createPlan = adminBase
         ctaGatewayId: input.ctaGatewayId ?? null,
         highlighted: input.highlighted,
         isActive: input.isActive,
+        stripePriceId: input.stripePriceId?.trim() || null,
+        stripeProductId: input.stripeProductId?.trim() || null,
       },
     });
 
-    // Stripe Product/Price provisioning is now handled per-environment via
-    // STRIPE_PRICE_<SLUG_UPPER> env variables. See src/lib/auth.ts for the
-    // mapping in the Stripe plugin.
+    // V\u00ednculo com Stripe \u00e9 manual: o admin cola `stripePriceId` (e
+    // opcionalmente `stripeProductId`) do painel do Stripe. Veja
+    // src/lib/auth.ts \u2014 o plugin l\u00ea esse campo direto do DB.
 
     return { id: plan.id };
   });
@@ -149,11 +173,13 @@ export const updatePlan = adminBase
       ctaGatewayId: z.string().optional(),
       highlighted: z.boolean(),
       isActive: z.boolean(),
+      stripePriceId: z.string().optional(),
+      stripeProductId: z.string().optional(),
     }),
   )
   .output(z.object({ success: z.boolean() }))
   .handler(async ({ input }) => {
-    await prisma.plan.update({
+    const updated = await prisma.plan.update({
       where: { id: input.id },
       data: {
         name: input.name,
@@ -170,8 +196,23 @@ export const updatePlan = adminBase
         ctaGatewayId: input.ctaGatewayId ?? null,
         highlighted: input.highlighted,
         isActive: input.isActive,
+        stripePriceId: input.stripePriceId?.trim() || null,
+        stripeProductId: input.stripeProductId?.trim() || null,
       },
     });
+
+    // Sincroniza o nome no Stripe Product (se vinculado). Não bloqueia o
+    // update no NASA: se o Stripe falhar (sem credencial, ID inválido,
+    // rede), só logamos e seguimos.
+    if (updated.stripeProductId) {
+      try {
+        await stripeClient.products.update(updated.stripeProductId, {
+          name: updated.name,
+        });
+      } catch (e) {
+        console.error("[admin/plans] stripe product sync failed:", e);
+      }
+    }
 
     return { success: true };
   });
