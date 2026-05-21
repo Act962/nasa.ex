@@ -289,7 +289,13 @@ export function makeBookAppointmentTool(orgSlug: string, agendaSlug: string) {
           organization: { slug: orgSlug },
           isActive: true,
         },
-        select: { id: true, name: true, slotDuration: true, trackingId: true },
+        select: {
+          id: true,
+          name: true,
+          slotDuration: true,
+          trackingId: true,
+          organizationId: true,
+        },
       });
 
       if (!agenda) {
@@ -335,6 +341,14 @@ export function makeBookAppointmentTool(orgSlug: string, agendaSlug: string) {
             statusId: firstStatus.id,
             source: "AGENDA",
           },
+        });
+        const { dispatchIdleActivityIfActive } = await import(
+          "@/features/tracking-settings/lib/idle-automation-gate"
+        );
+        await dispatchIdleActivityIfActive({
+          leadId: lead.id,
+          trackingId: agenda.trackingId,
+          organizationId: agenda.organizationId,
         });
       }
 

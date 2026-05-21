@@ -12,6 +12,7 @@ import { TemplateSettings } from "@/features/tracking-settings/components/templa
 import { ToastProvider } from "@/contexts/toast-context";
 import { TrackingDangerZone } from "@/features/tracking-settings/components/danger-zone";
 import { Personalization } from "@/features/tracking-settings/components/personalization";
+import { Interactions } from "@/features/tracking-settings/components/interactions";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
@@ -81,6 +82,11 @@ export default async function Page({
       name: "ChatBot AI",
       value: "chatbot-ia",
       content: <ChatBotIa trackingId={trackingId} />,
+    },
+    {
+      name: "Interações",
+      value: "interactions",
+      content: <Interactions trackingId={trackingId} />,
     },
     {
       name: "Notificação sonora",

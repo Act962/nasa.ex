@@ -501,37 +501,6 @@ const actionOverdue: AlertEventDefinition = {
   },
 };
 
-// LEAD aguardando atendimento ───────────────
-const leadWaitingAttention: AlertEventDefinition = {
-  key: "lead.waiting_attention",
-  label: "Lead aguardando atendimento",
-  description:
-    "Lead criado há mais de X minutos sem `firstResponseAt`. Cron varre a cada 5min.",
-  category: "lead",
-  appKey: "tracking",
-  paramsSchema: z.object({
-    minMinutes: z.number().int().min(5).max(1440).default(30),
-  }),
-  payloadSchema: z.object({
-    leadId: z.string(),
-    orgId: z.string(),
-    minutesWaiting: z.number(),
-    responsibleId: z.string().nullable(),
-  }),
-  audienceOptions: ["lead_responsible", "org_supervisors", "org_admins", "user", "whole_org"],
-  supportsCooldown: true,
-  entityKey: (p) => {
-    const today = new Date().toISOString().slice(0, 10);
-    return `lead-wait:${(p as { leadId: string }).leadId}:${today}`;
-  },
-  mockPayload: {
-    leadId: "mock_lead",
-    orgId: "mock_org",
-    minutesWaiting: 35,
-    responsibleId: "mock_user",
-  },
-};
-
 // ACTION vencendo em breve ───────────────────
 const actionDueSoon: AlertEventDefinition = {
   key: "action.due_soon",
@@ -597,7 +566,6 @@ export const ALERT_CATALOG = [
   leadStatusChanged,
   leadTagAdded,
   leadStale,
-  leadWaitingAttention,
   formSubmitted,
   formAbandoned,
   chatMessageReceived,

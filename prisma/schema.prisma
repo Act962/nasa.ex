@@ -473,8 +473,46 @@ model Tracking {
   reminders           Reminder[]
   paymentEntries      PaymentEntry[]
   cardConfig          TrackingCardConfig?
+  idleAutomation      TrackingIdleAutomation?
 
   @@map("tracking")
+}
+
+enum IdleAutomationMessageMode {
+  NONE
+  FIXED
+  AI_REOPEN
+
+  @@map("idle_automation_message_mode")
+}
+
+model TrackingIdleAutomation {
+  id         String   @id @default(cuid())
+  trackingId String   @unique @map("tracking_id")
+  tracking   Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+
+  // Cenário 1: lead criado e ninguém respondeu ainda
+  noFirstRespActive       Boolean                   @default(false) @map("no_first_resp_active")
+  noFirstRespMinutes      Int                       @default(60)    @map("no_first_resp_minutes")
+  noFirstRespEnableAi     Boolean                   @default(false) @map("no_first_resp_enable_ai")
+  noFirstRespMessageMode  IdleAutomationMessageMode @default(NONE)  @map("no_first_resp_message_mode")
+  noFirstRespMessage      String?                                    @map("no_first_resp_message")
+  noFirstRespNotifyResp   Boolean                   @default(false) @map("no_first_resp_notify_resp")
+  noFirstRespRespTemplate String?                                    @map("no_first_resp_resp_template")
+
+  // Cenário 2: lead em conversa, sem nova outbound do atendente
+  inConvActive       Boolean                   @default(false) @map("in_conv_active")
+  inConvMinutes      Int                       @default(120)   @map("in_conv_minutes")
+  inConvEnableAi     Boolean                   @default(false) @map("in_conv_enable_ai")
+  inConvMessageMode  IdleAutomationMessageMode @default(NONE)  @map("in_conv_message_mode")
+  inConvMessage      String?                                    @map("in_conv_message")
+  inConvNotifyResp   Boolean                   @default(false) @map("in_conv_notify_resp")
+  inConvRespTemplate String?                                    @map("in_conv_resp_template")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("tracking_idle_automation")
 }
 
 model TrackingCardConfig {

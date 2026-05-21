@@ -832,25 +832,20 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Gatilho LAST_INBOUND_TIMEOUT: notifica scheduler do Inngest que
-      // o lead recebeu mensagem inbound. O scheduler vai buscar workflows
-      // ativos com esse trigger no tracking e agendar checks com sleepUntil.
-      // Só dispara pra mensagens inbound (`!fromMe`) — outbound não conta.
-      if (!fromMe && lead.isActive) {
+      if (!fromMe) {
+        // Idle automation (aba "Interações"): só emite se houver config ativa
+        // pra esse tracking — evita invocar o scheduler em vão.
         try {
-          await inngest.send({
-            name: "chat/inbound-message.received",
-            data: {
-              leadId: lead.id,
-              inboundAt: now.toISOString(),
-              trackingId,
-            },
+          const { dispatchIdleActivityIfActive } = await import(
+            "@/features/tracking-settings/lib/idle-automation-gate"
+          );
+          await dispatchIdleActivityIfActive({
+            leadId: lead.id,
+            trackingId,
+            organizationId: tracking.organizationId,
           });
         } catch (error) {
-          console.error(
-            "[webhook:chat] inbound-timeout_inngest_send_failed",
-            error,
-          );
+          console.error("[webhook:chat] idle_gate_failed", error);
         }
       }
 
