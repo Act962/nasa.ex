@@ -134,19 +134,11 @@ export const createAdminAppointment = base
       },
     });
 
-    // Define o meetingType via SQL bruto (não depende do prisma generate ter
-    // sido rodado após adicionar a coluna `meeting_type`).
     if (input.meetingType) {
-      try {
-        await prisma.$executeRawUnsafe(
-          `UPDATE "appointments" SET "meeting_type" = $1::"MeetingType" WHERE id = $2`,
-          input.meetingType,
-          appointment.id,
-        );
-      } catch {
-        // Silencia: se a coluna ainda não existe no DB, ignora — o appointment
-        // já foi criado com o default ONLINE (ou ficará como tal após migration).
-      }
+      await prisma.appointment.update({
+        where: { id: appointment.id },
+        data: { meetingType: input.meetingType },
+      });
     }
 
     // Log activity (action alinhada com a regra global "appointment_create")

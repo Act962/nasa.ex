@@ -29,30 +29,10 @@ export const setAppointmentMeetingType = base
       throw errors.NOT_FOUND({ message: "Agendamento não encontrado" });
     }
 
-    // Usa SQL bruto pra não depender do `prisma generate` ter sido rodado
-    // após adicionar a coluna `meeting_type`/enum `MeetingType` no schema.
-    // Se a coluna ainda não existir no DB, esta query vai estourar erro
-    // claro pedindo a migration.
-    try {
-      await prisma.$executeRawUnsafe(
-        `UPDATE "appointments" SET "meeting_type" = $1::"MeetingType", "updated_at" = NOW() WHERE id = $2`,
-        input.meetingType,
-        input.appointmentId,
-      );
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (
-        msg.includes("meeting_type") ||
-        msg.includes("MeetingType") ||
-        msg.includes("does not exist")
-      ) {
-        throw errors.INTERNAL_SERVER_ERROR({
-          message:
-            "Coluna `meeting_type` ainda não existe no banco. Rode `pnpm prisma migrate dev --name add_appointment_meeting_type` (ou aplique o SQL manualmente).",
-        });
-      }
-      throw err;
-    }
+    await prisma.appointment.update({
+      where: { id: input.appointmentId },
+      data: { meetingType: input.meetingType },
+    });
 
     return {
       appointment: {
