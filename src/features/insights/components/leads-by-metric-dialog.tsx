@@ -87,7 +87,7 @@ export function LeadsByMetricDialog({
         input: (cursor: string | undefined) => ({
           app,
           metric,
-          organizationIds: organizationIds.length > 0 ? organizationIds : undefined,
+          organizationIds: organizationIds,
           startDate: dateRange.from?.toISOString(),
           endDate: dateRange.to?.toISOString(),
           trackingId: trackingId || undefined,

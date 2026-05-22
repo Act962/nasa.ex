@@ -111,6 +111,15 @@ export const listLeadsByAppMetric = base
         ? input.organizationIds
         : [org.id];
 
+    // Espelha a lógica de getTrackingDashboardReport para fetchChat:
+    // [] = todas as orgs acessíveis (membro cuida da segurança), undefined = org atual.
+    const chatOrgFilter =
+      input.organizationIds !== undefined
+        ? input.organizationIds.length > 0
+          ? { id: { in: input.organizationIds } }
+          : {}
+        : { id: org.id };
+
     const dateRange =
       input.startDate && input.endDate
         ? { gte: new Date(input.startDate), lte: new Date(input.endDate) }
@@ -130,6 +139,7 @@ export const listLeadsByAppMetric = base
 
     const ctx = {
       orgIds,
+      chatOrgFilter,
       userId: user.id,
       dateRange,
       trackingId: input.trackingId,
@@ -226,6 +236,7 @@ async function fetchLead({
 interface FetchCtx {
   metric: string;
   orgIds: string[];
+  chatOrgFilter: Record<string, unknown>;
   userId: string;
   dateRange: { gte: Date; lte: Date } | undefined;
   trackingId: string | undefined;
@@ -363,7 +374,7 @@ async function fetchSpacetime({ metric, orgIds, dateRange, trackingId, tagWhereL
 
 async function fetchChat({
   metric,
-  orgIds,
+  chatOrgFilter,
   userId,
   dateRange,
   trackingId,
@@ -388,7 +399,7 @@ async function fetchChat({
       ...(trackingId ? { trackingId } : {}),
       tracking: {
         organization: {
-          id: { in: orgIds },
+          ...chatOrgFilter,
           members: { some: { userId } },
         },
       },
@@ -435,7 +446,7 @@ async function fetchChat({
     ...(trackingId ? { trackingId } : {}),
     tracking: {
       organization: {
-        id: { in: orgIds },
+        ...chatOrgFilter,
         members: { some: { userId } },
       },
     },
