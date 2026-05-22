@@ -76,6 +76,7 @@ src/features/nasa-route/components/
 ├── creator/    # editor, formulários, dashboards, tabelas de vendas/alunos
 │   ├── course-editor.tsx          ← shell com tabs (Básico, Módulos, Planos, Integrações)
 │   ├── course-form.tsx / lesson-form.tsx / module-form.tsx / plan-form.tsx
+│   ├── lessons-board.tsx          ← DnD (@dnd-kit) pra reordenar módulos, reordenar aulas dentro do módulo e movê-las entre módulos (incl. "Aulas avulsas")
 │   ├── plan-lessons-picker.tsx    ← DnD pra atribuir aulas a planos
 │   ├── lesson-form-video-uploader.tsx + video-upload-cost-modal.tsx
 │   ├── free-access-manager.tsx
@@ -120,6 +121,8 @@ Localização: `src/app/router/nasa-route/routes/` (~42 arquivos).
 - `creator-upsert-course | -lesson | -module | -plan`
 - `creator-set-plan-lessons`
 - `creator-delete-course | -lesson | -plan`
+- `creator-reorder-lessons` — batch update de `order` (e opcionalmente `moduleId`) das aulas. Usado pelo board DnD do editor.
+- `creator-reorder-modules` — batch update de `order` dos módulos. Usado pelo board DnD do editor.
 - `creator-publish-course`
 - `creator-list-courses | -sales | -students | -plans`
 
