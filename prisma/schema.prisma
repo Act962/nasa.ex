@@ -447,6 +447,24 @@ model Tracking {
   cardBackgroundImage       String?   @map("card_background_image")
   cardBackgroundBlur        Int       @default(8) @map("card_background_blur")
   cardBackgroundOpacity     Int       @default(25) @map("card_background_opacity")
+  // Aparência do Kanban (view de pipeline). Cor de fundo + borda dos
+  // cards de lead, da coluna de status e do canvas do tracking. Para o
+  // canvas suporta imagem com blur + opacity (mesclada com a cor base).
+  kanbanCardBackgroundColor    String? @map("kanban_card_background_color")
+  kanbanCardBorderColor        String? @map("kanban_card_border_color")
+  // Transparência do fundo do card (0-100). Default 100 = opaco. Só
+  // aplica quando `kanbanCardBackgroundColor` está definido.
+  kanbanCardBackgroundOpacity  Int     @default(100) @map("kanban_card_background_opacity")
+  kanbanColumnBackgroundColor  String? @map("kanban_column_background_color")
+  kanbanColumnBorderColor      String? @map("kanban_column_border_color")
+  // Transparência do fundo da coluna (0-100). Default 100 = opaco.
+  kanbanColumnBackgroundOpacity Int    @default(100) @map("kanban_column_background_opacity")
+  kanbanBackgroundColor        String? @map("kanban_background_color")
+  kanbanBackgroundImage        String? @map("kanban_background_image")
+  // Raio do blur da imagem de fundo (0-30px). Default 0 = sem desfoque.
+  kanbanBackgroundBlur         Int     @default(0) @map("kanban_background_blur")
+  // Opacidade da imagem em % (0-100). Default 50 = 50% mesclado com a cor.
+  kanbanBackgroundOpacity      Int     @default(50) @map("kanban_background_opacity")
   createdAt                 DateTime  @default(now()) @map("created_at")
   updatedAt                 DateTime  @updatedAt @map("updated_at")
 
@@ -466,14 +484,53 @@ model Tracking {
   agendas             Agenda[]
   appointments        Appointment[]
   aiSettings          AiSettings?
+  aiButtonPresets     AiButtonPreset[]
   trackingConsultants TrackingConsultant[]
   workspaces          Workspace[]
   scripts             Script[]
   reminders           Reminder[]
   paymentEntries      PaymentEntry[]
   cardConfig          TrackingCardConfig?
+  idleAutomation      TrackingIdleAutomation?
 
   @@map("tracking")
+}
+
+enum IdleAutomationMessageMode {
+  NONE
+  FIXED
+  AI_REOPEN
+
+  @@map("idle_automation_message_mode")
+}
+
+model TrackingIdleAutomation {
+  id         String   @id @default(cuid())
+  trackingId String   @unique @map("tracking_id")
+  tracking   Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+
+  // Cenário 1: lead criado e ninguém respondeu ainda
+  noFirstRespActive       Boolean                   @default(false) @map("no_first_resp_active")
+  noFirstRespMinutes      Int                       @default(60)    @map("no_first_resp_minutes")
+  noFirstRespEnableAi     Boolean                   @default(false) @map("no_first_resp_enable_ai")
+  noFirstRespMessageMode  IdleAutomationMessageMode @default(NONE)  @map("no_first_resp_message_mode")
+  noFirstRespMessage      String?                                    @map("no_first_resp_message")
+  noFirstRespNotifyResp   Boolean                   @default(false) @map("no_first_resp_notify_resp")
+  noFirstRespRespTemplate String?                                    @map("no_first_resp_resp_template")
+
+  // Cenário 2: lead em conversa, sem nova outbound do atendente
+  inConvActive       Boolean                   @default(false) @map("in_conv_active")
+  inConvMinutes      Int                       @default(120)   @map("in_conv_minutes")
+  inConvEnableAi     Boolean                   @default(false) @map("in_conv_enable_ai")
+  inConvMessageMode  IdleAutomationMessageMode @default(NONE)  @map("in_conv_message_mode")
+  inConvMessage      String?                                    @map("in_conv_message")
+  inConvNotifyResp   Boolean                   @default(false) @map("in_conv_notify_resp")
+  inConvRespTemplate String?                                    @map("in_conv_resp_template")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("tracking_idle_automation")
 }
 
 model TrackingCardConfig {
@@ -496,10 +553,31 @@ model AiSettings {
   finishSentence String? @map("finish_sentence")
   isAudioEnabled Boolean @default(false) @map("is_audio_enabled")
 
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
   trackingId String   @unique
   tracking   Tracking @relation(fields: [trackingId], references: [id])
 
   @@map("ai_setting")
+}
+
+model AiButtonPreset {
+  id          String   @id @default(cuid())
+  trackingId  String   @map("tracking_id")
+  name        String
+  description String
+  bodyText    String   @map("body_text")
+  footerText  String?  @map("footer_text")
+  buttons     Json
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+
+  @@index([trackingId])
+  @@map("ai_button_preset")
 }
 
 enum ReasonType {
@@ -692,6 +770,10 @@ model Lead {
   phone         String?
   document      String?
   profile       String?
+  // Apelido informal — usado pra distinguir leads com nomes parecidos
+  // (ex: "João pai", "João filho"). Exibido como pill ao lado do nome no
+  // card do board, editável no painel de detalhes com auto-save.
+  nickname      String?
   description   String?
   statusId      String      @map("status_id")
   trackingId    String      @map("tracking_id")
@@ -4888,6 +4970,36 @@ model NasaRouteCourse {
   studentsCount      Int       @default(0) @map("students_count")
   rewardSpOnComplete Int       @default(0) @map("reward_sp_on_complete")
 
+  // Soft-delete / arquivamento. Cursos com `isArchived=true` somem das
+  // listagens públicas mas continuam no banco (alunos matriculados ainda
+  // têm acesso ao conteúdo, admin vê em aba "Arquivados"). O cron
+  // `nasa-route-archive-past-events` marca eventos com `endsAt < now()`.
+  isArchived Boolean   @default(false) @map("is_archived")
+  archivedAt DateTime? @map("archived_at")
+
+  // Datas de início/fim — UNIFICADAS pra todos os formatos. Substituem
+  // `eventStartsAt`/`eventEndsAt` (que ficam preservados pra compat;
+  // dados novos populam `startsAt`/`endsAt`). Treinamento, mentoria,
+  // evento, ebook, etc. — qualquer formato pode ter janela temporal.
+  startsAt DateTime? @map("starts_at")
+  endsAt   DateTime? @map("ends_at")
+
+  // Funil de vendas — quando alguém compra este curso, o sistema
+  // cria/move um lead nesse tracking + status. Permite o criador puxar
+  // os compradores pro CRM e dar follow-up no atendimento.
+  // Ambos opcionais — sem isso, a compra não cria lead automático.
+  purchaseTrackingId String? @map("purchase_tracking_id")
+  purchaseStatusId   String? @map("purchase_status_id")
+
+  // ── Integrações de marketing ───────────────────────────────
+  // URL pra redirecionar o comprador após o checkout (ex: página
+  // de obrigado/agradecimento do criador). Vazio = sem redirect.
+  redirectUrl  String? @map("redirect_url")
+  // IDs externos pra injetar scripts de tracking na página pública
+  // do curso. Exemplos: "123456789" (Pixel), "GTM-XXXXXXX" (GTM).
+  pixelId      String? @map("pixel_id")
+  gtmId        String? @map("gtm_id")
+
   // eBook (format = "ebook")
   ebookFileKey   String? @map("ebook_file_key")
   ebookFileName  String? @map("ebook_file_name")
@@ -4930,6 +5042,8 @@ model NasaRouteCourse {
   @@index([creatorOrgId])
   @@index([categoryId])
   @@index([isPublished, publishedAt])
+  @@index([isArchived])
+  @@index([endsAt])
   @@map("nasa_route_course")
 }
 
@@ -4964,6 +5078,10 @@ model NasaRouteLesson {
   // com `videoUrl` — quando upload completa, videoUrl é zerado e vice-versa.
   videoFileKey  String?  @map("video_file_key")
   videoFileSize BigInt?  @map("video_file_size")
+  // Thumbnail customizada da aula — chave S3/R2 (bucket principal, não
+  // o `nasa-route-videos`). Opcional: se null, a UI usa um placeholder
+  // ou o primeiro frame do vídeo.
+  thumbnailKey  String?  @map("thumbnail_key")
   durationMin   Int?     @map("duration_min")
   isFreePreview Boolean  @default(false) @map("is_free_preview")
   awardSp       Int      @default(10) @map("award_sp")
@@ -4974,9 +5092,40 @@ model NasaRouteLesson {
   module       NasaRouteModule?       @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   planLessons  NasaRoutePlanLesson[]
   videoUploads NasaRouteVideoUpload[]
+  attachments  NasaRouteLessonAttachment[]
 
   @@index([courseId, order])
   @@map("nasa_route_lesson")
+}
+
+/**
+ * Anexos da aula (PDF, imagens, docs, planilhas) — exibidos pro aluno
+ * matriculado dentro do player da aula, com botões de visualizar/baixar.
+ * Espelho de `NasaRoutePlanAttachment` mas vinculado direto à `Lesson`
+ * pra suportar "Conteúdo complementar" sem precisar passar pelo plano.
+ */
+model NasaRouteLessonAttachment {
+  id          String   @id @default(cuid())
+  lessonId    String   @map("lesson_id")
+  // "file" (PDF/doc/etc) | "image" | "link" (URL externa sem upload)
+  kind        String
+  title       String
+  // Pra `kind=link`: URL externa. Pra outros: opcional (fallback).
+  url         String?
+  // Chave S3/R2 do arquivo (bucket principal). Obrigatória pra kind != "link".
+  fileKey     String?  @map("file_key")
+  fileName    String?  @map("file_name")
+  fileSize    Int?     @map("file_size")
+  mimeType    String?  @map("mime_type")
+  description String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  lesson NasaRouteLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId, order])
+  @@map("nasa_route_lesson_attachment")
 }
 
 // Tracking de upload multipart de vídeo (bucket R2 dedicado nasa-route-videos).

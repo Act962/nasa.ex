@@ -12,12 +12,12 @@ import {
   Grip,
   Phone,
   PlusIcon,
-  RocketIcon,
   Tag,
   Sparkles,
   Clock,
   CheckCircle2,
   Timer,
+  TimerOff,
 } from "lucide-react";
 import { formatTimeUntil } from "@/features/form/lib/extract-deadline";
 import { WhatsappIcon } from "@/components/whatsapp";
@@ -31,6 +31,9 @@ import { Lead } from "../types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 
 import { useLeadStore } from "../contexts/use-lead";
+import { useKanbanStore } from "../lib/kanban-store";
+import { useKanbanAppearance } from "../hooks/use-kanban-appearance";
+import { hexToRgba } from "@/utils/hex-to-rgba";
 import {
   Popover,
   PopoverContent,
@@ -103,6 +106,12 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
   const router = useRouter();
   const { toggleLead, isSelected } = useLeadStore();
   const selected = isSelected(data.id);
+  // Sort ativo dita qual data o card exibe (createdAt / updatedAt /
+  // statusEnteredAt). Para sort=order (Personalizada), usa statusEnteredAt.
+  const sortBy = useKanbanStore((s) => s.sortBy);
+  // Cores customizadas do card no kanban (Configurações → Personalização).
+  // Hook cacheia 5min e dedupa entre cards/colunas — sem custo de rede.
+  const { data: appearance } = useKanbanAppearance(data.trackingId);
   const [description, setDescription] = useState(data.description);
 
   const debouncedDescription = useDebouncedValue(description, 1000);
@@ -157,18 +166,61 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
   return (
     <div
       ref={setNodeRef}
-      style={style}
       data-lead-id={data.id}
       data-order={data.order}
       onClick={handleSelect}
-      className={`border-2 text-sm bg-muted rounded-md shadow-sm group cursor-pointer transition-all overflow-hidden ${
-        selected ? "border-primary/50" : "border-transparent hover:border-muted"
-      }`}
+      className={cn(
+        // `bg-muted` é o default — sobrescrito por `kanbanCardBackgroundColor`
+        // via style inline. Contorno: `border-primary/50` quando selecionado
+        // sempre prevalece; senão usa cor configurada OU transparente.
+        "relative w-full min-w-0 max-w-full border-2 text-sm rounded-md shadow-sm group cursor-pointer transition-all overflow-hidden",
+        !appearance?.kanbanCardBackgroundColor && "bg-muted",
+        selected
+          ? "border-primary/50"
+          : !appearance?.kanbanCardBorderColor && "border-transparent hover:border-muted",
+      )}
+      // Cores customizadas — só sobrescrevem o default quando definidas.
+      // Selecionado mantém ring-primary mesmo com cor custom (não conflita).
+      style={{
+        ...style,
+        // Cor de fundo computada como `rgba()` quando há cor + opacidade
+        // customizadas. Opacidade default = 100 (opaco). Quando o usuário
+        // baixa o slider, vê o fundo do tracking através do card.
+        ...(appearance?.kanbanCardBackgroundColor && {
+          backgroundColor:
+            hexToRgba(
+              appearance.kanbanCardBackgroundColor,
+              appearance.kanbanCardBackgroundOpacity ?? 100,
+            ) ?? appearance.kanbanCardBackgroundColor,
+        }),
+        ...(!selected &&
+          appearance?.kanbanCardBorderColor && {
+            borderColor: appearance.kanbanCardBorderColor,
+          }),
+      }}
     >
-      <div className="flex items-center justify-between px-3 py-2">
-        <div className="flex flex-row items-center gap-2">
+      {/* Bolinha de temperatura — substitui a barra lateral de 1px.
+          ~30% do tamanho do avatar (size-4 = 16px → size-1.5 = 6px).
+          Posicionada mais pra fora (em cima do contorno esquerdo), mas
+          ainda com uma parte por cima da foto. Sem ring/halo — visual
+          mais limpo. `pointer-events-none` pra não bloquear drag/click. */}
+      <span
+        aria-label={`Temperatura: ${TEMP_TEXT[data.temperature]}`}
+        title={TEMP_TEXT[data.temperature]}
+        className="pointer-events-none absolute z-10 size-1.5 rounded-full"
+        style={{
+          backgroundColor: TEMP_COLOR[data.temperature],
+          top: "13px",
+          left: "7px",
+        }}
+      />
+      <div className="flex items-center justify-between gap-2 px-3 py-2">
+        {/* Container esquerdo: `min-w-0 flex-1` é essencial pra que o nome
+            + pill de apelido respeitem o truncate e não empurrem a largura
+            do card. Sem isso, flex-children "esticam" pelo conteúdo. */}
+        <div className="flex min-w-0 flex-1 flex-row items-center gap-2">
           <button
-            className="touch-none flex lg:hidden lg:group-hover:flex active:cursor-grabbing cursor-grab"
+            className="shrink-0 touch-none flex lg:hidden lg:group-hover:flex active:cursor-grabbing cursor-grab"
             {...listeners}
             {...attributes}
             onClick={(e) => e.stopPropagation()} // Evita selecionar ao clicar no grid de arrastar
@@ -176,7 +228,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
             <Grip className="size-4 " />
           </button>
           <Avatar
-            className="size-4 hidden lg:block lg:group-hover:hidden touch-none"
+            className="shrink-0 size-4 hidden lg:block lg:group-hover:hidden touch-none"
             {...listeners}
             {...attributes}
           >
@@ -185,15 +237,34 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
               {data.name.split(" ")[0][0]}
             </AvatarFallback>
           </Avatar>
-          <div className="max-w-40 truncate" title={data.name || "Sem nome"}>
-            <span className="font-medium text-xs truncate">
+          <div
+            className="flex min-w-0 flex-1 items-center gap-1.5"
+            title={
+              data.nickname
+                ? `${data.name || "Sem nome"} (${data.nickname})`
+                : data.name || "Sem nome"
+            }
+          >
+            {/* Nome: `min-w-0 flex-1 truncate` em vez de `max-w-32` fixo.
+                Assim o nome cede espaço pra pill do apelido (e pros action
+                buttons à direita) sem empurrar a largura do card. */}
+            <span className="min-w-0 flex-1 truncate text-xs font-medium">
               {data.name || "Sem nome"}
             </span>
+            {data.nickname && (
+              // Pill de apelido — mesmo visual do botão "+" de adicionar
+              // tag (`variant="outline"` + rounded-full). `shrink-0` + cap
+              // de 80px pra não engolir o nome inteiro quando o apelido é
+              // grande.
+              <span className="inline-flex h-4 shrink-0 max-w-[80px] items-center truncate rounded-full border border-input bg-background px-1.5 text-[10px] leading-none text-muted-foreground">
+                {data.nickname}
+              </span>
+            )}
           </div>
         </div>
 
         <div
-          className="flex items-center gap-2"
+          className="flex shrink-0 items-center gap-2"
           onClick={(e) => e.stopPropagation()}
         >
           <button
@@ -248,19 +319,44 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
         {...attributes}
       >
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">
-            {dayjs(data.createdAt).format("DD/MM/YYYY HH:mm")}
-          </span>
-          <span
-            className="inline-flex"
-            title={TEMP_TEXT[data.temperature]}
-          >
-            <RocketIcon
-              className="size-3"
-              style={{ color: TEMP_COLOR[data.temperature] }}
-            />
-          </span>
-          {data.slaDeadline && (
+          {(() => {
+            // A data exibida acompanha o sort ativo — assim o usuário sempre
+            // vê o critério que está usando pra ordenar (sem precisar abrir
+            // o lead). Quando sort = "order" (Personalizada), mostra
+            // statusEnteredAt como default (padrão acordado).
+            const sourceDate =
+              sortBy === "createdAt"
+                ? data.createdAt
+                : sortBy === "updatedAt"
+                  ? data.updatedAt ?? data.createdAt
+                  : data.statusEnteredAt ?? data.createdAt;
+            const label =
+              sortBy === "createdAt"
+                ? "Chegou em"
+                : sortBy === "updatedAt"
+                  ? "Última interação em"
+                  : "Entrou nesta etapa em";
+            const d = dayjs(sourceDate);
+            // Ano atual → omite YYYY (compacto: "DD/MM - HH:mm").
+            // Outro ano → mostra ano abreviado YY: "DD/MM/YY - HH:mm".
+            const fmt =
+              d.year() === dayjs().year()
+                ? "DD/MM - HH:mm"
+                : "DD/MM/YY - HH:mm";
+            return (
+              <span
+                className="text-[10px] text-muted-foreground tabular-nums"
+                title={`${label} ${d.format("DD/MM/YYYY HH:mm")}`}
+              >
+                {d.format(fmt)}
+              </span>
+            );
+          })()}
+          {/* SLA da etapa só aparece quando NÃO há prazo de formulário
+              ativo (`deadlineHint`). Form deadline tem prioridade —
+              evita 2 contadores empilhados no rodapé do card disputando
+              atenção. */}
+          {data.slaDeadline && !data.deadlineHint && (
             <SlaTimer
               compact
               enteredAt={data.statusEnteredAt ?? data.createdAt}
@@ -444,14 +540,11 @@ function FormStatusIcon({
  * é mais limpo e atualiza em tempo real via Pusher sem corromper o
  * texto editável pelo user.
  *
- * Cores (4 tiers):
- *  - verde   ≥3 dias
- *  - amarelo entre 24h e 3 dias
- *  - laranja ≤24h
- *  - vermelho atrasado
- *
- * Formato: ultra-compacto ("2d 14h" / "10h 05m" / "-2d 14h") pra
- * caber no card do kanban sem estourar. Tooltip mostra o full.
+ * Layout idêntico ao `SlaTimer` (mesmo padding, mesma rounded, mesma
+ * paleta 3 cores — green/yellow/red — Timer/TimerOff). Mantém a unidade
+ * visual no rodapé do card: SLA da etapa e prazo do form usam o mesmo
+ * estilo, mas só um deles aparece por vez (prazo do form prevalece via
+ * condição em `slaDeadline && !deadlineHint`).
  */
 function DeadlineBadge({
   hint,
@@ -470,31 +563,27 @@ function DeadlineBadge({
   const full = formatTimeUntil(new Date(hint.deadline));
   if (!info) return null;
 
-  // 4-tier color map. Stylesheet único pra cada tier, sem alternativas
-  // light/dark complicadas (manteve consistência com paleta usada nos
-  // badges de SLA do tracking).
-  const tierClass = {
-    safe: "border-emerald-400/60 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
-    warning:
-      "border-yellow-400/60 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300",
-    urgent:
-      "border-orange-400/60 bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300",
-    expired:
-      "border-red-400/60 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300",
-  }[info.tier];
+  // Mapeia o tier do `formatTimeUntil` (4 níveis) pras 3 cores do SLA:
+  // expired → vermelho, urgent + warning → amarelo, safe → verde.
+  // Mesmas classes Tailwind do `slaBadgeColor()` pra que SLA e prazo
+  // tenham EXATAMENTE o mesmo visual no card.
+  const isBreached = info.tier === "expired";
+  const colorClass = isBreached
+    ? "bg-red-500/15 text-red-700 border-red-500/30"
+    : info.tier === "urgent" || info.tier === "warning"
+      ? "bg-yellow-500/15 text-yellow-700 border-yellow-500/30"
+      : "bg-emerald-500/15 text-emerald-700 border-emerald-500/30";
+  const Icon = isBreached ? TimerOff : Timer;
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <span
           onPointerDown={(e) => e.stopPropagation()}
-          className={
-            "inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-[9px] font-medium tabular-nums whitespace-nowrap border " +
-            tierClass
-          }
+          className={`inline-flex items-center gap-1 rounded border px-1.5 text-[10px] py-0 ${colorClass}`}
         >
-          <Timer className="size-2.5" />
-          {info.label}
+          <Icon className="w-3 h-3" />
+          <span className="font-medium">{info.label}</span>
         </span>
       </TooltipTrigger>
       <TooltipContent>

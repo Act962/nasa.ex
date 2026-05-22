@@ -25,6 +25,32 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { LessonFormVideoSection } from "./lesson-form-video-section";
+import { Uploader } from "@/components/file-uploader/uploader";
+import { useConstructUrl } from "@/hooks/use-construct-url";
+import {
+  Download,
+  ExternalLink,
+  File as FileIcon,
+  ImageIcon,
+  Link as LinkIcon,
+  Paperclip,
+  PlusIcon,
+  XIcon,
+} from "lucide-react";
+
+interface LessonAttachment {
+  /** Vazio quando o item é novo (ainda não salvo). */
+  id?: string;
+  kind: "file" | "image" | "link";
+  title: string;
+  url?: string | null;
+  fileKey?: string | null;
+  fileName?: string | null;
+  fileSize?: number | null;
+  mimeType?: string | null;
+  description?: string | null;
+  order: number;
+}
 
 interface Lesson {
   id?: string;
@@ -35,9 +61,11 @@ interface Lesson {
   videoUrl?: string | null;
   videoFileKey?: string | null;
   videoFileSize?: number | null;
+  thumbnailKey?: string | null;
   durationMin?: number | null;
   isFreePreview?: boolean;
   awardSp?: number;
+  attachments?: LessonAttachment[];
 }
 
 interface ModuleOption {
@@ -67,6 +95,16 @@ export function LessonForm({ open, onClose, courseId, modules, initial }: Props)
   const [isFreePreview, setIsFreePreview] = useState(initial?.isFreePreview ?? false);
   const [awardSp, setAwardSp] = useState(initial?.awardSp?.toString() ?? "10");
   const [moduleId, setModuleId] = useState<string>(initial?.moduleId ?? "");
+  // Thumbnail da aula — chave S3 do bucket principal (não o R2 de vídeos).
+  const [thumbnailKey, setThumbnailKey] = useState<string | null>(
+    initial?.thumbnailKey ?? null,
+  );
+  const thumbnailPreviewUrl = useConstructUrl(thumbnailKey || "");
+  // Anexos complementares (PDFs, imagens, docs, links) — exibidos pro
+  // aluno dentro do player da aula.
+  const [attachments, setAttachments] = useState<LessonAttachment[]>(
+    () => initial?.attachments ?? [],
+  );
 
   const upsert = useMutation({
     ...orpc.nasaRoute.creatorUpsertLesson.mutationOptions(),
@@ -102,9 +140,11 @@ export function LessonForm({ open, onClose, courseId, modules, initial }: Props)
       summary: summary.trim() || null,
       contentMd: contentMd.trim() || null,
       videoUrl: videoUrl.trim() || null,
+      thumbnailKey,
       durationMin: durationMin ? Number(durationMin) : null,
       isFreePreview,
       awardSp: Number(awardSp) || 10,
+      attachments: attachments.map((a, i) => ({ ...a, order: i })),
     });
   }
 
@@ -155,6 +195,44 @@ export function LessonForm({ open, onClose, courseId, modules, initial }: Props)
             </div>
           )}
 
+          {/* Thumbnail da aula — opcional. Aparece como capa na sidebar
+              de aulas e no card de listagem. Se vazio, usa placeholder
+              (primeira letra do título ou ícone padrão). */}
+          <div className="space-y-2">
+            <Label>Thumbnail da aula</Label>
+            {thumbnailKey ? (
+              <div className="relative h-40 w-full overflow-hidden rounded-md border bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={thumbnailPreviewUrl}
+                  alt="Thumbnail"
+                  className="h-full w-full object-cover"
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  className="absolute bottom-2 right-2 gap-1"
+                  onClick={() => setThumbnailKey(null)}
+                >
+                  <XIcon className="size-3" />
+                  Remover
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <Uploader
+                  fileTypeAccepted="image"
+                  onConfirm={(key) => setThumbnailKey(key || null)}
+                />
+                <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+                  <ImageIcon className="size-3" />
+                  Opcional — se vazio, usa placeholder com o título.
+                </p>
+              </div>
+            )}
+          </div>
+
           <LessonFormVideoSection
             videoUrl={videoUrl}
             onVideoUrlChange={setVideoUrl}
@@ -175,6 +253,15 @@ export function LessonForm({ open, onClose, courseId, modules, initial }: Props)
               placeholder="Notas, links, exercícios — exibido abaixo do vídeo"
             />
           </div>
+
+          {/* ── Anexos complementares (arquivos/imagens/links) ─────
+              Exibidos pro aluno matriculado dentro do player da aula
+              com botões de visualizar/baixar. Sync no save: array
+              substitui o atual (criar/atualizar/deletar). */}
+          <LessonAttachmentsEditor
+            attachments={attachments}
+            onChange={setAttachments}
+          />
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -239,3 +326,205 @@ export function LessonForm({ open, onClose, courseId, modules, initial }: Props)
     </Dialog>
   );
 }
+
+// ─── Anexos complementares ────────────────────────────────────────────
+
+function LessonAttachmentsEditor({
+  attachments,
+  onChange,
+}: {
+  attachments: LessonAttachment[];
+  onChange: (next: LessonAttachment[]) => void;
+}) {
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkTitle, setLinkTitle] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+
+  function addUploaded(
+    kind: "file" | "image",
+    key: string,
+    name?: string,
+  ) {
+    onChange([
+      ...attachments,
+      {
+        kind,
+        title: name ?? key.split("/").pop() ?? "Arquivo",
+        fileKey: key,
+        fileName: name ?? null,
+        order: attachments.length,
+      },
+    ]);
+  }
+
+  function addLink() {
+    if (!linkUrl.trim()) return;
+    onChange([
+      ...attachments,
+      {
+        kind: "link",
+        title: linkTitle.trim() || linkUrl.trim(),
+        url: linkUrl.trim(),
+        order: attachments.length,
+      },
+    ]);
+    setLinkOpen(false);
+    setLinkTitle("");
+    setLinkUrl("");
+  }
+
+  function remove(idx: number) {
+    onChange(attachments.filter((_, i) => i !== idx));
+  }
+
+  function rename(idx: number, title: string) {
+    onChange(
+      attachments.map((a, i) => (i === idx ? { ...a, title } : a)),
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label className="flex items-center gap-1.5">
+        <Paperclip className="size-3.5" />
+        Anexos da aula (opcional)
+      </Label>
+      <p className="text-[11px] text-muted-foreground">
+        Adicione PDFs, imagens, planilhas ou links externos — o aluno
+        matriculado pode visualizar e baixar dentro da aula.
+      </p>
+
+      {attachments.length > 0 && (
+        <div className="space-y-1.5">
+          {attachments.map((att, i) => (
+            <div
+              key={att.id ?? `new-${i}`}
+              className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2"
+            >
+              <span className="shrink-0 text-muted-foreground">
+                {att.kind === "image" ? (
+                  <ImageIcon className="size-4" />
+                ) : att.kind === "link" ? (
+                  <LinkIcon className="size-4" />
+                ) : (
+                  <FileIcon className="size-4" />
+                )}
+              </span>
+              <Input
+                value={att.title}
+                onChange={(e) => rename(i, e.target.value)}
+                className="h-7 flex-1 text-xs"
+                placeholder="Título visível pro aluno"
+              />
+              {att.kind === "link" && att.url && (
+                <a
+                  href={att.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  title="Abrir link"
+                >
+                  <ExternalLink className="size-3.5" />
+                </a>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-7 shrink-0 text-destructive hover:text-destructive"
+                onClick={() => remove(i)}
+                title="Remover anexo"
+              >
+                <XIcon className="size-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 3 botões de adicionar: arquivo / imagem / link.
+          Cada Uploader fica num wrapper com `relative` + opacidade 0 — o
+          input file fica em cima da área visível pra abrir o seletor. */}
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+        <div className="relative">
+          <div className="flex h-9 items-center justify-center gap-1.5 rounded-md border-2 border-dashed border-border bg-background text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
+            <PlusIcon className="size-3.5" />
+            Arquivo (PDF, doc, planilha)
+          </div>
+          <div className="absolute inset-0 opacity-0">
+            <Uploader
+              fileTypeAccepted="outros"
+              onConfirm={(key, name) => key && addUploaded("file", key, name)}
+            />
+          </div>
+        </div>
+        <div className="relative">
+          <div className="flex h-9 items-center justify-center gap-1.5 rounded-md border-2 border-dashed border-border bg-background text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
+            <ImageIcon className="size-3.5" />
+            Imagem
+          </div>
+          <div className="absolute inset-0 opacity-0">
+            <Uploader
+              fileTypeAccepted="image"
+              onConfirm={(key, name) => key && addUploaded("image", key, name)}
+            />
+          </div>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 gap-1.5"
+          onClick={() => setLinkOpen((v) => !v)}
+        >
+          <LinkIcon className="size-3.5" />
+          Link externo
+        </Button>
+      </div>
+
+      {/* Mini-form inline pra adicionar link externo */}
+      {linkOpen && (
+        <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+          <Input
+            placeholder="Título (ex: Apostila completa)"
+            value={linkTitle}
+            onChange={(e) => setLinkTitle(e.target.value)}
+            className="h-8 text-xs"
+          />
+          <Input
+            placeholder="https://..."
+            value={linkUrl}
+            onChange={(e) => setLinkUrl(e.target.value)}
+            className="h-8 text-xs"
+            type="url"
+          />
+          <div className="flex justify-end gap-1.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setLinkOpen(false);
+                setLinkTitle("");
+                setLinkUrl("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={addLink}
+              disabled={!linkUrl.trim()}
+            >
+              Adicionar
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Evita warning de import não-usado quando o user só usa file uploader.
+void Download;

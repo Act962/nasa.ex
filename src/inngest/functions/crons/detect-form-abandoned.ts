@@ -23,7 +23,7 @@ interface AbandonedParams {
 
 export const detectFormAbandoned = inngest.createFunction(
   { id: "detect-form-abandoned", retries: 1 },
-  { cron: "*/15 * * * *" }, // a cada 15 min
+  { cron: "0 * * * *" }, // hora em hora
   async ({ step }) => {
     const rules = await step.run("fetch-rules", async () =>
       prisma.alertRule.findMany({

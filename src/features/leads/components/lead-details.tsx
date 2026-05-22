@@ -92,7 +92,10 @@ export function LeadDetails({ initialData }: LeadDatailsProps) {
       value: "forms",
       icon: ClipboardListIcon,
       content: (
-        <LeadFormResponses leadId={initialData.lead.id} />
+        <LeadFormResponses
+          leadId={initialData.lead.id}
+          trackingId={initialData.lead.trackingId}
+        />
       ),
     },
   ];

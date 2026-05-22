@@ -11,6 +11,8 @@ import { EMPTY_LEADS, useKanbanStore } from "../lib/kanban-store";
 import { useQueryState } from "nuqs";
 import dayjs from "dayjs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useKanbanAppearance } from "../hooks/use-kanban-appearance";
+import { hexToRgba } from "@/utils/hex-to-rgba";
 
 interface StatusColumnProps {
   status: {
@@ -154,7 +156,31 @@ function StatusColumnImpl({
         index === 0 && "ml-4",
       )}
     >
-      <div className="flex flex-col flex-1 min-h-0 rounded-md bg-muted/60 shadow-md">
+      {/* Cor + contorno customizados da coluna sobrescrevem `bg-muted/60`
+          quando definidos nas Configurações. Se a cor estiver setada,
+          aplicamos via style inline; senão usamos o fallback default. */}
+      <div
+        className={cn(
+          "flex flex-col flex-1 min-h-0 rounded-md shadow-md",
+          !appearance?.kanbanColumnBackgroundColor && "bg-muted/60",
+          appearance?.kanbanColumnBorderColor && "border",
+        )}
+        style={{
+          // Cor de fundo computada como `rgba()` — slider de transparência
+          // controla o alpha. Opacidade default = 100 (opaco). Sem cor =
+          // herda `bg-muted/60` do fallback.
+          ...(appearance?.kanbanColumnBackgroundColor && {
+            backgroundColor:
+              hexToRgba(
+                appearance.kanbanColumnBackgroundColor,
+                appearance.kanbanColumnBackgroundOpacity ?? 100,
+              ) ?? appearance.kanbanColumnBackgroundColor,
+          }),
+          ...(appearance?.kanbanColumnBorderColor && {
+            borderColor: appearance.kanbanColumnBorderColor,
+          }),
+        }}
+      >
         <StatusHeader
           data={headerData}
           attributes={attributes}

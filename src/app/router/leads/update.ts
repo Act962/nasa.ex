@@ -27,6 +27,8 @@ export const updateLead = base
       .object({
         id: z.string(),
         name: z.string().optional(),
+        // Apelido informal — pode ser limpo passando string vazia ou null.
+        nickname: z.string().nullable().optional(),
         phone: z.string().optional(),
         email: z.string().optional(),
         description: z.string().optional(),
@@ -39,10 +41,12 @@ export const updateLead = base
         amount: z.number().optional(),
         trackingId: z.string().optional(),
         orgProjectId: z.string().nullable().optional(),
+        temperature: z.enum(["COLD", "WARM", "HOT", "VERY_HOT"]).optional(),
       })
       .refine(
         (v) =>
           v.name !== undefined ||
+          v.nickname !== undefined ||
           v.phone !== undefined ||
           v.email !== undefined ||
           v.description !== undefined ||
@@ -53,7 +57,8 @@ export const updateLead = base
           v.active !== undefined ||
           v.statusFlow !== undefined ||
           v.amount !== undefined ||
-          v.orgProjectId !== undefined,
+          v.orgProjectId !== undefined ||
+          v.temperature !== undefined,
         {
           message: "No fields to update",
           path: ["id"],
@@ -111,6 +116,12 @@ export const updateLead = base
           where: { id: input.id },
           data: {
             name: input.name,
+            // nickname: usa `undefined` (sem alteração) só quando o input
+            // não veio. Quando veio string vazia ou null, normaliza pra
+            // null pra permitir "limpar" o apelido.
+            ...(input.nickname !== undefined
+              ? { nickname: input.nickname?.trim() || null }
+              : {}),
             phone: input.phone,
             email: input.email,
             description: input.description,
@@ -120,6 +131,7 @@ export const updateLead = base
             responsibleId: input.responsibleId,
             isActive: input.active,
             amount: input.amount,
+            ...(input.temperature ? { temperature: input.temperature } : {}),
             ...(isStatusChange ? { lastStatusChangeAt: now } : {}),
             ...(isResponsibleChange ? { assignedAt: now } : {}),
             ...(input.statusFlow ? { statusFlow: input.statusFlow as any } : {}),

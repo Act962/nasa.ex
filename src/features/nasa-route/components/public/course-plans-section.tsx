@@ -1,10 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, FileText, Link2, Star } from "lucide-react";
+import {
+  CheckCircle2,
+  FileText,
+  ImageIcon,
+  Link2,
+  Play,
+  Star,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useConstructUrl } from "@/hooks/use-construct-url";
 
 interface PlanData {
   id: string;
@@ -21,6 +29,14 @@ interface PlanData {
   }>;
 }
 
+/** Aulas gratuitas (preview) — exibidas no card do plano default. */
+interface FreeLessonLink {
+  id: string;
+  title: string;
+  /** Chave S3 da thumbnail — opcional. Placeholder quando vazio. */
+  thumbnailKey?: string | null;
+}
+
 interface Props {
   plans: PlanData[];
   totalLessons: number;
@@ -31,6 +47,12 @@ interface Props {
   signUpHref: string;
   /** cotação STAR→BRL pra exibir preço em real no card */
   starPriceBrl: number;
+  /** Aulas com `isFreePreview=true` — usadas no card "Acesso completo"
+   *  pra mostrar quais aulas o visitante pode assistir grátis antes de
+   *  comprar. */
+  freeLessons?: FreeLessonLink[];
+  /** Base URL pra montar links das previews: `${freeLessonsBasePath}/<lessonId>`. */
+  freeLessonsBasePath?: string;
   /** chamado quando usuário logado seleciona plano */
   onSelectPlan: (planId: string) => void;
   /** chamado quando usuário NÃO logado clica em comprar plano pago (abre checkout Stripe) */
@@ -51,6 +73,8 @@ export function CoursePlansSection({
   signInHref: _signInHref, // deixado pra futura expansão
   signUpHref,
   starPriceBrl,
+  freeLessons,
+  freeLessonsBasePath,
   onSelectPlan,
   onPublicCheckout,
 }: Props) {
@@ -144,6 +168,21 @@ export function CoursePlansSection({
                     )}
                   </span>
                 </li>
+                {/* Aulas gratuitas — só aparece no card "Acesso completo"
+                    (default) pra evitar duplicar info em múltiplos planos. */}
+                {plan.isDefault && freeLessons && freeLessons.length > 0 && (
+                  <li className="flex items-start gap-2">
+                    <Play
+                      className="mt-0.5 size-4 shrink-0 text-emerald-600"
+                      fill="currentColor"
+                    />
+                    <span>
+                      <strong>{freeLessons.length}</strong>{" "}
+                      {freeLessons.length === 1 ? "aula" : "aulas"} grátis pra
+                      experimentar antes
+                    </span>
+                  </li>
+                )}
                 {plan.attachments.length > 0 && (
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
@@ -162,6 +201,34 @@ export function CoursePlansSection({
                   </li>
                 )}
               </ul>
+
+              {/* Lista de aulas gratuitas (com thumbnail + link) no card
+                  "Acesso completo" — destaque visual pra converter
+                  visitantes em alunos. */}
+              {plan.isDefault &&
+                freeLessons &&
+                freeLessons.length > 0 &&
+                freeLessonsBasePath && (
+                  <div className="mt-4 space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs dark:border-emerald-900/40 dark:bg-emerald-900/20">
+                    <p className="font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                      🎁 Assista grátis agora:
+                    </p>
+                    <div className="space-y-1.5">
+                      {freeLessons.slice(0, 4).map((lesson) => (
+                        <FreeLessonItem
+                          key={lesson.id}
+                          lesson={lesson}
+                          href={`${freeLessonsBasePath}/${lesson.id}`}
+                        />
+                      ))}
+                      {freeLessons.length > 4 && (
+                        <p className="pt-1 text-[11px] text-emerald-600/70 dark:text-emerald-400/70">
+                          + {freeLessons.length - 4} outras aulas grátis abaixo
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
               {plan.attachments.length > 0 && (
                 <div className="mt-4 space-y-1.5 border-t border-border pt-3 text-xs text-muted-foreground">
@@ -222,5 +289,48 @@ export function CoursePlansSection({
         })}
       </div>
     </section>
+  );
+}
+
+/**
+ * Item da seção "Assista grátis agora" — thumbnail (com placeholder
+ * quando vazio) + Play overlay + título. `useConstructUrl` é hook,
+ * por isso o sub-componente (precisa rodar uma vez por aula).
+ */
+function FreeLessonItem({
+  lesson,
+  href,
+}: {
+  lesson: FreeLessonLink;
+  href: string;
+}) {
+  const thumbUrl = useConstructUrl(lesson.thumbnailKey || "");
+
+  return (
+    <Link
+      href={href}
+      className="group flex items-center gap-2 rounded-md p-1 transition-colors hover:bg-emerald-100/60 dark:hover:bg-emerald-900/30"
+    >
+      <div className="relative h-10 w-16 shrink-0 overflow-hidden rounded border border-emerald-200/60 bg-emerald-100 dark:border-emerald-800/40 dark:bg-emerald-950/40">
+        {lesson.thumbnailKey ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbUrl}
+            alt={lesson.title}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <ImageIcon className="size-3 text-emerald-600/50" />
+          </div>
+        )}
+        <div className="absolute inset-0 flex items-center justify-center bg-emerald-700/40 transition-colors group-hover:bg-emerald-600/50">
+          <Play className="size-3.5 text-white" fill="white" />
+        </div>
+      </div>
+      <span className="min-w-0 flex-1 truncate text-emerald-700 transition-colors group-hover:text-emerald-900 dark:text-emerald-300 dark:group-hover:text-emerald-100">
+        {lesson.title}
+      </span>
+    </Link>
   );
 }

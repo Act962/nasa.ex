@@ -23,6 +23,10 @@ export const listMyEnrollments = base
             durationMin: true,
             format: true,
             priceStars: true,
+            // Datas unificadas (todos formatos)
+            startsAt: true,
+            endsAt: true,
+            // Legadas (só event) — fallback
             eventStartsAt: true,
             eventEndsAt: true,
             eventTimezone: true,
@@ -69,6 +73,8 @@ export const listMyEnrollments = base
             durationMin: e.course.durationMin,
             format: e.course.format,
             priceStars: e.course.priceStars,
+            startsAt: e.course.startsAt,
+            endsAt: e.course.endsAt,
             eventStartsAt: e.course.eventStartsAt,
             eventEndsAt: e.course.eventEndsAt,
             eventTimezone: e.course.eventTimezone,

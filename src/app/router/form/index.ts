@@ -14,6 +14,7 @@ import { togglePublicOnSpace } from "./toggle-public-on-space";
 import { getResponseById } from "./get-response";
 import { updateResponse } from "./update-response";
 import { updateResponseLabel } from "./update-response-label";
+import { cancelResponse } from "./cancel-response";
 import { createResponseForLead } from "./create-response-for-lead";
 import { getResponseByToken } from "./get-response-by-token";
 import { updateClientSignatures } from "./update-client-signatures";
@@ -31,6 +32,7 @@ export const formRouter = {
   getResponseById,
   updateResponse,
   updateResponseLabel,
+  cancelResponse,
   createResponseForLead,
   recordFormOpening,
   getResponseByToken,

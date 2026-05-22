@@ -9,7 +9,12 @@ import {
   isDeadlineFulfilled,
 } from "@/features/form/lib/extract-deadline";
 
-const sortOptions = z.enum(["order", "createdAt", "updatedAt"]);
+const sortOptions = z.enum([
+  "order",
+  "createdAt",
+  "updatedAt",
+  "statusEnteredAt",
+]);
 type SortOption = z.infer<typeof sortOptions>;
 
 function buildOrderBy(sortBy: SortOption) {
@@ -17,6 +22,10 @@ function buildOrderBy(sortBy: SortOption) {
     order: [{ order: "asc" }, { id: "asc" }],
     createdAt: [{ createdAt: "desc" }, { id: "asc" }],
     updatedAt: [{ updatedAt: "desc" }, { id: "asc" }],
+    // `statusEnteredAt` pode ser null em leads antigos — Postgres ordena
+    // NULLS LAST por default no DESC, então leads sem o campo vão pro fim
+    // naturalmente. Fallback (`id asc`) garante determinismo entre empates.
+    statusEnteredAt: [{ statusEnteredAt: "desc" }, { id: "asc" }],
   };
   return map[sortBy];
 }
@@ -42,6 +51,15 @@ function buildCursorWhere(
       OR: [
         { updatedAt: { lt: new Date(cursorValue) } },
         { updatedAt: new Date(cursorValue), id: { gt: cursorId } },
+      ],
+    };
+  }
+
+  if (sortBy === "statusEnteredAt") {
+    return {
+      OR: [
+        { statusEnteredAt: { lt: new Date(cursorValue) } },
+        { statusEnteredAt: new Date(cursorValue), id: { gt: cursorId } },
       ],
     };
   }
@@ -154,6 +172,7 @@ export const listLeadsByStatus = base
         isActive: true,
         currentAction: true,
         name: true,
+        nickname: true,
         email: true,
         phone: true,
         order: true,
@@ -243,12 +262,18 @@ export const listLeadsByStatus = base
         order: { toString(): string };
         createdAt: Date;
         updatedAt: Date;
+        statusEnteredAt: Date | null;
       };
       nextCursorId = last.id;
-      nextCursorValue =
-        sortBy === "order"
-          ? last.order.toString()
-          : last[sortBy].toISOString();
+      if (sortBy === "order") {
+        nextCursorValue = last.order.toString();
+      } else if (sortBy === "statusEnteredAt") {
+        // Pode ser null em leads antigos — usa createdAt como fallback
+        // (mesma data que o card mostra nesse caso).
+        nextCursorValue = (last.statusEnteredAt ?? last.createdAt).toISOString();
+      } else {
+        nextCursorValue = last[sortBy].toISOString();
+      }
     }
 
     // Batch fetch dos eventos relevantes pros leads desta página — usados

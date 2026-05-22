@@ -12,6 +12,8 @@ import { TemplateSettings } from "@/features/tracking-settings/components/templa
 import { ToastProvider } from "@/contexts/toast-context";
 import { TrackingDangerZone } from "@/features/tracking-settings/components/danger-zone";
 import { Personalization } from "@/features/tracking-settings/components/personalization";
+import { Interactions } from "@/features/tracking-settings/components/interactions";
+import { TimeOfStatus } from "@/features/tracking-settings/components/time-of-status";
 
 type SettingTrackingPage = {
   params: Promise<{ trackingId: string }>;
@@ -63,6 +65,11 @@ export default async function Page({
       content: <FlowAttendiment trackingId={trackingId} />,
     },
     {
+      name: "Time de Status",
+      value: "time-of-status",
+      content: <TimeOfStatus trackingId={trackingId} />,
+    },
+    {
       name: "Motivos de ganho",
       value: "reasons_win",
       content: <Reasons type="WIN" trackingId={trackingId} />,
@@ -81,6 +88,11 @@ export default async function Page({
       name: "ChatBot AI",
       value: "chatbot-ia",
       content: <ChatBotIa trackingId={trackingId} />,
+    },
+    {
+      name: "Interações",
+      value: "interactions",
+      content: <Interactions trackingId={trackingId} />,
     },
     {
       name: "Notificação sonora",
@@ -116,7 +128,7 @@ export default async function Page({
           orientation="horizontal"
           className="flex-col sm:flex-row gap-6"
         >
-          <TabsList className="bg-background h-full flex-row sm:flex-col rounded-none p-0 w-full sm:w-1/4 border-b sm:border-b-0 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 ">
+          <TabsList className="bg-background h-full flex-row sm:flex-col rounded-none p-0 w-full sm:w-1/4 border-b sm:border-b-0 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 sm:sticky sm:top-12 sm:self-start sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto">
             {tabs.map((tab) => (
               <TabsTrigger
                 key={tab.value}

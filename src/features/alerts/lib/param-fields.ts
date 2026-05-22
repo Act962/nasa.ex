@@ -79,20 +79,6 @@ export const PARAM_FIELDS: Record<string, FieldSpec[]> = {
     },
   ],
 
-  "lead.waiting_attention": [
-    {
-      paramKey: "minMinutes",
-      kind: "number",
-      label: "Tempo aguardando",
-      hint: "Lead criado há mais que X minutos sem primeira resposta.",
-      required: true,
-      min: 5,
-      max: 1440,
-      defaultValue: 30,
-      unitLabel: "minutos",
-    },
-  ],
-
   "form.submitted": [
     {
       paramKey: "formId",

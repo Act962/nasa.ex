@@ -29,6 +29,7 @@ import { syncMetaAdsKpis } from "@/inngest/functions/crons/sync-meta-ads-kpis";
 import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-structure";
 import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route-subscription-renew";
 import { nasaRouteVideoUploadsCleanup } from "@/inngest/functions/crons/nasa-route-video-uploads-cleanup";
+import { nasaRouteArchivePastEvents } from "@/inngest/functions/crons/nasa-route-archive-past-events";
 import { astroIngestKnowledge } from "@/inngest/functions/astro/ingest-knowledge";
 import { astroAgentTrigger } from "@/inngest/functions/astro/agent-trigger";
 import { chatSyncMessages } from "@/inngest/functions/chat/sync-conversation-messages";
@@ -39,14 +40,14 @@ import { detectAgendaStarting } from "@/inngest/functions/crons/detect-agenda-st
 import { detectFormAbandoned } from "@/inngest/functions/crons/detect-form-abandoned";
 import { detectLowMetrics } from "@/inngest/functions/crons/detect-low-metrics";
 import { worldEventOccupancyTick } from "@/inngest/functions/crons/world-event-occupancy-tick";
-import { detectLeadsWaitingAttention } from "@/inngest/functions/crons/detect-leads-waiting-attention";
 import { detectActionsDueSoon } from "@/inngest/functions/crons/detect-actions-due-soon";
 import { formSendWhatsappNotification } from "@/inngest/functions/form/send-whatsapp-notification";
 import { chatAiWhatsappAgent } from "@/inngest/functions/chat-ai/whatsapp-agent";
 import {
-  scheduleInboundTimeoutChecks,
-  checkInboundTimeout,
-} from "@/inngest/functions/triggers/last-inbound-timeout";
+  scheduleIdleChecks,
+  checkNoFirstResponse,
+  checkInConvIdle,
+} from "@/inngest/functions/triggers/idle-automation";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -74,6 +75,7 @@ export const { GET, POST, PUT } = serve({
     // ── NASA Route ──
     nasaRouteSubscriptionRenew,
     nasaRouteVideoUploadsCleanup,
+    nasaRouteArchivePastEvents,
     // ── ASTRO ──
     astroIngestKnowledge,
     astroAgentTrigger,
@@ -94,11 +96,11 @@ export const { GET, POST, PUT } = serve({
     detectOverdue,
     // ── NASA World — convention occupancy ──
     worldEventOccupancyTick,
-    detectLeadsWaitingAttention,
     detectActionsDueSoon,
-    // ── Trigger LAST_INBOUND_TIMEOUT ──
-    scheduleInboundTimeoutChecks,
-    checkInboundTimeout,
+    // ── Idle automation por tracking (substitui detect-leads-waiting-attention + LAST_INBOUND_TIMEOUT) ──
+    scheduleIdleChecks,
+    checkNoFirstResponse,
+    checkInConvIdle,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

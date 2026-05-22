@@ -14,7 +14,6 @@ import { moveLeadStatusTriggerExecutor } from "@/features/triggers/components/mo
 import { leadTaggedTriggerExecutor } from "@/features/triggers/components/lead-tagged/executor";
 import { aiFinishedTriggerExecutor } from "@/features/triggers/components/ai-finished/executor";
 import { firstChatInteractionTriggerExecutor } from "@/features/triggers/components/first-chat-interaction/executor";
-import { lastInboundTimeoutTriggerExecutor } from "@/features/triggers/components/last-inbound-timeout/executor";
 import { filterLeadExecutor } from "../components/filter-lead/executor";
 
 export const executorRegistry: Partial<Record<NodeType, NodeExecutor>> = {
@@ -33,7 +32,6 @@ export const executorRegistry: Partial<Record<NodeType, NodeExecutor>> = {
   [NodeType.LEAD_TAGGED]: leadTaggedTriggerExecutor,
   [NodeType.AI_FINISHED]: aiFinishedTriggerExecutor,
   [NodeType.FIRST_CHAT_INTERACTION]: firstChatInteractionTriggerExecutor,
-  [NodeType.LAST_INBOUND_TIMEOUT]: lastInboundTimeoutTriggerExecutor,
   [NodeType.FILTER_LEAD]: filterLeadExecutor,
 };
 

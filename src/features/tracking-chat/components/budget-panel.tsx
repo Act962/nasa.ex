@@ -13,7 +13,11 @@ import {
   ClockIcon,
   AlertCircleIcon,
   SendIcon,
+  FileTextIcon,
+  PaperclipIcon,
+  SparklesIcon,
 } from "lucide-react";
+import { useExtractBudget } from "../hooks/use-extract-budget";
 import {
   Dialog,
   DialogContent,
@@ -57,6 +61,20 @@ interface BudgetPanelProps {
   leadPhone: string;
   whatsappToken: string;
   onInsertMessage: (text: string) => void;
+  /**
+   * Dados iniciais quando o painel é aberto a partir da DETECÇÃO de
+   * proposta em upload regular (footer-chat). O arquivo já subiu pro
+   * S3 e a IA já extraiu valor/descrição. O painel abre direto na tab
+   * "Criar" com os campos preenchidos.
+   */
+  initialAttach?: {
+    key: string;
+    name: string;
+    mime: string;
+    valueCents: number | null;
+    description: string;
+    confidence: "high" | "medium" | "low";
+  } | null;
 }
 
 type StatusFilter = "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED";
@@ -107,15 +125,54 @@ export function BudgetPanel({
   leadPhone,
   whatsappToken,
   onInsertMessage,
+  initialAttach,
 }: BudgetPanelProps) {
   const [tab, setTab] = useState<"create" | "history">("create");
   const [editingId, setEditingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
+  // Helper: formata centavos pra string de input "1234,56" sem prefixo.
+  const formatCentsForInput = (cents: number | null | undefined): string =>
+    cents && cents > 0 ? (cents / 100).toFixed(2).replace(".", ",") : "";
+
   // Form state — pode ser usado pra criar OU editar (quando editingId !== null).
-  const [valueStr, setValueStr] = useState("");
-  const [description, setDescription] = useState("");
+  // `initialAttach` (vindo da detecção em footer-chat) pré-popula os campos.
+  const [valueStr, setValueStr] = useState(() =>
+    formatCentsForInput(initialAttach?.valueCents ?? null),
+  );
+  const [description, setDescription] = useState(
+    () => initialAttach?.description ?? "",
+  );
   const [dueDays, setDueDays] = useState(7);
+
+  // Estado do arquivo de orçamento anexado (PDF/imagem). Quando setado,
+  // o submit envia mensagem como DOCUMENT (não TEXT) e a entry de
+  // pagamento guarda a chave S3 em `attachmentUrl` pra exibir no
+  // histórico.
+  const [attachKey, setAttachKey] = useState<string | null>(
+    initialAttach?.key ?? null,
+  );
+  const [attachName, setAttachName] = useState<string | null>(
+    initialAttach?.name ?? null,
+  );
+  const [attachMime, setAttachMime] = useState<string | null>(
+    initialAttach?.mime ?? null,
+  );
+  const [isUploading, setIsUploading] = useState(false);
+  // Marca os campos que foram preenchidos pela IA — apaga ao primeiro
+  // edit manual pra que o banner "preenchido pela IA" suma.
+  const [autoFilled, setAutoFilled] = useState<{
+    value: boolean;
+    description: boolean;
+    confidence: "high" | "medium" | "low" | null;
+  }>(() => ({
+    value: !!initialAttach && initialAttach.valueCents !== null,
+    description: !!initialAttach && !!initialAttach.description,
+    confidence: initialAttach?.confidence ?? null,
+  }));
+
+  const extractMutation = useExtractBudget();
+  const isExtracting = extractMutation.isPending;
 
   const cents = useMemo(() => parseCurrencyToCents(valueStr), [valueStr]);
   const formatted = useMemo(
@@ -154,6 +211,11 @@ export function BudgetPanel({
   };
 
   const sendMessage = useMutation(orpc.message.create.mutationOptions());
+  // Envio de mensagem com arquivo (DOCUMENT) — usado quando há anexo
+  // de orçamento. Substitui o `sendMessage` (TEXT) nesse caso.
+  const sendMessageWithFile = useMutation(
+    orpc.message.createWithFile.mutationOptions(),
+  );
   const createReceivable = useMutation(
     orpc.payment.entries.create.mutationOptions({ onSuccess: invalidateAll }),
   );
@@ -169,10 +231,13 @@ export function BudgetPanel({
 
   const isPending =
     sendMessage.isPending ||
+    sendMessageWithFile.isPending ||
     createReceivable.isPending ||
     updateReceivable.isPending ||
     payReceivable.isPending ||
-    deleteReceivable.isPending;
+    deleteReceivable.isPending ||
+    isUploading ||
+    isExtracting;
 
   // ── Handlers ────────────────────────────────────────────────────────────
   const resetForm = () => {
@@ -180,6 +245,99 @@ export function BudgetPanel({
     setValueStr("");
     setDescription("");
     setDueDays(7);
+    setAttachKey(null);
+    setAttachName(null);
+    setAttachMime(null);
+    setAutoFilled({ value: false, description: false, confidence: null });
+  };
+
+  /**
+   * Sobe um arquivo (PDF/imagem) pro storage via `/api/s3/upload-direct`
+   * (server-side, sem CORS) e chama a procedure de IA pra extrair valor
+   * e descrição. Auto-preenche os inputs se a IA conseguir identificar.
+   */
+  const handleAttachFile = async (file: File) => {
+    // Validação tamanho — 10MB pra orçamentos (PDF de OS costuma ser 1-3MB).
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Arquivo muito grande. Máximo 10MB.");
+      return;
+    }
+    setIsUploading(true);
+    setAttachName(file.name);
+    setAttachMime(file.type || "application/octet-stream");
+    try {
+      // 1) Upload server-side
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/s3/upload-direct", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Falha no upload");
+      }
+      const { key } = (await res.json()) as { key: string };
+      setAttachKey(key);
+      setIsUploading(false);
+
+      // 2) Extrair via IA — chama em background sem bloquear a UI.
+      extractMutation.mutate(
+        { fileKey: key },
+        {
+          onSuccess: (data) => {
+            // Só preenche campos vazios — não sobrescreve o que o usuário
+            // já digitou. Atualiza autoFilled pra cada campo realmente
+            // preenchido. Se a IA não identificou valor, deixa quieto.
+            const nextAuto = {
+              value: false,
+              description: false,
+              confidence: data.confidence,
+            };
+            if (data.valueCents && data.valueCents > 0 && valueStr.trim() === "") {
+              const reais = (data.valueCents / 100).toFixed(2).replace(".", ",");
+              setValueStr(reais);
+              nextAuto.value = true;
+            }
+            if (data.description && data.description.trim() && description.trim() === "") {
+              setDescription(data.description.trim());
+              nextAuto.description = true;
+            }
+            setAutoFilled(nextAuto);
+
+            if (nextAuto.value || nextAuto.description) {
+              toast.success(
+                "Valor e descrição preenchidos pela IA. Confira antes de enviar.",
+              );
+            } else if (data.valueCents === null) {
+              toast.info(
+                "Não identifiquei valor neste arquivo. Preencha manualmente.",
+              );
+            }
+          },
+          onError: (err: any) => {
+            toast.error(
+              err?.message ??
+                "Não consegui ler o arquivo com IA. Preencha manualmente.",
+            );
+          },
+        },
+      );
+    } catch (err) {
+      console.error("[budget-panel] upload failed", err);
+      toast.error((err as Error).message ?? "Falha ao enviar arquivo");
+      setIsUploading(false);
+      setAttachKey(null);
+      setAttachName(null);
+      setAttachMime(null);
+    }
+  };
+
+  const handleRemoveAttachment = () => {
+    setAttachKey(null);
+    setAttachName(null);
+    setAttachMime(null);
+    setAutoFilled({ value: false, description: false, confidence: null });
   };
 
   const startEdit = (entry: (typeof entries)[number]) => {
@@ -229,14 +387,29 @@ export function BudgetPanel({
         resetForm();
         setTab("history");
       } else {
-        // CRIAÇÃO — envia mensagem + cria A receber.
-        const messageBody = `💰 *Orçamento:* ${formatCurrency(cents)}\n${description.trim()}`;
-        await sendMessage.mutateAsync({
-          conversationId,
-          body: messageBody,
-          leadPhone,
-          token: whatsappToken,
-        });
+        // CRIAÇÃO — envia mensagem (TEXT ou DOCUMENT) + cria A receber.
+        // Quando há anexo: envia o ARQUIVO como DOCUMENT no WhatsApp
+        // com a descrição como caption — substituindo o atalho que o
+        // consultor fazia (enviar PDF direto), preservando as métricas.
+        if (attachKey) {
+          await sendMessageWithFile.mutateAsync({
+            conversationId,
+            body: `💰 Orçamento: ${formatCurrency(cents)}\n${description.trim()}`,
+            leadPhone,
+            token: whatsappToken,
+            mediaUrl: attachKey,
+            fileName: attachName ?? "orcamento.pdf",
+            mimetype: attachMime ?? "application/pdf",
+          });
+        } else {
+          const messageBody = `💰 *Orçamento:* ${formatCurrency(cents)}\n${description.trim()}`;
+          await sendMessage.mutateAsync({
+            conversationId,
+            body: messageBody,
+            leadPhone,
+            token: whatsappToken,
+          });
+        }
         await createReceivable.mutateAsync({
           type: "RECEIVABLE",
           description: fullDesc,
@@ -244,9 +417,13 @@ export function BudgetPanel({
           dueDate,
           trackingId,
           leadId,
+          // Guarda a chave S3 do PDF/imagem original — historicidade.
+          ...(attachKey ? { attachmentUrl: attachKey } : {}),
         });
         toast.success(
-          `Orçamento de ${formatCurrency(cents)} enviado e lançado em "A receber".`,
+          attachKey
+            ? `Orçamento enviado com arquivo e lançado em "A receber" (${formatCurrency(cents)}).`
+            : `Orçamento de ${formatCurrency(cents)} enviado e lançado em "A receber".`,
         );
         resetForm();
         setTab("history");
@@ -356,13 +533,101 @@ export function BudgetPanel({
                 </div>
               )}
 
+              {/* ── Upload de Orçamento ──────────────────────────────────
+                  Caixa acima de "Valor" pra o consultor anexar o PDF/imagem
+                  do orçamento original (OS, proposta, cotação). A IA lê o
+                  arquivo e preenche `Valor` e `Descrição` automaticamente.
+                  Ao enviar, o ARQUIVO vai pro cliente como documento via
+                  WhatsApp (em vez do texto formatado). */}
+              {!isEditing && (
+                <div className="space-y-1.5">
+                  <Label>Adicione o Orçamento aqui</Label>
+                  {!attachKey && !isUploading ? (
+                    <label
+                      htmlFor="budget-file"
+                      className="flex h-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-border text-xs text-muted-foreground transition-colors hover:border-primary hover:bg-primary/5"
+                    >
+                      <PaperclipIcon className="size-4" />
+                      <span>
+                        Anexar PDF ou imagem (OS, orçamento, proposta) —
+                        a IA preenche os campos
+                      </span>
+                      <input
+                        id="budget-file"
+                        type="file"
+                        accept="application/pdf,image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleAttachFile(f);
+                          // Reset pra mesmo arquivo poder ser re-selecionado.
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2">
+                      <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium">
+                          {attachName ?? "Arquivo"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {isUploading
+                            ? "Subindo arquivo..."
+                            : isExtracting
+                              ? "Lendo arquivo com IA..."
+                              : "Pronto pra enviar"}
+                        </p>
+                      </div>
+                      {(isUploading || isExtracting) && (
+                        <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
+                      )}
+                      {!isUploading && !isExtracting && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveAttachment}
+                          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          aria-label="Remover anexo"
+                        >
+                          <XIcon className="size-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {/* Banner de "preenchido pela IA" — some quando todos os
+                      campos foram editados manualmente. */}
+                  {(autoFilled.value || autoFilled.description) && (
+                    <div className="flex items-start gap-1.5 rounded-md bg-purple-500/10 px-2 py-1.5 text-[11px] text-purple-700 dark:text-purple-300">
+                      <SparklesIcon className="mt-0.5 size-3 shrink-0" />
+                      <span>
+                        Campos preenchidos pela IA — confira e edite se
+                        necessário antes de enviar.
+                        {autoFilled.confidence === "low" && (
+                          <>
+                            {" "}
+                            <strong>Baixa confiança</strong> — confira o valor.
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label htmlFor="budget-value">Valor (R$)*</Label>
                 <Input
                   id="budget-value"
                   placeholder="1500,00"
                   value={valueStr}
-                  onChange={(e) => setValueStr(e.target.value)}
+                  onChange={(e) => {
+                    setValueStr(e.target.value);
+                    // Edit manual remove a flag de "auto-preenchido".
+                    if (autoFilled.value) {
+                      setAutoFilled((p) => ({ ...p, value: false }));
+                    }
+                  }}
                   autoFocus
                   inputMode="decimal"
                 />
@@ -380,7 +645,12 @@ export function BudgetPanel({
                   id="budget-desc"
                   placeholder="Ex: Pacote completo de consultoria mensal"
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    if (autoFilled.description) {
+                      setAutoFilled((p) => ({ ...p, description: false }));
+                    }
+                  }}
                   rows={3}
                   maxLength={500}
                 />
@@ -407,13 +677,27 @@ export function BudgetPanel({
               {!isEditing && cents > 0 && description.trim() && (
                 <div className="rounded-md border border-dashed p-3 text-xs">
                   <p className="mb-1 font-semibold text-muted-foreground">
-                    Mensagem no chat:
+                    {attachKey
+                      ? "Será enviado como documento:"
+                      : "Mensagem no chat:"}
                   </p>
-                  <p className="whitespace-pre-wrap">
-                    💰 <strong>Orçamento:</strong> {formatted}
-                    <br />
-                    {description.trim()}
-                  </p>
+                  {attachKey ? (
+                    <div className="space-y-1">
+                      <p className="flex items-center gap-1.5">
+                        <FileTextIcon className="size-3" />
+                        <span className="truncate">{attachName}</span>
+                      </p>
+                      <p className="whitespace-pre-wrap text-muted-foreground">
+                        Legenda: 💰 Orçamento {formatted} — {description.trim()}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-wrap">
+                      💰 <strong>Orçamento:</strong> {formatted}
+                      <br />
+                      {description.trim()}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -438,7 +722,8 @@ export function BudgetPanel({
                     "Salvar alterações"
                   ) : (
                     <>
-                      <SendIcon className="size-3.5" /> Enviar orçamento
+                      <SendIcon className="size-3.5" />
+                      {attachKey ? "Enviar arquivo + lançar" : "Enviar orçamento"}
                     </>
                   )}
                 </Button>

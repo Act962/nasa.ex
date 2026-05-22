@@ -122,6 +122,14 @@ export function buildMutationTools(ctx: AgentContext) {
             },
             select: { id: true, name: true },
           });
+          const { dispatchIdleActivityIfActive } = await import(
+            "@/features/tracking-settings/lib/idle-automation-gate"
+          );
+          await dispatchIdleActivityIfActive({
+            leadId: lead.id,
+            trackingId: tracking.id,
+            organizationId: ctx.organizationId,
+          });
           return {
             success: true,
             leadId: lead.id,

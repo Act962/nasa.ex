@@ -181,7 +181,10 @@ export function LoginForm() {
           const session = await authClient.getSession();
           if (session.data) {
             toast.success("✅ Login realizado com sucesso!");
-            router.push(callbackUrl ?? "/home");
+            // Hard navigation — bypassa o Router Cache do Next (RSC),
+            // que mantém versão "deslogada" de `/home` em memória
+            // e causava o loop sign-in → home → sign-in.
+            window.location.assign(callbackUrl ?? "/home");
             return;
           }
         }
@@ -199,7 +202,10 @@ export function LoginForm() {
       }
 
       toast.success("✅ Login realizado com sucesso!");
-      router.push(callbackUrl ?? "/home");
+      // Hard navigation pós-login — força o browser a buscar `/home`
+      // do zero, invalidando o Router Cache (RSC) + Fetch Cache do
+      // Next que ainda guardavam a versão "não autenticada" da home.
+      window.location.assign(callbackUrl ?? "/home");
     });
   };
 

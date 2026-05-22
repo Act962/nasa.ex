@@ -28,11 +28,25 @@ const ALERT_THRESHOLD = 0.8;
 
 export const worldEventOccupancyTick = inngest.createFunction(
   { id: "world-event-occupancy-tick", retries: 1 },
-  { cron: "* * * * *" }, // a cada minuto
+  { cron: "*/15 * * * *" }, // a cada 15 min — best-effort, nada crítico depende
   async ({ step }) => {
     const now = new Date();
     const windowOpen = new Date(now.getTime() - 30 * 60 * 1000);
     const windowClose = new Date(now.getTime() + 5 * 60 * 1000);
+
+    // Early exit fora de step.run pra não consumir step do Free tier
+    // quando não há eventos ativos na janela (cron roda 1440x/dia).
+    const activeEventsCount = await prisma.worldEvent.count({
+      where: {
+        status: { in: ["SCHEDULED", "LIVE"] },
+        startsAt: { lte: windowClose },
+        endsAt: { gte: windowOpen },
+      },
+    });
+
+    if (activeEventsCount === 0) {
+      return { scanned: 0, updated: 0 };
+    }
 
     const events = await step.run("fetch-active-events", async () =>
       prisma.worldEvent.findMany({

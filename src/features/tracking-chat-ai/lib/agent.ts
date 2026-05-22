@@ -32,16 +32,29 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     return { skipped: true, reason: "lead_finished" };
   if (!ctx.lead.phone) return { skipped: true, reason: "lead_no_phone" };
 
+  const baseSystem = buildSystemPrompt({
+    settings: ctx.settings!,
+    orgName: ctx.organization.name,
+    leadName: ctx.lead.name,
+    currentTags: ctx.lead.leadTags,
+    availableTags: ctx.availableTags,
+    availableButtonPresets: ctx.availableButtonPresets,
+  });
+
+  // Apêndice ao system prompt quando o disparo veio da automação de ociosidade
+  // com instrução de reabertura: não há nova msg do lead, o agente precisa
+  // tomar iniciativa pra reengajar de forma natural.
+  const systemPrompt =
+    ctx.trigger === "idle-reopen-with-instruction"
+      ? `${baseSystem}\n\n# Reabertura automática\n\nO lead está ocioso${
+          ctx.idleMinutes ? ` há cerca de ${ctx.idleMinutes} minutos` : ""
+        } desde a última interação. Não chegou nenhuma nova mensagem do lead. Reabra a conversa de forma natural e curta pra reengajar — referência o contexto anterior se fizer sentido. Evite parecer automático.`
+      : baseSystem;
+
   const aiResult = await step.run("run-agent", async () => {
     const result = await generateText({
       model: defaultModel(),
-      system: buildSystemPrompt({
-        settings: ctx.settings!,
-        orgName: ctx.organization.name,
-        leadName: ctx.lead.name,
-        currentTags: ctx.lead.leadTags,
-        availableTags: ctx.availableTags,
-      }),
+      system: systemPrompt,
       tools: buildAgentTools(ctx),
       messages: ctx.history,
       stopWhen: ({ steps }) => steps.length >= 6,

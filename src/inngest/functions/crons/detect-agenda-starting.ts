@@ -24,18 +24,24 @@ const SAFETY_MARGIN_SEC = 30;
 
 export const detectAgendaStarting = inngest.createFunction(
   { id: "detect-agenda-starting", retries: 1 },
-  { cron: "* * * * *" }, // a cada 1 min — necessário pra minutesBefore=1
+  { cron: "*/15 * * * *" }, // a cada 15 min — regras devem usar minutesBefore >= 15
   async ({ step }) => {
+    // Early exit fora de step.run pra não consumir step do Free tier
+    // quando não há regras ativas (cron roda 1440x/dia).
+    const activeRulesCount = await prisma.alertRule.count({
+      where: { eventType: "agenda.starting_soon", isActive: true },
+    });
+
+    if (activeRulesCount === 0) {
+      return { rulesScanned: 0, dispatched: 0 };
+    }
+
     const rules = await step.run("fetch-rules", async () =>
       prisma.alertRule.findMany({
         where: { eventType: "agenda.starting_soon", isActive: true },
         select: { id: true, organizationId: true, params: true },
       }),
     );
-
-    if (rules.length === 0) {
-      return { rulesScanned: 0, dispatched: 0 };
-    }
 
     let totalDispatched = 0;
 

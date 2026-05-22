@@ -48,6 +48,7 @@ export function useDeleteForgeProduct() {
 export function useForgeProposals(filters?: {
   status?: string;
   responsibleId?: string;
+  clientId?: string;
 }) {
   return useQuery(
     orpc.forge.proposals.list.queryOptions({ input: filters ?? {} }),

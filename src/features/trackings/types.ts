@@ -8,9 +8,11 @@ export type Lead = {
   currentAction: LeadAction;
   email: string | null;
   name: string;
+  nickname?: string | null;
   profile: string | null;
   statusId: string;
   createdAt: Date;
+  updatedAt?: Date | string;
   description: string | null;
   phone: string | null;
   responsible: {

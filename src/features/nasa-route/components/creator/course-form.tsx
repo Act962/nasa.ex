@@ -55,6 +55,10 @@ interface InitialCourse {
   categoryId: string | null;
   rewardSpOnComplete: number;
 
+  // Datas UNIFICADAS (todos os formatos podem ter)
+  startsAt?: Date | string | null;
+  endsAt?: Date | string | null;
+
   // Novos campos por formato (todos opcionais — só vêm preenchidos se já existirem)
   ebookFileKey?: string | null;
   ebookFileName?: string | null;
@@ -70,6 +74,10 @@ interface InitialCourse {
   communityInviteUrl?: string | null;
   communityRules?: string | null;
   subscriptionPeriod?: string | null;
+
+  // Funil pós-compra
+  purchaseTrackingId?: string | null;
+  purchaseStatusId?: string | null;
 }
 
 interface Props {
@@ -83,6 +91,15 @@ function toDateOrNull(v: Date | string | null | undefined): Date | null {
   if (v instanceof Date) return v;
   const d = new Date(v);
   return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Formata Date pra value de `<input type="datetime-local">` (YYYY-MM-DDTHH:mm).
+ * Necessário porque `Date.toISOString()` tem timezone Z, que o input rejeita.
+ */
+function toDatetimeLocalValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export function CourseForm({ courseId, initial, onSaved }: Props) {
@@ -110,6 +127,26 @@ export function CourseForm({ courseId, initial, onSaved }: Props) {
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [rewardSpOnComplete, setRewardSpOnComplete] = useState(
     initial?.rewardSpOnComplete?.toString() ?? "0",
+  );
+
+  // ── Datas unificadas — todos os formatos podem ter ──────
+  // `startsAt`/`endsAt` valem pra qualquer formato (course, training,
+  // mentoring, ebook, event, community, subscription). Diferente dos
+  // campos antigos `eventStartsAt`/`eventEndsAt` (que valiam só pra
+  // format="event" e ficam preservados pra compat).
+  const [startsAt, setStartsAt] = useState<Date | null>(
+    toDateOrNull(initial?.startsAt),
+  );
+  const [endsAt, setEndsAt] = useState<Date | null>(
+    toDateOrNull(initial?.endsAt),
+  );
+
+  // ── Funil pós-compra (tracking + status) ──────────────────
+  const [purchaseTrackingId, setPurchaseTrackingId] = useState<string>(
+    initial?.purchaseTrackingId ?? "",
+  );
+  const [purchaseStatusId, setPurchaseStatusId] = useState<string>(
+    initial?.purchaseStatusId ?? "",
   );
 
   // ── Estado por formato ────────────────────────────────────
@@ -140,6 +177,25 @@ export function CourseForm({ courseId, initial, onSaved }: Props) {
     ...orpc.nasaRoute.publicSearch.queryOptions({ input: { limit: 1 } }),
   });
   const categories = searchData?.categories ?? [];
+
+  // ── Trackings + Status pra o select do funil pós-compra ──
+  // `tracking.list` retorna array direto (não `{ trackings: [...] }`).
+  // Filtra trackings em que o usuário PARTICIPA da org criadora —
+  // backend já garante via `participants: { some: { userId } }`.
+  const { data: trackingsList } = useQuery({
+    ...orpc.tracking.list.queryOptions(),
+  });
+  const trackings = (trackingsList as any[]) ?? [];
+  // Carrega status do tracking selecionado (lazy — só busca quando há
+  // tracking escolhido). `enabled` evita query inútil.
+  const { data: statusesData } = useQuery({
+    ...orpc.status.listSimple.queryOptions({
+      input: { trackingId: purchaseTrackingId },
+    }),
+    enabled: !!purchaseTrackingId,
+  });
+  // `status.listSimple` retorna `{ status: [...] }`.
+  const statuses = (statusesData as any)?.status ?? [];
 
   const upsert = useMutation({
     ...orpc.nasaRoute.creatorUpsertCourse.mutationOptions(),
@@ -200,6 +256,12 @@ export function CourseForm({ courseId, initial, onSaved }: Props) {
       priceStars: Number(priceStars) || 0,
       categoryId: categoryId || null,
       rewardSpOnComplete: Number(rewardSpOnComplete) || 0,
+      // Datas unificadas — todos os formatos podem ter
+      startsAt,
+      endsAt,
+      // Funil pós-compra (CRM)
+      purchaseTrackingId: purchaseTrackingId || null,
+      purchaseStatusId: purchaseStatusId || null,
       // Campos por formato — o procedure persiste só os relevantes pro
       // `format` atual e zera o resto.
       ebookFileKey: ebook.ebookFileKey,
@@ -265,6 +327,110 @@ export function CourseForm({ courseId, initial, onSaved }: Props) {
       {format === "subscription" && (
         <SubscriptionSection value={subscription} onChange={setSubscription} />
       )}
+
+      {/* ── Datas unificadas: válido pra TODOS os formatos ───
+          Quando preenchidas, o cron `nasa-route-archive-past-events`
+          arquiva o curso/evento automaticamente após `endsAt`. */}
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+        <div>
+          <p className="text-sm font-semibold">Datas (opcional)</p>
+          <p className="text-xs text-muted-foreground">
+            Janela em que o conteúdo está ativo. Eventos com data de fim
+            no passado são arquivados automaticamente.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="startsAt">Início</Label>
+            <Input
+              id="startsAt"
+              type="datetime-local"
+              value={startsAt ? toDatetimeLocalValue(startsAt) : ""}
+              onChange={(e) =>
+                setStartsAt(e.target.value ? new Date(e.target.value) : null)
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="endsAt">Fim</Label>
+            <Input
+              id="endsAt"
+              type="datetime-local"
+              value={endsAt ? toDatetimeLocalValue(endsAt) : ""}
+              onChange={(e) =>
+                setEndsAt(e.target.value ? new Date(e.target.value) : null)
+              }
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Funil de vendas pós-compra (CRM) ─────────────────
+          Quando alguém compra este curso, o sistema cria/move um lead
+          no tracking + status configurados. Permite o criador puxar
+          os compradores pro CRM e fazer follow-up no atendimento. */}
+      <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+        <div>
+          <p className="text-sm font-semibold">Funil de vendas (opcional)</p>
+          <p className="text-xs text-muted-foreground">
+            Direcione cada lead que comprar este curso pra um tracking +
+            status do seu CRM. Sem isso, a compra cria só o registro
+            financeiro (Payments).
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="purchaseTracking">Tracking</Label>
+            <Select
+              value={purchaseTrackingId || "none"}
+              onValueChange={(v) => {
+                setPurchaseTrackingId(v === "none" ? "" : v);
+                setPurchaseStatusId(""); // reseta o status ao trocar de tracking
+              }}
+            >
+              <SelectTrigger id="purchaseTracking">
+                <SelectValue placeholder="Selecione…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Não usar funil</SelectItem>
+                {trackings.map((t: any) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="purchaseStatus">Status inicial</Label>
+            <Select
+              value={purchaseStatusId || "none"}
+              onValueChange={(v) =>
+                setPurchaseStatusId(v === "none" ? "" : v)
+              }
+              disabled={!purchaseTrackingId}
+            >
+              <SelectTrigger id="purchaseStatus">
+                <SelectValue
+                  placeholder={
+                    purchaseTrackingId
+                      ? "Selecione…"
+                      : "Escolha o tracking primeiro"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Status padrão (primeira coluna)</SelectItem>
+                {statuses.map((s: any) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
 
       {/* ── Nível, categoria, preço, recompensas ────────────── */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

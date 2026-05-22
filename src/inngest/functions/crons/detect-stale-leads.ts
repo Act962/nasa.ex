@@ -25,7 +25,7 @@ interface StaleParams {
 
 export const detectStaleLeads = inngest.createFunction(
   { id: "detect-stale-leads", retries: 1 },
-  { cron: "*/30 * * * *" }, // a cada 30 min
+  { cron: "0 * * * *" }, // hora em hora
   async ({ step }) => {
     const rules = await step.run("fetch-rules", async () =>
       prisma.alertRule.findMany({

@@ -4,7 +4,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { Lead } from "../types";
 import { persist } from "zustand/middleware";
 
-type SortBy = "order" | "createdAt" | "updatedAt";
+export type SortBy = "order" | "createdAt" | "updatedAt" | "statusEnteredAt";
 
 type ColumnState = {
   id: string;
@@ -48,6 +48,12 @@ type KanbanStore = {
 
   isDragging: boolean;
   setIsDragging: (isDragging: boolean) => void;
+
+  // Header colapsado — esconde TrackingSwitcher / Participantes / Tags /
+  // Status / Calendário / IA de Leads, deixando apenas "Filtros" e
+  // "Novo Lead". Persiste no localStorage pra manter preferência.
+  headerCollapsed: boolean;
+  toggleHeaderCollapsed: () => void;
 };
 
 export const useKanbanStore = create<KanbanStore>()(
@@ -55,10 +61,17 @@ export const useKanbanStore = create<KanbanStore>()(
     (set, get) => ({
       columns: {},
       columnList: [],
-      sortBy: "order",
+      // Default: ordena pela data de entrada na etapa (mais recente em cima),
+      // que casa com a data exibida no card por padrão. Usuários antigos com
+      // sortBy persistido em "order" mantém preferência via Zustand persist.
+      sortBy: "statusEnteredAt",
       isDragging: false,
 
       setIsDragging: (isDragging) => set({ isDragging }),
+
+      headerCollapsed: false,
+      toggleHeaderCollapsed: () =>
+        set((state) => ({ headerCollapsed: !state.headerCollapsed })),
 
       setSortBy: (sortBy) =>
         set({
@@ -275,7 +288,10 @@ export const useKanbanStore = create<KanbanStore>()(
     }),
     {
       name: "kanban-store",
-      partialize: (state) => ({ sortBy: state.sortBy }),
+      partialize: (state) => ({
+        sortBy: state.sortBy,
+        headerCollapsed: state.headerCollapsed,
+      }),
     },
   ),
 );
