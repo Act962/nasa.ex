@@ -40,6 +40,9 @@ export const publicGetCourse = base
             moduleId: true,
             title: true,
             summary: true,
+            // Thumbnail aparece na listagem pública — UI usa
+            // `useConstructUrl(thumbnailKey)` pra montar a URL.
+            thumbnailKey: true,
             durationMin: true,
             isFreePreview: true,
           },
@@ -59,7 +62,7 @@ export const publicGetCourse = base
         },
       },
     });
-    if (!course || !course.isPublished) {
+    if (!course || !course.isPublished || course.isArchived) {
       throw new ORPCError("NOT_FOUND", { message: "Curso não encontrado" });
     }
 
@@ -87,6 +90,13 @@ export const publicGetCourse = base
         minPriceStars,
         studentsCount: course.studentsCount,
         rewardSpOnComplete: course.rewardSpOnComplete,
+        // Integrações marketing (Pixel/GTM/redirect) — usadas pelo
+        // front pra injetar scripts de tracking e redirecionar
+        // pós-compra. Públicos por design (Pixel/GTM são IDs públicos
+        // de qualquer forma — aparecem no HTML do site do criador).
+        pixelId: course.pixelId,
+        gtmId: course.gtmId,
+        redirectUrl: course.redirectUrl,
         // Campos por formato — só metadados públicos.
         // URLs sensíveis (ebookFileKey, communityInviteUrl, eventStreamUrl)
         // só vêm via procedures autenticadas após matrícula.
@@ -108,6 +118,9 @@ export const publicGetCourse = base
           moduleId: l.moduleId,
           title: l.title,
           summary: l.summary,
+          // Thumbnail da aula (S3 key) — front usa `useConstructUrl`
+          // pra montar a URL. Sem isso, a UI mostra placeholder.
+          thumbnailKey: l.thumbnailKey,
           durationMin: l.durationMin,
           isFreePreview: l.isFreePreview,
           locked: !l.isFreePreview,

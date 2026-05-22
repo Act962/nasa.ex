@@ -253,6 +253,18 @@ export function CoursePlayerShell({ courseId, initialLessonId }: Props) {
   );
 }
 
+interface LessonAttachmentLite {
+  id: string;
+  kind: "file" | "image" | "link" | string;
+  title: string;
+  url?: string | null;
+  fileKey?: string | null;
+  fileName?: string | null;
+  fileSize?: number | null;
+  mimeType?: string | null;
+  description?: string | null;
+}
+
 interface LessonPlayerProps {
   lesson: {
     id: string;
@@ -265,6 +277,7 @@ interface LessonPlayerProps {
     video: { provider: string | null; videoId: string | null; embedUrl: string | null };
     videoFileKey?: string | null;
     videoFileSize?: number | null;
+    attachments?: LessonAttachmentLite[];
   };
   isCompleted: boolean;
   isLoading: boolean;
@@ -345,6 +358,12 @@ function LessonPlayer({
         <div className="prose prose-sm dark:prose-invert mt-6 max-w-none whitespace-pre-wrap text-foreground/90">
           {lesson.contentMd}
         </div>
+      )}
+
+      {/* Anexos da aula — PDF/imagem/link com view + download.
+          Só vem do server quando o aluno tem plano que inclui esta aula. */}
+      {!isLocked && lesson.attachments && lesson.attachments.length > 0 && (
+        <LessonAttachmentsList attachments={lesson.attachments} />
       )}
 
       {!isLocked && (
@@ -456,4 +475,111 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/**
+ * Lista de anexos da aula (file / image / link) com visualizar +
+ * baixar. Aparece abaixo do `contentMd` no player do aluno quando a
+ * aula está incluída no plano comprado.
+ */
+function LessonAttachmentsList({
+  attachments,
+}: {
+  attachments: LessonAttachmentLite[];
+}) {
+  return (
+    <div className="mt-6 space-y-3">
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        Materiais complementares
+      </h3>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+        {attachments.map((att) => (
+          <LessonAttachmentItem key={att.id} attachment={att} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LessonAttachmentItem({
+  attachment,
+}: {
+  attachment: LessonAttachmentLite;
+}) {
+  // URL pra abrir/baixar: link externo OU arquivo do S3 (via imgSrc).
+  const href =
+    attachment.kind === "link"
+      ? attachment.url
+      : attachment.fileKey
+        ? imgSrc(attachment.fileKey)
+        : attachment.url ?? null;
+
+  if (!href) {
+    return (
+      <div className="rounded-xl border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+        {attachment.title} · indisponível
+      </div>
+    );
+  }
+
+  const isImage = attachment.kind === "image";
+  const isLink = attachment.kind === "link";
+  // PDFs e outros arquivos do S3 — força download via attribute.
+  const shouldDownload = !isLink;
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      download={shouldDownload ? attachment.fileName ?? true : undefined}
+      className="group flex items-start gap-3 rounded-xl border border-border bg-card p-3 transition hover:border-violet-300 hover:bg-violet-50/40 dark:hover:bg-violet-900/10"
+    >
+      <div
+        className={cn(
+          "flex size-10 shrink-0 items-center justify-center rounded-lg",
+          isLink
+            ? "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"
+            : isImage
+              ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+              : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
+        )}
+      >
+        {isLink ? (
+          <Link2 className="size-5" />
+        ) : isImage ? (
+          // ImageIcon não importado neste arquivo; usa FileText como fallback genérico.
+          <FileText className="size-5" />
+        ) : (
+          <FileText className="size-5" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300">
+          {attachment.title}
+        </p>
+        {attachment.description && (
+          <p className="line-clamp-1 text-xs text-muted-foreground">
+            {attachment.description}
+          </p>
+        )}
+        <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+          {isLink ? (
+            <>
+              <ExternalLink className="size-3" />
+              Link externo
+            </>
+          ) : (
+            <>
+              <Download className="size-3" />
+              {isImage ? "Imagem" : "Arquivo"}
+              {attachment.fileSize
+                ? ` · ${formatFileSize(attachment.fileSize)}`
+                : ""}
+            </>
+          )}
+        </p>
+      </div>
+    </a>
+  );
 }

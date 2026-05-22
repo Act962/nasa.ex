@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Lock, Play } from "lucide-react";
+import { Lock, Play, ImageIcon } from "lucide-react";
+import { useConstructUrl } from "@/hooks/use-construct-url";
 
 interface ModuleData {
   id: string;
@@ -15,6 +16,8 @@ interface LessonData {
   moduleId: string | null;
   title: string;
   summary: string | null;
+  /** Chave S3 da thumbnail — opcional. */
+  thumbnailKey?: string | null;
   durationMin: number | null;
   isFreePreview: boolean;
   order: number;
@@ -29,7 +32,8 @@ interface Props {
 
 /**
  * Lista de módulos/aulas do curso na página pública.
- * Mostra ícone de Play pra previews liberados, Lock pros bloqueados.
+ * Mostra thumbnail à esquerda (placeholder se vazio), badge "GRÁTIS"
+ * verde pra previews + CTA "▶ Assistir grátis" bem visível.
  *
  * Extraído de `course-public-page.tsx` pra manter o arquivo principal
  * abaixo de 400 linhas (regra do projeto).
@@ -47,7 +51,15 @@ export function CourseLessonsSection({
     <section className="mt-8">
       <h2 className="text-xl font-bold">Conteúdo do curso</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        {lessons.length} aulas · {freeCount} gratuitas
+        {lessons.length} {lessons.length === 1 ? "aula" : "aulas"}
+        {freeCount > 0 && (
+          <>
+            {" · "}
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+              {freeCount} {freeCount === 1 ? "gratuita" : "gratuitas"}
+            </span>
+          </>
+        )}
       </p>
 
       <div className="mt-4 space-y-3">
@@ -60,51 +72,125 @@ export function CourseLessonsSection({
               <div className="border-b border-border px-5 py-3">
                 <h3 className="text-sm font-semibold">{group.title}</h3>
                 {group.summary && (
-                  <p className="mt-0.5 text-xs text-muted-foreground">{group.summary}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {group.summary}
+                  </p>
                 )}
               </div>
             )}
             <ul className="divide-y divide-border">
               {group.lessons.map((l) => (
-                <li key={l.id} className="flex items-center gap-3 px-5 py-3">
-                  <div className="flex size-8 items-center justify-center rounded-full bg-muted">
-                    {l.isFreePreview ? (
-                      <Play className="size-3.5 text-violet-600" />
-                    ) : (
-                      <Lock className="size-3.5 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{l.title}</p>
-                    {l.summary && (
-                      <p className="truncate text-xs text-muted-foreground">{l.summary}</p>
-                    )}
-                  </div>
-                  {l.durationMin && (
-                    <span className="text-[11px] text-muted-foreground">
-                      {l.durationMin} min
-                    </span>
-                  )}
-                  {l.isFreePreview ? (
-                    <Link
-                      href={`/c/${companySlug}/${courseSlug}/preview/${l.id}`}
-                      className="text-xs font-medium text-violet-700 hover:underline dark:text-violet-300"
-                    >
-                      Assistir grátis
-                    </Link>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <Lock className="size-3" />
-                      Bloqueado
-                    </span>
-                  )}
-                </li>
+                <LessonRow
+                  key={l.id}
+                  lesson={l}
+                  companySlug={companySlug}
+                  courseSlug={courseSlug}
+                />
               ))}
             </ul>
           </div>
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * Linha de aula isolada — usa `useConstructUrl` (hook) que precisa rodar
+ * 1 vez por aula, daí ser um sub-componente em vez de inline no map.
+ */
+function LessonRow({
+  lesson,
+  companySlug,
+  courseSlug,
+}: {
+  lesson: LessonData;
+  companySlug: string;
+  courseSlug: string;
+}) {
+  const thumbUrl = useConstructUrl(lesson.thumbnailKey || "");
+  const isFree = lesson.isFreePreview;
+
+  const inner = (
+    <li
+      className={`group flex items-center gap-3 px-3 py-3 sm:px-5 transition-colors ${
+        isFree ? "cursor-pointer hover:bg-violet-50/40 dark:hover:bg-violet-950/20" : ""
+      }`}
+    >
+      {/* Thumbnail à esquerda — 64×40 (proporção vídeo). Placeholder
+          com ícone quando não há `thumbnailKey`. */}
+      <div className="relative h-10 w-16 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
+        {lesson.thumbnailKey ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbUrl}
+            alt={lesson.title}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <ImageIcon className="size-4 text-muted-foreground/40" />
+          </div>
+        )}
+        {/* Overlay do estado (free/locked) sobre a thumbnail */}
+        <div
+          className={`absolute inset-0 flex items-center justify-center ${
+            isFree ? "bg-violet-600/40" : "bg-black/40"
+          }`}
+        >
+          {isFree ? (
+            <Play className="size-4 text-white" fill="white" />
+          ) : (
+            <Lock className="size-3.5 text-white/80" />
+          )}
+        </div>
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <p className="truncate text-sm font-medium">{lesson.title}</p>
+          {isFree && (
+            <span className="inline-flex shrink-0 items-center rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+              Grátis
+            </span>
+          )}
+        </div>
+        {lesson.summary && (
+          <p className="truncate text-xs text-muted-foreground">
+            {lesson.summary}
+          </p>
+        )}
+      </div>
+
+      {lesson.durationMin && (
+        <span className="hidden text-[11px] text-muted-foreground sm:inline">
+          {lesson.durationMin} min
+        </span>
+      )}
+
+      {isFree ? (
+        <span className="inline-flex items-center gap-1 rounded-full bg-violet-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-transform group-hover:scale-105">
+          <Play className="size-3" fill="currentColor" />
+          Assistir grátis
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+          <Lock className="size-3" />
+          Bloqueado
+        </span>
+      )}
+    </li>
+  );
+
+  return isFree ? (
+    <Link
+      href={`/c/${companySlug}/${courseSlug}/preview/${lesson.id}`}
+      className="block"
+    >
+      {inner}
+    </Link>
+  ) : (
+    inner
   );
 }
 

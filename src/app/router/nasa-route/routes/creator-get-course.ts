@@ -28,6 +28,11 @@ export const creatorGetCourse = base
         },
         lessons: {
           orderBy: { order: "asc" },
+          include: {
+            attachments: {
+              orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+            },
+          },
         },
         plans: {
           orderBy: [{ order: "asc" }, { createdAt: "asc" }],
@@ -59,6 +64,20 @@ export const creatorGetCourse = base
         publishedAt: course.publishedAt,
         studentsCount: course.studentsCount,
         rewardSpOnComplete: course.rewardSpOnComplete,
+        // Datas unificadas (todos formatos)
+        startsAt: course.startsAt,
+        endsAt: course.endsAt,
+        // Legado evento (preservado pra compat)
+        eventStartsAt: course.eventStartsAt,
+        eventEndsAt: course.eventEndsAt,
+        isArchived: course.isArchived,
+        // Funil pós-compra
+        purchaseTrackingId: course.purchaseTrackingId,
+        purchaseStatusId: course.purchaseStatusId,
+        // Integrações marketing
+        redirectUrl: course.redirectUrl,
+        pixelId: course.pixelId,
+        gtmId: course.gtmId,
         categoryId: course.categoryId,
         category: course.category,
         creatorOrg: course.creatorOrg,
@@ -76,10 +95,23 @@ export const creatorGetCourse = base
           videoId: l.videoId,
           videoFileKey: l.videoFileKey,
           videoFileSize: l.videoFileSize ? Number(l.videoFileSize) : null,
+          thumbnailKey: l.thumbnailKey,
           durationMin: l.durationMin,
           isFreePreview: l.isFreePreview,
           awardSp: l.awardSp,
           video: parseVideoUrl(l.videoUrl),
+          attachments: ((l as any).attachments ?? []).map((a: any) => ({
+            id: a.id,
+            kind: a.kind,
+            title: a.title,
+            url: a.url,
+            fileKey: a.fileKey,
+            fileName: a.fileName,
+            fileSize: a.fileSize,
+            mimeType: a.mimeType,
+            description: a.description,
+            order: a.order,
+          })),
         })),
         plans: course.plans.map((p) => ({
           id: p.id,

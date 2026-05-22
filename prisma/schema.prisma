@@ -4910,6 +4910,36 @@ model NasaRouteCourse {
   studentsCount      Int       @default(0) @map("students_count")
   rewardSpOnComplete Int       @default(0) @map("reward_sp_on_complete")
 
+  // Soft-delete / arquivamento. Cursos com `isArchived=true` somem das
+  // listagens públicas mas continuam no banco (alunos matriculados ainda
+  // têm acesso ao conteúdo, admin vê em aba "Arquivados"). O cron
+  // `nasa-route-archive-past-events` marca eventos com `endsAt < now()`.
+  isArchived Boolean   @default(false) @map("is_archived")
+  archivedAt DateTime? @map("archived_at")
+
+  // Datas de início/fim — UNIFICADAS pra todos os formatos. Substituem
+  // `eventStartsAt`/`eventEndsAt` (que ficam preservados pra compat;
+  // dados novos populam `startsAt`/`endsAt`). Treinamento, mentoria,
+  // evento, ebook, etc. — qualquer formato pode ter janela temporal.
+  startsAt DateTime? @map("starts_at")
+  endsAt   DateTime? @map("ends_at")
+
+  // Funil de vendas — quando alguém compra este curso, o sistema
+  // cria/move um lead nesse tracking + status. Permite o criador puxar
+  // os compradores pro CRM e dar follow-up no atendimento.
+  // Ambos opcionais — sem isso, a compra não cria lead automático.
+  purchaseTrackingId String? @map("purchase_tracking_id")
+  purchaseStatusId   String? @map("purchase_status_id")
+
+  // ── Integrações de marketing ───────────────────────────────
+  // URL pra redirecionar o comprador após o checkout (ex: página
+  // de obrigado/agradecimento do criador). Vazio = sem redirect.
+  redirectUrl  String? @map("redirect_url")
+  // IDs externos pra injetar scripts de tracking na página pública
+  // do curso. Exemplos: "123456789" (Pixel), "GTM-XXXXXXX" (GTM).
+  pixelId      String? @map("pixel_id")
+  gtmId        String? @map("gtm_id")
+
   // eBook (format = "ebook")
   ebookFileKey   String? @map("ebook_file_key")
   ebookFileName  String? @map("ebook_file_name")
@@ -4952,6 +4982,8 @@ model NasaRouteCourse {
   @@index([creatorOrgId])
   @@index([categoryId])
   @@index([isPublished, publishedAt])
+  @@index([isArchived])
+  @@index([endsAt])
   @@map("nasa_route_course")
 }
 
@@ -4986,6 +5018,10 @@ model NasaRouteLesson {
   // com `videoUrl` — quando upload completa, videoUrl é zerado e vice-versa.
   videoFileKey  String?  @map("video_file_key")
   videoFileSize BigInt?  @map("video_file_size")
+  // Thumbnail customizada da aula — chave S3/R2 (bucket principal, não
+  // o `nasa-route-videos`). Opcional: se null, a UI usa um placeholder
+  // ou o primeiro frame do vídeo.
+  thumbnailKey  String?  @map("thumbnail_key")
   durationMin   Int?     @map("duration_min")
   isFreePreview Boolean  @default(false) @map("is_free_preview")
   awardSp       Int      @default(10) @map("award_sp")
@@ -4996,9 +5032,40 @@ model NasaRouteLesson {
   module       NasaRouteModule?       @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   planLessons  NasaRoutePlanLesson[]
   videoUploads NasaRouteVideoUpload[]
+  attachments  NasaRouteLessonAttachment[]
 
   @@index([courseId, order])
   @@map("nasa_route_lesson")
+}
+
+/**
+ * Anexos da aula (PDF, imagens, docs, planilhas) — exibidos pro aluno
+ * matriculado dentro do player da aula, com botões de visualizar/baixar.
+ * Espelho de `NasaRoutePlanAttachment` mas vinculado direto à `Lesson`
+ * pra suportar "Conteúdo complementar" sem precisar passar pelo plano.
+ */
+model NasaRouteLessonAttachment {
+  id          String   @id @default(cuid())
+  lessonId    String   @map("lesson_id")
+  // "file" (PDF/doc/etc) | "image" | "link" (URL externa sem upload)
+  kind        String
+  title       String
+  // Pra `kind=link`: URL externa. Pra outros: opcional (fallback).
+  url         String?
+  // Chave S3/R2 do arquivo (bucket principal). Obrigatória pra kind != "link".
+  fileKey     String?  @map("file_key")
+  fileName    String?  @map("file_name")
+  fileSize    Int?     @map("file_size")
+  mimeType    String?  @map("mime_type")
+  description String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  lesson NasaRouteLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId, order])
+  @@map("nasa_route_lesson_attachment")
 }
 
 // Tracking de upload multipart de vídeo (bucket R2 dedicado nasa-route-videos).
