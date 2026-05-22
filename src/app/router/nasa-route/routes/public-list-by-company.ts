@@ -22,7 +22,7 @@ export const publicListByCompany = base
     if (!org) throw new ORPCError("NOT_FOUND", { message: "Organização não encontrada" });
 
     const courses = await prisma.nasaRouteCourse.findMany({
-      where: { creatorOrgId: org.id, isPublished: true },
+      where: { creatorOrgId: org.id, isPublished: true, isArchived: false },
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
       select: {
         id: true,
@@ -35,7 +35,10 @@ export const publicListByCompany = base
         format: true,
         priceStars: true,
         studentsCount: true,
-        // Datas (format = "event") — usadas pelo card pra mostrar badge na capa.
+        // Datas UNIFICADAS — todos os formatos podem ter.
+        startsAt: true,
+        endsAt: true,
+        // Datas LEGADAS (só format="event") — fallback.
         eventStartsAt: true,
         eventEndsAt: true,
         eventTimezone: true,

@@ -21,6 +21,16 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useConstructUrl } from "@/hooks/use-construct-url";
+import { ImageIcon } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +45,8 @@ import { CourseForm } from "./course-form";
 import { LessonForm } from "./lesson-form";
 import { ModuleForm } from "./module-form";
 import { PlansManager } from "./plans-manager";
+import { IntegrationsTab } from "./integrations-tab";
+import { CourseShareMenu } from "../shared/course-share-menu";
 import { useRouter } from "next/navigation";
 
 interface Props {
@@ -44,12 +56,20 @@ interface Props {
 export function CourseEditor({ courseId }: Props) {
   const router = useRouter();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<"info" | "lessons" | "plans">("lessons");
+  const [tab, setTab] = useState<
+    "info" | "lessons" | "plans" | "integrations"
+  >("lessons");
   const [editingLesson, setEditingLesson] = useState<any>(null);
   const [showLessonForm, setShowLessonForm] = useState(false);
   const [editingModule, setEditingModule] = useState<any>(null);
   const [showModuleForm, setShowModuleForm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Delete de aula — exige digitar o título exato pra confirmar.
+  const [lessonToDelete, setLessonToDelete] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   const { data, isLoading } = useQuery({
     ...orpc.nasaRoute.creatorGetCourse.queryOptions({ input: { courseId } }),
@@ -78,6 +98,19 @@ export function CourseEditor({ courseId }: Props) {
       router.push("/nasa-route/criador");
     },
     onError: (err: any) => toast.error(err?.message ?? "Falha ao excluir."),
+  });
+
+  const removeLesson = useMutation({
+    ...orpc.nasaRoute.creatorDeleteLesson.mutationOptions(),
+    onSuccess: () => {
+      toast.success("Aula excluída");
+      qc.invalidateQueries({
+        queryKey: orpc.nasaRoute.creatorGetCourse.queryKey({ input: { courseId } }),
+      });
+      setLessonToDelete(null);
+      setDeleteConfirmText("");
+    },
+    onError: (err: any) => toast.error(err?.message ?? "Falha ao excluir a aula."),
   });
 
   if (isLoading) {
@@ -142,15 +175,23 @@ export function CourseEditor({ courseId }: Props) {
 
         <div className="flex flex-wrap gap-2">
           {course.isPublished && course.creatorOrg && (
-            <Button asChild variant="outline" className="gap-1.5">
-              <Link
-                href={`/c/${course.creatorOrg.slug}/${course.slug}`}
-                target="_blank"
-              >
-                <Eye className="size-4" />
-                Ver pública
-              </Link>
-            </Button>
+            <>
+              <Button asChild variant="outline" className="gap-1.5">
+                <Link
+                  href={`/c/${course.creatorOrg.slug}/${course.slug}`}
+                  target="_blank"
+                >
+                  <Eye className="size-4" />
+                  Ver pública
+                </Link>
+              </Button>
+              <CourseShareMenu
+                url={`/c/${course.creatorOrg.slug}/${course.slug}`}
+                text={`${course.title} — confira na NASA Route`}
+                variant="button"
+                label="Compartilhar"
+              />
+            </>
           )}
           <Button
             variant={course.isPublished ? "outline" : "default"}
@@ -216,6 +257,17 @@ export function CourseEditor({ courseId }: Props) {
         >
           Informações do curso
         </button>
+        <button
+          type="button"
+          onClick={() => setTab("integrations")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
+            tab === "integrations"
+              ? "border-violet-600 text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Integrações
+        </button>
       </div>
 
       <div className="mt-6">
@@ -236,6 +288,16 @@ export function CourseEditor({ courseId }: Props) {
               priceStars: course.priceStars,
               categoryId: course.categoryId,
               rewardSpOnComplete: course.rewardSpOnComplete,
+              // Datas unificadas (todos os formatos podem ter)
+              startsAt: (course as any).startsAt ?? null,
+              endsAt: (course as any).endsAt ?? null,
+              // Legado evento (preservado pra compat)
+              eventStartsAt: (course as any).eventStartsAt ?? null,
+              eventEndsAt: (course as any).eventEndsAt ?? null,
+              // Funil pós-compra (tracking + status)
+              purchaseTrackingId:
+                (course as any).purchaseTrackingId ?? null,
+              purchaseStatusId: (course as any).purchaseStatusId ?? null,
             }}
           />
         ) : tab === "plans" ? (
@@ -249,6 +311,31 @@ export function CourseEditor({ courseId }: Props) {
             }))}
             modules={course.modules.map((m) => ({ id: m.id, title: m.title }))}
           />
+        ) : tab === "integrations" ? (
+          course.creatorOrg && (
+            <IntegrationsTab
+              courseId={course.id}
+              companySlug={course.creatorOrg.slug}
+              courseSlug={course.slug}
+              initial={{
+                slug: course.slug,
+                title: course.title,
+                subtitle: course.subtitle,
+                description: course.description,
+                coverUrl: course.coverUrl,
+                trailerUrl: course.trailerUrl,
+                level: course.level,
+                format: course.format,
+                durationMin: course.durationMin,
+                priceStars: course.priceStars,
+                categoryId: course.categoryId,
+                rewardSpOnComplete: course.rewardSpOnComplete,
+                redirectUrl: (course as any).redirectUrl ?? null,
+                pixelId: (course as any).pixelId ?? null,
+                gtmId: (course as any).gtmId ?? null,
+              }}
+            />
+          )
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
@@ -285,96 +372,79 @@ export function CourseEditor({ courseId }: Props) {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
+              // Accordion permite colapsar/expandir cada módulo. Aulas
+              // avulsas (sem módulo) também aparecem como item do accordion
+              // pra UX uniforme. `defaultValue` abre TODOS por padrão pra
+              // o criador ver o curso inteiro de relance.
+              <Accordion
+                type="multiple"
+                defaultValue={grouped.map((g) => g.id ?? "no-module")}
+                className="space-y-3"
+              >
                 {grouped.map((group) => (
-                  <div
+                  <AccordionItem
                     key={group.id ?? "no-module"}
-                    className="rounded-2xl border border-border bg-card"
+                    value={group.id ?? "no-module"}
+                    className="rounded-2xl border border-border bg-card data-[state=open]:bg-card"
                   >
-                    {group.title && (
-                      <div className="flex items-center justify-between border-b border-border px-5 py-3">
-                        <div className="min-w-0">
+                    <AccordionTrigger className="px-5 py-3 hover:no-underline">
+                      <div className="flex w-full items-center justify-between gap-3">
+                        <div className="min-w-0 text-left">
                           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Módulo
+                            {group.title ? "Módulo" : "Aulas avulsas"}
                           </p>
-                          <p className="truncate text-sm font-semibold">
-                            {group.title}
+                          {group.title && (
+                            <p className="truncate text-sm font-semibold">
+                              {group.title}
+                            </p>
+                          )}
+                          <p className="text-[11px] text-muted-foreground">
+                            {group.lessons.length}{" "}
+                            {group.lessons.length === 1 ? "aula" : "aulas"}
                           </p>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setEditingModule({
-                              id: group.id,
-                              title: group.title,
-                              summary: group.summary,
-                            });
-                            setShowModuleForm(true);
-                          }}
-                        >
-                          <Settings2 className="size-4" />
-                        </Button>
-                      </div>
-                    )}
-                    {!group.title && (
-                      <div className="border-b border-border px-5 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          Aulas avulsas
-                        </p>
-                      </div>
-                    )}
-                    <ul className="divide-y divide-border">
-                      {group.lessons.map((l, i) => (
-                        <li
-                          key={l.id}
-                          className="flex items-center gap-3 px-5 py-3"
-                        >
-                          <GripVertical className="size-4 text-muted-foreground/40" />
-                          <div className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-                            {i + 1}
+                        {group.id && (
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            className="shrink-0 inline-flex items-center justify-center rounded-md size-8 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingModule({
+                                id: group.id,
+                                title: group.title,
+                                summary: group.summary,
+                              });
+                              setShowModuleForm(true);
+                            }}
+                          >
+                            <Settings2 className="size-4" />
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">
-                              {l.title}
-                            </p>
-                            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                              {l.isFreePreview ? (
-                                <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-                                  <Play className="size-2.5" />
-                                  Preview
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-0.5">
-                                  <Lock className="size-2.5" />
-                                  Bloqueada
-                                </span>
-                              )}
-                              {l.video.provider && (
-                                <span className="capitalize">
-                                  · {l.video.provider}
-                                </span>
-                              )}
-                              {l.durationMin && <span>· {l.durationMin}min</span>}
-                              <span>· {l.awardSp} SP</span>
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
+                        )}
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-0">
+                      <ul className="divide-y divide-border border-t border-border">
+                        {group.lessons.map((l, i) => (
+                          <CreatorLessonRow
+                            key={l.id}
+                            lesson={l}
+                            index={i}
+                            onEdit={() => {
                               setEditingLesson(l);
                               setShowLessonForm(true);
                             }}
-                          >
-                            <Pencil className="size-4" />
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                            onDelete={() => {
+                              setLessonToDelete({ id: l.id, title: l.title });
+                              setDeleteConfirmText("");
+                            }}
+                          />
+                        ))}
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
                 ))}
-              </div>
+              </Accordion>
             )}
           </div>
         )}
@@ -425,6 +495,72 @@ export function CourseEditor({ courseId }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete de aula — exige digitar o título da aula pra confirmar.
+          Padrão "type-to-confirm" do GitHub. Evita delete acidental: o
+          botão fica desabilitado até `deleteConfirmText === title`. */}
+      <AlertDialog
+        open={!!lessonToDelete}
+        onOpenChange={(open) => {
+          if (!open) {
+            setLessonToDelete(null);
+            setDeleteConfirmText("");
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              ⚠️ Excluir aula permanentemente?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">
+                Esta ação é <strong>irreversível</strong>. O vídeo hospedado,
+                progresso dos alunos e vínculos com planos serão removidos.
+              </span>
+              <span className="block">
+                Pra confirmar, digite o nome exato da aula:
+              </span>
+              <span className="block rounded bg-muted px-2 py-1 font-mono text-sm">
+                {lessonToDelete?.title}
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="delete-lesson-confirm" className="text-xs">
+              Nome da aula
+            </Label>
+            <Input
+              id="delete-lesson-confirm"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="Digite o nome exato"
+              autoComplete="off"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removeLesson.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                removeLesson.isPending ||
+                deleteConfirmText !== lessonToDelete?.title
+              }
+              onClick={() => {
+                if (!lessonToDelete) return;
+                removeLesson.mutate({
+                  courseId,
+                  lessonId: lessonToDelete.id,
+                });
+              }}
+              className="bg-rose-600 hover:bg-rose-700"
+            >
+              {removeLesson.isPending ? "Excluindo..." : "Sim, excluir aula"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -463,4 +599,93 @@ function groupLessons(
   }
 
   return groups;
+}
+
+/**
+ * Linha individual de aula no editor do criador. Sub-componente porque
+ * `useConstructUrl` é hook (precisa rodar uma vez por aula pra montar
+ * a URL da thumbnail).
+ */
+function CreatorLessonRow({
+  lesson,
+  index,
+  onEdit,
+  onDelete,
+}: {
+  lesson: {
+    id: string;
+    title: string;
+    thumbnailKey?: string | null;
+    isFreePreview: boolean;
+    durationMin: number | null;
+    awardSp: number;
+    video: { provider: string | null };
+  };
+  index: number;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const thumbUrl = useConstructUrl(lesson.thumbnailKey || "");
+
+  return (
+    <li className="flex items-center gap-3 px-5 py-3">
+      <GripVertical className="size-4 text-muted-foreground/40" />
+      <div className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
+        {index + 1}
+      </div>
+      {/* Thumbnail — placeholder se não houver. 56×32 (proporção vídeo). */}
+      <div className="relative h-8 w-14 shrink-0 overflow-hidden rounded border border-border bg-muted">
+        {lesson.thumbnailKey ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbUrl}
+            alt={lesson.title}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <ImageIcon className="size-3 text-muted-foreground/40" />
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{lesson.title}</p>
+        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+          {lesson.isFreePreview ? (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 font-semibold uppercase text-[10px] tracking-wide text-emerald-700 dark:text-emerald-400">
+              <Play className="size-2.5" fill="currentColor" />
+              Grátis
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-0.5">
+              <Lock className="size-2.5" />
+              Bloqueada
+            </span>
+          )}
+          {lesson.video.provider && (
+            <span className="capitalize">· {lesson.video.provider}</span>
+          )}
+          {lesson.durationMin && <span>· {lesson.durationMin}min</span>}
+          <span>· {lesson.awardSp} SP</span>
+        </div>
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onEdit}
+        title="Editar aula"
+      >
+        <Pencil className="size-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+        onClick={onDelete}
+        title="Excluir aula"
+      >
+        <Trash2 className="size-4" />
+      </Button>
+    </li>
+  );
 }

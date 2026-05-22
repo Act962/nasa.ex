@@ -27,9 +27,9 @@ export const publicGetFreeLesson = base
       where: {
         creatorOrgId_slug: { creatorOrgId: org.id, slug: input.courseSlug },
       },
-      select: { id: true, isPublished: true, title: true },
+      select: { id: true, isPublished: true, isArchived: true, title: true },
     });
-    if (!course || !course.isPublished) {
+    if (!course || !course.isPublished || course.isArchived) {
       throw new ORPCError("NOT_FOUND", { message: "Curso não encontrado" });
     }
 
@@ -41,6 +41,10 @@ export const publicGetFreeLesson = base
         summary: true,
         contentMd: true,
         videoUrl: true,
+        // Vídeo hospedado no R2 NASA Route — quando setado, o front
+        // renderiza com `<video>` nativo (não iframe). Pra aulas grátis
+        // (isFreePreview=true) precisa expor isso publicamente.
+        videoFileKey: true,
         durationMin: true,
         isFreePreview: true,
       },
@@ -62,6 +66,7 @@ export const publicGetFreeLesson = base
         title: lesson.title,
         summary: lesson.summary,
         contentMd: lesson.contentMd,
+        videoFileKey: lesson.videoFileKey,
         durationMin: lesson.durationMin,
         video,
       },

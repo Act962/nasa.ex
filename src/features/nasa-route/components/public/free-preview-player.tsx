@@ -6,6 +6,7 @@ import { orpc } from "@/lib/orpc";
 import { ChevronLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VideoEmbed } from "../shared/video-embed";
+import { r2NasaRouteVideoUrl } from "@/features/nasa-route/lib/video-storage-url";
 
 interface Props {
   companySlug: string;
@@ -65,7 +66,23 @@ export function FreePreviewPlayer({ companySlug, courseSlug, lessonId }: Props) 
       )}
 
       <div className="mt-5">
-        <VideoEmbed url={data.lesson.video.embedUrl} title={data.lesson.title} />
+        {/* Player condicional: vídeo upado no R2 → `<video>` nativo;
+            URL YouTube/Vimeo → iframe via VideoEmbed; sem nada →
+            mensagem "Vídeo indisponível" (do VideoEmbed). Antes,
+            qualquer aula com videoFileKey caia em "indisponível" porque
+            embedUrl é null pra vídeos R2 — esse era o bug. */}
+        {data.lesson.videoFileKey ? (
+          <video
+            key={data.lesson.videoFileKey}
+            controls
+            playsInline
+            preload="metadata"
+            className="aspect-video w-full rounded-2xl border border-border bg-black"
+            src={r2NasaRouteVideoUrl(data.lesson.videoFileKey)}
+          />
+        ) : (
+          <VideoEmbed url={data.lesson.video.embedUrl} title={data.lesson.title} />
+        )}
       </div>
 
       {data.lesson.contentMd && (

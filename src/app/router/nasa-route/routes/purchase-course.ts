@@ -10,6 +10,7 @@ import { awardPoints } from "@/app/router/space-point/utils";
 import { canEnrollFree, PLATFORM_FEE_PCT } from "../utils";
 import { executeCoursePurchaseInTx } from "../helpers/purchase-helpers";
 import { createSubscriptionInTx } from "../helpers/subscription-helpers";
+import { createPurchaseSideEffects } from "../helpers/purchase-crm-side-effects";
 import type { SubscriptionPeriod } from "@/features/nasa-route/lib/formats";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 
@@ -55,6 +56,10 @@ export const purchaseCourse = base
         eventStartsAt: true,
         eventEndsAt: true,
         subscriptionPeriod: true,
+        // Funil de vendas configurado pelo criador — usado em
+        // `createPurchaseSideEffects` depois do enrollment.
+        purchaseTrackingId: true,
+        purchaseStatusId: true,
       },
     });
     if (!course || !course.isPublished) {
@@ -159,6 +164,29 @@ export const purchaseCourse = base
         courseTitle: course.title,
         paidStars: 0,
         payoutStars: 0,
+      });
+
+      // CRM + Payments — fire-and-forget. Mesmo cursos grátis criam o
+      // lead (criador quer follow-up) e o PaymentEntry com valor 0 fica
+      // como registro histórico.
+      await createPurchaseSideEffects({
+        buyer: {
+          userId,
+          name: context.user.name,
+          email: context.user.email,
+          phone: (context.user as any).phone ?? null,
+        },
+        creatorOrgId: course.creatorOrgId,
+        createdByUserId: userId,
+        course: {
+          id: course.id,
+          title: course.title,
+          priceStars: 0,
+          purchaseTrackingId: course.purchaseTrackingId,
+          purchaseStatusId: course.purchaseStatusId,
+        },
+        planName: plan.name,
+        enrollmentId: enrollment.id,
       });
 
       return {
@@ -299,6 +327,29 @@ export const purchaseCourse = base
       courseTitle: course.title,
       paidStars: priceStars,
       payoutStars,
+    });
+
+    // 8. CRM + Payments (não-crítico) — cria lead no tracking destino
+    // (se configurado) E registra a venda no Payment Hub do criador
+    // (`PaymentEntry RECEIVABLE` com valor em BRL).
+    await createPurchaseSideEffects({
+      buyer: {
+        userId,
+        name: context.user.name,
+        email: context.user.email,
+        phone: (context.user as any).phone ?? null,
+      },
+      creatorOrgId: course.creatorOrgId,
+      createdByUserId: userId,
+      course: {
+        id: course.id,
+        title: course.title,
+        priceStars,
+        purchaseTrackingId: course.purchaseTrackingId,
+        purchaseStatusId: course.purchaseStatusId,
+      },
+      planName: plan.name,
+      enrollmentId: result.enrollment.id,
     });
 
     await logActivity({

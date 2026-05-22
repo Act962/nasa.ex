@@ -48,6 +48,9 @@ interface EnrollmentModalProps {
     priceStars: number;
     creatorOrg?: { name: string } | null;
     plans?: PlanLite[];
+    /** URL externa pra redirecionar pós-compra (configurada em
+     *  Integrações). Sobrescreve o redirect default (/curso/<id>). */
+    redirectUrl?: string | null;
   };
   initialPlanId?: string | null;
 }
@@ -115,9 +118,42 @@ export function EnrollmentModal({
         queryKey: orpc.stars.getBalance.queryKey(),
       });
 
+      // Dispara eventos de tracking (Pixel/GTM) ANTES do redirect —
+      // navegar pra um domínio externo perderia o handle do script.
+      if (typeof window !== "undefined") {
+        const fbq = (window as any).fbq;
+        if (typeof fbq === "function") {
+          fbq("track", "Purchase", {
+            value: priceStars,
+            currency: "BRL",
+            content_ids: [course.id],
+            content_name: course.title,
+            content_type: "product",
+          });
+        }
+        const dataLayer = (window as any).dataLayer;
+        if (Array.isArray(dataLayer)) {
+          dataLayer.push({
+            event: "purchase",
+            ecommerce: {
+              transaction_id: res.enrollmentId,
+              value: priceStars,
+              currency: "BRL",
+              items: [{ item_id: course.id, item_name: course.title }],
+            },
+          });
+        }
+      }
+
       setTimeout(() => {
         onClose();
-        router.push(`/nasa-route/curso/${course.id}`);
+        // Redireciona pra URL configurada em Integrações (externa) ou
+        // pra página de player do curso (default).
+        if (course.redirectUrl) {
+          window.location.href = course.redirectUrl;
+        } else {
+          router.push(`/nasa-route/curso/${course.id}`);
+        }
       }, 1600);
 
       if (res.source === "free_access") {

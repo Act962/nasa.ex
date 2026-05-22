@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import {
   CheckCircle2,
@@ -15,7 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VideoEmbed } from "../shared/video-embed";
 import { PriceStarsDisplay } from "../shared/price-stars-display";
+import { CourseShareMenu } from "../shared/course-share-menu";
 import { EnrollmentModal } from "../student/enrollment-modal";
+import { TrackingScripts } from "./tracking-scripts";
 import { PublicCheckoutModal } from "./public-checkout-modal";
 import { FormatCtaButton } from "./format-cta-button";
 import { FormatDetailsSection } from "./format-details-section";
@@ -56,6 +59,30 @@ export function CoursePublicPage({
       input: { companySlug, courseSlug },
     }),
   });
+
+  // ── Tracking de view (Insights NASA Route) ─────────────
+  // Loga uma única vez por carga da página, com UTM params da query
+  // string capturados pra atribuição de campanha.
+  const searchParams = useSearchParams();
+  const trackView = useMutation({
+    ...orpc.nasaRoute.trackCourseView.mutationOptions(),
+  });
+  const trackedRef = useRef(false);
+  useEffect(() => {
+    if (trackedRef.current) return;
+    const courseId = data?.course?.id;
+    if (!courseId) return;
+    trackedRef.current = true;
+    trackView.mutate({
+      courseId,
+      utmSource: searchParams.get("utm_source"),
+      utmMedium: searchParams.get("utm_medium"),
+      utmCampaign: searchParams.get("utm_campaign"),
+      utmContent: searchParams.get("utm_content"),
+      utmTerm: searchParams.get("utm_term"),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.course?.id]);
 
   const handleBack = () => {
     router.back();
@@ -149,6 +176,13 @@ export function CoursePublicPage({
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
+      {/* Facebook Pixel + Google Tag Manager (injetados quando o
+          criador configurou em Integrações). PageView dispara
+          automático; eventos de compra são chamados em enrollment-modal. */}
+      <TrackingScripts
+        pixelId={(course as any).pixelId ?? null}
+        gtmId={(course as any).gtmId ?? null}
+      />
       <Button
         variant="ghost"
         size="sm"
@@ -174,9 +208,17 @@ export function CoursePublicPage({
               </span>
             )}
           </div>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
-            {course.title}
-          </h1>
+          <div className="mt-3 flex items-start justify-between gap-3">
+            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+              {course.title}
+            </h1>
+            <CourseShareMenu
+              url={`/c/${companySlug}/${courseSlug}`}
+              text={`${course.title} — ${course.subtitle ?? "Confira este curso na NASA Route"}`}
+              variant="button"
+              label="Compartilhar"
+            />
+          </div>
           {course.subtitle && (
             <p className="mt-2 text-lg text-muted-foreground">
               {course.subtitle}
@@ -314,6 +356,17 @@ export function CoursePublicPage({
         signInHref={signInHref}
         signUpHref={signUpHref}
         starPriceBrl={starPriceBrl}
+        // Aulas com `isFreePreview=true` — aparecem no card "Acesso
+        // completo" com link direto pra assistir antes de comprar.
+        // Inclui `thumbnailKey` pra a UI mostrar a capa de cada aula.
+        freeLessons={course.lessons
+          .filter((l) => l.isFreePreview)
+          .map((l: any) => ({
+            id: l.id,
+            title: l.title,
+            thumbnailKey: l.thumbnailKey ?? null,
+          }))}
+        freeLessonsBasePath={`/c/${companySlug}/${courseSlug}/preview`}
         onSelectPlan={(planId) => startEnrollment(planId)}
         onPublicCheckout={(plan) => startPublicCheckout(plan)}
       />
@@ -374,6 +427,8 @@ export function CoursePublicPage({
               lessonCount: p.lessonCount,
               attachmentCount: p.attachments.length,
             })),
+            // URL de redirect configurada em Integrações pelo criador.
+            redirectUrl: (course as any).redirectUrl ?? null,
           }}
           initialPlanId={selectedPlanId}
         />

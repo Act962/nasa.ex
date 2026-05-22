@@ -45,6 +45,13 @@ export const getCourseAsStudent = base
         },
         lessons: {
           orderBy: { order: "asc" },
+          include: {
+            // Anexos da aula — incluídos pra renderizar lista de
+            // download/view dentro do player do aluno.
+            attachments: {
+              orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+            },
+          },
         },
       },
     });
@@ -119,6 +126,9 @@ export const getCourseAsStudent = base
         lessons: course.lessons.map((l) => {
           const video = parseVideoUrl(l.videoUrl);
           const includedInPlan = allowedLessonIds.has(l.id);
+          // Anexos só vêm pro aluno se a aula faz parte do plano dele
+          // (evita vazar materiais de planos premium pra plano básico).
+          const lessonAttachments = (l as any).attachments ?? [];
           return {
             id: l.id,
             order: l.order,
@@ -126,6 +136,7 @@ export const getCourseAsStudent = base
             title: l.title,
             summary: l.summary,
             contentMd: includedInPlan ? l.contentMd : null,
+            thumbnailKey: l.thumbnailKey,
             durationMin: l.durationMin,
             isFreePreview: l.isFreePreview,
             awardSp: l.awardSp,
@@ -134,6 +145,20 @@ export const getCourseAsStudent = base
             videoFileKey: includedInPlan ? l.videoFileKey : null,
             videoFileSize:
               includedInPlan && l.videoFileSize ? Number(l.videoFileSize) : null,
+            attachments: includedInPlan
+              ? lessonAttachments.map((a: any) => ({
+                  id: a.id,
+                  kind: a.kind,
+                  title: a.title,
+                  url: a.url,
+                  fileKey: a.fileKey,
+                  fileName: a.fileName,
+                  fileSize: a.fileSize,
+                  mimeType: a.mimeType,
+                  description: a.description,
+                  order: a.order,
+                }))
+              : [],
             includedInPlan,
           };
         }),
