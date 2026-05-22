@@ -28,24 +28,27 @@ import { useWebRTC } from "../../hooks/use-webrtc";
 import { useWorldPresence } from "../../hooks/use-world-presence";
 
 interface Props {
-  worldConfig:   StationWorldConfig;
+  worldConfig: StationWorldConfig;
   avatarConfig?: AvatarConfig;
-  stationId:     string;
-  nick:          string;
-  isOwner?:      boolean;
-  userImage?:    string | null;
+  stationId: string;
+  nick: string;
+  isOwner?: boolean;
+  userImage?: string | null;
   /** User session data for WebRTC identity */
-  userId?:       string;
-  userName?:     string;
-  userNick?:     string;
+  userId?: string;
+  userName?: string;
+  userNick?: string;
 }
 
 export function SpaceGame({
   worldConfig: initialWorldConfig,
   avatarConfig: initialAvatarConfig,
-  stationId, nick, isOwner, userImage,
+  stationId,
+  nick,
+  isOwner,
+  userImage,
   userId: rawUserId = "guest",
-  userName  = nick,
+  userName = nick,
   userNick,
 }: Props) {
   // Guests share the same server-side userId (derived from stationId), which
@@ -71,11 +74,11 @@ export function SpaceGame({
   const userId = effectiveUserId;
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const gameRef      = useRef<import("phaser").Game | null>(null);
-  const [loading, setLoading]           = useState(true);
-  const [galaxyOpen, setGalaxyOpen]     = useState(false);
+  const gameRef = useRef<import("phaser").Game | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [galaxyOpen, setGalaxyOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [worldConfig, setWorldConfig]   = useState(initialWorldConfig);
+  const [worldConfig, setWorldConfig] = useState(initialWorldConfig);
 
   // Avatar state — overlaid with the per-visitor localStorage copy so each
   // user (including guests in incognito) keeps their customisation on refresh.
@@ -83,44 +86,59 @@ export function SpaceGame({
   // visitors who have never customised. Per-visitor preferences live client-side
   // because only the station OWNER can write to SpaceStationWorld.avatarConfig.
   const avatarLocalKey = `_nasa_avatar_${stationId}_${userId}`;
-  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig | undefined>(() => {
-    if (typeof window === "undefined") return initialAvatarConfig;
-    try {
-      const stored = localStorage.getItem(avatarLocalKey);
-      if (stored) {
-        const parsed = JSON.parse(stored) as AvatarConfig;
-        // Merge station defaults with personal overrides (personal wins)
-        return { ...initialAvatarConfig, ...parsed } as AvatarConfig;
+  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig | undefined>(
+    () => {
+      if (typeof window === "undefined") return initialAvatarConfig;
+      try {
+        const stored = localStorage.getItem(avatarLocalKey);
+        if (stored) {
+          const parsed = JSON.parse(stored) as AvatarConfig;
+          // Merge station defaults with personal overrides (personal wins)
+          return { ...initialAvatarConfig, ...parsed } as AvatarConfig;
+        }
+      } catch {
+        /* ignore parse errors, fall through to default */
       }
-    } catch { /* ignore parse errors, fall through to default */ }
-    return initialAvatarConfig;
-  });
+      return initialAvatarConfig;
+    },
+  );
 
   // Persist avatar changes immediately to localStorage
   useEffect(() => {
     if (typeof window === "undefined" || !avatarConfig) return;
     try {
       localStorage.setItem(avatarLocalKey, JSON.stringify(avatarConfig));
-    } catch { /* quota exceeded or disabled — non-fatal */ }
+    } catch {
+      /* quota exceeded or disabled — non-fatal */
+    }
   }, [avatarConfig, avatarLocalKey]);
-  const [zoomLevel, setZoomLevel]       = useState(1.6);
-  const [zoomMin,   setZoomMin]         = useState(0.4);
-  const [zoomMax,   setZoomMax]         = useState(3.5);
-  const [pipActive,  setPipActive]      = useState(false);
-  const [shareOpen,  setShareOpen]      = useState(false);
-  const [creditsOpen, setCreditsOpen]  = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1.6);
+  const [zoomMin, setZoomMin] = useState(0.4);
+  const [zoomMax, setZoomMax] = useState(3.5);
+  const [pipActive, setPipActive] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [creditsOpen, setCreditsOpen] = useState(false);
   const [avatarPanelOpen, setAvatarPanelOpen] = useState(false);
   const [connectPanelOpen, setConnectPanelOpen] = useState(false);
-  const [mapMenuOpen, setMapMenuOpen]   = useState(false);
+  const [mapMenuOpen, setMapMenuOpen] = useState(false);
   const [mapEditorOpen, setMapEditorOpen] = useState(false);
   const [empresasOpen, setEmpresasOpen] = useState(false);
-  const [chatPeerId,   setChatPeerId]   = useState<string | null>(null);
+  const [chatPeerId, setChatPeerId] = useState<string | null>(null);
   const [chatPeerName, setChatPeerName] = useState<string | null>(null);
   const [areaToast, setAreaToast] = useState<{
-    id: string; type: AreaType; title: string; message: string;
+    id: string;
+    type: AreaType;
+    title: string;
+    message: string;
   } | null>(null);
-  const [websiteOverlay, setWebsiteOverlay] = useState<{ url: string; areaId: string } | null>(null);
-  const [exitOverlay,    setExitOverlay]    = useState<{ targetNick: string; areaId: string } | null>(null);
+  const [websiteOverlay, setWebsiteOverlay] = useState<{
+    url: string;
+    areaId: string;
+  } | null>(null);
+  const [exitOverlay, setExitOverlay] = useState<{
+    targetNick: string;
+    areaId: string;
+  } | null>(null);
   const areaAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // ── WebRTC ─────────────────────────────────────────────────────────────────
@@ -139,13 +157,20 @@ export function SpaceGame({
   // Overlays follow the same broadcast convention — raw values transmitted so
   // receivers can composite the final sprite on their side.
   const overlays = {
-    eyes:      avatarConfig?.wokaEyesUrl      ?? null,
-    hair:      avatarConfig?.wokaHairUrl      ?? null,
-    clothes:   avatarConfig?.wokaClothesUrl   ?? null,
-    hat:       avatarConfig?.wokaHatUrl       ?? null,
+    eyes: avatarConfig?.wokaEyesUrl ?? null,
+    hair: avatarConfig?.wokaHairUrl ?? null,
+    clothes: avatarConfig?.wokaClothesUrl ?? null,
+    hat: avatarConfig?.wokaHatUrl ?? null,
     accessory: avatarConfig?.wokaAccessoryUrl ?? null,
   };
-  useWorldPresence({ stationId, userId, userName, userNick, spriteUrl: rawSpriteUrl, overlays });
+  useWorldPresence({
+    stationId,
+    userId,
+    userName,
+    userNick,
+    spriteUrl: rawSpriteUrl,
+    overlays,
+  });
 
   // ── Phaser game init ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -158,33 +183,40 @@ export function SpaceGame({
       const PhaserModule = await import("phaser");
       const Phaser = PhaserModule.default ?? PhaserModule;
       const { PreloadScene } = await import("./scenes/preload-scene");
-      const { WorldScene }   = await import("./scenes/world-scene");
+      const { WorldScene } = await import("./scenes/world-scene");
       const { buildGameConfig } = await import("./game-config");
 
-      const capturedWorldConfig  = worldConfig;
+      const capturedWorldConfig = worldConfig;
       const capturedAvatarConfig = avatarConfig;
-      const capturedUserImage    = userImage;
-      const capturedUserId       = userId;
+      const capturedUserImage = userImage;
+      const capturedUserId = userId;
 
       // Pré-renderizar mapa Tiled direto no <canvas> antes do Phaser iniciar
-      let tiledCanvas:   HTMLCanvasElement | null = null;
-      let tiledWidthPx:  number = 0;
+      let tiledCanvas: HTMLCanvasElement | null = null;
+      let tiledWidthPx: number = 0;
       let tiledHeightPx: number = 0;
-      let tiledSpawnX:   number = 0;
-      let tiledSpawnY:   number = 0;
-      const rawMap = capturedWorldConfig.mapData as import("../../types").WorldMapData | null;
+      let tiledSpawnX: number = 0;
+      let tiledSpawnY: number = 0;
+      const rawMap = capturedWorldConfig.mapData as
+        | import("../../types").WorldMapData
+        | null;
       if (rawMap?.scenario === "tiled" && rawMap.tiledMapUrl) {
         try {
-          const { renderTiledMapToCanvas } = await import("../../utils/tiled-canvas-renderer");
+          const { renderTiledMapToCanvas } =
+            await import("../../utils/tiled-canvas-renderer");
           const result = await renderTiledMapToCanvas(
             rawMap.tiledMapUrl,
-            rawMap.tiledBaseUrl ?? rawMap.tiledMapUrl.substring(0, rawMap.tiledMapUrl.lastIndexOf("/") + 1),
+            rawMap.tiledBaseUrl ??
+              rawMap.tiledMapUrl.substring(
+                0,
+                rawMap.tiledMapUrl.lastIndexOf("/") + 1,
+              ),
           );
-          tiledCanvas   = result.canvas;
-          tiledWidthPx  = result.widthPx;
+          tiledCanvas = result.canvas;
+          tiledWidthPx = result.widthPx;
           tiledHeightPx = result.heightPx;
-          tiledSpawnX   = result.spawnX;
-          tiledSpawnY   = result.spawnY;
+          tiledSpawnX = result.spawnX;
+          tiledSpawnY = result.spawnY;
         } catch (e) {
           console.error("[SpaceGame] Falha ao pré-renderizar mapa Tiled:", e);
         }
@@ -208,7 +240,10 @@ export function SpaceGame({
 
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const config = buildGameConfig("phaser-container", w, h, [PreloadScene, worldSceneWithData]);
+      const config = buildGameConfig("phaser-container", w, h, [
+        PreloadScene,
+        worldSceneWithData,
+      ]);
       game = new Phaser.Game(config);
       gameRef.current = game;
       setLoading(false);
@@ -216,17 +251,22 @@ export function SpaceGame({
 
     initGame();
 
-    const onGalaxy   = () => setGalaxyOpen(true);
-    const onCredits  = () => setCreditsOpen(true);
+    const onGalaxy = () => setGalaxyOpen(true);
+    const onCredits = () => setCreditsOpen(true);
     const onZoomChanged = (e: Event) => {
-      const { zoom, min, max } = (e as CustomEvent).detail as { zoom: number; min: number; max: number };
+      const { zoom, min, max } = (e as CustomEvent).detail as {
+        zoom: number;
+        min: number;
+        max: number;
+      };
       setZoomLevel(zoom);
       setZoomMin(min);
       setZoomMax(max);
     };
     const onAreaEnter = (e: Event) => {
       const { areaId, type, props } = (e as CustomEvent).detail as {
-        areaId: string; type: AreaType;
+        areaId: string;
+        type: AreaType;
         props?: {
           message?: string;
           url?: string;
@@ -279,15 +319,24 @@ export function SpaceGame({
               areaAudioRef.current = null;
             }
             const audio = new Audio(audioUrl);
-            audio.loop   = true;
+            audio.loop = true;
             audio.volume = 0.4;
-            audio.play().catch(() => { /* autoplay blocked — silently ignore */ });
+            audio.play().catch(() => {
+              /* autoplay blocked — silently ignore */
+            });
             areaAudioRef.current = audio;
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         }
         const meta = AREA_TYPE_META[type];
         if (!meta) return;
-        setAreaToast({ id: areaId, type, title: `${meta.emoji} Áudio`, message: "Reproduzindo áudio da área." });
+        setAreaToast({
+          id: areaId,
+          type,
+          title: `${meta.emoji} Áudio`,
+          message: "Reproduzindo áudio da área.",
+        });
         return;
       }
 
@@ -298,34 +347,41 @@ export function SpaceGame({
       const meta = AREA_TYPE_META[type];
       if (!meta) return;
       const messages: Partial<Record<AreaType, string>> = {
-        silent:  "Você está em uma zona silenciosa. Apenas quem estiver dentro pode ouvir você.",
-        focus:   "Você entrou em uma área de foco. Apenas quem estiver dentro dela pode ouvir você.",
-        entry:   "Ponto de entrada da estação.",
-        meeting: props?.roomName ? `Sala de reunião: ${props.roomName}` : "Você entrou em uma sala de reunião.",
-        info:    props?.message ?? "Informação da área.",
-        custom:  props?.message ?? "Você entrou em uma área personalizada.",
+        silent:
+          "Você está em uma zona silenciosa. Apenas quem estiver dentro pode ouvir você.",
+        focus:
+          "Você entrou em uma área de foco. Apenas quem estiver dentro dela pode ouvir você.",
+        entry: "Ponto de entrada da estação.",
+        meeting: props?.roomName
+          ? `Sala de reunião: ${props.roomName}`
+          : "Você entrou em uma sala de reunião.",
+        info: props?.message ?? "Informação da área.",
+        custom: props?.message ?? "Você entrou em uma área personalizada.",
         // ─── Funções NASA ───────────────────────────────────────────────
-        "n-box":      props?.nboxItemId
+        "n-box": props?.nboxItemId
           ? "Documento autorizado disponível. (Visualizador em breve)"
           : "Configure um arquivo do N-Box pro visitante baixar.",
-        agendamento:  props?.agendaSlug
+        agendamento: props?.agendaSlug
           ? "Reserve um horário nesta agenda. (Tela em breve)"
           : "Esta área de agendamento ainda não tem uma agenda configurada.",
-        demanda:      props?.workspaceId
+        demanda: props?.workspaceId
           ? "Solicite uma demanda no Workspace. (Modal em breve)"
           : "Configure um workspace pra esta área de demanda.",
-        balcao:       "🛎️ Em atendimento — aguardando próximo na fila. (Cena fictícia em breve)",
-        profile:      props?.profileMode === "self"
-          ? "Vendo seu perfil. (Painel em breve)"
-          : "Clique em um avatar próximo pra ver o perfil dele.",
-        prateleira:   "🛒 Loja de produtos — pague em Stars ou cartão. (Painel em breve)",
-        auditorio:    props?.courseId
+        balcao:
+          "🛎️ Em atendimento — aguardando próximo na fila. (Cena fictícia em breve)",
+        profile:
+          props?.profileMode === "self"
+            ? "Vendo seu perfil. (Painel em breve)"
+            : "Clique em um avatar próximo pra ver o perfil dele.",
+        prateleira:
+          "🛒 Loja de produtos — pague em Stars ou cartão. (Painel em breve)",
+        auditorio: props?.courseId
           ? "Auditório — clique pra entrar no curso ao vivo. (Painel em breve)"
           : "Configure um curso pra este auditório.",
         "nasa-route": props?.courseId
           ? "Curso disponível — compre o acesso pra entrar. (Checkout em breve)"
           : "Configure um curso pra esta área NASA Route.",
-        formulario:   props?.formId
+        formulario: props?.formId
           ? "Preencha o formulário. (Modal em breve)"
           : "Configure um formulário pra esta área.",
         "rede-social": "💬 Rede social interna. (Painel em breve)",
@@ -344,9 +400,9 @@ export function SpaceGame({
     };
     const onAreaLeave = (e: Event) => {
       const { areaId } = (e as CustomEvent).detail as { areaId: string };
-      setAreaToast(prev => (prev?.id === areaId ? null : prev));
-      setWebsiteOverlay(prev => (prev?.areaId === areaId ? null : prev));
-      setExitOverlay(prev => (prev?.areaId === areaId ? null : prev));
+      setAreaToast((prev) => (prev?.id === areaId ? null : prev));
+      setWebsiteOverlay((prev) => (prev?.areaId === areaId ? null : prev));
+      setExitOverlay((prev) => (prev?.areaId === areaId ? null : prev));
       // Para áudio ao sair da área
       if (areaAudioRef.current) {
         areaAudioRef.current.pause();
@@ -354,35 +410,48 @@ export function SpaceGame({
       }
     };
 
-    window.addEventListener("space-station:open-galaxy",  onGalaxy);
+    window.addEventListener("space-station:open-galaxy", onGalaxy);
     window.addEventListener("space-station:open-credits", onCredits);
     window.addEventListener("space-station:zoom-changed", onZoomChanged);
-    window.addEventListener("space-station:area-enter",   onAreaEnter);
-    window.addEventListener("space-station:area-leave",   onAreaLeave);
+    window.addEventListener("space-station:area-enter", onAreaEnter);
+    window.addEventListener("space-station:area-leave", onAreaLeave);
 
     return () => {
-      window.removeEventListener("space-station:open-galaxy",  onGalaxy);
+      window.removeEventListener("space-station:open-galaxy", onGalaxy);
       window.removeEventListener("space-station:open-credits", onCredits);
       window.removeEventListener("space-station:zoom-changed", onZoomChanged);
-      window.removeEventListener("space-station:area-enter",   onAreaEnter);
-      window.removeEventListener("space-station:area-leave",   onAreaLeave);
+      window.removeEventListener("space-station:area-enter", onAreaEnter);
+      window.removeEventListener("space-station:area-leave", onAreaLeave);
       // Destroy whichever instance is current (game may still be null if initGame didn't finish)
       const toDestroy = gameRef.current ?? game;
       toDestroy?.destroy(true);
       gameRef.current = null;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [worldConfig, avatarConfig, stationId]);
 
-  function handleApply(newWorldConfig: StationWorldConfig, newAvatarConfig: AvatarConfig, closePanel = false) {
+  function handleApply(
+    newWorldConfig: StationWorldConfig,
+    newAvatarConfig: AvatarConfig,
+    closePanel = false,
+  ) {
     if (closePanel) setSettingsOpen(false);
     setWorldConfig(newWorldConfig);
     setAvatarConfig(newAvatarConfig);
   }
 
-  const handleZoomIn    = useCallback(() => window.dispatchEvent(new Event("space-station:zoom-in")),    []);
-  const handleZoomOut   = useCallback(() => window.dispatchEvent(new Event("space-station:zoom-out")),   []);
-  const handleZoomReset = useCallback(() => window.dispatchEvent(new Event("space-station:zoom-reset")), []);
+  const handleZoomIn = useCallback(
+    () => window.dispatchEvent(new Event("space-station:zoom-in")),
+    [],
+  );
+  const handleZoomOut = useCallback(
+    () => window.dispatchEvent(new Event("space-station:zoom-out")),
+    [],
+  );
+  const handleZoomReset = useCallback(
+    () => window.dispatchEvent(new Event("space-station:zoom-reset")),
+    [],
+  );
 
   const zoomPct = Math.round((zoomLevel / 1.6) * 100);
 
@@ -394,13 +463,21 @@ export function SpaceGame({
           <div className="text-4xl mb-4 animate-pulse">🚀</div>
           <p className="text-white text-sm mb-4">Preparando mundo virtual...</p>
           <div className="w-64 h-2 bg-white/10 rounded-full overflow-hidden">
-            <div id="preload-bar" className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: "0%" }} />
+            <div
+              id="preload-bar"
+              className="h-full bg-indigo-500 rounded-full transition-all"
+              style={{ width: "0%" }}
+            />
           </div>
         </div>
       )}
 
       {/* ── Game canvas ── */}
-      <div id="phaser-container" ref={containerRef} className="absolute inset-0 w-full h-full" />
+      <div
+        id="phaser-container"
+        ref={containerRef}
+        className={`absolute inset-0 w-full h-full${webrtc.settingsOpen ? " pointer-events-none" : ""}`}
+      />
 
       {/* ── Media bar (top center) ── */}
       {!loading && (
@@ -414,12 +491,16 @@ export function SpaceGame({
           onToggleMic={webrtc.toggleMic}
           onToggleCam={webrtc.toggleCam}
           onToggleScreen={webrtc.toggleScreen}
-          onOpenSettings={() => webrtc.setSettingsOpen(o => !o)}
-          onOpenShare={() => setShareOpen(o => !o)}
-          localSpriteUrl={rawSpriteUrl === "pixel_astronaut" ? "/lpc_pixel_astronaut.png" : rawSpriteUrl ?? null}
-          onOpenConnect={() => setConnectPanelOpen(o => !o)}
+          onOpenSettings={() => webrtc.setSettingsOpen((o) => !o)}
+          onOpenShare={() => setShareOpen((o) => !o)}
+          localSpriteUrl={
+            rawSpriteUrl === "pixel_astronaut"
+              ? "/lpc_pixel_astronaut.png"
+              : (rawSpriteUrl ?? null)
+          }
+          onOpenConnect={() => setConnectPanelOpen((o) => !o)}
           connectPanelOpen={connectPanelOpen}
-          onOpenMap={() => setMapMenuOpen(o => !o)}
+          onOpenMap={() => setMapMenuOpen((o) => !o)}
           onOpenEmpresas={() => setEmpresasOpen(true)}
           onOpenAvatar={() => setSettingsOpen(true)}
           mapActive={mapMenuOpen || mapEditorOpen}
@@ -435,11 +516,15 @@ export function SpaceGame({
             className="max-w-sm rounded-2xl px-5 py-4 text-center shadow-2xl backdrop-blur-md border"
             style={{
               backgroundColor: `${AREA_TYPE_META[areaToast.type]?.color ?? "#94a3b8"}33`,
-              borderColor:     `${AREA_TYPE_META[areaToast.type]?.color ?? "#94a3b8"}66`,
+              borderColor: `${AREA_TYPE_META[areaToast.type]?.color ?? "#94a3b8"}66`,
             }}
           >
-            <p className="text-white text-sm font-semibold mb-1">{areaToast.title}</p>
-            <p className="text-white/90 text-xs leading-relaxed">{areaToast.message}</p>
+            <p className="text-white text-sm font-semibold mb-1">
+              {areaToast.title}
+            </p>
+            <p className="text-white/90 text-xs leading-relaxed">
+              {areaToast.message}
+            </p>
           </div>
         </div>
       )}
@@ -451,12 +536,16 @@ export function SpaceGame({
             <Globe className="h-5 w-5 text-indigo-400 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-white text-sm font-semibold">Área Web</p>
-              <p className="text-slate-400 text-xs truncate max-w-[180px]">{websiteOverlay.url}</p>
+              <p className="text-slate-400 text-xs truncate max-w-[180px]">
+                {websiteOverlay.url}
+              </p>
             </div>
             <Button
               size="sm"
               className="bg-indigo-600 hover:bg-indigo-500 text-white shrink-0 h-8 px-3 text-xs"
-              onClick={() => window.open(websiteOverlay.url, "_blank", "noopener,noreferrer")}
+              onClick={() =>
+                window.open(websiteOverlay.url, "_blank", "noopener,noreferrer")
+              }
             >
               Abrir site
             </Button>
@@ -476,18 +565,26 @@ export function SpaceGame({
           <div className="bg-amber-950/95 backdrop-blur-md border border-amber-500/30 rounded-2xl px-5 py-3.5 shadow-2xl flex items-center gap-3 max-w-sm">
             <span className="text-xl shrink-0">🚪</span>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-semibold">Portal de Saída</p>
+              <p className="text-white text-sm font-semibold">
+                Portal de Saída
+              </p>
               {exitOverlay.targetNick ? (
-                <p className="text-amber-300 text-xs">→ @{exitOverlay.targetNick}</p>
+                <p className="text-amber-300 text-xs">
+                  → @{exitOverlay.targetNick}
+                </p>
               ) : (
-                <p className="text-amber-300/70 text-xs">Destino não configurado</p>
+                <p className="text-amber-300/70 text-xs">
+                  Destino não configurado
+                </p>
               )}
             </div>
             {exitOverlay.targetNick && (
               <Button
                 size="sm"
                 className="bg-amber-600 hover:bg-amber-500 text-white shrink-0 h-8 px-3 text-xs"
-                onClick={() => { window.location.href = `/world/${exitOverlay.targetNick}`; }}
+                onClick={() => {
+                  window.location.href = `/world/${exitOverlay.targetNick}`;
+                }}
               >
                 Ir
               </Button>
@@ -512,9 +609,15 @@ export function SpaceGame({
         <MapMenu
           onClose={() => setMapMenuOpen(false)}
           onOpenEditor={() => setMapEditorOpen(true)}
-          onExploreRoom={() => window.dispatchEvent(new Event("space-station:zoom-reset"))}
-          onGlobalMessage={() => { /* TODO: global message */ }}
-          onBackOffice={() => { if (isOwner) setSettingsOpen(true); }}
+          onExploreRoom={() =>
+            window.dispatchEvent(new Event("space-station:zoom-reset"))
+          }
+          onGlobalMessage={() => {
+            /* TODO: global message */
+          }}
+          onBackOffice={() => {
+            if (isOwner) setSettingsOpen(true);
+          }}
           canEdit={!!isOwner}
         />
       )}
@@ -529,24 +632,25 @@ export function SpaceGame({
         />
       )}
 
-      {/* ── Media settings panel (dropdown) ── */}
-      {webrtc.settingsOpen && (
-        <MediaSettingsPanel
-          onClose={() => webrtc.setSettingsOpen(false)}
-          micOn={webrtc.micOn}
-          camOn={webrtc.camOn}
-          camError={webrtc.camError}
-          onToggleMic={webrtc.toggleMic}
-          onToggleCam={webrtc.toggleCam}
-          localStream={webrtc.localStream}
-          devices={webrtc.devices}
-          selectedAudio={webrtc.selectedAudio}
-          setSelectedAudio={webrtc.setSelectedAudio}
-          selectedVideo={webrtc.selectedVideo}
-          setSelectedVideo={webrtc.setSelectedVideo}
-          onApplyDevices={webrtc.applyDeviceChange}
-        />
-      )}
+      {/* ── Media settings dialog ── */}
+      <MediaSettingsPanel
+        open={webrtc.settingsOpen}
+        onClose={() => webrtc.setSettingsOpen(false)}
+        micOn={webrtc.micOn}
+        camOn={webrtc.camOn}
+        camError={webrtc.camError}
+        onToggleMic={webrtc.toggleMic}
+        onToggleCam={webrtc.toggleCam}
+        localStream={webrtc.localStream}
+        devices={webrtc.devices}
+        selectedAudio={webrtc.selectedAudio}
+        setSelectedAudio={webrtc.setSelectedAudio}
+        selectedVideo={webrtc.selectedVideo}
+        setSelectedVideo={webrtc.setSelectedVideo}
+        selectedOutput={webrtc.selectedOutput}
+        setSelectedOutput={webrtc.setSelectedOutput}
+        onApplyDevices={webrtc.applyDeviceChange}
+      />
 
       {/* ── Connect people panel (Conectar pessoas) — sempre montado para notificações ── */}
       {!loading && (
@@ -570,13 +674,19 @@ export function SpaceGame({
           localName={userName}
           localNick={userNick}
           localMicOn={webrtc.micOn}
-          localSpriteUrl={rawSpriteUrl === "pixel_astronaut" ? "/lpc_pixel_astronaut.png" : rawSpriteUrl ?? null}
+          localSpriteUrl={
+            rawSpriteUrl === "pixel_astronaut"
+              ? "/lpc_pixel_astronaut.png"
+              : (rawSpriteUrl ?? null)
+          }
           onLeave={() => {
             // Dispatch leave for all bubble peers to clear the bubble
-            webrtc.bubblePeers.forEach(peerId => {
-              window.dispatchEvent(new CustomEvent("space-station:proximity-leave", {
-                detail: { peerId },
-              }));
+            webrtc.bubblePeers.forEach((peerId) => {
+              window.dispatchEvent(
+                new CustomEvent("space-station:proximity-leave", {
+                  detail: { peerId },
+                }),
+              );
             });
           }}
         />
@@ -591,7 +701,10 @@ export function SpaceGame({
           onToggleLock={webrtc.toggleBubbleLock}
           onConnectMyInstance={() => {
             toast.info("Conecte seu WhatsApp em Configurações → Integrações", {
-              action: { label: "Abrir", onClick: () => window.open("/settings", "_blank") },
+              action: {
+                label: "Abrir",
+                onClick: () => window.open("/settings", "_blank"),
+              },
             });
           }}
           onOpenChat={(peerUserId) => {
@@ -599,7 +712,9 @@ export function SpaceGame({
             setChatPeerName(webrtc.peers.get(peerUserId)?.name ?? null);
           }}
           onOpenApp={(app: BubbleApp, peerUserId) => {
-            toast.info(`${app} → ${webrtc.peers.get(peerUserId)?.name ?? "peer"} — em implementação`);
+            toast.info(
+              `${app} → ${webrtc.peers.get(peerUserId)?.name ?? "peer"} — em implementação`,
+            );
           }}
         />
       )}
@@ -608,11 +723,15 @@ export function SpaceGame({
       <BubbleChatPanel
         open={!!chatPeerId}
         peerUserId={chatPeerId}
-        peerName={chatPeerId
-          ? (webrtc.peers.get(chatPeerId)?.name ?? chatPeerName ?? null)
-          : null
+        peerName={
+          chatPeerId
+            ? (webrtc.peers.get(chatPeerId)?.name ?? chatPeerName ?? null)
+            : null
         }
-        onClose={() => { setChatPeerId(null); setChatPeerName(null); }}
+        onClose={() => {
+          setChatPeerId(null);
+          setChatPeerName(null);
+        }}
       />
 
       {/* ── Video overlay (bottom-right) ── */}
@@ -627,6 +746,7 @@ export function SpaceGame({
           localImage={userImage}
           peers={webrtc.peers}
           onPiPToggle={setPipActive}
+          sinkId={webrtc.selectedOutput}
         />
       )}
 
@@ -639,7 +759,8 @@ export function SpaceGame({
               title="Abrir Spacehome"
               className="h-[52px] flex items-center bg-black/50 backdrop-blur-sm rounded-2xl px-4 text-xs text-slate-300 hover:bg-black/60 hover:text-white transition-colors cursor-pointer"
             >
-              <span className="font-mono text-indigo-400">@{nick}</span>&nbsp;· Space Station
+              <span className="font-mono text-indigo-400">@{nick}</span>&nbsp;·
+              Space Station
             </a>
           </div>
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
@@ -672,7 +793,12 @@ export function SpaceGame({
               <Globe className="h-4 w-4 text-indigo-400" />
               <h2 className="text-white font-semibold">Galáxia NASA</h2>
             </div>
-            <Button size="icon" variant="ghost" onClick={() => setGalaxyOpen(false)} className="text-slate-400">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setGalaxyOpen(false)}
+              className="text-slate-400"
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -696,7 +822,9 @@ export function SpaceGame({
             className="w-9 h-9 rounded-xl bg-black/60 border border-white/20 text-white flex items-center justify-center hover:bg-white/10 transition-all backdrop-blur-sm"
             title="Resetar zoom"
           >
-            <span className="text-[9px] font-bold leading-none tabular-nums">{zoomPct}%</span>
+            <span className="text-[9px] font-bold leading-none tabular-nums">
+              {zoomPct}%
+            </span>
           </button>
           <button
             onClick={handleZoomOut}
@@ -708,7 +836,8 @@ export function SpaceGame({
           </button>
           <button
             onClick={() => {
-              if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+              if (!document.fullscreenElement)
+                document.documentElement.requestFullscreen();
               else document.exitFullscreen();
             }}
             className="w-9 h-9 rounded-xl bg-black/60 border border-white/20 text-white flex items-center justify-center hover:bg-white/10 transition-all backdrop-blur-sm mt-1"
@@ -717,7 +846,7 @@ export function SpaceGame({
             <Maximize2 className="h-3.5 w-3.5" />
           </button>
           <button
-            onClick={() => setCreditsOpen(o => !o)}
+            onClick={() => setCreditsOpen((o) => !o)}
             className="w-9 h-9 rounded-xl bg-black/60 border border-white/20 text-white flex items-center justify-center hover:bg-white/10 transition-all backdrop-blur-sm"
             title="Créditos e licenças (CC BY-SA)"
           >
@@ -742,9 +871,7 @@ export function SpaceGame({
       )}
 
       {/* ── Credits / Attribution panel (CC BY-SA 3.0) ── */}
-      {creditsOpen && (
-        <CreditsPanel onClose={() => setCreditsOpen(false)} />
-      )}
+      {creditsOpen && <CreditsPanel onClose={() => setCreditsOpen(false)} />}
 
       {/* ── Avatar personalization panel (available to ALL users incl. guests) ── */}
       {avatarPanelOpen && (
@@ -755,7 +882,9 @@ export function SpaceGame({
               onChange={(partial) => {
                 // Merge into current avatar state — the useEffect at the top
                 // of SpaceGame persists this to localStorage automatically.
-                setAvatarConfig((prev) => ({ ...prev, ...partial } as AvatarConfig));
+                setAvatarConfig(
+                  (prev) => ({ ...prev, ...partial }) as AvatarConfig,
+                );
               }}
               onClose={() => setAvatarPanelOpen(false)}
             />

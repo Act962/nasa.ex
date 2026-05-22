@@ -231,7 +231,7 @@ export function SignupForm() {
         email: data.email,
         password: data.password,
         name: data.name.trim(),
-        callbackURL: "create-organization",
+        callbackURL: "/create-organization",
       });
 
       // better-auth's organizationClient plugin fires an internal request after
