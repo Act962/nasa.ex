@@ -7,14 +7,9 @@ import { orpc } from "@/lib/orpc";
 import {
   ChevronLeft,
   Plus,
-  Pencil,
   Trash2,
   Eye,
   EyeOff,
-  Settings2,
-  GripVertical,
-  Lock,
-  Play,
   Folder,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,14 +18,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useConstructUrl } from "@/hooks/use-construct-url";
-import { ImageIcon } from "lucide-react";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +33,7 @@ import { LessonForm } from "./lesson-form";
 import { ModuleForm } from "./module-form";
 import { PlansManager } from "./plans-manager";
 import { IntegrationsTab } from "./integrations-tab";
+import { LessonsBoard } from "./lessons-board";
 import { CourseShareMenu } from "../shared/course-share-menu";
 import { useRouter } from "next/navigation";
 
@@ -130,7 +118,6 @@ export function CourseEditor({ courseId }: Props) {
   }
 
   const { course } = data;
-  const grouped = groupLessons(course.modules, course.lessons);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -362,90 +349,43 @@ export function CourseEditor({ courseId }: Props) {
               </Button>
             </div>
 
-            {grouped.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-12 text-center">
-                <p className="text-sm font-medium">
-                  Adicione sua primeira aula para começar
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Você pode agrupar aulas em módulos opcionais.
-                </p>
-              </div>
-            ) : (
-              // Accordion permite colapsar/expandir cada módulo. Aulas
-              // avulsas (sem módulo) também aparecem como item do accordion
-              // pra UX uniforme. `defaultValue` abre TODOS por padrão pra
-              // o criador ver o curso inteiro de relance.
-              <Accordion
-                type="multiple"
-                defaultValue={grouped.map((g) => g.id ?? "no-module")}
-                className="space-y-3"
-              >
-                {grouped.map((group) => (
-                  <AccordionItem
-                    key={group.id ?? "no-module"}
-                    value={group.id ?? "no-module"}
-                    className="rounded-2xl border border-border bg-card data-[state=open]:bg-card"
-                  >
-                    <AccordionTrigger className="px-5 py-3 hover:no-underline">
-                      <div className="flex w-full items-center justify-between gap-3">
-                        <div className="min-w-0 text-left">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            {group.title ? "Módulo" : "Aulas avulsas"}
-                          </p>
-                          {group.title && (
-                            <p className="truncate text-sm font-semibold">
-                              {group.title}
-                            </p>
-                          )}
-                          <p className="text-[11px] text-muted-foreground">
-                            {group.lessons.length}{" "}
-                            {group.lessons.length === 1 ? "aula" : "aulas"}
-                          </p>
-                        </div>
-                        {group.id && (
-                          <div
-                            role="button"
-                            tabIndex={0}
-                            className="shrink-0 inline-flex items-center justify-center rounded-md size-8 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingModule({
-                                id: group.id,
-                                title: group.title,
-                                summary: group.summary,
-                              });
-                              setShowModuleForm(true);
-                            }}
-                          >
-                            <Settings2 className="size-4" />
-                          </div>
-                        )}
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pb-0">
-                      <ul className="divide-y divide-border border-t border-border">
-                        {group.lessons.map((l, i) => (
-                          <CreatorLessonRow
-                            key={l.id}
-                            lesson={l}
-                            index={i}
-                            onEdit={() => {
-                              setEditingLesson(l);
-                              setShowLessonForm(true);
-                            }}
-                            onDelete={() => {
-                              setLessonToDelete({ id: l.id, title: l.title });
-                              setDeleteConfirmText("");
-                            }}
-                          />
-                        ))}
-                      </ul>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            )}
+            <LessonsBoard
+              courseId={courseId}
+              modules={course.modules.map((m) => ({
+                id: m.id,
+                title: m.title,
+                summary: m.summary,
+                order: m.order,
+              }))}
+              lessons={course.lessons.map((l: any) => ({
+                id: l.id,
+                title: l.title,
+                moduleId: l.moduleId,
+                order: l.order,
+                thumbnailKey: l.thumbnailKey,
+                isFreePreview: l.isFreePreview,
+                durationMin: l.durationMin,
+                awardSp: l.awardSp,
+                video: { provider: l.video?.provider ?? null },
+              }))}
+              onEditLesson={(lesson) => {
+                // O board passa apenas a versão reduzida da aula. Pra editar
+                // precisamos do objeto completo (com summary/contentMd/videoUrl/
+                // attachments/videoFileKey etc.) — recupera do payload original.
+                const full = course.lessons.find((l) => l.id === lesson.id);
+                setEditingLesson(full ?? lesson);
+                setShowLessonForm(true);
+              }}
+              onDeleteLesson={(l) => {
+                setLessonToDelete(l);
+                setDeleteConfirmText("");
+              }}
+              onEditModule={(m) => {
+                setEditingModule(m);
+                setShowModuleForm(true);
+              }}
+            />
+
           </div>
         )}
       </div>
@@ -565,127 +505,3 @@ export function CourseEditor({ courseId }: Props) {
   );
 }
 
-function groupLessons(
-  modules: Array<{ id: string; title: string; summary: string | null; order: number }>,
-  lessons: Array<any>,
-) {
-  const byModule = new Map<string | null, any[]>();
-  for (const l of lessons) {
-    const arr = byModule.get(l.moduleId) ?? [];
-    arr.push(l);
-    byModule.set(l.moduleId, arr);
-  }
-  for (const arr of byModule.values()) {
-    arr.sort((a, b) => a.order - b.order);
-  }
-
-  const groups: Array<{
-    id: string | null;
-    title: string | null;
-    summary: string | null;
-    lessons: any[];
-  }> = [];
-
-  const noModule = byModule.get(null) ?? [];
-  if (noModule.length > 0) {
-    groups.push({ id: null, title: null, summary: null, lessons: noModule });
-  }
-
-  for (const m of [...modules].sort((a, b) => a.order - b.order)) {
-    const ms = byModule.get(m.id) ?? [];
-    if (ms.length > 0) {
-      groups.push({ id: m.id, title: m.title, summary: m.summary, lessons: ms });
-    }
-  }
-
-  return groups;
-}
-
-/**
- * Linha individual de aula no editor do criador. Sub-componente porque
- * `useConstructUrl` é hook (precisa rodar uma vez por aula pra montar
- * a URL da thumbnail).
- */
-function CreatorLessonRow({
-  lesson,
-  index,
-  onEdit,
-  onDelete,
-}: {
-  lesson: {
-    id: string;
-    title: string;
-    thumbnailKey?: string | null;
-    isFreePreview: boolean;
-    durationMin: number | null;
-    awardSp: number;
-    video: { provider: string | null };
-  };
-  index: number;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const thumbUrl = useConstructUrl(lesson.thumbnailKey || "");
-
-  return (
-    <li className="flex items-center gap-3 px-5 py-3">
-      <GripVertical className="size-4 text-muted-foreground/40" />
-      <div className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-        {index + 1}
-      </div>
-      {/* Thumbnail — placeholder se não houver. 56×32 (proporção vídeo). */}
-      <div className="relative h-8 w-14 shrink-0 overflow-hidden rounded border border-border bg-muted">
-        {lesson.thumbnailKey ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbUrl}
-            alt={lesson.title}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <ImageIcon className="size-3 text-muted-foreground/40" />
-          </div>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{lesson.title}</p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-          {lesson.isFreePreview ? (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 font-semibold uppercase text-[10px] tracking-wide text-emerald-700 dark:text-emerald-400">
-              <Play className="size-2.5" fill="currentColor" />
-              Grátis
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-0.5">
-              <Lock className="size-2.5" />
-              Bloqueada
-            </span>
-          )}
-          {lesson.video.provider && (
-            <span className="capitalize">· {lesson.video.provider}</span>
-          )}
-          {lesson.durationMin && <span>· {lesson.durationMin}min</span>}
-          <span>· {lesson.awardSp} SP</span>
-        </div>
-      </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onEdit}
-        title="Editar aula"
-      >
-        <Pencil className="size-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-        onClick={onDelete}
-        title="Excluir aula"
-      >
-        <Trash2 className="size-4" />
-      </Button>
-    </li>
-  );
-}
