@@ -49,6 +49,12 @@ type KanbanStore = {
   isDragging: boolean;
   setIsDragging: (isDragging: boolean) => void;
 
+  // ID do lead sendo arrastado no momento — persiste brevemente após onDragEnd
+  // (via setTimeout) para bloquear o click do DragOverlay que dispara logo
+  // depois do pointerup no mesmo task JS.
+  activeDragLeadId: string | null;
+  setActiveDragLeadId: (id: string | null) => void;
+
   // Header colapsado — esconde TrackingSwitcher / Participantes / Tags /
   // Status / Calendário / IA de Leads, deixando apenas "Filtros" e
   // "Novo Lead". Persiste no localStorage pra manter preferência.
@@ -68,6 +74,9 @@ export const useKanbanStore = create<KanbanStore>()(
       isDragging: false,
 
       setIsDragging: (isDragging) => set({ isDragging }),
+
+      activeDragLeadId: null,
+      setActiveDragLeadId: (id) => set({ activeDragLeadId: id }),
 
       headerCollapsed: false,
       toggleHeaderCollapsed: () =>

@@ -33,7 +33,6 @@ function StatusColumnImpl({
   isOverlay,
 }: StatusColumnProps) {
   const registerColumn = useKanbanStore((s) => s.registerColumn);
-  const isBoardDragging = useKanbanStore((s) => s.isDragging);
 
   const [dateInit] = useQueryState("date_init");
   const [dateEnd] = useQueryState("date_end");
@@ -138,7 +137,7 @@ function StatusColumnImpl({
   useEffect(() => {
     if (isOverlay) return;
     registerColumn(status.id, data);
-  }, [data, isBoardDragging, registerColumn, status.id, isOverlay]);
+  }, [data, registerColumn, status.id, isOverlay]);
 
   const { data: appearance } = useKanbanAppearance(trackingId);
 
