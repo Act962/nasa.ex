@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { memo, useEffect, useMemo, useRef } from "react";
 import { useInfiniteActionsByStatus } from "../../hooks/use-tasks";
 import { useActionFilters } from "../../hooks/use-action-filters";
@@ -10,7 +9,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { EMPTY_ACTIONS, useActionKanbanStore } from "../../lib/kanban-store";
 import { StatusHeader } from "./status-header";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Props {
@@ -29,7 +27,7 @@ function WorkspaceColumnImpl({
   actionsCount,
 }: Props) {
   const registerColumn = useActionKanbanStore((s) => s.registerColumn);
-  const isMobile = useIsMobile(); // true quando < 640px
+  const isBoardDragging = useActionKanbanStore((s) => s.isDragging);
 
   const {
     attributes,
@@ -71,14 +69,9 @@ function WorkspaceColumnImpl({
     });
 
   useEffect(() => {
-    if (isMobile) {
-      observerRef.current?.disconnect();
-      return;
-    }
-
     const sentinel = sentinelRef.current;
     const scrollContainer = sentinel?.closest(
-      "[data-kanban-scroll-viewport]",
+      '[data-slot="scroll-area-viewport"]',
     ) as HTMLElement | null;
 
     if (!sentinel || !scrollContainer) return;
@@ -104,11 +97,11 @@ function WorkspaceColumnImpl({
     return () => {
       observerRef.current?.disconnect();
     };
-  }, [isMobile, hasNextPage, fetchNextPage, isFetchingNextPage]);
+  }, [hasNextPage, fetchNextPage, isFetchingNextPage]);
 
   useEffect(() => {
     registerColumn(id, data);
-  }, [data, registerColumn, id]);
+  }, [data, isBoardDragging, registerColumn, id]);
 
   return (
     <li
@@ -126,46 +119,18 @@ function WorkspaceColumnImpl({
           listeners={listeners}
         />
 
-        {/* Caso der bug novamente
-          <div
-          data-kanban-scroll-viewport
-          className="flex-1 min-h-0 overflow-y-auto scrollbar-thin"
-        >
-        */}
-
-        <ScrollArea
-          data-kanban-scroll-viewport
-          className="flex-1 min-h-0 scrollbar-thin"
-        >
+        <ScrollArea className="flex-1 min-h-0">
           <ol className="mx-1 px-1 py-2 flex flex-col gap-y-2">
             <ActionsList columnId={id} isLoading={isLoading} />
 
             {hasNextPage && (
               <li className="list-none">
-                {isMobile ? (
-                  // Mobile: botão explícito dentro do scroll, abaixo do último card
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full mt-1"
-                    disabled={isFetchingNextPage}
-                    onClick={() => fetchNextPage()}
-                  >
-                    {isFetchingNextPage ? (
-                      <Spinner className="size-4" />
-                    ) : (
-                      "Buscar mais"
-                    )}
-                  </Button>
-                ) : (
-                  // Desktop: sentinel invisível para o IntersectionObserver
-                  <div
-                    ref={sentinelRef}
-                    className="h-10 flex items-center justify-center"
-                  >
-                    {isFetchingNextPage && <Spinner className="size-4" />}
-                  </div>
-                )}
+                <div
+                  ref={sentinelRef}
+                  className="h-10 flex items-center justify-center"
+                >
+                  {isFetchingNextPage && <Spinner className="size-4" />}
+                </div>
               </li>
             )}
           </ol>

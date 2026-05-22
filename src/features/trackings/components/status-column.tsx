@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { memo, useEffect, useMemo, useRef } from "react";
 import { useInfiniteLeadsByStatus } from "../hooks/use-trackings";
 import { LeadItem } from "./lead-item";
@@ -11,7 +10,6 @@ import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { EMPTY_LEADS, useKanbanStore } from "../lib/kanban-store";
 import { useQueryState } from "nuqs";
 import dayjs from "dayjs";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useKanbanAppearance } from "../hooks/use-kanban-appearance";
 import { hexToRgba } from "@/utils/hex-to-rgba";
@@ -35,8 +33,7 @@ function StatusColumnImpl({
   isOverlay,
 }: StatusColumnProps) {
   const registerColumn = useKanbanStore((s) => s.registerColumn);
-  const isMobile = useIsMobile();
-  const { data: appearance } = useKanbanAppearance(trackingId);
+  const isBoardDragging = useKanbanStore((s) => s.isDragging);
 
   const [dateInit] = useQueryState("date_init");
   const [dateEnd] = useQueryState("date_end");
@@ -102,16 +99,15 @@ function StatusColumnImpl({
       ...queryInput,
     });
 
-  // Observer só ativo no desktop e quando não for overlay
   useEffect(() => {
-    if (isMobile || isOverlay) {
+    if (isOverlay) {
       observerRef.current?.disconnect();
       return;
     }
 
     const sentinel = sentinelRef.current;
     const scrollContainer = sentinel?.closest(
-      "[data-kanban-scroll-viewport]",
+      '[data-slot="scroll-area-viewport"]',
     ) as HTMLElement | null;
 
     if (!sentinel || !scrollContainer) return;
@@ -137,12 +133,12 @@ function StatusColumnImpl({
     return () => {
       observerRef.current?.disconnect();
     };
-  }, [isMobile, isOverlay, hasNextPage, fetchNextPage, isFetchingNextPage]);
+  }, [isOverlay, hasNextPage, fetchNextPage, isFetchingNextPage]);
 
   useEffect(() => {
     if (isOverlay) return;
     registerColumn(status.id, data);
-  }, [data, registerColumn, status.id, isOverlay]);
+  }, [data, isBoardDragging, registerColumn, status.id, isOverlay]);
 
   const headerData = useMemo(
     () => ({ ...status, trackingId }),
@@ -191,49 +187,18 @@ function StatusColumnImpl({
           listeners={listeners}
         />
 
-        {/* Caso der bug novamente
-        <div
-          data-kanban-scroll-viewport
-          className="flex-1 min-h-0 overflow-y-auto scrollbar-thin"
-        >*/}
-
-        <ScrollArea
-          data-kanban-scroll-viewport
-          // O viewport do Radix tem um wrapper interno com `display: table`
-          // que permite que o conteúdo cresça horizontalmente. Forçamos
-          // `display: block` + `width: 100%` pra travar na largura da coluna
-          // (cards com apelido longo não esticam mais o card).
-          className="flex-1 min-h-0 scrollbar-thin [&>div[data-radix-scroll-area-viewport]>div]:block! [&>div[data-radix-scroll-area-viewport]>div]:w-full!"
-        >
-          <ol className="mx-1 px-1 py-2 flex flex-col gap-y-2 w-full min-w-0">
+        <ScrollArea className="flex-1 min-h-0">
+          <ol className="mx-1 px-1 py-2 flex flex-col gap-y-2">
             <LeadsList columnId={status.id} isLoading={isLoading} />
 
             {hasNextPage && (
               <li className="list-none">
-                {isMobile ? (
-                  // Mobile: botão explícito abaixo do último card
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full mt-1"
-                    disabled={isFetchingNextPage}
-                    onClick={() => fetchNextPage()}
-                  >
-                    {isFetchingNextPage ? (
-                      <Spinner className="size-4" />
-                    ) : (
-                      "Buscar mais"
-                    )}
-                  </Button>
-                ) : (
-                  // Desktop: sentinel invisível para o IntersectionObserver
-                  <div
-                    ref={sentinelRef}
-                    className="h-10 flex items-center justify-center"
-                  >
-                    {isFetchingNextPage && <Spinner className="size-4" />}
-                  </div>
-                )}
+                <div
+                  ref={sentinelRef}
+                  className="h-10 flex items-center justify-center"
+                >
+                  {isFetchingNextPage && <Spinner className="size-4" />}
+                </div>
               </li>
             )}
           </ol>
