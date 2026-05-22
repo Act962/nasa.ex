@@ -278,6 +278,7 @@ export const purchaseCourse = base
         cancel_url: cancelUrl,
         payment_method_types: ["card"],
         locale: "pt-BR",
+        allow_promotion_codes: true,
         metadata: {
           kind: "course_purchase",
           flow: "authenticated",

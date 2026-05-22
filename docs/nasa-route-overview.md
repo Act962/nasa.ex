@@ -168,7 +168,7 @@ Stripe Connect ser implementado) e para uploads de vídeo.
 4. Confirmação → chama `purchase-course` (oRPC).
 5. Procedure decide:
    - **Curso `isFree` ou plano `priceBrlCents=0` ou free-access concedido** → matrícula direta (sem Stripe). Cria enrollment com `source: "free_access" | "purchase"`, progresso vazio, incrementa `studentsCount`.
-   - **Curso pago** → cria `PendingCoursePurchase (flow="authenticated", userId, priceStars=snapshot, amountBrlCents)`, abre **Stripe Checkout Session** (`unit_amount = plan.priceBrlCents`, currency=BRL) e retorna `{ kind: "checkout", checkoutUrl }`.
+   - **Curso pago** → cria `PendingCoursePurchase (flow="authenticated", userId, priceStars=snapshot, amountBrlCents)`, abre **Stripe Checkout Session** (`unit_amount = plan.priceBrlCents`, currency=BRL, `allow_promotion_codes: true` — campo de cupom nativo) e retorna `{ kind: "checkout", checkoutUrl }`.
 6. Cliente recebe `checkoutUrl` e faz `window.location.href = checkoutUrl`.
 7. Pagamento confirmado → webhook `checkout.session.completed` chama `finalizeStripePurchaseInTx`:
    - cria `NasaRouteEnrollment` (`source: "stripe_purchase"`, `paidBrlCents`, `stripeCheckoutSessionId`, `stripePaymentIntentId`);
@@ -184,7 +184,7 @@ Stripe Connect ser implementado) e para uploads de vídeo.
 
 1. Landing pública (`/c/<orgSlug>/<courseSlug>`) exibe preço em BRL.
 2. Clica em **Comprar** → `PublicCheckoutModal` solicita email.
-3. POST `/api/checkout/course` cria `PendingCoursePurchase (flow="public")` e abre **Stripe Checkout Session** (`unit_amount = plan.priceBrlCents`).
+3. POST `/api/checkout/course` cria `PendingCoursePurchase (flow="public")` e abre **Stripe Checkout Session** (`unit_amount = plan.priceBrlCents`, `allow_promotion_codes: true` — campo de cupom nativo do Stripe).
 4. Pagamento aprovado → webhook marca `status=PAID` + gera `signupToken` (TTL 7 dias).
 5. Inngest envia email com link `/redeem/<token>`.
 6. Usuário cria conta (User + Organization via signup) → chama `redeem-course-purchase`.
