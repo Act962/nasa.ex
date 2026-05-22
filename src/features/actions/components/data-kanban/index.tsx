@@ -2,13 +2,13 @@
 
 import {
   DndContext,
+  DragCancelEvent,
   DragEndEvent,
   DragOverEvent,
   DragOverlay,
   DragStartEvent,
   KeyboardSensor,
   MouseSensor,
-  PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -77,22 +77,14 @@ const KanbanBoard = ({ workspaceId }: Props) => {
   const mouseSensor = useSensor(MouseSensor, {
     activationConstraint: { distance: 10 },
   });
-  const pointerSensor = useSensor(PointerSensor, {
-    activationConstraint: { distance: 5 },
-  });
   const touchSensor = useSensor(TouchSensor, {
-    activationConstraint: { delay: 250, tolerance: 5 },
+    activationConstraint: { delay: 250, tolerance: 10 },
   });
   const keyboardSensor = useSensor(KeyboardSensor, {
     coordinateGetter: sortableKeyboardCoordinates,
   });
 
-  const sensors = useSensors(
-    mouseSensor,
-    pointerSensor,
-    touchSensor,
-    keyboardSensor,
-  );
+  const sensors = useSensors(mouseSensor, touchSensor, keyboardSensor);
 
   useEffect(() => {
     if (!fetchedColumns.length || isDragging) return;
@@ -308,12 +300,23 @@ const KanbanBoard = ({ workspaceId }: Props) => {
     [moveColumn, moveActionInColumn],
   );
 
+  const onDragCancel = useCallback(
+    (_event: DragCancelEvent) => {
+      setActiveColumn(null);
+      setActiveAction(null);
+      setOriginalNeighbors(null);
+      setIsDragging(false);
+    },
+    [setIsDragging],
+  );
+
   return (
     <DndContext
       sensors={sensors}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
+      onDragCancel={onDragCancel}
     >
       <div className="grid grid-rows-[1fr_auto] h-full overflow-hidden">
         <ol className="flex  gap-x-3 overflow-x-auto p-4 h-full scrollbar-thin">

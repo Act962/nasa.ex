@@ -2,13 +2,13 @@
 
 import {
   DndContext,
+  DragCancelEvent,
   DragEndEvent,
   DragOverEvent,
   DragOverlay,
   DragStartEvent,
   KeyboardSensor,
   MouseSensor,
-  PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -124,23 +124,17 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
       distance: 10,
     },
   });
-  const pointerSensor = useSensor(PointerSensor);
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
       delay: 250,
-      tolerance: 5,
+      tolerance: 10,
     },
   });
   const keyboardSensor = useSensor(KeyboardSensor, {
     coordinateGetter: sortableKeyboardCoordinates,
   });
 
-  const sensors = useSensors(
-    mouseSensor,
-    pointerSensor,
-    touchSensor,
-    keyboardSensor,
-  );
+  const sensors = useSensors(mouseSensor, touchSensor, keyboardSensor);
 
   const columnIds = useMemo(() => columnList.map((s) => s.id), [columnList]);
 
@@ -345,6 +339,16 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
     [moveColumn, moveLeadInColumn],
   );
 
+  const onDragCancel = useCallback(
+    (_event: DragCancelEvent) => {
+      setActiveColumn(null);
+      setActiveLead(null);
+      setOriginalNeighbors(null);
+      setIsDragging(false);
+    },
+    [setIsDragging],
+  );
+
   const isDragging = useKanbanStore((s) => s.isDragging);
   // Selector retorna primitivo (number) — Object.is compara por valor,
   // então re-renderiza só quando o total muda. Substitui o
@@ -396,6 +400,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
         onDragOver={onDragOver}
+        onDragCancel={onDragCancel}
       >
         <div className="grid grid-rows-[1fr_auto] h-full">
           <ol className="flex gap-x-3 overflow-x-auto">
