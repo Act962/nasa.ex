@@ -140,6 +140,8 @@ function StatusColumnImpl({
     registerColumn(status.id, data);
   }, [data, isBoardDragging, registerColumn, status.id, isOverlay]);
 
+  const { data: appearance } = useKanbanAppearance(trackingId);
+
   const headerData = useMemo(
     () => ({ ...status, trackingId }),
     [status, trackingId],
