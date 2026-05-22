@@ -72,6 +72,10 @@ export const publicGetCourse = base
       course.plans.length > 0
         ? Math.min(...course.plans.map((p) => p.priceStars))
         : course.priceStars;
+    const minPriceBrlCents =
+      course.plans.length > 0
+        ? Math.min(...course.plans.map((p) => p.priceBrlCents))
+        : course.priceBrlCents;
 
     return {
       org,
@@ -87,7 +91,10 @@ export const publicGetCourse = base
         durationMin: course.durationMin,
         format: course.format,
         priceStars: course.priceStars,
+        priceBrlCents: course.priceBrlCents,
+        isFree: course.isFree,
         minPriceStars,
+        minPriceBrlCents,
         studentsCount: course.studentsCount,
         rewardSpOnComplete: course.rewardSpOnComplete,
         // Integrações marketing (Pixel/GTM/redirect) — usadas pelo
@@ -130,6 +137,7 @@ export const publicGetCourse = base
           name: p.name,
           description: p.description,
           priceStars: p.priceStars,
+          priceBrlCents: p.priceBrlCents,
           isDefault: p.isDefault,
           lessonCount: p.lessons.length,
           attachments: p.attachments,

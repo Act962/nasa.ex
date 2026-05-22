@@ -52,6 +52,8 @@ interface InitialCourse {
   format: string;
   durationMin: number | null;
   priceStars: number;
+  priceBrlCents?: number;
+  isFree?: boolean;
   categoryId: string | null;
   rewardSpOnComplete: number;
 
@@ -123,6 +125,13 @@ export function CourseForm({ courseId, initial, onSaved }: Props) {
   );
   const [priceStars, setPriceStars] = useState(
     initial?.priceStars?.toString() ?? "0",
+  );
+  const [isFree, setIsFree] = useState<boolean>(initial?.isFree ?? false);
+  // Mantemos o valor em reais (não centavos) na UI para o criador.
+  const [priceBrl, setPriceBrl] = useState<string>(
+    initial?.priceBrlCents != null
+      ? (initial.priceBrlCents / 100).toFixed(2)
+      : "",
   );
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [rewardSpOnComplete, setRewardSpOnComplete] = useState(
@@ -254,6 +263,8 @@ export function CourseForm({ courseId, initial, onSaved }: Props) {
       format,
       durationMin: durationMin ? Number(durationMin) : null,
       priceStars: Number(priceStars) || 0,
+      priceBrlCents: isFree ? 0 : Math.round((Number(priceBrl) || 0) * 100),
+      isFree,
       categoryId: categoryId || null,
       rewardSpOnComplete: Number(rewardSpOnComplete) || 0,
       // Datas unificadas — todos os formatos podem ter
@@ -468,20 +479,40 @@ export function CourseForm({ courseId, initial, onSaved }: Props) {
         </div>
       </div>
 
+      <div className="space-y-2 rounded-md border p-4">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={isFree}
+            onChange={(e) => setIsFree(e.target.checked)}
+          />
+          <span>Curso gratuito (sem cobrança)</span>
+        </label>
+        <p className="text-xs text-muted-foreground">
+          Cursos gratuitos pulam o checkout — o aluno entra direto após
+          fazer cadastro/login.
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="space-y-2">
-          <Label htmlFor="priceStars">
-            Preço (STARs)
+          <Label htmlFor="priceBrl">
+            Preço (R$)
             {format === "subscription" && " — por mês"}
           </Label>
           <Input
-            id="priceStars"
+            id="priceBrl"
             type="number"
             min={0}
-            value={priceStars}
-            onChange={(e) => setPriceStars(e.target.value)}
-            placeholder="0 = gratuito"
+            step="0.01"
+            value={priceBrl}
+            onChange={(e) => setPriceBrl(e.target.value)}
+            disabled={isFree}
+            placeholder={isFree ? "Gratuito" : "Ex: 49,90"}
           />
+          <p className="text-xs text-muted-foreground">
+            Valor cobrado via Stripe. Mínimo R$ 0,50.
+          </p>
         </div>
         {isLessons && (
           <div className="space-y-2">

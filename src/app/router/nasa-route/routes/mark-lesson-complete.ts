@@ -7,6 +7,7 @@ import { pusherServer } from "@/lib/pusher";
 import { awardPoints } from "@/app/router/space-point/utils";
 import { awardCourseRewards, issueCertificate } from "../utils";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { verifyEnrollmentActive } from "../helpers/access-helpers";
 
 /**
  * Marca aula como concluída (idempotente).
@@ -25,15 +26,7 @@ export const markLessonComplete = base
     const userId = context.user.id;
 
     // Valida matrícula ativa
-    const enrollment = await prisma.nasaRouteEnrollment.findUnique({
-      where: { userId_courseId: { userId, courseId: input.courseId } },
-      select: { id: true, status: true, planId: true, buyerOrgId: true, completedAt: true },
-    });
-    if (!enrollment || enrollment.status !== "active") {
-      throw new ORPCError("FORBIDDEN", {
-        message: "Você ainda não está matriculado neste curso",
-      });
-    }
+    const enrollment = await verifyEnrollmentActive(userId, input.courseId);
 
     // Curso + aulas
     const course = await prisma.nasaRouteCourse.findUnique({

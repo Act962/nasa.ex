@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { parseVideoUrl } from "../utils";
+import { verifyEnrollmentActive } from "../helpers/access-helpers";
 
 /**
  * Player do aluno: retorna curso completo com vídeos das aulas + filtra
@@ -16,22 +17,7 @@ export const getCourseAsStudent = base
   .handler(async ({ input, context }) => {
     const userId = context.user.id;
 
-    const enrollment = await prisma.nasaRouteEnrollment.findUnique({
-      where: { userId_courseId: { userId, courseId: input.courseId } },
-      select: {
-        id: true,
-        status: true,
-        source: true,
-        planId: true,
-        enrolledAt: true,
-        completedAt: true,
-      },
-    });
-    if (!enrollment || enrollment.status !== "active") {
-      throw new ORPCError("FORBIDDEN", {
-        message: "Você ainda não está matriculado neste curso",
-      });
-    }
+    const enrollment = await verifyEnrollmentActive(userId, input.courseId);
 
     const course = await prisma.nasaRouteCourse.findUnique({
       where: { id: input.courseId },

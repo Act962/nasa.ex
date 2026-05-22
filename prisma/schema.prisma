@@ -100,6 +100,7 @@ model User {
   nasaRouteCertificates          NasaRouteCertificate[]
   nasaRouteVideoUploads          NasaRouteVideoUpload[]
   pendingCoursePurchasesRedeemed PendingCoursePurchase[] @relation("PendingCoursePurchaseRedeemer")
+  pendingCoursePurchases         PendingCoursePurchase[] @relation("PendingCoursePurchaseUser")
   routerPaymentSettingsUpdated   RouterPaymentSettings[] @relation("RouterPaymentSettingsUpdater")
   remindersCreated               Reminder[]              @relation("ReminderCreatedBy")
 
@@ -4965,6 +4966,12 @@ model NasaRouteCourse {
   creatorUserId      String    @map("creator_user_id")
   categoryId         String?   @map("category_id")
   priceStars         Int       @default(0) @map("price_stars")
+  // Preço em centavos BRL — fonte de verdade para checkout Stripe.
+  // priceStars permanece por compatibilidade mas não é mais usado em compras.
+  priceBrlCents      Int       @default(0) @map("price_brl_cents")
+  // Flag explícita de curso gratuito. Quando true, força priceBrlCents=0
+  // e o fluxo de matrícula bypassa o Stripe.
+  isFree             Boolean   @default(false) @map("is_free")
   isPublished        Boolean   @default(false) @map("is_published")
   publishedAt        DateTime? @map("published_at")
   studentsCount      Int       @default(0) @map("students_count")
@@ -5171,7 +5178,12 @@ model NasaRouteEnrollment {
   planId      String?   @map("plan_id")
   buyerOrgId  String?   @map("buyer_org_id")
   paidStars   Int       @default(0) @map("paid_stars")
-  source      String    @default("purchase") // "purchase" | "free_access" | "gift"
+  // Pagamento via Stripe (BRL). Snapshot do valor pago em centavos +
+  // referências à sessão/payment intent para reconciliação e refund.
+  paidBrlCents            Int?    @map("paid_brl_cents")
+  stripeCheckoutSessionId String? @unique @map("stripe_checkout_session_id")
+  stripePaymentIntentId   String? @map("stripe_payment_intent_id")
+  source      String    @default("purchase") // "purchase" | "free_access" | "gift" | "stripe_purchase"
   paymentRef  String?   @map("payment_ref")
   status      String    @default("active") // "active" | "refunded"
   enrolledAt  DateTime  @default(now()) @map("enrolled_at")
@@ -5255,6 +5267,8 @@ model NasaRoutePlan {
   name        String
   description String?
   priceStars  Int      @default(0) @map("price_stars")
+  // Preço do plano em centavos BRL — fonte de verdade para Stripe Checkout.
+  priceBrlCents Int    @default(0) @map("price_brl_cents")
   order       Int      @default(0)
   isDefault   Boolean  @default(false) @map("is_default")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -5343,6 +5357,13 @@ enum PendingCoursePurchaseStatus {
 model PendingCoursePurchase {
   id                    String                      @id @default(cuid())
   email                 String
+  // Quando o checkout foi iniciado por um usuário já autenticado,
+  // gravamos o userId para finalizar a matrícula direto no webhook
+  // (sem passar pelo signup token). null = fluxo público anônimo.
+  userId                String?                     @map("user_id")
+  // Discriminador do fluxo: "public" (anônimo, gera signupToken) ou
+  // "authenticated" (já tem conta, webhook finaliza enrollment direto).
+  flow                  String                      @default("public")
   courseId              String                      @map("course_id")
   planId                String?                     @map("plan_id")
   priceStars            Int                         @map("price_stars")
@@ -5362,8 +5383,10 @@ model PendingCoursePurchase {
   course         NasaRouteCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
   plan           NasaRoutePlan?  @relation(fields: [planId], references: [id], onDelete: SetNull)
   redeemedByUser User?           @relation("PendingCoursePurchaseRedeemer", fields: [redeemedByUserId], references: [id], onDelete: SetNull)
+  user           User?           @relation("PendingCoursePurchaseUser", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([email])
+  @@index([userId])
   @@index([status])
   @@index([stripeSessionId])
   @@map("pending_course_purchase")

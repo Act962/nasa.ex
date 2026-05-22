@@ -114,14 +114,18 @@ export type StripeWebhookEvent = Stripe.Event;
 
 /**
  * Valida a assinatura e constrói o evento do webhook.
- * Usar no route handler /api/stripe/webhook.
+ *
+ * Aceita um secret customizado (ex.: endpoint dedicado a cursos via
+ * STRIPE_COURSE_WEBHOOK_SECRET). Quando omitido, cai pro
+ * STRIPE_WEBHOOK_SECRET (usado pelo better-auth / fluxos legados).
  */
 export function constructWebhookEvent(
   payload: string | Buffer,
   signature: string,
+  secretOverride?: string,
 ): StripeWebhookEvent {
   const stripe = getStripe();
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET não configurada.");
+  const secret = secretOverride ?? process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) throw new Error("Webhook secret não configurado.");
   return stripe.webhooks.constructEvent(payload, signature, secret);
 }

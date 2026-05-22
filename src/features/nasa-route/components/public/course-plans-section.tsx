@@ -7,7 +7,6 @@ import {
   ImageIcon,
   Link2,
   Play,
-  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +17,9 @@ interface PlanData {
   id: string;
   name: string;
   description: string | null;
+  /** @deprecated — fonte de verdade do preço é `priceBrlCents` */
   priceStars: number;
+  priceBrlCents: number;
   isDefault: boolean;
   lessonCount: number;
   attachments: Array<{
@@ -56,7 +57,7 @@ interface Props {
   /** chamado quando usuário logado seleciona plano */
   onSelectPlan: (planId: string) => void;
   /** chamado quando usuário NÃO logado clica em comprar plano pago (abre checkout Stripe) */
-  onPublicCheckout: (plan: { id: string; name: string; priceStars: number }) => void;
+  onPublicCheckout: (plan: { id: string; name: string; priceBrlCents: number }) => void;
 }
 
 /**
@@ -81,8 +82,8 @@ export function CoursePlansSection({
   if (plans.length === 0) return null;
 
   const hasMultiplePlans = plans.length > 1;
-  const formatPlanBrl = (priceStars: number) =>
-    (priceStars * starPriceBrl).toLocaleString("pt-BR", {
+  const formatBrlCents = (cents: number) =>
+    (cents / 100).toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL",
     });
@@ -109,7 +110,7 @@ export function CoursePlansSection({
         )}
       >
         {plans.map((plan) => {
-          const isFree = plan.priceStars === 0;
+          const isFree = plan.priceBrlCents <= 0;
           return (
             <div
               key={plan.id}
@@ -142,20 +143,11 @@ export function CoursePlansSection({
                     Grátis
                   </span>
                 ) : (
-                  <>
-                    <Star className="size-5 fill-amber-500 text-amber-500" />
-                    <span className="text-2xl font-bold tabular-nums">
-                      {plan.priceStars.toLocaleString("pt-BR")}
-                    </span>
-                    <span className="text-sm text-muted-foreground">★</span>
-                  </>
+                  <span className="text-2xl font-bold tabular-nums text-violet-700 dark:text-violet-300">
+                    {formatBrlCents(plan.priceBrlCents)}
+                  </span>
                 )}
               </div>
-              {!isFree && (
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  ≈ {formatPlanBrl(plan.priceStars)} via cartão
-                </p>
-              )}
 
               <ul className="mt-4 flex-1 space-y-2 text-sm">
                 <li className="flex items-start gap-2">
@@ -276,11 +268,11 @@ export function CoursePlansSection({
                       onPublicCheckout({
                         id: plan.id,
                         name: plan.name,
-                        priceStars: plan.priceStars,
+                        priceBrlCents: plan.priceBrlCents,
                       })
                     }
                   >
-                    Comprar por {formatPlanBrl(plan.priceStars)}
+                    Comprar por {formatBrlCents(plan.priceBrlCents)}
                   </Button>
                 )}
               </div>

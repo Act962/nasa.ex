@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -15,7 +15,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VideoEmbed } from "../shared/video-embed";
-import { PriceStarsDisplay } from "../shared/price-stars-display";
+// Cursos passaram a ser precificados em BRL nativo — Stars some da
+// landing pública. Importação mantida só para outros usos legados.
+// import { PriceStarsDisplay } from "../shared/price-stars-display";
 import { CourseShareMenu } from "../shared/course-share-menu";
 import { EnrollmentModal } from "../student/enrollment-modal";
 import { TrackingScripts } from "./tracking-scripts";
@@ -40,7 +42,7 @@ interface Props {
 interface PublicCheckoutPlan {
   id: string;
   name: string;
-  priceStars: number;
+  priceBrlCents: number;
 }
 
 export function CoursePublicPage({
@@ -59,6 +61,19 @@ export function CoursePublicPage({
       input: { companySlug, courseSlug },
     }),
   });
+
+  // Quando autenticado, checa se o usuário já está matriculado neste curso
+  // pra trocar o CTA "Comprar" por "Acessar curso".
+  const { data: myEnrollmentsData } = useQuery({
+    ...orpc.nasaRoute.listMyEnrollments.queryOptions(),
+    enabled: isAuthenticated,
+  });
+  const enrolledInThisCourse = useMemo(() => {
+    if (!isAuthenticated || !myEnrollmentsData || !data?.course?.id) return false;
+    return myEnrollmentsData.enrollments.some(
+      (e) => e.course.id === data.course.id,
+    );
+  }, [isAuthenticated, myEnrollmentsData, data?.course?.id]);
 
   // ── Tracking de view (Insights NASA Route) ─────────────
   // Loga uma única vez por carga da página, com UTM params da query
@@ -109,7 +124,9 @@ export function CoursePublicPage({
   const hasMultiplePlans = plans.length > 1;
   const defaultPlan = plans.find((p) => p.isDefault) ?? plans[0] ?? null;
   const headlinePriceStars = course.minPriceStars ?? course.priceStars;
-  const isFree = headlinePriceStars === 0;
+  const headlinePriceBrlCents =
+    (course as any).minPriceBrlCents ?? (course as any).priceBrlCents ?? 0;
+  const isFree = (course as any).isFree || headlinePriceBrlCents <= 0;
   const lessonsBased = hasLessons(course.format);
 
   const signInHref = `/sign-in?redirect=${encodeURIComponent(
@@ -119,9 +136,9 @@ export function CoursePublicPage({
     `/c/${companySlug}/${courseSlug}`,
   )}`;
 
-  // BRL formatado pra um plano (usado nos botões de unauth + cursos com aulas)
-  const formatPlanBrl = (priceStars: number) =>
-    (priceStars * starPriceBrl).toLocaleString("pt-BR", {
+  // BRL formatado direto a partir dos centavos do plano.
+  const formatBrlCents = (cents: number) =>
+    (cents / 100).toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL",
     });
@@ -130,11 +147,9 @@ export function CoursePublicPage({
   // usam <FormatCtaButton /> com labels próprios "Comprar eBook", etc).
   const heroCtaLabel = isFree
     ? "Acessar gratuitamente"
-    : !isAuthenticated && !hasMultiplePlans && defaultPlan
-      ? `Comprar por ${formatPlanBrl(defaultPlan.priceStars)}`
-      : hasMultiplePlans
-        ? "Ver planos"
-        : "Comprar com STARs";
+    : !hasMultiplePlans && defaultPlan
+      ? `Comprar por ${formatBrlCents((defaultPlan as any).priceBrlCents ?? 0)}`
+      : "Ver planos";
 
   function startEnrollment(planId: string | null) {
     setSelectedPlanId(planId);
@@ -144,9 +159,9 @@ export function CoursePublicPage({
   function startPublicCheckout(plan: {
     id: string;
     name: string;
-    priceStars: number;
+    priceBrlCents: number;
   }) {
-    if (plan.priceStars <= 0) return;
+    if (plan.priceBrlCents <= 0) return;
     setPublicCheckoutPlan(plan);
   }
 
@@ -162,7 +177,7 @@ export function CoursePublicPage({
         startPublicCheckout({
           id: defaultPlan.id,
           name: defaultPlan.name,
-          priceStars: defaultPlan.priceStars,
+          priceBrlCents: (defaultPlan as any).priceBrlCents ?? 0,
         });
       } else {
         document
@@ -289,19 +304,21 @@ export function CoursePublicPage({
             <span className="text-xs uppercase text-muted-foreground">
               {hasMultiplePlans ? "A partir de" : "Investimento"}
             </span>
-            <PriceStarsDisplay priceStars={headlinePriceStars} size="lg" />
+            <span className="text-2xl font-bold text-violet-700 dark:text-violet-300">
+              {isFree ? "Grátis" : formatBrlCents(headlinePriceBrlCents)}
+            </span>
           </div>
-          {!isAuthenticated &&
-            !isFree &&
-            !hasMultiplePlans &&
-            defaultPlan &&
-            lessonsBased && (
-              <p className="mt-1 text-right text-[11px] text-muted-foreground">
-                ≈ {formatPlanBrl(defaultPlan.priceStars)} via cartão
-              </p>
-            )}
           <div className="mt-4">
-            {lessonsBased ? (
+            {enrolledInThisCourse ? (
+              <Button
+                size="lg"
+                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                onClick={() => router.push(`/nasa-route/curso/${course.id}`)}
+              >
+                <CheckCircle2 className="mr-1.5 size-4" />
+                Acessar curso
+              </Button>
+            ) : lessonsBased ? (
               <Button size="lg" className="w-full" onClick={handleHeroClick}>
                 {heroCtaLabel}
               </Button>
@@ -331,7 +348,12 @@ export function CoursePublicPage({
               />
             )}
           </div>
-          {!isAuthenticated && (
+          {enrolledInThisCourse && (
+            <p className="mt-2 text-center text-[11px] text-emerald-600 dark:text-emerald-400">
+              Você já tem acesso a este curso.
+            </p>
+          )}
+          {!enrolledInThisCourse && !isAuthenticated && (
             <p className="mt-2 text-center text-[11px] text-muted-foreground">
               {isFree
                 ? "Crie sua conta em segundos"
@@ -340,9 +362,9 @@ export function CoursePublicPage({
                   : "Faça login pra continuar"}
             </p>
           )}
-          {isAuthenticated && (
+          {!enrolledInThisCourse && isAuthenticated && !isFree && (
             <p className="mt-2 text-center text-[11px] text-muted-foreground">
-              Pago com STARs da sua conta
+              Pagamento via Stripe · cartão de crédito
             </p>
           )}
         </aside>
@@ -417,12 +439,15 @@ export function CoursePublicPage({
             id: course.id,
             title: course.title,
             priceStars: course.priceStars,
+            priceBrlCents: (course as any).priceBrlCents ?? 0,
+            isFree: (course as any).isFree ?? false,
             creatorOrg: { name: org.name },
-            plans: plans.map((p) => ({
+            plans: plans.map((p: any) => ({
               id: p.id,
               name: p.name,
               description: p.description,
               priceStars: p.priceStars,
+              priceBrlCents: p.priceBrlCents ?? 0,
               isDefault: p.isDefault,
               lessonCount: p.lessonCount,
               attachmentCount: p.attachments.length,
@@ -444,7 +469,6 @@ export function CoursePublicPage({
             creatorOrgName: org.name,
           }}
           plan={publicCheckoutPlan}
-          amountBrl={publicCheckoutPlan.priceStars * starPriceBrl}
         />
       )}
     </div>
