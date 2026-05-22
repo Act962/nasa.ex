@@ -31,18 +31,19 @@ function loadPrefs(): OverlayPrefs {
 }
 
 interface Props {
-  localStream:    MediaStream | null;
+  localStream:       MediaStream | null;
   localScreenStream?: MediaStream | null;
-  localMicOn:    boolean;
-  localCamOn:    boolean;
-  localScreenOn?: boolean;
-  localName:     string;
-  localImage?:   string | null;
-  peers:         Map<string, RemotePeer>;
-  onPiPToggle?:  (active: boolean) => void;
+  localMicOn:        boolean;
+  localCamOn:        boolean;
+  localScreenOn?:    boolean;
+  localName:         string;
+  localImage?:       string | null;
+  peers:             Map<string, RemotePeer>;
+  onPiPToggle?:      (active: boolean) => void;
+  sinkId?:           string;
 }
 
-export function VideoOverlay({ localStream, localScreenStream, localMicOn, localCamOn, localScreenOn, localName, localImage, peers, onPiPToggle }: Props) {
+export function VideoOverlay({ localStream, localScreenStream, localMicOn, localCamOn, localScreenOn, localName, localImage, peers, onPiPToggle, sinkId }: Props) {
   const [prefs, setPrefs] = useState<OverlayPrefs>(DEFAULT_PREFS);
   useEffect(() => { setPrefs(loadPrefs()); }, []);
   const updatePrefs = useCallback((patch: Partial<OverlayPrefs>) => {
@@ -183,7 +184,7 @@ export function VideoOverlay({ localStream, localScreenStream, localMicOn, local
         style={{ maxHeight: prefs.layout === "strip-v" ? "70vh" : undefined, overflowY: prefs.layout === "strip-v" ? "auto" : undefined }}
       >
         {tiles.map(({ key, isScreen, ...tile }) => (
-          <VideoTile key={key} {...tile} width={tileW} onPiPToggle={onPiPToggle} isScreen={isScreen} />
+          <VideoTile key={key} {...tile} width={tileW} onPiPToggle={onPiPToggle} isScreen={isScreen} sinkId={sinkId} />
         ))}
       </div>
     </div>
@@ -217,9 +218,10 @@ interface TileProps {
   isScreen?:   boolean;
   width:       number;
   onPiPToggle?: (active: boolean) => void;
+  sinkId?:     string;
 }
 
-function VideoTile({ name, image, stream, micOn, camOn, isLocal, isScreen, width, onPiPToggle }: TileProps) {
+function VideoTile({ name, image, stream, micOn, camOn, isLocal, isScreen, width, onPiPToggle, sinkId }: TileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [pipActive, setPipActive] = useState(false);
@@ -266,6 +268,15 @@ function VideoTile({ name, image, stream, micOn, camOn, isLocal, isScreen, width
       el.srcObject = null;
     }
   }, [stream, isLocal]);
+
+  // Aplica saída de áudio selecionada (setSinkId — Chrome/Edge only).
+  // Firefox/Safari ignoram silenciosamente por falta de suporte.
+  useEffect(() => {
+    if (isLocal) return;
+    const el = audioRef.current as (HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }) | null;
+    if (!el?.setSinkId || !sinkId) return;
+    el.setSinkId(sinkId).catch(() => {});
+  }, [sinkId, isLocal]);
 
   const handlePiP = useCallback(async () => {
     const el = videoRef.current;
