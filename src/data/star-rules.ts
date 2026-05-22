@@ -168,6 +168,63 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
     cooldownHours: null,
     category: "chat",
   },
+  // ── Cobranças adicionais — Sprint correção STARS ─────────
+  {
+    action: "chat_ai_message",
+    label: "Chat AI WhatsApp — resposta IA",
+    stars: 2,
+    cooldownHours: null,
+    category: "chat",
+  },
+  {
+    action: "message_send",
+    label: "Mensagem outbound (WhatsApp/IG/FB)",
+    stars: 1,
+    cooldownHours: null,
+    category: "chat",
+  },
+  {
+    action: "extract_budget",
+    label: "OCR de Orçamento (Claude Vision)",
+    stars: 5,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "transcribe_video",
+    label: "Transcrição de vídeo (Whisper, por minuto)",
+    stars: 1,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "generate_compose",
+    label: "Composição de mensagem por IA",
+    stars: 2,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "generate_summary",
+    label: "Resumo de conversa por IA",
+    stars: 2,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "nasa_command_intent",
+    label: "NASA Command — parser de intent (IA)",
+    stars: 1,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "workspace_email_send",
+    label: "Email de workspace (Resend)",
+    stars: 1,
+    cooldownHours: null,
+    category: "workspace",
+  },
   // Forms
   {
     action: "form_create",

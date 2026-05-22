@@ -198,6 +198,15 @@ model Organization {
   // Saldo de bônus (welcome, promoções) — não pode pagar curso no NASA Router,
   // mas pode ser consumido por integrações (Planner IA, Command IA, APP_CHARGE/SETUP).
   starsCycleStart      DateTime? @map("stars_cycle_start")
+  // ── Grace period / suspensão (pay-per-use) ────────────────
+  // Quando saldo zera, `starsGraceStartedAt` é setado. Org tem 15 dias
+  // pra recarregar. Cron `stars-grace-period-monitor` notifica em dias
+  // 1/3/7/12/14 e seta `starsSuspendedAt` em dia 15+. Suspensão zera o
+  // acesso a todas as procedures que cobram via `requireStarsMiddleware`.
+  starsGraceStartedAt  DateTime? @map("stars_grace_started_at")
+  starsSuspendedAt     DateTime? @map("stars_suspended_at")
+  // Anti-spam de notificações pós-débito (1 dispatch/dia/severidade).
+  starsLastAlertAt     DateTime? @map("stars_last_alert_at")
   starsAlertConfig     Json      @default("{}") @map("stars_alert_config")
   starDistributionMode String    @default("org") @map("star_distribution_mode")
   // "org"    = pool compartilhado (padrão)

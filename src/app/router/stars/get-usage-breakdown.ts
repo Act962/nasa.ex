@@ -76,10 +76,11 @@ export const getStarsUsageBreakdown = base
       const key = t.appSlug ?? "other";
       byAppMap.set(key, (byAppMap.get(key) ?? 0) + Math.abs(t.amount));
     }
+    // Retorna TODOS os apps (não só top 5) — o widget renderiza top 5 e
+    // expõe um "Ver todos" pra mostrar a lista completa.
     const byApp = Array.from(byAppMap.entries())
       .map(([appSlug, total]) => ({ appSlug, label: APP_LABELS[appSlug] ?? appSlug, total }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
+      .sort((a, b) => b.total - a.total);
 
     // ── Agregado por usuário (via MemberStarBudget.currentUsage) ────
     const memberUsage = await prisma.memberStarBudget.findMany({
@@ -132,9 +133,44 @@ const APP_LABELS: Record<string, string> = {
   "nasa-route": "NASA Route",
   "nasa-command": "NASA Command",
   astro: "Astro IA",
+  "astro_prompt": "ASTRO Copiloto",
   insights: "Insights",
   workflow: "Workflows",
   calendar: "Calendário",
   pages: "Pages",
+  // ── Sprint STARS (cobranças novas) ──
+  chat_ai_message: "Chat AI (WhatsApp)",
+  extract_budget: "OCR de Orçamento (IA)",
+  transcribe_video: "Transcrição de Vídeo (Whisper)",
+  generate_compose: "Composição IA",
+  generate_summary: "Resumo de Conversa (IA)",
+  nasa_command_intent: "Comandos IA",
+  message_send: "Mensagens Outbound",
+  workspace_email_send: "Emails Workspace",
+  // ── Demais actions já cobradas ──
+  workflow_execute: "Execução de Workflow",
+  lead_create: "Criação de Lead",
+  lead_tracking_create: "Lead em Tracking",
+  lead_import: "Importação de Leads",
+  update_many_status: "Atualização em massa",
+  workspace_action_create: "Action no Workspace",
+  workspace_card_create: "Card no Workspace",
+  workspace_board_create: "Quadro no Workspace",
+  forge_proposal_create: "Forge — Proposta",
+  forge_proposal_send: "Forge — Envio de Proposta",
+  forge_contract_create: "Forge — Contrato",
+  forge_contract_signed: "Forge — Contrato Assinado",
+  pages_create: "Pages — Criação",
+  pages_publish: "Pages — Publicação",
+  linnker_page_create: "Linnker — Página",
+  appointment_create: "Agenda — Compromisso",
+  agenda_create: "Agenda — Criar",
+  form_publish: "Forms — Publicar",
+  form_create_response_for_lead: "Forms — Resposta",
+  nbox_upload: "N-Box — Upload",
+  nbox_item_created: "N-Box — Item",
+  insights_report: "Insights — Relatório",
+  calendar_share_enable: "Calendário — Compartilhar",
+  nasa_command_execute: "NASA Command — Execução",
   other: "Outros",
 };
