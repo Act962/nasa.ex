@@ -4,29 +4,29 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
-import { StarTransactionType } from "@/generated/prisma/enums";
 import { pusherServer } from "@/lib/pusher";
 import { awardPoints } from "@/app/router/space-point/utils";
-import { canEnrollFree, PLATFORM_FEE_PCT } from "../utils";
-import { executeCoursePurchaseInTx } from "../helpers/purchase-helpers";
+import { canEnrollFree } from "../utils";
 import { createSubscriptionInTx } from "../helpers/subscription-helpers";
 import { createPurchaseSideEffects } from "../helpers/purchase-crm-side-effects";
 import type { SubscriptionPeriod } from "@/features/nasa-route/lib/formats";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { getStripe } from "@/lib/stripe";
+import { getStarPriceBrl } from "@/features/nasa-route/lib/pricing";
 
 /**
- * Compra de curso pelo aluno (paga com STARs da org dele).
+ * Matrícula no curso pelo aluno autenticado.
  *
- * Fluxo:
- *  1. Valida curso publicado + não estar já matriculado
- *  2. Free Access? → enrollment grátis, pula 3-4
- *  3. Saldo da org buyer >= preço? → senão lança INSUFFICIENT_STARS
- *  4. $transaction: debit aluno + credit criador (90%) + cria enrollment + cria progress + studentsCount++
- *  5. awardPoints("enroll_course") + Pusher
+ * Modelo unificado:
+ *  - Cursos `isFree=true` ou cobertos por NasaRouteFreeAccess → matrícula
+ *    imediata (sem checkout, sem cobrança).
+ *  - Cursos pagos → cria `PendingCoursePurchase (flow="authenticated")` +
+ *    Stripe Checkout Session em BRL. Retorna `{ checkoutUrl }` para o
+ *    cliente redirecionar. O enrollment é criado pelo webhook quando o
+ *    pagamento confirma (ver finalizeStripePurchaseInTx + /api/stripe/webhook).
  *
- * Formatos especiais:
- *  - event: bloqueia compra se evento já encerrou.
- *  - subscription: cria registro `NasaRouteSubscription` pra cobrar mensalmente via cron Inngest.
+ * Stars NÃO compra mais curso. O saldo Stars só é creditado ao criador
+ * como payout interno (até Stripe Connect ser habilitado).
  */
 export const purchaseCourse = base
   .use(requiredAuthMiddleware)
@@ -41,7 +41,7 @@ export const purchaseCourse = base
     const userId = context.user.id;
     const buyerOrgId = context.org.id;
 
-    // 1. Carregar curso
+    // 1. Carrega curso
     const course = await prisma.nasaRouteCourse.findUnique({
       where: { id: input.courseId },
       select: {
@@ -49,17 +49,19 @@ export const purchaseCourse = base
         slug: true,
         title: true,
         priceStars: true,
+        priceBrlCents: true,
+        isFree: true,
         isPublished: true,
+        coverUrl: true,
         creatorOrgId: true,
         creatorUserId: true,
         format: true,
         eventStartsAt: true,
         eventEndsAt: true,
         subscriptionPeriod: true,
-        // Funil de vendas configurado pelo criador — usado em
-        // `createPurchaseSideEffects` depois do enrollment.
         purchaseTrackingId: true,
         purchaseStatusId: true,
+        creatorOrg: { select: { slug: true, name: true } },
       },
     });
     if (!course || !course.isPublished) {
@@ -83,20 +85,41 @@ export const purchaseCourse = base
       }
     }
 
-    // 1b. Resolver plano: se planId vier, valida; senão usa o default.
+    // 1b. Resolver plano
     const plan = input.planId
       ? await prisma.nasaRoutePlan.findUnique({
           where: { id: input.planId },
-          select: { id: true, courseId: true, name: true, priceStars: true, isDefault: true },
+          select: {
+            id: true,
+            courseId: true,
+            name: true,
+            priceStars: true,
+            priceBrlCents: true,
+            isDefault: true,
+          },
         })
       : (await prisma.nasaRoutePlan.findFirst({
           where: { courseId: course.id, isDefault: true },
-          select: { id: true, courseId: true, name: true, priceStars: true, isDefault: true },
+          select: {
+            id: true,
+            courseId: true,
+            name: true,
+            priceStars: true,
+            priceBrlCents: true,
+            isDefault: true,
+          },
         })) ??
         (await prisma.nasaRoutePlan.findFirst({
           where: { courseId: course.id },
           orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-          select: { id: true, courseId: true, name: true, priceStars: true, isDefault: true },
+          select: {
+            id: true,
+            courseId: true,
+            name: true,
+            priceStars: true,
+            priceBrlCents: true,
+            isDefault: true,
+          },
         }));
 
     if (!plan || plan.courseId !== course.id) {
@@ -104,7 +127,6 @@ export const purchaseCourse = base
         message: "Plano não encontrado para este curso",
       });
     }
-    const priceStars = plan.priceStars;
 
     // 2. Já matriculado?
     const existing = await prisma.nasaRouteEnrollment.findUnique({
@@ -112,12 +134,15 @@ export const purchaseCourse = base
       select: { id: true, status: true },
     });
     if (existing && existing.status === "active") {
-      return { enrollmentId: existing.id, alreadyEnrolled: true, source: "existing" as const };
+      return {
+        kind: "already_enrolled" as const,
+        enrollmentId: existing.id,
+      };
     }
 
-    // 3. Acesso livre? (criador da org criadora liberou esse user)
+    // 3. Curso gratuito? (flag explícita OU free access concedido OU legado priceBrlCents=0 sem flag)
     const freeAccess = await canEnrollFree(userId, course.id, course.creatorOrgId);
-    const isFreeCourse = priceStars === 0;
+    const isFreeCourse = course.isFree || (course.priceBrlCents <= 0 && plan.priceBrlCents <= 0);
 
     if (freeAccess || isFreeCourse) {
       const source = freeAccess ? "free_access" : "purchase";
@@ -130,6 +155,7 @@ export const purchaseCourse = base
             planId: plan.id,
             buyerOrgId,
             paidStars: 0,
+            paidBrlCents: 0,
             source,
             status: "active",
           },
@@ -145,9 +171,6 @@ export const purchaseCourse = base
           data: { studentsCount: { increment: 1 } },
         });
 
-        // Assinatura grátis (preço 0) ou via free-access: cria registro
-        // de subscription mesmo assim pra rastreio. Cron skipará cobrança
-        // quando priceStars=0.
         if (course.format === "subscription") {
           const period = (course.subscriptionPeriod ?? "monthly") as SubscriptionPeriod;
           await createSubscriptionInTx({ tx, enrollmentId: e.id, period });
@@ -156,7 +179,12 @@ export const purchaseCourse = base
         return e;
       });
 
-      await safeAwardEnroll({ userId, buyerOrgId, courseTitle: course.title, courseId: course.id });
+      await safeAwardEnroll({
+        userId,
+        buyerOrgId,
+        courseTitle: course.title,
+        courseId: course.id,
+      });
       await safePushPurchaseEvents({
         userId,
         creatorUserId: course.creatorUserId,
@@ -166,9 +194,6 @@ export const purchaseCourse = base
         payoutStars: 0,
       });
 
-      // CRM + Payments — fire-and-forget. Mesmo cursos grátis criam o
-      // lead (criador quer follow-up) e o PaymentEntry com valor 0 fica
-      // como registro histórico.
       await createPurchaseSideEffects({
         buyer: {
           userId,
@@ -190,192 +215,134 @@ export const purchaseCourse = base
       });
 
       return {
+        kind: "enrolled" as const,
         enrollmentId: enrollment.id,
-        alreadyEnrolled: false,
         source,
-        paidStars: 0,
-        payoutStars: 0,
       };
     }
 
-    // 4. Validar saldo (apenas gastável — bônus não paga curso)
-    const buyerOrg = await prisma.organization.findUniqueOrThrow({
-      where: { id: buyerOrgId },
-      select: { starsBalance: true, starsBonusBalance: true },
-    });
-    if (buyerOrg.starsBalance < priceStars) {
+    // 4. Curso pago → cria checkout Stripe.
+    // Plano precisa ter preço BRL configurado.
+    const amountBrlCents = plan.priceBrlCents;
+    if (amountBrlCents < 50) {
+      // Mínimo Stripe BRL = R$ 0,50. Bloqueia configuração inválida do criador.
       throw new ORPCError("BAD_REQUEST", {
-        message: `Saldo de STARs insuficiente. Necessário: ${priceStars} ★`,
-        data: {
-          code: "INSUFFICIENT_STARS",
-          balance: buyerOrg.starsBalance,
-          bonusBalance: buyerOrg.starsBonusBalance,
-          needed: priceStars,
-        },
+        message:
+          "Plano sem preço válido. Peça ao criador para configurar o valor em reais.",
+        data: { code: "PRICE_NOT_CONFIGURED" },
       });
     }
 
-    // 5. Transação atômica: debit aluno + credit criador + enrollment + progress + studentsCount++
-    const payoutStars = Math.floor(priceStars * (1 - PLATFORM_FEE_PCT));
-    const platformFee = priceStars - payoutStars;
+    // Snapshot da cotação para payout interno em Stars (até Connect).
+    const starPriceBrl = await getStarPriceBrl();
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Debit aluno
-      const buyer = await tx.organization.findUniqueOrThrow({
-        where: { id: buyerOrgId },
-        select: { starsBalance: true },
-      });
-      if (buyer.starsBalance < priceStars) {
-        throw new ORPCError("BAD_REQUEST", {
-          message: "Saldo insuficiente",
-          data: { code: "INSUFFICIENT_STARS" },
-        });
-      }
-      const buyerNewBalance = buyer.starsBalance - priceStars;
-      await tx.organization.update({
-        where: { id: buyerOrgId },
-        data: { starsBalance: buyerNewBalance },
-      });
-      const debit = await tx.starTransaction.create({
-        data: {
-          organizationId: buyerOrgId,
-          type: StarTransactionType.COURSE_PURCHASE,
-          amount: -priceStars,
-          balanceAfter: buyerNewBalance,
-          description: `Compra: ${course.title} — Plano ${plan.name}`,
-          appSlug: "nasa-route",
-        },
-      });
+    const pending = await prisma.pendingCoursePurchase.create({
+      data: {
+        email: context.user.email,
+        userId,
+        flow: "authenticated",
+        courseId: course.id,
+        planId: plan.id,
+        priceStars: plan.priceStars,
+        amountBrlCents,
+        starPriceBrlSnapshot: starPriceBrl,
+        status: "PENDING",
+      },
+      select: { id: true },
+    });
 
-      // Credit criador (90% do valor)
-      const creator = await tx.organization.findUniqueOrThrow({
-        where: { id: course.creatorOrgId },
-        select: { starsBalance: true },
-      });
-      const creatorNewBalance = creator.starsBalance + payoutStars;
-      await tx.organization.update({
-        where: { id: course.creatorOrgId },
-        data: { starsBalance: creatorNewBalance },
-      });
-      await tx.starTransaction.create({
-        data: {
-          organizationId: course.creatorOrgId,
-          type: StarTransactionType.COURSE_PAYOUT,
-          amount: payoutStars,
-          balanceAfter: creatorNewBalance,
-          description: `Venda: ${course.title} — Plano ${plan.name} (taxa ${platformFee} ★ retida)`,
-          appSlug: "nasa-route",
-        },
-      });
+    const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const successUrl = `${origin}/nasa-route/checkout/sucesso?pendingId=${pending.id}&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${origin}/c/${course.creatorOrg.slug}/${course.slug}`;
 
-      // Cria/ativa enrollment
-      const enrollment = await tx.nasaRouteEnrollment.upsert({
-        where: { userId_courseId: { userId, courseId: course.id } },
-        create: {
-          userId,
+    try {
+      const stripe = getStripe();
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        customer_email: context.user.email,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "brl",
+              unit_amount: amountBrlCents,
+              product_data: {
+                name: `${course.title} — ${plan.name}`,
+                description: course.creatorOrg.name,
+                images: course.coverUrl ? [course.coverUrl] : undefined,
+              },
+            },
+          },
+        ],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        payment_method_types: ["card"],
+        locale: "pt-BR",
+        metadata: {
+          kind: "course_purchase",
+          flow: "authenticated",
+          pendingId: pending.id,
           courseId: course.id,
           planId: plan.id,
-          buyerOrgId,
-          paidStars: priceStars,
-          source: "purchase",
-          status: "active",
-          paymentRef: debit.id,
-        },
-        update: {
-          status: "active",
-          paidStars: priceStars,
-          planId: plan.id,
-          buyerOrgId,
-          paymentRef: debit.id,
+          userId,
         },
       });
 
-      // Progress vazio
-      await tx.nasaRouteProgress.upsert({
-        where: { userId_courseId: { userId, courseId: course.id } },
-        create: { userId, courseId: course.id, completedLessonIds: [] },
-        update: {},
-      });
-
-      // Atualiza contador do curso
-      await tx.nasaRouteCourse.update({
-        where: { id: course.id },
-        data: { studentsCount: { increment: 1 } },
-      });
-
-      // Assinatura: cria registro pra cobrar mensalmente via Inngest cron
-      if (course.format === "subscription") {
-        const period = (course.subscriptionPeriod ?? "monthly") as SubscriptionPeriod;
-        await createSubscriptionInTx({
-          tx,
-          enrollmentId: enrollment.id,
-          period,
-        });
+      if (!session.url) {
+        throw new Error("Stripe não retornou URL de checkout.");
       }
 
-      return { enrollment, buyerNewBalance, creatorNewBalance };
-    });
+      await prisma.pendingCoursePurchase.update({
+        where: { id: pending.id },
+        data: {
+          stripeSessionId: session.id,
+          stripePaymentIntentId:
+            typeof session.payment_intent === "string"
+              ? session.payment_intent
+              : null,
+        },
+      });
 
-    // 6. SP de matrícula (não-crítico)
-    await safeAwardEnroll({ userId, buyerOrgId, courseTitle: course.title, courseId: course.id });
-
-    // 7. Pusher (não-crítico)
-    await safePushPurchaseEvents({
-      userId,
-      creatorUserId: course.creatorUserId,
-      courseId: course.id,
-      courseTitle: course.title,
-      paidStars: priceStars,
-      payoutStars,
-    });
-
-    // 8. CRM + Payments (não-crítico) — cria lead no tracking destino
-    // (se configurado) E registra a venda no Payment Hub do criador
-    // (`PaymentEntry RECEIVABLE` com valor em BRL).
-    await createPurchaseSideEffects({
-      buyer: {
+      await logActivity({
+        organizationId: buyerOrgId,
         userId,
-        name: context.user.name,
-        email: context.user.email,
-        phone: (context.user as any).phone ?? null,
-      },
-      creatorOrgId: course.creatorOrgId,
-      createdByUserId: userId,
-      course: {
-        id: course.id,
-        title: course.title,
-        priceStars,
-        purchaseTrackingId: course.purchaseTrackingId,
-        purchaseStatusId: course.purchaseStatusId,
-      },
-      planName: plan.name,
-      enrollmentId: result.enrollment.id,
-    });
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "nasa-route",
+        subAppSlug: "nasa-route-courses",
+        featureKey: "route.course.checkout_started",
+        action: "route.course.checkout_started",
+        actionLabel: `Iniciou checkout do curso "${course.title}"`,
+        resource: course.title,
+        resourceId: course.id,
+        metadata: { planName: plan.name, amountBrlCents },
+      });
 
-    await logActivity({
-      organizationId: buyerOrgId,
-      userId,
-      userName: context.user.name,
-      userEmail: context.user.email,
-      userImage: (context.user as any).image,
-      appSlug: "nasa-route",
-      subAppSlug: "nasa-route-courses",
-      featureKey: "route.course.purchased",
-      action: "route.course.purchased",
-      actionLabel: `Comprou o curso "${course.title}"`,
-      resource: course.title,
-      resourceId: course.id,
-      metadata: { paidStars: priceStars, planName: plan.name },
-    });
+      return {
+        kind: "checkout" as const,
+        checkoutUrl: session.url,
+        pendingId: pending.id,
+        amountBrlCents,
+      };
+    } catch (err) {
+      await prisma.pendingCoursePurchase
+        .update({
+          where: { id: pending.id },
+          data: { status: "CANCELLED" },
+        })
+        .catch(() => {});
 
-    return {
-      enrollmentId: result.enrollment.id,
-      alreadyEnrolled: false,
-      source: "purchase" as const,
-      paidStars: priceStars,
-      payoutStars,
-      buyerNewBalance: result.buyerNewBalance,
-    };
+      const msg = err instanceof Error ? err.message : "Erro ao criar checkout.";
+      if (msg.includes("STRIPE_SECRET_KEY")) {
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            "Gateway de pagamento não configurado. Contate o suporte.",
+          data: { code: "STRIPE_NOT_CONFIGURED" },
+        });
+      }
+      throw new ORPCError("INTERNAL_SERVER_ERROR", { message: msg });
+    }
   });
 
 async function safeAwardEnroll(opts: {

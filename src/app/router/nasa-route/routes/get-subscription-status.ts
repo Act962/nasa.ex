@@ -42,11 +42,20 @@ export const getSubscriptionStatus = base
     if (!enrollment) {
       throw new ORPCError("NOT_FOUND", { message: "Matrícula não encontrada" });
     }
+    // Reforço de autorização: enrollment refunded/cancelado não devolve dados,
+    // mesmo que ainda haja uma linha de subscription histórica.
+    if (enrollment.status !== "active") {
+      throw new ORPCError("FORBIDDEN", {
+        message: "Esta matrícula não está ativa",
+      });
+    }
     if (!enrollment.subscription) {
       throw new ORPCError("NOT_FOUND", {
         message: "Esta matrícula não tem assinatura ativa",
       });
     }
 
+    // Devolve o snapshot da subscription mesmo se status != active — o viewer
+    // precisa renderizar alertas de "past_due"/"cancelled" para o aluno.
     return enrollment.subscription;
   });

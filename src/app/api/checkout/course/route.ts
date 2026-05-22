@@ -9,8 +9,9 @@
  *  2. Idempotência: se já existe PendingCoursePurchase PENDING <30 min com
  *     (email, courseId, planId), reusa stripeSessionId.
  *  3. Cria PendingCoursePurchase (status=PENDING).
- *  4. Cria Stripe Checkout Session com price_data dinâmico em BRL (BRL =
- *     priceStars × cotação atual). metadata.kind = "course_public_purchase".
+ *  4. Cria Stripe Checkout Session com price_data dinâmico em BRL —
+ *     valor lido direto de `plan.priceBrlCents`. metadata.kind="course_purchase"
+ *     + flow="public" (signup token gerado no webhook).
  *  5. Persiste stripeSessionId na pending row e retorna { url }.
  *
  * Body: { courseId, planId?, email }
@@ -20,10 +21,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { getStripe } from "@/lib/stripe";
-import {
-  getStarPriceBrl,
-  starsToBrlCents,
-} from "@/features/nasa-route/lib/pricing";
+import { getStarPriceBrl } from "@/features/nasa-route/lib/pricing";
 
 const BodySchema = z.object({
   courseId: z.string().min(1),
@@ -44,7 +42,7 @@ export async function POST(req: NextRequest) {
   const { courseId, planId, email } = parsed.data;
   const normalizedEmail = email.trim().toLowerCase();
 
-  // ── 1. Curso publicado? ──────────────────────────────────────────────────
+  // ── 1. Curso publicado e pago? ───────────────────────────────────────────
   const course = await prisma.nasaRouteCourse.findUnique({
     where: { id: courseId },
     select: {
@@ -52,6 +50,7 @@ export async function POST(req: NextRequest) {
       slug: true,
       title: true,
       isPublished: true,
+      isFree: true,
       coverUrl: true,
       creatorOrg: { select: { slug: true, name: true } },
     },
@@ -59,21 +58,48 @@ export async function POST(req: NextRequest) {
   if (!course || !course.isPublished) {
     return NextResponse.json({ error: "Curso não disponível." }, { status: 404 });
   }
+  if (course.isFree) {
+    return NextResponse.json(
+      {
+        error:
+          "Curso gratuito — crie sua conta normalmente em /sign-up para acessar.",
+      },
+      { status: 400 },
+    );
+  }
 
   // ── 2. Plano (resolve default se não vier) ───────────────────────────────
   const plan = planId
     ? await prisma.nasaRoutePlan.findUnique({
         where: { id: planId },
-        select: { id: true, courseId: true, name: true, priceStars: true },
+        select: {
+          id: true,
+          courseId: true,
+          name: true,
+          priceStars: true,
+          priceBrlCents: true,
+        },
       })
     : ((await prisma.nasaRoutePlan.findFirst({
         where: { courseId: course.id, isDefault: true },
-        select: { id: true, courseId: true, name: true, priceStars: true },
+        select: {
+          id: true,
+          courseId: true,
+          name: true,
+          priceStars: true,
+          priceBrlCents: true,
+        },
       })) ??
       (await prisma.nasaRoutePlan.findFirst({
         where: { courseId: course.id },
         orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-        select: { id: true, courseId: true, name: true, priceStars: true },
+        select: {
+          id: true,
+          courseId: true,
+          name: true,
+          priceStars: true,
+          priceBrlCents: true,
+        },
       })));
 
   if (!plan || plan.courseId !== course.id) {
@@ -82,11 +108,11 @@ export async function POST(req: NextRequest) {
       { status: 404 },
     );
   }
-  if (plan.priceStars <= 0) {
+  if (plan.priceBrlCents <= 0) {
     return NextResponse.json(
       {
         error:
-          "Curso gratuito — crie sua conta normalmente em /sign-up para acessar.",
+          "Plano sem preço configurado — peça ao criador para definir o valor em reais.",
       },
       { status: 400 },
     );
@@ -120,9 +146,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── 4. Cotação + cálculo de valor ────────────────────────────────────────
-  const starPriceBrl = await getStarPriceBrl();
-  const amountBrlCents = starsToBrlCents(plan.priceStars, starPriceBrl);
+  // ── 4. Valor BRL (já é nativo no plano) ─────────────────────────────────
+  const amountBrlCents = plan.priceBrlCents;
   if (amountBrlCents < 50) {
     // Stripe BRL: mínimo R$ 0,50
     return NextResponse.json(
@@ -131,10 +156,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── 5. Cria PendingCoursePurchase ────────────────────────────────────────
+  // Snapshot da cotação Stars→BRL, mantido por compatibilidade do payout
+  // interno em STARs ao criador (ver finalizeStripePurchaseInTx).
+  const starPriceBrl = await getStarPriceBrl();
+
+  // ── 5. Cria PendingCoursePurchase (flow=public) ─────────────────────────
   const pending = await prisma.pendingCoursePurchase.create({
     data: {
       email: normalizedEmail,
+      flow: "public",
       courseId: course.id,
       planId: plan.id,
       priceStars: plan.priceStars,
@@ -175,11 +205,14 @@ export async function POST(req: NextRequest) {
       payment_method_types: ["card"],
       locale: "pt-BR",
       metadata: {
-        kind: "course_public_purchase",
+        kind: "course_purchase",
+        flow: "public",
+        // Mantido por compatibilidade com webhooks antigos que ainda
+        // matcham por "course_public_purchase".
+        kindLegacy: "course_public_purchase",
         pendingId: pending.id,
         courseId: course.id,
         planId: plan.id,
-        priceStars: String(plan.priceStars),
       },
     });
 

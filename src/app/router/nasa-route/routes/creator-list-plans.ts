@@ -26,6 +26,7 @@ export const creatorListPlans = base
         name: p.name,
         description: p.description,
         priceStars: p.priceStars,
+        priceBrlCents: p.priceBrlCents,
         order: p.order,
         isDefault: p.isDefault,
         lessonIds: p.lessons.map((l) => l.lessonId),

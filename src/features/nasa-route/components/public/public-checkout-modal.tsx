@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Mail, ShoppingBag, Star } from "lucide-react";
+import { Loader2, Mail, ShoppingBag } from "lucide-react";
 
 interface PublicCheckoutModalProps {
   open: boolean;
@@ -25,9 +25,8 @@ interface PublicCheckoutModalProps {
   plan: {
     id: string;
     name: string;
-    priceStars: number;
+    priceBrlCents: number;
   };
-  amountBrl: number;
 }
 
 /**
@@ -40,12 +39,11 @@ export function PublicCheckoutModal({
   onClose,
   course,
   plan,
-  amountBrl,
 }: PublicCheckoutModalProps) {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const amountStr = amountBrl.toLocaleString("pt-BR", {
+  const amountStr = (plan.priceBrlCents / 100).toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
   });
@@ -123,10 +121,6 @@ export function PublicCheckoutModal({
               <p className="text-xs text-muted-foreground">Total</p>
               <p className="text-xl font-bold tabular-nums text-violet-700 dark:text-violet-300">
                 {amountStr}
-              </p>
-              <p className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Star className="size-3 fill-amber-500 text-amber-500" />
-                {plan.priceStars.toLocaleString("pt-BR")} ★
               </p>
             </div>
           </div>

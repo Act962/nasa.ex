@@ -4,27 +4,28 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { StarTransactionType } from "@/generated/prisma/enums";
-import { executeCoursePurchaseInTx } from "../helpers/purchase-helpers";
+import { finalizeStripePurchaseInTx } from "../helpers/purchase-helpers";
 
 const WELCOME_BONUS = 100;
 
 /**
- * Resgate de compra pública de curso.
+ * Resgate de compra pública de curso (fluxo anônimo via Stripe).
  *
  * Pré-requisito: o usuário JÁ deve ter uma sessão ativa (signed up via
  * `authClient.signUp.email` no client). Esta procedure NÃO cria User —
- * apenas a Organization, o Member, e roda o fluxo financeiro completo.
+ * apenas a Organization, o Member, e finaliza a matrícula.
  *
- * Fluxo:
+ * Fluxo (pós-mudança Stripe BRL direto):
  *  1. Valida `signupToken` → encontra `PendingCoursePurchase` (status=PAID, não expirado).
  *  2. Confere que o e-mail da sessão === e-mail da compra.
  *  3. Idempotência: se já REDEEMED, retorna o enrollment existente.
  *  4. $transaction:
  *     a. Garante Organization + Member para o user (cria se não existir).
- *     b. Crédita welcome bonus em `starsBonusBalance` (uma vez por org).
- *     c. Crédita TOPUP_PURCHASE (`pending.priceStars`) em `starsBalance`.
- *     d. Executa débito + payout 90% + enrollment + progress + studentsCount via helper.
- *     e. Marca pending = REDEEMED.
+ *     b. Crédita welcome bonus em `starsBonusBalance` para org nova.
+ *     c. Finaliza enrollment via `finalizeStripePurchaseInTx`
+ *        (sem topup de Stars + sem débito do comprador; o BRL já foi
+ *        captado pelo Stripe e o criador recebe Stars como payout interno).
+ *     d. Marca pending = REDEEMED.
  *  5. Retorna IDs pra client redirecionar pro player.
  */
 export const redeemCoursePurchase = base
@@ -38,7 +39,6 @@ export const redeemCoursePurchase = base
     const userId = context.user.id;
     const userEmail = context.user.email.toLowerCase();
 
-    // 1. Pending + token check
     const pending = await prisma.pendingCoursePurchase.findUnique({
       where: { signupToken: input.signupToken },
       select: {
@@ -46,6 +46,9 @@ export const redeemCoursePurchase = base
         email: true,
         status: true,
         priceStars: true,
+        amountBrlCents: true,
+        stripeSessionId: true,
+        stripePaymentIntentId: true,
         tokenExpiresAt: true,
         redeemedEnrollmentId: true,
         course: {
@@ -73,7 +76,6 @@ export const redeemCoursePurchase = base
       });
     }
 
-    // 2. Idempotência — já redimido?
     if (pending.status === "REDEEMED") {
       return {
         alreadyRedeemed: true,
@@ -118,15 +120,19 @@ export const redeemCoursePurchase = base
           "O plano da compra foi removido. Contate o suporte para refund.",
       });
     }
+    if (!pending.stripeSessionId) {
+      throw new ORPCError("BAD_REQUEST", {
+        message:
+          "Sessão Stripe ausente. Contate o suporte para resgatar a compra.",
+      });
+    }
 
-    // 3. Carrega membership existente (caso o user já tenha conta com org)
     const existingMember = await prisma.member.findFirst({
       where: { userId },
       select: { organizationId: true },
       orderBy: { createdAt: "asc" },
     });
 
-    // 4. $transaction — criação de org (se preciso) + topup + compra + REDEEMED
     const result = await prisma.$transaction(async (tx) => {
       // 4a. Garante Organization + Member
       let buyerOrgId = existingMember?.organizationId;
@@ -155,7 +161,7 @@ export const redeemCoursePurchase = base
         isNewOrg = true;
       }
 
-      // 4b. Welcome bonus (apenas se a org não tem nenhuma transaction ainda)
+      // 4b. Welcome bonus (uma vez por org)
       if (isNewOrg) {
         const txCount = await tx.starTransaction.count({
           where: { organizationId: buyerOrgId },
@@ -182,41 +188,24 @@ export const redeemCoursePurchase = base
         }
       }
 
-      // 4c. Crédito do TOPUP (priceStars compradas no Stripe)
-      const orgBefore = await tx.organization.findUniqueOrThrow({
-        where: { id: buyerOrgId },
-        select: { starsBalance: true },
-      });
-      const newBalance = orgBefore.starsBalance + pending.priceStars;
-      await tx.organization.update({
-        where: { id: buyerOrgId },
-        data: { starsBalance: newBalance },
-      });
-      await tx.starTransaction.create({
-        data: {
-          organizationId: buyerOrgId,
-          type: StarTransactionType.TOPUP_PURCHASE,
-          amount: pending.priceStars,
-          balanceAfter: newBalance,
-          description: `Top-up: compra de ${pending.priceStars} ★ (curso "${pending.course.title}")`,
-          appSlug: "nasa-route",
-        },
-      });
-
-      // 4d. Executa débito + payout + enrollment via helper
-      const purchase = await executeCoursePurchaseInTx({
-        tx,
+      // 4c. Finaliza enrollment via helper Stripe — sem topup nem débito
+      // de Stars. O criador recebe payout em Stars como compatibilidade
+      // (será migrado para Stripe Connect no próximo passo).
+      const purchase = await finalizeStripePurchaseInTx({
+        tx: tx as any,
         userId,
-        buyerOrgId,
         courseId: pending.course.id,
         courseTitle: pending.course.title,
         creatorOrgId: pending.course.creatorOrgId,
         planId: pending.plan!.id,
         planName: pending.plan!.name,
-        priceStars: pending.priceStars,
+        paidBrlCents: pending.amountBrlCents,
+        priceStarsSnapshot: pending.priceStars,
+        stripeCheckoutSessionId: pending.stripeSessionId!,
+        stripePaymentIntentId: pending.stripePaymentIntentId,
+        buyerOrgId,
       });
 
-      // 4e. Marca pending como REDEEMED
       await tx.pendingCoursePurchase.update({
         where: { id: pending.id },
         data: {
@@ -248,7 +237,7 @@ export const redeemCoursePurchase = base
 function slugify(input: string): string {
   return input
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9\s-]/g, "")
@@ -258,10 +247,6 @@ function slugify(input: string): string {
     .slice(0, 40);
 }
 
-/**
- * Gera um slug único para a organização do aluno. Tenta `nome` primeiro;
- * se já existe, anexa sufixo aleatório curto.
- */
 async function generateUniqueOrgSlug(
   tx: { organization: { findUnique: (args: any) => Promise<unknown> } },
   baseName: string,
@@ -279,6 +264,5 @@ async function generateUniqueOrgSlug(
     });
     if (!existing) return slug;
   }
-  // Fallback impossível mas seguro
   return `${baseSlug}-${Date.now().toString(36)}`;
 }
