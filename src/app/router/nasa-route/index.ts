@@ -6,6 +6,7 @@ import { publicSearch } from "./routes/public-search";
 import { publicGetCertificate } from "./routes/public-get-certificate";
 import { getPendingPurchase } from "./routes/get-pending-purchase";
 import { redeemCoursePurchase } from "./routes/redeem-course-purchase";
+import { trackCourseView } from "./routes/track-course-view";
 
 // ── Aluno ───────────────────────────────────────────────────────────────
 import { listMyEnrollments } from "./routes/list-my-enrollments";
@@ -26,6 +27,7 @@ import { creatorPublishCourse } from "./routes/creator-publish-course";
 import { creatorDeleteCourse } from "./routes/creator-delete-course";
 import { creatorUpsertModule } from "./routes/creator-upsert-module";
 import { creatorUpsertLesson } from "./routes/creator-upsert-lesson";
+import { creatorDeleteLesson } from "./routes/creator-delete-lesson";
 import { creatorReorderLessons } from "./routes/creator-reorder-lessons";
 import { creatorListSales } from "./routes/creator-list-sales";
 import { creatorListStudents } from "./routes/creator-list-students";
@@ -59,6 +61,7 @@ export const nasaRouteRouter = {
   publicGetCertificate,
   getPendingPurchase,
   redeemCoursePurchase,
+  trackCourseView,
   // aluno
   listMyEnrollments,
   getCourseAsStudent,
@@ -77,6 +80,7 @@ export const nasaRouteRouter = {
   creatorDeleteCourse,
   creatorUpsertModule,
   creatorUpsertLesson,
+  creatorDeleteLesson,
   creatorReorderLessons,
   creatorListSales,
   creatorListStudents,

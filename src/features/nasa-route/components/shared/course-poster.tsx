@@ -19,7 +19,12 @@ export interface PosterCourse {
   format?: string;
   priceStars: number;
   studentsCount?: number;
-  // Datas do evento — exibidas como badge compacta na capa quando format = "event".
+  // Datas UNIFICADAS — válidas pra qualquer formato (curso/treinamento/
+  // mentoria/ebook/evento/etc). Exibidas como badge na capa quando
+  // preenchidas. Prevalecem sobre os legados `eventStartsAt`/`eventEndsAt`.
+  startsAt?: Date | string | null;
+  endsAt?: Date | string | null;
+  // Datas LEGADAS (só `format = "event"`) — fallback pra cursos antigos.
   eventStartsAt?: Date | string | null;
   eventEndsAt?: Date | string | null;
   creatorOrg?: { name: string; logo?: string | null } | null;
@@ -37,13 +42,14 @@ export function CoursePoster({ href, course, size = "md", progressPct, completed
   const widthClass =
     size === "sm" ? "w-44" : size === "lg" ? "w-80" : "w-64";
 
-  const eventDate =
-    course.format === "event"
-      ? formatEventDate({
-          startsAt: course.eventStartsAt,
-          endsAt: course.eventEndsAt,
-        })
-      : null;
+  // Data exibida no badge — válida pra QUALQUER formato. Prioridade:
+  // novos campos `startsAt`/`endsAt` (todos os formatos) → legados
+  // `eventStartsAt`/`eventEndsAt` (só event, retrocompat).
+  const dateStartsAt = course.startsAt ?? course.eventStartsAt ?? null;
+  const dateEndsAt = course.endsAt ?? course.eventEndsAt ?? null;
+  const eventDate = dateStartsAt
+    ? formatEventDate({ startsAt: dateStartsAt, endsAt: dateEndsAt })
+    : null;
 
   return (
     <Link
