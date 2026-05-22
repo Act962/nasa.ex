@@ -254,7 +254,9 @@ export function SignupForm() {
             await persistCompanyType(data.companyType);
             await consumePartnerReferral();
             toast.success("🚀 Conta criada! Bem-vindo ao NASA.ex!");
-            router.push(callbackUrl ?? "/home");
+            // Hard navigation — bypassa o Router Cache do Next (RSC),
+            // que mantém versão "deslogada" e causa loop sign-up → sign-in.
+            window.location.assign(callbackUrl ?? "/home");
             return;
           }
         }
@@ -274,7 +276,9 @@ export function SignupForm() {
       await persistCompanyType(data.companyType);
       await consumePartnerReferral();
       toast.success("🚀 Conta criada! Bem-vindo ao NASA.ex!");
-      router.push(callbackUrl ?? "/home");
+      // Hard navigation — invalida Router Cache do Next que estaria
+      // com versão "deslogada" da home, causando loop pós cadastro.
+      window.location.assign(callbackUrl ?? "/home");
     });
   };
 

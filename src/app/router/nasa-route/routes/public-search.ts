@@ -20,6 +20,7 @@ export const publicSearch = base
     const courses = await prisma.nasaRouteCourse.findMany({
       where: {
         isPublished: true,
+        isArchived: false, // esconde cursos/eventos arquivados (cron auto-archive)
         ...(categoryId ? { categoryId } : {}),
         ...(query
           ? {
@@ -44,7 +45,12 @@ export const publicSearch = base
         format: true,
         priceStars: true,
         studentsCount: true,
-        // Datas (format = "event") — exibidas como badge na capa do card.
+        // Datas UNIFICADAS — válidas pra qualquer formato. UI mostra
+        // badge na capa do card quando preenchidas.
+        startsAt: true,
+        endsAt: true,
+        // Datas LEGADAS (format = "event") — preservadas pra compat
+        // com cursos antigos que não tinham startsAt/endsAt.
         eventStartsAt: true,
         eventEndsAt: true,
         eventTimezone: true,

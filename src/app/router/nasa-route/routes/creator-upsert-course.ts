@@ -33,6 +33,21 @@ const courseInputSchema = z
     categoryId: z.string().optional().nullable(),
     rewardSpOnComplete: z.number().int().min(0).default(0),
 
+    // ── Datas de início/fim (UNIFICADAS — todos os formatos) ───
+    // Substituem `eventStartsAt`/`eventEndsAt` pra novos cursos. Os
+    // campos legados continuam preservados pra dados antigos.
+    startsAt: z.coerce.date().optional().nullable(),
+    endsAt: z.coerce.date().optional().nullable(),
+
+    // ── Funil pós-compra (CRM destination) ────────────────────
+    purchaseTrackingId: z.string().optional().nullable(),
+    purchaseStatusId: z.string().optional().nullable(),
+
+    // ── Integrações marketing (Pixel/GTM/redirect) ────────────
+    redirectUrl: z.string().url("URL inválida").or(z.literal("")).optional().nullable(),
+    pixelId: z.string().max(64).optional().nullable(),
+    gtmId: z.string().max(64).optional().nullable(),
+
     // ── eBook (format = "ebook") ──────────────────────────────
     ebookFileKey: z.string().min(1).optional().nullable(),
     ebookFileName: z.string().max(255).optional().nullable(),
@@ -241,6 +256,16 @@ export const creatorUpsertCourse = base
           priceStars: input.priceStars,
           categoryId: input.categoryId ?? null,
           rewardSpOnComplete: input.rewardSpOnComplete,
+          // Datas unificadas (todos formatos podem ter)
+          startsAt: input.startsAt ?? null,
+          endsAt: input.endsAt ?? null,
+          // Funil pós-compra
+          purchaseTrackingId: input.purchaseTrackingId ?? null,
+          purchaseStatusId: input.purchaseStatusId ?? null,
+          // Integrações de marketing
+          redirectUrl: input.redirectUrl ? input.redirectUrl : null,
+          pixelId: input.pixelId ?? null,
+          gtmId: input.gtmId ?? null,
           ...formatFields,
         },
       });
@@ -265,6 +290,16 @@ export const creatorUpsertCourse = base
         priceStars: input.priceStars,
         categoryId: input.categoryId ?? null,
         rewardSpOnComplete: input.rewardSpOnComplete,
+        // Datas unificadas (todos formatos podem ter)
+        startsAt: input.startsAt ?? null,
+        endsAt: input.endsAt ?? null,
+        // Funil pós-compra
+        purchaseTrackingId: input.purchaseTrackingId ?? null,
+        purchaseStatusId: input.purchaseStatusId ?? null,
+        // Integrações marketing
+        redirectUrl: input.redirectUrl ? input.redirectUrl : null,
+        pixelId: input.pixelId ?? null,
+        gtmId: input.gtmId ?? null,
         isPublished: false,
         ...formatFields,
         plans: {
