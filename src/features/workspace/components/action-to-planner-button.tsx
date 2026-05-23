@@ -39,11 +39,17 @@ export function ActionToPlannerDialog({
   // Busca o action completo (description + anexos) pra alimentar o popup.
   // `enabled: open` evita prefetch desnecessário quando o dialog está
   // fechado. `staleTime: 30s` evita re-fetch ao abrir/fechar rapidamente.
-  const { data: action } = useQuery({
-    ...orpc.action.get.queryOptions({ actionId }),
+  // IMPORTANTE: o orpc tanstack-query helper espera `{ input: ... }`
+  // como wrapper (não os campos diretos). Sem o `input:`, zod vê input
+  // vazio e devolve 400. Padrão consistente com use-workspace.ts e
+  // use-tasks.ts.
+  const { data: actionData } = useQuery({
+    ...orpc.action.get.queryOptions({ input: { actionId } }),
     enabled: open,
     staleTime: 30_000,
   });
+  // A procedure retorna `{ action, hasAccess }` — desempacotar.
+  const action = actionData?.action ?? null;
 
   // Extrai URLs dos anexos do action (atualmente armazenados como JSON
   // array em Action.attachments). Schema flexível: aceita strings, URLs,
