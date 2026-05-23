@@ -161,9 +161,8 @@ export const extractFromLogo = base
         throw new Error("Logo vazio no storage");
       }
       const chunks: Uint8Array[] = [];
-      // @ts-expect-error — AWS SDK Body é AsyncIterable<Uint8Array> no Node
-      for await (const chunk of res.Body) {
-        chunks.push(chunk as Uint8Array);
+      for await (const chunk of res.Body as AsyncIterable<Uint8Array>) {
+        chunks.push(chunk);
       }
       const totalLen = chunks.reduce((acc, c) => acc + c.length, 0);
       bytes = new Uint8Array(totalLen);
