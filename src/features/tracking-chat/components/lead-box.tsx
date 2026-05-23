@@ -5,7 +5,7 @@ import { LeadSource } from "@/generated/prisma/enums";
 import { format, isToday, isYesterday } from "date-fns";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { withSearchParams } from "../utils/url";
-import { MouseEvent, useCallback } from "react";
+import { MouseEvent, useCallback, useState } from "react";
 import { AvatarLead } from "./avatar-lead";
 import { colorsByTemperature, LeadSourceColors } from "../utils/card-lead";
 import {
@@ -19,12 +19,15 @@ import {
   MessageCircle,
   Clock,
   CheckCircle2,
+  GitBranch,
 } from "lucide-react";
 
 import { ListTags } from "./list-tags";
 import { Badge } from "@/components/ui/badge";
 import { MessageTypeIcon, getMessageTypeName } from "./message-type-icon";
 import { useMutationMarkReadMessage } from "../hooks/use-messages";
+import { SelectTrackingPopover } from "@/features/leads/components/lead-info/select-tracking-field";
+import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
 import {
   Tooltip,
   TooltipContent,
@@ -84,6 +87,26 @@ export function LeadBox({
   }>();
   const searchParams = useSearchParams();
   const markRead = useMutationMarkReadMessage();
+  // Popover de mover fluxo/tracking + status (alinhado ao "Detalhes do Lead").
+  // O `useMutationLeadUpdate` já invalida `conversations.list[trackingId]`,
+  // então o card some/aparece da lista automaticamente quando o fluxo muda.
+  const [flowPopoverOpen, setFlowPopoverOpen] = useState(false);
+  const updateLead = useMutationLeadUpdate(item.lead.id, item.lead.trackingId);
+
+  const handleChangeFlow = (newTrackingId: string, newStatusId: string) => {
+    updateLead.mutate(
+      {
+        id: item.lead.id,
+        trackingId: newTrackingId,
+        statusId: newStatusId,
+      },
+      {
+        onSuccess: () => {
+          setFlowPopoverOpen(false);
+        },
+      },
+    );
+  };
 
   const handleClick = useCallback(() => {
     const target = trackingId
@@ -227,6 +250,37 @@ export function LeadBox({
                 <p>{LeadSourceColors[item.lead.source].label}</p>
               </TooltipContent>
             </Tooltip>
+            {/* Trocar fluxo/tracking — abre o mesmo popover usado em
+                "Detalhes do Lead". stopPropagation evita que o clique no
+                ícone também acione o `handleClick` do card (que navega
+                pra conversa). O `pointerdown` também é interceptado pra
+                cobrir o disparo do Popover do Radix.
+                NÃO uso `<Tooltip>` aqui porque o `PopoverTrigger asChild`
+                já precisa do botão como child direto — wrapping em
+                Tooltip quebra o anchor. `title` HTML nativo cobre o
+                hint sem entrar em conflito. */}
+            <SelectTrackingPopover
+              currentTrackingId={item.lead.trackingId}
+              currentStatusId={item.lead.statusId}
+              onSubmit={handleChangeFlow}
+              isLoading={updateLead.isPending}
+              open={flowPopoverOpen}
+              onOpenChange={setFlowPopoverOpen}
+            >
+              <button
+                type="button"
+                title="Trocar fluxo / tracking"
+                aria-label="Trocar fluxo / tracking"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFlowPopoverOpen(true);
+                }}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <GitBranch className="size-3" />
+              </button>
+            </SelectTrackingPopover>
           </div>
         </div>
       </div>
