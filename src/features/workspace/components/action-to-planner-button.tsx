@@ -1,18 +1,27 @@
 "use client";
 
-import { useState } from "react";
-import { CalendarPlusIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { toast } from "sonner";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+/**
+ * "Criar com Planner" trigger — substitui o antigo seletor simples
+ * (Planner + tipo de post) pelo PlannerPopup completo com 4 abas
+ * (Campanhas, Posts, Mapa Mental, Branding).
+ *
+ * O nome do export `ActionToPlannerDialog` é mantido pra compat com os
+ * call-sites em `card-actions-menu.tsx` e outros lugares que importam
+ * pelo nome.
+ *
+ * NASA Planner 2.0: o popup AGORA carrega o contexto do card (title +
+ * description + anexos) e gera automaticamente um post vinculado quando
+ * abre. Toda criação de conteúdo (post estático, reel, etc.) acontece
+ * dentro do popup, com seleção de modelo de IA visível e brand kit
+ * aplicado.
+ */
+
+import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
+import {
+  PlannerPopup,
+  type ActionContext,
+} from "@/features/nasa-planner/components/planner-popup";
 
 interface Props {
   actionId: string;
@@ -21,83 +30,53 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-export function ActionToPlannerDialog({ actionId, actionTitle, open, onOpenChange }: Props) {
-  const qc = useQueryClient();
-  const [plannerId, setPlannerId] = useState("");
-  const [type, setType] = useState("STATIC");
-
-  const { data: plannersData } = useQuery({
-    ...orpc.nasaPlanner.planners.list.queryOptions({}),
+export function ActionToPlannerDialog({
+  actionId,
+  actionTitle,
+  open,
+  onOpenChange,
+}: Props) {
+  // Busca o action completo (description + anexos) pra alimentar o popup.
+  // `enabled: open` evita prefetch desnecessário quando o dialog está
+  // fechado. `staleTime: 30s` evita re-fetch ao abrir/fechar rapidamente.
+  const { data: action } = useQuery({
+    ...orpc.action.get.queryOptions({ actionId }),
     enabled: open,
+    staleTime: 30_000,
   });
-  const planners = plannersData?.planners ?? [];
 
-  const create = useMutation(
-    orpc.nasaPlanner.posts.createFromAction.mutationOptions({
-      onSuccess: () => {
-        // Toast reflete o novo flow: post criado com caption e contexto
-        // do card já preenchidos (NASA Planner 2.0).
-        toast.success("Post criado no Planner com base no card!");
-        qc.invalidateQueries({ queryKey: ["nasaPlanner", "posts", "getMany"] });
-        onOpenChange(false);
-      },
-      onError: () => toast.error("Erro ao criar post no Planner"),
-    }),
-  );
+  // Extrai URLs dos anexos do action (atualmente armazenados como JSON
+  // array em Action.attachments). Schema flexível: aceita strings, URLs,
+  // ou objetos com `url`/`href`.
+  const attachmentUrls: string[] = (() => {
+    if (!action?.attachments) return [];
+    const raw = action.attachments as unknown;
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object") {
+          const obj = item as Record<string, unknown>;
+          if (typeof obj.url === "string") return obj.url;
+          if (typeof obj.href === "string") return obj.href;
+        }
+        return null;
+      })
+      .filter((s): s is string => !!s);
+  })();
 
-  const handleCreate = () => {
-    if (!plannerId) return;
-    create.mutate({ actionId, plannerId, type: type as any });
+  const actionContext: ActionContext = {
+    actionId,
+    title: actionTitle ?? action?.title ?? "",
+    description: action?.description ?? null,
+    attachmentUrls,
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CalendarPlusIcon className="size-4 text-violet-500" />
-            Criar com Planner
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          {actionTitle && (
-            <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
-              Ação: <strong>{actionTitle}</strong>
-            </p>
-          )}
-          <div className="space-y-1.5">
-            <Label>Planner</Label>
-            <Select value={plannerId} onValueChange={setPlannerId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar planner..." />
-              </SelectTrigger>
-              <SelectContent>
-                {planners.map((p: any) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Tipo de conteúdo</Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="STATIC">Imagem Estática</SelectItem>
-                <SelectItem value="CAROUSEL">Carrossel</SelectItem>
-                <SelectItem value="REEL">Reel / Vídeo</SelectItem>
-                <SelectItem value="STORY">Story</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleCreate} disabled={!plannerId || create.isPending}>
-            {create.isPending ? "Criando..." : "Criar com Planner"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <PlannerPopup
+      open={open}
+      onOpenChange={onOpenChange}
+      actionContext={actionContext}
+    />
   );
 }
