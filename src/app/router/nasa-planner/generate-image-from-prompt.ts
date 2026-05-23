@@ -9,6 +9,10 @@ import { StarTransactionType } from "@/generated/prisma/enums";
 import {
   selectImageProvider, generateImage, STARS_IMAGE_STANDARD, STARS_IMAGE_HD, STARS_IMAGE_POLLINATIONS,
 } from "./_helpers/ai-provider";
+import {
+  buildBrandedContext,
+  appendBrandToImagePrompt,
+} from "@/features/nasa-planner/lib/brand-context";
 
 export const generateImageFromPrompt = base
   .use(requiredAuthMiddleware)
@@ -41,7 +45,13 @@ export const generateImageFromPrompt = base
     );
     if (!debit.success) throw new ORPCError("BAD_REQUEST", { message: "Saldo de stars insuficiente" });
 
-    const imageKey = await generateImage(input.prompt, providerInfo, input.quality);
+    // Brand context: injeta paleta + fonte + posicionamento + slogan no
+    // final do prompt do usuário pra IA respeitar a identidade da marca.
+    // Sem brand kit configurado, `brandedPrompt === input.prompt`.
+    const brandCtx = await buildBrandedContext(context.org.id);
+    const brandedPrompt = appendBrandToImagePrompt(input.prompt, brandCtx);
+
+    const imageKey = await generateImage(brandedPrompt, providerInfo, input.quality);
     if (!imageKey) {
       throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Falha ao gerar imagem. Tente novamente." });
     }

@@ -265,6 +265,30 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
     cooldownHours: null,
     category: "system",
   },
+  // ── NASA Planner 2.0 — Sprint 1 (Brand Kit + 5W2H + Chat IA) ──
+  // Disparadas por procedures novas em src/app/router/brand/* e
+  // src/app/router/nasa-planner/* (campaign-brief / ai-chat-route).
+  {
+    action: "brand_extract",
+    label: "Extração de Brand Kit (Claude Vision)",
+    stars: 5,
+    cooldownHours: null,
+    category: "planner",
+  },
+  {
+    action: "campaign_brief_5w2h",
+    label: "Brief de Campanha 5W2H (IA)",
+    stars: 5,
+    cooldownHours: null,
+    category: "planner",
+  },
+  {
+    action: "planner_ai_intent",
+    label: "Comando do Chat IA do Planner",
+    stars: 1,
+    cooldownHours: null,
+    category: "planner",
+  },
 ];
 
 export const STAR_RULE_CATEGORY_LABEL: Record<string, string> = {

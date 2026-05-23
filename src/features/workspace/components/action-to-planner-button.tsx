@@ -35,11 +35,13 @@ export function ActionToPlannerDialog({ actionId, actionTitle, open, onOpenChang
   const create = useMutation(
     orpc.nasaPlanner.posts.createFromAction.mutationOptions({
       onSuccess: () => {
-        toast.success("Ação adicionada ao Planner!");
+        // Toast reflete o novo flow: post criado com caption e contexto
+        // do card já preenchidos (NASA Planner 2.0).
+        toast.success("Post criado no Planner com base no card!");
         qc.invalidateQueries({ queryKey: ["nasaPlanner", "posts", "getMany"] });
         onOpenChange(false);
       },
-      onError: () => toast.error("Erro ao adicionar ao Planner"),
+      onError: () => toast.error("Erro ao criar post no Planner"),
     }),
   );
 
@@ -54,7 +56,7 @@ export function ActionToPlannerDialog({ actionId, actionTitle, open, onOpenChang
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarPlusIcon className="size-4 text-violet-500" />
-            Adicionar ao Planner
+            Criar com Planner
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
@@ -92,7 +94,7 @@ export function ActionToPlannerDialog({ actionId, actionTitle, open, onOpenChang
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={handleCreate} disabled={!plannerId || create.isPending}>
-            {create.isPending ? "Adicionando..." : "Adicionar"}
+            {create.isPending ? "Criando..." : "Criar com Planner"}
           </Button>
         </DialogFooter>
       </DialogContent>
