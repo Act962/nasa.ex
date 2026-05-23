@@ -890,11 +890,17 @@ interface IntegrationStatus {
 
 function AIConfigSection() {
   const qc = useQueryClient();
-  const { data: integrations, isLoading } = useQuery({
+  // IMPORTANTE: `platformIntegrations.getMany` retorna `{ integrations: [...] }`
+  // (wrapped) — não array direto. Chamar `.some()` no wrapper crasha o
+  // componente e cascateia pro error boundary do route segment (que
+  // redireciona pra `/workspaces`, daí o popup "fechar sozinho").
+  const { data, isLoading } = useQuery({
     ...orpc.platformIntegrations.getMany.queryOptions({}),
   });
+  const integrationsList: IntegrationStatus[] = (data?.integrations ??
+    []) as IntegrationStatus[];
 
-  const anthropicConfigured = (integrations as IntegrationStatus[] | undefined)?.some(
+  const anthropicConfigured = integrationsList.some(
     (i) => i.platform === "ANTHROPIC" && i.isActive,
   );
 
