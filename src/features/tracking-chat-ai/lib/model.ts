@@ -6,6 +6,6 @@ export function defaultModel() {
       "OPENAI_API_KEY ausente — necessária para o agente do WhatsApp.",
     );
   }
-  const id = process.env.ASTRO_DEFAULT_MODEL ?? "gpt-4o-mini";
+  const id = "gpt-4o-mini";
   return openai(id);
 }
