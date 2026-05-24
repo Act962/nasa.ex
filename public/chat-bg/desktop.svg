@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+  <rect width="1200" height="800" fill="#dbe9f7"/>
+  <g fill="none" stroke="#9ab4d6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.85">
+    <g transform="translate(120 100)"><circle cx="0" cy="0" r="38"/><ellipse cx="0" cy="0" rx="58" ry="14" transform="rotate(-15)"/></g>
+    <g transform="translate(380 80)"><circle cx="0" cy="0" r="22"/><circle cx="-8" cy="-4" r="3" fill="#9ab4d6" stroke="none"/><circle cx="6" cy="6" r="2" fill="#9ab4d6" stroke="none"/></g>
+    <g transform="translate(560 60)"><circle cx="0" cy="0" r="2.5" fill="#9ab4d6" stroke="none"/><circle cx="30" cy="10" r="2.5" fill="#9ab4d6" stroke="none"/><circle cx="60" cy="-5" r="2.5" fill="#9ab4d6" stroke="none"/><circle cx="95" cy="15" r="2.5" fill="#9ab4d6" stroke="none"/><line x1="0" y1="0" x2="30" y2="10"/><line x1="30" y1="10" x2="60" y2="-5"/><line x1="60" y1="-5" x2="95" y2="15"/></g>
+    <g transform="translate(850 90)"><circle cx="0" cy="0" r="12"/><rect x="-30" y="-5" width="14" height="10" rx="2"/><rect x="16" y="-5" width="14" height="10" rx="2"/><line x1="-16" y1="0" x2="-30" y2="0" stroke-dasharray="2 3"/><line x1="16" y1="0" x2="30" y2="0" stroke-dasharray="2 3"/></g>
+    <g transform="translate(1080 130) rotate(20)"><path d="M0 -40 q15 20 0 40 q-15 -20 0 -40 z"/><circle cx="0" cy="-10" r="4"/><path d="M-15 15 l-12 15 l12 -3 z M15 15 l12 15 l-12 -3 z"/></g>
+    <g transform="translate(280 240)"><circle cx="0" cy="-20" r="18"/><rect x="-15" y="-2" width="30" height="34" rx="6"/><rect x="-8" y="6" width="16" height="14" rx="2"/></g>
+    <g transform="translate(620 200)"><circle cx="0" cy="0" r="10"/><path d="M-10 5 l-30 15 M-8 0 l-32 5 M-10 -5 l-28 -8" stroke-width="2.2"/></g>
+    <g transform="translate(940 280)"><ellipse cx="0" cy="5" rx="35" ry="8"/><path d="M-18 -2 q18 -20 36 0"/></g>
+    <g transform="translate(1100 320)"><circle cx="0" cy="0" r="28"/><ellipse cx="0" cy="0" rx="42" ry="10" transform="rotate(20)"/></g>
+    <g transform="translate(150 480) rotate(-15)"><path d="M0 -50 q18 25 0 50 q-18 -25 0 -50 z"/><circle cx="0" cy="-15" r="6"/><path d="M-18 20 l-15 18 l14 -3 z M18 20 l15 18 l-14 -3 z"/></g>
+    <g transform="translate(360 450)"><circle cx="0" cy="0" r="32"/><path d="M-25 -10 q25 -10 50 5 M-22 8 q24 -8 44 2"/></g>
+    <g transform="translate(870 460)"><circle cx="0" cy="-22" r="20"/><rect x="-16" y="-2" width="32" height="36" rx="6"/></g>
+    <g transform="translate(340 680)"><path d="M-25 -20 l40 -10 l8 25 l-40 10 z"/><line x1="3" y1="5" x2="3" y2="22"/><path d="M-12 25 l30 0"/></g>
+    <g transform="translate(110 720)"><circle cx="0" cy="0" r="36"/><ellipse cx="0" cy="0" rx="55" ry="13" transform="rotate(-10)"/></g>
+    <g transform="translate(720 720)"><path d="M-25 10 q0 -30 25 -30 q25 0 25 30 z"/><line x1="-25" y1="10" x2="25" y2="10"/></g>
+    <g transform="translate(960 730)"><ellipse cx="0" cy="5" rx="38" ry="9"/><path d="M-20 -2 q20 -22 40 0"/></g>
+    <g fill="#9ab4d6" stroke="none" opacity="0.5"><circle cx="180" cy="320" r="1.8"/><circle cx="490" cy="120" r="1.8"/><circle cx="780" cy="220" r="1.5"/><circle cx="220" cy="620" r="1.5"/><circle cx="660" cy="120" r="1.5"/><circle cx="980" cy="180" r="2"/><circle cx="1180" cy="430" r="1.8"/><circle cx="40" cy="280" r="1.5"/><circle cx="600" cy="540" r="1.5"/><circle cx="320" cy="780" r="1.8"/></g>
+  </g>
+</svg>

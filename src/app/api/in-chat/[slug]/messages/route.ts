@@ -105,7 +105,14 @@ export async function GET(
 }
 
 const sendSchema = z.object({
-  body: z.string().min(1).max(4000),
+  /** Texto da mensagem. Pode ser vazio quando há mídia anexada. */
+  body: z.string().max(4000).optional(),
+  /** URL/key R2 do arquivo de mídia (upload prévio via /api/s3/upload). */
+  mediaUrl: z.string().optional(),
+  /** Mimetype real do arquivo (`image/jpeg`, `audio/webm`, etc). */
+  mimetype: z.string().optional(),
+  /** Nome do arquivo (pra documentos, áudio etc). */
+  fileName: z.string().optional(),
 });
 
 export async function POST(
@@ -129,11 +136,33 @@ export async function POST(
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
 
+  // Sem texto E sem mídia → request inválido (nada pra enviar)
+  if (!parsed.data.body?.trim() && !parsed.data.mediaUrl) {
+    return NextResponse.json(
+      { error: "body_or_media_required" },
+      { status: 400 },
+    );
+  }
+
+  // Deriva `mediaType` pela mimetype — segue o mesmo padrão do
+  // tracking-chat (image/audio/video/document).
+  let mediaType: string | null = null;
+  if (parsed.data.mimetype) {
+    if (parsed.data.mimetype.startsWith("image/")) mediaType = "image";
+    else if (parsed.data.mimetype.startsWith("audio/")) mediaType = "audio";
+    else if (parsed.data.mimetype.startsWith("video/")) mediaType = "video";
+    else mediaType = "document";
+  }
+
   const message = await prisma.message.create({
     data: {
       conversationId: auth.conversationId,
       messageId: `inchat-${uuidv4()}`,
-      body: parsed.data.body,
+      body: parsed.data.body?.trim() || null,
+      mediaUrl: parsed.data.mediaUrl ?? null,
+      mediaType,
+      mimetype: parsed.data.mimetype ?? null,
+      fileName: parsed.data.fileName ?? null,
       fromMe: false, // veio do lead
       status: MessageStatus.SEEN,
       senderId: null,
