@@ -95,6 +95,10 @@ export async function GET(
 
   return NextResponse.json({
     items: messages,
+    // `conversationId` exposto pro client subscribar no canal Pusher
+    // correspondente. É um cuid de 25 chars (~6×10^36 espaço) —
+    // unguessable o suficiente pra dispensar canal privado no MVP.
+    conversationId: auth.conversationId,
     nextCursor:
       messages.length === LIMIT ? messages[messages.length - 1].id : null,
   });

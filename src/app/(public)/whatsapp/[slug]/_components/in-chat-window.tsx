@@ -5,15 +5,16 @@ import { Button } from "@/components/ui/button";
 import { SendIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday } from "date-fns";
+import { pusherClient } from "@/lib/pusher";
 
 /**
  * Janela do In-Chat (cliente). UI WhatsApp-like — header com avatar +
  * nome da org, área de mensagens com bolhas verde/branca, composer com
  * textarea + botão enviar.
  *
- * Real-time via polling de 5s (sem Pusher por enquanto pra evitar custo
- * de canal público autorizado). Em sprint futura pode migrar pra Pusher
- * com authEndpoint que valida o cookie do lead.
+ * Real-time via Pusher (canal público nomeado pelo `conversationId`, que
+ * é cuid de 25 chars unguessable). Polling de 30s como safety net pra
+ * pegar mensagens que perderam pela conexão Pusher cair.
  *
  * Status checks (✓✓) não aparecem aqui porque o lead é o "lead da
  * conversa" — sempre own perspective do lado oposto do atendente.
@@ -34,7 +35,9 @@ interface Message {
   viaInChat: boolean;
 }
 
-const POLL_INTERVAL_MS = 5000;
+// Safety net — caso o Pusher caia, refaz fetch full a cada 30s. Mais
+// econômico que polling de 5s e cobre falhas raras.
+const SAFETY_POLL_MS = 30_000;
 
 export function InChatWindow({
   slug,
@@ -46,13 +49,12 @@ export function InChatWindow({
   orgLogo: string | null;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const lastIdsRef = useRef<Set<string>>(new Set());
 
-  // Carregamento + polling. Cada tick refaz a query da página 1 (30 msgs
-  // recentes) e mescla por id pra não duplicar otimistas.
+  // Initial load + safety polling
   useEffect(() => {
     let cancelled = false;
 
@@ -62,25 +64,75 @@ export function InChatWindow({
           credentials: "include",
         });
         if (!res.ok) return;
-        const data = (await res.json()) as { items: Message[] };
+        const data = (await res.json()) as {
+          items: Message[];
+          conversationId: string;
+        };
         if (cancelled) return;
         // API retorna em ordem desc — mostramos asc no chat.
         const ordered = [...data.items].reverse();
         setMessages(ordered);
-        lastIdsRef.current = new Set(ordered.map((m) => m.id));
+        setConversationId(data.conversationId);
       } catch {
-        // Silencioso — próximo tick tenta de novo.
+        // Silencioso — Pusher cobre real-time; safety poll cobre fallback.
       }
     };
 
     fetchMessages();
-    const interval = setInterval(fetchMessages, POLL_INTERVAL_MS);
+    const interval = setInterval(fetchMessages, SAFETY_POLL_MS);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
   }, [slug]);
+
+  // Real-time via Pusher — escuta mensagens criadas pelo atendente
+  // (`message:created` / `message:new`) e atualizações (`message:updated`,
+  // ex: status SEEN ou DELETED).
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const channel = pusherClient.subscribe(conversationId);
+
+    const upsertMessage = (incoming: Message & { id: string }) => {
+      setMessages((prev) => {
+        // Dedup por messageId/id — se já existe (otimista nosso), atualiza
+        if (prev.some((m) => m.id === incoming.id)) {
+          return prev.map((m) => (m.id === incoming.id ? incoming : m));
+        }
+        return [...prev, incoming];
+      });
+    };
+
+    const handleCreated = (payload: any) => {
+      if (payload?.id) upsertMessage(payload as Message);
+    };
+    const handleNew = (payload: any) => {
+      if (payload?.id) upsertMessage(payload as Message);
+    };
+    const handleUpdated = (payload: any) => {
+      if (!payload?.messageId) return;
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === payload.messageId
+            ? { ...m, status: payload.status ?? m.status }
+            : m,
+        ),
+      );
+    };
+
+    channel.bind("message:created", handleCreated);
+    channel.bind("message:new", handleNew);
+    channel.bind("message:updated", handleUpdated);
+
+    return () => {
+      channel.unbind("message:created", handleCreated);
+      channel.unbind("message:new", handleNew);
+      channel.unbind("message:updated", handleUpdated);
+      pusherClient.unsubscribe(conversationId);
+    };
+  }, [conversationId]);
 
   // Auto-scroll pro final quando há mensagem nova.
   useEffect(() => {
