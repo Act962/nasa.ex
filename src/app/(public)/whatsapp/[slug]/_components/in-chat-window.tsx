@@ -368,7 +368,7 @@ export function InChatWindow({
         ref={scrollRef}
         className={cn(
           "flex-1 overflow-y-auto p-4 space-y-2",
-          "bg-[url('/chat-bg/mobile.svg')] md:bg-[url('/chat-bg/desktop.svg')]",
+          "bg-[url('/chat-bg/mobile.png')] md:bg-[url('/chat-bg/desktop.png')]",
           "bg-cover bg-center bg-fixed",
         )}
       >
