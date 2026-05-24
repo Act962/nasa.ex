@@ -100,7 +100,24 @@ export function InChatWindow({
         };
         if (cancelled) return;
         const ordered = [...data.items].reverse();
-        setMessages(ordered);
+        // Merge — mantém otimistas (tempId começa com "optimistic-") que
+        // ainda não foram substituídas, dedup por id, ordena por createdAt
+        setMessages((prev) => {
+          const byId = new Map<string, Message>();
+          // Servidor (canonical) vem primeiro
+          for (const m of ordered) byId.set(m.id, m);
+          // Otimistas locais sobrescrevem se o servidor ainda não conhece
+          for (const m of prev) {
+            if (m.id.startsWith("optimistic-") && !byId.has(m.id)) {
+              byId.set(m.id, m);
+            }
+          }
+          return Array.from(byId.values()).sort(
+            (a, b) =>
+              new Date(a.createdAt).getTime() -
+              new Date(b.createdAt).getTime(),
+          );
+        });
         setConversationId(data.conversationId);
       } catch {}
     };
@@ -121,10 +138,18 @@ export function InChatWindow({
 
     const upsert = (incoming: Message) => {
       setMessages((prev) => {
-        if (prev.some((m) => m.id === incoming.id)) {
-          return prev.map((m) => (m.id === incoming.id ? incoming : m));
-        }
-        return [...prev, incoming];
+        // Dedup robusto: dois caminhos possíveis pro mesmo id já estar
+        // no array — (a) otimista que virou real, (b) Pusher entregou
+        // antes do response do POST chegar. Map por id garante 1 entrada.
+        const byId = new Map<string, Message>();
+        for (const m of prev) byId.set(m.id, m);
+        byId.set(incoming.id, incoming);
+        // Mantém ordem cronológica por createdAt
+        return Array.from(byId.values()).sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() -
+            new Date(b.createdAt).getTime(),
+        );
       });
     };
 
@@ -352,12 +377,23 @@ export function InChatWindow({
             Nenhuma mensagem ainda. Diga olá!
           </div>
         )}
-        {messages.map((msg, i) => {
+        {/* Dedup defensivo — race condition entre polling + Pusher pode
+            entregar a mesma mensagem 2x antes do upsert estabilizar. Filtrar
+            aqui garante keys únicas no React. */}
+        {(() => {
+          const seen = new Set<string>();
+          const deduped = messages.filter((m) => {
+            if (seen.has(m.id)) return false;
+            seen.add(m.id);
+            return true;
+          });
+          return deduped;
+        })().map((msg, i, arr) => {
           // No In-Chat o lead É o "atendente" da própria perspectiva:
           // mensagens dele (no DB `fromMe: false`) vão pra DIREITA (verde).
           // Mensagens do consultor (DB `fromMe: true`) vêm da ESQUERDA.
           const isOwnFromLead = !msg.fromMe;
-          const prev = messages[i - 1];
+          const prev = arr[i - 1];
           const showDateHeader =
             !prev ||
             new Date(msg.createdAt).toDateString() !==
