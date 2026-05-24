@@ -36,6 +36,8 @@ interface ConversationFiltersProps {
   onStatusFlowFilterChange: (filter: "FINISHED" | "ACTIVE" | null) => void;
   favoritesOnly: boolean;
   onFavoritesOnlyChange: (value: boolean) => void;
+  archivedOnly: boolean;
+  onArchivedOnlyChange: (value: boolean) => void;
   selectedTagIds: string[];
   onSelectedTagIdsChange: (tagIds: string[]) => void;
 }
@@ -48,6 +50,8 @@ export function ConversationFilters({
   onStatusFlowFilterChange,
   favoritesOnly,
   onFavoritesOnlyChange,
+  archivedOnly,
+  onArchivedOnlyChange,
   selectedTagIds,
   onSelectedTagIdsChange,
 }: ConversationFiltersProps) {
@@ -149,6 +153,14 @@ export function ConversationFilters({
           label="Favoritas"
           active={favoritesOnly}
           onClick={() => onFavoritesOnlyChange(!favoritesOnly)}
+        />
+        {/* "Arquivados" é exclusivo — quando ativo, mostra SÓ leads
+            arquivados (sai do tracking padrão). UI fica amarela pra
+            destacar o modo especial. */}
+        <QuickFilterButton
+          label="Arquivados"
+          active={archivedOnly}
+          onClick={() => onArchivedOnlyChange(!archivedOnly)}
         />
 
         <DropdownMenu>

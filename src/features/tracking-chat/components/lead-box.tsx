@@ -26,7 +26,7 @@ import { toast } from "sonner";
 
 import { ListTags } from "./list-tags";
 import { Badge } from "@/components/ui/badge";
-import { MessageTypeIcon, getMessageTypeName } from "./message-type-icon";
+import { getMessagePreview } from "./message-preview";
 import { useMutationMarkReadMessage } from "../hooks/use-messages";
 import { SelectTrackingPopover } from "@/features/leads/components/lead-info/select-tracking-field";
 import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
@@ -38,6 +38,8 @@ import {
 } from "@/components/ui/tooltip";
 import { WhatsappIcon } from "@/components/whatsapp";
 import type { LucideIcon } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
 
 const STATUS_FLOW_CONFIG: Record<
   string,
@@ -49,7 +51,6 @@ const STATUS_FLOW_CONFIG: Record<
   FINISHED: { label: "Finalizado", color: "#6b7280", Icon: CheckCircle2 },
 };
 import { Instance } from "../types";
-import { phoneMaskFull } from "@/utils/format-phone";
 
 interface LeadBoxConversation extends Conversation {
   lead: Lead & {
@@ -95,6 +96,29 @@ export function LeadBox({
   // então o card some/aparece da lista automaticamente quando o fluxo muda.
   const [flowPopoverOpen, setFlowPopoverOpen] = useState(false);
   const updateLead = useMutationLeadUpdate(item.lead.id, item.lead.trackingId);
+  const qc = useQueryClient();
+
+  // Toggle de favorito — anexa/destaca a tag canônica "Favoritas" do lead.
+  // O backend (leads.toggleFavorite) trata create-on-demand da tag, dedup
+  // de variantes ("VIP Stars" etc.) e logActivity. UI invalida a lista de
+  // conversas pra refletir o estado novo (e respeitar filtro "Favoritas").
+  const favoriteMutation = useMutation(
+    orpc.leads.toggleFavorite.mutationOptions({
+      onSuccess: (res) => {
+        toast.success(
+          res.isFavorite ? "Lead favoritado" : "Removido dos favoritos",
+          { position: "bottom-right" },
+        );
+        qc.invalidateQueries({ queryKey: ["conversations.list"] });
+        qc.invalidateQueries({ queryKey: orpc.leads.list.queryKey() });
+      },
+      onError: () => {
+        toast.error("Não foi possível favoritar agora — tente novamente.", {
+          position: "bottom-right",
+        });
+      },
+    }),
+  );
 
   const handleChangeFlow = (newTrackingId: string, newStatusId: string) => {
     updateLead.mutate(
@@ -128,7 +152,6 @@ export function LeadBox({
   const selected = item.id === conversationId;
   const hasSeen = !unreadCount || unreadCount === 0;
 
-  const messageBody = lastMessage?.body?.split("*")[2] || lastMessage?.body;
 
   const goToLead = (e: any) => {
     e.stopPropagation();
@@ -160,7 +183,19 @@ export function LeadBox({
                 pra contrastar com fotos escuras). Tooltip preserva
                 acessibilidade. */}
             <div className="relative shrink-0">
-              <AvatarLead Lead={item.lead} />
+              {/* Pra grupos, a foto está em `conversation.profilePicUrl`
+                  (não em `lead.profile`). Pra contatos individuais,
+                  geralmente ambos estão preenchidos. Faz fallback aqui
+                  pra garantir que grupos mostrem a foto. */}
+              <AvatarLead
+                Lead={{
+                  ...item.lead,
+                  profile:
+                    item.lead.profile ??
+                    (item.profilePicUrl as string | null | undefined) ??
+                    null,
+                }}
+              />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span
@@ -181,16 +216,29 @@ export function LeadBox({
               <div className="flex flex-col mb-1 max-w-full truncate">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <p className="text-sm font-medium line-clamp-2 flex items-center gap-1.5">
+                    <p
+                      className={cn(
+                        "text-sm font-medium line-clamp-2 flex items-center gap-1.5",
+                        // Leads arquivados aparecem em busca com nome em
+                        // VERMELHO — visualmente distintos dos ativos
+                        // pra usuário saber "esse aqui está arquivado".
+                        item.lead.isArchived && "text-red-500",
+                      )}
+                    >
+                      {/* Badge "Arquivado" — aparece quando o lead foi
+                          arquivado. Em modo padrão ele nem aparece na
+                          lista; mas no filtro "Arquivados" OU em busca
+                          (search field) ele aparece — daí o badge. */}
+                      {item.lead.isArchived && (
+                        <span className="inline-flex items-center rounded bg-red-500/15 text-red-600 dark:text-red-300 text-[9px] px-1 py-0.5 font-semibold shrink-0">
+                          Arquivado
+                        </span>
+                      )}
                       {/* Badge "Grupo" + ícone quando a conversa é
                           um grupo do WhatsApp. Schema: `Conversation.isGroup`
                           (já existia) + `groupSubject` + `groupParticipantsCount`
                           (novos campos opcionais). Visual sutil — não ofusca o
                           nome do lead/grupo. */}
-                      {/* NOTA: `groupSubject` e `groupParticipantsCount`
-                          são fields novos no schema (precisam migrate +
-                          `prisma generate` antes de typar). Cast pra
-                          `any` enquanto isso — sem run-time cost. */}
                       {item.isGroup && (
                         <span
                           className="inline-flex items-center gap-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[9px] px-1 py-0.5 font-semibold shrink-0"
@@ -212,30 +260,45 @@ export function LeadBox({
                     <p>{item.lead.name}</p>
                   </TooltipContent>
                 </Tooltip>
-                <p className="text-[10px] font-light text-muted-foreground line-clamp-1">
-                  {phoneMaskFull(item.lead.phone)}
-                </p>
+                {/* Telefone removido — WhatsApp não mostra abaixo do
+                    nome. Se precisar consultar, fica no header da
+                    conversa + popover de detalhes do lead. */}
               </div>
 
-              {lastMessage && (
-                <div className="flex items-center gap-1">
-                  <div>
-                    <MessageTypeIcon
-                      mimetype={lastMessage.mimetype}
-                      className="size-3 text-muted-foreground"
-                    />
+              {lastMessage && (() => {
+                // Preview unificado: cobre ligação (perdida ou normal),
+                // mensagem apagada, foto/áudio/vídeo/figurinha/arquivo,
+                // localização, contato e texto puro (com emojis).
+                const preview = getMessagePreview(lastMessage);
+                const Icon = preview.icon;
+                return (
+                  <div className="flex items-center gap-1">
+                    {Icon && (
+                      <Icon
+                        className={cn(
+                          "size-3 shrink-0",
+                          preview.danger
+                            ? "text-red-500"
+                            : "text-muted-foreground",
+                        )}
+                      />
+                    )}
+                    <p
+                      className={cn(
+                        "text-xs font-light line-clamp-1",
+                        preview.italic && "italic",
+                        preview.danger
+                          ? "text-red-500"
+                          : hasSeen
+                            ? "text-muted-foreground"
+                            : "",
+                      )}
+                    >
+                      {preview.label}
+                    </p>
                   </div>
-                  <p
-                    className={`text-xs font-light line-clamp-1 ${
-                      hasSeen ? "text-muted-foreground" : ""
-                    }`}
-                  >
-                    {lastMessage.mimetype
-                      ? getMessageTypeName(lastMessage.mimetype)
-                      : messageBody}
-                  </p>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
           <div className="mt-1">
@@ -249,19 +312,17 @@ export function LeadBox({
         <div className="flex flex-col items-end justify-between h-full min-w-15 py-1">
           <div className="flex items-center gap-1">
             {/* Estrela de favoritar — visual igual ao pin do WhatsApp.
-                FAVORITE no NASA hoje é uma tag com nome contendo "favorit"
-                ou "star" (vide `conversation/list.ts` filtro
-                `favoritesOnly`). O toggle real precisa achar/criar a tag
-                e attach/detach do lead — vai numa sprint dedicada. Aqui
-                é placeholder visual + toast "Em breve". */}
+                FAVORITE no NASA é uma tag canônica "Favoritas" (slug
+                `favoritas`) anexada ao lead. Mesma heurística do filtro
+                `favoritesOnly` em `conversation/list.ts`. O toggle real
+                chama `leads.toggleFavorite` (create-on-demand da tag +
+                logActivity no backend). */}
             <FavoriteStar
               isFavorite={isFavoriteLead(item.lead.leadTags)}
+              disabled={favoriteMutation.isPending}
               onClick={(e) => {
                 e.stopPropagation();
-                toast.info(
-                  "Em breve — favoritar conversa por aqui (use a tag 'Favoritas' por enquanto)",
-                  { position: "bottom-right" },
-                );
+                favoriteMutation.mutate({ leadId: item.lead.id });
               }}
             />
             <p className="text-[10px] font-light">
@@ -387,9 +448,11 @@ function isFavoriteLead(
 function FavoriteStar({
   isFavorite,
   onClick,
+  disabled,
 }: {
   isFavorite: boolean;
   onClick: (e: MouseEvent<HTMLButtonElement>) => void;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -398,7 +461,8 @@ function FavoriteStar({
       title={isFavorite ? "Favoritada" : "Favoritar"}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={onClick}
-      className="text-muted-foreground hover:text-amber-400 transition-colors"
+      disabled={disabled}
+      className="text-muted-foreground hover:text-amber-400 transition-colors disabled:opacity-50 disabled:cursor-wait"
     >
       <Star
         className={

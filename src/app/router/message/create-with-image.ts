@@ -11,6 +11,7 @@ import { pusherServer } from "@/lib/pusher";
 import z from "zod";
 import {
   attendLeadIfWaiting,
+  updateConversationLastMessage,
   claimLeadForAttendant,
   logChatMessageSent,
   triggerFirstChatInteractionIfFirst,
@@ -111,6 +112,7 @@ export const createMessageWithImage = base
 
       // Trigger gamification/attendance logic
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+      await updateConversationLastMessage(message.conversationId, message.id, message.createdAt);
       await claimLeadForAttendant(message.conversation.lead.id, context.user.id);
 
       await triggerFirstChatInteractionIfFirst({

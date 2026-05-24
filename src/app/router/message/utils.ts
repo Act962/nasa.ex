@@ -4,6 +4,42 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { NodeType } from "@/generated/prisma/enums";
 import { sendWorkflowExecution } from "@/inngest/utils";
 
+/**
+ * Atualiza `Conversation.lastMessage` + `lastMessageAt` pra refletir a
+ * mensagem mais recente da conversa. Fundamental pra sidebar mostrar
+ * preview correto da última mensagem ("Foto", "Mensagem apagada", etc).
+ *
+ * Antes só o webhook chamava isso (via `connect`); agora todas as
+ * procedures de envio (create text/image/file/audio/sticker/location/
+ * contact) chamam aqui pra manter consistência mesmo quando a mensagem
+ * é outbound (atendente → lead).
+ *
+ * Fire-and-forget — se falhar, loga warn mas não derruba o fluxo de
+ * envio (a mensagem já foi salva).
+ */
+export async function updateConversationLastMessage(
+  conversationId: string,
+  messageId: string,
+  createdAt?: Date,
+) {
+  try {
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        lastMessage: { connect: { id: messageId } },
+        lastMessageAt: createdAt ?? new Date(),
+      },
+    });
+  } catch (err) {
+    console.warn(
+      "[updateConversationLastMessage] failed",
+      conversationId,
+      messageId,
+      err,
+    );
+  }
+}
+
 export async function attendLeadIfWaiting(leadId: string, userId: string) {
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },

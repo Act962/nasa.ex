@@ -13,6 +13,7 @@ import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { sendText } from "@/http/uazapi/send-text";
 import { v4 as uuidv4 } from "uuid";
 import { WhatsAppInstanceStatus, MessageStatus } from "@/generated/prisma/enums";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 
 /**
  * Cria uma sala LiveKit pra chamada **audio/video 1:1 entre consultor e
@@ -211,6 +212,28 @@ export const createLeadMeeting = base
             senderName: context.user.name,
           },
         });
+
+        // Cria também uma "Call Message" estilo WhatsApp — card visual
+        // de chamada no topo da timeline. Atualizada depois quando a
+        // chamada termina (via `conversation.endCall`) pra preencher
+        // `durationSec` + mudar status pra "completed" ou "missed".
+        await prisma.message.create({
+          data: {
+            conversationId: conversation.id,
+            messageId: `livekit-call-${roomName}`,
+            // `body` em JSON — UI parsea via `parseCallPayload`
+            body: JSON.stringify({
+              type: input.mode === "video" ? "video" : "voice",
+              status: "started",
+              durationSec: null,
+              roomName,
+            }),
+            mediaType: input.mode === "video" ? "video_call" : "voice_call",
+            fromMe: true,
+            status: MessageStatus.SENT,
+            senderName: context.user.name,
+          },
+        });
       } catch (err) {
         console.warn(
           "[livekit.createLeadMeeting] falha ao enviar link via WhatsApp",
@@ -218,6 +241,32 @@ export const createLeadMeeting = base
         );
       }
     }
+
+    // 7) Audit log — registra a ação no histórico do lead/org pra que
+    // owners vejam em Insights/Atividades quem iniciou chamada com quem.
+    // Fire-and-forget — falha não impacta o retorno da chamada.
+    logActivity({
+      organizationId: context.org.id,
+      userId: context.user.id,
+      userName: context.user.name,
+      userEmail: context.user.email,
+      userImage: (context.user as any).image ?? null,
+      appSlug: "chat",
+      action: "livekit.call.started",
+      actionLabel: `Iniciou chamada de ${input.mode === "video" ? "vídeo" : "áudio"} com ${conversation.lead.name}`,
+      resource: "lead",
+      resourceId: conversation.lead.id,
+      subAppSlug: "tracking-chat",
+      featureKey: `chat.livekit.${input.mode}_call_started`,
+      metadata: {
+        conversationId: conversation.id,
+        leadId: conversation.lead.id,
+        leadName: conversation.lead.name,
+        mode: input.mode,
+        roomName,
+        notifiedViaWhatsApp,
+      },
+    }).catch(() => {});
 
     return {
       roomName,

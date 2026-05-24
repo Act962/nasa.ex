@@ -283,6 +283,17 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
     cooldownHours: null,
     category: "chat",
   },
+  // Importação manual de conversas existentes do WhatsApp via uazapi
+  // `/chat/find`. Cobra fixo por BATCH (até 50 conversas). On-demand
+  // sempre — sem ban risk porque é leitura pura (mesma operação do
+  // WhatsApp Web), com throttle interno.
+  {
+    action: "chat_import_existing",
+    label: "Importar conversas existentes do WhatsApp",
+    stars: 5,
+    cooldownHours: null,
+    category: "chat",
+  },
 ];
 
 export const STAR_RULE_CATEGORY_LABEL: Record<string, string> = {

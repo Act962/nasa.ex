@@ -3,6 +3,7 @@
 import { LeadBox } from "./lead-box";
 import { TrackingChatBottomTabs } from "./tracking-chat-bottom-tabs";
 import { ConversationFilters } from "./conversation-filters";
+import { ImportFromWhatsAppButton } from "./import-from-whatsapp-button";
 import {
   PhoneIcon,
   SettingsIcon,
@@ -76,6 +77,7 @@ export function ConversationsList() {
     "FINISHED" | "ACTIVE" | null
   >(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [archivedOnly, setArchivedOnly] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const debouncedSearch = useDebouncedValue(search, 500);
   const router = useRouter();
@@ -104,6 +106,7 @@ export function ConversationsList() {
       channel: selectedChannel === "ALL" ? null : selectedChannel,
       tagIds: selectedTagIds,
       favoritesOnly: favoritesOnly || undefined,
+      archivedOnly: archivedOnly || undefined,
     }),
     queryKey: [
       "conversations.list",
@@ -114,6 +117,7 @@ export function ConversationsList() {
       selectedChannel,
       selectedTagIds,
       favoritesOnly,
+      archivedOnly,
     ],
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -282,6 +286,12 @@ export function ConversationsList() {
                 >
                   Só favoritas
                 </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={archivedOnly}
+                  onCheckedChange={(checked) => setArchivedOnly(!!checked)}
+                >
+                  Arquivados
+                </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -358,6 +368,8 @@ export function ConversationsList() {
               onStatusFlowFilterChange={setStatusFlowFilter}
               favoritesOnly={favoritesOnly}
               onFavoritesOnlyChange={setFavoritesOnly}
+              archivedOnly={archivedOnly}
+              onArchivedOnlyChange={setArchivedOnly}
               selectedTagIds={selectedTagIds}
               onSelectedTagIdsChange={setSelectedTagIds}
             />
@@ -379,13 +391,26 @@ export function ConversationsList() {
                     </EmptyMedia>
                     <EmptyTitle>Sem conversas</EmptyTitle>
                     <EmptyDescription>
-                      Nenhuma conversa encontrada com os filtros atuais
+                      Nenhuma conversa encontrada. Você pode adicionar
+                      manualmente ou importar do seu WhatsApp conectado.
                     </EmptyDescription>
                   </EmptyHeader>
                   <EmptyContent>
-                    <Button variant="default" onClick={() => setOpen(true)}>
-                      Adicionar conversa
-                    </Button>
+                    <div className="flex flex-col gap-2">
+                      <Button variant="default" onClick={() => setOpen(true)}>
+                        Adicionar conversa
+                      </Button>
+                      {/* Importação direta da uazapi — só faz sentido se
+                          a instância está conectada. Esconde o botão se
+                          tracking não tem instância ou está desconectada. */}
+                      {selectedTracking &&
+                        !noInstance &&
+                        !instanceDisconnected && (
+                          <ImportFromWhatsAppButton
+                            trackingId={selectedTracking}
+                          />
+                        )}
+                    </div>
                   </EmptyContent>
                 </Empty>
               )}

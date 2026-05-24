@@ -58,6 +58,7 @@ import { astroRoutes } from "@/features/astro/server/routes";
 import { nerpRouter } from "./nerp";
 import { commentsRouter } from "./comments";
 import { livekitRouter } from "./livekit";
+import { stickersRouter } from "./stickers";
 
 export const router = {
   tracking: trackingRoutes,
@@ -119,4 +120,5 @@ export const router = {
   nerp: nerpRouter,
   commentsApp: commentsRouter,
   livekit: livekitRouter,
+  stickers: stickersRouter,
 };

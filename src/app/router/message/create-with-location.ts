@@ -11,6 +11,7 @@ import { MessageChannel } from "@/generated/prisma/enums";
 import z from "zod";
 import {
   attendLeadIfWaiting,
+  updateConversationLastMessage,
   claimLeadForAttendant,
   logChatMessageSent,
   triggerFirstChatInteractionIfFirst,
@@ -122,6 +123,7 @@ export const createLocationMessage = base
       );
 
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+      await updateConversationLastMessage(message.conversationId, message.id, message.createdAt);
       await claimLeadForAttendant(message.conversation.lead.id, context.user.id);
 
       await triggerFirstChatInteractionIfFirst({

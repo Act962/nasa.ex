@@ -127,6 +127,9 @@ model User {
   aiSessions      AiSession[]
   aiKnowledgeMade AiKnowledge[] @relation("AiKnowledgeCreatedBy")
 
+  // ── Tracking Chat — figurinhas personalizadas do composer ──
+  userStickers UserSticker[]
+
   @@unique([email])
   @@map("user")
 }
@@ -365,6 +368,9 @@ model Organization {
   aiAgentConfigs AiAgentConfig[]
   aiSessions     AiSession[]
   aiKnowledge    AiKnowledge[]
+
+  // ── Tracking Chat — figurinhas personalizadas do composer ──
+  userStickers UserSticker[]
 
   @@unique([slug])
   @@map("organization")
@@ -788,6 +794,13 @@ model Lead {
 
   currentAction LeadAction @default(ACTIVE) @map("current_action")
   isActive      Boolean    @default(true) @map("is_active")
+
+  // Arquivamento — lead fica fora do tracking padrão (todos os filtros)
+  // mas continua acessível via filtro "Arquivados" no /tracking-chat e
+  // com badge "Arquivado" na lista de /contatos. Novas mensagens dele
+  // só aparecem dentro de "Arquivados".
+  isArchived Boolean   @default(false) @map("is_archived")
+  archivedAt DateTime? @map("archived_at")
 
   // ─── Origem / Tracking de campanha (UTM + CTWA + Meta Ads) ───
   utmSource      String? @map("utm_source")
@@ -1747,6 +1760,35 @@ model Message {
   @@index([status])
   @@index([fromMe])
   @@map("messages")
+}
+
+/**
+ * Figurinhas (stickers) personalizadas do usuário, exibidas no picker do
+ * composer do `/tracking-chat`. Cada figurinha aponta pra um arquivo no
+ * R2 e é escopada por org (todos os usuários da org vêem o mesmo banco
+ * de figurinhas).
+ *
+ * `mimetype`: tipicamente `image/webp` (formato nativo de sticker
+ * WhatsApp), mas aceitamos PNG/GIF e o uazapi converte na hora do envio.
+ *
+ * Envio: ao clicar numa figurinha, o front chama `sendMedia` da uazapi
+ * com `type: "sticker"`, passando a URL do R2.
+ */
+model UserSticker {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id") // criador
+  url            String
+  mimetype       String   @default("image/webp")
+  label          String?  // nome/tag opcional pra busca
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([userId])
+  @@map("user_stickers")
 }
 
 enum WhatsAppInstanceStatus {
