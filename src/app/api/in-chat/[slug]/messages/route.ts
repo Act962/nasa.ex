@@ -85,11 +85,24 @@ export async function GET(
       mediaType: true,
       mimetype: true,
       fileName: true,
+      latitude: true,
+      longitude: true,
+      quotedMessageId: true,
       createdAt: true,
       fromMe: true,
       status: true,
       senderName: true,
       viaInChat: true,
+      quotedMessage: {
+        select: {
+          id: true,
+          body: true,
+          mediaType: true,
+          mimetype: true,
+          fromMe: true,
+          senderName: true,
+        },
+      },
     },
   });
 
@@ -113,6 +126,14 @@ const sendSchema = z.object({
   mimetype: z.string().optional(),
   /** Nome do arquivo (pra documentos, áudio etc). */
   fileName: z.string().optional(),
+  /** Coordenadas (`navigator.geolocation`) pra mensagem de localização. */
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  /** Reply: id (Message.id) da mensagem que está sendo citada. */
+  quotedMessageId: z.string().optional(),
+  /** Compartilhamento de contato — body humano + fileName=phone. */
+  contactName: z.string().optional(),
+  contactPhone: z.string().optional(),
 });
 
 export async function POST(
@@ -136,33 +157,57 @@ export async function POST(
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
 
-  // Sem texto E sem mídia → request inválido (nada pra enviar)
-  if (!parsed.data.body?.trim() && !parsed.data.mediaUrl) {
+  const hasLocation =
+    parsed.data.latitude != null && parsed.data.longitude != null;
+  const hasContact = !!parsed.data.contactName || !!parsed.data.contactPhone;
+
+  // Sem texto, mídia, localização nem contato → request inválido
+  if (
+    !parsed.data.body?.trim() &&
+    !parsed.data.mediaUrl &&
+    !hasLocation &&
+    !hasContact
+  ) {
     return NextResponse.json(
       { error: "body_or_media_required" },
       { status: 400 },
     );
   }
 
-  // Deriva `mediaType` pela mimetype — segue o mesmo padrão do
-  // tracking-chat (image/audio/video/document).
+  // Deriva `mediaType` por categoria — image/audio/video/document/location/contact
   let mediaType: string | null = null;
-  if (parsed.data.mimetype) {
+  if (hasLocation) {
+    mediaType = "location";
+  } else if (hasContact) {
+    mediaType = "contact";
+  } else if (parsed.data.mimetype) {
     if (parsed.data.mimetype.startsWith("image/")) mediaType = "image";
     else if (parsed.data.mimetype.startsWith("audio/")) mediaType = "audio";
     else if (parsed.data.mimetype.startsWith("video/")) mediaType = "video";
     else mediaType = "document";
   }
 
+  // Pra contato, salva nome no body + phone em fileName (mesmo padrão do
+  // webhook do uazapi pra mensagens de contato).
+  const finalBody = hasContact
+    ? parsed.data.contactName ?? null
+    : parsed.data.body?.trim() || null;
+  const finalFileName = hasContact
+    ? parsed.data.contactPhone ?? null
+    : parsed.data.fileName ?? null;
+
   const message = await prisma.message.create({
     data: {
       conversationId: auth.conversationId,
       messageId: `inchat-${uuidv4()}`,
-      body: parsed.data.body?.trim() || null,
+      body: finalBody,
       mediaUrl: parsed.data.mediaUrl ?? null,
       mediaType,
       mimetype: parsed.data.mimetype ?? null,
-      fileName: parsed.data.fileName ?? null,
+      fileName: finalFileName,
+      latitude: parsed.data.latitude ?? null,
+      longitude: parsed.data.longitude ?? null,
+      quotedMessageId: parsed.data.quotedMessageId ?? null,
       fromMe: false, // veio do lead
       status: MessageStatus.SEEN,
       senderId: null,
