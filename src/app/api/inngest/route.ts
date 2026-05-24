@@ -36,6 +36,7 @@ import { chatSyncMessages } from "@/inngest/functions/chat/sync-conversation-mes
 import { autoResolveExpiredClaims } from "@/inngest/functions/calendar/auto-resolve-expired-claims";
 import { detectStaleLeads } from "@/inngest/functions/crons/detect-stale-leads";
 import { detectBrokenIntegrations } from "@/inngest/functions/crons/detect-broken-integrations";
+import { detectWhatsappBan } from "@/inngest/functions/crons/detect-whatsapp-ban";
 import { detectAgendaStarting } from "@/inngest/functions/crons/detect-agenda-starting";
 import { detectFormAbandoned } from "@/inngest/functions/crons/detect-form-abandoned";
 import { detectLowMetrics } from "@/inngest/functions/crons/detect-low-metrics";
@@ -90,6 +91,7 @@ export const { GET, POST, PUT } = serve({
     // ── Alerts: detecção time-based ──
     detectStaleLeads,
     detectBrokenIntegrations,
+    detectWhatsappBan,
     detectAgendaStarting,
     detectFormAbandoned,
     detectLowMetrics,

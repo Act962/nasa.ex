@@ -881,13 +881,33 @@ export async function POST(request: NextRequest) {
     }
 
     if (base.data.EventType === "connection") {
-      if (json.instance.status === "disconnected") {
+      const newStatus = String(json.instance?.status ?? "").toLowerCase();
+
+      if (newStatus === "disconnected") {
         await prisma.whatsAppInstance.update({
           where: { apiKey: json.token },
           data: {
             status: WhatsAppInstanceStatus.DISCONNECTED,
           },
         });
+        // Incrementa contador + ativa modo In-Chat se passar do threshold.
+        // Detecção push-based — substitui a necessidade de cron a cada 5min
+        // varrendo todas as instâncias da plataforma.
+        const { markInstanceConnectionFailure } = await import(
+          "@/features/tracking-chat/lib/in-chat-mode"
+        );
+        await markInstanceConnectionFailure({
+          apiKey: json.token,
+          source: "webhook",
+        });
+      } else if (newStatus === "connected") {
+        // Reconexão bem-sucedida — zera contador + desativa modo se
+        // estava ligado. Espelho do `markInstanceConnectionFailure` mas
+        // pro sucesso. Roda mesmo sem cron de recovery rodar antes.
+        const { markInstanceConnectionHealthy } = await import(
+          "@/features/tracking-chat/lib/in-chat-mode"
+        );
+        await markInstanceConnectionHealthy({ apiKey: json.token });
       }
       return NextResponse.json({ success: true }, { status: 200 });
     }

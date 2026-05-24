@@ -4,6 +4,7 @@ import { createConversation } from "./create";
 import { findConversationByPhone } from "./find-by-phone";
 import { startConversationByPhone } from "./start-by-phone";
 import { findChatByPhone } from "./find-chats";
+import { blastInChatLink } from "./blast-in-chat-link";
 
 export const conversationRouter = {
   list: listConversation,
@@ -12,4 +13,5 @@ export const conversationRouter = {
   findByPhone: findConversationByPhone,
   startByPhone: startConversationByPhone,
   findChat: findChatByPhone,
+  blastInChatLink,
 };
