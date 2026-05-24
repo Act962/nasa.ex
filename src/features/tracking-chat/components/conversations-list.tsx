@@ -1,8 +1,26 @@
 "use client";
 
 import { LeadBox } from "./lead-box";
+import { TrackingChatBottomTabs } from "./tracking-chat-bottom-tabs";
 import { ConversationFilters } from "./conversation-filters";
-import { SettingsIcon, UserPlusIcon, UserRoundPlusIcon } from "lucide-react";
+import {
+  PhoneIcon,
+  SettingsIcon,
+  UserPlusIcon,
+  UserRoundPlusIcon,
+  MoreHorizontalIcon,
+  CheckCircle2Icon,
+  CircleDashedIcon,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useInfinityConversation } from "../hooks/use-conversation";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -113,6 +131,18 @@ export function ConversationsList() {
     return data?.pages.flatMap((p) => p.items) ?? [];
   }, [data]);
 
+  // Pin-to-top da conversa aberta — UX padrão de chat (WhatsApp, iMessage,
+  // Telegram fazem isso). Reordena no client sem refetch: se a conversa
+  // aberta está no array, traz pra primeira posição. Mantém o resto na
+  // ordem original. Memoizado em cima de `items` + `conversationId`.
+  const orderedItems = useMemo(() => {
+    if (!conversationId) return items;
+    const idx = items.findIndex((it) => it.id === conversationId);
+    if (idx <= 0) return items;
+    const pinned = items[idx]!;
+    return [pinned, ...items.slice(0, idx), ...items.slice(idx + 1)];
+  }, [items, conversationId]);
+
   const isNearBottom = (el: HTMLDivElement) =>
     el.scrollHeight - el.scrollTop - el.clientHeight <= 80;
 
@@ -186,18 +216,17 @@ export function ConversationsList() {
   return (
     <>
       <aside className="pb-20 lg:pb-0 lg:flex w-full px-5 flex flex-col h-full overflow-hidden">
-        <div className="flex justify-between mb-4 pt-4 shrink-0">
+        {/* ── Header DESKTOP (lg+): mantém UX original "Tracking Chat" ── */}
+        <div className="hidden lg:flex justify-between mb-4 pt-4 shrink-0">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="size-4" />
             <div className="text-lg font-medium">Tracking Chat</div>
           </div>
-          <div className="flex items-center ">
+          <div className="flex items-center">
             {!noInstance && !instanceDisconnected && !isLoadingTrackings && (
-              <div className="cursor-pointer">
-                <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-                  <UserRoundPlusIcon className="size-4" />
-                </Button>
-              </div>
+              <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+                <UserRoundPlusIcon className="size-4" />
+              </Button>
             )}
             <Button
               variant="ghost"
@@ -208,6 +237,85 @@ export function ConversationsList() {
             </Button>
           </div>
         </div>
+
+        {/* ── Header MOBILE: WhatsApp-style ───────────────────────────
+            - Esquerda: SidebarTrigger + menu "..." (filtros status flow)
+            - Direita: phone (em breve) + "+" (novo lead)
+            - Título grande "Conversas" em linha separada abaixo. */}
+        <div className="lg:hidden flex justify-between items-center pt-4 mb-2 shrink-0">
+          <div className="flex items-center gap-1">
+            <SidebarTrigger className="size-4" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="rounded-full"
+                  aria-label="Mais filtros"
+                >
+                  <MoreHorizontalIcon className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuLabel>Filtros de status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={statusFlowFilter === "ACTIVE"}
+                  onCheckedChange={(checked) =>
+                    setStatusFlowFilter(checked ? "ACTIVE" : null)
+                  }
+                >
+                  <CircleDashedIcon className="size-3.5" /> Em atendimento
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={statusFlowFilter === "FINISHED"}
+                  onCheckedChange={(checked) =>
+                    setStatusFlowFilter(checked ? "FINISHED" : null)
+                  }
+                >
+                  <CheckCircle2Icon className="size-3.5" /> Finalizados
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={favoritesOnly}
+                  onCheckedChange={(checked) => setFavoritesOnly(!!checked)}
+                >
+                  Só favoritas
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="rounded-full"
+              onClick={() =>
+                toast.info("Em breve — ligações dentro do NASA Chat", {
+                  position: "bottom-right",
+                })
+              }
+              aria-label="Ligar (em breve)"
+            >
+              <PhoneIcon className="size-4" />
+            </Button>
+            {!noInstance && !instanceDisconnected && !isLoadingTrackings && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="rounded-full"
+                onClick={() => setOpen(true)}
+                aria-label="Novo lead"
+              >
+                <UserRoundPlusIcon className="size-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+        <h1 className="lg:hidden text-2xl font-bold tracking-tight shrink-0 mb-3">
+          Conversas
+        </h1>
+
         <div className="flex-1 flex flex-col gap-2 min-h-0">
           <Select value={selectedTracking} onValueChange={handleTrackingChange}>
             <SelectTrigger
@@ -237,17 +345,23 @@ export function ConversationsList() {
             statusId={selectedStatus}
             onStatusChange={setSelectedStatus}
           />
-          <ConversationFilters
-            trackingId={selectedTracking || null}
-            selectedChannel={selectedChannel}
-            onChannelChange={setSelectedChannel}
-            statusFlowFilter={statusFlowFilter}
-            onStatusFlowFilterChange={setStatusFlowFilter}
-            favoritesOnly={favoritesOnly}
-            onFavoritesOnlyChange={setFavoritesOnly}
-            selectedTagIds={selectedTagIds}
-            onSelectedTagIdsChange={setSelectedTagIds}
-          />
+          {/* DESKTOP (lg+): mantém row de channel circles + filter pills.
+              MOBILE (default): esses filtros vão pro bottom bar +
+              dropdown "..." do header — vide blocos `lg:hidden` acima
+              e `<TrackingChatBottomTabs>` abaixo. */}
+          <div className="hidden lg:block">
+            <ConversationFilters
+              trackingId={selectedTracking || null}
+              selectedChannel={selectedChannel}
+              onChannelChange={setSelectedChannel}
+              statusFlowFilter={statusFlowFilter}
+              onStatusFlowFilterChange={setStatusFlowFilter}
+              favoritesOnly={favoritesOnly}
+              onFavoritesOnlyChange={setFavoritesOnly}
+              selectedTagIds={selectedTagIds}
+              onSelectedTagIdsChange={setSelectedTagIds}
+            />
+          </div>
 
           {isLoading || isLoadingTrackings ? (
             <div className="flex-1 flex flex-col gap-2 overflow-y-auto mt-2 min-h-0">
@@ -280,7 +394,7 @@ export function ConversationsList() {
                 onScroll={handleScroll}
                 className="overflow-y-auto flex flex-col gap-2 flex-1 pb-4 scroll-cols-tracking min-h-0"
               >
-                {items.map((item) => (
+                {orderedItems.map((item) => (
                   <LeadBox
                     instance={instance}
                     key={item.id}
@@ -302,6 +416,20 @@ export function ConversationsList() {
               </div>
             </div>
           )}
+        </div>
+        {/* Bottom tab bar flutuante — APENAS MOBILE (`lg:hidden`).
+            Substitui channel circles + pills que em desktop ocupam o
+            espaço normal. 5 ações principais (Settings / Conversas /
+            Informações / Canal / Tags) sem comer espaço da lista. */}
+        <div className="lg:hidden">
+          <TrackingChatBottomTabs
+            trackingId={selectedTracking || null}
+            selectedChannel={selectedChannel}
+            onChannelChange={setSelectedChannel}
+            selectedTagIds={selectedTagIds}
+            onSelectedTagIdsChange={setSelectedTagIds}
+            settingsHref={pageSettings}
+          />
         </div>
       </aside>
       <CreateChatDialog

@@ -13,14 +13,16 @@ import {
   CalendarIcon,
   ClipboardListIcon,
   GlobeIcon,
-  RocketIcon,
   UserIcon,
   Sparkles,
   MessageCircle,
   Clock,
   CheckCircle2,
   GitBranch,
+  Star,
+  UsersIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { ListTags } from "./list-tags";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +30,7 @@ import { MessageTypeIcon, getMessageTypeName } from "./message-type-icon";
 import { useMutationMarkReadMessage } from "../hooks/use-messages";
 import { SelectTrackingPopover } from "@/features/leads/components/lead-info/select-tracking-field";
 import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
+import { cn } from "@/lib/utils";
 import {
   Tooltip,
   TooltipContent,
@@ -136,17 +139,73 @@ export function LeadBox({
     <>
       <div
         onClick={handleClick}
-        className={`w-full group relative flex items-center space-x-3 p-3 bg-accent-foreground/2 hover:bg-accent-foreground/5 cursor-pointer rounded-lg transition  ${selected ? "bg-accent-foreground/5" : ""}`}
+        className={cn(
+          // Card base — sempre aplica
+          "w-full group relative flex items-center space-x-3 p-3 cursor-pointer rounded-lg transition",
+          // Estado "selected" (conversa aberta no momento) reforçado:
+          // background mais sólido + ring violeta sutil + sombra discreta.
+          // O `pin-to-top` em `conversations-list.tsx` já garante que o card
+          // selecionado vai pra primeira posição da lista.
+          selected
+            ? "bg-accent-foreground/10 ring-1 ring-violet-500/40 shadow-sm"
+            : "bg-accent-foreground/2 hover:bg-accent-foreground/5",
+        )}
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 overflow-hidden">
-            <AvatarLead Lead={item.lead} />
+            {/* Avatar com bolinha de temperatura sobreposta — mesmo
+                pattern visual do card do kanban em /tracking. A
+                bolinha fica no canto superior-esquerdo do avatar
+                (z-10 pra ficar acima da foto + ring branco discreto
+                pra contrastar com fotos escuras). Tooltip preserva
+                acessibilidade. */}
+            <div className="relative shrink-0">
+              <AvatarLead Lead={item.lead} />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    aria-label={`Temperatura: ${colorsByTemperature[item.lead.temperature].label}`}
+                    className="pointer-events-none absolute top-0.5 left-0.5 z-10 size-2 rounded-full ring-1 ring-background"
+                    style={{
+                      backgroundColor:
+                        colorsByTemperature[item.lead.temperature].color,
+                    }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{colorsByTemperature[item.lead.temperature].label}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <div className="focus:outline-none">
               <div className="flex flex-col mb-1 max-w-full truncate">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <p className="text-sm font-medium line-clamp-2">
-                      {item.lead.name}
+                    <p className="text-sm font-medium line-clamp-2 flex items-center gap-1.5">
+                      {/* Badge "Grupo" + ícone quando a conversa é
+                          um grupo do WhatsApp. Schema: `Conversation.isGroup`
+                          (já existia) + `groupSubject` + `groupParticipantsCount`
+                          (novos campos opcionais). Visual sutil — não ofusca o
+                          nome do lead/grupo. */}
+                      {/* NOTA: `groupSubject` e `groupParticipantsCount`
+                          são fields novos no schema (precisam migrate +
+                          `prisma generate` antes de typar). Cast pra
+                          `any` enquanto isso — sem run-time cost. */}
+                      {item.isGroup && (
+                        <span
+                          className="inline-flex items-center gap-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[9px] px-1 py-0.5 font-semibold shrink-0"
+                          title={
+                            (item as any).groupParticipantsCount
+                              ? `Grupo com ${(item as any).groupParticipantsCount} participantes`
+                              : "Grupo do WhatsApp"
+                          }
+                        >
+                          <UsersIcon className="size-2.5" /> Grupo
+                        </span>
+                      )}
+                      {item.isGroup && (item as any).groupSubject
+                        ? (item as any).groupSubject
+                        : item.lead.name}
                     </p>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -189,6 +248,22 @@ export function LeadBox({
         </div>
         <div className="flex flex-col items-end justify-between h-full min-w-15 py-1">
           <div className="flex items-center gap-1">
+            {/* Estrela de favoritar — visual igual ao pin do WhatsApp.
+                FAVORITE no NASA hoje é uma tag com nome contendo "favorit"
+                ou "star" (vide `conversation/list.ts` filtro
+                `favoritesOnly`). O toggle real precisa achar/criar a tag
+                e attach/detach do lead — vai numa sprint dedicada. Aqui
+                é placeholder visual + toast "Em breve". */}
+            <FavoriteStar
+              isFavorite={isFavoriteLead(item.lead.leadTags)}
+              onClick={(e) => {
+                e.stopPropagation();
+                toast.info(
+                  "Em breve — favoritar conversa por aqui (use a tag 'Favoritas' por enquanto)",
+                  { position: "bottom-right" },
+                );
+              }}
+            />
             <p className="text-[10px] font-light">
               <FormatTime date={lastMessage?.createdAt || item.createdAt} />
             </p>
@@ -224,19 +299,6 @@ export function LeadBox({
                   </Tooltip>
                 );
               })()}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <RocketIcon
-                  className="size-3"
-                  style={{
-                    color: colorsByTemperature[item.lead.temperature].color,
-                  }}
-                />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{colorsByTemperature[item.lead.temperature].label}</p>
-              </TooltipContent>
-            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <div>
@@ -296,6 +358,57 @@ function FormatTime({ date }: { date: Date }) {
     return "Ontem";
   }
   return format(date, "dd/MM/yy");
+}
+
+/**
+ * Heurística pra detectar se um lead já tem a tag "Favoritas". Bate com
+ * a mesma lógica do filtro `favoritesOnly` em `conversation/list.ts` —
+ * nome ou slug da tag contendo "favorit" ou "star" (case-insensitive).
+ * Se o usuário cadastrou uma tag com outro nome (ex: "VIP"), não conta.
+ */
+function isFavoriteLead(
+  leadTags?: { tag: { name: string; slug: string } }[] | null,
+): boolean {
+  if (!leadTags?.length) return false;
+  return leadTags.some(({ tag }) => {
+    const n = tag.name?.toLowerCase() ?? "";
+    const s = tag.slug?.toLowerCase() ?? "";
+    return /favorit|star/.test(n) || /favorit|star/.test(s);
+  });
+}
+
+/**
+ * Botão estrela posicionado ao lado da data — mesmo lugar do "pin" no
+ * WhatsApp. Visual: estrela cheia amarela quando favoritada, contorno
+ * cinza quando não. Click atual mostra toast "Em breve" — toggle real
+ * vem em sprint dedicada (depende de adicionar mutation pra criar/anexar
+ * tag "Favoritas" sob demanda).
+ */
+function FavoriteStar({
+  isFavorite,
+  onClick,
+}: {
+  isFavorite: boolean;
+  onClick: (e: MouseEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={isFavorite ? "Remover dos favoritos" : "Favoritar conversa"}
+      title={isFavorite ? "Favoritada" : "Favoritar"}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={onClick}
+      className="text-muted-foreground hover:text-amber-400 transition-colors"
+    >
+      <Star
+        className={
+          isFavorite
+            ? "size-3.5 fill-amber-400 text-amber-400"
+            : "size-3.5"
+        }
+      />
+    </button>
+  );
 }
 
 interface LeadSourceIconProps {

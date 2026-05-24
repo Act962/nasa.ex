@@ -1671,7 +1671,13 @@ model Conversation {
   createdAt     DateTime @default(now()) @map("created_at")
   lastMessageAt DateTime @updatedAt @map("last_message_at")
   name          String?
-  isGroup       Boolean  @default(false)
+  // `isGroup` já existia (default false). `groupSubject` é o nome do
+  // grupo (vem do uazapi find-chat); `groupParticipantsCount` ajuda a
+  // renderizar badge "12 participantes" no card. Ambos nullables pra
+  // compat com conversas individuais existentes.
+  isGroup                Boolean @default(false)
+  groupSubject           String? @map("group_subject")
+  groupParticipantsCount Int?    @map("group_participants_count")
 
   remoteJid     String         @map("remote_jid")
   profilePicUrl String?        @map("profile_pic_url")

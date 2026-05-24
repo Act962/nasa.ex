@@ -17,9 +17,12 @@ import {
   BotIcon,
   CheckIcon,
   EllipsisVerticalIcon,
+  PhoneIcon,
   RefreshCwIcon,
+  VideoIcon,
   XIcon,
 } from "lucide-react";
+import { dialPhone } from "../utils/dial-phone";
 import Link from "next/link";
 import { SummerizeConversation } from "./summerize-conversation";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -29,6 +32,9 @@ import { MessageChannel, StatusFlow } from "@/generated/prisma/enums";
 import { useMutationRodizio } from "../hooks/use-rodizio";
 import { SyncMessagesButton } from "./sync-messages-button";
 import { FacebookIcon, InstagramIcon } from "./icons";
+import { useMutation } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
+import { toast } from "sonner";
 
 interface HeaderProps {
   name: string;
@@ -96,6 +102,42 @@ export function Header({
     });
   };
 
+  // Inicia uma chamada LiveKit (vídeo, padrão). O backend mint o token
+  // do consultor + envia o link pro lead via WhatsApp automaticamente.
+  // Aqui abrimos uma nova aba pro consultor entrar na sala — mantém o
+  // chat aberto na aba original pra acompanhar mensagens enquanto fala.
+  const videoCall = useMutation(
+    orpc.livekit.createLeadMeeting.mutationOptions({
+      onSuccess: (data: any) => {
+        const consultorCallPath = `/call/${encodeURIComponent(data.roomName)}?t=${encodeURIComponent(data.consultorToken)}&n=${encodeURIComponent("Você")}&mode=video`;
+        // Tenta abrir nova aba; em mobile, alguns browsers bloqueiam — fallback
+        // pra mesma aba via location.assign após confirmação.
+        const w = window.open(consultorCallPath, "_blank", "noopener,noreferrer");
+        if (!w) {
+          window.location.assign(consultorCallPath);
+        }
+        toast.success(
+          data.notifiedViaWhatsApp
+            ? "Link da chamada enviado pro lead via WhatsApp ✓"
+            : "Sala criada — envie o link manualmente pro lead",
+        );
+      },
+      onError: (err: any) => {
+        toast.error(err?.message ?? "Falha ao iniciar chamada de vídeo");
+      },
+    }),
+  );
+
+  const handleVideoCall = () => {
+    videoCall.mutate({
+      conversationId,
+      mode: "video",
+      notifyLead: true,
+      appOrigin: typeof window !== "undefined" ? window.location.origin : undefined,
+    });
+  };
+  const videoCallPending = videoCall.isPending;
+
   return (
     <div className="bg-accent-foreground/10 w-full flex border-b sm:px-4 py-3 px-4 lg:px-6 justify-between items-center shadow-sm">
       <div className="flex gap-3 items-center">
@@ -129,7 +171,33 @@ export function Header({
           )}
         </div>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 lg:gap-4">
+        {/* Sempre visíveis (mobile + desktop): ligar áudio (tel:) e vídeo
+            (LiveKit). Phone abre o app de telefone do SO; video gera
+            URL pública /call/[room] e envia pro lead via WhatsApp,
+            depois abre nova aba pro consultor entrar na sala. */}
+        {phone && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => dialPhone(phone)}
+            title={`Ligar pra ${phone}`}
+            aria-label="Ligar pro lead"
+          >
+            <PhoneIcon className="size-4" />
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={handleVideoCall}
+          disabled={videoCallPending}
+          title="Iniciar chamada de vídeo"
+          aria-label="Iniciar chamada de vídeo"
+        >
+          <VideoIcon className="size-4" />
+        </Button>
+
         {/* Desktop only: standalone buttons */}
         <div className="hidden lg:flex items-center gap-4">
           <SyncMessagesButton

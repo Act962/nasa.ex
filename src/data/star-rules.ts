@@ -265,6 +265,24 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
     cooldownHours: null,
     category: "system",
   },
+  // ── Tracking Chat 2.0 — Sprint 1 (telefonia básica + vídeo) ──
+  // `livekit_lead_call` cobra na inicialização da sala (LiveKit). Sprint 2
+  // cobrará por minuto via Egress webhook. `tel_link_dial` é 0★ (a
+  // ligação acontece via operadora do usuário, NASA não cobra).
+  {
+    action: "livekit_lead_call",
+    label: "Chamada de vídeo/áudio com lead (LiveKit)",
+    stars: 2,
+    cooldownHours: null,
+    category: "chat",
+  },
+  {
+    action: "tel_link_dial",
+    label: "Ligação via tel: link (nativo do SO)",
+    stars: 0,
+    cooldownHours: null,
+    category: "chat",
+  },
 ];
 
 export const STAR_RULE_CATEGORY_LABEL: Record<string, string> = {

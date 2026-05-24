@@ -57,6 +57,7 @@ import { metaMcpRouter } from "./meta-mcp";
 import { astroRoutes } from "@/features/astro/server/routes";
 import { nerpRouter } from "./nerp";
 import { commentsRouter } from "./comments";
+import { livekitRouter } from "./livekit";
 
 export const router = {
   tracking: trackingRoutes,
@@ -117,4 +118,5 @@ export const router = {
   astro: astroRoutes,
   nerp: nerpRouter,
   commentsApp: commentsRouter,
+  livekit: livekitRouter,
 };

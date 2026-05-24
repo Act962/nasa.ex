@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * Usado em DESKTOP (lg+) na sidebar do /tracking-chat — row de "channel
+ * circles + filter pills" abaixo do search input. Em MOBILE, esses
+ * filtros migraram pra `tracking-chat-bottom-tabs.tsx` (pill flutuante
+ * estilo WhatsApp iOS) + dropdown "..." do header — o componente é
+ * renderizado com `hidden lg:flex` no `conversations-list.tsx`.
+ */
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
