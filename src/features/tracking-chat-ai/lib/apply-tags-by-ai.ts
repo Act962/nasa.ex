@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { sendWorkflowExecution } from "@/inngest/utils";
 import { eventBus } from "@/features/alerts/lib/event-bus";
+import { findLeadTaggedMatchingWorkflows } from "@/features/triggers/components/lead-tagged/find-matching-workflows";
 
 export interface ApplyTagsByAiInput {
   leadId: string;
@@ -22,8 +23,8 @@ export interface ApplyTagsByAiResult {
  *     LEAD_TAGGED que casem com `tagIds`, e publica `lead.tag_added` no
  *     event bus (alertas).
  *
- * Duplicação consciente: o `where` de busca de workflows é cópia do router
- * humano. Se o critério mudar lá, mudar aqui também.
+ * O match de workflows vive em `findLeadTaggedMatchingWorkflows` —
+ * mesmo helper consumido pelo router humano.
  */
 export async function applyTagsByAi(
   input: ApplyTagsByAiInput,
@@ -45,21 +46,10 @@ export async function applyTagsByAi(
       skipDuplicates: true,
     });
 
-    const workflows = await tx.workflow.findMany({
-      where: {
-        trackingId: lead.trackingId,
-        isActive: true,
-        nodes: {
-          some: {
-            type: "LEAD_TAGGED",
-            data: {
-              path: ["action", "tagIds"],
-              array_contains: input.tagIds,
-            },
-          },
-        },
-      },
-      select: { id: true },
+    const workflows = await findLeadTaggedMatchingWorkflows({
+      tx,
+      trackingId: lead.trackingId,
+      tagIds: input.tagIds,
     });
 
     return { count: created.count, workflows };
