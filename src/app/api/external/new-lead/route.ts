@@ -4,6 +4,7 @@ import { normalizePhone } from "@/utils/format-phone";
 import { NextRequest } from "next/server";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import { extractTracking } from "@/lib/tracking/extract-tracking.server";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 export async function POST(request: NextRequest) {
   const json = await request.json();
@@ -95,6 +96,22 @@ export async function POST(request: NextRequest) {
         });
       }
     } catch {}
+
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: email ?? phoneNormalized ?? lead.id,
+      event: "lead_created",
+      properties: {
+        lead_id: lead.id,
+        tracking_id: trackingId,
+        utm_source: tracking.utmSource,
+        utm_medium: tracking.utmMedium,
+        utm_campaign: tracking.utmCampaign,
+        device: tracking.device,
+        source: "external_form",
+      },
+    });
+    await posthog.shutdown();
 
     return Response.json({ success: true });
   } catch (e) {

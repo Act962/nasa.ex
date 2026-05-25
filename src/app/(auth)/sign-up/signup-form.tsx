@@ -24,6 +24,7 @@ import {
   COMPANY_TYPE_SLUGS,
 } from "@/features/company/constants";
 import { client as orpcClient } from "@/lib/orpc";
+import posthog from "posthog-js";
 
 const signUpSchema = z
   .object({
@@ -253,6 +254,15 @@ export function SignupForm() {
           if (session.data) {
             await persistCompanyType(data.companyType);
             await consumePartnerReferral();
+            posthog.identify(session.data.user.id, {
+              email: data.email,
+              name: data.name.trim(),
+              company_type: data.companyType,
+            });
+            posthog.capture("user_signed_up", {
+              method: "email",
+              company_type: data.companyType,
+            });
             toast.success("🚀 Conta criada! Bem-vindo ao NASA.ex!");
             // Hard navigation — bypassa o Router Cache do Next (RSC),
             // que mantém versão "deslogada" e causa loop sign-up → sign-in.
@@ -275,6 +285,17 @@ export function SignupForm() {
 
       await persistCompanyType(data.companyType);
       await consumePartnerReferral();
+      if (result.data?.user) {
+        posthog.identify(result.data.user.id, {
+          email: data.email,
+          name: data.name.trim(),
+          company_type: data.companyType,
+        });
+      }
+      posthog.capture("user_signed_up", {
+        method: "email",
+        company_type: data.companyType,
+      });
       toast.success("🚀 Conta criada! Bem-vindo ao NASA.ex!");
       // Hard navigation — invalida Router Cache do Next que estaria
       // com versão "deslogada" da home, causando loop pós cadastro.

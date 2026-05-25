@@ -14,6 +14,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { createCheckoutSession } from "@/lib/stripe";
 import { z } from "zod";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 const BodySchema = z.object({
   priceId:    z.string(),
@@ -70,6 +71,20 @@ export async function POST(req: NextRequest) {
       itemSlug,
       customerEmail: session.user.email,
     });
+
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: session.user.id,
+      event: "stripe_checkout_initiated",
+      properties: {
+        item_type: itemType,
+        item_slug: itemSlug,
+        mode,
+        organization_id: org.id,
+        stripe_session_id: sessionId,
+      },
+    });
+    await posthog.shutdown();
 
     return NextResponse.json({ url, sessionId });
   } catch (err) {

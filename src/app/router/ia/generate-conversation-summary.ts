@@ -139,6 +139,7 @@ export const generateConversationSummary = base
         },
       ],
       temperature: 0.2,
+      experimental_telemetry: { isEnabled: true, functionId: "generate-conversation-summary" },
     });
 
     return streamToEventIterator(result.toUIMessageStream());

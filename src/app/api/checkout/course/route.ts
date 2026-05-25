@@ -22,6 +22,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { getStripe } from "@/lib/stripe";
 import { getStarPriceBrl } from "@/features/nasa-route/lib/pricing";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 const BodySchema = z.object({
   courseId: z.string().min(1),
@@ -231,6 +232,22 @@ export async function POST(req: NextRequest) {
             : null,
       },
     });
+
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: normalizedEmail,
+      event: "course_checkout_started",
+      properties: {
+        course_id: course.id,
+        course_title: course.title,
+        plan_id: plan.id,
+        plan_name: plan.name,
+        amount_brl_cents: amountBrlCents,
+        flow: "public",
+        pending_id: pending.id,
+      },
+    });
+    await posthog.shutdown();
 
     return NextResponse.json({ url: session.url, pendingId: pending.id });
   } catch (err) {

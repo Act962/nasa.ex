@@ -79,6 +79,11 @@ Responda APENAS com um JSON válido no seguinte formato (sem markdown, sem expli
       model: anthropic("claude-haiku-4-5-20251001"),
       prompt,
       maxOutputTokens: 1500,
+      experimental_telemetry: {
+        isEnabled: true,
+        functionId: "extract-brand",
+        metadata: { posthog_distinct_id: session.user.id },
+      },
     });
 
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();

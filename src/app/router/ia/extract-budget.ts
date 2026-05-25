@@ -154,6 +154,11 @@ export const extractBudget = base
       const { object } = await generateObject({
         model: anthropic("claude-haiku-4-5-20251001"),
         schema: budgetSchema,
+        experimental_telemetry: {
+          isEnabled: true,
+          functionId: "extract-budget",
+          metadata: { posthog_distinct_id: context.user.id },
+        },
         messages: [
           {
             role: "user",
