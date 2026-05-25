@@ -16,6 +16,7 @@ import {
   triggerFirstChatInteractionIfFirst,
 } from "./utils";
 import { MessageChannel } from "@/generated/prisma/enums";
+import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 
 export const createMessageWithImage = base
   .use(requiredAuthMiddleware)
@@ -37,6 +38,25 @@ export const createMessageWithImage = base
   )
   .handler(async ({ input, context }) => {
     try {
+      // Cobra 1★ antes de chamar uazapi — evita custo de API sem saldo.
+      const conv = await prisma.conversation.findUnique({
+        where: { id: input.conversationId },
+        select: { channel: true, tracking: { select: { organizationId: true } } },
+      });
+      if (conv?.tracking?.organizationId) {
+        await chargeMessageOutbound({
+          organizationId: conv.tracking.organizationId,
+          userId: context.user.id,
+          channel:
+            conv.channel === MessageChannel.INSTAGRAM
+              ? "instagram"
+              : conv.channel === MessageChannel.FACEBOOK
+                ? "facebook"
+                : "whatsapp",
+          mediaType: "image",
+        });
+      }
+
       const response = await sendMedia(input.token, {
         file: useConstructUrl(input.mediaUrl),
         text: input.body,

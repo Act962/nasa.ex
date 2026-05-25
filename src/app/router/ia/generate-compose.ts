@@ -1,13 +1,16 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { base } from "@/app/middlewares/base";
 import { z } from "zod";
 import { streamText } from "ai";
 import { streamToEventIterator } from "@orpc/client";
 import prisma from "@/lib/prisma";
 import { google } from "@ai-sdk/google";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 export const generateCompose = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "POST",
     path: "/ai/compose/generate",
@@ -20,8 +23,21 @@ export const generateCompose = base
       conversationId: z.string(),
     }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
     const { content, conversationId } = input;
+
+    // Cobra 2★ antes de chamar Gemini — evita gastar token sem saldo.
+    const charge = await chargeStarsByAction(context.org.id, "generate_compose", {
+      userId: context.user.id,
+      appSlug: "generate_compose",
+      description: "Composição IA (Gemini)",
+    });
+    if (!charge.success) {
+      throw errors.BAD_REQUEST({
+        message: "Saldo de STARs insuficiente pra compor mensagem com IA (2★).",
+        data: { code: "INSUFFICIENT_STARS" },
+      });
+    }
 
     const conversation = await prisma.conversation.findUnique({
       where: {

@@ -23,6 +23,8 @@ export interface StarBalance {
   planName: string;
   cycleStart: Date | null;
   nextCycleDate: Date | null;
+  graceStartedAt: Date | null;
+  suspendedAt: Date | null;
 }
 
 export interface DebitOpts {
@@ -52,6 +54,8 @@ export async function checkBalance(organizationId: string): Promise<StarBalance>
       starsBalance: true,
       starsBonusBalance: true,
       starsCycleStart: true,
+      starsGraceStartedAt: true,
+      starsSuspendedAt: true,
       plan: {
         select: { slug: true, name: true, monthlyStars: true },
       },
@@ -102,6 +106,8 @@ export async function checkBalance(organizationId: string): Promise<StarBalance>
     planName: plan.name,
     cycleStart: org.starsCycleStart,
     nextCycleDate,
+    graceStartedAt: org.starsGraceStartedAt,
+    suspendedAt: org.starsSuspendedAt,
   };
 }
 
@@ -251,7 +257,141 @@ export async function debitStars(
     }
   }
 
+  // ── 3. Hook pós-débito: dispara alertas + inicia grace period ────────────
+  // Não-crítico: falha silenciosa pra não bloquear a operação principal.
+  if (result.success) {
+    try {
+      await dispatchPostDebitAlerts(organizationId, result.newBalance);
+    } catch (err) {
+      console.warn("[star-service] post-debit alert dispatch failed", err);
+    }
+  }
+
   return result;
+}
+
+/**
+ * Pós-débito: verifica % consumido vs limite do plano e dispara
+ * notificações em níveis (70% warn, 90% critical). Inicia grace period
+ * se saldo zerou pela primeira vez.
+ *
+ * Anti-spam: `Organization.starsLastAlertAt` garante no máximo 1
+ * dispatch/24h por severidade — evita flood na bell quando o user
+ * consome muito num curto período.
+ */
+async function dispatchPostDebitAlerts(
+  organizationId: string,
+  newBalance: number,
+): Promise<void> {
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: {
+      name: true,
+      planId: true,
+      starsCycleStart: true,
+      starsGraceStartedAt: true,
+      starsSuspendedAt: true,
+      starsLastAlertAt: true,
+    },
+  });
+  if (!org) return;
+
+  // 1) Saldo zerou agora e ainda não está em grace → inicia grace + notif.
+  if (newBalance === 0 && !org.starsGraceStartedAt && !org.starsSuspendedAt) {
+    await prisma.organization.update({
+      where: { id: organizationId },
+      data: { starsGraceStartedAt: new Date() },
+    });
+    await emitStarsAlert(organizationId, "grace_start", {
+      orgName: org.name,
+      daysLeft: 15,
+    });
+    return; // Não disparamos outros alertas — grace é o evento mais grave
+  }
+
+  // 2) Alertas de threshold — só fazem sentido com plano ativo + ciclo iniciado
+  if (!org.planId || !org.starsCycleStart) return;
+
+  const plan = await prisma.plan.findUnique({
+    where: { id: org.planId },
+    select: { monthlyStars: true },
+  });
+  if (!plan?.monthlyStars || plan.monthlyStars <= 0) return;
+
+  // Consumo do ciclo: soma absoluta dos débitos APP_CHARGE/SETUP.
+  const consumedAgg = await prisma.starTransaction.aggregate({
+    where: {
+      organizationId,
+      createdAt: { gte: org.starsCycleStart },
+      type: { in: ["APP_CHARGE", "APP_SETUP"] },
+    },
+    _sum: { amount: true },
+  });
+  const consumed = Math.abs(consumedAgg._sum.amount ?? 0);
+  const pctUsed = (consumed / plan.monthlyStars) * 100;
+
+  const severity: "critical" | "warning" | null =
+    pctUsed >= 90 ? "critical" : pctUsed >= 70 ? "warning" : null;
+  if (!severity) return;
+
+  // Anti-spam: 1 dispatch / 24h.
+  const lastAlertAt = org.starsLastAlertAt;
+  if (lastAlertAt) {
+    const hoursSince = (Date.now() - lastAlertAt.getTime()) / (1000 * 60 * 60);
+    if (hoursSince < 24) return;
+  }
+
+  await emitStarsAlert(organizationId, severity, {
+    orgName: org.name,
+    pctUsed: Math.round(pctUsed),
+  });
+  await prisma.organization.update({
+    where: { id: organizationId },
+    data: { starsLastAlertAt: new Date() },
+  });
+}
+
+/**
+ * Dispara notificação `STARS_ALERT` pra todos os moderadores/owners da
+ * org. Usa o pattern existente do `notification-service` — broadcast
+ * Pusher no canal `private-org-${id}` + bell icon.
+ */
+async function emitStarsAlert(
+  organizationId: string,
+  severity: "warning" | "critical" | "grace_start",
+  ctx: { orgName: string; pctUsed?: number; daysLeft?: number },
+): Promise<void> {
+  // Import dinâmico pra evitar ciclo de import (notification-service usa
+  // o stars-service em outro caminho potencial).
+  const { createOrgNotification } = await import(
+    "@/features/admin/lib/notification-service"
+  );
+
+  const cfg = {
+    warning: {
+      title: "Saldo de STARs baixo",
+      body: `Você já usou ${ctx.pctUsed}% do plano deste ciclo. Considere recarregar.`,
+      severity: "warning" as const,
+    },
+    critical: {
+      title: "Saldo crítico de STARs",
+      body: `${ctx.pctUsed}% do plano consumido. Integrações pagas serão pausadas se zerar.`,
+      severity: "critical" as const,
+    },
+    grace_start: {
+      title: "Saldo de STARs zerou",
+      body: `Você tem ${ctx.daysLeft} dias pra recarregar. Após isso a conta será suspensa.`,
+      severity: "critical" as const,
+    },
+  }[severity];
+
+  await createOrgNotification({
+    organizationId,
+    type: "STARS_ALERT",
+    severity: cfg.severity,
+    title: cfg.title,
+    body: cfg.body,
+  });
 }
 
 // ─── Credit (internal) ────────────────────────────────────────────────────────

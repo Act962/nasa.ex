@@ -17,6 +17,8 @@ export const getStarBalance = base
       planName: z.string(),
       cycleStart: z.date().nullable(),
       nextCycleDate: z.date().nullable(),
+      graceStartedAt: z.date().nullable(),
+      suspendedAt: z.date().nullable(),
     })
   )
   .handler(async ({ context }) => {

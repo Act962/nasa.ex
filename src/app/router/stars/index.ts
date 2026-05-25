@@ -12,6 +12,7 @@ import { getStarDistribution } from "./get-distribution";
 import { setStarDistribution } from "./set-distribution";
 import { setMemberBudget } from "./set-member-budget";
 import { getStarsUsageBreakdown } from "./get-usage-breakdown";
+import { getStarsDailyConsumption } from "./get-daily-consumption";
 import { listStarActionCosts } from "./list-action-costs";
 
 export const starsRouter = {
@@ -29,5 +30,6 @@ export const starsRouter = {
   setDistribution: setStarDistribution,
   setMemberBudget,
   getUsageBreakdown: getStarsUsageBreakdown,
+  getDailyConsumption: getStarsDailyConsumption,
   listActionCosts: listStarActionCosts,
 };
