@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 export async function POST(req: NextRequest) {
   try {
@@ -126,6 +127,19 @@ export async function POST(req: NextRequest) {
       where: { id: proposalId },
       data: { paymentLink, paymentGateway: gateway as never },
     });
+
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: session.user.id,
+      event: "forge_payment_link_generated",
+      properties: {
+        proposal_id: proposalId,
+        gateway,
+        amount,
+        organization_id: proposal.organizationId,
+      },
+    });
+    await posthog.shutdown();
 
     return NextResponse.json({ ok: true, paymentLink });
   } catch (err) {

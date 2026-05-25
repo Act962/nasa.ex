@@ -61,6 +61,11 @@ Seja específico, direto, sem textos longos. Use emojis para tornar visual. Máx
       model: anthropic("claude-haiku-4-5-20251001"),
       prompt,
       maxOutputTokens: 600,
+      experimental_telemetry: {
+        isEnabled: true,
+        functionId: "generate-guide",
+        metadata: { posthog_distinct_id: session.user.id },
+      },
     });
 
     return NextResponse.json({ guide: text });

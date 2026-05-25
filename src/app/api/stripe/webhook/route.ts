@@ -21,6 +21,7 @@ import { processPaymentPartnerEffects } from "@/features/partner/lib/partner-ser
 import { inngest } from "@/inngest/client";
 import { finalizeStripePurchaseInTx } from "@/app/router/nasa-route/helpers/purchase-helpers";
 import { createPurchaseSideEffects } from "@/app/router/nasa-route/helpers/purchase-crm-side-effects";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 const SIGNUP_TOKEN_TTL_DAYS = 7;
 
@@ -164,6 +165,22 @@ export async function POST(req: NextRequest) {
                 );
               }
 
+              const posthog = getPostHogClient();
+              posthog.capture({
+                distinctId: pending.userId!,
+                event: "course_purchase_webhook_completed",
+                properties: {
+                  course_id: pending.courseId,
+                  course_title: pending.course.title,
+                  plan_id: pending.plan!.id,
+                  plan_name: pending.plan!.name,
+                  amount_brl_cents: pending.amountBrlCents,
+                  flow: "authenticated",
+                  pending_id: pendingId,
+                },
+              });
+              await posthog.shutdown();
+
               console.log(
                 `[stripe/webhook] ✅ course_purchase (auth) finalized: pendingId=${pendingId}`,
               );
@@ -229,6 +246,19 @@ export async function POST(req: NextRequest) {
               console.error("[stripe/webhook] partner effects failed:", err);
             }
 
+            const posthog = getPostHogClient();
+            posthog.capture({
+              distinctId: sp.organizationId,
+              event: "stars_topup_purchased",
+              properties: {
+                organization_id: sp.organizationId,
+                package_id: sp.packageId,
+                stars_amount: sp.starsAmount,
+                stars_payment_id: starsPaymentId,
+              },
+            });
+            await posthog.shutdown();
+
             console.log(`[stripe/webhook] ✅ ${sp.starsAmount} stars credited via gateway checkout`);
           }
           break;
@@ -264,6 +294,22 @@ export async function POST(req: NextRequest) {
           // itemSlug é o packageId
           await purchaseTopUp(organizationId, itemSlug);
         }
+
+        if (itemType === "plan" || itemType === "topup") {
+          const posthog = getPostHogClient();
+          posthog.capture({
+            distinctId: organizationId,
+            event: itemType === "plan" ? "plan_purchased" : "stars_topup_purchased",
+            properties: {
+              organization_id: organizationId,
+              item_type: itemType,
+              item_slug: itemSlug,
+              stripe_session_id: session.id,
+            },
+          });
+          await posthog.shutdown();
+        }
+
         break;
       }
 

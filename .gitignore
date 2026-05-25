@@ -46,3 +46,4 @@ next-env.d.ts
 /.claude/public/uploads/
 .claude
 .cursor/
+.env.local

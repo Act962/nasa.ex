@@ -187,6 +187,11 @@ export async function POST(request: NextRequest) {
     // Segurança: limitar contexto para não vazar dados entre sessões
     maxOutputTokens: 2048,
     temperature: 0.3,
+    experimental_telemetry: {
+      isEnabled: true,
+      functionId: "public-booking-chat",
+      metadata: { org_slug: orgSlug, agenda_slug: agendaSlug },
+    },
   });
 
   return result.toUIMessageStreamResponse();

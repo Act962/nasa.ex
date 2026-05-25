@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { client as orpcClient } from "@/lib/orpc";
 import { AlertCircle, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import posthog from "posthog-js";
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_ATTEMPTS = 30;
@@ -43,6 +44,11 @@ export function AuthenticatedSuccessPolling({ pendingId }: Props) {
         if (cancelled) return;
 
         if (data.status === "PAID" || data.status === "REDEEMED") {
+          posthog.capture("course_purchase_confirmed", {
+            course_id: data.course.id,
+            course_title: data.course.title,
+            pending_id: pendingId,
+          });
           setState({
             kind: "paid",
             courseId: data.course.id,

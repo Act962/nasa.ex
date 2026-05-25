@@ -75,6 +75,7 @@ export const generateCompose = base
           content,
         },
       ],
+      experimental_telemetry: { isEnabled: true, functionId: "generate-compose" },
     });
 
     return streamToEventIterator(result.toUIMessageStream());

@@ -10,6 +10,7 @@ export async function POST(request: Request) {
     model: openai("gpt-4o-mini"),
     system: `Você é um agente da plataforma NASA.ex, que é responsável por responder perguntas sobre a NASA e seus projetos.`,
     messages: modelMessages,
+    experimental_telemetry: { isEnabled: true, functionId: "chat-agent" },
   });
 
   return result.toUIMessageStreamResponse();

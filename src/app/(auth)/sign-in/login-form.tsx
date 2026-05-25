@@ -9,6 +9,7 @@ import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { useQueryState } from "nuqs";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 
 const signInSchema = z.object({
   email: z.string().email("E-mail inválido"),
@@ -180,6 +181,8 @@ export function LoginForm() {
         if (isOrgFalsePositive) {
           const session = await authClient.getSession();
           if (session.data) {
+            posthog.identify(session.data.user.id, { email: session.data.user.email });
+            posthog.capture("user_signed_in", { method: "email" });
             toast.success("✅ Login realizado com sucesso!");
             // Hard navigation — bypassa o Router Cache do Next (RSC),
             // que mantém versão "deslogada" de `/home` em memória
@@ -201,6 +204,10 @@ export function LoginForm() {
         return;
       }
 
+      if (result.data?.user) {
+        posthog.identify(result.data.user.id, { email: result.data.user.email });
+      }
+      posthog.capture("user_signed_in", { method: "email" });
       toast.success("✅ Login realizado com sucesso!");
       // Hard navigation pós-login — força o browser a buscar `/home`
       // do zero, invalidando o Router Cache (RSC) + Fetch Cache do

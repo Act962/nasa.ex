@@ -192,6 +192,11 @@ async function runSubAgent(opts: {
     tools: agent.buildTools(ctx),
     messages,
     stopWhen: ({ steps }) => steps.length >= 8,
+    experimental_telemetry: {
+      isEnabled: true,
+      functionId: `astro-sub-agent-${agent.key}`,
+      metadata: { posthog_distinct_id: ctx.userId },
+    },
   });
   return text;
 }
@@ -235,6 +240,11 @@ export function streamAstro(opts: {
           tools: pinned.buildTools(ctx),
           messages: modelMessages,
           stopWhen: ({ steps }) => steps.length >= 8,
+          experimental_telemetry: {
+            isEnabled: true,
+            functionId: `astro-pinned-${ctx.pinnedAgentKey}`,
+            metadata: { posthog_distinct_id: ctx.userId },
+          },
         });
       }
     }
@@ -323,6 +333,11 @@ export function streamAstro(opts: {
       // Mais steps: orchestrator pode chamar várias tools de leitura
       // antes de responder (ex: get_tracking_overview + list_leads).
       stopWhen: ({ steps }) => steps.length >= 10,
+      experimental_telemetry: {
+        isEnabled: true,
+        functionId: "astro-orchestrator",
+        metadata: { posthog_distinct_id: ctx.userId },
+      },
     });
   })();
 }

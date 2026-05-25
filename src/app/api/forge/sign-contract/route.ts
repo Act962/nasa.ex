@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 export async function POST(req: NextRequest) {
   try {
@@ -54,6 +55,19 @@ export async function POST(req: NextRequest) {
         status: allSigned ? "ATIVO" : contract.status,
       },
     });
+
+    const signer = signers[idx];
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: signer.email,
+      event: "contract_signed",
+      properties: {
+        contract_id: contractId,
+        sign_method: method ?? "manual",
+        all_signed: allSigned,
+      },
+    });
+    await posthog.shutdown();
 
     return NextResponse.json({ ok: true, allSigned });
   } catch (err) {
