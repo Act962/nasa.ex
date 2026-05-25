@@ -8,7 +8,6 @@ import { blastInChatLink } from "./blast-in-chat-link";
 import { getInChatStatus } from "./get-in-chat-status";
 import { importExistingChats } from "./import-existing-chats";
 import { startFromGroupParticipant } from "./start-from-group-participant";
-import { syncNowConversation } from "./sync-now";
 
 export const conversationRouter = {
   list: listConversation,
@@ -21,5 +20,4 @@ export const conversationRouter = {
   getInChatStatus,
   importExistingChats,
   startFromGroupParticipant,
-  syncNow: syncNowConversation,
 };

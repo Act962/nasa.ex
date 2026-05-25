@@ -350,6 +350,7 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
     stars: 5,
     cooldownHours: null,
     category: "chat",
+  },
   // ── NASA Planner 2.0 — Sprint 1 (Brand Kit + 5W2H + Chat IA) ──
   // Disparadas por procedures novas em src/app/router/brand/* e
   // src/app/router/nasa-planner/* (campaign-brief / ai-chat-route).

@@ -8,7 +8,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { orpc, client } from "@/lib/orpc";
+import { orpc } from "@/lib/orpc";
 import { Button } from "@/components/ui/button";
 import { EmptyChat } from "./empty-chat";
 import { Spinner } from "@/components/ui/spinner";
@@ -98,73 +98,6 @@ export function Body({ messageSelected, onSelectMessage, conversationId: convers
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
-
-  // ── DEV-ONLY: polling de sync de mensagens ─────────────────────────────
-  //
-  // Em produção, o webhook da uazapi (`/api/chat/webhook`) entrega
-  // mensagens recebidas em tempo real via Pusher. Em dev (localhost), a
-  // uazapi não consegue acessar `localhost:3000` — então mensagens nunca
-  // chegam ao banco automaticamente.
-  //
-  // Workaround dev: a cada 15s, chamamos `conversation.syncNow` que pega
-  // as últimas 30 mensagens via `uazapi /message/find` (não depende de
-  // webhook) e salva as novas no banco. Quando o backend cria mensagem
-  // nova, o React Query refetch via `invalidateQueries` re-renderiza a UI.
-  //
-  // **Por que não em prod**: webhook já funciona lá. Polling extra seria
-  // request inútil + custo de uazapi rate-limited.
-  //
-  // **Por que não usar `refetchInterval` do React Query direto**: a
-  // `message.list` só lê do banco — não puxa do uazapi. Polling tem que
-  // chamar `syncNow` ANTES de invalidate pra trazer dados novos.
-  const isDev = process.env.NODE_ENV === "development";
-  useEffect(() => {
-    if (!isDev || !conversationId) return;
-    let cancelled = false;
-
-    console.info(
-      `[chat-poll] iniciando polling de sync (15s) — conv=${conversationId.slice(0, 8)}...`,
-    );
-
-    const tick = async () => {
-      if (cancelled) return;
-      try {
-        const res = await client.conversation.syncNow({
-          conversationId,
-          limit: 30,
-        });
-        if (cancelled) return;
-        // Log verboso só em dev — facilita confirmar que o polling tá
-        // rodando e identificar se a uazapi tá devolvendo nada.
-        if (res.imported > 0) {
-          console.info(
-            `[chat-poll] importou ${res.imported} mensagem(ns) nova(s), invalidando cache`,
-          );
-          queryClient.invalidateQueries({
-            queryKey: ["message.list", conversationId],
-          });
-        } else {
-          console.debug(
-            `[chat-poll] sem novidades (skip=${res.skipped}, conv=${conversationId.slice(0, 8)}...)`,
-          );
-        }
-      } catch (err) {
-        // Em dev, logar o erro pra diagnosticar (sem polling se a instância
-        // está offline OU se a procedure não foi carregada no servidor).
-        console.warn("[chat-poll] sync falhou:", err);
-      }
-    };
-
-    // Tick inicial após 2s (não bloqueia render) + intervalo de 15s
-    const initialTimer = setTimeout(tick, 2000);
-    const interval = setInterval(tick, 15_000);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(initialTimer);
-      clearInterval(interval);
-    };
-  }, [conversationId, isDev, queryClient]);
 
   const items = useMemo(() => {
     const flattened = data?.pages.flatMap((p) => p.items) ?? [];

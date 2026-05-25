@@ -333,9 +333,6 @@ model Organization {
   // `migrate dev` (o diff prisma compara DB ↔ schema e droparia o que
   // está só no DB). Quando PR #68 mergear, é apenas resolver conflito
   // de schema.prisma (escolher "both") — semanticamente idêntico.
-  starsGraceStartedAt DateTime? @map("stars_grace_started_at")
-  starsSuspendedAt    DateTime? @map("stars_suspended_at")
-  starsLastAlertAt    DateTime? @map("stars_last_alert_at")
 
   // ── Brand Kit consolidado (NASA Planner 2.0) ──
   // Populado pela extração automática via Claude Vision (extract-from-logo)
