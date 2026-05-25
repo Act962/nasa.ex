@@ -67,8 +67,9 @@ export async function POST(request: NextRequest) {
       }
 
       const fromMe = json.message.fromMe;
-      const name =
-        json.message.senderName || json.chat?.name || "Sem nome";
+      const name = fromMe
+        ? (json.chat?.wa_contactName || json.chat?.name || "Sem nome")
+        : (json.message.senderName || json.chat?.wa_contactName || json.chat?.name || "Sem nome");
 
       const phone = json.message.chatid.split("@")[0];
       const remoteJid = json.message.chatid;
