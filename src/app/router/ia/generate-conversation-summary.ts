@@ -1,4 +1,5 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -6,9 +7,15 @@ import { streamText } from "ai";
 import { google } from "@ai-sdk/google";
 import { streamToEventIterator } from "@orpc/client";
 import dayjs from "dayjs";
+import {
+  buildBrandedContext,
+  prependBrandToTextSystem,
+} from "@/features/nasa-planner/lib/brand-context";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 export const generateConversationSummary = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "GET",
     path: "/ai/conversation/summary",
@@ -22,14 +29,28 @@ export const generateConversationSummary = base
       dateEnd: z.string(),
     }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
     const { conversationId, dateInit, dateEnd } = input;
+
+    // Cobra 2★ antes de chamar Gemini.
+    const charge = await chargeStarsByAction(context.org.id, "generate_summary", {
+      userId: context.user.id,
+      appSlug: "generate_summary",
+      description: "Resumo de Conversa (Gemini)",
+    });
+    if (!charge.success) {
+      throw errors.BAD_REQUEST({
+        message: "Saldo de STARs insuficiente pra resumir a conversa com IA (2★).",
+        data: { code: "INSUFFICIENT_STARS" },
+      });
+    }
 
     const conversation = await prisma.conversation.findUnique({
       where: {
         id: conversationId,
       },
       include: {
+        tracking: { select: { organizationId: true } },
         messages: {
           take: 20,
           where: {
@@ -92,7 +113,7 @@ export const generateConversationSummary = base
 
     const compiled = lines.join("\n");
 
-    const system = [
+    const baseSystem = [
       `
        Você é um assistente especializado em análise de conversas de atendimento ao cliente.
 
@@ -128,6 +149,14 @@ export const generateConversationSummary = base
       Liste possíveis ações necessárias.
       `,
     ].join("\n");
+
+    // Brand context: prefixa identidade da marca no system prompt pra
+    // o resumo "soar como a marca" (mantendo ICP/tom de voz definido).
+    const orgId = conversation.tracking?.organizationId ?? null;
+    const brandCtx = orgId ? await buildBrandedContext(orgId) : null;
+    const system = brandCtx
+      ? prependBrandToTextSystem(baseSystem, brandCtx)
+      : baseSystem;
 
     const result = streamText({
       model: google("gemini-2.5-flash"),

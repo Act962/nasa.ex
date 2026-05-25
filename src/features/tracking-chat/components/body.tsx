@@ -41,9 +41,12 @@ interface BodyProps {
   onSelectMessage: (message: MarkedMessage) => void;
   conversationId?: string;
   trackingId?: string;
+  /** True quando a conversa é um grupo do WhatsApp — ativa renderização
+   *  de nome+cor por participante nas mensagens recebidas (estilo WhatsApp). */
+  isGroup?: boolean;
 }
 
-export function Body({ messageSelected, onSelectMessage, conversationId: conversationIdProp, trackingId }: BodyProps) {
+export function Body({ messageSelected, onSelectMessage, conversationId: conversationIdProp, trackingId, isGroup }: BodyProps) {
   const params = useParams<{ conversationId: string }>();
   const conversationId = conversationIdProp ?? params.conversationId;
   const [saveToNBoxMessage, setSaveToNBoxMessage] = useState<Message | null>(null);
@@ -362,13 +365,60 @@ export function Body({ messageSelected, onSelectMessage, conversationId: convers
       updateCacheWithNewMessage(body);
     };
 
+    // Atualização in-place de uma mensagem específica (ex: revoke do
+    // WhatsApp → status DELETED, soft delete do atendente, etc.).
+    // Patch direto no cache do React Query pra evitar refetch da
+    // página inteira.
+    const messageUpdatedHandler = (payload: {
+      messageId: string;
+      conversationId: string;
+      status?: string;
+    }) => {
+      if (payload.conversationId !== conversationId) return;
+      queryClient.setQueryData(
+        ["message.list", conversationId],
+        (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page: any) => ({
+              ...page,
+              items: page.items.map((group: any) => ({
+                ...group,
+                messages: group.messages.map((msg: Message) =>
+                  msg.id === payload.messageId
+                    ? {
+                        ...msg,
+                        // DELETED limpa todos os campos visuais — o
+                        // backend já fez isso, mas garante consistência
+                        // se a notificação chegar antes da resposta.
+                        status: (payload.status ?? msg.status) as MessageStatus,
+                        ...(payload.status === "DELETED" && {
+                          body: null,
+                          mediaUrl: null,
+                          mediaType: null,
+                          mimetype: null,
+                          fileName: null,
+                        }),
+                      }
+                    : msg,
+                ),
+              })),
+            })),
+          };
+        },
+      );
+    };
+
     pusherClient.bind("message:created", messageCreatedHandler);
     pusherClient.bind("message:new", messageNewHandler);
+    pusherClient.bind("message:updated", messageUpdatedHandler);
 
     return () => {
       pusherClient.unsubscribe(conversationId);
       pusherClient.unbind("message:new", messageNewHandler);
       pusherClient.unbind("message:created", messageCreatedHandler);
+      pusherClient.unbind("message:updated", messageUpdatedHandler);
       bottomRef.current?.scrollIntoView({ block: "end" });
     };
   }, [conversationId, queryClient, session.data?.user.id]);
@@ -413,7 +463,17 @@ export function Body({ messageSelected, onSelectMessage, conversationId: convers
         />
       )}
       <div
-        className="flex-1 min-h-0 overflow-y-auto scroll-cols-tracking relative"
+        // Background NASA estilo WhatsApp Web — JPG comprimido (q=70).
+        // Desktop horizontal + mobile vertical. ~178KB cada (vs 1.3MB do
+        // PNG original). `bg-fixed` mantém o pattern parado durante scroll
+        // e cacheado entre conversas (1 request por sessão).
+        className={cn(
+          "flex-1 min-h-0 overflow-y-auto scroll-cols-tracking relative",
+          "bg-[url('/chat-bg/mobile.jpg')] md:bg-[url('/chat-bg/desktop.jpg')]",
+          "bg-cover bg-center bg-fixed",
+          // Fallback caso a imagem não carregue
+          "bg-[#dbe9f7] dark:bg-zinc-900",
+        )}
         ref={scrollRef}
         onScroll={handleScroll}
       >
@@ -450,6 +510,7 @@ export function Body({ messageSelected, onSelectMessage, conversationId: convers
                     messageSelected={messageSelected}
                     conversationId={conversationId}
                     trackingId={trackingId}
+                    isGroup={isGroup}
                   />
                 ))}
               </div>

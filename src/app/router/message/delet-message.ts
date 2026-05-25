@@ -4,6 +4,8 @@ import z from "zod";
 import { deleteMessage } from "@/http/uazapi/delete-message";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
+import { MessageStatus } from "@/generated/prisma/enums";
+import { pusherServer } from "@/lib/pusher";
 
 export const deleteMessageHandler = base
   .use(requiredAuthMiddleware)
@@ -48,11 +50,32 @@ export const deleteMessageHandler = base
         throw new Error("Message not found");
       }
 
-      await prisma.message.delete({
-        where: {
-          messageId: input.id,
+      // Soft delete — mantém o registro mas marca como DELETED + limpa
+      // body/mídia. UI exibe "🚫 Mensagem apagada" em itálico (estilo
+      // WhatsApp). Evita perder o slot na timeline + permite auditoria.
+      const updated = await prisma.message.update({
+        where: { messageId: input.id },
+        data: {
+          status: MessageStatus.DELETED,
+          body: null,
+          mediaUrl: null,
+          mediaType: null,
+          mediaCaption: null,
+          mimetype: null,
+          fileName: null,
         },
+        select: { id: true, conversationId: true },
       });
+
+      // Dispara evento real-time pros atendentes que estão com a conversa
+      // aberta verem o "Mensagem apagada" sem precisar refresh.
+      pusherServer
+        .trigger(updated.conversationId, "message:updated", {
+          messageId: updated.id,
+          conversationId: updated.conversationId,
+          status: MessageStatus.DELETED,
+        })
+        .catch(() => {});
 
       if (messageBefore?.conversation?.tracking?.organizationId) {
         const conv = messageBefore.conversation;

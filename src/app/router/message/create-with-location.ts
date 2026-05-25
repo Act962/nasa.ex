@@ -11,10 +11,12 @@ import { MessageChannel } from "@/generated/prisma/enums";
 import z from "zod";
 import {
   attendLeadIfWaiting,
+  updateConversationLastMessage,
   claimLeadForAttendant,
   logChatMessageSent,
   triggerFirstChatInteractionIfFirst,
 } from "./utils";
+import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 
 export const createLocationMessage = base
   .use(requiredAuthMiddleware)
@@ -49,6 +51,21 @@ export const createLocationMessage = base
 
       const channel = conversation?.channel ?? MessageChannel.WHATSAPP;
       const organizationId = conversation?.tracking?.organizationId;
+
+      // Cobra 1★ antes de chamar uazapi — evita custo de API sem saldo.
+      if (organizationId) {
+        await chargeMessageOutbound({
+          organizationId,
+          userId: context.user.id,
+          channel:
+            channel === MessageChannel.INSTAGRAM
+              ? "instagram"
+              : channel === MessageChannel.FACEBOOK
+                ? "facebook"
+                : "whatsapp",
+          mediaType: "location",
+        });
+      }
 
       const response = await sendLocation(input.token, {
         number: input.leadPhone,
@@ -122,6 +139,7 @@ export const createLocationMessage = base
       );
 
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+      await updateConversationLastMessage(message.conversationId, message.id, message.createdAt);
       await claimLeadForAttendant(message.conversation.lead.id, context.user.id);
 
       await triggerFirstChatInteractionIfFirst({
