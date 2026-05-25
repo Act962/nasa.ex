@@ -2,13 +2,13 @@
 
 import {
   DndContext,
+  DragCancelEvent,
   DragEndEvent,
   DragOverEvent,
   DragOverlay,
   DragStartEvent,
   KeyboardSensor,
   MouseSensor,
-  PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -31,6 +31,7 @@ import { createPortal } from "react-dom";
 import { LeadItem } from "./lead-item";
 import { Decimal } from "@prisma/client/runtime/client";
 import { useKanbanStore } from "../lib/kanban-store";
+import { useLeadStore } from "../contexts/use-lead";
 import { Lead } from "../types";
 import { useLostOrWin } from "@/hooks/use-lost-or-win";
 import { useDeletLead } from "@/hooks/use-delete-lead";
@@ -115,6 +116,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
   const moveLeadInColumn = useKanbanStore((s) => s.moveLeadInColumn);
   const moveLeadToColumn = useKanbanStore((s) => s.moveLeadToColumn);
   const setIsDragging = useKanbanStore((s) => s.setIsDragging);
+  const setActiveDragLeadId = useKanbanStore((s) => s.setActiveDragLeadId);
 
   const { onOpen } = useLostOrWin();
   const { onOpen: onOpenDeleteLead } = useDeletLead();
@@ -126,23 +128,17 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
       distance: 10,
     },
   });
-  const pointerSensor = useSensor(PointerSensor);
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
       delay: 250,
-      tolerance: 5,
+      tolerance: 10,
     },
   });
   const keyboardSensor = useSensor(KeyboardSensor, {
     coordinateGetter: sortableKeyboardCoordinates,
   });
 
-  const sensors = useSensors(
-    mouseSensor,
-    pointerSensor,
-    touchSensor,
-    keyboardSensor,
-  );
+  const sensors = useSensors(mouseSensor, touchSensor, keyboardSensor);
 
   const columnIds = useMemo(() => columnList.map((s) => s.id), [columnList]);
 
@@ -162,9 +158,13 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
           .getLeadNeighbors(lead.statusId, lead.id);
         setOriginalNeighbors({ ...neighbors, statusId: lead.statusId });
         setActiveLead(lead);
+        setActiveDragLeadId(lead.id);
+        // Remove da seleção ao começar o drag — evita que a borda de "selecionado"
+        // persista no card após o move (o usuário arrastou, não clicou pra selecionar).
+        useLeadStore.getState().removeLead(lead.id);
       }
     },
-    [setIsDragging],
+    [setIsDragging, setActiveDragLeadId],
   );
 
   const onDragEnd = useCallback(
@@ -174,6 +174,10 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
       setIsDragging(false);
       setActiveColumn(null);
       setActiveLead(null);
+      // Limpa com delay para bloquear o click do DragOverlay: o browser dispara
+      // click após pointerup no mesmo task JS — se limpássemos aqui de forma
+      // síncrona, o flag já estaria null quando handleSelect rodasse.
+      setTimeout(() => setActiveDragLeadId(null), 0);
 
       if (!over) return;
 
@@ -305,6 +309,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
       onOpenDeleteLead,
       originalNeighbors,
       setIsDragging,
+      setActiveDragLeadId,
       trackingId,
       updateColumnOrder,
       updateLeadOrder,
@@ -345,6 +350,17 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
       }
     },
     [moveColumn, moveLeadInColumn],
+  );
+
+  const onDragCancel = useCallback(
+    (_event: DragCancelEvent) => {
+      setActiveColumn(null);
+      setActiveLead(null);
+      setOriginalNeighbors(null);
+      setIsDragging(false);
+      setActiveDragLeadId(null);
+    },
+    [setIsDragging, setActiveDragLeadId],
   );
 
   const isDragging = useKanbanStore((s) => s.isDragging);
@@ -398,6 +414,7 @@ export function BoardContainer({ trackingId }: BoardContainerProps) {
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
         onDragOver={onDragOver}
+        onDragCancel={onDragCancel}
       >
         {/* Bg/imagem do kanban agora ficam num wrapper externo
             (`KanbanCanvas`) pra que a barra de filtros COMPARTILHE o

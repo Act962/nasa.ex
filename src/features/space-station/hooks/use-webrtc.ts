@@ -66,11 +66,12 @@ export function useWebRTC({ stationId, userId, userName, userImage }: UseWebRTCO
   const [localStream,  setLocalStream]  = useState<MediaStream | null>(null);
   const [peers, setPeers]   = useState<Map<string, RemotePeer>>(new Map());
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [devices, setDevices] = useState<{ audio: MediaDeviceInfo[]; video: MediaDeviceInfo[] }>({
-    audio: [], video: [],
+  const [devices, setDevices] = useState<{ audio: MediaDeviceInfo[]; video: MediaDeviceInfo[]; output: MediaDeviceInfo[] }>({
+    audio: [], video: [], output: [],
   });
   const [selectedAudio, setSelectedAudio] = useState<string>("");
   const [selectedVideo, setSelectedVideo] = useState<string>("");
+  const [selectedOutput, setSelectedOutput] = useState<string>("");
 
   // Screen sharing
   const [screenOn,     setScreenOn]     = useState(false);
@@ -91,14 +92,16 @@ export function useWebRTC({ stationId, userId, userName, userImage }: UseWebRTCO
   const micOnRef        = useRef(false);
   const camOnRef        = useRef(false);
   // Refs para device IDs — evita closures estale em toggleMic/toggleCam
-  const selectedAudioRef = useRef("");
-  const selectedVideoRef = useRef("");
+  const selectedAudioRef  = useRef("");
+  const selectedVideoRef  = useRef("");
+  const selectedOutputRef = useRef("");
 
   // Manter refs sincronizados com estado
   useEffect(() => { micOnRef.current = micOn; }, [micOn]);
   useEffect(() => { camOnRef.current = camOn; }, [camOn]);
   useEffect(() => { selectedAudioRef.current = selectedAudio; }, [selectedAudio]);
   useEffect(() => { selectedVideoRef.current = selectedVideo; }, [selectedVideo]);
+  useEffect(() => { selectedOutputRef.current = selectedOutput; }, [selectedOutput]);
   useEffect(() => { bubbleLockedRef.current = bubbleLocked; }, [bubbleLocked]);
   useEffect(() => { screenOnRef.current = screenOn; }, [screenOn]);
 
@@ -107,8 +110,9 @@ export function useWebRTC({ stationId, userId, userName, userImage }: UseWebRTCO
     try {
       const all = await navigator.mediaDevices.enumerateDevices();
       setDevices({
-        audio: all.filter(d => d.kind === "audioinput"),
-        video: all.filter(d => d.kind === "videoinput"),
+        audio:  all.filter(d => d.kind === "audioinput"),
+        video:  all.filter(d => d.kind === "videoinput"),
+        output: all.filter(d => d.kind === "audiooutput"),
       });
     } catch { /* permissão não concedida ainda */ }
   }, []);
@@ -618,7 +622,10 @@ export function useWebRTC({ stationId, userId, userName, userImage }: UseWebRTCO
     peers,
     toggleMic, toggleCam,
     settingsOpen, setSettingsOpen,
-    devices, selectedAudio, setSelectedAudio, selectedVideo, setSelectedVideo,
+    devices,
+    selectedAudio, setSelectedAudio,
+    selectedVideo, setSelectedVideo,
+    selectedOutput, setSelectedOutput,
     applyDeviceChange: useCallback(async () => {
       await acquireStream(micOnRef.current, camOnRef.current);
     }, [acquireStream]),

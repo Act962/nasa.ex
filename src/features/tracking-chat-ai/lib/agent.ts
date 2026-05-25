@@ -33,6 +33,11 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   if (ctx.lead.statusFlow === "FINISHED")
     return { skipped: true, reason: "lead_finished" };
   if (!ctx.lead.phone) return { skipped: true, reason: "lead_no_phone" };
+  // Conversa truly vazia (sem msgs, ou só mídias sem texto/caption). O SDK
+  // rejeita `messages: []` com `AI_InvalidPromptError`. Próxima inbound
+  // reativa o agente naturalmente.
+  if (ctx.history.length === 0)
+    return { skipped: true, reason: "empty_history" };
 
   // ── Barramento por STARS ──────────────────────────────────────────────
   // Verifica grace period e suspensão ANTES de gastar tokens com IA. Org

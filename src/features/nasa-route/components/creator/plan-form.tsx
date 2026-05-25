@@ -23,6 +23,7 @@ interface Plan {
   name: string;
   description?: string | null;
   priceStars: number;
+  priceBrlCents?: number;
   isDefault?: boolean;
 }
 
@@ -41,6 +42,11 @@ export function PlanForm({ open, onClose, courseId, initial }: Props) {
   const [description, setDescription] = useState(initial?.description ?? "");
   const [priceStars, setPriceStars] = useState(
     initial?.priceStars?.toString() ?? "0",
+  );
+  const [priceBrl, setPriceBrl] = useState<string>(
+    initial?.priceBrlCents != null
+      ? (initial.priceBrlCents / 100).toFixed(2)
+      : "",
   );
   const [isDefault, setIsDefault] = useState(initial?.isDefault ?? false);
 
@@ -65,12 +71,18 @@ export function PlanForm({ open, onClose, courseId, initial }: Props) {
       toast.error("Nome é obrigatório.");
       return;
     }
+    const priceBrlCents = Math.round((Number(priceBrl) || 0) * 100);
+    if (priceBrlCents > 0 && priceBrlCents < 50) {
+      toast.error("Valor mínimo aceito pelo gateway é R$ 0,50.");
+      return;
+    }
     upsert.mutate({
       id: initial?.id,
       courseId,
       name: name.trim(),
       description: description.trim() || null,
       priceStars: Number(priceStars) || 0,
+      priceBrlCents,
       isDefault,
     });
   }
@@ -103,16 +115,19 @@ export function PlanForm({ open, onClose, courseId, initial }: Props) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="plan-price">Preço (STARs)</Label>
+            <Label htmlFor="plan-price-brl">Preço (R$)</Label>
             <Input
-              id="plan-price"
+              id="plan-price-brl"
               type="number"
               min={0}
-              value={priceStars}
-              onChange={(e) => setPriceStars(e.target.value)}
+              step="0.01"
+              value={priceBrl}
+              onChange={(e) => setPriceBrl(e.target.value)}
+              placeholder="Ex: 49,90"
             />
             <p className="text-xs text-muted-foreground">
-              Use 0 para criar um plano gratuito.
+              Valor cobrado via Stripe. Use 0 para plano gratuito (mínimo
+              cobrável: R$ 0,50).
             </p>
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3">

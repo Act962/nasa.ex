@@ -111,8 +111,17 @@ export async function loadAgentContext(data: AgentEventData) {
   // mesmo com instrução nova no system. Slate limpo é o caminho mais
   // confiável até a v2 híbrida (ver PROGRESS.md "Backlog").
   const promptUpdatedAt = settings?.updatedAt ?? null;
-  const history: ModelMessage[] = messages
-    .filter((m) => !promptUpdatedAt || m.createdAt > promptUpdatedAt)
+  const filtered = promptUpdatedAt
+    ? messages.filter((m) => m.createdAt > promptUpdatedAt)
+    : messages;
+
+  // Slate-reset é best-effort. Se o filtro zerou TUDO (race entre a
+  // persistência da inbound no webhook e o `@updatedAt` do AiSettings,
+  // ou idle-reopen logo após editar o prompt) cai pro histórico cheio.
+  // Histórico vazio quebra o SDK com `messages must not be empty`.
+  const source = filtered.length > 0 ? filtered : messages;
+  const history: ModelMessage[] = source
+    .slice()
     .reverse()
     .map((m) => toModelMessage(m))
     .filter((m): m is ModelMessage => m !== null);

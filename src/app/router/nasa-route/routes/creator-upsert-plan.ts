@@ -18,11 +18,19 @@ export const creatorUpsertPlan = base
       name: z.string().min(1).max(80),
       description: z.string().max(500).optional().nullable(),
       priceStars: z.number().int().min(0).default(0),
+      // Preço em centavos BRL — fonte de verdade para Stripe Checkout.
+      // 0 = plano gratuito; valor pago precisa ser >= 50 (R$ 0,50 mínimo Stripe).
+      priceBrlCents: z.number().int().min(0).default(0),
       order: z.number().int().min(0).optional(),
       isDefault: z.boolean().optional(),
     }),
   )
   .handler(async ({ input, context }) => {
+    if (input.priceBrlCents > 0 && input.priceBrlCents < 50) {
+      throw new ORPCError("BAD_REQUEST", {
+        message: "Valor mínimo aceito pelo gateway é R$ 0,50.",
+      });
+    }
     await requireCourseManager(context.user.id, input.courseId);
 
     if (input.id) {
@@ -40,6 +48,7 @@ export const creatorUpsertPlan = base
           name: input.name,
           description: input.description ?? null,
           priceStars: input.priceStars,
+          priceBrlCents: input.priceBrlCents,
           ...(input.order !== undefined ? { order: input.order } : {}),
           ...(input.isDefault !== undefined ? { isDefault: input.isDefault } : {}),
         },
@@ -78,6 +87,7 @@ export const creatorUpsertPlan = base
         name: input.name,
         description: input.description ?? null,
         priceStars: input.priceStars,
+        priceBrlCents: input.priceBrlCents,
         order,
         isDefault: willBeDefault,
       },

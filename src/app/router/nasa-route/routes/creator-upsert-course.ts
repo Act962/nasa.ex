@@ -30,6 +30,10 @@ const courseInputSchema = z
     format: z.enum(COURSE_FORMATS).default("course"),
     durationMin: z.number().int().min(0).optional().nullable(),
     priceStars: z.number().int().min(0).default(0),
+    // Preço em centavos BRL — fonte de verdade para Stripe Checkout.
+    priceBrlCents: z.number().int().min(0).default(0),
+    // Flag explícita de curso gratuito. Quando true, força priceBrlCents=0.
+    isFree: z.boolean().default(false),
     categoryId: z.string().optional().nullable(),
     rewardSpOnComplete: z.number().int().min(0).default(0),
 
@@ -131,6 +135,21 @@ const courseInputSchema = z
           message: "Link de convite é obrigatório.",
         });
       }
+    }
+    // Coerência entre isFree e priceBrlCents.
+    if (input.isFree && input.priceBrlCents > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["priceBrlCents"],
+        message: "Cursos gratuitos não podem ter preço em reais. Desmarque 'isFree' ou zere o valor.",
+      });
+    }
+    if (!input.isFree && input.priceBrlCents > 0 && input.priceBrlCents < 50) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["priceBrlCents"],
+        message: "Valor mínimo aceito pelo gateway é R$ 0,50.",
+      });
     }
     if (input.format === "subscription") {
       if (!input.subscriptionPeriod) {
@@ -254,6 +273,8 @@ export const creatorUpsertCourse = base
           format: input.format,
           durationMin: input.durationMin ?? null,
           priceStars: input.priceStars,
+          priceBrlCents: input.isFree ? 0 : input.priceBrlCents,
+          isFree: input.isFree,
           categoryId: input.categoryId ?? null,
           rewardSpOnComplete: input.rewardSpOnComplete,
           // Datas unificadas (todos formatos podem ter)
@@ -307,6 +328,7 @@ export const creatorUpsertCourse = base
             name: "Acesso completo",
             description: "Acesso a todas as aulas do curso.",
             priceStars: input.priceStars,
+            priceBrlCents: input.isFree ? 0 : input.priceBrlCents,
             order: 0,
             isDefault: true,
           },

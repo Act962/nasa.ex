@@ -3,6 +3,7 @@ import { z } from "zod";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import prisma from "@/lib/prisma";
+import { verifyEnrollmentActive } from "../helpers/access-helpers";
 
 /**
  * Aluno entra no evento online.
@@ -22,15 +23,7 @@ export const getEventStreamUrl = base
     const userId = context.user.id;
 
     // 1. Verifica matrícula ativa
-    const enrollment = await prisma.nasaRouteEnrollment.findUnique({
-      where: { userId_courseId: { userId, courseId: input.courseId } },
-      select: { id: true, status: true },
-    });
-    if (!enrollment || enrollment.status !== "active") {
-      throw new ORPCError("FORBIDDEN", {
-        message: "Você precisa estar inscrito no evento",
-      });
-    }
+    await verifyEnrollmentActive(userId, input.courseId);
 
     // 2. Busca dados do evento
     const course = await prisma.nasaRouteCourse.findUnique({

@@ -104,8 +104,8 @@ const STATUS_FLOW_CONFIG = {
 
 export const LeadItem = memo(({ data }: { data: Lead }) => {
   const router = useRouter();
-  const { toggleLead, isSelected } = useLeadStore();
-  const selected = isSelected(data.id);
+  const selected = useLeadStore((s) => s.selectedLeads.some((l) => l.id === data.id));
+  const toggleLead = useLeadStore((s) => s.toggleLead);
   // Sort ativo dita qual data o card exibe (createdAt / updatedAt /
   // statusEnteredAt). Para sort=order (Personalizada), usa statusEnteredAt.
   const sortBy = useKanbanStore((s) => s.sortBy);
@@ -159,6 +159,10 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
   const url = useConstructUrl(data.profile || "");
 
   const handleSelect = (e: React.MouseEvent) => {
+    // Bloqueia o click que o browser dispara no DragOverlay após o pointerup:
+    // o activeDragLeadId ainda está setado neste momento (é limpo num setTimeout
+    // em onDragEnd, que roda no próximo task JS — depois deste click).
+    if (useKanbanStore.getState().activeDragLeadId) return;
     if ((e.target as HTMLElement).closest("a")) return;
     toggleLead(data);
   };
@@ -173,19 +177,18 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
         // `bg-muted` é o default — sobrescrito por `kanbanCardBackgroundColor`
         // via style inline. Contorno: `border-primary/50` quando selecionado
         // sempre prevalece; senão usa cor configurada OU transparente.
+        // isDragging=true → este card é o placeholder do dnd-kit (ghost),
+        // forçamos border-transparent para o fantasma ficar limpo.
         "relative w-full min-w-0 max-w-full border-2 text-sm rounded-md shadow-sm group cursor-pointer transition-all overflow-hidden",
         !appearance?.kanbanCardBackgroundColor && "bg-muted",
         selected
           ? "border-primary/50"
-          : !appearance?.kanbanCardBorderColor && "border-transparent hover:border-muted",
+          : isDragging
+            ? "border-transparent"
+            : !appearance?.kanbanCardBorderColor && "border-transparent hover:border-muted",
       )}
-      // Cores customizadas — só sobrescrevem o default quando definidas.
-      // Selecionado mantém ring-primary mesmo com cor custom (não conflita).
       style={{
         ...style,
-        // Cor de fundo computada como `rgba()` quando há cor + opacidade
-        // customizadas. Opacidade default = 100 (opaco). Quando o usuário
-        // baixa o slider, vê o fundo do tracking através do card.
         ...(appearance?.kanbanCardBackgroundColor && {
           backgroundColor:
             hexToRgba(
@@ -193,10 +196,9 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
               appearance.kanbanCardBackgroundOpacity ?? 100,
             ) ?? appearance.kanbanCardBackgroundColor,
         }),
-        ...(!selected &&
-          appearance?.kanbanCardBorderColor && {
-            borderColor: appearance.kanbanCardBorderColor,
-          }),
+        ...(!isDragging && !selected && appearance?.kanbanCardBorderColor
+          ? { borderColor: appearance.kanbanCardBorderColor }
+          : {}),
       }}
     >
       {/* Bolinha de temperatura — substitui a barra lateral de 1px.
@@ -248,7 +250,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
             {/* Nome: `min-w-0 flex-1 truncate` em vez de `max-w-32` fixo.
                 Assim o nome cede espaço pra pill do apelido (e pros action
                 buttons à direita) sem empurrar a largura do card. */}
-            <span className="min-w-0 flex-1 truncate text-xs font-medium">
+            <span className="min-w-0 flex-1 truncate max-w-[9rem] text-xs font-medium">
               {data.name || "Sem nome"}
             </span>
             {data.nickname && (
@@ -318,7 +320,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
         {...listeners}
         {...attributes}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
           {(() => {
             // A data exibida acompanha o sort ativo — assim o usuário sempre
             // vê o critério que está usando pra ordenar (sem precisar abrir
@@ -345,7 +347,7 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
                 : "DD/MM/YY - HH:mm";
             return (
               <span
-                className="text-[10px] text-muted-foreground tabular-nums"
+                className="text-[10px] text-muted-foreground tabular-nums shrink-0"
                 title={`${label} ${d.format("DD/MM/YYYY HH:mm")}`}
               >
                 {d.format(fmt)}
@@ -627,7 +629,7 @@ function ListLeadTags({ leadId, tags }: { leadId: string; tags: any[] }) {
             <Badge
               key={tag.id}
               title={tag.name}
-              className="px-1 py-0 text-[10px] h-4 font-normal max-w-50 inline-block truncate"
+              className="px-1 py-0 text-[10px] h-4 font-normal max-w-[5.5rem] inline-block truncate"
               style={{
                 backgroundColor: tag.color || "#000000",
                 color: getContrastColor(tag.color || "#000000"),

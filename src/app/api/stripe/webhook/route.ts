@@ -19,6 +19,8 @@ import { purchaseTopUp, runMonthlyCycle } from "@/features/stars/lib/star-servic
 import { StarTransactionType } from "@/generated/prisma/client";
 import { processPaymentPartnerEffects } from "@/features/partner/lib/partner-service";
 import { inngest } from "@/inngest/client";
+import { finalizeStripePurchaseInTx } from "@/app/router/nasa-route/helpers/purchase-helpers";
+import { createPurchaseSideEffects } from "@/app/router/nasa-route/helpers/purchase-crm-side-effects";
 
 const SIGNUP_TOKEN_TTL_DAYS = 7;
 
@@ -27,9 +29,14 @@ export async function POST(req: NextRequest) {
   const signature = req.headers.get("stripe-signature") ?? "";
 
   // ── Validate signature ─────────────────────────────────────────────────────
+  // Endpoint dedicado a cursos — usa STRIPE_COURSE_WEBHOOK_SECRET. Mantém
+  // fallback pra STRIPE_WEBHOOK_SECRET pra compat com ambientes antigos.
+  const courseSecret =
+    process.env.STRIPE_COURSE_WEBHOOK_SECRET ??
+    process.env.STRIPE_WEBHOOK_SECRET;
   let event;
   try {
-    event = constructWebhookEvent(payload, signature);
+    event = constructWebhookEvent(payload, signature, courseSecret);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Webhook error";
     console.error("[stripe/webhook] signature error:", msg);
@@ -46,16 +53,43 @@ export async function POST(req: NextRequest) {
         const metadata = session.metadata ?? {};
         const { organizationId, itemType, itemSlug, starsPaymentId } = metadata;
 
-        // ── Public course checkout (kind=course_public_purchase) ──────────────
-        if (metadata.kind === "course_public_purchase" && metadata.pendingId) {
+        // ── Compra de curso (kind=course_purchase) ───────────────────────────
+        // Aceita também o nome legado "course_public_purchase" para
+        // pendings criadas antes da unificação. Discrimina por `flow`:
+        //  - "authenticated": cria enrollment direto pelo userId da pending.
+        //  - "public" (default): gera signupToken + dispara email; resgate
+        //    finaliza o enrollment quando o user cria conta.
+        const courseKind =
+          metadata.kind === "course_purchase" ||
+          metadata.kind === "course_public_purchase";
+        if (courseKind && metadata.pendingId) {
           const pendingId = metadata.pendingId;
           const pending = await prisma.pendingCoursePurchase.findUnique({
             where: { id: pendingId },
-            select: { id: true, status: true },
+            include: {
+              course: {
+                select: {
+                  id: true,
+                  title: true,
+                  creatorOrgId: true,
+                  purchaseTrackingId: true,
+                  purchaseStatusId: true,
+                },
+              },
+              plan: { select: { id: true, name: true } },
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
           });
           if (!pending) {
             console.warn(
-              "[stripe/webhook] course_public_purchase pending not found:",
+              "[stripe/webhook] course_purchase pending not found:",
               pendingId,
             );
             break;
@@ -63,11 +97,87 @@ export async function POST(req: NextRequest) {
           // Idempotência: webhook pode chegar duplicado
           if (pending.status === "PAID" || pending.status === "REDEEMED") {
             console.log(
-              `[stripe/webhook] course_public_purchase ${pendingId} já em ${pending.status} — ignorando.`,
+              `[stripe/webhook] course_purchase ${pendingId} já em ${pending.status} — ignorando.`,
             );
             break;
           }
 
+          const paymentIntentId =
+            typeof session.payment_intent === "string"
+              ? session.payment_intent
+              : null;
+
+          // ── Fluxo authenticated: finaliza enrollment já ──────────────────
+          if (pending.flow === "authenticated" && pending.userId && pending.plan) {
+            try {
+              await prisma.$transaction(async (tx) => {
+                await tx.pendingCoursePurchase.update({
+                  where: { id: pendingId },
+                  data: {
+                    status: "PAID",
+                    paidAt: new Date(),
+                    stripePaymentIntentId: paymentIntentId,
+                  },
+                });
+
+                await finalizeStripePurchaseInTx({
+                  tx: tx as any,
+                  userId: pending.userId!,
+                  courseId: pending.courseId,
+                  courseTitle: pending.course.title,
+                  creatorOrgId: pending.course.creatorOrgId,
+                  planId: pending.plan!.id,
+                  planName: pending.plan!.name,
+                  paidBrlCents: pending.amountBrlCents,
+                  priceStarsSnapshot: pending.priceStars,
+                  stripeCheckoutSessionId: session.id,
+                  stripePaymentIntentId: paymentIntentId,
+                  buyerOrgId: null,
+                });
+              });
+
+              // CRM side-effects (fire-and-forget)
+              if (pending.user) {
+                createPurchaseSideEffects({
+                  buyer: {
+                    userId: pending.user.id,
+                    name: pending.user.name,
+                    email: pending.user.email,
+                    phone: pending.user.phone ?? null,
+                  },
+                  creatorOrgId: pending.course.creatorOrgId,
+                  createdByUserId: pending.user.id,
+                  course: {
+                    id: pending.course.id,
+                    title: pending.course.title,
+                    priceStars: pending.priceStars,
+                    purchaseTrackingId: pending.course.purchaseTrackingId,
+                    purchaseStatusId: pending.course.purchaseStatusId,
+                  },
+                  planName: pending.plan!.name,
+                  enrollmentId: "", // resolvido dentro do helper, opcional aqui
+                }).catch((err) =>
+                  console.error(
+                    "[stripe/webhook] CRM side-effects failed:",
+                    err,
+                  ),
+                );
+              }
+
+              console.log(
+                `[stripe/webhook] ✅ course_purchase (auth) finalized: pendingId=${pendingId}`,
+              );
+            } catch (err) {
+              console.error(
+                "[stripe/webhook] failed to finalize authenticated purchase:",
+                err,
+              );
+              throw err;
+            }
+            break;
+          }
+
+          // ── Fluxo public: gera signupToken pra o cadastro pós-pagamento ──
           const signupToken = randomBytes(32).toString("hex");
           const tokenExpiresAt = new Date(
             Date.now() + SIGNUP_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
@@ -80,14 +190,10 @@ export async function POST(req: NextRequest) {
               paidAt: new Date(),
               signupToken,
               tokenExpiresAt,
-              stripePaymentIntentId:
-                typeof session.payment_intent === "string"
-                  ? session.payment_intent
-                  : null,
+              stripePaymentIntentId: paymentIntentId,
             },
           });
 
-          // Dispara e-mail via Inngest (não-crítico — falha não desfaz pagamento)
           try {
             await inngest.send({
               name: "course/public-purchase.paid",
@@ -101,7 +207,7 @@ export async function POST(req: NextRequest) {
           }
 
           console.log(
-            `[stripe/webhook] ✅ course_public_purchase paid: pendingId=${pendingId}`,
+            `[stripe/webhook] ✅ course_purchase (public) paid: pendingId=${pendingId}`,
           );
           break;
         }

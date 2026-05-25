@@ -270,6 +270,9 @@ export const useUpdateLeadOrder = () => {
       },
       onError: () => {
         toast.error("Erro ao atualizar lead");
+        queryClient.invalidateQueries({
+          queryKey: ["leads.listLeadsByStatus"],
+        });
       },
     }),
   );

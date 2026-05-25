@@ -287,17 +287,11 @@ export const syncAppointmentToGoogleCalendar = base
 
     const event = (await res.json()) as CalendarEventInsertResponse;
 
-    // 4. Persiste o eventId via SQL bruto (coluna gcal_event_id, aditiva)
     if (event.id) {
-      try {
-        await prisma.$executeRawUnsafe(
-          `UPDATE "appointments" SET "gcal_event_id" = $1 WHERE id = $2`,
-          event.id,
-          appointment.id,
-        );
-      } catch {
-        // Coluna pode não existir ainda — operação não bloqueia o sucesso.
-      }
+      await prisma.appointment.update({
+        where: { id: appointment.id },
+        data: { gcalEventId: event.id },
+      });
     }
 
     return {

@@ -165,3 +165,134 @@ export async function executeCoursePurchaseInTx(
     debitTransactionId: debit.id,
   };
 }
+
+export interface FinalizeStripePurchaseOpts {
+  tx: Tx;
+  userId: string;
+  courseId: string;
+  courseTitle: string;
+  creatorOrgId: string;
+  planId: string;
+  planName: string;
+  /** Valor pago via Stripe, em centavos BRL. */
+  paidBrlCents: number;
+  /** Snapshot do equivalente em STARs (usado para payout interno ao criador
+   *  enquanto Stripe Connect não está habilitado). */
+  priceStarsSnapshot: number;
+  /** IDs do Stripe para reconciliação e refund. */
+  stripeCheckoutSessionId: string;
+  stripePaymentIntentId: string | null;
+  /** Org do comprador, quando conhecida (fluxo `authenticated`). null no
+   *  resgate público (`flow=public`) — anônimo só vira buyer org após
+   *  criar a Organization no signup. */
+  buyerOrgId?: string | null;
+}
+
+export interface FinalizeStripePurchaseResult {
+  enrollment: { id: string };
+  payoutStars: number;
+  platformFee: number;
+  creatorNewBalance: number;
+}
+
+/**
+ * Finaliza uma compra paga via Stripe Checkout: cria/atualiza enrollment
+ * com refs do Stripe, registra progresso vazio, incrementa contador de
+ * alunos e credita o criador (90 %) em STARs.
+ *
+ * Importante: NÃO debita o comprador — o dinheiro já foi captado pelo
+ * Stripe. Idempotente quando reusada (upsert). Use no webhook após
+ * `checkout.session.completed`.
+ *
+ * Quando Stripe Connect for habilitado, o payout em STARs aqui deixa de
+ * fazer sentido para criadores com conta conectada (eles receberão BRL
+ * direto pelo Stripe). Até lá, mantemos compatibilidade com o saldo Stars.
+ */
+export async function finalizeStripePurchaseInTx(
+  opts: FinalizeStripePurchaseOpts,
+): Promise<FinalizeStripePurchaseResult> {
+  const {
+    tx,
+    userId,
+    courseId,
+    courseTitle,
+    creatorOrgId,
+    planId,
+    planName,
+    paidBrlCents,
+    priceStarsSnapshot,
+    stripeCheckoutSessionId,
+    stripePaymentIntentId,
+    buyerOrgId,
+  } = opts;
+
+  // Payout em STARs para o criador (90 %). Quando o snapshot for 0 (caso
+  // limite — criador sem cotação Stars), o crédito vira no-op.
+  const payoutStars = Math.floor(priceStarsSnapshot * (1 - PLATFORM_FEE_PCT));
+  const platformFee = priceStarsSnapshot - payoutStars;
+
+  let creatorNewBalance = 0;
+  if (payoutStars > 0) {
+    const creator = await tx.organization.findUniqueOrThrow({
+      where: { id: creatorOrgId },
+      select: { starsBalance: true },
+    });
+    creatorNewBalance = creator.starsBalance + payoutStars;
+    await tx.organization.update({
+      where: { id: creatorOrgId },
+      data: { starsBalance: creatorNewBalance },
+    });
+    await tx.starTransaction.create({
+      data: {
+        organizationId: creatorOrgId,
+        type: StarTransactionType.COURSE_PAYOUT,
+        amount: payoutStars,
+        balanceAfter: creatorNewBalance,
+        description: `Venda Stripe: ${courseTitle} — Plano ${planName} (taxa ${platformFee} ★ retida)`,
+        appSlug: "nasa-route",
+      },
+    });
+  }
+
+  const enrollment = await tx.nasaRouteEnrollment.upsert({
+    where: { userId_courseId: { userId, courseId } },
+    create: {
+      userId,
+      courseId,
+      planId,
+      buyerOrgId: buyerOrgId ?? null,
+      paidStars: priceStarsSnapshot,
+      paidBrlCents,
+      stripeCheckoutSessionId,
+      stripePaymentIntentId,
+      source: "stripe_purchase",
+      status: "active",
+      paymentRef: stripeCheckoutSessionId,
+    },
+    update: {
+      status: "active",
+      paidStars: priceStarsSnapshot,
+      paidBrlCents,
+      planId,
+      buyerOrgId: buyerOrgId ?? undefined,
+      stripeCheckoutSessionId,
+      stripePaymentIntentId,
+      source: "stripe_purchase",
+      paymentRef: stripeCheckoutSessionId,
+    },
+    select: { id: true },
+  });
+
+  await tx.nasaRouteProgress.upsert({
+    where: { userId_courseId: { userId, courseId } },
+    create: { userId, courseId, completedLessonIds: [] },
+    update: {},
+  });
+
+  await tx.nasaRouteCourse.update({
+    where: { id: courseId },
+    data: { studentsCount: { increment: 1 } },
+  });
+
+  return { enrollment, payoutStars, platformFee, creatorNewBalance };
+}

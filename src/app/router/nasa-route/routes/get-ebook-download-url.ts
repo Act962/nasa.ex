@@ -6,6 +6,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import prisma from "@/lib/prisma";
 import { S3 } from "@/lib/s3-client";
+import { verifyEnrollmentActive } from "../helpers/access-helpers";
 
 /**
  * Aluno baixa o eBook depois de comprado.
@@ -26,15 +27,7 @@ export const getEbookDownloadUrl = base
     const userId = context.user.id;
 
     // 1. Verifica matrícula ativa
-    const enrollment = await prisma.nasaRouteEnrollment.findUnique({
-      where: { userId_courseId: { userId, courseId: input.courseId } },
-      select: { id: true, status: true },
-    });
-    if (!enrollment || enrollment.status !== "active") {
-      throw new ORPCError("FORBIDDEN", {
-        message: "Você precisa comprar este eBook antes de baixar",
-      });
-    }
+    await verifyEnrollmentActive(userId, input.courseId);
 
     // 2. Busca dados do eBook
     const course = await prisma.nasaRouteCourse.findUnique({
