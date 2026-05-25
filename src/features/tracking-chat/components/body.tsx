@@ -530,21 +530,15 @@ export function Body({ messageSelected, onSelectMessage, conversationId: convers
         />
       )}
       <div
-        // Background NASA-themed (espacial line-art) — pattern de fundo
-        // igual o WhatsApp Web. SVGs em `public/chat-bg/` desenhados em
-        // azul-clarinho (#dbe9f7) com elementos line-art:
-        //  - `mobile.svg` (600x900 — orientação vertical) pra telas < md
-        //  - `desktop.svg` (1200x800 — horizontal) pra telas >= md
-        //
-        // SVG ao invés de PNG: nítido em qualquer DPI, leve (~3KB cada),
-        // edição rápida se quiser ajustar elementos depois. `bg-cover`
-        // pra preencher viewport sem precisar repetir.
+        // Background NASA estilo WhatsApp Web — JPG comprimido (q=70).
+        // Desktop horizontal + mobile vertical. ~178KB cada (vs 1.3MB do
+        // PNG original). `bg-fixed` mantém o pattern parado durante scroll
+        // e cacheado entre conversas (1 request por sessão).
         className={cn(
           "flex-1 min-h-0 overflow-y-auto scroll-cols-tracking relative",
-          "bg-[url('/chat-bg/mobile.svg')] md:bg-[url('/chat-bg/desktop.svg')]",
+          "bg-[url('/chat-bg/mobile.jpg')] md:bg-[url('/chat-bg/desktop.jpg')]",
           "bg-cover bg-center bg-fixed",
-          // Fallback caso a imagem não carregue: cor neutra próxima da
-          // do SVG pra evitar flash branco.
+          // Fallback caso a imagem não carregue
           "bg-[#dbe9f7] dark:bg-zinc-900",
         )}
         ref={scrollRef}
