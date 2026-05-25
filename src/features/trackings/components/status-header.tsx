@@ -210,7 +210,7 @@ function StatusLeadsCount({
   const { data: count } = useQuery({
     ...baseOptions,
     select: (data: any) =>
-      data?.find((s: any) => s.id === columnId)?.leads ?? fallback,
+      data?.find((s: any) => s.id === columnId)?._count?.leads ?? fallback,
   });
 
   return (
