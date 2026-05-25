@@ -8,6 +8,7 @@ import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import { eventBus } from "@/features/alerts/lib/event-bus";
+import { sendWorkflowExecution } from "@/inngest/utils";
 
 // 🟦 UPDATE
 export const updateManyStatusLead = base
@@ -173,6 +174,76 @@ export const updateManyStatusLead = base
             }),
           ),
         );
+      }
+
+      if (input.statusId) {
+        const leadsChangingStatus = leadExists.filter(
+          (lead) => lead.statusId !== input.statusId,
+        );
+
+        if (leadsChangingStatus.length > 0) {
+          const byTracking = new Map<string, typeof leadsChangingStatus>();
+          for (const lead of leadsChangingStatus) {
+            const tid = input.trackingId ?? lead.trackingId;
+            if (!byTracking.has(tid)) byTracking.set(tid, []);
+            byTracking.get(tid)!.push(lead);
+          }
+
+          await Promise.all(
+            [...byTracking.entries()].map(async ([tId, leads]) => {
+              const workflows = await prisma.workflow.findMany({
+                where: {
+                  trackingId: tId,
+                  isActive: true,
+                  nodes: {
+                    some: {
+                      type: "MOVE_LEAD_STATUS",
+                      data: {
+                        path: ["action", "statusId"],
+                        equals: input.statusId,
+                      },
+                    },
+                  },
+                },
+                select: { id: true },
+              });
+
+              if (workflows.length === 0) return;
+
+              await Promise.all(
+                leads.flatMap((previousLead) =>
+                  workflows.map((workflow) =>
+                    sendWorkflowExecution({
+                      workflowId: workflow.id,
+                      initialData: {
+                        lead: {
+                          id: previousLead.id,
+                          name: previousLead.name,
+                          email: previousLead.email,
+                          phone: previousLead.phone,
+                          statusId: input.statusId!,
+                          trackingId: input.trackingId ?? previousLead.trackingId,
+                          responsibleId: previousLead.responsibleId,
+                          isActive: previousLead.isActive,
+                        },
+                        previousLead: {
+                          id: previousLead.id,
+                          name: previousLead.name,
+                          email: previousLead.email,
+                          phone: previousLead.phone,
+                          statusId: previousLead.statusId,
+                          trackingId: previousLead.trackingId,
+                          responsibleId: previousLead.responsibleId,
+                          isActive: previousLead.isActive,
+                        },
+                      },
+                    }),
+                  ),
+                ),
+              );
+            }),
+          );
+        }
       }
 
       return result;

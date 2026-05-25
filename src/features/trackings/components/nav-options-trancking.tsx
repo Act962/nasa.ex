@@ -120,17 +120,17 @@ export function NavOptionsTracking() {
   );
 
   return (
-    <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center justify-between w-full max-w-[80%] bg-background border rounded-md px-2 py-2 shadow-xl animate-in fade-in slide-in-from-top-4 duration-300">
+    <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center justify-between w-full max-w-[80%] bg-background border-2 border-border rounded-lg px-3 py-2 shadow-2xl ring-1 ring-primary/10 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <div className="flex items-center gap-x-2">
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
           onClick={clearSelection}
           className="rounded-full"
         >
           <XIcon className="size-4" />
         </Button>
-        <Badge variant="secondary" className="rounded-full">
+        <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-sm font-medium">
           {selectedLeads.length} selecionados
         </Badge>
       </div>
@@ -144,7 +144,7 @@ export function NavOptionsTracking() {
               <Button
                 disabled={!hasPermission}
                 variant="destructive"
-                size="sm"
+                size="default"
                 className="rounded-md"
               >
                 <Trash2Icon className="size-4" />
@@ -187,7 +187,7 @@ export function NavOptionsTracking() {
 
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="secondary" size="sm" className="rounded-md">
+            <Button variant="default" size="default" className="rounded-md">
               <RedoDotIcon className="size-4" />
               Mover para
             </Button>

@@ -39,6 +39,7 @@ import { creatorStartVideoUpload } from "./routes/creator-start-video-upload";
 import { creatorGetUploadPartUrl } from "./routes/creator-get-upload-part-url";
 import { creatorCompleteVideoUpload } from "./routes/creator-complete-video-upload";
 import { creatorAbortVideoUpload } from "./routes/creator-abort-video-upload";
+import { creatorReportUploadPart } from "./routes/creator-report-upload-part";
 
 // ── Plans (criador) ─────────────────────────────────────────────────────
 import { creatorListPlans } from "./routes/creator-list-plans";
@@ -92,6 +93,7 @@ export const nasaRouteRouter = {
   creatorGetUploadPartUrl,
   creatorCompleteVideoUpload,
   creatorAbortVideoUpload,
+  creatorReportUploadPart,
   // plans (criador)
   creatorListPlans,
   creatorUpsertPlan,

@@ -31,7 +31,7 @@ export const getMany = base
       temperatureFilter,
       actionFilter,
     } = input;
-    const result = await prisma.status.findMany({
+    const status = await prisma.status.findMany({
       where: {
         trackingId: input.trackingId,
       },
@@ -87,15 +87,6 @@ export const getMany = base
         order: "asc",
       },
     });
-
-    const status = result.map((s) => ({
-      id: s.id,
-      name: s.name,
-      color: s.color,
-      order: s.order.toString(),
-      slaHours: s.slaHours,
-      leads: s._count.leads,
-    }));
 
     return status;
   });
