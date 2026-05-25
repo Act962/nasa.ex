@@ -3,12 +3,14 @@ import { generateText } from "ai";
 import type { GetStepTools } from "inngest";
 import { sendText } from "@/http/uazapi/send-text";
 import { inngest } from "@/inngest/client";
+import prisma from "@/lib/prisma";
 import { loadAgentContext, type AgentEventData } from "./context";
 import { defaultModel } from "./model";
 import { buildSystemPrompt } from "./system-prompt";
 import { splitForWhatsapp } from "./split-message";
 import { persistOutboundMessage } from "./persist";
 import { buildAgentTools } from "../server/tools";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 type Step = GetStepTools<typeof inngest>;
 
@@ -36,6 +38,61 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   // reativa o agente naturalmente.
   if (ctx.history.length === 0)
     return { skipped: true, reason: "empty_history" };
+
+  // ── Barramento por STARS ──────────────────────────────────────────────
+  // Verifica grace period e suspensão ANTES de gastar tokens com IA. Org
+  // suspensa = silêncio total; em grace com saldo 0 = fallback humano.
+  const orgState = await prisma.organization.findUnique({
+    where: { id: data.organizationId },
+    select: {
+      starsBalance: true,
+      starsBonusBalance: true,
+      starsGraceStartedAt: true,
+      starsSuspendedAt: true,
+    },
+  });
+  if (orgState?.starsSuspendedAt) {
+    return { skipped: true, reason: "stars_suspended" };
+  }
+  const totalStars =
+    (orgState?.starsBalance ?? 0) + (orgState?.starsBonusBalance ?? 0);
+  if (orgState?.starsGraceStartedAt && totalStars <= 0) {
+    // Conta em grace E sem saldo → não responde IA. Mensagem de fallback
+    // pra não deixar o lead "no escuro".
+    await step.run("send-grace-fallback", async () => {
+      await sendText(
+        ctx.instance!.apiKey,
+        {
+          number: ctx.lead.phone!,
+          text: "Estamos com você! Em instantes um atendente humano retornará. Obrigado pela paciência.",
+          delay: 0,
+        },
+        ctx.instance!.baseUrl,
+      );
+    });
+    return { skipped: true, reason: "stars_grace_no_balance" };
+  }
+
+  // Cobrança 2★ por resposta gerada (registry: `chat_ai_message`).
+  // Se não tem saldo → não chama LLM (já validamos acima, mas double-check).
+  const charge = await chargeStarsByAction(data.organizationId, "chat_ai_message", {
+    description: "Resposta IA WhatsApp",
+    appSlug: "chat_ai_message",
+  });
+  if (!charge.success) {
+    await step.run("send-no-balance-fallback", async () => {
+      await sendText(
+        ctx.instance!.apiKey,
+        {
+          number: ctx.lead.phone!,
+          text: "Estamos com você! Em instantes um atendente humano retornará.",
+          delay: 0,
+        },
+        ctx.instance!.baseUrl,
+      );
+    });
+    return { skipped: true, reason: "stars_insufficient" };
+  }
 
   const baseSystem = buildSystemPrompt({
     settings: ctx.settings!,

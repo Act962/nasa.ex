@@ -16,6 +16,7 @@ import {
   logChatMessageSent,
   triggerFirstChatInteractionIfFirst,
 } from "./utils";
+import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 
 export const createContactMessage = base
   .use(requiredAuthMiddleware)
@@ -48,6 +49,21 @@ export const createContactMessage = base
 
       const channel = conversation?.channel ?? MessageChannel.WHATSAPP;
       const organizationId = conversation?.tracking?.organizationId;
+
+      // Cobra 1★ antes de chamar uazapi — evita custo de API sem saldo.
+      if (organizationId) {
+        await chargeMessageOutbound({
+          organizationId,
+          userId: context.user.id,
+          channel:
+            channel === MessageChannel.INSTAGRAM
+              ? "instagram"
+              : channel === MessageChannel.FACEBOOK
+                ? "facebook"
+                : "whatsapp",
+          mediaType: "contact",
+        });
+      }
 
       const response = await sendContact(input.token, {
         number: input.leadPhone,

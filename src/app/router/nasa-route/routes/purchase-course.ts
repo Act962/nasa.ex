@@ -59,6 +59,8 @@ export const purchaseCourse = base
         eventStartsAt: true,
         eventEndsAt: true,
         subscriptionPeriod: true,
+        // Funil de vendas configurado pelo criador — usado em
+        // `createPurchaseSideEffects` depois do enrollment.
         purchaseTrackingId: true,
         purchaseStatusId: true,
         creatorOrg: { select: { slug: true, name: true } },
@@ -194,6 +196,9 @@ export const purchaseCourse = base
         payoutStars: 0,
       });
 
+      // CRM + Payments — fire-and-forget. Mesmo cursos grátis criam o
+      // lead (criador quer follow-up) e o PaymentEntry com valor 0 fica
+      // como registro histórico.
       await createPurchaseSideEffects({
         buyer: {
           userId,

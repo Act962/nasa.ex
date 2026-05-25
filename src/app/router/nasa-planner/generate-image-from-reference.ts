@@ -10,6 +10,10 @@ import { S3 } from "@/lib/s3-client";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
 import Replicate from "replicate";
+import {
+  buildBrandedContext,
+  appendBrandToImagePrompt,
+} from "@/features/nasa-planner/lib/brand-context";
 
 const STARS_IMG2IMG = 1; // Replicate SDXL ~$0.002 × 1.5 ÷ 0.15 ≈ 1 STAR
 
@@ -58,6 +62,12 @@ export const generateImageFromReference = base
     const base64 = Buffer.from(imgBytes).toString("base64");
     const dataUrl = `data:${contentType};base64,${base64}`;
 
+    // Brand context — injeta paleta/fonte/posicionamento no prompt antes
+    // de mandar pro Replicate SDXL. Sem brand kit, o prompt segue como
+    // foi digitado pelo usuário.
+    const brandCtx = await buildBrandedContext(context.org.id);
+    const brandedPrompt = appendBrandToImagePrompt(input.prompt, brandCtx);
+
     // Call Replicate SDXL img2img
     const replicate = new Replicate({ auth: replicateToken });
     const output = await replicate.run(
@@ -65,7 +75,7 @@ export const generateImageFromReference = base
       {
         input: {
           image: dataUrl,
-          prompt: input.prompt,
+          prompt: brandedPrompt,
           strength: input.strength,
           num_inference_steps: 30,
           guidance_scale: 7.5,

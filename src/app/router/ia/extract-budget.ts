@@ -9,6 +9,7 @@ import { resolveAnthropicApiKey } from "@/lib/anthropic-key";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateObject } from "ai";
 import { z } from "zod";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 /**
  * Lê um arquivo (PDF ou imagem) já subido pro S3/R2 e usa Claude Vision
@@ -94,6 +95,20 @@ export const extractBudget = base
     }),
   )
   .handler(async ({ input, context, errors }) => {
+    // Cobra 5★ ANTES de chamar Claude Vision — vision custa ~5× texto,
+    // não queremos gastar token se não tem saldo.
+    const charge = await chargeStarsByAction(context.org.id, "extract_budget", {
+      userId: context.user.id,
+      appSlug: "extract_budget",
+      description: "OCR de Orçamento (Claude Vision)",
+    });
+    if (!charge.success) {
+      throw errors.BAD_REQUEST({
+        message: "Saldo de STARs insuficiente pra ler este arquivo (5★).",
+        data: { code: "INSUFFICIENT_STARS" },
+      });
+    }
+
     const apiKey = await resolveAnthropicApiKey(context.org.id);
     if (!apiKey) {
       throw errors.FORBIDDEN({
