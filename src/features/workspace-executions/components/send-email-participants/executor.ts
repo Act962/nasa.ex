@@ -6,6 +6,7 @@ import { ActionContext } from "../../schemas";
 import { loadActionContext } from "../../lib/load-action-context";
 import { renderWorkspaceVariables } from "../../lib/render-variables";
 import { resend } from "@/lib/email/resend";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 type Data = {
   action?: {
@@ -89,6 +90,25 @@ export const wsSendEmailParticipantsExecutor: NodeExecutor<Data> = async ({
             `[ws-send-email-participants] Failed to create notification for ${participant.id}`,
             notifyErr,
           );
+        }
+
+        // Cobra 1★ ANTES de chamar Resend — evita custo de API sem saldo.
+        // Email é cobrado por destinatário (1★/destinatário). Se saldo
+        // insuficiente, pula esse destinatário e segue pros demais (loga
+        // warning mas não trava o workflow inteiro).
+        const charge = await chargeStarsByAction(
+          workspace.organizationId,
+          "workspace_email_send",
+          {
+            appSlug: "workspace_email_send",
+            description: `Email Workspace — ${participant.email}`,
+          },
+        );
+        if (!charge.success) {
+          console.warn(
+            `[ws-send-email-participants] Saldo de STARs insuficiente — pulando envio pra ${participant.email}`,
+          );
+          continue;
         }
 
         try {

@@ -20,6 +20,7 @@ import {
 } from "@/inngest/functions/crons/partner-tier-recalc";
 import { partnerPayoutCloseCycle } from "@/inngest/functions/crons/partner-payout-close-cycle";
 import { partnerGracePeriodMonitor } from "@/inngest/functions/crons/partner-grace-period-monitor";
+import { starsGracePeriodMonitor } from "@/inngest/functions/crons/stars-grace-period-monitor";
 import { coursePublicPurchasePaid } from "@/inngest/functions/course-public-purchase-paid";
 import { publishPostHandler } from "@/inngest/functions/nasa-planner/publish-post-handler";
 import { publishScheduledPosts } from "@/inngest/functions/nasa-planner/publish-scheduled-posts";
@@ -63,6 +64,8 @@ export const { GET, POST, PUT } = serve({
     partnerTierRecalcOne,
     partnerPayoutCloseCycle,
     partnerGracePeriodMonitor,
+    // ── STARS grace monitor (diário 09h UTC) ──
+    starsGracePeriodMonitor,
     // ── NASA Router (checkout público de curso) ──
     coursePublicPurchasePaid,
     // ── NASA Planner ──

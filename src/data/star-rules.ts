@@ -168,6 +168,63 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
     cooldownHours: null,
     category: "chat",
   },
+  // ── Cobranças adicionais — Sprint correção STARS ─────────
+  {
+    action: "chat_ai_message",
+    label: "Chat AI WhatsApp — resposta IA",
+    stars: 2,
+    cooldownHours: null,
+    category: "chat",
+  },
+  {
+    action: "message_send",
+    label: "Mensagem outbound (WhatsApp/IG/FB)",
+    stars: 1,
+    cooldownHours: null,
+    category: "chat",
+  },
+  {
+    action: "extract_budget",
+    label: "OCR de Orçamento (Claude Vision)",
+    stars: 5,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "transcribe_video",
+    label: "Transcrição de vídeo (Whisper, por minuto)",
+    stars: 1,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "generate_compose",
+    label: "Composição de mensagem por IA",
+    stars: 2,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "generate_summary",
+    label: "Resumo de conversa por IA",
+    stars: 2,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "nasa_command_intent",
+    label: "NASA Command — parser de intent (IA)",
+    stars: 1,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "workspace_email_send",
+    label: "Email de workspace (Resend)",
+    stars: 1,
+    cooldownHours: null,
+    category: "workspace",
+  },
   // Forms
   {
     action: "form_create",
@@ -264,6 +321,58 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
     stars: 0,
     cooldownHours: null,
     category: "system",
+  },
+  // ── Tracking Chat 2.0 — Sprint 1 (telefonia básica + vídeo) ──
+  // `livekit_lead_call` cobra na inicialização da sala (LiveKit). Sprint 2
+  // cobrará por minuto via Egress webhook. `tel_link_dial` é 0★ (a
+  // ligação acontece via operadora do usuário, NASA não cobra).
+  {
+    action: "livekit_lead_call",
+    label: "Chamada de vídeo/áudio com lead (LiveKit)",
+    stars: 2,
+    cooldownHours: null,
+    category: "chat",
+  },
+  {
+    action: "tel_link_dial",
+    label: "Ligação via tel: link (nativo do SO)",
+    stars: 0,
+    cooldownHours: null,
+    category: "chat",
+  },
+  // Importação manual de conversas existentes do WhatsApp via uazapi
+  // `/chat/find`. Cobra fixo por BATCH (até 50 conversas). On-demand
+  // sempre — sem ban risk porque é leitura pura (mesma operação do
+  // WhatsApp Web), com throttle interno.
+  {
+    action: "chat_import_existing",
+    label: "Importar conversas existentes do WhatsApp",
+    stars: 5,
+    cooldownHours: null,
+    category: "chat",
+  // ── NASA Planner 2.0 — Sprint 1 (Brand Kit + 5W2H + Chat IA) ──
+  // Disparadas por procedures novas em src/app/router/brand/* e
+  // src/app/router/nasa-planner/* (campaign-brief / ai-chat-route).
+  {
+    action: "brand_extract",
+    label: "Extração de Brand Kit (Claude Vision)",
+    stars: 5,
+    cooldownHours: null,
+    category: "planner",
+  },
+  {
+    action: "campaign_brief_5w2h",
+    label: "Brief de Campanha 5W2H (IA)",
+    stars: 5,
+    cooldownHours: null,
+    category: "planner",
+  },
+  {
+    action: "planner_ai_intent",
+    label: "Comando do Chat IA do Planner",
+    stars: 1,
+    cooldownHours: null,
+    category: "planner",
   },
 ];
 

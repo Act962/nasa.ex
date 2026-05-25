@@ -149,6 +149,8 @@ export function EnrollmentModal({
 
       setTimeout(() => {
         onClose();
+        // Redireciona pra URL configurada em Integrações (externa) ou
+        // pra página de player do curso (default).
         if (course.redirectUrl) {
           window.location.href = course.redirectUrl;
         } else {

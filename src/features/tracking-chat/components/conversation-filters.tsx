@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * Usado em DESKTOP (lg+) na sidebar do /tracking-chat — row de "channel
+ * circles + filter pills" abaixo do search input. Em MOBILE, esses
+ * filtros migraram pra `tracking-chat-bottom-tabs.tsx` (pill flutuante
+ * estilo WhatsApp iOS) + dropdown "..." do header — o componente é
+ * renderizado com `hidden lg:flex` no `conversations-list.tsx`.
+ */
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -28,6 +36,8 @@ interface ConversationFiltersProps {
   onStatusFlowFilterChange: (filter: "FINISHED" | "ACTIVE" | null) => void;
   favoritesOnly: boolean;
   onFavoritesOnlyChange: (value: boolean) => void;
+  archivedOnly: boolean;
+  onArchivedOnlyChange: (value: boolean) => void;
   selectedTagIds: string[];
   onSelectedTagIdsChange: (tagIds: string[]) => void;
 }
@@ -40,6 +50,8 @@ export function ConversationFilters({
   onStatusFlowFilterChange,
   favoritesOnly,
   onFavoritesOnlyChange,
+  archivedOnly,
+  onArchivedOnlyChange,
   selectedTagIds,
   onSelectedTagIdsChange,
 }: ConversationFiltersProps) {
@@ -141,6 +153,14 @@ export function ConversationFilters({
           label="Favoritas"
           active={favoritesOnly}
           onClick={() => onFavoritesOnlyChange(!favoritesOnly)}
+        />
+        {/* "Arquivados" é exclusivo — quando ativo, mostra SÓ leads
+            arquivados (sai do tracking padrão). UI fica amarela pra
+            destacar o modo especial. */}
+        <QuickFilterButton
+          label="Arquivados"
+          active={archivedOnly}
+          onClick={() => onArchivedOnlyChange(!archivedOnly)}
         />
 
         <DropdownMenu>

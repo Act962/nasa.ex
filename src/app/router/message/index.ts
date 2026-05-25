@@ -1,6 +1,7 @@
 import { listMessage } from "./list";
 import { createTextMessage } from "./create";
 import { createMessageWithImage } from "./create-with-image";
+import { createMessageWithSticker } from "./create-with-sticker";
 import { createMessageWithFile } from "./create-with-file";
 import { createMessageWithAudio } from "./create-audio";
 import { createButtonsMessage } from "./create-with-buttons";
@@ -16,6 +17,7 @@ export const messageRouter = {
   list: listMessage,
   create: createTextMessage,
   createWithImage: createMessageWithImage,
+  createWithSticker: createMessageWithSticker,
   createWithFile: createMessageWithFile,
   createAudio: createMessageWithAudio,
   createWithButtons: createButtonsMessage,

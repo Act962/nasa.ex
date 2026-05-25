@@ -8,6 +8,8 @@ import { S3 } from "@/lib/s3-client";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import OpenAI from "openai";
 import { toFile } from "openai";
+import { debitStars } from "@/features/stars/lib/star-service";
+import { StarTransactionType } from "@/generated/prisma/enums";
 
 export const transcribeVideo = base
   .use(requiredAuthMiddleware)
@@ -36,6 +38,26 @@ export const transcribeVideo = base
     );
     const videoBytes = await s3Obj.Body?.transformToByteArray();
     if (!videoBytes) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Vídeo não encontrado no storage" });
+
+    // Cobrança proporcional aos minutos estimados. Whisper custa $0.006/min
+    // (USD real). Estimamos ~6MB/min em vídeo médio (720p H.264) — boa
+    // aproximação na ausência de metadado de duração. 1★/min com mínimo 1★.
+    const sizeMB = videoBytes.byteLength / (1024 * 1024);
+    const estimatedMinutes = Math.max(1, Math.ceil(sizeMB / 6));
+    const charge = await debitStars(
+      context.org.id,
+      estimatedMinutes,
+      StarTransactionType.APP_CHARGE,
+      `Transcrição de vídeo (Whisper — ~${estimatedMinutes}min)`,
+      "transcribe_video",
+      context.user.id,
+    );
+    if (!charge.success) {
+      throw new ORPCError("BAD_REQUEST", {
+        message: `Saldo de STARs insuficiente. Necessário ${estimatedMinutes}★ (~${estimatedMinutes}min de transcrição).`,
+        data: { code: "INSUFFICIENT_STARS", needed: estimatedMinutes },
+      });
+    }
 
     const ext = post.videoKey.split(".").pop() ?? "mp4";
     const filename = `video.${ext}`;

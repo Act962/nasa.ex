@@ -14,6 +14,7 @@ import z from "zod";
 import { v4 as uuidv4 } from "uuid";
 import {
   attendLeadIfWaiting,
+  updateConversationLastMessage,
   claimLeadForAttendant,
   logChatMessageSent,
   triggerFirstChatInteractionIfFirst,
@@ -22,6 +23,7 @@ import {
   isInChatModeActiveForConversation,
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
+import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 
 export const createTextMessage = base
   .use(requiredAuthMiddleware)
@@ -65,6 +67,20 @@ export const createTextMessage = base
       const inChatMode =
         channel === MessageChannel.WHATSAPP &&
         (await isInChatModeActiveForConversation(input.conversationId));
+      // Cobra 1★ antes de chamar uazapi/Meta — evita custo de API sem saldo.
+      if (organizationId) {
+        await chargeMessageOutbound({
+          organizationId,
+          userId: context.user.id,
+          channel:
+            channel === MessageChannel.INSTAGRAM
+              ? "instagram"
+              : channel === MessageChannel.FACEBOOK
+                ? "facebook"
+                : "whatsapp",
+          mediaType: "text",
+        });
+      }
 
       let externalMessageId = uuidv4();
 
@@ -206,6 +222,7 @@ export const createTextMessage = base
 
       // Trigger gamification/attendance logic
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+      await updateConversationLastMessage(message.conversationId, message.id, message.createdAt);
       await claimLeadForAttendant(message.conversation.lead.id, context.user.id);
 
       await triggerFirstChatInteractionIfFirst({

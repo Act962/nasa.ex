@@ -127,6 +127,9 @@ model User {
   aiSessions      AiSession[]
   aiKnowledgeMade AiKnowledge[] @relation("AiKnowledgeCreatedBy")
 
+  // ── Tracking Chat — figurinhas personalizadas do composer ──
+  userStickers UserSticker[]
+
   @@unique([email])
   @@map("user")
 }
@@ -199,6 +202,15 @@ model Organization {
   // Saldo de bônus (welcome, promoções) — não pode pagar curso no NASA Router,
   // mas pode ser consumido por integrações (Planner IA, Command IA, APP_CHARGE/SETUP).
   starsCycleStart      DateTime? @map("stars_cycle_start")
+  // ── Grace period / suspensão (pay-per-use) ────────────────
+  // Quando saldo zera, `starsGraceStartedAt` é setado. Org tem 15 dias
+  // pra recarregar. Cron `stars-grace-period-monitor` notifica em dias
+  // 1/3/7/12/14 e seta `starsSuspendedAt` em dia 15+. Suspensão zera o
+  // acesso a todas as procedures que cobram via `requireStarsMiddleware`.
+  starsGraceStartedAt  DateTime? @map("stars_grace_started_at")
+  starsSuspendedAt     DateTime? @map("stars_suspended_at")
+  // Anti-spam de notificações pós-débito (1 dispatch/dia/severidade).
+  starsLastAlertAt     DateTime? @map("stars_last_alert_at")
   starsAlertConfig     Json      @default("{}") @map("stars_alert_config")
   starDistributionMode String    @default("org") @map("star_distribution_mode")
   // "org"    = pool compartilhado (padrão)
@@ -299,6 +311,9 @@ model Organization {
   // Space Station
   spaceStation SpaceStation?
 
+  // NASA Planner 2.0: templates de post brandeáveis por-org
+  nasaPlannerPostTemplates NasaPlannerPostTemplate[]
+
   // Alerts (regras configuráveis de notificação)
   alertRules AlertRule[]
 
@@ -311,6 +326,29 @@ model Organization {
   brandVisual         Json    @default("{}") @map("brand_visual")
   brandAiInstructions String? @map("brand_ai_instructions")
   brandSwot           Json    @default("{}") @map("brand_swot")
+
+  // ── STARS grace period (declarado também aqui pra não dropar) ──
+  // Esses 3 campos pertencem oficialmente à STARS PR #68 (em andamento).
+  // Replicados nesta branch APENAS pra não ser deletados durante o
+  // `migrate dev` (o diff prisma compara DB ↔ schema e droparia o que
+  // está só no DB). Quando PR #68 mergear, é apenas resolver conflito
+  // de schema.prisma (escolher "both") — semanticamente idêntico.
+  starsGraceStartedAt DateTime? @map("stars_grace_started_at")
+  starsSuspendedAt    DateTime? @map("stars_suspended_at")
+  starsLastAlertAt    DateTime? @map("stars_last_alert_at")
+
+  // ── Brand Kit consolidado (NASA Planner 2.0) ──
+  // Populado pela extração automática via Claude Vision (extract-from-logo)
+  // ou editado manualmente em /settings/brand. Esses fields são INJETADOS
+  // automaticamente nos prompts de IA via `buildBrandedContext(orgId)`
+  // (src/features/nasa-planner/lib/brand-context.ts) — garantindo
+  // consistência visual em TODA geração (imagem, vídeo, texto).
+  brandPaletteHex   Json?     @map("brand_palette_hex")    // ["#7C3AED", "#1447E6", ...]
+  brandFontHeading  String?   @map("brand_font_heading")    // "Inter", "Manrope"
+  brandFontBody     String?   @map("brand_font_body")
+  brandLogoUrl      String?   @map("brand_logo_url")        // R2 key (não URL completa)
+  brandLogoVariants Json?     @map("brand_logo_variants")   // {dark, light, monochrome}
+  brandExtractedAt  DateTime? @map("brand_extracted_at")    // quando IA extraiu auto
 
   // ── Localização (para diretório Empresas no mapa) ──
   addressLine String?   @map("address_line")
@@ -365,6 +403,9 @@ model Organization {
   aiAgentConfigs AiAgentConfig[]
   aiSessions     AiSession[]
   aiKnowledge    AiKnowledge[]
+
+  // ── Tracking Chat — figurinhas personalizadas do composer ──
+  userStickers UserSticker[]
 
   @@unique([slug])
   @@map("organization")
@@ -789,6 +830,13 @@ model Lead {
   currentAction LeadAction @default(ACTIVE) @map("current_action")
   isActive      Boolean    @default(true) @map("is_active")
 
+  // Arquivamento — lead fica fora do tracking padrão (todos os filtros)
+  // mas continua acessível via filtro "Arquivados" no /tracking-chat e
+  // com badge "Arquivado" na lista de /contatos. Novas mensagens dele
+  // só aparecem dentro de "Arquivados".
+  isArchived Boolean   @default(false) @map("is_archived")
+  archivedAt DateTime? @map("archived_at")
+
   // ─── Origem / Tracking de campanha (UTM + CTWA + Meta Ads) ───
   utmSource      String? @map("utm_source")
   utmMedium      String? @map("utm_medium")
@@ -1115,6 +1163,11 @@ model Action {
   mirrorsAsSource ActionMirror[] @relation("SourceMirror")
   mirrorOf        ActionMirror?  @relation("MirrorOf")
   sharedFrom      ActionShare[]  @relation("SharedAction")
+
+  // Posts criados via "Criar com Planner" no popup do view-action-modal
+  // (NASA Planner 2.0). Mantém o vínculo Action↔Post pra rastreabilidade
+  // e auto-popular caption/title quando o popup abre.
+  plannerPosts NasaPlannerPost[] @relation("ActionPlannerPosts")
 
   // ─── Calendário Público ─────────────────────────────────────────────
   isPublic    Boolean   @default(false) @map("is_public")
@@ -1671,7 +1724,13 @@ model Conversation {
   createdAt     DateTime @default(now()) @map("created_at")
   lastMessageAt DateTime @updatedAt @map("last_message_at")
   name          String?
-  isGroup       Boolean  @default(false)
+  // `isGroup` já existia (default false). `groupSubject` é o nome do
+  // grupo (vem do uazapi find-chat); `groupParticipantsCount` ajuda a
+  // renderizar badge "12 participantes" no card. Ambos nullables pra
+  // compat com conversas individuais existentes.
+  isGroup                Boolean @default(false)
+  groupSubject           String? @map("group_subject")
+  groupParticipantsCount Int?    @map("group_participants_count")
 
   remoteJid     String         @map("remote_jid")
   profilePicUrl String?        @map("profile_pic_url")
@@ -1748,6 +1807,35 @@ model Message {
   @@index([status])
   @@index([fromMe])
   @@map("messages")
+}
+
+/**
+ * Figurinhas (stickers) personalizadas do usuário, exibidas no picker do
+ * composer do `/tracking-chat`. Cada figurinha aponta pra um arquivo no
+ * R2 e é escopada por org (todos os usuários da org vêem o mesmo banco
+ * de figurinhas).
+ *
+ * `mimetype`: tipicamente `image/webp` (formato nativo de sticker
+ * WhatsApp), mas aceitamos PNG/GIF e o uazapi converte na hora do envio.
+ *
+ * Envio: ao clicar numa figurinha, o front chama `sendMedia` da uazapi
+ * com `type: "sticker"`, passando a URL do R2.
+ */
+model UserSticker {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id") // criador
+  url            String
+  mimetype       String   @default("image/webp")
+  label          String?  // nome/tag opcional pra busca
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([userId])
+  @@map("user_stickers")
 }
 
 enum WhatsAppInstanceStatus {
@@ -2678,6 +2766,22 @@ model NasaPlannerPost {
   campaignId     String?  @map("campaign_id")
   referenceLinks String[] @default([]) @map("reference_links")
 
+  // ── NASA Planner 2.0: vínculo com Workspace Action + templates ──
+  // `actionId`: quando o post foi criado via "Criar com Planner" no popup
+  // do view-action-modal do Workspace, guarda a Action de origem pra
+  // rastreabilidade e sync de metadados (description → caption, etc.)
+  // `templateId`: template estático aplicado (sprint 2)
+  // `videoTranscriptionData`: words[], chapters[], highlights[] do
+  // AssemblyAI (sprint 2) — usado pra legendas word-by-word + cortes
+  // inteligentes baseados em viral moments.
+  // `videoEditTimelineJson`: timeline completa do editor CapCut-style
+  // (clips + transitions + overlays + cta) — usado como input pro
+  // Remotion Lambda no render final (sprint 3).
+  actionId               String? @map("action_id")
+  templateId             String? @map("template_id")
+  videoTranscriptionData Json?   @map("video_transcription_data")
+  videoEditTimelineJson  Json?   @map("video_edit_timeline_json")
+
   logoKey       String? @map("logo_key")
   videoKey      String? @map("video_key")
   videoDuration Int?    @map("video_duration")
@@ -2706,12 +2810,46 @@ model NasaPlannerPost {
   createdBy  User                   @relation("NasaPlannerPostCreatedBy", fields: [createdById], references: [id])
   orgProject OrgProject?            @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
   campaign   NasaCampaignPlanner?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  action     Action?                @relation("ActionPlannerPosts", fields: [actionId], references: [id], onDelete: SetNull)
+  template   NasaPlannerPostTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   slides     NasaPlannerPostSlide[]
 
   @@index([plannerId, status])
   @@index([plannerId, scheduledAt])
   @@index([organizationId])
+  @@index([actionId])
+  @@index([templateId])
   @@map("nasa_planner_posts")
+}
+
+// ── Templates de post estático brandeáveis (NASA Planner 2.0 / sprint 2) ──
+// Cada template é um layout Konva serializado (`layoutJson`) com posições
+// e tipos das camadas (image, headline, subhead, footer, cta, logo). O
+// editor (`post-template-editor.tsx`) carrega o layout, aplica o brand
+// kit da org automaticamente (fontes do `brandFontHeading/Body`, paleta
+// do `brandPaletteHex`) e permite o usuário ajustar antes de renderizar
+// via Remotion Lambda. Templates `isGlobal` são curados pela plataforma;
+// templates por-org permitem personalizações salvas pelo usuário.
+model NasaPlannerPostTemplate {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  category       String   // "minimal-serif", "bold-modern", "elegant-luxury", "vibrant-popart", "clean-corporate"
+  ratio          String   // "1:1", "9:16", "4:5", "1.91:1"
+  layoutJson     Json     // Konva nodes spec: positions + types of layers
+  previewKey     String?  @map("preview_key") // S3 key do thumb estático pra galeria
+  isGlobal       Boolean  @default(false) @map("is_global")
+  organizationId String?  @map("organization_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  posts        NasaPlannerPost[]
+
+  @@index([organizationId, isGlobal])
+  @@index([category])
+  @@map("nasa_planner_post_templates")
 }
 
 model NasaPlannerPostSlide {

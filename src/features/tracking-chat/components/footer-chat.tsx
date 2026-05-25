@@ -17,8 +17,9 @@ import {
   StickerIcon,
   UserPlusIcon,
 } from "lucide-react";
-import pt from "emoji-picker-react/dist/data/emojis-pt.json";
-import EmojiPicker, { Theme } from "emoji-picker-react";
+import { EmojiStickerPicker } from "./emoji-sticker-picker";
+import { orpc } from "@/lib/orpc";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
 import {
@@ -47,7 +48,6 @@ import {
   InputGroupTextarea,
 } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
-import { EmojiData } from "emoji-picker-react/dist/types/exposedTypes";
 import { MessageSelected } from "./message-selected";
 import { ComposeResponse } from "./compose-response";
 import { TrackingChatCopilot } from "@/features/astro/components/embeds/tracking-chat-copilot";
@@ -111,7 +111,6 @@ export function Footer({
   );
   const [sendImage, setSendImage] = useState(false);
   const [open, setOpen] = useState(false);
-  const [openSticker, setOpenSticker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const [message, setMessage] = useState("");
@@ -170,6 +169,23 @@ export function Footer({
     lead,
     messageSelected,
   });
+
+  // Envio de figurinha — chama o endpoint dedicado (sendMedia type:"sticker").
+  // Não passa pelo dialog SendFile porque sticker não tem caption nem
+  // confirmação (UX do WhatsApp: clica e manda).
+  const stickerQc = useQueryClient();
+  const mutationSticker = useMutation(
+    orpc.message.createWithSticker.mutationOptions({
+      onSuccess: () => {
+        stickerQc.invalidateQueries({
+          queryKey: ["message.list", conversationId],
+        });
+      },
+      onError: () => {
+        toast.error("Falha ao enviar figurinha");
+      },
+    }),
+  );
 
   const isDisabled = !instance.instance;
 
@@ -640,23 +656,46 @@ export function Footer({
                   </InputGroupAddon>
 
                   <InputGroupAddon>
-                    <Popover open={openSticker} onOpenChange={setOpenSticker}>
-                      <PopoverTrigger asChild>
-                        <StickerIcon className="cursor-pointer size-4" />
-                      </PopoverTrigger>
-                      <PopoverContent className="w-fit h-fit p-0">
-                        <EmojiPicker
-                          searchPlaceholder="Pesquisar emoji"
-                          skinTonesDisabled={true}
-                          previewConfig={{ showPreview: false }}
-                          emojiData={pt as EmojiData}
-                          theme={Theme.DARK}
-                          onEmojiClick={(emoji) =>
-                            setMessage(message + emoji.emoji)
-                          }
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    {/* Picker combinado de Emojis + Figurinhas (tabs).
+                        Substitui o popover antigo que só tinha emoji.
+                        Stickers usam `UserSticker` (org-scoped, R2)
+                        e enviam via uazapi com type:"sticker".
+                        Trigger é um <button> de verdade — `PopoverTrigger
+                        asChild` precisa de elemento que aceite ref, e o
+                        SVG do lucide não forwarda ref consistente. */}
+                    <EmojiStickerPicker
+                      trigger={
+                        <button
+                          type="button"
+                          className="cursor-pointer inline-flex items-center justify-center text-foreground hover:text-foreground/80 transition-colors"
+                          aria-label="Emojis e figurinhas"
+                          title="Emojis e figurinhas"
+                        >
+                          <StickerIcon className="size-4" />
+                        </button>
+                      }
+                      onEmoji={(emoji) => setMessage((prev) => prev + emoji)}
+                      onSticker={({ url, mimetype }) => {
+                        if (!instance.instance) {
+                          toast.error("Instância não encontrada");
+                          return;
+                        }
+                        if (!lead.phone) {
+                          toast.error("Lead sem telefone");
+                          return;
+                        }
+                        mutationSticker.mutate({
+                          conversationId,
+                          leadPhone: lead.phone,
+                          token: instance.instance.apiKey,
+                          mediaUrl: url,
+                          mimetype,
+                          quotedMessageId: messageSelected?.messageId,
+                          id: messageSelected?.id,
+                        });
+                        closeMessageSelected();
+                      }}
+                    />
                   </InputGroupAddon>
                 </>
               ) : (
