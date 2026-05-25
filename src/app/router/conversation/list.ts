@@ -24,6 +24,12 @@ export const listConversation = base
       channel: z.string().nullable().optional(),
       tagIds: z.array(z.string()).optional(),
       favoritesOnly: z.boolean().optional(),
+      /**
+       * Quando `true`, mostra SOMENTE leads arquivados (filtro "Arquivados"
+       * da sidebar). Quando `false`/undefined, EXCLUI arquivados do retorno.
+       * Outros filtros (statusFlow, tags, etc.) seguem aplicando.
+       */
+      archivedOnly: z.boolean().optional(),
     }),
   )
 
@@ -35,6 +41,18 @@ export const listConversation = base
           trackingId: input.trackingId,
           ...(input.channel && { channel: input.channel as any }),
           lead: {
+            // Arquivados: filtro orthogonal aos outros.
+            // - `archivedOnly: true` → SOMENTE arquivados (filtro
+            //   "Arquivados" da sidebar).
+            // - Sem search ativo → exclui arquivados (`isArchived: false`).
+            // - COM search ativo → não filtra (`undefined`), deixa
+            //   arquivados aparecerem com badge visual no card. UX:
+            //   busca acha o lead mesmo arquivado.
+            ...(input.archivedOnly
+              ? { isArchived: true }
+              : input.search?.trim()
+                ? {}
+                : { isArchived: false }),
             statusFlow: input.statusFlow
               ? { equals: input.statusFlow }
               : { not: "FINISHED" },

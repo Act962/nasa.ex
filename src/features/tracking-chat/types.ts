@@ -33,11 +33,13 @@ export interface CreatedMessageProps extends MessageBodyProps {
 export enum MessageStatus {
   SENT = "SENT",
   SEEN = "SEEN",
+  DELETED = "DELETED",
 }
 
 export interface Message {
   id: string;
   messageId: string;
+  senderId?: string | null;
   senderName?: string | null;
   body: string | null;
   mediaUrl: string | null;

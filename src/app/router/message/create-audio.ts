@@ -13,6 +13,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import z from "zod";
 import {
   attendLeadIfWaiting,
+  updateConversationLastMessage,
   claimLeadForAttendant,
   logChatMessageSent,
   triggerFirstChatInteractionIfFirst,
@@ -149,6 +150,7 @@ export const createMessageWithAudio = base
 
       // Trigger gamification/attendance logic
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+      await updateConversationLastMessage(message.conversationId, message.id, message.createdAt);
       await claimLeadForAttendant(message.conversation.lead.id, context.user.id);
 
       await triggerFirstChatInteractionIfFirst({

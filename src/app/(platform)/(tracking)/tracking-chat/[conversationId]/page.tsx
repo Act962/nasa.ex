@@ -49,11 +49,14 @@ export default function Page() {
           trackingId={data.conversation.trackingId}
           statusFlow={data.conversation.lead.statusFlow}
           channel={data.conversation.channel}
+          trackingName={(data.conversation as any).tracking?.name ?? null}
+          statusName={(data.conversation.lead as any).status?.name ?? null}
         />
         <Body
           messageSelected={messageSelected}
           onSelectMessage={setMessageSelected}
           trackingId={data.conversation.trackingId}
+          isGroup={data.conversation.isGroup}
         />
         <Footer
           messageSelected={messageSelected}

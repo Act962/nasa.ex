@@ -32,6 +32,9 @@ export const listLead = base
           email: true,
           createdAt: true,
           profile: true,
+          // isArchived alimenta o badge "Arquivado" + a opção
+          // "Desarquivar" no menu de actions da tabela /contatos.
+          isArchived: true,
           tracking: {
             select: {
               id: true,

@@ -18,6 +18,7 @@ import {
   captureMetaReferralForNewLead,
 } from "@/lib/lead-journey/ctwa";
 import {
+  callsEventSchema,
   chatLabelsEventSchema,
   messagesEventSchema,
   webhookBaseSchema,
@@ -306,6 +307,74 @@ export async function POST(request: NextRequest) {
         body = json.message.content?.text || "";
       } else if (!body && typeof json.message.content.caption === "string") {
         body = json.message.content?.caption || "";
+      }
+
+      // ── Revoke (mensagem apagada no WhatsApp pelo lead/atendente) ────
+      // O uazapi entrega como `messageType: "ProtocolMessage"` com
+      // `content.type` indicando REVOKE (geralmente 0 ou "REVOKE" como
+      // string). O campo `content.key.id` (ou `content.id`) aponta pra
+      // mensagem original que foi revogada. Estratégia idêntica ao
+      // soft-delete: marca status=DELETED + limpa body/mídia. UI já
+      // renderiza como "Mensagem apagada".
+      if (messageType === "ProtocolMessage") {
+        const content =
+          typeof json.message.content === "object" && json.message.content
+            ? (json.message.content as Record<string, any>)
+            : {};
+        // Tipos comuns observados: 0 (REVOKE_FOR_EVERYONE), "REVOKE",
+        // "MESSAGE_REVOKE". Tratamos tudo que parecer revoke.
+        const ptype = String(content.type ?? "").toUpperCase();
+        const isRevoke =
+          content.type === 0 ||
+          ptype.includes("REVOKE") ||
+          !!content.revokedMessageKey ||
+          !!content.revokeMessageKey;
+
+        if (isRevoke) {
+          const revokedKey =
+            content.key?.id ??
+            content.revokedMessageKey?.id ??
+            content.revokeMessageKey?.id ??
+            content.id ??
+            null;
+          if (revokedKey) {
+            try {
+              const updated = await prisma.message.update({
+                where: { messageId: String(revokedKey) },
+                data: {
+                  status: MessageStatus.DELETED,
+                  body: null,
+                  mediaUrl: null,
+                  mediaType: null,
+                  mediaCaption: null,
+                  mimetype: null,
+                  fileName: null,
+                },
+                select: { id: true, conversationId: true },
+              });
+              await pusherServer.trigger(
+                updated.conversationId,
+                "message:updated",
+                {
+                  messageId: updated.id,
+                  conversationId: updated.conversationId,
+                  status: MessageStatus.DELETED,
+                },
+              );
+            } catch (err) {
+              // Mensagem revogada pode não estar no nosso banco (foi
+              // enviada antes da conversa ser importada) — não polui o log.
+              console.debug(
+                "[webhook:chat] revoke target not found",
+                revokedKey,
+              );
+            }
+          }
+          return NextResponse.json({ success: true, revoked: true });
+        }
+        // ProtocolMessage de outro tipo (ex: confirmação de leitura) —
+        // ignora silenciosamente.
+        return NextResponse.json({ success: true, ignored: "protocol" });
       }
 
       let messageData: any = null;
@@ -890,6 +959,144 @@ export async function POST(request: NextRequest) {
         });
       }
       return NextResponse.json({ success: true }, { status: 200 });
+    }
+
+    // ── Chamadas (voz/vídeo) recebidas no WhatsApp ───────────────────────
+    // O uazapi entrega via EventType: "calls" com payload do tipo
+    // { call: { chatid, from, isVideo, status, duration, ... } }.
+    // Persistimos como Message com mediaType="voice_call"/"video_call" +
+    // body JSON com status/duração. UI já renderiza via `CallMessageBox`.
+    if (base.data.EventType === "calls") {
+      const callsParsed = callsEventSchema.safeParse(json);
+      if (!callsParsed.success) {
+        console.warn("[webhook:chat:calls] invalid_payload", {
+          trackingId,
+          issues: callsParsed.error.issues,
+        });
+        return NextResponse.json(
+          { ok: false, reason: "invalid_calls_payload" },
+          { status: 200 },
+        );
+      }
+
+      const call = callsParsed.data.call ?? ({} as any);
+      // Loga o payload inteiro pra ajudar a corrigir o schema se o
+      // formato da uazapi variar.
+      console.info("[webhook:chat:calls] received", { trackingId, call });
+
+      const callId =
+        call.id || call.callid || `uazapi-call-${call.timestamp ?? Date.now()}`;
+      const callChatid = call.chatid || call.from;
+      if (!callChatid) {
+        return NextResponse.json(
+          { ok: false, reason: "missing_chatid" },
+          { status: 200 },
+        );
+      }
+
+      const callPhone = String(callChatid).split("@")[0];
+
+      // Acha o Lead/Conversation. Se não existe, ignora (não cria lead
+      // só de chamada — espera primeira mensagem texto pra fazer o
+      // round-robin, igual o webhook de messages faz).
+      const callLead = await prisma.lead.findUnique({
+        where: { phone_trackingId: { phone: callPhone, trackingId } },
+        select: { id: true, conversation: { select: { id: true } } },
+      });
+
+      if (!callLead?.conversation) {
+        return NextResponse.json(
+          { ok: true, skipped: "lead_or_conversation_not_found" },
+          { status: 200 },
+        );
+      }
+
+      const isVideo = !!call.isVideo;
+      const fromMe = !!call.fromMe;
+      const rawStatus = String(call.status ?? "").toLowerCase();
+
+      // Mapeia status do uazapi pro nosso enum de UI.
+      // - offer/ringing → "started" (em curso ou recém-iniciada)
+      // - accept/answered → "completed" (atendida; vai virar definitivamente
+      //   completed quando o `terminate` chegar)
+      // - reject/decline → "declined"
+      // - terminate/hangup com duration 0 → "missed"
+      // - terminate/hangup com duration > 0 → "completed"
+      // - timeout/missed → "missed"
+      let mappedStatus: "started" | "completed" | "missed" | "declined";
+      if (rawStatus === "accept" || rawStatus === "answered") {
+        mappedStatus = "completed";
+      } else if (rawStatus === "reject" || rawStatus === "decline" || rawStatus === "declined") {
+        mappedStatus = "declined";
+      } else if (
+        rawStatus === "missed" ||
+        rawStatus === "timeout" ||
+        (rawStatus.includes("terminate") && (!call.duration || call.duration === 0))
+      ) {
+        mappedStatus = "missed";
+      } else if (rawStatus.includes("terminate") || rawStatus === "hangup") {
+        mappedStatus = call.duration && call.duration > 0 ? "completed" : "missed";
+      } else {
+        // offer / ringing / desconhecido — assume "started"
+        mappedStatus = "started";
+      }
+
+      const callMessageId = `wa-call-${callId}`;
+      const callMediaType = isVideo ? "video_call" : "voice_call";
+      const callBody = JSON.stringify({
+        type: isVideo ? "video" : "voice",
+        status: mappedStatus,
+        durationSec: call.duration ?? null,
+        callId,
+        rawStatus,
+      });
+
+      const callMessage = await prisma.message.upsert({
+        where: { messageId: callMessageId },
+        update: {
+          body: callBody,
+          status: MessageStatus.SEEN,
+        },
+        create: {
+          messageId: callMessageId,
+          conversationId: callLead.conversation.id,
+          body: callBody,
+          mediaType: callMediaType,
+          fromMe,
+          senderName: fromMe ? "Atendente" : null,
+          senderId: fromMe ? null : callChatid,
+          status: MessageStatus.SEEN,
+          createdAt: call.timestamp ? new Date(call.timestamp) : new Date(),
+        },
+        select: {
+          id: true,
+          messageId: true,
+          body: true,
+          mediaType: true,
+          createdAt: true,
+          fromMe: true,
+          status: true,
+          conversationId: true,
+          senderId: true,
+          senderName: true,
+        },
+      });
+
+      // Pusher pra atualizar UI em tempo real (mesmo evento que outras
+      // mensagens — o front já escuta).
+      await pusherServer.trigger(
+        callMessage.conversationId,
+        "message:new",
+        {
+          ...callMessage,
+          conversation: {
+            id: callMessage.conversationId,
+            lead: { id: callLead.id, name: "" },
+          },
+        },
+      );
+
+      return NextResponse.json({ success: true, status: mappedStatus }, { status: 201 });
     }
     if (base.data.EventType === "labels") {
       const { LabelID, Action } = json.event;
