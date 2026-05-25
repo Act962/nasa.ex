@@ -20,7 +20,7 @@ import {
   triggerFirstChatInteractionIfFirst,
 } from "./utils";
 import {
-  isInChatModeActiveForConversation,
+  shouldSkipUazapiForConversation,
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
@@ -66,7 +66,7 @@ export const createTextMessage = base
       // WHATSAPP (IG/FB não passam pela uazapi).
       const inChatMode =
         channel === MessageChannel.WHATSAPP &&
-        (await isInChatModeActiveForConversation(input.conversationId));
+        (await shouldSkipUazapiForConversation(input.conversationId));
       // Cobra 1★ antes de chamar uazapi/Meta — evita custo de API sem saldo.
       if (organizationId) {
         await chargeMessageOutbound({

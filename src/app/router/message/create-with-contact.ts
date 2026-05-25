@@ -18,7 +18,7 @@ import {
 } from "./utils";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 import {
-  isInChatModeActiveForConversation,
+  shouldSkipUazapiForConversation,
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
 import { v4 as uuidv4 } from "uuid";
@@ -73,7 +73,7 @@ export const createContactMessage = base
       // ── In-Chat Fallback ─────────────────────────────────────────────
       const inChatMode =
         channel === MessageChannel.WHATSAPP &&
-        (await isInChatModeActiveForConversation(input.conversationId));
+        (await shouldSkipUazapiForConversation(input.conversationId));
 
       let messageid = uuidv4();
       if (!inChatMode) {

@@ -21,7 +21,7 @@ import {
 import { MessageChannel } from "@/generated/prisma/enums";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 import {
-  isInChatModeActiveForConversation,
+  shouldSkipUazapiForConversation,
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
 import { v4 as uuidv4 } from "uuid";
@@ -86,7 +86,7 @@ export const createMessageWithAudio = base
       // via página pública). Só pulamos a uazapi.
       const inChatMode =
         (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP &&
-        (await isInChatModeActiveForConversation(input.conversationId));
+        (await shouldSkipUazapiForConversation(input.conversationId));
 
       let externalMessageId = uuidv4();
       if (!inChatMode) {

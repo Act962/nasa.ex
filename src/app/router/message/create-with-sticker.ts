@@ -18,7 +18,7 @@ import {
 } from "./utils";
 import { MessageChannel } from "@/generated/prisma/enums";
 import {
-  isInChatModeActiveForConversation,
+  shouldSkipUazapiForConversation,
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
 import { v4 as uuidv4 } from "uuid";
@@ -56,7 +56,7 @@ export const createMessageWithSticker = base
   )
   .handler(async ({ input, context }) => {
     // ── In-Chat Fallback ───────────────────────────────────────────────
-    const inChatMode = await isInChatModeActiveForConversation(
+    const inChatMode = await shouldSkipUazapiForConversation(
       input.conversationId,
     );
 
