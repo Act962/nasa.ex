@@ -6,6 +6,10 @@ import { streamText } from "ai";
 import { streamToEventIterator } from "@orpc/client";
 import prisma from "@/lib/prisma";
 import { google } from "@ai-sdk/google";
+import {
+  buildBrandedContext,
+  prependBrandToTextSystem,
+} from "@/features/nasa-planner/lib/brand-context";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 export const generateCompose = base
@@ -46,6 +50,7 @@ export const generateCompose = base
       select: {
         id: true,
         trackingId: true,
+        tracking: { select: { organizationId: true } },
       },
     });
 
@@ -67,7 +72,7 @@ export const generateCompose = base
       });
     }
 
-    const system = [
+    const baseSystem = [
       "Você é uma IA que ajuda os usuários a responderem mensagens de forma mais eficiente.",
       `Seu nome é ${aiSettings.assistantName}.`,
       "Sua mensagem deve ser curta e objetiva.",
@@ -76,6 +81,17 @@ export const generateCompose = base
       "Retorne SOMENTE o texto, nas apresentações ou frases de encerramento",
       "Use emojis de forma moderada",
     ].join("\n");
+
+    // Brand context: se a conversa tem tracking → org, injeta identidade
+    // da marca (slogan, tom de voz, ICP, posicionamento) ANTES do system
+    // prompt da IA. Garante que toda composição respeite a marca.
+    const orgId = conversation.tracking?.organizationId ?? null;
+    const brandCtx = orgId
+      ? await buildBrandedContext(orgId)
+      : null;
+    const system = brandCtx
+      ? prependBrandToTextSystem(baseSystem, brandCtx)
+      : baseSystem;
 
     const result = streamText({
       model: google("gemini-2.5-flash"),
