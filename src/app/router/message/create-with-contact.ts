@@ -17,6 +17,11 @@ import {
   triggerFirstChatInteractionIfFirst,
 } from "./utils";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
+import {
+  isInChatModeActiveForConversation,
+  markInstanceConnectionFailure,
+} from "@/features/tracking-chat/lib/in-chat-mode";
+import { v4 as uuidv4 } from "uuid";
 
 export const createContactMessage = base
   .use(requiredAuthMiddleware)
@@ -65,16 +70,40 @@ export const createContactMessage = base
         });
       }
 
-      const response = await sendContact(input.token, {
-        number: input.leadPhone,
-        fullName: input.contactName,
-        phoneNumber: input.contactPhone,
-        replyid: input.replyId,
-        readmessages: true,
-        readchat: true,
-      });
+      // ── In-Chat Fallback ─────────────────────────────────────────────
+      const inChatMode =
+        channel === MessageChannel.WHATSAPP &&
+        (await isInChatModeActiveForConversation(input.conversationId));
 
-      const messageid = response.messageid;
+      let messageid = uuidv4();
+      if (!inChatMode) {
+        try {
+          const response = await sendContact(input.token, {
+            number: input.leadPhone,
+            fullName: input.contactName,
+            phoneNumber: input.contactPhone,
+            replyid: input.replyId,
+            readmessages: true,
+            readchat: true,
+          });
+          messageid = response.messageid;
+        } catch (err: any) {
+          const msg = String(err?.message ?? "");
+          const isLikelyBan =
+            msg.includes("status 401") ||
+            msg.includes("status 403") ||
+            msg.includes("status 500") ||
+            msg.toLowerCase().includes("invalid token") ||
+            msg.toLowerCase().includes("timeout");
+          if (isLikelyBan) {
+            markInstanceConnectionFailure({
+              apiKey: input.token,
+              source: "send_failure",
+            }).catch(() => {});
+          }
+          throw err;
+        }
+      }
 
       const message = await prisma.message.create({
         data: {
@@ -87,6 +116,7 @@ export const createContactMessage = base
           mediaType: "contact",
           fileName: input.contactPhone,
           senderName: context.user.name,
+          viaInChat: inChatMode,
         },
         select: {
           id: true,

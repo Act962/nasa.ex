@@ -17,6 +17,11 @@ import {
   triggerFirstChatInteractionIfFirst,
 } from "./utils";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
+import {
+  isInChatModeActiveForConversation,
+  markInstanceConnectionFailure,
+} from "@/features/tracking-chat/lib/in-chat-mode";
+import { v4 as uuidv4 } from "uuid";
 
 export const createLocationMessage = base
   .use(requiredAuthMiddleware)
@@ -67,18 +72,42 @@ export const createLocationMessage = base
         });
       }
 
-      const response = await sendLocation(input.token, {
-        number: input.leadPhone,
-        latitude: input.latitude,
-        longitude: input.longitude,
-        name: input.name,
-        address: input.address,
-        replyid: input.replyId,
-        readmessages: true,
-        readchat: true,
-      });
+      // ── In-Chat Fallback ─────────────────────────────────────────────
+      const inChatMode =
+        channel === MessageChannel.WHATSAPP &&
+        (await isInChatModeActiveForConversation(input.conversationId));
 
-      const messageid = response.messageid;
+      let messageid = uuidv4();
+      if (!inChatMode) {
+        try {
+          const response = await sendLocation(input.token, {
+            number: input.leadPhone,
+            latitude: input.latitude,
+            longitude: input.longitude,
+            name: input.name,
+            address: input.address,
+            replyid: input.replyId,
+            readmessages: true,
+            readchat: true,
+          });
+          messageid = response.messageid;
+        } catch (err: any) {
+          const msg = String(err?.message ?? "");
+          const isLikelyBan =
+            msg.includes("status 401") ||
+            msg.includes("status 403") ||
+            msg.includes("status 500") ||
+            msg.toLowerCase().includes("invalid token") ||
+            msg.toLowerCase().includes("timeout");
+          if (isLikelyBan) {
+            markInstanceConnectionFailure({
+              apiKey: input.token,
+              source: "send_failure",
+            }).catch(() => {});
+          }
+          throw err;
+        }
+      }
 
       const bodyText =
         [input.name, input.address].filter(Boolean).join(" — ") || null;
@@ -95,6 +124,7 @@ export const createLocationMessage = base
           latitude: input.latitude,
           longitude: input.longitude,
           senderName: context.user.name,
+          viaInChat: inChatMode,
         },
         select: {
           id: true,

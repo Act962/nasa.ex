@@ -18,6 +18,11 @@ import {
 } from "./utils";
 import { MessageChannel } from "@/generated/prisma/enums";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
+import {
+  isInChatModeActiveForConversation,
+  markInstanceConnectionFailure,
+} from "@/features/tracking-chat/lib/in-chat-mode";
+import { v4 as uuidv4 } from "uuid";
 
 export const createMessageWithImage = base
   .use(requiredAuthMiddleware)
@@ -58,15 +63,45 @@ export const createMessageWithImage = base
         });
       }
 
-      const response = await sendMedia(input.token, {
-        file: useConstructUrl(input.mediaUrl),
-        text: input.body,
-        number: input.leadPhone,
-        type: "image",
-        readchat: true,
-        readmessages: true,
-        replyid: input.quotedMessageId,
-      });
+      // ── In-Chat Fallback ─────────────────────────────────────────────
+      // Quando a instância está banida/offline, pula a uazapi e marca
+      // `viaInChat: true` — o lead vê via `/whatsapp/[orgSlug]`.
+      const inChatMode =
+        (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP &&
+        (await isInChatModeActiveForConversation(input.conversationId));
+
+      let externalMessageId = uuidv4();
+      if (!inChatMode) {
+        try {
+          const response = await sendMedia(input.token, {
+            file: useConstructUrl(input.mediaUrl),
+            text: input.body,
+            number: input.leadPhone,
+            type: "image",
+            readchat: true,
+            readmessages: true,
+            replyid: input.quotedMessageId,
+          });
+          externalMessageId = response.id;
+        } catch (err: any) {
+          // Lazy detection do ban: incrementa contador em erros de
+          // auth/timeout. Threshold 3 ativa modo In-Chat automaticamente.
+          const msg = String(err?.message ?? "");
+          const isLikelyBan =
+            msg.includes("status 401") ||
+            msg.includes("status 403") ||
+            msg.includes("status 500") ||
+            msg.toLowerCase().includes("invalid token") ||
+            msg.toLowerCase().includes("timeout");
+          if (isLikelyBan) {
+            markInstanceConnectionFailure({
+              apiKey: input.token,
+              source: "send_failure",
+            }).catch(() => {});
+          }
+          throw err;
+        }
+      }
 
       const message = await prisma.message.create({
         data: {
@@ -74,11 +109,12 @@ export const createMessageWithImage = base
           body: input.body,
           mediaUrl: input.mediaUrl,
           mimetype: "image/jpeg",
-          messageId: response.id,
+          messageId: externalMessageId,
           fromMe: true,
           status: MessageStatus.SENT,
           quotedMessageId: input.id,
           senderName: context.user.name,
+          viaInChat: inChatMode,
         },
         select: {
           id: true,

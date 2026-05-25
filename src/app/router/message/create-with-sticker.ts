@@ -17,6 +17,11 @@ import {
   triggerFirstChatInteractionIfFirst,
 } from "./utils";
 import { MessageChannel } from "@/generated/prisma/enums";
+import {
+  isInChatModeActiveForConversation,
+  markInstanceConnectionFailure,
+} from "@/features/tracking-chat/lib/in-chat-mode";
+import { v4 as uuidv4 } from "uuid";
 
 /**
  * Envia uma figurinha (sticker) pelo WhatsApp.
@@ -50,14 +55,40 @@ export const createMessageWithSticker = base
     }),
   )
   .handler(async ({ input, context }) => {
-    const response = await sendMedia(input.token, {
-      file: useConstructUrl(input.mediaUrl),
-      number: input.leadPhone,
-      type: "sticker",
-      readchat: true,
-      readmessages: true,
-      replyid: input.quotedMessageId,
-    });
+    // ── In-Chat Fallback ───────────────────────────────────────────────
+    const inChatMode = await isInChatModeActiveForConversation(
+      input.conversationId,
+    );
+
+    let externalMessageId = uuidv4();
+    if (!inChatMode) {
+      try {
+        const response = await sendMedia(input.token, {
+          file: useConstructUrl(input.mediaUrl),
+          number: input.leadPhone,
+          type: "sticker",
+          readchat: true,
+          readmessages: true,
+          replyid: input.quotedMessageId,
+        });
+        externalMessageId = response.id;
+      } catch (err: any) {
+        const msg = String(err?.message ?? "");
+        const isLikelyBan =
+          msg.includes("status 401") ||
+          msg.includes("status 403") ||
+          msg.includes("status 500") ||
+          msg.toLowerCase().includes("invalid token") ||
+          msg.toLowerCase().includes("timeout");
+        if (isLikelyBan) {
+          markInstanceConnectionFailure({
+            apiKey: input.token,
+            source: "send_failure",
+          }).catch(() => {});
+        }
+        throw err;
+      }
+    }
 
     const message = await prisma.message.create({
       data: {
@@ -66,11 +97,12 @@ export const createMessageWithSticker = base
         mediaUrl: input.mediaUrl,
         mediaType: "sticker",
         mimetype: input.mimetype,
-        messageId: response.id,
+        messageId: externalMessageId,
         fromMe: true,
         status: MessageStatus.SENT,
         quotedMessageId: input.id,
         senderName: context.user.name,
+        viaInChat: inChatMode,
       },
       select: {
         id: true,
