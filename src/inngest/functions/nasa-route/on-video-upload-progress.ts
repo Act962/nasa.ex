@@ -10,9 +10,6 @@ export const onVideoUploadProgress = inngest.createFunction(
   async ({ event, publish }) => {
     const { uploadId, progressPct, completedParts, totalParts } = event.data;
 
-    await publish(videoUploadChannel(uploadId), {
-      topic: "progress",
-      data: { uploadId, progressPct, completedParts, totalParts },
-    });
+    await publish(videoUploadChannel(uploadId).progress({ uploadId, progressPct, completedParts, totalParts }));
   },
 );

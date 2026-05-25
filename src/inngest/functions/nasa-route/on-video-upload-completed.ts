@@ -10,9 +10,6 @@ export const onVideoUploadCompleted = inngest.createFunction(
   async ({ event, publish }) => {
     const { uploadId, videoUrl } = event.data;
 
-    await publish(videoUploadChannel(uploadId), {
-      topic: "completed",
-      data: { uploadId, videoUrl },
-    });
+    await publish(videoUploadChannel(uploadId).completed({ uploadId, videoUrl }));
   },
 );
