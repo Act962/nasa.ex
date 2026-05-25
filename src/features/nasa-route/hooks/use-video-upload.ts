@@ -112,8 +112,8 @@ export function useVideoUpload() {
       await saveUpload(persisted);
 
       try {
-        await runUploadLoop(started.uploadId, file, started.presignedUrls);
-        toast.success(`Upload de "${file.name}" concluído!`);
+        const completed = await runUploadLoop(started.uploadId, file, started.presignedUrls);
+        if (completed) toast.success(`Upload de "${file.name}" concluído!`);
       } catch (err: unknown) {
         const e = err as { message?: string };
         toast.error(e?.message ?? "Falha no upload.");
@@ -150,26 +150,37 @@ export function useVideoUpload() {
           const chunk = file.slice(start, end);
 
           const url = presignedUrls[partNumber - 1];
-          const etag = await putPart(url, chunk);
+          let etag: string;
+          try {
+            etag = await putPart(url, chunk);
+          } catch (err) {
+            // Se o upload foi cancelado enquanto o PUT estava em retry, ignora silenciosamente.
+            const afterErr = useVideoUploadManager.getState().uploads.get(uploadId);
+            if (!afterErr || afterErr.status !== "uploading") return;
+            throw err;
+          }
+
+          // Re-verifica status após o PUT — abort pode ter chegado durante o upload da part
+          const afterPut = useVideoUploadManager.getState().uploads.get(uploadId);
+          if (!afterPut || afterPut.status !== "uploading") return;
 
           useVideoUploadManager.getState().addPart(uploadId, partNumber, etag);
 
-          // Calcula progresso atualizado e reporta ao servidor (fire & forget)
           const updated = useVideoUploadManager.getState().uploads.get(uploadId);
           if (updated) {
             const completedCount = updated.completedParts.length;
             const progressPct = Math.round((completedCount / totalParts) * 100);
 
-            void orpc.nasaRoute.creatorReportUploadPart.call({
+            // Fire & forget com catch explícito — evita unhandledRejection em race com abort
+            orpc.nasaRoute.creatorReportUploadPart.call({
               uploadId,
               partNumber,
               etag,
               progressPct,
               completedParts: completedCount,
               totalParts,
-            });
+            }).catch(() => {});
 
-            // IndexedDB — mantido para resume após reload de página
             const { file: _f, progressPct: _p, ...rest } = updated;
             void _f;
             void _p;
@@ -186,7 +197,7 @@ export function useVideoUpload() {
       );
 
       const final = useVideoUploadManager.getState().uploads.get(uploadId);
-      if (!final) return;
+      if (!final || final.status !== "uploading") return false;
 
       await orpc.nasaRoute.creatorCompleteVideoUpload.call({
         uploadId,
@@ -208,6 +219,8 @@ export function useVideoUpload() {
       setTimeout(() => {
         useVideoUploadManager.getState().remove(uploadId);
       }, 5000);
+
+      return true;
     },
     [qc],
   );
@@ -252,14 +265,16 @@ export function useVideoUpload() {
   );
 
   const abort = useCallback(async (uploadId: string) => {
+    // Atualiza o store PRIMEIRO — workers verificam o status a cada iteração
+    // e param imediatamente ao ver "aborted", evitando que cheguem ao complete.
+    useVideoUploadManager.getState().patch(uploadId, { status: "aborted" });
+    await deleteUpload(uploadId);
+    useVideoUploadManager.getState().remove(uploadId);
     try {
       await orpc.nasaRoute.creatorAbortVideoUpload.call({ uploadId });
     } catch (err) {
       console.warn("[useVideoUpload] abort falhou (ignorado):", err);
     }
-    useVideoUploadManager.getState().patch(uploadId, { status: "aborted" });
-    await deleteUpload(uploadId);
-    useVideoUploadManager.getState().remove(uploadId);
   }, []);
 
   return { startAndRun, resumeWithFile, abort };

@@ -23,6 +23,7 @@ import {
   ArrowLeftIcon,
   CalendarDaysIcon,
   Columns3Icon,
+  MessageSquareIcon,
   MoreHorizontalIcon,
   Plus,
   Search,
@@ -55,10 +56,11 @@ export function NavTracking() {
       href: `/tracking/${params.trackingId}`,
       icon: <Columns3Icon />,
     },
-    // {
-    //   label: "Conversas",
-    //   href: `/tracking/${params.trackingId}/chat`,
-    // },
+    {
+      label: "Chat",
+      href: `/tracking-chat?trackingId=${params.trackingId}`,
+      icon: <MessageSquareIcon />,
+    },
     {
       label: "Agendamentos",
       href: `/tracking/${params.trackingId}/appointments`,
@@ -127,7 +129,9 @@ export function NavTracking() {
           <ButtonGroup>
             <ButtonGroup className="hidden lg:flex">
               {navItems.map((item) => {
-                const isActive = item.href === pathname;
+                const isActive = pathname.startsWith("/tracking-chat")
+                  ? item.href.startsWith("/tracking-chat")
+                  : item.href === pathname;
 
                 return (
                   <Button

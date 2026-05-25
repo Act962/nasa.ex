@@ -14,10 +14,7 @@ import {
   FieldLabel,
   FieldSeparator,
 } from "@/components/ui/field";
-import {
-  useQueryAiSettings,
-  useUpdateAiSettings,
-} from "../hooks/use-tracking";
+import { useQueryAiSettings, useUpdateAiSettings } from "../hooks/use-tracking";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/spinner";
@@ -151,7 +148,7 @@ export function ChatBotIaGeneralTab({ trackingId }: { trackingId: string }) {
             <Field>
               <FieldLabel>Finalizar chat quando</FieldLabel>
               <Input
-                placeholder="Quiente quiser pedir para ser atendido por um humano"
+                placeholder="Quando quiser pedir para ser atendido por um humano"
                 disabled={isSubmitting}
                 {...form.register("finishMessage")}
               />

@@ -35,10 +35,10 @@ export const creatorReportUploadPart = base
     if (upload.userId !== context.user.id) {
       throw new ORPCError("FORBIDDEN", { message: "Upload pertence a outro usuário" });
     }
+    // Se já foi abortado/concluído, ignora silenciosamente — workers paralelos
+    // podem reportar parts após o abort por race condition.
     if (upload.status !== "uploading") {
-      throw new ORPCError("BAD_REQUEST", {
-        message: `Upload com status "${upload.status}" não aceita novas parts`,
-      });
+      return { ok: false };
     }
 
     await inngest.send({

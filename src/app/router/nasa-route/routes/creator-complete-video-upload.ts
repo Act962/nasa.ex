@@ -3,7 +3,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
-import { CompleteMultipartUploadCommand } from "@aws-sdk/client-s3";
+import { CompleteMultipartUploadCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { S3 } from "@/lib/s3-client";
 import { r2NasaRouteVideoUrl } from "@/features/nasa-route/lib/video-storage-url";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
@@ -107,6 +107,13 @@ export const creatorCompleteVideoUpload = base
       });
     }
 
+    // Lê o fileKey anterior antes de sobrescrever — será apagado do R2 ao final.
+    const lesson = await prisma.nasaRouteLesson.findUnique({
+      where: { id: upload.lessonId },
+      select: { videoFileKey: true },
+    });
+    const previousFileKey = lesson?.videoFileKey ?? null;
+
     // Atualiza a aula e o registro de upload na mesma transação.
     await prisma.$transaction([
       prisma.nasaRouteLesson.update({
@@ -125,6 +132,15 @@ export const creatorCompleteVideoUpload = base
         data: { status: "completed", completedAt: new Date() },
       }),
     ]);
+
+    // Apaga o vídeo anterior do R2 (best-effort — não falha o upload se der erro).
+    if (previousFileKey && previousFileKey !== upload.fileKey) {
+      void S3.send(
+        new DeleteObjectCommand({ Bucket: bucket, Key: previousFileKey }),
+      ).catch((err) =>
+        console.warn("[creatorCompleteVideoUpload] falha ao apagar vídeo anterior:", err),
+      );
+    }
 
     // Notifica canal Inngest Realtime — frontend recebe "completed" via SSE.
     void inngest.send({

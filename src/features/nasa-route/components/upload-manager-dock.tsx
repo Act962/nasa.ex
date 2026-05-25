@@ -25,6 +25,7 @@ import { toast } from "sonner";
  */
 export function UploadManagerDock() {
   const [collapsed, setCollapsed] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const uploadsMap = useVideoUploadManager((s) => s.uploads);
   const upsert = useVideoUploadManager((s) => s.upsert);
   const remove = useVideoUploadManager((s) => s.remove);
@@ -57,18 +58,40 @@ export function UploadManagerDock() {
 
   if (uploads.length === 0) return null;
 
+  // Minimizado: só um chip flutuante com contador
+  if (minimized) {
+    return (
+      <button
+        onClick={() => setMinimized(false)}
+        className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full border bg-background px-3 py-2 text-xs font-medium shadow-lg hover:bg-muted/60 transition-colors"
+      >
+        <FileVideo className="size-3.5 text-violet-500" />
+        <span>{uploads.length} upload{uploads.length > 1 ? "s" : ""}</span>
+      </button>
+    );
+  }
+
   return (
     <div className="fixed bottom-4 right-4 z-50 w-80 rounded-xl border bg-background shadow-lg">
-      <div
-        className="flex cursor-pointer items-center justify-between rounded-t-xl border-b bg-muted/40 px-3 py-2 text-sm"
-        onClick={() => setCollapsed((c) => !c)}
-      >
-        <span className="font-medium">Uploads ({uploads.length})</span>
-        {collapsed ? (
-          <ChevronUp className="size-4" />
-        ) : (
-          <ChevronDown className="size-4" />
-        )}
+      <div className="flex items-center justify-between rounded-t-xl border-b bg-muted/40 px-3 py-2 text-sm">
+        <div
+          className="flex flex-1 cursor-pointer items-center gap-2"
+          onClick={() => setCollapsed((c) => !c)}
+        >
+          <span className="font-medium">Uploads ({uploads.length})</span>
+          {collapsed ? (
+            <ChevronUp className="size-4" />
+          ) : (
+            <ChevronDown className="size-4" />
+          )}
+        </div>
+        <button
+          onClick={() => setMinimized(true)}
+          className="ml-1 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          title="Minimizar"
+        >
+          <X className="size-3.5" />
+        </button>
       </div>
 
       {!collapsed && (
