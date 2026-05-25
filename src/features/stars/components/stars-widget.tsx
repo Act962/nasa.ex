@@ -14,19 +14,21 @@ import { StarIcon } from "./star-icon";
 import { StarsPurchaseModal } from "./stars-purchase-modal";
 import { SubscriptionPlansModal } from "./subscription-plans-modal";
 import { StarsHistoryDialog } from "./stars-history-dialog";
-import { History, Plus, TrendingUp, AlertTriangle, Zap, Sparkles } from "lucide-react";
+import { History, Plus, TrendingUp, AlertTriangle, Zap, Sparkles, ShieldAlert } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // ─── Consumed bar ─────────────────────────────────────────────────────────────
 
 function ConsumedBar({ consumed, total }: { consumed: number; total: number }) {
   const pct = total > 0 ? Math.min(100, (consumed / total) * 100) : 0;
+  // Thresholds atualizados: 90% crítico, 70% aviso (era 95/80).
   const color =
-    pct >= 95
+    pct >= 90
       ? "bg-red-500"
-      : pct >= 80
+      : pct >= 70
         ? "bg-amber-500"
-        : pct >= 60
+        : pct >= 50
           ? "bg-yellow-400"
           : "bg-[#7C3AED]";
 
@@ -72,6 +74,7 @@ export function StarsWidget() {
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [allAppsOpen, setAllAppsOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     ...orpc.stars.getBalance.queryOptions(),
@@ -134,11 +137,30 @@ export function StarsWidget() {
   const consumed = usage?.consumedInCycle ?? 0;
   // Saldo restante = direto do `org.starsBalance` (não calculado).
   const remaining = balance;
-  // Mostra barra/% só pros planos com limite definido (Earth, Explore, etc.)
-  const showLimitBar = hasPlan && !isPayPerUse && planMonthlyStars > 0;
+  // Mostra barra/% só pros planos com limite definido + cycleStart populado.
+  // **FIX CRÍTICO**: sem `cycleStart` (org nova ou plano sem ciclo iniciado),
+  // não calcula `pctUsed` e não dispara o alerta vermelho indevido.
+  const cycleStart = data?.cycleStart;
+  const showLimitBar =
+    hasPlan && !isPayPerUse && planMonthlyStars > 0 && !!cycleStart;
   const pctUsed = showLimitBar ? (consumed / planMonthlyStars) * 100 : 0;
-  const isLow = showLimitBar && pctUsed >= 80;
-  const isCritical = showLimitBar && pctUsed >= 95;
+  // Thresholds: 70% aviso, 90% crítico (era 80/95).
+  const isLow = showLimitBar && pctUsed >= 70;
+  const isCritical = showLimitBar && pctUsed >= 90;
+
+  // Grace period / suspended — vindos do backend (get-balance estendido).
+  const graceStartedAt = data?.graceStartedAt
+    ? new Date(data.graceStartedAt)
+    : null;
+  const suspendedAt = data?.suspendedAt
+    ? new Date(data.suspendedAt)
+    : null;
+  const daysInGrace = graceStartedAt
+    ? Math.floor(
+        (Date.now() - graceStartedAt.getTime()) / (24 * 60 * 60 * 1000),
+      )
+    : 0;
+  const daysLeftGrace = Math.max(0, 15 - daysInGrace);
 
   return (
     <>
@@ -288,14 +310,27 @@ export function StarsWidget() {
                 </div>
               )}
 
-              {/* Uso do plano por app — top 5 ordenado por consumo */}
+              {/* Uso do plano por app — top 5 + link "Ver todos" pra abrir
+                  modal com a lista completa quando a org tem >5 apps com
+                  consumo. */}
               {usage?.byApp && usage.byApp.length > 0 && (
                 <div className="space-y-1.5 pt-1">
-                  <p className="text-[11px] font-semibold text-muted-foreground">
-                    Uso do plano por app
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-semibold text-muted-foreground">
+                      Uso do plano por app
+                    </p>
+                    {usage.byApp.length > 5 && (
+                      <button
+                        type="button"
+                        onClick={() => setAllAppsOpen(true)}
+                        className="text-[10px] text-[#7C3AED] hover:underline"
+                      >
+                        Ver todos ({usage.byApp.length})
+                      </button>
+                    )}
+                  </div>
                   <div className="space-y-1.5">
-                    {usage.byApp.map((app) => {
+                    {usage.byApp.slice(0, 5).map((app) => {
                       const pct = showLimitBar
                         ? (app.total / planMonthlyStars) * 100
                         : (app.total / Math.max(consumed, 1)) * 100;
@@ -334,8 +369,18 @@ export function StarsWidget() {
                 <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200/60 p-2.5 dark:bg-amber-950/20 dark:border-amber-900/40">
                   <Zap className="size-3.5 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
-                    Mais de 80% das stars consumidas. Considere recarregar.
+                    Mais de 70% das stars consumidas. Considere recarregar.
                   </p>
+                </div>
+              )}
+
+              {/* Banner persistente durante grace period — após o saldo zerar. */}
+              {graceStartedAt && !suspendedAt && (
+                <div className="flex items-start gap-2 rounded-lg bg-orange-50 border border-orange-200/60 p-2.5 dark:bg-orange-950/20 dark:border-orange-900/40">
+                  <ShieldAlert className="size-3.5 text-orange-500 shrink-0 mt-0.5" />
+                  <div className="text-[11px] text-orange-700 dark:text-orange-300 leading-relaxed">
+                    <strong>Saldo zerou.</strong> Recarregue em <strong>{daysLeftGrace} dias</strong> pra evitar a suspensão da conta. Chat AI já está em modo humano.
+                  </div>
                 </div>
               )}
 
@@ -410,6 +455,50 @@ export function StarsWidget() {
         )}
       </div>
 
+      {/* Modal bloqueante quando a conta entrou em suspensão total — usuário
+          só pode interagir com o botão "Comprar Stars" pra reativar. */}
+      <Dialog open={!!suspendedAt} onOpenChange={() => {}}>
+        <DialogContent
+          className="sm:max-w-md"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <ShieldAlert className="size-5" />
+              Conta suspensa por falta de STARs
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <p>
+              Sua conta entrou em suspensão após o período de carência de 15
+              dias com saldo zerado. Todas as integrações pagas estão bloqueadas
+              — Chat AI, envio de mensagens, e demais features de cobrança não
+              funcionarão até você recarregar.
+            </p>
+            <p>
+              Para reativar imediatamente, compre STARs ou faça upgrade do
+              plano.
+            </p>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button
+              className="flex-1 bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-2"
+              onClick={() => setPurchaseOpen(true)}
+            >
+              <Plus className="size-3.5" /> Comprar Stars
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setPlanOpen(true)}
+            >
+              Ver planos
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <StarsPurchaseModal
         open={purchaseOpen}
         onClose={() => setPurchaseOpen(false)}
@@ -420,6 +509,47 @@ export function StarsWidget() {
         currentPlanSlug={planSlug}
       />
       <StarsHistoryDialog open={historyOpen} onOpenChange={setHistoryOpen} />
+
+      {/* Modal "Uso do plano por app" — lista completa (todos os apps). */}
+      <Dialog open={allAppsOpen} onOpenChange={setAllAppsOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <StarIcon className="size-4" />
+              Uso por app no ciclo
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+            {(usage?.byApp ?? []).map((app) => {
+              const pct = showLimitBar
+                ? (app.total / planMonthlyStars) * 100
+                : (app.total / Math.max(consumed, 1)) * 100;
+              return (
+                <div key={app.appSlug} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium truncate">{app.label}</span>
+                    <span className="text-muted-foreground tabular-nums shrink-0">
+                      {app.total.toLocaleString("pt-BR")} ★
+                      {showLimitBar ? ` (${pct.toFixed(0)}%)` : ""}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-[#7C3AED]"
+                      style={{ width: `${Math.min(100, pct)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+            {(usage?.byApp ?? []).length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-8">
+                Nenhum consumo registrado neste ciclo.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

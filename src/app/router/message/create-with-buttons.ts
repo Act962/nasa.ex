@@ -8,6 +8,8 @@ import { ORPCError } from "@orpc/server";
 import z from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { triggerFirstChatInteractionIfFirst } from "./utils";
+import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
+import { MessageChannel } from "@/generated/prisma/enums";
 
 const buttonSchema = z.object({
   text: z.string().min(1).max(20),
@@ -54,6 +56,25 @@ export const createButtonsMessage = base
     ]),
   )
   .handler(async ({ input, context }) => {
+    // Cobra 1★ antes de chamar uazapi — evita custo de API sem saldo.
+    const conv = await prisma.conversation.findUnique({
+      where: { id: input.conversationId },
+      select: { channel: true, tracking: { select: { organizationId: true } } },
+    });
+    if (conv?.tracking?.organizationId) {
+      await chargeMessageOutbound({
+        organizationId: conv.tracking.organizationId,
+        userId: context.user.id,
+        channel:
+          conv.channel === MessageChannel.INSTAGRAM
+            ? "instagram"
+            : conv.channel === MessageChannel.FACEBOOK
+              ? "facebook"
+              : "whatsapp",
+        mediaType: "buttons",
+      });
+    }
+
     let externalMessageId = uuidv4();
 
     // Constrói o texto resumido para salvar no DB

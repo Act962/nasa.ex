@@ -53,6 +53,7 @@ import { removePostMedia } from "./remove-post-media";
 import { removePostSlide } from "./remove-post-slide";
 import { addSlidesBatch } from "./add-slides-batch";
 import { syncPostMetrics } from "./sync-post-metrics";
+import { generatePostImage } from "./generate-post-image";
 
 export const nasaPlannerRouter = {
   planners: {
@@ -87,6 +88,8 @@ export const nasaPlannerRouter = {
     removeSlide: removePostSlide,
     addSlidesBatch: addSlidesBatch,
     syncMetrics: syncPostMetrics,
+    // NASA Planner 2.0: geração com seleção de modelo + ref image (Ideogram/DALL-E/Pollinations)
+    generatePostImage: generatePostImage,
   },
   mindMaps: {
     list: listMindMaps,

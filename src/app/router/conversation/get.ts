@@ -24,10 +24,18 @@ export const getConversation = base
           id: conversationId,
         },
         include: {
-          lead: true,
+          // Inclui `status` (nome da coluna kanban) pra o header da
+          // conversa mostrar o breadcrumb "Tracking > Status" estilo
+          // CRM. O `tracking.name` segue o mesmo objetivo.
+          lead: {
+            include: {
+              status: { select: { id: true, name: true } },
+            },
+          },
           tracking: {
             select: {
               id: true,
+              name: true,
             },
           },
         },

@@ -14,6 +14,7 @@ import { useState } from "react";
 import { useQueryLeadsWithoutConversation } from "../hooks/use-leads-conversation";
 import { useCreateConversation } from "../hooks/use-conversation";
 import { Spinner } from "@/components/ui/spinner";
+import { ImportFromWhatsAppButton } from "./import-from-whatsapp-button";
 interface CreateChatProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -71,9 +72,26 @@ export function CreateChatDialog({
         <DialogHeader>
           <DialogTitle>Crie um novo chat</DialogTitle>
           <DialogDescription>
-            Busque e selecione um cliente para iniciar uma conversa
+            Busque e selecione um cliente para iniciar uma conversa, ou
+            importe todas as conversas existentes do seu WhatsApp.
           </DialogDescription>
         </DialogHeader>
+        {/* Atalho pra importar conversas existentes do WhatsApp via uazapi.
+            Útil quando o usuário acaba de conectar a instância e quer
+            puxar o histórico de uma vez (independe de webhook). */}
+        <div className="rounded-lg border bg-muted/30 px-3 py-2.5 flex items-center justify-between gap-3">
+          <div className="text-xs leading-relaxed">
+            <p className="font-semibold">Importar do WhatsApp</p>
+            <p className="text-muted-foreground">
+              Puxa até 50 conversas/grupos por vez.
+            </p>
+          </div>
+          <ImportFromWhatsAppButton
+            trackingId={trackingId}
+            variant="default"
+            label="Importar"
+          />
+        </div>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

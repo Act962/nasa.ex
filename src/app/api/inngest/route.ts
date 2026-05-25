@@ -20,6 +20,7 @@ import {
 } from "@/inngest/functions/crons/partner-tier-recalc";
 import { partnerPayoutCloseCycle } from "@/inngest/functions/crons/partner-payout-close-cycle";
 import { partnerGracePeriodMonitor } from "@/inngest/functions/crons/partner-grace-period-monitor";
+import { starsGracePeriodMonitor } from "@/inngest/functions/crons/stars-grace-period-monitor";
 import { coursePublicPurchasePaid } from "@/inngest/functions/course-public-purchase-paid";
 import { publishPostHandler } from "@/inngest/functions/nasa-planner/publish-post-handler";
 import { publishScheduledPosts } from "@/inngest/functions/nasa-planner/publish-scheduled-posts";
@@ -38,6 +39,7 @@ import { chatSyncMessages } from "@/inngest/functions/chat/sync-conversation-mes
 import { autoResolveExpiredClaims } from "@/inngest/functions/calendar/auto-resolve-expired-claims";
 import { detectStaleLeads } from "@/inngest/functions/crons/detect-stale-leads";
 import { detectBrokenIntegrations } from "@/inngest/functions/crons/detect-broken-integrations";
+import { detectWhatsappBan } from "@/inngest/functions/crons/detect-whatsapp-ban";
 import { detectAgendaStarting } from "@/inngest/functions/crons/detect-agenda-starting";
 import { detectFormAbandoned } from "@/inngest/functions/crons/detect-form-abandoned";
 import { detectLowMetrics } from "@/inngest/functions/crons/detect-low-metrics";
@@ -64,6 +66,8 @@ export const { GET, POST, PUT } = serve({
     partnerTierRecalcOne,
     partnerPayoutCloseCycle,
     partnerGracePeriodMonitor,
+    // ── STARS grace monitor (diário 09h UTC) ──
+    starsGracePeriodMonitor,
     // ── NASA Router (checkout público de curso) ──
     coursePublicPurchasePaid,
     // ── NASA Planner ──
@@ -94,6 +98,7 @@ export const { GET, POST, PUT } = serve({
     // ── Alerts: detecção time-based ──
     detectStaleLeads,
     detectBrokenIntegrations,
+    detectWhatsappBan,
     detectAgendaStarting,
     detectFormAbandoned,
     detectLowMetrics,

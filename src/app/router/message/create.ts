@@ -14,10 +14,16 @@ import z from "zod";
 import { v4 as uuidv4 } from "uuid";
 import {
   attendLeadIfWaiting,
+  updateConversationLastMessage,
   claimLeadForAttendant,
   logChatMessageSent,
   triggerFirstChatInteractionIfFirst,
 } from "./utils";
+import {
+  isInChatModeActiveForConversation,
+  markInstanceConnectionFailure,
+} from "@/features/tracking-chat/lib/in-chat-mode";
+import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 
 export const createTextMessage = base
   .use(requiredAuthMiddleware)
@@ -51,6 +57,30 @@ export const createTextMessage = base
 
       const channel = conversation?.channel ?? MessageChannel.WHATSAPP;
       const organizationId = conversation?.tracking?.organizationId;
+
+      // ── In-Chat Fallback ─────────────────────────────────────────────
+      // Quando a instância está banida/offline (detectado pelo cron
+      // `detect-whatsapp-ban`), a mensagem NÃO vai pra uazapi. Em vez
+      // disso é salva com `viaInChat: true` e fica visível pro lead via
+      // página pública `/whatsapp/[orgSlug]`. Aplica só pra channel
+      // WHATSAPP (IG/FB não passam pela uazapi).
+      const inChatMode =
+        channel === MessageChannel.WHATSAPP &&
+        (await isInChatModeActiveForConversation(input.conversationId));
+      // Cobra 1★ antes de chamar uazapi/Meta — evita custo de API sem saldo.
+      if (organizationId) {
+        await chargeMessageOutbound({
+          organizationId,
+          userId: context.user.id,
+          channel:
+            channel === MessageChannel.INSTAGRAM
+              ? "instagram"
+              : channel === MessageChannel.FACEBOOK
+                ? "facebook"
+                : "whatsapp",
+          mediaType: "text",
+        });
+      }
 
       let externalMessageId = uuidv4();
 
@@ -89,15 +119,40 @@ export const createTextMessage = base
           });
           if (result?.message_id) externalMessageId = result.message_id;
         }
+      } else if (inChatMode) {
+        // Pula a uazapi — em modo In-Chat o lead vê via página pública.
+        // `externalMessageId` fica como `uuidv4()` (gerado acima), o que
+        // é OK porque In-Chat não precisa de tracking external.
       } else {
-        const response = await sendText(input.token, {
-          text: input.body,
-          number: input.leadPhone,
-          replyid: input.replyId,
-          readmessages: true,
-          readchat: true,
-        });
-        externalMessageId = response.messageid;
+        try {
+          const response = await sendText(input.token, {
+            text: input.body,
+            number: input.leadPhone,
+            replyid: input.replyId,
+            readmessages: true,
+            readchat: true,
+          });
+          externalMessageId = response.messageid;
+        } catch (err: any) {
+          // Lazy detection do ban: se a uazapi rejeitou por auth/erro
+          // de servidor, incrementa o contador. Quando passar do
+          // threshold (3 falhas), ativa modo In-Chat — próximas
+          // mensagens pulam o uazapi automaticamente.
+          const msg = String(err?.message ?? "");
+          const isLikelyBan =
+            msg.includes("status 401") ||
+            msg.includes("status 403") ||
+            msg.includes("status 500") ||
+            msg.toLowerCase().includes("invalid token") ||
+            msg.toLowerCase().includes("timeout");
+          if (isLikelyBan) {
+            markInstanceConnectionFailure({
+              apiKey: input.token,
+              source: "send_failure",
+            }).catch(() => {});
+          }
+          throw err;
+        }
       }
 
       // Kept for backwards compat — WhatsApp path used response.messageid above
@@ -113,6 +168,9 @@ export const createTextMessage = base
           quotedMessageId: input.id,
           mimetype: input.mediaUrl ? "image/jpeg" : null,
           senderName: context.user.name,
+          // Marca a origem da mensagem — In-Chat (página pública) ou
+          // WhatsApp normal. Visível em Insights e ajuda no debug.
+          viaInChat: inChatMode,
         },
         select: {
           id: true,
@@ -164,6 +222,7 @@ export const createTextMessage = base
 
       // Trigger gamification/attendance logic
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+      await updateConversationLastMessage(message.conversationId, message.id, message.createdAt);
       await claimLeadForAttendant(message.conversation.lead.id, context.user.id);
 
       await triggerFirstChatInteractionIfFirst({

@@ -198,7 +198,7 @@ export function CardActionsMenu({
             className="gap-2 cursor-pointer text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30"
           >
             <CalendarPlusIcon className="size-3.5" />
-            Adicionar ao Planner
+            Criar com Planner
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />

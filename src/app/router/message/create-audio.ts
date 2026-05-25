@@ -13,11 +13,13 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import z from "zod";
 import {
   attendLeadIfWaiting,
+  updateConversationLastMessage,
   claimLeadForAttendant,
   logChatMessageSent,
   triggerFirstChatInteractionIfFirst,
 } from "./utils";
 import { MessageChannel } from "@/generated/prisma/enums";
+import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 
 export const createMessageWithAudio = base
   .use(requiredAuthMiddleware)
@@ -40,6 +42,25 @@ export const createMessageWithAudio = base
   )
   .handler(async ({ input, context }) => {
     try {
+      // Cobra 1★ ANTES do upload S3 + chamada uazapi — evita custo sem saldo.
+      const conv = await prisma.conversation.findUnique({
+        where: { id: input.conversationId },
+        select: { channel: true, tracking: { select: { organizationId: true } } },
+      });
+      if (conv?.tracking?.organizationId) {
+        await chargeMessageOutbound({
+          organizationId: conv.tracking.organizationId,
+          userId: context.user.id,
+          channel:
+            conv.channel === MessageChannel.INSTAGRAM
+              ? "instagram"
+              : conv.channel === MessageChannel.FACEBOOK
+                ? "facebook"
+                : "whatsapp",
+          mediaType: "audio",
+        });
+      }
+
       const buffer = Buffer.from(await input.blob.arrayBuffer());
 
       const presignedResponse = await S3.send(
@@ -129,6 +150,7 @@ export const createMessageWithAudio = base
 
       // Trigger gamification/attendance logic
       await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+      await updateConversationLastMessage(message.conversationId, message.id, message.createdAt);
       await claimLeadForAttendant(message.conversation.lead.id, context.user.id);
 
       await triggerFirstChatInteractionIfFirst({
