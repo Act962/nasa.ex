@@ -1793,6 +1793,13 @@ model Message {
   senderId        String?
   senderName      String?
 
+  // ── In-Chat Fallback ─────────────────────────────────────────────────
+  // `true` quando a mensagem foi enviada/recebida pela página pública
+  // `/whatsapp/[orgSlug]` (modo anti-ban) em vez de via uazapi/WhatsApp.
+  // Útil pra distinguir no histórico mensagens que tiveram trajeto
+  // diferente — em Insights, por ex., separar "via WA" vs "via In-Chat".
+  viaInChat Boolean @default(false) @map("via_in_chat")
+
   conversation Conversation  @relation("Messages", fields: [conversationId], references: [id], onDelete: Cascade)
   LastMessage  Conversation?
 
@@ -1856,11 +1863,26 @@ model WhatsAppInstance {
   updatedAt      DateTime               @updatedAt @map("updated_at")
   isBusiness     Boolean                @default(false) @map("is_business")
 
+  // ── In-Chat Fallback (anti-ban) ──────────────────────────────────────
+  // `inChatModeActive` = true quando o cron `detect-whatsapp-ban` detecta
+  // que a instância está banida/desconectada persistentemente. Em modo
+  // ativo, mensagens outbound deixam de ir pra uazapi e o lead acessa
+  // a conversa via URL pública `/whatsapp/[orgSlug]`.
+  // `inChatFailureCount` conta tentativas de status check consecutivas
+  // que falharam — só ativa o modo quando passa o threshold (3+) pra
+  // evitar falsos positivos (rede instável, hiccup).
+  // `inChatActivatedAt` registra quando o modo foi ligado pela última
+  // vez. Útil pra Insights ("instância banida por X dias").
+  inChatModeActive   Boolean   @default(false) @map("in_chat_mode_active")
+  inChatActivatedAt  DateTime? @map("in_chat_activated_at")
+  inChatFailureCount Int       @default(0) @map("in_chat_failure_count")
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   tracking     Tracking     @relation(fields: [trackingId], references: [id])
 
   @@index([organizationId])
   @@index([status])
+  @@index([inChatModeActive])
   @@map("whatsapp_instances")
 }
 

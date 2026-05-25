@@ -60,9 +60,28 @@ const SOCIAL_SVG: Record<string, React.ReactNode> = {
 interface Props {
   page: LinnkerPage;
   isDraft?: boolean;
+  /**
+   * URL absoluta/relativa pra fallback In-Chat quando a instância de
+   * WhatsApp da org está banida. Setada server-side em `(public)/l/[slug]`.
+   * Quando presente, redirecionamos links/ícones do WhatsApp pra cá em
+   * vez de `wa.me/...`. Null = WhatsApp normal está funcionando.
+   */
+  inChatUrl?: string | null;
 }
 
-export function LinnkerPublicPage({ page, isDraft = false }: Props) {
+/** Detecta se um URL é WhatsApp (wa.me, api.whatsapp.com, whatsapp://). */
+function isWhatsAppUrl(url: string): boolean {
+  const u = url.toLowerCase();
+  return (
+    u.startsWith("https://wa.me/") ||
+    u.startsWith("http://wa.me/") ||
+    u.startsWith("wa.me/") ||
+    u.includes("api.whatsapp.com/send") ||
+    u.startsWith("whatsapp://")
+  );
+}
+
+export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null }: Props) {
   const radius = BUTTON_RADIUS[page.buttonStyle] ?? "16px";
   const socialLinks = (page.socialLinks as SocialLink[]) ?? [];
   const iconColor = page.socialIconColor ?? "#52525b";
@@ -76,6 +95,13 @@ export function LinnkerPublicPage({ page, isDraft = false }: Props) {
   }, [page.slug, isDraft]);
 
   const handleLinkClick = (link: LinnkerLink) => {
+    // In-Chat Fallback — quando o WhatsApp da org está banido e o link
+    // aponta pra wa.me, redireciona pra página pública In-Chat. Lead não
+    // percebe diferença visual.
+    if (inChatUrl && isWhatsAppUrl(link.url)) {
+      window.location.href = inChatUrl;
+      return;
+    }
     if (link.type === "TRACKING") {
       window.location.href = link.url;
     } else {
@@ -231,23 +257,33 @@ export function LinnkerPublicPage({ page, isDraft = false }: Props) {
           <div className="flex items-center gap-4 pt-4">
             {socialLinks
               .filter((s) => s.url)
-              .map((s, i) => (
-                <a
-                  key={i}
-                  href={s.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:opacity-70 transition-opacity"
-                  title={s.platform}
-                  style={{ color: iconColor }}
-                >
-                  {SOCIAL_SVG[s.platform] ?? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-5">
-                      <circle cx="12" cy="12" r="10" />
-                    </svg>
-                  )}
-                </a>
-              ))}
+              .map((s, i) => {
+                // In-Chat Fallback — ícone WhatsApp redireciona pra
+                // página pública quando a instância da org está banida.
+                // Mesmo target="_self" (não _blank) pra trocar a aba
+                // atual, dando UX contínua pro lead.
+                const isWhatsApp = s.platform === "whatsapp";
+                const fallback = inChatUrl && isWhatsApp ? inChatUrl : null;
+                const href = fallback ?? s.url;
+                const target = fallback ? "_self" : "_blank";
+                return (
+                  <a
+                    key={i}
+                    href={href}
+                    target={target}
+                    rel="noreferrer"
+                    className="hover:opacity-70 transition-opacity"
+                    title={s.platform}
+                    style={{ color: iconColor }}
+                  >
+                    {SOCIAL_SVG[s.platform] ?? (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-5">
+                        <circle cx="12" cy="12" r="10" />
+                      </svg>
+                    )}
+                  </a>
+                );
+              })}
           </div>
         )}
 
