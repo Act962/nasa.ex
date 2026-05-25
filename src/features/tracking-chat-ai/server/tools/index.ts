@@ -11,7 +11,7 @@ export function buildAgentTools(ctx: AgentContext): ToolSet {
   const tools: ToolSet = {
     send_audio: makeSendAudioTool(ctx),
     send_document: makeSendDocumentTool(ctx),
-    finish_conversation: makeFinishConversationTool(ctx),
+    // finish_conversation: makeFinishConversationTool(ctx),
     transfer_to_human: makeTransferToHumanTool(ctx),
   };
 

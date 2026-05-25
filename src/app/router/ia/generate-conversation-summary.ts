@@ -1,4 +1,5 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -10,9 +11,11 @@ import {
   buildBrandedContext,
   prependBrandToTextSystem,
 } from "@/features/nasa-planner/lib/brand-context";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 export const generateConversationSummary = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "GET",
     path: "/ai/conversation/summary",
@@ -26,8 +29,21 @@ export const generateConversationSummary = base
       dateEnd: z.string(),
     }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
     const { conversationId, dateInit, dateEnd } = input;
+
+    // Cobra 2★ antes de chamar Gemini.
+    const charge = await chargeStarsByAction(context.org.id, "generate_summary", {
+      userId: context.user.id,
+      appSlug: "generate_summary",
+      description: "Resumo de Conversa (Gemini)",
+    });
+    if (!charge.success) {
+      throw errors.BAD_REQUEST({
+        message: "Saldo de STARs insuficiente pra resumir a conversa com IA (2★).",
+        data: { code: "INSUFFICIENT_STARS" },
+      });
+    }
 
     const conversation = await prisma.conversation.findUnique({
       where: {

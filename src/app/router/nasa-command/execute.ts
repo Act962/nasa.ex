@@ -21,6 +21,7 @@ import {
   type ExecuteOutput,
 } from "./execute-helpers";
 import { parseCommandIntent } from "./ai-intent";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 
 // ─── Fuzzy normaliser ─────────────────────────────────────────────────────────
 // Maps common misspellings / phonetic variants to canonical tokens so intent
@@ -2333,7 +2334,17 @@ CTA: [chamada para ação]`;
     }
 
     // ── AI FALLBACK — try to understand via connected AI ─────────────────────
-    const aiIntent = await parseCommandIntent(command, orgId);
+    // Cobra 1★ antes de chamar IA pra parsing — evita gastar token sem saldo.
+    // Se a org não tiver IA conectada, parseCommandIntent retorna null e o
+    // débito vira "no-op" útil (rastreável no breakdown).
+    const intentCharge = await chargeStarsByAction(orgId, "nasa_command_intent", {
+      userId: context.user.id,
+      appSlug: "nasa_command_intent",
+      description: "NASA Comando — interpretação IA",
+    });
+    const aiIntent = intentCharge.success
+      ? await parseCommandIntent(command, orgId)
+      : null;
     if (aiIntent) {
       // If AI identified a clear intent with no missing fields, give a helpful prompt
       if (aiIntent.missingRequired.length > 0) {

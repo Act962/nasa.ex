@@ -42,13 +42,19 @@ export function buildSystemPrompt({
   const finishBlock = finishSentence
     ? `## Encerramento
 Quando o lead pedir para falar com humano OU quando perceber que: "${finishSentence}",
-chame a tool \`transfer_to_human\` (passa o atendimento para um humano) ou
-\`finish_conversation\` (encerra a conversa de vez). NUNCA prometa "vou te
-passar pro humano" sem chamar a tool — a promessa não desliga a IA, só a tool faz isso.`
-    : `## Encerramento
-Quando o lead pedir para falar com humano, chame a tool \`transfer_to_human\`.
+chame a tool \`transfer_to_human\` — ela passa o atendimento pra um humano e
+pausa você nessa conversa.
+
 NUNCA prometa "vou te passar pro humano" sem chamar a tool — a promessa não
-desliga a IA, só a tool faz isso.`;
+desliga a IA, só a tool faz isso. Você NÃO encerra a conversa por conta própria;
+quem assume a partir daí é o atendente humano.`
+    : `## Encerramento
+Quando o lead pedir para falar com humano, chame a tool \`transfer_to_human\` —
+ela passa o atendimento pra um humano e pausa você nessa conversa.
+
+NUNCA prometa "vou te passar pro humano" sem chamar a tool — a promessa não
+desliga a IA, só a tool faz isso. Você NÃO encerra a conversa por conta própria;
+quem assume a partir daí é o atendente humano.`;
 
   const taggingBlock = buildTaggingBlock(currentTags, availableTags);
   const buttonsBlock = buildButtonsBlock(availableButtonPresets);
@@ -154,14 +160,25 @@ function buildTaggingBlock(
     "Cada linha tem `nome (id: ID): descrição`. Use a descrição para decidir quando aplicar a tag.",
     catalogList,
     "",
-    "## Quando tagear",
-    "- Sempre que algo importante na conversa case com a descrição de uma tag do catálogo, chame `add_tags_to_lead` passando o(s) `id`(s) correspondente(s).",
-    "- Pode aplicar até 3 tags na mesma chamada.",
+    "## Quando tagear (LEIA COM ATENÇÃO)",
+    "Tags disparam automações no sistema — não tagear quando devia é o pior erro que você pode cometer aqui.",
+    "",
+    "- Sempre que algo importante na conversa case com a descrição de uma tag do catálogo, chame `add_tags_to_lead` passando o(s) `id`(s) correspondente(s). Não espere o lead pedir.",
+    "- **Aplique TODAS as tags relevantes na MESMA chamada** (até 3 por vez). Se a situação se encaixa em duas tags (ex: tag específica + tag genérica de finalização), passe ambas no mesmo `tagIds`. Várias chamadas seguidas podem fazer automações duplicarem ou perderem disparo.",
     "- NÃO anuncie ao lead que está tagueando — é registro interno.",
     "- NÃO invente IDs — use exatamente os do catálogo acima.",
     "- NÃO tente aplicar tag que já está em \"Tags atuais do lead\".",
-    "- **IMPORTANTE — depois de chamar `add_tags_to_lead`, SEMPRE continue a conversa com texto pro lead.** A tool é só registro interno; o lead continua esperando sua resposta. NÃO encerre a conversa por causa de uma tag — só `transfer_to_human` ou `finish_conversation` encerram.",
-    "- Se você ia responder algo e percebeu que cabe tagear, faça as duas coisas: chame `add_tags_to_lead` E em seguida escreva a resposta normal pro lead.",
+    "- **Depois de chamar `add_tags_to_lead`, SEMPRE continue a conversa com texto pro lead.** A tool é só registro interno; o lead continua esperando sua resposta.",
+    "- Tagear NÃO encerra atendimento. Só `transfer_to_human` encerra. Se a regra do negócio for 'após tagear, passar pro humano', chame `add_tags_to_lead` E DEPOIS `transfer_to_human` na mesma resposta.",
+    "",
+    "### Exemplo",
+    "Catálogo (exemplo fictício):",
+    "- Mecânica Leve (id: tag_a): cliente escolheu opção de mecânica leve.",
+    "- Finalizado pelo Robô (id: tag_b): cliente escolheu qualquer opção do menu.",
+    "",
+    "Lead manda: \"1\"",
+    "Você chama: `add_tags_to_lead({ tagIds: [\"tag_a\", \"tag_b\"], reason: \"...\" })` — UMA chamada, AS DUAS tags juntas.",
+    "Depois responde em texto: \"Perfeito! Já vou te encaminhar.\"",
     "",
   ].join("\n");
 }

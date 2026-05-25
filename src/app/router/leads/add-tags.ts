@@ -11,6 +11,7 @@ import {
 import { sendWorkflowExecution } from "@/inngest/utils";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { eventBus } from "@/features/alerts/lib/event-bus";
+import { findLeadTaggedMatchingWorkflows } from "@/features/triggers/components/lead-tagged/find-matching-workflows";
 
 export const addTagsToLead = base
   .use(requiredAuthMiddleware)
@@ -64,23 +65,10 @@ export const addTagsToLead = base
         });
       }
 
-      const workflows = await tx.workflow.findMany({
-        where: {
-          trackingId: lead.trackingId,
-          isActive: true,
-          nodes: {
-            some: {
-              type: "LEAD_TAGGED",
-              data: {
-                path: ["action", "tagIds"],
-                array_contains: input.tagIds,
-              },
-            },
-          },
-        },
-        select: {
-          id: true,
-        },
+      const workflows = await findLeadTaggedMatchingWorkflows({
+        tx,
+        trackingId: lead.trackingId,
+        tagIds: input.tagIds,
       });
 
       return {
