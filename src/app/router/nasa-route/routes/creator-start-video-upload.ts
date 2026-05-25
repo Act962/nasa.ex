@@ -4,7 +4,8 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
-import { CreateMultipartUploadCommand } from "@aws-sdk/client-s3";
+import { CreateMultipartUploadCommand, UploadPartCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
 import { S3 } from "@/lib/s3-client";
 import { requireCourseManager } from "../utils";
@@ -142,7 +143,23 @@ export const creatorStartVideoUpload = base
       });
     }
 
-    // ── 3. Persiste tracking do upload.
+    // ── 3. Gera todas as presigned URLs de uma vez (elimina N+1 no loop de parts).
+    const presignedUrls = await Promise.all(
+      Array.from({ length: totalParts }, (_, i) =>
+        getSignedUrl(
+          S3,
+          new UploadPartCommand({
+            Bucket: bucket,
+            Key: fileKey,
+            UploadId: multipartUploadId,
+            PartNumber: i + 1,
+          }),
+          { expiresIn: 60 * 60 }, // 1 hora
+        ),
+      ),
+    );
+
+    // ── 4. Persiste tracking do upload.
     const created = await prisma.nasaRouteVideoUpload.create({
       data: {
         courseId: input.courseId,
@@ -168,5 +185,6 @@ export const creatorStartVideoUpload = base
       totalParts,
       partSize: VIDEO_UPLOAD_PART_SIZE_BYTES,
       costStars,
+      presignedUrls,
     };
   });

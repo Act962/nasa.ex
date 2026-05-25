@@ -7,6 +7,7 @@ import { CompleteMultipartUploadCommand } from "@aws-sdk/client-s3";
 import { S3 } from "@/lib/s3-client";
 import { r2NasaRouteVideoUrl } from "@/features/nasa-route/lib/video-storage-url";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
+import { inngest } from "@/inngest/client";
 
 const VIDEO_BUCKET_ENV = "R2_NASA_ROUTE_BUCKET";
 
@@ -124,6 +125,15 @@ export const creatorCompleteVideoUpload = base
         data: { status: "completed", completedAt: new Date() },
       }),
     ]);
+
+    // Notifica canal Inngest Realtime — frontend recebe "completed" via SSE.
+    void inngest.send({
+      name: "nasa-route/video.upload.completed",
+      data: {
+        uploadId: upload.id,
+        videoUrl: r2NasaRouteVideoUrl(upload.fileKey),
+      },
+    });
 
     // Cobra Stars do criador pelo processamento do vídeo finalizado.
     // O upload em si (start) pode ter cobrança própria — aqui é o

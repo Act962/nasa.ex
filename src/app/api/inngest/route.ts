@@ -30,6 +30,8 @@ import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-st
 import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route-subscription-renew";
 import { nasaRouteVideoUploadsCleanup } from "@/inngest/functions/crons/nasa-route-video-uploads-cleanup";
 import { nasaRouteArchivePastEvents } from "@/inngest/functions/crons/nasa-route-archive-past-events";
+import { onVideoUploadProgress } from "@/inngest/functions/nasa-route/on-video-upload-progress";
+import { onVideoUploadCompleted } from "@/inngest/functions/nasa-route/on-video-upload-completed";
 import { astroIngestKnowledge } from "@/inngest/functions/astro/ingest-knowledge";
 import { astroAgentTrigger } from "@/inngest/functions/astro/agent-trigger";
 import { chatSyncMessages } from "@/inngest/functions/chat/sync-conversation-messages";
@@ -76,6 +78,8 @@ export const { GET, POST, PUT } = serve({
     nasaRouteSubscriptionRenew,
     nasaRouteVideoUploadsCleanup,
     nasaRouteArchivePastEvents,
+    onVideoUploadProgress,
+    onVideoUploadCompleted,
     // ── ASTRO ──
     astroIngestKnowledge,
     astroAgentTrigger,

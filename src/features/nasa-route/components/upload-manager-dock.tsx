@@ -10,6 +10,8 @@ import {
 } from "../stores/use-video-upload-manager";
 import { listAllUploads } from "../lib/upload-manager-db";
 import { useVideoUpload } from "../hooks/use-video-upload";
+import { useVideoUploadRealtime } from "../hooks/use-video-upload-realtime";
+import { toast } from "sonner";
 
 /**
  * Widget flutuante no canto inferior-direito. Visível em qualquer página
@@ -18,12 +20,11 @@ import { useVideoUpload } from "../hooks/use-video-upload";
  * Ao montar, hidrata o store a partir de uploads persistidos em IndexedDB
  * (sobreviventes de reload da página). Esses entrarão com `file: null` —
  * UI mostra botão "Selecionar arquivo de novo pra retomar".
+ *
+ * Progresso vem do canal Inngest Realtime (SSE) — funciona em múltiplas abas.
  */
 export function UploadManagerDock() {
   const [collapsed, setCollapsed] = useState(false);
-  // Subscreve só o Map (referência estável quando nada muda) — evita
-  // criar array novo no selector, que disparava "getServerSnapshot should
-  // be cached" do useSyncExternalStore.
   const uploadsMap = useVideoUploadManager((s) => s.uploads);
   const upsert = useVideoUploadManager((s) => s.upsert);
   const remove = useVideoUploadManager((s) => s.remove);
@@ -41,7 +42,6 @@ export function UploadManagerDock() {
         if (cancelled) return;
         for (const u of persisted) {
           if (u.status === "uploading") {
-            // Promove pra pending de retomada (file ainda não-disponível).
             upsert({ ...u, file: null, status: "paused", progressPct: 0 });
           }
         }
@@ -63,9 +63,7 @@ export function UploadManagerDock() {
         className="flex cursor-pointer items-center justify-between rounded-t-xl border-b bg-muted/40 px-3 py-2 text-sm"
         onClick={() => setCollapsed((c) => !c)}
       >
-        <span className="font-medium">
-          Uploads ({uploads.length})
-        </span>
+        <span className="font-medium">Uploads ({uploads.length})</span>
         {collapsed ? (
           <ChevronUp className="size-4" />
         ) : (
@@ -101,8 +99,28 @@ function UploadItem({
   onResume: (file: File) => void;
   onDismiss: () => void;
 }) {
+  const remove = useVideoUploadManager((s) => s.remove);
+
+  // Progresso vem do canal Inngest Realtime; fallback para o store local
+  // enquanto o primeiro evento SSE ainda não chegou.
+  const { progressPct: realtimePct, isCompleted } = useVideoUploadRealtime(
+    upload.status === "uploading" ? upload.uploadId : null,
+  );
+
+  const progressPct =
+    upload.status === "uploading"
+      ? Math.max(realtimePct, upload.progressPct)
+      : upload.progressPct;
+
+  // Auto-dismiss quando canal sinalizar conclusão
+  useEffect(() => {
+    if (!isCompleted) return;
+    const timer = setTimeout(() => remove(upload.uploadId), 5000);
+    return () => clearTimeout(timer);
+  }, [isCompleted, upload.uploadId, remove]);
+
   const statusColor =
-    upload.status === "completed"
+    upload.status === "completed" || isCompleted
       ? "bg-emerald-500"
       : upload.status === "failed" || upload.status === "aborted"
         ? "bg-destructive"
@@ -117,7 +135,7 @@ function UploadItem({
         <span className="flex-1 truncate font-medium" title={upload.filename}>
           {upload.filename}
         </span>
-        <span className="text-muted-foreground">{upload.progressPct}%</span>
+        <span className="text-muted-foreground">{progressPct}%</span>
       </div>
       <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
         {upload.lessonTitle}
@@ -125,7 +143,7 @@ function UploadItem({
       <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
         <div
           className={cn("h-full transition-all", statusColor)}
-          style={{ width: `${upload.progressPct}%` }}
+          style={{ width: `${progressPct}%` }}
         />
       </div>
 
@@ -133,7 +151,7 @@ function UploadItem({
         {upload.status === "paused" && (
           <ResumeButton onResume={onResume} filename={upload.filename} />
         )}
-        {upload.status === "uploading" && (
+        {upload.status === "uploading" && !isCompleted && (
           <Button
             type="button"
             variant="ghost"
@@ -147,7 +165,8 @@ function UploadItem({
         )}
         {(upload.status === "completed" ||
           upload.status === "aborted" ||
-          upload.status === "failed") && (
+          upload.status === "failed" ||
+          isCompleted) && (
           <Button
             type="button"
             variant="ghost"
@@ -184,7 +203,7 @@ function ResumeButton({
           const f = e.target.files?.[0];
           if (f) {
             if (f.name !== filename) {
-              alert(`Selecione o arquivo "${filename}" pra retomar.`);
+              toast.error(`Selecione o arquivo "${filename}" pra retomar.`);
               return;
             }
             onResume(f);

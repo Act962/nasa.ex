@@ -4,6 +4,7 @@ import { useState, useRef, useMemo } from "react";
 import { Upload, FileVideo, X, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useVideoUpload } from "@/features/nasa-route/hooks/use-video-upload";
+import { useVideoUploadRealtime } from "@/features/nasa-route/hooks/use-video-upload-realtime";
 import {
   VIDEO_UPLOAD_ALLOWED_MIMES,
   VIDEO_UPLOAD_MAX_BYTES,
@@ -37,8 +38,6 @@ export function LessonFormVideoUploader({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { startAndRun } = useVideoUpload();
 
-  // Subscreve só o Map (ref estável) e deriva o upload ativo via useMemo —
-  // evita "getServerSnapshot should be cached" no useSyncExternalStore.
   const uploadsMap = useVideoUploadManager((s) => s.uploads);
   const activeUpload = useMemo(
     () =>
@@ -47,6 +46,15 @@ export function LessonFormVideoUploader({
       ),
     [uploadsMap, lessonId],
   );
+
+  // Progresso via Inngest Realtime (SSE); fallback para o store enquanto
+  // o primeiro evento ainda não chegou.
+  const { progressPct: realtimePct } = useVideoUploadRealtime(
+    activeUpload?.uploadId ?? null,
+  );
+  const progressPct = activeUpload
+    ? Math.max(realtimePct, activeUpload.progressPct)
+    : 0;
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -151,13 +159,13 @@ export function LessonFormVideoUploader({
           <FileVideo className="size-4 text-violet-600" />
           <span className="flex-1 truncate font-medium">{activeUpload.filename}</span>
           <span className="text-xs text-muted-foreground">
-            {activeUpload.progressPct}%
+            {progressPct}%
           </span>
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
           <div
             className="h-full bg-violet-500 transition-all"
-            style={{ width: `${activeUpload.progressPct}%` }}
+            style={{ width: `${progressPct}%` }}
           />
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
