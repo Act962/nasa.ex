@@ -44,7 +44,7 @@ npm run build         # Build de produção
    /start <app> <descricao-curta>
    ```
 
-   Cria a branch `feature/W-<app-slug>-<desc-slug>-<YYYYMMDD>` a partir da `main` atualizada.
+   Cria a branch `feature/<app-slug>-<desc-slug>-<YYYYMMDD>` a partir da `main` atualizada.
    - `<app>`: nome do App NASA (ex: `space-help`, `forge`, `tracking`, `insights`).
    - `<descricao-curta>`: o que vai mudar (ex: `uploader-imagem`, `fix-template-pdf`).
 
@@ -60,7 +60,7 @@ npm run build         # Build de produção
 
 4. **Se precisar mexer no código mas estiver em `main`**: PARE imediatamente, peça ao usuário pra rodar `/start` antes. O hook `PreToolUse` bloqueia `git commit`/`git push` na main.
 
-5. **Padrão dos devs**: histórico do time usa `feature/<descricao-kebab>` em lowercase. Mantemos compatível, só prefixando `W-<app>-` pra rastrear quem/qual app.
+5. **Padrão dos devs**: histórico do time usa `feature/<descricao-kebab>` em lowercase. Mantemos compatível, só prefixando `<app>-` pra rastrear quem/qual app.
 
 ## Banco de Dados
 
@@ -79,6 +79,7 @@ Arquivo `.env.local` na raiz. Variáveis principais:
 - `BETTER_AUTH_SECRET` — chave secreta de autenticação
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — OAuth Google
 - `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` — Inngest
+- `AI_SECRETS_KEY` — chave (≥16 chars) usada para criptografar API keys customizadas de IA em `AiSettings.aiApiKey` (AES-256-GCM via `src/lib/crypto.ts`). Obrigatória se algum tracking configurar provider customizado (BYO).
 
 ## Estrutura do Projeto
 

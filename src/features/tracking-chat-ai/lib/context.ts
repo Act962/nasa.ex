@@ -1,5 +1,7 @@
 import prisma from "@/lib/prisma";
+import { decryptSecret } from "@/lib/crypto";
 import type { ModelMessage } from "ai";
+import type { AiModelConfig } from "./model";
 
 const HISTORY_LIMIT = 20;
 
@@ -136,6 +138,16 @@ export async function loadAgentContext(data: AgentEventData) {
   // de comportamento via system prompt extra (gerado em agent.ts).
   const trigger: AgentTrigger = data.trigger ?? "inbound";
 
+  // BYO model: decifra a key uma vez aqui. Se cifragem falhar (chave rotacionada,
+  // dado corrompido), loga e cai pro default — nunca derruba o agente.
+  const modelConfig: AiModelConfig | null = settings?.aiProvider
+    ? {
+        provider: settings.aiProvider,
+        modelId: settings.aiModelId,
+        apiKey: settings.aiApiKey ? safeDecrypt(settings.aiApiKey) : null,
+      }
+    : null;
+
   return {
     trackingId: data.trackingId,
     organizationId: data.organizationId,
@@ -149,7 +161,17 @@ export async function loadAgentContext(data: AgentEventData) {
     availableButtonPresets,
     trigger,
     idleMinutes: data.idleMinutes,
+    modelConfig,
   };
+}
+
+function safeDecrypt(cipher: string): string | null {
+  try {
+    return decryptSecret(cipher);
+  } catch (err) {
+    console.error("[tracking-chat-ai] falha ao decifrar aiApiKey", err);
+    return null;
+  }
 }
 
 function toModelMessage(m: {

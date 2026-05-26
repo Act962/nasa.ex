@@ -5,7 +5,7 @@ import { sendText } from "@/http/uazapi/send-text";
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { loadAgentContext, type AgentEventData } from "./context";
-import { defaultModel } from "./model";
+import { resolveModel } from "./model";
 import { buildSystemPrompt } from "./system-prompt";
 import { splitForWhatsapp } from "./split-message";
 import { persistOutboundMessage } from "./persist";
@@ -113,18 +113,56 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
         } desde a última interação. Não chegou nenhuma nova mensagem do lead. Reabra a conversa de forma natural e curta pra reengajar — referência o contexto anterior se fizer sentido. Evite parecer automático.`
       : baseSystem;
 
+  const resolved = resolveModel(ctx.modelConfig);
+  console.log(
+    `[tracking-chat-ai] tracking=${ctx.trackingId} provider=${resolved.provider} model=${resolved.modelId} custom=${resolved.usingCustom}`,
+  );
+
   const aiResult = await step.run("run-agent", async () => {
     const result = await generateText({
-      model: defaultModel(),
+      model: resolved.model,
       system: systemPrompt,
       tools: buildAgentTools(ctx),
       messages: ctx.history,
       stopWhen: ({ steps }) => steps.length >= 6,
     });
+    // `result.usage` agrega tokens de todos os steps internos quando há tool
+    // calls. Alguns providers omitem campos — coalesce pra 0.
+    const inputTokens = result.usage?.inputTokens ?? 0;
+    const outputTokens = result.usage?.outputTokens ?? 0;
+    const totalTokens =
+      result.usage?.totalTokens ?? inputTokens + outputTokens;
     return {
       text: result.text.trim(),
       toolCalls: result.toolCalls.length,
+      inputTokens,
+      outputTokens,
+      totalTokens,
     };
+  });
+
+  // Telemetria: uma linha por execução. Não bloqueia o fluxo se falhar.
+  await step.run("persist-usage", async () => {
+    try {
+      await prisma.aiChatRun.create({
+        data: {
+          trackingId: ctx.trackingId,
+          organizationId: ctx.organizationId,
+          leadId: ctx.lead.id,
+          conversationId: ctx.conversation.id,
+          provider:
+            resolved.provider === "NASA_DEFAULT" ? null : resolved.provider,
+          modelId: resolved.modelId,
+          usingCustom: resolved.usingCustom,
+          inputTokens: aiResult.inputTokens,
+          outputTokens: aiResult.outputTokens,
+          totalTokens: aiResult.totalTokens,
+          toolCalls: aiResult.toolCalls,
+        },
+      });
+    } catch (err) {
+      console.error("[tracking-chat-ai] persist-usage falhou", err);
+    }
   });
 
   if (aiResult.text) {

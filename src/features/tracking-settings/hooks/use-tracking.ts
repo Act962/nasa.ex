@@ -11,6 +11,29 @@ export function useQueryTracking() {
   };
 }
 
+export type AiUsageProviderFilter =
+  | "all"
+  | "NASA"
+  | "OPENAI"
+  | "ANTHROPIC"
+  | "GOOGLE";
+
+export const useQueryAiUsage = (
+  trackingId: string,
+  days = 30,
+  provider: AiUsageProviderFilter = "all",
+) => {
+  const { data, isLoading } = useQuery(
+    orpc.ia.usage.get.queryOptions({
+      input: { trackingId, days, provider },
+    }),
+  );
+  return {
+    usage: data,
+    isLoadingUsage: isLoading,
+  };
+};
+
 export const useQueryAiSettings = (trackingId: string) => {
   const { data, isLoading } = useQuery(
     orpc.ia.settings.get.queryOptions({
@@ -44,6 +67,12 @@ export const useUpdateAiSettings = () => {
             input: { trackingId: data.trackingId },
           }),
         );
+      },
+      onError: (err) => {
+        const message =
+          (err as { message?: string })?.message ??
+          "Erro ao atualizar configurações da IA.";
+        toast.error(message);
       },
     }),
   );

@@ -5,6 +5,7 @@ import { deleteAiButtonPreset } from "./delete-ai-button-preset";
 import { generateCompose } from "./generate-compose";
 import { generateConversationSummary } from "./generate-conversation-summary";
 import { getAiSettings } from "./get-ai-settings";
+import { getAiUsage } from "./get-ai-usage";
 import { listAiButtonPresets } from "./list-ai-button-presets";
 import { updateAiButtonPreset } from "./update-ai-button-preset";
 import { updateAiSettings } from "./update-ai-settings";
@@ -22,6 +23,9 @@ export const iaRouter = {
   settings: {
     get: getAiSettings,
     update: updateAiSettings,
+  },
+  usage: {
+    get: getAiUsage,
   },
   buttonPresets: {
     list: listAiButtonPresets,
