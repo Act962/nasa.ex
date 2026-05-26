@@ -32,7 +32,13 @@ export const getAiSettings = base
       });
     }
 
+    // Nunca expor `aiApiKey` (ciphertext) no payload. UI usa só `aiApiKeyLast4`
+    // + `aiApiKeyConfigured` pra renderizar placeholder.
+    const { aiApiKey, ...safeSettings } = aiSettings;
     return {
-      settings: aiSettings,
+      settings: {
+        ...safeSettings,
+        aiApiKeyConfigured: Boolean(aiApiKey),
+      },
     };
   });

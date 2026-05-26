@@ -531,6 +531,7 @@ model Tracking {
   paymentEntries      PaymentEntry[]
   cardConfig          TrackingCardConfig?
   idleAutomation      TrackingIdleAutomation?
+  aiChatRuns          AiChatRun[]
 
   @@map("tracking")
 }
@@ -592,6 +593,11 @@ model AiSettings {
   finishSentence String? @map("finish_sentence")
   isAudioEnabled Boolean @default(false) @map("is_audio_enabled")
 
+  aiProvider    AiProvider? @map("ai_provider")
+  aiModelId     String?     @map("ai_model_id")
+  aiApiKey      String?     @map("ai_api_key")
+  aiApiKeyLast4 String?     @map("ai_api_key_last4")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -599,6 +605,36 @@ model AiSettings {
   tracking   Tracking @relation(fields: [trackingId], references: [id])
 
   @@map("ai_setting")
+}
+
+enum AiProvider {
+  OPENAI
+  ANTHROPIC
+  GOOGLE
+}
+
+// Telemetria de execuções do chat-ai (uma linha por chamada ao modelo).
+// `provider` null = default NASA (chave/modelo da plataforma); preenchido
+// quando o tracking está usando BYO. Custo não persistido nesta fase.
+model AiChatRun {
+  id             String      @id @default(cuid())
+  trackingId     String      @map("tracking_id")
+  tracking       Tracking    @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  organizationId String      @map("organization_id")
+  leadId         String?     @map("lead_id")
+  conversationId String?     @map("conversation_id")
+  provider       AiProvider?
+  modelId        String      @map("model_id")
+  usingCustom    Boolean     @default(false) @map("using_custom")
+  inputTokens    Int         @default(0) @map("input_tokens")
+  outputTokens   Int         @default(0) @map("output_tokens")
+  totalTokens    Int         @default(0) @map("total_tokens")
+  toolCalls      Int         @default(0) @map("tool_calls")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  @@index([trackingId, createdAt])
+  @@index([organizationId, createdAt])
+  @@map("ai_chat_run")
 }
 
 model AiButtonPreset {
