@@ -9,6 +9,7 @@ import {
   NOT_TRACKING_PARTICIPANT_MESSAGE,
 } from "@/features/leads/lib/tracking-participant-guard";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
+import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
 
 /**
  * Atualiza o `jsonResponse` de uma `FormResponses` existente. Usado no fluxo
@@ -106,6 +107,10 @@ export const updateResponse = base
           label: true,
         },
       });
+
+      // Propaga label pra Lead.description (textareas no card + observações)
+      // — fire-and-forget, não bloqueia a resposta da procedure.
+      syncFormLabelsToLeadDescription(prisma, updated.leadId).catch(() => {});
 
       // Histórico: marca como FORM_SUBMITTED com flag de edição
       if (updated.leadId) {

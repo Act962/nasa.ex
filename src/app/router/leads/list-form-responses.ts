@@ -37,6 +37,7 @@ export const listFormResponsesByLead = base
         select: {
           id: true,
           createdAt: true,
+          completedAt: true,
           jsonResponse: true,
           label: true,
           form: {
@@ -44,6 +45,7 @@ export const listFormResponsesByLead = base
               id: true,
               name: true,
               jsonBlock: true,
+              settings: true,
             },
           },
         },
@@ -88,6 +90,7 @@ export const listFormResponsesByLead = base
         return {
           id: r.id,
           createdAt: r.createdAt,
+          completedAt: r.completedAt,
           label: r.label,
           state: deriveResponseState({
             jsonResponse: r.jsonResponse,
@@ -95,7 +98,15 @@ export const listFormResponsesByLead = base
             createdAt: r.createdAt,
           }),
           deadline: activeConfig ? activeConfig.date.toISOString() : null,
-          form: { id: r.form.id, name: r.form.name },
+          // jsonBlock + settings expostos pra UI renderizar thumbnail
+          // (FormFirstGroupThumbnail) no dialog "Formulários do lead" que
+          // abre via ícone no LeadItem (kanban).
+          form: {
+            id: r.form.id,
+            name: r.form.name,
+            jsonBlock: r.form.jsonBlock,
+            settings: r.form.settings,
+          },
         };
       });
 

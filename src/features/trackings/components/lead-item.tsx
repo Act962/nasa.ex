@@ -49,7 +49,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { useTags } from "@/features/tags/hooks/use-tags";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useAddTagsOptimistic,
   useRemoveTagOptimistic,
@@ -63,6 +63,7 @@ import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import { TagSheet } from "@/features/tags/components/tag-sheet";
 import { SlaTimer } from "@/features/leads/components/sla-timer";
+import { LeadFormsDialog } from "@/features/leads/components/lead-forms-dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -104,8 +105,28 @@ const STATUS_FLOW_CONFIG = {
 
 export const LeadItem = memo(({ data }: { data: Lead }) => {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const selected = useLeadStore((s) => s.selectedLeads.some((l) => l.id === data.id));
   const toggleLead = useLeadStore((s) => s.toggleLead);
+
+  // Dialog "Formulários do lead" — estado **derivado do URL** (search
+  // param `leadForms=<id>`). Isso integra o open/close com o history
+  // do browser: quando o user clica num card e navega pra /formulario,
+  // o `?leadForms=<id>` fica no histórico. Ao clicar "Voltar" na página
+  // do formulário (`router.back()`), o browser volta pra esta URL e o
+  // dialog reabre automaticamente.
+  const formsDialogOpen = searchParams.get("leadForms") === data.id;
+  const setFormsDialogOpen = (open: boolean) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (open) {
+      params.set("leadForms", data.id);
+    } else {
+      params.delete("leadForms");
+    }
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname);
+  };
   // Sort ativo dita qual data o card exibe (createdAt / updatedAt /
   // statusEnteredAt). Para sort=order (Personalizada), usa statusEnteredAt.
   const sortBy = useKanbanStore((s) => s.sortBy);
@@ -402,12 +423,15 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
               );
             })()}
 
-          {/* Ícones de formulário (1 por response) — cor reflete o estado:
-              branco=iniciado, azul=em progresso, laranja=aguardando assinatura
-              cliente, vermelho=stale ou aguardando responsável, verde=completo. */}
-          {(data.forms ?? []).map((f) => (
-            <FormStatusIcon key={f.responseId} form={f} leadId={data.id} />
-          ))}
+          {/* Ícone único de formulários do lead (não mais 1 por response).
+              Cor reflete estado AGREGADO: vermelho (stale), laranja
+              (aguarda assinatura), azul (em progresso), verde (completo),
+              ou muted (igual à data) quando lead não tem nenhum form
+              preenchido nem em andamento. */}
+          <FormStatusIcon
+            forms={data.forms ?? []}
+            onOpenForms={() => setFormsDialogOpen(true)}
+          />
 
           {/* Próximo agendamento (Agenda ou agenda do chat). Compact: só
               ícone azul; tooltip nativo do title mostra data + hora + nome
@@ -452,6 +476,15 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
           </Avatar>
         </span>
       </div>
+
+      {/* Dialog "Formulários do lead" — 95vw, grid 3 cols. Abre ao clicar
+          em qualquer ícone de form do rodapé do card. */}
+      <LeadFormsDialog
+        leadId={data.id}
+        leadName={data.name}
+        open={formsDialogOpen}
+        onOpenChange={setFormsDialogOpen}
+      />
     </div>
   );
 }, (prev, next) => {
@@ -475,61 +508,100 @@ LeadItem.displayName = "LeadItem";
  * O fetch dos dados (state, name, slug) já vem do `get-many` server-side,
  * então o render é puro e barato.
  */
+type FormState = NonNullable<Lead["forms"]>[number]["state"];
+
+/**
+ * Ícone único de formulários do lead — mostra o estado AGREGADO de
+ * todos os forms do lead num único ícone. Antes (legado) renderizávamos
+ * 1 por response — virou poluído quando lead tinha vários forms.
+ *
+ * Cor por prioridade (mais "urgente" primeiro):
+ *   1. **stale** (vermelho) — algum form esperando responsável >24h
+ *   2. **waiting_client_signature** (laranja) — algum aguarda assinatura
+ *   3. **in_progress** (azul) — algum em preenchimento
+ *   4. **complete** (verde) — algum preenchido
+ *   5. **muted** (text-muted-foreground, igual à data) — só `empty` ou
+ *      sem forms. Tom neutro pra não competir com elementos com ação.
+ *
+ * Click em qualquer estado abre o dialog "Formulários do lead".
+ */
 function FormStatusIcon({
-  form,
-  leadId,
+  forms,
+  onOpenForms,
 }: {
-  form: NonNullable<Lead["forms"]>[number];
-  leadId: string;
+  forms: NonNullable<Lead["forms"]>;
+  onOpenForms: () => void;
 }) {
-  const router = useRouter();
-  const STATE_COLORS: Record<typeof form.state, string> = {
-    empty: "#ffffff",
+  // Conta por estado pra montar tooltip resumido.
+  const counts = forms.reduce(
+    (acc, f) => {
+      acc[f.state] = (acc[f.state] ?? 0) + 1;
+      return acc;
+    },
+    {} as Record<FormState, number>,
+  );
+
+  // Prioridade do estado agregado. `null` = muted (cor do texto neutro).
+  const aggregateState: FormState | "muted" = (() => {
+    if (counts.stale) return "stale";
+    if (counts.waiting_client_signature) return "waiting_client_signature";
+    if (counts.in_progress) return "in_progress";
+    if (counts.complete) return "complete";
+    return "muted";
+  })();
+
+  // Tooltip — descreve sumário não-vazio
+  const tooltip = (() => {
+    if (forms.length === 0) return "Nenhum formulário vinculado";
+    const parts: string[] = [];
+    if (counts.complete) parts.push(`${counts.complete} preenchido${counts.complete > 1 ? "s" : ""}`);
+    if (counts.in_progress) parts.push(`${counts.in_progress} em andamento`);
+    if (counts.waiting_client_signature)
+      parts.push(`${counts.waiting_client_signature} aguardando assinatura`);
+    if (counts.stale) parts.push(`${counts.stale} aguardando responsável`);
+    if (counts.empty && parts.length === 0)
+      parts.push(`${counts.empty} ainda não iniciado${counts.empty > 1 ? "s" : ""}`);
+    const total = `${forms.length} formulário${forms.length > 1 ? "s" : ""}`;
+    return parts.length > 0 ? `${total} — ${parts.join(", ")}` : total;
+  })();
+
+  const STATE_COLORS: Record<Exclude<FormState | "muted", "empty" | "muted">, string> = {
     in_progress: "#3b82f6",
     waiting_client_signature: "#f59e0b",
     stale: "#ef4444",
     complete: "#10b981",
   };
-  const STATE_LABELS: Record<typeof form.state, string> = {
-    empty: "Iniciado — sem respostas",
-    in_progress: "Em preenchimento",
-    waiting_client_signature: "Aguardando assinatura do cliente",
-    stale: "Aguardando responsável (>24h ou assinatura)",
-    complete: "Preenchido",
-  };
-  const color = STATE_COLORS[form.state];
-  const stateLabel = STATE_LABELS[form.state];
 
-  const goToForm = (e: React.MouseEvent) => {
+  const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    if (form.state === "empty") {
-      // Branco → tab Formulários no detalhe do lead.
-      router.push(`/contatos/${leadId}?tab=forms`);
-    } else {
-      // Demais estados → página de edição da resposta.
-      router.push(`/formulario/${form.slug}/${form.responseId}`);
-    }
+    onOpenForms();
   };
+
+  const useMutedColor = aggregateState === "muted";
 
   return (
     <button
       type="button"
-      onClick={goToForm}
+      onClick={handleClick}
       onPointerDown={(e) => e.stopPropagation()}
-      className="inline-flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer"
-      aria-label={`Formulário "${form.formName}" — ${stateLabel}`}
-      title={`${form.formName} — ${stateLabel}`}
+      className={cn(
+        "inline-flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer",
+        // Muted = cor do texto neutro (mesma da data). Não inline color.
+        useMutedColor && "text-muted-foreground",
+      )}
+      aria-label={`Formulários — ${tooltip}`}
+      title={tooltip}
     >
       <ClipboardListIcon
         className="size-3"
-        style={{
-          color,
-          filter:
-            form.state === "empty"
-              ? "drop-shadow(0 0 0.5px rgba(0,0,0,0.6))"
-              : undefined,
-        }}
+        style={
+          useMutedColor
+            ? undefined
+            : {
+                color: STATE_COLORS[aggregateState as keyof typeof STATE_COLORS],
+              }
+        }
       />
     </button>
   );
