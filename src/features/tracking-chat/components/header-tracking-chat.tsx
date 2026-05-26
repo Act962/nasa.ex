@@ -33,6 +33,7 @@ import { MessageChannel, StatusFlow } from "@/generated/prisma/enums";
 import { useMutationRodizio } from "../hooks/use-rodizio";
 import { SyncMessagesButton } from "./sync-messages-button";
 import { FacebookIcon, InstagramIcon } from "./icons";
+import { InChatStatusBadge } from "./in-chat-status-badge";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
@@ -196,12 +197,15 @@ export function Header({
           )}
         </div>
         <div className="flex flex-col min-w-0">
-          <Link
-            href={`/contatos/${leadId}`}
-            className="hover:underline underline-offset-3 truncate"
-          >
-            {name || "Sem nome"}
-          </Link>
+          <div className="flex items-center gap-2 min-w-0">
+            <Link
+              href={`/contatos/${leadId}`}
+              className="hover:underline underline-offset-3 truncate"
+            >
+              {name || "Sem nome"}
+            </Link>
+            <InChatStatusBadge trackingId={trackingId} />
+          </div>
           {/* Breadcrumb tracking > status — substitui o telefone que
               ficava aqui. WhatsApp não mostra telefone abaixo do nome;
               em troca colocamos o caminho do lead no funil (visível e
