@@ -31,6 +31,7 @@ import { creatorDeleteLesson } from "./routes/creator-delete-lesson";
 import { creatorReorderLessons } from "./routes/creator-reorder-lessons";
 import { creatorReorderModules } from "./routes/creator-reorder-modules";
 import { creatorListSales } from "./routes/creator-list-sales";
+import { creatorListPendingSales } from "./routes/creator-list-pending-sales";
 import { creatorListStudents } from "./routes/creator-list-students";
 
 // ── Upload de vídeo (R2 bucket dedicado) ────────────────────────────────
@@ -86,6 +87,7 @@ export const nasaRouteRouter = {
   creatorReorderLessons,
   creatorReorderModules,
   creatorListSales,
+  creatorListPendingSales,
   creatorListStudents,
   // upload de vídeo (R2 bucket dedicado)
   creatorQuoteVideoUpload,

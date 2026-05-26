@@ -81,6 +81,8 @@ src/features/nasa-route/components/
 │   ├── lesson-form-video-uploader.tsx + video-upload-cost-modal.tsx
 │   ├── free-access-manager.tsx
 │   ├── creator-dashboard.tsx + sales-table.tsx + students-table.tsx
+│   │   └── sales-table.tsx → abas "Confirmadas" (enrollments) e
+│   │      "Pendentes" (pending purchases), com KPIs de faturamento.
 │   ├── integrations-tab.tsx       ← Pixel, GTM, redirect URL
 │   └── forms/                     ← seções condicionais por formato
 ├── student/    # player, "meus cursos", certificados, modal de matrícula
@@ -124,7 +126,9 @@ Localização: `src/app/router/nasa-route/routes/` (~42 arquivos).
 - `creator-reorder-lessons` — batch update de `order` (e opcionalmente `moduleId`) das aulas. Usado pelo board DnD do editor.
 - `creator-reorder-modules` — batch update de `order` dos módulos. Usado pelo board DnD do editor.
 - `creator-publish-course`
-- `creator-list-courses | -sales | -students | -plans`
+- `creator-list-courses | -students | -plans`
+- `creator-list-sales` — vendas confirmadas (lê `NasaRouteEnrollment`): comprador, curso, plano, `paidBrlCents`, `paidStars` (payout), IDs Stripe, `source`, `status`. Filtros: `courseId`, `source`, `status`, `search`, `from`, `to`, paginado. Retorna `totals` (faturamento BRL, contagem, payout Stars).
+- `creator-list-pending-sales` — funil de checkout (lê `PendingCoursePurchase`): pendentes (`PENDING`), pagos aguardando resgate público (`PAID`), expirados (`EXPIRED`) e cancelados. Exclui `REDEEMED` por default (essas já viraram enrollment).
 
 **Upload de vídeo:**
 - `creator-quote-video-upload` — calcula custo (input: `sizeBytes`).
