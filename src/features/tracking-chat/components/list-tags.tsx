@@ -104,7 +104,7 @@ function TagBadge({
         </Badge>
       </TooltipTrigger>
       <TooltipContent>
-        <p>{tag.name} (Clique no X para remover)</p>
+        <p>{tag.name}</p>
       </TooltipContent>
     </Tooltip>
   );
