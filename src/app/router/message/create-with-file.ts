@@ -19,6 +19,11 @@ import {
 } from "./utils";
 import { MessageChannel } from "@/generated/prisma/enums";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
+import {
+  shouldSkipUazapiForConversation,
+  markInstanceConnectionFailure,
+} from "@/features/tracking-chat/lib/in-chat-mode";
+import { v4 as uuidv4 } from "uuid";
 
 export const createMessageWithFile = base
   .use(requiredAuthMiddleware)
@@ -61,18 +66,42 @@ export const createMessageWithFile = base
         });
       }
 
-      console.log(input);
-      const response = await sendMedia(input.token, {
-        file: useConstructUrl(input.mediaUrl),
-        text: input.body,
-        docName: input.fileName,
-        number: input.leadPhone,
+      // ── In-Chat Fallback ─────────────────────────────────────────────
+      const inChatMode =
+        (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP &&
+        (await shouldSkipUazapiForConversation(input.conversationId));
 
-        type: "document",
-        readchat: true,
-        readmessages: true,
-        replyid: input.quotedMessageId,
-      });
+      let externalMessageId = uuidv4();
+      if (!inChatMode) {
+        try {
+          const response = await sendMedia(input.token, {
+            file: useConstructUrl(input.mediaUrl),
+            text: input.body,
+            docName: input.fileName,
+            number: input.leadPhone,
+            type: "document",
+            readchat: true,
+            readmessages: true,
+            replyid: input.quotedMessageId,
+          });
+          externalMessageId = response.id;
+        } catch (err: any) {
+          const msg = String(err?.message ?? "");
+          const isLikelyBan =
+            msg.includes("status 401") ||
+            msg.includes("status 403") ||
+            msg.includes("status 500") ||
+            msg.toLowerCase().includes("invalid token") ||
+            msg.toLowerCase().includes("timeout");
+          if (isLikelyBan) {
+            markInstanceConnectionFailure({
+              apiKey: input.token,
+              source: "send_failure",
+            }).catch(() => {});
+          }
+          throw err;
+        }
+      }
 
       const message = await prisma.message.create({
         data: {
@@ -80,12 +109,13 @@ export const createMessageWithFile = base
           body: input.body,
           mediaUrl: input.mediaUrl,
           mimetype: input.mimetype,
-          messageId: response.id,
+          messageId: externalMessageId,
           fromMe: true,
           fileName: input.fileName,
           status: MessageStatus.SENT,
           quotedMessageId: input.id,
           senderName: context.user.name,
+          viaInChat: inChatMode,
         },
         select: {
           id: true,

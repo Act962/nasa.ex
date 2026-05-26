@@ -463,16 +463,12 @@ export function Body({ messageSelected, onSelectMessage, conversationId: convers
         />
       )}
       <div
-        // Background NASA estilo WhatsApp Web — JPG comprimido (q=70).
-        // Desktop horizontal + mobile vertical. ~178KB cada (vs 1.3MB do
-        // PNG original). `bg-fixed` mantém o pattern parado durante scroll
-        // e cacheado entre conversas (1 request por sessão).
+        // Background NASA estilo WhatsApp Web vive no wrapper da page
+        // (`tracking-chat/[conversationId]/page.tsx`) em 3 camadas
+        // (pattern + overlay translúcida + conteúdo). Aqui o div só
+        // segura o scroll — fundo transparente pra overlay aparecer.
         className={cn(
           "flex-1 min-h-0 overflow-y-auto scroll-cols-tracking relative",
-          "bg-[url('/chat-bg/mobile.jpg')] md:bg-[url('/chat-bg/desktop.jpg')]",
-          "bg-cover bg-center bg-fixed",
-          // Fallback caso a imagem não carregue
-          "bg-[#dbe9f7] dark:bg-zinc-900",
         )}
         ref={scrollRef}
         onScroll={handleScroll}
