@@ -16,6 +16,7 @@ import {
   type RecordLeadEventInput,
 } from "@/features/leads/lib/history";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
+import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
 import { eventBus } from "@/features/alerts/lib/event-bus";
 
 export const submitResponse = base
@@ -405,6 +406,11 @@ export const submitResponse = base
       if (pendingLeadEvents.length > 0) {
         await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
       }
+
+      // Propaga labels → Lead.description (textareas card + observações).
+      // pendingLeadEvents.leadId é o lead que recebeu o FORM_SUBMITTED.
+      const submittedLeadId = pendingLeadEvents[0]?.leadId ?? null;
+      syncFormLabelsToLeadDescription(prisma, submittedLeadId).catch(() => {});
 
       // Log activity (form owner como ator — submissão pública)
       try {
