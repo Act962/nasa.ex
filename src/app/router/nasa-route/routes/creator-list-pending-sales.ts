@@ -21,17 +21,15 @@ export const creatorListPendingSales = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .input(
-    z
-      .object({
-        courseId: z.string().optional(),
-        statuses: z
-          .array(z.enum(["PENDING", "PAID", "EXPIRED", "CANCELLED", "REDEEMED"]))
-          .optional(),
-        search: z.string().trim().optional(),
-        page: z.number().int().min(1).default(1),
-        pageSize: z.number().int().min(1).max(100).default(50),
-      })
-      .default({}),
+    z.object({
+      courseId: z.string().optional(),
+      statuses: z
+        .array(z.enum(["PENDING", "PAID", "EXPIRED", "CANCELLED", "REDEEMED"]))
+        .optional(),
+      search: z.string().trim().optional(),
+      page: z.number().int().min(1).default(1),
+      pageSize: z.number().int().min(1).max(100).default(50),
+    }),
   )
   .handler(async ({ input, context }) => {
     const orgId = context.org.id;

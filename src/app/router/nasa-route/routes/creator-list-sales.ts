@@ -22,20 +22,18 @@ export const creatorListSales = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .input(
-    z
-      .object({
-        courseId: z.string().optional(),
-        source: z
-          .enum(["stripe_purchase", "purchase", "free_access", "gift"])
-          .optional(),
-        status: z.enum(["active", "refunded"]).optional(),
-        search: z.string().trim().optional(),
-        from: z.coerce.date().optional(),
-        to: z.coerce.date().optional(),
-        page: z.number().int().min(1).default(1),
-        pageSize: z.number().int().min(1).max(100).default(50),
-      })
-      .default({}),
+    z.object({
+      courseId: z.string().optional(),
+      source: z
+        .enum(["stripe_purchase", "purchase", "free_access", "gift"])
+        .optional(),
+      status: z.enum(["active", "refunded"]).optional(),
+      search: z.string().trim().optional(),
+      from: z.coerce.date().optional(),
+      to: z.coerce.date().optional(),
+      page: z.number().int().min(1).default(1),
+      pageSize: z.number().int().min(1).max(100).default(50),
+    }),
   )
   .handler(async ({ input, context }) => {
     const orgId = context.org.id;
