@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,12 +12,11 @@ import {
 import { cn } from "@/lib/utils";
 import {
   ExternalLink,
-  Users,
   Package,
-  Link2,
   Clock,
   Rocket,
-  PanelLeft,
+  PlusIcon,
+  MinusIcon,
 } from "lucide-react";
 import { useSidebarPrefs, useSetSidebarPref, isItemVisible } from "@/hooks/use-sidebar-prefs";
 import { SIDEBAR_NAV_ITEMS } from "@/features/apps/lib/sidebar-items";
@@ -49,6 +49,17 @@ export function StatusBadge({ status }: { status: AppStatus }) {
 
 // ─── Sidebar Toggle ───────────────────────────────────────────────────────────
 
+/**
+ * Botão de ícone "+" (adicionar ao menu lateral) ou "-" (remover) — visual
+ * compacto pra encaixar no header do card sem atrapalhar o layout. Posiciona
+ * via `absolute top-2 right-2` no AppCard.
+ *
+ * Estado:
+ *  - App NÃO está no sidebar (visible=false) → mostra "+" (verde claro)
+ *  - App ESTÁ no sidebar (visible=true)      → mostra "-" (violeta claro)
+ *
+ * `stopPropagation` evita disparar o `onAction` do card ao clicar.
+ */
 export function SidebarToggle({
   sidebarKey,
   defaultVisible,
@@ -62,20 +73,33 @@ export function SidebarToggle({
 
   return (
     <button
+      type="button"
       onClick={(e) => {
         e.stopPropagation();
         setPref.mutate({ itemKey: `app:${sidebarKey}`, visible: !visible });
       }}
-      title={visible ? "Ocultar do menu lateral" : "Mostrar no menu lateral"}
-      className={cn(
-        "flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border transition-colors",
+      title={
         visible
-          ? "bg-violet-500/10 text-violet-400 border-violet-500/30 hover:bg-violet-500/20"
-          : "bg-muted text-muted-foreground border-border hover:border-violet-500/30 hover:text-violet-400",
+          ? "Remover do menu lateral"
+          : "Adicionar ao menu lateral"
+      }
+      aria-label={
+        visible
+          ? "Remover do menu lateral"
+          : "Adicionar ao menu lateral"
+      }
+      className={cn(
+        "size-6 rounded-full flex items-center justify-center border transition-colors shrink-0",
+        visible
+          ? "bg-violet-500/10 text-violet-500 border-violet-500/40 hover:bg-violet-500/20"
+          : "bg-emerald-500/10 text-emerald-600 border-emerald-500/40 hover:bg-emerald-500/20 dark:text-emerald-400",
       )}
     >
-      <PanelLeft className="size-2.5" />
-      {visible ? "No menu" : "Oculto"}
+      {visible ? (
+        <MinusIcon className="size-3.5" strokeWidth={3} />
+      ) : (
+        <PlusIcon className="size-3.5" strokeWidth={3} />
+      )}
     </button>
   );
 }
@@ -93,103 +117,136 @@ export function AppCard({
   const sidebarItem = app.sidebarKey
     ? SIDEBAR_NAV_ITEMS.find((i) => i.key === app.sidebarKey)
     : null;
+  const SidebarIcon = sidebarItem?.icon as React.ElementType | undefined;
+
+  const isInstalled = app.status === "installed";
 
   return (
     <div
       className={cn(
-        "group relative flex flex-col rounded-2xl border-2 bg-card transition-all duration-200 overflow-hidden cursor-pointer",
-        "hover:border-[#7C3AED] hover:shadow-lg hover:shadow-[#7C3AED]/10 hover:-translate-y-0.5",
-        app.status === "installed" ? "border-border" : "border-border",
+        "group relative flex flex-col rounded-2xl border bg-card transition-all duration-300 overflow-hidden cursor-pointer",
+        "hover:border-[#7C3AED]/60 hover:shadow-lg hover:shadow-[#7C3AED]/15 hover:-translate-y-1",
+        // Sutil "vidro" — gradient interno + brilho de borda
+        "before:absolute before:inset-0 before:rounded-2xl before:bg-linear-to-br before:from-[#7C3AED]/[0.03] before:to-transparent before:pointer-events-none",
       )}
       onClick={() => onAction(app)}
     >
-      {/* Purple accent top bar on hover */}
-      <div className="absolute top-0 left-0 right-0 h-0.5 bg-linear-to-r from-[#7C3AED] to-[#a855f7] opacity-0 group-hover:opacity-100 transition-opacity" />
+      {/* Glow violeta no hover (anel externo sutil) */}
+      <div className="absolute inset-0 rounded-2xl ring-1 ring-[#7C3AED]/0 group-hover:ring-[#7C3AED]/30 transition-all pointer-events-none" />
 
-      {/* Header */}
-      <div className="flex items-start gap-3 p-5 pb-3">
-        <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 shadow-sm">
-          <Icon />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h3 className="font-black text-sm tracking-wide leading-tight">
-                {app.name}
-              </h3>
-              <p className="text-[10px] text-muted-foreground">{app.byline}</p>
-            </div>
-            <StatusBadge status={app.status} />
-          </div>
-        </div>
-      </div>
-
-      {/* Description */}
-      <div className="px-5 pb-4 flex-1">
-        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-          {app.shortDesc}
-        </p>
-      </div>
-
-      {/* Metadata */}
-      <div className="px-5 pb-4 grid grid-cols-2 gap-2">
-        {app.activeUsers !== undefined && (
-          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Users className="size-3 shrink-0" />
-            <span>{app.activeUsers ?? "—"}</span>
-          </div>
-        )}
-        {app.status === "development" && (
-          <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
-            <Clock className="size-3 shrink-0" />
-            <span>Em breve</span>
-          </div>
-        )}
-        <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-          <Package className="size-3 shrink-0" />
-          <span>{app.category}</span>
-        </div>
-        {app.integration && app.integration !== "—" && (
-          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Link2 className="size-3 shrink-0" />
-            <span>{app.integration}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Action Button */}
-      <div className="px-5 pb-5 flex flex-col gap-2">
-        {app.status === "installed" ? (
-          <Button
-            size="sm"
-            className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-1.5 text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAction(app);
-            }}
-          >
-            {app.action === "external" && <ExternalLink className="size-3.5" />}
-            Abrir App
-          </Button>
-        ) : (
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full gap-1.5 text-xs text-muted-foreground cursor-default"
-            disabled
-          >
-            <Clock className="size-3.5" />
-            Em Breve
-          </Button>
-        )}
-        {sidebarItem && (
+      {/* Botão "+"/"-" flutuante no canto superior direito */}
+      {sidebarItem && (
+        <div className="absolute top-2.5 right-2.5 z-10">
           <SidebarToggle
             sidebarKey={app.sidebarKey!}
             defaultVisible={sidebarItem.defaultVisible}
           />
+        </div>
+      )}
+
+      {/* Status dot mini no canto superior ESQUERDO — não compete com nome */}
+      <div className="absolute top-3 left-3 z-10">
+        <StatusDot status={app.status} />
+      </div>
+
+      {/* Body — icon grande centrado + nome */}
+      <div className="relative flex flex-col items-center justify-center gap-2.5 px-3 pt-8 pb-3 flex-1">
+        <div
+          className={cn(
+            "w-14 h-14 rounded-2xl overflow-hidden shrink-0 shadow-md transition-transform duration-300",
+            "group-hover:scale-110 group-hover:shadow-[#7C3AED]/25",
+          )}
+        >
+          <Icon />
+        </div>
+        <div className="text-center min-w-0 w-full px-1">
+          <h3 className="font-bold text-[13px] tracking-tight leading-tight truncate">
+            {app.name}
+          </h3>
+          <p className="text-[10px] text-muted-foreground/80 truncate mt-0.5">
+            {app.byline}
+          </p>
+        </div>
+      </div>
+
+      {/* Descrição compacta */}
+      <div className="px-3 pb-2">
+        <p className="text-[10.5px] text-muted-foreground leading-snug line-clamp-2 text-center min-h-[28px]">
+          {app.shortDesc}
+        </p>
+      </div>
+
+      {/* Menu chip — preview do ícone+nome no sidebar (igualzinho a como
+          o app vai aparecer no menu lateral quando o user adicionar). */}
+      {sidebarItem && SidebarIcon && (
+        <div className="px-3 pb-2 flex justify-center">
+          <div
+            className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-muted/60 text-muted-foreground border border-border/40"
+            title={`No menu lateral: ${sidebarItem.title}`}
+          >
+            <SidebarIcon className="size-3" />
+            <span>{sidebarItem.title}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Action Button — compacto, gradient discreto, h-7 */}
+      <div className="px-3 pb-3">
+        {isInstalled ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAction(app);
+            }}
+            className={cn(
+              "w-full h-7 rounded-md text-[11px] font-medium",
+              "bg-linear-to-r from-[#7C3AED] to-[#8B5CF6] text-white",
+              "hover:from-[#6D28D9] hover:to-[#7C3AED] transition-all",
+              "shadow-sm hover:shadow-md hover:shadow-[#7C3AED]/25",
+              "flex items-center justify-center gap-1",
+            )}
+          >
+            {app.action === "external" && <ExternalLink className="size-3" />}
+            Abrir App
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className={cn(
+              "w-full h-7 rounded-md text-[11px] font-medium",
+              "bg-muted/50 text-muted-foreground border border-border/60",
+              "flex items-center justify-center gap-1 cursor-default",
+            )}
+          >
+            <Clock className="size-3" />
+            Em Breve
+          </button>
         )}
       </div>
     </div>
+  );
+}
+
+// ─── Status Dot ───────────────────────────────────────────────────────────────
+// Versão mínima do badge — apenas o dot colorido como indicador discreto.
+// Usado dentro do card pra deixar espaço pro nome + botões respirarem.
+
+function StatusDot({ status }: { status: AppStatus }) {
+  const config = {
+    installed: { color: "bg-emerald-500", title: "Instalado" },
+    development: { color: "bg-amber-500", title: "Em construção" },
+    available: { color: "bg-blue-500", title: "Disponível" },
+  }[status];
+  return (
+    <div
+      title={config.title}
+      className={cn(
+        "size-2 rounded-full ring-2 ring-background",
+        config.color,
+      )}
+    />
   );
 }
 
