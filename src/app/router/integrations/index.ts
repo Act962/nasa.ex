@@ -15,6 +15,7 @@ import { getActiveMetaSelection } from "./get-active-meta";
 import { setActiveMetaAccount } from "./set-active-meta";
 import { listMembersWithMetaAccess } from "./list-members-meta-access";
 import { setMemberMetaAccess } from "./set-member-meta-access";
+import { toggleInChatManual } from "./toggle-in-chat-manual";
 
 export const integrationsRouter = {
   create: createInstanceUazapi,
@@ -35,4 +36,5 @@ export const integrationsRouter = {
   setActiveMetaAccount,
   listMembersWithMetaAccess,
   setMemberMetaAccess,
+  toggleInChatManual,
 };
