@@ -1,5 +1,19 @@
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { pusherServer } from "@/lib/pusher";
+
+/**
+ * Broadcast push pra clients invalidarem o cache de `getInChatStatus`
+ * sem precisar pollar. Best-effort, fire-and-forget. Channel é o
+ * trackingId (já compartilhado com `conversation:new`/`message:new`).
+ */
+async function broadcastInChatStatusChanged(trackingId: string): Promise<void> {
+  try {
+    await pusherServer.trigger(trackingId, "inchat:status-changed", {});
+  } catch (err) {
+    console.warn("[in-chat] broadcast_status_changed_failed", err);
+  }
+}
 
 /**
  * In-Chat Fallback — helpers de detecção + ativação do modo anti-ban.
@@ -42,8 +56,33 @@ export async function isInChatModeActiveForTracking(
 /**
  * Mesma checagem mas via `conversationId` — útil nas procedures de envio
  * que recebem só o id da conversa.
+ *
+ * @deprecated Use `shouldSkipUazapiForConversation` quando o intent é
+ * "devo pular o envio uazapi?" (semanticamente o mesmo, nome melhor).
+ * Use `isInChatVisibleForConversation` quando o intent é "devo mostrar
+ * banner/badge?" (inclui também o modo manual).
+ *
+ * Mantida como alias durante a transição pra não quebrar imports.
  */
 export async function isInChatModeActiveForConversation(
+  conversationId: string,
+): Promise<boolean> {
+  return shouldSkipUazapiForConversation(conversationId);
+}
+
+/**
+ * Decide se a procedure de envio deve **pular a uazapi** (modo In-Chat
+ * fallback automático ativo — instância banida).
+ *
+ * IMPORTANTE: o modo MANUAL (`inChatModeManual`) NÃO faz pular uazapi.
+ * Quando o owner ativa manualmente, o WhatsApp continua funcionando
+ * normalmente; o Pusher já dispara o evento `message:created` em todo
+ * envio e a página pública `/whatsapp/[slug]` escuta o mesmo channel,
+ * então o "dual" acontece de graça quando a página estiver aberta.
+ *
+ * Skip uazapi = APENAS auto (instância realmente offline/banida).
+ */
+export async function shouldSkipUazapiForConversation(
   conversationId: string,
 ): Promise<boolean> {
   const conv = await prisma.conversation.findUnique({
@@ -57,6 +96,49 @@ export async function isInChatModeActiveForConversation(
     },
   });
   return !!conv?.tracking?.whatsappInstance?.inChatModeActive;
+}
+
+/**
+ * Indica se o In-Chat está "visível" pra org/time pelo banner+badge no
+ * `/tracking-chat`. Soma de AUTO (banimento detectado) OU MANUAL
+ * (toggle do owner em chat-settings).
+ *
+ * Não controla mais visibilidade da página pública `/whatsapp/[slug]` —
+ * essa passou a ser sempre acessível (só phone-auth como gate).
+ */
+export async function isInChatVisibleForConversation(
+  conversationId: string,
+): Promise<boolean> {
+  const conv = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: {
+      tracking: {
+        select: {
+          whatsappInstance: {
+            select: {
+              inChatModeActive: true,
+              inChatModeManual: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  const inst = conv?.tracking?.whatsappInstance;
+  return !!(inst?.inChatModeActive || inst?.inChatModeManual);
+}
+
+/**
+ * Variante por tracking — usada pelo banner do `/tracking-chat`.
+ */
+export async function isInChatVisibleForTracking(
+  trackingId: string,
+): Promise<boolean> {
+  const instance = await prisma.whatsAppInstance.findUnique({
+    where: { trackingId },
+    select: { inChatModeActive: true, inChatModeManual: true },
+  });
+  return !!(instance?.inChatModeActive || instance?.inChatModeManual);
 }
 
 /**
@@ -95,6 +177,7 @@ export async function markInstanceConnectionFailure(params: {
         id: true,
         organizationId: true,
         phoneNumber: true,
+        trackingId: true,
         inChatModeActive: true,
         inChatFailureCount: true,
       },
@@ -135,6 +218,10 @@ export async function markInstanceConnectionFailure(params: {
           failureCount: newCount,
         },
       }).catch(() => {});
+
+      // Push pros clients invalidarem getInChatStatus em tempo real,
+      // sem precisar pollar. Substitui o polling de 5min.
+      broadcastInChatStatusChanged(instance.trackingId).catch(() => {});
     }
   } catch (err) {
     console.warn("[markInstanceConnectionFailure] failed", err);
@@ -162,7 +249,12 @@ export async function markInstanceConnectionHealthy(params: {
 
     const instance = await prisma.whatsAppInstance.findUnique({
       where,
-      select: { id: true, inChatModeActive: true, inChatFailureCount: true },
+      select: {
+        id: true,
+        trackingId: true,
+        inChatModeActive: true,
+        inChatFailureCount: true,
+      },
     });
     if (!instance) return { deactivated: false };
 
@@ -179,6 +271,11 @@ export async function markInstanceConnectionHealthy(params: {
         inChatActivatedAt: null,
       },
     });
+
+    // Push pros clients sumirem o banner/badge sem polling.
+    if (instance.inChatModeActive) {
+      broadcastInChatStatusChanged(instance.trackingId).catch(() => {});
+    }
 
     return { deactivated: instance.inChatModeActive };
   } catch (err) {

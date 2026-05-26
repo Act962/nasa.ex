@@ -28,16 +28,18 @@ export interface SidebarNavItem {
 }
 
 export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
-  // ── Visíveis por padrão ──────────────────────────────────────────────────
+  // ── Visíveis por padrão (primeiro acesso) ───────────────────────────────
+  // Núcleo essencial pra novo user: 5 apps + página de Apps. Resto opt-in
+  // via página /apps (botão "+" no card adiciona ao menu).
   { key: "tracking",     title: "Trackings",    url: "/tracking",       icon: Kanban,                    alwaysVisible: false, defaultVisible: true  },
   { key: "workspaces",   title: "Workspaces",   url: "/workspaces",     icon: CircleCheckIcon,           alwaysVisible: false, defaultVisible: true  },
   { key: "cosmic",       title: "Formulários",  url: "/form",           icon: ClipboardType,             alwaysVisible: false, defaultVisible: true  },
   { key: "nasachat",     title: "Chats",        url: "/tracking-chat",  icon: MessageSquareTextIcon,     alwaysVisible: false, defaultVisible: true  },
   { key: "spacetime",    title: "Agenda",       url: "/agendas",        icon: Calendar,                  alwaysVisible: false, defaultVisible: true  },
-  { key: "contatos",     title: "Contatos",     url: "/contatos",       icon: Users,                     alwaysVisible: false, defaultVisible: true  },
-  { key: "insights",     title: "Insights",     url: "/insights",       icon: ChartColumnDecreasingIcon, alwaysVisible: false, defaultVisible: true  },
-  { key: "integrations", title: "Integrações",  url: "/integrations",   icon: Plug2,                     alwaysVisible: false, defaultVisible: true  },
-  // ── Ocultos por padrão (opt-in) ──────────────────────────────────────────
+  // ── Ocultos por padrão (opt-in via /apps "+") ───────────────────────────
+  { key: "contatos",     title: "Contatos",     url: "/contatos",       icon: Users,                     alwaysVisible: false, defaultVisible: false },
+  { key: "insights",     title: "Insights",     url: "/insights",       icon: ChartColumnDecreasingIcon, alwaysVisible: false, defaultVisible: false },
+  { key: "integrations", title: "Integrações",  url: "/integrations",   icon: Plug2,                     alwaysVisible: false, defaultVisible: false },
   { key: "nbox",         title: "N-Box",        url: "/nbox",           icon: FolderOpen,                alwaysVisible: false, defaultVisible: false },
   { key: "nasa-planner", title: "Planner",      url: "/nasa-planner",   icon: Map,                       alwaysVisible: false, defaultVisible: false },
   { key: "forge",        title: "Forge",        url: "/forge",          icon: Hammer,                    alwaysVisible: false, defaultVisible: false },

@@ -352,7 +352,7 @@ export function Footer({
   return (
     <>
       <form
-        className="py-3 px-4 bg-background border-t flex flex-col items-center gap-2 w-full"
+        className="py-3 px-4 flex flex-col items-center gap-2 w-full"
         onSubmit={handleSubmit}
       >
         {messageSelected && (
@@ -455,7 +455,7 @@ export function Footer({
           {!showAudioRecorder ? (
             <InputGroup
               className={cn(
-                "border-0 has-[[data-slot=input-group-control]:focus-visible]:border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 shadow-none bg-accent/50 rounded-2xl px-2",
+                "border-0 has-[[data-slot=input-group-control]:focus-visible]:border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 bg-background/85 backdrop-blur-md rounded-2xl px-2 shadow-md",
                 message.includes("\n") || message.length > 60
                   ? "items-end pb-1.5"
                   : "items-center",

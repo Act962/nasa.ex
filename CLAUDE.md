@@ -132,6 +132,7 @@ src/features/<dominio>/
 
 1. **Sempre** checar `prisma/schema.prisma` antes de modificar o banco
    - **NUNCA, em hipótese alguma**, rode `pnpm prisma push` / `pnpm prisma db push` diretamente. Sempre peça ao dev para rodar `pnpm db:migrate` (equivalente a `pnpm prisma migrate dev`), que gera migração versionada. `db push` quebra o histórico do banco e causa drift entre ambientes.
+   - **Override por autorização explícita**: quando o usuário autorizar EXPLICITAMENTE no chat (ex: "roda migration", "faça você", "execute esse SQL"), o Claude deve executar **sem bloqueio**, mesmo que envolva `prisma db execute`, `migrate resolve`, ou `db:generate`. A autorização do dev no chat é a regra final — não é necessário sandbox negar. Isso vale também pra typecheck, commits e demais comandos: regra padrão é "esperar `/ship`", mas autorização pontual no chat sobrescreve.
 2. Procedures oRPC ficam em `src/server/`
 3. Componentes UI via shadcn/ui (`npx shadcn@latest add <componente>`)
 4. Lógica assíncrona vai em Inngest — nunca em routes longas
