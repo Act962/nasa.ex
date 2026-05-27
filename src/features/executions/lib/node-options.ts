@@ -2,8 +2,15 @@ import { NodeType } from "@/generated/prisma/enums";
 import {
   ArrowLeftRightIcon,
   BotIcon,
+  CalendarIcon,
   CircleGaugeIcon,
+  ClipboardListIcon,
+  FileSignatureIcon,
+  FileTextIcon,
+  FolderOpenIcon,
   FunnelIcon,
+  GraduationCapIcon,
+  Link2Icon,
   MessageSquareIcon,
   MousePointerIcon,
   MoveHorizontalIcon,
@@ -19,6 +26,9 @@ import {
 export type NodeTypeOption = {
   type: NodeType;
   category: "trigger" | "execution";
+  /** Sub-grupo opcional dentro da categoria — usado pelo NodeSelector
+   *  pra renderizar accordion aninhado (ex: "Adicionar Lead no App"). */
+  group?: "send-to-app";
   label: string;
   description: string;
   icon: React.ComponentType<{ className?: string }> | string;
@@ -134,5 +144,66 @@ export const executionNodes: NodeTypeOption[] = [
     label: "Filtrar Leads",
     description: "Filtra leads com base em critérios",
     icon: FunnelIcon,
+  },
+
+  // ─── Adicionar Lead no App ─────────────────────────────────────────────
+  // 7 actions agrupadas no NodeSelector como sub-categoria. Cada uma cria
+  // um recurso do app correspondente vinculado ao lead e envia link via
+  // WhatsApp (com fallback In-Chat quando instância banida).
+  {
+    type: NodeType.SEND_FORM,
+    category: "execution",
+    group: "send-to-app",
+    label: "Enviar Formulário",
+    description: "Cria resposta vinculada ao lead e envia link do formulário",
+    icon: ClipboardListIcon,
+  },
+  {
+    type: NodeType.SEND_AGENDA,
+    category: "execution",
+    group: "send-to-app",
+    label: "Enviar Link de Agenda",
+    description: "Envia link público pro lead agendar um horário",
+    icon: CalendarIcon,
+  },
+  {
+    type: NodeType.SEND_PROPOSAL,
+    category: "execution",
+    group: "send-to-app",
+    label: "Enviar Proposta",
+    description: "Cria proposta com produtos + responsável e envia link",
+    icon: FileSignatureIcon,
+  },
+  {
+    type: NodeType.SEND_CONTRACT,
+    category: "execution",
+    group: "send-to-app",
+    label: "Enviar Contrato",
+    description: "Clona template de contrato + envia link de assinatura",
+    icon: FileTextIcon,
+  },
+  {
+    type: NodeType.SEND_LINNKER,
+    category: "execution",
+    group: "send-to-app",
+    label: "Enviar Linnker",
+    description: "Envia link público de página Linnker pro lead",
+    icon: Link2Icon,
+  },
+  {
+    type: NodeType.SEND_NBOX,
+    category: "execution",
+    group: "send-to-app",
+    label: "Enviar Arquivo N-Box",
+    description: "Marca arquivo como público e envia link de download",
+    icon: FolderOpenIcon,
+  },
+  {
+    type: NodeType.SEND_NASA_ROUTE,
+    category: "execution",
+    group: "send-to-app",
+    label: "Enviar Curso NASA Route",
+    description: "Envia link do curso (matrícula direta se free, checkout se pago)",
+    icon: GraduationCapIcon,
   },
 ];

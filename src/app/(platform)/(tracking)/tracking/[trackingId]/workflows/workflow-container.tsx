@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -9,137 +10,126 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemMedia,
-  ItemTitle,
-} from "@/components/ui/item";
-import { Switch } from "@/components/ui/switch";
-import { WorkflowIcon } from "lucide-react";
-import Link from "next/link";
+import { FolderPlusIcon, WorkflowIcon } from "lucide-react";
 import { useParams } from "next/navigation";
 import { CreateWorkflowButton } from "./create-workflow";
-import {
-  useSuspenseWorkflows,
-  useUpdateWorkflowIsActive,
-} from "@/features/workflows/hooks/use-workflows";
-import { getWorkflowStepsPreview } from "@/features/workflows/lib/workflow-preview";
-import { cn } from "@/lib/utils";
+import { useSuspenseWorkflows } from "@/features/workflows/hooks/use-workflows";
+import { useWorkflowFolders } from "@/features/workflows/hooks/use-workflow-folders";
+import { FolderGroup } from "@/features/workflows/components/folder-group";
+import { FolderCreateDialog } from "@/features/workflows/components/folder-create-dialog";
 
 export function WorkflowContainer() {
   const { trackingId } = useParams<{ trackingId: string }>();
+  const [createFolderOpen, setCreateFolderOpen] = useState(false);
 
-  const { data, isPending } = useSuspenseWorkflows(trackingId);
-  const updateIsActive = useUpdateWorkflowIsActive(trackingId);
+  const { data } = useSuspenseWorkflows(trackingId);
+  const { data: foldersData } = useWorkflowFolders(trackingId);
 
-  if (isPending) {
-    return <div>Carregando...</div>;
+  /**
+   * Agrupa workflows por folderId. `null` = "Sem pasta".
+   * Memoizado pra evitar re-render quando só status de outro workflow muda.
+   */
+  const grouped = useMemo(() => {
+    const byFolder = new Map<
+      string | null,
+      typeof data.workflows
+    >();
+    byFolder.set(null, []);
+    for (const f of foldersData?.folders ?? []) {
+      byFolder.set(f.id, []);
+    }
+    for (const w of data.workflows) {
+      const key = (w as any).folderId ?? null;
+      if (!byFolder.has(key)) byFolder.set(null, byFolder.get(null) ?? []);
+      const target = byFolder.get(key) ?? byFolder.get(null)!;
+      target.push(w);
+    }
+    return byFolder;
+  }, [data.workflows, foldersData?.folders]);
+
+  const folders = foldersData?.folders ?? [];
+  const uncategorized = grouped.get(null) ?? [];
+
+  // Empty total
+  if (data.workflows.length === 0 && folders.length === 0) {
+    return (
+      <div className="space-y-2 mb-8">
+        <EmptyWorkflows onCreateFolder={() => setCreateFolderOpen(true)} />
+        <FolderCreateDialog
+          open={createFolderOpen}
+          onOpenChange={setCreateFolderOpen}
+          trackingId={trackingId}
+        />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-2 mb-8">
-      {data.workflows.length > 0 ? (
-        data.workflows.map((workflow) => {
-          const { labels, total } = getWorkflowStepsPreview(
-            workflow.nodes,
-            workflow.connections,
-            5,
-          );
-          const description =
-            labels.length === 0
-              ? workflow.description || "Sem passos configurados"
-              : labels.join(" → ") + (total > labels.length ? " → …" : "");
+    <div className="space-y-3 mb-8">
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCreateFolderOpen(true)}
+        >
+          <FolderPlusIcon className="size-4" />
+          <span className="hidden sm:inline">Nova pasta</span>
+        </Button>
+      </div>
 
-          return (
-            <Item key={workflow.id} variant="outline">
-              <ItemMedia>
-                <div
-                  className={cn(
-                    "flex size-8 items-center justify-center rounded-md",
-                    workflow.isActive
-                      ? "bg-emerald-500/10 text-emerald-600"
-                      : "bg-muted text-muted-foreground",
-                  )}
-                >
-                  <WorkflowIcon className="size-4" />
-                </div>
-              </ItemMedia>
-              <ItemContent>
-                <div className="flex items-center gap-2">
-                  <Link
-                    href={`/tracking/${trackingId}/workflows/${workflow.id}`}
-                  >
-                    <ItemTitle className="hover:underline underline-offset-3">
-                      {workflow.name}
-                    </ItemTitle>
-                  </Link>
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide",
-                      workflow.isActive
-                        ? "bg-emerald-500/10 text-emerald-600"
-                        : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {workflow.isActive ? "Ativo" : "Inativo"}
-                  </span>
-                </div>
-                <ItemDescription className="truncate">
-                  {description}
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <Switch
-                  checked={workflow.isActive}
-                  disabled={updateIsActive.isPending}
-                  onCheckedChange={(checked) =>
-                    updateIsActive.mutate({
-                      workflowId: workflow.id,
-                      isActive: checked,
-                    })
-                  }
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label={
-                    workflow.isActive
-                      ? "Desativar automação"
-                      : "Ativar automação"
-                  }
-                />
-                <Button size="sm" variant="outline" asChild>
-                  <Link
-                    href={`/tracking/${trackingId}/workflows/${workflow.id}`}
-                  >
-                    Ver
-                  </Link>
-                </Button>
-              </ItemActions>
-            </Item>
-          );
-        })
-      ) : (
-        <EmptyWorkflows />
-      )}
+      {folders.map((f) => (
+        <FolderGroup
+          key={f.id}
+          folderId={f.id}
+          folderName={f.name}
+          workflowCount={f.workflowCount}
+          workflows={grouped.get(f.id) ?? []}
+          trackingId={trackingId}
+        />
+      ))}
+
+      <FolderGroup
+        folderId={null}
+        folderName="Sem pasta"
+        workflowCount={uncategorized.length}
+        workflows={uncategorized}
+        trackingId={trackingId}
+        defaultOpen
+      />
+
+      <FolderCreateDialog
+        open={createFolderOpen}
+        onOpenChange={setCreateFolderOpen}
+        trackingId={trackingId}
+      />
     </div>
   );
 }
 
-function EmptyWorkflows() {
+function EmptyWorkflows({
+  onCreateFolder,
+}: {
+  onCreateFolder: () => void;
+}) {
   return (
     <Empty>
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <WorkflowIcon />
         </EmptyMedia>
-        <EmptyTitle>Nenhum workflow encontrado</EmptyTitle>
+        <EmptyTitle>Nenhuma automação encontrada</EmptyTitle>
         <EmptyDescription>
-          Crie um workflow para começar a monitorar o progresso do seu projeto.
+          Crie uma automação ou organize em pastas pra começar.
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <CreateWorkflowButton />
+        <div className="flex gap-2">
+          <CreateWorkflowButton />
+          <Button variant="outline" size="sm" onClick={onCreateFolder}>
+            <FolderPlusIcon className="size-4" />
+            Nova pasta
+          </Button>
+        </div>
       </EmptyContent>
     </Empty>
   );

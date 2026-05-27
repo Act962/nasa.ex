@@ -12,6 +12,8 @@ export const createWorkflow = base
       name: z.string(),
       description: z.string().optional(),
       trackingId: z.string(),
+      /** Opcional: cria já dentro de uma pasta. */
+      folderId: z.string().nullish(),
     }),
   )
   .handler(async ({ context, input, errors }) => {
@@ -27,21 +29,76 @@ export const createWorkflow = base
       });
     }
 
-    const workflow = await prisma.workflow.create({
-      data: {
-        name: input.name,
-        description: input.description,
-        trackingId: input.trackingId,
-        userId: context.user.id,
-        nodes: {
-          create: {
-            type: NodeType.INITIAL,
-            position: { x: 0, y: 0 },
-            name: NodeType.INITIAL,
+    // Detecta se a feature de pastas tá habilitada (migration aplicada).
+    // Quando NÃO está, ignoramos folderId silenciosamente — workflow vira
+    // "Sem pasta". Evita erro P2022 / P2021 propagar pro client.
+    let foldersEnabled = true;
+    if (input.folderId) {
+      try {
+        const folder = await prisma.workflowFolder.findUnique({
+          where: { id: input.folderId },
+          select: { trackingId: true },
+        });
+        if (!folder || folder.trackingId !== input.trackingId) {
+          throw errors.BAD_REQUEST({
+            message: "Pasta inválida ou de outro tracking",
+          });
+        }
+      } catch (err: unknown) {
+        const code =
+          err instanceof Error && "code" in err
+            ? (err as { code?: string }).code
+            : undefined;
+        if (code === "P2021" || code === "P2022") {
+          foldersEnabled = false;
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    const workflow = await prisma.workflow
+      .create({
+        data: {
+          name: input.name,
+          description: input.description,
+          trackingId: input.trackingId,
+          userId: context.user.id,
+          ...(foldersEnabled ? { folderId: input.folderId ?? null } : {}),
+          nodes: {
+            create: {
+              type: NodeType.INITIAL,
+              position: { x: 0, y: 0 },
+              name: NodeType.INITIAL,
+            },
           },
         },
-      },
-    });
+      })
+      .catch(async (err: unknown) => {
+        const code =
+          err instanceof Error && "code" in err
+            ? (err as { code?: string }).code
+            : undefined;
+        // Coluna folder_id não existe ainda → retry sem ela
+        if (code === "P2022") {
+          return prisma.workflow.create({
+            data: {
+              name: input.name,
+              description: input.description,
+              trackingId: input.trackingId,
+              userId: context.user.id,
+              nodes: {
+                create: {
+                  type: NodeType.INITIAL,
+                  position: { x: 0, y: 0 },
+                  name: NodeType.INITIAL,
+                },
+              },
+            },
+          });
+        }
+        throw err;
+      });
 
     await logActivity({
       organizationId: tracking.organizationId,

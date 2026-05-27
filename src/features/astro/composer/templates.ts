@@ -32,7 +32,8 @@ export type EntityKind =
   | "workspace"
   | "appointment"
   | "proposal"
-  | "form";
+  | "form"
+  | "workflow_folder";
 
 export interface StepDef {
   /** Identificador interno do step dentro do template. */
@@ -51,6 +52,14 @@ export interface StepDef {
   options?: Array<{ value: string; label: string }>;
   /** Placeholder do input free-text. */
   placeholder?: string;
+  /**
+   * Pra category=entity: permite criar uma nova entidade inline. Quando
+   * o usuário digita um nome e não acha nada, mostra "+ Criar <nome>".
+   * O ChipValue resultante tem `raw = "__create__:<nome>"` — o handler
+   * downstream (CmdkPalette ou onSubmit) precisa criar a entidade antes
+   * de usar o ID. Atualmente só usado pra `workflow_folder`.
+   */
+  creatable?: boolean;
 }
 
 export interface CommandTemplate {
@@ -61,12 +70,24 @@ export interface CommandTemplate {
   title: string;
   /** Ícone hint pra picker (lucide name). */
   icon?: string;
+  /** Categoria visual no picker de apps. Default mostra todos juntos. */
+  group?: "trigger" | "execution" | "send-to-app";
   steps: StepDef[];
   /**
    * Builder do prompt final em linguagem natural a partir dos values
    * coletados (Record<stepKey, ChipValue>). É isso que vai pro Astro chat.
    */
   buildPrompt: (values: Record<string, ChipValue>) => string;
+  /**
+   * Quando presente, o composer NÃO manda pro Astro — chama esse intent
+   * direto. Útil pra ações que têm API própria (ex: criar Workflow).
+   */
+  directIntent?: {
+    /** Tipo do intent — handler decide o que fazer. */
+    type: "create_workflow";
+    /** Payload extra fixo (ex: nodeType). */
+    payload?: Record<string, string>;
+  };
 }
 
 export interface ChipValue {
@@ -87,6 +108,7 @@ export const VERBS = [
   { id: "editar", label: "Editar", icon: "Pencil" },
   { id: "mover", label: "Mover", icon: "MoveRight" },
   { id: "enviar", label: "Enviar", icon: "Send" },
+  { id: "automatizar", label: "Automatizar", icon: "Workflow" },
   // EXCLUIR removido por política de segurança: deleção só via app manual.
   // O Astro recusa pedidos de delete com a mensagem padrão (ver
   // PERSONA_CORE em src/features/astro/lib/prompts).
@@ -96,14 +118,14 @@ export type VerbId = (typeof VERBS)[number]["id"];
 
 // ─── Apps por Verbo ──────────────────────────────────────────────────────────
 
-export const APPS_BY_VERB: Record<VerbId, ReadonlyArray<{ id: string; label: string; icon?: string }>> = {
+export const APPS_BY_VERB: Record<VerbId, ReadonlyArray<{ id: string; label: string; icon?: string; group?: string }>> = {
   criar: [
     { id: "lead", label: "Lead", icon: "User" },
     { id: "evento", label: "Evento", icon: "CalendarClock" },
     { id: "agendamento", label: "Agendamento", icon: "Calendar" },
     { id: "despesa", label: "Despesa", icon: "TrendingDown" },
     { id: "receita", label: "Receita", icon: "TrendingUp" },
-    { id: "automacao", label: "Automação", icon: "Bell" },
+    { id: "automacao", label: "Alerta", icon: "Bell" },
     { id: "tag", label: "Tag", icon: "Tag" },
   ],
   buscar: [
@@ -116,6 +138,35 @@ export const APPS_BY_VERB: Record<VerbId, ReadonlyArray<{ id: string; label: str
   editar: [{ id: "lead", label: "Lead", icon: "User" }],
   mover: [{ id: "lead", label: "Lead", icon: "User" }],
   enviar: [{ id: "whatsapp", label: "WhatsApp", icon: "MessageCircle" }],
+  // Automatizar — todos os tipos de Node (trigger + execution + send-to-app).
+  // Quando user pica um, cria Workflow direto pelo Cmd+K (sem passar pelo
+  // Astro chat) e navega pro editor com o node escolhido prefilled.
+  automatizar: [
+    // ── Gatilhos ───────────────────────────────────────────
+    { id: "trigger.MANUAL_TRIGGER", label: "Gatilho: Manual", icon: "MousePointer", group: "trigger" },
+    { id: "trigger.NEW_LEAD", label: "Gatilho: Novo Lead", icon: "UserPlus", group: "trigger" },
+    { id: "trigger.MOVE_LEAD_STATUS", label: "Gatilho: Mover Lead pra Status", icon: "MoveHorizontal", group: "trigger" },
+    { id: "trigger.LEAD_TAGGED", label: "Gatilho: Lead com Tag", icon: "Tags", group: "trigger" },
+    { id: "trigger.AI_FINISHED", label: "Gatilho: IA Finalizou Atendimento", icon: "Bot", group: "trigger" },
+    { id: "trigger.FIRST_CHAT_INTERACTION", label: "Gatilho: Primeira Interação", icon: "MessageSquare", group: "trigger" },
+    // ── Ações ──────────────────────────────────────────────
+    { id: "action.MOVE_LEAD", label: "Ação: Mover Lead", icon: "ArrowLeftRight", group: "execution" },
+    { id: "action.SEND_MESSAGE", label: "Ação: Enviar Mensagem", icon: "Send", group: "execution" },
+    { id: "action.WAIT", label: "Ação: Esperar", icon: "Timer", group: "execution" },
+    { id: "action.WIN_LOSS", label: "Ação: Ganho/Perdido", icon: "Trophy", group: "execution" },
+    { id: "action.TAG", label: "Ação: Adicionar Tag", icon: "Tag", group: "execution" },
+    { id: "action.TEMPERATURE", label: "Ação: Temperatura", icon: "CircleGauge", group: "execution" },
+    { id: "action.RESPONSIBLE", label: "Ação: Responsável", icon: "UserRoundPlus", group: "execution" },
+    { id: "action.FILTER_LEAD", label: "Ação: Filtrar Leads", icon: "Funnel", group: "execution" },
+    // ── Adicionar Lead no App ──────────────────────────────
+    { id: "app.SEND_FORM", label: "App: Enviar Formulário", icon: "ClipboardList", group: "send-to-app" },
+    { id: "app.SEND_AGENDA", label: "App: Enviar Agenda", icon: "Calendar", group: "send-to-app" },
+    { id: "app.SEND_PROPOSAL", label: "App: Enviar Proposta", icon: "FileSignature", group: "send-to-app" },
+    { id: "app.SEND_CONTRACT", label: "App: Enviar Contrato", icon: "FileText", group: "send-to-app" },
+    { id: "app.SEND_LINNKER", label: "App: Enviar Linnker", icon: "Link2", group: "send-to-app" },
+    { id: "app.SEND_NBOX", label: "App: Enviar Arquivo N-Box", icon: "FolderOpen", group: "send-to-app" },
+    { id: "app.SEND_NASA_ROUTE", label: "App: Enviar Curso NASA Route", icon: "GraduationCap", group: "send-to-app" },
+  ],
 };
 
 // ─── Templates ───────────────────────────────────────────────────────────────
@@ -648,6 +699,101 @@ const TEMPLATES: CommandTemplate[] = [
   },
 
 ];
+
+// ─── Templates AUTOMATIZAR (criação direta de Workflow) ──────────────────────
+//
+// Cada app de "automatizar" mapeia pra um NodeType. Steps comuns: tracking
+// (required, onde o workflow vive), nome (required, default = label do node),
+// pasta (optional, autocomplete + opção "criar nova"). Submit chama o intent
+// `create_workflow` no CmdkPalette que cria o Workflow + nó inicial e navega
+// pro editor — depois o usuário edita o nó pra preencher campos específicos.
+
+interface AutomatizarSpec {
+  appId: string;
+  nodeType: string;
+  title: string;
+  icon: string;
+}
+
+const AUTOMATIZAR_SPECS: AutomatizarSpec[] = [
+  // Gatilhos
+  { appId: "trigger.MANUAL_TRIGGER", nodeType: "MANUAL_TRIGGER", title: "Automação: Gatilho Manual", icon: "MousePointer" },
+  { appId: "trigger.NEW_LEAD", nodeType: "NEW_LEAD", title: "Automação: Novo Lead", icon: "UserPlus" },
+  { appId: "trigger.MOVE_LEAD_STATUS", nodeType: "MOVE_LEAD_STATUS", title: "Automação: Mover Lead pra Status", icon: "MoveHorizontal" },
+  { appId: "trigger.LEAD_TAGGED", nodeType: "LEAD_TAGGED", title: "Automação: Lead com Tag", icon: "Tags" },
+  { appId: "trigger.AI_FINISHED", nodeType: "AI_FINISHED", title: "Automação: IA Finalizou", icon: "Bot" },
+  { appId: "trigger.FIRST_CHAT_INTERACTION", nodeType: "FIRST_CHAT_INTERACTION", title: "Automação: Primeira Interação", icon: "MessageSquare" },
+  // Ações
+  { appId: "action.MOVE_LEAD", nodeType: "MOVE_LEAD", title: "Automação: Mover Lead", icon: "ArrowLeftRight" },
+  { appId: "action.SEND_MESSAGE", nodeType: "SEND_MESSAGE", title: "Automação: Enviar Mensagem", icon: "Send" },
+  { appId: "action.WAIT", nodeType: "WAIT", title: "Automação: Esperar", icon: "Timer" },
+  { appId: "action.WIN_LOSS", nodeType: "WIN_LOSS", title: "Automação: Ganho/Perdido", icon: "Trophy" },
+  { appId: "action.TAG", nodeType: "TAG", title: "Automação: Adicionar Tag", icon: "Tag" },
+  { appId: "action.TEMPERATURE", nodeType: "TEMPERATURE", title: "Automação: Temperatura", icon: "CircleGauge" },
+  { appId: "action.RESPONSIBLE", nodeType: "RESPONSIBLE", title: "Automação: Responsável", icon: "UserRoundPlus" },
+  { appId: "action.FILTER_LEAD", nodeType: "FILTER_LEAD", title: "Automação: Filtrar Leads", icon: "Funnel" },
+  // Adicionar Lead no App
+  { appId: "app.SEND_FORM", nodeType: "SEND_FORM", title: "Automação: Enviar Formulário", icon: "ClipboardList" },
+  { appId: "app.SEND_AGENDA", nodeType: "SEND_AGENDA", title: "Automação: Enviar Agenda", icon: "Calendar" },
+  { appId: "app.SEND_PROPOSAL", nodeType: "SEND_PROPOSAL", title: "Automação: Enviar Proposta", icon: "FileSignature" },
+  { appId: "app.SEND_CONTRACT", nodeType: "SEND_CONTRACT", title: "Automação: Enviar Contrato", icon: "FileText" },
+  { appId: "app.SEND_LINNKER", nodeType: "SEND_LINNKER", title: "Automação: Enviar Linnker", icon: "Link2" },
+  { appId: "app.SEND_NBOX", nodeType: "SEND_NBOX", title: "Automação: Enviar Arquivo N-Box", icon: "FolderOpen" },
+  { appId: "app.SEND_NASA_ROUTE", nodeType: "SEND_NASA_ROUTE", title: "Automação: Enviar Curso NASA Route", icon: "GraduationCap" },
+];
+
+for (const spec of AUTOMATIZAR_SPECS) {
+  TEMPLATES.push({
+    verb: "automatizar",
+    app: spec.appId,
+    title: spec.title,
+    icon: spec.icon,
+    steps: [
+      {
+        key: "tracking",
+        category: "entity",
+        label: "Tracking",
+        prompt: "Em qual tracking essa automação vai existir?",
+        required: true,
+        entityKind: "tracking",
+      },
+      {
+        key: "nome",
+        category: "param",
+        label: "Nome",
+        prompt: "Nome da automação",
+        required: true,
+        placeholder: "Ex: Onboarding novo lead",
+      },
+      {
+        key: "pasta",
+        category: "entity",
+        label: "Pasta",
+        prompt:
+          "Em qual pasta? (opcional — digite o nome pra criar nova, ou pule pra ficar em \"Sem pasta\")",
+        required: false,
+        entityKind: "workflow_folder",
+        creatable: true,
+      },
+    ],
+    // buildPrompt não é usado quando directIntent está presente, mas
+    // mantemos fallback decente caso seja chamado em algum lugar.
+    buildPrompt: (v) => {
+      const parts = [
+        `Criar automação "${v.nome?.raw ?? ""}" do tipo ${spec.nodeType}`,
+      ];
+      if (v.tracking?.entityLabel)
+        parts.push(`no tracking "${v.tracking.entityLabel}"`);
+      if (v.pasta?.entityLabel)
+        parts.push(`na pasta "${v.pasta.entityLabel}"`);
+      return parts.join(", ") + ".";
+    },
+    directIntent: {
+      type: "create_workflow",
+      payload: { nodeType: spec.nodeType },
+    },
+  });
+}
 
 const byKey = new Map(TEMPLATES.map((t) => [`${t.verb}:${t.app}`, t]));
 

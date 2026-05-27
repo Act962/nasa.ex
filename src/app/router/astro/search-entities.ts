@@ -34,6 +34,7 @@ export const searchEntities = base
         "appointment",
         "proposal",
         "form",
+        "workflow_folder",
       ]),
       query: z.string().default(""),
       limit: z.coerce.number().int().min(1).max(20).default(8),
@@ -76,7 +77,8 @@ type EntityType =
   | "workspace"
   | "appointment"
   | "proposal"
-  | "form";
+  | "form"
+  | "workflow_folder";
 
 async function runSearch(
   entityType: EntityType,
@@ -291,6 +293,38 @@ async function runSearch(
         label: r.name,
         hint: r.published ? "publicado" : "rascunho",
       }));
+    }
+    case "workflow_folder": {
+      try {
+        const rows = await prisma.workflowFolder.findMany({
+          where: {
+            tracking: { organizationId },
+            ...(isEmpty
+              ? {}
+              : { name: { contains: query, mode: "insensitive" } }),
+          },
+          select: {
+            id: true,
+            name: true,
+            tracking: { select: { name: true } },
+          },
+          orderBy: { updatedAt: "desc" },
+          take: limit,
+        });
+        return rows.map((r) => ({
+          id: r.id,
+          label: r.name,
+          hint: r.tracking?.name,
+        }));
+      } catch (err: unknown) {
+        // Tabela ainda não existe (migration `workflow_folders` não aplicada)
+        const code =
+          err instanceof Error && "code" in err
+            ? (err as { code?: string }).code
+            : undefined;
+        if (code === "P2021" || code === "P2022") return [];
+        throw err;
+      }
     }
     default: {
       const _exhaustive: never = entityType;

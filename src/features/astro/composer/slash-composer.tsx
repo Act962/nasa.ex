@@ -44,8 +44,21 @@ import {
  * step a partir do estado.
  */
 
+export interface DirectIntentPayload {
+  type: "create_workflow";
+  values: Record<string, ChipValue>;
+  /** Payload fixo do template (ex: { nodeType: "SEND_PROPOSAL" }). */
+  payload?: Record<string, string>;
+}
+
 export interface SlashComposerProps {
   onSubmit: (prompt: string) => void;
+  /**
+   * Quando o template tem `directIntent`, o composer chama essa função ao
+   * invés de `onSubmit(prompt)`. Use pra ações que têm API própria (ex:
+   * criar Workflow). Se não fornecido, cai no fluxo de prompt normal.
+   */
+  onDirectIntent?: (intent: DirectIntentPayload) => void;
   loading?: boolean;
   className?: string;
 }
@@ -60,6 +73,7 @@ const initialState: ComposerState = { verb: null, app: null, values: {} };
 
 export function SlashComposer({
   onSubmit,
+  onDirectIntent,
   loading,
   className,
 }: SlashComposerProps) {
@@ -90,6 +104,20 @@ export function SlashComposer({
 
   const handleSubmit = () => {
     if (!template || !canSubmit) return;
+
+    // Caminho 1: template tem directIntent → chama handler local (cria
+    // Workflow direto pela API, sem passar pelo Astro chat).
+    if (template.directIntent && onDirectIntent) {
+      onDirectIntent({
+        type: template.directIntent.type,
+        values: { ...state.values },
+        payload: template.directIntent.payload,
+      });
+      reset();
+      return;
+    }
+
+    // Caminho 2: normal → constrói prompt e envia pro Astro
     const prompt = template.buildPrompt(state.values);
     pushRecent({ prompt, label: template.title });
     onSubmit(prompt);
@@ -308,21 +336,62 @@ function StepPicker(props: {
   // 2) Verbo escolhido, sem app → picker de apps válidos
   if (!state.app) {
     const apps = APPS_BY_VERB[state.verb] ?? [];
+    // Agrupa por `group` quando aplicável (verbo "automatizar" tem 21 apps
+    // divididos em Gatilhos / Ações / Adicionar Lead no App)
+    const hasGroups = apps.some((a) => "group" in a && a.group);
+    const groupLabels: Record<string, string> = {
+      trigger: "Gatilhos",
+      execution: "Ações",
+      "send-to-app": "Adicionar Lead no App",
+    };
+    const grouped = hasGroups
+      ? apps.reduce<Record<string, typeof apps>>((acc, a) => {
+          const g = ("group" in a && a.group) || "outros";
+          acc[g] = acc[g] ?? [];
+          acc[g].push(a);
+          return acc;
+        }, {})
+      : null;
+
     return (
       <div>
         <p className="text-[11px] text-zinc-500 mb-1.5">O que você quer?</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-          {apps.map((a) => (
-            <button
-              key={a.id}
-              type="button"
-              onClick={() => onSelectApp(a.id)}
-              className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-100 hover:border-violet-500/50 hover:bg-zinc-900 transition-colors"
-            >
-              <span className="font-mono">{a.label}</span>
-            </button>
-          ))}
-        </div>
+        {grouped ? (
+          <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+            {Object.entries(grouped).map(([g, list]) => (
+              <div key={g}>
+                <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+                  {groupLabels[g] ?? g}
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  {list.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => onSelectApp(a.id)}
+                      className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-100 hover:border-violet-500/50 hover:bg-zinc-900 transition-colors text-left"
+                    >
+                      <span className="truncate">{a.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            {apps.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => onSelectApp(a.id)}
+                className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-100 hover:border-violet-500/50 hover:bg-zinc-900 transition-colors"
+              >
+                <span className="font-mono">{a.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -541,7 +610,7 @@ function EntityPickerInput({
         )}
       </div>
       <div className="max-h-44 overflow-y-auto space-y-0.5">
-        {data?.matches.length === 0 && (
+        {data?.matches.length === 0 && !query && (
           <p className="text-[11px] text-zinc-500 px-1 py-1">
             Nada encontrado. Tente outro termo
             {step.required ? "" : " ou pule abaixo"}.
@@ -569,6 +638,34 @@ function EntityPickerInput({
             )}
           </button>
         ))}
+        {/* Opção de criar nova entidade quando step.creatable + query digitado
+            e sem match exato. raw recebe prefixo __create__: pro handler
+            saber que precisa criar primeiro. */}
+        {step.creatable &&
+          query.trim().length > 0 &&
+          !data?.matches.some(
+            (m) => m.label.toLowerCase() === query.trim().toLowerCase(),
+          ) && (
+            <button
+              type="button"
+              onClick={() => {
+                const name = query.trim();
+                onComplete({
+                  display: `${name} (nova)`,
+                  raw: `__create__:${name}`,
+                  entityLabel: name,
+                });
+              }}
+              className="w-full text-left rounded-md border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-1 text-xs text-emerald-200"
+            >
+              <span className="block truncate font-medium">
+                + Criar &ldquo;{query.trim()}&rdquo;
+              </span>
+              <span className="block truncate text-[10px] text-emerald-300/70">
+                vira um novo {entityKind === "workflow_folder" ? "pasta" : entityKind}
+              </span>
+            </button>
+          )}
       </div>
       {!step.required && (
         <button
