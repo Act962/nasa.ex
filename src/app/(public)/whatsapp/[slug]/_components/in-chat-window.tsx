@@ -29,6 +29,7 @@ import {
   CameraIcon,
   CheckIcon,
   CheckCheckIcon,
+  ClockIcon,
   CopyIcon,
   EllipsisVerticalIcon,
   FileIcon,
@@ -44,6 +45,8 @@ import {
   Trash2Icon,
   UserIcon,
   XIcon,
+  ChevronDownIcon,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday } from "date-fns";
@@ -129,16 +132,28 @@ export function InChatWindow({
   const [infoOpen, setInfoOpen] = useState(false);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  // Cursor da próxima página (mensagens mais antigas). Null = sem mais.
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  // Botão "Novas mensagens" quando user tá scrolled up + chega msg nova
+  const [hasNewBelow, setHasNewBelow] = useState(false);
+  // Trava o auto-scroll quando user navegou pra cima manualmente
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputImageRef = useRef<HTMLInputElement>(null);
   const fileInputDocRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
+  // Guard pra evitar re-fetch simultâneo no scroll up
+  const fetchingMoreRef = useRef(false);
 
-  // Initial load + safety polling
+  // Initial load + safety polling.
+  // Só sobrescreve `nextCursor` na carga inicial — polling subsequente
+  // não mexe (pra não perder o cursor depois de carregar mais).
   useEffect(() => {
     let cancelled = false;
+    let isInitial = true;
     const fetchMessages = async () => {
       try {
         const res = await fetch(`/api/in-chat/${slug}/messages`, {
@@ -148,6 +163,7 @@ export function InChatWindow({
         const data = (await res.json()) as {
           items: Message[];
           conversationId: string;
+          nextCursor: string | null;
         };
         if (cancelled) return;
         const ordered = [...data.items].reverse();
@@ -166,6 +182,10 @@ export function InChatWindow({
           );
         });
         setConversationId(data.conversationId);
+        if (isInitial) {
+          setNextCursor(data.nextCursor);
+          isInitial = false;
+        }
       } catch {}
     };
     fetchMessages();
@@ -176,6 +196,76 @@ export function InChatWindow({
     };
   }, [slug]);
 
+  // Scroll infinito — quando user chega no topo, busca página anterior
+  // (cursor = id da mensagem mais antiga atualmente carregada). Preserva
+  // a posição do scroll medindo scrollHeight antes/depois do prepend
+  // pra não dar "jump" visual.
+  const loadMore = async () => {
+    if (fetchingMoreRef.current || !nextCursor || loadingMore) return;
+    fetchingMoreRef.current = true;
+    setLoadingMore(true);
+    const el = scrollRef.current;
+    const prevScrollHeight = el?.scrollHeight ?? 0;
+    const prevScrollTop = el?.scrollTop ?? 0;
+    try {
+      const res = await fetch(
+        `/api/in-chat/${slug}/messages?cursor=${nextCursor}`,
+        { credentials: "include" },
+      );
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        items: Message[];
+        nextCursor: string | null;
+      };
+      const olderAsc = [...data.items].reverse();
+      setMessages((prev) => {
+        const byId = new Map<string, Message>();
+        for (const m of olderAsc) byId.set(m.id, m);
+        for (const m of prev) byId.set(m.id, m); // mantém as atuais
+        return Array.from(byId.values()).sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() -
+            new Date(b.createdAt).getTime(),
+        );
+      });
+      setNextCursor(data.nextCursor);
+      // Restaura scroll position no próximo paint
+      requestAnimationFrame(() => {
+        const newEl = scrollRef.current;
+        if (newEl) {
+          newEl.scrollTop =
+            newEl.scrollHeight - prevScrollHeight + prevScrollTop;
+        }
+      });
+    } catch {
+      // silencia — user pode tentar de novo scrollando
+    } finally {
+      setLoadingMore(false);
+      fetchingMoreRef.current = false;
+    }
+  };
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    // Trigger fetch quando chega perto do topo (80px)
+    if (el.scrollTop <= 80) loadMore();
+
+    // Detecta se está no fundo (margem de 60px pra tolerar pequenos gaps)
+    const atBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight <= 60;
+    setIsAtBottom(atBottom);
+    if (atBottom) setHasNewBelow(false);
+  };
+
+  const scrollToBottom = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    setHasNewBelow(false);
+  };
+
   // Pusher real-time
   useEffect(() => {
     if (!conversationId) return;
@@ -184,7 +274,18 @@ export function InChatWindow({
       setMessages((prev) => {
         const byId = new Map<string, Message>();
         for (const m of prev) byId.set(m.id, m);
+        const existed = byId.has(incoming.id);
         byId.set(incoming.id, incoming);
+        // Quando msg NOVA chega e user não tá no fundo → mostra pill
+        if (!existed && !incoming.fromMe === false /* msg do atendente */) {
+          // Lê live (não closure) — useState callback escapa stale state
+          const el = scrollRef.current;
+          if (el) {
+            const atBottom =
+              el.scrollHeight - el.scrollTop - el.clientHeight <= 60;
+            if (!atBottom) setHasNewBelow(true);
+          }
+        }
         return Array.from(byId.values()).sort(
           (a, b) =>
             new Date(a.createdAt).getTime() -
@@ -231,13 +332,16 @@ export function InChatWindow({
     };
   }, [conversationId]);
 
-  // Auto-scroll
+  // Auto-scroll — só faz scroll automático quando user está no fundo.
+  // Se user navegou pra ver mensagens antigas, NÃO força o scroll
+  // (botão "Novas mensagens" aparece pra notificar).
   useEffect(() => {
+    if (!isAtBottom) return;
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages.length]);
+  }, [messages.length, isAtBottom]);
 
   // ── Envio ────────────────────────────────────────────────────────────
   const sendMessage = async (payload: {
@@ -282,7 +386,9 @@ export function InChatWindow({
       longitude: payload.longitude ?? null,
       createdAt: new Date().toISOString(),
       fromMe: false,
-      status: "SENT",
+      // "PENDING" → renderiza ClockIcon na bolha. Quando o server
+      // responder, swap pelo objeto real (que vem com status SENT/SEEN).
+      status: "PENDING",
       senderName: null,
       viaInChat: true,
       quotedMessageId: payload.quotedMessageId ?? null,
@@ -505,12 +611,19 @@ export function InChatWindow({
       {/* Mensagens */}
       <div
         ref={scrollRef}
+        onScroll={handleScroll}
         className={cn(
-          "flex-1 overflow-y-auto p-4 space-y-2",
+          "flex-1 overflow-y-auto p-4 space-y-2 relative",
           "bg-[url('/chat-bg/mobile.png')] md:bg-[url('/chat-bg/desktop.png')]",
           "bg-cover bg-center bg-fixed",
         )}
       >
+        {/* Loading indicator no topo durante carregamento de mensagens antigas */}
+        {loadingMore && (
+          <div className="flex justify-center py-2">
+            <Loader2 className="size-4 animate-spin text-zinc-500" />
+          </div>
+        )}
         {messages.length === 0 && (
           <div className="h-full flex items-center justify-center text-xs text-zinc-500">
             Nenhuma mensagem ainda. Diga olá!
@@ -555,6 +668,21 @@ export function InChatWindow({
             </div>
           );
         })}
+        {/* Pill flutuante "Novas mensagens" — sticky no fundo do scroll,
+            só aparece quando user navegou pra cima E chegou msg nova
+            do atendente via Pusher. Clique → scroll suave pro fundo. */}
+        {hasNewBelow && (
+          <div className="sticky bottom-2 flex justify-center pointer-events-none">
+            <button
+              type="button"
+              onClick={scrollToBottom}
+              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 shadow-lg transition-colors"
+            >
+              <ChevronDownIcon className="size-3.5" />
+              Novas mensagens
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Composer */}
@@ -969,7 +1097,12 @@ function ChatBubble({
           {format(new Date(msg.createdAt), "p")}
           {isOwn && !isDeleted && (
             <>
-              {msg.status === "SEEN" ? (
+              {msg.status === "PENDING" ? (
+                <ClockIcon
+                  className="size-3.5 text-zinc-500/60 dark:text-zinc-300/50 animate-pulse"
+                  aria-label="Enviando"
+                />
+              ) : msg.status === "SEEN" ? (
                 <CheckCheckIcon className="size-3.5 text-[#53bdeb]" />
               ) : (
                 <CheckIcon className="size-3.5 text-zinc-500/80 dark:text-zinc-300/70" />

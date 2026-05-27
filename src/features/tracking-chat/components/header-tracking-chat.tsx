@@ -20,6 +20,7 @@ import {
   EllipsisVerticalIcon,
   PhoneIcon,
   RefreshCwIcon,
+  SparklesIcon,
   VideoIcon,
   XIcon,
 } from "lucide-react";
@@ -98,6 +99,10 @@ export function Header({
   const mutation = useMutationRodizio(conversationId);
   const qc = useQueryClient();
   const [syncOpen, setSyncOpen] = useState(false);
+  // Estado controlado do Resumo — em desktop o componente tem seu próprio
+  // PopoverTrigger; em mobile o trigger fica no dropdown "..." e abre o
+  // mesmo Popover via essa state (modo controlado externamente).
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   const backHref = withSearchParams(`/tracking-chat`, searchParams);
 
@@ -178,7 +183,10 @@ export function Header({
   };
 
   return (
-    <div className="bg-accent-foreground/10 w-full flex border-b sm:px-4 py-3 px-4 lg:px-6 justify-between items-center shadow-sm">
+    // Header com fundo opaco do tema (bg-background) — independente de
+    // qualquer customização do chat por baixo, garante contraste correto
+    // do texto em Claro/Escuro. text-foreground força a cor seguir o tema.
+    <div className="bg-background text-foreground w-full flex border-b sm:px-4 py-3 px-4 lg:px-6 justify-between items-center shadow-sm">
       <div className="flex gap-3 items-center">
         <Button variant="ghost" size="sm" className="lg:hidden block">
           <Link href={backHref}>
@@ -200,7 +208,7 @@ export function Header({
           <div className="flex items-center gap-2 min-w-0">
             <Link
               href={`/contatos/${leadId}`}
-              className="hover:underline underline-offset-3 truncate"
+              className="text-foreground hover:underline underline-offset-3 truncate font-medium"
             >
               {name || "Sem nome"}
             </Link>
@@ -260,8 +268,25 @@ export function Header({
           </Button>
         </div>
 
-        {/* Always visible: SummerizeConversation (Popover — não pode ir no dropdown) */}
-        <SummerizeConversation conversationId={conversationId} />
+        {/* Desktop (lg+): botão "Resumo" visível na barra.
+            Mobile/tablet (<lg): botão escondido; popover continua montado
+            pra ser disparado pelo item "Resumo" no dropdown "..." abaixo
+            (open controlado externamente). */}
+        <div className="hidden lg:block">
+          <SummerizeConversation
+            conversationId={conversationId}
+            open={summaryOpen}
+            onOpenChange={setSummaryOpen}
+          />
+        </div>
+        <div className="lg:hidden">
+          <SummerizeConversation
+            conversationId={conversationId}
+            open={summaryOpen}
+            onOpenChange={setSummaryOpen}
+            hideTrigger
+          />
+        </div>
 
         {/* Always visible: DropdownMenu — substitui o XIcon */}
         <DropdownMenu>
@@ -326,6 +351,17 @@ export function Header({
               >
                 <CheckIcon className="size-4" />
                 Finalizar atendimento
+              </DropdownMenuItem>
+              {/* Resumo — só aqui em mobile/tablet. Em lg+ o botão fica
+                  na barra. Abre o mesmo Popover via state controlado. */}
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setSummaryOpen(true);
+                }}
+              >
+                <SparklesIcon className="size-4" />
+                Resumo
               </DropdownMenuItem>
             </div>
 

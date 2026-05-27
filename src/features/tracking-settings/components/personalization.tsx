@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { CardAppearanceSection } from "./card-appearance-section";
 import { KanbanAppearanceSection } from "./kanban-appearance-section";
+import { ChatAppearanceSection } from "@/features/user-chat-preferences/components/chat-appearance-section";
 
 export function Personalization({ trackingId }: { trackingId?: string }) {
   const { viewMode, setViewMode } = useView();
@@ -98,6 +99,11 @@ export function Personalization({ trackingId }: { trackingId?: string }) {
 
       {/* ── Aparência do Kanban (cards, colunas, fundo) ─────────── */}
       {trackingId && <KanbanAppearanceSection trackingId={trackingId} />}
+
+      {/* ── Aparência do Chat (USER-level — não afeta colegas) ───── */}
+      <div className="border-t pt-6">
+        <ChatAppearanceSection />
+      </div>
     </div>
   );
 }

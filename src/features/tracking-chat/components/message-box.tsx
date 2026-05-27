@@ -265,24 +265,35 @@ export function MessageBox({
             >
               <div
                 className={cn(
-                  // Bolha estilo WhatsApp Web — cores oficiais + rabinho
-                  // (pseudo-element triangular) no canto superior.
+                  // Bolha estilo WhatsApp Web — cores oficiais + rabinho.
                   //
-                  // Cores WhatsApp:
-                  //  - fromMe light: #d9fdd3 (verde-clarinho)
-                  //  - fromMe dark:  #005c4b (verde-escuro)
-                  //  - received light: #ffffff (branco)
-                  //  - received dark:  #202c33 (cinza-petróleo)
+                  // Background e cor de texto vêm 100% de CSS vars
+                  // injetadas pelo wrapper `[conversationId]/page.tsx`:
+                  //  - `--chat-own-bg-default` / `--chat-their-bg-default`
+                  //    são theme-aware (light=verde/branco, dark=verde-escuro/cinza)
+                  //  - Quando user customiza em Personalização, `--chat-own-bg`
+                  //    e `--chat-own-text` (auto-contraste WCAG) sobrepõem
+                  //
+                  // Resultado: ao trocar Claro/Escuro, default segue tema;
+                  // quando custom, texto se adapta à luminância da bolha.
                   "relative text-sm w-fit max-w-[min(85vw,520px)] space-y-1 rounded-lg px-2 py-1 shadow-sm",
-                  isOwn
-                    ? "bg-[#d9fdd3] text-zinc-900 dark:bg-[#005c4b] dark:text-zinc-50 rounded-tr-none"
-                    : "bg-white text-zinc-900 dark:bg-[#202c33] dark:text-zinc-50 rounded-tl-none",
+                  isOwn ? "rounded-tr-none" : "rounded-tl-none",
                   // Mídia (foto/file/etc): sem fundo de bolha + sem rabinho
-                  // — a própria mídia faz o "card". Mantém alinhamento de
-                  // borda só pelo rounded.
                   isFile &&
                     "bg-transparent dark:bg-transparent shadow-none px-0 py-0",
                 )}
+                style={
+                  isFile
+                    ? undefined
+                    : {
+                        background: isOwn
+                          ? "var(--chat-own-bg, var(--chat-own-bg-default, #d9fdd3))"
+                          : "var(--chat-their-bg, var(--chat-their-bg-default, #ffffff))",
+                        color: isOwn
+                          ? "var(--chat-own-text, var(--chat-own-text-default, #18181b))"
+                          : "var(--chat-their-text, var(--chat-their-text-default, #18181b))",
+                      }
+                }
               >
                 {/* Rabinho da bolha (triângulo via border CSS).
                     - fromMe → topo-direito apontando pra direita
@@ -295,9 +306,15 @@ export function MessageBox({
                     className={cn(
                       "absolute top-0 w-0 h-0 pointer-events-none",
                       isOwn
-                        ? "right-[-8px] border-t-[8px] border-t-[#d9fdd3] dark:border-t-[#005c4b] border-r-[8px] border-r-transparent"
-                        : "left-[-8px] border-t-[8px] border-t-white dark:border-t-[#202c33] border-l-[8px] border-l-transparent",
+                        ? "right-[-8px] border-r-[8px] border-r-transparent"
+                        : "left-[-8px] border-l-[8px] border-l-transparent",
                     )}
+                    style={{
+                      borderTopWidth: 8,
+                      borderTopColor: isOwn
+                        ? "var(--chat-own-bg, var(--chat-own-bg-default, #d9fdd3))"
+                        : "var(--chat-their-bg, var(--chat-their-bg-default, #ffffff))",
+                    }}
                   />
                 )}
                 {/* Sender name em mensagens RECEBIDAS de GRUPOS — estilo
@@ -319,9 +336,16 @@ export function MessageBox({
                   <QuotedMessage message={message} />
                 )}
                 {isDeleted && (
-                  // Mensagem apagada — visual estilo WhatsApp:
-                  // "🚫 Mensagem apagada" em itálico, cor menos saturada.
-                  <div className="flex items-center gap-1.5 italic text-zinc-500 dark:text-zinc-400 px-1.5 py-1">
+                  // Mensagem apagada — italic, cor secundária theme-aware
+                  // via CSS var (mesma lógica do timestamp).
+                  <div
+                    className="flex items-center gap-1.5 italic px-1.5 py-1"
+                    style={{
+                      color: isOwn
+                        ? "var(--chat-own-muted, var(--chat-own-muted-default, rgba(63,63,70,0.7)))"
+                        : "var(--chat-their-muted, var(--chat-their-muted-default, rgba(63,63,70,0.7)))",
+                    }}
+                  >
                     <BanIcon className="size-3.5 shrink-0" />
                     <span className="text-sm">Mensagem apagada</span>
                   </div>
@@ -411,17 +435,17 @@ export function MessageBox({
                 )}
 
                 {/* Timestamp + status DENTRO da bolha (estilo WhatsApp).
-                    - Texto secundário levemente translúcido
-                    - Status checks só em mensagens próprias (fromMe).
-                    - Cor do check: cinza pra SENT, AZUL pra SEEN (alinhado
-                      com a UX do WhatsApp — "lido" = ✓✓ azul). */}
+                    Cor secundária vem de CSS var `--chat-*-muted` injetada
+                    pelo wrapper — theme-aware no default, auto-contraste
+                    quando user customizou cor da bolha. Mantém legibilidade
+                    em qualquer combinação. */}
                 <div
-                  className={cn(
-                    "flex items-center gap-1 text-[10px] -mt-0.5 justify-end",
-                    isOwn
-                      ? "text-zinc-700/70 dark:text-zinc-300/70"
-                      : "text-zinc-500 dark:text-zinc-400",
-                  )}
+                  className="flex items-center gap-1 text-[10px] -mt-0.5 justify-end"
+                  style={{
+                    color: isOwn
+                      ? "var(--chat-own-muted, var(--chat-own-muted-default, rgba(63,63,70,0.7)))"
+                      : "var(--chat-their-muted, var(--chat-their-muted-default, rgba(63,63,70,0.7)))",
+                  }}
                 >
                   {(() => {
                     const d = message.createdAt
@@ -431,12 +455,15 @@ export function MessageBox({
                   })()}
                   {isOwn && !isDeleted && IconStatus && (
                     <IconStatus
-                      className={cn(
-                        "size-3.5",
-                        message.status === MessageStatus.SEEN
-                          ? "text-[#53bdeb]" // azul WhatsApp pra "visualizado"
-                          : "text-zinc-500/80 dark:text-zinc-300/70",
-                      )}
+                      className={cn("size-3.5")}
+                      style={{
+                        color:
+                          message.status === MessageStatus.SEEN
+                            ? "#53bdeb" // azul WhatsApp pra "visualizado"
+                            : isOwn
+                              ? "var(--chat-own-muted, var(--chat-own-muted-default, rgba(63,63,70,0.7)))"
+                              : "var(--chat-their-muted, var(--chat-their-muted-default, rgba(63,63,70,0.7)))",
+                      }}
                     />
                   )}
                 </div>
