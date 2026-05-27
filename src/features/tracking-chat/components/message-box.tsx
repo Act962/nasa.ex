@@ -331,83 +331,84 @@ export function MessageBox({
                     soft delete já limparam os campos, mas mantemos guard
                     explícito pra evitar regressão se um campo escapar. */}
                 {!isDeleted && (
-                <div className="relative w-fit py-1">
-                  {isCall && callPayload && (
-                    <CallMessageBox payload={callPayload} fromMe={isOwn} />
-                  )}
-                  {isLocation && (
-                    <LocationMessageBox
-                      latitude={message.latitude as number}
-                      longitude={message.longitude as number}
-                      name={message.body}
-                    />
-                  )}
-                  {isContact && (
-                    <ContactMessageBox
-                      name={message.body}
-                      phone={message.fileName}
-                      trackingId={trackingId}
-                      token={token ?? undefined}
-                    />
-                  )}
-                  {isPendingMedia && (
-                    <PendingMediaNotice mediaType={message.mediaType!} />
-                  )}
-                  {!isLocation && message.mediaUrl &&
-                    message.mimetype?.startsWith("image") && (
-                      <>
-                        <Image
-                          alt="Image"
-                          src={useConstructUrl(message.mediaUrl)}
-                          className="object-contain cursor-pointer max-h-50 hover:opacity-90 transition-opacity"
-                          width={288}
-                          height={288}
-                          onClick={() => setShowImageViewer(true)}
-                        />
-                        <ImageViewerDialog
-                          open={showImageViewer}
-                          onOpenChange={setShowImageViewer}
-                          message={message}
-                          onReply={() =>
-                            onSelectMessage({
-                              body: message.body,
-                              id: message.id,
-                              messageId: message.messageId,
-                              fromMe: message.fromMe,
-                              senderName: message.senderName,
-                              quotedMessageId: message.quotedMessageId,
-                              mediaUrl: message.mediaUrl,
-                              mimetype: message.mimetype,
-                              fileName: message.fileName,
-                              lead: {
-                                id: message.conversation?.lead?.id || "",
-                                name: message.conversation?.lead?.name || "",
-                              },
-                            })
-                          }
-                        />
-                      </>
+                  <div className="relative w-fit py-1">
+                    {isCall && callPayload && (
+                      <CallMessageBox payload={callPayload} fromMe={isOwn} />
                     )}
-                  {message.mediaUrl &&
-                    (message.mimetype?.startsWith("application/") ||
-                      message.mimetype?.startsWith("text/")) && (
-                      <FileMessageBox
-                        mediaUrl={message.mediaUrl}
-                        mimetype={message.mimetype}
-                        fileName={message.fileName}
+                    {isLocation && (
+                      <LocationMessageBox
+                        latitude={message.latitude as number}
+                        longitude={message.longitude as number}
+                        name={message.body}
                       />
                     )}
-                  {message.mediaUrl &&
-                    message.mimetype?.startsWith("audio") && (
-                      <AudioMessageBox
-                        mediaUrl={message.mediaUrl}
-                        mimetype={message.mimetype}
+                    {isContact && (
+                      <ContactMessageBox
+                        name={message.body}
+                        phone={message.fileName}
+                        trackingId={trackingId}
+                        token={token ?? undefined}
                       />
                     )}
-                  {!isLocation && !isContact && !isCall && message.body && (
-                    <BodyMessage message={message} />
-                  )}
-                </div>
+                    {isPendingMedia && (
+                      <PendingMediaNotice mediaType={message.mediaType!} />
+                    )}
+                    {!isLocation &&
+                      message.mediaUrl &&
+                      message.mimetype?.startsWith("image") && (
+                        <>
+                          <Image
+                            alt="Image"
+                            src={useConstructUrl(message.mediaUrl)}
+                            className="object-contain cursor-pointer max-h-50 hover:opacity-90 transition-opacity"
+                            width={288}
+                            height={288}
+                            onClick={() => setShowImageViewer(true)}
+                          />
+                          <ImageViewerDialog
+                            open={showImageViewer}
+                            onOpenChange={setShowImageViewer}
+                            message={message}
+                            onReply={() =>
+                              onSelectMessage({
+                                body: message.body,
+                                id: message.id,
+                                messageId: message.messageId,
+                                fromMe: message.fromMe,
+                                senderName: message.senderName,
+                                quotedMessageId: message.quotedMessageId,
+                                mediaUrl: message.mediaUrl,
+                                mimetype: message.mimetype,
+                                fileName: message.fileName,
+                                lead: {
+                                  id: message.conversation?.lead?.id || "",
+                                  name: message.conversation?.lead?.name || "",
+                                },
+                              })
+                            }
+                          />
+                        </>
+                      )}
+                    {message.mediaUrl &&
+                      (message.mimetype?.startsWith("application/") ||
+                        message.mimetype?.startsWith("text/")) && (
+                        <FileMessageBox
+                          mediaUrl={message.mediaUrl}
+                          mimetype={message.mimetype}
+                          fileName={message.fileName}
+                        />
+                      )}
+                    {message.mediaUrl &&
+                      message.mimetype?.startsWith("audio") && (
+                        <AudioMessageBox
+                          mediaUrl={message.mediaUrl}
+                          mimetype={message.mimetype}
+                        />
+                      )}
+                    {!isLocation && !isContact && !isCall && message.body && (
+                      <BodyMessage message={message} />
+                    )}
+                  </div>
                 )}
 
                 {/* Timestamp + status DENTRO da bolha (estilo WhatsApp).
@@ -432,10 +433,7 @@ export function MessageBox({
                   {isOwn && !isDeleted && IconStatus && (
                     <IconStatus
                       className={cn(
-                        "size-3.5",
-                        message.status === MessageStatus.SEEN
-                          ? "text-[#53bdeb]" // azul WhatsApp pra "visualizado"
-                          : "text-zinc-500/80 dark:text-zinc-300/70",
+                        "size-3.5 text-zinc-500/80 dark:text-zinc-300/70",
                       )}
                     />
                   )}

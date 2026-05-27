@@ -22,6 +22,8 @@ export const textStrategy: ForwardStrategy<TextPayload> = {
     const response = await sendText(ctx.token, {
       text: payload.body,
       number: ctx.number,
+      readchat: true,
+      readmessages: true,
     });
     const message = await prisma.message.create({
       data: {
@@ -29,7 +31,7 @@ export const textStrategy: ForwardStrategy<TextPayload> = {
         body: payload.body,
         messageId: response.messageid,
         fromMe: true,
-        status: MessageStatus.SENT,
+        status: MessageStatus.SEEN,
         senderName: ctx.senderName,
       },
       select: MESSAGE_SELECT,
