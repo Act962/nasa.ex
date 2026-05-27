@@ -279,12 +279,14 @@ export default function Page() {
               // Se já existe draft criado pelo auto-save, ATUALIZA em vez de
               // criar duplicata. Sem isso o submit final criaria uma 2ª
               // FormResponses (incrementando contador errado, gerando 2
-              // entradas na timeline, etc.).
+              // entradas na timeline, etc.). `isFinal: true` aciona o
+              // "Direcionamento" (move o lead pro tracking/status do form).
               const draftId = autoSavedResponseIdRef.current;
               if (draftId) {
                 await updateMutation.mutateAsync({
                   id: draftId,
                   response: responseJson,
+                  isFinal: true,
                 });
                 toast.success("Resposta enviada");
                 const slug = buildResponseSlug(form.name, new Date());
@@ -293,10 +295,12 @@ export default function Page() {
               }
               // Caminho original (consultor clicou direto em Enviar sem
               // passar por nenhum Próximo): cria a resposta normalmente.
+              // `isFinal: true` aciona o "Direcionamento" do form.
               const res = await createMutation.mutateAsync({
                 formId,
                 leadId,
                 response: responseJson,
+                isFinal: true,
               });
               toast.success("Resposta enviada");
               const newResponseId = (

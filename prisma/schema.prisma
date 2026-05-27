@@ -1578,6 +1578,10 @@ enum NodeType {
   SEND_LINNKER
   SEND_NBOX
   SEND_NASA_ROUTE
+  // OPEN_FORM — cria FormResponses vazia vinculada ao lead, SEM enviar
+  // link via WhatsApp. O ícone do formulário no card do lead fica
+  // pendente; quando o operador clica, abre /formulario/novo/.
+  OPEN_FORM
 
   // ─── Workspace (Actions/Kanban) ─────────────────
   // Utils

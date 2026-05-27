@@ -5,6 +5,7 @@ import {
   CalendarIcon,
   CircleGaugeIcon,
   ClipboardListIcon,
+  ClipboardPenIcon,
   FileSignatureIcon,
   FileTextIcon,
   FolderOpenIcon,
@@ -157,6 +158,15 @@ export const executionNodes: NodeTypeOption[] = [
     label: "Enviar Formulário",
     description: "Cria resposta vinculada ao lead e envia link do formulário",
     icon: ClipboardListIcon,
+  },
+  {
+    type: NodeType.OPEN_FORM,
+    category: "execution",
+    group: "send-to-app",
+    label: "Abrir Formulário",
+    description:
+      "Marca form pendente — operador preenche no app, sem enviar link",
+    icon: ClipboardPenIcon,
   },
   {
     type: NodeType.SEND_AGENDA,

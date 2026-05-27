@@ -342,7 +342,7 @@ function StepPicker(props: {
     const groupLabels: Record<string, string> = {
       trigger: "Gatilhos",
       execution: "Ações",
-      "send-to-app": "Adicionar Lead no App",
+      "send-to-app": "Apps",
     };
     const grouped = hasGroups
       ? apps.reduce<Record<string, typeof apps>>((acc, a) => {

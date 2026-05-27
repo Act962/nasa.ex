@@ -227,7 +227,7 @@ export function NodeSelector({
                 >
                   <AccordionItem value="send-to-app">
                     <AccordionTrigger className="px-4 pt-3 pb-3 text-xs uppercase tracking-wide text-muted-foreground hover:no-underline">
-                      Adicionar Lead no App
+                      Apps
                     </AccordionTrigger>
                     <AccordionContent>
                       <div>

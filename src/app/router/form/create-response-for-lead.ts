@@ -10,6 +10,7 @@ import {
   NOT_TRACKING_PARTICIPANT_MESSAGE,
 } from "@/features/leads/lib/tracking-participant-guard";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
+import { applyResponseTagsToLead } from "@/features/form/lib/apply-response-tags";
 
 /**
  * Cria uma `FormResponses` em nome de um consultor logado, vinculando ao
@@ -36,26 +37,37 @@ export const createResponseForLead = base
       formId: z.string(),
       leadId: z.string(),
       response: z.string(),
+      /**
+       * Se true, aplica o "Direcionamento" do form (FormSettings.trackingId
+       * + statusId) movendo o lead pro tracking/status configurado. Usado
+       * no submit final — não no auto-save de cada "Próximo".
+       */
+      isFinal: z.boolean().optional().default(false),
     }),
   )
   .handler(async ({ input, context, errors }) => {
     try {
-      const { formId, leadId, response } = input;
+      const { formId, leadId, response, isFinal } = input;
       const userId = context.user.id;
 
-      // Carrega form e lead sem filtrar por org ativa — checamos coerência
-      // entre os dois (mesma org) e que o user é membro daquela org.
-      // `jsonBlock` vem junto pra auto-derivar `label` da resposta (campo
-      // marcado com `attributes.useAsResponseLabel === true`).
+      // Carrega form (incluindo settings.trackingId/statusId pro
+      // "Direcionamento" quando isFinal=true) e lead em paralelo.
       const [form, lead] = await Promise.all([
         prisma.form.findUnique({
           where: { id: formId },
-          select: { id: true, organizationId: true, jsonBlock: true },
+          select: {
+            id: true,
+            organizationId: true,
+            jsonBlock: true,
+            settings: { select: { trackingId: true, statusId: true } },
+          },
         }),
         prisma.lead.findUnique({
           where: { id: leadId },
           select: {
             id: true,
+            trackingId: true,
+            statusId: true,
             tracking: { select: { organizationId: true } },
           },
         }),
@@ -119,6 +131,57 @@ export const createResponseForLead = base
         where: { id: formId },
         data: { responses: { increment: 1 } },
       });
+
+      // Aplica tags da resposta no lead (radio/checkbox blocks com tagId).
+      // Paridade com submitResponse público — sem isso, tags escolhidas no
+      // preenchimento interno não apareciam no card do lead.
+      const tagsApplied = await applyResponseTagsToLead(
+        prisma,
+        leadId,
+        response,
+      );
+      if (tagsApplied > 0) {
+        await recordLeadEvent({
+          leadId,
+          eventType: "TAG_ADDED",
+          metadata: {
+            source: "form_response_internal",
+            formId,
+            formResponseId: created.id,
+            count: tagsApplied,
+          },
+        });
+      }
+
+      // Direcionamento (FormSettings.trackingId/statusId) — move o lead
+      // quando o submit é final e a config existe. Idempotente: pula
+      // quando já estiver no destino.
+      if (
+        isFinal &&
+        form.settings?.trackingId &&
+        form.settings?.statusId &&
+        (lead.trackingId !== form.settings.trackingId ||
+          lead.statusId !== form.settings.statusId)
+      ) {
+        await prisma.lead.update({
+          where: { id: leadId },
+          data: {
+            trackingId: form.settings.trackingId,
+            statusId: form.settings.statusId,
+          },
+        });
+        await recordLeadEvent({
+          leadId,
+          eventType: "STATUS_CHANGED",
+          metadata: {
+            source: "form_redirect",
+            formId,
+            formResponseId: created.id,
+            newTrackingId: form.settings.trackingId,
+            newStatusId: form.settings.statusId,
+          },
+        });
+      }
 
       await recordLeadEvent({
         leadId,
