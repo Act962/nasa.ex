@@ -80,6 +80,10 @@ export const creatorGetCourse = base
         redirectUrl: course.redirectUrl,
         pixelId: course.pixelId,
         gtmId: course.gtmId,
+        // E-mail pós-compra
+        purchaseEmailEnabled: course.purchaseEmailEnabled,
+        purchaseEmailSubject: course.purchaseEmailSubject,
+        purchaseEmailBodyJson: course.purchaseEmailBodyJson,
         categoryId: course.categoryId,
         category: course.category,
         creatorOrg: course.creatorOrg,

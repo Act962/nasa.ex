@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { CalendarDays, Clock, GraduationCap, Users } from "lucide-react";
-import { PriceStarsDisplay } from "./price-stars-display";
 import { COURSE_FORMAT_LABELS, COURSE_LEVEL_LABELS } from "../../types";
 import { cn } from "@/lib/utils";
 import { imgSrc } from "@/features/public-calendar/utils/img-src";
@@ -17,7 +16,11 @@ interface CourseCardProps {
     level: string;
     durationMin?: number | null;
     format: string;
-    priceStars: number;
+    // Preço em BRL (fonte de verdade desde a migração Stripe direto).
+    // `priceStars` continua nos tipos por compat, mas não é usado pra exibir.
+    priceStars?: number;
+    priceBrlCents?: number;
+    isFree?: boolean;
     studentsCount: number;
     lessonCount?: number;
     // Datas do evento — exibidas como badge na capa quando format = "event".
@@ -25,6 +28,13 @@ interface CourseCardProps {
     eventEndsAt?: Date | string | null;
     creatorOrg?: { name: string; logo?: string | null } | null;
   };
+}
+
+function formatBrlCents(cents: number): string {
+  return (cents / 100).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 }
 
 export function CourseCard({ href, course }: CourseCardProps) {
@@ -68,7 +78,16 @@ export function CourseCard({ href, course }: CourseCardProps) {
           </div>
         )}
         <div className="absolute right-2 top-2">
-          <PriceStarsDisplay priceStars={course.priceStars} size="sm" />
+          {course.isFree ||
+          (course.priceBrlCents !== undefined && course.priceBrlCents <= 0) ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-900/20 dark:text-emerald-300">
+              Grátis
+            </span>
+          ) : course.priceBrlCents !== undefined ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-[11px] font-semibold text-violet-700 dark:border-violet-800/40 dark:bg-violet-900/20 dark:text-violet-300">
+              {formatBrlCents(course.priceBrlCents)}
+            </span>
+          ) : null}
         </div>
       </div>
 

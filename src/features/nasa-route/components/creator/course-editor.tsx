@@ -33,6 +33,7 @@ import { LessonForm } from "./lesson-form";
 import { ModuleForm } from "./module-form";
 import { PlansManager } from "./plans-manager";
 import { IntegrationsTab } from "./integrations-tab";
+import { PurchaseEmailTab } from "./purchase-email-tab";
 import { LessonsBoard } from "./lessons-board";
 import { CourseShareMenu } from "../shared/course-share-menu";
 import { useRouter } from "next/navigation";
@@ -45,7 +46,7 @@ export function CourseEditor({ courseId }: Props) {
   const router = useRouter();
   const qc = useQueryClient();
   const [tab, setTab] = useState<
-    "info" | "lessons" | "plans" | "integrations"
+    "info" | "lessons" | "plans" | "integrations" | "purchase-email"
   >("lessons");
   const [editingLesson, setEditingLesson] = useState<any>(null);
   const [showLessonForm, setShowLessonForm] = useState(false);
@@ -255,6 +256,17 @@ export function CourseEditor({ courseId }: Props) {
         >
           Integrações
         </button>
+        <button
+          type="button"
+          onClick={() => setTab("purchase-email")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
+            tab === "purchase-email"
+              ? "border-violet-600 text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Email pós-compra
+        </button>
       </div>
 
       <div className="mt-6">
@@ -323,6 +335,33 @@ export function CourseEditor({ courseId }: Props) {
               }}
             />
           )
+        ) : tab === "purchase-email" ? (
+          <PurchaseEmailTab
+            courseId={course.id}
+            initial={{
+              slug: course.slug,
+              title: course.title,
+              subtitle: course.subtitle,
+              description: course.description,
+              coverUrl: course.coverUrl,
+              trailerUrl: course.trailerUrl,
+              level: course.level,
+              format: course.format,
+              durationMin: course.durationMin,
+              priceStars: course.priceStars,
+              categoryId: course.categoryId,
+              rewardSpOnComplete: course.rewardSpOnComplete,
+              redirectUrl: (course as any).redirectUrl ?? null,
+              pixelId: (course as any).pixelId ?? null,
+              gtmId: (course as any).gtmId ?? null,
+              purchaseEmailEnabled:
+                (course as any).purchaseEmailEnabled ?? false,
+              purchaseEmailSubject:
+                (course as any).purchaseEmailSubject ?? null,
+              purchaseEmailBodyJson:
+                (course as any).purchaseEmailBodyJson ?? null,
+            }}
+          />
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { StarTransactionType } from "@/generated/prisma/enums";
 import { finalizeStripePurchaseInTx } from "../helpers/purchase-helpers";
+import { triggerPurchaseEmail } from "@/features/nasa-route/lib/purchase-email";
 
 const WELCOME_BONUS = 100;
 
@@ -221,6 +222,10 @@ export const redeemCoursePurchase = base
         enrollmentId: purchase.enrollment.id,
       };
     });
+
+    // E-mail de pós-compra (Inngest, fire-and-forget). Disparado fora da
+    // transação pra não bloquear o resgate.
+    triggerPurchaseEmail(result.enrollmentId);
 
     return {
       alreadyRedeemed: false,

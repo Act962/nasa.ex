@@ -34,6 +34,8 @@ export const publicListByCompany = base
         durationMin: true,
         format: true,
         priceStars: true,
+        priceBrlCents: true,
+        isFree: true,
         studentsCount: true,
         // Datas UNIFICADAS — todos os formatos podem ter.
         startsAt: true,
@@ -64,6 +66,8 @@ export const publicListByCompany = base
         durationMin: c.durationMin,
         format: c.format,
         priceStars: c.priceStars,
+        priceBrlCents: c.priceBrlCents,
+        isFree: c.isFree,
         studentsCount: c.studentsCount,
         category: c.category,
         lessonCount: c._count.lessons,
