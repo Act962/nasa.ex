@@ -33,6 +33,7 @@ import { nasaRouteVideoUploadsCleanup } from "@/inngest/functions/crons/nasa-rou
 import { nasaRouteArchivePastEvents } from "@/inngest/functions/crons/nasa-route-archive-past-events";
 import { onVideoUploadProgress } from "@/inngest/functions/nasa-route/on-video-upload-progress";
 import { onVideoUploadCompleted } from "@/inngest/functions/nasa-route/on-video-upload-completed";
+import { nasaRoutePurchaseEmail } from "@/inngest/functions/nasa-route/purchase-email";
 import { astroIngestKnowledge } from "@/inngest/functions/astro/ingest-knowledge";
 import { astroAgentTrigger } from "@/inngest/functions/astro/agent-trigger";
 import { chatSyncMessages } from "@/inngest/functions/chat/sync-conversation-messages";
@@ -84,6 +85,7 @@ export const { GET, POST, PUT } = serve({
     nasaRouteArchivePastEvents,
     onVideoUploadProgress,
     onVideoUploadCompleted,
+    nasaRoutePurchaseEmail,
     // ── ASTRO ──
     astroIngestKnowledge,
     astroAgentTrigger,

@@ -1,6 +1,6 @@
 # NASA Route — Visão Geral Completa
 
-> Documentação técnica e funcional do feature **NASA Route**, a plataforma de cursos integrada da N.A.S.A. Última revisão: 2026-05-22 (Stripe BRL direto).
+> Documentação técnica e funcional do feature **NASA Route**, a plataforma de cursos integrada da N.A.S.A. Última revisão: 2026-05-27 (e-mail de pós-compra).
 
 NASA Route é o módulo que permite que organizações (criadores) vendam **cursos, eBooks, eventos, comunidades, mentorias, treinamentos e assinaturas** dentro da plataforma. O domínio cobre desde a criação do conteúdo (editor visual, upload de vídeo, planos de preço) até a aquisição pelo aluno (interna via Stars ou pública via Stripe), passando por progresso, recorrência e certificação.
 
@@ -27,7 +27,7 @@ Convenção: tudo que pertence ao domínio mora dentro de `src/features/nasa-rou
 | Modelo | Função | Campos-chave |
 | --- | --- | --- |
 | `NasaRouteCategory` | Taxonomia do catálogo | `slug`, `name`, `order`, `isActive` |
-| `NasaRouteCourse` | Curso (metadados + configuração de formato) | `slug`, `title`, `format`, **`priceBrlCents`** (fonte de verdade para checkout), **`isFree`** (flag), `priceStars` (legado), `creatorOrgId`, `creatorUserId`, `isPublished`, `startsAt`, `endsAt`, `purchaseTrackingId`, `redirectUrl`, `pixelId`, `gtmId` |
+| `NasaRouteCourse` | Curso (metadados + configuração de formato) | `slug`, `title`, `format`, **`priceBrlCents`** (fonte de verdade para checkout), **`isFree`** (flag), `priceStars` (legado), `creatorOrgId`, `creatorUserId`, `isPublished`, `startsAt`, `endsAt`, `purchaseTrackingId`, `redirectUrl`, `pixelId`, `gtmId`, **`purchaseEmailEnabled`**, **`purchaseEmailSubject`**, **`purchaseEmailBodyJson`** (TipTap JSON do e-mail customizado de pós-compra) |
 | `NasaRouteModule` | Agrupamento de aulas (opcional) | `courseId`, `order`, `title` |
 | `NasaRouteLesson` | Aula individual | `courseId`, `moduleId`, `videoUrl`, `videoFileKey`, `videoProvider`, `contentMd`, `isFreePreview`, `durationMin`, `awardSp` |
 | `NasaRouteLessonAttachment` | Anexos da aula | `lessonId`, `kind` (file/image/link), `fileKey`, `fileSize` |
@@ -129,6 +129,7 @@ Localização: `src/app/router/nasa-route/routes/` (~42 arquivos).
 - `creator-list-courses | -students | -plans`
 - `creator-list-sales` — vendas confirmadas (lê `NasaRouteEnrollment`): comprador, curso, plano, `paidBrlCents`, `paidStars` (payout), IDs Stripe, `source`, `status`. Filtros: `courseId`, `source`, `status`, `search`, `from`, `to`, paginado. Retorna `totals` (faturamento BRL, contagem, payout Stars).
 - `creator-list-pending-sales` — funil de checkout (lê `PendingCoursePurchase`): pendentes (`PENDING`), pagos aguardando resgate público (`PAID`), expirados (`EXPIRED`) e cancelados. Exclui `REDEEMED` por default (essas já viraram enrollment).
+- `creator-send-test-purchase-email` — envia um preview do e-mail de pós-compra para o próprio criador, resolvendo placeholders com dados fake (Aluno Teste, R$ 99,90 etc.). Aceita override dos campos `purchaseEmail*` no input para testar o estado não-salvo do form.
 
 **Upload de vídeo:**
 - `creator-quote-video-upload` — calcula custo (input: `sizeBytes`).
@@ -186,6 +187,7 @@ Stripe Connect ser implementado) e para uploads de vídeo.
 8. Aluno volta para `success_url` → redireciona para o player ou `redirectUrl`.
 9. Pixel/GTM (FB Purchase, GA ecommerce) — agora em BRL — são disparados pelo `enrollment-modal` para fluxo gratuito; no fluxo pago a recomendação é configurar conversão Stripe-side.
 10. Certificado é emitido quando todas as aulas forem concluídas.
+11. **E-mail de pós-compra** — `triggerPurchaseEmail(enrollmentId)` dispara o evento Inngest `nasa-route/purchase.completed` (ver §9), fire-and-forget. Roda imediatamente após `finalizeStripePurchaseInTx`.
 
 ### 6.2 Visitante anônimo (checkout público)
 
@@ -196,11 +198,12 @@ Stripe Connect ser implementado) e para uploads de vídeo.
 5. Inngest envia email com link `/redeem/<token>`.
 6. Usuário cria conta (User + Organization via signup) → chama `redeem-course-purchase`.
 7. A procedure cria a Organization se não existir, concede welcome bonus de Stars (uma vez por org), e chama `finalizeStripePurchaseInTx` para criar o enrollment (`source: "stripe_purchase"`). **Não há mais topup de Stars nem débito do comprador** — o pagamento já foi captado em BRL pelo Stripe.
-8. Redireciona para o player.
+8. Dispara `triggerPurchaseEmail(enrollmentId)` (ver §9) — aluno recebe o e-mail customizado do criador (ou default), além do e-mail de signup já enviado em (5).
+9. Redireciona para o player.
 
 ### 6.3 Acesso gratuito
 
-Criador → editor → aba **Acesso Gratuito** (`free-access-manager.tsx`) → concede a um usuário específico ou à org inteira (`courseId = null`). Aluno entra sem paywall; enrollment fica com `source: "free_access"`.
+Criador → editor → aba **Acesso Gratuito** (`free-access-manager.tsx`) → concede a um usuário específico ou à org inteira (`courseId = null`). Aluno entra sem paywall; enrollment fica com `source: "free_access"`. O e-mail de pós-compra (§9) também é disparado neste fluxo — o mesmo branch que trata `isFree=true` em `purchase-course` chama `triggerPurchaseEmail`.
 
 ### 6.4 Validação de acesso (defense in depth)
 
@@ -254,6 +257,7 @@ Criador → editor → aba **Acesso Gratuito** (`free-access-manager.tsx`) → c
 - **CRM interno** — `purchaseTrackingId` opcional vincula a compra a um funil de tracking; `createPurchaseSideEffects` gera o lead.
 - **Inngest** — automações assíncronas (envio de emails, recorrência de assinaturas, expiração de `PendingCoursePurchase`).
 - **Redirect URL** — após matrícula, criador pode redirecionar para página externa (upsell, obrigado etc.).
+- **E-mail de pós-compra** — opcionalmente personalizável por curso (`purchaseEmailEnabled` + `purchaseEmailSubject` + `purchaseEmailBodyJson` no `NasaRouteCourse`). Corpo em TipTap JSON com placeholders `{{studentName}}`, `{{courseTitle}}`, `{{creatorName}}`, `{{orgName}}`, `{{planName}}`, `{{amountBrl}}`, `{{accessUrl}}`, `{{certificateUrl}}` resolvidos no envio. Quando desativado, usa o template default dinâmico assinado pela org (`src/lib/email/purchase-default.tsx`). Disparado nos 3 fluxos de matrícula (Stripe autenticado, resgate público pós-signup e matrícula gratuita) via `triggerPurchaseEmail(enrollmentId)` em [src/features/nasa-route/lib/purchase-email.ts](src/features/nasa-route/lib/purchase-email.ts), que enfileira o evento `nasa-route/purchase.completed`. A função Inngest `nasaRoutePurchaseEmail` em `src/inngest/functions/nasa-route/purchase-email.ts` carrega o enrollment, renderiza via `renderPurchaseEmail` e envia pelo Resend. UI: aba **Email pós-compra** no editor (`purchase-email-tab.tsx`) com Switch + Input de assunto + RichtTextEditor + chips clicáveis de variáveis + botão "Enviar teste para mim" (procedure `creator-send-test-purchase-email`).
 
 ---
 

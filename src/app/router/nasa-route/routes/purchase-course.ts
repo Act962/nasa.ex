@@ -9,6 +9,7 @@ import { awardPoints } from "@/app/router/space-point/utils";
 import { canEnrollFree } from "../utils";
 import { createSubscriptionInTx } from "../helpers/subscription-helpers";
 import { createPurchaseSideEffects } from "../helpers/purchase-crm-side-effects";
+import { triggerPurchaseEmail } from "@/features/nasa-route/lib/purchase-email";
 import type { SubscriptionPeriod } from "@/features/nasa-route/lib/formats";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { getStripe } from "@/lib/stripe";
@@ -218,6 +219,9 @@ export const purchaseCourse = base
         planName: plan.name,
         enrollmentId: enrollment.id,
       });
+
+      // E-mail de pós-compra (Inngest, fire-and-forget)
+      triggerPurchaseEmail(enrollment.id);
 
       return {
         kind: "enrolled" as const,

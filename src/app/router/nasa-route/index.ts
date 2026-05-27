@@ -33,6 +33,7 @@ import { creatorReorderModules } from "./routes/creator-reorder-modules";
 import { creatorListSales } from "./routes/creator-list-sales";
 import { creatorListPendingSales } from "./routes/creator-list-pending-sales";
 import { creatorListStudents } from "./routes/creator-list-students";
+import { creatorSendTestPurchaseEmail } from "./routes/creator-send-test-purchase-email";
 
 // ── Upload de vídeo (R2 bucket dedicado) ────────────────────────────────
 import { creatorQuoteVideoUpload } from "./routes/creator-quote-video-upload";
@@ -89,6 +90,7 @@ export const nasaRouteRouter = {
   creatorListSales,
   creatorListPendingSales,
   creatorListStudents,
+  creatorSendTestPurchaseEmail,
   // upload de vídeo (R2 bucket dedicado)
   creatorQuoteVideoUpload,
   creatorStartVideoUpload,
