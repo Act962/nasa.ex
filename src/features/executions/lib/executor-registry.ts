@@ -15,6 +15,15 @@ import { leadTaggedTriggerExecutor } from "@/features/triggers/components/lead-t
 import { aiFinishedTriggerExecutor } from "@/features/triggers/components/ai-finished/executor";
 import { firstChatInteractionTriggerExecutor } from "@/features/triggers/components/first-chat-interaction/executor";
 import { filterLeadExecutor } from "../components/filter-lead/executor";
+// ─── "Adicionar Lead no App" — 7 actions de envio (Sprint Automações) ──
+import { sendFormExecutor } from "../components/send-form/executor";
+import { sendAgendaExecutor } from "../components/send-agenda/executor";
+import { sendProposalExecutor } from "../components/send-proposal/executor";
+import { sendContractExecutor } from "../components/send-contract/executor";
+import { sendLinnkerExecutor } from "../components/send-linnker/executor";
+import { sendNboxExecutor } from "../components/send-nbox/executor";
+import { sendNasaRouteExecutor } from "../components/send-nasa-route/executor";
+import { openFormExecutor } from "../components/open-form/executor";
 
 export const executorRegistry: Partial<Record<NodeType, NodeExecutor>> = {
   [NodeType.INITIAL]: manualTriggerExecutor,
@@ -33,6 +42,15 @@ export const executorRegistry: Partial<Record<NodeType, NodeExecutor>> = {
   [NodeType.AI_FINISHED]: aiFinishedTriggerExecutor,
   [NodeType.FIRST_CHAT_INTERACTION]: firstChatInteractionTriggerExecutor,
   [NodeType.FILTER_LEAD]: filterLeadExecutor,
+  // ─── Adicionar Lead no App ───
+  [NodeType.SEND_FORM]: sendFormExecutor as NodeExecutor,
+  [NodeType.SEND_AGENDA]: sendAgendaExecutor as NodeExecutor,
+  [NodeType.SEND_PROPOSAL]: sendProposalExecutor as NodeExecutor,
+  [NodeType.SEND_CONTRACT]: sendContractExecutor as NodeExecutor,
+  [NodeType.SEND_LINNKER]: sendLinnkerExecutor as NodeExecutor,
+  [NodeType.SEND_NBOX]: sendNboxExecutor as NodeExecutor,
+  [NodeType.SEND_NASA_ROUTE]: sendNasaRouteExecutor as NodeExecutor,
+  [NodeType.OPEN_FORM]: openFormExecutor as NodeExecutor,
 };
 
 export const getExecutor = (type: NodeType): NodeExecutor => {

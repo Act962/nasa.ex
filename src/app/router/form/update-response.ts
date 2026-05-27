@@ -10,6 +10,7 @@ import {
 } from "@/features/leads/lib/tracking-participant-guard";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
 import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
+import { applyResponseTagsToLead } from "@/features/form/lib/apply-response-tags";
 
 /**
  * Atualiza o `jsonResponse` de uma `FormResponses` existente. Usado no fluxo
@@ -33,17 +34,22 @@ export const updateResponse = base
     z.object({
       id: z.string(),
       response: z.string(),
+      /**
+       * Se true, aplica o "Direcionamento" do form (FormSettings.trackingId
+       * + statusId) movendo o lead pro tracking/status configurado. Usado
+       * no submit final — não no auto-save partial.
+       */
+      isFinal: z.boolean().optional().default(false),
     }),
   )
   .handler(async ({ input, context, errors }) => {
     try {
-      const { id, response } = input;
+      const { id, response, isFinal } = input;
       const userId = context.user.id;
 
-      // Carrega a resposta sem filtrar por org ativa — depois verificamos
-      // que o user é membro da org do form (ver create-response-for-lead.ts).
-      // Inclui `labelManuallyEdited` + `form.jsonBlock` para re-derivar
-      // o `label` automático sem sobrescrever overrides manuais.
+      // Carrega resposta + settings do form (pra Direcionamento quando
+      // isFinal=true). Inclui `labelManuallyEdited` + `form.jsonBlock`
+      // para re-derivar o `label` automático sem sobrescrever overrides.
       const existing = await prisma.formResponses.findFirst({
         where: { id },
         select: {
@@ -51,7 +57,13 @@ export const updateResponse = base
           leadId: true,
           formId: true,
           labelManuallyEdited: true,
-          form: { select: { organizationId: true, jsonBlock: true } },
+          form: {
+            select: {
+              organizationId: true,
+              jsonBlock: true,
+              settings: { select: { trackingId: true, statusId: true } },
+            },
+          },
         },
       });
 
@@ -111,6 +123,67 @@ export const updateResponse = base
       // Propaga label pra Lead.description (textareas no card + observações)
       // — fire-and-forget, não bloqueia a resposta da procedure.
       syncFormLabelsToLeadDescription(prisma, updated.leadId).catch(() => {});
+
+      // Aplica tags da resposta no lead (radio/checkbox blocks com tagId).
+      // Aqui é o caminho que roda quando o operador clica "Próximo" no form
+      // sendo preenchido (auto-save chama updateResponse). Sem isso, tags
+      // escolhidas no fluxo interno nunca chegavam no card do lead.
+      if (updated.leadId) {
+        const tagsApplied = await applyResponseTagsToLead(
+          prisma,
+          updated.leadId,
+          response,
+        );
+        if (tagsApplied > 0) {
+          await recordLeadEvent({
+            leadId: updated.leadId,
+            eventType: "TAG_ADDED",
+            metadata: {
+              source: "form_response_update",
+              formId: existing.formId,
+              formResponseId: updated.id,
+              count: tagsApplied,
+            },
+          });
+        }
+
+        // Direcionamento — move o lead pro tracking/status configurado
+        // no FormSettings quando o submit é final. Idempotente.
+        if (
+          isFinal &&
+          existing.form.settings?.trackingId &&
+          existing.form.settings?.statusId
+        ) {
+          const currentLead = await prisma.lead.findUnique({
+            where: { id: updated.leadId },
+            select: { trackingId: true, statusId: true },
+          });
+          if (
+            currentLead &&
+            (currentLead.trackingId !== existing.form.settings.trackingId ||
+              currentLead.statusId !== existing.form.settings.statusId)
+          ) {
+            await prisma.lead.update({
+              where: { id: updated.leadId },
+              data: {
+                trackingId: existing.form.settings.trackingId,
+                statusId: existing.form.settings.statusId,
+              },
+            });
+            await recordLeadEvent({
+              leadId: updated.leadId,
+              eventType: "STATUS_CHANGE",
+              metadata: {
+                source: "form_redirect",
+                formId: existing.formId,
+                formResponseId: updated.id,
+                newTrackingId: existing.form.settings.trackingId,
+                newStatusId: existing.form.settings.statusId,
+              },
+            });
+          }
+        }
+      }
 
       // Histórico: marca como FORM_SUBMITTED com flag de edição
       if (updated.leadId) {
