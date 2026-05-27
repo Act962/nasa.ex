@@ -15,7 +15,10 @@ import {
   type ForwardStrategy,
 } from "./types";
 
-function buildForwardKey(originalKey: string, fileName?: string | null): string {
+function buildForwardKey(
+  originalKey: string,
+  fileName?: string | null,
+): string {
   const source = fileName || originalKey;
   const ext = source.includes(".") ? source.split(".").pop() : "bin";
   return `${uuidv4()}.${ext}`;
@@ -41,7 +44,8 @@ export const mediaStrategy: ForwardStrategy<MediaPayload> = {
       fileName: payload.fileName,
     });
 
-    if (!uazapiType) throw new Error("Could not determine media type for forwarding");
+    if (!uazapiType)
+      throw new Error("Could not determine media type for forwarding");
 
     const newMediaKey = buildForwardKey(payload.mediaUrl, payload.fileName);
 
@@ -59,7 +63,8 @@ export const mediaStrategy: ForwardStrategy<MediaPayload> = {
       type: uazapiType,
       file: useConstructUrl(newMediaKey),
       text: payload.body?.trim() || undefined,
-      docName: uazapiType === "document" ? payload.fileName ?? undefined : undefined,
+      docName:
+        uazapiType === "document" ? (payload.fileName ?? undefined) : undefined,
       mimetype: payload.mimetype,
       readchat: true,
       readmessages: true,
@@ -75,7 +80,7 @@ export const mediaStrategy: ForwardStrategy<MediaPayload> = {
         fileName: payload.fileName ?? null,
         messageId: response.messageid,
         fromMe: true,
-        status: MessageStatus.SENT,
+        status: MessageStatus.SEEN,
         senderName: ctx.senderName,
       },
       select: MESSAGE_SELECT,
