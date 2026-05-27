@@ -22,6 +22,7 @@ import { SendContractNode } from "@/features/executions/components/send-contract
 import { SendLinnkerNode } from "@/features/executions/components/send-linnker/node";
 import { SendNboxNode } from "@/features/executions/components/send-nbox/node";
 import { SendNasaRouteNode } from "@/features/executions/components/send-nasa-route/node";
+import { OpenFormNode } from "@/features/executions/components/open-form/node";
 import { NodeType } from "@/generated/prisma/enums";
 import type { NodeTypes } from "@xyflow/react";
 
@@ -50,6 +51,7 @@ export const nodeComponents = {
   [NodeType.SEND_LINNKER]: SendLinnkerNode,
   [NodeType.SEND_NBOX]: SendNboxNode,
   [NodeType.SEND_NASA_ROUTE]: SendNasaRouteNode,
+  [NodeType.OPEN_FORM]: OpenFormNode,
 } as const satisfies NodeTypes;
 
 export type RegisteredNodeTypes = keyof typeof nodeComponents;

@@ -267,9 +267,13 @@ export default function Page() {
             submitLabel="Salvar"
             onSubmitOverride={async (responseJson) => {
               try {
+                // `isFinal: true` aciona o "Direcionamento" do form —
+                // move o lead pro tracking/status configurado quando
+                // o consultor finaliza/salva a resposta nessa página.
                 await updateMutation.mutateAsync({
                   id: response.id,
                   response: responseJson,
+                  isFinal: true,
                 });
                 toast.success("Resposta atualizada");
               } catch (err) {
