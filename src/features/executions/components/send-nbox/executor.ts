@@ -19,10 +19,10 @@ import { randomBytes } from "crypto";
  * (16 bytes) — unguessable.
  */
 
-export interface SendNboxData {
+export type SendNboxData = {
   nboxItemId: string;
   messageTemplate?: string;
-}
+};
 
 const DEFAULT_TEMPLATE =
   "Olá {{nome}}, segue o arquivo {{arquivo_nome}}: {{url}}";

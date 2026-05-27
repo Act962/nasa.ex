@@ -1,7 +1,8 @@
 "use client";
 
 import { Node, NodeProps, useReactFlow } from "@xyflow/react";
-import { memo, useState, type ComponentType, type ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 import { BaseExecutionNode } from "../base-execution-node";
 import { useNodeStatus } from "../../hook/use-node-status";
 import { SEND_APP_ACTION_CHANNEL_NAME } from "@/inngest/channels/send-app-action";
@@ -18,9 +19,9 @@ import { fetchSendAppActionRealtimeToken } from "./shared-actions";
  * (`sendAppActionChannel`) — economiza 1 channel por action.
  */
 
-interface Props<TData> {
+interface Props<TData extends Record<string, unknown>> {
   nodeProps: NodeProps<Node<TData>>;
-  icon: ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   name: string;
   description: string;
   renderDialog: (params: {

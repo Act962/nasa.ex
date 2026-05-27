@@ -27,7 +27,8 @@ import { Loader2 } from "lucide-react";
  */
 
 interface ResourceSelectProps<TItem> {
-  queryOptions: Parameters<typeof useQuery>[0];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  queryOptions: any;
   getItems: (data: unknown) => TItem[];
   getId: (item: TItem) => string;
   getLabel: (item: TItem) => string;

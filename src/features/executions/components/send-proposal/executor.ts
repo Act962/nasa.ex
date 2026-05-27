@@ -22,7 +22,7 @@ import { sendAppActionChannel } from "@/inngest/channels/send-app-action";
  * `createForgeProposal` em router/forge/proposals.ts).
  */
 
-export interface SendProposalData {
+export type SendProposalData = {
   /** IDs de `ForgeProduct` a incluir. */
   productIds: string[];
   /** User responsável (ForgeProposal.responsibleId — required). */
@@ -30,7 +30,7 @@ export interface SendProposalData {
   /** Dias de validade a partir de agora. Default 7. */
   validityDays?: number;
   messageTemplate?: string;
-}
+};
 
 const DEFAULT_TEMPLATE =
   "Olá {{nome}}, sua proposta nº {{numero}} no valor de {{valor}}, válida até {{validade}}: {{url}}";

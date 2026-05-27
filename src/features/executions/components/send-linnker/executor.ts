@@ -16,10 +16,10 @@ import { sendAppActionChannel } from "@/inngest/channels/send-app-action";
  * URL: `/linnker/{slug}` (slug é unique global na LinnkerPage).
  */
 
-export interface SendLinnkerData {
+export type SendLinnkerData = {
   linnkerPageId: string;
   messageTemplate?: string;
-}
+};
 
 const DEFAULT_TEMPLATE =
   "Olá {{nome}}, aqui estão nossos links principais ({{linnker_nome}}): {{url}}";

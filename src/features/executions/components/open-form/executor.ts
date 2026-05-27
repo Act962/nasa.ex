@@ -23,9 +23,9 @@ import { createNotification } from "@/features/admin/lib/notification-service";
  * de drafts vazios se o workflow rodar várias vezes pro mesmo lead.
  */
 
-export interface OpenFormData {
+export type OpenFormData = {
   formId: string;
-}
+};
 
 export const openFormExecutor: NodeExecutor<OpenFormData> = async ({
   data,
@@ -83,7 +83,7 @@ export const openFormExecutor: NodeExecutor<OpenFormData> = async ({
         where: {
           formId: form.id,
           leadId: lead.id,
-          jsonResponse: "{}",
+          jsonResponse: { equals: "{}" },
         },
         select: { id: true },
       });

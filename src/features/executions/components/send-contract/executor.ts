@@ -21,10 +21,10 @@ import { randomUUID } from "crypto";
  * depois no Forge se precisar.
  */
 
-export interface SendContractData {
+export type SendContractData = {
   templateContractId: string;
   messageTemplate?: string;
-}
+};
 
 const DEFAULT_TEMPLATE =
   "Olá {{nome}}, segue o contrato nº {{contrato_numero}} pra sua assinatura: {{url}}";

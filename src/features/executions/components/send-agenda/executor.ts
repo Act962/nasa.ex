@@ -14,10 +14,10 @@ import { sendAppActionChannel } from "@/inngest/channels/send-app-action";
  * WhatsApp. Não cria recurso novo (Agenda já existe), só monta URL.
  */
 
-export interface SendAgendaData {
+export type SendAgendaData = {
   agendaId: string;
   messageTemplate?: string;
-}
+};
 
 const DEFAULT_TEMPLATE =
   "Olá {{nome}}! Agende um horário com a gente em {{url}} ({{agenda_duracao}}).";

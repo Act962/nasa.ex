@@ -172,7 +172,7 @@ export const createResponseForLead = base
         });
         await recordLeadEvent({
           leadId,
-          eventType: "STATUS_CHANGED",
+          eventType: "STATUS_CHANGE",
           metadata: {
             source: "form_redirect",
             formId,

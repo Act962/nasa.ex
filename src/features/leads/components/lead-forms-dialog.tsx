@@ -136,8 +136,9 @@ export function LeadFormsDialog({
 
   // Agrega: 1 entrada por form, com responses[] vinculadas ao lead embaixo.
   const cards = useMemo<FormCardData[]>(() => {
-    const responses = (responsesData?.responses ?? []) as FormResponse[] &
-      { form: FormItem }[];
+    const responses = (responsesData?.responses ?? []) as unknown as (FormResponse & {
+      form: FormItem;
+    })[];
     const allForms = ((formsData as any)?.forms ?? []) as FormItem[];
 
     // Só forms publicados aparecem no dialog (operador não pica rascunho)

@@ -22,10 +22,10 @@ import { sendAppActionChannel } from "@/inngest/channels/send-app-action";
  * retry pula recriação.
  */
 
-export interface SendFormData {
+export type SendFormData = {
   formId: string;
   messageTemplate?: string;
-}
+};
 
 const DEFAULT_TEMPLATE =
   "Olá {{nome}}! Por favor preencha este formulário ({{form_nome}}): {{url}}";

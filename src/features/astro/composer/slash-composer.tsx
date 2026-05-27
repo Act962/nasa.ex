@@ -344,8 +344,9 @@ function StepPicker(props: {
       execution: "Ações",
       "send-to-app": "Apps",
     };
+    type AppItem = (typeof apps)[number];
     const grouped = hasGroups
-      ? apps.reduce<Record<string, typeof apps>>((acc, a) => {
+      ? apps.reduce<Record<string, AppItem[]>>((acc, a) => {
           const g = ("group" in a && a.group) || "outros";
           acc[g] = acc[g] ?? [];
           acc[g].push(a);

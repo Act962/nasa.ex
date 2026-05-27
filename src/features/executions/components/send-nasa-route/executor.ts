@@ -23,10 +23,10 @@ import { sendAppActionChannel } from "@/inngest/channels/send-app-action";
  * não podem ser usados como ação.
  */
 
-export interface SendNasaRouteData {
+export type SendNasaRouteData = {
   courseId: string;
   messageTemplate?: string;
-}
+};
 
 const DEFAULT_TEMPLATE =
   "Olá {{nome}}, sua matrícula no curso {{curso_nome}} ({{curso_preco}}) — {{checkout_ou_acesso}}: {{url}}";
