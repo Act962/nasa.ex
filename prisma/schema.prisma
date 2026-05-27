@@ -780,6 +780,10 @@ enum LeadSource {
   LINKEDIN
   GMAIL
   GOOGLE_MAPS
+  // Lead que se cadastrou pela página pública /whatsapp/[slug] (In-Chat)
+  // — phone novo digitado na tela de identify. Pipeline cria com source
+  // IN_CHAT e dispara todas as automações (workflows NEW_LEAD, IA, etc).
+  IN_CHAT
   OTHER
 }
 
@@ -1904,12 +1908,24 @@ model WhatsAppInstance {
   inChatActivatedAt  DateTime? @map("in_chat_activated_at")
   inChatFailureCount Int       @default(0) @map("in_chat_failure_count")
 
+  // ── In-Chat Manual Toggle (Sprint 3.5) ───────────────────────────────
+  // Modo manual ativado por owner/admin/moderador via UI (chat-settings).
+  // INDEPENDENTE do auto (`inChatModeActive`): manual=ON com instância
+  // saudável NÃO pula uazapi — só faz o banner azul aparecer no
+  // /tracking-chat avisando o time que tem leads usando o In-Chat.
+  // Página pública /whatsapp/[slug] passou a ser sempre acessível, então
+  // este flag NÃO controla visibilidade — só UI de awareness do time.
+  inChatModeManual   Boolean   @default(false) @map("in_chat_mode_manual")
+  inChatManualSetBy  String?   @map("in_chat_manual_set_by")
+  inChatManualSetAt  DateTime? @map("in_chat_manual_set_at")
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   tracking     Tracking     @relation(fields: [trackingId], references: [id])
 
   @@index([organizationId])
   @@index([status])
   @@index([inChatModeActive])
+  @@index([inChatModeManual])
   @@map("whatsapp_instances")
 }
 

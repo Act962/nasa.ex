@@ -1,22 +1,25 @@
 /**
- * In-Chat Fallback — página pública WhatsApp-clone.
+ * In-Chat — página pública WhatsApp-clone.
  *
  * URL: `/whatsapp/[slug]?lead=<leadId>`
  *
- * Acessível pelo lead quando a instância de WhatsApp da org está banida
- * (modo `inChatModeActive`). Mostra UI idêntica ao WhatsApp Web —
- * histórico + composer — pra o lead continuar conversando sem WhatsApp.
+ * **Sempre acessível** (Sprint 3.5) — não mais gated por inChatModeActive.
+ * O lead acessa a qualquer momento confirmando seu telefone na tela de
+ * identify. Funciona como 2º canal permanente alternativo ao WhatsApp.
  *
  * Fluxo:
- *  1. Server-side carrega org pelo `slug`.
- *  2. Se a org não existe ou nenhuma instância dela está em modo
- *     In-Chat ativo → 404 (não expõe o chat fora de emergência).
- *  3. Cliente lê cookie `nasa_inchat_lead`:
+ *  1. Server-side carrega org pelo `slug`. Se org não existe → 404
+ *     (única razão de 404 — proteção contra slug inválido).
+ *  2. Cliente lê cookie `nasa_inchat_lead`:
  *     - Sem cookie → renderiza form pedindo telefone (IdentifyForm).
+ *       Se phone não existe na base, lead novo é criado via pipeline
+ *       compartilhado (`processIncomingMessage source=in_chat_identify`)
+ *       — Fase J — disparando IA/workflows/round-robin.
  *     - Com cookie → renderiza chat (InChatWindow).
  *
  * Identificação por telefone evita exigir senha (lead não tem conta).
- * Cookie httpOnly impede leak via XSS.
+ * Cookie httpOnly impede leak via XSS. Rate-limit no /identify protege
+ * contra enumeração de telefones.
  */
 
 import { notFound } from "next/navigation";
@@ -32,24 +35,18 @@ export default async function InChatPage({
 }) {
   const { slug } = await params;
 
+  // Página pública sempre disponível — só 404 quando slug não bate em
+  // nenhuma org. Gate de identificação por telefone faz o resto.
   const org = await prisma.organization.findUnique({
     where: { slug },
     select: {
       id: true,
       name: true,
       logo: true,
-      // Verifica se PELO MENOS UMA instância da org está em modo In-Chat.
-      // Não expomos o chat se WhatsApp normal está OK — anti-ban é
-      // emergência, não fallback permanente.
-      whatsappInstances: {
-        where: { inChatModeActive: true },
-        select: { id: true },
-        take: 1,
-      },
     },
   });
 
-  if (!org || org.whatsappInstances.length === 0) {
+  if (!org) {
     notFound();
   }
 

@@ -11,7 +11,6 @@ import { getContactDetails } from "@/http/uazapi/get-contact-details";
 import { WA_COLORS } from "@/utils/whatsapp-utils";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { logActivity } from "@/features/admin/lib/activity-logger";
-import { trackLeadEvent } from "@/lib/lead-journey/track";
 import {
   resolveReferralForOrg,
   ctwaToLeadData,
@@ -23,8 +22,6 @@ import {
   messagesEventSchema,
   webhookBaseSchema,
 } from "@/http/uazapi/webhook-schema";
-import { inngest } from "@/inngest/client";
-import { eventBus } from "@/features/alerts/lib/event-bus";
 
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -827,124 +824,35 @@ export async function POST(request: NextRequest) {
           { status: 201 },
         );
       }
-      // Atualiza timestamps de jornada do lead. firstResponseAt só é setado
-      // quando atendente (fromMe=true) responde APÓS lead ter mandado inbound.
-      const now = new Date();
-      const shouldSetFirstResponse =
-        fromMe && !lead.firstResponseAt && lead.lastInboundAt;
 
-      await prisma.conversation.update({
-        where: {
-          leadId_trackingId: {
-            leadId: lead.id,
-            trackingId,
-          },
-        },
-        data: {
-          lastMessage: {
-            connect: { id: messageData.id },
-          },
-          lead: {
-            update: {
-              updatedAt: now,
-              ...(fromMe ? { lastOutboundAt: now } : { lastInboundAt: now }),
-              ...(shouldSetFirstResponse ? { firstResponseAt: now } : {}),
-            },
-          },
-        },
-      });
-
-      // Track timeline events (best-effort).
-      if (fromMe) {
-        await trackLeadEvent({
-          leadId: lead.id,
-          kind: "message_out",
-          metadata: { channel: "WHATSAPP", messageId },
-        });
-        if (shouldSetFirstResponse) {
-          await trackLeadEvent({
-            leadId: lead.id,
-            kind: "first_response",
-            metadata: { channel: "WHATSAPP" },
-          });
-        }
-      } else {
-        await trackLeadEvent({
-          leadId: lead.id,
-          kind: "message_in",
-          metadata: { channel: "WHATSAPP", messageId },
-        });
-
-        // Alert engine — publica chat.message_received pra alertas de inbound.
-        // Best-effort: falha não pode quebrar o webhook.
-        try {
-          const tracking = await prisma.tracking.findUnique({
-            where: { id: trackingId },
-            select: { organizationId: true },
-          });
-          if (tracking && lead.conversation?.id) {
-            await eventBus.publish("chat.message_received", {
-              conversationId: lead.conversation.id,
-              messageId: messageData.id,
-              isInbound: true,
-              orgId: tracking.organizationId,
-            });
-          }
-        } catch (err) {
-          console.error("[webhook:chat] alert publish falhou:", err);
-        }
-      }
-
-      if (
-        !fromMe &&
-        lead.isActive &&
-        tracking.globalAiActive &&
-        lead.conversation?.id
-      ) {
-        try {
-          await inngest.send({
-            name: "chat/ai.whatsapp-message-received",
-            data: {
-              trackingId,
-              leadId: lead.id,
-              conversationId: lead.conversation.id,
-              messageId: messageData.id,
-              organizationId: tracking.organizationId,
-            },
-          });
-        } catch (error) {
-          console.error("[webhook:chat] inngest_send_failed", error);
-        }
-      }
-
-      if (!fromMe) {
-        // Idle automation (aba "Interações"): só emite se houver config ativa
-        // pra esse tracking — evita invocar o scheduler em vão.
-        try {
-          const { dispatchIdleActivityIfActive } = await import(
-            "@/features/tracking-settings/lib/idle-automation-gate"
-          );
-          await dispatchIdleActivityIfActive({
-            leadId: lead.id,
-            trackingId,
-            organizationId: tracking.organizationId,
-          });
-        } catch (error) {
-          console.error("[webhook:chat] idle_gate_failed", error);
-        }
-      }
-
-      await pusherServer.trigger(trackingId, "conversation:new", {
-        ...lead.conversation,
-        lead,
-      });
-
-      await pusherServer.trigger(
-        lead.conversation?.id!,
-        "message:new",
-        messageData,
+      // ── Pipeline unificado de pós-save ───────────────────────────────
+      // Cópia 1:1 do comportamento anterior — só extraído pra um helper
+      // compartilhado com /api/in-chat/[slug]/messages e /identify.
+      // Garante paridade estrutural de automações em qualquer caminho de
+      // inbound (Sprint 3.5 / Fase J do plano).
+      const { firePostInboundAutomations } = await import(
+        "@/features/tracking-chat/lib/incoming-message-pipeline"
       );
-      await pusherServer.trigger(trackingId, "message:new", messageData);
+      await firePostInboundAutomations({
+        trackingId,
+        organizationId: tracking.organizationId,
+        globalAiActive: tracking.globalAiActive,
+        lead: {
+          id: lead.id,
+          isActive: lead.isActive,
+          firstResponseAt: lead.firstResponseAt,
+          lastInboundAt: lead.lastInboundAt,
+          conversation: lead.conversation
+            ? { id: lead.conversation.id }
+            : null,
+        },
+        messageId: messageData.id,
+        externalMessageId: messageId,
+        fromMe,
+        channel: "WHATSAPP",
+        messagePayload: messageData,
+        conversationPayload: { ...lead.conversation, lead },
+      });
 
       return NextResponse.json({ success: true }, { status: 201 });
     }

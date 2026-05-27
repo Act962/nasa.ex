@@ -7,6 +7,7 @@ import {
 } from "@/lib/tracking/tracking-params";
 import { recordLeadEvent } from "@/features/leads/lib/history";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
+import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
 
 /**
  * Salvamento INCREMENTAL de uma resposta de formulário público — usado
@@ -85,6 +86,9 @@ export const savePartialResponse = base
           where: { id: existing.id },
           data: dataToUpdate,
         });
+
+        // Propaga labels → Lead.description (textareas card + observações)
+        syncFormLabelsToLeadDescription(prisma, existing.leadId).catch(() => {});
 
         return {
           responseId: existing.id,
@@ -184,6 +188,9 @@ export const savePartialResponse = base
         });
         return fr;
       });
+
+      // Propaga labels → Lead.description (textareas card + observações)
+      syncFormLabelsToLeadDescription(prisma, created.leadId).catch(() => {});
 
       // Timeline: FORM_STARTED (não FORM_SUBMITTED — só o submit final).
       if (created.leadId) {

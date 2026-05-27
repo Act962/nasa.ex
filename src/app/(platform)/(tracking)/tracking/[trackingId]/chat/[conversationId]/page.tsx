@@ -5,6 +5,7 @@ import { Body } from "@/features/tracking-chat/components/body";
 import { Footer } from "@/features/tracking-chat/components/footer-chat";
 import { Header } from "@/features/tracking-chat/components/header-tracking-chat";
 import { orpc } from "@/lib/orpc";
+import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { redirect, useParams } from "next/navigation";
 import { useState } from "react";
@@ -38,8 +39,27 @@ export default function Page() {
   console.log(data.conversation.lead.statusFlow);
 
   return (
-    <div className=" h-full">
-      <div className="h-full flex flex-col relative">
+    <div className="h-full relative">
+      {/* Layer 1: pattern WhatsApp Web (JPG q=70, ~178KB).
+          Mobile vertical + desktop horizontal. bg-fixed mantém parado
+          durante scroll. */}
+      <div
+        aria-hidden
+        className={cn(
+          "absolute inset-0 pointer-events-none",
+          "bg-[url('/chat-bg/mobile.jpg')] md:bg-[url('/chat-bg/desktop.jpg')]",
+          "bg-cover bg-center bg-fixed",
+          "bg-[#dbe9f7] dark:bg-zinc-900",
+        )}
+      />
+      {/* Layer 2: overlay translúcida que dilui o pattern.
+          Ajuste o `/60` (light) e `/40` (dark) entre 0 e 100. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none bg-background/60 dark:bg-background/40"
+      />
+      {/* Layer 3: conteúdo. */}
+      <div className="relative h-full flex flex-col">
         <Header
           name={data.conversation.lead?.name || ""}
           profile={data.conversation.lead?.profile ?? undefined}
