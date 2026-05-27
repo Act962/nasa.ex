@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Command as CmdIcon, Sparkles } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Command as CmdIcon, Loader2, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,9 +12,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { SlashComposer } from "./slash-composer";
+import { SlashComposer, type DirectIntentPayload } from "./slash-composer";
 import { useAstroOrbStore } from "@/features/astro/voice/use-astro-orb-store";
 import { useVoiceModeStore } from "@/features/astro/voice/use-voice-mode-store";
+import { orpc } from "@/lib/orpc";
+import { NodeType } from "@/generated/prisma/enums";
 
 /**
  * Cmd+K Palette — composer global, acessível de QUALQUER página.
@@ -70,6 +74,86 @@ export function CmdkPalette() {
     [router, setPendingUtterance, setOrbPhase, setLastInputWasVoice],
   );
 
+  // Mutations pra "Automatizar" — cria pasta (se for nova) + cria workflow
+  // + navega pro editor. Inline aqui ao invés de via hook centralizado pra
+  // manter o CmdkPalette auto-contido (qualquer página pode renderizar).
+  const queryClient = useQueryClient();
+  const createFolder = useMutation(
+    orpc.workflowFolder.create.mutationOptions(),
+  );
+  const createWorkflow = useMutation(orpc.workflow.create.mutationOptions());
+
+  const handleDirectIntent = useCallback(
+    async (intent: DirectIntentPayload) => {
+      if (intent.type !== "create_workflow") return;
+
+      const trackingValue = intent.values.tracking;
+      const nomeValue = intent.values.nome;
+      const pastaValue = intent.values.pasta;
+      const nodeType = intent.payload?.nodeType;
+
+      if (!trackingValue?.entityId || !nomeValue?.raw || !nodeType) {
+        toast.error("Preencha tracking + nome pra criar a automação.");
+        return;
+      }
+
+      const trackingId = trackingValue.entityId;
+
+      try {
+        // 1. Resolve folderId — se user pediu pra criar nova, cria primeiro
+        let folderId: string | null = null;
+        if (pastaValue?.raw) {
+          if (pastaValue.raw.startsWith("__create__:")) {
+            const newName = pastaValue.raw.replace(/^__create__:/, "");
+            const created = await createFolder.mutateAsync({
+              trackingId,
+              name: newName,
+            });
+            folderId = created.id;
+          } else if (pastaValue.entityId) {
+            folderId = pastaValue.entityId;
+          }
+        }
+
+        // 2. Cria o workflow (já com nome final + pasta)
+        const workflow = await createWorkflow.mutateAsync({
+          name: nomeValue.raw,
+          trackingId,
+          folderId: folderId ?? undefined,
+        });
+
+        // 3. Invalida caches de list/folders pra próxima navegação trazer
+        //    o workflow novo já refletido nas listas.
+        queryClient.invalidateQueries({
+          queryKey: orpc.workflow.list.queryKey({ input: { trackingId } }),
+        });
+        queryClient.invalidateQueries({
+          queryKey: orpc.workflowFolder.list.queryKey({
+            input: { trackingId },
+          }),
+        });
+
+        // 4. Navega pro editor — o usuário continua a configurar o node
+        //    específico (gatilho, ação ou send-to-app) lá. O nodeType vem
+        //    como query param `?addNode=<TYPE>` que o editor consome no
+        //    mount pra pré-criar o nó conectado ao INITIAL.
+        const nt = nodeType as keyof typeof NodeType;
+        toast.success(`Automação "${nomeValue.raw}" criada`);
+        router.push(
+          `/tracking/${trackingId}/workflows/${workflow.id}?addNode=${nt}`,
+        );
+        setOpen(false);
+      } catch (err: unknown) {
+        const msg =
+          err instanceof Error ? err.message : "Falha ao criar automação";
+        toast.error(msg);
+      }
+    },
+    [createFolder, createWorkflow, queryClient, router],
+  );
+
+  const isPending = createFolder.isPending || createWorkflow.isPending;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-2xl p-0 gap-0 bg-zinc-950 border-zinc-800">
@@ -83,16 +167,27 @@ export function CmdkPalette() {
           </DialogDescription>
         </DialogHeader>
         <div className="px-3 pb-3">
-          <SlashComposer onSubmit={handleSubmit} />
-          <p className="mt-2 text-[10px] text-zinc-600 text-center">
-            <kbd className="px-1 py-0.5 rounded bg-zinc-900 border border-zinc-800">
-              <CmdIcon className="inline size-2.5" />K
-            </kbd>{" "}
-            abre e fecha •{" "}
-            <kbd className="px-1 py-0.5 rounded bg-zinc-900 border border-zinc-800">
-              Esc
-            </kbd>{" "}
-            cancela
+          <SlashComposer
+            onSubmit={handleSubmit}
+            onDirectIntent={handleDirectIntent}
+            loading={isPending}
+          />
+          <p className="mt-2 text-[10px] text-zinc-600 text-center flex items-center justify-center gap-2">
+            {isPending && (
+              <span className="inline-flex items-center gap-1 text-violet-400">
+                <Loader2 className="size-3 animate-spin" /> Criando automação...
+              </span>
+            )}
+            <span>
+              <kbd className="px-1 py-0.5 rounded bg-zinc-900 border border-zinc-800">
+                <CmdIcon className="inline size-2.5" />K
+              </kbd>{" "}
+              abre e fecha •{" "}
+              <kbd className="px-1 py-0.5 rounded bg-zinc-900 border border-zinc-800">
+                Esc
+              </kbd>{" "}
+              cancela
+            </span>
           </p>
         </div>
       </DialogContent>

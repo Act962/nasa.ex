@@ -82,9 +82,9 @@ export default function RootLayout({
         <Providers>
           <Toaster position="bottom-left" />
           {children}
-          {/* Dev Inspector: hover 3s revela componente + arquivo. Gated
-              por NODE_ENV em `./components/dev-inspector` — em prod
-              é `() => null` literal, tree-shaken do bundle final. */}
+          {/* Dev Inspector: hover 3s revela componente + texto + classes
+              + cadeia de owners. Gated por NODE_ENV — em prod vira
+              () => null literal e o tree-shaker remove. */}
           <DevInspectorMount />
         </Providers>
       </body>

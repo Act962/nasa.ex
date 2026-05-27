@@ -35,6 +35,7 @@ model User {
   responsibleOnSubActions            SubActionUserResponsible[]
   responsibleOnLeads                 Lead[]                       @relation("LeadResponsible")
   worflows                           Workflow[]
+  workflowFolders                    WorkflowFolder[]
   forms                              Form[]
   leadFiles                          LeadFile[]
   insightShares                      InsightShares[]
@@ -510,6 +511,7 @@ model Tracking {
   winLossReasons      WinLossReason[]
   actions             Action[]
   workflows           Workflow[]
+  workflowFolders     WorkflowFolder[]
   forms               FormSettings[]
   whatsappInstance    WhatsAppInstance?
   conversations       Conversation[]
@@ -1535,20 +1537,43 @@ model Workflow {
   userId      String?  @map("user_id")
   trackingId  String?  @map("tracking_id")
   workspaceId String?  @map("workspace_id")
+  folderId    String?  @map("folder_id")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  tracking  Tracking?  @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tracking  Tracking?       @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  workspace Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  folder    WorkflowFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
   nodes       Node[]
   connections Connection[]
 
   @@index([trackingId])
   @@index([workspaceId])
+  @@index([folderId])
   @@map("workflows")
+}
+
+/// Pasta pra agrupar workflows dentro de um tracking. Workflows com
+/// `folderId = null` aparecem na seção "Sem pasta". Pasta com workflows
+/// dentro NÃO pode ser deletada — o handler `workflowFolder.delete`
+/// valida isso. Ao deletar tracking → cascade leva as pastas junto.
+model WorkflowFolder {
+  id         String   @id @default(cuid())
+  name       String
+  trackingId String   @map("tracking_id")
+  userId     String?  @map("user_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  tracking  Tracking   @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workflows Workflow[]
+
+  @@index([trackingId])
+  @@map("workflow_folders")
 }
 
 enum NodeType {
@@ -1577,6 +1602,22 @@ enum NodeType {
 
   // Utils
   FILTER_LEAD
+
+  // ─── Adicionar Lead no App (Sprint Automações) ──
+  // Categoria visual "Adicionar Lead no App" no NodeSelector — cada uma
+  // cria/prepara um recurso do app correspondente vinculado ao lead e
+  // envia link via WhatsApp (helper send-link-to-lead.ts).
+  SEND_FORM
+  SEND_AGENDA
+  SEND_PROPOSAL
+  SEND_CONTRACT
+  SEND_LINNKER
+  SEND_NBOX
+  SEND_NASA_ROUTE
+  // OPEN_FORM — cria FormResponses vazia vinculada ao lead, SEM enviar
+  // link via WhatsApp. O ícone do formulário no card do lead fica
+  // pendente; quando o operador clica, abre /formulario/novo/.
+  OPEN_FORM
 
   // ─── Workspace (Actions/Kanban) ─────────────────
   // Utils

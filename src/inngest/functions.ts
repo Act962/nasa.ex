@@ -8,6 +8,7 @@ import { httpRequestChannel } from "./channels/http-request";
 import { manualTriggerChannel } from "./channels/manual-trigger";
 import { moveLeadChannel } from "./channels/move-lead";
 import { sendMessageChannel } from "./channels/send-message";
+import { sendAppActionChannel } from "./channels/send-app-action";
 import { waitChannel } from "./channels/wait";
 import { tagChannel } from "./channels/tag";
 import { responsibleChannel } from "./channels/responsible";
@@ -24,6 +25,7 @@ export const executeWorkflow = inngest.createFunction(
       manualTriggerChannel(),
       moveLeadChannel(),
       sendMessageChannel(),
+      sendAppActionChannel(),
       tagChannel(),
       waitChannel(),
       responsibleChannel(),
