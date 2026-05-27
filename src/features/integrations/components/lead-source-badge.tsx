@@ -110,6 +110,16 @@ const SOURCE_MAP: Record<
       </svg>
     ),
   },
+  IN_CHAT: {
+    label: "In-Chat",
+    color: "text-violet-500",
+    bg: "bg-violet-500/15",
+    icon: ({ className }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+      </svg>
+    ),
+  },
   OTHER: {
     label: "Outro",
     color: "text-muted-foreground",

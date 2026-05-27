@@ -16,9 +16,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { pusherServer } from "@/lib/pusher";
 import { MessageStatus } from "@/generated/prisma/enums";
 import { v4 as uuidv4 } from "uuid";
+import { firePostInboundAutomations } from "@/features/tracking-chat/lib/incoming-message-pipeline";
 
 const COOKIE_NAME = "nasa_inchat_lead";
 
@@ -196,10 +196,12 @@ export async function POST(
     ? parsed.data.contactPhone ?? null
     : parsed.data.fileName ?? null;
 
+  const externalMessageId = `inchat-${uuidv4()}`;
+
   const message = await prisma.message.create({
     data: {
       conversationId: auth.conversationId,
-      messageId: `inchat-${uuidv4()}`,
+      messageId: externalMessageId,
       body: finalBody,
       mediaUrl: parsed.data.mediaUrl ?? null,
       mediaType,
@@ -225,28 +227,61 @@ export async function POST(
       viaInChat: true,
       conversationId: true,
       conversation: {
-        select: { id: true, lead: { select: { id: true, name: true } } },
+        select: {
+          id: true,
+          trackingId: true,
+          lead: {
+            select: {
+              id: true,
+              isActive: true,
+              firstResponseAt: true,
+              lastInboundAt: true,
+              name: true,
+            },
+          },
+          tracking: {
+            select: {
+              organizationId: true,
+              globalAiActive: true,
+            },
+          },
+        },
       },
     },
   });
 
-  // Atualiza lastMessage da conversation pra a sidebar refletir
-  await prisma.conversation.update({
-    where: { id: auth.conversationId },
-    data: {
-      lastMessage: { connect: { id: message.id } },
-      lastMessageAt: message.createdAt,
-    },
-  });
+  const trackingId = message.conversation.trackingId;
+  const organizationId = message.conversation.tracking?.organizationId;
+  const lead = message.conversation.lead;
 
-  // Pusher → notifica atendentes
-  await pusherServer.trigger(auth.conversationId, "message:new", {
-    ...message,
-    conversation: {
-      id: message.conversationId,
-      lead: message.conversation.lead,
-    },
-  });
+  // Pipeline unificado: atualiza timestamps, dispara trackLeadEvent,
+  // alert engine, IA Inngest event, idle automation gate e Pusher.
+  // Mesma chamada que o webhook do WhatsApp faz — paridade estrutural.
+  if (organizationId && lead) {
+    await firePostInboundAutomations({
+      trackingId,
+      organizationId,
+      globalAiActive: message.conversation.tracking?.globalAiActive ?? false,
+      lead: {
+        id: lead.id,
+        isActive: lead.isActive,
+        firstResponseAt: lead.firstResponseAt,
+        lastInboundAt: lead.lastInboundAt,
+        conversation: { id: auth.conversationId },
+      },
+      messageId: message.id,
+      externalMessageId,
+      fromMe: false,
+      channel: "IN_CHAT",
+      messagePayload: {
+        ...message,
+        conversation: {
+          id: message.conversationId,
+          lead: { id: lead.id, name: lead.name },
+        },
+      },
+    });
+  }
 
   return NextResponse.json({ message });
 }

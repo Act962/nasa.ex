@@ -41,6 +41,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Lock } from "lucide-react";
+import { InChatManualToggle } from "@/features/tracking-chat/components/in-chat-manual-toggle";
 
 // ── Popup plano necessário ────────────────────────────────────────────────────
 function NoPlanPopup({
@@ -342,6 +343,9 @@ export function ChatSettings() {
           </div>
         )}
       </div>
+
+      {/* In-Chat Manual Toggle (Sprint 3.5) — só renderiza se existe instância */}
+      <InChatManualToggle trackingId={trackingId} />
 
       {/* Modals */}
       <CreateInstanceModal

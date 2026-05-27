@@ -1,15 +1,13 @@
 "use client";
 
+import type React from "react";
 import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
   CheckCircle2,
   ExternalLink,
-  Link2,
-  Package,
   Settings,
-  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,11 +18,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_NAV_ITEMS } from "@/features/apps/lib/sidebar-items";
 import {
-  StatusBadge,
   SidebarToggle,
   type AppDef,
 } from "@/features/apps/components/app-card";
@@ -37,102 +33,120 @@ export function CommentsAppCard({ app }: { app: AppDef }) {
   const sidebarItem = app.sidebarKey
     ? SIDEBAR_NAV_ITEMS.find((i) => i.key === app.sidebarKey)
     : null;
+  const SidebarIcon = sidebarItem?.icon as React.ElementType | undefined;
 
   return (
     <>
       <Link
         href={app.href ?? "/comments"}
         className={cn(
-          "group relative flex flex-col rounded-2xl border-2 bg-card transition-all duration-200 overflow-hidden cursor-pointer",
-          "hover:border-[#7C3AED] hover:shadow-lg hover:shadow-[#7C3AED]/10 hover:-translate-y-0.5",
-          "border-border",
+          "group relative flex flex-col rounded-2xl border bg-card transition-all duration-300 overflow-hidden cursor-pointer",
+          "hover:border-[#7C3AED]/60 hover:shadow-lg hover:shadow-[#7C3AED]/15 hover:-translate-y-1",
+          "before:absolute before:inset-0 before:rounded-2xl before:bg-linear-to-br before:from-[#7C3AED]/[0.03] before:to-transparent before:pointer-events-none",
         )}
       >
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-linear-to-r from-[#7C3AED] to-[#a855f7] opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute inset-0 rounded-2xl ring-1 ring-[#7C3AED]/0 group-hover:ring-[#7C3AED]/30 transition-all pointer-events-none" />
 
-        <div className="flex items-start gap-3 p-5 pb-3">
-          <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 shadow-sm">
+        {/* Botão "+"/"-" flutuante canto superior direito */}
+        {sidebarItem && (
+          <div
+            className="absolute top-2.5 right-2.5 z-10"
+            onClick={(e) => e.preventDefault()}
+          >
+            <SidebarToggle
+              sidebarKey={app.sidebarKey!}
+              defaultVisible={sidebarItem.defaultVisible}
+            />
+          </div>
+        )}
+
+        {/* Conexão badge mini no canto superior esquerdo */}
+        <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1">
+          <div
+            title={
+              conn.connected
+                ? conn.isActive
+                  ? "Conectado"
+                  : "Desativado"
+                : "Não conectado"
+            }
+            className={cn(
+              "size-2 rounded-full ring-2 ring-background",
+              conn.connected
+                ? conn.isActive
+                  ? "bg-emerald-500"
+                  : "bg-zinc-400"
+                : "bg-amber-500",
+            )}
+          />
+        </div>
+
+        {/* Body — icon + nome centrado */}
+        <div className="relative flex flex-col items-center justify-center gap-2.5 px-3 pt-8 pb-3 flex-1">
+          <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 shadow-md transition-transform duration-300 group-hover:scale-110 group-hover:shadow-[#7C3AED]/25">
             <Icon />
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h3 className="font-black text-sm tracking-wide leading-tight">
-                  {app.name}
-                </h3>
-                <p className="text-[10px] text-muted-foreground">
-                  {app.byline}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <StatusBadge status={app.status} />
-                {conn.connected ? (
-                  <Badge
-                    variant={conn.isActive ? "default" : "secondary"}
-                    className="text-[10px]"
-                  >
-                    {conn.isActive ? "Conectado" : "Desativado"}
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-[10px]">
-                    Não conectado
-                  </Badge>
-                )}
-              </div>
-            </div>
+          <div className="text-center min-w-0 w-full px-1">
+            <h3 className="font-bold text-[13px] tracking-tight leading-tight truncate">
+              {app.name}
+            </h3>
+            <p className="text-[10px] text-muted-foreground/80 truncate mt-0.5">
+              {app.byline}
+            </p>
           </div>
         </div>
 
-        <div className="px-5 pb-4 flex-1">
-          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+        {/* Descrição compacta */}
+        <div className="px-3 pb-2">
+          <p className="text-[10.5px] text-muted-foreground leading-snug line-clamp-2 text-center min-h-[28px]">
             {app.shortDesc}
           </p>
         </div>
 
-        <div className="px-5 pb-4 grid grid-cols-2 gap-2">
-          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Users className="size-3 shrink-0" />
-            <span>{app.activeUsers ?? "—"}</span>
-          </div>
-          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Package className="size-3 shrink-0" />
-            <span>{app.category}</span>
-          </div>
-          {app.integration && app.integration !== "—" && (
-            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Link2 className="size-3 shrink-0" />
-              <span>{app.integration}</span>
+        {/* Menu chip — preview do ícone+nome no sidebar */}
+        {sidebarItem && SidebarIcon && (
+          <div className="px-3 pb-2 flex justify-center">
+            <div
+              className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-muted/60 text-muted-foreground border border-border/40"
+              title={`No menu lateral: ${sidebarItem.title}`}
+            >
+              <SidebarIcon className="size-3" />
+              <span>{sidebarItem.title}</span>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        <div className="px-5 pb-5 flex flex-col gap-2">
-          <Button
-            size="sm"
-            className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white gap-1.5 text-xs"
-          >
-            Abrir App
-          </Button>
-          <Button
+        {/* Action buttons — Abrir + Configurar lado a lado, h-7 */}
+        <div className="px-3 pb-3 flex gap-1.5">
+          <button
             type="button"
-            size="sm"
-            variant="outline"
-            className="w-full gap-1.5 text-xs"
+            className={cn(
+              "flex-1 h-7 rounded-md text-[11px] font-medium",
+              "bg-linear-to-r from-[#7C3AED] to-[#8B5CF6] text-white",
+              "hover:from-[#6D28D9] hover:to-[#7C3AED] transition-all",
+              "shadow-sm hover:shadow-md hover:shadow-[#7C3AED]/25",
+              "flex items-center justify-center gap-1",
+            )}
+          >
+            Abrir
+          </button>
+          <button
+            type="button"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               setConfigOpen(true);
             }}
+            title="Configurar"
+            aria-label="Configurar"
+            className={cn(
+              "shrink-0 h-7 w-7 rounded-md text-[11px]",
+              "border border-border/60 bg-background hover:bg-muted",
+              "flex items-center justify-center",
+            )}
           >
             <Settings className="size-3.5" />
-            Configurar
-          </Button>
-          {sidebarItem && (
-            <SidebarToggle
-              sidebarKey={app.sidebarKey!}
-              defaultVisible={sidebarItem.defaultVisible}
-            />
-          )}
+          </button>
         </div>
       </Link>
 

@@ -23,4 +23,5 @@ export const LeadSourceColors: Record<
   [LeadSource.LINKEDIN]:    { color: "#0077B5", label: "LinkedIn" },
   [LeadSource.GMAIL]:       { color: "#EA4335", label: "Gmail" },
   [LeadSource.GOOGLE_MAPS]: { color: "#4285F4", label: "Google Maps" },
+  [LeadSource.IN_CHAT]:     { color: "#8b5cf6", label: "In-Chat" },
 };
