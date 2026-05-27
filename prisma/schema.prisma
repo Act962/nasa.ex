@@ -5250,6 +5250,17 @@ model NasaRouteCourse {
   pixelId      String? @map("pixel_id")
   gtmId        String? @map("gtm_id")
 
+  // ── E-mail de pós-compra ───────────────────────────────────
+  // Quando enabled=true e bodyJson presente, dispara e-mail customizado
+  // ao comprador após matrícula (paga, resgate público ou gratuita).
+  // Caso contrário, usa o template default dinâmico assinado pela org.
+  // Corpo é TipTap JSON; suporta placeholders {{studentName}},
+  // {{courseTitle}}, {{creatorName}}, {{orgName}}, {{planName}},
+  // {{amountBrl}}, {{accessUrl}}, {{certificateUrl}}.
+  purchaseEmailEnabled  Boolean @default(false) @map("purchase_email_enabled")
+  purchaseEmailSubject  String? @map("purchase_email_subject")
+  purchaseEmailBodyJson Json?   @map("purchase_email_body_json")
+
   // eBook (format = "ebook")
   ebookFileKey   String? @map("ebook_file_key")
   ebookFileName  String? @map("ebook_file_name")

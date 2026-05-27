@@ -21,6 +21,7 @@ import { processPaymentPartnerEffects } from "@/features/partner/lib/partner-ser
 import { inngest } from "@/inngest/client";
 import { finalizeStripePurchaseInTx } from "@/app/router/nasa-route/helpers/purchase-helpers";
 import { createPurchaseSideEffects } from "@/app/router/nasa-route/helpers/purchase-crm-side-effects";
+import { triggerPurchaseEmail } from "@/features/nasa-route/lib/purchase-email";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 const SIGNUP_TOKEN_TTL_DAYS = 7;
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
           // ── Fluxo authenticated: finaliza enrollment já ──────────────────
           if (pending.flow === "authenticated" && pending.userId && pending.plan) {
             try {
-              await prisma.$transaction(async (tx) => {
+              const { enrollmentId } = await prisma.$transaction(async (tx) => {
                 await tx.pendingCoursePurchase.update({
                   where: { id: pendingId },
                   data: {
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
                   },
                 });
 
-                await finalizeStripePurchaseInTx({
+                const { enrollment } = await finalizeStripePurchaseInTx({
                   tx: tx as any,
                   userId: pending.userId!,
                   courseId: pending.courseId,
@@ -135,7 +136,12 @@ export async function POST(req: NextRequest) {
                   stripePaymentIntentId: paymentIntentId,
                   buyerOrgId: null,
                 });
+
+                return { enrollmentId: enrollment.id };
               });
+
+              // E-mail de pós-compra (Inngest, fire-and-forget)
+              triggerPurchaseEmail(enrollmentId);
 
               // CRM side-effects (fire-and-forget)
               if (pending.user) {
