@@ -4,7 +4,6 @@ import type { Conversation, Lead } from "@/generated/prisma/client";
 import { LeadSource } from "@/generated/prisma/enums";
 import { format, isToday, isYesterday } from "date-fns";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { withSearchParams } from "../utils/url";
 import { MouseEvent, useCallback, useState } from "react";
 import { AvatarLead } from "./avatar-lead";
 import { colorsByTemperature, LeadSourceColors } from "../utils/card-lead";
@@ -136,9 +135,16 @@ export function LeadBox({
   };
 
   const handleClick = useCallback(() => {
-    const target = trackingId
-      ? withSearchParams(item.id, searchParams)
-      : withSearchParams(`/tracking-chat/${item.id}`, searchParams);
+    // IMPORTANTE: limpa `pin=1` ao navegar entre LeadBoxes. Esse param só
+    // deve ficar setado quando vier do ícone do canal no kanban (UX: pin-
+    // to-top é exclusivo desse caminho). Sem essa limpeza, navegando de
+    // uma conversa pra outra dentro de /tracking-chat herdaria o pin
+    // anterior e subiria todas que o user abrisse.
+    const cleanParams = new URLSearchParams(searchParams.toString());
+    cleanParams.delete("pin");
+    const qs = cleanParams.toString();
+    const basePath = trackingId ? item.id : `/tracking-chat/${item.id}`;
+    const target = qs ? `${basePath}?${qs}` : basePath;
     router.push(target);
     if (unreadCount && unreadCount > 0 && instance?.token) {
       markRead.mutate({
@@ -167,10 +173,8 @@ export function LeadBox({
           "w-full group relative flex items-center space-x-3 p-3 cursor-pointer rounded-lg transition",
           // Estado "selected" (conversa aberta no momento) reforçado:
           // background mais sólido + ring violeta sutil + sombra discreta.
-          // O `pin-to-top` em `conversations-list.tsx` já garante que o card
-          // selecionado vai pra primeira posição da lista.
           selected
-            ? "bg-accent-foreground/10 ring-1 ring-violet-500/40 shadow-sm"
+            ? "bg-accent-foreground/10 shadow-sm"
             : "bg-accent-foreground/2 hover:bg-accent-foreground/5",
         )}
       >

@@ -24,10 +24,31 @@ import { DateRange } from "react-day-picker";
 
 interface Props {
   conversationId: string;
+  /**
+   * Quando setado, o Popover vira CONTROLADO — pai gerencia open/close.
+   * Usado pra disparar o resumo a partir do dropdown "..." em mobile,
+   * onde o botão visível "Resumo" fica escondido (`hideTrigger`).
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Esconde o botão "Resumo" (trigger) — útil em mobile onde o trigger
+   * mora dentro do dropdown e o estado vem de fora. */
+  hideTrigger?: boolean;
 }
 
-export function SummerizeConversation({ conversationId }: Props) {
-  const [open, setOpen] = useState(false);
+export function SummerizeConversation({
+  conversationId,
+  open: openProp,
+  onOpenChange,
+  hideTrigger = false,
+}: Props) {
+  const [openInternal, setOpenInternal] = useState(false);
+  // Modo controlado vs não-controlado — padrão React clássico
+  const open = openProp !== undefined ? openProp : openInternal;
+  const setOpen = (next: boolean) => {
+    if (onOpenChange) onOpenChange(next);
+    else setOpenInternal(next);
+  };
   const [date, setDate] = useState<DateRange>({
     from: dayjs().startOf("day").toDate(),
     to: dayjs().endOf("day").toDate(),
@@ -78,12 +99,14 @@ export function SummerizeConversation({ conversationId }: Props) {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button size="sm">
-          <SparklesIcon className="size-4" />
-          Resumo
-        </Button>
-      </PopoverTrigger>
+      {!hideTrigger && (
+        <PopoverTrigger asChild>
+          <Button size="sm">
+            <SparklesIcon className="size-4" />
+            Resumo
+          </Button>
+        </PopoverTrigger>
+      )}
       <PopoverContent className="w-100 p-0" align="end">
         <div className="p-4 space-y-4">
           <div>

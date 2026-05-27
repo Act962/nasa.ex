@@ -352,6 +352,11 @@ export function Footer({
   return (
     <>
       <form
+        // Footer SEM fundo — herda transparência do chat, deixa o pattern
+        // de background (WhatsApp) ou a cor customizada do user aparecer.
+        // Input com fundo SÓLIDO: branco no tema Claro, cinza-escuro
+        // (zinc-800) no Escuro. Sem transparência, sem blur — mantém
+        // contraste constante sobre qualquer fundo customizado do chat.
         className="py-3 px-4 flex flex-col items-center gap-2 w-full"
         onSubmit={handleSubmit}
       >
@@ -455,7 +460,7 @@ export function Footer({
           {!showAudioRecorder ? (
             <InputGroup
               className={cn(
-                "border-0 has-[[data-slot=input-group-control]:focus-visible]:border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 bg-background/85 backdrop-blur-md rounded-2xl px-2 shadow-md",
+                "border-0 has-[[data-slot=input-group-control]:focus-visible]:border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 bg-white dark:bg-zinc-800 rounded-2xl px-2 shadow-md",
                 message.includes("\n") || message.length > 60
                   ? "items-end pb-1.5"
                   : "items-center",
