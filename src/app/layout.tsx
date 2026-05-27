@@ -6,6 +6,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 
 import { Providers } from "@/components/providers";
+import { DevInspectorMount } from "@/components/dev-inspector";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -81,6 +82,10 @@ export default function RootLayout({
         <Providers>
           <Toaster position="bottom-left" />
           {children}
+          {/* Dev Inspector: hover 3s revela componente + texto + classes
+              + cadeia de owners. Gated por NODE_ENV — em prod vira
+              () => null literal e o tree-shaker remove. */}
+          <DevInspectorMount />
         </Providers>
       </body>
     </html>

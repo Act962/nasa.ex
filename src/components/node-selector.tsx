@@ -177,39 +177,97 @@ export function NodeSelector({
               Ações
             </AccordionTrigger>
             <AccordionContent>
+              {/* Ações sem sub-grupo (ações "core" — Mover Lead, Enviar
+                  Mensagem, Tag, etc) renderizam direto no nível raiz. */}
               <div>
-                {executionNodes.map((nodeType) => {
-                  const Icon = nodeType.icon;
-
-                  return (
-                    <div
-                      key={nodeType.type}
-                      className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
-                      onClick={() => handleNodeSelect(nodeType)}
-                    >
-                      <div className="flex items-center gap-6 w-full overflow-hidden">
-                        {typeof Icon === "string" ? (
-                          <img
-                            src={Icon}
-                            alt={nodeType.label}
-                            className="size-5 object-contain rounded-sm"
-                          />
-                        ) : (
-                          <Icon className="size-5" />
-                        )}
-                        <div className="flex flex-col items-start text-left">
-                          <span className="font-medium text-sm">
-                            {nodeType.label}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {nodeType.description}
-                          </span>
+                {executionNodes
+                  .filter((n) => !n.group)
+                  .map((nodeType) => {
+                    const Icon = nodeType.icon;
+                    return (
+                      <div
+                        key={nodeType.type}
+                        className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
+                        onClick={() => handleNodeSelect(nodeType)}
+                      >
+                        <div className="flex items-center gap-6 w-full overflow-hidden">
+                          {typeof Icon === "string" ? (
+                            <img
+                              src={Icon}
+                              alt={nodeType.label}
+                              className="size-5 object-contain rounded-sm"
+                            />
+                          ) : (
+                            <Icon className="size-5" />
+                          )}
+                          <div className="flex flex-col items-start text-left">
+                            <span className="font-medium text-sm">
+                              {nodeType.label}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {nodeType.description}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
+
+              {/* Sub-grupo "Adicionar Lead no App" — actions que criam/
+                  preparam recursos em outros apps (Form, Agenda, Forge,
+                  Linnker, N-Box, NASA Route) e enviam link via WhatsApp.
+                  Accordion aninhado pra reduzir poluição visual. */}
+              {executionNodes.some((n) => n.group === "send-to-app") && (
+                <Accordion
+                  type="single"
+                  collapsible
+                  defaultValue="send-to-app"
+                  className="border-t mt-2"
+                >
+                  <AccordionItem value="send-to-app">
+                    <AccordionTrigger className="px-4 pt-3 pb-3 text-xs uppercase tracking-wide text-muted-foreground hover:no-underline">
+                      Adicionar Lead no App
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div>
+                        {executionNodes
+                          .filter((n) => n.group === "send-to-app")
+                          .map((nodeType) => {
+                            const Icon = nodeType.icon;
+                            return (
+                              <div
+                                key={nodeType.type}
+                                className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
+                                onClick={() => handleNodeSelect(nodeType)}
+                              >
+                                <div className="flex items-center gap-6 w-full overflow-hidden">
+                                  {typeof Icon === "string" ? (
+                                    <img
+                                      src={Icon}
+                                      alt={nodeType.label}
+                                      className="size-5 object-contain rounded-sm"
+                                    />
+                                  ) : (
+                                    <Icon className="size-5" />
+                                  )}
+                                  <div className="flex flex-col items-start text-left">
+                                    <span className="font-medium text-sm">
+                                      {nodeType.label}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {nodeType.description}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              )}
             </AccordionContent>
           </AccordionItem>
         </Accordion>
