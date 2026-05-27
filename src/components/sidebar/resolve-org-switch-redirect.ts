@@ -5,6 +5,7 @@ type RouteRedirect = {
 
 const ROUTE_REDIRECTS: RouteRedirect[] = [
   { match: /^\/workspaces\/[^/]+/, target: "/workspaces" },
+  { match: /^\/tracking\/[^/]+/, target: "/tracking" },
 ];
 
 export function resolveOrgSwitchRedirect(pathname: string): string | null {
