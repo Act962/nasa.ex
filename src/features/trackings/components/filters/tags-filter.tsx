@@ -126,7 +126,10 @@ export function TagsFilter() {
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="p-0">
+        <PopoverContent
+          align="start"
+          className="p-0 w-64 bg-popover border shadow-lg z-50"
+        >
           <Command>
             <CommandInput
               value={search}
