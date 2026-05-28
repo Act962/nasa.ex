@@ -4,6 +4,7 @@ import { updateStatus } from "./update";
 import { getMany } from "./get-many";
 import { updateNewOrder } from "./update-new-order";
 import { deleteStatus } from "./delete";
+import { getStatusReferencedWorkflows } from "./get-referenced-workflows";
 
 export const statusRoutes = {
   getMany,
@@ -12,4 +13,5 @@ export const statusRoutes = {
   update: updateStatus,
   updateNewOrder,
   delete: deleteStatus,
+  getReferencedWorkflows: getStatusReferencedWorkflows,
 };

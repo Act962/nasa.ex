@@ -109,12 +109,20 @@ export const useUpdateWorkflow = () => {
         queryClient.invalidateQueries({
           predicate: (q) => {
             const key = q.queryKey;
-            return (
-              Array.isArray(key) &&
+            if (!Array.isArray(key)) return false;
+            // TagsV2: listTags/getDuplicateTags/getReferencedWorkflows
+            if (
               key[0] === "tags" &&
-              (key[1] === "listTags" || key[1] === "getDuplicateTags" ||
+              (key[1] === "listTags" ||
+                key[1] === "getDuplicateTags" ||
                 key[1] === "getReferencedWorkflows")
-            );
+            )
+              return true;
+            // Status: getReferencedWorkflows pra dialog de delete refletir
+            // mudanças em workflows imediatamente
+            if (key[0] === "status" && key[1] === "getReferencedWorkflows")
+              return true;
+            return false;
           },
         });
       },
@@ -146,12 +154,20 @@ export const useUpdateWorkflowIsActive = (trackingId: string) => {
         queryClient.invalidateQueries({
           predicate: (q) => {
             const key = q.queryKey;
-            return (
-              Array.isArray(key) &&
+            if (!Array.isArray(key)) return false;
+            // TagsV2: listTags/getDuplicateTags/getReferencedWorkflows
+            if (
               key[0] === "tags" &&
-              (key[1] === "listTags" || key[1] === "getDuplicateTags" ||
+              (key[1] === "listTags" ||
+                key[1] === "getDuplicateTags" ||
                 key[1] === "getReferencedWorkflows")
-            );
+            )
+              return true;
+            // Status: getReferencedWorkflows pra dialog de delete refletir
+            // mudanças em workflows imediatamente
+            if (key[0] === "status" && key[1] === "getReferencedWorkflows")
+              return true;
+            return false;
           },
         });
       },
@@ -180,12 +196,20 @@ export const useDeleteWorkflow = () => {
         queryClient.invalidateQueries({
           predicate: (q) => {
             const key = q.queryKey;
-            return (
-              Array.isArray(key) &&
+            if (!Array.isArray(key)) return false;
+            // TagsV2: listTags/getDuplicateTags/getReferencedWorkflows
+            if (
               key[0] === "tags" &&
-              (key[1] === "listTags" || key[1] === "getDuplicateTags" ||
+              (key[1] === "listTags" ||
+                key[1] === "getDuplicateTags" ||
                 key[1] === "getReferencedWorkflows")
-            );
+            )
+              return true;
+            // Status: getReferencedWorkflows pra dialog de delete refletir
+            // mudanças em workflows imediatamente
+            if (key[0] === "status" && key[1] === "getReferencedWorkflows")
+              return true;
+            return false;
           },
         });
       },
