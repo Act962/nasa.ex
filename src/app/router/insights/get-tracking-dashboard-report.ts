@@ -190,15 +190,30 @@ export const getTrackingDashboardReport = base
         Promise.resolve(null),
 
         // Por tag — usa SNAPSHOT TEMPORAL ao invés de LeadTag vivo.
-        // Pra cada lead filtrado por baseWhere, reconstrói quais tags ele
-        // tinha em `endDate` baseado em LeadJourneyEvent (tag_added/
-        // tag_removed) + fallback de LeadTag.createdAt pra dados antigos.
         //
-        // Sem isso, remover uma tag HOJE fazia a métrica de ONTEM cair
-        // retroativamente (bug crítico de relatórios históricos).
+        // **Lead scope SEM filtro de createdAt**: pra analytics de tag, o
+        // que importa é "quais leads TINHAM a tag em endDate", não "quais
+        // leads foram CRIADOS no período". Lead criado em maio que pegou
+        // a tag em 27.05 deve aparecer no filtro "27.05".
+        //
+        // Reconstrói snapshot via LeadJourneyEvent (tag_added/tag_removed)
+        // + fallback de LeadTag.createdAt. Sem isso, remover tag HOJE
+        // fazia métrica de ONTEM cair retroativamente.
         prisma.lead
           .findMany({
-            where: baseWhere,
+            // Filtro de tag NÃO inclui dateFilter — só org/tracking/members.
+            // Se baseWhere mudar de shape, ajustar aqui pra manter alinhado.
+            where: {
+              ...(trackingId ? { trackingId } : {}),
+              tracking: {
+                organization: {
+                  ...organizationFilter,
+                  members: { some: { userId: user.id } },
+                },
+              },
+              ...(hasMembers ? memberLeadFilter : {}),
+              ...tagFilter,
+            },
             select: { id: true, trackingId: true },
           })
           .then(async (leads) => {

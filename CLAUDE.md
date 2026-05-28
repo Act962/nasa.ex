@@ -148,7 +148,11 @@ src/features/<dominio>/
    - Componentes/pages importam **só os hooks** — não importam `orpc` direto. Isso facilita refatorar contratos, padronizar invalidações e testar isoladamente.
 10. **Documentação do NASA Route** — sempre que criar ou atualizar qualquer coisa dentro de `src/features/nasa-route/`, `src/app/router/nasa-route/`, `src/app/(platform)/(tracking)/nasa-route/`, ou modelos `NasaRoute*` no `prisma/schema.prisma`, **atualize também [`docs/nasa-route-overview.md`](docs/nasa-route-overview.md)** na mesma sessão. Aplica-se a: novos modelos, novas procedures oRPC, novos formatos de curso, mudanças no fluxo de pagamento/checkout, novas integrações, mudanças no pipeline de vídeo ou Stars, novos componentes relevantes. Mantenha tabelas, listas de procedures e fluxos sincronizados com o código — o documento é fonte de verdade do domínio.
 
-11. **Ritual pós-migration (OBRIGATÓRIO)** — sempre que aplicar SQL de migration (via `pnpm db:migrate` ou `prisma db execute`), o Claude DEVE executar IMEDIATAMENTE os 4 passos seguintes na mesma resposta, SEM esperar o usuário pedir. Esquecer qualquer um causa: 404 em catch-all routes, "prisma.X is undefined", cliente em cache, Sheet/Dialog usando schema antigo. Esses bugs são recorrentes neste projeto (Turbopack 16.2.4 + Prisma 7).
+11. **Ritual pós-migration / pós-compile pesado (OBRIGATÓRIO)** — Esses bugs são recorrentes neste projeto (Turbopack 16.2.4 + Prisma 7) e o Claude DEVE aplicar o ritual IMEDIATAMENTE, SEM esperar o usuário reclamar de 404/500. Esquecer causa: 404 em catch-all routes, "prisma.X is undefined", cliente em cache, Sheet/Dialog usando schema antigo.
+
+    **Quando executar:**
+    - **Sempre que aplicar SQL de migration** (via `pnpm db:migrate` ou `prisma db execute`) → todos os 4 passos.
+    - **Sempre que mudar muitos arquivos / fazer compile pesado** (ex: ≥5 arquivos editados de uma vez, refactor cross-feature) → passo D no fim. Turbopack auto-restart por memory threshold é frequente e dropa catch-all do index. **NUNCA presuma que tá tudo OK só porque `✓ Compiled` apareceu** — valide via `curl` antes de devolver pro user.
 
     **Sequência (na ordem):**
 
@@ -158,9 +162,9 @@ src/features/<dominio>/
 
     c. **Marcar migration como aplicada** no histórico (se aplicada via `db execute` em vez de `migrate dev`) — `INSERT INTO _prisma_migrations (...)`. Sem isso, `prisma migrate status` reporta drift e o time perde tempo investigando.
 
-    d. **Touch nos catch-all routes** — `touch src/app/api/auth/[...all]/route.ts src/app/api/rpc/[[...rest]]/route.ts`. Bug crônico do Turbopack 16.2.4: após auto-restart por memory threshold ou regen do client, rotas `[...slug]` e `[[...rest]]` saem do index e devolvem 404 silencioso. Touch força reindex.
+    d. **Touch nos catch-all routes** — `touch src/app/api/auth/[...all]/route.ts src/app/api/rpc/[[...rest]]/route.ts`. Bug crônico do Turbopack 16.2.4: após auto-restart por memory threshold OU compile pesado OU regen do client, rotas `[...slug]` e `[[...rest]]` saem do index e devolvem 404 silencioso. Touch força reindex.
 
-    **Checklist final:** depois dos 4 passos, validar via `curl -sI -m 10 http://localhost:3000/<rota-afetada>` que retorna 200/307 (não 404 nem 500). Se ainda falhar, sugerir ao user reiniciar `pnpm dev` (mas só como último recurso, quase nunca é necessário).
+    **Checklist final OBRIGATÓRIO:** depois do(s) passo(s), validar via `curl -sI -m 10 http://localhost:3000/<rota-afetada>` que retorna 200/307 (não 404 nem 500). **Antes de devolver controle pro user**, fazer essa validação. Se ainda falhar, sugerir reiniciar `pnpm dev` (último recurso).
 
 ## Obsidian
 

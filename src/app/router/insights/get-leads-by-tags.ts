@@ -71,8 +71,15 @@ export const getLeadsByTags = base
       //
       // Quando não há endDate (ou está no futuro), o helper já cai pro
       // caminho rápido (LeadTag vivo) automaticamente.
+      // Scope SEM dateFilter (lead.createdAt) — pra analytics de tag o
+      // que importa é "lead TINHA a tag em endDate", não "lead foi CRIADO
+      // no período". Sem isso, lead criado em janeiro que pegou tag em
+      // maio sumiria do relatório de maio.
       const leadsInScope = await prisma.lead.findMany({
-        where: baseWhere,
+        where: {
+          ...(trackingId ? { trackingId } : {}),
+          tracking: { organizationId: org.id },
+        },
         select: { id: true },
       });
       const snapshot = await getTagSnapshotAtDate(
