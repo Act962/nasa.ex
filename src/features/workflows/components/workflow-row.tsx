@@ -19,13 +19,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  AlertTriangleIcon,
   FolderInputIcon,
   MoreVerticalIcon,
   WorkflowIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useMemo } from "react";
+import { toast } from "sonner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getWorkflowStepsPreview } from "../lib/workflow-preview";
+import { validateWorkflow } from "../lib/validate-node";
 import {
   useMoveWorkflowToFolder,
   useWorkflowFolders,
@@ -55,22 +65,74 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
       ? workflow.description || "Sem passos configurados"
       : labels.join(" → ") + (total > labels.length ? " → …" : "");
 
+  // Validação do workflow: roda em todos os nodes. Toggle "Ativo" só liga
+  // quando todos passam. Inativo continua possível mesmo com erros — não
+  // queremos forçar campos enquanto user ainda está montando.
+  const validation = useMemo(
+    () => validateWorkflow(workflow.nodes as any[]),
+    [workflow.nodes],
+  );
+  const canActivate = validation.valid;
+
   const otherFolders = (foldersData?.folders ?? []).filter(
     (f) => f.id !== currentFolderId,
   );
 
+  // Cor do contorno + ícone baseada em (isActive, canActivate):
+  //  - Ativo + válido  → verde (rodando OK)
+  //  - Inativo + válido → cinza neutro (pronto pra ativar)
+  //  - Inativo + inválido → vermelho (campos faltando)
+  //  - Ativo + inválido (não deveria acontecer mas defensivo) → âmbar
+  const status: "active" | "ready" | "broken" | "warning" =
+    workflow.isActive && canActivate
+      ? "active"
+      : workflow.isActive && !canActivate
+        ? "warning"
+        : !workflow.isActive && canActivate
+          ? "ready"
+          : "broken";
+
+  const statusStyles = {
+    active: {
+      ring: "ring-1 ring-emerald-500/40",
+      bg: "bg-emerald-500/10 text-emerald-600",
+      badge: "bg-emerald-500/10 text-emerald-600",
+      label: "Ativo",
+    },
+    ready: {
+      ring: "",
+      bg: "bg-muted text-muted-foreground",
+      badge: "bg-muted text-muted-foreground",
+      label: "Inativo",
+    },
+    broken: {
+      ring: "ring-1 ring-red-500/50",
+      bg: "bg-red-500/10 text-red-600",
+      badge: "bg-red-500/10 text-red-600",
+      label: "Incompleto",
+    },
+    warning: {
+      ring: "ring-1 ring-amber-500/50",
+      bg: "bg-amber-500/10 text-amber-600",
+      badge: "bg-amber-500/10 text-amber-600",
+      label: "Atenção",
+    },
+  }[status];
+
   return (
-    <Item variant="outline">
+    <Item variant="outline" className={statusStyles.ring}>
       <ItemMedia>
         <div
           className={cn(
             "flex size-8 items-center justify-center rounded-md",
-            workflow.isActive
-              ? "bg-emerald-500/10 text-emerald-600"
-              : "bg-muted text-muted-foreground",
+            statusStyles.bg,
           )}
         >
-          <WorkflowIcon className="size-4" />
+          {status === "broken" ? (
+            <AlertTriangleIcon className="size-4" />
+          ) : (
+            <WorkflowIcon className="size-4" />
+          )}
         </div>
       </ItemMedia>
       <ItemContent>
@@ -83,31 +145,73 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
           <span
             className={cn(
               "shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide",
-              workflow.isActive
-                ? "bg-emerald-500/10 text-emerald-600"
-                : "bg-muted text-muted-foreground",
+              statusStyles.badge,
             )}
           >
-            {workflow.isActive ? "Ativo" : "Inativo"}
+            {statusStyles.label}
           </span>
         </div>
-        <ItemDescription className="truncate">{description}</ItemDescription>
+        <ItemDescription className="truncate">
+          {!canActivate && (
+            <span className="text-red-600 font-medium">
+              {validation.blockingNodes.length} node(s) com campos faltando ·{" "}
+            </span>
+          )}
+          {description}
+        </ItemDescription>
       </ItemContent>
       <ItemActions>
-        <Switch
-          checked={workflow.isActive}
-          disabled={updateIsActive.isPending}
-          onCheckedChange={(checked) =>
-            updateIsActive.mutate({
-              workflowId: workflow.id,
-              isActive: checked,
-            })
-          }
-          onClick={(e) => e.stopPropagation()}
-          aria-label={
-            workflow.isActive ? "Desativar automação" : "Ativar automação"
-          }
-        />
+        <TooltipProvider delayDuration={150}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className={cn(!canActivate && "cursor-not-allowed")}>
+                <Switch
+                  checked={workflow.isActive}
+                  disabled={
+                    updateIsActive.isPending ||
+                    (!workflow.isActive && !canActivate)
+                  }
+                  onCheckedChange={(checked) => {
+                    if (checked && !canActivate) {
+                      const first = validation.blockingNodes[0];
+                      toast.error(
+                        `Não dá pra ativar: "${first.name}" precisa de ${first.errors.join(", ")}`,
+                      );
+                      return;
+                    }
+                    updateIsActive.mutate({
+                      workflowId: workflow.id,
+                      isActive: checked,
+                    });
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={
+                    workflow.isActive ? "Desativar automação" : "Ativar automação"
+                  }
+                />
+              </span>
+            </TooltipTrigger>
+            {!canActivate && (
+              <TooltipContent side="left" className="max-w-xs">
+                <p className="font-semibold mb-1">
+                  Não dá pra ativar — campos faltando:
+                </p>
+                <ul className="text-xs space-y-1">
+                  {validation.blockingNodes.slice(0, 5).map((n) => (
+                    <li key={n.id}>
+                      <b>{n.name}:</b> {n.errors.join(", ")}
+                    </li>
+                  ))}
+                  {validation.blockingNodes.length > 5 && (
+                    <li className="text-muted-foreground italic">
+                      +{validation.blockingNodes.length - 5} outros…
+                    </li>
+                  )}
+                </ul>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

@@ -72,8 +72,8 @@ export function TrackingPresetsCatalog() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Array.from({ length: 6 }).map((_, i) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-40" />
         ))}
       </div>
@@ -110,15 +110,23 @@ export function TrackingPresetsCatalog() {
                   {info.description}
                 </p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Layout responsivo:
+                  - Mobile: grid 2 colunas (até 4 cards = 2x2)
+                  - md+: flex horizontal com scroll-snap, cards de largura fixa
+                  Os cards se ajustam à largura da página automaticamente. */}
+              <div className="grid grid-cols-2 gap-3 md:flex md:flex-row md:gap-4 md:overflow-x-auto md:snap-x md:snap-mandatory md:pb-3 md:-mx-1 md:px-1">
                 {presets.map((preset) => (
-                  <PresetCard
+                  <div
                     key={preset.id}
-                    preset={preset}
-                    onClick={() =>
-                      setSelected({ id: preset.id, name: preset.name })
-                    }
-                  />
+                    className="md:flex-shrink-0 md:w-72 lg:w-80 md:snap-start"
+                  >
+                    <PresetCard
+                      preset={preset}
+                      onClick={() =>
+                        setSelected({ id: preset.id, name: preset.name })
+                      }
+                    />
+                  </div>
                 ))}
               </div>
             </section>
