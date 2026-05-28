@@ -42,7 +42,7 @@ export const getDuplicateTags = base
     >`
       -- Detecção case-insensitive + trim: "Empresa", " empresa ", "EMPRESA"
       -- são consideradas duplicatas. Casa com a agregação do Insights que
-      -- usa `name.trim().toLowerCase()` pra colapsar barras do gráfico.
+      -- usa name.trim().toLowerCase() pra colapsar barras do gráfico.
       WITH dup_keys AS (
         SELECT LOWER(TRIM(name)) AS name_key
         FROM tags
