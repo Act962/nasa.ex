@@ -7,6 +7,7 @@ import { loadActionContext } from "../../lib/load-action-context";
 import { renderWorkspaceVariables } from "../../lib/render-variables";
 import { countries } from "@/types/some";
 import { normalizePhone } from "@/utils/format-phone";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { sendTextRaw } from "./message/send-text-raw";
 import { sendImageRaw } from "./message/send-image-raw";
 import { sendDocumentRaw } from "./message/send-document-raw";
@@ -72,6 +73,21 @@ export const wsSendMessageParticipantsExecutor: NodeExecutor<Data> = async ({
         number: string,
         participant?: { name: string; email: string },
       ) => {
+        const charge = await chargeStarsByAction(
+          workspace.organizationId,
+          "message_send",
+          {
+            appSlug: "message_send",
+            description: `Workspace send-message — ${workspace.name}${participant ? ` → ${participant.name}` : ""}`,
+          },
+        );
+        if (!charge.success) {
+          console.warn(
+            `[ws-send-message-participants] saldo insuficiente — skipped ${number}`,
+          );
+          return;
+        }
+
         const payload = cfg.payload;
         if (payload.type === "TEXT") {
           await sendTextRaw({
