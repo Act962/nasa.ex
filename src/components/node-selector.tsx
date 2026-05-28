@@ -33,10 +33,58 @@ import {
   AccordionTrigger,
 } from "./ui/accordion";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
+import {
   executionNodes,
   NodeTypeOption,
   triggerNodes,
 } from "@/features/executions/lib/node-options";
+
+/**
+ * Card quadrado de node — ícone centralizado + label embaixo + tooltip com
+ * descrição on hover. Substitui o layout de lista horizontal (linha por node)
+ * que poluía visualmente. Grid 3 colunas mantém a Sheet enxuta.
+ */
+function NodeCard({
+  node,
+  onClick,
+}: {
+  node: NodeTypeOption;
+  onClick: () => void;
+}) {
+  const Icon = node.icon;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          className="group flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-lg border bg-background p-2 transition-all hover:border-primary hover:bg-accent/50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          {typeof Icon === "string" ? (
+            <img
+              src={Icon}
+              alt={node.label}
+              className="size-6 object-contain rounded-sm"
+            />
+          ) : (
+            <Icon className="size-6 text-foreground group-hover:text-primary transition-colors" />
+          )}
+          <span className="text-[11px] font-medium leading-tight text-center line-clamp-2">
+            {node.label}
+          </span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-[220px]">
+        <p className="text-xs">{node.description}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 interface NodeSelectorProps {
   open: boolean;
@@ -126,151 +174,80 @@ export function NodeSelector({
             Selecione o tipo de automação que deseja adicionar ao fluxo.
           </SheetDescription>
         </SheetHeader>
-        <Accordion
-          type="multiple"
-          defaultValue={["trigger", "execution"]}
-          className="w-full"
-        >
-          <AccordionItem value="trigger">
-            <AccordionTrigger className="px-4 pt-5 hover:no-underline">
-              Gatilhos
-            </AccordionTrigger>
-            <AccordionContent>
-              <div>
-                {triggerNodes.map((nodeType) => {
-                  const Icon = nodeType.icon;
-
-                  return (
-                    <div
+        <TooltipProvider delayDuration={300}>
+          <Accordion
+            type="multiple"
+            defaultValue={["trigger", "execution"]}
+            className="w-full"
+          >
+            <AccordionItem value="trigger">
+              <AccordionTrigger className="px-4 pt-5 hover:no-underline">
+                Gatilhos
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="grid grid-cols-3 gap-2 px-4 pb-2">
+                  {triggerNodes.map((nodeType) => (
+                    <NodeCard
                       key={nodeType.type}
-                      className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
+                      node={nodeType}
                       onClick={() => handleNodeSelect(nodeType)}
-                    >
-                      <div className="flex items-center gap-6 w-full overflow-hidden">
-                        {typeof Icon === "string" ? (
-                          <img
-                            src={Icon}
-                            alt={nodeType.label}
-                            className="size-5 object-contain rounded-sm"
-                          />
-                        ) : (
-                          <Icon className="size-5" />
-                        )}
-                        <div className="flex flex-col items-start text-left">
-                          <span className="font-medium text-sm">
-                            {nodeType.label}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {nodeType.description}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-          {/* <Separator /> */}
-          <AccordionItem value="execution">
-            <AccordionTrigger className="px-4 pt-5 hover:no-underline">
-              Ações
-            </AccordionTrigger>
-            <AccordionContent>
-              {/* Ações sem sub-grupo (ações "core" — Mover Lead, Enviar
-                  Mensagem, Tag, etc) renderizam direto no nível raiz. */}
-              <div>
-                {executionNodes
-                  .filter((n) => !n.group)
-                  .map((nodeType) => {
-                    const Icon = nodeType.icon;
-                    return (
-                      <div
-                        key={nodeType.type}
-                        className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
-                        onClick={() => handleNodeSelect(nodeType)}
-                      >
-                        <div className="flex items-center gap-6 w-full overflow-hidden">
-                          {typeof Icon === "string" ? (
-                            <img
-                              src={Icon}
-                              alt={nodeType.label}
-                              className="size-5 object-contain rounded-sm"
-                            />
-                          ) : (
-                            <Icon className="size-5" />
-                          )}
-                          <div className="flex flex-col items-start text-left">
-                            <span className="font-medium text-sm">
-                              {nodeType.label}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {nodeType.description}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
+                    />
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-              {/* Sub-grupo "Adicionar Lead no App" — actions que criam/
-                  preparam recursos em outros apps (Form, Agenda, Forge,
-                  Linnker, N-Box, NASA Route) e enviam link via WhatsApp.
-                  Accordion aninhado pra reduzir poluição visual. */}
-              {executionNodes.some((n) => n.group === "send-to-app") && (
-                <Accordion
-                  type="single"
-                  collapsible
-                  defaultValue="send-to-app"
-                  className="border-t mt-2"
-                >
-                  <AccordionItem value="send-to-app">
-                    <AccordionTrigger className="px-4 pt-3 pb-3 text-xs uppercase tracking-wide text-muted-foreground hover:no-underline">
-                      Apps
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div>
-                        {executionNodes
-                          .filter((n) => n.group === "send-to-app")
-                          .map((nodeType) => {
-                            const Icon = nodeType.icon;
-                            return (
-                              <div
+            <AccordionItem value="execution">
+              <AccordionTrigger className="px-4 pt-5 hover:no-underline">
+                Ações
+              </AccordionTrigger>
+              <AccordionContent>
+                {/* Ações core sem sub-grupo */}
+                <div className="grid grid-cols-3 gap-2 px-4 pb-2">
+                  {executionNodes
+                    .filter((n) => !n.group)
+                    .map((nodeType) => (
+                      <NodeCard
+                        key={nodeType.type}
+                        node={nodeType}
+                        onClick={() => handleNodeSelect(nodeType)}
+                      />
+                    ))}
+                </div>
+
+                {/* Sub-grupo "Adicionar Lead no App" — Form, Agenda, Forge,
+                    Linnker, N-Box, NASA Route. */}
+                {executionNodes.some((n) => n.group === "send-to-app") && (
+                  <Accordion
+                    type="single"
+                    collapsible
+                    defaultValue="send-to-app"
+                    className="border-t mt-2"
+                  >
+                    <AccordionItem value="send-to-app">
+                      <AccordionTrigger className="px-4 pt-3 pb-3 text-xs uppercase tracking-wide text-muted-foreground hover:no-underline">
+                        Apps
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="grid grid-cols-3 gap-2 px-4 pb-2">
+                          {executionNodes
+                            .filter((n) => n.group === "send-to-app")
+                            .map((nodeType) => (
+                              <NodeCard
                                 key={nodeType.type}
-                                className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
+                                node={nodeType}
                                 onClick={() => handleNodeSelect(nodeType)}
-                              >
-                                <div className="flex items-center gap-6 w-full overflow-hidden">
-                                  {typeof Icon === "string" ? (
-                                    <img
-                                      src={Icon}
-                                      alt={nodeType.label}
-                                      className="size-5 object-contain rounded-sm"
-                                    />
-                                  ) : (
-                                    <Icon className="size-5" />
-                                  )}
-                                  <div className="flex flex-col items-start text-left">
-                                    <span className="font-medium text-sm">
-                                      {nodeType.label}
-                                    </span>
-                                    <span className="text-xs text-muted-foreground">
-                                      {nodeType.description}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+                              />
+                            ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </TooltipProvider>
       </SheetContent>
     </Sheet>
   );
