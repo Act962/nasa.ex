@@ -57,115 +57,121 @@ CREATE INDEX IF NOT EXISTS "tags_organization_id_archived_at_idx"
 CREATE INDEX IF NOT EXISTS "tags_tag_group_id_idx"
   ON "tags"("tag_group_id");
 
--- ─── 3. Merge de duplicatas (PRE-PROMOÇÃO ORG-WIDE) ──────────────────────────
--- Por que: a unique constraint (name, organization_id, tracking_id) tolera
--- "VIP" em Tracking A E Tracking B porque tracking_id diferente. Quando
--- promovermos ambos pra tracking_id=NULL, viola constraint.
+-- ─── 3. Merge DEFENSIVO de duplicatas (PRE-PROMOÇÃO ORG-WIDE) ────────────────
 --
--- Estratégia: pega a tag mais antiga (MIN(created_at)) como SOBREVIVENTE.
--- Atualiza lead_tags pra apontar pra ela. Atualiza node.data JSON nos
--- workflows. Deleta as duplicatas.
+-- REGRA INTELIGENTE: só auto-merge quando há CLARO VENCEDOR.
 --
--- Idempotência: a CTE só encontra duplicatas; se rodar 2x, na 2ª já não acha
--- nada (porque as duplicadas foram apagadas) — é safe.
+-- Considera o "valor" de cada tag = COUNT(lead_tags) + 10*COUNT(automations).
+-- Automações pesam mais que leads porque deletar uma tag de automação quebra
+-- workflow ativo; deletar tag com leads só perde anotações históricas (e
+-- ainda assim é preservado em LeadJourneyEvent.metadata.tagName).
+--
+-- Cenários:
+--  - Vencedor claro (uma tag tem todo o "valor", outra tem 0): merge auto
+--  - Empate ou ambas têm valor: SKIP (gera NOTICE no log). User resolve
+--    manualmente via UI `tag.getDuplicates` → `tag.mergeDuplicates`.
+--
+-- Idempotente: re-runs detectam só os casos com vencedor claro que sobraram.
 
-WITH duplicates AS (
-  SELECT
-    name,
-    organization_id,
-    -- Sobrevivente: a tag mais antiga (criada primeiro)
-    (SELECT id FROM tags t2
-      WHERE t2.name = t1.name
-        AND t2.organization_id = t1.organization_id
-      ORDER BY t2.created_at ASC, t2.id ASC
-      LIMIT 1) AS survivor_id,
-    -- Lista de IDs duplicadas (excluindo o sobrevivente)
-    ARRAY_AGG(t1.id) FILTER (
-      WHERE t1.id != (
-        SELECT id FROM tags t2
-          WHERE t2.name = t1.name
-            AND t2.organization_id = t1.organization_id
-          ORDER BY t2.created_at ASC, t2.id ASC
-          LIMIT 1
-      )
-    ) AS duplicate_ids
-  FROM tags t1
-  WHERE tracking_id IS NOT NULL
-  GROUP BY name, organization_id
-  HAVING COUNT(*) > 1
-)
-UPDATE lead_tags lt
-SET tag_id = d.survivor_id
-FROM duplicates d
-WHERE lt.tag_id = ANY(d.duplicate_ids);
-
--- Atualiza node.data JSON em workflows (TAG action + LEAD_TAGGED trigger)
--- Substitui referências às tags duplicadas pelo sobrevivente.
--- Lida com 2 shapes: data->'tagId' (single) ou data->'tagIds' (array).
 DO $$
 DECLARE
   dup_record RECORD;
+  survivor_id TEXT;
+  victims TEXT[];
+  victim_id TEXT;
+  ambiguous_count INTEGER := 0;
+  merged_count INTEGER := 0;
 BEGIN
   FOR dup_record IN (
+    -- Agrupa por (name, org) tags que TÊM tracking_id setado (pré-promoção).
+    -- Inclui também tags org-wide existentes com mesmo nome (cenário misto)
+    -- pra ser exaustivo.
     SELECT
-      (SELECT id FROM tags t2
-        WHERE t2.name = t1.name AND t2.organization_id = t1.organization_id
-        ORDER BY t2.created_at ASC LIMIT 1) AS survivor_id,
-      ARRAY_AGG(t1.id) FILTER (WHERE t1.id != (
-        SELECT id FROM tags t3
-          WHERE t3.name = t1.name AND t3.organization_id = t1.organization_id
-          ORDER BY t3.created_at ASC LIMIT 1
-      )) AS duplicate_ids
-    FROM tags t1
-    WHERE tracking_id IS NOT NULL
-    GROUP BY name, organization_id
+      t.name,
+      t.organization_id,
+      ARRAY_AGG(
+        json_build_object(
+          'id', t.id,
+          'leads', (SELECT COUNT(*) FROM lead_tags WHERE tag_id = t.id),
+          'automations', (
+            SELECT COUNT(DISTINCT w.id) FROM nodes n
+            JOIN workflows w ON w.id = n.workflow_id
+            WHERE n.type IN ('TAG', 'LEAD_TAGGED')
+              AND (
+                (n.data::jsonb->>'tagId') = t.id
+                OR (n.data::jsonb->'tagIds') ? t.id
+              )
+              AND w.is_active = true
+          ),
+          'created_at', t.created_at
+        )::text
+      ) AS tags_info
+    FROM tags t
+    GROUP BY t.name, t.organization_id
     HAVING COUNT(*) > 1
   )
   LOOP
-    -- Single tagId
-    UPDATE nodes n
-    SET data = jsonb_set(n.data::jsonb, '{tagId}', to_jsonb(dup_record.survivor_id))
-    WHERE n.type IN ('TAG', 'LEAD_TAGGED')
-      AND (n.data::jsonb->>'tagId') = ANY(dup_record.duplicate_ids);
+    -- Parse: descobre quem tem "valor" (leads + automações)
+    -- Sobrevivente preferido: maior valor; empate → mais antiga
+    -- Vítimas: candidatos com 0 leads E 0 automações
+    SELECT (parsed->>'id')::text INTO survivor_id
+    FROM (
+      SELECT (jsonb_array_elements(to_jsonb(dup_record.tags_info)::jsonb)::text::jsonb) AS parsed
+    ) sub
+    ORDER BY
+      ((parsed->>'leads')::int + 10 * (parsed->>'automations')::int) DESC,
+      (parsed->>'created_at')::timestamp ASC
+    LIMIT 1;
 
-    -- Array tagIds — remove dups + adiciona survivor (sem duplicar)
-    UPDATE nodes n
-    SET data = jsonb_set(
-      n.data::jsonb,
-      '{tagIds}',
-      (
-        SELECT to_jsonb(ARRAY_AGG(DISTINCT elem))
-        FROM (
-          SELECT jsonb_array_elements_text(n.data::jsonb->'tagIds') AS elem
-        ) sub
-        WHERE elem != ALL(dup_record.duplicate_ids)
-        UNION
-        SELECT dup_record.survivor_id
-      )
-    )
-    WHERE n.type IN ('TAG', 'LEAD_TAGGED')
-      AND n.data::jsonb ? 'tagIds'
-      AND EXISTS (
-        SELECT 1 FROM jsonb_array_elements_text(n.data::jsonb->'tagIds') AS e
-        WHERE e = ANY(dup_record.duplicate_ids)
-      );
+    -- Vítimas: outras tags do grupo que têm 0 valor (deletáveis sem risco)
+    SELECT ARRAY_AGG((parsed->>'id')::text) INTO victims
+    FROM (
+      SELECT (jsonb_array_elements(to_jsonb(dup_record.tags_info)::jsonb)::text::jsonb) AS parsed
+    ) sub
+    WHERE (parsed->>'id')::text != survivor_id
+      AND (parsed->>'leads')::int = 0
+      AND (parsed->>'automations')::int = 0;
+
+    -- Se todas as não-sobreviventes têm 0 valor → merge seguro
+    -- Se alguma tiver valor → SKIP e loga (user resolve manualmente)
+    IF victims IS NULL OR array_length(victims, 1) IS NULL THEN
+      ambiguous_count := ambiguous_count + 1;
+      RAISE NOTICE 'Tag "%" em org % tem duplicatas com valor (leads/automações). Pulando merge automático — resolver via UI.', dup_record.name, dup_record.organization_id;
+      CONTINUE;
+    END IF;
+
+    -- Conta quantas duplicatas FORAM contadas — se < (total - 1), há outras
+    -- com valor que também não devem ser deletadas. Skip nesse caso também.
+    DECLARE
+      total_count INTEGER;
+    BEGIN
+      SELECT COUNT(*) INTO total_count FROM tags
+        WHERE name = dup_record.name AND organization_id = dup_record.organization_id;
+      IF array_length(victims, 1) < total_count - 1 THEN
+        ambiguous_count := ambiguous_count + 1;
+        RAISE NOTICE 'Tag "%" tem múltiplas duplicatas com valor. Pulando — resolver via UI.', dup_record.name;
+        CONTINUE;
+      END IF;
+    END;
+
+    -- Merge SEGURO: vítimas têm 0 leads/0 automações. Não precisa redirecionar
+    -- lead_tags nem atualizar node.data (não há referências). Só deleta.
+    DELETE FROM tags WHERE id = ANY(victims);
+    merged_count := merged_count + array_length(victims, 1);
   END LOOP;
+
+  RAISE NOTICE 'Tags V2 migration: % merge(s) automático(s), % conjunto(s) ambíguo(s) (resolver via UI).', merged_count, ambiguous_count;
 END $$;
 
--- Deleta as tags duplicadas (sobreviveram só as mais antigas)
-DELETE FROM tags
-WHERE id IN (
-  SELECT t1.id FROM tags t1
-  WHERE tracking_id IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM tags t2
-      WHERE t2.name = t1.name
-        AND t2.organization_id = t1.organization_id
-        AND t2.id != t1.id
-        AND t2.created_at < t1.created_at
-    )
-);
-
 -- ─── 4. PROMOÇÃO ORG-WIDE ────────────────────────────────────────────────────
--- Agora seguro: sem duplicatas restantes, promove tudo pra org-wide.
-UPDATE tags SET tracking_id = NULL WHERE tracking_id IS NOT NULL;
+-- Promove só as que NÃO tinham conflito (ambíguas permanecem tracking-scoped
+-- até user resolver manualmente via UI). Filtro: só promove se NÃO existe
+-- outra tag com mesmo name+org já org-wide.
+UPDATE tags SET tracking_id = NULL
+WHERE tracking_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM tags t2
+    WHERE t2.name = tags.name
+      AND t2.organization_id = tags.organization_id
+      AND t2.id != tags.id
+  );

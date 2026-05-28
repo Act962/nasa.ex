@@ -77,6 +77,10 @@ import { useQueryListTrackings } from "@/features/insights/hooks/use-dashboard";
 import { toast } from "sonner";
 import { useTagGroups } from "@/features/tags/hooks/use-tag-groups";
 import { TagGroupManager } from "@/features/tags/components/tag-group-manager";
+import { DuplicateResolver } from "@/features/tags/components/duplicate-resolver";
+import { orpc } from "@/lib/orpc";
+import { useQuery } from "@tanstack/react-query";
+import { AlertTriangleIcon } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -112,6 +116,11 @@ export function TagSheet({ open, onOpenChange, trackingId }: Props) {
   // Grupos de tags pra render agrupada + manager dialog
   const { data: groupsData } = useTagGroups();
   const [groupManagerOpen, setGroupManagerOpen] = useState(false);
+  // Duplicatas detectadas — surface via banner amber clicável
+  const { data: dupData } = useQuery(
+    orpc.tags.getDuplicateTags.queryOptions({ input: undefined }),
+  );
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false);
   const [selectedGroupForCreate, setSelectedGroupForCreate] = useState<
     string | null
   >(null);
@@ -212,6 +221,28 @@ export function TagSheet({ open, onOpenChange, trackingId }: Props) {
             Adicione tags para categorizar seus leads.
           </SheetDescription>
         </SheetHeader>
+
+        {/* Banner de duplicatas — só aparece quando há grupos duplicados.
+            Operador clica → dialog mostra cards lado-a-lado com leads/
+            automações por tag pra escolher conscientemente qual manter. */}
+        {dupData && dupData.totalGroups > 0 && (
+          <button
+            type="button"
+            onClick={() => setDuplicatesOpen(true)}
+            className="mx-4 flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40 px-3 py-2 text-left hover:bg-amber-100 dark:hover:bg-amber-950/60 transition-colors"
+          >
+            <AlertTriangleIcon className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+                {dupData.totalGroups} grupo(s) de duplicatas detectado(s)
+              </p>
+              <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                Clique pra escolher qual manter (preserva leads + automações).
+              </p>
+            </div>
+          </button>
+        )}
+
         <div className="space-y-4 ">
           {/* Toggle de escopo: Org-wide (default) ↔ Tracking-only.
               Ao ativar, mostra seletor de tracking. */}
@@ -497,6 +528,10 @@ export function TagSheet({ open, onOpenChange, trackingId }: Props) {
         open={groupManagerOpen}
         onOpenChange={setGroupManagerOpen}
       />
+      <DuplicateResolver
+        open={duplicatesOpen}
+        onOpenChange={setDuplicatesOpen}
+      />
     </Sheet>
   );
 }
@@ -532,6 +567,12 @@ export function TagItem(tag: TagItemProps) {
       description: tag.description ?? "",
     },
   });
+  // Grupo selecionado no popover de edit (mover tag pra outro grupo).
+  // Inicializado com o grupo atual da tag — null = "Sem categoria".
+  const [editGroupId, setEditGroupId] = useState<string | null>(
+    tag.tagGroupId ?? null,
+  );
+  const { data: groupsData } = useTagGroups();
   const [showDescription, setShowDescription] = useState(
     Boolean(tag.description),
   );
@@ -576,6 +617,9 @@ export function TagItem(tag: TagItemProps) {
         name: data.name,
         color: data.color,
         description: trimmedDescription.length > 0 ? trimmedDescription : null,
+        // Move pra outro grupo (ou desassocia com null). Backend já
+        // aceita esse campo em `tag.update` desde a Fase 1.
+        tagGroupId: editGroupId,
       },
       {
         onSuccess: () => {
@@ -685,6 +729,37 @@ export function TagItem(tag: TagItemProps) {
               Adicionar descrição
             </Button>
           )}
+
+          {/* Select de grupo — permite MOVER a tag pra outro grupo
+              (ou tirar dela com "Sem categoria"). Salva junto com o
+              botão de confirmar edição (CheckIcon acima). */}
+          <div className="flex items-center gap-2">
+            <FolderIcon className="size-3.5 text-muted-foreground shrink-0" />
+            <Select
+              value={editGroupId ?? "__none__"}
+              onValueChange={(v) =>
+                setEditGroupId(v === "__none__" ? null : v)
+              }
+            >
+              <SelectTrigger className="h-8 text-xs flex-1">
+                <SelectValue placeholder="Sem categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Sem categoria</SelectItem>
+                {(groupsData?.groups ?? []).map((g) => (
+                  <SelectItem key={g.id} value={g.id}>
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className="size-2 rounded-full"
+                        style={{ background: g.color }}
+                      />
+                      {g.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </form>
         <Separator />
         <div className="p-2 flex items-center justify-between gap-2">
