@@ -66,9 +66,18 @@ export const listTags = base
         },
         where: {
           organizationId: context.org.id,
-          ...(input.query?.trackingId && {
-            trackingId: input.query.trackingId,
-          }),
+          // Pós-TagsV2: tags são org-wide por default (`trackingId=NULL`),
+          // mas legacy/scoped ainda existe. Quando o caller passa um
+          // trackingId, retorna tags daquele tracking + org-wide (NULL) —
+          // sem isso, picker de tracking-scoped sumia 100% das tags.
+          ...(input.query?.trackingId
+            ? {
+                OR: [
+                  { trackingId: input.query.trackingId },
+                  { trackingId: null },
+                ],
+              }
+            : {}),
           ...(input.query?.tagGroupId !== undefined && {
             tagGroupId: input.query.tagGroupId,
           }),
