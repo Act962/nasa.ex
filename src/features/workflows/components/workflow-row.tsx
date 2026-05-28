@@ -154,7 +154,7 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
         <ItemDescription className="truncate">
           {!canActivate && (
             <span className="text-red-600 font-medium">
-              {validation.blockingNodes.length} node(s) com campos faltando ·{" "}
+              {validation.blockingNodes.length} ação(ões) com campos faltando ·{" "}
             </span>
           )}
           {description}
@@ -175,7 +175,7 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
                     if (checked && !canActivate) {
                       const first = validation.blockingNodes[0];
                       toast.error(
-                        `Não dá pra ativar: "${first.name}" precisa de ${first.errors.join(", ")}`,
+                        `Não dá pra ativar: ação "${first.name}" precisa de ${first.errors.join(", ")}`,
                       );
                       return;
                     }
@@ -194,7 +194,7 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
             {!canActivate && (
               <TooltipContent side="left" className="max-w-xs">
                 <p className="font-semibold mb-1">
-                  Não dá pra ativar — campos faltando:
+                  Não dá pra ativar — ações com campos faltando:
                 </p>
                 <ul className="text-xs space-y-1">
                   {validation.blockingNodes.slice(0, 5).map((n) => (
@@ -204,7 +204,7 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
                   ))}
                   {validation.blockingNodes.length > 5 && (
                     <li className="text-muted-foreground italic">
-                      +{validation.blockingNodes.length - 5} outros…
+                      +{validation.blockingNodes.length - 5} outras…
                     </li>
                   )}
                 </ul>

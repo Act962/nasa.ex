@@ -9,9 +9,10 @@ import {
   useStore,
 } from "@xyflow/react";
 import { LucideIcon, Plus } from "lucide-react";
-import { memo, useState, type ReactNode } from "react";
+import { memo, useMemo, useState, type ReactNode } from "react";
 import { WorkflowNode } from "@/components/workflow-node";
 import { BaseNode, BaseNodeContent } from "@/components/react-flow/base-node";
+import { validateNode } from "@/features/workflows/lib/validate-node";
 import Image from "next/image";
 import { BaseHandle } from "@/components/react-flow/base-handle";
 import {
@@ -46,8 +47,16 @@ export const BaseExecutionNode = memo(
     status = "initial",
     onSettings,
     onDoubleClick,
+    ...rest
   }: BaseExecutionNodeProps) => {
     const { setNodes, setEdges } = useReactFlow();
+    // Validação automática — type + data vêm via NodeProps spread.
+    const nodeType = (rest as any).type as string | undefined;
+    const nodeData = (rest as any).data as Record<string, unknown> | undefined;
+    const validation = useMemo(
+      () => (nodeType ? validateNode(nodeType, nodeData) : undefined),
+      [nodeType, nodeData],
+    );
     const [openSelector, setOpenSelector] = useState(false);
     const connectionInProgress = useConnection(selector);
     const isConnected = useStore((state) =>
@@ -80,7 +89,11 @@ export const BaseExecutionNode = memo(
         onSettings={onSettings}
       >
         <NodeStatusIndicator status={status} variant="border">
-          <BaseNode onDoubleClick={onDoubleClick} status={status}>
+          <BaseNode
+            onDoubleClick={onDoubleClick}
+            status={status}
+            validation={validation}
+          >
             <BaseNodeContent>
               {typeof Icon === "string" ? (
                 <Image src={Icon} alt={name} width={16} height={16} />

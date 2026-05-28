@@ -9,9 +9,10 @@ import {
   useStore,
 } from "@xyflow/react";
 import { LucideIcon, Plus } from "lucide-react";
-import { memo, useState, type ReactNode } from "react";
+import { memo, useMemo, useState, type ReactNode } from "react";
 import { WorkflowNode } from "@/components/workflow-node";
 import { BaseNode, BaseNodeContent } from "@/components/react-flow/base-node";
+import { validateNode } from "@/features/workflows/lib/validate-node";
 import Image from "next/image";
 import { BaseHandle } from "@/components/react-flow/base-handle";
 import {
@@ -46,8 +47,18 @@ export const BaseTriggerNode = memo(
     status = "initial",
     onSettings,
     onDoubleClick,
+    ...rest
   }: BaseTriggerNodeProps) => {
     const { setNodes, setEdges } = useReactFlow();
+    // Validação automática — usa o `type` + `data` que vem via NodeProps.
+    // Toda action/trigger ganha borda colorida + tooltip de erros sem
+    // precisar mudar cada `*/node.tsx`.
+    const nodeType = (rest as any).type as string | undefined;
+    const nodeData = (rest as any).data as Record<string, unknown> | undefined;
+    const validation = useMemo(
+      () => (nodeType ? validateNode(nodeType, nodeData) : undefined),
+      [nodeType, nodeData],
+    );
     const [openSelector, setOpenSelector] = useState(false);
     const connectionInProgress = useConnection(selector);
     const isConnected = useStore((state) =>
@@ -86,6 +97,7 @@ export const BaseTriggerNode = memo(
         >
           <BaseNode
             status={status}
+            validation={validation}
             onDoubleClick={onDoubleClick}
             className="rounded-l-2xl relative group"
           >
