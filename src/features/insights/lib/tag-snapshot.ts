@@ -33,20 +33,18 @@ export async function getTagSnapshotAtDate(
 ): Promise<Array<{ leadId: string; tagId: string }>> {
   if (leadIds.length === 0) return [];
 
-  // Sem endDate (ou hoje/futuro) → snapshot = estado atual (LeadTag vivos).
+  // Sem endDate (ou no futuro) → snapshot = estado atual (LeadTag vivos).
   //
-  // Comparação contra START-OF-TODAY (não `now`) porque "filtrar até hoje"
-  // pra usuário significa "agora" — não "00:00 de hoje". Sem isso, filtrar
-  // endDate=HOJE caía no caminho histórico e ressuscitava leads que tiveram
-  // tag removida HOJE (a synthetic add inferia "tag estava ativa antes do
-  // remove" e mantinha o lead no snapshot). Live state corrige.
+  // Compara contra `now` (instante exato), não start-of-today. Calendar
+  // do front manda `endOf("day")` em America/Sao_Paulo:
+  //  - Filtrar HOJE → endDate=HOJE 23:59 BRT > now (14:00 BRT) → null → live ✓
+  //  - Filtrar ONTEM → endDate=ONTEM 23:59 BRT < now → cutoff → histórico ✓
+  //
+  // Comparar com start-of-today quebrava o caso ONTEM em servidor UTC:
+  // endDate 28.05 02:59 UTC > todayStart 28.05 00:00 UTC → caía no live e
+  // mostrava estado ATUAL pra filtro de ontem (Clark Kent saía retroativo).
   const now = new Date();
-  const todayStart = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-  );
-  const cutoff = endDate && endDate < todayStart ? endDate : null;
+  const cutoff = endDate && endDate < now ? endDate : null;
 
   if (!cutoff) {
     // Caminho rápido: estado atual
