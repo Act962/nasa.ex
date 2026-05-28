@@ -185,7 +185,7 @@ export function NodeSelector({
                 Gatilhos
               </AccordionTrigger>
               <AccordionContent>
-                <div className="grid grid-cols-3 gap-2 px-4 pb-2">
+                <div className="grid grid-cols-4 gap-2 px-4 pb-2">
                   {triggerNodes.map((nodeType) => (
                     <NodeCard
                       key={nodeType.type}
@@ -203,7 +203,7 @@ export function NodeSelector({
               </AccordionTrigger>
               <AccordionContent>
                 {/* Ações core sem sub-grupo */}
-                <div className="grid grid-cols-3 gap-2 px-4 pb-2">
+                <div className="grid grid-cols-4 gap-2 px-4 pb-2">
                   {executionNodes
                     .filter((n) => !n.group)
                     .map((nodeType) => (
@@ -229,7 +229,7 @@ export function NodeSelector({
                         Apps
                       </AccordionTrigger>
                       <AccordionContent>
-                        <div className="grid grid-cols-3 gap-2 px-4 pb-2">
+                        <div className="grid grid-cols-4 gap-2 px-4 pb-2">
                           {executionNodes
                             .filter((n) => n.group === "send-to-app")
                             .map((nodeType) => (

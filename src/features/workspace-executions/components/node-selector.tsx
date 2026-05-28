@@ -150,7 +150,7 @@ export function WsNodeSelector({ open, onOpenChange, sourceId, children }: Props
                 Gatilhos
               </AccordionTrigger>
               <AccordionContent>
-                <div className="grid grid-cols-3 gap-2 px-4 pb-2">
+                <div className="grid grid-cols-4 gap-2 px-4 pb-2">
                   {wsTriggerNodes.map((nodeType) => (
                     <WsNodeCard
                       key={nodeType.type}
@@ -166,7 +166,7 @@ export function WsNodeSelector({ open, onOpenChange, sourceId, children }: Props
                 Ações
               </AccordionTrigger>
               <AccordionContent>
-                <div className="grid grid-cols-3 gap-2 px-4 pb-2">
+                <div className="grid grid-cols-4 gap-2 px-4 pb-2">
                   {wsExecutionNodes.map((nodeType) => (
                     <WsNodeCard
                       key={nodeType.type}
