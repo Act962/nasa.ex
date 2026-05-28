@@ -64,6 +64,7 @@ import { livekitRouter } from "./livekit";
 import { stickersRouter } from "./stickers";
 import { brandRouter } from "./brand";
 import { trackingPresetsRouter } from "./tracking-presets";
+import { agentsRouter } from "./agents";
 
 export const router = {
   tracking: trackingRoutes,
@@ -73,6 +74,7 @@ export const router = {
   tags: tagsRouter,
   tagGroups: tagGroupsRouter,
   trackingPresets: trackingPresetsRouter,
+  agents: agentsRouter,
   reasons: reasonsRouter,
   orgs: orgRoutes,
   workflow: workflowRoutes,

@@ -136,6 +136,9 @@ model User {
   // ── Tracking Presets — aplicações feitas por este user ──
   trackingPresetApplications TrackingPresetApplication[]
 
+  // ── NASA Auto Agent — agentes criados por este user ──
+  autoAgentsCreated Agent[] @relation("AgentCreator")
+
   @@unique([email])
   @@map("user")
 }
@@ -407,6 +410,10 @@ model Organization {
   // ── Tracking Presets — auditoria de aplicações de padrões NASA ──
   trackingPresetApplications TrackingPresetApplication[]
 
+  // ── NASA Auto Agent — agentes IA autônomos da org ──
+  autoAgents        Agent[]
+  leadAgentSessions LeadAgentSession[]
+
   @@unique([slug])
   @@map("organization")
 }
@@ -539,6 +546,9 @@ model Tracking {
 
   // Tracking Presets — quais aplicações deste preset originaram este tracking
   presetApplications TrackingPresetApplication[]
+
+  // NASA Auto Agent — agentes específicos deste tracking
+  autoAgents Agent[]
 
   @@map("tracking")
 }
@@ -941,6 +951,9 @@ model Lead {
   @@index([email])
   @@index([phone])
   @@index([createdAt])
+  // NASA Auto Agent — sessões abertas pra este lead
+  agentSessions LeadAgentSession[]
+
   @@index([currentAction])
   @@index([isActive])
   @@index([responsibleId])
@@ -6403,4 +6416,124 @@ model TrackingPresetApplication {
   @@index([organizationId, createdAt])
   @@index([presetId])
   @@map("tracking_preset_applications")
+}
+
+// ── NASA Auto Agent — Agente IA Autônomo ─────────────────────────────────────
+//
+// Camada de orquestração orientada a OBJETIVOS sobre a infra de IA existente
+// (tracking-chat-ai, Astro, AiAgentConfig). User configura via prompt em
+// linguagem natural, Astro traduz em spec executável, motor roda turns
+// usando tools (sendMessage, addTags, sendProposal, etc).
+//
+// Pausa global: usa AiAgentConfig com agentKey="nasa-auto-agent" — toggle
+// em /settings/astro já existente desliga TODOS os agentes da org.
+// Pausa individual: Agent.isActive controla cada agente separado.
+//
+// Salvaguardas: maxAttempts (max follow-ups), maxStarsPerLead (cap de custo),
+// cooldownMinutes (anti-spam), stopWords (compliance). Loop detection via
+// cosine similarity entre mensagens (Fase 4).
+
+enum LeadAgentSessionStatus {
+  /// Agente está perseguindo goal ativo (rodando turns)
+  ACTIVE
+  /// Aguardando próximo follow-up agendado (sleeping no Inngest)
+  WAITING
+  /// Suspenso (operador pausou OU stop word detectada)
+  PAUSED
+  /// Goal final alcançado (success ou max_attempts)
+  COMPLETED
+  /// Transferido pra humano (stop word, budget exceeded, etc)
+  TRANSFERRED
+}
+
+model Agent {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  /// null = agente org-wide (atua em qualquer tracking)
+  trackingId     String? @map("tracking_id")
+  name           String
+  description    String?
+  /// Prompt original em linguagem natural (pedido inicial do user).
+  /// Editável depois — re-gera spec quando muda.
+  rawPrompt      String  @db.Text @map("raw_prompt")
+  /// "Manual" da IA — separado do rawPrompt. Aqui o user TREINA a IA:
+  /// o que pode/não pode fazer, tom de voz, info da empresa, restrições
+  /// éticas, dados de contato. Concatenado com goal atual no system prompt
+  /// final que vai pro LLM em cada turn.
+  systemInstructions String @db.Text @default("") @map("system_instructions")
+  /// Spec executável gerado pela Astro a partir de rawPrompt+systemInstructions.
+  /// Estrutura: { goals: [...], allowedTools: [...], contextVars: [...] }
+  /// Validado por Zod em src/features/auto-agent/lib/agent-spec.schema.ts
+  spec           Json
+  /// AUTO | SEMI | MANUAL. AUTO = sem aprovação, SEMI = aprova críticas,
+  /// MANUAL = aprova tudo. Default AUTO (decisão do user).
+  mode           String  @default("AUTO")
+  /// Toggle individual deste agent. AiAgentConfig.enabled controla global.
+  isActive       Boolean @default(false) @map("is_active")
+  /// Schedule de follow-ups (dias após última msg). Configurável livre.
+  /// Default [1,3,5,7]. User pode mudar pra [2,5,10,30] ou qualquer outro.
+  /// attemptCount da session indexa esse array.
+  followUpSchedule Int[]  @default([1, 3, 5, 7]) @map("follow_up_schedule")
+  /// Cap de follow-ups antes de marcar COMPLETED (default = length do schedule).
+  maxAttempts        Int  @default(4)  @map("max_attempts")
+  /// Cap cumulativo de Stars por lead — atingiu, TRANSFERRED pra humano.
+  maxStarsPerLead    Int  @default(50) @map("max_stars_per_lead")
+  /// Mínimo de minutos entre 2 mensagens do agente pro mesmo lead.
+  cooldownMinutes    Int  @default(30) @map("cooldown_minutes")
+  /// Palavras-chave que disparam TRANSFERRED (case-insensitive contém).
+  stopWords          String[] @default(["não quero", "remover", "sair", "spam", "parar", "stop"]) @map("stop_words")
+  createdById        String? @map("created_by_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tracking     Tracking?          @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  createdBy    User?              @relation("AgentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  sessions     LeadAgentSession[]
+
+  @@index([organizationId, isActive])
+  @@index([trackingId])
+  @@map("agents")
+}
+
+/// Estado por (agente, lead). Persiste "onde o agente parou" + quando voltar.
+/// `nextActionAt` é o sleepUntil que o Inngest usa pra acordar e rodar turn.
+/// Evento `auto-agent/lead-replied` cancela sleep quando lead responde.
+model LeadAgentSession {
+  id              String  @id @default(cuid())
+  agentId         String  @map("agent_id")
+  leadId          String  @map("lead_id")
+  organizationId  String  @map("organization_id")
+  status          LeadAgentSessionStatus @default(ACTIVE)
+  /// Goal atual do spec.goals[] (ex: "qualify", "send_proposal", "follow_up")
+  currentGoalId   String? @map("current_goal_id")
+  /// Tentativa atual no loop de follow-up (0..maxAttempts).
+  /// Indexa Agent.followUpSchedule[attemptCount] pra calcular nextActionAt.
+  attemptCount    Int     @default(0) @map("attempt_count")
+  /// Próxima ação agendada (Inngest sleepUntil). null = ACTIVE rodando AGORA.
+  nextActionAt    DateTime? @map("next_action_at")
+  /// Última msg/ação enviada pra cálculo de cooldown.
+  lastActionAt    DateTime? @map("last_action_at")
+  /// Custo cumulativo em Stars. Cap em Agent.maxStarsPerLead.
+  starsSpent      Int     @default(0) @map("stars_spent")
+  /// Razão de transição final: transfer_to_human, budget_exceeded,
+  /// stop_word, goal_achieved, max_attempts, paused_by_user.
+  exitReason      String? @map("exit_reason")
+  /// Snapshot de variáveis do contexto (produto escolhido, opção do menu,
+  /// valores extraídos pela IA durante a conversa).
+  contextVars     Json    @default("{}") @map("context_vars")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  closedAt        DateTime? @map("closed_at")
+
+  agent        Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// 1 sessão ativa por (agente, lead). Pra reabrir, primeiro fechar a anterior.
+  @@unique([agentId, leadId])
+  @@index([organizationId, status])
+  /// Scheduler do Inngest faz scan periódico de WAITING com nextActionAt < now.
+  @@index([nextActionAt, status])
+  @@map("lead_agent_sessions")
 }
