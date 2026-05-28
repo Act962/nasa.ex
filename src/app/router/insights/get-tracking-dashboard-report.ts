@@ -191,18 +191,20 @@ export const getTrackingDashboardReport = base
 
         // Por tag — usa SNAPSHOT TEMPORAL ao invés de LeadTag vivo.
         //
-        // **Lead scope SEM filtro de createdAt**: pra analytics de tag, o
-        // que importa é "quais leads TINHAM a tag em endDate", não "quais
-        // leads foram CRIADOS no período". Lead criado em maio que pegou
-        // a tag em 27.05 deve aparecer no filtro "27.05".
+        // **Lead scope SEM filtro de createdAt NEM tagFilter**: pra analytics
+        // de tag, o que importa é "quais leads TINHAM a tag em endDate", não
+        // "quais leads foram CRIADOS no período" nem "quais TÊM a tag agora".
+        // - Sem dateFilter: lead criado em maio que pegou tag em 27.05 aparece no filtro "27.05".
+        // - Sem tagFilter: tagFilter usa LeadTag VIVO (junction atual), o que
+        //   excluiria leads que tiveram a tag em endDate mas não têm mais hoje
+        //   (ex: Clark Kent removido HOJE não cairia no snapshot de ONTEM).
+        //   O filtro por tagIds é aplicado DEPOIS, no resultado do snapshot.
         //
         // Reconstrói snapshot via LeadJourneyEvent (tag_added/tag_removed)
         // + fallback de LeadTag.createdAt. Sem isso, remover tag HOJE
         // fazia métrica de ONTEM cair retroativamente.
         prisma.lead
           .findMany({
-            // Filtro de tag NÃO inclui dateFilter — só org/tracking/members.
-            // Se baseWhere mudar de shape, ajustar aqui pra manter alinhado.
             where: {
               ...(trackingId ? { trackingId } : {}),
               tracking: {
@@ -212,7 +214,6 @@ export const getTrackingDashboardReport = base
                 },
               },
               ...(hasMembers ? memberLeadFilter : {}),
-              ...tagFilter,
             },
             select: { id: true, trackingId: true },
           })
@@ -222,8 +223,12 @@ export const getTrackingDashboardReport = base
               leads.map((l) => l.id),
               endDate ? new Date(endDate) : null,
             );
+            const tagIdsFilter =
+              tagIds && tagIds.length > 0 ? new Set(tagIds) : null;
             return snapshot
               .map((s) => {
+                // Aplica filtro de tag NO RESULTADO do snapshot (não no scope).
+                if (tagIdsFilter && !tagIdsFilter.has(s.tagId)) return null;
                 const lead = leadById.get(s.leadId);
                 if (!lead) return null;
                 return {
