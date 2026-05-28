@@ -4,7 +4,6 @@ import { NonRetriableError } from "inngest";
 import { sendText } from "@/http/uazapi/send-text";
 import { persistOutboundMessage } from "@/features/tracking-chat-ai/lib/persist";
 import { renderIdleTemplate } from "@/features/tracking-settings/lib/idle-template";
-import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import type { IdleAutomationMessageMode } from "@/generated/prisma/enums";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -346,42 +345,29 @@ async function executeIdleActions(args: {
       select: { apiKey: true, baseUrl: true, status: true },
     });
     if (instance && instance.status === "CONNECTED") {
-      const charge = await chargeStarsByAction(
-        lead.tracking.organizationId,
-        "message_send",
-        {
-          appSlug: "message_send",
-          description: `Idle automation — ${scenario} (${minutesWaiting}min)`,
+      const rendered = renderIdleTemplate(c.message, {
+        lead: {
+          name: lead.name,
+          phone: lead.phone,
+          amount: lead.amount,
+          email: lead.email,
         },
+        minutesWaiting,
+      });
+      const res = await sendText(
+        instance.apiKey,
+        { number: lead.phone, text: rendered, delay: 0 },
+        instance.baseUrl,
       );
-      // Sem saldo: pula só o envio. A notificação ao responsável (passo 3)
-      // ainda roda — é justamente quando o responsável mais precisa saber
-      // que o lead está parado e a automação não conseguiu agir.
-      if (charge.success) {
-        const rendered = renderIdleTemplate(c.message, {
-          lead: {
-            name: lead.name,
-            phone: lead.phone,
-            amount: lead.amount,
-            email: lead.email,
-          },
-          minutesWaiting,
+      if (lead.conversation?.id) {
+        await persistOutboundMessage({
+          conversationId: lead.conversation.id,
+          leadId: lead.id,
+          trackingId: lead.trackingId,
+          body: rendered,
+          senderName: "Automação",
+          externalMessageId: res.messageid,
         });
-        const res = await sendText(
-          instance.apiKey,
-          { number: lead.phone, text: rendered, delay: 0 },
-          instance.baseUrl,
-        );
-        if (lead.conversation?.id) {
-          await persistOutboundMessage({
-            conversationId: lead.conversation.id,
-            leadId: lead.id,
-            trackingId: lead.trackingId,
-            body: rendered,
-            senderName: "Automação",
-            externalMessageId: res.messageid,
-          });
-        }
       }
     }
   } else if (c.messageMode === "AI_REOPEN" && lead.conversation?.id) {

@@ -1,7 +1,6 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { sendText } from "@/http/uazapi/send-text";
-import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
 
@@ -34,7 +33,6 @@ export const bookingNotification = inngest.createFunction(
         agenda: {
           select: {
             name: true,
-            organizationId: true,
             tracking: {
               select: {
                 whatsappInstance: {
@@ -90,18 +88,6 @@ export const bookingNotification = inngest.createFunction(
             ``,
             `Se desejar reagendar, acesse novamente o link de agendamento.`,
           ].join("\n");
-
-    const charge = await chargeStarsByAction(
-      appointment.agenda.organizationId,
-      "message_send",
-      {
-        appSlug: "message_send",
-        description: `Booking ${type} — ${agendaName}`,
-      },
-    );
-    if (!charge.success) {
-      return { skipped: "insufficient_stars", appointmentId };
-    }
 
     await sendText(
       instance.apiKey,

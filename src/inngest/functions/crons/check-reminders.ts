@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import { sendText } from "@/http/uazapi/send-text";
 import { computeNextRemindAt } from "@/lib/reminder-recurrence";
 import { createNotification } from "@/features/admin/lib/notification-service";
-import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { pusherServer } from "@/lib/pusher";
 import {
   CreatedMessageProps,
@@ -31,7 +30,6 @@ export const processReminder = inngest.createFunction(
           lead: { select: { id: true, name: true } },
           tracking: {
             select: {
-              organizationId: true,
               whatsappInstance: {
                 select: { apiKey: true, baseUrl: true, status: true },
               },
@@ -76,7 +74,6 @@ export const processReminder = inngest.createFunction(
           createdBy: { select: { id: true, name: true } },
           tracking: {
             select: {
-              organizationId: true,
               whatsappInstance: {
                 select: { apiKey: true, baseUrl: true, status: true },
               },
@@ -130,19 +127,6 @@ export const processReminder = inngest.createFunction(
 
     if (phone && instance?.status === "CONNECTED") {
       const message = resolvedMessage;
-
-      const orgId = fresh.tracking?.organizationId;
-      if (orgId) {
-        const charge = await step.run("charge-reminder-message", () =>
-          chargeStarsByAction(orgId, "message_send", {
-            appSlug: "message_send",
-            description: `Lembrete — ${fresh.lead?.name ?? "sem lead"}`,
-          }),
-        );
-        if (!charge.success) {
-          return { skipped: "insufficient_stars", reminderId };
-        }
-      }
 
       const sendResponse = await step.run("send-whatsapp", () =>
         sendText(
