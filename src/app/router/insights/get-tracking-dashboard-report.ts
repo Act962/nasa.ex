@@ -725,15 +725,101 @@ export const getTrackingDashboardReport = base
         tagConsolidated[row.tagId].breakdown[tName].leadIds.push(row.lead.id);
       }
 
-      const topTagIds = Object.keys(tagConsolidated)
-        .sort((a, b) => tagConsolidated[b].count - tagConsolidated[a].count)
+      // Resolve nome/cor de TODAS as tags do consolidado (não só top 10) —
+      // necessário pra agregar duplicatas por nome ANTES de pegar top 10.
+      // Se 3 tags "Empresa" existem com IDs diferentes (legacy da migração
+      // tracking_id=NULL que detectou mas não auto-mergeou), cada uma vira
+      // sua própria barra com count parcial. Agregando por nome lowercased,
+      // o gráfico mostra UMA barra "Empresa" com a soma real.
+      const allTagIdsInResult = Object.keys(tagConsolidated);
+      const allTagsInResult =
+        allTagIdsInResult.length > 0
+          ? await prisma.tag.findMany({
+              where: { id: { in: allTagIdsInResult } },
+              select: {
+                id: true,
+                name: true,
+                color: true,
+                archivedAt: true,
+              },
+            })
+          : [];
+      const allTagMeta = new Map(allTagsInResult.map((t) => [t.id, t]));
+
+      // Agrega por nome trim+lowercase. Cada agregado:
+      //  - leadIds: Set (dedupe — lead que tinha Empresa#A e Empresa#B é 1)
+      //  - count: derivado do Set.size pra evitar dupla contagem
+      //  - primaryTagId: a duplicata com mais leads vira a "canônica"
+      //    (id/nome/cor exibidos)
+      type TagAgg = {
+        primaryTagId: string;
+        primaryRawCount: number;
+        name: string;
+        color: string | null;
+        leadIds: Set<string>;
+        breakdown: Map<string, { leadIds: Set<string> }>;
+      };
+      const byNameAgg = new Map<string, TagAgg>();
+      for (const [tagId, val] of Object.entries(tagConsolidated)) {
+        const meta = allTagMeta.get(tagId);
+        if (!meta) continue;
+        const key = meta.name.trim().toLowerCase();
+        let agg = byNameAgg.get(key);
+        if (!agg) {
+          agg = {
+            primaryTagId: tagId,
+            primaryRawCount: val.count,
+            name: meta.name,
+            color: meta.color,
+            leadIds: new Set(),
+            breakdown: new Map(),
+          };
+          byNameAgg.set(key, agg);
+        } else if (val.count > agg.primaryRawCount) {
+          // Substitui canônica pela duplicata com mais leads
+          agg.primaryTagId = tagId;
+          agg.primaryRawCount = val.count;
+          agg.name = meta.name;
+          agg.color = meta.color;
+        }
+        for (const id of val.leadIds) agg.leadIds.add(id);
+        for (const [bName, bVal] of Object.entries(val.breakdown)) {
+          let b = agg.breakdown.get(bName);
+          if (!b) {
+            b = { leadIds: new Set() };
+            agg.breakdown.set(bName, b);
+          }
+          for (const id of bVal.leadIds) b.leadIds.add(id);
+        }
+      }
+
+      const topAgg = Array.from(byNameAgg.values())
+        .sort((a, b) => b.leadIds.size - a.leadIds.size)
         .slice(0, 10);
 
-      const tags = await prisma.tag.findMany({
-        where: { id: { in: topTagIds } },
-        select: { id: true, name: true, color: true },
-      });
-      const tagMap = Object.fromEntries(tags.map((t) => [t.id, t]));
+      // Compat com o resto do código que ainda usa topTagIds + tagMap.
+      const topTagIds = topAgg.map((a) => a.primaryTagId);
+      const tagMap = Object.fromEntries(
+        topAgg.map((a) => [
+          a.primaryTagId,
+          { id: a.primaryTagId, name: a.name, color: a.color },
+        ]),
+      );
+
+      // Substitui tagConsolidated pelo agregado pra o map final usar os
+      // counts/leads dedupados.
+      for (const agg of topAgg) {
+        tagConsolidated[agg.primaryTagId] = {
+          count: agg.leadIds.size,
+          leadIds: Array.from(agg.leadIds),
+          breakdown: Object.fromEntries(
+            Array.from(agg.breakdown.entries()).map(([name, b]) => [
+              name,
+              { count: b.leadIds.size, leadIds: Array.from(b.leadIds) },
+            ]),
+          ),
+        };
+      }
 
       return {
         summary: {

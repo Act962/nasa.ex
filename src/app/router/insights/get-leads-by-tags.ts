@@ -96,18 +96,42 @@ export const getLeadsByTags = base
         leadsByTagId.set(s.tagId, set);
       }
 
-      const tagCounts = tags.map((tag) => {
-        const { archivedAt, ...tagPublic } = tag;
+      // Agrega tags por nome (case-insensitive trim) — colapsa duplicatas
+      // legacy da migração TagsV2 (3 tags "Empresa" com IDs diferentes
+      // viravam 3 barras separadas dividindo o count real).
+      type TagAgg = {
+        primaryTag: (typeof tags)[number];
+        primaryRawCount: number;
+        leadIds: Set<string>;
+      };
+      const byNameAgg = new Map<string, TagAgg>();
+      for (const tag of tags) {
+        const key = tag.name.trim().toLowerCase();
+        const rawCount = countByTagId.get(tag.id) ?? 0;
+        const leadsForTag = leadsByTagId.get(tag.id) ?? new Set();
+        let agg = byNameAgg.get(key);
+        if (!agg) {
+          agg = { primaryTag: tag, primaryRawCount: rawCount, leadIds: new Set() };
+          byNameAgg.set(key, agg);
+        } else if (rawCount > agg.primaryRawCount) {
+          agg.primaryTag = tag;
+          agg.primaryRawCount = rawCount;
+        }
+        for (const id of leadsForTag) agg.leadIds.add(id);
+      }
+
+      const tagCounts = Array.from(byNameAgg.values()).map((agg) => {
+        const { archivedAt, ...tagPublic } = agg.primaryTag;
         return {
           tag: { ...tagPublic, isArchived: archivedAt !== null },
-          count: countByTagId.get(tag.id) ?? 0,
+          count: agg.leadIds.size,
         };
       });
 
-      // Total de leads com PELO MENOS 1 tag no endDate (também via snapshot)
+      // Total de leads com PELO MENOS 1 tag no endDate (já dedupado pelos Sets)
       const leadsWithAnyTag = new Set<string>();
-      for (const set of leadsByTagId.values()) {
-        for (const id of set) leadsWithAnyTag.add(id);
+      for (const agg of byNameAgg.values()) {
+        for (const id of agg.leadIds) leadsWithAnyTag.add(id);
       }
       const totalWithTags = leadsWithAnyTag.size;
 
