@@ -48,7 +48,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format, isToday, isYesterday } from "date-fns";
+import { format, isToday, isYesterday, isValid } from "date-fns";
 import { pusherClient } from "@/lib/pusher";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import pt from "emoji-picker-react/dist/data/emojis-pt.json";
@@ -181,7 +181,7 @@ export function InChatWindow({
       }
       return Array.from(byId.values()).sort(
         (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          safeTime(a.createdAt) - safeTime(b.createdAt),
       );
     });
   }, [fetchedMessages]);
@@ -215,16 +215,17 @@ export function InChatWindow({
         byId.set(incoming.id, incoming);
         return Array.from(byId.values()).sort(
           (a, b) =>
-            new Date(a.createdAt).getTime() -
-            new Date(b.createdAt).getTime(),
+            safeTime(a.createdAt) - safeTime(b.createdAt),
         );
       });
     };
+    const isValidPayload = (p: any): p is Message =>
+      !!p?.id && safeDate(p?.createdAt) !== null;
     const handleCreated = (payload: any) => {
-      if (payload?.id) upsert(payload as Message);
+      if (isValidPayload(payload)) upsert(payload);
     };
     const handleNew = (payload: any) => {
-      if (payload?.id) upsert(payload as Message);
+      if (isValidPayload(payload)) upsert(payload);
     };
     const handleUpdated = (payload: any) => {
       if (!payload?.messageId) return;
@@ -514,8 +515,7 @@ export function InChatWindow({
         byId.set(message.id, message);
         return Array.from(byId.values()).sort(
           (a, b) =>
-            new Date(a.createdAt).getTime() -
-            new Date(b.createdAt).getTime(),
+            safeTime(a.createdAt) - safeTime(b.createdAt),
         );
       });
     } catch {
@@ -739,7 +739,8 @@ export function InChatWindow({
           // como o tracking-chat — `sticky top-2 z-10` no wrapper do grupo.
           const groups: { date: string; messages: typeof dedup }[] = [];
           for (const m of dedup) {
-            const key = new Date(m.createdAt).toDateString();
+            const d = safeDate(m.createdAt);
+            const key = d ? d.toDateString() : "—";
             const last = groups[groups.length - 1];
             if (last && last.date === key) last.messages.push(m);
             else groups.push({ date: key, messages: [m] });
@@ -1212,7 +1213,7 @@ function ChatBubble({
               : "text-zinc-500 dark:text-zinc-400",
           )}
         >
-          {format(new Date(msg.createdAt), "p")}
+          {formatMessageTime(msg.createdAt)}
           {isOwn && !isDeleted && (
             <>
               {msg.status === "SEEN" ? (
@@ -1571,9 +1572,31 @@ function RecordingBar({
   );
 }
 
-function formatDateHeader(date: string | Date) {
-  const d = new Date(date);
+/**
+ * Parse seguro de createdAt — payload do Pusher (vindo do tracking-chat,
+ * webhook, etc.) pode chegar sem o campo ou em formato inesperado. Em vez
+ * de explodir a árvore inteira com `Invalid time value`, retornamos `null`
+ * e quem chama decide o fallback.
+ */
+function safeDate(value: string | Date | null | undefined): Date | null {
+  if (value == null) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return isValid(d) ? d : null;
+}
+
+function safeTime(value: string | Date | null | undefined): number {
+  return safeDate(value)?.getTime() ?? 0;
+}
+
+function formatDateHeader(date: string | Date | null | undefined) {
+  const d = safeDate(date);
+  if (!d) return "";
   if (isToday(d)) return "Hoje";
   if (isYesterday(d)) return "Ontem";
   return format(d, "dd/MM/yyyy");
+}
+
+function formatMessageTime(date: string | Date | null | undefined) {
+  const d = safeDate(date);
+  return d ? format(d, "p") : "";
 }
