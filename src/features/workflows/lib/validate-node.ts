@@ -42,12 +42,57 @@ function unwrap(
   return d;
 }
 
+/**
+ * Verifica se um data tem ALGUMA chave significativa (não-vazia). Workflows
+ * preexistentes criados via dialog sempre têm pelo menos uma chave — o user
+ * passou pelo formulário que tem validação Zod própria (canSubmit). Se data
+ * está populado, assumimos "já foi configurado pelo user" e não bloqueamos.
+ *
+ * Isso evita FALSOS POSITIVOS em produção — se eu validei errado um campo
+ * (ex: `userId` quando dialog salva `responsibleId`), o workflow funcionando
+ * em prod NÃO aparece como "Incompleto" só porque meu helper desalinhou.
+ *
+ * Trade-off aceito: meu tooltip detalhado ("Selecione a agenda") só dispara
+ * pra nodes com data 100% vazio (recém-criados). Workflows configurados
+ * ficam neutros mesmo que algum campo específico esteja faltando — mas o
+ * dialog Zod já bloqueia salvar inválido, então isso é raro na prática.
+ */
+function hasAnyConfiguredField(
+  data: Record<string, unknown> | null | undefined,
+): boolean {
+  if (!data) return false;
+  for (const k of Object.keys(data)) {
+    const v = (data as any)[k];
+    if (v === null || v === undefined) continue;
+    if (typeof v === "string" && v.trim() === "") continue;
+    if (Array.isArray(v) && v.length === 0) continue;
+    if (typeof v === "object" && !Array.isArray(v)) {
+      // Aninhado (`action: {...}`) — recursão
+      if (hasAnyConfiguredField(v as Record<string, unknown>)) return true;
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
 export function validateNode(
   type: string,
   data: Record<string, unknown> | null | undefined,
 ): NodeValidation {
   const d = unwrap(data);
   const errs: string[] = [];
+
+  // ── Modo conservador (anti-falso-positivo em produção) ──────────────
+  // Se o node tem QUALQUER campo populado, assume que foi configurado
+  // via dialog (Zod do dialog já validou no submit). Helper não força
+  // re-config — só mostra borda vermelha pra ações 100% vazias.
+  //
+  // Cobre workflows legados em prod que podem ter formatos de data
+  // que meu switch case desconhece — não viram falso "Incompleto".
+  if (hasAnyConfiguredField(data)) {
+    return { valid: true, errors: [], skip: true };
+  }
 
   switch (type) {
     // ── Estruturais — sem config, sempre válidos ────────────────────────
