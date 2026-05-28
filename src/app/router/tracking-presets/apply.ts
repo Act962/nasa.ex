@@ -396,8 +396,9 @@ export const applyTrackingPreset = base
           const nodeIdMap = new Map<string, string>();
           for (const node of wf.nodes) {
             const remappedData = remapNodeData(node.data ?? {}, {
-              tagSlugToId,
-              statusSlugToId,
+              nodeType: node.type,
+              trackingId,
+              maps: { tagSlugToId, statusSlugToId },
             });
             const createdNode = await tx.node.create({
               data: {
