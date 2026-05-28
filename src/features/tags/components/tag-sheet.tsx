@@ -750,16 +750,25 @@ export function TagItem(tag: TagItemProps) {
             </Button>
           )}
 
-          {/* Select de grupo — permite MOVER a tag pra outro grupo
-              (ou tirar dela com "Sem categoria"). Salva junto com o
-              botão de confirmar edição (CheckIcon acima). */}
+          {/* Select de grupo — MOVE a tag pra outro grupo (ou tira dela com
+              "Sem categoria"). Salva IMEDIATAMENTE ao selecionar (auto-save)
+              — antes dependia do botão ✓ que o user esquecia de clicar,
+              resultando em "criei grupo mas não salvou nada". */}
           <div className="flex items-center gap-2">
             <FolderIcon className="size-3.5 text-muted-foreground shrink-0" />
             <Select
               value={editGroupId ?? "__none__"}
-              onValueChange={(v) =>
-                setEditGroupId(v === "__none__" ? null : v)
-              }
+              onValueChange={(v) => {
+                const newGroupId = v === "__none__" ? null : v;
+                setEditGroupId(newGroupId);
+                // Persiste IMEDIATO — não espera clicar ✓
+                updateTag.mutate({
+                  tagId: tag.id,
+                  name: tag.name,
+                  color: tag.color,
+                  tagGroupId: newGroupId,
+                });
+              }}
             >
               <SelectTrigger className="h-8 text-xs flex-1">
                 <SelectValue placeholder="Sem categoria" />
