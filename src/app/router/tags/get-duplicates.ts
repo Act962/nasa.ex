@@ -40,12 +40,15 @@ export const getDuplicateTags = base
         created_at: Date;
       }>
     >`
-      WITH dup_names AS (
-        SELECT name
+      -- Detecção case-insensitive + trim: "Empresa", " empresa ", "EMPRESA"
+      -- são consideradas duplicatas. Casa com a agregação do Insights que
+      -- usa `name.trim().toLowerCase()` pra colapsar barras do gráfico.
+      WITH dup_keys AS (
+        SELECT LOWER(TRIM(name)) AS name_key
         FROM tags
         WHERE organization_id = ${context.org.id}
           AND archived_at IS NULL
-        GROUP BY name
+        GROUP BY LOWER(TRIM(name))
         HAVING COUNT(*) > 1
       )
       SELECT
@@ -74,29 +77,39 @@ export const getDuplicateTags = base
       LEFT JOIN tag_groups tg ON tg.id = t.tag_group_id
       WHERE t.organization_id = ${context.org.id}
         AND t.archived_at IS NULL
-        AND t.name IN (SELECT name FROM dup_names)
-      ORDER BY t.name ASC, t.created_at ASC
+        AND LOWER(TRIM(t.name)) IN (SELECT name_key FROM dup_keys)
+      ORDER BY LOWER(TRIM(t.name)) ASC, t.created_at ASC
     `;
 
-    // Agrupa por nome — cada entrada do payload é um conjunto de duplicatas
+    // Agrupa por nome (chave normalizada lowercased trim) — cada entrada do
+    // payload é um conjunto de duplicatas. O label exibido na UI é o nome
+    // ORIGINAL da primeira tag no grupo (mantém capitalização que o user usou).
     const groups = new Map<
       string,
-      Array<{
-        id: string;
-        color: string | null;
-        trackingId: string | null;
-        trackingName: string | null;
-        tagGroupId: string | null;
-        tagGroupName: string | null;
-        leadCount: number;
-        automationCount: number;
-        createdAt: Date;
-      }>
+      {
+        displayName: string;
+        tags: Array<{
+          id: string;
+          color: string | null;
+          trackingId: string | null;
+          trackingName: string | null;
+          tagGroupId: string | null;
+          tagGroupName: string | null;
+          leadCount: number;
+          automationCount: number;
+          createdAt: Date;
+        }>;
+      }
     >();
 
     for (const r of rows) {
-      const arr = groups.get(r.name) ?? [];
-      arr.push({
+      const key = r.name.trim().toLowerCase();
+      let entry = groups.get(key);
+      if (!entry) {
+        entry = { displayName: r.name, tags: [] };
+        groups.set(key, entry);
+      }
+      entry.tags.push({
         id: r.tag_id,
         color: r.color,
         trackingId: r.tracking_id,
@@ -107,13 +120,12 @@ export const getDuplicateTags = base
         automationCount: Number(r.automation_count),
         createdAt: r.created_at,
       });
-      groups.set(r.name, arr);
     }
 
     return {
-      duplicates: Array.from(groups.entries()).map(([name, tags]) => ({
-        name,
-        tags,
+      duplicates: Array.from(groups.values()).map((entry) => ({
+        name: entry.displayName,
+        tags: entry.tags,
       })),
       totalGroups: groups.size,
     };
