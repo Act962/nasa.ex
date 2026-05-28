@@ -184,39 +184,58 @@ export async function POST(req: NextRequest) {
 
   try {
     const stripe = getStripe();
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      customer_email: normalizedEmail,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "brl",
-            unit_amount: amountBrlCents,
-            product_data: {
-              name: `${course.title} — ${plan.name}`,
-              description: `${plan.priceStars} ★ • ${course.creatorOrg.name}`,
-              images: course.coverUrl ? [course.coverUrl] : undefined,
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        customer_email: normalizedEmail,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "brl",
+              unit_amount: amountBrlCents,
+              product_data: {
+                name: `${course.title} — ${plan.name}`,
+                description: `${plan.priceStars} ★ • ${course.creatorOrg.name}`,
+                images: course.coverUrl ? [course.coverUrl] : undefined,
+              },
             },
           },
+        ],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        payment_method_types: ["card"],
+        locale: "pt-BR",
+        allow_promotion_codes: true,
+        metadata: {
+          kind: "course_purchase",
+          flow: "public",
+          // Mantido por compatibilidade com webhooks antigos que ainda
+          // matcham por "course_public_purchase".
+          kindLegacy: "course_public_purchase",
+          pendingId: pending.id,
+          courseId: course.id,
+          planId: plan.id,
         },
-      ],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      payment_method_types: ["card"],
-      locale: "pt-BR",
-      allow_promotion_codes: true,
-      metadata: {
-        kind: "course_purchase",
-        flow: "public",
-        // Mantido por compatibilidade com webhooks antigos que ainda
-        // matcham por "course_public_purchase".
-        kindLegacy: "course_public_purchase",
-        pendingId: pending.id,
-        courseId: course.id,
-        planId: plan.id,
+        // Propaga metadata pro PaymentIntent — necessário para os
+        // handlers `payment_intent.succeeded` (fallback de session)
+        // e `charge.refunded` reconhecerem que é uma compra de curso
+        // sem precisar dar fetch na session inteira.
+        payment_intent_data: {
+          metadata: {
+            kind: "course_purchase",
+            flow: "public",
+            pendingId: pending.id,
+            courseId: course.id,
+            planId: plan.id,
+          },
+        },
       },
-    });
+      // Stripe garante que duas chamadas com a mesma idempotencyKey
+      // retornam a MESMA Session — protege contra retries de rede
+      // duplicarem cobranças.
+      { idempotencyKey: `course-checkout:public:${pending.id}` },
+    );
 
     if (!session.url) {
       throw new Error("Stripe não retornou URL de checkout.");
