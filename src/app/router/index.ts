@@ -2,6 +2,7 @@ import { leadRoutes } from "./leads";
 import { statusRoutes } from "./status";
 import { trackingRoutes } from "./trackings";
 import { tagsRouter } from "./tags";
+import { tagGroupsRouter } from "./tag-groups";
 import { reasonsRouter } from "./reasons";
 import { orgRoutes } from "./org";
 import { workflowRoutes } from "./workflow";
@@ -69,6 +70,7 @@ export const router = {
   column: columnRoutes,
   leads: leadRoutes,
   tags: tagsRouter,
+  tagGroups: tagGroupsRouter,
   reasons: reasonsRouter,
   orgs: orgRoutes,
   workflow: workflowRoutes,

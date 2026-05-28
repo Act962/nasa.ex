@@ -19,7 +19,11 @@ export const createTag = base
       color: z.string().nullable().default("#1447e6"),
       description: z.string().trim().nullable().default(null),
       icon: z.string().trim().nullable().default(null),
-      trackingId: z.string(),
+      /** Quando null/omitted, tag é ORG-WIDE (visível em todos os trackings).
+       *  Quando setado, tag fica restrita a esse tracking (legacy mode). */
+      trackingId: z.string().nullable().optional(),
+      /** Grupo opcional (TagGroup.id). Null = "Sem categoria". */
+      tagGroupId: z.string().nullable().optional(),
     }),
   )
   .output(
@@ -32,13 +36,15 @@ export const createTag = base
   )
   .handler(async ({ input, context, errors }) => {
     try {
-      const tagExists = await prisma.tag.findUnique({
+      const trackingId = input.trackingId ?? null;
+
+      // Unique constraint considera trackingId NULL como valor distinto.
+      // Pra evitar duplicata org-wide, busca explícita pelo composite key.
+      const tagExists = await prisma.tag.findFirst({
         where: {
-          name_organizationId_trackingId: {
-            name: input.name,
-            organizationId: context.org.id,
-            trackingId: input.trackingId,
-          },
+          name: input.name,
+          organizationId: context.org.id,
+          trackingId,
         },
       });
 
@@ -59,7 +65,8 @@ export const createTag = base
           description: input.description,
           icon: input.icon,
           organizationId: context.org.id,
-          trackingId: input.trackingId,
+          trackingId,
+          tagGroupId: input.tagGroupId ?? null,
         },
       });
 

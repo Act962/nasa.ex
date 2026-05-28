@@ -7,8 +7,9 @@ import {
   useToggleTag,
 } from "@/features/tracking-chat/hooks/use-leads-conversation";
 import { LeadFull } from "@/types/lead";
+import { cn } from "@/lib/utils";
 import { getContrastColor } from "@/utils/get-contrast-color";
-import { PlusIcon, XIcon } from "lucide-react";
+import { ArchiveIcon, PlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { InputEditTag } from "../input-edit-tag";
 
@@ -44,20 +45,32 @@ export function FieldTags({
           />
         ) : (
           <>
-            {tags.map((tag) => (
-              <Badge
-                className="text-xs h-6 group cursor-pointer transition-all hover:pr-1"
-                style={{
-                  backgroundColor: tag.color || "",
-                  color: getContrastColor(tag.color || ""),
-                }}
-                key={tag.id}
-                onClick={() => toggleTag(tag.id)}
-              >
-                {tag.name}
-                <XIcon className="ml-1 size-3 hidden group-hover:block transition-all text-current opacity-70" />
-              </Badge>
-            ))}
+            {tags.map((tag) => {
+              // Tag arquivada: visual diferenciado pra deixar claro que
+              // o vínculo histórico existe mas a tag não está mais ativa.
+              // Click pode desvincular (toggleTag) — preserva histórico
+              // do lado da Jornada via metadata.
+              const isArchived = (tag as { isArchived?: boolean }).isArchived;
+              return (
+                <Badge
+                  className={cn(
+                    "text-xs h-6 group cursor-pointer transition-all hover:pr-1",
+                    isArchived && "opacity-50 line-through",
+                  )}
+                  style={{
+                    backgroundColor: tag.color || "",
+                    color: getContrastColor(tag.color || ""),
+                  }}
+                  key={tag.id}
+                  onClick={() => toggleTag(tag.id)}
+                  title={isArchived ? "Tag arquivada (histórico)" : tag.name}
+                >
+                  {isArchived && <ArchiveIcon className="size-2.5 mr-0.5" />}
+                  {tag.name}
+                  <XIcon className="ml-1 size-3 hidden group-hover:block transition-all text-current opacity-70" />
+                </Badge>
+              );
+            })}
             <Button
               size="sm"
               variant="ghost"

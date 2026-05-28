@@ -36,6 +36,7 @@ model User {
   responsibleOnLeads                 Lead[]                       @relation("LeadResponsible")
   worflows                           Workflow[]
   workflowFolders                    WorkflowFolder[]
+  archivedTags                       Tag[]                        @relation("TagArchiver")
   chatPreferences                    UserChatPreferences?
   forms                              Form[]
   leadFiles                          LeadFile[]
@@ -250,6 +251,7 @@ model Organization {
   inviteLinks            OrganizationInviteLink[]
   trackings              Tracking[]
   tags                   Tag[]
+  tagGroups              TagGroup[]
   whatsappInstances      WhatsAppInstance[]
   actions                Action[]
   insightShares          InsightShares[]
@@ -957,9 +959,22 @@ model Tag {
 
   whatsappId String? @map("whatsapp_id")
 
+  /// Soft delete — tag arquivada não aparece em pickers/criação de eventos
+  /// novos, mas continua resolvível em queries de histórico (Jornada, Insights,
+  /// /contatos, Detalhes do lead). `purge` é o único caminho pra hard-delete.
+  archivedAt   DateTime? @map("archived_at")
+  archivedById String?   @map("archived_by_id")
+
+  /// Grupo opcional pra agrupar visualmente (ex: "Estética" / "Mecânica").
+  /// Null = "Sem categoria". Tags mantêm cor própria mesmo quando agrupadas;
+  /// o grupo só adiciona contexto/badge visual ao redor.
+  tagGroupId String? @map("tag_group_id")
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   tracking     Tracking?    @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   agenda       Agenda?      @relation(fields: [agendaId], references: [id], onDelete: SetNull)
+  archivedBy   User?        @relation("TagArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  tagGroup     TagGroup?    @relation(fields: [tagGroupId], references: [id], onDelete: SetNull)
   leadTags     LeadTag[]
 
   // 👈 Importante: nome único por contexto
@@ -968,7 +983,31 @@ model Tag {
   @@index([organizationId])
   @@index([trackingId])
   @@index([agendaId])
+  @@index([organizationId, archivedAt])
+  @@index([tagGroupId])
   @@map("tags")
+}
+
+/// Agrupamento visual de tags por organização (ex: "Estética" cor azul ↔
+/// "Mecânica" cor laranja em oficinas). Cor do grupo é informativa — tags
+/// dentro mantêm sua própria cor. Operações em grupo: criar, renomear,
+/// reordenar, deletar (com SET NULL nas tags filhas → "Sem categoria").
+model TagGroup {
+  id             String   @id @default(cuid())
+  name           String
+  color          String   @default("#6366f1")
+  icon           String?
+  organizationId String   @map("organization_id")
+  order          Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tags         Tag[]
+
+  @@unique([name, organizationId])
+  @@index([organizationId, order])
+  @@map("tag_groups")
 }
 
 model LeadTag {

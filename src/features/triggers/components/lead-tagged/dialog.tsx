@@ -91,7 +91,13 @@ export const LeadTaggedTriggerDialog = ({
     name: "conditions",
   });
 
-  const { tags, isLoadingTags } = useTags({ trackingId: "ALL" });
+  // includeArchived: mostra tags arquivadas pra preservar referências em
+  // gatilhos pré-existentes. Trigger nunca vai disparar pra tag arquivada
+  // (porque ninguém anexa), mas o user vê e pode trocar conscientemente.
+  const { tags, isLoadingTags } = useTags({
+    trackingId: "ALL",
+    includeArchived: true,
+  });
 
   const handleAddCondition = () => {
     if (fields.length >= 5) {

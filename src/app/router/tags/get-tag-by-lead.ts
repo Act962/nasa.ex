@@ -30,6 +30,11 @@ export const getTagByLead = base
                 name: true,
                 color: true,
                 slug: true,
+                // Tags V2 — expõe `archivedAt` pro front renderizar visual
+                // diferenciado (translúcida + ícone) quando arquivada.
+                // Histórico fica preservado: junction LeadTag não some
+                // ao arquivar — só some via `tag.purge`.
+                archivedAt: true,
               },
             },
           },
@@ -43,7 +48,10 @@ export const getTagByLead = base
       });
     }
 
-    const tags = lead.leadTags.map((leadTag) => leadTag.tag);
+    const tags = lead.leadTags.map((leadTag) => ({
+      ...leadTag.tag,
+      isArchived: leadTag.tag.archivedAt !== null,
+    }));
 
     return {
       leadId: lead.id,

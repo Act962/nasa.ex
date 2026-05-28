@@ -9,7 +9,7 @@ const globalForPrisma = global as unknown as {
 // Schema version hash — bump this string whenever `prisma generate` runs to
 // force a new client instance and avoid stale model issues in hot-reload.
 // We derive it from a known model that may or may not exist in the old client.
-const SCHEMA_VERSION = "v28-chat-bg-opacity";
+const SCHEMA_VERSION = "v29-tags-v2";
 
 const createClient = () => {
   const adapter = new PrismaPg({

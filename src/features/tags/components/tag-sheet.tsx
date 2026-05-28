@@ -39,6 +39,10 @@ import { useCreateTag } from "@/features/tags/hooks/use-tag";
 import {
   useDeleteTag,
   useTags,
+  useArchivedTags,
+  useRestoreTag,
+  usePurgeTag,
+  useReferencedWorkflows,
   useUpdateTag,
 } from "@/features/tags/hooks/use-tags";
 import { tagFormSchema, type TagFormSchema } from "@/features/tags/schema";
@@ -47,12 +51,32 @@ import { cn } from "@/lib/utils";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { DEFAULT_UI_COLORS } from "@/utils/whatsapp-utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckIcon, PlusIcon, TagIcon, Trash2Icon } from "lucide-react";
+import {
+  ArchiveIcon,
+  ArchiveRestoreIcon,
+  CheckIcon,
+  FolderIcon,
+  PlusIcon,
+  TagIcon,
+  Trash2Icon,
+  ZapIcon,
+} from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { useEffect, useRef, useState } from "react";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { useQueryListTrackings } from "@/features/insights/hooks/use-dashboard";
 import { toast } from "sonner";
+import { useTagGroups } from "@/features/tags/hooks/use-tag-groups";
+import { TagGroupManager } from "@/features/tags/components/tag-group-manager";
 
 interface Props {
   open: boolean;
@@ -64,6 +88,11 @@ export function TagSheet({ open, onOpenChange, trackingId }: Props) {
   const [trackingSelected, setTrackingSelected] = useState<string | undefined>(
     trackingId,
   );
+  // Toggle "Limitar a este tracking" — default OFF (tag org-wide visível
+  // em todos os trackings). Quando ON, tag fica scoped no trackingSelected.
+  const [scopeToTracking, setScopeToTracking] = useState(false);
+  // Tab atual: "active" (default) ou "archived"
+  const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
   const inputRef = useRef<HTMLInputElement>(null);
   const form = useForm<TagFormSchema>({
     resolver: zodResolver(tagFormSchema),
@@ -75,7 +104,49 @@ export function TagSheet({ open, onOpenChange, trackingId }: Props) {
   });
   const [showDescription, setShowDescription] = useState(false);
 
+  // Tags ativas (default — picker/listagem padrão) e arquivadas (aba sep)
   const { tags, isLoadingTags } = useTags({ trackingId: "ALL" });
+  const { tags: archivedTags, isLoadingTags: isLoadingArchived } =
+    useArchivedTags({ trackingId: "ALL" });
+
+  // Grupos de tags pra render agrupada + manager dialog
+  const { data: groupsData } = useTagGroups();
+  const [groupManagerOpen, setGroupManagerOpen] = useState(false);
+  const [selectedGroupForCreate, setSelectedGroupForCreate] = useState<
+    string | null
+  >(null);
+
+  // Agrupa tags ativas por grupo (lista agrupada na aba Ativas).
+  // Forma: [{ group: TagGroup | null, tags: Tag[] }] — null = "Sem categoria"
+  const groupedTags = useMemo(() => {
+    const groups = groupsData?.groups ?? [];
+    const groupMap = new Map<
+      string | null,
+      { id: string | null; name: string; color: string; tags: typeof tags }
+    >();
+    // Init: grupo "Sem categoria" por último
+    for (const g of groups) {
+      groupMap.set(g.id, {
+        id: g.id,
+        name: g.name,
+        color: g.color,
+        tags: [],
+      });
+    }
+    groupMap.set(null, {
+      id: null,
+      name: "Sem categoria",
+      color: "#6b7280",
+      tags: [],
+    });
+    for (const tag of tags) {
+      const key = tag.tagGroupId ?? null;
+      const bucket = groupMap.get(key) ?? groupMap.get(null)!;
+      bucket.tags.push(tag);
+    }
+    // Filtra grupos vazios EXCETO se for "Sem categoria" e há tags lá
+    return Array.from(groupMap.values()).filter((b) => b.tags.length > 0);
+  }, [tags, groupsData]);
 
   const { trackings } = useQueryListTrackings();
   const createTag = useCreateTag();
@@ -100,17 +171,23 @@ export function TagSheet({ open, onOpenChange, trackingId }: Props) {
   }, [trackingId]);
 
   const handleCreateTag = (data: TagFormSchema) => {
-    if (!trackingSelected) {
-      toast.error("Selecione um tracking");
+    // Validação: precisa de tracking só quando scopeToTracking=true.
+    // Quando OFF (default), tag é org-wide e trackingId=null.
+    if (scopeToTracking && !trackingSelected) {
+      toast.error("Selecione um tracking pra limitar a tag");
       return;
     }
     const trimmedDescription = data.description?.trim() ?? "";
     createTag.mutate(
       {
         name: data.name,
-        trackingId: trackingSelected,
+        // null = org-wide (visível em todos os trackings da org).
+        // Com toggle ON = restrita ao tracking selecionado (legacy mode).
+        trackingId: scopeToTracking ? trackingSelected ?? null : null,
         color: data.color,
         description: trimmedDescription.length > 0 ? trimmedDescription : null,
+        // Grupo opcional escolhido no Select acima do form.
+        tagGroupId: selectedGroupForCreate,
       },
       {
         onSuccess: () => {
@@ -136,9 +213,25 @@ export function TagSheet({ open, onOpenChange, trackingId }: Props) {
           </SheetDescription>
         </SheetHeader>
         <div className="space-y-4 ">
-          {!trackingId && (
-            <div className="px-4 space-y-2">
-              <Label>Selecionar Tracking</Label>
+          {/* Toggle de escopo: Org-wide (default) ↔ Tracking-only.
+              Ao ativar, mostra seletor de tracking. */}
+          <div className="px-4 space-y-2 border rounded-md p-3 bg-muted/30">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="scope-toggle" className="cursor-pointer">
+                Limitar a este tracking
+              </Label>
+              <Switch
+                id="scope-toggle"
+                checked={scopeToTracking}
+                onCheckedChange={setScopeToTracking}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {scopeToTracking
+                ? "Tag vai existir só no tracking selecionado."
+                : "Tag fica disponível em todos os trackings da organização (recomendado)."}
+            </p>
+            {scopeToTracking && (
               <Select
                 disabled={isLoadingTags}
                 value={trackingSelected}
@@ -155,8 +248,8 @@ export function TagSheet({ open, onOpenChange, trackingId }: Props) {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          )}
+            )}
+          </div>
 
           <form
             onSubmit={form.handleSubmit(handleCreateTag)}
@@ -234,38 +327,176 @@ export function TagSheet({ open, onOpenChange, trackingId }: Props) {
                 Adicionar descrição
               </Button>
             )}
+
+            {/* Select de grupo + botão "Gerenciar grupos" inline. Default
+                "Sem categoria"; user pode pular se não quiser categorizar. */}
+            <div className="flex items-center gap-2">
+              <Select
+                value={selectedGroupForCreate ?? "__none__"}
+                onValueChange={(v) =>
+                  setSelectedGroupForCreate(v === "__none__" ? null : v)
+                }
+              >
+                <SelectTrigger className="flex-1 h-9">
+                  <SelectValue placeholder="Sem categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sem categoria</SelectItem>
+                  {(groupsData?.groups ?? []).map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      <span className="inline-flex items-center gap-2">
+                        <span
+                          className="size-2 rounded-full"
+                          style={{ background: g.color }}
+                        />
+                        {g.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setGroupManagerOpen(true)}
+                title="Gerenciar grupos"
+              >
+                <FolderIcon className="size-3.5" />
+              </Button>
+            </div>
           </form>
 
           <Separator className="my-4" />
 
           <div className="px-4 h-full">
-            <h3 className="font-medium">Tags cadastradas</h3>
-            <div className="flex items-center flex-wrap gap-2 mt-2 overflow-y-auto max-h-[calc(100vh-13rem)]">
-              {isLoadingTags &&
-                Array.from({ length: 5 }).map((_, index) => (
-                  <Skeleton key={index} className="w-12 h-4" />
-                ))}
-              {!isLoadingTags &&
-                tags.length > 0 &&
-                tags.map((tag) => <TagItem key={tag.id} {...tag} />)}
+            {/* Tabs Ativas / Arquivadas. Arquivadas mostra contador no badge. */}
+            <div className="flex items-center gap-2 border-b mb-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab("active")}
+                className={cn(
+                  "px-2 py-1.5 text-sm font-medium border-b-2 transition-colors",
+                  activeTab === "active"
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Ativas
+                {tags.length > 0 && (
+                  <span className="ml-1.5 text-[10px] text-muted-foreground">
+                    {tags.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("archived")}
+                className={cn(
+                  "px-2 py-1.5 text-sm font-medium border-b-2 transition-colors inline-flex items-center gap-1.5",
+                  activeTab === "archived"
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <ArchiveIcon className="size-3.5" />
+                Arquivadas
+                {archivedTags.length > 0 && (
+                  <span className="text-[10px] text-amber-600">
+                    {archivedTags.length}
+                  </span>
+                )}
+              </button>
+            </div>
 
-              {!isLoadingTags && tags.length === 0 && (
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <TagIcon />
-                    </EmptyMedia>
-                    <EmptyTitle>Nenhuma tag cadastrada</EmptyTitle>
-                    <EmptyDescription>
-                      Adicione tags para categorizar seus leads.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
+            <div className="flex items-center flex-wrap gap-2 mt-2 overflow-y-auto max-h-[calc(100vh-15rem)]">
+              {activeTab === "active" && (
+                <>
+                  {isLoadingTags &&
+                    Array.from({ length: 5 }).map((_, index) => (
+                      <Skeleton key={index} className="w-12 h-4" />
+                    ))}
+                  {!isLoadingTags && tags.length > 0 && (
+                    <div className="w-full space-y-3">
+                      {/* Renderiza tags AGRUPADAS por TagGroup. Cada grupo
+                          tem header com nome + cor; tags ficam embaixo em
+                          flex-wrap. Grupos vazios são omitidos. */}
+                      {groupedTags.map((group) => (
+                        <div key={group.id ?? "uncat"} className="space-y-1.5">
+                          <div className="flex items-center gap-2 pb-1 border-b">
+                            <span
+                              className="size-2 rounded-full"
+                              style={{ background: group.color }}
+                            />
+                            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {group.name}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground/70">
+                              {group.tags.length}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {group.tags.map((tag) => (
+                              <TagItem key={tag.id} {...tag} />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {!isLoadingTags && tags.length === 0 && (
+                    <Empty>
+                      <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                          <TagIcon />
+                        </EmptyMedia>
+                        <EmptyTitle>Nenhuma tag cadastrada</EmptyTitle>
+                        <EmptyDescription>
+                          Adicione tags para categorizar seus leads.
+                        </EmptyDescription>
+                      </EmptyHeader>
+                    </Empty>
+                  )}
+                </>
+              )}
+
+              {activeTab === "archived" && (
+                <>
+                  {isLoadingArchived &&
+                    Array.from({ length: 3 }).map((_, index) => (
+                      <Skeleton key={index} className="w-12 h-4" />
+                    ))}
+                  {!isLoadingArchived &&
+                    archivedTags.length > 0 &&
+                    archivedTags.map((tag) => (
+                      <ArchivedTagItem key={tag.id} {...tag} />
+                    ))}
+                  {!isLoadingArchived && archivedTags.length === 0 && (
+                    <Empty>
+                      <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                          <ArchiveIcon />
+                        </EmptyMedia>
+                        <EmptyTitle>Nenhuma tag arquivada</EmptyTitle>
+                        <EmptyDescription>
+                          Tags arquivadas preservam o histórico mas não
+                          aparecem nos pickers de criação.
+                        </EmptyDescription>
+                      </EmptyHeader>
+                    </Empty>
+                  )}
+                </>
               )}
             </div>
           </div>
         </div>
       </SheetContent>
+
+      <TagGroupManager
+        open={groupManagerOpen}
+        onOpenChange={setGroupManagerOpen}
+      />
     </Sheet>
   );
 }
@@ -279,10 +510,20 @@ interface TagItemProps {
   description: string | null;
   icon: string | null;
   whatsappId: string | null;
+  /** Vem do procedure `tags.listTags` — count de workflows ativos que
+   *  referenciam essa tag em algum node TAG/LEAD_TAGGED. Mostra badge
+   *  amber e dispara confirm dialog ao arquivar/editar quando > 0. */
+  automationCount?: number;
+  /** Grupo da tag (null = "Sem categoria"). Vem do procedure list. */
+  tagGroupId?: string | null;
+  /** True quando archivedAt != null (computado server-side). */
+  isArchived?: boolean;
 }
 
 export function TagItem(tag: TagItemProps) {
   const [open, setOpen] = useState(false);
+  // Confirm dialog antes de arquivar quando automationCount > 0
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const form = useForm<TagFormSchema>({
     resolver: zodResolver(tagFormSchema),
     defaultValues: {
@@ -298,14 +539,31 @@ export function TagItem(tag: TagItemProps) {
   const deleteTag = useDeleteTag();
   const tagName = form.watch("name");
   const tagColor = form.watch("color");
+  const automationCount = tag.automationCount ?? 0;
 
-  const handleDeleteTag = () => {
+  // Carrega workflows que referenciam essa tag — só quando dialog
+  // de confirmação está aberto (lazy fetch).
+  const { data: workflowsData, isLoading: loadingWorkflows } =
+    useReferencedWorkflows(confirmArchive ? tag.id : null);
+
+  const handleArchive = () => {
+    if (automationCount > 0) {
+      // Tag está em uso — abre dialog de confirmação que lista workflows
+      setConfirmArchive(true);
+      return;
+    }
+    // Caminho rápido sem confirmação
+    archiveNow();
+  };
+
+  const archiveNow = () => {
     deleteTag.mutate(
+      { tagId: tag.id },
       {
-        tagId: tag.id,
-      },
-      {
-        onSuccess: () => setOpen(false),
+        onSuccess: () => {
+          setOpen(false);
+          setConfirmArchive(false);
+        },
       },
     );
   };
@@ -337,9 +595,21 @@ export function TagItem(tag: TagItemProps) {
             backgroundColor: tag.color,
             color: getContrastColor(tag.color),
           }}
-          className="cursor-pointer focus-visible:ring-0 outline-none"
+          className="cursor-pointer focus-visible:ring-0 outline-none gap-1"
         >
           {tag.name}
+          {/* Badge circular com contagem de workflows que usam essa tag.
+              Alerta visual antes do user editar/arquivar — evita romper
+              automações inadvertidamente. */}
+          {automationCount > 0 && (
+            <span
+              className="inline-flex items-center justify-center size-4 rounded-full bg-amber-500 text-white text-[9px] font-bold leading-none gap-0.5"
+              title={`${automationCount} automação${automationCount > 1 ? "ões" : ""} usa(m) essa tag`}
+            >
+              <ZapIcon className="size-2" />
+              {automationCount}
+            </span>
+          )}
         </Badge>
       </PopoverTrigger>
       <PopoverContent align="center" side="top" className="p-0">
@@ -417,16 +687,221 @@ export function TagItem(tag: TagItemProps) {
           )}
         </form>
         <Separator />
-        <div className="p-2 flex items-center justify-end">
+        <div className="p-2 flex items-center justify-between gap-2">
+          {automationCount > 0 && (
+            <span className="text-[10px] text-amber-600 inline-flex items-center gap-1">
+              <ZapIcon className="size-3" />
+              {automationCount} automação(ões)
+            </span>
+          )}
           <Button
-            size="icon-sm"
-            variant="destructive"
-            onClick={handleDeleteTag}
+            size="sm"
+            variant="outline"
+            onClick={handleArchive}
+            className="ml-auto"
+            title="Arquivar tag (preserva histórico)"
           >
-            <Trash2Icon className="size-4" />
+            <ArchiveIcon className="size-4" />
+            Arquivar
           </Button>
         </div>
       </PopoverContent>
+
+      {/* Dialog de confirmação — só dispara quando automationCount > 0.
+          Lista os workflows afetados pra operador confirmar consciente. */}
+      <Dialog open={confirmArchive} onOpenChange={setConfirmArchive}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Arquivar tag &ldquo;{tag.name}&rdquo;?</DialogTitle>
+            <DialogDescription>
+              Essa tag está referenciada em <b>{automationCount}</b> automação
+              (ões). Após arquivar:
+              <ul className="list-disc list-inside mt-2 text-xs space-y-0.5">
+                <li>
+                  Automações com <b>ação TAG ADD</b> continuam rodando mas
+                  vão pular essa tag (skip silencioso, sem erro)
+                </li>
+                <li>
+                  Automações com <b>gatilho LEAD_TAGGED</b> nunca mais vão
+                  disparar (porque ninguém vai anexar essa tag)
+                </li>
+                <li>
+                  Histórico de leads que já tinham a tag <b>permanece</b>{" "}
+                  (Jornada, Insights, /contatos)
+                </li>
+              </ul>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-48 overflow-y-auto border rounded-md p-2 bg-muted/30">
+            {loadingWorkflows ? (
+              <div className="text-xs text-muted-foreground">
+                Carregando workflows...
+              </div>
+            ) : workflowsData?.workflows.length === 0 ? (
+              <div className="text-xs text-muted-foreground">
+                Nenhum workflow ativo encontrado.
+              </div>
+            ) : (
+              <ul className="space-y-1">
+                {workflowsData?.workflows.map((w) => (
+                  <li
+                    key={`${w.workflowId}-${w.nodeType}`}
+                    className="text-xs flex items-center justify-between gap-2"
+                  >
+                    <span className="truncate">{w.name}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0 inline-flex items-center gap-1">
+                      <span
+                        className={cn(
+                          "rounded px-1 py-0.5",
+                          w.nodeType === "TAG"
+                            ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                            : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+                        )}
+                      >
+                        {w.nodeType === "TAG" ? "Ação" : "Gatilho"}
+                      </span>
+                      {w.trackingName && <span>· {w.trackingName}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmArchive(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={archiveNow}
+              disabled={deleteTag.isPending}
+            >
+              {deleteTag.isPending ? "Arquivando..." : "Arquivar mesmo assim"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Popover>
+  );
+}
+
+// ─── Tag arquivada (aba "Arquivadas") ────────────────────────────────────────
+// Renderiza badge translúcido + ações "Restaurar" (zera archivedAt) e
+// "Excluir permanente" (chama tag.purge — hard delete irreversível).
+
+interface ArchivedTagItemProps extends TagItemProps {
+  isArchived?: boolean;
+}
+
+export function ArchivedTagItem(tag: ArchivedTagItemProps) {
+  const [confirmPurge, setConfirmPurge] = useState(false);
+  const restoreTag = useRestoreTag();
+  const purgeTag = usePurgeTag();
+  const automationCount = tag.automationCount ?? 0;
+
+  const handleRestore = () => {
+    restoreTag.mutate({
+      tagId: tag.id,
+      name: tag.name,
+      color: tag.color,
+      restore: true,
+    });
+  };
+
+  const handlePurge = () => {
+    purgeTag.mutate(
+      { tagId: tag.id },
+      { onSuccess: () => setConfirmPurge(false) },
+    );
+  };
+
+  return (
+    <>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Badge
+            style={{
+              backgroundColor: tag.color,
+              color: getContrastColor(tag.color),
+            }}
+            className="cursor-pointer focus-visible:ring-0 outline-none gap-1 opacity-50 line-through"
+            title="Tag arquivada — clique pra restaurar ou excluir permanente"
+          >
+            <ArchiveIcon className="size-3" />
+            {tag.name}
+          </Badge>
+        </PopoverTrigger>
+        <PopoverContent className="w-60 p-2 space-y-2">
+          <div className="text-xs space-y-1">
+            <p className="font-medium">{tag.name}</p>
+            <p className="text-muted-foreground text-[11px]">
+              Tag arquivada — histórico preservado em Jornada, Insights e
+              /contatos.
+            </p>
+            {automationCount > 0 && (
+              <p className="text-amber-600 text-[11px] inline-flex items-center gap-1">
+                <ZapIcon className="size-3" />
+                {automationCount} automação(ões) ainda referenciam
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRestore}
+              disabled={restoreTag.isPending}
+              className="flex-1"
+            >
+              <ArchiveRestoreIcon className="size-3.5" />
+              Restaurar
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => setConfirmPurge(true)}
+              className="flex-1"
+              title="Hard delete — irreversível"
+            >
+              <Trash2Icon className="size-3.5" />
+              Excluir
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <Dialog open={confirmPurge} onOpenChange={setConfirmPurge}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Excluir permanentemente &ldquo;{tag.name}&rdquo;?
+            </DialogTitle>
+            <DialogDescription>
+              <b>Esta ação não pode ser desfeita.</b> A tag e todos os
+              vínculos com leads serão apagados do banco. A Jornada do lead
+              ainda mostrará o evento histórico (com nome/cor capturados no
+              momento da operação), mas o link clicável vai sumir.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmPurge(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handlePurge}
+              disabled={purgeTag.isPending}
+            >
+              {purgeTag.isPending
+                ? "Excluindo..."
+                : "Sim, excluir permanentemente"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

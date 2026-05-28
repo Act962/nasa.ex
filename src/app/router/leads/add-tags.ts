@@ -35,6 +35,15 @@ export const addTagsToLead = base
       throw errors.UNAUTHORIZED;
     }
 
+    // Busca info das tags ANTES da operação pra capturar `name`/`color` no
+    // metadata do journey event. Garante que a Jornada do lead continua
+    // renderizando a tag mesmo depois que ela for arquivada/purgada.
+    const tagsInfo = await prisma.tag.findMany({
+      where: { id: { in: input.tagIds } },
+      select: { id: true, name: true, color: true },
+    });
+    const tagInfoById = new Map(tagsInfo.map((t) => [t.id, t]));
+
     const pendingLeadEvents: RecordLeadEventInput[] = [];
 
     const result = await prisma.$transaction(async (tx) => {
@@ -54,14 +63,20 @@ export const addTagsToLead = base
         tx,
       });
 
-      // Evento granular pra Jornada — uma entrada por tag, com tagId no
-      // metadata. Coletado aqui e disparado FORA da tx (Pusher).
+      // Evento granular pra Jornada — uma entrada por tag, com tagId +
+      // tagName + tagColor no metadata. UI da timeline lê esses campos
+      // direto pra renderizar mesmo se a tag for arquivada/purgada depois.
       for (const tagId of input.tagIds) {
+        const info = tagInfoById.get(tagId);
         pendingLeadEvents.push({
           leadId: input.leadId,
           eventType: "TAG_ADDED",
           userId: context.user.id,
-          metadata: { tagId },
+          metadata: {
+            tagId,
+            tagName: info?.name ?? null,
+            tagColor: info?.color ?? null,
+          },
         });
       }
 
