@@ -63,6 +63,7 @@ import { commentsRouter } from "./comments";
 import { livekitRouter } from "./livekit";
 import { stickersRouter } from "./stickers";
 import { brandRouter } from "./brand";
+import { trackingPresetsRouter } from "./tracking-presets";
 
 export const router = {
   tracking: trackingRoutes,
@@ -71,6 +72,7 @@ export const router = {
   leads: leadRoutes,
   tags: tagsRouter,
   tagGroups: tagGroupsRouter,
+  trackingPresets: trackingPresetsRouter,
   reasons: reasonsRouter,
   orgs: orgRoutes,
   workflow: workflowRoutes,

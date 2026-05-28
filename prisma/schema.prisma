@@ -133,6 +133,9 @@ model User {
   // ── Tracking Chat — figurinhas personalizadas do composer ──
   userStickers UserSticker[]
 
+  // ── Tracking Presets — aplicações feitas por este user ──
+  trackingPresetApplications TrackingPresetApplication[]
+
   @@unique([email])
   @@map("user")
 }
@@ -401,6 +404,9 @@ model Organization {
   // ── Tracking Chat — figurinhas personalizadas do composer ──
   userStickers UserSticker[]
 
+  // ── Tracking Presets — auditoria de aplicações de padrões NASA ──
+  trackingPresetApplications TrackingPresetApplication[]
+
   @@unique([slug])
   @@map("organization")
 }
@@ -530,6 +536,9 @@ model Tracking {
   cardConfig          TrackingCardConfig?
   idleAutomation      TrackingIdleAutomation?
   aiChatRuns          AiChatRun[]
+
+  // Tracking Presets — quais aplicações deste preset originaram este tracking
+  presetApplications TrackingPresetApplication[]
 
   @@map("tracking")
 }
@@ -6327,4 +6336,71 @@ model AiKnowledgeChunk {
   @@index([organizationId])
   @@index([knowledgeId])
   @@map("ai_knowledge_chunk")
+}
+
+// ── Tracking Presets — catálogo NASA de padrões prontos ──────────────────────
+//
+// Padrões curados pelo time NASA que, ao aplicar, criam pra org um tracking
+// completo: status, tags, tagGroups, workflows com nodes corretamente
+// remapeados (slug → id real). Resolve o bug latente da duplicação atual
+// que copiava node.data intacto.
+//
+// 4 paradigmas: REATIVO, PROATIVO, PREDITIVO, AUTOATENDIMENTO.
+// Cada preset carrega prompt sugerido pra AiSettings da org.
+
+enum TrackingPresetParadigm {
+  REATIVO
+  PROATIVO
+  PREDITIVO
+  AUTOATENDIMENTO
+}
+
+model TrackingPreset {
+  id          String                 @id @default(cuid())
+  /// Identificador estável (ex: "closer-comercial-reativo")
+  slug        String                 @unique
+  name        String
+  description String?
+  paradigm    TrackingPresetParadigm
+  /// Lucide icon name (ex: "Target") ou URL de imagem
+  icon        String?
+  color       String?
+  order       Int                    @default(0)
+  /// Spec completo — validado por Zod no apply (preset-spec.schema.ts)
+  spec        Json
+  /// false = oculto do catálogo público (draft em construção pelo time)
+  isPublic    Boolean                @default(true) @map("is_public")
+  /// Stars cobradas ao aplicar (default 0 — promo inicial)
+  starsCost   Int                    @default(0) @map("stars_cost")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+
+  applications TrackingPresetApplication[]
+
+  @@index([paradigm, order])
+  @@map("tracking_presets")
+}
+
+/// Auditoria de aplicações de preset. Permite analytics (qual preset mais
+/// usado), forensics (qual user aplicou qual preset onde) e potencial
+/// "atualização" (re-aplicar versão nova do mesmo preset).
+model TrackingPresetApplication {
+  id             String         @id @default(cuid())
+  presetId       String         @map("preset_id")
+  preset         TrackingPreset @relation(fields: [presetId], references: [id], onDelete: Cascade)
+  organizationId String         @map("organization_id")
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  trackingId     String         @map("tracking_id")
+  tracking       Tracking       @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  appliedById    String?        @map("applied_by_id")
+  appliedBy      User?          @relation(fields: [appliedById], references: [id], onDelete: SetNull)
+  /// "create" (novo tracking) | "merge" (mesclou em existente)
+  mode           String
+  /// Resumo do que foi criado: counts + IDs dos recursos novos/reusados
+  result         Json
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  @@index([organizationId, createdAt])
+  @@index([presetId])
+  @@map("tracking_preset_applications")
 }
