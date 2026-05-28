@@ -71,10 +71,24 @@ export function validateNode(
         errs.push("Selecione um status");
       break;
 
-    case "SEND_MESSAGE":
-      if (!hasNonEmptyString(d.message))
-        errs.push("Escreva a mensagem que será enviada");
+    case "SEND_MESSAGE": {
+      // Schema poligâmico — type=TEXT exige message; type=IMAGE exige
+      // imageUrl; type=DOCUMENT exige documentUrl + fileName.
+      const t = d.type;
+      if (t === "IMAGE") {
+        if (!hasNonEmptyString(d.imageUrl)) errs.push("Informe a URL da imagem");
+      } else if (t === "DOCUMENT") {
+        if (!hasNonEmptyString(d.documentUrl))
+          errs.push("Informe a URL do documento");
+        if (!hasNonEmptyString(d.fileName))
+          errs.push("Informe o nome do arquivo");
+      } else {
+        // Default = TEXT
+        if (!hasNonEmptyString(d.message))
+          errs.push("Escreva a mensagem que será enviada");
+      }
       break;
+    }
 
     case "WAIT":
       if (typeof d.duration !== "number" || d.duration <= 0)
@@ -119,28 +133,31 @@ export function validateNode(
       break;
 
     case "SEND_PROPOSAL":
-      if (
-        !hasNonEmptyString(d.proposalTemplateId) &&
-        !hasNonEmptyString(d.proposalId)
-      )
-        errs.push("Selecione o modelo de proposta");
+      // Schema real: productIds[] + responsibleId + validityDays.
+      if (!hasNonEmptyArray(d.productIds))
+        errs.push("Selecione ao menos 1 produto");
+      if (!hasNonEmptyString(d.responsibleId))
+        errs.push("Selecione o responsável");
+      if (typeof d.validityDays !== "number" || d.validityDays <= 0)
+        errs.push("Defina a validade em dias");
       break;
 
     case "SEND_CONTRACT":
-      if (
-        !hasNonEmptyString(d.contractTemplateId) &&
-        !hasNonEmptyString(d.contractId)
-      )
+      // Campo correto = templateContractId (não contractTemplateId).
+      if (!hasNonEmptyString(d.templateContractId))
         errs.push("Selecione o modelo de contrato");
       break;
 
     case "SEND_LINNKER":
-      if (!hasNonEmptyString(d.linnkerId))
-        errs.push("Selecione o link Linnker");
+      // Campo correto = linnkerPageId (não linnkerId).
+      if (!hasNonEmptyString(d.linnkerPageId))
+        errs.push("Selecione a página Linnker");
       break;
 
     case "SEND_NBOX":
-      if (!hasNonEmptyString(d.nboxId)) errs.push("Selecione o N-Box");
+      // Campo correto = nboxItemId (não nboxId).
+      if (!hasNonEmptyString(d.nboxItemId))
+        errs.push("Selecione o item do N-Box");
       break;
 
     case "SEND_NASA_ROUTE":
