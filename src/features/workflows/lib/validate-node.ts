@@ -26,11 +26,27 @@ function hasNonEmptyArray(v: unknown): boolean {
   return Array.isArray(v) && v.length > 0;
 }
 
+/**
+ * Vários node components guardam config em `data.action.X` (LEAD_TAGGED, TAG,
+ * MOVE_LEAD_STATUS, etc) e outros guardam direto em `data.X` (MOVE_LEAD,
+ * SEND_*). Pra não precisar saber qual usa qual, achatamos: se houver
+ * `data.action` objeto, usamos ele; senão usamos `data` direto.
+ */
+function unwrap(
+  data: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const d = data ?? {};
+  if (d.action && typeof d.action === "object" && !Array.isArray(d.action)) {
+    return d.action as Record<string, unknown>;
+  }
+  return d;
+}
+
 export function validateNode(
   type: string,
   data: Record<string, unknown> | null | undefined,
 ): NodeValidation {
-  const d = data ?? {};
+  const d = unwrap(data);
   const errs: string[] = [];
 
   switch (type) {

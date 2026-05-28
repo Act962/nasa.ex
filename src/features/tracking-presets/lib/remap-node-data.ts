@@ -2,20 +2,41 @@
  * Remapeia referências de slug → id real em `node.data` durante o apply de
  * um TrackingPreset. Cada dialog do editor de workflow espera campos
  * específicos — esse helper alinha o spec (slugs portáveis) ao formato
- * exato esperado por cada nodeType:
+ * exato esperado por cada nodeType.
  *
- *  - LEAD_TAGGED (trigger): `data.tagIds: string[]`
- *  - TAG (action):         `data.tagsIds: string[]` (com S extra!) + `type: "ADD"`
- *  - MOVE_LEAD (action):   `data.statusId` + `data.trackingId` (do tracking destino)
- *  - MOVE_LEAD_STATUS:     `data.statusId`
- *  - FILTER_LEAD:          `data.conditions[].tagIds` (já remapeado abaixo)
+ * **Padrão de storage do node** (descoberto lendo cada `*/node.tsx`):
  *
- * Outros campos passam intactos. Slug não encontrado é filtrado (não quebra
- * o apply) — Zod já valida isso upstream, então não deveria acontecer.
+ *  - **Aninhado em `data.action.X`**: LEAD_TAGGED, MOVE_LEAD_STATUS, TAG,
+ *    FILTER_LEAD, RESPONSIBLE, SEND_MESSAGE, TEMPERATURE, WAIT, WIN_LOSS,
+ *    MANUAL_TRIGGER, AI_FINISHED. Esses guardam o values do form sob `action`.
+ *  - **Flat em `data.X`**: MOVE_LEAD, HTTP_REQUEST, e TODOS os SEND_* de
+ *    "Adicionar Lead no App" (SEND_FORM/AGENDA/PROPOSAL/CONTRACT/LINNKER/NBOX/
+ *    NASA_ROUTE) + OPEN_FORM. Esses guardam o values direto em `data`.
  *
- * Sem mutação no input — retorna novo objeto.
+ * Erros do passado: presets criavam tudo flat → dialogs aninhados liam
+ * vazio do `defaultValues={nodeData.action}` mesmo com tagIds resolvidos.
+ * Aí no canvas a borda aparecia verde (helper validava flat tb), mas o
+ * user abria o dialog e via tudo em branco. Agora cada node ganha o
+ * formato certo.
  */
-export function remapNodeData(
+
+/** Set de NodeTypes que guardam config em `data.action.X`. */
+const NESTED_ACTION_TYPES = new Set([
+  "LEAD_TAGGED",
+  "MOVE_LEAD_STATUS",
+  "TAG",
+  "FILTER_LEAD",
+  "RESPONSIBLE",
+  "SEND_MESSAGE",
+  "TEMPERATURE",
+  "WAIT",
+  "WIN_LOSS",
+  "MANUAL_TRIGGER",
+  "AI_FINISHED",
+  "LAST_INBOUND_TIMEOUT",
+]);
+
+function remapFields(
   data: Record<string, unknown>,
   context: {
     nodeType: string;
@@ -35,9 +56,7 @@ export function remapNodeData(
       .map((s) => maps.tagSlugToId.get(s))
       .filter((id): id is string => Boolean(id));
     if (nodeType === "TAG") {
-      // TAG action usa `tagsIds` (com S). Quirk histórico da feature.
-      out.tagsIds = ids;
-      // Injeta `type: "ADD"` se faltar — TAG action exige type ADD|REMOVE.
+      out.tagsIds = ids; // quirk: TAG action usa S extra
       if (!out.type) out.type = "ADD";
     } else {
       out.tagIds = ids;
@@ -78,4 +97,29 @@ export function remapNodeData(
   }
 
   return out;
+}
+
+/**
+ * Wrapper público: remapeia campos do data E decide se vai pra flat OU
+ * aninhado em `action` baseado no nodeType.
+ */
+export function remapNodeData(
+  data: Record<string, unknown>,
+  context: {
+    nodeType: string;
+    trackingId: string;
+    maps: {
+      tagSlugToId: Map<string, string>;
+      statusSlugToId: Map<string, string>;
+    };
+  },
+): Record<string, unknown> {
+  const remapped = remapFields(data, context);
+
+  // Nodes aninhados precisam do data EM `action`. Vazio = ainda exige
+  // que action exista pra dialog mostrar form (mesmo que vazio).
+  if (NESTED_ACTION_TYPES.has(context.nodeType)) {
+    return { action: remapped };
+  }
+  return remapped;
 }
