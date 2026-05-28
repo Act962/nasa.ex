@@ -100,6 +100,23 @@ export const useUpdateWorkflow = () => {
             },
           }),
         });
+
+        // TagsV2: nodes podem ter mudado referências de tag (TAG action /
+        // LEAD_TAGGED trigger) — invalida tag.list pra recalcular o
+        // automationCount mostrado nas badges + lista do TagSheet.
+        // Predicate: pega TODAS as variações de input (com/sem trackingId,
+        // includeArchived, etc).
+        queryClient.invalidateQueries({
+          predicate: (q) => {
+            const key = q.queryKey;
+            return (
+              Array.isArray(key) &&
+              key[0] === "tags" &&
+              (key[1] === "listTags" || key[1] === "getDuplicateTags" ||
+                key[1] === "getReferencedWorkflows")
+            );
+          },
+        });
       },
       onError: (error) => {
         toast.error(`Falha ao atualizar o nome do workflow: ${error.message}`);
@@ -124,6 +141,19 @@ export const useUpdateWorkflowIsActive = (trackingId: string) => {
             input: { workflowId: data.id },
           }),
         });
+        // TagsV2: automationCount conta SÓ workflows ativos. Toggle de
+        // is_active muda a conta — invalida pra refletir.
+        queryClient.invalidateQueries({
+          predicate: (q) => {
+            const key = q.queryKey;
+            return (
+              Array.isArray(key) &&
+              key[0] === "tags" &&
+              (key[1] === "listTags" || key[1] === "getDuplicateTags" ||
+                key[1] === "getReferencedWorkflows")
+            );
+          },
+        });
       },
       onError: (error) => {
         toast.error(`Falha ao alterar status do workflow: ${error.message}`);
@@ -145,6 +175,18 @@ export const useDeleteWorkflow = () => {
               trackingId: data.trackingId!,
             },
           }),
+        });
+        // TagsV2: delete remove referências de tag — recalcula automationCount.
+        queryClient.invalidateQueries({
+          predicate: (q) => {
+            const key = q.queryKey;
+            return (
+              Array.isArray(key) &&
+              key[0] === "tags" &&
+              (key[1] === "listTags" || key[1] === "getDuplicateTags" ||
+                key[1] === "getReferencedWorkflows")
+            );
+          },
         });
       },
       onError: (error) => {
