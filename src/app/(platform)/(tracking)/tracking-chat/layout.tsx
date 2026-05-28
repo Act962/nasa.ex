@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/resizable";
 import { ConversationsList } from "@/features/tracking-chat/components/conversations-list";
 import { InChatActiveBanner } from "@/features/tracking-chat/components/in-chat-active-banner";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobileOrTablet } from "@/hooks/use-mobile";
 import { useParams, useSearchParams } from "next/navigation";
 
 interface LayoutProps {
@@ -15,7 +15,10 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const isMobile = useIsMobile();
+  // Tablets (<1024px) recebem a mesma UX de smartphone: 1 painel por vez
+  // (lista OU chat, nunca ambos lado a lado). Layout de 2 colunas só
+  // entra em ≥lg, onde tem espaço pra resizable panels sem apertar.
+  const isMobile = useIsMobileOrTablet();
   const { conversationId } = useParams();
   const searchParams = useSearchParams();
   // trackingId vem como query param `?trackingId=...` na URL.

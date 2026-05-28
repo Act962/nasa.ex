@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Button } from "@/components/ui/button";
 import {
   AlertTriangleIcon,
   CopyIcon,
   RadioIcon,
-  SendIcon,
   XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -55,18 +54,6 @@ export function InChatActiveBanner({
     refetchOnWindowFocus: false,
   });
 
-  const blastMutation = useMutation(
-    orpc.conversation.blastInChatLink.mutationOptions({
-      onSuccess: (res: any) => {
-        toast.success(
-          `Link disparado pra ${res.queued} ${res.queued === 1 ? "lead" : "leads"} via email.`,
-        );
-      },
-      onError: (e: any) =>
-        toast.error(e?.message ?? "Falha ao disparar links"),
-    }),
-  );
-
   if (!data?.active || dismissed) return null;
 
   const inChatUrl =
@@ -81,21 +68,6 @@ export function InChatActiveBanner({
     } catch {
       toast.error("Não consegui copiar — copie manualmente: " + inChatUrl);
     }
-  };
-
-  const handleBlast = () => {
-    if (
-      !confirm(
-        "Vai disparar email com o link do In-Chat pra TODOS os leads ativos do tracking. Confirma?",
-      )
-    ) {
-      return;
-    }
-    blastMutation.mutate({
-      trackingId,
-      appOrigin:
-        typeof window !== "undefined" ? window.location.origin : undefined,
-    });
   };
 
   // Variantes por source (manual/auto/both) — cores + copy + ícone.
@@ -152,18 +124,6 @@ export function InChatActiveBanner({
         >
           <CopyIcon className="size-3.5" />
           <span className="hidden md:inline">Copiar URL</span>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleBlast}
-          disabled={blastMutation.isPending}
-          className={variant.button}
-        >
-          <SendIcon className="size-3.5" />
-          <span className="hidden md:inline">
-            {blastMutation.isPending ? "Enviando..." : "Disparar pros leads"}
-          </span>
         </Button>
         {dismissible && (
           <Button

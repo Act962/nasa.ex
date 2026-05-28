@@ -81,27 +81,33 @@ export const createPlanCheckout = base
     if (gw.provider === "stripe") {
       const stripe = new Stripe(gw.secretKey, { apiVersion: "2026-03-25.dahlia" });
 
-      const stripeSession = await stripe.checkout.sessions.create({
-        mode:           "subscription",
-        customer_email: user.email,
-        line_items: [{
-          price_data: {
-            currency:     "brl",
-            unit_amount:  Math.round(Number(plan.priceMonthly) * 100),
-            recurring:    { interval: "month" },
-            product_data: {
-              name:        `Plano ${plan.name} — NASA.ex`,
-              description: `Assinatura mensal do plano ${plan.name}`,
+      // Idempotência: amarra ao par (org, plano) na janela de uma hora.
+      // Reapertar "Assinar" no mesmo minuto não cria duas subscriptions.
+      const hourBucket = Math.floor(Date.now() / (60 * 60 * 1000));
+      const stripeSession = await stripe.checkout.sessions.create(
+        {
+          mode:           "subscription",
+          customer_email: user.email,
+          line_items: [{
+            price_data: {
+              currency:     "brl",
+              unit_amount:  Math.round(Number(plan.priceMonthly) * 100),
+              recurring:    { interval: "month" },
+              product_data: {
+                name:        `Plano ${plan.name} — NASA.ex`,
+                description: `Assinatura mensal do plano ${plan.name}`,
+              },
             },
-          },
-          quantity: 1,
-        }],
-        success_url: `${successUrl}&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url:  cancelUrl,
-        metadata:    { organizationId: orgId, itemType: "plan", itemSlug: plan.slug },
-        payment_method_types: ["card"],
-        locale: "pt-BR",
-      });
+            quantity: 1,
+          }],
+          success_url: `${successUrl}&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url:  cancelUrl,
+          metadata:    { organizationId: orgId, itemType: "plan", itemSlug: plan.slug },
+          payment_method_types: ["card"],
+          locale: "pt-BR",
+        },
+        { idempotencyKey: `plan-subscription:${orgId}:${plan.id}:${hourBucket}` },
+      );
 
       return {
         provider:    "stripe",

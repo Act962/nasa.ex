@@ -36,6 +36,7 @@ model User {
   responsibleOnLeads                 Lead[]                       @relation("LeadResponsible")
   worflows                           Workflow[]
   workflowFolders                    WorkflowFolder[]
+  chatPreferences                    UserChatPreferences?
   forms                              Form[]
   leadFiles                          LeadFile[]
   insightShares                      InsightShares[]
@@ -3396,6 +3397,42 @@ model UserNotificationPreference {
   @@unique([userId, organizationId, notifType])
   @@index([userId])
   @@map("user_notification_preference")
+}
+
+/// Preferências visuais do chat por USUÁRIO (não por org). Permite cada
+/// atendente customizar fundo + cores das bolhas do tracking-chat e do
+/// in-chat sem afetar os colegas.
+///
+/// Defaults (NULL nas colunas) → renderiza o tema padrão WhatsApp-like
+/// usado hoje. Frontend lê via `useUserChatPreferences()` e injeta como
+/// CSS vars no scope do body do chat.
+model UserChatPreferences {
+  id     String @id @default(cuid())
+  userId String @unique @map("user_id")
+
+  /// Tipo de fundo: "default" (padrão WhatsApp), "color" (cor sólida),
+  /// "image" (URL de imagem custom). Default "default".
+  chatBackgroundType  String  @default("default") @map("chat_background_type")
+  /// Quando type=color: hex string (#RRGGBB). Quando type=image: URL R2.
+  chatBackgroundValue String? @map("chat_background_value")
+  /// Opacidade da imagem de fundo (0-100). Só usado quando type=image.
+  /// Default 100 (opaca). Valores menores mesclam com o tema (light=branco/
+  /// dark=zinc-900) por baixo, deixando a imagem mais sutil.
+  chatBackgroundOpacity Int @default(100) @map("chat_background_opacity")
+
+  /// Cor de fundo das bolhas próprias (fromMe=true) — hex.
+  /// NULL = default verde-WhatsApp (#d9fdd3 light / #005c4b dark).
+  ownMessageBgColor   String? @map("own_message_bg_color")
+  /// Cor de fundo das bolhas recebidas — hex.
+  /// NULL = default branco (#ffffff light / #202c33 dark).
+  theirMessageBgColor String? @map("their_message_bg_color")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_chat_preferences")
 }
 
 // ─── Admin Notifications ──────────────────────────────────────────────────────

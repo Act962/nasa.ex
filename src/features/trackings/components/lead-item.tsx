@@ -398,12 +398,16 @@ export const LeadItem = memo(({ data }: { data: Lead }) => {
               const goToChat = (e: React.MouseEvent) => {
                 e.stopPropagation();
                 e.preventDefault();
+                // `pin=1` sinaliza pra `conversations-list.tsx` que essa
+                // navegação veio do ícone de canal do kanban — única origem
+                // que dá "subida pro topo" (UX request). Clicar num LeadBox
+                // direto na lista NÃO adiciona esse param → ordem natural
+                // permanece.
                 const path = `/tracking-chat/${conversationId ?? ""}`;
-                router.push(
-                  data.trackingId
-                    ? `${path}?trackingId=${data.trackingId}`
-                    : path,
-                );
+                const params = new URLSearchParams();
+                if (data.trackingId) params.set("trackingId", data.trackingId);
+                params.set("pin", "1");
+                router.push(`${path}?${params.toString()}`);
               };
               return (
                 <button

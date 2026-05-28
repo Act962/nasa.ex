@@ -135,6 +135,22 @@ export const redeemCoursePurchase = base
     });
 
     const result = await prisma.$transaction(async (tx) => {
+      // ── Idempotência atômica: claim do PAID → REDEEMED ────────────────
+      // Se outra execução concorrente (webhook tardio, retry do client)
+      // já tiver movido para REDEEMED, abortamos sem refazer side-effects.
+      // O caller acima já tratou o caso "status==='REDEEMED'" pra retornar
+      // os dados existentes — aqui é a barreira final contra race.
+      const claim = await tx.pendingCoursePurchase.updateMany({
+        where: { id: pending.id, status: "PAID" },
+        data: { redeemedAt: new Date(), redeemedByUserId: userId },
+      });
+      if (claim.count === 0) {
+        throw new ORPCError("CONFLICT", {
+          message:
+            "Esta compra já está sendo resgatada em outra sessão. Recarregue a página.",
+        });
+      }
+
       // 4a. Garante Organization + Member
       let buyerOrgId = existingMember?.organizationId;
       let isNewOrg = false;
@@ -211,8 +227,6 @@ export const redeemCoursePurchase = base
         where: { id: pending.id },
         data: {
           status: "REDEEMED",
-          redeemedAt: new Date(),
-          redeemedByUserId: userId,
           redeemedEnrollmentId: purchase.enrollment.id,
         },
       });

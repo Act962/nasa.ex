@@ -135,17 +135,23 @@ export function ConversationsList() {
     return data?.pages.flatMap((p) => p.items) ?? [];
   }, [data]);
 
-  // Pin-to-top da conversa aberta — UX padrão de chat (WhatsApp, iMessage,
-  // Telegram fazem isso). Reordena no client sem refetch: se a conversa
-  // aberta está no array, traz pra primeira posição. Mantém o resto na
-  // ordem original. Memoizado em cima de `items` + `conversationId`.
+  // Pin-to-top da conversa aberta — OPT-IN via `?pin=1` na URL. Antes era
+  // automático (toda conversa selecionada subia), mas isso bagunçava o
+  // contexto do operador quando ele clicava em conversas DENTRO de
+  // /tracking-chat só pra dar uma olhada. Agora a UX é:
+  //  - Operador chega aqui via o ícone do canal no card do kanban
+  //    (`/tracking/<id>` → ícone WhatsApp/etc) com `?pin=1` → conversa
+  //    sobe pro topo (faz sentido: ele tá iniciando atendimento desse lead)
+  //  - Operador clica num LeadBox direto na lista → ordem natural mantida
+  //    (não sobe), porque ele só tá navegando pra ver mensagens
+  const pinSelected = searchParams.get("pin") === "1";
   const orderedItems = useMemo(() => {
-    if (!conversationId) return items;
+    if (!conversationId || !pinSelected) return items;
     const idx = items.findIndex((it) => it.id === conversationId);
     if (idx <= 0) return items;
     const pinned = items[idx]!;
     return [pinned, ...items.slice(0, idx), ...items.slice(idx + 1)];
-  }, [items, conversationId]);
+  }, [items, conversationId, pinSelected]);
 
   const isNearBottom = (el: HTMLDivElement) =>
     el.scrollHeight - el.scrollTop - el.clientHeight <= 80;
