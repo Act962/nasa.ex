@@ -2,7 +2,7 @@
 
 import { NodeType } from "@/generated/prisma/enums";
 import { createId } from "@paralleldrive/cuid2";
-import { useReactFlow } from "@xyflow/react";
+import { useNodes, useReactFlow } from "@xyflow/react";
 import {
   Sheet,
   SheetContent,
@@ -78,6 +78,11 @@ interface Props {
 
 export function WsNodeSelector({ open, onOpenChange, sourceId, children }: Props) {
   const { setNodes, getNodes, setEdges, screenToFlowPosition } = useReactFlow();
+  // Reativo — esconde a seção "Gatilhos" quando já existe um no workflow.
+  const reactiveNodes = useNodes();
+  const hasTriggerInWorkflow = reactiveNodes.some((n) =>
+    wsTriggerNodes.some((t) => t.type === n.type),
+  );
 
   const handleSelect = useCallback(
     (selection: WsNodeTypeOption) => {
@@ -145,22 +150,24 @@ export function WsNodeSelector({ open, onOpenChange, sourceId, children }: Props
             defaultValue={["trigger", "execution"]}
             className="w-full"
           >
-            <AccordionItem value="trigger">
-              <AccordionTrigger className="px-4 pt-5 hover:no-underline">
-                Gatilhos
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="grid grid-cols-4 gap-2 px-4 pb-2">
-                  {wsTriggerNodes.map((nodeType) => (
-                    <WsNodeCard
-                      key={nodeType.type}
-                      node={nodeType}
-                      onClick={() => handleSelect(nodeType)}
-                    />
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
+            {!hasTriggerInWorkflow && (
+              <AccordionItem value="trigger">
+                <AccordionTrigger className="px-4 pt-5 hover:no-underline">
+                  Gatilhos
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-4 gap-2 px-4 pb-2">
+                    {wsTriggerNodes.map((nodeType) => (
+                      <WsNodeCard
+                        key={nodeType.type}
+                        node={nodeType}
+                        onClick={() => handleSelect(nodeType)}
+                      />
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
             <AccordionItem value="execution">
               <AccordionTrigger className="px-4 pt-5 hover:no-underline">
                 Ações

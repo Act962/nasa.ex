@@ -2,7 +2,7 @@
 
 import { NodeType } from "@/generated/prisma/enums";
 import { createId } from "@paralleldrive/cuid2";
-import { useReactFlow } from "@xyflow/react";
+import { useNodes, useReactFlow } from "@xyflow/react";
 
 import {
   ArrowLeftRightIcon,
@@ -100,6 +100,13 @@ export function NodeSelector({
   children,
 }: NodeSelectorProps) {
   const { setNodes, getNodes, setEdges, screenToFlowPosition } = useReactFlow();
+  // useNodes é REATIVO — re-renderiza quando nodes mudam (add/remove).
+  // Necessário pra esconder a seção "Gatilhos" assim que o user adicionar
+  // um gatilho, e voltar a mostrar quando ele apagar.
+  const reactiveNodes = useNodes();
+  const hasTriggerInWorkflow = reactiveNodes.some((node) =>
+    triggerNodes.some((tn) => tn.type === node.type),
+  );
 
   const handleNodeSelect = useCallback(
     (selection: NodeTypeOption) => {
@@ -180,22 +187,27 @@ export function NodeSelector({
             defaultValue={["trigger", "execution"]}
             className="w-full"
           >
-            <AccordionItem value="trigger">
-              <AccordionTrigger className="px-4 pt-5 hover:no-underline">
-                Gatilhos
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="grid grid-cols-4 gap-2 px-4 pb-2">
-                  {triggerNodes.map((nodeType) => (
-                    <NodeCard
-                      key={nodeType.type}
-                      node={nodeType}
-                      onClick={() => handleNodeSelect(nodeType)}
-                    />
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
+            {/* Seção Gatilhos some quando já existe um no workflow — só pode
+                ter 1 trigger por automação (limit técnico). Volta a aparecer
+                quando o trigger é deletado. */}
+            {!hasTriggerInWorkflow && (
+              <AccordionItem value="trigger">
+                <AccordionTrigger className="px-4 pt-5 hover:no-underline">
+                  Gatilhos
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-4 gap-2 px-4 pb-2">
+                    {triggerNodes.map((nodeType) => (
+                      <NodeCard
+                        key={nodeType.type}
+                        node={nodeType}
+                        onClick={() => handleNodeSelect(nodeType)}
+                      />
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )}
 
             <AccordionItem value="execution">
               <AccordionTrigger className="px-4 pt-5 hover:no-underline">
