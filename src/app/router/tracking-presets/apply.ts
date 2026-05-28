@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { presetSpecSchema } from "@/features/tracking-presets/lib/preset-spec.schema";
 import { remapNodeData } from "@/features/tracking-presets/lib/remap-node-data";
+import { validateNode } from "@/features/workflows/lib/validate-node";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { slugify } from "@/lib/utils";
@@ -375,13 +376,28 @@ export const applyTrackingPreset = base
             ? folderSlugToId.get(wf.folderSlug) ?? null
             : null;
 
+          // Validação prévia — se qualquer ação do workflow tem campos
+          // faltando (ex: SEND_AGENDA sem agendaId, SEND_PROPOSAL sem
+          // produtos), força isActive=false. Senão o preset cria workflow
+          // ativo que não dispara nada útil em prod (silencioso).
+          const wfHasInvalidNodes = wf.nodes.some((node) => {
+            const remapped = remapNodeData(node.data ?? {}, {
+              nodeType: node.type,
+              trackingId,
+              maps: { tagSlugToId, statusSlugToId },
+            });
+            const v = validateNode(node.type, remapped);
+            return !v.skip && !v.valid;
+          });
+          const finalIsActive = wf.isActive && !wfHasInvalidNodes;
+
           const createdWf = await tx.workflow.create({
             data: {
               tracking: { connect: { id: trackingId } },
               user: { connect: { id: user.id } },
               name: finalName,
               description: wf.description,
-              isActive: wf.isActive,
+              isActive: finalIsActive,
               ...(folderId && {
                 folder: { connect: { id: folderId } },
               }),
