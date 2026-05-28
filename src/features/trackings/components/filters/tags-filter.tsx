@@ -17,20 +17,48 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useTags } from "@/features/tags/hooks/use-tags";
+import { useTagGroups } from "@/features/tags/hooks/use-tag-groups";
 import { TagSheet } from "@/features/tags/components/tag-sheet";
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, SettingsIcon, TagsIcon, XIcon } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useQueryState } from "nuqs";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 export function TagsFilter() {
   const params = useParams<{ trackingId?: string }>();
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const { tags, isLoadingTags } = useTags({ trackingId: "ALL" });
+  const { data: groupsData } = useTagGroups();
   const [search, setSearch] = useState("");
+
+  // Agrupa tags por TagGroup pra mostrar headings "Grupo X" no popover —
+  // mesma estrutura do TagSheet. Tags sem grupo caem em "Sem categoria"
+  // por último. Grupos vazios são omitidos pra evitar headings com 0 items.
+  const groupedTags = useMemo(() => {
+    const groups = groupsData?.groups ?? [];
+    const byGroupId = new Map<
+      string | null,
+      { id: string | null; name: string; color: string; tags: typeof tags }
+    >();
+    for (const g of groups) {
+      byGroupId.set(g.id, { id: g.id, name: g.name, color: g.color, tags: [] });
+    }
+    byGroupId.set(null, {
+      id: null,
+      name: "Sem categoria",
+      color: "#888",
+      tags: [],
+    });
+    for (const tag of tags) {
+      const key = tag.tagGroupId ?? null;
+      const entry = byGroupId.get(key) ?? byGroupId.get(null)!;
+      entry.tags.push(tag);
+    }
+    return Array.from(byGroupId.values()).filter((g) => g.tags.length > 0);
+  }, [groupsData, tags]);
 
   const createTagMutation = useMutation(
     orpc.tags.createTag.mutationOptions({
@@ -127,27 +155,29 @@ export function TagsFilter() {
                   </div>
                 )}
               </CommandEmpty>
-              <CommandGroup>
-                {tags.map((tag) => {
-                  const isSelected = selectedTags.includes(tag.slug);
+              {groupedTags.map((group) => (
+                <CommandGroup key={group.id ?? "none"} heading={group.name}>
+                  {group.tags.map((tag) => {
+                    const isSelected = selectedTags.includes(tag.slug);
 
-                  return (
-                    <CommandItem
-                      key={tag.id}
-                      value={`${tag.name}-${tag.id}`}
-                      className="cursor-pointer"
-                      onSelect={() => handleTagFilter(tag.slug)}
-                    >
-                      <Checkbox checked={isSelected} />
-                      <div
-                        className="size-2 rounded-sm"
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      {tag.name}
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
+                    return (
+                      <CommandItem
+                        key={tag.id}
+                        value={`${tag.name}-${tag.id}`}
+                        className="cursor-pointer"
+                        onSelect={() => handleTagFilter(tag.slug)}
+                      >
+                        <Checkbox checked={isSelected} />
+                        <div
+                          className="size-2 rounded-full shrink-0"
+                          style={{ backgroundColor: tag.color }}
+                        />
+                        {tag.name}
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              ))}
             </CommandList>
             <CommandSeparator />
             <div className="p-2 flex justify-end items-center gap-2">
