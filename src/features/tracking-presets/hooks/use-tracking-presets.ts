@@ -24,6 +24,16 @@ export function useTrackingPresets(paradigm?: Paradigm) {
   });
 }
 
+export function useTrackingPresetDetail(presetId: string | null) {
+  return useQuery({
+    ...orpc.trackingPresets.getDetail.queryOptions({
+      input: { id: presetId ?? "" },
+    }),
+    enabled: !!presetId,
+    staleTime: 60_000,
+  });
+}
+
 export function useTrackingPresetPreview() {
   return useMutation(orpc.trackingPresets.preview.mutationOptions({}));
 }

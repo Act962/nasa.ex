@@ -1,6 +1,7 @@
 import { listTrackingPresets } from "./list";
 import { previewTrackingPreset } from "./preview";
 import { applyTrackingPreset } from "./apply";
+import { getTrackingPresetDetail } from "./get-detail";
 
 /**
  * Catálogo NASA de Padrões de Tracking (TrackingPreset).
@@ -15,6 +16,7 @@ import { applyTrackingPreset } from "./apply";
  */
 export const trackingPresetsRouter = {
   list: listTrackingPresets,
+  getDetail: getTrackingPresetDetail,
   preview: previewTrackingPreset,
   apply: applyTrackingPreset,
 };
