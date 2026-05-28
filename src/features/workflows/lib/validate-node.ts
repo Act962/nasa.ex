@@ -88,40 +88,72 @@ export function validateNode(
       break;
 
     case "SEND_MESSAGE": {
-      // Schema poligâmico — type=TEXT exige message; type=IMAGE exige
-      // imageUrl; type=DOCUMENT exige documentUrl + fileName.
-      const t = d.type;
+      // SEND_MESSAGE tem camada EXTRA: data.action.payload.X (executor lê
+      // de data.action.payload.message/imageUrl/etc). Após unwrap pegamos
+      // data.action; agora descemos pra `payload` se existir.
+      const payload =
+        d.payload && typeof d.payload === "object" && !Array.isArray(d.payload)
+          ? (d.payload as Record<string, unknown>)
+          : d;
+      const t = payload.type;
       if (t === "IMAGE") {
-        if (!hasNonEmptyString(d.imageUrl)) errs.push("Informe a URL da imagem");
+        if (!hasNonEmptyString(payload.imageUrl))
+          errs.push("Informe a URL da imagem");
       } else if (t === "DOCUMENT") {
-        if (!hasNonEmptyString(d.documentUrl))
+        if (!hasNonEmptyString(payload.documentUrl))
           errs.push("Informe a URL do documento");
-        if (!hasNonEmptyString(d.fileName))
+        if (!hasNonEmptyString(payload.fileName))
           errs.push("Informe o nome do arquivo");
       } else {
         // Default = TEXT
-        if (!hasNonEmptyString(d.message))
+        if (!hasNonEmptyString(payload.message))
           errs.push("Escreva a mensagem que será enviada");
       }
       break;
     }
 
-    case "WAIT":
-      if (typeof d.duration !== "number" || d.duration <= 0)
-        errs.push("Defina a duração");
+    case "WAIT": {
+      // Schema poligâmico por unit: minutes, hours, days, weeks. Cada um
+      // exige seu próprio campo numérico (executor lê data.action.minutes
+      // OR data.action.hours, etc).
+      const unit = d.type ?? d.unit;
+      const checkPositive = (v: unknown) => typeof v === "number" && v > 0;
+      if (unit === "weeks") {
+        if (!checkPositive(d.weeks)) errs.push("Defina o número de semanas");
+      } else if (unit === "days") {
+        if (!checkPositive(d.days)) errs.push("Defina o número de dias");
+      } else if (unit === "hours") {
+        if (!checkPositive(d.hours)) errs.push("Defina o número de horas");
+      } else if (unit === "minutes") {
+        if (!checkPositive(d.minutes))
+          errs.push("Defina o número de minutos");
+      } else {
+        errs.push("Escolha a unidade de tempo (minutos/horas/dias/semanas)");
+      }
       break;
+    }
 
     case "WIN_LOSS":
+      // Schema real: type ("WIN"|"LOSS") + reason (string obrigatório) +
+      // observation (opcional). Executor lê data.action.reason.
       if (d.type !== "WIN" && d.type !== "LOSS")
         errs.push('Escolha "Won" ou "Lost"');
+      if (!hasNonEmptyString(d.reason))
+        errs.push("Selecione o motivo");
       break;
 
     case "RESPONSIBLE":
-      if (!hasNonEmptyString(d.userId))
+      // Executor lê data.action — schema do dialog tem `userId` ou
+      // `responsibleId` (verificado em ambos).
+      if (
+        !hasNonEmptyString(d.userId) &&
+        !hasNonEmptyString(d.responsibleId)
+      )
         errs.push("Selecione um responsável");
       break;
 
     case "TEMPERATURE":
+      // Executor: data.action.temperature.
       if (!hasNonEmptyString(d.temperature))
         errs.push("Escolha a temperatura");
       break;
@@ -132,7 +164,9 @@ export function validateNode(
       break;
 
     case "HTTP_REQUEST":
-      if (!hasNonEmptyString(d.url)) errs.push("Informe a URL");
+      // Executor lê data.endpoint (não data.url) + data.method.
+      // HTTP_REQUEST armazena FLAT, não em data.action — unwrap retorna data.
+      if (!hasNonEmptyString(d.endpoint)) errs.push("Informe a URL (endpoint)");
       if (!hasNonEmptyString(d.method)) errs.push("Escolha o método HTTP");
       break;
 
