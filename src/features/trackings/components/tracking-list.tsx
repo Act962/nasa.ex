@@ -25,9 +25,9 @@ import {
 } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { Folder, RefreshCw, Sparkles } from "lucide-react";
+import { TrackingPresetsCatalog } from "@/features/tracking-presets/components/tracking-presets-catalog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTracking } from "@/hooks/use-tracking-modal";
-import { PatternsSection } from "@/features/admin/components/patterns-section";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -342,18 +342,6 @@ export function TrackingList() {
 
   return (
     <div className="mt-8">
-      {/* CTA pros Padrões NASA — só aparece se já tem trackings (no empty
-          state o botão fica no Empty component). Atalho discreto pra catálogo. */}
-      {hasPosts && (
-        <div className="flex justify-end mb-3">
-          <Button asChild variant="outline" size="sm" className="gap-1.5">
-            <Link href="/tracking-presets">
-              <Sparkles className="size-3.5 text-amber-500" />
-              Padrões NASA
-            </Link>
-          </Button>
-        </div>
-      )}
       {isLoading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {Array.from({ length: 4 }).map((_, index) => (
@@ -377,30 +365,36 @@ export function TrackingList() {
               </EmptyMedia>
               <EmptyTitle>Nenhum tracking encontrado</EmptyTitle>
               <EmptyDescription>
-                Você não possui nenhum tracking criado ainda. Comece com um
-                padrão pronto da NASA ou crie do zero.
+                Você não possui nenhum tracking criado ainda. Escolha um padrão
+                NASA abaixo ou crie do zero.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              <div className="flex gap-2">
-                <Button asChild variant="default" className="gap-1.5">
-                  <Link href="/tracking-presets">
-                    <Sparkles className="size-4" />
-                    Usar padrão NASA
-                  </Link>
-                </Button>
-                <Button onClick={onOpen} variant="outline">
-                  Criar do zero
-                </Button>
-              </div>
+              <Button onClick={onOpen} variant="outline">
+                Criar do zero
+              </Button>
             </EmptyContent>
           </Empty>
         </div>
       )}
-      <PatternsSection
-        appType="tracking"
-        redirectPath={(id) => `/tracking/${id}`}
-      />
+
+      {/* Catálogo NASA inline — substitui o <PatternsSection appType="tracking">
+          antigo (que tinha bug de IDs órfãos em node.data). O novo catálogo
+          remapeia slugs → IDs reais corretamente. Aparece sempre, abaixo da
+          lista de trackings (ou no lugar dela quando empty). */}
+      <section className="mt-10">
+        <div className="mb-4 flex items-center gap-2 text-amber-500">
+          <Sparkles className="size-4" />
+          <span className="text-xs font-semibold uppercase tracking-wide">
+            Padrões NASA
+          </span>
+        </div>
+        <p className="text-sm text-muted-foreground mb-6 max-w-2xl">
+          Catálogo de fluxos prontos. Cada padrão cria tracking + status + tags +
+          automações funcionais — sem precisar configurar do zero.
+        </p>
+        <TrackingPresetsCatalog />
+      </section>
     </div>
   );
 }

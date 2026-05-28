@@ -10,7 +10,7 @@ import {
 import { useTracking } from "@/hooks/use-tracking-modal";
 import { orpc } from "@/lib/orpc";
 import { useQuery } from "@tanstack/react-query";
-import { CheckIcon, ChevronsUpDown, PlusIcon, Sparkles } from "lucide-react";
+import { CheckIcon, ChevronsUpDown, PlusIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -52,12 +52,6 @@ export function TrackingSwitcher() {
         <DropdownMenuItem onClick={onOpen} className="cursor-pointer">
           <PlusIcon className="size-4" />
           Adicionar tracking
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild className="cursor-pointer">
-          <Link href="/tracking-presets">
-            <Sparkles className="size-4 text-amber-500" />
-            Usar padrão NASA
-          </Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
