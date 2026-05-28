@@ -30,6 +30,7 @@ import { activityRouter } from "./activity";
 import { formRouter } from "./form";
 import { adminRouter } from "./admin";
 import { userNotificationsRouter } from "./user-notifications";
+import { userChatPreferencesRoutes } from "./user-chat-preferences";
 import { alertsRouter } from "./alerts";
 import { sidebarPrefsRouter } from "./sidebar-prefs";
 import { spacePointRouter } from "./space-point";
@@ -95,6 +96,7 @@ export const router = {
   form: formRouter,
   admin: adminRouter,
   userNotifications: userNotificationsRouter,
+  userChatPreferences: userChatPreferencesRoutes,
   alerts: alertsRouter,
   sidebarPrefs: sidebarPrefsRouter,
   spacePoint: spacePointRouter,
