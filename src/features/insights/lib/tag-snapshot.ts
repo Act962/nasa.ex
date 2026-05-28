@@ -46,12 +46,25 @@ export async function getTagSnapshotAtDate(
     return rows;
   }
 
-  // Snapshot histórico via $queryRaw (operadores JSON do Postgres)
+  // Snapshot histórico via $queryRaw com 4 fontes UNION:
+  //
+  //  1. tag_added reais (journey events) com occurred_at <= cutoff
+  //  2. tag_removed reais com occurred_at <= cutoff
+  //  3. LeadTag.createdAt fallback (lead AINDA tem a tag e createdAt <= cutoff)
+  //  4. **Synthetic add inferido** (occurred_at = 1970): pra cada tag_removed
+  //     FUTURO (occurred_at > cutoff) que NÃO tem tag_added anterior,
+  //     infere que a tag estava ativa antes do remove. Cobre cenário
+  //     comum: lead tagueado via webhook/importação/AI/forms (caminhos
+  //     que NÃO disparam recordLeadEvent ainda) e depois tag removida.
+  //
+  // ROW_NUMBER por (lead, tag) ORDER BY event_at DESC pega o último estado.
+  // Synthetic add em 1970 só vence quando não há outro evento — exatamente
+  // o que queremos: tag estava ativa "desde sempre" até alguém remover.
   const rows = await prisma.$queryRaw<
     Array<{ lead_id: string; tag_id: string }>
   >`
     WITH all_events AS (
-      -- Tag adições do journey (com tagId no metadata)
+      -- 1. Tag adições reais
       SELECT
         lead_id,
         (metadata->>'tagId') AS tag_id,
@@ -65,7 +78,7 @@ export async function getTagSnapshotAtDate(
 
       UNION ALL
 
-      -- Tag remoções (mesma estrutura)
+      -- 2. Tag remoções reais
       SELECT
         lead_id,
         (metadata->>'tagId'),
@@ -79,9 +92,7 @@ export async function getTagSnapshotAtDate(
 
       UNION ALL
 
-      -- Fallback: LeadTag atuais cujo created_at <= cutoff. Cobre tags
-      -- adicionadas ANTES do sistema de journey events ter sido criado
-      -- (sem essa, snapshot de dados antigos ficaria zerado).
+      -- 3. Fallback LeadTag.createdAt (tag ainda viva, criada antes do cutoff)
       SELECT
         lead_id,
         tag_id,
@@ -90,8 +101,32 @@ export async function getTagSnapshotAtDate(
       FROM lead_tags
       WHERE created_at <= ${cutoff}
         AND lead_id = ANY(${leadIds}::text[])
+
+      UNION ALL
+
+      -- 4. SYNTHETIC ADD inferido pra leads tagueados sem journey event.
+      -- Se há tag_removed FUTURO (após cutoff) sem tag_added anterior na
+      -- história inteira, a tag DEVE ter estado ativa antes da remoção.
+      -- Cobre Clark Kent: tagueado via webhook (sem add event), removido
+      -- HOJE — snapshot de ONTEM ainda mostra ele.
+      SELECT
+        r.lead_id,
+        (r.metadata->>'tagId'),
+        'add',
+        TIMESTAMP '1970-01-01 00:00:00'
+      FROM lead_journey_events r
+      WHERE r.kind = 'tag_removed'
+        AND r.metadata->>'tagId' IS NOT NULL
+        AND r.occurred_at > ${cutoff}
+        AND r.lead_id = ANY(${leadIds}::text[])
+        AND NOT EXISTS (
+          SELECT 1 FROM lead_journey_events a
+          WHERE a.kind = 'tag_added'
+            AND a.lead_id = r.lead_id
+            AND a.metadata->>'tagId' = r.metadata->>'tagId'
+            AND a.occurred_at < r.occurred_at
+        )
     ),
-    -- Pra cada par (lead, tag), a operação MAIS RECENTE até cutoff vence.
     last_per_pair AS (
       SELECT
         lead_id,
