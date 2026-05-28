@@ -110,23 +110,19 @@ export function TrackingPresetsCatalog() {
                   {info.description}
                 </p>
               </div>
-              {/* Layout responsivo:
-                  - Mobile: grid 2 colunas (até 4 cards = 2x2)
-                  - md+: flex horizontal com scroll-snap, cards de largura fixa
-                  Os cards se ajustam à largura da página automaticamente. */}
-              <div className="grid grid-cols-2 gap-3 md:flex md:flex-row md:gap-4 md:overflow-x-auto md:snap-x md:snap-mandatory md:pb-3 md:-mx-1 md:px-1">
+              {/* Layout responsivo simples:
+                  - Mobile (< sm): 2 cols (até 4 cards = 2x2)
+                  - sm+: 4 cols em linha única (todos lado a lado)
+                  Cards se ajustam à largura disponível. */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {presets.map((preset) => (
-                  <div
+                  <PresetCard
                     key={preset.id}
-                    className="md:flex-shrink-0 md:w-72 lg:w-80 md:snap-start"
-                  >
-                    <PresetCard
-                      preset={preset}
-                      onClick={() =>
-                        setSelected({ id: preset.id, name: preset.name })
-                      }
-                    />
-                  </div>
+                    preset={preset}
+                    onClick={() =>
+                      setSelected({ id: preset.id, name: preset.name })
+                    }
+                  />
                 ))}
               </div>
             </section>

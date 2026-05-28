@@ -1,26 +1,26 @@
 /**
- * Remapeia referências de slug → id real em `node.data` durante o apply de
+ * Remapeia referências de slug → id real em node.data durante o apply de
  * um TrackingPreset. Cada dialog do editor de workflow espera campos
  * específicos — esse helper alinha o spec (slugs portáveis) ao formato
  * exato esperado por cada nodeType.
  *
- * **Padrão de storage do node** (descoberto lendo cada `*/node.tsx`):
+ * Padrão de storage do node (descoberto lendo cada node.tsx):
  *
- *  - **Aninhado em `data.action.X`**: LEAD_TAGGED, MOVE_LEAD_STATUS, TAG,
+ *  - Aninhado em data.action.X: LEAD_TAGGED, MOVE_LEAD_STATUS, TAG,
  *    FILTER_LEAD, RESPONSIBLE, SEND_MESSAGE, TEMPERATURE, WAIT, WIN_LOSS,
- *    MANUAL_TRIGGER, AI_FINISHED. Esses guardam o values do form sob `action`.
- *  - **Flat em `data.X`**: MOVE_LEAD, HTTP_REQUEST, e TODOS os SEND_* de
+ *    MANUAL_TRIGGER, AI_FINISHED. Esses guardam o values do form sob action.
+ *  - Flat em data.X: MOVE_LEAD, HTTP_REQUEST, e TODOS os SEND_* de
  *    "Adicionar Lead no App" (SEND_FORM/AGENDA/PROPOSAL/CONTRACT/LINNKER/NBOX/
- *    NASA_ROUTE) + OPEN_FORM. Esses guardam o values direto em `data`.
+ *    NASA_ROUTE) + OPEN_FORM. Esses guardam o values direto em data.
  *
- * Erros do passado: presets criavam tudo flat → dialogs aninhados liam
- * vazio do `defaultValues={nodeData.action}` mesmo com tagIds resolvidos.
+ * Erros do passado: presets criavam tudo flat — dialogs aninhados liam
+ * vazio do defaultValues=nodeData.action mesmo com tagIds resolvidos.
  * Aí no canvas a borda aparecia verde (helper validava flat tb), mas o
  * user abria o dialog e via tudo em branco. Agora cada node ganha o
  * formato certo.
  */
 
-/** Set de NodeTypes que guardam config em `data.action.X`. */
+/** Set de NodeTypes que guardam config em data.action.X. */
 const NESTED_ACTION_TYPES = new Set([
   "LEAD_TAGGED",
   "MOVE_LEAD_STATUS",
