@@ -36,9 +36,10 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   { key: "cosmic",       title: "Formulários",  url: "/form",           icon: ClipboardType,             alwaysVisible: false, defaultVisible: true  },
   { key: "nasachat",     title: "Chats",        url: "/tracking-chat",  icon: MessageSquareTextIcon,     alwaysVisible: false, defaultVisible: true  },
   { key: "spacetime",    title: "Agenda",       url: "/agendas",        icon: Calendar,                  alwaysVisible: false, defaultVisible: true  },
+  // Insights — núcleo essencial pra analytics; volta pro default visível
+  { key: "insights",     title: "Insights",     url: "/insights",       icon: ChartColumnDecreasingIcon, alwaysVisible: false, defaultVisible: true  },
   // ── Ocultos por padrão (opt-in via /apps "+") ───────────────────────────
   { key: "contatos",     title: "Contatos",     url: "/contatos",       icon: Users,                     alwaysVisible: false, defaultVisible: false },
-  { key: "insights",     title: "Insights",     url: "/insights",       icon: ChartColumnDecreasingIcon, alwaysVisible: false, defaultVisible: false },
   { key: "integrations", title: "Integrações",  url: "/integrations",   icon: Plug2,                     alwaysVisible: false, defaultVisible: false },
   { key: "nbox",         title: "N-Box",        url: "/nbox",           icon: FolderOpen,                alwaysVisible: false, defaultVisible: false },
   { key: "nasa-planner", title: "Planner",      url: "/nasa-planner",   icon: Map,                       alwaysVisible: false, defaultVisible: false },

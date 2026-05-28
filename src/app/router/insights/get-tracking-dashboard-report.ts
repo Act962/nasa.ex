@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "../../middlewares/org";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
+import { getTagSnapshotAtDate } from "@/features/insights/lib/tag-snapshot";
 
 export const getTrackingDashboardReport = base
   .use(requiredAuthMiddleware)
@@ -188,21 +189,35 @@ export const getTrackingDashboardReport = base
         Promise.resolve(null),
         Promise.resolve(null),
 
-        // Por tag
-        prisma.leadTag.findMany({
-          where: {
-            lead: baseWhere,
-          },
-          select: {
-            tagId: true,
-            lead: {
-              select: {
-                id: true,
-                trackingId: true,
-              },
-            },
-          },
-        }),
+        // Por tag — usa SNAPSHOT TEMPORAL ao invés de LeadTag vivo.
+        // Pra cada lead filtrado por baseWhere, reconstrói quais tags ele
+        // tinha em `endDate` baseado em LeadJourneyEvent (tag_added/
+        // tag_removed) + fallback de LeadTag.createdAt pra dados antigos.
+        //
+        // Sem isso, remover uma tag HOJE fazia a métrica de ONTEM cair
+        // retroativamente (bug crítico de relatórios históricos).
+        prisma.lead
+          .findMany({
+            where: baseWhere,
+            select: { id: true, trackingId: true },
+          })
+          .then(async (leads) => {
+            const leadById = new Map(leads.map((l) => [l.id, l]));
+            const snapshot = await getTagSnapshotAtDate(
+              leads.map((l) => l.id),
+              endDate ? new Date(endDate) : null,
+            );
+            return snapshot
+              .map((s) => {
+                const lead = leadById.get(s.leadId);
+                if (!lead) return null;
+                return {
+                  tagId: s.tagId,
+                  lead: { id: lead.id, trackingId: lead.trackingId },
+                };
+              })
+              .filter((r): r is NonNullable<typeof r> => r !== null);
+          }),
 
         // Conversas totais
         prisma.conversation.count({

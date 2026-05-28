@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { requireOrgMiddleware } from "../../middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { getTagSnapshotAtDate } from "@/features/insights/lib/tag-snapshot";
 
 export const getLeadsByTags = base
   .use(requiredAuthMiddleware)
@@ -63,32 +64,45 @@ export const getLeadsByTags = base
         },
       });
 
-      // Para cada tag, contar leads associados no tracking.
-      // Anota `isArchived` no payload pra UI mostrar badge "arquivada"
-      // quando includeArchived=true.
-      const tagCounts = await Promise.all(
-        tags.map(async (tag) => {
-          const count = await prisma.leadTag.count({
-            where: {
-              tagId: tag.id,
-              lead: baseWhere,
-            },
-          });
-          const { archivedAt, ...tagPublic } = tag;
-          return {
-            tag: { ...tagPublic, isArchived: archivedAt !== null },
-            count,
-          };
-        }),
-      );
-
-      // Total de leads com pelo menos 1 tag
-      const totalWithTags = await prisma.lead.count({
-        where: {
-          ...baseWhere,
-          leadTags: { some: {} },
-        },
+      // Para cada tag, contar leads que TINHAM ela em `endDate`.
+      // Usa SNAPSHOT TEMPORAL (lib/tag-snapshot) — reconstrói via
+      // LeadJourneyEvent. Sem isso, remover tag HOJE caía retroativamente
+      // o count de PERÍODOS PASSADOS (bug crítico).
+      //
+      // Quando não há endDate (ou está no futuro), o helper já cai pro
+      // caminho rápido (LeadTag vivo) automaticamente.
+      const leadsInScope = await prisma.lead.findMany({
+        where: baseWhere,
+        select: { id: true },
       });
+      const snapshot = await getTagSnapshotAtDate(
+        leadsInScope.map((l) => l.id),
+        endDate ? new Date(endDate) : null,
+      );
+      // Agrupa snapshot por tagId pra contagem
+      const countByTagId = new Map<string, number>();
+      const leadsByTagId = new Map<string, Set<string>>();
+      for (const s of snapshot) {
+        countByTagId.set(s.tagId, (countByTagId.get(s.tagId) ?? 0) + 1);
+        const set = leadsByTagId.get(s.tagId) ?? new Set();
+        set.add(s.leadId);
+        leadsByTagId.set(s.tagId, set);
+      }
+
+      const tagCounts = tags.map((tag) => {
+        const { archivedAt, ...tagPublic } = tag;
+        return {
+          tag: { ...tagPublic, isArchived: archivedAt !== null },
+          count: countByTagId.get(tag.id) ?? 0,
+        };
+      });
+
+      // Total de leads com PELO MENOS 1 tag no endDate (também via snapshot)
+      const leadsWithAnyTag = new Set<string>();
+      for (const set of leadsByTagId.values()) {
+        for (const id of set) leadsWithAnyTag.add(id);
+      }
+      const totalWithTags = leadsWithAnyTag.size;
 
       return {
         tags: tagCounts.sort((a, b) => b.count - a.count),
