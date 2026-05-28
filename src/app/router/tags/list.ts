@@ -60,6 +60,9 @@ export const listTags = base
           trackingId: true,
           tagGroupId: true,
           archivedAt: true,
+          // Conta leads vinculados (LeadTag) — pra mostrar badge "N lead(s)"
+          // ao lado do contador de automações na UI do TagSheet.
+          _count: { select: { leadTags: true } },
         },
         where: {
           organizationId: context.org.id,
@@ -111,10 +114,11 @@ export const listTags = base
       }
 
       return {
-        tags: tags.map((tag) => ({
+        tags: tags.map(({ _count, ...tag }) => ({
           ...tag,
           color: tag.color ?? "#1447e6",
           isArchived: tag.archivedAt !== null,
+          leadCount: _count.leadTags,
           automationCount: automationCountByTag.get(tag.id) ?? 0,
         })),
       };

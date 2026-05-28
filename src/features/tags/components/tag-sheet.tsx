@@ -55,10 +55,12 @@ import {
   ArchiveIcon,
   ArchiveRestoreIcon,
   CheckIcon,
+  ChevronRightIcon,
   FolderIcon,
   PlusIcon,
   TagIcon,
   Trash2Icon,
+  UsersIcon,
   ZapIcon,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
@@ -549,6 +551,9 @@ interface TagItemProps {
    *  referenciam essa tag em algum node TAG/LEAD_TAGGED. Mostra badge
    *  amber e dispara confirm dialog ao arquivar/editar quando > 0. */
   automationCount?: number;
+  /** Count de leads vinculados (LeadTag.count) — usado pra exibir stats
+   *  no popover de edit (volume de uso) + dialog de mesclar duplicatas. */
+  leadCount?: number;
   /** Grupo da tag (null = "Sem categoria"). Vem do procedure list. */
   tagGroupId?: string | null;
   /** True quando archivedAt != null (computado server-side). */
@@ -559,6 +564,8 @@ export function TagItem(tag: TagItemProps) {
   const [open, setOpen] = useState(false);
   // Confirm dialog antes de arquivar quando automationCount > 0
   const [confirmArchive, setConfirmArchive] = useState(false);
+  // Mostra/esconde a lista de workflows referenciadores dentro do popover
+  const [showWorkflows, setShowWorkflows] = useState(false);
   const form = useForm<TagFormSchema>({
     resolver: zodResolver(tagFormSchema),
     defaultValues: {
@@ -583,9 +590,11 @@ export function TagItem(tag: TagItemProps) {
   const automationCount = tag.automationCount ?? 0;
 
   // Carrega workflows que referenciam essa tag — só quando dialog
-  // de confirmação está aberto (lazy fetch).
+  // de confirmação OU lista expandida no popover estão abertos.
   const { data: workflowsData, isLoading: loadingWorkflows } =
-    useReferencedWorkflows(confirmArchive ? tag.id : null);
+    useReferencedWorkflows(
+      confirmArchive || showWorkflows ? tag.id : null,
+    );
 
   const handleArchive = () => {
     if (automationCount > 0) {
@@ -642,9 +651,20 @@ export function TagItem(tag: TagItemProps) {
           className="cursor-pointer focus-visible:ring-0 outline-none gap-1"
         >
           {tag.name}
-          {/* Badge circular com contagem de workflows que usam essa tag.
-              Alerta visual antes do user editar/arquivar — evita romper
-              automações inadvertidamente. */}
+          {/* Badge de leads (azul) — sempre visível pra dar contexto de
+              volume de uso. Click no popover mostra detalhes. */}
+          {(tag.leadCount ?? 0) > 0 && (
+            <span
+              className="inline-flex items-center justify-center size-4 rounded-full bg-blue-500 text-white text-[9px] font-bold leading-none gap-0.5"
+              title={`${tag.leadCount} lead(s) vinculado(s)`}
+            >
+              <UsersIcon className="size-2" />
+              {tag.leadCount}
+            </span>
+          )}
+          {/* Badge de automações (amber) — só aparece quando > 0.
+              Alerta visual antes do user editar/arquivar pra evitar
+              romper workflows inadvertidamente. */}
           {automationCount > 0 && (
             <span
               className="inline-flex items-center justify-center size-4 rounded-full bg-amber-500 text-white text-[9px] font-bold leading-none gap-0.5"
@@ -762,18 +782,95 @@ export function TagItem(tag: TagItemProps) {
           </div>
         </form>
         <Separator />
-        <div className="p-2 flex items-center justify-between gap-2">
-          {automationCount > 0 && (
-            <span className="text-[10px] text-amber-600 inline-flex items-center gap-1">
-              <ZapIcon className="size-3" />
-              {automationCount} automação(ões)
-            </span>
-          )}
+        {/* Stats — leads + automações lado a lado. Click no count de
+            automações expande lista de workflows referenciadores. */}
+        <div className="px-2 py-1.5 flex items-center gap-2 text-[11px]">
+          <span className="inline-flex items-center gap-1 text-blue-600">
+            <UsersIcon className="size-3" />
+            <b>{tag.leadCount ?? 0}</b> lead(s)
+          </span>
+          <span className="text-muted-foreground">·</span>
+          <button
+            type="button"
+            onClick={() => {
+              if (automationCount > 0) setShowWorkflows((v) => !v);
+            }}
+            className={cn(
+              "inline-flex items-center gap-1 transition-colors",
+              automationCount > 0
+                ? "text-amber-600 hover:text-amber-700 cursor-pointer"
+                : "text-muted-foreground",
+            )}
+            disabled={automationCount === 0}
+            title={
+              automationCount > 0
+                ? "Clique pra ver workflows"
+                : undefined
+            }
+          >
+            <ZapIcon className="size-3" />
+            <b>{automationCount}</b> integração(ões)
+            {automationCount > 0 && (
+              <ChevronRightIcon
+                className={cn(
+                  "size-3 transition-transform",
+                  showWorkflows && "rotate-90",
+                )}
+              />
+            )}
+          </button>
+        </div>
+
+        {/* Lista de workflows — colapsável. Carrega lazy quando expandida. */}
+        {showWorkflows && (
+          <div className="px-2 pb-2 max-h-32 overflow-y-auto border-t bg-muted/30">
+            {loadingWorkflows && (
+              <p className="text-[10px] text-muted-foreground py-2">
+                Carregando workflows...
+              </p>
+            )}
+            {!loadingWorkflows &&
+              workflowsData?.workflows.length === 0 && (
+                <p className="text-[10px] text-muted-foreground py-2">
+                  Nenhum workflow ativo encontrado.
+                </p>
+              )}
+            {workflowsData?.workflows.map((w) => (
+              <div
+                key={`${w.workflowId}-${w.nodeType}`}
+                className="flex items-center justify-between gap-2 py-1 text-[10px]"
+              >
+                <span className="truncate" title={w.name}>
+                  {w.name}
+                </span>
+                <span className="text-muted-foreground inline-flex items-center gap-1 shrink-0">
+                  <span
+                    className={cn(
+                      "rounded px-1 py-0.5 text-[9px]",
+                      w.nodeType === "TAG"
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+                    )}
+                  >
+                    {w.nodeType === "TAG" ? "Ação" : "Gatilho"}
+                  </span>
+                  {w.trackingName && (
+                    <span className="truncate max-w-[80px]">
+                      · {w.trackingName}
+                    </span>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <Separator />
+        <div className="p-2 flex items-center justify-end">
           <Button
             size="sm"
             variant="outline"
             onClick={handleArchive}
-            className="ml-auto"
             title="Arquivar tag (preserva histórico)"
           >
             <ArchiveIcon className="size-4" />

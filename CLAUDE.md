@@ -148,6 +148,20 @@ src/features/<dominio>/
    - Componentes/pages importam **só os hooks** — não importam `orpc` direto. Isso facilita refatorar contratos, padronizar invalidações e testar isoladamente.
 10. **Documentação do NASA Route** — sempre que criar ou atualizar qualquer coisa dentro de `src/features/nasa-route/`, `src/app/router/nasa-route/`, `src/app/(platform)/(tracking)/nasa-route/`, ou modelos `NasaRoute*` no `prisma/schema.prisma`, **atualize também [`docs/nasa-route-overview.md`](docs/nasa-route-overview.md)** na mesma sessão. Aplica-se a: novos modelos, novas procedures oRPC, novos formatos de curso, mudanças no fluxo de pagamento/checkout, novas integrações, mudanças no pipeline de vídeo ou Stars, novos componentes relevantes. Mantenha tabelas, listas de procedures e fluxos sincronizados com o código — o documento é fonte de verdade do domínio.
 
+11. **Ritual pós-migration (OBRIGATÓRIO)** — sempre que aplicar SQL de migration (via `pnpm db:migrate` ou `prisma db execute`), o Claude DEVE executar IMEDIATAMENTE os 4 passos seguintes na mesma resposta, SEM esperar o usuário pedir. Esquecer qualquer um causa: 404 em catch-all routes, "prisma.X is undefined", cliente em cache, Sheet/Dialog usando schema antigo. Esses bugs são recorrentes neste projeto (Turbopack 16.2.4 + Prisma 7).
+
+    **Sequência (na ordem):**
+
+    a. **Regenerar Prisma client** — `pnpm db:generate`. Cria/atualiza tipos em `src/generated/prisma/`. Sem isso, `prisma.NovoModel` é `undefined` em runtime → erros `Cannot read properties of undefined`.
+
+    b. **Bumpar SCHEMA_VERSION** em `src/lib/prisma.ts` — incrementar a string (ex: `v28-x` → `v29-y`). O `globalForPrisma` cache de hot-reload em dev cria uma instância nova só quando a versão muda. Sem bump, Turbopack continua usando client antigo (sem os novos models) mesmo após `db:generate`.
+
+    c. **Marcar migration como aplicada** no histórico (se aplicada via `db execute` em vez de `migrate dev`) — `INSERT INTO _prisma_migrations (...)`. Sem isso, `prisma migrate status` reporta drift e o time perde tempo investigando.
+
+    d. **Touch nos catch-all routes** — `touch src/app/api/auth/[...all]/route.ts src/app/api/rpc/[[...rest]]/route.ts`. Bug crônico do Turbopack 16.2.4: após auto-restart por memory threshold ou regen do client, rotas `[...slug]` e `[[...rest]]` saem do index e devolvem 404 silencioso. Touch força reindex.
+
+    **Checklist final:** depois dos 4 passos, validar via `curl -sI -m 10 http://localhost:3000/<rota-afetada>` que retorna 200/307 (não 404 nem 500). Se ainda falhar, sugerir ao user reiniciar `pnpm dev` (mas só como último recurso, quase nunca é necessário).
+
 ## Obsidian
 
 Vault: `NASA Agents` em `/Users/weydsonlima/Documents/NASA Agents/`
