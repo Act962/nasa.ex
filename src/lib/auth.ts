@@ -7,6 +7,7 @@ import { reactInvitationEmail } from "./email/invitation";
 import { reactResetPasswordEmail } from "./email/reset-password";
 import { stripeClient } from "./stripe";
 import prisma from "./prisma";
+import { inngest } from "@/inngest/client";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -84,6 +85,38 @@ export const auth = betterAuth({
     },
   },
   databaseHooks: {
+    // ── Sync de auth NASA → NERP (best-effort) ──────────────────
+    // Só ENFILEIRA o evento; o processamento real (com retry/backoff) roda
+    // numa função Inngest. try/catch que só loga: NUNCA quebra o sign-up se
+    // o Inngest/NERP estiver fora.
+    user: {
+      create: {
+        after: async (user) => {
+          try {
+            await inngest.send({
+              name: "sync/user.upsert",
+              data: { userId: user.id },
+            });
+          } catch (e) {
+            console.error("[sync emit] user.create enqueue failed:", e);
+          }
+        },
+      },
+    },
+    account: {
+      create: {
+        after: async (account) => {
+          try {
+            await inngest.send({
+              name: "sync/account.upsert",
+              data: { accountId: account.id },
+            });
+          } catch (e) {
+            console.error("[sync emit] account.create enqueue failed:", e);
+          }
+        },
+      },
+    },
     session: {
       create: {
         after: async (session) => {
@@ -158,6 +191,38 @@ export const auth = betterAuth({
   },
   plugins: [
     organization({
+      // ── Sync de auth NASA → NERP (best-effort) ──────────────────
+      // Só enfileira; replicação real com retry roda no Inngest.
+      organizationHooks: {
+        afterCreateOrganization: async ({ organization, member }) => {
+          try {
+            // Org primeiro, depois o Member do owner (a ordem do inbound já é
+            // defensiva, mas enfileirar nessa ordem ajuda a convergir rápido).
+            await inngest.send({
+              name: "sync/org.upsert",
+              data: { organizationId: organization.id },
+            });
+            if (member?.id) {
+              await inngest.send({
+                name: "sync/member.upsert",
+                data: { memberId: member.id },
+              });
+            }
+          } catch (e) {
+            console.error("[sync emit] org.create enqueue failed:", e);
+          }
+        },
+        afterAddMember: async ({ member }) => {
+          try {
+            await inngest.send({
+              name: "sync/member.upsert",
+              data: { memberId: member.id },
+            });
+          } catch (e) {
+            console.error("[sync emit] member.add enqueue failed:", e);
+          }
+        },
+      },
       async sendInvitationEmail(data) {
         await resend.emails.send({
           from: "Nasaex <noreply@notifications.nasaex.com>",

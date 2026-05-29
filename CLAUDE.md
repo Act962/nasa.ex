@@ -80,6 +80,9 @@ Arquivo `.env.local` na raiz. Variáveis principais:
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — OAuth Google
 - `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` — Inngest
 - `AI_SECRETS_KEY` — chave (≥16 chars) usada para criptografar API keys customizadas de IA em `AiSettings.aiApiKey` (AES-256-GCM via `src/lib/crypto.ts`). Obrigatória se algum tracking configurar provider customizado (BYO).
+- `SYNC_SHARED_SECRET` — chave master HMAC do sync bidirecional de auth NASA ↔ NERP (`feature/sync`). **Mesmo valor** nos dois apps (`openssl rand -hex 32`). Assina/verifica `User/Account/Organization/Member` replicados via `src/features/sync/lib/system-cred.ts`.
+- `SYNC_API_KEY` — identifica o caller app↔app no sync (mesmo valor nos dois).
+- `NERP_SYNC_BASE_URL` — base do endpoint inbound do NERP (`/api/sync/nasa`), ex.: `http://localhost:3001`. As funções Inngest `sync/*` (`src/inngest/functions/sync/`) entregam aqui.
 
 ## Estrutura do Projeto
 

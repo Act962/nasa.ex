@@ -53,6 +53,10 @@ import {
   checkNoFirstResponse,
   checkInConvIdle,
 } from "@/inngest/functions/triggers/idle-automation";
+import { replicateUserToNerp } from "@/inngest/functions/sync/replicate-user-to-nerp";
+import { replicateAccountToNerp } from "@/inngest/functions/sync/replicate-account-to-nerp";
+import { replicateOrgToNerp } from "@/inngest/functions/sync/replicate-org-to-nerp";
+import { replicateMemberToNerp } from "@/inngest/functions/sync/replicate-member-to-nerp";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -112,6 +116,11 @@ export const { GET, POST, PUT } = serve({
     scheduleIdleChecks,
     checkNoFirstResponse,
     checkInConvIdle,
+    // ── Sync auth NASA → NERP ──
+    replicateUserToNerp,
+    replicateAccountToNerp,
+    replicateOrgToNerp,
+    replicateMemberToNerp,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,
