@@ -49,14 +49,182 @@ export const topologicalSort = (
   return sortedNodeIds.map((id) => nodeMap.get(id)!).filter(Boolean);
 };
 
+/**
+ * Tipos canônicos de trigger reconhecidos pela engine `runWorkflow`. Lista
+ * espelha `isTriggerNode` em `src/features/workflows/lib/validate-node.ts`
+ * e os trigger-nodes em `runWorkflow.ts:464-489`.
+ *
+ * O `WORKFLOW_EXECUTION` na engine encontra trigger node por `n.type === triggerType`,
+ * então enviar o valor errado (ou omitir) faz o run abortar como FAILED com
+ * mensagem "Nenhum trigger node do tipo X no workflow." — bug recorrente
+ * que motivou a tipagem forte.
+ */
+export type WorkflowTriggerType =
+  | "INITIAL"
+  | "MANUAL_TRIGGER"
+  | "NEW_LEAD"
+  | "MOVE_LEAD_STATUS"
+  | "LEAD_TAGGED"
+  | "AI_FINISHED"
+  | "FIRST_CHAT_INTERACTION"
+  | "LAST_INBOUND_TIMEOUT"
+  | "PAYMENT_RECEIVED"
+  | "MESSAGE_INCOMING"
+  | "WEBHOOK_EXTERNAL";
+
+/**
+ * Shape mínimo do lead que a engine precisa pra popular `context.lead` e
+ * resolver placeholders `{{lead.X}}` nos nodes. Call-sites podem passar
+ * objeto mais rico — só id+trackingId é exigido.
+ */
+export type WorkflowDispatchLead = {
+  id: string;
+  trackingId: string;
+  [key: string]: unknown;
+};
+
+/**
+ * Dispatch tipado pra Inngest. `triggerType` agora é OBRIGATÓRIO — sem ele
+ * a engine cai no default `MANUAL_TRIGGER` (em `inngest/functions.ts:69`) e
+ * 99% das vezes não encontra o trigger node certo. Use os helpers
+ * `dispatch*` abaixo em vez de chamar isso direto sempre que possível.
+ */
 export const sendWorkflowExecution = async (data: {
   workflowId: string;
-  [key: string]: any;
+  triggerType: WorkflowTriggerType;
+  leadId?: string | null;
+  initialData?: Record<string, unknown>;
+  [key: string]: unknown;
 }) => {
   return inngest.send({
     name: "workflow/execute.workflow",
     data,
   });
+};
+
+/** Trigger NEW_LEAD — disparado quando lead acaba de ser criado no tracking. */
+export const dispatchNewLead = async (args: {
+  workflowId: string;
+  lead: WorkflowDispatchLead;
+}) =>
+  sendWorkflowExecution({
+    workflowId: args.workflowId,
+    triggerType: "NEW_LEAD",
+    leadId: args.lead.id,
+    initialData: { lead: args.lead },
+  });
+
+/**
+ * Trigger LEAD_TAGGED — uma chamada por workflow que casou com a(s) tag(s)
+ * adicionada(s). `tagIds` no payload são as tags adicionadas naquele batch
+ * (não necessariamente as do trigger; a engine só precisa do triggerType,
+ * `tagIds` vai pra contexto/placeholders).
+ */
+export const dispatchLeadTagged = async (args: {
+  workflowId: string;
+  lead: WorkflowDispatchLead;
+  tagIds: string[];
+}) =>
+  sendWorkflowExecution({
+    workflowId: args.workflowId,
+    triggerType: "LEAD_TAGGED",
+    leadId: args.lead.id,
+    initialData: { lead: args.lead, tagIds: args.tagIds },
+  });
+
+/** Trigger MOVE_LEAD_STATUS — disparado quando lead muda de status no pipeline. */
+export const dispatchMoveLeadStatus = async (args: {
+  workflowId: string;
+  lead: WorkflowDispatchLead;
+  previousLead?: WorkflowDispatchLead;
+}) =>
+  sendWorkflowExecution({
+    workflowId: args.workflowId,
+    triggerType: "MOVE_LEAD_STATUS",
+    leadId: args.lead.id,
+    initialData: {
+      lead: args.lead,
+      ...(args.previousLead ? { previousLead: args.previousLead } : {}),
+    },
+  });
+
+/** Trigger FIRST_CHAT_INTERACTION — primeira mensagem do atendente humano. */
+export const dispatchFirstChatInteraction = async (args: {
+  workflowId: string;
+  lead: WorkflowDispatchLead;
+}) =>
+  sendWorkflowExecution({
+    workflowId: args.workflowId,
+    triggerType: "FIRST_CHAT_INTERACTION",
+    leadId: args.lead.id,
+    initialData: { lead: args.lead },
+  });
+
+/** Trigger AI_FINISHED — IA do tracking encerrou atendimento (transfer/finish). */
+export const dispatchAiFinished = async (args: {
+  workflowId: string;
+  lead: WorkflowDispatchLead;
+}) =>
+  sendWorkflowExecution({
+    workflowId: args.workflowId,
+    triggerType: "AI_FINISHED",
+    leadId: args.lead.id,
+    initialData: { lead: args.lead },
+  });
+
+/**
+ * Trigger MANUAL_TRIGGER — botão "executar" do painel ou Astro AI tool.
+ * Sem lead específico (engine roda com contexto vazio + initialData).
+ */
+export const dispatchManualTrigger = async (args: {
+  workflowId: string;
+  lead?: WorkflowDispatchLead | Record<string, unknown>;
+}) =>
+  sendWorkflowExecution({
+    workflowId: args.workflowId,
+    triggerType: "MANUAL_TRIGGER",
+    leadId: (args.lead as { id?: string } | undefined)?.id ?? null,
+    initialData: { lead: args.lead ?? {} },
+  });
+
+/**
+ * Broadcast pra acordar `WAIT_FOR_EVENT` em workflows agent-mode em
+ * execução. Diferente dos `dispatch*` acima (que disparam UM workflow
+ * específico via `triggerType`), isto é evento global com `leadId` —
+ * a engine de WAIT_FOR_EVENT casa por `data.leadId` e qualquer workflow
+ * suspenso pra esse lead acorda.
+ *
+ * Eventos suportados (precisam casar com os presets em
+ * `agent-node-forms.tsx WAIT_FOR_EVENT`):
+ *   - "lead-tagged"          ← chamado em add-tags / apply-tags-by-ai
+ *   - "lead-status-changed"  ← chamado em update / update-many-status
+ *   - "ai-finished"          ← chamado em chat/ia/deactive
+ *
+ * Best-effort: catch erros pra não derrubar o caller.
+ */
+export const broadcastAgentWorkflowEvent = async (args: {
+  event: "lead-tagged" | "lead-status-changed" | "ai-finished";
+  leadId: string;
+  trackingId: string;
+  organizationId?: string;
+  extra?: Record<string, unknown>;
+}): Promise<void> => {
+  try {
+    await inngest.send({
+      name: `agent-workflow/${args.event}`,
+      data: {
+        leadId: args.leadId,
+        trackingId: args.trackingId,
+        organizationId: args.organizationId,
+        ...(args.extra ?? {}),
+      },
+    });
+  } catch (err) {
+    console.error(
+      `[broadcastAgentWorkflowEvent:${args.event}] dispatch failed`,
+      err,
+    );
+  }
 };
 
 export type WorkspaceWorkflowTrigger =

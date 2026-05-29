@@ -2,7 +2,7 @@ import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { NodeType } from "@/generated/prisma/enums";
-import { sendWorkflowExecution } from "@/inngest/utils";
+import { dispatchFirstChatInteraction } from "@/inngest/utils";
 
 /**
  * Atualiza `Conversation.lastMessage` + `lastMessageAt` pra refletir a
@@ -188,9 +188,9 @@ export async function triggerFirstChatInteractionIfFirst(params: {
 
   await Promise.all(
     workflows.map((workflow) =>
-      sendWorkflowExecution({
+      dispatchFirstChatInteraction({
         workflowId: workflow.id,
-        initialData: { lead },
+        lead,
       }),
     ),
   );

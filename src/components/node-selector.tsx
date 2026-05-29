@@ -4,17 +4,7 @@ import { NodeType } from "@/generated/prisma/enums";
 import { createId } from "@paralleldrive/cuid2";
 import { useNodes, useReactFlow } from "@xyflow/react";
 
-import {
-  ArrowLeftRightIcon,
-  CircleGaugeIcon,
-  GlobeIcon,
-  MousePointerIcon,
-  SendIcon,
-  TagIcon,
-  TimerIcon,
-  Trophy,
-  UserPlusIcon,
-} from "lucide-react";
+import { SparklesIcon } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -23,7 +13,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "./ui/sheet";
-import { Separator } from "./ui/separator";
+import { Switch } from "./ui/switch";
+import { Badge } from "./ui/badge";
 import { useCallback } from "react";
 import { toast } from "sonner";
 import {
@@ -39,10 +30,13 @@ import {
   TooltipTrigger,
 } from "./ui/tooltip";
 import {
+  agentModeNodes,
   executionNodes,
   NodeTypeOption,
   triggerNodes,
 } from "@/features/executions/lib/node-options";
+import { useUpdateWorkflowAgentMode } from "@/features/workflows/hooks/use-workflows";
+import { useWorkflowAgentMode } from "@/features/workflows/lib/agent-mode-context";
 
 /**
  * Card quadrado de node — ícone centralizado + label embaixo + tooltip com
@@ -91,6 +85,10 @@ interface NodeSelectorProps {
   onOpenChange: (open: boolean) => void;
   sourceId?: string;
   children?: React.ReactNode;
+  /** ID do workflow atual — necessário pra toggle "Modo Agente IA". */
+  workflowId?: string;
+  /** Workflow está em Modo Agente IA? Libera multi-trigger + nodes novos. */
+  agentMode?: boolean;
 }
 
 export function NodeSelector({
@@ -98,7 +96,16 @@ export function NodeSelector({
   onOpenChange,
   sourceId,
   children,
+  workflowId: workflowIdProp,
+  agentMode: agentModeProp,
 }: NodeSelectorProps) {
+  // Lê do contexto se não vier por prop (caso comum: AddNodeButton +
+  // BaseExecutionNode + BaseTriggerNode + InitialNode envolvidos no
+  // WorkflowAgentModeProvider do editor).
+  const ctx = useWorkflowAgentMode();
+  const workflowId = workflowIdProp ?? ctx?.workflowId;
+  const agentMode = agentModeProp ?? ctx?.agentMode ?? false;
+
   const { setNodes, getNodes, setEdges, screenToFlowPosition } = useReactFlow();
   // useNodes é REATIVO — re-renderiza quando nodes mudam (add/remove).
   // Necessário pra esconder a seção "Gatilhos" assim que o user adicionar
@@ -108,9 +115,23 @@ export function NodeSelector({
     triggerNodes.some((tn) => tn.type === node.type),
   );
 
+  // Em Modo Agente IA, multi-trigger é permitido — sempre mostra seção
+  // de gatilhos pra adicionar mais de um.
+  const showTriggerSection = agentMode || !hasTriggerInWorkflow;
+
+  // Filtra triggers pra esconder os que são exclusivos do Modo Agente IA
+  // quando workflow está em modo clássico.
+  const visibleTriggers = triggerNodes.filter(
+    (t) => !t.agentModeOnly || agentMode,
+  );
+
+  // Toggle do Modo Agente IA (só renderiza se workflowId presente)
+  const updateAgentMode = useUpdateWorkflowAgentMode(workflowId ?? "");
+
   const handleNodeSelect = useCallback(
     (selection: NodeTypeOption) => {
-      if (selection.category === "trigger") {
+      if (selection.category === "trigger" && !agentMode) {
+        // Modo clássico: apenas 1 trigger permitido
         const nodes = getNodes();
         const hasTrigger = nodes.some((node) =>
           triggerNodes.some((tn) => tn.type === node.type),
@@ -168,7 +189,18 @@ export function NodeSelector({
 
       onOpenChange(false);
     },
-    [setNodes, getNodes, onOpenChange, screenToFlowPosition],
+    // `agentMode` é capturado no closure — sem ele nas deps, o callback
+    // fica preso no valor inicial (false) mesmo depois do user ligar o
+    // toggle. Idem `sourceId` e `setEdges`.
+    [
+      setNodes,
+      getNodes,
+      setEdges,
+      onOpenChange,
+      screenToFlowPosition,
+      sourceId,
+      agentMode,
+    ],
   );
 
   return (
@@ -181,23 +213,64 @@ export function NodeSelector({
             Selecione o tipo de automação que deseja adicionar ao fluxo.
           </SheetDescription>
         </SheetHeader>
+
+        {/* ── Toggle "Modo Agente IA" — acima de Gatilhos ──
+            Desbloqueia multi-gatilhos, multi-ações, condicionais, loops,
+            decisão por IA, voz, mídia, sub-workflows. */}
+        {workflowId && (
+          <div className="mx-4 mt-2 mb-3 rounded-lg border bg-gradient-to-br from-emerald-50 to-cyan-50 dark:from-emerald-950/40 dark:to-cyan-950/40 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <SparklesIcon className="size-4 text-emerald-600" />
+                  <span className="font-semibold text-sm">Modo Agente IA</span>
+                  {agentMode && (
+                    <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-300 text-[10px] uppercase tracking-wide">
+                      Ativo
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  Desbloqueia multi-gatilhos, condicionais, loops, nós de IA
+                  (voz, imagem, PDF) e sub-workflows.
+                </p>
+              </div>
+              <Switch
+                checked={agentMode}
+                disabled={updateAgentMode.isPending}
+                onCheckedChange={(v) =>
+                  updateAgentMode.mutate({ workflowId, agentMode: v })
+                }
+              />
+            </div>
+          </div>
+        )}
+
         <TooltipProvider delayDuration={300}>
           <Accordion
             type="multiple"
-            defaultValue={["trigger", "execution"]}
+            defaultValue={
+              agentMode
+                ? ["trigger", "execution", "agent-logic", "agent-ai", "agent-apps"]
+                : ["trigger", "execution"]
+            }
             className="w-full"
           >
-            {/* Seção Gatilhos some quando já existe um no workflow — só pode
-                ter 1 trigger por automação (limit técnico). Volta a aparecer
-                quando o trigger é deletado. */}
-            {!hasTriggerInWorkflow && (
+            {/* Seção Gatilhos: em modo clássico some quando já existe um;
+                em Modo Agente IA fica sempre visível (multi-trigger permitido). */}
+            {showTriggerSection && (
               <AccordionItem value="trigger">
                 <AccordionTrigger className="px-4 pt-5 hover:no-underline">
                   Gatilhos
+                  {agentMode && (
+                    <Badge variant="outline" className="ml-2 text-[10px] uppercase">
+                      Multi
+                    </Badge>
+                  )}
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="grid grid-cols-4 gap-2 px-4 pb-2">
-                    {triggerNodes.map((nodeType) => (
+                    {visibleTriggers.map((nodeType) => (
                       <NodeCard
                         key={nodeType.type}
                         node={nodeType}
@@ -258,6 +331,99 @@ export function NodeSelector({
                 )}
               </AccordionContent>
             </AccordionItem>
+
+            {/* ── Categorias do Modo Agente IA — só aparecem quando ativo ── */}
+            {agentMode && (
+              <>
+                <AccordionItem value="agent-logic">
+                  <AccordionTrigger className="px-4 pt-5 hover:no-underline">
+                    Lógica
+                    <Badge variant="outline" className="ml-2 text-[10px] uppercase">
+                      Agente IA
+                    </Badge>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-4 gap-2 px-4 pb-2">
+                      {agentModeNodes
+                        .filter((n) => n.group === "logic")
+                        .map((nodeType) => (
+                          <NodeCard
+                            key={nodeType.type}
+                            node={nodeType}
+                            onClick={() => handleNodeSelect(nodeType)}
+                          />
+                        ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="agent-ai">
+                  <AccordionTrigger className="px-4 pt-5 hover:no-underline">
+                    IA
+                    <Badge variant="outline" className="ml-2 text-[10px] uppercase">
+                      Agente IA
+                    </Badge>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-4 gap-2 px-4 pb-2">
+                      {agentModeNodes
+                        .filter((n) => n.group === "ai")
+                        .map((nodeType) => (
+                          <NodeCard
+                            key={nodeType.type}
+                            node={nodeType}
+                            onClick={() => handleNodeSelect(nodeType)}
+                          />
+                        ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="agent-apps">
+                  <AccordionTrigger className="px-4 pt-5 hover:no-underline">
+                    Apps NASA & Comunicação
+                    <Badge variant="outline" className="ml-2 text-[10px] uppercase">
+                      Agente IA
+                    </Badge>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-4 gap-2 px-4 pb-2">
+                      {agentModeNodes
+                        .filter((n) => n.group === "nasa-apps")
+                        .map((nodeType) => (
+                          <NodeCard
+                            key={nodeType.type}
+                            node={nodeType}
+                            onClick={() => handleNodeSelect(nodeType)}
+                          />
+                        ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="agent-data">
+                  <AccordionTrigger className="px-4 pt-5 hover:no-underline">
+                    Dados & Sub-Workflows
+                    <Badge variant="outline" className="ml-2 text-[10px] uppercase">
+                      Agente IA
+                    </Badge>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-4 gap-2 px-4 pb-2">
+                      {agentModeNodes
+                        .filter((n) => n.group === "data")
+                        .map((nodeType) => (
+                          <NodeCard
+                            key={nodeType.type}
+                            node={nodeType}
+                            onClick={() => handleNodeSelect(nodeType)}
+                          />
+                        ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </>
+            )}
           </Accordion>
         </TooltipProvider>
       </SheetContent>

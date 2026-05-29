@@ -34,6 +34,22 @@ import { ExecuteWorkflowButton } from "./execute-workflow-button";
 import { NodeSelector } from "@/components/node-selector";
 import { MenuOptions } from "../../../components/menu-options";
 import { triggerNodes } from "@/features/executions/lib/node-options";
+import { WorkflowAgentModeProvider } from "@/features/workflows/lib/agent-mode-context";
+import { DryRunButton } from "@/features/workflows/components/dry-run-button";
+import { AgentDetailButton } from "@/features/workflows/components/agent-detail-button";
+import { RateLimitBadge } from "@/features/workflows/components/rate-limit-badge";
+import { WorkflowIssuesPanel } from "@/features/workflows/components/workflow-issues-panel";
+import { WorkflowIssuesProvider } from "@/features/workflows/components/workflow-issues-context";
+import { useWorkflowValidation } from "@/features/workflows/hooks/use-workflow-validation";
+import type { GraphIssue } from "@/features/workflows/lib/validate-workflow-graph";
+import { ValidatedEdge } from "./validated-edge";
+
+const edgeTypes = {
+  // Edge default ganha validação automática — quando algum endpoint tem
+  // erro, a linha pulsa em vermelho. Outras edges (sem type explícito)
+  // herdam essa por ser o default no React Flow.
+  default: ValidatedEdge,
+};
 
 export function Editor({ workflowId }: { workflowId: string }) {
   const [openSelector, setOpenSelector] = useState(false);
@@ -163,8 +179,31 @@ export function Editor({ workflowId }: { workflowId: string }) {
     );
   }, [searchParams, pathname, router]);
 
+  // Provider envolve tudo — qualquer NodeSelector renderizado embaixo
+  // (botão "+" no canvas, no node inicial, no fim de cada execution/trigger
+  // node) lê workflowId + agentMode automaticamente do contexto.
+  const agentMode = ((data?.workflow as { agentMode?: boolean })?.agentMode ??
+    false) as boolean;
+
+  // Issues estruturais do grafo (workflow.validate) — auto-refresh a cada 5s.
+  // Cada `BaseExecutionNode`/`BaseTriggerNode` lê via `useNodeIssues(id)` pra
+  // pintar borda vermelha e listar problemas no tooltip.
+  const { data: validationData } = useWorkflowValidation(workflowId);
+  const issuesContextValue = useMemo(
+    () => ({
+      issuesByNode: (validationData?.issuesByNode ?? {}) as Record<
+        string,
+        GraphIssue[]
+      >,
+      allIssues: (validationData?.graphIssues ?? []) as GraphIssue[],
+      isLoading: false,
+    }),
+    [validationData],
+  );
+
   return (
-    <>
+    <WorkflowAgentModeProvider workflowId={workflowId} agentMode={agentMode}>
+     <WorkflowIssuesProvider value={issuesContextValue}>
       <div className="size-full">
         <MenuOptions
           handelOpenSelector={setOpenSelector}
@@ -177,6 +216,7 @@ export function Editor({ workflowId }: { workflowId: string }) {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             nodeTypes={nodeComponents}
+            edgeTypes={edgeTypes}
             onInit={setEditor}
             fitView
             snapGrid={[10, 10]}
@@ -191,7 +231,21 @@ export function Editor({ workflowId }: { workflowId: string }) {
               position="bottom-left"
               className="bg-background! text-black!"
             />
-            <Panel position="top-right">
+            <Panel position="top-right" className="flex items-center gap-2">
+              {agentMode && (
+                <RateLimitBadge
+                  workflowId={workflowId}
+                  maxRunsPerHour={
+                    Number(
+                      (data?.workflow as { maxRunsPerHour?: number })
+                        ?.maxRunsPerHour,
+                    ) || 60
+                  }
+                />
+              )}
+              {agentMode && <AgentDetailButton workflowId={workflowId} />}
+              <WorkflowIssuesPanel workflowId={workflowId} />
+              {agentMode && <DryRunButton workflowId={workflowId} />}
               <AddNodeButton />
             </Panel>
             {hasManuelTrigger && (
@@ -199,13 +253,17 @@ export function Editor({ workflowId }: { workflowId: string }) {
                 <ExecuteWorkflowButton workflowId={workflowId} />
               </Panel>
             )}
-            <NodeSelector open={openSelector} onOpenChange={setOpenSelector} />
+            <NodeSelector
+              open={openSelector}
+              onOpenChange={setOpenSelector}
+            />
           </ReactFlow>
         </MenuOptions>
       </div>
 
       {/* <NodeSelector open={openSelector} onOpenChange={setOpenSelector} /> */}
-    </>
+     </WorkflowIssuesProvider>
+    </WorkflowAgentModeProvider>
   );
 }
 

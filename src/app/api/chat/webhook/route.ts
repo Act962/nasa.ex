@@ -465,6 +465,22 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        // ── Modo Agente IA: dispara workflows com trigger MESSAGE_INCOMING ──
+        // Best-effort — falha aqui NÃO derruba o webhook. Inngest function
+        // `agentTriggerMessageIncomingFn` recebe e fan-out pros workflows
+        // ativos com agentMode=true que escutam este trigger.
+        if (!fromMe && finalBody && lead?.id) {
+          const { dispatchMessageIncoming } = await import(
+            "@/features/workflows/lib/agent-trigger-helpers"
+          );
+          void dispatchMessageIncoming({
+            leadId: lead.id,
+            organizationId: tracking.organizationId,
+            trackingId,
+            messageText: finalBody,
+            messageId,
+          });
+        }
       }
 
       if (messageType === "ImageMessage") {

@@ -1601,21 +1601,98 @@ model Workflow {
   workspaceId String?  @map("workspace_id")
   folderId    String?  @map("folder_id")
   isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  /// Modo Agente IA — habilita multi-gatilhos, branches condicionais (IF/SWITCH),
+  /// loops, AI Decision nodes, wait-for-event, sub-workflows e conexão de volta
+  /// pro gatilho. Quando false, mantém comportamento clássico (1 trigger + N
+  /// ações lineares via topo-sort no workspace-workflow-executor). Quando true,
+  /// engine delega pro run-workflow.ts (DAG executor com fan-out por
+  /// Connection.fromOutput).
+  agentMode      Boolean @default(false) @map("agent_mode")
+  /// Rate limit de execuções por hora pra evitar loop infinito. Cap aplicado
+  /// pelo workflow-rate-limiter Inngest function. Default 60 (1/min médio).
+  maxRunsPerHour Int     @default(60) @map("max_runs_per_hour")
+  /// Linkado opcionalmente ao Agent (Auto Agent). null = workflow comum.
+  /// Quando setado, o Agent delega execução pra este workflow em vez da
+  /// spec linear em Agent.spec.goals[].
+  agentId        String? @map("agent_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   user      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   tracking  Tracking?       @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   workspace Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   folder    WorkflowFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  agent     Agent?          @relation("AgentWorkflow", fields: [agentId], references: [id], onDelete: SetNull)
 
   nodes       Node[]
   connections Connection[]
+  runs        WorkflowRun[]
 
   @@index([trackingId])
   @@index([workspaceId])
   @@index([folderId])
+  @@index([agentId])
+  @@index([agentMode, isActive])
   @@map("workflows")
+}
+
+/// Auditoria de cada execução de Workflow no Modo Agente IA. Persiste timeline
+/// dos nodes visitados, decisões da IA, custo em Stars. Usado pelo Inspector
+/// no canvas pra mostrar histórico ("Workflow rodou 47x; última decisão IA
+/// foi pra branch 'true'"). Cap absoluto: 100 node-executions por run.
+model WorkflowRun {
+  id            String   @id @default(cuid())
+  workflowId    String   @map("workflow_id")
+  /// Lead/contexto que disparou (se aplicável). Workflows org-wide podem ter null.
+  leadId        String?  @map("lead_id")
+  /// Trigger que iniciou ("NEW_LEAD", "LEAD_TAGGED", "PAYMENT_RECEIVED", "DRY_RUN").
+  triggerType   String   @map("trigger_type")
+  /// Snapshot do contexto inicial (lead, vars, payload do evento).
+  initialContext Json    @default("{}") @map("initial_context")
+  /// Status: RUNNING | SUCCESS | FAILED | RATE_LIMITED | MAX_EXECUTIONS_HIT | DRY_RUN
+  status        String   @default("RUNNING")
+  /// Total de nodes executados (cap 100).
+  nodesExecuted Int      @default(0) @map("nodes_executed")
+  /// Stars cobrados nesta run.
+  starsSpent    Int      @default(0) @map("stars_spent")
+  /// Mensagem de erro / motivo da parada.
+  errorMessage  String?  @map("error_message")
+  startedAt     DateTime @default(now()) @map("started_at")
+  finishedAt    DateTime? @map("finished_at")
+
+  workflow Workflow          @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  nodeRuns WorkflowNodeRun[]
+
+  @@index([workflowId, startedAt(sort: Desc)])
+  @@index([leadId])
+  @@index([status])
+  @@map("workflow_runs")
+}
+
+/// Um node-execution dentro de uma WorkflowRun. Permite reconstruir a timeline
+/// e debugar fluxos visualmente. Pra IF_CONDITION/SWITCH_CASE/AI_DECISION,
+/// `chosenOutput` registra qual branch foi escolhida.
+model WorkflowNodeRun {
+  id            String   @id @default(cuid())
+  runId         String   @map("run_id")
+  nodeId        String   @map("node_id")
+  /// NodeType resolvido na hora (snapshot — node pode mudar depois).
+  nodeType      String   @map("node_type")
+  /// "main" | "true" | "false" | "case_X" | "loop" | "done" | "success" | "error"
+  chosenOutput  String?  @map("chosen_output")
+  /// Resultado/output do node passado adiante (merged no context).
+  output        Json     @default("{}")
+  /// Status: SUCCESS | FAILED | SKIPPED | WAITING
+  status        String   @default("SUCCESS")
+  errorMessage  String?  @map("error_message")
+  startedAt     DateTime @default(now()) @map("started_at")
+  finishedAt    DateTime? @map("finished_at")
+
+  run WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, startedAt])
+  @@index([nodeId])
+  @@map("workflow_node_runs")
 }
 
 /// Pasta pra agrupar workflows dentro de um tracking. Workflows com
@@ -1664,6 +1741,36 @@ enum NodeType {
 
   // Utils
   FILTER_LEAD
+
+  // ─── Modo Agente IA (N8n-style) ─────────────
+  // Lógica: branches, loops e merges. Connection.fromOutput vira semântico:
+  // IF_CONDITION → "true"|"false", SWITCH_CASE → "case_<X>", LOOP_OVER → "loop"|"done".
+  IF_CONDITION
+  SWITCH_CASE
+  LOOP_OVER
+  MERGE
+  WAIT_FOR_EVENT
+
+  // IA: nós que chamam LLM em pontos específicos do grafo.
+  AI_DECISION       // Astro escolhe próxima branch baseado em contexto
+  AI_GENERATE_TEXT  // gera mensagem contextualizada (chama nome, etc)
+  AI_VISION         // analisa imagem do lead (Claude Vision)
+  READ_PDF          // extrai texto via pdf-parse + LLM
+
+  // Dados
+  SET_VARIABLE      // {{var}} no contexto do workflow
+  CALL_WORKFLOW     // sub-workflow
+
+  // Apps NASA / Pagamento / Mídia
+  CHECK_PAYMENT     // consulta StripePurchase/AsaasCharge
+  SEND_VOICE        // TTS Astro → áudio WhatsApp
+  SEND_MEDIA        // imagem/vídeo/áudio/documento WhatsApp
+  // WEB_SEARCH — Fase 6 (requer SERPAPI_API_KEY)
+
+  // Triggers novos (multi-trigger num só workflow)
+  PAYMENT_RECEIVED
+  MESSAGE_INCOMING
+  WEBHOOK_EXTERNAL
 
   // ─── Adicionar Lead no App (Sprint Automações) ──
   // Categoria visual "Adicionar Lead no App" no NodeSelector — cada uma
@@ -6515,6 +6622,11 @@ model Agent {
   tracking     Tracking?          @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   createdBy    User?              @relation("AgentCreator", fields: [createdById], references: [id], onDelete: SetNull)
   sessions     LeadAgentSession[]
+  /// Workflows visuais ligados (Modo Agente IA). Quando setado em algum
+  /// Workflow, esse workflow vira o "cérebro" do agent — runAgentTurn delega
+  /// pra ele. Manter como hasMany pra futuro: agent pode ter workflows
+  /// auxiliares (qualificação, follow-up, pós-venda separados).
+  workflows    Workflow[] @relation("AgentWorkflow")
 
   @@index([organizationId, isActive])
   @@index([trackingId])

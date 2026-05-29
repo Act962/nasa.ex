@@ -398,6 +398,7 @@ export const applyTrackingPreset = base
               name: finalName,
               description: wf.description,
               isActive: finalIsActive,
+              agentMode: wf.agentMode ?? false,
               ...(folderId && {
                 folder: { connect: { id: folderId } },
               }),

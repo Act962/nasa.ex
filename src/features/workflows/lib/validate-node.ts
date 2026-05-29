@@ -260,6 +260,138 @@ export function validateNode(
         errs.push("Selecione o curso NASA Route");
       break;
 
+    // ─── Modo Agente IA (N8n-style) ─────────────────────────────────────
+    // Os cases abaixo são minimalistas — config detalhada vive no Inspector
+    // visual. Aqui só vetamos os campos sem os quais o engine não roda.
+
+    case "IF_CONDITION":
+      // data: { conditions: [{ field, operator, value }], combinator: "AND"|"OR" }
+      if (!hasNonEmptyArray(d.conditions))
+        errs.push("Adicione ao menos 1 condição");
+      break;
+
+    case "SWITCH_CASE":
+      // data: { field: "lead.tag", cases: [{ value, output }] }
+      if (!hasNonEmptyString(d.field))
+        errs.push("Informe o campo a avaliar");
+      if (!hasNonEmptyArray(d.cases))
+        errs.push("Adicione ao menos 1 caso");
+      break;
+
+    case "LOOP_OVER":
+      // data: { arrayPath: "lead.tags", maxIterations: 4 }
+      if (!hasNonEmptyString(d.arrayPath))
+        errs.push("Informe o caminho do array a iterar");
+      if (typeof d.maxIterations !== "number" || d.maxIterations <= 0)
+        errs.push("Defina um limite máximo de iterações");
+      break;
+
+    case "MERGE":
+      // Sem config — só consolida inputs. Validade depende do grafo (>=2 inputs).
+      return { valid: true, errors: [], skip: true };
+
+    case "WAIT_FOR_EVENT":
+      // data: { eventName: "payment.received", timeoutMinutes: 1440 }
+      if (!hasNonEmptyString(d.eventName))
+        errs.push("Informe o evento a aguardar");
+      if (typeof d.timeoutMinutes !== "number" || d.timeoutMinutes <= 0)
+        errs.push("Defina um timeout em minutos");
+      break;
+
+    case "AI_DECISION":
+      // data: { prompt, branches: [{ id, label, description }] }
+      if (!hasNonEmptyString(d.prompt))
+        errs.push("Descreva o que a IA deve decidir");
+      if (!hasNonEmptyArray(d.branches))
+        errs.push("Defina ao menos 2 ramos de decisão");
+      else if ((d.branches as unknown[]).length < 2)
+        errs.push("Defina ao menos 2 ramos de decisão");
+      break;
+
+    case "AI_GENERATE_TEXT":
+      // data: { prompt, tone?, maxTokens? }
+      if (!hasNonEmptyString(d.prompt))
+        errs.push("Descreva o que a IA deve gerar");
+      break;
+
+    case "AI_VISION":
+      // data: { imagePath, instruction }
+      if (!hasNonEmptyString(d.imagePath))
+        errs.push("Informe o caminho da imagem no contexto");
+      if (!hasNonEmptyString(d.instruction))
+        errs.push("Descreva o que extrair da imagem");
+      break;
+
+    case "READ_PDF":
+      // data: { pdfPath, instruction? }
+      if (!hasNonEmptyString(d.pdfPath))
+        errs.push("Informe o caminho do PDF no contexto");
+      break;
+
+    case "SET_VARIABLE":
+      // data: { name, value | expression }
+      if (!hasNonEmptyString(d.name))
+        errs.push("Informe o nome da variável");
+      if (
+        !hasNonEmptyString(d.value) &&
+        !hasNonEmptyString(d.expression)
+      )
+        errs.push("Informe um valor ou expressão");
+      break;
+
+    case "CALL_WORKFLOW":
+      // data: { workflowId }
+      if (!hasNonEmptyString(d.workflowId))
+        errs.push("Selecione o sub-workflow");
+      break;
+
+    case "CHECK_PAYMENT":
+      // data: { provider: "STRIPE"|"ASAAS", paymentId | leadId }
+      if (d.provider !== "STRIPE" && d.provider !== "ASAAS")
+        errs.push('Escolha "Stripe" ou "Asaas"');
+      if (!hasNonEmptyString(d.paymentId) && !hasNonEmptyString(d.leadId))
+        errs.push("Informe ID do pagamento ou do lead");
+      break;
+
+    case "SEND_VOICE":
+      // data: { text | textPath, voice? }
+      if (!hasNonEmptyString(d.text) && !hasNonEmptyString(d.textPath))
+        errs.push("Informe o texto a ser falado");
+      break;
+
+    case "SEND_MEDIA":
+      // data: { mediaType: "IMAGE"|"VIDEO"|"AUDIO"|"DOCUMENT", url, caption? }
+      if (
+        d.mediaType !== "IMAGE" &&
+        d.mediaType !== "VIDEO" &&
+        d.mediaType !== "AUDIO" &&
+        d.mediaType !== "DOCUMENT"
+      )
+        errs.push("Escolha o tipo de mídia");
+      if (!hasNonEmptyString(d.url))
+        errs.push("Informe a URL da mídia");
+      break;
+
+    case "WEB_SEARCH":
+      // data: { query: string, preferredProvider?: "gemini"|"openai", organizationId? }
+      if (!hasNonEmptyString(d.query))
+        errs.push("Informe o que pesquisar (suporta {{vars.x}})");
+      break;
+
+    // Triggers novos — config mínima
+    case "PAYMENT_RECEIVED":
+      // data: { provider?: "STRIPE"|"ASAAS"|"ANY", minAmountCents? }
+      // Tudo opcional — sem config = aceita qualquer pagamento.
+      return { valid: true, errors: [], skip: true };
+
+    case "MESSAGE_INCOMING":
+      // data: { containsAny?: string[], regex? }
+      return { valid: true, errors: [], skip: true };
+
+    case "WEBHOOK_EXTERNAL":
+      // data: { secret? } — secret recomendado, mas não obrigatório
+      return { valid: true, errors: [], skip: true };
+
     // ── Desconhecido — assume válido pra não bloquear sem motivo ────────
     default:
       return { valid: true, errors: [], skip: true };
@@ -283,7 +415,73 @@ export function isTriggerNode(type: string): boolean {
     "AI_FINISHED",
     "FIRST_CHAT_INTERACTION",
     "LAST_INBOUND_TIMEOUT",
+    // Triggers do Modo Agente IA
+    "PAYMENT_RECEIVED",
+    "MESSAGE_INCOMING",
+    "WEBHOOK_EXTERNAL",
   ].includes(type);
+}
+
+/**
+ * Categoriza nodes pra paleta do Modo Agente IA (UI). Estrutura espelha
+ * os AccordionItems do node-selector: Gatilhos | Lógica | IA | Comunicação |
+ * Pagamento | NASA Apps | Outros.
+ */
+export type NodeCategory =
+  | "trigger"
+  | "logic"
+  | "ai"
+  | "communication"
+  | "payment"
+  | "nasa-app"
+  | "data"
+  | "action";
+
+export function getNodeCategory(type: string): NodeCategory {
+  if (isTriggerNode(type)) return "trigger";
+
+  switch (type) {
+    case "IF_CONDITION":
+    case "SWITCH_CASE":
+    case "LOOP_OVER":
+    case "MERGE":
+    case "WAIT_FOR_EVENT":
+    case "FILTER_LEAD":
+    case "WAIT":
+      return "logic";
+
+    case "AI_DECISION":
+    case "AI_GENERATE_TEXT":
+    case "AI_VISION":
+    case "READ_PDF":
+      return "ai";
+
+    case "SEND_MESSAGE":
+    case "SEND_VOICE":
+    case "SEND_MEDIA":
+      return "communication";
+
+    case "CHECK_PAYMENT":
+      return "payment";
+
+    case "SEND_FORM":
+    case "OPEN_FORM":
+    case "SEND_AGENDA":
+    case "SEND_PROPOSAL":
+    case "SEND_CONTRACT":
+    case "SEND_LINNKER":
+    case "SEND_NBOX":
+    case "SEND_NASA_ROUTE":
+      return "nasa-app";
+
+    case "SET_VARIABLE":
+    case "CALL_WORKFLOW":
+    case "HTTP_REQUEST":
+      return "data";
+
+    default:
+      return "action";
+  }
 }
 
 /**

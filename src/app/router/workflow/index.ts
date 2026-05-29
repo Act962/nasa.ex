@@ -5,6 +5,10 @@ import { getWorkflow } from "./get";
 import { listWorkflows } from "./list";
 import { updateIsActive } from "./update-is-active";
 import { updateName, updateNodes } from "./update";
+import { updateAgentMode } from "./update-agent-mode";
+import { dryRunWorkflow } from "./dry-run";
+import { listWorkflowRuns, getWorkflowRunDetail } from "./list-runs";
+import { validateWorkflowProc } from "./validate";
 
 export const workflowRoutes = {
   create: createWorkflow,
@@ -15,6 +19,11 @@ export const workflowRoutes = {
     updateName,
     updateNodes,
     updateIsActive,
+    updateAgentMode,
   },
   execute: executeWorkflow,
+  dryRun: dryRunWorkflow,
+  validate: validateWorkflowProc,
+  listRuns: listWorkflowRuns,
+  getRun: getWorkflowRunDetail,
 };

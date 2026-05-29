@@ -8,7 +8,7 @@ import {
   recordLeadEvent,
   type RecordLeadEventInput,
 } from "@/features/leads/lib/history";
-import { sendWorkflowExecution } from "@/inngest/utils";
+import { dispatchLeadTagged, broadcastAgentWorkflowEvent } from "@/inngest/utils";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { eventBus } from "@/features/alerts/lib/event-bus";
 import { findLeadTaggedMatchingWorkflows } from "@/features/triggers/components/lead-tagged/find-matching-workflows";
@@ -99,15 +99,24 @@ export const addTagsToLead = base
     if (result.workflows.length > 0) {
       await Promise.all(
         result.workflows.map((workflow) =>
-          sendWorkflowExecution({
+          dispatchLeadTagged({
             workflowId: workflow.id,
-            initialData: {
-              lead,
-            },
+            lead,
+            tagIds: input.tagIds,
           }),
         ),
       );
     }
+
+    // Broadcast 1x — workflows com WAIT_FOR_EVENT preset "lead-tagged"
+    // pra esse lead acordam (independente de qualquer workflow LEAD_TAGGED
+    // matched acima).
+    await broadcastAgentWorkflowEvent({
+      event: "lead-tagged",
+      leadId: lead.id,
+      trackingId: lead.trackingId,
+      extra: { tagIds: input.tagIds },
+    });
 
     const tracking = await prisma.tracking.findUnique({
       where: { id: lead.trackingId },

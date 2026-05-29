@@ -58,6 +58,11 @@ import {
   autoAgentTickScheduledFn,
   autoAgentOnLeadReplyFn,
 } from "@/inngest/functions/auto-agent-scheduler";
+import {
+  agentTriggerPaymentReceivedFn,
+  agentTriggerMessageIncomingFn,
+  agentTriggerWebhookExternalFn,
+} from "@/inngest/functions/agent-workflow-triggers";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -122,6 +127,10 @@ export const { GET, POST, PUT } = serve({
     // ── NASA Auto Agent — scheduler de turns assíncronos ──
     autoAgentTickScheduledFn,
     autoAgentOnLeadReplyFn,
+    // ── Modo Agente IA Visual — disparadores dos triggers novos ──
+    agentTriggerPaymentReceivedFn,
+    agentTriggerMessageIncomingFn,
+    agentTriggerWebhookExternalFn,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

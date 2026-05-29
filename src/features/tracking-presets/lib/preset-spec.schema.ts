@@ -119,6 +119,9 @@ const workflowSpec = z.object({
   /// Workflows do paradigma "biblioteca" entram inativos por default,
   /// "core" entram ativos.
   isActive: z.boolean().default(false),
+  /// Se true, workflow roda na engine DAG (Modo Agente IA) com suporte a
+  /// AI_DECISION, WAIT_FOR_EVENT, branches. Default false = legacy linear.
+  agentMode: z.boolean().default(false),
   nodes: z.array(nodeSpec).min(1),
   connections: z.array(connectionSpec).default([]),
 });

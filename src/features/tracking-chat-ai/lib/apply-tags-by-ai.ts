@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { sendWorkflowExecution } from "@/inngest/utils";
+import { dispatchLeadTagged, broadcastAgentWorkflowEvent } from "@/inngest/utils";
 import { eventBus } from "@/features/alerts/lib/event-bus";
 import { findLeadTaggedMatchingWorkflows } from "@/features/triggers/components/lead-tagged/find-matching-workflows";
 
@@ -58,13 +58,23 @@ export async function applyTagsByAi(
   if (result.workflows.length > 0) {
     await Promise.all(
       result.workflows.map((workflow) =>
-        sendWorkflowExecution({
+        dispatchLeadTagged({
           workflowId: workflow.id,
-          initialData: { lead },
+          lead,
+          tagIds: input.tagIds,
         }),
       ),
     );
   }
+
+  // Broadcast pra WAIT_FOR_EVENT preset "lead-tagged" — espelha o que
+  // add-tags.ts (humano) faz pra manter paridade entre IA e atendente.
+  await broadcastAgentWorkflowEvent({
+    event: "lead-tagged",
+    leadId: lead.id,
+    trackingId: lead.trackingId,
+    extra: { tagIds: input.tagIds },
+  });
 
   const tracking = await prisma.tracking.findUnique({
     where: { id: lead.trackingId },

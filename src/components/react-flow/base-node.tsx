@@ -27,22 +27,33 @@ interface BaseNodeProps extends ComponentProps<"div"> {
   status?: NodeStatus;
   /** Resultado de `validateNode`. Quando provided, pinta borda + tooltip. */
   validation?: NodeValidation;
+  /**
+   * Mensagens vindas da validação estrutural do grafo (ARCHIVED_TAG,
+   * UNREACHABLE_NODE, etc — `validate-workflow-graph.ts`). Mostradas
+   * no mesmo tooltip do `validation.errors`.
+   */
+  graphErrorMessages?: string[];
 }
 
 export function BaseNode({
   className,
   status,
   validation,
+  graphErrorMessages,
   ...props
 }: BaseNodeProps) {
+  const graphMessages = graphErrorMessages ?? [];
+  const hasGraphErrors = graphMessages.length > 0;
   // Borda colorida baseada na validação. Apenas se o node TEM validação
   // significativa (não-skip). Triggers estruturais como INITIAL ficam
-  // sem cor — não confundem o user.
-  const validationBorder =
-    validation && !validation.skip
-      ? validation.valid
-        ? "border-emerald-500/70"
-        : "border-red-500/80"
+  // sem cor — não confundem o user. Issue do grafo também conta como erro
+  // (mesmo que o nó individualmente valide).
+  const hasNodeError =
+    !!(validation && !validation.skip && !validation.valid) || hasGraphErrors;
+  const validationBorder = hasNodeError
+    ? "border-red-500/80"
+    : validation && !validation.skip && validation.valid
+      ? "border-emerald-500/70"
       : "";
 
   const innerNode = (
@@ -69,28 +80,54 @@ export function BaseNode({
       {/* Indicador de validação no canto superior direito quando inválido —
           visível mesmo sem hover, pra usuário identificar rápido qual ação
           falta configurar. */}
-      {validation && !validation.skip && !validation.valid && (
+      {hasNodeError && (
         <AlertTriangleIcon className="absolute -top-1 -right-1 size-3 text-red-600 fill-red-100" />
       )}
     </div>
   );
 
-  // Se inválido, envolve com Tooltip listando erros. Hover no node mostra
-  // exatamente o que falta preencher.
-  if (validation && !validation.skip && !validation.valid) {
+  // Se inválido (por nó OU por grafo), envolve com Tooltip listando erros.
+  // Hover mostra exatamente o que falta — campos do nó + issues estruturais
+  // que dependem do grafo (tag arquivada, branch faltando, etc).
+  if (hasNodeError) {
+    const fieldErrors =
+      validation && !validation.skip && !validation.valid
+        ? validation.errors
+        : [];
     return (
       <TooltipProvider delayDuration={150}>
         <Tooltip>
           <TooltipTrigger asChild>{innerNode}</TooltipTrigger>
           <TooltipContent side="top" className="max-w-xs">
-            <p className="font-semibold mb-1 text-xs">
-              Ação com campos faltando:
-            </p>
-            <ul className="text-[11px] space-y-0.5 list-disc list-inside">
-              {validation.errors.map((err, i) => (
-                <li key={i}>{err}</li>
-              ))}
-            </ul>
+            {fieldErrors.length > 0 && (
+              <>
+                <p className="font-semibold mb-1 text-xs">
+                  Ação com campos faltando:
+                </p>
+                <ul className="text-[11px] space-y-0.5 list-disc list-inside">
+                  {fieldErrors.map((err, i) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {graphMessages.length > 0 && (
+              <>
+                <p
+                  className={cn(
+                    "font-semibold mb-1 text-xs",
+                    fieldErrors.length > 0 && "mt-2",
+                  )}
+                >
+                  Problemas no fluxo:
+                </p>
+                <ul className="text-[11px] space-y-0.5 list-disc list-inside">
+                  {graphMessages.map((err, i) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
+              </>
+            )}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

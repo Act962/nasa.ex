@@ -9,10 +9,12 @@ import {
   useStore,
 } from "@xyflow/react";
 import { LucideIcon, Plus } from "lucide-react";
+import { createId } from "@paralleldrive/cuid2";
 import { memo, useMemo, useState, type ReactNode } from "react";
 import { WorkflowNode } from "@/components/workflow-node";
 import { BaseNode, BaseNodeContent } from "@/components/react-flow/base-node";
 import { validateNode } from "@/features/workflows/lib/validate-node";
+import { useNodeIssues } from "@/features/workflows/components/workflow-issues-context";
 import Image from "next/image";
 import { BaseHandle } from "@/components/react-flow/base-handle";
 import {
@@ -83,21 +85,58 @@ export const BaseTriggerNode = memo(
       });
     };
 
+    const handleDuplicate = () => {
+      setNodes((currentNodes) => {
+        const original = currentNodes.find((n) => n.id === id);
+        if (!original) return currentNodes;
+        const clone = {
+          ...original,
+          id: createId(),
+          position: {
+            x: original.position.x + 40,
+            y: original.position.y + 40,
+          },
+          selected: false,
+          data: JSON.parse(JSON.stringify(original.data ?? {})),
+        };
+        return [...currentNodes, clone];
+      });
+    };
+
+    const handleAddNext = () => setOpenSelector(true);
+
+    // Issues estruturais do grafo (TRIGGER_DISCONNECTED, ARCHIVED_TAG no
+    // LEAD_TAGGED, etc) também forçam borda vermelha — bug clássico do
+    // "Agente de Agendamento" caía aqui silenciosamente porque NEW_LEAD
+    // sem aresta de saída ficava verde.
+    const graphIssues = useNodeIssues(id);
+    const hasGraphError = graphIssues.some((i) => i.severity === "error");
+    const nodeInvalid = !!(validation && !validation.valid && !validation.skip);
+    // Sobrescreve status quando validação falha — borda vermelha pulsante
+    // sinaliza que o trigger não está pronto pra ativar.
+    const effectiveStatus: typeof status =
+      nodeInvalid || hasGraphError ? "error" : status;
+
     return (
       <WorkflowNode
         name={name}
         description={description}
         onDelete={handleDelete}
         onSettings={onSettings}
+        onDuplicate={handleDuplicate}
+        onAddNext={handleAddNext}
       >
         <NodeStatusIndicator
-          status={status}
+          status={effectiveStatus}
           variant="border"
           className="rounded-l-2xl"
         >
           <BaseNode
             status={status}
             validation={validation}
+            graphErrorMessages={graphIssues
+              .filter((i) => i.severity === "error")
+              .map((i) => i.message)}
             onDoubleClick={onDoubleClick}
             className="rounded-l-2xl relative group"
           >

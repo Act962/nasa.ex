@@ -335,6 +335,47 @@ export async function POST(req: NextRequest) {
         // Ignorar eventos não tratados
         break;
     }
+
+    // ── Modo Agente IA: dispara workflows com PAYMENT_RECEIVED ─────────
+    // Best-effort — falha aqui NÃO derruba o webhook. Inngest function
+    // `agentTriggerPaymentReceivedFn` consome e fan-out.
+    if (
+      event.type === "checkout.session.completed" ||
+      event.type === "invoice.payment_succeeded" ||
+      event.type === "payment_intent.succeeded"
+    ) {
+      const obj = event.data.object as Record<string, unknown>;
+      const metadata = (obj.metadata as Record<string, string> | undefined) ?? {};
+      const organizationId = metadata.organizationId;
+      const leadId = metadata.leadId ?? null;
+      const trackingId = metadata.trackingId ?? null;
+      const externalId =
+        (obj.id as string) ?? (obj.payment_intent as string) ?? "";
+      const amount =
+        typeof obj.amount_total === "number"
+          ? obj.amount_total
+          : typeof obj.amount_paid === "number"
+            ? obj.amount_paid
+            : undefined;
+
+      if (organizationId && externalId) {
+        try {
+          const { dispatchPaymentReceived } = await import(
+            "@/features/workflows/lib/agent-trigger-helpers"
+          );
+          await dispatchPaymentReceived({
+            provider: "STRIPE",
+            externalId,
+            organizationId,
+            trackingId,
+            leadId,
+            amount,
+          });
+        } catch (err) {
+          console.error("[stripe/webhook] agent dispatch failed", err);
+        }
+      }
+    }
   } catch (err) {
     console.error("[stripe/webhook] handler error:", err);
     return NextResponse.json({ error: "Erro interno." }, { status: 500 });

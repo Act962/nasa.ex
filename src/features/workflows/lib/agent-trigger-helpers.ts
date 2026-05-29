@@ -1,0 +1,70 @@
+/**
+ * Helpers pra disparar triggers do Modo Agente IA a partir de outros pontos
+ * do sistema (webhooks, Inngest functions, schedulers).
+ *
+ * Quem chama:
+ *   - `dispatchMessageIncoming`  ← webhook WhatsApp (chat/webhook/route.ts)
+ *                                  ao receber mensagem inbound do lead.
+ *   - `dispatchPaymentReceived`  ← webhook Stripe + Asaas após confirmação.
+ *
+ * Resultado: publica evento Inngest correspondente. As funções
+ * `agent-workflow-triggers.ts` consomem e disparam `runWorkflow` em todos
+ * os workflows ATIVOS da org com `agentMode=true` que têm o trigger node.
+ *
+ * Best-effort: erros são logados mas NUNCA quebram o caller — o webhook
+ * principal não pode falhar por causa do agente.
+ */
+import { inngest } from "@/inngest/client";
+
+interface DispatchMessageIncomingArgs {
+  leadId: string;
+  organizationId: string;
+  trackingId: string;
+  messageText: string;
+  messageId?: string;
+}
+
+export async function dispatchMessageIncoming(args: DispatchMessageIncomingArgs) {
+  try {
+    await inngest.send({
+      name: "agent-workflow/message-incoming",
+      data: {
+        leadId: args.leadId,
+        organizationId: args.organizationId,
+        trackingId: args.trackingId,
+        messageText: args.messageText,
+        messageId: args.messageId,
+      },
+    });
+  } catch (err) {
+    // Não derruba o webhook — agente é best-effort.
+    console.error("[agent-trigger:message-incoming] dispatch failed", err);
+  }
+}
+
+interface DispatchPaymentReceivedArgs {
+  provider: "STRIPE" | "ASAAS" | string;
+  externalId: string;
+  organizationId: string;
+  trackingId?: string | null;
+  leadId?: string | null;
+  amount?: number;
+}
+
+export async function dispatchPaymentReceived(args: DispatchPaymentReceivedArgs) {
+  try {
+    await inngest.send({
+      name: "agent-workflow/payment-received",
+      data: {
+        provider: args.provider,
+        externalId: args.externalId,
+        organizationId: args.organizationId,
+        trackingId: args.trackingId ?? null,
+        leadId: args.leadId ?? null,
+        amount: args.amount,
+      },
+    });
+  } catch (err) {
+    console.error("[agent-trigger:payment-received] dispatch failed", err);
+  }
+}

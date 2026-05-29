@@ -5,7 +5,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { z } from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
-import { sendWorkflowExecution } from "@/inngest/utils";
+import { dispatchMoveLeadStatus, broadcastAgentWorkflowEvent } from "@/inngest/utils";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import {
   recordLeadEvent,
@@ -269,15 +269,28 @@ export const updateLead = base
       if (result.workflows && result.workflows.length > 0) {
         await Promise.all(
           result.workflows.map((workflow) =>
-            sendWorkflowExecution({
+            dispatchMoveLeadStatus({
               workflowId: workflow.id,
-              initialData: {
-                lead: result.lead,
-                previousLead: leadExists,
-              },
+              lead: result.lead,
+              previousLead: leadExists,
             }),
           ),
         );
+      }
+
+      // Broadcast pra WAIT_FOR_EVENT preset "lead-status-changed". Só
+      // emite se o status realmente mudou — checado pelo `isStatusChange`
+      // logo abaixo (mantemos a guarda igual à do trackLeadEvent).
+      if (isStatusChange) {
+        await broadcastAgentWorkflowEvent({
+          event: "lead-status-changed",
+          leadId: result.lead.id,
+          trackingId: result.lead.trackingId,
+          extra: {
+            fromStatusId: leadExists.statusId,
+            toStatusId: result.lead.statusId,
+          },
+        });
       }
 
       if (isStatusChange) {

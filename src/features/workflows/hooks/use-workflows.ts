@@ -178,6 +178,35 @@ export const useUpdateWorkflowIsActive = (trackingId: string) => {
   );
 };
 
+/**
+ * Liga/desliga Modo Agente IA num workflow. Quando true, libera multi-trigger,
+ * branches, loops, AI nodes, e a engine `executeWorkflow` delega pro
+ * `run-workflow.ts` (DAG executor).
+ */
+export const useUpdateWorkflowAgentMode = (workflowId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.workflow.update.updateAgentMode.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(
+          data.agentMode
+            ? "Modo Agente IA ativado"
+            : "Modo Agente IA desativado",
+        );
+        queryClient.invalidateQueries({
+          queryKey: orpc.workflow.getOne.queryKey({
+            input: { workflowId },
+          }),
+        });
+      },
+      onError: (error) => {
+        toast.error(`Falha ao alterar Modo Agente IA: ${error.message}`);
+      },
+    }),
+  );
+};
+
 export const useDeleteWorkflow = () => {
   const queryClient = useQueryClient();
 

@@ -1,4 +1,5 @@
 import type { PresetSpec } from "@/features/tracking-presets/lib/preset-spec.schema";
+import { comercialMenuInterativoSpec } from "./comercial-menu-interativo-spec";
 
 /**
  * 4 presets MVP — 1 por paradigma.
@@ -485,5 +486,16 @@ export const SEED_PRESETS: Array<{
     color: "#3DB88B",
     order: 0,
     spec: selfService,
+  },
+  {
+    slug: "comercial-menu-interativo",
+    name: "Comercial — Menu Interativo",
+    description:
+      "4 jornadas pra leads que entram via menu (agendamento, produtos, interesse, compra+comprovante) com cadência de follow-up 1/2/3/4/5/7/15/20/30/90 dias, IA detecta engajamento e tag final 'Sem interesse'. Pronto pra produção.",
+    paradigm: "REATIVO",
+    icon: "MessageSquare",
+    color: "#7A5FDF",
+    order: 1,
+    spec: comercialMenuInterativoSpec,
   },
 ];

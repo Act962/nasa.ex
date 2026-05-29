@@ -12,7 +12,6 @@ import { ChatBotIaGeneralTab } from "./chatbot-ia-general-tab";
 import { ChatBotIaButtonsTab } from "./chatbot-ia-buttons-tab";
 import { ChatBotIaModelTab } from "./chatbot-ia-model-tab";
 import { ChatBotIaUsageTab } from "./chatbot-ia-usage-tab";
-import { ChatBotIaAgentsTab } from "./chatbot-ia-agents-tab";
 
 export function ChatBotIa({ trackingId }: { trackingId: string }) {
   const [iaTab, setIaTab] = useQueryState(
@@ -39,7 +38,6 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
           <TabsTrigger value="general">Geral</TabsTrigger>
           <TabsTrigger value="buttons">Botões</TabsTrigger>
           <TabsTrigger value="model">Modelo</TabsTrigger>
-          <TabsTrigger value="agents">Agentes IA</TabsTrigger>
           <TabsTrigger value="usage">Uso</TabsTrigger>
         </TabsList>
 
@@ -53,10 +51,6 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
 
         <TabsContent value="model">
           <ChatBotIaModelTab trackingId={trackingId} />
-        </TabsContent>
-
-        <TabsContent value="agents">
-          <ChatBotIaAgentsTab trackingId={trackingId} />
         </TabsContent>
 
         <TabsContent value="usage">

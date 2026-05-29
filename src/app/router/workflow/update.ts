@@ -86,7 +86,37 @@ export const updateNodes = base
       where: {
         id,
       },
+      select: {
+        id: true,
+        name: true,
+        trackingId: true,
+        workspaceId: true,
+        userId: true,
+        folderId: true,
+        isActive: true,
+        agentMode: true,
+        description: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
+
+    // Modo Agente IA: roda cycle-detector ANTES de persistir.
+    // Workflows clássicos não têm branches/loops, então o detector é skip.
+    if (workflow.agentMode) {
+      const { detectCycles } = await import(
+        "@/features/workflows/lib/cycle-detector"
+      );
+      const report = detectCycles(
+        nodes.map((n) => ({ id: n.id, type: n.type || "" })),
+        edges.map((e) => ({ fromNodeId: e.source, toNodeId: e.target })),
+      );
+      if (!report.safe) {
+        throw errors.BAD_REQUEST({
+          message: `Loop infinito detectado:\n${report.warnings.join("\n")}`,
+        });
+      }
+    }
 
     return await prisma.$transaction(async (tx) => {
       await tx.node.deleteMany({
@@ -111,8 +141,18 @@ export const updateNodes = base
           workflowId: id,
           fromNodeId: edge.source,
           toNodeId: edge.target,
-          fromOutput: edge.sourceHandle || "main",
-          toInput: edge.targetHandle || "main",
+          // Normaliza handles visuais default → semântica "main" no DB.
+          // Handles nomeados (true/false/loop/done/case_X, branches IA) são
+          // preservados pra que o engine `run-workflow.ts` resolva
+          // `adjBy.get(nodeId).get(fromOutput)` corretamente.
+          fromOutput:
+            !edge.sourceHandle || edge.sourceHandle === "source-1"
+              ? "main"
+              : edge.sourceHandle,
+          toInput:
+            !edge.targetHandle || edge.targetHandle === "target-1"
+              ? "main"
+              : edge.targetHandle,
         })),
       });
 
