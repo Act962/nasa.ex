@@ -24,6 +24,7 @@ import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { sendText } from "@/http/uazapi/send-text";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import {
   type CreatedMessageProps,
   MessageStatus,
@@ -47,7 +48,13 @@ export async function sendLinkToLead(
   // 1. Lead com phone (pra envio uazapi)
   const lead = await prisma.lead.findUnique({
     where: { id: params.leadId },
-    select: { id: true, phone: true, trackingId: true, isActive: true },
+    select: {
+      id: true,
+      phone: true,
+      trackingId: true,
+      isActive: true,
+      tracking: { select: { organizationId: true } },
+    },
   });
   if (!lead) {
     throw new NonRetriableError("Lead not found");
@@ -75,6 +82,23 @@ export async function sendLinkToLead(
   // 4. Instance lookup (necessário pra apiKey quando NÃO em fallback)
   let externalMessageId = `auto-${uuidv4()}`;
   if (!skipUazapi) {
+    // Cobra 1★ por envio automático. Em in-chat fallback nada vai pra
+    // uazapi (mensagem fica visível na página /whatsapp/[slug]) — sem
+    // custo de envio externo, então não cobramos esse caminho.
+    const charge = await chargeStarsByAction(
+      lead.tracking.organizationId,
+      "message_send",
+      {
+        appSlug: "message_send",
+        description: "Workflow tracking — envio automático",
+      },
+    );
+    if (!charge.success) {
+      throw new NonRetriableError(
+        "Saldo de STARs insuficiente pra envio automático.",
+      );
+    }
+
     const instance = await prisma.whatsAppInstance.findFirst({
       where: { trackingId: params.trackingId },
       select: { apiKey: true },

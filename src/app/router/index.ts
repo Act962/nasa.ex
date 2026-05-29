@@ -65,6 +65,7 @@ import { stickersRouter } from "./stickers";
 import { brandRouter } from "./brand";
 import { trackingPresetsRouter } from "./tracking-presets";
 import { agentsRouter } from "./agents";
+import { inChatRouter } from "./in-chat";
 
 export const router = {
   tracking: trackingRoutes,
@@ -133,4 +134,5 @@ export const router = {
   livekit: livekitRouter,
   stickers: stickersRouter,
   brand: brandRouter,
+  inChat: inChatRouter,
 };

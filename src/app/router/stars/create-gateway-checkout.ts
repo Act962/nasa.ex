@@ -154,33 +154,38 @@ export const createGatewayCheckout = base
     if (gw.provider === "stripe") {
       const stripe = new Stripe(gw.secretKey, { apiVersion: "2026-03-25.dahlia" });
 
-      const stripeSession = await stripe.checkout.sessions.create({
-        mode:           "payment",
-        customer_email: user.email,
-        line_items: [{
-          price_data: {
-            currency:     "brl",
-            unit_amount:  Math.round(paidBrl * 100),
-            product_data: {
-              name:        `${pkg.stars} Stars — ${pkg.label}`,
-              description: partnerDiscountSnapshot
-                ? `NASA.ex Platform Credits — Desconto Parceiro ${partnerDiscountSnapshot.ratePercent}%`
-                : "NASA.ex Platform Credits",
+      const stripeSession = await stripe.checkout.sessions.create(
+        {
+          mode:           "payment",
+          customer_email: user.email,
+          line_items: [{
+            price_data: {
+              currency:     "brl",
+              unit_amount:  Math.round(paidBrl * 100),
+              product_data: {
+                name:        `${pkg.stars} Stars — ${pkg.label}`,
+                description: partnerDiscountSnapshot
+                  ? `NASA.ex Platform Credits — Desconto Parceiro ${partnerDiscountSnapshot.ratePercent}%`
+                  : "NASA.ex Platform Credits",
+              },
             },
+            quantity: 1,
+          }],
+          success_url: `${successUrl}&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url:   cancelUrl,
+          metadata: {
+            starsPaymentId: payment.id,
+            packageId:      pkg.id,
+            organizationId: orgId,
+            stars:          String(pkg.stars),
           },
-          quantity: 1,
-        }],
-        success_url: `${successUrl}&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url:   cancelUrl,
-        metadata: {
-          starsPaymentId: payment.id,
-          packageId:      pkg.id,
-          organizationId: orgId,
-          stars:          String(pkg.stars),
+          payment_method_types: ["card"],
+          locale: "pt-BR",
         },
-        payment_method_types: ["card"],
-        locale: "pt-BR",
-      });
+        // Idempotência: retries de rede / double-click reaproveitam
+        // a mesma Stripe Session.
+        { idempotencyKey: `stars-topup:${payment.id}` },
+      );
 
       await prisma.starsPayment.update({
         where: { id: payment.id },

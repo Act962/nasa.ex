@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,41 @@ export function StarsWidget() {
   const [planOpen, setPlanOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [allAppsOpen, setAllAppsOpen] = useState(false);
+
+  const queryClient = useQueryClient();
+
+  // ── Retorno do Stripe Checkout (?stars=success|cancelled) ──────────────────
+  // O crédito acontece de forma assíncrona via webhook; aqui só damos feedback
+  // e fazemos polling do saldo por alguns segundos até refletir o crédito.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("stars");
+    if (status !== "success" && status !== "cancelled") return;
+
+    params.delete("stars");
+    const qs = params.toString();
+    window.history.replaceState(
+      {},
+      "",
+      window.location.pathname + (qs ? `?${qs}` : ""),
+    );
+
+    if (status === "cancelled") {
+      toast.info("Pagamento cancelado.");
+      return;
+    }
+
+    toast.success("Pagamento recebido! Creditando suas Stars…");
+    const balanceKey = orpc.stars.getBalance.queryOptions().queryKey;
+    let attempts = 0;
+    const iv = setInterval(() => {
+      attempts += 1;
+      queryClient.invalidateQueries({ queryKey: balanceKey });
+      if (attempts >= 6) clearInterval(iv);
+    }, 2000);
+    return () => clearInterval(iv);
+  }, [queryClient]);
 
   const { data, isLoading } = useQuery({
     ...orpc.stars.getBalance.queryOptions(),

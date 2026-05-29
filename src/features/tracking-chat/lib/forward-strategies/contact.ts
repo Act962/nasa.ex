@@ -33,7 +33,7 @@ export const contactStrategy: ForwardStrategy<ContactPayload> = {
         body: payload.contactName,
         messageId: response.messageid,
         fromMe: true,
-        status: MessageStatus.SENT,
+        status: MessageStatus.SEEN,
         senderName: ctx.senderName,
         mediaType: "contact",
         fileName: payload.contactPhone,

@@ -7,6 +7,7 @@ import { sendTextMessage } from "./message/send-text-message";
 import { sendImageMessage } from "./message/send-image";
 import { sendDocumentMessage } from "./message/send-document";
 import { sendMessageChannel } from "@/inngest/channels/send-message";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { normalizePhone } from "@/utils/format-phone";
 import { countries } from "@/types/some";
 import dayjs from "dayjs";
@@ -137,6 +138,26 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
         const country = countries.find((c) => c.code === target.code);
         const ddi = country?.ddi.replace(/\D/g, "") || "";
         phone = ddi + normalizePhone(target.phone);
+      }
+
+      const charge = await chargeStarsByAction(
+        lead.tracking.organizationId,
+        "message_send",
+        {
+          appSlug: "message_send",
+          description: `Workflow tracking — send-message (${typeMessage})`,
+        },
+      );
+      if (!charge.success) {
+        if (realTime) {
+          await publish(
+            sendMessageChannel().status({
+              nodeId,
+              status: "error",
+            }),
+          );
+        }
+        throw new NonRetriableError("Saldo de STARs insuficiente.");
       }
 
       switch (typeMessage) {

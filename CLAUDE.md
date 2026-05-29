@@ -79,6 +79,9 @@ Arquivo `.env.local` na raiz. Variáveis principais:
 - `BETTER_AUTH_SECRET` — chave secreta de autenticação
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — OAuth Google
 - `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` — Inngest
+- `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` — Stripe (cliente + webhook compartilhado de cursos/planos/better-auth)
+- `STRIPE_COURSE_WEBHOOK_SECRET` — secret do endpoint dedicado de cursos (`/api/stripe/webhook`)
+- `STRIPE_STARS_WEBHOOK_SECRET` — secret do endpoint dedicado de recarga de Stars (`/api/stars/webhook`). O fluxo de Stars usa o Stripe do sistema (`STRIPE_SECRET_KEY`), não o `PaymentGatewayConfig`.
 - `AI_SECRETS_KEY` — chave (≥16 chars) usada para criptografar API keys customizadas de IA em `AiSettings.aiApiKey` (AES-256-GCM via `src/lib/crypto.ts`). Obrigatória se algum tracking configurar provider customizado (BYO).
 
 ## Estrutura do Projeto

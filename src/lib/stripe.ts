@@ -77,6 +77,13 @@ export interface CreateCheckoutParams {
   itemSlug: string;
   customerId?: string;
   customerEmail?: string;
+  /**
+   * Idempotency key opcional. Quando informado, Stripe garante que duas
+   * chamadas com o mesmo key retornem a MESMA Session — protege contra
+   * retries de rede duplicarem cobranças. Default: gerado por hora-bucket
+   * a partir de (org, itemType, itemSlug).
+   */
+  idempotencyKey?: string;
 }
 
 /**
@@ -88,21 +95,29 @@ export async function createCheckoutSession(
 ): Promise<{ url: string; sessionId: string }> {
   const stripe = getStripe();
 
-  const session = await stripe.checkout.sessions.create({
-    mode: params.mode,
-    customer: params.customerId,
-    customer_email: params.customerId ? undefined : params.customerEmail,
-    line_items: [{ price: params.priceId, quantity: 1 }],
-    success_url: params.successUrl,
-    cancel_url: params.cancelUrl,
-    metadata: {
-      organizationId: params.organizationId,
-      itemType: params.itemType,
-      itemSlug: params.itemSlug,
+  const hourBucket = Math.floor(Date.now() / (60 * 60 * 1000));
+  const idempotencyKey =
+    params.idempotencyKey ??
+    `legacy-checkout:${params.organizationId}:${params.itemType}:${params.itemSlug}:${hourBucket}`;
+
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: params.mode,
+      customer: params.customerId,
+      customer_email: params.customerId ? undefined : params.customerEmail,
+      line_items: [{ price: params.priceId, quantity: 1 }],
+      success_url: params.successUrl,
+      cancel_url: params.cancelUrl,
+      metadata: {
+        organizationId: params.organizationId,
+        itemType: params.itemType,
+        itemSlug: params.itemSlug,
+      },
+      payment_method_types: ["card"],
+      locale: "pt-BR",
     },
-    payment_method_types: ["card"],
-    locale: "pt-BR",
-  });
+    { idempotencyKey },
+  );
 
   if (!session.url) throw new Error("Stripe não retornou URL de checkout.");
   return { url: session.url, sessionId: session.id };

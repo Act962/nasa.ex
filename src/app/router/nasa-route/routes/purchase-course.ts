@@ -9,6 +9,7 @@ import { awardPoints } from "@/app/router/space-point/utils";
 import { canEnrollFree } from "../utils";
 import { createSubscriptionInTx } from "../helpers/subscription-helpers";
 import { createPurchaseSideEffects } from "../helpers/purchase-crm-side-effects";
+import { triggerPurchaseEmail } from "@/features/nasa-route/lib/purchase-email";
 import type { SubscriptionPeriod } from "@/features/nasa-route/lib/formats";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { getStripe } from "@/lib/stripe";
@@ -219,6 +220,9 @@ export const purchaseCourse = base
         enrollmentId: enrollment.id,
       });
 
+      // E-mail de pós-compra (Inngest, fire-and-forget)
+      triggerPurchaseEmail(enrollment.id);
+
       return {
         kind: "enrolled" as const,
         enrollmentId: enrollment.id,
@@ -262,37 +266,54 @@ export const purchaseCourse = base
 
     try {
       const stripe = getStripe();
-      const session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        customer_email: context.user.email,
-        line_items: [
-          {
-            quantity: 1,
-            price_data: {
-              currency: "brl",
-              unit_amount: amountBrlCents,
-              product_data: {
-                name: `${course.title} — ${plan.name}`,
-                description: course.creatorOrg.name,
-                images: course.coverUrl ? [course.coverUrl] : undefined,
+      const session = await stripe.checkout.sessions.create(
+        {
+          mode: "payment",
+          customer_email: context.user.email,
+          line_items: [
+            {
+              quantity: 1,
+              price_data: {
+                currency: "brl",
+                unit_amount: amountBrlCents,
+                product_data: {
+                  name: `${course.title} — ${plan.name}`,
+                  description: course.creatorOrg.name,
+                  images: course.coverUrl ? [course.coverUrl] : undefined,
+                },
               },
             },
+          ],
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+          payment_method_types: ["card"],
+          locale: "pt-BR",
+          allow_promotion_codes: true,
+          metadata: {
+            kind: "course_purchase",
+            flow: "authenticated",
+            pendingId: pending.id,
+            courseId: course.id,
+            planId: plan.id,
+            userId,
           },
-        ],
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        payment_method_types: ["card"],
-        locale: "pt-BR",
-        allow_promotion_codes: true,
-        metadata: {
-          kind: "course_purchase",
-          flow: "authenticated",
-          pendingId: pending.id,
-          courseId: course.id,
-          planId: plan.id,
-          userId,
+          // Propaga pro PI — usado em payment_intent.succeeded
+          // (fallback) e charge.refunded.
+          payment_intent_data: {
+            metadata: {
+              kind: "course_purchase",
+              flow: "authenticated",
+              pendingId: pending.id,
+              courseId: course.id,
+              planId: plan.id,
+              userId,
+            },
+          },
         },
-      });
+        // Idempotência: dois cliques no botão "Comprar" devolvem a MESMA
+        // Stripe Session ao invés de criar uma nova cobrança paralela.
+        { idempotencyKey: `course-checkout:auth:${pending.id}` },
+      );
 
       if (!session.url) {
         throw new Error("Stripe não retornou URL de checkout.");

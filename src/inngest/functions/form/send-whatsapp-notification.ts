@@ -1,6 +1,7 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { sendText } from "@/http/uazapi/send-text";
+import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { MessageStatus } from "@/generated/prisma/enums";
 import type { WhatsappChat } from "@/features/form/types";
 import type { SendTextPayload, SendTextResponse } from "@/http/uazapi/types";
@@ -147,6 +148,13 @@ export const formSendWhatsappNotification = inngest.createFunction(
       return { skipped: "whatsapp_not_connected" };
     }
 
+    // Tracking pra resolver a org dona — cobrança de stars usa orgId.
+    const tracking = await prisma.tracking.findUnique({
+      where: { id: trackingId },
+      select: { organizationId: true },
+    });
+    if (!tracking) return { skipped: "tracking_not_found" };
+
     // ── 2. Busca dados completos do lead para resolver variáveis ───────────
     // Só faz a query se houver um lead vinculado e um template customizado.
     let fullLead: {
@@ -224,6 +232,25 @@ export const formSendWhatsappNotification = inngest.createFunction(
 
     for (const chat of whatsappChats) {
       const isGroup = chat.chatId.endsWith("@g.us");
+
+      // Cobra 1★ por chat de destino. Falta de saldo num chat não bloqueia
+      // os outros — mesma lógica do workspace send-message-participants.
+      const charge = await chargeStarsByAction(
+        tracking.organizationId,
+        "message_send",
+        {
+          appSlug: "message_send",
+          description: `Form notification — ${formName} → ${chat.chatId}`,
+        },
+      );
+      if (!charge.success) {
+        results.push({
+          chatId: chat.chatId,
+          status: "error",
+          error: "Saldo de STARs insuficiente",
+        });
+        continue;
+      }
 
       // ── 5a. Grupo (@g.us): envia o JID direto, sem persistir no banco ────
       if (isGroup) {

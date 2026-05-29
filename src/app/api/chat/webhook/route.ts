@@ -65,8 +65,23 @@ export async function POST(request: NextRequest) {
       }
 
       const fromMe = json.message.fromMe;
-      const name =
+      const senderName =
         json.message.senderName || json.chat?.name || "Sem nome";
+
+      // When fromMe=true the sender is the consultant — use chat contact info
+      // for the lead name so the consultant's name is never stored on the lead.
+      const leadName = fromMe
+        ? (json.chat?.lead_fullName ||
+           json.chat?.lead_name ||
+           json.chat?.wa_contactName ||
+           json.chat?.wa_name ||
+           json.chat?.name ||
+           "Sem nome")
+        : (json.message.senderName ||
+           json.chat?.wa_contactName ||
+           json.chat?.wa_name ||
+           json.chat?.name ||
+           "Sem nome");
 
       const phone = json.message.chatid.split("@")[0];
       const remoteJid = json.message.chatid;
@@ -172,7 +187,7 @@ export async function POST(request: NextRequest) {
 
         const createdLead = await prisma.lead.create({
           data: {
-            name,
+            name: leadName,
             statusId: status.id,
             phone,
             trackingId: trackingId,
@@ -440,7 +455,7 @@ export async function POST(request: NextRequest) {
             status: MessageStatus.SEEN,
             quotedMessageId: quotedMessageData?.id,
             createdAt,
-            senderName: name,
+            senderName,
           },
           include: {
             quotedMessage: true,
@@ -509,7 +524,7 @@ export async function POST(request: NextRequest) {
             senderId,
             messageId,
             createdAt,
-            senderName: name,
+            senderName,
           },
           include: {
             quotedMessage: true,
@@ -575,7 +590,7 @@ export async function POST(request: NextRequest) {
             quotedMessageId: quotedMessageData?.id,
             conversationId: lead.conversation?.id!,
             senderId,
-            senderName: name,
+            senderName,
             messageId,
             createdAt,
           },
@@ -634,7 +649,7 @@ export async function POST(request: NextRequest) {
             status: MessageStatus.SEEN,
             conversationId: lead.conversation?.id!,
             senderId,
-            senderName: name,
+            senderName,
             messageId,
             createdAt,
           },
@@ -678,7 +693,7 @@ export async function POST(request: NextRequest) {
               status: MessageStatus.SEEN,
               quotedMessageId: quotedMessageData?.id,
               createdAt,
-              senderName: name,
+              senderName,
               latitude,
               longitude,
               mediaType: "location",
@@ -733,7 +748,7 @@ export async function POST(request: NextRequest) {
             quotedMessageId: quotedMessageData?.id,
             mimetype: document.mimetype,
             senderId,
-            senderName: name,
+            senderName,
             messageId,
             createdAt,
           },
@@ -805,7 +820,7 @@ export async function POST(request: NextRequest) {
               status: MessageStatus.SEEN,
               quotedMessageId: quotedMessageData?.id,
               createdAt,
-              senderName: name,
+              senderName,
               mediaType: "contact",
               body: contactName,
               fileName: contactPhone,

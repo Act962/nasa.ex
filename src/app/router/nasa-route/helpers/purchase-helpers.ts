@@ -193,6 +193,10 @@ export interface FinalizeStripePurchaseResult {
   payoutStars: number;
   platformFee: number;
   creatorNewBalance: number;
+  /** Quando true, indica que a função detectou que essa exata sessão Stripe
+   *  já havia sido finalizada antes e o resultado foi um no-op. Útil para o
+   *  caller pular side-effects externos (email, CRM, pusher). */
+  alreadyFinalized?: boolean;
 }
 
 /**
@@ -201,8 +205,14 @@ export interface FinalizeStripePurchaseResult {
  * alunos e credita o criador (90 %) em STARs.
  *
  * Importante: NÃO debita o comprador — o dinheiro já foi captado pelo
- * Stripe. Idempotente quando reusada (upsert). Use no webhook após
- * `checkout.session.completed`.
+ * Stripe. Use no webhook após `checkout.session.completed`.
+ *
+ * ## Idempotência
+ * Se o enrollment já existe com o MESMO `stripeCheckoutSessionId`, a
+ * função é um no-op total: não credita o criador outra vez, não
+ * incrementa `studentsCount`, não cria StarTransaction. Isso permite
+ * que webhooks duplicados (retries do Stripe) sejam reprocessados sem
+ * inflar saldos nem métricas.
  *
  * Quando Stripe Connect for habilitado, o payout em STARs aqui deixa de
  * fazer sentido para criadores com conta conectada (eles receberão BRL
@@ -226,6 +236,33 @@ export async function finalizeStripePurchaseInTx(
     buyerOrgId,
   } = opts;
 
+  // ── Guard de idempotência ──────────────────────────────────────────────
+  // Se já existe enrollment desta sessão Stripe, devolvemos o resultado
+  // existente sem refazer os side-effects (payout em Stars,
+  // studentsCount++). Stripe pode entregar o mesmo evento N vezes; o
+  // resultado precisa ser igual em todas as execuções.
+  const existing = await tx.nasaRouteEnrollment.findUnique({
+    where: { userId_courseId: { userId, courseId } },
+    select: {
+      id: true,
+      stripeCheckoutSessionId: true,
+      status: true,
+    },
+  });
+  if (
+    existing &&
+    existing.stripeCheckoutSessionId === stripeCheckoutSessionId &&
+    existing.status === "active"
+  ) {
+    return {
+      enrollment: { id: existing.id },
+      payoutStars: 0,
+      platformFee: 0,
+      creatorNewBalance: 0,
+      alreadyFinalized: true,
+    };
+  }
+
   // Payout em STARs para o criador (90 %). Quando o snapshot for 0 (caso
   // limite — criador sem cotação Stars), o crédito vira no-op.
   const payoutStars = Math.floor(priceStarsSnapshot * (1 - PLATFORM_FEE_PCT));
@@ -233,15 +270,14 @@ export async function finalizeStripePurchaseInTx(
 
   let creatorNewBalance = 0;
   if (payoutStars > 0) {
-    const creator = await tx.organization.findUniqueOrThrow({
+    // Increment atômico: evita lost-update se duas transações concorrentes
+    // creditarem o mesmo criador (o SET com valor pré-lido era vulnerável).
+    const updatedCreator = await tx.organization.update({
       where: { id: creatorOrgId },
+      data: { starsBalance: { increment: payoutStars } },
       select: { starsBalance: true },
     });
-    creatorNewBalance = creator.starsBalance + payoutStars;
-    await tx.organization.update({
-      where: { id: creatorOrgId },
-      data: { starsBalance: creatorNewBalance },
-    });
+    creatorNewBalance = updatedCreator.starsBalance;
     await tx.starTransaction.create({
       data: {
         organizationId: creatorOrgId,
@@ -289,10 +325,112 @@ export async function finalizeStripePurchaseInTx(
     update: {},
   });
 
-  await tx.nasaRouteCourse.update({
-    where: { id: courseId },
-    data: { studentsCount: { increment: 1 } },
-  });
+  // Só incrementa contagem de alunos quando o enrollment é REALMENTE novo.
+  // Se já existia (free-access depois virou stripe_purchase, ou retry de
+  // webhook após mudança parcial), não inflar a métrica.
+  if (!existing) {
+    await tx.nasaRouteCourse.update({
+      where: { id: courseId },
+      data: { studentsCount: { increment: 1 } },
+    });
+  }
 
   return { enrollment, payoutStars, platformFee, creatorNewBalance };
+}
+
+export interface RevokeStripePurchaseOpts {
+  tx: Tx;
+  /** Enrollment a revogar. Identificamos pelo ID porque o lookup é feito
+   *  pelo caller via `stripePaymentIntentId` (charge.refunded) ou
+   *  `stripeCheckoutSessionId`. */
+  enrollmentId: string;
+  /** Motivo legível, vira parte da description do StarTransaction. */
+  reason: string;
+}
+
+export interface RevokeStripePurchaseResult {
+  /** True quando a revogação foi feita agora; false quando já havia sido
+   *  feita antes (caller deve pular notificações). */
+  revokedNow: boolean;
+  /** Stars que foram debitados do criador (0 se já estava revogado ou
+   *  se o payout original era 0). */
+  creatorClawbackStars: number;
+}
+
+/**
+ * Reverte uma compra finalizada via `finalizeStripePurchaseInTx`.
+ *
+ * - Marca enrollment como `status="refunded"` (atômico via updateMany).
+ * - Debita do criador os Stars do payout original (proporcional ao
+ *   `priceStarsSnapshot` salvo no `paidStars`).
+ * - Decrementa `studentsCount`.
+ * - Cria StarTransaction `REFUND` no histórico do criador.
+ *
+ * ## Idempotência
+ * Usa `updateMany where status='active'` para fazer claim. Se outra
+ * execução já revogou, devolve `revokedNow=false` sem fazer nada — o
+ * caller pode pular notificações de chargeback.
+ *
+ * NOTA: não devolve o BRL ao comprador — o reembolso real é feito no
+ * Stripe (pelo Dashboard ou via API). Este helper só sincroniza o
+ * estado interno (acesso ao curso + saldo Stars do criador).
+ */
+export async function revokeStripePurchaseInTx(
+  opts: RevokeStripePurchaseOpts,
+): Promise<RevokeStripePurchaseResult> {
+  const { tx, enrollmentId, reason } = opts;
+
+  // ── Claim atômica: só prossegue se ainda está active. ─────────────────
+  const claim = await tx.nasaRouteEnrollment.updateMany({
+    where: { id: enrollmentId, status: "active" },
+    data: { status: "refunded" },
+  });
+  if (claim.count === 0) {
+    return { revokedNow: false, creatorClawbackStars: 0 };
+  }
+
+  // ── Carrega snapshot para calcular clawback ──────────────────────────
+  const enrollment = await tx.nasaRouteEnrollment.findUniqueOrThrow({
+    where: { id: enrollmentId },
+    select: {
+      paidStars: true,
+      courseId: true,
+      course: {
+        select: {
+          title: true,
+          creatorOrgId: true,
+        },
+      },
+      plan: { select: { name: true } },
+    },
+  });
+
+  const payoutStars = Math.floor(enrollment.paidStars * (1 - PLATFORM_FEE_PCT));
+
+  // ── Estorna Stars do criador (atômico via increment negativo) ───────
+  if (payoutStars > 0) {
+    const updatedCreator = await tx.organization.update({
+      where: { id: enrollment.course.creatorOrgId },
+      data: { starsBalance: { increment: -payoutStars } },
+      select: { starsBalance: true },
+    });
+    await tx.starTransaction.create({
+      data: {
+        organizationId: enrollment.course.creatorOrgId,
+        type: StarTransactionType.REFUND,
+        amount: -payoutStars,
+        balanceAfter: updatedCreator.starsBalance,
+        description: `Estorno: ${enrollment.course.title}${enrollment.plan ? ` — Plano ${enrollment.plan.name}` : ""} (${reason})`,
+        appSlug: "nasa-route",
+      },
+    });
+  }
+
+  // ── Decrementa contagem de alunos ───────────────────────────────────
+  await tx.nasaRouteCourse.update({
+    where: { id: enrollment.courseId },
+    data: { studentsCount: { decrement: 1 } },
+  });
+
+  return { revokedNow: true, creatorClawbackStars: payoutStars };
 }

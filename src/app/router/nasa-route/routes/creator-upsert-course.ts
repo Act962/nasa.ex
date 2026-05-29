@@ -52,6 +52,12 @@ const courseInputSchema = z
     pixelId: z.string().max(64).optional().nullable(),
     gtmId: z.string().max(64).optional().nullable(),
 
+    // ── E-mail pós-compra ─────────────────────────────────────
+    purchaseEmailEnabled: z.boolean().default(false),
+    purchaseEmailSubject: z.string().max(200).optional().nullable(),
+    // TipTap JSON. Aceita qualquer objeto JSON ou null.
+    purchaseEmailBodyJson: z.any().optional().nullable(),
+
     // ── eBook (format = "ebook") ──────────────────────────────
     ebookFileKey: z.string().min(1).optional().nullable(),
     ebookFileName: z.string().max(255).optional().nullable(),
@@ -287,6 +293,13 @@ export const creatorUpsertCourse = base
           redirectUrl: input.redirectUrl ? input.redirectUrl : null,
           pixelId: input.pixelId ?? null,
           gtmId: input.gtmId ?? null,
+          // E-mail pós-compra
+          purchaseEmailEnabled: input.purchaseEmailEnabled,
+          purchaseEmailSubject: input.purchaseEmailSubject ?? null,
+          purchaseEmailBodyJson:
+            input.purchaseEmailBodyJson === undefined
+              ? undefined
+              : input.purchaseEmailBodyJson ?? null,
           ...formatFields,
         },
       });
@@ -321,6 +334,13 @@ export const creatorUpsertCourse = base
         redirectUrl: input.redirectUrl ? input.redirectUrl : null,
         pixelId: input.pixelId ?? null,
         gtmId: input.gtmId ?? null,
+        // E-mail pós-compra
+        purchaseEmailEnabled: input.purchaseEmailEnabled,
+        purchaseEmailSubject: input.purchaseEmailSubject ?? null,
+        purchaseEmailBodyJson:
+          input.purchaseEmailBodyJson === undefined
+            ? undefined
+            : input.purchaseEmailBodyJson ?? null,
         isPublished: false,
         ...formatFields,
         plans: {

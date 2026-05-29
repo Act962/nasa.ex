@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useInChatMessages } from "@/features/tracking-chat/hooks/use-in-chat-messages";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -29,7 +30,7 @@ import {
   CameraIcon,
   CheckIcon,
   CheckCheckIcon,
-  ClockIcon,
+  ChevronDownIcon,
   CopyIcon,
   EllipsisVerticalIcon,
   FileIcon,
@@ -45,11 +46,9 @@ import {
   Trash2Icon,
   UserIcon,
   XIcon,
-  ChevronDownIcon,
-  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format, isToday, isYesterday } from "date-fns";
+import { format, isToday, isYesterday, isValid } from "date-fns";
 import { pusherClient } from "@/lib/pusher";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import pt from "emoji-picker-react/dist/data/emojis-pt.json";
@@ -92,7 +91,9 @@ interface Message {
   fileName: string | null;
   latitude: number | null;
   longitude: number | null;
-  createdAt: string;
+  // Pode chegar como `Date` (oRPC + Prisma) ou `string` (optimistic toISOString
+  // / Pusher payload serializado). `new Date()` aceita ambos sem problema.
+  createdAt: string | Date;
   fromMe: boolean;
   status: string;
   senderName: string | null;
@@ -108,8 +109,6 @@ interface OrgInfo {
   cep: string | null;
   phone: string | null;
 }
-
-const SAFETY_POLL_MS = 30_000;
 
 export function InChatWindow({
   slug,
@@ -132,139 +131,66 @@ export function InChatWindow({
   const [infoOpen, setInfoOpen] = useState(false);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
-  // Cursor da próxima página (mensagens mais antigas). Null = sem mais.
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  // Botão "Novas mensagens" quando user tá scrolled up + chega msg nova
-  const [hasNewBelow, setHasNewBelow] = useState(false);
-  // Trava o auto-scroll quando user navegou pra cima manualmente
+
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [hasInitialScrolled, setHasInitialScrolled] = useState(false);
+  const [newMessageBadge, setNewMessageBadge] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const lastMessageIdRef = useRef<string | null>(null);
+  const isAtBottomRef = useRef(true);
+  const fetchMoreGuardRef = useRef(false);
+
+  // ── Carregamento + paginação via oRPC + React Query ──────────────────
+  const {
+    data: messagesPages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInChatMessages(slug);
+
+  // Pages vêm em DESC (mais nova primeiro), e cada página posterior é
+  // mais antiga que a anterior. Flatten + reverse pra exibir ASC.
+  const fetchedMessages = useMemo<Message[]>(() => {
+    if (!messagesPages) return [];
+    const all = messagesPages.pages.flatMap((p) => p.items as Message[]);
+    return [...all].reverse();
+  }, [messagesPages]);
   const fileInputImageRef = useRef<HTMLInputElement>(null);
   const fileInputDocRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
-  // Guard pra evitar re-fetch simultâneo no scroll up
-  const fetchingMoreRef = useRef(false);
 
-  // Initial load + safety polling.
-  // Só sobrescreve `nextCursor` na carga inicial — polling subsequente
-  // não mexe (pra não perder o cursor depois de carregar mais).
+  // Sincroniza a query (server) com o estado local (que carrega também
+  // optimistic + atualizações do Pusher). Optimistic NUNCA é sobrescrito —
+  // sumirá quando a query trouxer a real (mesmo id ou via dedup do POST).
   useEffect(() => {
-    let cancelled = false;
-    let isInitial = true;
-    const fetchMessages = async () => {
-      try {
-        const res = await fetch(`/api/in-chat/${slug}/messages`, {
-          credentials: "include",
-        });
-        if (!res.ok) return;
-        const data = (await res.json()) as {
-          items: Message[];
-          conversationId: string;
-          nextCursor: string | null;
-        };
-        if (cancelled) return;
-        const ordered = [...data.items].reverse();
-        setMessages((prev) => {
-          const byId = new Map<string, Message>();
-          for (const m of ordered) byId.set(m.id, m);
-          for (const m of prev) {
-            if (m.id.startsWith("optimistic-") && !byId.has(m.id)) {
-              byId.set(m.id, m);
-            }
-          }
-          return Array.from(byId.values()).sort(
-            (a, b) =>
-              new Date(a.createdAt).getTime() -
-              new Date(b.createdAt).getTime(),
-          );
-        });
-        setConversationId(data.conversationId);
-        if (isInitial) {
-          setNextCursor(data.nextCursor);
-          isInitial = false;
+    if (!fetchedMessages.length) return;
+    setMessages((prev) => {
+      const byId = new Map<string, Message>();
+      for (const m of fetchedMessages) byId.set(m.id, m);
+      for (const m of prev) {
+        if (m.id.startsWith("optimistic-")) {
+          byId.set(m.id, m);
+          continue;
         }
-      } catch {}
-    };
-    fetchMessages();
-    const interval = setInterval(fetchMessages, SAFETY_POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [slug]);
-
-  // Scroll infinito — quando user chega no topo, busca página anterior
-  // (cursor = id da mensagem mais antiga atualmente carregada). Preserva
-  // a posição do scroll medindo scrollHeight antes/depois do prepend
-  // pra não dar "jump" visual.
-  const loadMore = async () => {
-    if (fetchingMoreRef.current || !nextCursor || loadingMore) return;
-    fetchingMoreRef.current = true;
-    setLoadingMore(true);
-    const el = scrollRef.current;
-    const prevScrollHeight = el?.scrollHeight ?? 0;
-    const prevScrollTop = el?.scrollTop ?? 0;
-    try {
-      const res = await fetch(
-        `/api/in-chat/${slug}/messages?cursor=${nextCursor}`,
-        { credentials: "include" },
+        // Pusher pode ter trazido updates (status, delete) mais recentes
+        // do que a página inicial — preserva esses por id.
+        if (!byId.has(m.id)) byId.set(m.id, m);
+      }
+      return Array.from(byId.values()).sort(
+        (a, b) =>
+          safeTime(a.createdAt) - safeTime(b.createdAt),
       );
-      if (!res.ok) return;
-      const data = (await res.json()) as {
-        items: Message[];
-        nextCursor: string | null;
-      };
-      const olderAsc = [...data.items].reverse();
-      setMessages((prev) => {
-        const byId = new Map<string, Message>();
-        for (const m of olderAsc) byId.set(m.id, m);
-        for (const m of prev) byId.set(m.id, m); // mantém as atuais
-        return Array.from(byId.values()).sort(
-          (a, b) =>
-            new Date(a.createdAt).getTime() -
-            new Date(b.createdAt).getTime(),
-        );
-      });
-      setNextCursor(data.nextCursor);
-      // Restaura scroll position no próximo paint
-      requestAnimationFrame(() => {
-        const newEl = scrollRef.current;
-        if (newEl) {
-          newEl.scrollTop =
-            newEl.scrollHeight - prevScrollHeight + prevScrollTop;
-        }
-      });
-    } catch {
-      // silencia — user pode tentar de novo scrollando
-    } finally {
-      setLoadingMore(false);
-      fetchingMoreRef.current = false;
-    }
-  };
+    });
+  }, [fetchedMessages]);
 
-  const handleScroll = () => {
-    const el = scrollRef.current;
-    if (!el) return;
-
-    // Trigger fetch quando chega perto do topo (80px)
-    if (el.scrollTop <= 80) loadMore();
-
-    // Detecta se está no fundo (margem de 60px pra tolerar pequenos gaps)
-    const atBottom =
-      el.scrollHeight - el.scrollTop - el.clientHeight <= 60;
-    setIsAtBottom(atBottom);
-    if (atBottom) setHasNewBelow(false);
-  };
-
-  const scrollToBottom = () => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    setHasNewBelow(false);
-  };
+  // conversationId vem da primeira página (todas trazem o mesmo).
+  useEffect(() => {
+    const id = messagesPages?.pages[0]?.conversationId;
+    if (id) setConversationId(id);
+  }, [messagesPages]);
 
   // Pusher real-time
   useEffect(() => {
@@ -272,32 +198,34 @@ export function InChatWindow({
     const channel = pusherClient.subscribe(conversationId);
     const upsert = (incoming: Message) => {
       setMessages((prev) => {
+        // Dedup contra optimistic: se chegar a real do próprio envio
+        // (fromMe=false, viaInChat=true, body igual), remove o temp.
+        const matchedOptimistic = prev.find(
+          (m) =>
+            m.id.startsWith("optimistic-") &&
+            m.fromMe === incoming.fromMe &&
+            (m.body ?? null) === (incoming.body ?? null) &&
+            (m.mediaUrl ?? null) === (incoming.mediaUrl ?? null),
+        );
         const byId = new Map<string, Message>();
-        for (const m of prev) byId.set(m.id, m);
-        const existed = byId.has(incoming.id);
-        byId.set(incoming.id, incoming);
-        // Quando msg NOVA chega e user não tá no fundo → mostra pill
-        if (!existed && !incoming.fromMe === false /* msg do atendente */) {
-          // Lê live (não closure) — useState callback escapa stale state
-          const el = scrollRef.current;
-          if (el) {
-            const atBottom =
-              el.scrollHeight - el.scrollTop - el.clientHeight <= 60;
-            if (!atBottom) setHasNewBelow(true);
-          }
+        for (const m of prev) {
+          if (matchedOptimistic && m.id === matchedOptimistic.id) continue;
+          byId.set(m.id, m);
         }
+        byId.set(incoming.id, incoming);
         return Array.from(byId.values()).sort(
           (a, b) =>
-            new Date(a.createdAt).getTime() -
-            new Date(b.createdAt).getTime(),
+            safeTime(a.createdAt) - safeTime(b.createdAt),
         );
       });
     };
+    const isValidPayload = (p: any): p is Message =>
+      !!p?.id && safeDate(p?.createdAt) !== null;
     const handleCreated = (payload: any) => {
-      if (payload?.id) upsert(payload as Message);
+      if (isValidPayload(payload)) upsert(payload);
     };
     const handleNew = (payload: any) => {
-      if (payload?.id) upsert(payload as Message);
+      if (isValidPayload(payload)) upsert(payload);
     };
     const handleUpdated = (payload: any) => {
       if (!payload?.messageId) return;
@@ -332,16 +260,165 @@ export function InChatWindow({
     };
   }, [conversationId]);
 
-  // Auto-scroll — só faz scroll automático quando user está no fundo.
-  // Se user navegou pra ver mensagens antigas, NÃO força o scroll
-  // (botão "Novas mensagens" aparece pra notificar).
+  // ── Scroll inteligente (inspirado no tracking-chat) ──────────────────
+  // Inicial: pula pro fim sem animação na 1ª carga. Marca já como "no fim"
+  // pra que o auto-fetch subsequente pine no scrollHeight em vez de
+  // preservar posição relativa — usuário sempre cai na última mensagem.
   useEffect(() => {
-    if (!isAtBottom) return;
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
+    if (hasInitialScrolled || !messages.length) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    isAtBottomRef.current = true;
+    setHasInitialScrolled(true);
+    setIsAtBottom(true);
+    // Double rAF: garante que o DOM mediu altura das bolhas antes do scroll.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const node = scrollRef.current;
+        if (!node) return;
+        node.scrollTop = node.scrollHeight;
+      });
     });
-  }, [messages.length, isAtBottom]);
+  }, [hasInitialScrolled, messages.length]);
+
+  // A cada nova mensagem: se o usuário está perto do fim, rola suave;
+  // senão mostra badge "novas mensagens". Regra única — vale tanto pra
+  // mensagem que o lead enviou quanto pra mensagem do atendente.
+  useEffect(() => {
+    if (!messages.length) return;
+    const last = messages[messages.length - 1];
+    const lastId = last.id;
+    const prevId = lastMessageIdRef.current;
+    lastMessageIdRef.current = lastId;
+
+    if (!hasInitialScrolled || !prevId || prevId === lastId) return;
+
+    const el = scrollRef.current;
+    if (!el) return;
+
+    if (isAtBottom) {
+      // Trava o ref ANTES da animação: se mídia carregar e mudar a altura
+      // durante o smooth scroll, o ResizeObserver mantém pinado no fim.
+      isAtBottomRef.current = true;
+      // Double rAF garante que o DOM já mediu a altura do novo conteúdo.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+        });
+      });
+      setNewMessageBadge(false);
+    } else if (last.fromMe) {
+      // Mensagem chegou do atendente e estamos longe → badge.
+      setNewMessageBadge(true);
+    }
+  }, [messages, hasInitialScrolled, isAtBottom]);
+
+  // Mantém no fim quando imagens/áudios carregam (mudam altura) e quando
+  // o container redimensiona (teclado mobile, viewport, etc).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const keepAtBottomIfNeeded = () => {
+      if (!hasInitialScrolled) return;
+      if (!isAtBottomRef.current) return;
+      requestAnimationFrame(() => {
+        bottomRef.current?.scrollIntoView({ block: "end" });
+      });
+    };
+
+    const onLoad = (e: Event) => {
+      if (
+        e.target instanceof HTMLImageElement ||
+        e.target instanceof HTMLVideoElement ||
+        e.target instanceof HTMLAudioElement
+      ) {
+        keepAtBottomIfNeeded();
+      }
+    };
+    el.addEventListener("load", onLoad, true);
+
+    const ro = new ResizeObserver(keepAtBottomIfNeeded);
+    ro.observe(el);
+
+    return () => {
+      el.removeEventListener("load", onLoad, true);
+      ro.disconnect();
+    };
+  }, [hasInitialScrolled]);
+
+  // Scroll infinito reverso — preserva a posição de leitura compensando
+  // a altura ganha com as mensagens antigas (mesmo padrão do tracking-chat).
+  const fetchOlder = async () => {
+    if (!hasNextPage || isFetchingNextPage || fetchMoreGuardRef.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+
+    fetchMoreGuardRef.current = true;
+    const prevScrollHeight = el.scrollHeight;
+    const prevScrollTop = el.scrollTop;
+
+    try {
+      const result = await fetchNextPage();
+      if (result.isError) return;
+      requestAnimationFrame(() => {
+        const node = scrollRef.current;
+        if (!node) return;
+        if (isAtBottomRef.current) {
+          // Usuário ainda no fim (acabou de entrar / não rolou pra cima)
+          // → pina na última mensagem em vez de preservar posição relativa.
+          node.scrollTop = node.scrollHeight;
+        } else {
+          // Usuário lendo histórico — mantém a mensagem visível no lugar.
+          node.scrollTop =
+            node.scrollHeight - prevScrollHeight + prevScrollTop;
+        }
+      });
+    } finally {
+      requestAnimationFrame(() => {
+        fetchMoreGuardRef.current = false;
+      });
+    }
+  };
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (
+      el.scrollTop <= 80 &&
+      hasNextPage &&
+      !isFetchingNextPage &&
+      !fetchMoreGuardRef.current
+    ) {
+      fetchOlder();
+    }
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 80;
+    isAtBottomRef.current = nearBottom;
+    setIsAtBottom(nearBottom);
+    if (nearBottom) setNewMessageBadge(false);
+  };
+
+  // Auto-fetch enquanto o conteúdo não enche o viewport — sem isso, com
+  // poucas mensagens (ou primeira página menor que a altura), o usuário
+  // não consegue rolar pra cima e o scroll-infinito nunca dispara.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (!hasNextPage || isFetchingNextPage || fetchMoreGuardRef.current) {
+      return;
+    }
+    if (el.scrollHeight <= el.clientHeight + 4) {
+      fetchOlder();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, hasNextPage, isFetchingNextPage]);
+
+  const scrollToBottom = () => {
+    isAtBottomRef.current = true;
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    setIsAtBottom(true);
+    setNewMessageBadge(false);
+  };
 
   // ── Envio ────────────────────────────────────────────────────────────
   const sendMessage = async (payload: {
@@ -386,9 +463,7 @@ export function InChatWindow({
       longitude: payload.longitude ?? null,
       createdAt: new Date().toISOString(),
       fromMe: false,
-      // "PENDING" → renderiza ClockIcon na bolha. Quando o server
-      // responder, swap pelo objeto real (que vem com status SENT/SEEN).
-      status: "PENDING",
+      status: "SENT",
       senderName: null,
       viaInChat: true,
       quotedMessageId: payload.quotedMessageId ?? null,
@@ -406,6 +481,21 @@ export function InChatWindow({
     setMessages((prev) => [...prev, optimistic]);
     setReplyTo(null);
 
+    // Rola pro fim quando o lead envia E está perto do fim. Não depende
+    // do useEffect (que pode pegar isAtBottom stale entre re-renders) —
+    // lemos o ref e disparamos direto. Double rAF garante que o DOM já
+    // mediu a altura da nova bolha antes do scroll.
+    if (isAtBottomRef.current) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          bottomRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "end",
+          });
+        });
+      });
+    }
+
     try {
       const res = await fetch(`/api/in-chat/${slug}/messages`, {
         method: "POST",
@@ -415,9 +505,19 @@ export function InChatWindow({
       });
       if (!res.ok) throw new Error("send failed");
       const { message } = await res.json();
-      setMessages((prev) =>
-        prev.map((m) => (m.id === tempId ? message : m)),
-      );
+      setMessages((prev) => {
+        // Remove temp + qualquer duplicata da real que o Pusher já tenha trazido.
+        const byId = new Map<string, Message>();
+        for (const m of prev) {
+          if (m.id === tempId || m.id === message.id) continue;
+          byId.set(m.id, m);
+        }
+        byId.set(message.id, message);
+        return Array.from(byId.values()).sort(
+          (a, b) =>
+            safeTime(a.createdAt) - safeTime(b.createdAt),
+        );
+      });
     } catch {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       toast.error("Falha ao enviar — tente de novo");
@@ -581,10 +681,10 @@ export function InChatWindow({
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#dbe9f7] dark:bg-zinc-900">
+    <div className="h-[100dvh] flex flex-col bg-[#dbe9f7] dark:bg-zinc-900 overflow-hidden">
       {/* Header — clicável pra abrir dialog de info */}
       <header
-        className="bg-white dark:bg-zinc-800 border-b shadow-sm px-4 py-3 flex items-center gap-3 sticky top-0 z-10 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors"
+        className="shrink-0 bg-white dark:bg-zinc-800 border-b shadow-sm px-4 py-3 flex items-center gap-3 z-10 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors"
         onClick={() => setInfoOpen(true)}
         role="button"
         aria-label={`Ver informações de ${orgName}`}
@@ -613,15 +713,14 @@ export function InChatWindow({
         ref={scrollRef}
         onScroll={handleScroll}
         className={cn(
-          "flex-1 overflow-y-auto p-4 space-y-2 relative",
+          "relative flex-1 min-h-0 overflow-y-auto p-4 space-y-2",
           "bg-[url('/chat-bg/mobile.png')] md:bg-[url('/chat-bg/desktop.png')]",
           "bg-cover bg-center bg-fixed",
         )}
       >
-        {/* Loading indicator no topo durante carregamento de mensagens antigas */}
-        {loadingMore && (
-          <div className="flex justify-center py-2">
-            <Loader2 className="size-4 animate-spin text-zinc-500" />
+        {isFetchingNextPage && (
+          <div className="flex items-center justify-center py-2">
+            <div className="size-5 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
           </div>
         )}
         {messages.length === 0 && (
@@ -631,59 +730,79 @@ export function InChatWindow({
         )}
         {(() => {
           const seen = new Set<string>();
-          return messages.filter((m) => {
+          const dedup = messages.filter((m) => {
             if (seen.has(m.id)) return false;
             seen.add(m.id);
             return true;
           });
-        })().map((msg, i, arr) => {
-          const isOwnFromLead = !msg.fromMe;
-          const prev = arr[i - 1];
-          const showDateHeader =
-            !prev ||
-            new Date(msg.createdAt).toDateString() !==
-              new Date(prev.createdAt).toDateString();
-          return (
-            <div key={msg.id}>
-              {showDateHeader && (
-                <div className="flex justify-center my-3">
-                  <span className="bg-white/80 dark:bg-zinc-800/80 text-[10px] font-medium px-2 py-1 rounded-md shadow uppercase text-zinc-700 dark:text-zinc-200">
-                    {formatDateHeader(msg.createdAt)}
-                  </span>
-                </div>
-              )}
-              <div className={cn("flex group", isOwnFromLead && "justify-end")}>
-                <ChatBubble
-                  msg={msg}
-                  isOwn={isOwnFromLead}
-                  onReply={() => setReplyTo(msg)}
-                  onCopy={() => {
-                    navigator.clipboard
-                      .writeText(msg.body ?? "")
-                      .then(() => toast.success("Copiado"));
-                  }}
-                  onDelete={() => handleDelete(msg)}
-                />
+          // Agrupa por data (toDateString) pra fixar o label no topo do grupo,
+          // como o tracking-chat — `sticky top-2 z-10` no wrapper do grupo.
+          const groups: { date: string; messages: typeof dedup }[] = [];
+          for (const m of dedup) {
+            const d = safeDate(m.createdAt);
+            const key = d ? d.toDateString() : "—";
+            const last = groups[groups.length - 1];
+            if (last && last.date === key) last.messages.push(m);
+            else groups.push({ date: key, messages: [m] });
+          }
+          return groups.map((group) => (
+            <div key={group.date} className="flex flex-col gap-2">
+              <div className="flex justify-center my-3 sticky top-2 z-10">
+                <span className="bg-white/80 dark:bg-zinc-800/80 text-[10px] font-medium px-2 py-1 rounded-md shadow uppercase text-zinc-700 dark:text-zinc-200">
+                  {formatDateHeader(group.messages[0].createdAt)}
+                </span>
               </div>
+              {group.messages.map((msg) => {
+                const isOwnFromLead = !msg.fromMe;
+                return (
+                  <div
+                    key={msg.id}
+                    className={cn(
+                      "flex group",
+                      isOwnFromLead && "justify-end",
+                    )}
+                  >
+                    <ChatBubble
+                      msg={msg}
+                      isOwn={isOwnFromLead}
+                      onReply={() => setReplyTo(msg)}
+                      onCopy={() => {
+                        navigator.clipboard
+                          .writeText(msg.body ?? "")
+                          .then(() => toast.success("Copiado"));
+                      }}
+                      onDelete={() => handleDelete(msg)}
+                    />
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
-        {/* Pill flutuante "Novas mensagens" — sticky no fundo do scroll,
-            só aparece quando user navegou pra cima E chegou msg nova
-            do atendente via Pusher. Clique → scroll suave pro fundo. */}
-        {hasNewBelow && (
-          <div className="sticky bottom-2 flex justify-center pointer-events-none">
-            <button
-              type="button"
-              onClick={scrollToBottom}
-              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 shadow-lg transition-colors"
-            >
-              <ChevronDownIcon className="size-3.5" />
-              Novas mensagens
-            </button>
-          </div>
-        )}
+          ));
+        })()}
+        <div ref={bottomRef} />
       </div>
+
+      {/* Botão flutuante "rolar pra baixo" + badge */}
+      {(!isAtBottom || newMessageBadge) && (
+        <button
+          type="button"
+          onClick={scrollToBottom}
+          aria-label="Rolar para o fim"
+          className={cn(
+            "absolute bottom-20 right-3 z-20 size-10 rounded-full",
+            "bg-white dark:bg-zinc-800 shadow-md border",
+            "flex items-center justify-center text-zinc-700 dark:text-zinc-200",
+            "hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors",
+          )}
+        >
+          <ChevronDownIcon className="size-5" />
+          {newMessageBadge && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-600 text-white text-[10px] font-semibold flex items-center justify-center">
+              •
+            </span>
+          )}
+        </button>
+      )}
 
       {/* Composer */}
       {recording ? (
@@ -691,7 +810,7 @@ export function InChatWindow({
       ) : (
         <form
           onSubmit={handleSubmitText}
-          className="bg-white dark:bg-zinc-800 border-t sticky bottom-0"
+          className="shrink-0 bg-white dark:bg-zinc-800 border-t"
         >
           {/* Reply preview */}
           {replyTo && (
@@ -1094,15 +1213,10 @@ function ChatBubble({
               : "text-zinc-500 dark:text-zinc-400",
           )}
         >
-          {format(new Date(msg.createdAt), "p")}
+          {formatMessageTime(msg.createdAt)}
           {isOwn && !isDeleted && (
             <>
-              {msg.status === "PENDING" ? (
-                <ClockIcon
-                  className="size-3.5 text-zinc-500/60 dark:text-zinc-300/50 animate-pulse"
-                  aria-label="Enviando"
-                />
-              ) : msg.status === "SEEN" ? (
+              {msg.status === "SEEN" ? (
                 <CheckCheckIcon className="size-3.5 text-[#53bdeb]" />
               ) : (
                 <CheckIcon className="size-3.5 text-zinc-500/80 dark:text-zinc-300/70" />
@@ -1429,7 +1543,7 @@ function RecordingBar({
     return () => clearInterval(i);
   }, []);
   return (
-    <div className="bg-white dark:bg-zinc-800 border-t px-3 py-2 flex items-center gap-2 sticky bottom-0">
+    <div className="shrink-0 bg-white dark:bg-zinc-800 border-t px-3 py-2 flex items-center gap-2">
       <Button
         type="button"
         variant="ghost"
@@ -1458,9 +1572,31 @@ function RecordingBar({
   );
 }
 
-function formatDateHeader(date: string | Date) {
-  const d = new Date(date);
+/**
+ * Parse seguro de createdAt — payload do Pusher (vindo do tracking-chat,
+ * webhook, etc.) pode chegar sem o campo ou em formato inesperado. Em vez
+ * de explodir a árvore inteira com `Invalid time value`, retornamos `null`
+ * e quem chama decide o fallback.
+ */
+function safeDate(value: string | Date | null | undefined): Date | null {
+  if (value == null) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return isValid(d) ? d : null;
+}
+
+function safeTime(value: string | Date | null | undefined): number {
+  return safeDate(value)?.getTime() ?? 0;
+}
+
+function formatDateHeader(date: string | Date | null | undefined) {
+  const d = safeDate(date);
+  if (!d) return "";
   if (isToday(d)) return "Hoje";
   if (isYesterday(d)) return "Ontem";
   return format(d, "dd/MM/yyyy");
+}
+
+function formatMessageTime(date: string | Date | null | undefined) {
+  const d = safeDate(date);
+  return d ? format(d, "p") : "";
 }

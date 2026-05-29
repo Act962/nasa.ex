@@ -28,7 +28,7 @@ function renderWithLinks(text: string): ReactNode {
 
 export function BodyMessage({ message }: { message: Message }) {
   return (
-    <div className="whitespace-pre-wrap px-1.5">
+    <div className="whitespace-pre-wrap [overflow-wrap:anywhere] px-1.5">
       {(() => {
         if (!message.fromMe || !message.senderName || !message.body) {
           return renderWithLinks(message.body || "");
