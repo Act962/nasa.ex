@@ -52,6 +52,10 @@ import {
   checkNoFirstResponse,
   checkInConvIdle,
 } from "@/inngest/functions/triggers/idle-automation";
+import {
+  autoAgentTickScheduledFn,
+  autoAgentOnLeadReplyFn,
+} from "@/inngest/functions/auto-agent-scheduler";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -110,6 +114,9 @@ export const { GET, POST, PUT } = serve({
     scheduleIdleChecks,
     checkNoFirstResponse,
     checkInConvIdle,
+    // ── NASA Auto Agent — scheduler de turns assíncronos ──
+    autoAgentTickScheduledFn,
+    autoAgentOnLeadReplyFn,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

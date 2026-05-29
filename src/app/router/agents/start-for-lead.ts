@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { inngest } from "@/inngest/client";
 
 /**
  * Abre uma `LeadAgentSession` ACTIVE pro par (agent, lead).
@@ -70,8 +71,17 @@ export const startSessionForLead = base
       select: { id: true, status: true, createdAt: true },
     });
 
-    // TODO Fase 2: dispatch Inngest evento "auto-agent/session-scheduled"
-    // pra runtime começar a rodar primeiro turn imediatamente.
+    // Dispara evento Inngest pra runtime rodar primeiro turn — só pra
+    // sessões recém-criadas (status ACTIVE retornado do create). Sessões
+    // pré-existentes não disparam de novo pra evitar duplo agendamento.
+    try {
+      await inngest.send({
+        name: "auto-agent/session-scheduled",
+        data: { sessionId: session.id },
+      });
+    } catch (err) {
+      console.warn("[agents.startSession] inngest dispatch failed:", err);
+    }
 
     return session;
   });
