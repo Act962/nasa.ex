@@ -22,6 +22,7 @@ function ShortcutRow({ shortcut }: { shortcut: Shortcut }) {
     typeof navigator !== "undefined" &&
     /Mac|iPhone|iPod|iPad/.test(navigator.platform);
   const keys = !isMac && shortcut.keysWin ? shortcut.keysWin : shortcut.keys;
+  const separator = shortcut.sequence ? "->" : "+";
 
   return (
     <div className="flex items-center justify-between py-3 border-b border-zinc-800 last:border-0">
@@ -31,7 +32,7 @@ function ShortcutRow({ shortcut }: { shortcut: Shortcut }) {
           <span key={i} className="flex items-center gap-1">
             <Key label={k} />
             {i < keys.length - 1 && (
-              <span className="text-zinc-600 text-xs">+</span>
+              <span className="text-zinc-600 text-xs">{separator}</span>
             )}
           </span>
         ))}
@@ -42,113 +43,119 @@ function ShortcutRow({ shortcut }: { shortcut: Shortcut }) {
 
 // ─── Global shortcut handler ──────────────────────────────────────────────────
 
+// Tecla líder das navegações que o navegador reserva no Ctrl (Ctrl+T/W/J):
+// pressiona N e DEPOIS a letra do app. Ctrl+N também é reservado (nova janela),
+// por isso o líder é o N sozinho.
+const LEADER = "n";
+// Tempo (ms) que o líder fica "armado" esperando a segunda tecla.
+const LEADER_TIMEOUT = 1500;
+// Mapa { 2ª tecla → rota } da sequência líder.
+const LEADER_ROUTES: Record<string, string> = {
+  t: "/tracking",
+  w: "/workspaces",
+};
+
 export function useGlobalShortcuts() {
   const router = useRouter();
 
   useEffect(() => {
+    let leaderArmed = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const disarm = () => {
+      leaderArmed = false;
+      if (timer) clearTimeout(timer);
+    };
+    const inEditable = (t: HTMLElement) =>
+      t.tagName === "INPUT" ||
+      t.tagName === "TEXTAREA" ||
+      t.isContentEditable;
+
     const handler = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       const shift = e.shiftKey;
       const key = e.key.toLowerCase();
+      const target = e.target as HTMLElement;
 
-      // ⌘A — open explorer and focus input
-      if (mod && !shift && key === "a") {
-        // Don't intercept if user is in a text input/textarea
-        const target = e.target as HTMLElement;
-        if (
-          target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable
-        )
-          return;
-        e.preventDefault();
-        router.push("/home");
-        // Focus the NASA Command textarea after navigation
-        setTimeout(() => {
-          const ta = document.querySelector<HTMLTextAreaElement>(
-            "[data-nasa-command]",
-          );
-          ta?.focus();
-        }, 300);
-      }
+      // ── Chords Ctrl/⌘ (combinações que o navegador deixa interceptar) ──
 
-      // ⌘T — go to tracking
-      if (mod && !shift && key === "t") {
-        const target = e.target as HTMLElement;
-        if (
-          target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable
-        )
-          return;
-        e.preventDefault();
-        router.push("/tracking");
-      }
-
-      // ⌘F — go to FORGE (only when not in input)
-      if (mod && !shift && key === "f") {
-        const target = e.target as HTMLElement;
-        if (
-          target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable
-        )
-          return;
-        e.preventDefault();
-        router.push("/forge");
-      }
-
-      // ⌘W — go to workspace (only when not in input)
-      if (mod && !shift && key === "w") {
-        const target = e.target as HTMLElement;
-        if (
-          target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable
-        )
-          return;
-        e.preventDefault();
-        router.push("/workspaces");
-      }
-
-      // ⌘J — go to chat
-      if (mod && !shift && key === "j") {
-        const target = e.target as HTMLElement;
-        if (
-          target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable
-        )
-          return;
-        e.preventDefault();
-        router.push("/chat");
-      }
-
-      // ⌘G — go to agendas
-      if (mod && !shift && key === "g") {
-        const target = e.target as HTMLElement;
-        if (
-          target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable
-        )
-          return;
-        e.preventDefault();
-        router.push("/agenda");
-      }
-
-      // ⌘Shift+A — toggle astro
+      // Ctrl/⌘+Shift+A — abrir/fechar ASTRO (funciona em qualquer contexto).
       if (mod && shift && key === "a") {
         e.preventDefault();
-        const astroBtn = document.querySelector<HTMLButtonElement>(
-          "[data-tour='astro-button']",
-        );
-        astroBtn?.click();
+        document
+          .querySelector<HTMLButtonElement>("[data-tour='astro-button']")
+          ?.click();
+        return;
+      }
+
+      if (mod && !shift) {
+        // Ctrl/⌘+A — abrir NASA Explorer e focar o campo de comando.
+        if (key === "a") {
+          if (inEditable(target)) return;
+          e.preventDefault();
+          router.push("/home");
+          setTimeout(() => {
+            document
+              .querySelector<HTMLTextAreaElement>("[data-nasa-command]")
+              ?.focus();
+          }, 300);
+          return;
+        }
+        // Ctrl/⌘+F — FORGE.
+        if (key === "f") {
+          if (inEditable(target)) return;
+          e.preventDefault();
+          router.push("/forge");
+          return;
+        }
+        // Ctrl/⌘+G — Agendas.
+        if (key === "g") {
+          if (inEditable(target)) return;
+          e.preventDefault();
+          router.push("/agendas");
+          return;
+        }
+        // Ctrl/⌘+J — Tracking-Chat.
+        if (key === "j") {
+          if (inEditable(target)) return;
+          e.preventDefault();
+          router.push("/tracking-chat");
+          return;
+        }
+      }
+
+      // ── Sequência líder N (pros que o navegador rouba no Ctrl: T/W/J) ──
+
+      if (inEditable(target)) {
+        disarm();
+        return;
+      }
+
+      // 2ª tecla da sequência.
+      if (leaderArmed) {
+        disarm();
+        const dest = LEADER_ROUTES[key];
+        if (dest) {
+          e.preventDefault();
+          router.push(dest);
+        }
+        return;
+      }
+
+      // Arma o líder (N sozinho, sem modificadores).
+      if (!mod && !e.altKey && !shift && key === LEADER) {
+        e.preventDefault();
+        leaderArmed = true;
+        timer = setTimeout(() => {
+          leaderArmed = false;
+        }, LEADER_TIMEOUT);
       }
     };
 
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      disarm();
+    };
   }, [router]);
 }
 
@@ -177,8 +184,10 @@ export function ShortcutsClient() {
         <ExternalLink className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
         <p className="text-sm text-zinc-300">
           Os atalhos são globais — funcionam em qualquer página da plataforma
-          (exceto quando o cursor está em um campo de texto). No Mac use{" "}
-          <Key label="⌘" /> e no Windows/Linux use <Key label="Ctrl" />.
+          (exceto quando o cursor está em um campo de texto). Use{" "}
+          <Key label="⌘" /> no Mac e <Key label="Ctrl" /> no Windows/Linux. Os
+          atalhos com <span className="text-zinc-400">{"->"}</span> são em
+          sequência: pressione <Key label="N" /> e <em>depois</em> a letra.
         </p>
       </div>
 
