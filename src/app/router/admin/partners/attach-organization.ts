@@ -107,13 +107,20 @@ export const attachOrganization = adminBase
           partnerCommission: null,
         },
       });
-      const pkgIds = Array.from(new Set(payments.map((p) => p.packageId)));
+      const pkgIds = Array.from(
+        new Set(
+          payments
+            .map((p) => p.packageId)
+            .filter((id): id is string => id !== null),
+        ),
+      );
       const pkgs = await prisma.starPackage.findMany({
         where: { id: { in: pkgIds } },
       });
       const pkgById = new Map<string, (typeof pkgs)[number]>();
       for (const p of pkgs) pkgById.set(p.id, p);
       for (const p of payments) {
+        if (!p.packageId) continue;
         const pkg = pkgById.get(p.packageId);
         if (!pkg) continue;
         const created = await createCommissionFromPayment({

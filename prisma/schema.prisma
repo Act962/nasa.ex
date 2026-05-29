@@ -3697,18 +3697,21 @@ model PaymentGatewayConfig {
 
 /// Tracks individual Stars purchase payment attempts
 model StarsPayment {
-  id             String   @id @default(cuid())
-  userId         String   @map("user_id")
-  organizationId String   @map("organization_id")
-  packageId      String   @map("package_id")
-  starsAmount    Int      @map("stars_amount")
-  amountBrl      Decimal  @map("amount_brl")
-  provider       String
-  externalId     String?  @map("external_id")
-  status         String   @default("pending") // pending | paid | failed | expired
-  metadata       Json     @default("{}")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id                    String    @id @default(cuid())
+  userId                String    @map("user_id")
+  organizationId        String    @map("organization_id")
+  packageId             String?   @map("package_id") // null = compra com quantidade customizada
+  starsAmount           Int       @map("stars_amount")
+  amountBrl             Decimal   @map("amount_brl")
+  provider              String
+  externalId            String?   @map("external_id") // Stripe session id / Asaas charge id
+  stripePaymentIntentId String?   @map("stripe_payment_intent_id") // lookup do charge.refunded + fallback payment_intent.succeeded
+  status                String    @default("pending") // pending | paid | failed | expired | refunded
+  paidAt                DateTime? @map("paid_at")
+  refundedAt            DateTime? @map("refunded_at")
+  metadata              Json      @default("{}")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   gatewayConfig PaymentGatewayConfig? @relation(fields: [gatewayId], references: [id])
   gatewayId     String?               @map("gateway_id")
@@ -3720,8 +3723,19 @@ model StarsPayment {
   @@index([userId])
   @@index([organizationId])
   @@index([externalId])
+  @@index([stripePaymentIntentId])
   @@index([status])
   @@map("stars_payment")
+}
+
+/// Dedupe de eventos Stripe por event.id — evita reprocessar entregas duplicadas.
+model ProcessedStripeEvent {
+  id        String   @id // Stripe event.id (evt_...)
+  type      String
+  source    String   @default("stars")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("processed_stripe_event")
 }
 
 // ─────────────────────────────────────────────
