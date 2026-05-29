@@ -62,6 +62,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true, alreadyProcessed: true });
     }
 
+    // Asaas só lida com top-up por pacote (createGatewayCheckout sempre seta
+    // packageId). Compra com quantidade customizada (packageId null) é Stripe-only.
+    if (!starsPayment.packageId) {
+      console.warn(
+        "[asaas/webhook] StarsPayment sem packageId — fora do fluxo Asaas:",
+        paymentId,
+      );
+      return NextResponse.json({ received: true });
+    }
+
     // Mark as paid
     await prisma.starsPayment.update({
       where: { id: paymentId },
