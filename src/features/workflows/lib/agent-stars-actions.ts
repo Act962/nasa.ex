@@ -23,6 +23,7 @@ export const AGENT_STARS_ACTIONS = {
   SEND_VOICE: "send_voice_generated",
   SEND_MEDIA: "send_media_uploaded",
   CHECK_PAYMENT: "check_payment_query",
+  SEND_EMAIL: "send_email_transactional",
 } as const;
 
 export type AgentStarsAction =

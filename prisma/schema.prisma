@@ -1765,6 +1765,7 @@ enum NodeType {
   CHECK_PAYMENT     // consulta StripePurchase/AsaasCharge
   SEND_VOICE        // TTS Astro → áudio WhatsApp
   SEND_MEDIA        // imagem/vídeo/áudio/documento WhatsApp
+  SEND_EMAIL        // email transacional via Resend + React Email
   // WEB_SEARCH — Fase 6 (requer SERPAPI_API_KEY)
 
   // Triggers novos (multi-trigger num só workflow)
@@ -5822,6 +5823,9 @@ enum PendingCoursePurchaseStatus {
   EXPIRED
   REFUNDED
   CANCELLED
+  // ABANDONED — cron de recuperação de carrinho marcou após 30+ dias
+  // sem pagamento. Sinaliza pro cron parar de tentar enviar emails.
+  ABANDONED
 }
 
 // Compra de curso iniciada por usuário sem conta. Após pagamento confirmado
@@ -5852,6 +5856,13 @@ model PendingCoursePurchase {
   redeemedAt            DateTime?                   @map("redeemed_at")
   redeemedByUserId      String?                     @map("redeemed_by_user_id")
   redeemedEnrollmentId  String?                     @map("redeemed_enrollment_id")
+  // ─── Recuperação de carrinho (cron nasa-route-cart-recovery) ───
+  // Última vez que enviamos email de recuperação. Cron usa pra decidir
+  // qual estágio mandar agora (D+1/D+3/D+7/D+15) e pra não duplicar.
+  lastReminderSentAt    DateTime?                   @map("last_reminder_sent_at")
+  // Qual estágio foi enviado por último (pra não pular nem repetir).
+  // Valores: "d1" | "d3" | "d7" | "d15" | null (nenhum ainda).
+  lastReminderStage     String?                     @map("last_reminder_stage")
 
   course         NasaRouteCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
   plan           NasaRoutePlan?  @relation(fields: [planId], references: [id], onDelete: SetNull)

@@ -24,12 +24,26 @@ import {
   buildCloserComFollowupBlueprint,
   type SeedCloserComFollowupParams,
 } from "./closer-com-followup";
+import {
+  buildPropostaContratoBlueprint,
+  type PropostaContratoParams,
+} from "./proposta-contrato";
+import {
+  buildBoasVindasNasaRouteBlueprint,
+  type BoasVindasNasaRouteParams,
+} from "./boas-vindas-nasa-route";
 
 type BlueprintFn =
   | ((params: AgendamentoParams) => ReturnType<typeof buildAgendamentoBlueprint>)
   | ((
       params: SeedCloserComFollowupParams,
-    ) => ReturnType<typeof buildCloserComFollowupBlueprint>);
+    ) => ReturnType<typeof buildCloserComFollowupBlueprint>)
+  | ((
+      params: PropostaContratoParams,
+    ) => ReturnType<typeof buildPropostaContratoBlueprint>)
+  | ((
+      params: BoasVindasNasaRouteParams,
+    ) => ReturnType<typeof buildBoasVindasNasaRouteBlueprint>);
 
 interface PresetSpec {
   builder: BlueprintFn;
@@ -42,6 +56,14 @@ const DEFAULT_PRESETS: PresetSpec[] = [
   {
     builder: buildCloserComFollowupBlueprint as BlueprintFn,
     logName: "Closer Comercial com Follow-up",
+  },
+  {
+    builder: buildPropostaContratoBlueprint as BlueprintFn,
+    logName: "Proposta + Contrato — Fechamento Automático",
+  },
+  {
+    builder: buildBoasVindasNasaRouteBlueprint as BlueprintFn,
+    logName: "Boas-vindas NASA Route — Pós-pagamento",
   },
 ];
 

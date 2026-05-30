@@ -149,6 +149,23 @@ export function validateNode(
           errs.push("Informe a URL do documento");
         if (!hasNonEmptyString(payload.fileName))
           errs.push("Informe o nome do arquivo");
+      } else if (t === "BUTTONS") {
+        // Modo preset → exige presetId. Modo inline → bodyText + 1+ buttons.
+        const mode = payload.mode === "inline" ? "inline" : "preset";
+        if (mode === "preset") {
+          if (!hasNonEmptyString(payload.presetId))
+            errs.push("Selecione um preset de botões");
+        } else {
+          if (!hasNonEmptyString(payload.bodyText))
+            errs.push("Escreva o texto principal do menu");
+          const buttons = Array.isArray(payload.buttons)
+            ? payload.buttons
+            : [];
+          if (buttons.length === 0)
+            errs.push("Adicione ao menos 1 botão");
+          if (buttons.length > 9)
+            errs.push("Máximo 9 botões");
+        }
       } else {
         // Default = TEXT
         if (!hasNonEmptyString(payload.message))

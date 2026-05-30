@@ -15,8 +15,6 @@
  */
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { runWorkflow } from "@/features/workflows/lib/run-workflow";
-import { getAgentExecutorRegistry } from "@/features/workflows/lib/agent-executor-registry";
 
 // ─── Helper ────────────────────────────────────────
 
@@ -45,39 +43,34 @@ async function dispatchToMatchingWorkflows(params: {
   });
 
   if (workflows.length === 0) {
-    return { matched: 0, runs: [] };
+    return { matched: 0, dispatched: 0 };
   }
 
-  const registry = getAgentExecutorRegistry();
-  const results: Array<{ workflowId: string; runId: string | null; status: string }> = [];
-
+  // Importante: chamamos `sendWorkflowExecution` (= evento Inngest
+  // `workflow/execute.workflow`) em vez de `runWorkflow` direto. Isso garante
+  // que cada workflow rode dentro da Inngest function `executeWorkflow`
+  // — que faz o loop de step.waitForEvent + resume pra workflows com
+  // WAIT/WAIT_FOR_EVENT. Chamada direta ao runWorkflow funciona pra
+  // workflows sem suspend, mas deixa workflows com WAIT órfãos no
+  // banco (SUSPENDED pra sempre). Best-effort por wf — falha em um
+  // não derruba os outros.
+  const { sendWorkflowExecution } = await import("@/inngest/utils");
+  let dispatched = 0;
   for (const wf of workflows) {
     try {
-      const r = await runWorkflow(
-        {
-          workflowId: wf.id,
-          triggerType,
-          leadId: leadId ?? null,
-          triggerPayload: { ...triggerPayload, organizationId, trackingId },
-        },
-        registry,
-      );
-      results.push({
+      await sendWorkflowExecution({
         workflowId: wf.id,
-        runId: r.runId,
-        status: r.status,
+        triggerType,
+        leadId: leadId ?? null,
+        initialData: { ...triggerPayload, organizationId, trackingId },
       });
+      dispatched++;
     } catch (err) {
-      results.push({
-        workflowId: wf.id,
-        runId: null,
-        status: "FAILED",
-      });
       console.error("[agent-workflow-trigger]", wf.id, err);
     }
   }
 
-  return { matched: workflows.length, runs: results };
+  return { matched: workflows.length, dispatched };
 }
 
 // ─── PAYMENT_RECEIVED ──────────────────────────────
@@ -98,7 +91,26 @@ export const agentTriggerPaymentReceivedFn = inngest.createFunction(
       leadId?: string | null;
       organizationId: string;
       trackingId?: string | null;
+      // Campos opcionais "extras" injetados pelo caller (purchase-side-effects
+      // do NASA Route passa courseTitle/planName/creatorName/coursePlayerUrl
+      // pra ficarem disponíveis em {{trigger.X}} no workflow).
+      [extraKey: string]: unknown;
     };
+
+    // Filtra campos conhecidos da estrutura padrão; o resto vai pro
+    // triggerPayload pra ficar visível no contexto do workflow.
+    const knownKeys = new Set([
+      "provider",
+      "externalId",
+      "amount",
+      "leadId",
+      "organizationId",
+      "trackingId",
+    ]);
+    const extras: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(data)) {
+      if (!knownKeys.has(k)) extras[k] = v;
+    }
 
     return await step.run("dispatch-workflows", async () =>
       dispatchToMatchingWorkflows({
@@ -107,6 +119,7 @@ export const agentTriggerPaymentReceivedFn = inngest.createFunction(
           provider: data.provider,
           externalId: data.externalId,
           amount: data.amount,
+          ...extras,
         },
         organizationId: data.organizationId,
         trackingId: data.trackingId ?? null,

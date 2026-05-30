@@ -202,8 +202,39 @@ export const dispatchManualTrigger = async (args: {
  *
  * Best-effort: catch erros pra não derrubar o caller.
  */
+/**
+ * Eventos "soft" que workflows ESCUTAM via WAIT_FOR_EVENT (não disparam runs
+ * novos — pra isso, usa `dispatchLeadTagged`, `dispatchMoveLeadStatus`, etc).
+ *
+ * Race-friendly: o engine de WAIT_FOR_EVENT aceita múltiplos `eventNames`
+ * em paralelo (Promise.race no Inngest), então um workflow pode acordar
+ * com QUALQUER um dos seguintes — o primeiro que chegar ganha:
+ *
+ *   - "message-incoming"     ← lead escreve no WhatsApp
+ *   - "lead-tagged"          ← user OU IA aplica tag (add-tags / apply-tags-by-ai)
+ *   - "lead-status-changed"  ← user OU automação move status (update / update-many)
+ *   - "ai-finished"          ← user desliga IA do lead (chat/ia/deactive)
+ *   - "proposal-opened"      ← lead abre o link público da proposta
+ *   - "proposal-accepted"    ← lead clica "Aceitar" → cria contrato no Forge
+ *   - "proposal-rejected"    ← lead clica "Recusar" / status muda
+ *   - "contract-opened"      ← lead abre a página de assinatura
+ *   - "contract-signed"      ← lead conclui a assinatura (allSigned)
+ *
+ * Best-effort: catch erros pra não derrubar o caller.
+ */
+export type AgentWorkflowSoftEvent =
+  | "lead-tagged"
+  | "lead-status-changed"
+  | "ai-finished"
+  | "message-incoming"
+  | "proposal-opened"
+  | "proposal-accepted"
+  | "proposal-rejected"
+  | "contract-opened"
+  | "contract-signed";
+
 export const broadcastAgentWorkflowEvent = async (args: {
-  event: "lead-tagged" | "lead-status-changed" | "ai-finished";
+  event: AgentWorkflowSoftEvent;
   leadId: string;
   trackingId: string;
   organizationId?: string;

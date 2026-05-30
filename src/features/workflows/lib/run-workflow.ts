@@ -63,7 +63,17 @@ export type RunWorkflowInput = {
 export type SuspendedState = {
   runId: string;
   suspendedAtNodeId: string;
-  eventName: string;
+  /**
+   * Nome(s) de evento que o WAIT_FOR_EVENT escuta. Engine acorda no PRIMEIRO
+   * evento que chegar (race). Pra retrocompat, o caller também aceita
+   * `eventName: string` (legacy) — engine sempre serializa como `eventNames`.
+   *
+   * Casos de uso múltiplos:
+   *   - Proposta: ["message-incoming", "proposal-accepted", "proposal-rejected",
+   *     "lead-tagged", "lead-status-changed"]
+   *   - Contrato: ["contract-signed", "message-incoming", "lead-tagged"]
+   */
+  eventNames: string[];
   timeoutMinutes: number;
   /** Nodes que ainda precisam ser executados após o resume. */
   pendingQueue: Array<{ nodeId: string }>;
@@ -380,11 +390,18 @@ export async function runWorkflow(
         (result.output && typeof result.output === "object"
           ? (result.output as Record<string, unknown>)
           : {}) ?? {};
-      const eventName = String(
+      // Normaliza pra array: aceita `eventNames: string[]` (novo, recomendado)
+      // OU `eventName: string` (legado, mantém retrocompat com presets antigos).
+      // O engine acorda no PRIMEIRO evento que chegar (race no Inngest).
+      const eventNamesRaw =
+        outputObj.eventNames ??
+        node.data.eventNames ??
         outputObj.eventName ??
-          (node.data.eventName as string | undefined) ??
-          "message-incoming",
-      );
+        node.data.eventName ??
+        "message-incoming";
+      const eventNames: string[] = Array.isArray(eventNamesRaw)
+        ? (eventNamesRaw as string[]).map(String).filter(Boolean)
+        : [String(eventNamesRaw)];
       const timeoutMinutes = Number(
         outputObj.timeoutMinutes ??
           (node.data.timeoutMinutes as number | undefined) ??
@@ -397,7 +414,7 @@ export async function runWorkflow(
           status: "SUSPENDED",
           nodesExecuted: executions,
           starsSpent: totalStars,
-          errorMessage: `Aguardando evento "${eventName}" (timeout ${timeoutMinutes} min)`,
+          errorMessage: `Aguardando eventos [${eventNames.join(", ")}] (timeout ${timeoutMinutes} min)`,
         },
       });
 
@@ -410,7 +427,7 @@ export async function runWorkflow(
         suspended: {
           runId: run.id,
           suspendedAtNodeId: node.id,
-          eventName,
+          eventNames,
           timeoutMinutes,
           pendingQueue: remainingQueue,
           contextSnapshot: pendingCtx,

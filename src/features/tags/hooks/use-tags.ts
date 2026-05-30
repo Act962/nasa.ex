@@ -1,5 +1,6 @@
 import { orpc } from "@/lib/orpc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export function useTags({
   trackingId,
@@ -39,13 +40,49 @@ export function useArchivedTags({ trackingId }: { trackingId?: string } = {}) {
   return useTags({ trackingId, onlyArchived: true });
 }
 
+/**
+ * Invalida TODAS as variantes de `listTags` que importam pro UI de
+ * arquivamento — sem trackingId (lista global), com trackingId
+ * (lista do funil), com onlyArchived (aba "Arquivadas").
+ *
+ * Usar a queryKey plana `["tags"]` (que existia antes) NÃO casa com a
+ * estrutura que o oRPC gera — por isso os botões Restaurar/Excluir
+ * "não funcionavam" do ponto de vista do usuário: mutation rodava no
+ * servidor mas a UI nunca atualizava.
+ */
+function invalidateAllTagLists(
+  queryClient: ReturnType<typeof useQueryClient>,
+  trackingId?: string | null,
+) {
+  const variants = [
+    // Sem filtro de arquivamento
+    { trackingId: trackingId ?? undefined },
+    { trackingId: undefined },
+    // Aba "Arquivadas"
+    { trackingId: trackingId ?? undefined, onlyArchived: true },
+    { trackingId: undefined, onlyArchived: true },
+    // Inclui arquivadas (mistura)
+    { trackingId: trackingId ?? undefined, includeArchived: true },
+    { trackingId: undefined, includeArchived: true },
+  ];
+  for (const q of variants) {
+    queryClient.invalidateQueries({
+      queryKey: orpc.tags.listTags.queryKey({ input: { query: q } }),
+    });
+  }
+}
+
 /** Mutation pra restaurar tag arquivada (zera archivedAt). */
 export function useRestoreTag() {
   const queryClient = useQueryClient();
   return useMutation(
     orpc.tags.updateTag.mutationOptions({
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["tags"] });
+      onSuccess: (data) => {
+        invalidateAllTagLists(queryClient, data.trackingId ?? undefined);
+        toast.success(`Tag "${data.name}" restaurada`);
+      },
+      onError: (err) => {
+        toast.error(`Erro ao restaurar tag: ${err.message}`);
       },
     }),
   );
@@ -56,8 +93,12 @@ export function usePurgeTag() {
   const queryClient = useQueryClient();
   return useMutation(
     orpc.tags.purgeTag.mutationOptions({
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["tags"] });
+      onSuccess: (data) => {
+        invalidateAllTagLists(queryClient, data.trackingId ?? undefined);
+        toast.success(`Tag "${data.name}" excluída permanentemente`);
+      },
+      onError: (err) => {
+        toast.error(`Erro ao excluir tag: ${err.message}`);
       },
     }),
   );

@@ -120,37 +120,56 @@ export const executeWorkflow = inngest.createFunction(
           break;
         }
 
-        // Suspendeu — espera pelo evento OU timeout.
-        // step.waitForEvent retorna o evento OU null se timeout. Quando volta,
-        // re-roda o engine com o estado salvo. Se for timeout, segue mesmo
-        // assim pelo caminho "main" — o nó WAIT_FOR_EVENT já foi marcado
-        // SUCCESS no log; o engine só continua daqui.
+        // Suspendeu — espera pelo PRIMEIRO de N eventos OU timeout.
+        // Quando o engine quer aceitar múltiplos eventos (proposta + texto +
+        // tag aplicada manual, p.ex.), disparamos N `step.waitForEvent` em
+        // paralelo e damos `Promise.race` — quem chegar primeiro acorda o
+        // engine. Se for timeout, todos os waits retornam null e seguimos
+        // pelo caminho "main".
+        //
+        // Convenção: nomes curtos como "message-incoming" são qualificados
+        // pra "agent-workflow/message-incoming" automaticamente.
         const sus = result.suspended;
-        // Normaliza nome do evento — convenção: "agent-workflow/<name>".
-        // Permite o user configurar tanto "message-incoming" (curto)
-        // quanto "agent-workflow/message-incoming" (qualificado) no nó.
-        const fullEventName = sus.eventName.includes("/")
-          ? sus.eventName
-          : `agent-workflow/${sus.eventName}`;
-        // step.waitForEvent retorna o evento que casou (com data) OU null
-        // se timeout. Capturamos pra injetar no contexto — AI_DECISION
-        // precisa ver `messageText` do lead pra decidir a branch.
-        const resumeEvent = (await step.waitForEvent(
-          `wait-event-${cycles}`,
-          {
-            event: fullEventName,
-            timeout: `${sus.timeoutMinutes}m`,
-            // Match por leadId — só acorda se evento for do mesmo lead.
-            // Pra triggers org-wide sem lead específico, pulamos o match.
-            ...((event.data as { leadId?: string | null }).leadId
-              ? { match: "data.leadId" as const }
-              : {}),
-          },
-        )) as { data?: Record<string, unknown> } | null;
+        const eventNames = sus.eventNames ?? [];
+        const fullEventNames = eventNames.map((n) =>
+          n.includes("/") ? n : `agent-workflow/${n}`,
+        );
+        const leadId = (event.data as { leadId?: string | null }).leadId;
+        const matchOpt = leadId
+          ? { match: "data.leadId" as const }
+          : ({} as Record<string, never>);
+
+        // Race entre N waitForEvent. Cada um tem step id único pra Inngest
+        // tratar como steps separados. Promise.race devolve o primeiro que
+        // resolver (evento OU null por timeout). Quando o primeiro retorna
+        // evento real, os outros viram garbage no Inngest (sem efeito).
+        type Resolved = {
+          data?: Record<string, unknown>;
+          name?: string;
+        } | null;
+        const waitPromises = fullEventNames.map((eventName, idx) =>
+          (
+            step.waitForEvent(`wait-event-${cycles}-${idx}`, {
+              event: eventName,
+              timeout: `${sus.timeoutMinutes}m`,
+              ...matchOpt,
+            }) as Promise<Resolved>
+          ).then((ev) => ({ ev, eventName })),
+        );
+        // Promise.race retorna o primeiro a resolver — pode ser null (timeout)
+        // ou um evento. Se for null, igual ao Promise.all teria retornado
+        // todos null (mesmo timeout pros N), então não perdemos nada.
+        const winner = await Promise.race(waitPromises);
+        const resumeEvent = winner.ev;
+        const winningEventName = winner.eventName.replace(
+          /^agent-workflow\//,
+          "",
+        );
 
         // Quando evento acorda o engine, injeta os campos relevantes no
-        // contexto (vars.lastIncomingMessage, vars.lastEvent) pra que
-        // AI_DECISION e SEND_MESSAGE possam usá-los via interpolação.
+        // contexto (vars.lastIncomingMessage, vars.lastEvent, vars.lastEventName)
+        // pra que AI_DECISION + fallback heurístico + SEND_MESSAGE possam
+        // usá-los via interpolação.
         const enrichedContext = { ...sus.contextSnapshot };
         if (resumeEvent && resumeEvent.data) {
           const vars =
@@ -159,6 +178,7 @@ export const executeWorkflow = inngest.createFunction(
           enrichedContext.vars = {
             ...vars,
             lastEvent: resumeEvent.data,
+            lastEventName: winningEventName,
             lastIncomingMessage:
               (resumeEvent.data as { messageText?: string }).messageText ??
               vars.lastIncomingMessage,

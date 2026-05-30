@@ -332,6 +332,8 @@ export const sendMediaExecutor: NodeExecutor = async ({ data, context, dryRun })
 // pra qualquer texto, não só link).
 //
 // data: { action: { payload: { type: "TEXT", message: "..." } } }
+//   OU: { action: { payload: { type: "BUTTONS", mode: "preset"|"inline",
+//          presetId?, bodyText?, footerText?, buttons? } } }
 // O texto suporta interpolação {{lead.name}}, {{vars.x}}, etc.
 export const sendMessageExecutor: NodeExecutor = async ({
   data,
@@ -348,8 +350,8 @@ export const sendMessageExecutor: NodeExecutor = async ({
       ? (action.payload as Record<string, unknown>)
       : action) ?? {};
 
-  const rawText = String(payload.message ?? payload.text ?? "");
-  const text = interpolate(context, rawText).trim();
+  const payloadType = String(payload.type ?? "TEXT").toUpperCase();
+
   const leadId = String(
     (context.lead as Record<string, unknown> | undefined)?.id ?? "",
   );
@@ -357,18 +359,142 @@ export const sendMessageExecutor: NodeExecutor = async ({
     (context.lead as Record<string, unknown> | undefined)?.trackingId ?? "",
   );
 
-  if (!text) {
-    return {
-      output: { error: "Mensagem vazia depois da interpolação" },
-      status: "FAILED",
-      errorMessage: "empty_message",
-    };
-  }
   if (!leadId || !trackingId) {
     return {
       output: { error: "context.lead.id / trackingId obrigatórios" },
       status: "FAILED",
       errorMessage: "lead_or_tracking_missing",
+    };
+  }
+
+  // ─── BUTTONS branch ───────────────────────────────────────────────
+  if (payloadType === "BUTTONS") {
+    const { sendButtonsToLead } = await import(
+      "@/features/executions/lib/send-buttons-to-lead"
+    );
+    let bodyText = "";
+    let footerText: string | undefined;
+    let buttons: Array<{ text: string; id: string }> = [];
+
+    if (payload.mode === "preset" && typeof payload.presetId === "string") {
+      const { default: prisma } = await import("@/lib/prisma");
+      const preset = await prisma.aiButtonPreset.findUnique({
+        where: { id: payload.presetId },
+        select: {
+          bodyText: true,
+          footerText: true,
+          buttons: true,
+          isActive: true,
+        },
+      });
+      if (!preset || !preset.isActive) {
+        return {
+          output: { error: "preset_not_found_or_inactive" },
+          status: "FAILED",
+          errorMessage: "Preset de botões não encontrado ou inativo",
+        };
+      }
+      bodyText = preset.bodyText ?? "";
+      footerText = preset.footerText ?? undefined;
+      const raw = preset.buttons as unknown;
+      buttons = Array.isArray(raw)
+        ? raw
+            .filter(
+              (b): b is Record<string, unknown> =>
+                typeof b === "object" && b !== null,
+            )
+            .map((b) => ({
+              text: typeof b.text === "string" ? b.text : "",
+              id: typeof b.id === "string" ? b.id : "",
+            }))
+            .filter((b) => b.text && b.id)
+        : [];
+    } else {
+      bodyText = String(payload.bodyText ?? "");
+      footerText = payload.footerText
+        ? String(payload.footerText)
+        : undefined;
+      buttons = Array.isArray(payload.buttons)
+        ? (payload.buttons as Array<unknown>)
+            .filter(
+              (b): b is Record<string, unknown> =>
+                typeof b === "object" && b !== null,
+            )
+            .map((b) => ({
+              text: typeof b.text === "string" ? b.text : "",
+              id: typeof b.id === "string" ? b.id : "",
+            }))
+            .filter((b) => b.text && b.id)
+        : [];
+    }
+
+    bodyText = interpolate(context, bodyText).trim();
+    if (footerText) footerText = interpolate(context, footerText);
+
+    if (!bodyText) {
+      return {
+        output: { error: "menu_body_empty" },
+        status: "FAILED",
+        errorMessage: "Texto principal do menu vazio",
+      };
+    }
+    if (buttons.length === 0) {
+      return {
+        output: { error: "menu_no_buttons" },
+        status: "FAILED",
+        errorMessage: "Menu sem botões válidos",
+      };
+    }
+
+    if (dryRun) {
+      return {
+        output: {
+          dryRun: true,
+          type: "BUTTONS",
+          preview: bodyText.slice(0, 200),
+          buttons: buttons.map((b) => b.text),
+        },
+      };
+    }
+
+    try {
+      const result = await sendButtonsToLead({
+        leadId,
+        trackingId,
+        bodyText,
+        footerText,
+        buttons,
+      });
+      return {
+        output: {
+          sent: true,
+          type: "BUTTONS",
+          messageId: result.messageId,
+          viaInChat: result.viaInChat,
+          buttonsCount: buttons.length,
+        },
+      };
+    } catch (err) {
+      return {
+        output: {
+          error: err instanceof Error ? err.message : "send_buttons_failed",
+        },
+        status: "FAILED",
+        errorMessage:
+          err instanceof Error ? err.message : "send_buttons_failed",
+      };
+    }
+  }
+
+  // ─── TEXT branch (default) ────────────────────────────────────────
+  const rawText = String(payload.message ?? payload.text ?? "");
+  const text = interpolate(context, rawText).trim();
+
+  if (!text) {
+    return {
+      output: { error: "Mensagem vazia depois da interpolação" },
+      status: "FAILED",
+      errorMessage: "empty_message",
     };
   }
 
@@ -473,6 +599,132 @@ export const tagExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
       output: { error: err instanceof Error ? err.message : "tag_failed" },
       status: "FAILED",
       errorMessage: err instanceof Error ? err.message : "tag_failed",
+    };
+  }
+};
+
+// ─── SEND_PROPOSAL (agent-mode wrapper) ───────────────────────────
+// Reusa o executor legado de `send-proposal/executor.ts` via fake-step
+// adapter — engine agent-mode já roda dentro de step.run do parent,
+// então `step.run` aninhado equivale a chamada direta.
+//
+// IMPORTANTE:
+//   1. O legacy executor lê `data.productIds` direto (flat), não
+//      `data.action.productIds`. Aqui achatamos pra manter compat.
+//   2. O legacy retorna `{...context}` (full Lead com Decimal fields).
+//      Prisma JSON field não serializa Decimal → erro
+//      "Could not serialize [object Function]". Por isso devolvemos
+//      um output enxuto, não a context cheia.
+//
+// data esperado: { action: { productIds, responsibleId, validityDays?, messageTemplate? } }
+export const sendProposalExecutor: NodeExecutor = async ({ data, context }) => {
+  const action =
+    (data.action && typeof data.action === "object"
+      ? (data.action as Record<string, unknown>)
+      : data) ?? {};
+  try {
+    const { sendProposalExecutor: legacy } = await import(
+      "@/features/executions/components/send-proposal/executor"
+    );
+    const fakeStep = { run: async <T>(_n: string, fn: () => Promise<T>) => fn() };
+    const noopPublish = async () => {};
+    await legacy({
+      data: action as never, // flat — legacy lê data.productIds direto
+      nodeId: "agent",
+      context: context as never,
+      step: fakeStep as never,
+      publish: noopPublish as never,
+    });
+    return {
+      output: {
+        sent: true,
+        productIds: Array.isArray(action.productIds) ? action.productIds : [],
+      },
+    };
+  } catch (err) {
+    return {
+      output: {
+        error: err instanceof Error ? err.message : "send_proposal_failed",
+      },
+      status: "FAILED",
+      errorMessage:
+        err instanceof Error ? err.message : "send_proposal_failed",
+    };
+  }
+};
+
+// ─── SEND_CONTRACT (agent-mode wrapper) ───────────────────────────
+// data esperado: { action: { templateContractId, messageTemplate? } }
+// Legacy lê flat (data.templateContractId), por isso achatamos.
+export const sendContractExecutor: NodeExecutor = async ({ data, context }) => {
+  const action =
+    (data.action && typeof data.action === "object"
+      ? (data.action as Record<string, unknown>)
+      : data) ?? {};
+  try {
+    const { sendContractExecutor: legacy } = await import(
+      "@/features/executions/components/send-contract/executor"
+    );
+    const fakeStep = { run: async <T>(_n: string, fn: () => Promise<T>) => fn() };
+    const noopPublish = async () => {};
+    await legacy({
+      data: action as never,
+      nodeId: "agent",
+      context: context as never,
+      step: fakeStep as never,
+      publish: noopPublish as never,
+    });
+    return {
+      output: {
+        sent: true,
+        templateContractId: action.templateContractId ?? null,
+      },
+    };
+  } catch (err) {
+    return {
+      output: {
+        error: err instanceof Error ? err.message : "send_contract_failed",
+      },
+      status: "FAILED",
+      errorMessage:
+        err instanceof Error ? err.message : "send_contract_failed",
+    };
+  }
+};
+
+// ─── MOVE_LEAD (agent-mode wrapper) ───────────────────────────────
+// data esperado: { action: { statusId, trackingId? } }
+// Legacy move-lead lê data.action.X (já espera wrap), então passamos
+// data como-está, sem achatar.
+export const moveLeadExecutor: NodeExecutor = async ({ data, context }) => {
+  try {
+    const { moveLeadExecutor: legacy } = await import(
+      "@/features/executions/components/move-lead/executor"
+    );
+    const fakeStep = { run: async <T>(_n: string, fn: () => Promise<T>) => fn() };
+    const noopPublish = async () => {};
+    await legacy({
+      data: data as never,
+      nodeId: "agent",
+      context: context as never,
+      step: fakeStep as never,
+      publish: noopPublish as never,
+    });
+    const action =
+      (data.action && typeof data.action === "object"
+        ? (data.action as Record<string, unknown>)
+        : data) ?? {};
+    return {
+      output: { moved: true, statusId: action.statusId ?? null },
+    };
+  } catch (err) {
+    return {
+      output: {
+        error: err instanceof Error ? err.message : "move_lead_failed",
+      },
+      status: "FAILED",
+      errorMessage:
+        err instanceof Error ? err.message : "move_lead_failed",
     };
   }
 };

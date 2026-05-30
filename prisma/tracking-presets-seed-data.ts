@@ -489,9 +489,9 @@ export const SEED_PRESETS: Array<{
   },
   {
     slug: "comercial-menu-interativo",
-    name: "Comercial — Menu Interativo",
+    name: "Atendimento Comercial — Menu + Agendamento + Follow-up",
     description:
-      "4 jornadas pra leads que entram via menu (agendamento, produtos, interesse, compra+comprovante) com cadência de follow-up 1/2/3/4/5/7/15/20/30/90 dias, IA detecta engajamento e tag final 'Sem interesse'. Pronto pra produção.",
+      "Lead entra via menu de WhatsApp (Consultoria/Produtos/Interesse/Compra) → IA classifica a escolha (com fallback heurístico embutido se LLM falhar) → aplica tag e envia link de agenda → cadência 1/2/3/4/5/7/15/20/30/90 dias → tag final 'Desistiu 90' se ignorar. Testado e validado em produção.",
     paradigm: "REATIVO",
     icon: "MessageSquare",
     color: "#7A5FDF",

@@ -17,7 +17,9 @@ import {
   useNodes,
 } from "@xyflow/react";
 import { useMemo } from "react";
+import { useAtomValue } from "jotai";
 import { validateNode } from "@/features/workflows/lib/validate-node";
+import { stepByStepStateAtom } from "../store/step-by-step-atoms";
 
 export function ValidatedEdge({
   id,
@@ -34,6 +36,7 @@ export function ValidatedEdge({
   markerEnd,
 }: EdgeProps) {
   const nodes = useNodes();
+  const stepState = useAtomValue(stepByStepStateAtom);
 
   // Verifica se algum dos endpoints tem validação falhando
   const hasError = useMemo(() => {
@@ -49,6 +52,12 @@ export function ValidatedEdge({
     };
     return check(src as never) || check(tgt as never);
   }, [nodes, source, target]);
+
+  // ── Step-by-Step overrides ────────────────────────────────────
+  // Quando o modo está ativo, edges ganham cor verde/vermelho/cinza
+  // baseado em `edgeStatuses` do atom. Override total da cor (não
+  // cumula com hasError de validação).
+  const stepEdgeStatus = stepState.active ? stepState.edgeStatuses[id] : undefined;
 
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -68,22 +77,38 @@ export function ValidatedEdge({
       ? (data as { fromOutput?: string }).fromOutput
       : undefined);
 
+  // Resolve estilo final levando em conta step-by-step
+  let stroke: string | undefined;
+  let strokeWidth: number | undefined;
+  let animation: string | undefined;
+  let opacity: number | undefined;
+
+  if (stepEdgeStatus === "passed") {
+    stroke = "rgb(16,185,129)"; // emerald-500
+    strokeWidth = 2.5;
+  } else if (stepEdgeStatus === "failed") {
+    stroke = "rgb(239,68,68)"; // red-500
+    strokeWidth = 2.5;
+    animation = "edge-pulse 1.5s ease-in-out infinite";
+  } else if (stepEdgeStatus === "skipped") {
+    stroke = "rgb(156,163,175)"; // gray-400
+    opacity = 0.35;
+  } else if (hasError) {
+    stroke = "rgb(239,68,68)";
+    strokeWidth = 2.5;
+    animation = "edge-pulse 1.5s ease-in-out infinite";
+  }
+
   return (
     <>
       <BaseEdge
         id={id}
         path={edgePath}
         markerEnd={markerEnd}
-        style={{
-          stroke: hasError ? "rgb(239,68,68)" : undefined,
-          strokeWidth: hasError ? 2.5 : undefined,
-          // Pulse via CSS animation no path; animate-pulse só funciona
-          // em elementos com display block, então usamos opacity timing.
-          animation: hasError ? "edge-pulse 1.5s ease-in-out infinite" : undefined,
-        }}
+        style={{ stroke, strokeWidth, animation, opacity }}
       />
       {/* Animação CSS local — sem precisar de tailwind config */}
-      {hasError && (
+      {animation && (
         <style>{`
           @keyframes edge-pulse {
             0%, 100% { opacity: 1; }

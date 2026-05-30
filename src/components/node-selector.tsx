@@ -158,9 +158,18 @@ export function NodeSelector({
           y: centerY + (Math.random() - 0.5) * 200,
         });
 
+        // Pré-popula com defaultData do palette entry quando definido —
+        // permite atalhos como "Menu de Botões" criarem um SEND_MESSAGE
+        // já configurado com payload.type=BUTTONS abrindo o dialog na
+        // variante certa direto. Deep-clone pra evitar mutação acidental
+        // do objeto compartilhado no palette.
+        const initialData = selection.defaultData
+          ? JSON.parse(JSON.stringify(selection.defaultData))
+          : {};
+
         const newNode = {
           id: newNodeId,
-          data: {},
+          data: initialData,
           position: flowPostion,
           type: selection.type,
         };

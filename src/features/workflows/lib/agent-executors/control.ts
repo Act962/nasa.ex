@@ -21,36 +21,45 @@ import { interpolate } from "../workflow-context";
 const MAX_SUBWORKFLOW_DEPTH = 5;
 
 // ─── WAIT_FOR_EVENT ────────────────────────────────
-// data: { eventName: string, timeoutMinutes: number, payloadFilter?: object }
+// data:
+//   { eventNames: string[], timeoutMinutes: number }        (recomendado)
+//   { eventName: string, timeoutMinutes: number }           (legado, mantido)
 //
-// Implementação Fase 2: marca o run como WAITING e persiste o waiter em
-// WorkflowRun.errorMessage como sinal pro caller (Inngest) tomar a ação
-// (step.waitForEvent). Quando triggered, caller re-dispara runWorkflow
-// já com o evento como contexto inicial.
+// `eventNames` permite RACE entre vários eventos — engine acorda no PRIMEIRO
+// que chegar (via Promise.race no inngest/functions.ts). Pra retrocompat,
+// `eventName: string` ainda é aceito e vira `[eventName]`.
 //
-// Limitação Fase 2: não há "resume from this node" no run-workflow atual
-// — o caller precisa começar do nó WAIT_FOR_EVENT manualmente. Refatorado
-// em Fase 4 (resumable workflows) pra suporte completo a sleep/resume.
+// Implementação Fase 2: marca o run como WAITING e devolve eventNames no
+// output. O run-workflow consome esse output, persiste SUSPENDED, e o caller
+// Inngest faz os N step.waitForEvent em paralelo.
 export const waitForEventExecutor: NodeExecutor = async ({
   data,
   context,
   dryRun,
 }) => {
-  const eventName = String(data.eventName ?? "");
+  // Normaliza pra array: aceita ambos os formatos legacy/novo.
+  const eventNamesRaw = data.eventNames ?? data.eventName;
+  const eventNames: string[] = Array.isArray(eventNamesRaw)
+    ? (eventNamesRaw as unknown[])
+        .map((v) => String(v ?? "").trim())
+        .filter(Boolean)
+    : typeof eventNamesRaw === "string" && eventNamesRaw.trim()
+      ? [eventNamesRaw.trim()]
+      : [];
   const timeoutMinutes = Number(data.timeoutMinutes ?? 1440); // 24h default
 
-  if (!eventName) {
+  if (eventNames.length === 0) {
     return {
-      output: { error: "eventName obrigatório" },
+      output: { error: "eventNames vazio (precisa de ao menos 1)" },
       status: "FAILED",
-      errorMessage: "eventName ausente",
+      errorMessage: "eventNames ausentes",
     };
   }
 
   if (dryRun) {
     return {
       output: {
-        waitedFor: eventName,
+        waitedFor: eventNames,
         timeoutMinutes,
         dryRun: true,
       },
@@ -58,12 +67,12 @@ export const waitForEventExecutor: NodeExecutor = async ({
     };
   }
 
-  // Fase 2: marca como WAITING e retorna; caller Inngest cuida do sleep.
-  // Caller deve checar `status === "WAITING"` e usar step.waitForEvent.
+  // Fase 2: marca como WAITING e retorna; caller Inngest cuida do
+  // step.waitForEvent (em paralelo se eventNames > 1, via Promise.race).
   return {
     output: {
       waiting: true,
-      eventName,
+      eventNames,
       timeoutMinutes,
       since: new Date().toISOString(),
     },

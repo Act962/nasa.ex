@@ -49,6 +49,15 @@ interface DispatchPaymentReceivedArgs {
   trackingId?: string | null;
   leadId?: string | null;
   amount?: number;
+  /**
+   * Dados extras que ficam disponíveis no contexto do workflow via
+   * `context.trigger.<campo>` ou `{{trigger.X}}` na interpolação. Usado
+   * principalmente pra NASA Route — o purchase-side-effects passa
+   * `courseTitle`, `planName`, `creatorName`, `coursePlayerUrl` pra que
+   * o SEND_EMAIL/SEND_MESSAGE possam preencher o template direto, sem
+   * precisar de query adicional no executor.
+   */
+  extra?: Record<string, unknown>;
 }
 
 export async function dispatchPaymentReceived(args: DispatchPaymentReceivedArgs) {
@@ -62,6 +71,7 @@ export async function dispatchPaymentReceived(args: DispatchPaymentReceivedArgs)
         trackingId: args.trackingId ?? null,
         leadId: args.leadId ?? null,
         amount: args.amount,
+        ...(args.extra ?? {}),
       },
     });
   } catch (err) {

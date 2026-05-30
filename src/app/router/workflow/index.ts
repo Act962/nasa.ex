@@ -9,6 +9,7 @@ import { updateAgentMode } from "./update-agent-mode";
 import { dryRunWorkflow } from "./dry-run";
 import { listWorkflowRuns, getWorkflowRunDetail } from "./list-runs";
 import { validateWorkflowProc } from "./validate";
+import { stepNodeProc } from "./step-node";
 
 export const workflowRoutes = {
   create: createWorkflow,
@@ -24,6 +25,7 @@ export const workflowRoutes = {
   execute: executeWorkflow,
   dryRun: dryRunWorkflow,
   validate: validateWorkflowProc,
+  stepNode: stepNodeProc,
   listRuns: listWorkflowRuns,
   getRun: getWorkflowRunDetail,
 };

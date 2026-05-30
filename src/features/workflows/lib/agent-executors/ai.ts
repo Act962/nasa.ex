@@ -21,6 +21,22 @@ import { AGENT_STARS_ACTIONS } from "../agent-stars-actions";
 import { getByPath, interpolate } from "../workflow-context";
 import { detectLoopRepetition } from "../loop-detection";
 import type { NodeExecutor } from "../run-workflow";
+import {
+  extractAiContextFields,
+  persistAiChatRunFromUsage,
+} from "./persist-ai-usage";
+import { parseAiError } from "./parse-ai-error";
+import {
+  fallbackAiDecision,
+  fallbackAiText,
+  fallbackAiVision,
+  fallbackReadPdf,
+  shouldUseFallback,
+} from "./fallback-ai";
+
+/** Nome do modelo default — mesma fonte que `defaultModel()` usa. */
+const DEFAULT_MODEL_ID = process.env.AGENT_DEFAULT_MODEL ?? "gpt-4o-mini";
+const VISION_MODEL_ID = "gpt-4o-mini";
 
 /**
  * Modelo default — `gpt-4o-mini` é barato e suficiente pra decisão/texto.
@@ -98,13 +114,24 @@ export const aiDecisionExecutor: NodeExecutor = async ({
       "",
   );
 
+  // Evento que acordou o WAIT_FOR_EVENT — sinal forte pra IA. Ex: se foi
+  // "proposal-accepted", a IA deve escolher branch "aceitou" mesmo que a
+  // mensagem do lead esteja vazia.
+  const vars = (context.vars as Record<string, unknown> | undefined) ?? {};
+  const lastEventName = vars.lastEventName ? String(vars.lastEventName) : "";
+
   const userPrompt = [
     `INSTRUÇÃO DO USUÁRIO: ${interpolate(context, promptRaw)}`,
+    "",
+    "EVENTO QUE ACORDOU O WORKFLOW:",
+    lastEventName
+      ? `${lastEventName} (sinal explícito do sistema — priorize sobre interpretação de texto)`
+      : "(nenhum — possível timeout)",
     "",
     "ÚLTIMA MENSAGEM DO LEAD:",
     lastMessage
       ? `"${lastMessage}"`
-      : "(nenhuma mensagem do lead capturada — escolha o ramo de default)",
+      : "(nenhuma mensagem do lead capturada — use o evento acima)",
     "",
     "CONTEXTO DO LEAD:",
     JSON.stringify(context.lead ?? {}, null, 2).slice(0, 2000),
@@ -113,12 +140,90 @@ export const aiDecisionExecutor: NodeExecutor = async ({
     JSON.stringify(context.vars ?? {}, null, 2).slice(0, 1000),
   ].join("\n");
 
-  const result = await generateText({
-    model: defaultModel(),
-    system: systemPrompt,
-    prompt: userPrompt,
-    temperature: 0,
-  });
+  let result: Awaited<ReturnType<typeof generateText>>;
+  try {
+    result = await generateText({
+      model: defaultModel(),
+      system: systemPrompt,
+      prompt: userPrompt,
+      temperature: 0,
+    });
+  } catch (err) {
+    const parsed = parseAiError(err);
+
+    // ── Fallback heurístico quando LLM caiu por motivo não-recuperável ──
+    // Em vez de derrubar o workflow, tenta decidir baseado em substring
+    // match + keyword + tag bias. Funciona muito bem pra menu de botões
+    // (lead clicou "Consultoria" → match direto com branch consultoria).
+    if (shouldUseFallback(parsed.code)) {
+      const vars =
+        (context.vars as Record<string, unknown> | undefined) ?? {};
+      const lastMessage = String(vars.lastIncomingMessage ?? "");
+      const lastEventName = vars.lastEventName
+        ? String(vars.lastEventName)
+        : undefined;
+      const lastEventData =
+        (vars.lastEvent as Record<string, unknown> | undefined) ?? undefined;
+      const leadTags =
+        ((context.lead as Record<string, unknown> | undefined)?.leadTags as
+          | Array<{ name?: string; slug?: string }>
+          | undefined) ?? [];
+      // Overrides opcionais no node.data — permite o dev mapear eventos OU
+      // tags pra branches específicas (ex: tag "Recusou Proposta" → rejeitou).
+      const eventBranchMap =
+        (data.eventBranchMap as Record<string, string> | undefined) ??
+        undefined;
+      const tagBranchMap =
+        (data.tagBranchMap as Record<string, string> | undefined) ?? undefined;
+
+      const defaultBranchId =
+        (data.defaultBranchId as string | undefined) ?? undefined;
+      const fb = fallbackAiDecision({
+        branches,
+        lastMessage,
+        leadTags,
+        lastEventName,
+        lastEventData,
+        eventBranchMap,
+        tagBranchMap,
+        defaultBranchId,
+      });
+
+      // Cobrança Stars: cobra metade por usar fallback (não chamou LLM
+      // de fato, mas a engine processou o nó).
+      if (orgId) {
+        await chargeStarsByAction(orgId, AGENT_STARS_ACTIONS.AI_DECISION, {
+          description: `Decisão fallback — ${fb.method} — escolheu ${fb.chosenId}`,
+          appSlug: "agent",
+        }).catch(() => {});
+      }
+
+      return {
+        output: {
+          chosenBranch: fb.chosenId,
+          reasoning: fb.reason,
+          usedFallback: true,
+          fallbackMethod: fb.method,
+          fallbackConfidence: fb.confidence,
+          originalError: parsed.code,
+        },
+        chosenOutput: fb.chosenId,
+        status: "SUCCESS",
+        starsSpent: 1,
+      };
+    }
+
+    // Erro recuperável (rate limit/timeout) — falha mesmo, dá pra retry
+    return {
+      output: {
+        error: parsed.code,
+        message: parsed.message,
+        actionHint: parsed.actionHint,
+      },
+      status: "FAILED",
+      errorMessage: `[${parsed.code}] ${parsed.message}`,
+    };
+  }
 
   const answer = result.text.trim();
   const chosen = branches.find(
@@ -132,6 +237,15 @@ export const aiDecisionExecutor: NodeExecutor = async ({
       appSlug: "agent",
     }).catch((err) => console.warn("[ai-decision charge]", err));
   }
+
+  // Telemetria de tokens — mesma tabela do Chatbot IA pra aba "Uso"
+  // consolidar tudo num só lugar.
+  const ctxFields = extractAiContextFields(context, data);
+  await persistAiChatRunFromUsage({
+    ...ctxFields,
+    modelId: DEFAULT_MODEL_ID,
+    usage: result.usage,
+  });
 
   return {
     output: { chosenBranch: chosenId, reasoning: answer.slice(0, 500) },
@@ -187,21 +301,71 @@ export const aiGenerateTextExecutor: NodeExecutor = async ({
     ? (context.vars.generatedTextHistory as string[])
     : [];
 
+  // Acumula tokens de todos os attempts do loop pra telemetria refletir
+  // o consumo real (1-2 chamadas LLM por nó).
+  let accumInput = 0;
+  let accumOutput = 0;
+  let accumTotal = 0;
+
   // Tenta até 2x — se cosine similarity passar do threshold, injeta
   // instrução de variação no prompt e regera.
   for (let attempt = 0; attempt < 2; attempt++) {
-    const result = await generateText({
-      model: defaultModel(),
-      system:
-        attempt === 0
-          ? systemPrompt
-          : `${systemPrompt}\n\nIMPORTANTE: A última mensagem ficou MUITO parecida com as anteriores. Use abordagem completamente diferente — outro ângulo, outro tom, outro CTA.`,
-      prompt: userPrompt,
-      maxRetries: 1,
-      temperature: 0.7 + attempt * 0.2,
-      maxOutputTokens: maxTokens,
-    });
+    let result: Awaited<ReturnType<typeof generateText>>;
+    try {
+      result = await generateText({
+        model: defaultModel(),
+        system:
+          attempt === 0
+            ? systemPrompt
+            : `${systemPrompt}\n\nIMPORTANTE: A última mensagem ficou MUITO parecida com as anteriores. Use abordagem completamente diferente — outro ângulo, outro tom, outro CTA.`,
+        prompt: userPrompt,
+        maxRetries: 1,
+        temperature: 0.7 + attempt * 0.2,
+        maxOutputTokens: maxTokens,
+      });
+    } catch (err) {
+      const parsed = parseAiError(err);
+      // Fallback: template fixo "humano vai te chamar"
+      if (shouldUseFallback(parsed.code)) {
+        const leadName = String(
+          (context.lead as Record<string, unknown> | undefined)?.name ?? "",
+        );
+        const fb = fallbackAiText({ prompt: promptRaw, leadName });
+        if (orgId) {
+          await chargeStarsByAction(orgId, AGENT_STARS_ACTIONS.AI_TEXT, {
+            description: `Texto fallback (LLM indisponível)`,
+            appSlug: "agent",
+          }).catch(() => {});
+        }
+        return {
+          output: {
+            text: fb.text,
+            usedFallback: true,
+            fallbackMethod: fb.method,
+            originalError: parsed.code,
+            vars: { lastGeneratedText: fb.text },
+          },
+          status: "SUCCESS",
+          starsSpent: 1,
+        };
+      }
+      return {
+        output: {
+          error: parsed.code,
+          message: parsed.message,
+          actionHint: parsed.actionHint,
+        },
+        status: "FAILED",
+        errorMessage: `[${parsed.code}] ${parsed.message}`,
+      };
+    }
     finalText = result.text;
+
+    accumInput += result.usage?.inputTokens ?? 0;
+    accumOutput += result.usage?.outputTokens ?? 0;
+    accumTotal +=
+      result.usage?.totalTokens ??
+      (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0);
 
     const loop = detectLoopRepetition(finalText, history, 0.85);
     if (!loop.isRepetition) break;
@@ -213,6 +377,18 @@ export const aiGenerateTextExecutor: NodeExecutor = async ({
       appSlug: "agent",
     }).catch((err) => console.warn("[ai-text charge]", err));
   }
+
+  // Telemetria de tokens — soma dos attempts
+  const ctxFields = extractAiContextFields(context, data);
+  await persistAiChatRunFromUsage({
+    ...ctxFields,
+    modelId: DEFAULT_MODEL_ID,
+    usage: {
+      inputTokens: accumInput,
+      outputTokens: accumOutput,
+      totalTokens: accumTotal,
+    },
+  });
 
   // Mantém histórico capeado em 10 entradas pra cosine não ficar pesado
   const nextHistory = [...history, finalText].slice(-10);
@@ -253,21 +429,49 @@ export const aiVisionExecutor: NodeExecutor = async ({
     return { output: { extracted: "(análise simulada em dry-run)" } };
   }
 
-  const result = await generateText({
-    model: visionModel(),
-    system:
-      "Você analisa imagens enviadas por leads (comprovantes, documentos, fotos). Extraia informações solicitadas em formato estruturado (JSON quando possível). Seja preciso e conciso.",
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: interpolate(context, instructionRaw) },
-          { type: "image", image: new URL(imageUrl) },
-        ],
+  let result: Awaited<ReturnType<typeof generateText>>;
+  try {
+    result = await generateText({
+      model: visionModel(),
+      system:
+        "Você analisa imagens enviadas por leads (comprovantes, documentos, fotos). Extraia informações solicitadas em formato estruturado (JSON quando possível). Seja preciso e conciso.",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: interpolate(context, instructionRaw) },
+            { type: "image", image: new URL(imageUrl) },
+          ],
+        },
+      ],
+      temperature: 0,
+    });
+  } catch (err) {
+    const parsed = parseAiError(err);
+    if (shouldUseFallback(parsed.code)) {
+      const fb = fallbackAiVision();
+      return {
+        output: {
+          extracted: fb.extracted,
+          usedFallback: true,
+          fallbackMethod: fb.method,
+          originalError: parsed.code,
+          vars: { lastVisionResult: fb.extracted },
+        },
+        status: "SUCCESS",
+        starsSpent: 3,
+      };
+    }
+    return {
+      output: {
+        error: parsed.code,
+        message: parsed.message,
+        actionHint: parsed.actionHint,
       },
-    ],
-    temperature: 0,
-  });
+      status: "FAILED",
+      errorMessage: `[${parsed.code}] ${parsed.message}`,
+    };
+  }
 
   if (orgId) {
     await chargeStarsByAction(orgId, AGENT_STARS_ACTIONS.AI_VISION, {
@@ -275,6 +479,15 @@ export const aiVisionExecutor: NodeExecutor = async ({
       appSlug: "agent",
     }).catch((err) => console.warn("[ai-vision charge]", err));
   }
+
+  // Telemetria — vision tende a consumir mais tokens (image tokens contam
+  // como input no OpenAI). Importante registrar pra acompanhamento.
+  const ctxFields = extractAiContextFields(context, data);
+  await persistAiChatRunFromUsage({
+    ...ctxFields,
+    modelId: VISION_MODEL_ID,
+    usage: result.usage,
+  });
 
   return {
     output: {
@@ -336,18 +549,46 @@ export const readPdfExecutor: NodeExecutor = async ({
     };
   }
 
-  const result = await generateText({
-    model: defaultModel(),
-    system:
-      "Você lê PDFs e responde perguntas baseado no conteúdo. Cite trechos quando relevante. Não invente nada que não esteja no documento.",
-    prompt: [
-      `INSTRUÇÃO: ${interpolate(context, instructionRaw)}`,
-      "",
-      "CONTEÚDO DO PDF:",
-      extractedText,
-    ].join("\n"),
-    temperature: 0,
-  });
+  let result: Awaited<ReturnType<typeof generateText>>;
+  try {
+    result = await generateText({
+      model: defaultModel(),
+      system:
+        "Você lê PDFs e responde perguntas baseado no conteúdo. Cite trechos quando relevante. Não invente nada que não esteja no documento.",
+      prompt: [
+        `INSTRUÇÃO: ${interpolate(context, instructionRaw)}`,
+        "",
+        "CONTEÚDO DO PDF:",
+        extractedText,
+      ].join("\n"),
+      temperature: 0,
+    });
+  } catch (err) {
+    const parsed = parseAiError(err);
+    if (shouldUseFallback(parsed.code)) {
+      const fb = fallbackReadPdf(extractedText);
+      return {
+        output: {
+          summary: fb.summary,
+          usedFallback: true,
+          fallbackMethod: fb.method,
+          originalError: parsed.code,
+          vars: { lastPdfSummary: fb.summary },
+        },
+        status: "SUCCESS",
+        starsSpent: 2,
+      };
+    }
+    return {
+      output: {
+        error: parsed.code,
+        message: parsed.message,
+        actionHint: parsed.actionHint,
+      },
+      status: "FAILED",
+      errorMessage: `[${parsed.code}] ${parsed.message}`,
+    };
+  }
 
   if (orgId) {
     await chargeStarsByAction(orgId, AGENT_STARS_ACTIONS.PDF_READ, {
@@ -355,6 +596,15 @@ export const readPdfExecutor: NodeExecutor = async ({
       appSlug: "agent",
     }).catch((err) => console.warn("[pdf-read charge]", err));
   }
+
+  // Telemetria — PDF interpretation gasta bastante input (até 20k chars
+  // do conteúdo). Crítico monitorar.
+  const ctxFields = extractAiContextFields(context, data);
+  await persistAiChatRunFromUsage({
+    ...ctxFields,
+    modelId: DEFAULT_MODEL_ID,
+    usage: result.usage,
+  });
 
   return {
     output: {

@@ -27,8 +27,12 @@ import "@xyflow/react/dist/style.css";
 import { Spinner } from "@/components/ui/spinner";
 import { nodeComponents } from "@/config/node-components";
 import { AddNodeButton } from "./add-node-button";
-import { useSetAtom } from "jotai";
-import { editorAtom } from "../store/atoms";
+import { useAtomValue, useSetAtom } from "jotai";
+import {
+  editorAtom,
+  lastSavedSnapshotAtom,
+  workflowDirtyAtom,
+} from "../store/atoms";
 import { NodeType } from "@/generated/prisma/enums";
 import { ExecuteWorkflowButton } from "./execute-workflow-button";
 import { NodeSelector } from "@/components/node-selector";
@@ -37,6 +41,7 @@ import { triggerNodes } from "@/features/executions/lib/node-options";
 import { WorkflowAgentModeProvider } from "@/features/workflows/lib/agent-mode-context";
 import { DryRunButton } from "@/features/workflows/components/dry-run-button";
 import { AgentDetailButton } from "@/features/workflows/components/agent-detail-button";
+import { StepByStepContainer } from "./step-by-step-container";
 import { RateLimitBadge } from "@/features/workflows/components/rate-limit-badge";
 import { WorkflowIssuesPanel } from "@/features/workflows/components/workflow-issues-panel";
 import { WorkflowIssuesProvider } from "@/features/workflows/components/workflow-issues-context";
@@ -63,9 +68,78 @@ export function Editor({ workflowId }: { workflowId: string }) {
   );
 
   const setEditor = useSetAtom(editorAtom);
+  const setLastSavedSnapshot = useSetAtom(lastSavedSnapshotAtom);
+  const setDirty = useSetAtom(workflowDirtyAtom);
 
   const [nodes, setNodes] = useState<Node[]>(data.nodes);
   const [edges, setEdges] = useState<Edge[]>(data.edges);
+
+  // ── Detecção de alterações não salvas ────────────────────────────
+  // Compara snapshot atual com o último salvo (atom compartilhado com o
+  // save button). Quando difere → marca dirty pra:
+  //   1. Breadcrumb "Automações" interceptar clique e mostrar dialog
+  //   2. beforeunload alertar no refresh/close do navegador
+  //
+  // Snapshot inclui só campos relevantes (id, type, position, data) —
+  // ignora campos voláteis como `selected`/`dragging` que React Flow
+  // muda em cada hover e gerariam falso positivo de dirty.
+  const computeSignature = useCallback(
+    (ns: Node[], es: Edge[]): string => {
+      const cleanNodes = ns.map((n) => ({
+        id: n.id,
+        type: n.type,
+        position: n.position,
+        data: n.data,
+      }));
+      const cleanEdges = es.map((e) => ({
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.sourceHandle,
+        targetHandle: e.targetHandle,
+      }));
+      return JSON.stringify({ nodes: cleanNodes, edges: cleanEdges });
+    },
+    [],
+  );
+
+  // Snapshot inicial (= dados do servidor) só na 1ª render.
+  useEffect(() => {
+    setLastSavedSnapshot(computeSignature(data.nodes, data.edges));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-checa dirty toda vez que nodes/edges mudam. Lê snapshot via store
+  // pra refletir reset após save (sem precisar de prop drilling).
+  const lastSavedSnapshot = useAtomValue(lastSavedSnapshotAtom);
+  useEffect(() => {
+    if (!lastSavedSnapshot) return; // ainda não tem baseline (mount inicial)
+    const current = computeSignature(nodes, edges);
+    const isDirty = current !== lastSavedSnapshot;
+    setDirty(isDirty);
+    // Mirror em sessionStorage pra `beforeunload` ler sem closure stale.
+    // SessionStorage some no fechar da aba — não vaza dado.
+    sessionStorage.setItem("__wf_dirty", JSON.stringify(isDirty));
+  }, [nodes, edges, lastSavedSnapshot, computeSignature, setDirty]);
+
+  // beforeunload — refresh/fechar aba mostra dialog nativo do navegador.
+  // Chrome ignora string custom em modernos, mas exige `returnValue`.
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      const dirty = JSON.parse(
+        sessionStorage.getItem("__wf_dirty") ?? "false",
+      );
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue =
+        "Você fez alterações na automação. Deseja sair sem salvar?";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => {
+      window.removeEventListener("beforeunload", handler);
+      // Limpa flag ao desmontar (navegação dentro do app sai do editor)
+      sessionStorage.removeItem("__wf_dirty");
+    };
+  }, []);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) =>
@@ -246,6 +320,7 @@ export function Editor({ workflowId }: { workflowId: string }) {
               {agentMode && <AgentDetailButton workflowId={workflowId} />}
               <WorkflowIssuesPanel workflowId={workflowId} />
               {agentMode && <DryRunButton workflowId={workflowId} />}
+              <StepByStepContainer workflowId={workflowId} />
               <AddNodeButton />
             </Panel>
             {hasManuelTrigger && (

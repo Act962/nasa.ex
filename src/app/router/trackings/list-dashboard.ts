@@ -166,6 +166,23 @@ export const listDashboard = base
       relatedTrackingIds.get(sourceId)!.add(targetId);
     }
 
+    // Status da instância WhatsApp por tracking — pro botão power no
+    // card mostrar azul quando CONNECTED, muted quando DISCONNECTED/null.
+    // Schema garante 1-1 (`trackingId @unique` em WhatsAppInstance), então
+    // não precisa de Map de array.
+    const whatsappInstances = await prisma.whatsAppInstance.findMany({
+      where: { trackingId: { in: ids } },
+      select: { trackingId: true, status: true, isActive: true },
+    });
+    const whatsappStatusByTracking = new Map(
+      whatsappInstances.map((i) => [
+        i.trackingId,
+        i.status === "CONNECTED" && i.isActive
+          ? ("CONNECTED" as const)
+          : ("DISCONNECTED" as const),
+      ]),
+    );
+
     // Resolve nomes dos trackings relacionados (em batch).
     const allRelatedIds = new Set<string>();
     for (const set of relatedTrackingIds.values()) {
@@ -223,6 +240,7 @@ export const listDashboard = base
         })),
         statuses: trackStatuses,
         relatedTrackings: related,
+        whatsappStatus: whatsappStatusByTracking.get(t.id) ?? null,
       };
     });
 

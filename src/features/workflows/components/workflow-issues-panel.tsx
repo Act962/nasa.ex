@@ -10,12 +10,14 @@
  * mostra coisas que já carregamos via `workflow.validate` — não dispara
  * checks novos quando user abre.
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useReactFlow } from "@xyflow/react";
 import {
   AlertCircleIcon,
   AlertTriangleIcon,
   ArrowRightIcon,
+  PlayCircleIcon,
   ShieldCheckIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { orpc } from "@/lib/orpc";
 import { useWorkflowValidation } from "@/features/workflows/hooks/use-workflow-validation";
 import type { GraphIssue } from "@/features/workflows/lib/validate-workflow-graph";
 
@@ -51,10 +54,32 @@ export function WorkflowIssuesPanel({ workflowId }: { workflowId: string }) {
   const { fitView } = useReactFlow();
   const { data } = useWorkflowValidation(workflowId);
 
+  // Runs com falha nas últimas 24h — auto-refresh enquanto o painel
+  // está aberto. Só pega quando user abre o Sheet (`enabled: open`) pra
+  // não rodar query pesada o tempo todo.
+  const { data: runsData } = useQuery({
+    ...orpc.workflow.listRuns.queryOptions({
+      input: { workflowId, limit: 30 },
+    }),
+    enabled: open,
+    refetchInterval: open ? 10_000 : false,
+    staleTime: 5_000,
+  });
+
+  const failedRuns = useMemo(() => {
+    if (!runsData?.runs) return [];
+    const since = Date.now() - 24 * 60 * 60 * 1000;
+    return runsData.runs.filter(
+      (r) =>
+        (r.status === "FAILED" || r.status === "MAX_EXECUTIONS_HIT") &&
+        new Date(r.startedAt).getTime() >= since,
+    );
+  }, [runsData?.runs]);
+
   const all = data?.graphIssues ?? [];
   const errors = all.filter((i) => i.severity === "error");
   const warnings = all.filter((i) => i.severity === "warning");
-  const totalCount = errors.length + warnings.length;
+  const totalCount = errors.length + warnings.length + failedRuns.length;
 
   const handleFocus = (nodeId: string | null) => {
     if (!nodeId) return;
@@ -99,7 +124,7 @@ export function WorkflowIssuesPanel({ workflowId }: { workflowId: string }) {
           className="w-full sm:max-w-md overflow-y-auto"
         >
           <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
+            <SheetTitle className="flex flex-wrap items-center gap-2">
               Problemas do fluxo
               {errors.length > 0 && (
                 <Badge variant="destructive">
@@ -109,6 +134,12 @@ export function WorkflowIssuesPanel({ workflowId }: { workflowId: string }) {
               {warnings.length > 0 && (
                 <Badge variant="secondary">
                   {warnings.length} aviso{warnings.length === 1 ? "" : "s"}
+                </Badge>
+              )}
+              {failedRuns.length > 0 && (
+                <Badge variant="destructive" className="bg-red-700">
+                  {failedRuns.length} run
+                  {failedRuns.length === 1 ? "" : "s"} falhou
                 </Badge>
               )}
             </SheetTitle>
@@ -144,10 +175,75 @@ export function WorkflowIssuesPanel({ workflowId }: { workflowId: string }) {
                 onFocus={handleFocus}
               />
             )}
+
+            {/* Runs com falha — últimas 24h. Lista cada run com timestamp +
+                errorMessage (que agora vem classificado pelo parseAiError
+                quando é falha de LLM, ex: "[QUOTA_EXCEEDED] Conta sem
+                crédito..."). Click NÃO foca nó porque a run pode ter
+                falhado em vários — abre detalhe da run no futuro (TODO). */}
+            {failedRuns.length > 0 && <FailedRunsGroup runs={failedRuns} />}
           </div>
         </SheetContent>
       </Sheet>
     </>
+  );
+}
+
+// ─── FailedRunsGroup ──────────────────────────────────────────────
+function FailedRunsGroup({
+  runs,
+}: {
+  runs: Array<{
+    id: string;
+    status: string;
+    triggerType: string;
+    errorMessage: string | null;
+    startedAt: Date | string;
+    nodesExecuted: number;
+  }>;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="text-xs uppercase tracking-wide font-semibold text-destructive flex items-center gap-1.5">
+        <PlayCircleIcon className="size-3.5" />
+        Runs com falha (24h)
+      </div>
+      {runs.map((run) => {
+        const time = new Date(run.startedAt).toLocaleString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        // Extrai código tipo [QUOTA_EXCEEDED] do início do errorMessage
+        // pra destacar como badge separada.
+        const match = run.errorMessage?.match(/^\[([A-Z_]+)\]\s*(.*)$/);
+        const code = match?.[1] ?? null;
+        const msg = match?.[2] ?? run.errorMessage ?? "Falha sem detalhe";
+        return (
+          <div
+            key={run.id}
+            className="w-full text-left rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-1.5"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <Badge variant="destructive" className="text-[10px]">
+                {code ?? run.status}
+              </Badge>
+              <span className="text-[10px] text-muted-foreground tabular-nums">
+                {time}
+              </span>
+            </div>
+            <p className="text-xs">{msg}</p>
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>
+                Trigger: <span className="font-mono">{run.triggerType}</span>
+              </span>
+              <span>{run.nodesExecuted} nós executados</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

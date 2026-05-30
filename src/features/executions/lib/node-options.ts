@@ -50,6 +50,12 @@ export type NodeTypeOption = {
   icon: React.ComponentType<{ className?: string }> | string;
   /** Marca exclusivos do Modo Agente IA — aparecem só quando workflow.agentMode = true. */
   agentModeOnly?: boolean;
+  /**
+   * Default data pra pré-popular `node.data` quando criado a partir desta
+   * entrada do palette. Útil pra atalhos como "Menu de Botões" (que
+   * cria um SEND_MESSAGE já com payload.type=BUTTONS).
+   */
+  defaultData?: Record<string, unknown>;
 };
 
 /**
@@ -353,6 +359,22 @@ export const executionNodes: NodeTypeOption[] = [
     label: "Enviar Mensagem",
     description: "Envie uma mensagem para o lead",
     icon: SendIcon,
+  },
+  {
+    // Atalho: cria SEND_MESSAGE já pré-configurado pra menu de botões.
+    // Reusa o mesmo NodeType (sem migration), só seta defaultData pra o
+    // dialog abrir direto na variante BUTTONS. Disponível também em
+    // legacy (não-agent-mode) — espelha a aba "Presets de botões" do
+    // Chatbot IA mas no contexto de automação.
+    type: NodeType.SEND_MESSAGE,
+    category: "execution",
+    label: "Menu de Botões",
+    description:
+      "Envia menu interativo com até 9 botões (reusa presets do Chatbot IA ou inline)",
+    icon: MousePointerIcon,
+    defaultData: {
+      action: { payload: { type: "BUTTONS", mode: "preset" } },
+    },
   },
   {
     type: NodeType.WAIT,

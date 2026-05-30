@@ -15,6 +15,9 @@ import { WorkflowNode } from "@/components/workflow-node";
 import { BaseNode, BaseNodeContent } from "@/components/react-flow/base-node";
 import { validateNode } from "@/features/workflows/lib/validate-node";
 import { useNodeIssues } from "@/features/workflows/components/workflow-issues-context";
+import { useAtomValue } from "jotai";
+import { stepByStepStateAtom } from "@/features/editor/store/step-by-step-atoms";
+import { StepRocketOverlay } from "@/features/editor/components/step-rocket-overlay";
 import Image from "next/image";
 import { BaseHandle } from "@/components/react-flow/base-handle";
 import {
@@ -117,6 +120,17 @@ export const BaseTriggerNode = memo(
     const effectiveStatus: typeof status =
       nodeInvalid || hasGraphError ? "error" : status;
 
+    // ── Step-by-Step overlay ───────────────────────────────────
+    const stepState = useAtomValue(stepByStepStateAtom);
+    const stepNodeStatus = stepState.active
+      ? (stepState.nodeStatuses[id] ?? "idle")
+      : "idle";
+    const handleRocketClick = () => {
+      window.dispatchEvent(
+        new CustomEvent("step-by-step:open-popover", { detail: { nodeId: id } }),
+      );
+    };
+
     return (
       <WorkflowNode
         name={name}
@@ -126,6 +140,7 @@ export const BaseTriggerNode = memo(
         onDuplicate={handleDuplicate}
         onAddNext={handleAddNext}
       >
+        <StepRocketOverlay status={stepNodeStatus} onClick={handleRocketClick} />
         <NodeStatusIndicator
           status={effectiveStatus}
           variant="border"
