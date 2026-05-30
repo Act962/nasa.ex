@@ -7,7 +7,7 @@ import { orpc } from "@/lib/orpc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Camera, Check, X, Loader2, ShieldCheck, Power, Star,
-  Zap, CreditCard, Building2, Save, ChevronDown, ChevronUp, Eye, EyeOff
+  Zap, CreditCard, Building2, Save, ChevronDown, ChevronUp, Eye, EyeOff, ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -286,6 +286,14 @@ export function AdminUserPanel({ userId, name, email, image, nickname, isSystemA
     onError: () => toast.error("Erro ao excluir usuário"),
   });
 
+  // Abre o NERP logado COMO este usuário (sem credenciais — auth sincronizada).
+  // Nova aba = navegação top-level, pra o cookie de sessão colar no NERP.
+  const nerpLoginMut = useMutation({
+    mutationFn: () => orpc.admin.nerpLoginAs.call({ userId }),
+    onSuccess: (res) => { window.open(res.url, "_blank", "noopener,noreferrer"); },
+    onError: () => toast.error("Erro ao gerar acesso ao NERP"),
+  });
+
   const toggleActive = () => updateMut.mutate({ userId, isActive: !isActive });
   const toggleAdmin  = () => updateMut.mutate({ userId, isSystemAdmin: !isSystemAdmin });
 
@@ -371,6 +379,19 @@ export function AdminUserPanel({ userId, name, email, image, nickname, isSystemA
             >
               <ShieldCheck className="w-3.5 h-3.5" />
               {isSystemAdmin ? "Admin" : "Comum"}
+            </button>
+
+            {/* Login no NERP como este usuário */}
+            <button
+              onClick={() => nerpLoginMut.mutate()}
+              disabled={nerpLoginMut.isPending}
+              title="Abrir o NERP logado como este usuário"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-all disabled:opacity-40 bg-sky-500/15 border-sky-500/30 text-sky-400 hover:bg-sky-500/25"
+            >
+              {nerpLoginMut.isPending
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <ExternalLink className="w-3.5 h-3.5" />}
+              Entrar no NERP
             </button>
           </div>
         </div>
