@@ -273,7 +273,9 @@ export async function runWorkflow(
   let ctx: WorkflowContext = isResume
     ? resumeContext!
     : createInitialContext({
-        lead: lead ? sanitizeForJson(lead) : undefined,
+        lead: lead
+          ? (sanitizeForJson(lead) as Record<string, unknown>)
+          : undefined,
         trigger: triggerPayload,
         initialVars,
       });
@@ -352,7 +354,7 @@ export async function runWorkflow(
           nodeId: node.id,
           nodeType: node.type,
           chosenOutput: result.chosenOutput ?? "main",
-          output: sanitizeForJson(result.output ?? {}),
+          output: sanitizeForJson(result.output ?? {}) as never,
           status: result.status ?? "SUCCESS",
           errorMessage: result.errorMessage,
           finishedAt: new Date(),

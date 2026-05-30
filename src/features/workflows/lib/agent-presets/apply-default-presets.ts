@@ -113,7 +113,7 @@ export async function applyDefaultAgentPresets({
               name: String(n.type),
               type: n.type,
               position: n.position,
-              data: n.data,
+              data: n.data as never,
             },
           });
         }

@@ -60,7 +60,10 @@ async function dispatchToMatchingWorkflows(params: {
     try {
       await sendWorkflowExecution({
         workflowId: wf.id,
-        triggerType,
+        triggerType: triggerType as
+          | "PAYMENT_RECEIVED"
+          | "MESSAGE_INCOMING"
+          | "WEBHOOK_EXTERNAL",
         leadId: leadId ?? null,
         initialData: { ...triggerPayload, organizationId, trackingId },
       });
@@ -183,20 +186,25 @@ export const agentTriggerWebhookExternalFn = inngest.createFunction(
     };
 
     return await step.run("dispatch-single-workflow", async () => {
-      const registry = getAgentExecutorRegistry();
+      // Mesmo padrão dos outros triggers: dispara via sendWorkflowExecution
+      // (= evento Inngest workflow/execute.workflow) pra que `executeWorkflow`
+      // rode o loop completo com step.waitForEvent + resume. Chamada direta
+      // a `runWorkflow` deixava workflows com WAIT órfãos.
       try {
-        const r = await runWorkflow(
-          {
-            workflowId: data.workflowId,
-            triggerType: "WEBHOOK_EXTERNAL",
-            triggerPayload: data.payload,
+        const { sendWorkflowExecution } = await import("@/inngest/utils");
+        await sendWorkflowExecution({
+          workflowId: data.workflowId,
+          triggerType: "WEBHOOK_EXTERNAL",
+          initialData: {
+            ...data.payload,
+            organizationId: data.organizationId,
+            trackingId: data.trackingId ?? null,
           },
-          registry,
-        );
-        return { runId: r.runId, status: r.status };
+        });
+        return { dispatched: true };
       } catch (err) {
         console.error("[webhook-external]", data.workflowId, err);
-        return { runId: null, status: "FAILED" };
+        return { dispatched: false, status: "FAILED" };
       }
     });
   },

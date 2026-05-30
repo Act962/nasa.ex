@@ -269,7 +269,7 @@ async function main() {
         name: n.type,
         type: n.type as never,
         position: n.position,
-        data: n.data,
+        data: n.data as never,
       },
     });
   }

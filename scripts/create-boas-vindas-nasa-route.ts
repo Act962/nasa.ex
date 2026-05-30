@@ -224,7 +224,7 @@ async function main() {
         name: nd.type,
         type: nd.type as never,
         position: nd.position,
-        data: nd.data,
+        data: nd.data as never,
       },
     });
   }

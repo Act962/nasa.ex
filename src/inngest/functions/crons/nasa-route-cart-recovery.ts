@@ -46,11 +46,17 @@ const STAGES: Array<{ stage: CartAbandonedStage; minDays: number }> = [
 
 const ABANDON_AFTER_DAYS = 30;
 
+/**
+ * Shape do pending após o `step.run("fetch-pendings")`. Importante: Inngest
+ * serializa o retorno do step pra JSON entre execuções, então Date vira
+ * string ISO ao reentrar. O `processSinglePending` normaliza pra Date.
+ */
 interface PendingRow {
   id: string;
   email: string;
   amountBrlCents: number;
-  createdAt: Date;
+  /** Pode vir Date (mesmo step) ou string (cross-step JSONify). */
+  createdAt: Date | string;
   lastReminderStage: string | null;
   course: { title: string; creatorOrg: { name: string } };
   plan: { name: string } | null;
@@ -80,7 +86,10 @@ async function processSinglePending(p: PendingRow): Promise<{
   reason?: string;
   stage?: CartAbandonedStage;
 }> {
-  const ageMs = Date.now() - p.createdAt.getTime();
+  // Normaliza Date (vem como string ISO se cross-step JSONify do Inngest).
+  const createdAt =
+    p.createdAt instanceof Date ? p.createdAt : new Date(p.createdAt);
+  const ageMs = Date.now() - createdAt.getTime();
   const daysSinceCreated = Math.floor(ageMs / (24 * 3600 * 1000));
 
   // ── 1. Abandonar se passou de 30 dias ────────────────────────

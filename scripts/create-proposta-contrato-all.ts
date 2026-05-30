@@ -510,7 +510,7 @@ Responda APENAS o id (assinou | nao_assinou).`,
         name: nd.type,
         type: nd.type as never,
         position: nd.position,
-        data: nd.data,
+        data: nd.data as never,
       },
     });
   }

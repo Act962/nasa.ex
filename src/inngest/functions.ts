@@ -106,7 +106,13 @@ export const executeWorkflow = inngest.createFunction(
           suspended?: {
             runId: string;
             suspendedAtNodeId: string;
-            eventName: string;
+            /**
+             * Lista de eventos que o WAIT_FOR_EVENT está escutando em race.
+             * Quando o engine acorda no PRIMEIRO que chegar (Promise.race).
+             * Legado: pode vir `eventName: string` em runs antigos —
+             * o caller normaliza ambos pra array.
+             */
+            eventNames: string[];
             timeoutMinutes: number;
             pendingQueue: Array<{ nodeId: string }>;
             contextSnapshot: Record<string, unknown>;
