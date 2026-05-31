@@ -208,6 +208,7 @@ export const APPS_BY_VERB: Record<VerbId, ReadonlyArray<{ id: string; label: str
     { id: "preset.BOAS_VINDAS_NASA_ROUTE", label: "Preset: Boas-vindas NASA Route", icon: "GraduationCap", group: "agent-preset" },
     { id: "preset.AGENDAMENTO", label: "Preset: Agente de Agendamento", icon: "Calendar", group: "agent-preset" },
     { id: "preset.CLOSER_FOLLOWUP", label: "Preset: Closer Comercial + Follow-up", icon: "Phone", group: "agent-preset" },
+    { id: "preset.COMPROVANTE_PAGAMENTO", label: "Preset: Comprovante de Pagamento (IA lê arquivo)", icon: "Receipt", group: "agent-preset" },
   ],
 };
 
@@ -882,7 +883,12 @@ for (const spec of AUTOMATIZAR_SPECS) {
 
 interface PresetSpec {
   appId: string;
-  presetSlug: "proposta-contrato" | "boas-vindas-nasa-route" | "agendamento" | "closer-followup";
+  presetSlug:
+    | "proposta-contrato"
+    | "boas-vindas-nasa-route"
+    | "agendamento"
+    | "closer-followup"
+    | "comprovante-pagamento";
   title: string;
   icon: string;
   description: string;
@@ -916,6 +922,14 @@ const PRESET_SPECS: PresetSpec[] = [
     title: "Preset: Closer Comercial + Follow-up",
     icon: "Phone",
     description: "Menu interativo + AI_DECISION + cadência 1/3/5/7 dias",
+  },
+  {
+    appId: "preset.COMPROVANTE_PAGAMENTO",
+    presetSlug: "comprovante-pagamento",
+    title: "Preset: Comprovante de Pagamento (IA lê arquivo)",
+    icon: "Receipt",
+    description:
+      "Tag 'Proposta Aceita' → pede comprovante → IA lê foto/PDF (AI_VISION + READ_PDF) → valida valor → marca 'Pago'. 11 nós, suggestedTags pago + aguardando.",
   },
 ];
 

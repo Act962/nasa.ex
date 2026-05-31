@@ -104,6 +104,7 @@ export function buildWorkflowTools(
           "closer-followup",
           "proposta-contrato",
           "boas-vindas-nasa-route",
+          "comprovante-pagamento",
         ]),
         trackingId: z
           .string()

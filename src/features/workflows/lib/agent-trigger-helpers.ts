@@ -22,6 +22,19 @@ interface DispatchMessageIncomingArgs {
   trackingId: string;
   messageText: string;
   messageId?: string;
+  /**
+   * Quando o lead manda mídia (foto/áudio/PDF), o webhook do WhatsApp já
+   * upload pra R2 e tem a key. O preset "comprovante-pagamento" usa
+   * AI_VISION/READ_PDF com `{{vars.lastEvent.mediaUrl}}` pra ler o
+   * arquivo. Sem isso, workflow não sabe diferenciar texto de mídia.
+   */
+  mediaUrl?: string;
+  /** Tipo da mídia (image / document / audio / video). Pro AI_DECISION rotear. */
+  mediaType?: "image" | "document" | "audio" | "video";
+  /** MIME type completo (image/jpeg, application/pdf, etc) — pra READ_PDF/AI_VISION decidirem se conseguem processar. */
+  mimetype?: string;
+  /** Nome original do arquivo (só pra DocumentMessage — boleto.pdf, comprovante.jpg, etc). */
+  fileName?: string;
 }
 
 export async function dispatchMessageIncoming(args: DispatchMessageIncomingArgs) {
@@ -34,6 +47,10 @@ export async function dispatchMessageIncoming(args: DispatchMessageIncomingArgs)
         trackingId: args.trackingId,
         messageText: args.messageText,
         messageId: args.messageId,
+        ...(args.mediaUrl ? { mediaUrl: args.mediaUrl } : {}),
+        ...(args.mediaType ? { mediaType: args.mediaType } : {}),
+        ...(args.mimetype ? { mimetype: args.mimetype } : {}),
+        ...(args.fileName ? { fileName: args.fileName } : {}),
       },
     });
   } catch (err) {

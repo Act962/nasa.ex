@@ -465,22 +465,10 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // ── Modo Agente IA: dispara workflows com trigger MESSAGE_INCOMING ──
-        // Best-effort — falha aqui NÃO derruba o webhook. Inngest function
-        // `agentTriggerMessageIncomingFn` recebe e fan-out pros workflows
-        // ativos com agentMode=true que escutam este trigger.
-        if (!fromMe && finalBody && lead?.id) {
-          const { dispatchMessageIncoming } = await import(
-            "@/features/workflows/lib/agent-trigger-helpers"
-          );
-          void dispatchMessageIncoming({
-            leadId: lead.id,
-            organizationId: tracking.organizationId,
-            trackingId,
-            messageText: finalBody,
-            messageId,
-          });
-        }
+        // Modo Agente IA: dispatch MESSAGE_INCOMING agora acontece DEPOIS
+        // do switch case (ver mais abaixo), pra incluir TAMBÉM mensagens
+        // de mídia (foto/PDF/áudio) — usado pelo preset
+        // "comprovante-pagamento" que lê o arquivo via AI_VISION/READ_PDF.
       }
 
       if (messageType === "ImageMessage") {
@@ -854,6 +842,65 @@ export async function POST(request: NextRequest) {
           { success: true, warning: "Message type not processed" },
           { status: 201 },
         );
+      }
+
+      // ── Modo Agente IA: dispatch MESSAGE_INCOMING (texto OU mídia) ──
+      // Único ponto de dispatch — antes ficava só pra TextMessage. Agora
+      // inclui ImageMessage/DocumentMessage/AudioMessage com mediaUrl +
+      // mimetype no payload. Workflows com WAIT_FOR_EVENT("message-incoming")
+      // acordam pra qualquer tipo de mensagem inbound e podem rotear via
+      // AI_VISION (image), READ_PDF (application/pdf), ou texto.
+      // Best-effort — falha não derruba o webhook.
+      if (!fromMe && lead?.id && messageData) {
+        const mediaUrlKey = (messageData as { mediaUrl?: string | null })
+          .mediaUrl;
+        const mimetype = (messageData as { mimetype?: string | null })
+          .mimetype;
+        const fileName = (messageData as { fileName?: string | null })
+          .fileName;
+        // Resolve URL presigned (válida 1h) só se houver mídia — economiza
+        // call ao R2 pra mensagens de texto puro.
+        let presignedUrl: string | undefined;
+        if (mediaUrlKey) {
+          try {
+            const { getPresignedReadUrl } = await import("@/lib/r2-url");
+            presignedUrl = await getPresignedReadUrl(mediaUrlKey, 3600);
+          } catch (err) {
+            console.warn(
+              "[webhook:chat] presigned URL failed pra agent dispatch",
+              err,
+            );
+          }
+        }
+        // Detecta tipo de mídia a partir do mimetype (image/*, video/*,
+        // application/pdf, audio/*). Sem mimetype = texto puro.
+        let mediaType: "image" | "document" | "audio" | "video" | undefined;
+        if (mimetype) {
+          if (mimetype.startsWith("image/")) mediaType = "image";
+          else if (mimetype.startsWith("video/")) mediaType = "video";
+          else if (mimetype.startsWith("audio/")) mediaType = "audio";
+          else if (mimetype === "application/pdf") mediaType = "document";
+          else mediaType = "document"; // fallback pra outros docs
+        }
+        const messageBody =
+          ((messageData as { body?: string | null }).body ?? "") || "";
+
+        if (messageBody || mediaUrlKey) {
+          const { dispatchMessageIncoming } = await import(
+            "@/features/workflows/lib/agent-trigger-helpers"
+          );
+          void dispatchMessageIncoming({
+            leadId: lead.id,
+            organizationId: tracking.organizationId,
+            trackingId,
+            messageText: messageBody,
+            messageId,
+            ...(presignedUrl ? { mediaUrl: presignedUrl } : {}),
+            ...(mediaType ? { mediaType } : {}),
+            ...(mimetype ? { mimetype } : {}),
+            ...(fileName ? { fileName } : {}),
+          });
+        }
       }
 
       // ── Pipeline unificado de pós-save ───────────────────────────────

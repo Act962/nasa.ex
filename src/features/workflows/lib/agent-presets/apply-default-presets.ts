@@ -39,6 +39,10 @@ import {
   type BoasVindasNasaRouteParams,
 } from "./boas-vindas-nasa-route";
 import {
+  buildComprovantePagamentoBlueprint,
+  type ComprovantePagamentoParams,
+} from "./comprovante-pagamento";
+import {
   createWorkflowFromBlueprint,
   type Blueprint,
 } from "./create-from-blueprint";
@@ -47,7 +51,8 @@ export type PresetSlug =
   | "agendamento"
   | "closer-followup"
   | "proposta-contrato"
-  | "boas-vindas-nasa-route";
+  | "boas-vindas-nasa-route"
+  | "comprovante-pagamento";
 
 type BlueprintBuilder = (params: {
   organizationId: string;
@@ -80,6 +85,11 @@ const DEFAULT_PRESETS: PresetSpec[] = [
     slug: "boas-vindas-nasa-route",
     builder: buildBoasVindasNasaRouteBlueprint as unknown as BlueprintBuilder,
     logName: "Boas-vindas NASA Route — Pós-pagamento",
+  },
+  {
+    slug: "comprovante-pagamento",
+    builder: buildComprovantePagamentoBlueprint as unknown as BlueprintBuilder,
+    logName: "Comprovante de Pagamento — IA Lê o Arquivo",
   },
 ];
 
@@ -175,5 +185,11 @@ export const PRESET_CATALOG: Array<{
     name: "Boas-vindas NASA Route — Pós-pagamento",
     description:
       "PAYMENT_RECEIVED (enriquecido com courseTitle/playerUrl) → tag 'Aluno NASA Route' → SEND_EMAIL boas-vindas (template caprichado React Email) → WAIT 1min → SEND_MESSAGE WhatsApp + link → WAIT 3d → SEND_MESSAGE check-in. 7 nós.",
+  },
+  {
+    slug: "comprovante-pagamento",
+    name: "Comprovante de Pagamento — IA Lê o Arquivo",
+    description:
+      "Tag 'Proposta Aceita' → pede comprovante → WAIT_FOR_EVENT(message-incoming, 7d) com mídia → AI_VISION (foto) + READ_PDF (PDF) extraem valor → AI_DECISION valida → branches pago/divergente/sem_resposta. Tags 'Pago' + 'Aguardando Pagamento' criadas auto. 11 nós.",
   },
 ];
