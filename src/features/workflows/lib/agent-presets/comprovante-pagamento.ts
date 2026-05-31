@@ -120,51 +120,121 @@ export function buildComprovantePagamentoBlueprint(
         timeoutMinutes: waitMin,
       },
     },
-    // AI_VISION analisa imagem se mediaType=image. Lê valor + banco + data.
-    // Se mediaType≠image OU mediaUrl vazio, executor retorna skip → próximo
-    // nó (AI_DECISION) usa lastIncomingMessage como fallback.
+    // AI_VISION analisa imagem (foto de comprovante). Extrai 8 campos via
+    // OpenAI Vision (fallback Gemini se quota). Lê path direto do contexto
+    // via `imagePath`/`instruction` (executor faz getByPath — NÃO usa
+    // interpolação {{}}). Quando OpenAI falha, cai pro Gemini que vê o
+    // prompt completo (com contexto temporal injetado evita falso-positivo
+    // de adulteração).
     {
       id: ids.visionImage,
       type: NodeType.AI_VISION,
       position: { x: 1280, y: -180 },
       data: {
-        imageUrl: "{{vars.lastEvent.mediaUrl}}",
-        prompt:
-          "Analise esta imagem. É um comprovante de pagamento bancário (PIX, TED, boleto)? Se sim, extraia: 1) valor exato pago em R$ (ex: 1500.00), 2) banco emissor, 3) data, 4) destinatário. Responda em texto curto: 'COMPROVANTE: valor R$ X, banco Y, data Z, pra W' ou 'NÃO É COMPROVANTE: <descrição>'.",
+        imagePath: "vars.lastEvent.mediaUrl",
+        instruction: `Você é um especialista em comprovantes de pagamento bancário brasileiros (PIX, TED, DOC, boleto, recibo). Analise esta imagem com MUITA atenção.
+
+CONTEXTO TEMPORAL: a data de hoje é a data atual real (consulte o system context se disponível). Datas até hoje NÃO são suspeitas de adulteração.
+
+Identifique INDEPENDENTEMENTE DO BANCO ou tipo de operação:
+1) Esta imagem É um comprovante de transação financeira REAL? (sim/não)
+2) Valor exato pago em R$ (formato BR: 100,00 ou 1.500,00)
+3) Nome COMPLETO do REMETENTE/pagador (quem ENVIOU o dinheiro)
+4) Nome do destinatário (quem RECEBEU)
+5) Data da operação (DD/MM/AAAA ou variantes)
+6) Banco emissor (Itaú, Nubank, Bradesco, BB, Santander, Inter, C6, PagBank, etc — extraia mesmo de logos)
+7) ID/código da transação (ex: "ID: E1234abc", "transação 123456789", "PIX ID")
+8) Sinal de adulteração? (cores erradas, textos sobrepostos, datas/valores recortados, ruído estranho — descreva o que viu)
+
+FORMATO DE RESPOSTA (texto plano, sem markdown):
+COMPROVANTE: sim|nao
+VALOR: 100,00
+REMETENTE: <nome completo OU "não identificado">
+DESTINATARIO: <nome OU "não identificado">
+DATA: <data OU "não identificada">
+BANCO: <banco OU "não identificado">
+ID_TRANSACAO: <id OU "não encontrado">
+SUSPEITA_ADULTERACAO: nao|sim — <descrição se sim>
+OBSERVACOES: <qualquer coisa relevante: tipo de operação PIX/TED, instituição destinatária, chave PIX, formato suspeito>
+
+Se NÃO for comprovante de pagamento, responda apenas:
+NAO_E_COMPROVANTE: <descreva o que é>`,
         organizationId: params.organizationId,
       },
     },
-    // READ_PDF roda em paralelo (executor decide skip se mimetype não é pdf).
+    // READ_PDF: extrai texto via pdf-parse + LLM resume. Executor skipa
+    // automaticamente se vars.lastEvent.mediaType ≠ document (não roda
+    // pra imagens — usa apenas AI_VISION nesse caso).
     {
       id: ids.readPdf,
       type: NodeType.READ_PDF,
       position: { x: 1280, y: 0 },
       data: {
-        pdfUrl: "{{vars.lastEvent.mediaUrl}}",
-        prompt:
-          "Extraia do PDF: valor pago em R$, banco emissor, data e destinatário. Formato: 'COMPROVANTE: valor R$ X, banco Y, data Z, pra W'. Se não for um comprovante, responda 'NÃO É COMPROVANTE'.",
+        pdfPath: "vars.lastEvent.mediaUrl",
+        instruction: `Você está extraindo dados de um PDF que PODE ser um comprovante bancário (PIX, TED, DOC, boleto, recibo). Analise o texto extraído com atenção.
+
+Identifique INDEPENDENTEMENTE DO BANCO:
+1) É um comprovante de transação financeira real? (sim/não)
+2) Valor pago em R$
+3) Nome completo do REMETENTE (pagador)
+4) Nome do destinatário
+5) Data da operação
+6) Banco emissor
+7) ID/código da transação
+8) Sinal de adulteração no texto?
+
+FORMATO (texto plano):
+COMPROVANTE: sim|nao
+VALOR: <valor>
+REMETENTE: <nome OU "não identificado">
+DESTINATARIO: <nome OU "não identificado">
+DATA: <data>
+BANCO: <banco>
+ID_TRANSACAO: <id>
+SUSPEITA_ADULTERACAO: nao|sim
+OBSERVACOES: <relevante>
+
+Se não for comprovante:
+NAO_E_COMPROVANTE: <descreva>`,
         organizationId: params.organizationId,
       },
     },
-    // AI_DECISION combina todas as fontes (texto, vision, pdf) e decide.
+    // AI_DECISION combina todas as fontes (texto, vision, pdf) e valida
+    // 4 critérios (valor + remetente + data + autenticidade). Fallback
+    // tier 1 = Gemini (vê prompt completo com vars.lastVisionResult),
+    // tier 2 = heurístico Jaccard (só texto do lead), default sem_resposta.
     {
       id: ids.decideValido,
       type: NodeType.AI_DECISION,
       position: { x: 1600, y: 0 },
       data: {
-        prompt: `O lead {{lead.name}} respondeu sobre o pagamento.
+        prompt: `Você está validando se o pagamento do lead {{lead.name}} foi confirmado.
 
-Fontes disponíveis (use o que tiver):
+Fontes disponíveis (use TODAS):
 - Texto do lead: "{{vars.lastIncomingMessage}}"
 - Tipo de mídia: {{vars.lastEvent.mediaType}}
-- Análise visual (se foto): {{vars.lastVisionResult}}
-- Texto do PDF (se documento): {{vars.lastPdfText}}
 - Nome do arquivo: {{vars.lastEvent.fileName}}
+- Análise visual (se foto): {{vars.lastVisionResult}}
+- Texto do PDF (se documento): {{vars.lastPdfSummary}}
 
-Classifique:
-- **pago**: viu valor real de pagamento em R$ no comprovante OU lead disse claramente "paguei R$ X" / "transferi R$ X"
-- **divergente**: lead enviou algo MAS não é um comprovante válido ou valor não bate (ex: "vou pagar amanhã", boleto não pago, print de tela vazia)
-- **sem_resposta**: lead só respondeu texto vago sem confirmar pagamento real
+VALIDAÇÃO ESTRITA (todos os 4 critérios precisam passar pra "pago"):
+
+1) **VALOR**: o comprovante mostra valor compatível com a proposta? (Considere R$ exato OU próximo com até R$ 1 de diferença por arredondamento). Sem valor visível = divergente.
+
+2) **REMETENTE**: o nome do REMETENTE/pagador no comprovante bate com "{{lead.name}}"?
+   - Comparação TOLERANTE: aceita variações de capitalização, abreviações, nome social vs completo, com/sem segundo nome ou sobrenome.
+   - Se nome do lead for GENÉRICO ("Atendimento", "Cliente", "Lead"), aceita qualquer remetente real.
+   - Se REMETENTE vier "não identificado" mas valor + data + banco corretos, classifique como **divergente** (precisa revisão humana).
+   - Se REMETENTE for CLARAMENTE outra pessoa não relacionada ao lead, classifique como **divergente**.
+
+3) **DATA**: data do pagamento existe e é recente (até 7 dias atrás)?
+
+4) **AUTENTICIDADE**: SUSPEITA_ADULTERACAO=nao? Se sim, classifique como **divergente** mesmo que tudo bata.
+
+CLASSIFICAÇÃO:
+- **pago**: todos os 4 critérios passam
+- **divergente**: enviou algo mas falhou em 1+ critério (valor errado, remetente diferente, suspeita)
+- **sem_resposta**: lead só respondeu texto sem comprovante OU não respondeu nada
 
 Responda APENAS o id (pago | divergente | sem_resposta).`,
         branches: [
@@ -172,12 +242,12 @@ Responda APENAS o id (pago | divergente | sem_resposta).`,
           {
             id: "divergente",
             label: "Divergente",
-            description: "Anexo inválido ou valor errado",
+            description: "Anexo inválido, valor errado ou suspeita",
           },
           {
             id: "sem_resposta",
             label: "Sem resposta clara",
-            description: "Resposta ambígua",
+            description: "Resposta ambígua ou ausente",
           },
         ],
         organizationId: params.organizationId,

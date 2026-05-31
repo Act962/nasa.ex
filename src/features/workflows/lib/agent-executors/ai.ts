@@ -16,6 +16,7 @@
 import "server-only";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
+import { google } from "@ai-sdk/google";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { AGENT_STARS_ACTIONS } from "../agent-stars-actions";
 import { getByPath, interpolate } from "../workflow-context";
@@ -156,6 +157,62 @@ export const aiDecisionExecutor: NodeExecutor = async ({
     // match + keyword + tag bias. Funciona muito bem pra menu de botões
     // (lead clicou "Consultoria" → match direto com branch consultoria).
     if (shouldUseFallback(parsed.code)) {
+      // ── Tier 1: Gemini como LLM fallback ─────────────────────────
+      // Tenta gpt-4o-mini → Gemini antes de cair pro heurístico
+      // Jaccard. Gemini vê o systemPrompt + userPrompt COMPLETOS
+      // (incluindo vars.lastVisionResult, lastPdfSummary, etc),
+      // enquanto o heurístico só olha texto do lead — perde toda
+      // a inteligência quando AI_VISION/READ_PDF extraíram dados.
+      if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+        try {
+          const geminiResult = await generateText({
+            model: google("gemini-2.5-flash"),
+            system: systemPrompt,
+            prompt: userPrompt,
+            temperature: 0,
+          });
+          const text = geminiResult.text.trim().toLowerCase();
+          // Match exato com algum branch.id
+          const matched = branches.find((b) =>
+            text.includes(b.id.toLowerCase()),
+          );
+          if (matched) {
+            if (orgId) {
+              await chargeStarsByAction(
+                orgId,
+                AGENT_STARS_ACTIONS.AI_DECISION,
+                {
+                  description: `Decisão Gemini fallback — ${matched.id}`,
+                  appSlug: "agent",
+                },
+              ).catch(() => {});
+            }
+            return {
+              output: {
+                chosenBranch: matched.id,
+                reasoning: `Gemini fallback — escolheu "${matched.id}"`,
+                usedFallback: true,
+                fallbackMethod: "gemini",
+                fallbackConfidence: 0.9,
+                originalError: parsed.code,
+              },
+              chosenOutput: matched.id,
+              starsSpent: 1,
+            };
+          }
+          console.warn(
+            "[ai-decision] Gemini retornou texto sem branch reconhecida — cai pra heurístico",
+            text.slice(0, 100),
+          );
+        } catch (geminiErr) {
+          console.warn(
+            "[ai-decision] Gemini fallback falhou — cai pra heurístico",
+            geminiErr,
+          );
+        }
+      }
+
+      // ── Tier 2: heurístico Jaccard (texto + event-match + tag-bias) ──
       const vars =
         (context.vars as Record<string, unknown> | undefined) ?? {};
       const lastMessage = String(vars.lastIncomingMessage ?? "");
@@ -449,6 +506,51 @@ export const aiVisionExecutor: NodeExecutor = async ({
   } catch (err) {
     const parsed = parseAiError(err);
     if (shouldUseFallback(parsed.code)) {
+      // Tier 1: tenta Gemini Vision (free tier robusto). Só cai pro
+      // template "(LLM offline)" se Gemini também falhar — útil quando
+      // OpenAI estourou quota mas o user tem GOOGLE_GENERATIVE_AI_API_KEY.
+      if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+        try {
+          const geminiResult = await generateText({
+            model: google("gemini-2.5-flash"),
+            system:
+              "Você analisa imagens enviadas por leads (comprovantes, documentos, fotos). Extraia informações solicitadas em formato estruturado. Seja preciso e conciso.",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: interpolate(context, instructionRaw) },
+                  { type: "image", image: new URL(imageUrl) },
+                ],
+              },
+            ],
+            temperature: 0,
+          });
+          if (orgId) {
+            await chargeStarsByAction(orgId, AGENT_STARS_ACTIONS.AI_VISION, {
+              description: "Análise de imagem por IA (Gemini fallback)",
+              appSlug: "agent",
+            }).catch((e) => console.warn("[ai-vision charge gemini]", e));
+          }
+          return {
+            output: {
+              extracted: geminiResult.text,
+              usedFallback: true,
+              fallbackMethod: "gemini",
+              originalError: parsed.code,
+              vars: { lastVisionResult: geminiResult.text },
+            },
+            status: "SUCCESS",
+            starsSpent: 3,
+          };
+        } catch (geminiErr) {
+          console.warn(
+            "[ai-vision] Gemini fallback também falhou — cai pra template",
+            geminiErr,
+          );
+        }
+      }
+      // Tier 2: fallback template — só retorna placeholder
       const fb = fallbackAiVision();
       return {
         output: {
@@ -521,6 +623,29 @@ export const readPdfExecutor: NodeExecutor = async ({
     };
   }
 
+  // Skip se mediaType não for documento — quando o workflow usa o mesmo
+  // path (vars.lastEvent.mediaUrl) pra AI_VISION + READ_PDF em paralelo,
+  // o READ_PDF não deve tentar parsear imagens (gera "Setting up fake
+  // worker failed" em pdf.worker.mjs). Retorna SUCCESS com skip flag pra
+  // não derrubar o workflow.
+  const vars = (context.vars ?? {}) as Record<string, unknown>;
+  const lastEvent = (vars.lastEvent ?? {}) as Record<string, unknown>;
+  const mediaType = String(lastEvent.mediaType ?? "");
+  const mimetype = String(lastEvent.mimetype ?? "");
+  const isPdf =
+    mediaType === "document" || mimetype === "application/pdf" ||
+    pdfUrl.toLowerCase().endsWith(".pdf");
+  if (!isPdf) {
+    return {
+      output: {
+        skipped: true,
+        reason: `READ_PDF pulado — mediaType="${mediaType}" mimetype="${mimetype}" não é PDF`,
+        vars: { lastPdfSummary: "" },
+      },
+      chosenOutput: "main",
+    };
+  }
+
   if (dryRun) {
     return { output: { summary: "(resumo simulado em dry-run)" } };
   }
@@ -533,9 +658,18 @@ export const readPdfExecutor: NodeExecutor = async ({
       throw new Error(`Download PDF falhou: ${res.status}`);
     }
     const buf = Buffer.from(await res.arrayBuffer());
-    // pdf-parse é commonjs — require dinâmico
-    const pdfParseModule = (await import("pdf-parse")).default;
-    const parsed = await pdfParseModule(buf);
+    // pdf-parse v2.x removeu `default` export e introduziu API de classe:
+    //   const { PDFParse } = require('pdf-parse');
+    //   const parser = new PDFParse({ data: buf });
+    //   const { text } = await parser.getText();
+    // O código antigo (`pdfParse(buf)`) só rodava em v1.x.
+    const { PDFParse } = (await import("pdf-parse")) as {
+      PDFParse: new (opts: { data: Buffer | Uint8Array }) => {
+        getText: () => Promise<{ text: string }>;
+      };
+    };
+    const parser = new PDFParse({ data: buf });
+    const parsed = await parser.getText();
     extractedText = parsed.text ?? "";
     // Cap pra não estourar tokens — 20k chars ≈ 5k tokens
     if (extractedText.length > 20000) {
