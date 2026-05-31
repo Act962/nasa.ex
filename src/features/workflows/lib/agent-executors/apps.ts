@@ -572,26 +572,96 @@ export const tagExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
   }
 
   try {
+    // Track quais tags REALMENTE foram aplicadas/removidas (não-dup) — só
+    // grava na jornada o que mudou, pra não inflar timeline com noise.
+    const changedTagIds: string[] = [];
+
     if (type === "REMOVE") {
-      await prisma.leadTag.deleteMany({
+      const result = await prisma.leadTag.deleteMany({
         where: { leadId, tagId: { in: tagsIds } },
       });
+      // deleteMany retorna count, não os IDs. Assume que removeu todos que
+      // existiam — se contar > 0, registra na jornada todas as tagsIds
+      // pedidas (acurácia "boa o suficiente" pra timeline).
+      if (result.count > 0) changedTagIds.push(...tagsIds);
     } else {
       // ADD — upsert por (leadId, tagId) pra evitar dup. Usa loop porque
-      // o composite key não suporta createMany direto.
+      // o composite key não suporta createMany direto. Track quais foram
+      // NOVAS (upsert retorna o registro existente em ambos casos — então
+      // checamos createdAt vs now pra distinguir).
       for (const tagId of tagsIds) {
-        await prisma.leadTag.upsert({
+        const before = await prisma.leadTag.findUnique({
           where: { leadId_tagId: { leadId, tagId } },
-          create: { leadId, tagId },
-          update: {},
+          select: { id: true },
+        });
+        if (!before) {
+          await prisma.leadTag.create({ data: { leadId, tagId } });
+          changedTagIds.push(tagId);
+        }
+      }
+    }
+
+    // ── Jornada do lead ─────────────────────────────────────────────
+    // Grava LeadJourneyEvent(kind: tag_added | tag_removed) pra que tag
+    // aplicada por workflow apareça em "Detalhes do lead → Histórico"
+    // igual quando atendente adiciona pela UI. Sem isso, tags do agente
+    // sumiam silenciosamente da timeline (visíveis só no leadTags).
+    // Best-effort — falha não derruba o workflow.
+    if (changedTagIds.length > 0) {
+      const { trackLeadEvent } = await import("@/lib/lead-journey/track");
+      for (const tagId of changedTagIds) {
+        await trackLeadEvent({
+          leadId,
+          kind: type === "REMOVE" ? "tag_removed" : "tag_added",
+          actorId: null, // sistema/workflow — não há atendente humano
+          metadata: {
+            tagId,
+            source: "agent_workflow",
+            workflowId: String(context.trigger?.workflowId ?? ""),
+          },
         });
       }
     }
+
+    // ── Broadcast pro engine de WAIT_FOR_EVENT acordar ──────────────
+    // Workflows com WAIT_FOR_EVENT([lead-tagged, ...]) precisam saber
+    // quando tag é aplicada — inclusive pela tag-aplicada-por-outro-
+    // workflow. Sem o broadcast, race no WAIT só funcionava pra tag
+    // via UI (add-tags) ou IA (apply-tags-by-ai). Best-effort.
+    if (
+      type === "ADD" &&
+      changedTagIds.length > 0 &&
+      context.lead &&
+      typeof context.lead === "object"
+    ) {
+      const trackingId = String(
+        (context.lead as Record<string, unknown>).trackingId ?? "",
+      );
+      const orgId = String(context.trigger?.organizationId ?? "");
+      if (trackingId) {
+        try {
+          const { broadcastAgentWorkflowEvent } = await import(
+            "@/inngest/utils"
+          );
+          await broadcastAgentWorkflowEvent({
+            event: "lead-tagged",
+            leadId,
+            trackingId,
+            organizationId: orgId || undefined,
+            extra: { tagIds: changedTagIds },
+          });
+        } catch (err) {
+          console.warn("[tag-executor] broadcast lead-tagged failed", err);
+        }
+      }
+    }
+
     return {
       output: {
         applied: true,
         action: type,
         tagsIds,
+        journeyTracked: changedTagIds.length,
       },
     };
   } catch (err) {
