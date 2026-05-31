@@ -344,7 +344,7 @@ export async function POST(req: NextRequest) {
       event.type === "invoice.payment_succeeded" ||
       event.type === "payment_intent.succeeded"
     ) {
-      const obj = event.data.object as Record<string, unknown>;
+      const obj = event.data.object as unknown as Record<string, unknown>;
       const metadata = (obj.metadata as Record<string, string> | undefined) ?? {};
       const organizationId = metadata.organizationId;
       const leadId = metadata.leadId ?? null;

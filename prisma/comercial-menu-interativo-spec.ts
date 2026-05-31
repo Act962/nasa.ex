@@ -42,8 +42,8 @@ type NodeOut = {
 type ConnOut = {
   fromTempId: string;
   toTempId: string;
-  fromOutput?: string;
-  toInput?: string;
+  fromOutput: string;
+  toInput: string;
 };
 
 interface CadenceArgs {
@@ -108,7 +108,7 @@ function buildCadenceChain(args: CadenceArgs): {
       position: { x: 0, y },
       data: { action: { type: "days", days: delta } },
     });
-    connections.push({ fromTempId: prevTempId, toTempId: waitId });
+    connections.push({ fromTempId: prevTempId, toTempId: waitId, fromOutput: "main", toInput: "main" });
 
     // AI_DECISION — engajou ou ignorou?
     const decisionId = `${prefix}-decision-${level.slug}`;
@@ -136,7 +136,7 @@ function buildCadenceChain(args: CadenceArgs): {
         ],
       },
     });
-    connections.push({ fromTempId: waitId, toTempId: decisionId });
+    connections.push({ fromTempId: waitId, toTempId: decisionId, fromOutput: "main", toInput: "main" });
 
     // Branch "engajou" → TAG engaged + mensagem rápida + sair
     const engagedTagId = `${prefix}-engaged-tag-${level.slug}`;
@@ -168,7 +168,7 @@ function buildCadenceChain(args: CadenceArgs): {
         },
       },
     });
-    connections.push({ fromTempId: engagedTagId, toTempId: engagedMsgId });
+    connections.push({ fromTempId: engagedTagId, toTempId: engagedMsgId, fromOutput: "main", toInput: "main" });
 
     // Branch "ignorou" → TAG follow-N + mensagem follow-up + próximo nível
     const followTagId = `${prefix}-tag-${level.slug}`;
@@ -198,7 +198,7 @@ function buildCadenceChain(args: CadenceArgs): {
         },
       },
     });
-    connections.push({ fromTempId: followTagId, toTempId: followMsgId });
+    connections.push({ fromTempId: followTagId, toTempId: followMsgId, fromOutput: "main", toInput: "main" });
 
     prevTempId = followMsgId;
   });
@@ -212,7 +212,7 @@ function buildCadenceChain(args: CadenceArgs): {
     position: { x: 0, y: exitY },
     data: { action: { type: "ADD", tagSlugs: [exitTagSlug] } },
   });
-  connections.push({ fromTempId: prevTempId, toTempId: exitTagId });
+  connections.push({ fromTempId: prevTempId, toTempId: exitTagId, fromOutput: "main", toInput: "main" });
 
   return { nodes, connections, lastTempId: exitTagId };
 }
@@ -249,9 +249,9 @@ const buildWorkflow1Agendamento = () => {
     },
   ];
   const headConns: ConnOut[] = [
-    { fromTempId: "wf1-trigger", toTempId: "wf1-tag-agendou" },
-    { fromTempId: "wf1-tag-agendou", toTempId: "wf1-move-status" },
-    { fromTempId: "wf1-move-status", toTempId: "wf1-send-agenda" },
+    { fromTempId: "wf1-trigger", toTempId: "wf1-tag-agendou", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf1-tag-agendou", toTempId: "wf1-move-status", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf1-move-status", toTempId: "wf1-send-agenda", fromOutput: "main", toInput: "main" },
   ];
 
   const cadence = buildCadenceChain({
@@ -367,19 +367,19 @@ const buildWorkflow2Produtos = () => {
     },
   ];
   const headConns: ConnOut[] = [
-    { fromTempId: "wf2-trigger", toTempId: "wf2-tag-orcamento" },
-    { fromTempId: "wf2-tag-orcamento", toTempId: "wf2-move-status" },
-    { fromTempId: "wf2-move-status", toTempId: "wf2-send-proposal" },
-    { fromTempId: "wf2-send-proposal", toTempId: "wf2-wait-accept" },
-    { fromTempId: "wf2-wait-accept", toTempId: "wf2-decision-accept" },
+    { fromTempId: "wf2-trigger", toTempId: "wf2-tag-orcamento", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf2-tag-orcamento", toTempId: "wf2-move-status", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf2-move-status", toTempId: "wf2-send-proposal", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf2-send-proposal", toTempId: "wf2-wait-accept", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf2-wait-accept", toTempId: "wf2-decision-accept", fromOutput: "main", toInput: "main" },
     {
       fromTempId: "wf2-decision-accept",
       toTempId: "wf2-tag-aceita",
       fromOutput: "aceitou",
       toInput: "target-1",
     },
-    { fromTempId: "wf2-tag-aceita", toTempId: "wf2-send-contract" },
-    { fromTempId: "wf2-send-contract", toTempId: "wf2-tag-contrato" },
+    { fromTempId: "wf2-tag-aceita", toTempId: "wf2-send-contract", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf2-send-contract", toTempId: "wf2-tag-contrato", fromOutput: "main", toInput: "main" },
   ];
 
   const cadence = buildCadenceChain({
@@ -463,9 +463,9 @@ const buildWorkflow3Interesse = () => {
     },
   ];
   const headConns: ConnOut[] = [
-    { fromTempId: "wf3-trigger", toTempId: "wf3-tag-interessado" },
-    { fromTempId: "wf3-tag-interessado", toTempId: "wf3-move-status" },
-    { fromTempId: "wf3-move-status", toTempId: "wf3-send-welcome" },
+    { fromTempId: "wf3-trigger", toTempId: "wf3-tag-interessado", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf3-tag-interessado", toTempId: "wf3-move-status", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf3-move-status", toTempId: "wf3-send-welcome", fromOutput: "main", toInput: "main" },
   ];
 
   const cadence = buildCadenceChain({
@@ -607,20 +607,20 @@ const buildWorkflow4Comprovante = () => {
     },
   ];
   const headConns: ConnOut[] = [
-    { fromTempId: "wf4-trigger", toTempId: "wf4-tag-aguarda" },
-    { fromTempId: "wf4-tag-aguarda", toTempId: "wf4-move-status" },
-    { fromTempId: "wf4-move-status", toTempId: "wf4-ask-receipt" },
-    { fromTempId: "wf4-ask-receipt", toTempId: "wf4-wait-msg" },
-    { fromTempId: "wf4-wait-msg", toTempId: "wf4-ai-vision" },
-    { fromTempId: "wf4-ai-vision", toTempId: "wf4-decision-paid" },
+    { fromTempId: "wf4-trigger", toTempId: "wf4-tag-aguarda", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf4-tag-aguarda", toTempId: "wf4-move-status", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf4-move-status", toTempId: "wf4-ask-receipt", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf4-ask-receipt", toTempId: "wf4-wait-msg", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf4-wait-msg", toTempId: "wf4-ai-vision", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf4-ai-vision", toTempId: "wf4-decision-paid", fromOutput: "main", toInput: "main" },
     {
       fromTempId: "wf4-decision-paid",
       toTempId: "wf4-tag-pago",
       fromOutput: "pago",
       toInput: "target-1",
     },
-    { fromTempId: "wf4-tag-pago", toTempId: "wf4-move-fechado" },
-    { fromTempId: "wf4-move-fechado", toTempId: "wf4-thanks" },
+    { fromTempId: "wf4-tag-pago", toTempId: "wf4-move-fechado", fromOutput: "main", toInput: "main" },
+    { fromTempId: "wf4-move-fechado", toTempId: "wf4-thanks", fromOutput: "main", toInput: "main" },
   ];
 
   const cadence = buildCadenceChain({

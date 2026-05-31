@@ -64,6 +64,7 @@ const closerReativo: PresetSpec = {
       description: "Quando lead recebe tag VIP, envia proposta padrão",
       folderSlug: "core",
       isActive: true,
+      agentMode: false,
       nodes: [
         {
           tempId: "t1",
@@ -95,6 +96,7 @@ const closerReativo: PresetSpec = {
       description: "Lead quente ganha link de agenda direto",
       folderSlug: "core",
       isActive: true,
+      agentMode: false,
       nodes: [
         {
           tempId: "t1",
@@ -119,6 +121,7 @@ const closerReativo: PresetSpec = {
       description: "Lead via indicação recebe boas-vindas personalizadas",
       folderSlug: "biblioteca",
       isActive: false,
+      agentMode: false,
       nodes: [
         {
           tempId: "t1",
@@ -188,6 +191,7 @@ const sdrProativo: PresetSpec = {
       description: "Novo lead recebe mensagem de boas-vindas e form de qualificação",
       folderSlug: "core",
       isActive: true,
+      agentMode: false,
       nodes: [
         {
           tempId: "t1",
@@ -229,6 +233,7 @@ const sdrProativo: PresetSpec = {
       description: "Quando recebe tag Qualificado, move pra status Qualificado",
       folderSlug: "core",
       isActive: true,
+      agentMode: false,
       nodes: [
         {
           tempId: "t1",
@@ -293,6 +298,7 @@ const astroPreditivo: PresetSpec = {
       description: "Quando Astro finaliza conversa, move lead conforme tag de temperatura",
       folderSlug: "core",
       isActive: true,
+      agentMode: false,
       nodes: [
         {
           tempId: "t1",
@@ -374,6 +380,7 @@ const selfService: PresetSpec = {
       description: "Cliente manda primeira mensagem, recebe form de escolha de produto",
       folderSlug: "core",
       isActive: true,
+      agentMode: false,
       nodes: [
         {
           tempId: "t1",
@@ -405,6 +412,7 @@ const selfService: PresetSpec = {
       description: "Quando form é concluído, envia link do curso/route adequado",
       folderSlug: "core",
       isActive: true,
+      agentMode: false,
       nodes: [
         {
           tempId: "t1",

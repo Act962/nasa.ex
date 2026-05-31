@@ -83,9 +83,17 @@ export interface CommandTemplate {
    * direto. Útil pra ações que têm API própria (ex: criar Workflow).
    */
   directIntent?: {
-    /** Tipo do intent — handler decide o que fazer. */
-    type: "create_workflow";
-    /** Payload extra fixo (ex: nodeType). */
+    /**
+     * Tipo do intent — handler decide o que fazer:
+     *   - "create_workflow": cria workflow novo + 1 node prefilled (payload.nodeType).
+     *     Se `payload.agentMode === "true"`, cria já com agentMode habilitado.
+     *   - "apply_preset": cria workflow inteiro baseado em blueprint
+     *     (`src/features/workflows/lib/agent-presets/`). payload.presetSlug
+     *     indica qual: "proposta-contrato" | "boas-vindas-nasa-route" |
+     *     "agendamento" | "closer-followup".
+     */
+    type: "create_workflow" | "apply_preset";
+    /** Payload extra fixo (nodeType, agentMode, presetSlug). */
     payload?: Record<string, string>;
   };
 }
@@ -166,6 +174,40 @@ export const APPS_BY_VERB: Record<VerbId, ReadonlyArray<{ id: string; label: str
     { id: "app.SEND_LINNKER", label: "App: Enviar Linnker", icon: "Link2", group: "send-to-app" },
     { id: "app.SEND_NBOX", label: "App: Enviar Arquivo N-Box", icon: "FolderOpen", group: "send-to-app" },
     { id: "app.SEND_NASA_ROUTE", label: "App: Enviar Curso NASA Route", icon: "GraduationCap", group: "send-to-app" },
+    // ── Modo Agente IA — Gatilhos (event-driven) ───────────────
+    // Esses triggers exigem `agentMode: true` no workflow — o cmdk-palette
+    // cria já com a flag setada via `directIntent.payload.agentMode`.
+    { id: "agent.PAYMENT_RECEIVED", label: "IA: Pagamento Recebido", icon: "CreditCard", group: "agent-trigger" },
+    { id: "agent.MESSAGE_INCOMING", label: "IA: Mensagem WhatsApp Chegou", icon: "MessageCircle", group: "agent-trigger" },
+    { id: "agent.WEBHOOK_EXTERNAL", label: "IA: Webhook Externo", icon: "Webhook", group: "agent-trigger" },
+    { id: "agent.LAST_INBOUND_TIMEOUT", label: "IA: Lead Sem Resposta há X tempo", icon: "Clock", group: "agent-trigger" },
+    // ── Modo Agente IA — Lógica de Fluxo ───────────────────────
+    { id: "agent.IF_CONDITION", label: "IA: Condição IF/ELSE", icon: "GitBranch", group: "agent-logic" },
+    { id: "agent.SWITCH_CASE", label: "IA: Switch/Case", icon: "SplitSquareVertical", group: "agent-logic" },
+    { id: "agent.LOOP_OVER", label: "IA: Loop em Lista", icon: "Repeat", group: "agent-logic" },
+    { id: "agent.MERGE", label: "IA: Merge de Branches", icon: "Merge", group: "agent-logic" },
+    { id: "agent.WAIT_FOR_EVENT", label: "IA: Aguardar Evento (race multi)", icon: "Hourglass", group: "agent-logic" },
+    // ── Modo Agente IA — Decisão e Geração com LLM ────────────
+    { id: "agent.AI_DECISION", label: "IA: Decisão por Branch (com fallback)", icon: "Sparkles", group: "agent-ai" },
+    { id: "agent.AI_GENERATE_TEXT", label: "IA: Gerar Texto Contextual", icon: "Type", group: "agent-ai" },
+    { id: "agent.AI_VISION", label: "IA: Analisar Imagem", icon: "Eye", group: "agent-ai" },
+    { id: "agent.READ_PDF", label: "IA: Ler PDF", icon: "FileType", group: "agent-ai" },
+    { id: "agent.WEB_SEARCH", label: "IA: Busca Web (Gemini + OpenAI)", icon: "Globe", group: "agent-ai" },
+    // ── Modo Agente IA — Dados e Sub-Workflows ────────────────
+    { id: "agent.SET_VARIABLE", label: "IA: Definir Variável", icon: "Variable", group: "agent-data" },
+    { id: "agent.CALL_WORKFLOW", label: "IA: Chamar Sub-Workflow", icon: "PackageOpen", group: "agent-data" },
+    // ── Modo Agente IA — Apps e Integrações ───────────────────
+    { id: "agent.CHECK_PAYMENT", label: "IA: Consultar Pagamento (Stripe/Stars)", icon: "Receipt", group: "agent-app" },
+    { id: "agent.SEND_VOICE", label: "IA: Enviar Voz (TTS WhatsApp)", icon: "Mic", group: "agent-app" },
+    { id: "agent.SEND_MEDIA", label: "IA: Enviar Mídia (imagem/vídeo/PDF)", icon: "Image", group: "agent-app" },
+    { id: "agent.SEND_EMAIL", label: "IA: Enviar Email (Resend + Template)", icon: "Mail", group: "agent-app" },
+    // ── Modo Agente IA — Presets prontos (workflows inteiros) ─
+    // Esses criam workflows inteiros baseados em blueprints existentes
+    // (não 1 nó só). directIntent type "apply_preset" no payload.
+    { id: "preset.PROPOSTA_CONTRATO", label: "Preset: Proposta + Contrato (cadência longa)", icon: "FileSignature", group: "agent-preset" },
+    { id: "preset.BOAS_VINDAS_NASA_ROUTE", label: "Preset: Boas-vindas NASA Route", icon: "GraduationCap", group: "agent-preset" },
+    { id: "preset.AGENDAMENTO", label: "Preset: Agente de Agendamento", icon: "Calendar", group: "agent-preset" },
+    { id: "preset.CLOSER_FOLLOWUP", label: "Preset: Closer Comercial + Follow-up", icon: "Phone", group: "agent-preset" },
   ],
 };
 
@@ -713,6 +755,12 @@ interface AutomatizarSpec {
   nodeType: string;
   title: string;
   icon: string;
+  /**
+   * Quando true, o workflow novo é criado já com `agentMode: true`.
+   * Necessário pros nodes do "Modo Agente IA" (WAIT_FOR_EVENT, AI_DECISION,
+   * SEND_EMAIL etc) que só rodam no engine novo.
+   */
+  agentMode?: boolean;
 }
 
 const AUTOMATIZAR_SPECS: AutomatizarSpec[] = [
@@ -740,6 +788,29 @@ const AUTOMATIZAR_SPECS: AutomatizarSpec[] = [
   { appId: "app.SEND_LINNKER", nodeType: "SEND_LINNKER", title: "Automação: Enviar Linnker", icon: "Link2" },
   { appId: "app.SEND_NBOX", nodeType: "SEND_NBOX", title: "Automação: Enviar Arquivo N-Box", icon: "FolderOpen" },
   { appId: "app.SEND_NASA_ROUTE", nodeType: "SEND_NASA_ROUTE", title: "Automação: Enviar Curso NASA Route", icon: "GraduationCap" },
+  // ── Modo Agente IA — todos os nodes que exigem `agentMode: true` ──
+  // Setamos `agentMode: "true"` no payload pra o cmdk-palette criar
+  // o workflow já habilitado. Sem essa flag, esses nodes não rodam.
+  { appId: "agent.PAYMENT_RECEIVED", nodeType: "PAYMENT_RECEIVED", title: "IA: Pagamento Recebido", icon: "CreditCard", agentMode: true },
+  { appId: "agent.MESSAGE_INCOMING", nodeType: "MESSAGE_INCOMING", title: "IA: Mensagem WhatsApp Chegou", icon: "MessageCircle", agentMode: true },
+  { appId: "agent.WEBHOOK_EXTERNAL", nodeType: "WEBHOOK_EXTERNAL", title: "IA: Webhook Externo", icon: "Webhook", agentMode: true },
+  { appId: "agent.LAST_INBOUND_TIMEOUT", nodeType: "LAST_INBOUND_TIMEOUT", title: "IA: Lead Sem Resposta há X tempo", icon: "Clock", agentMode: true },
+  { appId: "agent.IF_CONDITION", nodeType: "IF_CONDITION", title: "IA: Condição IF/ELSE", icon: "GitBranch", agentMode: true },
+  { appId: "agent.SWITCH_CASE", nodeType: "SWITCH_CASE", title: "IA: Switch/Case", icon: "SplitSquareVertical", agentMode: true },
+  { appId: "agent.LOOP_OVER", nodeType: "LOOP_OVER", title: "IA: Loop em Lista", icon: "Repeat", agentMode: true },
+  { appId: "agent.MERGE", nodeType: "MERGE", title: "IA: Merge de Branches", icon: "Merge", agentMode: true },
+  { appId: "agent.WAIT_FOR_EVENT", nodeType: "WAIT_FOR_EVENT", title: "IA: Aguardar Evento (race multi)", icon: "Hourglass", agentMode: true },
+  { appId: "agent.AI_DECISION", nodeType: "AI_DECISION", title: "IA: Decisão por Branch (com fallback)", icon: "Sparkles", agentMode: true },
+  { appId: "agent.AI_GENERATE_TEXT", nodeType: "AI_GENERATE_TEXT", title: "IA: Gerar Texto Contextual", icon: "Type", agentMode: true },
+  { appId: "agent.AI_VISION", nodeType: "AI_VISION", title: "IA: Analisar Imagem", icon: "Eye", agentMode: true },
+  { appId: "agent.READ_PDF", nodeType: "READ_PDF", title: "IA: Ler PDF", icon: "FileType", agentMode: true },
+  { appId: "agent.WEB_SEARCH", nodeType: "WEB_SEARCH", title: "IA: Busca Web (Gemini + OpenAI)", icon: "Globe", agentMode: true },
+  { appId: "agent.SET_VARIABLE", nodeType: "SET_VARIABLE", title: "IA: Definir Variável", icon: "Variable", agentMode: true },
+  { appId: "agent.CALL_WORKFLOW", nodeType: "CALL_WORKFLOW", title: "IA: Chamar Sub-Workflow", icon: "PackageOpen", agentMode: true },
+  { appId: "agent.CHECK_PAYMENT", nodeType: "CHECK_PAYMENT", title: "IA: Consultar Pagamento (Stripe/Stars)", icon: "Receipt", agentMode: true },
+  { appId: "agent.SEND_VOICE", nodeType: "SEND_VOICE", title: "IA: Enviar Voz (TTS WhatsApp)", icon: "Mic", agentMode: true },
+  { appId: "agent.SEND_MEDIA", nodeType: "SEND_MEDIA", title: "IA: Enviar Mídia (imagem/vídeo/PDF)", icon: "Image", agentMode: true },
+  { appId: "agent.SEND_EMAIL", nodeType: "SEND_EMAIL", title: "IA: Enviar Email (Resend + Template)", icon: "Mail", agentMode: true },
 ];
 
 for (const spec of AUTOMATIZAR_SPECS) {
@@ -790,7 +861,96 @@ for (const spec of AUTOMATIZAR_SPECS) {
     },
     directIntent: {
       type: "create_workflow",
-      payload: { nodeType: spec.nodeType },
+      payload: {
+        nodeType: spec.nodeType,
+        ...(spec.agentMode ? { agentMode: "true" } : {}),
+      },
+    },
+  });
+}
+
+// ─── Templates AGENT-MODE PRESETS (workflow inteiro a partir de blueprint) ──
+//
+// Diferente dos nodes individuais, esses criam o WORKFLOW COMPLETO baseado
+// nos builders em `src/features/workflows/lib/agent-presets/*`. Usam um
+// directIntent novo `apply_preset` que o cmdk-palette mapeia pro
+// `applyDefaultAgentPresets` ou variante específica.
+//
+// O usuário só escolhe tracking + pasta — todos os IDs (tags, produtos,
+// template de contrato) são placeholders `<<...>>` que ele substitui no
+// canvas. Workflow nasce com `isActive: false`.
+
+interface PresetSpec {
+  appId: string;
+  presetSlug: "proposta-contrato" | "boas-vindas-nasa-route" | "agendamento" | "closer-followup";
+  title: string;
+  icon: string;
+  description: string;
+}
+
+const PRESET_SPECS: PresetSpec[] = [
+  {
+    appId: "preset.PROPOSTA_CONTRATO",
+    presetSlug: "proposta-contrato",
+    title: "Preset: Proposta + Contrato (cadência longa)",
+    icon: "FileSignature",
+    description: "30 nós · cadência D+0/3/7/15/30 · 3 toques contrato · race entre 5 eventos (Forge/texto/tag/status)",
+  },
+  {
+    appId: "preset.BOAS_VINDAS_NASA_ROUTE",
+    presetSlug: "boas-vindas-nasa-route",
+    title: "Preset: Boas-vindas NASA Route",
+    icon: "GraduationCap",
+    description: "Dispara em PAYMENT_RECEIVED · tag Aluno + email caprichado + WhatsApp + check-in 3d",
+  },
+  {
+    appId: "preset.AGENDAMENTO",
+    presetSlug: "agendamento",
+    title: "Preset: Agente de Agendamento",
+    icon: "Calendar",
+    description: "NEW_LEAD → AI saudação → SEND_AGENDA → confirma + boas-vindas",
+  },
+  {
+    appId: "preset.CLOSER_FOLLOWUP",
+    presetSlug: "closer-followup",
+    title: "Preset: Closer Comercial + Follow-up",
+    icon: "Phone",
+    description: "Menu interativo + AI_DECISION + cadência 1/3/5/7 dias",
+  },
+];
+
+for (const preset of PRESET_SPECS) {
+  TEMPLATES.push({
+    verb: "automatizar",
+    app: preset.appId,
+    title: preset.title,
+    icon: preset.icon,
+    steps: [
+      {
+        key: "tracking",
+        category: "entity",
+        label: "Tracking",
+        prompt: `Em qual tracking aplicar o preset? ${preset.description}`,
+        required: true,
+        entityKind: "tracking",
+      },
+      {
+        key: "pasta",
+        category: "entity",
+        label: "Pasta",
+        prompt: "Em qual pasta? (opcional)",
+        required: false,
+        entityKind: "workflow_folder",
+        creatable: true,
+      },
+    ],
+    buildPrompt: (v) =>
+      `Aplique o preset "${preset.title}" no tracking "${v.tracking?.entityLabel ?? ""}"${
+        v.pasta?.entityLabel ? `, na pasta "${v.pasta.entityLabel}"` : ""
+      }.`,
+    directIntent: {
+      type: "apply_preset",
+      payload: { presetSlug: preset.presetSlug },
     },
   });
 }
