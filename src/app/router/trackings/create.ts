@@ -126,6 +126,7 @@ export const createTracking = base
       prisma,
       organizationId: org.id,
       trackingId: tracking.id,
+      userId: user.id,
     });
     if (presetsCreated.length > 0) {
       console.log(

@@ -124,9 +124,15 @@ export const BaseExecutionNode = memo(
     // workflow se ativar. Status de execução real (success/loading) só
     // aparece quando a validação passa. Graph issues (ORPHAN, ARCHIVED_TAG,
     // etc) também forçam erro mesmo se o nó isolado passa.
+    //
+    // `needsReview: true` no node.data sinaliza que IA generativa criou
+    // o nó mas precisa de input humano (ex: "qual produto?", "qual user
+    // responsável?"). Também força borda vermelha — user vê visual igual
+    // ao de erro de validação, com tooltip explicando o que falta.
     const nodeInvalid = !!(validation && !validation.valid && !validation.skip);
+    const needsReview = !!(nodeData?.needsReview === true);
     const effectiveStatus: typeof status =
-      nodeInvalid || hasGraphError ? "error" : status;
+      nodeInvalid || hasGraphError || needsReview ? "error" : status;
 
     // ── Step-by-Step overlay (foguete pulsando ou check/erro) ───
     const stepState = useAtomValue(stepByStepStateAtom);
@@ -156,9 +162,22 @@ export const BaseExecutionNode = memo(
             onDoubleClick={onDoubleClick}
             status={status}
             validation={validation}
-            graphErrorMessages={graphIssues
-              .filter((i) => i.severity === "error")
-              .map((i) => i.message)}
+            graphErrorMessages={[
+              ...graphIssues
+                .filter((i) => i.severity === "error")
+                .map((i) => i.message),
+              // needsReview vira mensagem extra no tooltip da borda
+              // vermelha — explica pro user o que IA generativa marcou
+              // como pendente. Aparece junto com graph errors.
+              ...(needsReview
+                ? [
+                    `🤖 IA marcou pra revisão: ${
+                      (nodeData as { reviewReason?: string })?.reviewReason ??
+                      "configurar campos faltantes"
+                    }`,
+                  ]
+                : []),
+            ]}
           >
             <BaseNodeContent>
               {typeof Icon === "string" ? (

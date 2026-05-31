@@ -115,10 +115,14 @@ export const BaseTriggerNode = memo(
     const graphIssues = useNodeIssues(id);
     const hasGraphError = graphIssues.some((i) => i.severity === "error");
     const nodeInvalid = !!(validation && !validation.valid && !validation.skip);
+    // `needsReview` no node.data sinaliza pendência da IA generativa —
+    // user precisa abrir o nó pra completar (ex: escolher produto/agenda).
+    // Mesma cor de erro de validação (borda vermelha pulsante).
+    const needsReview = !!(nodeData?.needsReview === true);
     // Sobrescreve status quando validação falha — borda vermelha pulsante
     // sinaliza que o trigger não está pronto pra ativar.
     const effectiveStatus: typeof status =
-      nodeInvalid || hasGraphError ? "error" : status;
+      nodeInvalid || hasGraphError || needsReview ? "error" : status;
 
     // ── Step-by-Step overlay ───────────────────────────────────
     const stepState = useAtomValue(stepByStepStateAtom);
@@ -149,9 +153,19 @@ export const BaseTriggerNode = memo(
           <BaseNode
             status={status}
             validation={validation}
-            graphErrorMessages={graphIssues
-              .filter((i) => i.severity === "error")
-              .map((i) => i.message)}
+            graphErrorMessages={[
+              ...graphIssues
+                .filter((i) => i.severity === "error")
+                .map((i) => i.message),
+              ...(needsReview
+                ? [
+                    `🤖 IA marcou pra revisão: ${
+                      (nodeData as { reviewReason?: string })?.reviewReason ??
+                      "configurar campos faltantes"
+                    }`,
+                  ]
+                : []),
+            ]}
             onDoubleClick={onDoubleClick}
             className="rounded-l-2xl relative group"
           >

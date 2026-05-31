@@ -40,13 +40,18 @@ import { MessageTextPart } from "./message-text-part";
 import { AiLeadButtonProps } from "./types";
 
 const AUTOMATION_TOOL_LABELS: Record<string, string> = {
-  createWorkflow: "Criar automação",
+  // Legado (caminho 3 — addNode + connectNodes manual)
+  createWorkflow: "Criar automação (vazia)",
   updateWorkflow: "Atualizar automação",
   addNode: "Adicionar nó",
   connectNodes: "Conectar nós",
   executeWorkflow: "Executar automação",
   getWorkflow: "Verificar automação",
   listWorkflows: "Listar automações",
+  // IA generativa novas (caminho 1 + 2)
+  generate_workflow_from_intent: "🤖 Gerando workflow inteiro com IA",
+  apply_workflow_preset: "📦 Aplicando preset",
+  list_workflow_presets: "📋 Listando presets disponíveis",
 };
 
 const AUTOMATION_TOOLS = new Set(Object.keys(AUTOMATION_TOOL_LABELS));
