@@ -27,6 +27,7 @@ import "@xyflow/react/dist/style.css";
 import { Spinner } from "@/components/ui/spinner";
 import { nodeComponents } from "@/config/node-components";
 import { AddNodeButton } from "./add-node-button";
+import { OptimizeLayoutButton } from "./optimize-layout-button";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
   editorAtom,
@@ -321,6 +322,9 @@ export function Editor({ workflowId }: { workflowId: string }) {
               <WorkflowIssuesPanel workflowId={workflowId} />
               {agentMode && <DryRunButton workflowId={workflowId} />}
               <StepByStepContainer workflowId={workflowId} />
+              {/* Auto-layout via Dagre — recalcula positions pra eliminar
+                  sobreposições. Marca workflow como dirty pra user salvar. */}
+              <OptimizeLayoutButton />
               <AddNodeButton />
             </Panel>
             {hasManuelTrigger && (
