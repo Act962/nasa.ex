@@ -65,13 +65,37 @@ function unwrapAction(
   return d;
 }
 
-/** Extrai tagIds de qualquer node TAG (action) ou LEAD_TAGGED (trigger). */
+/**
+ * Extrai tagIds de qualquer node TAG (action) ou LEAD_TAGGED (trigger).
+ *
+ * Suporta AMBOS formatos do data — o histórico do projeto tem
+ * inconsistência:
+ *   - LEAD_TAGGED → `data.action.tagIds` (id no plural, sem 's' depois)
+ *   - TAG (action) → `data.action.tagsIds` (com 's' depois — vem do
+ *     dialog que sempre usou esse formato)
+ *
+ * Sem aceitar ambos, ARCHIVED_TAG/DELETED_TAG nunca dispara pra TAG
+ * actions e tags arquivadas viram bug silencioso.
+ *
+ * Também ignora placeholders `<<...>>` que vêm dos presets aplicados
+ * via `applyDefaultAgentPresets` mas ainda não foram substituídos
+ * pelo user. Sem esse filtro, o validator consulta o banco buscando
+ * "<<TAG_PROPOSTA_ACEITA_ID>>" como se fosse cuid, não acha, e marca
+ * o trigger LEAD_TAGGED como DELETED_TAG — falso positivo que deixa
+ * o nó vermelho mesmo após user trocar a tag no nó ALVO da edição
+ * (não no nó conectado).
+ */
 function extractTagIds(node: GraphNode): string[] {
   const action = unwrapAction(node.data);
-  const raw = action.tagIds;
-  return Array.isArray(raw)
-    ? raw.filter((v): v is string => typeof v === "string")
-    : [];
+  // Aceita ambos os formatos. tagIds (LEAD_TAGGED) e tagsIds (TAG).
+  const raw = Array.isArray(action.tagIds)
+    ? action.tagIds
+    : Array.isArray(action.tagsIds)
+      ? action.tagsIds
+      : [];
+  return raw
+    .filter((v): v is string => typeof v === "string")
+    .filter((id) => !id.startsWith("<<")); // ignora placeholders ainda não resolvidos
 }
 
 /** Roda só os checks síncronos (sem hit no banco) — útil pro client-side. */
