@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { detectCollisions } from "@/features/workflows/lib/collision-detector";
 import z from "zod";
@@ -30,12 +31,12 @@ export const updateIsActive = base
         .optional(),
     }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
     const workflow = await prisma.workflow.findUnique({
       where: { id: input.workflowId },
       include: {
         nodes: { select: { type: true, data: true } },
-        tracking: { select: { organizationId: true } },
+        tracking: { select: { name: true, organizationId: true } },
       },
     });
 
@@ -91,6 +92,32 @@ export const updateIsActive = base
       where: { id: input.workflowId },
       data: { isActive: input.isActive },
     });
+
+    if (
+      workflow.tracking?.organizationId &&
+      workflow.isActive !== input.isActive
+    ) {
+      await logActivity({
+        organizationId: workflow.tracking.organizationId,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "tracking",
+        action: input.isActive
+          ? "workflow.activated"
+          : "workflow.deactivated",
+        actionLabel: input.isActive
+          ? `Ativou a automação "${workflow.name}" no tracking "${workflow.tracking.name}"`
+          : `Desativou a automação "${workflow.name}" no tracking "${workflow.tracking.name}"`,
+        resource: workflow.name,
+        resourceId: workflow.id,
+        metadata: {
+          trackingName: workflow.tracking.name,
+          agentMode: workflow.agentMode,
+        },
+      });
+    }
 
     return {
       id: updated.id,

@@ -13,6 +13,7 @@
  */
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -33,10 +34,15 @@ export const updateAgentMode = base
       maxRunsPerHour: z.number(),
     }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
     const workflow = await prisma.workflow.findUnique({
       where: { id: input.workflowId },
-      select: { id: true },
+      select: {
+        id: true,
+        name: true,
+        agentMode: true,
+        tracking: { select: { name: true, organizationId: true } },
+      },
     });
 
     if (!workflow) {
@@ -53,6 +59,32 @@ export const updateAgentMode = base
       },
       select: { id: true, agentMode: true, maxRunsPerHour: true },
     });
+
+    if (
+      workflow.tracking?.organizationId &&
+      workflow.agentMode !== input.agentMode
+    ) {
+      await logActivity({
+        organizationId: workflow.tracking.organizationId,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "tracking",
+        action: input.agentMode
+          ? "workflow.agent_mode_enabled"
+          : "workflow.agent_mode_disabled",
+        actionLabel: input.agentMode
+          ? `Ativou Modo Agente IA na automação "${workflow.name}"`
+          : `Desativou Modo Agente IA na automação "${workflow.name}"`,
+        resource: workflow.name,
+        resourceId: workflow.id,
+        metadata: {
+          trackingName: workflow.tracking.name,
+          maxRunsPerHour: updated.maxRunsPerHour,
+        },
+      });
+    }
 
     return {
       id: updated.id,

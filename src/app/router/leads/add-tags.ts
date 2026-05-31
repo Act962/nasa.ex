@@ -96,6 +96,26 @@ export const addTagsToLead = base
       await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
     }
 
+    // ── Jornada do lead (LeadJourneyEvent) ──────────────────────────
+    // Grava 1 evento por tag adicionada. Sem isso, tags adicionadas
+    // via API isolada (esta procedure) sumiam da timeline "Detalhes do
+    // lead → Histórico" — só apareciam em leadTags. Paridade com o
+    // caminho de update (`router/leads/update.ts:318-325`) e com o
+    // tagExecutor agent-mode (fix recente). Best-effort.
+    if (result.count > 0) {
+      const { trackLeadEvent } = await import("@/lib/lead-journey/track");
+      await Promise.all(
+        input.tagIds.map((tagId) =>
+          trackLeadEvent({
+            leadId: lead.id,
+            kind: "tag_added",
+            actorId: context.user.id,
+            metadata: { tagId, source: "api_add_tags" },
+          }),
+        ),
+      );
+    }
+
     if (result.workflows.length > 0) {
       await Promise.all(
         result.workflows.map((workflow) =>
