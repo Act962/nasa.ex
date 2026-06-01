@@ -7,6 +7,7 @@ import {
   FileIcon,
   FileSignatureIcon,
   FileTextIcon,
+  GlobeIcon,
   LayoutListIcon,
   ImageIcon,
   MapPinIcon,
@@ -59,6 +60,7 @@ import { ButtonsPanel } from "./buttons-panel";
 import { ReminderPanel } from "./reminder-panel";
 import { SendLocationDialog } from "./send-location-dialog";
 import { ContactsPanel } from "./contacts-panel";
+import { WebSearchDialog } from "./web-search-dialog";
 // "Forge" e "Orçamento" foram MESCLADOS num único painel "Propostas e
 // Orçamentos" — o painel velho `BudgetPanel` ainda existe como código
 // legado (poderá ser deletado em iteração futura), mas o footer usa só
@@ -93,6 +95,7 @@ export function Footer({
   const instance = useQueryInstances(trackingId);
   const route = useRouter();
   const { data: session } = authClient.useSession();
+  const { data: activeOrg } = authClient.useActiveOrganization();
 
   useEffect(() => {
     if (instance.instance) {
@@ -135,6 +138,7 @@ export function Footer({
     confidence: "high" | "medium" | "low";
   } | null>(null);
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
+  const [webSearchOpen, setWebSearchOpen] = useState(false);
   const extractBudget = useExtractBudget();
   const [pendingLocation, setPendingLocation] = useState<{
     latitude: number;
@@ -599,6 +603,24 @@ export function Footer({
                         <div
                           className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
                           onClick={() => {
+                            setWebSearchOpen(true);
+                            setShowReminder(false);
+                            setShowScripts(false);
+                            setShowAgenda(false);
+                            setShowForms(false);
+                            setShowNBox(false);
+                            setShowButtons(false);
+                            setShowContact(false);
+                            setShowBudget(false);
+                            setOpen(false);
+                          }}
+                        >
+                          <GlobeIcon className="size-4" />
+                          <p className="text-sm">Pesquisar na Web</p>
+                        </div>
+                        <div
+                          className="relative flex items-center gap-2 hover:bg-foreground/10 py-3 px-4 cursor-pointer"
+                          onClick={() => {
                             setShowContact((v) => !v);
                             setShowReminder(false);
                             setShowScripts(false);
@@ -796,6 +818,22 @@ export function Footer({
         onConfirm={handleConfirmSendLocation}
         isSending={mutationLocation.isPending}
       />
+      {activeOrg?.id && (
+        <WebSearchDialog
+          open={webSearchOpen}
+          onOpenChange={setWebSearchOpen}
+          organizationId={activeOrg.id}
+          onUseResult={(text, mode) => {
+            if (mode === "replace") {
+              setMessage(text);
+            } else {
+              setMessage((prev) => (prev ? prev + "\n\n" + text : text));
+            }
+            // Foca o input pra operador editar antes de enviar
+            requestAnimationFrame(() => inputRef.current?.focus());
+          }}
+        />
+      )}
       {sendImage && instance.instance && (
         <SendFile
           conversationId={conversationId}

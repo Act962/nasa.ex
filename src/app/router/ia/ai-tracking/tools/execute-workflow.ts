@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { sendWorkflowExecution } from "@/inngest/utils";
+import { dispatchManualTrigger } from "@/inngest/utils";
 import { tool } from "ai";
 import { z } from "zod";
 
@@ -31,10 +31,7 @@ export const executeWorkflowTool = (trackingId: string) =>
           };
         }
 
-        await sendWorkflowExecution({
-          workflowId,
-          initialData: { lead: {} },
-        });
+        await dispatchManualTrigger({ workflowId });
 
         return {
           success: true,

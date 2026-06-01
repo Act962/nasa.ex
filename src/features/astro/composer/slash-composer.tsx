@@ -45,9 +45,16 @@ import {
  */
 
 export interface DirectIntentPayload {
-  type: "create_workflow";
+  /**
+   * Intent type:
+   *   - "create_workflow": cria 1 workflow + 1 node prefilled.
+   *     payload.nodeType obrigatório. payload.agentMode = "true" opcional.
+   *   - "apply_preset": aplica blueprint inteiro (agent-presets builder).
+   *     payload.presetSlug obrigatório.
+   */
+  type: "create_workflow" | "apply_preset";
   values: Record<string, ChipValue>;
-  /** Payload fixo do template (ex: { nodeType: "SEND_PROPOSAL" }). */
+  /** Payload fixo do template (nodeType, agentMode, presetSlug). */
   payload?: Record<string, string>;
 }
 
@@ -339,11 +346,31 @@ function StepPicker(props: {
     // Agrupa por `group` quando aplicável (verbo "automatizar" tem 21 apps
     // divididos em Gatilhos / Ações / Adicionar Lead no App)
     const hasGroups = apps.some((a) => "group" in a && a.group);
+    // Labels e ordem dos grupos. Modo Agente IA aparece DEPOIS dos legacy
+    // (gatilhos/ações/apps clássicos) pra não confundir users novos —
+    // quem precisa de IA já sabe onde procurar.
     const groupLabels: Record<string, string> = {
       trigger: "Gatilhos",
       execution: "Ações",
       "send-to-app": "Apps",
+      "agent-trigger": "🤖 Modo Agente IA · Gatilhos",
+      "agent-logic": "🤖 Modo Agente IA · Lógica",
+      "agent-ai": "🤖 Modo Agente IA · Decisão & Geração",
+      "agent-data": "🤖 Modo Agente IA · Dados",
+      "agent-app": "🤖 Modo Agente IA · Apps",
+      "agent-preset": "🚀 Presets prontos (workflow inteiro)",
     };
+    const groupOrder = [
+      "trigger",
+      "execution",
+      "send-to-app",
+      "agent-trigger",
+      "agent-logic",
+      "agent-ai",
+      "agent-data",
+      "agent-app",
+      "agent-preset",
+    ];
     type AppItem = (typeof apps)[number];
     const grouped = hasGroups
       ? apps.reduce<Record<string, AppItem[]>>((acc, a) => {
@@ -353,13 +380,22 @@ function StepPicker(props: {
           return acc;
         }, {})
       : null;
+    // Reordena pra obedecer `groupOrder` (legacy primeiro, IA depois,
+    // presets por último). Grupos desconhecidos vão pro final.
+    const groupedOrdered = grouped
+      ? Object.fromEntries(
+          [...groupOrder, ...Object.keys(grouped).filter((g) => !groupOrder.includes(g))]
+            .filter((g) => grouped[g])
+            .map((g) => [g, grouped[g]]),
+        )
+      : null;
 
     return (
       <div>
         <p className="text-[11px] text-zinc-500 mb-1.5">O que você quer?</p>
-        {grouped ? (
+        {groupedOrdered ? (
           <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-            {Object.entries(grouped).map(([g, list]) => (
+            {Object.entries(groupedOrdered).map(([g, list]) => (
               <div key={g}>
                 <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
                   {groupLabels[g] ?? g}

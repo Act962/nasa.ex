@@ -2,6 +2,7 @@ import { leadRoutes } from "./leads";
 import { statusRoutes } from "./status";
 import { trackingRoutes } from "./trackings";
 import { tagsRouter } from "./tags";
+import { tagGroupsRouter } from "./tag-groups";
 import { reasonsRouter } from "./reasons";
 import { orgRoutes } from "./org";
 import { workflowRoutes } from "./workflow";
@@ -62,6 +63,8 @@ import { commentsRouter } from "./comments";
 import { livekitRouter } from "./livekit";
 import { stickersRouter } from "./stickers";
 import { brandRouter } from "./brand";
+import { trackingPresetsRouter } from "./tracking-presets";
+import { agentsRouter } from "./agents";
 import { inChatRouter } from "./in-chat";
 
 export const router = {
@@ -70,6 +73,9 @@ export const router = {
   column: columnRoutes,
   leads: leadRoutes,
   tags: tagsRouter,
+  tagGroups: tagGroupsRouter,
+  trackingPresets: trackingPresetsRouter,
+  agents: agentsRouter,
   reasons: reasonsRouter,
   orgs: orgRoutes,
   workflow: workflowRoutes,

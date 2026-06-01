@@ -356,10 +356,25 @@ export async function processPaymentPartnerEffects(starsPaymentId: string) {
   if (!payment || payment.status !== "paid") return;
 
   // StarsPayment não tem relation com StarPackage no schema — busca explícita.
-  const pkg = await prisma.starPackage.findUnique({
-    where: { id: payment.packageId },
-  });
-  if (!pkg) return;
+  // Compra com quantidade customizada (packageId null) sintetiza o snapshot a
+  // partir do próprio pagamento — comissão de parceiro continua valendo.
+  const pkg = payment.packageId
+    ? await prisma.starPackage.findUnique({ where: { id: payment.packageId } })
+    : null;
+
+  const packageSnapshot = pkg
+    ? {
+        id: pkg.id,
+        label: pkg.label,
+        stars: pkg.stars,
+        priceBrl: pkg.priceBrl.toNumber(),
+      }
+    : {
+        id: payment.id,
+        label: `Stars avulso (${payment.starsAmount.toLocaleString("pt-BR")} ★)`,
+        stars: payment.starsAmount,
+        priceBrl: payment.amountBrl.toNumber(),
+      };
 
   const result = {
     commission: null as null | { id: string },
@@ -371,12 +386,7 @@ export async function processPaymentPartnerEffects(starsPaymentId: string) {
     starsPaymentId: payment.id,
     organizationId: payment.organizationId,
     amountBrl: payment.amountBrl.toNumber(),
-    package: {
-      id: pkg.id,
-      label: pkg.label,
-      stars: pkg.stars,
-      priceBrl: pkg.priceBrl.toNumber(),
-    },
+    package: packageSnapshot,
   });
   if (commission) result.commission = { id: commission.id };
 

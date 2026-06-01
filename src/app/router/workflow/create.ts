@@ -14,6 +14,14 @@ export const createWorkflow = base
       trackingId: z.string(),
       /** Opcional: cria já dentro de uma pasta. */
       folderId: z.string().nullish(),
+      /**
+       * Opcional: cria já com `agentMode: true`. Usado pelo Cmd+K quando
+       * o user escolhe um node do "Modo Agente IA" (WAIT_FOR_EVENT,
+       * AI_DECISION, SEND_EMAIL, etc) — esses nodes só funcionam em
+       * workflows com agentMode habilitado. Default = false (engine
+       * linear legado, compatível com fluxo atual).
+       */
+      agentMode: z.boolean().optional(),
     }),
   )
   .handler(async ({ context, input, errors }) => {
@@ -64,6 +72,7 @@ export const createWorkflow = base
           description: input.description,
           trackingId: input.trackingId,
           userId: context.user.id,
+          agentMode: input.agentMode ?? false,
           ...(foldersEnabled ? { folderId: input.folderId ?? null } : {}),
           nodes: {
             create: {
@@ -87,6 +96,7 @@ export const createWorkflow = base
               description: input.description,
               trackingId: input.trackingId,
               userId: context.user.id,
+              agentMode: input.agentMode ?? false,
               nodes: {
                 create: {
                   type: NodeType.INITIAL,

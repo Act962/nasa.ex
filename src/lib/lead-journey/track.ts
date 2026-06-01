@@ -10,6 +10,7 @@ export type LeadJourneyEventKind =
   | "appointment_no_show"
   | "status_changed"
   | "tag_added"
+  | "tag_removed"
   | "lead_assigned"
   | "linnker_scan"
   | "ctwa_referral"

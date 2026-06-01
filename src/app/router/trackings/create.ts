@@ -5,6 +5,7 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { requireOrgMiddleware } from "../../middlewares/org";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
+import { applyDefaultAgentPresets } from "@/features/workflows/lib/agent-presets/apply-default-presets";
 
 export const createTracking = base
   .use(requiredAuthMiddleware)
@@ -117,6 +118,22 @@ export const createTracking = base
       description: `Criou tracking "${tracking.name}"`,
       appSlug: "tracking",
     });
+
+    // Aplica workflows-padrão em Modo Agente IA (best-effort — não derruba
+    // o create se algum preset crashar). Workflows ficam `isActive=false`
+    // pra o operador editar placeholders e ativar manualmente.
+    const presetsCreated = await applyDefaultAgentPresets({
+      prisma,
+      organizationId: org.id,
+      trackingId: tracking.id,
+      userId: user.id,
+    });
+    if (presetsCreated.length > 0) {
+      console.log(
+        `[tracking-create] ${presetsCreated.length} preset(s) Agente IA aplicados em "${tracking.name}":`,
+        presetsCreated.map((p) => p.name).join(", "),
+      );
+    }
 
     return {
       trackingId: tracking.id,

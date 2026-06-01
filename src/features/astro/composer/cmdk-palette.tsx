@@ -85,12 +85,39 @@ export function CmdkPalette() {
 
   const handleDirectIntent = useCallback(
     async (intent: DirectIntentPayload) => {
+      // ── apply_preset: aplica blueprint inteiro (presets agent-mode) ─
+      // Backend já tem `applyDefaultAgentPresets` em
+      // src/features/workflows/lib/agent-presets/, mas ainda sem oRPC
+      // procedure dedicado por preset. Por enquanto, roteamos pro Astro
+      // chat com prompt natural — o Astro tem (ou terá) tool que aplica.
+      if (intent.type === "apply_preset") {
+        const trackingValue = intent.values.tracking;
+        const pastaValue = intent.values.pasta;
+        const presetSlug = intent.payload?.presetSlug;
+        if (!trackingValue?.entityLabel || !presetSlug) {
+          toast.error("Preencha o tracking pra aplicar o preset.");
+          return;
+        }
+        // Envia como utterance pro Astro — fluxo idêntico ao /home
+        const pastaPart = pastaValue?.entityLabel
+          ? ` na pasta "${pastaValue.entityLabel}"`
+          : "";
+        const prompt = `Aplique o preset "${presetSlug}" no tracking "${trackingValue.entityLabel}"${pastaPart}.`;
+        setLastInputWasVoice(false);
+        setPendingUtterance(prompt);
+        setOrbPhase("thinking");
+        router.push("/home");
+        setOpen(false);
+        return;
+      }
+
       if (intent.type !== "create_workflow") return;
 
       const trackingValue = intent.values.tracking;
       const nomeValue = intent.values.nome;
       const pastaValue = intent.values.pasta;
       const nodeType = intent.payload?.nodeType;
+      const agentMode = intent.payload?.agentMode === "true";
 
       if (!trackingValue?.entityId || !nomeValue?.raw || !nodeType) {
         toast.error("Preencha tracking + nome pra criar a automação.");
@@ -115,11 +142,12 @@ export function CmdkPalette() {
           }
         }
 
-        // 2. Cria o workflow (já com nome final + pasta)
+        // 2. Cria o workflow (já com nome final + pasta + agentMode se IA)
         const workflow = await createWorkflow.mutateAsync({
           name: nomeValue.raw,
           trackingId,
           folderId: folderId ?? undefined,
+          agentMode,
         });
 
         // 3. Invalida caches de list/folders pra próxima navegação trazer
@@ -138,7 +166,11 @@ export function CmdkPalette() {
         //    como query param `?addNode=<TYPE>` que o editor consome no
         //    mount pra pré-criar o nó conectado ao INITIAL.
         const nt = nodeType as keyof typeof NodeType;
-        toast.success(`Automação "${nomeValue.raw}" criada`);
+        toast.success(
+          agentMode
+            ? `Automação IA "${nomeValue.raw}" criada (Modo Agente ativo)`
+            : `Automação "${nomeValue.raw}" criada`,
+        );
         router.push(
           `/tracking/${trackingId}/workflows/${workflow.id}?addNode=${nt}`,
         );
@@ -149,7 +181,15 @@ export function CmdkPalette() {
         toast.error(msg);
       }
     },
-    [createFolder, createWorkflow, queryClient, router],
+    [
+      createFolder,
+      createWorkflow,
+      queryClient,
+      router,
+      setLastInputWasVoice,
+      setPendingUtterance,
+      setOrbPhase,
+    ],
   );
 
   const isPending = createFolder.isPending || createWorkflow.isPending;

@@ -21,6 +21,7 @@ import {
 import { partnerPayoutCloseCycle } from "@/inngest/functions/crons/partner-payout-close-cycle";
 import { partnerGracePeriodMonitor } from "@/inngest/functions/crons/partner-grace-period-monitor";
 import { starsGracePeriodMonitor } from "@/inngest/functions/crons/stars-grace-period-monitor";
+import { starsPendingSweep } from "@/inngest/functions/crons/stars-pending-sweep";
 import { coursePublicPurchasePaid } from "@/inngest/functions/course-public-purchase-paid";
 import { publishPostHandler } from "@/inngest/functions/nasa-planner/publish-post-handler";
 import { publishScheduledPosts } from "@/inngest/functions/nasa-planner/publish-scheduled-posts";
@@ -31,6 +32,7 @@ import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-st
 import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route-subscription-renew";
 import { nasaRouteVideoUploadsCleanup } from "@/inngest/functions/crons/nasa-route-video-uploads-cleanup";
 import { nasaRouteArchivePastEvents } from "@/inngest/functions/crons/nasa-route-archive-past-events";
+import { nasaRouteCartRecoveryCron } from "@/inngest/functions/crons/nasa-route-cart-recovery";
 import { onVideoUploadProgress } from "@/inngest/functions/nasa-route/on-video-upload-progress";
 import { onVideoUploadCompleted } from "@/inngest/functions/nasa-route/on-video-upload-completed";
 import { nasaRoutePurchaseEmail } from "@/inngest/functions/nasa-route/purchase-email";
@@ -57,6 +59,15 @@ import { replicateUserToNerp } from "@/inngest/functions/sync/replicate-user-to-
 import { replicateAccountToNerp } from "@/inngest/functions/sync/replicate-account-to-nerp";
 import { replicateOrgToNerp } from "@/inngest/functions/sync/replicate-org-to-nerp";
 import { replicateMemberToNerp } from "@/inngest/functions/sync/replicate-member-to-nerp";
+import {
+  autoAgentTickScheduledFn,
+  autoAgentOnLeadReplyFn,
+} from "@/inngest/functions/auto-agent-scheduler";
+import {
+  agentTriggerPaymentReceivedFn,
+  agentTriggerMessageIncomingFn,
+  agentTriggerWebhookExternalFn,
+} from "@/inngest/functions/agent-workflow-triggers";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -73,6 +84,8 @@ export const { GET, POST, PUT } = serve({
     partnerGracePeriodMonitor,
     // ── STARS grace monitor (diário 09h UTC) ──
     starsGracePeriodMonitor,
+    // ── STARS: varredura de pendências Stripe órfãs (de hora em hora) ──
+    starsPendingSweep,
     // ── NASA Router (checkout público de curso) ──
     coursePublicPurchasePaid,
     // ── NASA Planner ──
@@ -87,6 +100,7 @@ export const { GET, POST, PUT } = serve({
     nasaRouteSubscriptionRenew,
     nasaRouteVideoUploadsCleanup,
     nasaRouteArchivePastEvents,
+    nasaRouteCartRecoveryCron,
     onVideoUploadProgress,
     onVideoUploadCompleted,
     nasaRoutePurchaseEmail,
@@ -121,6 +135,13 @@ export const { GET, POST, PUT } = serve({
     replicateAccountToNerp,
     replicateOrgToNerp,
     replicateMemberToNerp,
+    // ── NASA Auto Agent — scheduler de turns assíncronos ──
+    autoAgentTickScheduledFn,
+    autoAgentOnLeadReplyFn,
+    // ── Modo Agente IA Visual — disparadores dos triggers novos ──
+    agentTriggerPaymentReceivedFn,
+    agentTriggerMessageIncomingFn,
+    agentTriggerWebhookExternalFn,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

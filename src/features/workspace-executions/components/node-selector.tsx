@@ -2,7 +2,7 @@
 
 import { NodeType } from "@/generated/prisma/enums";
 import { createId } from "@paralleldrive/cuid2";
-import { useReactFlow } from "@xyflow/react";
+import { useNodes, useReactFlow } from "@xyflow/react";
 import {
   Sheet,
   SheetContent,
@@ -17,6 +17,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useCallback } from "react";
 import { toast } from "sonner";
 import {
@@ -24,6 +30,44 @@ import {
   wsTriggerNodes,
   WsNodeTypeOption,
 } from "@/features/workspace-executions/lib/node-options";
+
+/** Card quadrado de node — mesmo padrão do node-selector principal. */
+function WsNodeCard({
+  node,
+  onClick,
+}: {
+  node: WsNodeTypeOption;
+  onClick: () => void;
+}) {
+  const Icon = node.icon;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          className="group flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-lg border bg-background p-2 transition-all hover:border-primary hover:bg-accent/50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          {typeof Icon === "string" ? (
+            <img
+              src={Icon}
+              alt={node.label}
+              className="size-6 object-contain rounded-sm"
+            />
+          ) : (
+            <Icon className="size-6 text-foreground group-hover:text-primary transition-colors" />
+          )}
+          <span className="text-[11px] font-medium leading-tight text-center line-clamp-2">
+            {node.label}
+          </span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-[220px]">
+        <p className="text-xs">{node.description}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 interface Props {
   open: boolean;
@@ -34,6 +78,11 @@ interface Props {
 
 export function WsNodeSelector({ open, onOpenChange, sourceId, children }: Props) {
   const { setNodes, getNodes, setEdges, screenToFlowPosition } = useReactFlow();
+  // Reativo — esconde a seção "Gatilhos" quando já existe um no workflow.
+  const reactiveNodes = useNodes();
+  const hasTriggerInWorkflow = reactiveNodes.some((n) =>
+    wsTriggerNodes.some((t) => t.type === n.type),
+  );
 
   const handleSelect = useCallback(
     (selection: WsNodeTypeOption) => {
@@ -95,86 +144,48 @@ export function WsNodeSelector({ open, onOpenChange, sourceId, children }: Props
             Selecione o tipo de nó para adicionar.
           </SheetDescription>
         </SheetHeader>
-        <Accordion
-          type="multiple"
-          defaultValue={["trigger", "execution"]}
-          className="w-full"
-        >
-          <AccordionItem value="trigger">
-            <AccordionTrigger className="px-4 pt-5 hover:no-underline">
-              Gatilhos
-            </AccordionTrigger>
-            <AccordionContent>
-              {wsTriggerNodes.map((nodeType) => {
-                const Icon = nodeType.icon;
-                return (
-                  <div
-                    key={nodeType.type}
-                    className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
-                    onClick={() => handleSelect(nodeType)}
-                  >
-                    <div className="flex items-center gap-6 w-full overflow-hidden">
-                      {typeof Icon === "string" ? (
-                        <img
-                          src={Icon}
-                          alt={nodeType.label}
-                          className="size-5 object-contain rounded-sm"
-                        />
-                      ) : (
-                        <Icon className="size-5" />
-                      )}
-                      <div className="flex flex-col items-start text-left">
-                        <span className="font-medium text-sm">
-                          {nodeType.label}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {nodeType.description}
-                        </span>
-                      </div>
-                    </div>
+        <TooltipProvider delayDuration={300}>
+          <Accordion
+            type="multiple"
+            defaultValue={["trigger", "execution"]}
+            className="w-full"
+          >
+            {!hasTriggerInWorkflow && (
+              <AccordionItem value="trigger">
+                <AccordionTrigger className="px-4 pt-5 hover:no-underline">
+                  Gatilhos
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-4 gap-2 px-4 pb-2">
+                    {wsTriggerNodes.map((nodeType) => (
+                      <WsNodeCard
+                        key={nodeType.type}
+                        node={nodeType}
+                        onClick={() => handleSelect(nodeType)}
+                      />
+                    ))}
                   </div>
-                );
-              })}
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="execution">
-            <AccordionTrigger className="px-4 pt-5 hover:no-underline">
-              Ações
-            </AccordionTrigger>
-            <AccordionContent>
-              {wsExecutionNodes.map((nodeType) => {
-                const Icon = nodeType.icon;
-                return (
-                  <div
-                    key={nodeType.type}
-                    className="w-full justify-start h-auto py-5 px-4 rounded-none cursor-pointer border-l-2 border-transparent hover:border-l-primary"
-                    onClick={() => handleSelect(nodeType)}
-                  >
-                    <div className="flex items-center gap-6 w-full overflow-hidden">
-                      {typeof Icon === "string" ? (
-                        <img
-                          src={Icon}
-                          alt={nodeType.label}
-                          className="size-5 object-contain rounded-sm"
-                        />
-                      ) : (
-                        <Icon className="size-5" />
-                      )}
-                      <div className="flex flex-col items-start text-left">
-                        <span className="font-medium text-sm">
-                          {nodeType.label}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {nodeType.description}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+            <AccordionItem value="execution">
+              <AccordionTrigger className="px-4 pt-5 hover:no-underline">
+                Ações
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="grid grid-cols-4 gap-2 px-4 pb-2">
+                  {wsExecutionNodes.map((nodeType) => (
+                    <WsNodeCard
+                      key={nodeType.type}
+                      node={nodeType}
+                      onClick={() => handleSelect(nodeType)}
+                    />
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </TooltipProvider>
       </SheetContent>
     </Sheet>
   );

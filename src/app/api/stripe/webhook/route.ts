@@ -16,8 +16,6 @@ import { randomBytes } from "node:crypto";
 import { constructWebhookEvent } from "@/lib/stripe";
 import prisma from "@/lib/prisma";
 import { purchaseTopUp, runMonthlyCycle } from "@/features/stars/lib/star-service";
-import { StarTransactionType } from "@/generated/prisma/client";
-import { processPaymentPartnerEffects } from "@/features/partner/lib/partner-service";
 import { inngest } from "@/inngest/client";
 import {
   finalizeStripePurchaseInTx,
@@ -56,7 +54,7 @@ export async function POST(req: NextRequest) {
       case "checkout.session.completed": {
         const session = event.data.object;
         const metadata = session.metadata ?? {};
-        const { organizationId, itemType, itemSlug, starsPaymentId } = metadata;
+        const { organizationId, itemType, itemSlug } = metadata;
 
         // ── Compra de curso (kind=course_purchase) ───────────────────────────
         // Aceita também o nome legado "course_public_purchase" para
@@ -88,40 +86,9 @@ export async function POST(req: NextRequest) {
           break;
         }
 
-        // ── New Stars gateway checkout (starsPaymentId present) ──────────────
-        if (starsPaymentId) {
-          const sp = await prisma.starsPayment.findUnique({ where: { id: starsPaymentId } });
-          if (sp && sp.status !== "paid") {
-            await prisma.starsPayment.update({
-              where: { id: starsPaymentId },
-              data:  { status: "paid", externalId: session.id },
-            });
-            await purchaseTopUp(sp.organizationId, sp.packageId);
-
-            // ── NASA Partner: comissão + auditoria de compra com desconto ──
-            try {
-              await processPaymentPartnerEffects(starsPaymentId);
-            } catch (err) {
-              console.error("[stripe/webhook] partner effects failed:", err);
-            }
-
-            const posthog = getPostHogClient();
-            posthog.capture({
-              distinctId: sp.organizationId,
-              event: "stars_topup_purchased",
-              properties: {
-                organization_id: sp.organizationId,
-                package_id: sp.packageId,
-                stars_amount: sp.starsAmount,
-                stars_payment_id: starsPaymentId,
-              },
-            });
-            await posthog.shutdown();
-
-            console.log(`[stripe/webhook] ✅ ${sp.starsAmount} stars credited via gateway checkout`);
-          }
-          break;
-        }
+        // ── Recarga de Stars via Stripe ──────────────────────────────────────
+        // Movida para o endpoint dedicado `/api/stars/webhook` (kind=stars_topup).
+        // Este webhook não credita mais Stars do novo fluxo de gateway.
 
         // ── Legacy flow (organizationId in metadata) ──────────────────────────
         if (!organizationId) break;
@@ -367,6 +334,47 @@ export async function POST(req: NextRequest) {
       default:
         // Ignorar eventos não tratados
         break;
+    }
+
+    // ── Modo Agente IA: dispara workflows com PAYMENT_RECEIVED ─────────
+    // Best-effort — falha aqui NÃO derruba o webhook. Inngest function
+    // `agentTriggerPaymentReceivedFn` consome e fan-out.
+    if (
+      event.type === "checkout.session.completed" ||
+      event.type === "invoice.payment_succeeded" ||
+      event.type === "payment_intent.succeeded"
+    ) {
+      const obj = event.data.object as unknown as Record<string, unknown>;
+      const metadata = (obj.metadata as Record<string, string> | undefined) ?? {};
+      const organizationId = metadata.organizationId;
+      const leadId = metadata.leadId ?? null;
+      const trackingId = metadata.trackingId ?? null;
+      const externalId =
+        (obj.id as string) ?? (obj.payment_intent as string) ?? "";
+      const amount =
+        typeof obj.amount_total === "number"
+          ? obj.amount_total
+          : typeof obj.amount_paid === "number"
+            ? obj.amount_paid
+            : undefined;
+
+      if (organizationId && externalId) {
+        try {
+          const { dispatchPaymentReceived } = await import(
+            "@/features/workflows/lib/agent-trigger-helpers"
+          );
+          await dispatchPaymentReceived({
+            provider: "STRIPE",
+            externalId,
+            organizationId,
+            trackingId,
+            leadId,
+            amount,
+          });
+        } catch (err) {
+          console.error("[stripe/webhook] agent dispatch failed", err);
+        }
+      }
     }
   } catch (err) {
     console.error("[stripe/webhook] handler error:", err);

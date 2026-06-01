@@ -1,4 +1,4 @@
-import { sendWorkflowExecution } from "@/inngest/utils";
+import { dispatchAiFinished, broadcastAgentWorkflowEvent } from "@/inngest/utils";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -58,14 +58,19 @@ export async function POST(request: Request) {
 
   await Promise.all(
     workflow.map((workflow) =>
-      sendWorkflowExecution({
+      dispatchAiFinished({
         workflowId: workflow.id,
-        initialData: {
-          lead,
-        },
+        lead,
       }),
     ),
   );
+
+  // Broadcast pra WAIT_FOR_EVENT preset "ai-finished"
+  await broadcastAgentWorkflowEvent({
+    event: "ai-finished",
+    leadId: lead.id,
+    trackingId,
+  });
 
   return NextResponse.json({
     status: "success",

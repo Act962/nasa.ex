@@ -22,6 +22,7 @@ import { connectNodesTool } from "./tools/connect-nodes";
 import { executeWorkflowTool } from "./tools/execute-workflow";
 import { getWorkflowTool } from "./tools/get-workflow";
 import { updateWorkflowTool } from "./tools/update-workflow";
+import { buildWorkflowTools } from "@/features/astro/server/tools/workflows";
 
 export const createLeadWithAi = base
   .use(requiredAuthMiddleware)
@@ -59,20 +60,38 @@ export const createLeadWithAi = base
 
         "REGRAS DE RESPOSTA E FLUXO — AUTOMAÇÕES:",
         "- **LISTAR**: Use `listWorkflows` para ver automações existentes.",
-        "- **CRIAR AUTOMAÇÃO**: Siga SEMPRE esta sequência:",
-        "  1. `createWorkflow` → cria o workflow com nome e descrição",
-        "  2. `addNode` → adicione o nó de TRIGGER (ex: NEW_LEAD, MANUAL_TRIGGER)",
-        "  3. `addNode` → adicione cada nó de EXECUÇÃO na ordem desejada",
-        "  4. `connectNodes` → conecte trigger→primeira ação, depois cada ação→próxima",
-        "  5. `getWorkflow` → confirme o que foi criado",
-        "- **EDITAR AUTOMAÇÃO**: Use `updateWorkflow` para alterar nome e/ou descrição de uma automação existente. Antes de editar, use `listWorkflows` para confirmar o workflowId correto se o usuário referenciar a automação pelo nome.",
+        "",
+        "- **CRIAR AUTOMAÇÃO** — 3 caminhos, escolha o melhor pra cada caso:",
+        "",
+        "  🚀 **CAMINHO 1 (PREFERIDO pra fluxos novos)**: `generate_workflow_from_intent`",
+        "  - Use quando o user descreve um workflow COMPLETO em linguagem natural ('quando lead recebe tag X, mandar proposta, esperar 3d, se aceitou contrato, senão cobrar 4 vezes').",
+        "  - 1 chamada cria workflow inteiro + tags novas + nós em vermelho onde falta decisão (IDs de produtos/agendas/users).",
+        "  - Workflow nasce INATIVO — user revisa no canvas e ativa.",
+        "  - Suporta os 22 nodes agent-mode: WAIT_FOR_EVENT (race multi), AI_DECISION (com fallback), SEND_EMAIL, SEND_PROPOSAL, SEND_CONTRACT, CHECK_PAYMENT, IF_CONDITION, SWITCH_CASE, LOOP_OVER, etc.",
+        "",
+        "  📦 **CAMINHO 2**: `list_workflow_presets` → `apply_workflow_preset`",
+        "  - Use quando o user pede algo que JÁ existe como preset (proposta-contrato, boas-vindas-nasa-route, agendamento, closer-followup).",
+        "  - Chame `list_workflow_presets` primeiro pra mostrar opções, depois `apply_workflow_preset` com o slug certo.",
+        "  - Mais rápido e validado que generate. Workflow já vem com 30 nós testados em produção.",
+        "",
+        "  🛠️ **CAMINHO 3 (legado, EVITAR)**: `createWorkflow` + loop de `addNode` + `connectNodes`",
+        "  - Só use pra workflows SIMPLES (1-3 nós) que NÃO casam com presets nem precisam de geração inteira.",
+        "  - Pra qualquer fluxo > 3 nós, PREFIRA generate ou apply_preset.",
+        "  - Sequência: createWorkflow → addNode trigger → addNode ações → connectNodes pares.",
+        "",
+        "- **EDITAR AUTOMAÇÃO**: Use `updateWorkflow` para alterar nome e/ou descrição de uma automação existente. Antes de editar, use `listWorkflows` para confirmar o workflowId correto se o usuário referenciar a automação pelo nome. Pra adicionar nós num workflow existente, use `addNode` + `connectNodes`.",
         "- **EXECUTAR**: Use `executeWorkflow` apenas para workflows com gatilho MANUAL_TRIGGER.",
         "- **VERIFICAR**: Use `getWorkflow` para inspecionar nós e conexões de um workflow.",
-        "- Ao criar automação, NUNCA pule a etapa de conectar os nós.",
-        "- Conclua toda a sequência antes de responder ao usuário.",
         "- **AUTOMAÇÃO NÃO ENCONTRADA**: Se o usuário quiser modificar/visualizar uma automação e não especificou qual, ou `getWorkflow` retornar não encontrado: chame `listWorkflows` imediatamente, exiba a lista e pergunte SOMENTE qual automação deseja. NÃO peça nome, telefone ou email nesse contexto.",
         "- **DADOS INSUFICIENTES PARA AUTOMAÇÃO**: Se faltar o nome ou objetivo da automação para criá-la, pergunte SOMENTE o nome e o objetivo. Não misture com perguntas sobre leads.",
-        `- **LINK DE VISUALIZAÇÃO**: Após qualquer criação ou modificação bem-sucedida de workflow, SEMPRE inclua no final da resposta um link Markdown: [Ver automação →](/tracking/${trackingId}/workflows/WORKFLOW_ID) — substitua WORKFLOW_ID pelo ID retornado pela tool.`,
+        `- **LINK DE VISUALIZAÇÃO**: Após criar/modificar workflow, SEMPRE inclua o link no formato [Abrir e revisar →](/tracking/${trackingId}/workflows/WORKFLOW_ID). Quando vier de generate, mencione os nós em VERMELHO que precisam de revisão.`,
+        "",
+        "**RESUMO DE NODES AGENT-MODE** (use SOMENTE no generate — o caminho 3 legado não suporta todos):",
+        "- Triggers extras: PAYMENT_RECEIVED, MESSAGE_INCOMING, WEBHOOK_EXTERNAL, LAST_INBOUND_TIMEOUT",
+        "- Lógica: IF_CONDITION, SWITCH_CASE, LOOP_OVER, MERGE, WAIT_FOR_EVENT (race entre N eventos)",
+        "- IA: AI_DECISION (com fallback heurístico event-match), AI_GENERATE_TEXT, AI_VISION, READ_PDF, WEB_SEARCH",
+        "- Dados: SET_VARIABLE, CALL_WORKFLOW",
+        "- Apps: CHECK_PAYMENT (Stripe/Stars), SEND_VOICE (TTS), SEND_MEDIA (img/vid/PDF), SEND_EMAIL (Resend + React Email)",
 
         "PARÂMETROS POR TIPO DE NÓ (use como referência ao chamar addNode):",
         "TRIGGERS:",
@@ -106,8 +125,46 @@ export const createLeadWithAi = base
         `- Usuário ID: ${userId}`,
       ].join("\n");
 
+      // Tools generativas de workflow (mesmas do Astro home). Recebem
+      // ctx mínimo — userId, organizationId, route com trackingId pra
+      // que generate/apply/list saibam onde criar. Reusam o pipeline
+      // de blueprint → tags → workflow + isActive=false.
+      const generativeWorkflowTools = buildWorkflowTools({
+        userId,
+        organizationId: orgId,
+        route: { trackingId } as never,
+      });
+
+      // gpt-4o-mini é insuficiente pra orquestrar generate_workflow_from_intent
+      // que tem schema complexo. Subimos pra 4o quando o user pede algo
+      // de workflow (heurística simples). Mini permanece pra leads/CRUD.
+      const lastUserText = (() => {
+        for (let i = messages.length - 1; i >= 0; i--) {
+          const m = messages[i]!;
+          if (m.role !== "user") continue;
+          const parts = (m as { parts?: unknown[] }).parts ?? [];
+          return parts
+            .filter(
+              (p): p is { type: string; text: string } =>
+                typeof p === "object" &&
+                p !== null &&
+                (p as { type?: unknown }).type === "text" &&
+                typeof (p as { text?: unknown }).text === "string",
+            )
+            .map((p) => p.text)
+            .join(" ");
+        }
+        return "";
+      })();
+      const isComplexWorkflowRequest =
+        /\b(automa|workflow|cad[êe]ncia|fluxo|preset|gera|monta|cria.*funil)\b/i.test(
+          lastUserText,
+        ) && lastUserText.length > 60;
+
       const result = streamText({
-        model: openai("gpt-4.1-nano"),
+        model: openai(
+          isComplexWorkflowRequest ? "gpt-4o" : "gpt-4.1-nano",
+        ),
         messages: [
           { role: "system", content: systemPrompt },
           ...(await convertToModelMessages(messages)),
@@ -127,6 +184,8 @@ export const createLeadWithAi = base
           executeWorkflow: executeWorkflowTool(trackingId),
           getWorkflow: getWorkflowTool(),
           updateWorkflow: updateWorkflowTool(),
+          // ── IA Generativa (workflow inteiro de uma vez) ──────────
+          ...generativeWorkflowTools,
         },
       });
 

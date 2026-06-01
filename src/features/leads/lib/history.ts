@@ -60,6 +60,10 @@ const TYPE_TO_KIND: Partial<Record<LeadEventType, LeadJourneyEventKind>> = {
   FORM_STARTED: "form_submit",
   FORM_SUBMITTED: "form_submit",
   TAG_ADDED: "tag_added",
+  // TAG_REMOVED agora também vai pro journey — antes era silenciosamente
+  // ignorado (bug histórico). Necessário pra Jornada do lead mostrar
+  // operações de remoção, incluindo as feitas via automation.
+  TAG_REMOVED: "tag_removed",
 };
 
 const PUBLIC_TIMELINE_EVENTS: ReadonlySet<LeadEventType> = new Set<LeadEventType>([

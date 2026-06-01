@@ -36,6 +36,7 @@ model User {
   responsibleOnLeads                 Lead[]                       @relation("LeadResponsible")
   worflows                           Workflow[]
   workflowFolders                    WorkflowFolder[]
+  archivedTags                       Tag[]                        @relation("TagArchiver")
   chatPreferences                    UserChatPreferences?
   forms                              Form[]
   leadFiles                          LeadFile[]
@@ -131,6 +132,12 @@ model User {
 
   // ── Tracking Chat — figurinhas personalizadas do composer ──
   userStickers UserSticker[]
+
+  // ── Tracking Presets — aplicações feitas por este user ──
+  trackingPresetApplications TrackingPresetApplication[]
+
+  // ── NASA Auto Agent — agentes criados por este user ──
+  autoAgentsCreated Agent[] @relation("AgentCreator")
 
   @@unique([email])
   @@map("user")
@@ -250,6 +257,7 @@ model Organization {
   inviteLinks            OrganizationInviteLink[]
   trackings              Tracking[]
   tags                   Tag[]
+  tagGroups              TagGroup[]
   whatsappInstances      WhatsAppInstance[]
   actions                Action[]
   insightShares          InsightShares[]
@@ -399,6 +407,13 @@ model Organization {
   // ── Tracking Chat — figurinhas personalizadas do composer ──
   userStickers UserSticker[]
 
+  // ── Tracking Presets — auditoria de aplicações de padrões NASA ──
+  trackingPresetApplications TrackingPresetApplication[]
+
+  // ── NASA Auto Agent — agentes IA autônomos da org ──
+  autoAgents        Agent[]
+  leadAgentSessions LeadAgentSession[]
+
   @@unique([slug])
   @@map("organization")
 }
@@ -528,6 +543,12 @@ model Tracking {
   cardConfig          TrackingCardConfig?
   idleAutomation      TrackingIdleAutomation?
   aiChatRuns          AiChatRun[]
+
+  // Tracking Presets — quais aplicações deste preset originaram este tracking
+  presetApplications TrackingPresetApplication[]
+
+  // NASA Auto Agent — agentes específicos deste tracking
+  autoAgents Agent[]
 
   @@map("tracking")
 }
@@ -930,6 +951,9 @@ model Lead {
   @@index([email])
   @@index([phone])
   @@index([createdAt])
+  // NASA Auto Agent — sessões abertas pra este lead
+  agentSessions LeadAgentSession[]
+
   @@index([currentAction])
   @@index([isActive])
   @@index([responsibleId])
@@ -957,9 +981,22 @@ model Tag {
 
   whatsappId String? @map("whatsapp_id")
 
+  /// Soft delete — tag arquivada não aparece em pickers/criação de eventos
+  /// novos, mas continua resolvível em queries de histórico (Jornada, Insights,
+  /// /contatos, Detalhes do lead). `purge` é o único caminho pra hard-delete.
+  archivedAt   DateTime? @map("archived_at")
+  archivedById String?   @map("archived_by_id")
+
+  /// Grupo opcional pra agrupar visualmente (ex: "Estética" / "Mecânica").
+  /// Null = "Sem categoria". Tags mantêm cor própria mesmo quando agrupadas;
+  /// o grupo só adiciona contexto/badge visual ao redor.
+  tagGroupId String? @map("tag_group_id")
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   tracking     Tracking?    @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   agenda       Agenda?      @relation(fields: [agendaId], references: [id], onDelete: SetNull)
+  archivedBy   User?        @relation("TagArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  tagGroup     TagGroup?    @relation(fields: [tagGroupId], references: [id], onDelete: SetNull)
   leadTags     LeadTag[]
 
   // 👈 Importante: nome único por contexto
@@ -968,7 +1005,31 @@ model Tag {
   @@index([organizationId])
   @@index([trackingId])
   @@index([agendaId])
+  @@index([organizationId, archivedAt])
+  @@index([tagGroupId])
   @@map("tags")
+}
+
+/// Agrupamento visual de tags por organização (ex: "Estética" cor azul ↔
+/// "Mecânica" cor laranja em oficinas). Cor do grupo é informativa — tags
+/// dentro mantêm sua própria cor. Operações em grupo: criar, renomear,
+/// reordenar, deletar (com SET NULL nas tags filhas → "Sem categoria").
+model TagGroup {
+  id             String   @id @default(cuid())
+  name           String
+  color          String   @default("#6366f1")
+  icon           String?
+  organizationId String   @map("organization_id")
+  order          Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tags         Tag[]
+
+  @@unique([name, organizationId])
+  @@index([organizationId, order])
+  @@map("tag_groups")
 }
 
 model LeadTag {
@@ -1540,21 +1601,98 @@ model Workflow {
   workspaceId String?  @map("workspace_id")
   folderId    String?  @map("folder_id")
   isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  /// Modo Agente IA — habilita multi-gatilhos, branches condicionais (IF/SWITCH),
+  /// loops, AI Decision nodes, wait-for-event, sub-workflows e conexão de volta
+  /// pro gatilho. Quando false, mantém comportamento clássico (1 trigger + N
+  /// ações lineares via topo-sort no workspace-workflow-executor). Quando true,
+  /// engine delega pro run-workflow.ts (DAG executor com fan-out por
+  /// Connection.fromOutput).
+  agentMode      Boolean @default(false) @map("agent_mode")
+  /// Rate limit de execuções por hora pra evitar loop infinito. Cap aplicado
+  /// pelo workflow-rate-limiter Inngest function. Default 60 (1/min médio).
+  maxRunsPerHour Int     @default(60) @map("max_runs_per_hour")
+  /// Linkado opcionalmente ao Agent (Auto Agent). null = workflow comum.
+  /// Quando setado, o Agent delega execução pra este workflow em vez da
+  /// spec linear em Agent.spec.goals[].
+  agentId        String? @map("agent_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   user      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   tracking  Tracking?       @relation(fields: [trackingId], references: [id], onDelete: Cascade)
   workspace Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   folder    WorkflowFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  agent     Agent?          @relation("AgentWorkflow", fields: [agentId], references: [id], onDelete: SetNull)
 
   nodes       Node[]
   connections Connection[]
+  runs        WorkflowRun[]
 
   @@index([trackingId])
   @@index([workspaceId])
   @@index([folderId])
+  @@index([agentId])
+  @@index([agentMode, isActive])
   @@map("workflows")
+}
+
+/// Auditoria de cada execução de Workflow no Modo Agente IA. Persiste timeline
+/// dos nodes visitados, decisões da IA, custo em Stars. Usado pelo Inspector
+/// no canvas pra mostrar histórico ("Workflow rodou 47x; última decisão IA
+/// foi pra branch 'true'"). Cap absoluto: 100 node-executions por run.
+model WorkflowRun {
+  id            String   @id @default(cuid())
+  workflowId    String   @map("workflow_id")
+  /// Lead/contexto que disparou (se aplicável). Workflows org-wide podem ter null.
+  leadId        String?  @map("lead_id")
+  /// Trigger que iniciou ("NEW_LEAD", "LEAD_TAGGED", "PAYMENT_RECEIVED", "DRY_RUN").
+  triggerType   String   @map("trigger_type")
+  /// Snapshot do contexto inicial (lead, vars, payload do evento).
+  initialContext Json    @default("{}") @map("initial_context")
+  /// Status: RUNNING | SUCCESS | FAILED | RATE_LIMITED | MAX_EXECUTIONS_HIT | DRY_RUN
+  status        String   @default("RUNNING")
+  /// Total de nodes executados (cap 100).
+  nodesExecuted Int      @default(0) @map("nodes_executed")
+  /// Stars cobrados nesta run.
+  starsSpent    Int      @default(0) @map("stars_spent")
+  /// Mensagem de erro / motivo da parada.
+  errorMessage  String?  @map("error_message")
+  startedAt     DateTime @default(now()) @map("started_at")
+  finishedAt    DateTime? @map("finished_at")
+
+  workflow Workflow          @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  nodeRuns WorkflowNodeRun[]
+
+  @@index([workflowId, startedAt(sort: Desc)])
+  @@index([leadId])
+  @@index([status])
+  @@map("workflow_runs")
+}
+
+/// Um node-execution dentro de uma WorkflowRun. Permite reconstruir a timeline
+/// e debugar fluxos visualmente. Pra IF_CONDITION/SWITCH_CASE/AI_DECISION,
+/// `chosenOutput` registra qual branch foi escolhida.
+model WorkflowNodeRun {
+  id            String   @id @default(cuid())
+  runId         String   @map("run_id")
+  nodeId        String   @map("node_id")
+  /// NodeType resolvido na hora (snapshot — node pode mudar depois).
+  nodeType      String   @map("node_type")
+  /// "main" | "true" | "false" | "case_X" | "loop" | "done" | "success" | "error"
+  chosenOutput  String?  @map("chosen_output")
+  /// Resultado/output do node passado adiante (merged no context).
+  output        Json     @default("{}")
+  /// Status: SUCCESS | FAILED | SKIPPED | WAITING
+  status        String   @default("SUCCESS")
+  errorMessage  String?  @map("error_message")
+  startedAt     DateTime @default(now()) @map("started_at")
+  finishedAt    DateTime? @map("finished_at")
+
+  run WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, startedAt])
+  @@index([nodeId])
+  @@map("workflow_node_runs")
 }
 
 /// Pasta pra agrupar workflows dentro de um tracking. Workflows com
@@ -1603,6 +1741,37 @@ enum NodeType {
 
   // Utils
   FILTER_LEAD
+
+  // ─── Modo Agente IA (N8n-style) ─────────────
+  // Lógica: branches, loops e merges. Connection.fromOutput vira semântico:
+  // IF_CONDITION → "true"|"false", SWITCH_CASE → "case_<X>", LOOP_OVER → "loop"|"done".
+  IF_CONDITION
+  SWITCH_CASE
+  LOOP_OVER
+  MERGE
+  WAIT_FOR_EVENT
+
+  // IA: nós que chamam LLM em pontos específicos do grafo.
+  AI_DECISION       // Astro escolhe próxima branch baseado em contexto
+  AI_GENERATE_TEXT  // gera mensagem contextualizada (chama nome, etc)
+  AI_VISION         // analisa imagem do lead (Claude Vision)
+  READ_PDF          // extrai texto via pdf-parse + LLM
+
+  // Dados
+  SET_VARIABLE      // {{var}} no contexto do workflow
+  CALL_WORKFLOW     // sub-workflow
+
+  // Apps NASA / Pagamento / Mídia
+  CHECK_PAYMENT     // consulta StripePurchase/AsaasCharge
+  SEND_VOICE        // TTS Astro → áudio WhatsApp
+  SEND_MEDIA        // imagem/vídeo/áudio/documento WhatsApp
+  SEND_EMAIL        // email transacional via Resend + React Email
+  WEB_SEARCH        // busca web via Gemini Grounding / OpenAI Search
+
+  // Triggers novos (multi-trigger num só workflow)
+  PAYMENT_RECEIVED
+  MESSAGE_INCOMING
+  WEBHOOK_EXTERNAL
 
   // ─── Adicionar Lead no App (Sprint Automações) ──
   // Categoria visual "Adicionar Lead no App" no NodeSelector — cada uma
@@ -3697,18 +3866,21 @@ model PaymentGatewayConfig {
 
 /// Tracks individual Stars purchase payment attempts
 model StarsPayment {
-  id             String   @id @default(cuid())
-  userId         String   @map("user_id")
-  organizationId String   @map("organization_id")
-  packageId      String   @map("package_id")
-  starsAmount    Int      @map("stars_amount")
-  amountBrl      Decimal  @map("amount_brl")
-  provider       String
-  externalId     String?  @map("external_id")
-  status         String   @default("pending") // pending | paid | failed | expired
-  metadata       Json     @default("{}")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id                    String    @id @default(cuid())
+  userId                String    @map("user_id")
+  organizationId        String    @map("organization_id")
+  packageId             String?   @map("package_id") // null = compra com quantidade customizada
+  starsAmount           Int       @map("stars_amount")
+  amountBrl             Decimal   @map("amount_brl")
+  provider              String
+  externalId            String?   @map("external_id") // Stripe session id / Asaas charge id
+  stripePaymentIntentId String?   @map("stripe_payment_intent_id") // lookup do charge.refunded + fallback payment_intent.succeeded
+  status                String    @default("pending") // pending | paid | failed | expired | refunded
+  paidAt                DateTime? @map("paid_at")
+  refundedAt            DateTime? @map("refunded_at")
+  metadata              Json      @default("{}")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   gatewayConfig PaymentGatewayConfig? @relation(fields: [gatewayId], references: [id])
   gatewayId     String?               @map("gateway_id")
@@ -3720,8 +3892,19 @@ model StarsPayment {
   @@index([userId])
   @@index([organizationId])
   @@index([externalId])
+  @@index([stripePaymentIntentId])
   @@index([status])
   @@map("stars_payment")
+}
+
+/// Dedupe de eventos Stripe por event.id — evita reprocessar entregas duplicadas.
+model ProcessedStripeEvent {
+  id        String   @id // Stripe event.id (evt_...)
+  type      String
+  source    String   @default("stars")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("processed_stripe_event")
 }
 
 // ─────────────────────────────────────────────
@@ -5640,6 +5823,9 @@ enum PendingCoursePurchaseStatus {
   EXPIRED
   REFUNDED
   CANCELLED
+  // ABANDONED — cron de recuperação de carrinho marcou após 30+ dias
+  // sem pagamento. Sinaliza pro cron parar de tentar enviar emails.
+  ABANDONED
 }
 
 // Compra de curso iniciada por usuário sem conta. Após pagamento confirmado
@@ -5670,6 +5856,13 @@ model PendingCoursePurchase {
   redeemedAt            DateTime?                   @map("redeemed_at")
   redeemedByUserId      String?                     @map("redeemed_by_user_id")
   redeemedEnrollmentId  String?                     @map("redeemed_enrollment_id")
+  // ─── Recuperação de carrinho (cron nasa-route-cart-recovery) ───
+  // Última vez que enviamos email de recuperação. Cron usa pra decidir
+  // qual estágio mandar agora (D+1/D+3/D+7/D+15) e pra não duplicar.
+  lastReminderSentAt    DateTime?                   @map("last_reminder_sent_at")
+  // Qual estágio foi enviado por último (pra não pular nem repetir).
+  // Valores: "d1" | "d3" | "d7" | "d15" | null (nenhum ainda).
+  lastReminderStage     String?                     @map("last_reminder_stage")
 
   course         NasaRouteCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
   plan           NasaRoutePlan?  @relation(fields: [planId], references: [id], onDelete: SetNull)
@@ -6299,4 +6492,196 @@ model AiKnowledgeChunk {
   @@index([organizationId])
   @@index([knowledgeId])
   @@map("ai_knowledge_chunk")
+}
+
+// ── Tracking Presets — catálogo NASA de padrões prontos ──────────────────────
+//
+// Padrões curados pelo time NASA que, ao aplicar, criam pra org um tracking
+// completo: status, tags, tagGroups, workflows com nodes corretamente
+// remapeados (slug → id real). Resolve o bug latente da duplicação atual
+// que copiava node.data intacto.
+//
+// 4 paradigmas: REATIVO, PROATIVO, PREDITIVO, AUTOATENDIMENTO.
+// Cada preset carrega prompt sugerido pra AiSettings da org.
+
+enum TrackingPresetParadigm {
+  REATIVO
+  PROATIVO
+  PREDITIVO
+  AUTOATENDIMENTO
+}
+
+model TrackingPreset {
+  id          String                 @id @default(cuid())
+  /// Identificador estável (ex: "closer-comercial-reativo")
+  slug        String                 @unique
+  name        String
+  description String?
+  paradigm    TrackingPresetParadigm
+  /// Lucide icon name (ex: "Target") ou URL de imagem
+  icon        String?
+  color       String?
+  order       Int                    @default(0)
+  /// Spec completo — validado por Zod no apply (preset-spec.schema.ts)
+  spec        Json
+  /// false = oculto do catálogo público (draft em construção pelo time)
+  isPublic    Boolean                @default(true) @map("is_public")
+  /// Stars cobradas ao aplicar (default 0 — promo inicial)
+  starsCost   Int                    @default(0) @map("stars_cost")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+
+  applications TrackingPresetApplication[]
+
+  @@index([paradigm, order])
+  @@map("tracking_presets")
+}
+
+/// Auditoria de aplicações de preset. Permite analytics (qual preset mais
+/// usado), forensics (qual user aplicou qual preset onde) e potencial
+/// "atualização" (re-aplicar versão nova do mesmo preset).
+model TrackingPresetApplication {
+  id             String         @id @default(cuid())
+  presetId       String         @map("preset_id")
+  preset         TrackingPreset @relation(fields: [presetId], references: [id], onDelete: Cascade)
+  organizationId String         @map("organization_id")
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  trackingId     String         @map("tracking_id")
+  tracking       Tracking       @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  appliedById    String?        @map("applied_by_id")
+  appliedBy      User?          @relation(fields: [appliedById], references: [id], onDelete: SetNull)
+  /// "create" (novo tracking) | "merge" (mesclou em existente)
+  mode           String
+  /// Resumo do que foi criado: counts + IDs dos recursos novos/reusados
+  result         Json
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  @@index([organizationId, createdAt])
+  @@index([presetId])
+  @@map("tracking_preset_applications")
+}
+
+// ── NASA Auto Agent — Agente IA Autônomo ─────────────────────────────────────
+//
+// Camada de orquestração orientada a OBJETIVOS sobre a infra de IA existente
+// (tracking-chat-ai, Astro, AiAgentConfig). User configura via prompt em
+// linguagem natural, Astro traduz em spec executável, motor roda turns
+// usando tools (sendMessage, addTags, sendProposal, etc).
+//
+// Pausa global: usa AiAgentConfig com agentKey="nasa-auto-agent" — toggle
+// em /settings/astro já existente desliga TODOS os agentes da org.
+// Pausa individual: Agent.isActive controla cada agente separado.
+//
+// Salvaguardas: maxAttempts (max follow-ups), maxStarsPerLead (cap de custo),
+// cooldownMinutes (anti-spam), stopWords (compliance). Loop detection via
+// cosine similarity entre mensagens (Fase 4).
+
+enum LeadAgentSessionStatus {
+  /// Agente está perseguindo goal ativo (rodando turns)
+  ACTIVE
+  /// Aguardando próximo follow-up agendado (sleeping no Inngest)
+  WAITING
+  /// Suspenso (operador pausou OU stop word detectada)
+  PAUSED
+  /// Goal final alcançado (success ou max_attempts)
+  COMPLETED
+  /// Transferido pra humano (stop word, budget exceeded, etc)
+  TRANSFERRED
+}
+
+model Agent {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  /// null = agente org-wide (atua em qualquer tracking)
+  trackingId     String? @map("tracking_id")
+  name           String
+  description    String?
+  /// Prompt original em linguagem natural (pedido inicial do user).
+  /// Editável depois — re-gera spec quando muda.
+  rawPrompt      String  @db.Text @map("raw_prompt")
+  /// "Manual" da IA — separado do rawPrompt. Aqui o user TREINA a IA:
+  /// o que pode/não pode fazer, tom de voz, info da empresa, restrições
+  /// éticas, dados de contato. Concatenado com goal atual no system prompt
+  /// final que vai pro LLM em cada turn.
+  systemInstructions String @db.Text @default("") @map("system_instructions")
+  /// Spec executável gerado pela Astro a partir de rawPrompt+systemInstructions.
+  /// Estrutura: { goals: [...], allowedTools: [...], contextVars: [...] }
+  /// Validado por Zod em src/features/auto-agent/lib/agent-spec.schema.ts
+  spec           Json
+  /// AUTO | SEMI | MANUAL. AUTO = sem aprovação, SEMI = aprova críticas,
+  /// MANUAL = aprova tudo. Default AUTO (decisão do user).
+  mode           String  @default("AUTO")
+  /// Toggle individual deste agent. AiAgentConfig.enabled controla global.
+  isActive       Boolean @default(false) @map("is_active")
+  /// Schedule de follow-ups (dias após última msg). Configurável livre.
+  /// Default [1,3,5,7]. User pode mudar pra [2,5,10,30] ou qualquer outro.
+  /// attemptCount da session indexa esse array.
+  followUpSchedule Int[]  @default([1, 3, 5, 7]) @map("follow_up_schedule")
+  /// Cap de follow-ups antes de marcar COMPLETED (default = length do schedule).
+  maxAttempts        Int  @default(4)  @map("max_attempts")
+  /// Cap cumulativo de Stars por lead — atingiu, TRANSFERRED pra humano.
+  maxStarsPerLead    Int  @default(50) @map("max_stars_per_lead")
+  /// Mínimo de minutos entre 2 mensagens do agente pro mesmo lead.
+  cooldownMinutes    Int  @default(30) @map("cooldown_minutes")
+  /// Palavras-chave que disparam TRANSFERRED (case-insensitive contém).
+  stopWords          String[] @default(["não quero", "remover", "sair", "spam", "parar", "stop"]) @map("stop_words")
+  createdById        String? @map("created_by_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tracking     Tracking?          @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  createdBy    User?              @relation("AgentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  sessions     LeadAgentSession[]
+  /// Workflows visuais ligados (Modo Agente IA). Quando setado em algum
+  /// Workflow, esse workflow vira o "cérebro" do agent — runAgentTurn delega
+  /// pra ele. Manter como hasMany pra futuro: agent pode ter workflows
+  /// auxiliares (qualificação, follow-up, pós-venda separados).
+  workflows    Workflow[] @relation("AgentWorkflow")
+
+  @@index([organizationId, isActive])
+  @@index([trackingId])
+  @@map("agents")
+}
+
+/// Estado por (agente, lead). Persiste "onde o agente parou" + quando voltar.
+/// `nextActionAt` é o sleepUntil que o Inngest usa pra acordar e rodar turn.
+/// Evento `auto-agent/lead-replied` cancela sleep quando lead responde.
+model LeadAgentSession {
+  id              String  @id @default(cuid())
+  agentId         String  @map("agent_id")
+  leadId          String  @map("lead_id")
+  organizationId  String  @map("organization_id")
+  status          LeadAgentSessionStatus @default(ACTIVE)
+  /// Goal atual do spec.goals[] (ex: "qualify", "send_proposal", "follow_up")
+  currentGoalId   String? @map("current_goal_id")
+  /// Tentativa atual no loop de follow-up (0..maxAttempts).
+  /// Indexa Agent.followUpSchedule[attemptCount] pra calcular nextActionAt.
+  attemptCount    Int     @default(0) @map("attempt_count")
+  /// Próxima ação agendada (Inngest sleepUntil). null = ACTIVE rodando AGORA.
+  nextActionAt    DateTime? @map("next_action_at")
+  /// Última msg/ação enviada pra cálculo de cooldown.
+  lastActionAt    DateTime? @map("last_action_at")
+  /// Custo cumulativo em Stars. Cap em Agent.maxStarsPerLead.
+  starsSpent      Int     @default(0) @map("stars_spent")
+  /// Razão de transição final: transfer_to_human, budget_exceeded,
+  /// stop_word, goal_achieved, max_attempts, paused_by_user.
+  exitReason      String? @map("exit_reason")
+  /// Snapshot de variáveis do contexto (produto escolhido, opção do menu,
+  /// valores extraídos pela IA durante a conversa).
+  contextVars     Json    @default("{}") @map("context_vars")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  closedAt        DateTime? @map("closed_at")
+
+  agent        Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// 1 sessão ativa por (agente, lead). Pra reabrir, primeiro fechar a anterior.
+  @@unique([agentId, leadId])
+  @@index([organizationId, status])
+  /// Scheduler do Inngest faz scan periódico de WAITING com nextActionAt < now.
+  @@index([nextActionAt, status])
+  @@map("lead_agent_sessions")
 }

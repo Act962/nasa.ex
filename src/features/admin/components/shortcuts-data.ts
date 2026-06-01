@@ -4,6 +4,10 @@ export interface Shortcut {
   description: string;
   category: string;
   action?: string;
+  // true = teclas pressionadas EM SEQUÊNCIA (tecla líder N, depois a letra),
+  // não simultâneas. Usado pros atalhos que o navegador reserva no Ctrl
+  // (Ctrl+T/W/J). Afeta só o display (separador "->" em vez de "+").
+  sequence?: boolean;
 }
 
 export const SHORTCUTS: Shortcut[] = [
@@ -31,11 +35,11 @@ export const SHORTCUTS: Shortcut[] = [
   },
   // Apps
   {
-    keys: ["⌘", "T"],
-    keysWin: ["Ctrl", "T"],
+    keys: ["N", "T"],
     description: "Ir para Tracking",
     category: "Apps",
     action: "goto_tracking",
+    sequence: true,
   },
   {
     keys: ["⌘", "F"],
@@ -45,16 +49,16 @@ export const SHORTCUTS: Shortcut[] = [
     action: "goto_forge",
   },
   {
-    keys: ["⌘", "W"],
-    keysWin: ["Ctrl", "W"],
+    keys: ["N", "W"],
     description: "Ir para Workspace",
     category: "Apps",
     action: "goto_workspace",
+    sequence: true,
   },
   {
     keys: ["⌘", "J"],
     keysWin: ["Ctrl", "J"],
-    description: "Ir para Chat",
+    description: "Ir para Tracking-Chat",
     category: "Apps",
     action: "goto_chat",
   },

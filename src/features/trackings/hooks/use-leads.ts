@@ -25,11 +25,40 @@ export function useMutationUpdateLeads(trackingId: string) {
   );
 }
 
+/**
+ * Invalida queries do Insights (`getLeadsByTags`, `getTrackingDashboardReport`)
+ * + listagem de tags (`leadCount` muda). Compartilhado entre add/remove pra
+ * garantir que badge de tag no Insights + contagem no TagSheet reflitam
+ * a operação imediatamente — sem isso, gráfico do Insights ficava stale
+ * até hard-refresh.
+ */
+const invalidateTagDependentQueries = (
+  queryClient: ReturnType<typeof useQueryClient>,
+) => {
+  queryClient.invalidateQueries({
+    predicate: (q) => {
+      const key = q.queryKey;
+      if (!Array.isArray(key)) return false;
+      // orpc.insights.* (getLeadsByTags, getTrackingDashboardReport, etc)
+      if (key[0] === "insights") return true;
+      // orpc.tags.listTags — leadCount mudou
+      if (
+        key[0] === "tags" &&
+        (key[1] === "listTags" || key[1] === "getDuplicateTags")
+      )
+        return true;
+      return false;
+    },
+  });
+};
+
 export const useAddTags = () => {
+  const queryClient = useQueryClient();
   return useMutation(
     orpc.leads.addTags.mutationOptions({
       onSuccess: () => {
         toast.success("Tags adicionadas com sucesso");
+        invalidateTagDependentQueries(queryClient);
       },
       onError: () => {
         toast.error("Erro ao adicionar tags");
@@ -117,6 +146,7 @@ export function useAddTagsOptimistic({
             input: { leadId },
           }),
         });
+        invalidateTagDependentQueries(queryClient);
       },
     }),
   );
@@ -164,6 +194,7 @@ export function useRemoveTagOptimistic({ leadId }: { leadId: string }) {
             input: { leadId },
           }),
         });
+        invalidateTagDependentQueries(queryClient);
       },
     }),
   );

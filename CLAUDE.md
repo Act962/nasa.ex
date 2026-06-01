@@ -79,6 +79,9 @@ Arquivo `.env.local` na raiz. Variáveis principais:
 - `BETTER_AUTH_SECRET` — chave secreta de autenticação
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — OAuth Google
 - `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` — Inngest
+- `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` — Stripe (cliente + webhook compartilhado de cursos/planos/better-auth)
+- `STRIPE_COURSE_WEBHOOK_SECRET` — secret do endpoint dedicado de cursos (`/api/stripe/webhook`)
+- `STRIPE_STARS_WEBHOOK_SECRET` — secret do endpoint dedicado de recarga de Stars (`/api/stars/webhook`). O fluxo de Stars usa o Stripe do sistema (`STRIPE_SECRET_KEY`), não o `PaymentGatewayConfig`.
 - `AI_SECRETS_KEY` — chave (≥16 chars) usada para criptografar API keys customizadas de IA em `AiSettings.aiApiKey` (AES-256-GCM via `src/lib/crypto.ts`). Obrigatória se algum tracking configurar provider customizado (BYO).
 - `SYNC_SHARED_SECRET` — chave master HMAC do sync bidirecional de auth NASA ↔ NERP (`feature/sync`). **Mesmo valor** nos dois apps (`openssl rand -hex 32`). Assina/verifica `User/Account/Organization/Member` replicados via `src/features/sync/lib/system-cred.ts`.
 - `SYNC_API_KEY` — identifica o caller app↔app no sync (mesmo valor nos dois).
@@ -150,6 +153,24 @@ src/features/<dominio>/
    - Hooks de **query** apenas embrulham `useQuery(orpc.<...>.queryOptions(...))`; pra fetch condicional, expor flag `enabled` no parâmetro.
    - Componentes/pages importam **só os hooks** — não importam `orpc` direto. Isso facilita refatorar contratos, padronizar invalidações e testar isoladamente.
 10. **Documentação do NASA Route** — sempre que criar ou atualizar qualquer coisa dentro de `src/features/nasa-route/`, `src/app/router/nasa-route/`, `src/app/(platform)/(tracking)/nasa-route/`, ou modelos `NasaRoute*` no `prisma/schema.prisma`, **atualize também [`docs/nasa-route-overview.md`](docs/nasa-route-overview.md)** na mesma sessão. Aplica-se a: novos modelos, novas procedures oRPC, novos formatos de curso, mudanças no fluxo de pagamento/checkout, novas integrações, mudanças no pipeline de vídeo ou Stars, novos componentes relevantes. Mantenha tabelas, listas de procedures e fluxos sincronizados com o código — o documento é fonte de verdade do domínio.
+
+11. **Ritual pós-migration / pós-compile pesado (OBRIGATÓRIO)** — Esses bugs são recorrentes neste projeto (Turbopack 16.2.4 + Prisma 7) e o Claude DEVE aplicar o ritual IMEDIATAMENTE, SEM esperar o usuário reclamar de 404/500. Esquecer causa: 404 em catch-all routes, "prisma.X is undefined", cliente em cache, Sheet/Dialog usando schema antigo.
+
+    **Quando executar:**
+    - **Sempre que aplicar SQL de migration** (via `pnpm db:migrate` ou `prisma db execute`) → todos os 4 passos.
+    - **Sempre que mudar muitos arquivos / fazer compile pesado** (ex: ≥5 arquivos editados de uma vez, refactor cross-feature) → passo D no fim. Turbopack auto-restart por memory threshold é frequente e dropa catch-all do index. **NUNCA presuma que tá tudo OK só porque `✓ Compiled` apareceu** — valide via `curl` antes de devolver pro user.
+
+    **Sequência (na ordem):**
+
+    a. **Regenerar Prisma client** — `pnpm db:generate`. Cria/atualiza tipos em `src/generated/prisma/`. Sem isso, `prisma.NovoModel` é `undefined` em runtime → erros `Cannot read properties of undefined`.
+
+    b. **Bumpar SCHEMA_VERSION** em `src/lib/prisma.ts` — incrementar a string (ex: `v28-x` → `v29-y`). O `globalForPrisma` cache de hot-reload em dev cria uma instância nova só quando a versão muda. Sem bump, Turbopack continua usando client antigo (sem os novos models) mesmo após `db:generate`.
+
+    c. **Marcar migration como aplicada** no histórico (se aplicada via `db execute` em vez de `migrate dev`) — `INSERT INTO _prisma_migrations (...)`. Sem isso, `prisma migrate status` reporta drift e o time perde tempo investigando.
+
+    d. **Touch nos catch-all routes** — `touch src/app/api/auth/[...all]/route.ts src/app/api/rpc/[[...rest]]/route.ts`. Bug crônico do Turbopack 16.2.4: após auto-restart por memory threshold OU compile pesado OU regen do client, rotas `[...slug]` e `[[...rest]]` saem do index e devolvem 404 silencioso. Touch força reindex.
+
+    **Checklist final OBRIGATÓRIO:** depois do(s) passo(s), validar via `curl -sI -m 10 http://localhost:3000/<rota-afetada>` que retorna 200/307 (não 404 nem 500). **Antes de devolver controle pro user**, fazer essa validação. Se ainda falhar, sugerir reiniciar `pnpm dev` (último recurso).
 
 ## Obsidian
 
