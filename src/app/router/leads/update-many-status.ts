@@ -8,7 +8,7 @@ import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import { eventBus } from "@/features/alerts/lib/event-bus";
-import { sendWorkflowExecution } from "@/inngest/utils";
+import { dispatchMoveLeadStatus, broadcastAgentWorkflowEvent } from "@/inngest/utils";
 
 // 🟦 UPDATE
 export const updateManyStatusLead = base
@@ -213,35 +213,49 @@ export const updateManyStatusLead = base
               await Promise.all(
                 leads.flatMap((previousLead) =>
                   workflows.map((workflow) =>
-                    sendWorkflowExecution({
+                    dispatchMoveLeadStatus({
                       workflowId: workflow.id,
-                      initialData: {
-                        lead: {
-                          id: previousLead.id,
-                          name: previousLead.name,
-                          email: previousLead.email,
-                          phone: previousLead.phone,
-                          statusId: input.statusId!,
-                          trackingId: input.trackingId ?? previousLead.trackingId,
-                          responsibleId: previousLead.responsibleId,
-                          isActive: previousLead.isActive,
-                        },
-                        previousLead: {
-                          id: previousLead.id,
-                          name: previousLead.name,
-                          email: previousLead.email,
-                          phone: previousLead.phone,
-                          statusId: previousLead.statusId,
-                          trackingId: previousLead.trackingId,
-                          responsibleId: previousLead.responsibleId,
-                          isActive: previousLead.isActive,
-                        },
+                      lead: {
+                        id: previousLead.id,
+                        name: previousLead.name,
+                        email: previousLead.email,
+                        phone: previousLead.phone,
+                        statusId: input.statusId!,
+                        trackingId: input.trackingId ?? previousLead.trackingId,
+                        responsibleId: previousLead.responsibleId,
+                        isActive: previousLead.isActive,
+                      },
+                      previousLead: {
+                        id: previousLead.id,
+                        name: previousLead.name,
+                        email: previousLead.email,
+                        phone: previousLead.phone,
+                        statusId: previousLead.statusId,
+                        trackingId: previousLead.trackingId,
+                        responsibleId: previousLead.responsibleId,
+                        isActive: previousLead.isActive,
                       },
                     }),
                   ),
                 ),
               );
             }),
+          );
+
+          // Broadcast pra WAIT_FOR_EVENT preset "lead-status-changed".
+          // Emite 1x por lead que mudou status (não por workflow matched).
+          await Promise.all(
+            leadsChangingStatus.map((lead) =>
+              broadcastAgentWorkflowEvent({
+                event: "lead-status-changed",
+                leadId: lead.id,
+                trackingId: input.trackingId ?? lead.trackingId,
+                extra: {
+                  fromStatusId: lead.statusId,
+                  toStatusId: input.statusId!,
+                },
+              }),
+            ),
           );
         }
       }

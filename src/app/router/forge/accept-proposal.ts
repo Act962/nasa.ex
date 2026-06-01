@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import crypto from "crypto";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { broadcastAgentWorkflowEvent } from "@/inngest/utils";
 
 /**
  * Endpoint público pra cliente aceitar uma proposta. Cria automaticamente
@@ -37,6 +38,7 @@ export const acceptProposalAsContract = base
       include: {
         organization: { select: { id: true, name: true } },
         responsible: { select: { id: true, name: true } },
+        client: { select: { id: true, trackingId: true } },
         products: {
           select: { quantity: true, unitValue: true, discount: true },
         },
@@ -172,6 +174,23 @@ export const acceptProposalAsContract = base
       });
     } catch (e) {
       console.error("[forge/accept-proposal] logActivity failed", e);
+    }
+
+    // Emite `proposal-accepted` pro engine de workflows acordar runs que
+    // estavam aguardando esse evento via WAIT_FOR_EVENT. Só dispara se a
+    // proposta estiver vinculada a um lead (clientId). Best-effort.
+    if (proposal.client?.id && proposal.client.trackingId) {
+      await broadcastAgentWorkflowEvent({
+        event: "proposal-accepted",
+        leadId: proposal.client.id,
+        trackingId: proposal.client.trackingId,
+        organizationId: proposal.organizationId,
+        extra: {
+          proposalId: proposal.id,
+          contractId: contract.id,
+          clientName: input.clientName,
+        },
+      });
     }
 
     const signers = contract.signers as Array<{ token: string }>;

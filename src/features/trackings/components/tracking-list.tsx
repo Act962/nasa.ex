@@ -11,7 +11,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
 import dayjs from "dayjs";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import "dayjs/locale/pt-br";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -24,10 +24,10 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
-import { Folder, RefreshCw } from "lucide-react";
+import { Folder, Power, RefreshCw, Sparkles } from "lucide-react";
+import { TrackingPresetsCatalog } from "@/features/tracking-presets/components/tracking-presets-catalog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTracking } from "@/hooks/use-tracking-modal";
-import { PatternsSection } from "@/features/admin/components/patterns-section";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -66,9 +66,72 @@ type TrackingDashboardItem = {
     leadCount: number;
   }>;
   relatedTrackings: Array<{ id: string; name: string }>;
+  /**
+   * Status da instância WhatsApp do tracking. null = sem instância
+   * configurada. CONNECTED = botão power azul; DISCONNECTED/null =
+   * botão power em muted-foreground (mesma cor do "há X dias").
+   */
+  whatsappStatus?: "CONNECTED" | "DISCONNECTED" | null;
 };
 
 const MAX_VISIBLE_AVATARS = 5;
+
+/**
+ * Botão do status da instância WhatsApp do tracking.
+ * - CONNECTED               → azul (`text-blue-500`)
+ * - DISCONNECTED / sem inst → cor neutra (`text-muted-foreground`, mesma
+ *                              do "há X dias" ao lado)
+ *
+ * Renderiza com Tooltip explicando o estado. Clique abre direto a aba de
+ * WhatsApp em Tracking → Configurações. `e.preventDefault()` +
+ * `stopPropagation()` impedem que o Link do card capture o clique
+ * (o card inteiro é wrapper de Link pra `/tracking/<id>`).
+ */
+function WhatsappPowerIcon({
+  trackingId,
+  status,
+}: {
+  trackingId: string;
+  status: "CONNECTED" | "DISCONNECTED" | null;
+}) {
+  const router = useRouter();
+  const isConnected = status === "CONNECTED";
+  const label = isConnected
+    ? "WhatsApp conectado — clique pra configurar"
+    : status === "DISCONNECTED"
+      ? "WhatsApp desconectado — clique pra reconectar"
+      : "Sem instância WhatsApp — clique pra configurar";
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Impede o Link wrapper do card de navegar pra /tracking/<id> —
+    // queremos ir direto pra aba instance das configurações.
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(`/tracking/${trackingId}/settings?tab=instance`);
+  };
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={handleClick}
+          aria-label={label}
+          className={
+            isConnected
+              ? "inline-flex items-center text-blue-500 hover:text-blue-600 cursor-pointer transition-colors"
+              : "inline-flex items-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+          }
+        >
+          <Power className="size-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        <span className="text-xs">{label}</span>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 function TrackingCard({ tracking }: { tracking: TrackingDashboardItem }) {
   const bgUrl = useConstructUrl(tracking.cardBackgroundImage || "");
@@ -260,14 +323,23 @@ function TrackingCard({ tracking }: { tracking: TrackingDashboardItem }) {
                       )}
                     </div>
 
-                    <span className="text-[11px] text-muted-foreground shrink-0">
-                      {dayjs(tracking.createdAt).fromNow()}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <WhatsappPowerIcon
+                        trackingId={tracking.id}
+                        status={tracking.whatsappStatus ?? null}
+                      />
+                      <span className="text-[11px] text-muted-foreground">
+                        {dayjs(tracking.createdAt).fromNow()}
+                      </span>
+                    </div>
                   </div>
                 )}
 
                 {tracking.participants.length === 0 && (
-                  <div className="flex justify-end">
+                  <div className="flex items-center justify-end gap-1.5">
+                    <WhatsappPowerIcon
+                      status={tracking.whatsappStatus ?? null}
+                    />
                     <span className="text-[11px] text-muted-foreground">
                       Criado {dayjs(tracking.createdAt).fromNow()}
                     </span>
@@ -365,22 +437,36 @@ export function TrackingList() {
               </EmptyMedia>
               <EmptyTitle>Nenhum tracking encontrado</EmptyTitle>
               <EmptyDescription>
-                Você não possui nenhum tracking criado ainda. Comece criando seu
-                primeiro tracking
+                Você não possui nenhum tracking criado ainda. Escolha um padrão
+                NASA abaixo ou crie do zero.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              <div className="flex gap-2">
-                <Button onClick={onOpen}>Criar novo tracking</Button>
-              </div>
+              <Button onClick={onOpen} variant="outline">
+                Criar do zero
+              </Button>
             </EmptyContent>
           </Empty>
         </div>
       )}
-      <PatternsSection
-        appType="tracking"
-        redirectPath={(id) => `/tracking/${id}`}
-      />
+
+      {/* Catálogo NASA inline — substitui o <PatternsSection appType="tracking">
+          antigo (que tinha bug de IDs órfãos em node.data). O novo catálogo
+          remapeia slugs → IDs reais corretamente. Aparece sempre, abaixo da
+          lista de trackings (ou no lugar dela quando empty). */}
+      <section className="mt-10">
+        <div className="mb-4 flex items-center gap-2 text-amber-500">
+          <Sparkles className="size-4" />
+          <span className="text-xs font-semibold uppercase tracking-wide">
+            Padrões NASA
+          </span>
+        </div>
+        <p className="text-sm text-muted-foreground mb-6 max-w-2xl">
+          Catálogo de fluxos prontos. Cada padrão cria tracking + status + tags +
+          automações funcionais — sem precisar configurar do zero.
+        </p>
+        <TrackingPresetsCatalog />
+      </section>
     </div>
   );
 }

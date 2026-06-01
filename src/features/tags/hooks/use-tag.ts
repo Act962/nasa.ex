@@ -29,7 +29,16 @@ export const useCreateTag = () => {
           if (!old) return old;
           return {
             ...old,
-            tags: [...(old.tags || []), { ...newTag, id: "temp-id" }],
+            tags: [
+              ...(old.tags || []),
+              // ID único pra cada optimistic update — evita warning de
+              // chaves duplicadas no React quando duas tags são criadas
+              // quase ao mesmo tempo (ex: rapid click ou double submit).
+              {
+                ...newTag,
+                id: `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              },
+            ],
           };
         });
 
@@ -38,7 +47,16 @@ export const useCreateTag = () => {
           if (!old) return old;
           return {
             ...old,
-            tags: [...(old.tags || []), { ...newTag, id: "temp-id" }],
+            tags: [
+              ...(old.tags || []),
+              // ID único pra cada optimistic update — evita warning de
+              // chaves duplicadas no React quando duas tags são criadas
+              // quase ao mesmo tempo (ex: rapid click ou double submit).
+              {
+                ...newTag,
+                id: `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              },
+            ],
           };
         });
 

@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import { disconnectInstance } from "@/http/uazapi/disconnect-instance";
 import prisma from "@/lib/prisma";
@@ -20,8 +21,7 @@ export const disconnectInstanceUazapi = base
       baseUrl: z.string(),
     }),
   )
-
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context }) => {
     const { instanceId, status, token, baseUrl } = input;
 
     const result = await disconnectInstance(token, baseUrl);
@@ -30,12 +30,33 @@ export const disconnectInstanceUazapi = base
       throw new Error(result.response);
     }
 
-    await prisma.whatsAppInstance.update({
-      where: {
-        instanceId: instanceId,
-      },
-      data: {
-        status,
+    const instance = await prisma.whatsAppInstance.update({
+      where: { instanceId },
+      data: { status },
+      select: {
+        id: true,
+        instanceName: true,
+        phoneNumber: true,
+        organizationId: true,
       },
     });
+
+    if (instance.organizationId) {
+      await logActivity({
+        organizationId: instance.organizationId,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "tracking",
+        action: "whatsapp_instance.disconnected",
+        actionLabel: `Desconectou instância WhatsApp "${instance.instanceName ?? instanceId}"${instance.phoneNumber ? ` (${instance.phoneNumber})` : ""}`,
+        resource: instance.instanceName ?? instanceId,
+        resourceId: instance.id,
+        metadata: {
+          phoneNumber: instance.phoneNumber,
+          newStatus: status,
+        },
+      });
+    }
   });

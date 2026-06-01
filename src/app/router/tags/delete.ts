@@ -24,9 +24,14 @@ export const deleteTag = base
       });
     }
 
-    const deleted = await prisma.tag.delete({
-      where: {
-        id: input.tagId,
+    // SOFT-DELETE (TAGS 2.0): substituiu `prisma.tag.delete()` por update
+    // setando `archivedAt`. Preserva histórico em Jornada/Insights/contatos/
+    // Detalhes. Hard-delete fica no `tag.purge` (admin-only, irreversível).
+    const archived = await prisma.tag.update({
+      where: { id: input.tagId },
+      data: {
+        archivedAt: new Date(),
+        archivedById: context.user.id,
       },
     });
 
@@ -38,9 +43,9 @@ export const deleteTag = base
       userImage: (context.user as any).image,
       appSlug: "tracking",
       subAppSlug: "tracking-tags",
-      featureKey: "tag.deleted",
-      action: "tag.deleted",
-      actionLabel: `Excluiu a tag "${tag.name}"`,
+      featureKey: "tag.archived",
+      action: "tag.archived",
+      actionLabel: `Arquivou a tag "${tag.name}"`,
       resource: tag.name,
       resourceId: tag.id,
       metadata: {
@@ -49,5 +54,5 @@ export const deleteTag = base
       },
     });
 
-    return deleted;
+    return archived;
   });

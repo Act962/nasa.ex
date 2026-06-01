@@ -94,13 +94,15 @@ export function FiltersTracking() {
           {/* Filtros — sempre visível, mesmo recolhido. */}
           <Filters />
 
-          {/* IA de Leads — secundário, esconde no recolhido. */}
+          {/* Agente de Automações — IA generativa de workflows + gestão
+              de leads (mesma Sheet, escopo do tracking). Esconde no
+              recolhido por ser secundário. */}
           {!collapsed && (
             <AiLeadButton trackingId={trackingId}>
               <Button variant="outline" size="sm">
                 <SparklesIcon className="size-4 mr-2 text-purple-500" />
                 <span className="bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-semibold">
-                  IA de Leads
+                  Agente de Automações
                 </span>
               </Button>
             </AiLeadButton>

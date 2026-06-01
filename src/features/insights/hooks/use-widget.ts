@@ -26,17 +26,27 @@ export const useQueryListWidgets = ({
 interface UseWidgetByTagOptions {
   tagId: string;
   organizationId: string;
+  /** Filtros do dashboard — repassados pro snapshot histórico */
+  endDate?: string;
+  trackingId?: string;
+  memberIds?: string[];
 }
 
 export const useQueryWidgetByTag = ({
   tagId,
   organizationId,
+  endDate,
+  trackingId,
+  memberIds,
 }: UseWidgetByTagOptions) => {
   const { data, ...query } = useQuery(
     orpc.widgets.byTag.queryOptions({
       input: {
         tagId,
         organizationId,
+        endDate,
+        trackingId,
+        memberIds,
       },
       enabled: !!tagId && !!organizationId,
     }),

@@ -9,9 +9,15 @@ import {
   useStore,
 } from "@xyflow/react";
 import { LucideIcon, Plus } from "lucide-react";
-import { memo, useState, type ReactNode } from "react";
+import { createId } from "@paralleldrive/cuid2";
+import { memo, useMemo, useState, type ReactNode } from "react";
 import { WorkflowNode } from "@/components/workflow-node";
 import { BaseNode, BaseNodeContent } from "@/components/react-flow/base-node";
+import { validateNode } from "@/features/workflows/lib/validate-node";
+import { useNodeIssues } from "@/features/workflows/components/workflow-issues-context";
+import { useAtomValue } from "jotai";
+import { stepByStepStateAtom } from "@/features/editor/store/step-by-step-atoms";
+import { StepRocketOverlay } from "@/features/editor/components/step-rocket-overlay";
 import Image from "next/image";
 import { BaseHandle } from "@/components/react-flow/base-handle";
 import {
@@ -46,8 +52,21 @@ export const BaseExecutionNode = memo(
     status = "initial",
     onSettings,
     onDoubleClick,
+    ...rest
   }: BaseExecutionNodeProps) => {
     const { setNodes, setEdges } = useReactFlow();
+    // Validação automática — type + data vêm via NodeProps spread.
+    const nodeType = (rest as any).type as string | undefined;
+    const nodeData = (rest as any).data as Record<string, unknown> | undefined;
+    const validation = useMemo(
+      () => (nodeType ? validateNode(nodeType, nodeData) : undefined),
+      [nodeType, nodeData],
+    );
+    // Issues estruturais (ORPHAN, TAG arquivada, UNREACHABLE, etc) vêm do
+    // contexto preenchido pelo `useWorkflowValidation` no editor. Se algum
+    // tem severity error, força borda vermelha mesmo que validateNode passe.
+    const graphIssues = useNodeIssues(id);
+    const hasGraphError = graphIssues.some((i) => i.severity === "error");
     const [openSelector, setOpenSelector] = useState(false);
     const connectionInProgress = useConnection(selector);
     const isConnected = useStore((state) =>
@@ -72,15 +91,94 @@ export const BaseExecutionNode = memo(
       });
     };
 
+    // Duplica este nó com offset (mesmo type + data clonada). Não copia
+    // conexões — o operador precisa religar manualmente, evita criar
+    // arestas duplicadas acidentalmente.
+    const handleDuplicate = () => {
+      setNodes((currentNodes) => {
+        const original = currentNodes.find((n) => n.id === id);
+        if (!original) return currentNodes;
+        const clone = {
+          ...original,
+          id: createId(),
+          position: {
+            x: original.position.x + 40,
+            y: original.position.y + 40,
+          },
+          // React Flow gera selected=true se herdar — força false pra não
+          // confundir UI.
+          selected: false,
+          data: JSON.parse(JSON.stringify(original.data ?? {})),
+        };
+        return [...currentNodes, clone];
+      });
+    };
+
+    // Abre o NodeSelector já com sourceId apontando pra este nó — ao
+    // selecionar um novo type, NodeSelector cria o nó e a conexão
+    // sourceId→novo automaticamente.
+    const handleAddNext = () => setOpenSelector(true);
+
+    // Validação falhou (não-skip) sobrescreve o status visual pra "error".
+    // Operador vê borda vermelha pulsante e sabe que o nó vai derrubar o
+    // workflow se ativar. Status de execução real (success/loading) só
+    // aparece quando a validação passa. Graph issues (ORPHAN, ARCHIVED_TAG,
+    // etc) também forçam erro mesmo se o nó isolado passa.
+    //
+    // `needsReview: true` no node.data sinaliza que IA generativa criou
+    // o nó mas precisa de input humano (ex: "qual produto?", "qual user
+    // responsável?"). Também força borda vermelha — user vê visual igual
+    // ao de erro de validação, com tooltip explicando o que falta.
+    const nodeInvalid = !!(validation && !validation.valid && !validation.skip);
+    const needsReview = !!(nodeData?.needsReview === true);
+    const effectiveStatus: typeof status =
+      nodeInvalid || hasGraphError || needsReview ? "error" : status;
+
+    // ── Step-by-Step overlay (foguete pulsando ou check/erro) ───
+    const stepState = useAtomValue(stepByStepStateAtom);
+    const stepNodeStatus = stepState.active
+      ? (stepState.nodeStatuses[id] ?? "idle")
+      : "idle";
+    // Click no rocket dispara abertura do popover via custom event —
+    // o popover global escuta e abre pra esse nó.
+    const handleRocketClick = () => {
+      window.dispatchEvent(
+        new CustomEvent("step-by-step:open-popover", { detail: { nodeId: id } }),
+      );
+    };
+
     return (
       <WorkflowNode
         name={name}
         description={description}
         onDelete={handleDelete}
         onSettings={onSettings}
+        onDuplicate={handleDuplicate}
+        onAddNext={handleAddNext}
       >
-        <NodeStatusIndicator status={status} variant="border">
-          <BaseNode onDoubleClick={onDoubleClick} status={status}>
+        <StepRocketOverlay status={stepNodeStatus} onClick={handleRocketClick} />
+        <NodeStatusIndicator status={effectiveStatus} variant="border">
+          <BaseNode
+            onDoubleClick={onDoubleClick}
+            status={status}
+            validation={validation}
+            graphErrorMessages={[
+              ...graphIssues
+                .filter((i) => i.severity === "error")
+                .map((i) => i.message),
+              // needsReview vira mensagem extra no tooltip da borda
+              // vermelha — explica pro user o que IA generativa marcou
+              // como pendente. Aparece junto com graph errors.
+              ...(needsReview
+                ? [
+                    `🤖 IA marcou pra revisão: ${
+                      (nodeData as { reviewReason?: string })?.reviewReason ??
+                      "configurar campos faltantes"
+                    }`,
+                  ]
+                : []),
+            ]}
+          >
             <BaseNodeContent>
               {typeof Icon === "string" ? (
                 <Image src={Icon} alt={name} width={16} height={16} />

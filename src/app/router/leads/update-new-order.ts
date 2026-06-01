@@ -3,7 +3,7 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { Prisma, Workflow } from "@/generated/prisma/client";
-import { sendWorkflowExecution } from "@/inngest/utils";
+import { dispatchMoveLeadStatus, broadcastAgentWorkflowEvent } from "@/inngest/utils";
 import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
 import {
@@ -159,15 +159,26 @@ export const updateNewOrder = base
     if (result.statusChanged && result.workflows.length > 0) {
       await Promise.all(
         result.workflows.map((workflow) =>
-          sendWorkflowExecution({
+          dispatchMoveLeadStatus({
             workflowId: workflow.id,
-            initialData: {
-              lead: result.updatedLead,
-              previousLead: result.previousLead,
-            },
+            lead: result.updatedLead,
+            previousLead: result.previousLead,
           }),
         ),
       );
+    }
+
+    // Broadcast pra WAIT_FOR_EVENT preset "lead-status-changed"
+    if (result.statusChanged) {
+      await broadcastAgentWorkflowEvent({
+        event: "lead-status-changed",
+        leadId: result.updatedLead.id,
+        trackingId: result.updatedLead.trackingId,
+        extra: {
+          fromStatusId: result.previousLead.statusId,
+          toStatusId: result.updatedLead.statusId,
+        },
+      });
     }
 
     const tracking = await prisma.tracking.findUnique({
