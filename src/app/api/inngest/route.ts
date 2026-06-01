@@ -55,6 +55,10 @@ import {
   checkNoFirstResponse,
   checkInConvIdle,
 } from "@/inngest/functions/triggers/idle-automation";
+import { replicateUserToNerp } from "@/inngest/functions/sync/replicate-user-to-nerp";
+import { replicateAccountToNerp } from "@/inngest/functions/sync/replicate-account-to-nerp";
+import { replicateOrgToNerp } from "@/inngest/functions/sync/replicate-org-to-nerp";
+import { replicateMemberToNerp } from "@/inngest/functions/sync/replicate-member-to-nerp";
 import {
   autoAgentTickScheduledFn,
   autoAgentOnLeadReplyFn,
@@ -126,6 +130,11 @@ export const { GET, POST, PUT } = serve({
     scheduleIdleChecks,
     checkNoFirstResponse,
     checkInConvIdle,
+    // ── Sync auth NASA → NERP ──
+    replicateUserToNerp,
+    replicateAccountToNerp,
+    replicateOrgToNerp,
+    replicateMemberToNerp,
     // ── NASA Auto Agent — scheduler de turns assíncronos ──
     autoAgentTickScheduledFn,
     autoAgentOnLeadReplyFn,

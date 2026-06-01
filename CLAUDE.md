@@ -83,6 +83,9 @@ Arquivo `.env.local` na raiz. Variáveis principais:
 - `STRIPE_COURSE_WEBHOOK_SECRET` — secret do endpoint dedicado de cursos (`/api/stripe/webhook`)
 - `STRIPE_STARS_WEBHOOK_SECRET` — secret do endpoint dedicado de recarga de Stars (`/api/stars/webhook`). O fluxo de Stars usa o Stripe do sistema (`STRIPE_SECRET_KEY`), não o `PaymentGatewayConfig`.
 - `AI_SECRETS_KEY` — chave (≥16 chars) usada para criptografar API keys customizadas de IA em `AiSettings.aiApiKey` (AES-256-GCM via `src/lib/crypto.ts`). Obrigatória se algum tracking configurar provider customizado (BYO).
+- `SYNC_SHARED_SECRET` — chave master HMAC do sync bidirecional de auth NASA ↔ NERP (`feature/sync`). **Mesmo valor** nos dois apps (`openssl rand -hex 32`). Assina/verifica `User/Account/Organization/Member` replicados via `src/features/sync/lib/system-cred.ts`.
+- `SYNC_API_KEY` — identifica o caller app↔app no sync (mesmo valor nos dois).
+- `NERP_BASE_URL` — base do NERP (mesma usada pela integração por-org e pelo sync). O sync (`src/http/sync-nerp/client.ts`) entrega em `NERP_BASE_URL + /api/sync/nasa`; `NERP_SYNC_BASE_URL` é override opcional caso o sync precise de um host diferente.
 
 ## Estrutura do Projeto
 
