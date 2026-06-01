@@ -222,6 +222,19 @@ export const auth = betterAuth({
             console.error("[sync emit] member.add enqueue failed:", e);
           }
         },
+        // better-auth NÃO dispara afterAddMember ao ACEITAR convite — só
+        // afterAcceptInvitation (crud-invites cria o Member por fora). Sem este
+        // hook, membros que entram por convite nunca replicavam pro NERP.
+        afterAcceptInvitation: async ({ member }) => {
+          try {
+            await inngest.send({
+              name: "sync/member.upsert",
+              data: { memberId: member.id },
+            });
+          } catch (e) {
+            console.error("[sync emit] member.accept enqueue failed:", e);
+          }
+        },
       },
       async sendInvitationEmail(data) {
         await resend.emails.send({
