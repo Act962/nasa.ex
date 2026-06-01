@@ -13,16 +13,17 @@ import type {
  *
  * Espelho de `src/http/nerp/client.ts`, mas assina com a credencial de SISTEMA
  * (`SYNC_SHARED_SECRET` / `SYNC_API_KEY`) em vez do consent por-org. Aponta
- * para o endpoint inbound do NERP (`NERP_SYNC_BASE_URL` + `/api/sync/nasa`).
+ * para o endpoint inbound do NERP (base + `/api/sync/nasa`). A base vem de
+ * `NERP_BASE_URL` (mesma do NERP); `NERP_SYNC_BASE_URL` é override opcional.
  */
 
 const INBOUND_PATH = "/api/sync/nasa";
 const TIMEOUT_MS = Number(process.env.SYNC_REQUEST_TIMEOUT_MS ?? 10_000);
 
 function baseUrl(): string {
-  const b = process.env.NERP_SYNC_BASE_URL;
+  const b = process.env.NERP_SYNC_BASE_URL ?? process.env.NERP_BASE_URL;
   if (!b) {
-    throw new Error("Missing env NERP_SYNC_BASE_URL");
+    throw new Error("Missing env NERP_BASE_URL (ou NERP_SYNC_BASE_URL)");
   }
   return b.replace(/\/$/, "");
 }
