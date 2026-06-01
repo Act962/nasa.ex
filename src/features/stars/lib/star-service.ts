@@ -546,6 +546,42 @@ export async function runMonthlyCycle(organizationId: string): Promise<void> {
   }
 }
 
+/**
+ * Aplica um plano a uma organização e credita as Stars do ciclo.
+ *
+ * Usado pelos hooks do plugin better-auth/stripe (`onSubscriptionComplete` /
+ * `onSubscriptionUpdate`) quando uma assinatura é criada ou trocada via Stripe.
+ * O `planName` vem do better-auth (nome do plano, armazenado em lowercase) —
+ * casamos com `Plan.name` de forma case-insensitive. Define `Organization.planId`
+ * e roda `runMonthlyCycle` (rollover + PLAN_CREDIT + débitos de apps ativos).
+ *
+ * Retorna `false` quando o plano não existe no DB (loga e não credita nada).
+ */
+export async function applyPlanToOrgByName(
+  organizationId: string,
+  planName: string,
+): Promise<boolean> {
+  const plan = await prisma.plan.findFirst({
+    where: { name: { equals: planName, mode: "insensitive" } },
+    select: { id: true },
+  });
+  if (!plan) {
+    console.error(
+      `[stars] applyPlanToOrgByName: plano "${planName}" não encontrado no DB (org ${organizationId}) — Stars NÃO creditadas.`,
+    );
+    return false;
+  }
+
+  await prisma.organization.update({
+    where: { id: organizationId },
+    data: { planId: plan.id },
+  });
+
+  // Credita as Stars do plano recém-aplicado (lê o plan já atualizado da org).
+  await runMonthlyCycle(organizationId);
+  return true;
+}
+
 // ─── Plan billing eligibility ────────────────────────────────────────────────
 
 /**

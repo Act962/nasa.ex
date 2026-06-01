@@ -39,27 +39,35 @@ export function SubscriptionPlansModal({
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
 
+  // Assinatura é por ORGANIZAÇÃO: usamos a org ativa como `referenceId`.
+  const { data: activeOrg } = authClient.useActiveOrganization();
+  const orgId = activeOrg?.id;
+
   const { data: plansData, isLoading: plansLoading } = useQuery({
     ...orpc.stars.listPlans.queryOptions(),
     enabled: open,
   });
 
   const { data: activeSubscriptions } = useQuery({
-    queryKey: ["activeSubscriptions"],
+    queryKey: ["activeSubscriptions", orgId],
+    enabled: open && !!orgId,
     queryFn: async () => {
-      const { data } = await authClient.subscription.list();
+      const { data } = await authClient.subscription.list({
+        query: { referenceId: orgId! },
+      });
       return data;
     },
-    enabled: open,
   });
 
   const plans = plansData?.plans ?? [];
   const activePlanNames = activeSubscriptions?.map((s) => s.plan) ?? [];
 
   const handleOpenPortal = async () => {
+    if (!orgId) return;
     setIsRedirecting(true);
     try {
       const { data, error } = await authClient.subscription.billingPortal({
+        referenceId: orgId,
         returnUrl: window.location.origin + "/home",
       });
 

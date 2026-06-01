@@ -24,11 +24,18 @@ export default function SubscriptionConfirmPage() {
   const planSlug = searchParams.get("plan");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch active subscriptions to see if user is already a subscriber
+  // Assinatura é por ORGANIZAÇÃO: usamos a org ativa como `referenceId`.
+  const { data: activeOrg } = authClient.useActiveOrganization();
+  const orgId = activeOrg?.id;
+
+  // Fetch active subscriptions (da org) to see if it already subscribes
   const { data: subData, isLoading: subLoading } = useQuery({
-    queryKey: ["activeSubscriptionsConfirm"],
+    queryKey: ["activeSubscriptionsConfirm", orgId],
+    enabled: !!orgId,
     queryFn: async () => {
-      const { data } = await authClient.subscription.list();
+      const { data } = await authClient.subscription.list({
+        query: { referenceId: orgId! },
+      });
       return data;
     },
   });
@@ -41,14 +48,15 @@ export default function SubscriptionConfirmPage() {
   const plan = data?.plans.find((p) => p.slug === planSlug);
 
   const handleCheckout = async () => {
-    if (!plan || isSubmitting) return;
+    if (!plan || isSubmitting || !orgId) return;
 
     setIsSubmitting(true);
     try {
       if (hasActiveSub) {
-        // Redir to Billing Portal
+        // Redir to Billing Portal (escopo da org)
         const { data: portalData, error: portalError } =
           await authClient.subscription.billingPortal({
+            referenceId: orgId,
             returnUrl: window.location.origin + "/home",
           });
 
@@ -61,6 +69,7 @@ export default function SubscriptionConfirmPage() {
 
       await authClient.subscription.upgrade({
         plan: plan.name.toLowerCase(),
+        referenceId: orgId,
         successUrl: `${window.location.origin}/home`,
         cancelUrl: window.location.href,
       });

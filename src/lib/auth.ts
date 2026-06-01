@@ -2,12 +2,17 @@ import { betterAuth } from "better-auth";
 import { organization } from "better-auth/plugins";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { stripe } from "@better-auth/stripe";
+import type Stripe from "stripe";
 import { resend } from "./email/resend";
 import { reactInvitationEmail } from "./email/invitation";
 import { reactResetPasswordEmail } from "./email/reset-password";
 import { stripeClient } from "./stripe";
 import prisma from "./prisma";
 import { inngest } from "@/inngest/client";
+import {
+  applyPlanToOrgByName,
+  runMonthlyCycle,
+} from "@/features/stars/lib/star-service";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -296,6 +301,86 @@ export const auth = betterAuth({
             },
           };
         },
+        // ── Escopo por ORGANIZAÇÃO ──────────────────────────────────────────
+        // As assinaturas usam `referenceId = organizationId` (o front passa
+        // isso no `subscription.upgrade`). Aqui autorizamos quem pode mexer:
+        // qualquer membro lê; só owner/admin contrata/cancela/restaura.
+        authorizeReference: async ({ user, referenceId, action }) => {
+          const member = await prisma.member.findFirst({
+            where: { organizationId: referenceId, userId: user.id },
+            select: { role: true },
+          });
+          if (!member) return false;
+          if (
+            action === "upgrade-subscription" ||
+            action === "cancel-subscription" ||
+            action === "restore-subscription"
+          ) {
+            return member.role === "owner" || member.role === "admin";
+          }
+          return true;
+        },
+        // ── Crédito de Stars no ciclo ───────────────────────────────────────
+        // `referenceId` é o organizationId. Ao concluir o checkout, aplicamos
+        // o plano à org (`Organization.planId`) e creditamos as Stars do ciclo.
+        // ESTE é o ponto que faltava: sem ele, contratar plano gravava só a
+        // tabela `subscription` e as Stars nunca chegavam na empresa.
+        onSubscriptionComplete: async ({ subscription }) => {
+          const orgId = subscription.referenceId;
+          if (!orgId) return;
+          await applyPlanToOrgByName(orgId, subscription.plan);
+        },
+        // Troca de plano (upgrade/downgrade) fora do checkout inicial: mantém
+        // `Organization.planId` em sincronia e credita o novo plano quando muda.
+        onSubscriptionUpdate: async ({ subscription }) => {
+          const orgId = subscription.referenceId;
+          if (!orgId || subscription.status !== "active") return;
+          const [org, plan] = await Promise.all([
+            prisma.organization.findUnique({
+              where: { id: orgId },
+              select: { planId: true },
+            }),
+            prisma.plan.findFirst({
+              where: { name: { equals: subscription.plan, mode: "insensitive" } },
+              select: { id: true },
+            }),
+          ]);
+          if (plan && org && org.planId !== plan.id) {
+            await applyPlanToOrgByName(orgId, subscription.plan);
+          }
+        },
+        // Assinatura removida (período encerrado / deletada no Stripe): volta a
+        // org pro estado sem plano. O `cancel` agendado (cancelAtPeriodEnd) NÃO
+        // revoga aqui — a org segue ativa até o período acabar.
+        onSubscriptionDeleted: async ({ subscription }) => {
+          const orgId = subscription.referenceId;
+          if (!orgId) return;
+          await prisma.organization.update({
+            where: { id: orgId },
+            data: { planId: null },
+          });
+        },
+      },
+      // ── Renovação mensal recorrente ───────────────────────────────────────
+      // O Stripe emite `invoice.paid` com billing_reason="subscription_cycle"
+      // a cada renovação. Recreditamos as Stars do plano (novo ciclo) na org
+      // dona da assinatura. Sem isso, só o primeiro mês creditava.
+      onEvent: async (event) => {
+        if (event.type !== "invoice.paid") return;
+        const invoice = event.data.object as Stripe.Invoice;
+        if (invoice.billing_reason !== "subscription_cycle") return;
+        const subField = (invoice as { subscription?: string | { id: string } | null })
+          .subscription;
+        const stripeSubId =
+          typeof subField === "string" ? subField : (subField?.id ?? null);
+        if (!stripeSubId) return;
+        const sub = await prisma.subscription.findFirst({
+          where: { stripeSubscriptionId: stripeSubId },
+          select: { referenceId: true },
+        });
+        if (sub?.referenceId) {
+          await runMonthlyCycle(sub.referenceId);
+        }
       },
     }),
   ],

@@ -16,7 +16,6 @@ import { StarsPurchaseModal } from "./stars-purchase-modal";
 import { SubscriptionPlansModal } from "./subscription-plans-modal";
 import { StarsHistoryDialog } from "./stars-history-dialog";
 import { History, Plus, TrendingUp, AlertTriangle, Zap, Sparkles, ShieldAlert } from "lucide-react";
-import { authClient } from "@/lib/auth-client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // ─── Consumed bar ─────────────────────────────────────────────────────────────
@@ -143,15 +142,6 @@ export function StarsWidget() {
     staleTime: 10_000,
   });
 
-  const { data: activeSubscriptions } = useQuery({
-    queryKey: ["activeSubscriptionsWidget"],
-    queryFn: async () => {
-      const { data } = await authClient.subscription.list();
-      return data;
-    },
-    refetchInterval: 60_000,
-  });
-
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (isLoading) {
     return <div className="h-8 w-32 rounded-lg bg-muted/60 animate-pulse" />;
@@ -160,24 +150,17 @@ export function StarsWidget() {
   const balance = data?.balance ?? 0;
   const bonusBalance = data?.bonusBalance ?? 0;
 
-  // Use Better Auth plan as priority, fallback to DB
-  const activeSub = activeSubscriptions?.find(
-    (s) => s.status === "active" || s.status === "trialing",
-  );
-  const planName = activeSub
-    ? activeSub.plan.toUpperCase()
-    : (data?.planName ?? "");
-  const planSlug = activeSub
-    ? activeSub.plan.toLowerCase()
-    : (data?.planSlug ?? "free");
+  // Plano vem SEMPRE da organização (via `stars.getBalance` → checkBalance(org.id)).
+  // NÃO usamos mais `authClient.subscription.list()`: aquele plugin better-auth/stripe
+  // resolve `referenceId` como userId (sem `authorizeReference`), o que divergia do
+  // plano real da org (que mora em `Organization.planId`) e ainda vazava entre orgs ao
+  // trocar a org ativa. Fonte única de verdade = org.
+  const planName = data?.planName ?? "";
+  const planSlug = data?.planSlug ?? "free";
+  const planMonthlyStars = data?.planMonthlyStars ?? 0;
 
-  // Prioritize monthlyStars from Better Auth limits, or fallback to ORPC data
-  const planMonthlyStars = activeSub?.limits?.monthlyStars
-    ? Number(activeSub.limits.monthlyStars)
-    : (data?.planMonthlyStars ?? 0);
-
-  // hasPlan is true if we have a valid slug from Stripe or DB
-  const hasPlan = planSlug !== "free" && (planMonthlyStars > 0 || !!activeSub);
+  // hasPlan é true quando a org tem um plano válido (slug != free).
+  const hasPlan = planSlug !== "free" && planMonthlyStars > 0;
 
   // SUITE = pay-per-use (consumo livre). Não tem limite mensal pra mostrar
   // como `X / Y` — só mostra o consumido + saldo.
