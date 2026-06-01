@@ -25,6 +25,8 @@ import { TeamSwitcher } from "./team-switcher";
 import { NavUser } from "./nav-user";
 import { NotificationBell } from "./notification-bell";
 import { NavMenu } from "./nav-menu";
+import { StarsMeter } from "./stars-meter";
+import { TokenMeter } from "./token-meter";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
@@ -66,9 +68,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {currentOrganization && <WorkspacesItems />}
       </SidebarContent>
       <SidebarFooter>
-        <NotificationBell />
         {/* Tour Guiado trigger */}
+        <StarsMeter />
+        <TokenMeter />
         <SidebarMenu>
+          <NotificationBell />
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="Tour Guiado"

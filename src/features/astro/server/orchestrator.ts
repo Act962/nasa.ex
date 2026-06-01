@@ -25,6 +25,7 @@ import { buildActionTools } from "@/features/astro/server/tools/actions";
 import { buildMutationTools } from "@/features/astro/server/tools/mutations";
 import { buildSearchTools } from "@/features/astro/server/tools/search";
 import { buildChartTools } from "@/features/astro/server/tools/charts";
+import { buildWorkflowTools } from "@/features/astro/server/tools/workflows";
 
 /**
  * Modelo OpenAI — reaproveita a `OPENAI_API_KEY` que já é usada pelos
@@ -282,6 +283,11 @@ export function streamAstro(opts: {
       ...buildSearchTools(ctx),
       // chart_* — gráficos recharts (bar/line/pie) renderizados no client.
       ...buildChartTools(ctx),
+      // workflow_* — IA generativa de workflows agent-mode + apply preset
+      // por slug. Use quando o user pede "cria uma automação que ..." ou
+      // "aplica o preset de boas-vindas". Workflow nasce INATIVO no
+      // canvas — Astro retorna link `editorUrl` pra user abrir e revisar.
+      ...buildWorkflowTools(ctx),
     };
     const systemSuffix = buildAgentsBriefing(enabled);
     // Injeta a data/hora atual no system prompt pra o LLM resolver datas

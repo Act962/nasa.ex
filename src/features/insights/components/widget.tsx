@@ -12,6 +12,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface WidgetListProps {
   organizationIds: string[];
+  /** Filtros do dashboard — pra widget refletir snapshot histórico no endDate */
+  endDate?: string;
+  trackingId?: string;
+  memberIds?: string[];
 }
 
 export function WidgetList(data: WidgetListProps) {
@@ -43,6 +47,9 @@ export function WidgetList(data: WidgetListProps) {
                     organizationId={widget.organizationId}
                     id={widget.id}
                     organizationIds={data.organizationIds}
+                    endDate={data.endDate}
+                    trackingId={data.trackingId}
+                    memberIds={data.memberIds}
                   />
                 )}
               </div>
@@ -63,6 +70,9 @@ interface WidgetTagProps {
   organizationId: string;
   id: string;
   organizationIds: string[];
+  endDate?: string;
+  trackingId?: string;
+  memberIds?: string[];
 }
 
 export function WidgetTag({
@@ -71,10 +81,16 @@ export function WidgetTag({
   organizationId,
   id,
   organizationIds,
+  endDate,
+  trackingId,
+  memberIds,
 }: WidgetTagProps) {
   const { data, isLoading } = useQueryWidgetByTag({
     tagId,
     organizationId,
+    endDate,
+    trackingId,
+    memberIds,
   });
 
   const mutation = useMutationDeleteWidget(organizationIds);

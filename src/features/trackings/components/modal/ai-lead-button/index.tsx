@@ -40,13 +40,18 @@ import { MessageTextPart } from "./message-text-part";
 import { AiLeadButtonProps } from "./types";
 
 const AUTOMATION_TOOL_LABELS: Record<string, string> = {
-  createWorkflow: "Criar automação",
+  // Legado (caminho 3 — addNode + connectNodes manual)
+  createWorkflow: "Criar automação (vazia)",
   updateWorkflow: "Atualizar automação",
   addNode: "Adicionar nó",
   connectNodes: "Conectar nós",
   executeWorkflow: "Executar automação",
   getWorkflow: "Verificar automação",
   listWorkflows: "Listar automações",
+  // IA generativa novas (caminho 1 + 2)
+  generate_workflow_from_intent: "🤖 Gerando workflow inteiro com IA",
+  apply_workflow_preset: "📦 Aplicando preset",
+  list_workflow_presets: "📋 Listando presets disponíveis",
 };
 
 const AUTOMATION_TOOLS = new Set(Object.keys(AUTOMATION_TOOL_LABELS));
@@ -95,11 +100,12 @@ export function AiLeadButton({ trackingId, children }: AiLeadButtonProps) {
               <SparklesIcon className="size-5 text-purple-500" />
             </div>
             <SheetTitle className="text-2xl font-bold tracking-tight text-zinc-100">
-              Gestão de Leads
+              Agente de Automações
             </SheetTitle>
           </div>
           <SheetDescription className="text-sm text-zinc-400">
-            Descreva o que precisa e o ASTRO gerenciará seus leads no funil.
+            Descreva o que precisa — o ASTRO cria workflows inteiros,
+            aplica presets prontos, gerencia leads e move o funil pra você.
           </SheetDescription>
         </SheetHeader>
 
@@ -254,7 +260,7 @@ export function AiLeadButton({ trackingId, children }: AiLeadButtonProps) {
           <InputGroup className="border-zinc-800 rounded-2xl flex-col h-auto">
             <div className="flex w-full items-end">
               <InputGroupTextarea
-                placeholder="Pergunte ao ASTRO sobre seus leads..."
+                placeholder="Crie um workflow, aplique um preset ou gerencie leads..."
                 className="min-h-11 max-h-40 text-sm text-zinc-100 placeholder:text-zinc-600"
                 value={prompt}
                 onKeyDown={(e) => {

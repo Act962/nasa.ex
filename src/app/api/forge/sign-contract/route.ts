@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getPostHogClient } from "@/lib/posthog-server";
+import { broadcastAgentWorkflowEvent } from "@/inngest/utils";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,7 +22,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing name" }, { status: 400 });
     }
 
-    const contract = await prisma.forgeContract.findUnique({ where: { id: contractId } });
+    // Include proposal → client → tracking pra emitir evento de workflow.
+    const contract = await prisma.forgeContract.findUnique({
+      where: { id: contractId },
+      include: {
+        proposal: {
+          select: {
+            id: true,
+            client: { select: { id: true, trackingId: true } },
+          },
+        },
+      },
+    });
     if (!contract) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const signers = contract.signers as {
@@ -68,6 +80,25 @@ export async function POST(req: NextRequest) {
       },
     });
     await posthog.shutdown();
+
+    // Emite `contract-signed` pro engine de workflows acordar runs aguardando
+    // esse evento via WAIT_FOR_EVENT. Só dispara quando TODOS assinaram (do
+    // contrário workflow disparava antes da hora) E o contrato está vinculado
+    // a uma proposta com lead. Best-effort.
+    if (allSigned && contract.proposal?.client?.id && contract.proposal.client.trackingId) {
+      await broadcastAgentWorkflowEvent({
+        event: "contract-signed",
+        leadId: contract.proposal.client.id,
+        trackingId: contract.proposal.client.trackingId,
+        organizationId: contract.organizationId,
+        extra: {
+          contractId,
+          proposalId: contract.proposal.id,
+          signerName: signer.name,
+          signMethod: method ?? "manual",
+        },
+      });
+    }
 
     return NextResponse.json({ ok: true, allSigned });
   } catch (err) {

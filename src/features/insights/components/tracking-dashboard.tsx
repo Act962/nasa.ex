@@ -744,7 +744,12 @@ export function TrackingDashboard({
               )}
             />
 
-            <WidgetList organizationIds={organizationIds} />
+            <WidgetList
+              organizationIds={organizationIds}
+              endDate={dateRange.to?.toISOString()}
+              trackingId={trackingId || undefined}
+              memberIds={memberIds.length ? memberIds : undefined}
+            />
           </TabsContent>
 
           {/* ── TRACKING ─────────────────────────────────────────────────────── */}

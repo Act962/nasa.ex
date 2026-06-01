@@ -100,6 +100,31 @@ export const useUpdateWorkflow = () => {
             },
           }),
         });
+
+        // TagsV2: nodes podem ter mudado referências de tag (TAG action /
+        // LEAD_TAGGED trigger) — invalida tag.list pra recalcular o
+        // automationCount mostrado nas badges + lista do TagSheet.
+        // Predicate: pega TODAS as variações de input (com/sem trackingId,
+        // includeArchived, etc).
+        queryClient.invalidateQueries({
+          predicate: (q) => {
+            const key = q.queryKey;
+            if (!Array.isArray(key)) return false;
+            // TagsV2: listTags/getDuplicateTags/getReferencedWorkflows
+            if (
+              key[0] === "tags" &&
+              (key[1] === "listTags" ||
+                key[1] === "getDuplicateTags" ||
+                key[1] === "getReferencedWorkflows")
+            )
+              return true;
+            // Status: getReferencedWorkflows pra dialog de delete refletir
+            // mudanças em workflows imediatamente
+            if (key[0] === "status" && key[1] === "getReferencedWorkflows")
+              return true;
+            return false;
+          },
+        });
       },
       onError: (error) => {
         toast.error(`Falha ao atualizar o nome do workflow: ${error.message}`);
@@ -124,9 +149,59 @@ export const useUpdateWorkflowIsActive = (trackingId: string) => {
             input: { workflowId: data.id },
           }),
         });
+        // TagsV2: automationCount conta SÓ workflows ativos. Toggle de
+        // is_active muda a conta — invalida pra refletir.
+        queryClient.invalidateQueries({
+          predicate: (q) => {
+            const key = q.queryKey;
+            if (!Array.isArray(key)) return false;
+            // TagsV2: listTags/getDuplicateTags/getReferencedWorkflows
+            if (
+              key[0] === "tags" &&
+              (key[1] === "listTags" ||
+                key[1] === "getDuplicateTags" ||
+                key[1] === "getReferencedWorkflows")
+            )
+              return true;
+            // Status: getReferencedWorkflows pra dialog de delete refletir
+            // mudanças em workflows imediatamente
+            if (key[0] === "status" && key[1] === "getReferencedWorkflows")
+              return true;
+            return false;
+          },
+        });
       },
       onError: (error) => {
         toast.error(`Falha ao alterar status do workflow: ${error.message}`);
+      },
+    }),
+  );
+};
+
+/**
+ * Liga/desliga Modo Agente IA num workflow. Quando true, libera multi-trigger,
+ * branches, loops, AI nodes, e a engine `executeWorkflow` delega pro
+ * `run-workflow.ts` (DAG executor).
+ */
+export const useUpdateWorkflowAgentMode = (workflowId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.workflow.update.updateAgentMode.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(
+          data.agentMode
+            ? "Modo Agente IA ativado"
+            : "Modo Agente IA desativado",
+        );
+        queryClient.invalidateQueries({
+          queryKey: orpc.workflow.getOne.queryKey({
+            input: { workflowId },
+          }),
+        });
+      },
+      onError: (error) => {
+        toast.error(`Falha ao alterar Modo Agente IA: ${error.message}`);
       },
     }),
   );
@@ -145,6 +220,26 @@ export const useDeleteWorkflow = () => {
               trackingId: data.trackingId!,
             },
           }),
+        });
+        // TagsV2: delete remove referências de tag — recalcula automationCount.
+        queryClient.invalidateQueries({
+          predicate: (q) => {
+            const key = q.queryKey;
+            if (!Array.isArray(key)) return false;
+            // TagsV2: listTags/getDuplicateTags/getReferencedWorkflows
+            if (
+              key[0] === "tags" &&
+              (key[1] === "listTags" ||
+                key[1] === "getDuplicateTags" ||
+                key[1] === "getReferencedWorkflows")
+            )
+              return true;
+            // Status: getReferencedWorkflows pra dialog de delete refletir
+            // mudanças em workflows imediatamente
+            if (key[0] === "status" && key[1] === "getReferencedWorkflows")
+              return true;
+            return false;
+          },
         });
       },
       onError: (error) => {

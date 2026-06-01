@@ -110,6 +110,20 @@ export const useAddTagToLeadOptimistic = (
             input: { leadId },
           }),
         });
+        // Insights/TagSheet leadCount precisam refletir add imediato
+        queryClient.invalidateQueries({
+          predicate: (q) => {
+            const key = q.queryKey;
+            if (!Array.isArray(key)) return false;
+            if (key[0] === "insights") return true;
+            if (
+              key[0] === "tags" &&
+              (key[1] === "listTags" || key[1] === "getDuplicateTags")
+            )
+              return true;
+            return false;
+          },
+        });
       },
     }),
   );
@@ -154,6 +168,20 @@ export const useRemoveTagFromLeadOptimistic = (leadId: string) => {
           queryKey: orpc.tags.getTagByLead.queryKey({
             input: { leadId },
           }),
+        });
+        // Insights/TagSheet leadCount precisam refletir remove imediato
+        queryClient.invalidateQueries({
+          predicate: (q) => {
+            const key = q.queryKey;
+            if (!Array.isArray(key)) return false;
+            if (key[0] === "insights") return true;
+            if (
+              key[0] === "tags" &&
+              (key[1] === "listTags" || key[1] === "getDuplicateTags")
+            )
+              return true;
+            return false;
+          },
         });
       },
     }),

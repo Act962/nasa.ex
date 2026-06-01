@@ -12,6 +12,11 @@ export const updateTag = base
       name: z.string(),
       color: z.string(),
       description: z.string().trim().nullable().optional(),
+      /** Mover tag pra um grupo (id) ou tirá-la (null = "Sem categoria"). */
+      tagGroupId: z.string().nullable().optional(),
+      /** Restaura tag arquivada (zera archivedAt). Quando true, ignora os
+       *  outros campos editáveis e só faz a restauração. */
+      restore: z.boolean().optional(),
     }),
   )
   .handler(async ({ input, errors }) => {
@@ -27,6 +32,15 @@ export const updateTag = base
       });
     }
 
+    // Modo "restaurar": zera archivedAt + archivedById e sai. Não toca em
+    // name/color — preserva o estado da tag antes do arquivamento.
+    if (input.restore) {
+      return await prisma.tag.update({
+        where: { id: input.tagId },
+        data: { archivedAt: null, archivedById: null },
+      });
+    }
+
     const slug = slugify(input.name);
 
     return await prisma.tag.update({
@@ -38,6 +52,7 @@ export const updateTag = base
         slug: slug,
         color: input.color,
         ...(input.description !== undefined && { description: input.description }),
+        ...(input.tagGroupId !== undefined && { tagGroupId: input.tagGroupId }),
       },
     });
   });

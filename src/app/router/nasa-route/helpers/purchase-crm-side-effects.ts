@@ -87,6 +87,47 @@ export async function createPurchaseSideEffects(
   } catch (err) {
     console.error("[nasa-route/purchase-side-effects] payment entry failed:", err);
   }
+
+  // ── 3. Dispatch agent-workflow PAYMENT_RECEIVED ─────────────
+  // Reemite o evento agora COM leadId/trackingId reais E enriquecido com
+  // dados do curso. O webhook Stripe original lê leadId da metadata da
+  // session, mas o NASA Route checkout cria a session ANTES do Lead
+  // existir — sem essa reemissão, o trigger PAYMENT_RECEIVED do agent-mode
+  // nunca bate com workflow do tracking destino. Best-effort.
+  //
+  // Os campos extras (courseTitle, planName, etc.) ficam visíveis no
+  // contexto via {{trigger.courseTitle}}, etc — usados pelo SEND_EMAIL
+  // welcome-course pra preencher o template sem query adicional.
+  if (leadId && input.course.purchaseTrackingId) {
+    try {
+      const { dispatchPaymentReceived } = await import(
+        "@/features/workflows/lib/agent-trigger-helpers"
+      );
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+      await dispatchPaymentReceived({
+        provider: "STRIPE",
+        externalId: input.enrollmentId,
+        organizationId: input.creatorOrgId,
+        trackingId: input.course.purchaseTrackingId,
+        leadId,
+        extra: {
+          courseId: input.course.id,
+          courseTitle: input.course.title,
+          planName: input.planName,
+          enrollmentId: input.enrollmentId,
+          coursePlayerUrl: `${baseUrl}/nasa-route/curso/${input.course.id}`,
+          studentName: input.buyer.name ?? null,
+          studentEmail: input.buyer.email ?? null,
+          studentPhone: input.buyer.phone ?? null,
+        },
+      });
+    } catch (err) {
+      console.error(
+        "[nasa-route/purchase-side-effects] agent dispatch failed:",
+        err,
+      );
+    }
+  }
 }
 
 /**

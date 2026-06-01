@@ -9,9 +9,15 @@ import {
   useStore,
 } from "@xyflow/react";
 import { LucideIcon, Plus } from "lucide-react";
-import { memo, useState, type ReactNode } from "react";
+import { createId } from "@paralleldrive/cuid2";
+import { memo, useMemo, useState, type ReactNode } from "react";
 import { WorkflowNode } from "@/components/workflow-node";
 import { BaseNode, BaseNodeContent } from "@/components/react-flow/base-node";
+import { validateNode } from "@/features/workflows/lib/validate-node";
+import { useNodeIssues } from "@/features/workflows/components/workflow-issues-context";
+import { useAtomValue } from "jotai";
+import { stepByStepStateAtom } from "@/features/editor/store/step-by-step-atoms";
+import { StepRocketOverlay } from "@/features/editor/components/step-rocket-overlay";
 import Image from "next/image";
 import { BaseHandle } from "@/components/react-flow/base-handle";
 import {
@@ -46,8 +52,18 @@ export const BaseTriggerNode = memo(
     status = "initial",
     onSettings,
     onDoubleClick,
+    ...rest
   }: BaseTriggerNodeProps) => {
     const { setNodes, setEdges } = useReactFlow();
+    // Validação automática — usa o `type` + `data` que vem via NodeProps.
+    // Toda action/trigger ganha borda colorida + tooltip de erros sem
+    // precisar mudar cada `*/node.tsx`.
+    const nodeType = (rest as any).type as string | undefined;
+    const nodeData = (rest as any).data as Record<string, unknown> | undefined;
+    const validation = useMemo(
+      () => (nodeType ? validateNode(nodeType, nodeData) : undefined),
+      [nodeType, nodeData],
+    );
     const [openSelector, setOpenSelector] = useState(false);
     const connectionInProgress = useConnection(selector);
     const isConnected = useStore((state) =>
@@ -72,20 +88,84 @@ export const BaseTriggerNode = memo(
       });
     };
 
+    const handleDuplicate = () => {
+      setNodes((currentNodes) => {
+        const original = currentNodes.find((n) => n.id === id);
+        if (!original) return currentNodes;
+        const clone = {
+          ...original,
+          id: createId(),
+          position: {
+            x: original.position.x + 40,
+            y: original.position.y + 40,
+          },
+          selected: false,
+          data: JSON.parse(JSON.stringify(original.data ?? {})),
+        };
+        return [...currentNodes, clone];
+      });
+    };
+
+    const handleAddNext = () => setOpenSelector(true);
+
+    // Issues estruturais do grafo (TRIGGER_DISCONNECTED, ARCHIVED_TAG no
+    // LEAD_TAGGED, etc) também forçam borda vermelha — bug clássico do
+    // "Agente de Agendamento" caía aqui silenciosamente porque NEW_LEAD
+    // sem aresta de saída ficava verde.
+    const graphIssues = useNodeIssues(id);
+    const hasGraphError = graphIssues.some((i) => i.severity === "error");
+    const nodeInvalid = !!(validation && !validation.valid && !validation.skip);
+    // `needsReview` no node.data sinaliza pendência da IA generativa —
+    // user precisa abrir o nó pra completar (ex: escolher produto/agenda).
+    // Mesma cor de erro de validação (borda vermelha pulsante).
+    const needsReview = !!(nodeData?.needsReview === true);
+    // Sobrescreve status quando validação falha — borda vermelha pulsante
+    // sinaliza que o trigger não está pronto pra ativar.
+    const effectiveStatus: typeof status =
+      nodeInvalid || hasGraphError || needsReview ? "error" : status;
+
+    // ── Step-by-Step overlay ───────────────────────────────────
+    const stepState = useAtomValue(stepByStepStateAtom);
+    const stepNodeStatus = stepState.active
+      ? (stepState.nodeStatuses[id] ?? "idle")
+      : "idle";
+    const handleRocketClick = () => {
+      window.dispatchEvent(
+        new CustomEvent("step-by-step:open-popover", { detail: { nodeId: id } }),
+      );
+    };
+
     return (
       <WorkflowNode
         name={name}
         description={description}
         onDelete={handleDelete}
         onSettings={onSettings}
+        onDuplicate={handleDuplicate}
+        onAddNext={handleAddNext}
       >
+        <StepRocketOverlay status={stepNodeStatus} onClick={handleRocketClick} />
         <NodeStatusIndicator
-          status={status}
+          status={effectiveStatus}
           variant="border"
           className="rounded-l-2xl"
         >
           <BaseNode
             status={status}
+            validation={validation}
+            graphErrorMessages={[
+              ...graphIssues
+                .filter((i) => i.severity === "error")
+                .map((i) => i.message),
+              ...(needsReview
+                ? [
+                    `🤖 IA marcou pra revisão: ${
+                      (nodeData as { reviewReason?: string })?.reviewReason ??
+                      "configurar campos faltantes"
+                    }`,
+                  ]
+                : []),
+            ]}
             onDoubleClick={onDoubleClick}
             className="rounded-l-2xl relative group"
           >

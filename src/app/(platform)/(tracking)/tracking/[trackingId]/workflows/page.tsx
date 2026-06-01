@@ -37,7 +37,7 @@ export default async function WorkflowsPage({ params }: WorkflowPageProps) {
             <Button variant="outline" size="sm">
               <SparklesIcon className="size-4 text-purple-500" />
               <span className="hidden sm:inline bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-semibold">
-                IA de Automações
+                Agente de Automações
               </span>
             </Button>
           </AiLeadButton>

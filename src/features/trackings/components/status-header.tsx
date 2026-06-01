@@ -2,6 +2,14 @@
 
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -23,7 +31,14 @@ import { getContrastColor } from "@/utils/get-contrast-color";
 import { DraggableAttributes } from "@dnd-kit/core";
 import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Grip, MoreHorizontalIcon, Plus, Trash2Icon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  Grip,
+  MoreHorizontalIcon,
+  Plus,
+  Trash2Icon,
+  ZapIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { SketchPicker } from "react-color";
 import { useForm } from "react-hook-form";
@@ -100,10 +115,28 @@ export const StatusHeader = ({
     });
   };
 
+  // Dialog de confirmação quando há workflows ATIVOS referenciando o status.
+  // Evita quebra silenciosa de automações ao remover coluna do kanban.
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const { data: referencedWorkflows, isLoading: loadingWorkflows } = useQuery({
+    ...orpc.status.getReferencedWorkflows.queryOptions({
+      input: { statusId: data.id },
+    }),
+    enabled: confirmDelete,
+  });
+
   const handleDeleteStatus = () => {
-    deleteStatusMutation.mutate({
-      statusId: data.id,
-    });
+    // Sempre passa pelo dialog — query roda lazy (enabled=confirmDelete).
+    // Se não há workflows, dialog deixa proceder direto. Se há, mostra
+    // lista + confirmação dupla.
+    setConfirmDelete(true);
+  };
+
+  const doDelete = () => {
+    deleteStatusMutation.mutate(
+      { statusId: data.id },
+      { onSuccess: () => setConfirmDelete(false) },
+    );
   };
 
   return (
@@ -163,6 +196,85 @@ export const StatusHeader = ({
         onColorChange={onColorChange}
         handleDeleteStatus={handleDeleteStatus}
       />
+
+      {/* Dialog de confirmação — preview de workflows afetados antes de
+          deletar o status. Cobre o caso onde apagar a coluna iria quebrar
+          automações ativas em silêncio. */}
+      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangleIcon className="size-5 text-amber-500" />
+              Excluir status "{data.name}"?
+            </DialogTitle>
+            <DialogDescription>
+              {loadingWorkflows ? (
+                "Verificando automações..."
+              ) : referencedWorkflows?.workflows.length ? (
+                <>
+                  Este status está referenciado em{" "}
+                  <b>{referencedWorkflows.workflows.length} automação(ões)</b>.
+                  Apagar vai quebrá-las silenciosamente — os nodes deixarão de
+                  encontrar o status no banco.
+                </>
+              ) : (
+                "Esta coluna não tem leads vinculados e nenhuma automação a referencia. Pode excluir sem riscos."
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {!!referencedWorkflows?.workflows.length && (
+            <div className="max-h-64 overflow-y-auto space-y-1.5 rounded-md border bg-muted/30 p-2">
+              {referencedWorkflows.workflows.map((wf) => (
+                <div
+                  key={`${wf.workflowId}-${wf.nodeType}`}
+                  className="flex items-center justify-between gap-2 px-2 py-1.5 rounded bg-background border text-xs"
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <ZapIcon
+                      className={cn(
+                        "size-3.5 shrink-0",
+                        wf.isActive ? "text-amber-500" : "text-muted-foreground",
+                      )}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">{wf.name}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {wf.trackingName ?? "Org-wide"} ·{" "}
+                        {wf.nodeType === "MOVE_LEAD"
+                          ? "Move lead pra esta coluna"
+                          : "Dispara quando lead vai pra esta coluna"}
+                        {!wf.isActive && " · inativo"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDelete(false)}
+              disabled={deleteStatusMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={doDelete}
+              disabled={deleteStatusMutation.isPending || loadingWorkflows}
+            >
+              {deleteStatusMutation.isPending
+                ? "Excluindo..."
+                : referencedWorkflows?.workflows.length
+                  ? "Excluir mesmo assim"
+                  : "Excluir"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

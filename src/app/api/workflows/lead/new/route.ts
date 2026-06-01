@@ -1,5 +1,5 @@
 import { inngest } from "@/inngest/client";
-import { sendWorkflowExecution } from "@/inngest/utils";
+import { dispatchNewLead } from "@/inngest/utils";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
@@ -66,12 +66,7 @@ export async function POST(req: Request) {
 
     await Promise.all(
       workflows.map((workflow) =>
-        sendWorkflowExecution({
-          workflowId: workflow.id,
-          initialData: {
-            lead,
-          },
-        }),
+        dispatchNewLead({ workflowId: workflow.id, lead }),
       ),
     );
 

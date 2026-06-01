@@ -1,6 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { sendWorkflowExecution } from "@/inngest/utils";
+import { dispatchManualTrigger } from "@/inngest/utils";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -30,11 +30,8 @@ export const executeWorkflow = base
       });
     }
 
-    await sendWorkflowExecution({
+    await dispatchManualTrigger({
       workflowId: input.id,
-      initialData: {
-        lead: {},
-      },
     });
 
     return workflow;

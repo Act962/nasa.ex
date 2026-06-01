@@ -32,6 +32,7 @@ import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-st
 import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route-subscription-renew";
 import { nasaRouteVideoUploadsCleanup } from "@/inngest/functions/crons/nasa-route-video-uploads-cleanup";
 import { nasaRouteArchivePastEvents } from "@/inngest/functions/crons/nasa-route-archive-past-events";
+import { nasaRouteCartRecoveryCron } from "@/inngest/functions/crons/nasa-route-cart-recovery";
 import { onVideoUploadProgress } from "@/inngest/functions/nasa-route/on-video-upload-progress";
 import { onVideoUploadCompleted } from "@/inngest/functions/nasa-route/on-video-upload-completed";
 import { nasaRoutePurchaseEmail } from "@/inngest/functions/nasa-route/purchase-email";
@@ -54,6 +55,15 @@ import {
   checkNoFirstResponse,
   checkInConvIdle,
 } from "@/inngest/functions/triggers/idle-automation";
+import {
+  autoAgentTickScheduledFn,
+  autoAgentOnLeadReplyFn,
+} from "@/inngest/functions/auto-agent-scheduler";
+import {
+  agentTriggerPaymentReceivedFn,
+  agentTriggerMessageIncomingFn,
+  agentTriggerWebhookExternalFn,
+} from "@/inngest/functions/agent-workflow-triggers";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -86,6 +96,7 @@ export const { GET, POST, PUT } = serve({
     nasaRouteSubscriptionRenew,
     nasaRouteVideoUploadsCleanup,
     nasaRouteArchivePastEvents,
+    nasaRouteCartRecoveryCron,
     onVideoUploadProgress,
     onVideoUploadCompleted,
     nasaRoutePurchaseEmail,
@@ -115,6 +126,13 @@ export const { GET, POST, PUT } = serve({
     scheduleIdleChecks,
     checkNoFirstResponse,
     checkInConvIdle,
+    // ── NASA Auto Agent — scheduler de turns assíncronos ──
+    autoAgentTickScheduledFn,
+    autoAgentOnLeadReplyFn,
+    // ── Modo Agente IA Visual — disparadores dos triggers novos ──
+    agentTriggerPaymentReceivedFn,
+    agentTriggerMessageIncomingFn,
+    agentTriggerWebhookExternalFn,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

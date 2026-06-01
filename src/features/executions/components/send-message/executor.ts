@@ -6,6 +6,7 @@ import { LeadContext } from "../../schemas";
 import { sendTextMessage } from "./message/send-text-message";
 import { sendImageMessage } from "./message/send-image";
 import { sendDocumentMessage } from "./message/send-document";
+import { sendButtonsOrList } from "@/http/uazapi/send-menu";
 import { sendMessageChannel } from "@/inngest/channels/send-message";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { normalizePhone } from "@/utils/format-phone";
@@ -207,6 +208,127 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             fileName: data.action?.payload.fileName || "",
           });
           break;
+        case "BUTTONS": {
+          // Resolve preset OU inline. Preset: lê AiButtonPreset do banco
+          // (validação de tracking-scope já foi feita pela UI). Inline:
+          // usa os campos do payload.
+          // Espelha a mesma lógica do executor agent-mode (apps.ts) pra
+          // garantir comportamento idêntico nas 2 engines.
+          const payload = data.action?.payload as {
+            mode?: "preset" | "inline";
+            presetId?: string;
+            bodyText?: string;
+            footerText?: string;
+            buttons?: Array<{ text: string; id: string }>;
+          };
+
+          let bodyText = "";
+          let footerText: string | undefined;
+          let buttons: Array<{ text: string; id: string }> = [];
+
+          if (payload?.mode === "preset" && payload.presetId) {
+            const preset = await prisma.aiButtonPreset.findUnique({
+              where: { id: payload.presetId },
+              select: {
+                bodyText: true,
+                footerText: true,
+                buttons: true,
+                isActive: true,
+              },
+            });
+            if (!preset || !preset.isActive) {
+              throw new NonRetriableError(
+                "Preset de botões não encontrado ou inativo",
+              );
+            }
+            bodyText = preset.bodyText;
+            footerText = preset.footerText ?? undefined;
+            const rawButtons = preset.buttons as unknown;
+            buttons = Array.isArray(rawButtons)
+              ? rawButtons
+                  .filter(
+                    (b): b is Record<string, unknown> =>
+                      typeof b === "object" && b !== null,
+                  )
+                  .map((b) => ({
+                    text: typeof b.text === "string" ? b.text : "",
+                    id: typeof b.id === "string" ? b.id : "",
+                  }))
+                  .filter((b) => b.text && b.id)
+              : [];
+          } else {
+            bodyText = payload?.bodyText ?? "";
+            footerText = payload?.footerText || undefined;
+            buttons = Array.isArray(payload?.buttons) ? payload.buttons : [];
+          }
+
+          // Interpolação de variáveis no bodyText/footerText
+          for (const [k, v] of Object.entries(variables)) {
+            bodyText = bodyText.replace(k, v || "");
+            if (footerText) footerText = footerText.replace(k, v || "");
+          }
+
+          if (!bodyText.trim()) {
+            throw new NonRetriableError("Texto principal do menu vazio");
+          }
+          if (buttons.length === 0) {
+            throw new NonRetriableError("Menu sem botões válidos");
+          }
+
+          // Mesma chamada uazapi do tool de produção em
+          // `tracking-chat-ai/server/tools/send-buttons.ts`, mas via
+          // wrapper `sendButtonsOrList` que auto-degrada pra `sendList`
+          // se buttons.length > 3 (limite nativo do WhatsApp).
+          const buttonsResponse = await sendButtonsOrList(
+            instance.apiKey,
+            {
+              number: phone,
+              text: bodyText,
+              buttons,
+              footer: footerText,
+              readchat: true,
+              readmessages: true,
+              delay: 2000,
+            },
+            instance.baseUrl,
+          );
+
+          // Persiste Message no banco com format espelhado da produção
+          // (tool do Chatbot IA → lib/persist linha 57-58). Garante que o
+          // histórico do chat fica idêntico independente do canal (IA vs
+          // automação).
+          const summary = buttons.map((b) => `• ${b.text}`).join("\n");
+          const persistedBody = footerText
+            ? `${bodyText}\n\n[Botões]\n${summary}\n\n${footerText}`
+            : `${bodyText}\n\n[Botões]\n${summary}`;
+
+          const { MessageStatus: MessageStatusEnum } = await import(
+            "@/features/tracking-chat/types"
+          );
+          const { pusherServer: pusher } = await import("@/lib/pusher");
+          const message = await prisma.message.create({
+            data: {
+              conversationId: conversation.id,
+              body: persistedBody,
+              messageId: buttonsResponse.messageid,
+              fromMe: true,
+              status: MessageStatusEnum.SENT,
+              quotedMessageId: null,
+            },
+            include: {
+              conversation: { include: { lead: true } },
+            },
+          });
+          await pusher
+            .trigger(message.conversationId, "message:created", {
+              ...message,
+              currentUserId: "",
+            })
+            .catch(() => {
+              // pusher best-effort — message já tá no banco
+            });
+          break;
+        }
       }
 
       if (realTime) {

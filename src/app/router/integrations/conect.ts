@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import { configureWebhook } from "@/http/uazapi/configure-webhook";
 import prisma from "@/lib/prisma";
@@ -26,7 +27,7 @@ export const connectInstanceUazapi = base
     }),
   )
 
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context }) => {
     const {
       profileName,
       profilePicUrl,
@@ -50,10 +51,8 @@ export const connectInstanceUazapi = base
         excludeMessages: ["wasSentByApi", "isGroupYes"],
       },
     });
-    await prisma.whatsAppInstance.update({
-      where: {
-        instanceId: instanceId,
-      },
+    const instance = await prisma.whatsAppInstance.update({
+      where: { instanceId },
       data: {
         status,
         profileName,
@@ -61,5 +60,31 @@ export const connectInstanceUazapi = base
         phoneNumber: owner,
         isBusiness,
       },
+      select: {
+        id: true,
+        instanceName: true,
+        organizationId: true,
+      },
     });
+
+    if (instance.organizationId) {
+      await logActivity({
+        organizationId: instance.organizationId,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as any).image,
+        appSlug: "tracking",
+        action: "whatsapp_instance.connected",
+        actionLabel: `Conectou instância WhatsApp "${profileName ?? instance.instanceName ?? instanceId}" (${owner})`,
+        resource: profileName ?? instance.instanceName ?? instanceId,
+        resourceId: instance.id,
+        metadata: {
+          phoneNumber: owner,
+          trackingId,
+          newStatus: status,
+          isBusiness,
+        },
+      });
+    }
   });

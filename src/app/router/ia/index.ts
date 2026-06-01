@@ -6,6 +6,7 @@ import { generateCompose } from "./generate-compose";
 import { generateConversationSummary } from "./generate-conversation-summary";
 import { getAiSettings } from "./get-ai-settings";
 import { getAiUsage } from "./get-ai-usage";
+import { getTokenUsageOverview } from "./get-token-usage-overview";
 import { listAiButtonPresets } from "./list-ai-button-presets";
 import { updateAiButtonPreset } from "./update-ai-button-preset";
 import { updateAiSettings } from "./update-ai-settings";
@@ -26,6 +27,7 @@ export const iaRouter = {
   },
   usage: {
     get: getAiUsage,
+    overview: getTokenUsageOverview,
   },
   buttonPresets: {
     list: listAiButtonPresets,

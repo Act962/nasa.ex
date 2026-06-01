@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { requireOrgMiddleware } from "../../middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { getTagSnapshotAtDate } from "@/features/insights/lib/tag-snapshot";
 
 export const getLeadsByTags = base
   .use(requiredAuthMiddleware)
@@ -18,12 +19,16 @@ export const getLeadsByTags = base
       tagIds: z.array(z.string()).optional(), // filtrar por tags específicas
       startDate: z.string().optional(),
       endDate: z.string().optional(),
+      /** Inclui tags arquivadas (soft-deleted) na lista. Default false —
+       *  charts mostram só tags ativas pra não poluir. Toggle "Incluir
+       *  arquivadas" no front liga isso pra análise histórica. */
+      includeArchived: z.boolean().optional().default(false),
     }),
   )
   .handler(async ({ input, errors, context }) => {
     try {
       const { org } = context;
-      const { trackingId, tagIds, startDate, endDate } = input;
+      const { trackingId, tagIds, startDate, endDate, includeArchived } = input;
 
       const dateFilter =
         startDate || endDate
@@ -41,36 +46,94 @@ export const getLeadsByTags = base
         ...dateFilter,
       };
 
-      // Buscar todas as tags do tracking/org
+      // Buscar tags do tracking/org. Por default exclui arquivadas; com
+      // `includeArchived=true` traz todas (útil pra análise histórica).
       const tags = await prisma.tag.findMany({
         where: {
           organizationId: org.id,
           ...(tagIds?.length ? { id: { in: tagIds } } : {}),
           ...(trackingId ? { OR: [{ trackingId }, { trackingId: null }] } : {}),
+          ...(includeArchived ? {} : { archivedAt: null }),
         },
-        select: { id: true, name: true, color: true, slug: true },
+        select: {
+          id: true,
+          name: true,
+          color: true,
+          slug: true,
+          archivedAt: true,
+        },
       });
 
-      // Para cada tag, contar leads associados no tracking
-      const tagCounts = await Promise.all(
-        tags.map(async (tag) => {
-          const count = await prisma.leadTag.count({
-            where: {
-              tagId: tag.id,
-              lead: baseWhere,
-            },
-          });
-          return { tag, count };
-        }),
-      );
-
-      // Total de leads com pelo menos 1 tag
-      const totalWithTags = await prisma.lead.count({
+      // Para cada tag, contar leads que TINHAM ela em `endDate`.
+      // Usa SNAPSHOT TEMPORAL (lib/tag-snapshot) — reconstrói via
+      // LeadJourneyEvent. Sem isso, remover tag HOJE caía retroativamente
+      // o count de PERÍODOS PASSADOS (bug crítico).
+      //
+      // Quando não há endDate (ou está no futuro), o helper já cai pro
+      // caminho rápido (LeadTag vivo) automaticamente.
+      // Scope SEM dateFilter (lead.createdAt) — pra analytics de tag o
+      // que importa é "lead TINHA a tag em endDate", não "lead foi CRIADO
+      // no período". Sem isso, lead criado em janeiro que pegou tag em
+      // maio sumiria do relatório de maio.
+      const leadsInScope = await prisma.lead.findMany({
         where: {
-          ...baseWhere,
-          leadTags: { some: {} },
+          ...(trackingId ? { trackingId } : {}),
+          tracking: { organizationId: org.id },
         },
+        select: { id: true },
       });
+      const snapshot = await getTagSnapshotAtDate(
+        leadsInScope.map((l) => l.id),
+        endDate ? new Date(endDate) : null,
+      );
+      // Agrupa snapshot por tagId pra contagem
+      const countByTagId = new Map<string, number>();
+      const leadsByTagId = new Map<string, Set<string>>();
+      for (const s of snapshot) {
+        countByTagId.set(s.tagId, (countByTagId.get(s.tagId) ?? 0) + 1);
+        const set = leadsByTagId.get(s.tagId) ?? new Set();
+        set.add(s.leadId);
+        leadsByTagId.set(s.tagId, set);
+      }
+
+      // Agrega tags por nome (case-insensitive trim) — colapsa duplicatas
+      // legacy da migração TagsV2 (3 tags "Empresa" com IDs diferentes
+      // viravam 3 barras separadas dividindo o count real).
+      type TagAgg = {
+        primaryTag: (typeof tags)[number];
+        primaryRawCount: number;
+        leadIds: Set<string>;
+      };
+      const byNameAgg = new Map<string, TagAgg>();
+      for (const tag of tags) {
+        const key = tag.name.trim().toLowerCase();
+        const rawCount = countByTagId.get(tag.id) ?? 0;
+        const leadsForTag = leadsByTagId.get(tag.id) ?? new Set();
+        let agg = byNameAgg.get(key);
+        if (!agg) {
+          agg = { primaryTag: tag, primaryRawCount: rawCount, leadIds: new Set() };
+          byNameAgg.set(key, agg);
+        } else if (rawCount > agg.primaryRawCount) {
+          agg.primaryTag = tag;
+          agg.primaryRawCount = rawCount;
+        }
+        for (const id of leadsForTag) agg.leadIds.add(id);
+      }
+
+      const tagCounts = Array.from(byNameAgg.values()).map((agg) => {
+        const { archivedAt, ...tagPublic } = agg.primaryTag;
+        return {
+          tag: { ...tagPublic, isArchived: archivedAt !== null },
+          count: agg.leadIds.size,
+        };
+      });
+
+      // Total de leads com PELO MENOS 1 tag no endDate (já dedupado pelos Sets)
+      const leadsWithAnyTag = new Set<string>();
+      for (const agg of byNameAgg.values()) {
+        for (const id of agg.leadIds) leadsWithAnyTag.add(id);
+      }
+      const totalWithTags = leadsWithAnyTag.size;
 
       return {
         tags: tagCounts.sort((a, b) => b.count - a.count),

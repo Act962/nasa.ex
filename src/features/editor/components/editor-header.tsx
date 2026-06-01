@@ -17,12 +17,17 @@ import {
   useUpdateWorkflowIsActive,
   useUpdateWorkflowName,
 } from "@/features/workflows/hooks/use-workflows";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { SaveIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { editorAtom } from "../store/atoms";
+import {
+  editorAtom,
+  lastSavedSnapshotAtom,
+  workflowDirtyAtom,
+} from "../store/atoms";
+import { UnsavedChangesDialog } from "./unsaved-changes-dialog";
 import {
   Dialog,
   DialogClose,
@@ -87,8 +92,46 @@ export const EditorOptions = ({ workflowId }: { workflowId: string }) => {
   );
 };
 
+/**
+ * Snapshot pra comparar com `lastSavedSnapshotAtom`. Espelha a função
+ * `computeSignature` do editor.tsx — qualquer mudança aqui precisa ser
+ * espelhada lá pra dirty-detection bater.
+ */
+type SerializableNode = {
+  id: string;
+  type?: string;
+  position: { x: number; y: number };
+  data: unknown;
+};
+type SerializableEdge = {
+  source: string;
+  target: string;
+  sourceHandle?: string | null;
+  targetHandle?: string | null;
+};
+const computeWorkflowSignature = (
+  nodes: SerializableNode[],
+  edges: SerializableEdge[],
+): string => {
+  const cleanNodes = nodes.map((n) => ({
+    id: n.id,
+    type: n.type,
+    position: n.position,
+    data: n.data,
+  }));
+  const cleanEdges = edges.map((e) => ({
+    source: e.source,
+    target: e.target,
+    sourceHandle: e.sourceHandle,
+    targetHandle: e.targetHandle,
+  }));
+  return JSON.stringify({ nodes: cleanNodes, edges: cleanEdges });
+};
+
 export const EditorSaveButton = ({ workflowId }: { workflowId: string }) => {
   const editor = useAtomValue(editorAtom);
+  const setLastSavedSnapshot = useSetAtom(lastSavedSnapshotAtom);
+  const setDirty = useSetAtom(workflowDirtyAtom);
   const saveWorkflow = useUpdateWorkflow();
 
   const handleSave = () => {
@@ -97,11 +140,25 @@ export const EditorSaveButton = ({ workflowId }: { workflowId: string }) => {
     const nodes = editor.getNodes();
     const edges = editor.getEdges();
 
-    saveWorkflow.mutate({
-      id: workflowId,
-      nodes,
-      edges,
-    });
+    saveWorkflow.mutate(
+      {
+        id: workflowId,
+        nodes,
+        edges,
+      },
+      {
+        onSuccess: () => {
+          // Atualiza baseline → o useEffect do editor.tsx detecta a
+          // igualdade e seta dirty=false. Limpa flag de sessionStorage
+          // pra `beforeunload` parar de alertar.
+          setLastSavedSnapshot(computeWorkflowSignature(nodes, edges));
+          setDirty(false);
+          if (typeof sessionStorage !== "undefined") {
+            sessionStorage.setItem("__wf_dirty", "false");
+          }
+        },
+      },
+    );
   };
 
   return (
@@ -188,16 +245,68 @@ export const EditorNameInput = ({ workflowId }: { workflowId: string }) => {
 
 export const EditorBreadcrumbs = ({ workflowId }: { workflowId: string }) => {
   const { trackingId } = useParams<{ trackingId: string }>();
+  const router = useRouter();
+  const dirty = useAtomValue(workflowDirtyAtom);
+  const editor = useAtomValue(editorAtom);
+  const setLastSavedSnapshot = useSetAtom(lastSavedSnapshotAtom);
+  const setDirty = useSetAtom(workflowDirtyAtom);
+  const saveWorkflow = useUpdateWorkflow();
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const backHref = `/tracking/${trackingId}/workflows`;
+
+  const handleBackClick = (e: React.MouseEvent) => {
+    if (!dirty) return; // fluxo normal — Link navega
+    e.preventDefault();
+    setDialogOpen(true);
+  };
+
+  const proceedToBack = () => {
+    setDialogOpen(false);
+    // Limpa flag pra `beforeunload` não disparar durante a navegação.
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem("__wf_dirty", "false");
+    }
+    setDirty(false);
+    router.push(backHref);
+  };
+
+  const handleSaveAndProceed = () => {
+    if (!editor) {
+      proceedToBack();
+      return;
+    }
+    const nodes = editor.getNodes();
+    const edges = editor.getEdges();
+    saveWorkflow.mutate(
+      { id: workflowId, nodes, edges },
+      {
+        onSuccess: () => {
+          setLastSavedSnapshot(computeWorkflowSignature(nodes, edges));
+          proceedToBack();
+        },
+      },
+    );
+  };
 
   return (
     <Breadcrumb>
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href={`/tracking/${trackingId}/workflows`}>Automações</Link>
+            <Link href={backHref} onClick={handleBackClick}>
+              Automações
+            </Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />
+        <UnsavedChangesDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          onSaveAndProceed={handleSaveAndProceed}
+          onDiscardAndProceed={proceedToBack}
+          saving={saveWorkflow.isPending}
+        />
         <EditorNameInput workflowId={workflowId} />
       </BreadcrumbList>
     </Breadcrumb>

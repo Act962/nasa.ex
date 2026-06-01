@@ -32,6 +32,15 @@ export const removeTagsFromLead = base
       throw errors.UNAUTHORIZED;
     }
 
+    // Captura name/color das tags ANTES da remoção pra metadata da Jornada
+    // (mesma estratégia do add-tags). Mesmo que a tag seja arquivada/purgada
+    // depois, o evento preserva o snapshot visual.
+    const tagsInfo = await prisma.tag.findMany({
+      where: { id: { in: input.tagIds } },
+      select: { id: true, name: true, color: true },
+    });
+    const tagInfoById = new Map(tagsInfo.map((t) => [t.id, t]));
+
     const pendingLeadEvents: RecordLeadEventInput[] = [];
 
     const result = await prisma.$transaction(async (tx) => {
@@ -53,13 +62,19 @@ export const removeTagsFromLead = base
       });
 
       // Evento granular por tag (mesmo padrão do add-tags) — coletado pra
-      // disparar Pusher FORA da tx.
+      // disparar Pusher FORA da tx. Enriquece com tagName/tagColor pra
+      // preservar visual mesmo se tag for arquivada/purgada depois.
       for (const tagId of input.tagIds) {
+        const info = tagInfoById.get(tagId);
         pendingLeadEvents.push({
           leadId: input.leadId,
           eventType: "TAG_REMOVED",
           userId: context.user.id,
-          metadata: { tagId },
+          metadata: {
+            tagId,
+            tagName: info?.name ?? null,
+            tagColor: info?.color ?? null,
+          },
         });
       }
 

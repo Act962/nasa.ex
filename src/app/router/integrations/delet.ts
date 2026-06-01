@@ -1,8 +1,8 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { logActivity } from "@/features/admin/lib/activity-logger";
 import { listInstances } from "@/http/uazapi/admin/list-instances";
 import { deleteInstance } from "@/http/uazapi/delete-instance";
-import { getInstanceStatus } from "@/http/uazapi/get-instance-status";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -24,8 +24,19 @@ export const deleteInstanceUazapi = base
     try {
       const adminToken = process.env.UAZAPI_TOKEN!;
       const { apiKey, baseUrl, id } = input;
-      const instances = await listInstances(adminToken);
 
+      // Snapshot da instância ANTES do delete pra ter dados no log.
+      const instance = await prisma.whatsAppInstance.findUnique({
+        where: { instanceId: id },
+        select: {
+          id: true,
+          instanceName: true,
+          phoneNumber: true,
+          organizationId: true,
+        },
+      });
+
+      const instances = await listInstances(adminToken);
       const hasApiKey = instances.find((key) => key.token === apiKey);
       if (hasApiKey) {
         const instanceDeleted = await deleteInstance(apiKey, baseUrl);
@@ -35,10 +46,27 @@ export const deleteInstanceUazapi = base
       }
 
       await prisma.whatsAppInstance.delete({
-        where: {
-          instanceId: id,
-        },
+        where: { instanceId: id },
       });
+
+      if (instance?.organizationId) {
+        await logActivity({
+          organizationId: instance.organizationId,
+          userId: context.user.id,
+          userName: context.user.name,
+          userEmail: context.user.email,
+          userImage: (context.user as any).image,
+          appSlug: "tracking",
+          action: "whatsapp_instance.deleted",
+          actionLabel: `Deletou instância WhatsApp "${instance.instanceName ?? id}"${instance.phoneNumber ? ` (${instance.phoneNumber})` : ""}`,
+          resource: instance.instanceName ?? id,
+          resourceId: instance.id,
+          metadata: {
+            phoneNumber: instance.phoneNumber,
+            uazapiInstanceId: id,
+          },
+        });
+      }
     } catch (error) {
       console.log(error);
     }
