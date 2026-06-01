@@ -481,7 +481,11 @@ export const SendMessageDialog = ({
 }: Props) => {
   const { trackingId } = useParams<{ trackingId: string }>();
 
-  const form = useForm<SendMessageFormValues>({
+  // Input ≠ Output por causa do `.default("preset")` em payload.mode: na
+  // entrada `mode` é opcional, na saída é obrigatório. Parametrizamos o
+  // useForm com <input, ctx, output> pra casar o resolver (input) com o
+  // handleSubmit (output = SendMessageFormValues).
+  const form = useForm<z.input<typeof formSchema>, unknown, SendMessageFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: defaultValues ?? {
       target: {

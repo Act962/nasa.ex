@@ -136,8 +136,7 @@ export function StarsMeter() {
   // disponível), não simplesmente % consumido. Estourar o plano com
   // bonus disponível vira roxo informativo em vez de vermelho alarme.
   // Mesma lógica que o `stars-widget.tsx` do header usa.
-  const totalAvailable =
-    (balance.balance ?? 0) + (balance.bonusBalance ?? 0);
+  const totalAvailable = (balance.balance ?? 0) + (balance.bonusBalance ?? 0);
   const overplan = consumed > planLimit;
   const thresh = getStatus({ totalAvailable, planLimit, consumed });
 

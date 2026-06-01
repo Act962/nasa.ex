@@ -14,6 +14,7 @@
  *  - Status indicator (initial / running / success / failed) via base.
  */
 import { memo, useMemo, useState } from "react";
+import { HelpCircle } from "lucide-react";
 import { type Node, type NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { BaseHandle } from "@/components/react-flow/base-handle";
 import { BaseExecutionNode } from "./base-execution-node";
@@ -101,7 +102,7 @@ export const AgentNode = memo((props: NodeProps<AgentNodeType>) => {
     return (
       <BaseExecutionNode
         {...props}
-        icon={() => null}
+        icon={HelpCircle}
         name={String(props.type)}
         description={`Nó "${props.type}" sem metadados — registrar em node-options.ts`}
         onSettings={() => setDialogOpen(true)}

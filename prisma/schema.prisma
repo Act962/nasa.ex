@@ -1766,7 +1766,7 @@ enum NodeType {
   SEND_VOICE        // TTS Astro → áudio WhatsApp
   SEND_MEDIA        // imagem/vídeo/áudio/documento WhatsApp
   SEND_EMAIL        // email transacional via Resend + React Email
-  // WEB_SEARCH — Fase 6 (requer SERPAPI_API_KEY)
+  WEB_SEARCH        // busca web via Gemini Grounding / OpenAI Search
 
   // Triggers novos (multi-trigger num só workflow)
   PAYMENT_RECEIVED

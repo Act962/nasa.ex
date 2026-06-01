@@ -338,6 +338,7 @@ function TrackingCard({ tracking }: { tracking: TrackingDashboardItem }) {
                 {tracking.participants.length === 0 && (
                   <div className="flex items-center justify-end gap-1.5">
                     <WhatsappPowerIcon
+                      trackingId={tracking.id}
                       status={tracking.whatsappStatus ?? null}
                     />
                     <span className="text-[11px] text-muted-foreground">

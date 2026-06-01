@@ -20,7 +20,7 @@
  * Custo: 2 ★ por busca (configurável em /admin/stars > Regras).
  */
 import "server-only";
-import { generateText } from "ai";
+import { generateText, type ToolSet } from "ai";
 import { google } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
@@ -56,7 +56,10 @@ async function searchWithGemini(query: string): Promise<SearchResult | null> {
   for (const modelId of GEMINI_MODELS) {
     try {
       const result = await generateText({
-        model: google(modelId, { useSearchGrounding: true } as never),
+        model: google(modelId),
+        tools: {
+          google_search: google.tools.googleSearch({}),
+        } as ToolSet,
         prompt: [
           "Pesquise informações ATUAIS na web sobre o tópico abaixo e responda de forma concisa e factual em português.",
           "Cite fontes específicas. Não invente nada.",
@@ -118,7 +121,7 @@ async function searchWithOpenAI(query: string): Promise<SearchResult | null> {
       model: openai.responses("gpt-4o-mini"),
       tools: {
         web_search_preview: openai.tools.webSearchPreview({}),
-      },
+      } as ToolSet,
       prompt: [
         "Pesquise informações ATUAIS na web sobre o tópico abaixo e responda de forma concisa e factual em português.",
         "Cite fontes específicas com URL quando possível.",

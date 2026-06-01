@@ -75,12 +75,12 @@ export const checkPaymentExecutor: NodeExecutor = async ({ data, context }) => {
       where: {
         lead: { is: { id: leadId } },
       } as never,
-      orderBy: { createdAt: "desc" },
+      orderBy: { enrolledAt: "desc" },
       select: {
         status: true,
         paidBrlCents: true,
         stripePaymentIntentId: true,
-        createdAt: true,
+        enrolledAt: true,
       },
     });
     if (enrollment) {

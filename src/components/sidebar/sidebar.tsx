@@ -68,11 +68,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {currentOrganization && <WorkspacesItems />}
       </SidebarContent>
       <SidebarFooter>
+        {/* Tour Guiado trigger */}
         <StarsMeter />
         <TokenMeter />
-        <NotificationBell />
-        {/* Tour Guiado trigger */}
         <SidebarMenu>
+          <NotificationBell />
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="Tour Guiado"
