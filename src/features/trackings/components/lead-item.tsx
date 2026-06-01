@@ -49,7 +49,12 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { useTags } from "@/features/tags/hooks/use-tags";
-import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import {
   useAddTagsOptimistic,
   useRemoveTagOptimistic,
@@ -103,404 +108,411 @@ const STATUS_FLOW_CONFIG = {
   FINISHED: { label: "Finalizado", color: "#6b7280", Icon: CheckCircle2 },
 } as const;
 
-export const LeadItem = memo(({ data }: { data: Lead }) => {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const selected = useLeadStore((s) => s.selectedLeads.some((l) => l.id === data.id));
-  const toggleLead = useLeadStore((s) => s.toggleLead);
+export const LeadItem = memo(
+  ({ data }: { data: Lead }) => {
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const selected = useLeadStore((s) =>
+      s.selectedLeads.some((l) => l.id === data.id),
+    );
+    const toggleLead = useLeadStore((s) => s.toggleLead);
 
-  // Dialog "Formulários do lead" — estado **derivado do URL** (search
-  // param `leadForms=<id>`). Isso integra o open/close com o history
-  // do browser: quando o user clica num card e navega pra /formulario,
-  // o `?leadForms=<id>` fica no histórico. Ao clicar "Voltar" na página
-  // do formulário (`router.back()`), o browser volta pra esta URL e o
-  // dialog reabre automaticamente.
-  const formsDialogOpen = searchParams.get("leadForms") === data.id;
-  const setFormsDialogOpen = (open: boolean) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (open) {
-      params.set("leadForms", data.id);
-    } else {
-      params.delete("leadForms");
-    }
-    const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
-  };
-  // Sort ativo dita qual data o card exibe (createdAt / updatedAt /
-  // statusEnteredAt). Para sort=order (Personalizada), usa statusEnteredAt.
-  const sortBy = useKanbanStore((s) => s.sortBy);
-  // Cores customizadas do card no kanban (Configurações → Personalização).
-  // Hook cacheia 5min e dedupa entre cards/colunas — sem custo de rede.
-  const { data: appearance } = useKanbanAppearance(data.trackingId);
-  const [description, setDescription] = useState(data.description);
+    // Dialog "Formulários do lead" — estado **derivado do URL** (search
+    // param `leadForms=<id>`). Isso integra o open/close com o history
+    // do browser: quando o user clica num card e navega pra /formulario,
+    // o `?leadForms=<id>` fica no histórico. Ao clicar "Voltar" na página
+    // do formulário (`router.back()`), o browser volta pra esta URL e o
+    // dialog reabre automaticamente.
+    const formsDialogOpen = searchParams.get("leadForms") === data.id;
+    const setFormsDialogOpen = (open: boolean) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (open) {
+        params.set("leadForms", data.id);
+      } else {
+        params.delete("leadForms");
+      }
+      const qs = params.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname);
+    };
+    // Sort ativo dita qual data o card exibe (createdAt / updatedAt /
+    // statusEnteredAt). Para sort=order (Personalizada), usa statusEnteredAt.
+    const sortBy = useKanbanStore((s) => s.sortBy);
+    // Cores customizadas do card no kanban (Configurações → Personalização).
+    // Hook cacheia 5min e dedupa entre cards/colunas — sem custo de rede.
+    const { data: appearance } = useKanbanAppearance(data.trackingId);
+    const [description, setDescription] = useState(data.description);
 
-  const debouncedDescription = useDebouncedValue(description, 1000);
-  const mutation = useMutationLeadUpdate(data.id, data.trackingId);
+    const debouncedDescription = useDebouncedValue(description, 1000);
+    const mutation = useMutationLeadUpdate(data.id, data.trackingId);
 
-  useEffect(() => {
-    setDescription(data.description);
-  }, [data.description]);
+    useEffect(() => {
+      setDescription(data.description);
+    }, [data.description]);
 
-  useEffect(() => {
-    if (
-      debouncedDescription !== undefined &&
-      debouncedDescription !== data.description
-    ) {
-      mutation.mutate({
-        id: data.id,
-        description: debouncedDescription || undefined,
-      });
-    }
-  }, [debouncedDescription, data.id, data.description]);
+    useEffect(() => {
+      if (
+        debouncedDescription !== undefined &&
+        debouncedDescription !== data.description
+      ) {
+        mutation.mutate({
+          id: data.id,
+          description: debouncedDescription || undefined,
+        });
+      }
+    }, [debouncedDescription, data.id, data.description]);
 
-  const { viewMode } = useView();
+    const { viewMode } = useView();
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transition,
-    transform,
-    isDragging,
-  } = useSortable({
-    id: data.id,
-    data: {
-      type: "Lead",
-      lead: data,
-    },
-  });
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transition,
+      transform,
+      isDragging,
+    } = useSortable({
+      id: data.id,
+      data: {
+        type: "Lead",
+        lead: data,
+      },
+    });
 
-  const style = {
-    transition,
-    transform: CSS.Transform.toString(transform),
-    opacity: isDragging ? 0.5 : 1,
-  };
+    const style = {
+      transition,
+      transform: CSS.Transform.toString(transform),
+      opacity: isDragging ? 0.5 : 1,
+    };
 
-  const url = useConstructUrl(data.profile || "");
+    const url = useConstructUrl(data.profile || "");
 
-  const handleSelect = (e: React.MouseEvent) => {
-    // Bloqueia o click que o browser dispara no DragOverlay após o pointerup:
-    // o activeDragLeadId ainda está setado neste momento (é limpo num setTimeout
-    // em onDragEnd, que roda no próximo task JS — depois deste click).
-    if (useKanbanStore.getState().activeDragLeadId) return;
-    if ((e.target as HTMLElement).closest("a")) return;
-    toggleLead(data);
-  };
+    const handleSelect = (e: React.MouseEvent) => {
+      // Bloqueia o click que o browser dispara no DragOverlay após o pointerup:
+      // o activeDragLeadId ainda está setado neste momento (é limpo num setTimeout
+      // em onDragEnd, que roda no próximo task JS — depois deste click).
+      if (useKanbanStore.getState().activeDragLeadId) return;
+      if ((e.target as HTMLElement).closest("a")) return;
+      toggleLead(data);
+    };
 
-  return (
-    <div
-      ref={setNodeRef}
-      data-lead-id={data.id}
-      data-order={data.order}
-      onClick={handleSelect}
-      className={cn(
-        // `bg-muted` é o default — sobrescrito por `kanbanCardBackgroundColor`
-        // via style inline. Contorno: `border-primary/50` quando selecionado
-        // sempre prevalece; senão usa cor configurada OU transparente.
-        // isDragging=true → este card é o placeholder do dnd-kit (ghost),
-        // forçamos border-transparent para o fantasma ficar limpo.
-        "relative w-full min-w-0 max-w-full border-2 text-sm rounded-md shadow-sm group cursor-pointer transition-all overflow-hidden",
-        !appearance?.kanbanCardBackgroundColor && "bg-muted",
-        selected
-          ? "border-primary/50"
-          : isDragging
-            ? "border-transparent"
-            : !appearance?.kanbanCardBorderColor && "border-transparent hover:border-muted",
-      )}
-      style={{
-        ...style,
-        ...(appearance?.kanbanCardBackgroundColor && {
-          backgroundColor:
-            hexToRgba(
-              appearance.kanbanCardBackgroundColor,
-              appearance.kanbanCardBackgroundOpacity ?? 100,
-            ) ?? appearance.kanbanCardBackgroundColor,
-        }),
-        ...(!isDragging && !selected && appearance?.kanbanCardBorderColor
-          ? { borderColor: appearance.kanbanCardBorderColor }
-          : {}),
-      }}
-    >
-      {/* Bolinha de temperatura — substitui a barra lateral de 1px.
+    return (
+      <div
+        ref={setNodeRef}
+        data-lead-id={data.id}
+        data-order={data.order}
+        onClick={handleSelect}
+        className={cn(
+          // `bg-muted` é o default — sobrescrito por `kanbanCardBackgroundColor`
+          // via style inline. Contorno: `border-primary/50` quando selecionado
+          // sempre prevalece; senão usa cor configurada OU transparente.
+          // isDragging=true → este card é o placeholder do dnd-kit (ghost),
+          // forçamos border-transparent para o fantasma ficar limpo.
+          "relative w-full min-w-0 max-w-full border-2 text-sm rounded-md shadow-sm group cursor-pointer transition-all overflow-hidden",
+          !appearance?.kanbanCardBackgroundColor && "bg-muted",
+          selected
+            ? "border-primary/50"
+            : isDragging
+              ? "border-transparent"
+              : !appearance?.kanbanCardBorderColor &&
+                "border-transparent hover:border-muted",
+        )}
+        style={{
+          ...style,
+          ...(appearance?.kanbanCardBackgroundColor && {
+            backgroundColor:
+              hexToRgba(
+                appearance.kanbanCardBackgroundColor,
+                appearance.kanbanCardBackgroundOpacity ?? 100,
+              ) ?? appearance.kanbanCardBackgroundColor,
+          }),
+          ...(!isDragging && !selected && appearance?.kanbanCardBorderColor
+            ? { borderColor: appearance.kanbanCardBorderColor }
+            : {}),
+        }}
+      >
+        {/* Bolinha de temperatura — substitui a barra lateral de 1px.
           ~30% do tamanho do avatar (size-4 = 16px → size-1.5 = 6px).
           Posicionada mais pra fora (em cima do contorno esquerdo), mas
           ainda com uma parte por cima da foto. Sem ring/halo — visual
           mais limpo. `pointer-events-none` pra não bloquear drag/click. */}
-      <span
-        aria-label={`Temperatura: ${TEMP_TEXT[data.temperature]}`}
-        title={TEMP_TEXT[data.temperature]}
-        className="pointer-events-none absolute z-10 size-1.5 rounded-full"
-        style={{
-          backgroundColor: TEMP_COLOR[data.temperature],
-          top: "13px",
-          left: "7px",
-        }}
-      />
-      <div className="flex items-center justify-between gap-2 px-3 py-2">
-        {/* Container esquerdo: `min-w-0 flex-1` é essencial pra que o nome
+        <span
+          aria-label={`Temperatura: ${TEMP_TEXT[data.temperature]}`}
+          title={TEMP_TEXT[data.temperature]}
+          className="pointer-events-none absolute z-10 size-1.5 rounded-full"
+          style={{
+            backgroundColor: TEMP_COLOR[data.temperature],
+            top: "13px",
+            left: "7px",
+          }}
+        />
+        <div className="flex items-center justify-between gap-2 px-3 py-2">
+          {/* Container esquerdo: `min-w-0 flex-1` é essencial pra que o nome
             + pill de apelido respeitem o truncate e não empurrem a largura
             do card. Sem isso, flex-children "esticam" pelo conteúdo. */}
-        <div className="flex min-w-0 flex-1 flex-row items-center gap-2">
-          <button
-            className="shrink-0 touch-none flex lg:hidden lg:group-hover:flex active:cursor-grabbing cursor-grab"
-            {...listeners}
-            {...attributes}
-            onClick={(e) => e.stopPropagation()} // Evita selecionar ao clicar no grid de arrastar
-          >
-            <Grip className="size-4 " />
-          </button>
-          <Avatar
-            className="shrink-0 size-4 hidden lg:block lg:group-hover:hidden touch-none"
-            {...listeners}
-            {...attributes}
-          >
-            <AvatarImage src={url} alt="photo user" />
-            <AvatarFallback className="text-xs bg-foreground/10 ">
-              {data.name.split(" ")[0][0]}
-            </AvatarFallback>
-          </Avatar>
-          <div
-            className="flex min-w-0 flex-1 items-center gap-1.5"
-            title={
-              data.nickname
-                ? `${data.name || "Sem nome"} (${data.nickname})`
-                : data.name || "Sem nome"
-            }
-          >
-            {/* Nome: `min-w-0 flex-1 truncate` em vez de `max-w-32` fixo.
-                Assim o nome cede espaço pra pill do apelido (e pros action
-                buttons à direita) sem empurrar a largura do card. */}
-            <span className="min-w-0 flex-1 truncate max-w-[9rem] text-xs font-medium">
-              {data.name || "Sem nome"}
-            </span>
-            {data.nickname && (
-              // Pill de apelido — mesmo visual do botão "+" de adicionar
-              // tag (`variant="outline"` + rounded-full). `shrink-0` + cap
-              // de 80px pra não engolir o nome inteiro quando o apelido é
-              // grande.
-              <span className="inline-flex h-4 shrink-0 max-w-[80px] items-center truncate rounded-full border border-input bg-background px-1.5 text-[10px] leading-none text-muted-foreground">
-                {data.nickname}
+          <div className="flex min-w-0 flex-1 flex-row items-center gap-2">
+            <button
+              className="shrink-0 touch-none flex lg:hidden lg:group-hover:flex active:cursor-grabbing cursor-grab"
+              {...listeners}
+              {...attributes}
+              onClick={(e) => e.stopPropagation()} // Evita selecionar ao clicar no grid de arrastar
+            >
+              <Grip className="size-4 " />
+            </button>
+            <Avatar
+              className="shrink-0 size-4 hidden lg:block lg:group-hover:hidden touch-none"
+              {...listeners}
+              {...attributes}
+            >
+              <AvatarImage src={url} alt="photo user" />
+              <AvatarFallback className="text-xs bg-foreground/10 ">
+                {data.name.split(" ")[0][0]}
+              </AvatarFallback>
+            </Avatar>
+            <div
+              className="flex flex-1 flex-wrap items-center gap-x-1 min-w-0"
+              title={
+                data.nickname
+                  ? `${data.name || "Sem nome"} (${data.nickname})`
+                  : data.name || "Sem nome"
+              }
+            >
+              {/* Nome: SEM `flex-1`/`w-full` — a base do flex fica sendo a
+                largura do conteúdo. Assim o flexbox calcula a quebra: se
+                `nome + pill` não couberem, o pill desce pra próxima linha;
+                cabendo, ficam lado a lado. `min-w-0 truncate` deixa o nome
+                encolher/elipsar na linha 1 sem estourar o card. */}
+              <span className="min-w-0 shrink truncate text-xs font-medium max-w-38">
+                {data.name || "Sem nome"}
               </span>
-            )}
+              {data.nickname && (
+                // Pill de apelido — mesmo visual do botão "+" de adicionar
+                // tag (`variant="outline"` + rounded-full). `shrink-0` + cap
+                // de 80px pra não engolir o nome inteiro quando o apelido é
+                // grande.
+                <span className="inline-flex h-4 shrink-0 max-w-20 items-center truncate rounded-full border border-input bg-background px-1.5 text-[10px] leading-none text-muted-foreground">
+                  {data.nickname}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div
+            className="flex shrink-0 items-center gap-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity rounded-full"
+              onClick={(e) => {
+                router.push(`/contatos/${data.id}`);
+              }}
+              aria-label="Abrir detalhes do lead"
+            >
+              <ArrowUpRight className="size-3.5" />
+            </button>
+            <CheckIaLead
+              size={"xs"}
+              active={data.isActive}
+              leadId={data.id}
+              trackingId={data.trackingId}
+            />
           </div>
         </div>
-
-        <div
-          className="flex shrink-0 items-center gap-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity rounded-full"
-            onClick={(e) => {
-              router.push(`/contatos/${data.id}`);
-            }}
-            aria-label="Abrir detalhes do lead"
-          >
-            <ArrowUpRight className="size-3.5" />
-          </button>
-          <CheckIaLead
-            size={"xs"}
-            active={data.isActive}
-            leadId={data.id}
-            trackingId={data.trackingId}
-          />
-        </div>
-      </div>
-      <Separator />
-      <div className="flex flex-col px-4 gap-1 text-xs text-muted-foreground py-2">
-        {/* E-mail removido do card por solicitação — fica visível apenas
+        <Separator />
+        <div className="flex flex-col px-4 gap-1 text-xs text-muted-foreground py-2">
+          {/* E-mail removido do card por solicitação — fica visível apenas
             no painel "Detalhes do lead" pra deixar o card mais enxuto. */}
-        <LeadItemContainer>
-          <Phone className="size-3" />
-          {phoneMaskFull(data.phone) || "(00) 00000-0000"}
-        </LeadItemContainer>
-        <LeadItemContainer className="items-baseline">
-          <Tag className="size-3" />
-          <ListLeadTags leadId={data.id} tags={data.leadTags} />
-        </LeadItemContainer>
-        {(data.description || description) && viewMode === "modern" && (
-          <LeadItemContainer
-            className="mt-2"
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-          >
-            <Textarea
-              value={description || ""}
-              onChange={(e) => setDescription(e.target.value)}
-              className="h-auto text-xs! min-h-[40px] max-h-[60px] resize-none bg-transparent border-transparent! focus:border-transparent! focus:ring-transparent!"
-              placeholder="Descrição..."
-            />
+          <LeadItemContainer>
+            <Phone className="size-3" />
+            {phoneMaskFull(data.phone) || "(00) 00000-0000"}
           </LeadItemContainer>
-        )}
-      </div>
-      <Separator />
-      <div
-        className="flex items-center justify-between bg-secondary px-3 py-2"
-        {...listeners}
-        {...attributes}
-      >
-        <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-          {(() => {
-            // A data exibida acompanha o sort ativo — assim o usuário sempre
-            // vê o critério que está usando pra ordenar (sem precisar abrir
-            // o lead). Quando sort = "order" (Personalizada), mostra
-            // statusEnteredAt como default (padrão acordado).
-            const sourceDate =
-              sortBy === "createdAt"
-                ? data.createdAt
-                : sortBy === "updatedAt"
-                  ? data.updatedAt ?? data.createdAt
-                  : data.statusEnteredAt ?? data.createdAt;
-            const label =
-              sortBy === "createdAt"
-                ? "Chegou em"
-                : sortBy === "updatedAt"
-                  ? "Última interação em"
-                  : "Entrou nesta etapa em";
-            const d = dayjs(sourceDate);
-            // Ano atual → omite YYYY (compacto: "DD/MM - HH:mm").
-            // Outro ano → mostra ano abreviado YY: "DD/MM/YY - HH:mm".
-            const fmt =
-              d.year() === dayjs().year()
-                ? "DD/MM - HH:mm"
-                : "DD/MM/YY - HH:mm";
-            return (
-              <span
-                className="text-[10px] text-muted-foreground tabular-nums shrink-0"
-                title={`${label} ${d.format("DD/MM/YYYY HH:mm")}`}
-              >
-                {d.format(fmt)}
-              </span>
-            );
-          })()}
-          {/* SLA da etapa só aparece quando NÃO há prazo de formulário
+          <LeadItemContainer className="items-baseline">
+            <Tag className="size-3" />
+            <ListLeadTags leadId={data.id} tags={data.leadTags} />
+          </LeadItemContainer>
+          {(data.description || description) && viewMode === "modern" && (
+            <LeadItemContainer
+              className="mt-2"
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              <Textarea
+                value={description || ""}
+                onChange={(e) => setDescription(e.target.value)}
+                className="h-auto text-xs! min-h-10 max-h-15 resize-none bg-transparent border-transparent! focus:border-transparent! focus:ring-transparent!"
+                placeholder="Descrição..."
+              />
+            </LeadItemContainer>
+          )}
+        </div>
+        <Separator />
+        <div
+          className="flex items-center justify-between bg-secondary px-3 py-2"
+          {...listeners}
+          {...attributes}
+        >
+          <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+            {(() => {
+              // A data exibida acompanha o sort ativo — assim o usuário sempre
+              // vê o critério que está usando pra ordenar (sem precisar abrir
+              // o lead). Quando sort = "order" (Personalizada), mostra
+              // statusEnteredAt como default (padrão acordado).
+              const sourceDate =
+                sortBy === "createdAt"
+                  ? data.createdAt
+                  : sortBy === "updatedAt"
+                    ? (data.updatedAt ?? data.createdAt)
+                    : (data.statusEnteredAt ?? data.createdAt);
+              const label =
+                sortBy === "createdAt"
+                  ? "Chegou em"
+                  : sortBy === "updatedAt"
+                    ? "Última interação em"
+                    : "Entrou nesta etapa em";
+              const d = dayjs(sourceDate);
+              // Ano atual → omite YYYY (compacto: "DD/MM - HH:mm").
+              // Outro ano → mostra ano abreviado YY: "DD/MM/YY - HH:mm".
+              const fmt =
+                d.year() === dayjs().year()
+                  ? "DD/MM - HH:mm"
+                  : "DD/MM/YY - HH:mm";
+              return (
+                <span
+                  className="text-[10px] text-muted-foreground tabular-nums shrink-0"
+                  title={`${label} ${d.format("DD/MM/YYYY HH:mm")}`}
+                >
+                  {d.format(fmt)}
+                </span>
+              );
+            })()}
+            {/* SLA da etapa só aparece quando NÃO há prazo de formulário
               ativo (`deadlineHint`). Form deadline tem prioridade —
               evita 2 contadores empilhados no rodapé do card disputando
               atenção. */}
-          {data.slaDeadline && !data.deadlineHint && (
-            <SlaTimer
-              compact
-              enteredAt={data.statusEnteredAt ?? data.createdAt}
-              deadline={data.slaDeadline}
-            />
-          )}
-          {data.statusFlow &&
-            STATUS_FLOW_CONFIG[data.statusFlow] &&
-            (() => {
-              const { label, color, Icon } =
-                STATUS_FLOW_CONFIG[data.statusFlow];
-              const conversationId = data.conversation?.id;
-              // Click direciona pro chat — substituiu o ícone "Em
-              // atendimento" e mesclou a função do ícone de "Conversa"
-              // do detalhe do lead.
-              const goToChat = (e: React.MouseEvent) => {
-                e.stopPropagation();
-                e.preventDefault();
-                // `pin=1` sinaliza pra `conversations-list.tsx` que essa
-                // navegação veio do ícone de canal do kanban — única origem
-                // que dá "subida pro topo" (UX request). Clicar num LeadBox
-                // direto na lista NÃO adiciona esse param → ordem natural
-                // permanece.
-                const path = `/tracking-chat/${conversationId ?? ""}`;
-                const params = new URLSearchParams();
-                if (data.trackingId) params.set("trackingId", data.trackingId);
-                params.set("pin", "1");
-                router.push(`${path}?${params.toString()}`);
-              };
-              return (
-                <button
-                  type="button"
-                  onClick={goToChat}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  className="inline-flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer"
-                  aria-label={`${label} — abrir conversa`}
-                  title={`${label}${
-                    conversationId
-                      ? " — clique para abrir a conversa"
-                      : " — clique para iniciar uma conversa"
-                  }`}
-                >
-                  <Icon className="size-3" style={{ color }} />
-                </button>
-              );
-            })()}
+            {data.slaDeadline && !data.deadlineHint && (
+              <SlaTimer
+                compact
+                enteredAt={data.statusEnteredAt ?? data.createdAt}
+                deadline={data.slaDeadline}
+              />
+            )}
+            {data.statusFlow &&
+              STATUS_FLOW_CONFIG[data.statusFlow] &&
+              (() => {
+                const { label, color, Icon } =
+                  STATUS_FLOW_CONFIG[data.statusFlow];
+                const conversationId = data.conversation?.id;
+                // Click direciona pro chat — substituiu o ícone "Em
+                // atendimento" e mesclou a função do ícone de "Conversa"
+                // do detalhe do lead.
+                const goToChat = (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  // `pin=1` sinaliza pra `conversations-list.tsx` que essa
+                  // navegação veio do ícone de canal do kanban — única origem
+                  // que dá "subida pro topo" (UX request). Clicar num LeadBox
+                  // direto na lista NÃO adiciona esse param → ordem natural
+                  // permanece.
+                  const path = `/tracking-chat/${conversationId ?? ""}`;
+                  const params = new URLSearchParams();
+                  if (data.trackingId)
+                    params.set("trackingId", data.trackingId);
+                  params.set("pin", "1");
+                  router.push(`${path}?${params.toString()}`);
+                };
+                return (
+                  <button
+                    type="button"
+                    onClick={goToChat}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className="inline-flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer"
+                    aria-label={`${label} — abrir conversa`}
+                    title={`${label}${
+                      conversationId
+                        ? " — clique para abrir a conversa"
+                        : " — clique para iniciar uma conversa"
+                    }`}
+                  >
+                    <Icon className="size-3" style={{ color }} />
+                  </button>
+                );
+              })()}
 
-          {/* Ícone único de formulários do lead (não mais 1 por response).
+            {/* Ícone único de formulários do lead (não mais 1 por response).
               Cor reflete estado AGREGADO: vermelho (stale), laranja
               (aguarda assinatura), azul (em progresso), verde (completo),
               ou muted (igual à data) quando lead não tem nenhum form
               preenchido nem em andamento. */}
-          <FormStatusIcon
-            forms={data.forms ?? []}
-            onOpenForms={() => setFormsDialogOpen(true)}
-          />
+            <FormStatusIcon
+              forms={data.forms ?? []}
+              onOpenForms={() => setFormsDialogOpen(true)}
+            />
 
-          {/* Próximo agendamento (Agenda ou agenda do chat). Compact: só
+            {/* Próximo agendamento (Agenda ou agenda do chat). Compact: só
               ícone azul; tooltip nativo do title mostra data + hora + nome
               da agenda. Não quebra largura do card — ocupa 12px (size-3),
               mesma proporção dos outros ícones do footer. */}
-          {data.nextAppointment && (
-            <span
-              className="inline-flex items-center gap-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400"
-              title={`${dayjs(data.nextAppointment.startsAt).format("DD/MM HH:mm")} — ${
-                data.nextAppointment.agendaName
-              }${
-                data.nextAppointment.title
-                  ? ` (${data.nextAppointment.title})`
-                  : ""
-              }`}
-            >
-              <CalendarClock className="size-3 shrink-0" />
-              <span className="tabular-nums">
-                {dayjs(data.nextAppointment.startsAt).format("DD/MM HH:mm")}
+            {data.nextAppointment && (
+              <span
+                className="inline-flex items-center gap-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400"
+                title={`${dayjs(data.nextAppointment.startsAt).format("DD/MM HH:mm")} — ${
+                  data.nextAppointment.agendaName
+                }${
+                  data.nextAppointment.title
+                    ? ` (${data.nextAppointment.title})`
+                    : ""
+                }`}
+              >
+                <CalendarClock className="size-3 shrink-0" />
+                <span className="tabular-nums">
+                  {dayjs(data.nextAppointment.startsAt).format("DD/MM HH:mm")}
+                </span>
               </span>
-            </span>
-          )}
+            )}
 
-          {/* Prazo mais urgente entre todos os forms do lead.
+            {/* Prazo mais urgente entre todos os forms do lead.
               `data.deadlineHint` é computado server-side a partir do
               DatePicker marcado com `useAsDeadline=true`. Substitui o
               que iria pra "Observações" (decisão de design: campo
               separado, sem mexer em description). */}
-          {data.deadlineHint && (
-            <DeadlineBadge hint={data.deadlineHint} />
-          )}
+            {data.deadlineHint && <DeadlineBadge hint={data.deadlineHint} />}
+          </div>
+          <span title={data.responsible?.name || "Sem responsável"}>
+            <Avatar className="size-4">
+              <AvatarImage
+                src={data.responsible?.image || "/user-placeholder.png"}
+                alt="photo user"
+              />
+              <AvatarFallback>
+                {data.responsible?.name.split(" ")[0][0]}
+              </AvatarFallback>
+            </Avatar>
+          </span>
         </div>
-        <span title={data.responsible?.name || "Sem responsável"}>
-          <Avatar className="size-4">
-            <AvatarImage
-              src={data.responsible?.image || "/user-placeholder.png"}
-              alt="photo user"
-            />
-            <AvatarFallback>
-              {data.responsible?.name.split(" ")[0][0]}
-            </AvatarFallback>
-          </Avatar>
-        </span>
-      </div>
 
-      {/* Dialog "Formulários do lead" — 95vw, grid 3 cols. Abre ao clicar
+        {/* Dialog "Formulários do lead" — 95vw, grid 3 cols. Abre ao clicar
           em qualquer ícone de form do rodapé do card. */}
-      <LeadFormsDialog
-        leadId={data.id}
-        leadName={data.name}
-        open={formsDialogOpen}
-        onOpenChange={setFormsDialogOpen}
-      />
-    </div>
-  );
-}, (prev, next) => {
-  // Custom equality: skip render quando o conteúdo do lead é idêntico
-  // por valor (não apenas por referência). Isso é crítico durante drag
-  // cross-coluna: moveLeadToColumn cria { ...lead, statusId: novoCol }
-  // que é nova ref mas com mesmo conteúdo visual após primeira move.
-  // Sem isso, cada onDragOver dispara re-render do LeadItem, que cascateia
-  // em ref churn dos Radix internos (Switch, Popover, etc.) → loop.
-  if (prev.data === next.data) return true;
-  return JSON.stringify(prev.data) === JSON.stringify(next.data);
-});
+        <LeadFormsDialog
+          leadId={data.id}
+          leadName={data.name}
+          open={formsDialogOpen}
+          onOpenChange={setFormsDialogOpen}
+        />
+      </div>
+    );
+  },
+  (prev, next) => {
+    // Custom equality: skip render quando o conteúdo do lead é idêntico
+    // por valor (não apenas por referência). Isso é crítico durante drag
+    // cross-coluna: moveLeadToColumn cria { ...lead, statusId: novoCol }
+    // que é nova ref mas com mesmo conteúdo visual após primeira move.
+    // Sem isso, cada onDragOver dispara re-render do LeadItem, que cascateia
+    // em ref churn dos Radix internos (Switch, Popover, etc.) → loop.
+    if (prev.data === next.data) return true;
+    return JSON.stringify(prev.data) === JSON.stringify(next.data);
+  },
+);
 
 LeadItem.displayName = "LeadItem";
 
@@ -558,18 +570,26 @@ function FormStatusIcon({
   const tooltip = (() => {
     if (forms.length === 0) return "Nenhum formulário vinculado";
     const parts: string[] = [];
-    if (counts.complete) parts.push(`${counts.complete} preenchido${counts.complete > 1 ? "s" : ""}`);
+    if (counts.complete)
+      parts.push(
+        `${counts.complete} preenchido${counts.complete > 1 ? "s" : ""}`,
+      );
     if (counts.in_progress) parts.push(`${counts.in_progress} em andamento`);
     if (counts.waiting_client_signature)
       parts.push(`${counts.waiting_client_signature} aguardando assinatura`);
     if (counts.stale) parts.push(`${counts.stale} aguardando responsável`);
     if (counts.empty && parts.length === 0)
-      parts.push(`${counts.empty} ainda não iniciado${counts.empty > 1 ? "s" : ""}`);
+      parts.push(
+        `${counts.empty} ainda não iniciado${counts.empty > 1 ? "s" : ""}`,
+      );
     const total = `${forms.length} formulário${forms.length > 1 ? "s" : ""}`;
     return parts.length > 0 ? `${total} — ${parts.join(", ")}` : total;
   })();
 
-  const STATE_COLORS: Record<Exclude<FormState | "muted", "empty" | "muted">, string> = {
+  const STATE_COLORS: Record<
+    Exclude<FormState | "muted", "empty" | "muted">,
+    string
+  > = {
     in_progress: "#3b82f6",
     waiting_client_signature: "#f59e0b",
     stale: "#ef4444",
@@ -603,7 +623,8 @@ function FormStatusIcon({
           useMutedColor
             ? undefined
             : {
-                color: STATE_COLORS[aggregateState as keyof typeof STATE_COLORS],
+                color:
+                  STATE_COLORS[aggregateState as keyof typeof STATE_COLORS],
               }
         }
       />
@@ -624,11 +645,7 @@ function FormStatusIcon({
  * estilo, mas só um deles aparece por vez (prazo do form prevalece via
  * condição em `slaDeadline && !deadlineHint`).
  */
-function DeadlineBadge({
-  hint,
-}: {
-  hint: NonNullable<Lead["deadlineHint"]>;
-}) {
+function DeadlineBadge({ hint }: { hint: NonNullable<Lead["deadlineHint"]> }) {
   // Tick a cada 30s — suficiente pra mostrar "Faltam Xd Yh" se atualizando.
   // Card do kanban tem muitos leads visíveis ao mesmo tempo; 1s por badge
   // ficaria pesado.
@@ -705,7 +722,7 @@ function ListLeadTags({ leadId, tags }: { leadId: string; tags: any[] }) {
             <Badge
               key={tag.id}
               title={tag.name}
-              className="px-1 py-0 text-[10px] h-4 font-normal max-w-[5.5rem] inline-block truncate"
+              className="px-1 py-0 text-[10px] h-4 font-normal max-w-22 inline-block truncate"
               style={{
                 backgroundColor: tag.color || "#000000",
                 color: getContrastColor(tag.color || "#000000"),
