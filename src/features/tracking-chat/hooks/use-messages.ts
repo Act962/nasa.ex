@@ -7,6 +7,7 @@ import {
   MarkedMessage,
 } from "../types";
 import { toast } from "sonner";
+import { showSendMessageError } from "../lib/show-send-error";
 import dayjs from "dayjs";
 import { authClient } from "@/lib/auth-client";
 import { forwardPreviewText } from "../lib/forward-strategies/build-payload";
@@ -197,14 +198,14 @@ export function useMutationTextMessage({
         );
         markConversationLeadActive(queryClient, lead.id);
       },
-      onError(_err, _variables, context) {
+      onError(err, _variables, context) {
         if (context?.previousData) {
           queryClient.setQueryData(
             ["message.list", conversationId],
             context.previousData,
           );
         }
-        return toast.error("Erro ao enviar mensagem");
+        showSendMessageError(err);
       },
     }),
   );
@@ -304,14 +305,14 @@ export function useMutationImageMessage({
         );
         markConversationLeadActive(queryClient, lead.id);
       },
-      onError(_err, _variables, context) {
+      onError(err, _variables, context) {
         if (context?.previousData) {
           queryClient.setQueryData(
             ["message.list", conversationId],
             context.previousData,
           );
         }
-        return toast.error("Erro ao enviar mensagem");
+        return showSendMessageError(err);
       },
     }),
   );
@@ -396,14 +397,14 @@ export function useMutationFileMessage({
         );
         markConversationLeadActive(queryClient, lead.id);
       },
-      onError(_err, _variables, context) {
+      onError(err, _variables, context) {
         if (context?.previousData) {
           queryClient.setQueryData(
             ["message.list", conversationId],
             context.previousData,
           );
         }
-        return toast.error("Erro ao enviar mensagem");
+        return showSendMessageError(err);
       },
     }),
   );
@@ -485,14 +486,14 @@ export function useMutationAudioMessage({
         );
         markConversationLeadActive(queryClient, lead.id);
       },
-      onError(_err, _variables, context) {
+      onError(err, _variables, context) {
         if (context?.previousData) {
           queryClient.setQueryData(
             ["message.list", conversationId],
             context.previousData,
           );
         }
-        return toast.error("Erro ao enviar mensagem");
+        return showSendMessageError(err);
       },
     }),
   );
@@ -583,14 +584,14 @@ export function useMutationLocationMessage({
         );
         markConversationLeadActive(queryClient, lead.id);
       },
-      onError(_err, _variables, context) {
+      onError(err, _variables, context) {
         if (context?.previousData) {
           queryClient.setQueryData(
             ["message.list", conversationId],
             context.previousData,
           );
         }
-        return toast.error("Erro ao enviar localização");
+        return showSendMessageError(err);
       },
     }),
   );
@@ -668,14 +669,14 @@ export function useMutationContactMessage({
         );
         markConversationLeadActive(queryClient, lead.id);
       },
-      onError(_err, _variables, context) {
+      onError(err, _variables, context) {
         if (context?.previousData) {
           queryClient.setQueryData(
             ["message.list", conversationId],
             context.previousData,
           );
         }
-        return toast.error("Erro ao enviar contato");
+        return showSendMessageError(err);
       },
     }),
   );
@@ -977,7 +978,7 @@ export function useMutationButtonsMessage({
             context.previousData,
           );
         }
-        toast.error("Erro ao enviar botões: " + err.message);
+        showSendMessageError(err);
       },
     }),
   );

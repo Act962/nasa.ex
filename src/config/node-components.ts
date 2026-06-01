@@ -23,6 +23,8 @@ import { SendLinnkerNode } from "@/features/executions/components/send-linnker/n
 import { SendNboxNode } from "@/features/executions/components/send-nbox/node";
 import { SendNasaRouteNode } from "@/features/executions/components/send-nasa-route/node";
 import { OpenFormNode } from "@/features/executions/components/open-form/node";
+// ─── Modo Agente IA — componente genérico pros 14 NodeTypes novos ──
+import { AgentNode } from "@/features/executions/components/agent-node";
 import { NodeType } from "@/generated/prisma/enums";
 import type { NodeTypes } from "@xyflow/react";
 
@@ -52,6 +54,26 @@ export const nodeComponents = {
   [NodeType.SEND_NBOX]: SendNboxNode,
   [NodeType.SEND_NASA_ROUTE]: SendNasaRouteNode,
   [NodeType.OPEN_FORM]: OpenFormNode,
+  // ─── Modo Agente IA — todos usam o AgentNode genérico com editor JSON ──
+  // Fase 4 vai substituir por componentes dedicados com formulários visuais.
+  [NodeType.IF_CONDITION]: AgentNode,
+  [NodeType.SWITCH_CASE]: AgentNode,
+  [NodeType.LOOP_OVER]: AgentNode,
+  [NodeType.MERGE]: AgentNode,
+  [NodeType.WAIT_FOR_EVENT]: AgentNode,
+  [NodeType.AI_DECISION]: AgentNode,
+  [NodeType.AI_GENERATE_TEXT]: AgentNode,
+  [NodeType.AI_VISION]: AgentNode,
+  [NodeType.READ_PDF]: AgentNode,
+  [NodeType.SET_VARIABLE]: AgentNode,
+  [NodeType.CALL_WORKFLOW]: AgentNode,
+  [NodeType.CHECK_PAYMENT]: AgentNode,
+  [NodeType.SEND_VOICE]: AgentNode,
+  [NodeType.SEND_MEDIA]: AgentNode,
+  [NodeType.WEB_SEARCH]: AgentNode,
+  [NodeType.PAYMENT_RECEIVED]: AgentNode,
+  [NodeType.MESSAGE_INCOMING]: AgentNode,
+  [NodeType.WEBHOOK_EXTERNAL]: AgentNode,
 } as const satisfies NodeTypes;
 
 export type RegisteredNodeTypes = keyof typeof nodeComponents;

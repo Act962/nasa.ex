@@ -88,3 +88,41 @@ export async function sendMenu(
     body: data,
   });
 }
+
+/**
+ * Wrapper que escolhe `sendButtons` (até 3 botões) ou `sendList` (4+)
+ * automaticamente. WhatsApp nativo só aceita 3 botões interativos —
+ * acima disso a uazapi recusa. Esta função degrada pra lista (mesma UX
+ * de "menu suspenso") quando passa de 3.
+ *
+ * Use isso em qualquer call-site que receba quantidade variável de
+ * opções (executor de automação, tool de IA, etc).
+ *
+ * `listButton` = label do CTA que abre a lista (até 20 chars). Default
+ * "Ver opções" cabe na maioria dos casos.
+ */
+export async function sendButtonsOrList(
+  token: string,
+  data: SendButtonsPayload & { listButton?: string },
+  baseUrl?: string,
+) {
+  if (data.buttons.length <= 3) {
+    return sendButtons(token, data, baseUrl);
+  }
+  // Degrada pra lista — single section com todos os botões como linhas.
+  const listPayload: SendListPayload = {
+    number: data.number,
+    text: data.text,
+    footer: data.footer,
+    button: (data.listButton ?? "Ver opções").slice(0, 20),
+    sections: [
+      {
+        rows: data.buttons.map((b) => ({ id: b.id, title: b.text })),
+      },
+    ],
+    readchat: data.readchat,
+    readmessages: data.readmessages,
+    delay: data.delay,
+  };
+  return sendList(token, listPayload, baseUrl);
+}

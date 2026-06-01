@@ -74,8 +74,13 @@ export const TagDialog = ({
     },
   });
 
+  // Inclui arquivadas pra continuar mostrando tags já selecionadas em
+  // workflows existentes (não confundir o user). A UI marca arquivadas
+  // visualmente + bloqueia novo pick. Default não-arquivada já vem
+  // selecionável e marcável normalmente.
   const { tags, isLoadingTags } = useTags({
     trackingId: "ALL",
+    includeArchived: true,
   });
 
   const handleSubmit = (values: TagFormValues) => {
@@ -181,39 +186,65 @@ export const TagDialog = ({
                                 Nenhuma tag encontrada.
                               </CommandEmpty>
                               <CommandGroup>
-                                {tags.map((tag) => {
-                                  const isSelected = field.value?.includes(
-                                    tag.id,
-                                  );
-                                  return (
-                                    <CommandItem
-                                      key={tag.id}
-                                      value={`${tag.id}-${tag.name}`}
-                                      onSelect={() => {
-                                        const current = field.value || [];
-                                        const next = isSelected
-                                          ? current.filter(
-                                              (id) => id !== tag.id,
-                                            )
-                                          : [...current, tag.id];
-                                        field.onChange(next);
-                                      }}
-                                    >
-                                      <div
+                                {/* Ordena: ativas primeiro, arquivadas depois.
+                                    Arquivadas ficam visíveis (pra mostrar
+                                    quando já estão selecionadas em workflow
+                                    existente) mas são bloqueadas pra novos
+                                    picks. */}
+                                {[...tags]
+                                  .sort((a, b) =>
+                                    Number(a.isArchived ?? false) -
+                                    Number(b.isArchived ?? false),
+                                  )
+                                  .map((tag) => {
+                                    const isSelected = field.value?.includes(
+                                      tag.id,
+                                    );
+                                    const isArchived = tag.isArchived ?? false;
+                                    // Arquivada NÃO selecionada = não pode picar.
+                                    // Arquivada já selecionada = pode desmarcar (limpa workflow).
+                                    const disabled = isArchived && !isSelected;
+                                    return (
+                                      <CommandItem
+                                        key={tag.id}
+                                        value={`${tag.id}-${tag.name}`}
+                                        disabled={disabled}
+                                        onSelect={() => {
+                                          if (disabled) return;
+                                          const current = field.value || [];
+                                          const next = isSelected
+                                            ? current.filter(
+                                                (id) => id !== tag.id,
+                                              )
+                                            : [...current, tag.id];
+                                          field.onChange(next);
+                                        }}
                                         className={cn(
-                                          "flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                                          isSelected
-                                            ? "bg-primary text-primary-foreground"
-                                            : "opacity-50 [&_svg]:invisible",
+                                          isArchived && "opacity-60",
                                         )}
                                       >
-                                        <Check className="h-4 w-4" />
-                                      </div>
+                                        <div
+                                          className={cn(
+                                            "flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                            isSelected
+                                              ? "bg-primary text-primary-foreground"
+                                              : "opacity-50 [&_svg]:invisible",
+                                          )}
+                                        >
+                                          <Check className="h-4 w-4" />
+                                        </div>
 
-                                      <span>{tag.name}</span>
-                                    </CommandItem>
-                                  );
-                                })}
+                                        <span className={cn(isArchived && "line-through")}>
+                                          {tag.name}
+                                        </span>
+                                        {isArchived && (
+                                          <span className="ml-auto text-[10px] text-amber-600 font-medium">
+                                            arquivada
+                                          </span>
+                                        )}
+                                      </CommandItem>
+                                    );
+                                  })}
                               </CommandGroup>
                             </>
                           )}

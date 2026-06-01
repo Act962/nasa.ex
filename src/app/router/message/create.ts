@@ -44,7 +44,7 @@ export const createTextMessage = base
       id: z.string().optional(),
     }),
   )
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
     try {
       const conversation = await prisma.conversation.findUnique({
         where: { id: input.conversationId },
@@ -150,6 +150,24 @@ export const createTextMessage = base
               apiKey: input.token,
               source: "send_failure",
             }).catch(() => {});
+          }
+          // Erro específico de sessão WhatsApp caída — devolve um BAD_REQUEST
+          // com código semântico pro frontend mostrar UI de reconexão em vez
+          // do toast genérico "Erro ao enviar mensagem".
+          const isWhatsappDown =
+            msg.includes("session is not reconnectable") ||
+            msg.includes("status 503") ||
+            msg.toLowerCase().includes("whatsapp disconnected");
+          if (isWhatsappDown) {
+            throw errors.BAD_REQUEST({
+              message: "WHATSAPP_DISCONNECTED",
+              data: {
+                code: "WHATSAPP_DISCONNECTED",
+                detail:
+                  "A sessão do WhatsApp caiu. Reconecte a instância em Configurações → Instâncias → Gerar novo QR.",
+                originalMessage: msg,
+              } as never,
+            });
           }
           throw err;
         }

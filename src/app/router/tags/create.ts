@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { slugify } from "@/lib/utils";
+import { ORPCError } from "@orpc/server";
 
 export const createTag = base
   .use(requiredAuthMiddleware)
@@ -19,7 +20,11 @@ export const createTag = base
       color: z.string().nullable().default("#1447e6"),
       description: z.string().trim().nullable().default(null),
       icon: z.string().trim().nullable().default(null),
-      trackingId: z.string(),
+      /** Quando null/omitted, tag é ORG-WIDE (visível em todos os trackings).
+       *  Quando setado, tag fica restrita a esse tracking (legacy mode). */
+      trackingId: z.string().nullable().optional(),
+      /** Grupo opcional (TagGroup.id). Null = "Sem categoria". */
+      tagGroupId: z.string().nullable().optional(),
     }),
   )
   .output(
@@ -32,13 +37,15 @@ export const createTag = base
   )
   .handler(async ({ input, context, errors }) => {
     try {
-      const tagExists = await prisma.tag.findUnique({
+      const trackingId = input.trackingId ?? null;
+
+      // Unique constraint considera trackingId NULL como valor distinto.
+      // Pra evitar duplicata org-wide, busca explícita pelo composite key.
+      const tagExists = await prisma.tag.findFirst({
         where: {
-          name_organizationId_trackingId: {
-            name: input.name,
-            organizationId: context.org.id,
-            trackingId: input.trackingId,
-          },
+          name: input.name,
+          organizationId: context.org.id,
+          trackingId,
         },
       });
 
@@ -59,7 +66,8 @@ export const createTag = base
           description: input.description,
           icon: input.icon,
           organizationId: context.org.id,
-          trackingId: input.trackingId,
+          trackingId,
+          tagGroupId: input.tagGroupId ?? null,
         },
       });
 
@@ -83,6 +91,15 @@ export const createTag = base
         trackingId: tag.trackingId,
       };
     } catch (error) {
-      throw errors.INTERNAL_SERVER_ERROR({ message: "Erro ao criar tag" });
+      // Erros oRPC já tipados (BAD_REQUEST "Tag já existe", NOT_FOUND, etc.)
+      // devem subir intactos pro client — não converter pra INTERNAL_SERVER_ERROR
+      // que mascara a mensagem real e devolve 500 em vez do 4xx correto.
+      if (error instanceof ORPCError) throw error;
+      console.error("[tags.createTag] erro inesperado:", error);
+      const msg =
+        error instanceof Error
+          ? error.message.slice(0, 300)
+          : "Erro desconhecido ao criar tag";
+      throw errors.INTERNAL_SERVER_ERROR({ message: `Erro ao criar tag: ${msg}` });
     }
   });

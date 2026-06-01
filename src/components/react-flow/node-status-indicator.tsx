@@ -122,7 +122,12 @@ export const NodeStatusIndicator = ({
       );
     case "error":
       return (
-        <StatusBorder className={cn("border-red-700/50", className)}>
+        <StatusBorder
+          className={cn(
+            "border-red-500 animate-pulse [box-shadow:0_0_0_3px_rgba(239,68,68,0.25)]",
+            className,
+          )}
+        >
           {children}
         </StatusBorder>
       );

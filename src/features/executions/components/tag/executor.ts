@@ -43,14 +43,30 @@ export const tagExecutor: NodeExecutor<TagNodeData> = async ({
         throw new NonRetriableError("Nenhuma tag selecionada");
       }
 
-      if (action?.type === "ADD") {
+      // Filtra tags arquivadas — skip silencioso com log warning. Workflow
+      // continua (não falha), apenas ignora as arquivadas. Resolve o cenário
+      // "user arquivou tag X depois que um workflow já a usava".
+      const tagsToProcess = action?.tagsIds ?? [];
+      const activeTags = await prisma.tag.findMany({
+        where: { id: { in: tagsToProcess }, archivedAt: null },
+        select: { id: true },
+      });
+      const activeTagIds = activeTags.map((t) => t.id);
+      const skippedCount = tagsToProcess.length - activeTagIds.length;
+      if (skippedCount > 0) {
+        console.warn(
+          `[tag executor] Node ${nodeId} skipou ${skippedCount} tag(s) arquivadas (de ${tagsToProcess.length} configuradas)`,
+        );
+      }
+
+      if (action?.type === "ADD" && activeTagIds.length > 0) {
         await prisma.lead.update({
           where: {
             id: lead.id,
           },
           data: {
             leadTags: {
-              connectOrCreate: action.tagsIds.map((id) => ({
+              connectOrCreate: activeTagIds.map((id) => ({
                 where: {
                   leadId_tagId: {
                     leadId: lead.id,
@@ -66,12 +82,12 @@ export const tagExecutor: NodeExecutor<TagNodeData> = async ({
         });
       }
 
-      if (action?.type === "REMOVE") {
+      if (action?.type === "REMOVE" && activeTagIds.length > 0) {
         await prisma.leadTag.deleteMany({
           where: {
             leadId: lead.id,
             tagId: {
-              in: action.tagsIds,
+              in: activeTagIds,
             },
           },
         });

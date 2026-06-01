@@ -187,6 +187,20 @@ export const checkNoFirstResponse = inngest.createFunction(
         minutesWaiting: config.noFirstRespMinutes,
       });
 
+      // Acorda workflows (modo agente IA) com WAIT_FOR_EVENT preset
+      // "no-first-response". A engine de workflow casa por leadId.
+      // Emite mesmo se nenhum workflow estiver esperando — Inngest
+      // descarta sem custo.
+      await inngest.send({
+        name: "agent-workflow/lead-no-first-response",
+        data: {
+          leadId: lead.id,
+          trackingId: lead.trackingId,
+          organizationId: lead.tracking.organizationId,
+          minutesWaiting: config.noFirstRespMinutes,
+        },
+      });
+
       return { fired: true, scenario: "noFirstResp" } as const;
     });
   },
@@ -239,6 +253,18 @@ export const checkInConvIdle = inngest.createFunction(
         scenario: "inConv",
         config,
         minutesWaiting: config.inConvMinutes,
+      });
+
+      // Acorda workflows (modo agente IA) com WAIT_FOR_EVENT preset
+      // "in-conv-idle". Match por leadId na engine.
+      await inngest.send({
+        name: "agent-workflow/lead-idle",
+        data: {
+          leadId: lead.id,
+          trackingId: lead.trackingId,
+          organizationId: lead.tracking.organizationId,
+          minutesWaiting: config.inConvMinutes,
+        },
       });
 
       return { fired: true, scenario: "inConv" } as const;

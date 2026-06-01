@@ -21,15 +21,31 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 
 // ─── Consumed bar ─────────────────────────────────────────────────────────────
 
-function ConsumedBar({ consumed, total }: { consumed: number; total: number }) {
+function ConsumedBar({
+  consumed,
+  total,
+  isCritical,
+  isLow,
+}: {
+  consumed: number;
+  total: number;
+  /** Saldo total disponível < threshold crítico — força vermelho. */
+  isCritical?: boolean;
+  /** Saldo total disponível < threshold baixo — força amarelo. */
+  isLow?: boolean;
+}) {
   const pct = total > 0 ? Math.min(100, (consumed / total) * 100) : 0;
-  // Thresholds atualizados: 90% crítico, 70% aviso (era 95/80).
-  const color =
-    pct >= 90
-      ? "bg-red-500"
-      : pct >= 70
-        ? "bg-amber-500"
-        : pct >= 50
+  // Cor reflete RISCO REAL de acabar (saldo total), não % consumido.
+  // Estourar o plano mensal com bonus disponível NÃO deve disparar
+  // vermelho — só quando o saldo cair de fato.
+  const color = isCritical
+    ? "bg-red-500"
+    : isLow
+      ? "bg-amber-500"
+      : pct >= 100
+        ? // Estourou plano mas saldo OK: roxo indica "consumindo bonus"
+          "bg-[#7C3AED]"
+        : pct >= 70
           ? "bg-yellow-400"
           : "bg-[#7C3AED]";
 
@@ -180,9 +196,23 @@ export function StarsWidget() {
   const showLimitBar =
     hasPlan && !isPayPerUse && planMonthlyStars > 0 && !!cycleStart;
   const pctUsed = showLimitBar ? (consumed / planMonthlyStars) * 100 : 0;
-  // Thresholds: 70% aviso, 90% crítico (era 80/95).
-  const isLow = showLimitBar && pctUsed >= 70;
-  const isCritical = showLimitBar && pctUsed >= 90;
+  // **FIX**: isLow/isCritical agora refletem RISCO REAL de acabar, não
+  // simplesmente % consumido do plano. Antes, consumir 330% do plano
+  // ficava vermelho mesmo com 997k de saldo restante — confunde o user.
+  //
+  // Total disponível = balance regular + bonus (pode ser sacado pra
+  // cobrir consumo após estourar o plano mensal). Threshold é o MAIOR
+  // entre absoluto (50/200 stars) e relativo (5%/20% do plano) — cobre
+  // tanto orgs com plano pequeno quanto grande.
+  const totalAvailable = remaining + bonusBalance;
+  const criticalThreshold = Math.max(50, planMonthlyStars * 0.05);
+  const lowThreshold = Math.max(200, planMonthlyStars * 0.2);
+  const isCritical = showLimitBar && totalAvailable < criticalThreshold;
+  const isLow =
+    showLimitBar && !isCritical && totalAvailable < lowThreshold;
+  // Flag separado pra indicar visualmente "estourou o plano mas tem
+  // reserva" — bar fica roxa (info) em vez de vermelha (alerta).
+  const overplan = showLimitBar && consumed > planMonthlyStars;
 
   // Grace period / suspended — vindos do backend (get-balance estendido).
   const graceStartedAt = data?.graceStartedAt
@@ -336,7 +366,12 @@ export function StarsWidget() {
                       {Math.round(pctUsed)}%
                     </span>
                   </div>
-                  <ConsumedBar consumed={consumed} total={planMonthlyStars} />
+                  <ConsumedBar
+                    consumed={consumed}
+                    total={planMonthlyStars}
+                    isCritical={isCritical}
+                    isLow={isLow}
+                  />
                 </div>
               )}
 
@@ -405,7 +440,19 @@ export function StarsWidget() {
                 <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200/60 p-2.5 dark:bg-amber-950/20 dark:border-amber-900/40">
                   <Zap className="size-3.5 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
-                    Mais de 70% das stars consumidas. Considere recarregar.
+                    Saldo total ficando baixo (
+                    {totalAvailable.toLocaleString("pt-BR")} ★). Considere
+                    recarregar.
+                  </p>
+                </div>
+              )}
+
+              {overplan && !isLow && !isCritical && (
+                <div className="flex items-start gap-2 rounded-lg bg-purple-50 border border-purple-200/60 p-2.5 dark:bg-purple-950/20 dark:border-purple-900/40">
+                  <Sparkles className="size-3.5 text-[#7C3AED] shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-purple-700 dark:text-purple-300 leading-relaxed">
+                    Você passou do plano mensal, mas seu saldo extra cobre.{" "}
+                    {totalAvailable.toLocaleString("pt-BR")} ★ disponíveis.
                   </p>
                 </div>
               )}
