@@ -86,6 +86,46 @@ export async function POST(request: NextRequest) {
       const phone = json.message.chatid.split("@")[0];
       const remoteJid = json.message.chatid;
 
+      // ── Astro Bot via WhatsApp ─────────────────────────────────
+      // Se o remetente (não-fromMe) é um membro com UserWhatsappBinding
+      // ativo, intercepta e roteia pro orchestrator IA em vez do fluxo
+      // de atendimento. Mensagem do membro = comando pro bot, não lead
+      // novo. Texto puro só — mídia ainda cai no fluxo normal (Fase 3
+      // adiciona OCR/visão).
+      const bodyForBot = (json.message.text ?? "").trim();
+      if (!fromMe && bodyForBot && json.message.messageType === "TextMessage") {
+        try {
+          const { maybeHandleBotMessage } = await import(
+            "@/features/astro-bot/lib/webhook-handler"
+          );
+          const botResult = await maybeHandleBotMessage({
+            fromPhone: phone,
+            messageText: bodyForBot,
+            receivingInstanceToken: json.token,
+            deviceId: json.deviceId ?? undefined,
+          });
+          if (botResult.handled) {
+            // Bot processou — não cria Lead/Conversation/Message.
+            return NextResponse.json(
+              {
+                ok: true,
+                handledBy: "astro-bot",
+                bindingId: botResult.bindingId,
+                status: botResult.status,
+              },
+              { status: 200 },
+            );
+          }
+        } catch (err) {
+          // Best-effort: falha no bot NÃO derruba o webhook de atendimento.
+          // Loga e segue pro fluxo normal de Lead/Message.
+          console.error(
+            "[webhook:chat] astro-bot handler failed — fallback to atendimento normal",
+            err,
+          );
+        }
+      }
+
       const tracking = await prisma.tracking.findUnique({
         where: { id: trackingId },
         select: {

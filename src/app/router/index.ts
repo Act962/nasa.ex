@@ -66,6 +66,7 @@ import { brandRouter } from "./brand";
 import { trackingPresetsRouter } from "./tracking-presets";
 import { agentsRouter } from "./agents";
 import { inChatRouter } from "./in-chat";
+import { astroBotRouter } from "./astro-bot";
 
 export const router = {
   tracking: trackingRoutes,
@@ -76,6 +77,8 @@ export const router = {
   tagGroups: tagGroupsRouter,
   trackingPresets: trackingPresetsRouter,
   agents: agentsRouter,
+  /** Astro Bot via WhatsApp — config + binding por user. */
+  astroBot: astroBotRouter,
   reasons: reasonsRouter,
   orgs: orgRoutes,
   workflow: workflowRoutes,
