@@ -42,22 +42,37 @@ export const LeadTaggedTriggerNode = memo(
 
     const nodeData = props.data;
 
-    // Detecta tags arquivadas referenciadas nas condições do trigger.
-    // Trigger LEAD_TAGGED nunca vai disparar pra tag arquivada (ninguém
-    // anexa). Warning visual avisa o user pra editar.
+    // Detecta nos tagIds das conditions:
+    //  - placeholders agent-mode (`<<TAG_*>>`) — trigger nunca dispara
+    //  - tags arquivadas — trigger não dispara (lead novo não recebe)
+    //  - IDs órfãos (hard-deletados antes da v2)
     const { tags: allTags } = useTags({
       trackingId: "ALL",
       includeArchived: true,
     });
-    const archivedRefs = useMemo(() => {
-      const ids = (nodeData.action?.conditions ?? [])
-        .flatMap((c: { tagIds?: string[] }) => c.tagIds ?? []);
-      if (ids.length === 0) return [];
-      return allTags.filter((t) => ids.includes(t.id) && t.isArchived);
+    const { placeholderRefs, archivedRefs, orphanRefs } = useMemo(() => {
+      const ids = (nodeData.action?.conditions ?? []).flatMap(
+        (c: { tagIds?: string[] }) => c.tagIds ?? [],
+      );
+      const placeholders = ids.filter((id) => /^<<.+>>$/.test(id));
+      const real = ids.filter((id) => !/^<<.+>>$/.test(id));
+      const archived = allTags.filter(
+        (t) => real.includes(t.id) && t.isArchived,
+      );
+      const orphan = real.filter((id) => !allTags.find((t) => t.id === id));
+      return {
+        placeholderRefs: placeholders,
+        archivedRefs: archived,
+        orphanRefs: orphan,
+      };
     }, [nodeData.action?.conditions, allTags]);
 
     const description =
-      archivedRefs.length > 0
+      placeholderRefs.length > 0
+        ? `⚠️ ${placeholderRefs.length} placeholder(s) — trigger não dispara`
+        : orphanRefs.length > 0
+        ? `⚠️ ${orphanRefs.length} tag(s) inválida(s) — clique pra remover`
+        : archivedRefs.length > 0
         ? `⚠️ ${archivedRefs.length} tag(s) arquivada(s) — trigger não dispara`
         : "Quando uma Tag for inserida no lead";
 
