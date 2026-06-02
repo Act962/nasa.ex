@@ -154,6 +154,27 @@ export function FormSettings() {
               </DropdownMenuContent>
             </DropdownMenu>
           </Field>
+
+          {/* Valida, na etapa 1 do form público, se o telefone do lead é um
+              WhatsApp válido — usa a instância do tracking selecionado.
+              Sem tracking não há instância pra validar, então fica desativado. */}
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-sm">Validar número no WhatsApp</span>
+              {!settings.trackingId && (
+                <span className="text-xs text-muted-foreground">
+                  Selecione um tracking com instância conectada
+                </span>
+              )}
+            </div>
+            <Switch
+              checked={(settings as any).validateWhatsapp ?? false}
+              disabled={!settings.trackingId}
+              onCheckedChange={(checked) =>
+                updateSettings({ validateWhatsapp: checked } as any)
+              }
+            />
+          </div>
         </div>
       </section>
 

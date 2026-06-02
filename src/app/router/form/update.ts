@@ -43,6 +43,7 @@ const settingsSchema = z.object({
     .array(z.object({ chatId: z.string(), chatName: z.string() }))
     .optional(),
   whatsappMessage: z.string().optional().nullable(),
+  validateWhatsapp: z.boolean().optional(),
 });
 
 export const updateForm = base
