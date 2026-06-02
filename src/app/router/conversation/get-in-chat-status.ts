@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { inngest } from "@/inngest/client";
 import { z } from "zod";
 
 /**
@@ -104,6 +105,20 @@ export const getInChatStatus = base
           : manual
             ? "manual"
             : "off";
+
+    // Recuperação preguiçosa: ao abrir o chat com In-Chat AUTO ativo, agenda
+    // uma checagem (com debounce na função Inngest) pra desligar o modo caso o
+    // WhatsApp já tenha reconectado. Sem poll de fundo — disparado pelo uso.
+    if (auto && inst?.id) {
+      try {
+        await inngest.send({
+          name: "whatsapp/instance.check-recovery",
+          data: { instanceId: inst.id },
+        });
+      } catch {
+        // Best-effort — não atrapalha o retorno do status.
+      }
+    }
 
     return {
       active: auto || manual,

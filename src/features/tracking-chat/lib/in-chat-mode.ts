@@ -229,8 +229,87 @@ export async function markInstanceConnectionFailure(params: {
 }
 
 /**
- * Marca uma confirmação de conexão saudável. Chamado pelo cron de
- * recovery quando o health check retorna `connected`, ou pelo webhook
+ * Ativa o modo In-Chat diretamente (sem passar pelo contador de falhas).
+ *
+ * Usado pela função Inngest `confirmDisconnectAndActivate`, que confirma a
+ * queda da instância (após a carência) antes de chamar aqui. Diferente de
+ * `markInstanceConnectionFailure`, não incrementa `inChatFailureCount` — a
+ * decisão de ativar já foi tomada pelo confirmador.
+ *
+ * Idempotente: se já está ativo, é no-op (não duplica `Activity` nem o
+ * broadcast Pusher). Fire-and-forget: erros internos só logam.
+ */
+export async function activateInChatMode(params: {
+  /** Pode receber instanceId direto OU apiKey. */
+  instanceId?: string;
+  apiKey?: string;
+  source: "webhook" | "send_failure";
+  /** Motivo da desconexão (ex.: `lastDisconnectReason` do uazapi). */
+  reason?: string | null;
+}): Promise<{ activated: boolean }> {
+  try {
+    const instanceLookup = params.instanceId
+      ? { id: params.instanceId }
+      : params.apiKey
+        ? { apiKey: params.apiKey }
+        : null;
+    if (!instanceLookup) return { activated: false };
+
+    const instance = await prisma.whatsAppInstance.findUnique({
+      where: instanceLookup,
+      select: {
+        id: true,
+        organizationId: true,
+        phoneNumber: true,
+        trackingId: true,
+        inChatModeActive: true,
+      },
+    });
+    if (!instance) return { activated: false };
+
+    // Idempotente — já ativo, nada a fazer.
+    if (instance.inChatModeActive) return { activated: false };
+
+    await prisma.whatsAppInstance.update({
+      where: { id: instance.id },
+      data: {
+        inChatModeActive: true,
+        inChatActivatedAt: new Date(),
+      },
+    });
+
+    logActivity({
+      organizationId: instance.organizationId,
+      userId: "system",
+      userName: "Sistema",
+      userEmail: "sistema@nasa",
+      appSlug: "chat",
+      subAppSlug: "in-chat",
+      featureKey: "in_chat.activated",
+      action: "in_chat.activated",
+      actionLabel: `WhatsApp offline — modo In-Chat ativado (${instance.phoneNumber ?? "?"})`,
+      resource: "whatsapp_instance",
+      resourceId: instance.id,
+      metadata: {
+        phoneNumber: instance.phoneNumber,
+        source: params.source,
+        reason: params.reason ?? null,
+      },
+    }).catch(() => {});
+
+    // Push pros clients acenderem o banner/badge em tempo real.
+    broadcastInChatStatusChanged(instance.trackingId).catch(() => {});
+
+    return { activated: true };
+  } catch (err) {
+    console.warn("[activateInChatMode] failed", err);
+    return { activated: false };
+  }
+}
+
+/**
+ * Marca uma confirmação de conexão saudável. Chamado pela checagem
+ * preguiçosa de recuperação (Inngest `checkInChatRecovery`) ou pelo webhook
  * quando `instance.status === "connected"` chega.
  *
  * Zera o contador + desativa o modo In-Chat se estava ligado.
