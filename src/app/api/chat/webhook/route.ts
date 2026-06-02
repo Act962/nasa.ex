@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { pusherServer } from "@/lib/pusher";
 import prisma from "@/lib/prisma";
+import { inngest } from "@/inngest/client";
 import { LeadSource, WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import { downloadFile } from "@/http/uazapi/get-file";
 import { S3 } from "@/lib/s3-client";
@@ -939,26 +940,31 @@ export async function POST(request: NextRequest) {
       const newStatus = String(json.instance?.status ?? "").toLowerCase();
 
       if (newStatus === "disconnected") {
-        await prisma.whatsAppInstance.update({
+        const disconnectedInstance = await prisma.whatsAppInstance.update({
           where: { apiKey: json.token },
           data: {
             status: WhatsAppInstanceStatus.DISCONNECTED,
           },
+          select: { id: true, trackingId: true, baseUrl: true },
         });
-        // Incrementa contador + ativa modo In-Chat se passar do threshold.
-        // Detecção push-based — substitui a necessidade de cron a cada 5min
-        // varrendo todas as instâncias da plataforma.
-        const { markInstanceConnectionFailure } = await import(
-          "@/features/tracking-chat/lib/in-chat-mode"
-        );
-        await markInstanceConnectionFailure({
-          apiKey: json.token,
-          source: "webhook",
+        // Detecção push-based — dispara a confirmação da queda (carência +
+        // checagem de status) que ativa o modo In-Chat se a queda for
+        // sustentada. Substitui o contador "3 falhas" e o cron de varredura.
+        await inngest.send({
+          name: "whatsapp/instance.disconnected",
+          data: {
+            instanceId: disconnectedInstance.id,
+            trackingId: disconnectedInstance.trackingId,
+            apiKey: json.token,
+            baseUrl: disconnectedInstance.baseUrl,
+            reason: json.instance?.lastDisconnectReason ?? null,
+          },
         });
       } else if (newStatus === "connected") {
-        // Reconexão bem-sucedida — zera contador + desativa modo se
-        // estava ligado. Espelho do `markInstanceConnectionFailure` mas
-        // pro sucesso. Roda mesmo sem cron de recovery rodar antes.
+        // Reconexão bem-sucedida — zera contador + desativa o modo In-Chat
+        // se estava ligado. É o caminho de recuperação instantâneo; a
+        // checagem preguiçosa (`checkInChatRecovery`) cobre quando este
+        // webhook não chega.
         const { markInstanceConnectionHealthy } = await import(
           "@/features/tracking-chat/lib/in-chat-mode"
         );
