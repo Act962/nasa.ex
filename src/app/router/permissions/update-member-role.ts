@@ -4,6 +4,11 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
+import { guardBillingRoleExit } from "@/features/billing/lib/guard-billing-role-exit";
+import {
+  BILLING_ROLES,
+  recomputeOrgPlan,
+} from "@/features/billing/lib/sync-billing-role-plan-to-orgs";
 
 export const updateMemberRole = base
   .use(requiredAuthMiddleware)
@@ -35,10 +40,35 @@ export const updateMemberRole = base
       if (ownerCount <= 1) throw new ORPCError("BAD_REQUEST", { message: "A empresa precisa de pelo menos 1 Master" });
     }
 
+    // Bloqueia demoção de billing-role → não billing-role se o target é o
+    // único pagante (caso 12 de docs/subscription-org-model.md). Promoção e
+    // troca entre billing-roles (owner↔admin) passa direto.
+    const wasBillingRole = (BILLING_ROLES as readonly string[]).includes(target.role);
+    const willBeBillingRole = (BILLING_ROLES as readonly string[]).includes(input.role);
+    if (wasBillingRole && !willBeBillingRole) {
+      const billingGuard = await guardBillingRoleExit({
+        userId: target.userId,
+        organizationId: orgId,
+      });
+      if (billingGuard) {
+        throw new ORPCError("BAD_REQUEST", { message: billingGuard.reason });
+      }
+    }
+
     await prisma.member.update({
       where: { id: input.memberId },
       data: { role: input.role },
     });
+
+    // Promoção pra billing-role: target pode passar a cobrir a org com sua sub
+    // (caso 14). Demoção: rederive sem ele (sai do scope).
+    if (wasBillingRole !== willBeBillingRole) {
+      try {
+        await recomputeOrgPlan(orgId);
+      } catch (e) {
+        console.error("[billing] recomputeOrgPlan after role change failed:", e);
+      }
+    }
 
     // Log
     await prisma.orgActivityLog.create({

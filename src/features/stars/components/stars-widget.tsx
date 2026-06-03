@@ -16,7 +16,6 @@ import { StarsPurchaseModal } from "./stars-purchase-modal";
 import { SubscriptionPlansModal } from "./subscription-plans-modal";
 import { StarsHistoryDialog } from "./stars-history-dialog";
 import { History, Plus, TrendingUp, AlertTriangle, Zap, Sparkles, ShieldAlert } from "lucide-react";
-import { authClient } from "@/lib/auth-client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // ─── Consumed bar ─────────────────────────────────────────────────────────────
@@ -143,15 +142,6 @@ export function StarsWidget() {
     staleTime: 10_000,
   });
 
-  const { data: activeSubscriptions } = useQuery({
-    queryKey: ["activeSubscriptionsWidget"],
-    queryFn: async () => {
-      const { data } = await authClient.subscription.list();
-      return data;
-    },
-    refetchInterval: 60_000,
-  });
-
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (isLoading) {
     return <div className="h-8 w-32 rounded-lg bg-muted/60 animate-pulse" />;
@@ -160,24 +150,16 @@ export function StarsWidget() {
   const balance = data?.balance ?? 0;
   const bonusBalance = data?.bonusBalance ?? 0;
 
-  // Use Better Auth plan as priority, fallback to DB
-  const activeSub = activeSubscriptions?.find(
-    (s) => s.status === "active" || s.status === "trialing",
-  );
-  const planName = activeSub
-    ? activeSub.plan.toUpperCase()
-    : (data?.planName ?? "");
-  const planSlug = activeSub
-    ? activeSub.plan.toLowerCase()
-    : (data?.planSlug ?? "free");
+  // Plano vem SEMPRE de `Organization.planId` via `getBalance` — fonte única
+  // de verdade no modelo billing-role propagation. NÃO ler de
+  // `authClient.subscription.list()` aqui: aquilo é a sub do user (referenceId
+  // === user.id) e diverge quando o user é owner de uma org mas está com
+  // activeOrganization apontando pra outra. Ver docs/subscription-org-model.md.
+  const planName = data?.planName ?? "";
+  const planSlug = data?.planSlug ?? "free";
+  const planMonthlyStars = data?.planMonthlyStars ?? 0;
 
-  // Prioritize monthlyStars from Better Auth limits, or fallback to ORPC data
-  const planMonthlyStars = activeSub?.limits?.monthlyStars
-    ? Number(activeSub.limits.monthlyStars)
-    : (data?.planMonthlyStars ?? 0);
-
-  // hasPlan is true if we have a valid slug from Stripe or DB
-  const hasPlan = planSlug !== "free" && (planMonthlyStars > 0 || !!activeSub);
+  const hasPlan = planSlug !== "free" && planMonthlyStars > 0;
 
   // SUITE = pay-per-use (consumo livre). Não tem limite mensal pra mostrar
   // como `X / Y` — só mostra o consumido + saldo.
@@ -250,9 +232,13 @@ export function StarsWidget() {
                 <StarIcon className="size-3.5 shrink-0" />
               )}
               {showLimitBar ? (
+                // Modelo "saldo bancário": número principal é o REMAINING
+                // (desce de planMonthlyStars → 0 conforme consome). User
+                // pega plano de 3000 e vê "3.000 / 3.000", vai usando até
+                // "0 / 3.000". Consumido vira info secundária no popover.
                 <>
                   <span className="tabular-nums">
-                    {consumed.toLocaleString("pt-BR")}
+                    {remaining.toLocaleString("pt-BR")}
                   </span>
                   <span className="text-muted-foreground font-normal hidden sm:inline">
                     /
@@ -278,7 +264,7 @@ export function StarsWidget() {
             <div className="px-4 py-3 border-b bg-linear-to-br from-[#7C3AED]/8 to-transparent">
               <div className="flex items-center justify-between mb-2 gap-2">
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Stars consumidas
+                  Saldo de Stars
                 </p>
                 <div className="flex items-center gap-1.5">
                   <button
@@ -297,19 +283,21 @@ export function StarsWidget() {
               </div>
 
               {showLimitBar ? (
+                // Número grande = saldo restante (modelo countdown).
+                // Linha pequena = consumido no ciclo (info secundária).
                 <>
                   <div className="flex items-baseline gap-1">
                     <StarIcon className="size-5 mb-0.5" />
                     <span className="text-3xl font-extrabold tabular-nums leading-none">
-                      {consumed.toLocaleString("pt-BR")}
+                      {remaining.toLocaleString("pt-BR")}
                     </span>
                     <span className="text-base text-muted-foreground font-normal">
                       / {planMonthlyStars.toLocaleString("pt-BR")}
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Saldo restante:{" "}
-                    <strong>{remaining.toLocaleString("pt-BR")} ★</strong>
+                    Consumido neste ciclo:{" "}
+                    <strong>{consumed.toLocaleString("pt-BR")} ★</strong>
                   </p>
                 </>
               ) : isPayPerUse ? (
