@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -17,12 +17,22 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCanManageBilling } from "@/features/billing/hooks/use-can-manage-billing";
 
 export default function SubscriptionConfirmPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const planSlug = searchParams.get("plan");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const canManageBilling = useCanManageBilling();
+
+  // Guard: members/moderadores não podem assinar pela empresa — só owner/admin.
+  // Detalhes em [docs/subscription-org-model.md].
+  useEffect(() => {
+    if (!canManageBilling) {
+      router.replace("/home");
+    }
+  }, [canManageBilling, router]);
 
   // Fetch active subscriptions to see if user is already a subscriber
   const { data: subData, isLoading: subLoading } = useQuery({

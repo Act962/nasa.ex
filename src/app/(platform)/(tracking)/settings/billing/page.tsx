@@ -20,10 +20,12 @@ import { SubscriptionPlansModal } from "@/features/stars/components/subscription
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import Link from "next/link";
+import { useCanManageBilling } from "@/features/billing/hooks/use-can-manage-billing";
 
 export default function BillingPage() {
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const canManageBilling = useCanManageBilling();
 
   // Fetch balance and DB info
   const { data: balanceData, isLoading: balanceLoading } = useQuery({
@@ -31,33 +33,32 @@ export default function BillingPage() {
     refetchInterval: 15_000,
   });
 
-  // Fetch active subscriptions from Stripe via Better Auth
-  const { data: activeSubscriptions, isLoading: subLoading } = useQuery({
-    queryKey: ["activeSubscriptionsBilling"],
-    queryFn: async () => {
-      const { data } = await authClient.subscription.list();
-      return data;
-    },
+  // Consumo real do ciclo — agregado de StarTransaction (APP_CHARGE,
+  // APP_SETUP, COURSE_PURCHASE). NÃO derivar de `planMonthlyStars - balance`
+  // porque isso ignora rollover, top-ups e bonus. Mesmo padrão do
+  // stars-widget. Ver docs/subscription-org-model.md.
+  const { data: usage } = useQuery({
+    ...orpc.stars.getUsageBreakdown.queryOptions(),
+    refetchInterval: 30_000,
   });
 
-  const activeSub = activeSubscriptions?.find(
-    (s) => s.status === "active" || s.status === "trialing",
-  );
+  // Plano da empresa vem de `Organization.planId` via getBalance — fonte única
+  // no modelo billing-role propagation. `authClient.subscription.list()` é
+  // user-scoped e divergia quando o user é owner/admin de outra org. Ver
+  // docs/subscription-org-model.md.
+  const planName = balanceData?.planName ?? "GRÁTIS";
+  const planSlug = balanceData?.planSlug ?? "free";
+  const planMonthlyStars = balanceData?.planMonthlyStars ?? 0;
 
-  const planName = activeSub
-    ? activeSub.plan.toUpperCase()
-    : (balanceData?.planName ?? "GRÁTIS");
-  const planSlug = activeSub
-    ? activeSub.plan.toLowerCase()
-    : (balanceData?.planSlug ?? "free");
-
-  const planMonthlyStars = activeSub?.limits?.monthlyStars
-    ? Number(activeSub.limits.monthlyStars)
-    : (balanceData?.planMonthlyStars ?? 0);
-
+  // Modelo: stars vão do LIMITE → 0.
+  //  - `balance` (= `starsBalance`) é o SALDO RESTANTE. `runMonthlyCycle`
+  //    seta `balance = rollover + planMonthlyStars` no início do ciclo e
+  //    `debitStars` desconta de lá. Logo: remaining = balance, direto.
+  //  - `consumed` vem do agregado real de débitos no ciclo (getUsageBreakdown),
+  //    NÃO de `planMonthlyStars - balance` (que falha com rollover/top-ups).
   const balance = balanceData?.balance ?? 0;
-  const consumed = activeSub || planSlug !== "free" ? balance : 0;
-  const remaining = Math.max(0, planMonthlyStars - consumed);
+  const remaining = balance;
+  const consumed = usage?.consumedInCycle ?? 0;
   const pctUsed =
     planMonthlyStars > 0 ? (consumed / planMonthlyStars) * 100 : 0;
 
@@ -75,7 +76,7 @@ export default function BillingPage() {
     }
   };
 
-  if (balanceLoading || subLoading) {
+  if (balanceLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <Loader2 className="size-8 text-primary animate-spin mb-4" />
@@ -110,44 +111,54 @@ export default function BillingPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPlanModalOpen(true)}
-            className="font-medium"
-          >
-            Alterar plano
-          </Button>
-          <Button
-            variant="default"
-            size="sm"
-            disabled={isRedirecting}
-            onClick={handleOpenPortal}
-            className="font-medium bg-primary hover:bg-primary/90"
-          >
-            {isRedirecting ? <Spinner /> : <CreditCard className="size-4" />}
-            Gerenciar Assinatura
-          </Button>
-        </div>
+        {canManageBilling ? (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPlanModalOpen(true)}
+              className="font-medium"
+            >
+              Alterar plano
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              disabled={isRedirecting}
+              onClick={handleOpenPortal}
+              className="font-medium bg-primary hover:bg-primary/90"
+            >
+              {isRedirecting ? <Spinner /> : <CreditCard className="size-4" />}
+              Gerenciar Assinatura
+            </Button>
+          </div>
+        ) : (
+          // members/moderadores não gerenciam billing — só o owner ou admin
+          <p className="text-[10px] text-muted-foreground italic">
+            Apenas o owner ou admin pode gerenciar a assinatura.
+          </p>
+        )}
       </div>
 
       <Separator />
 
-      {/* ── Consumo de Stars ── */}
+      {/* ── Saldo de Stars ── */}
       <div className="py-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="font-medium leading-relaxed">
-              Consumo de Créditos (Stars)
+              Saldo de Stars
             </h2>
             <p className="text-xs text-muted-foreground">
               Créditos inclusos no seu plano mensal para operações e IA.
             </p>
           </div>
+          {/* Modelo countdown: número em destaque é o saldo restante,
+              desce de planMonthlyStars → 0. Ver
+              docs/subscription-org-model.md. */}
           <div className="text-right">
             <span className="text-sm font-bold">
-              {consumed.toLocaleString()}
+              {remaining.toLocaleString()}
             </span>
             <span className="text-xs text-muted-foreground">
               {" "}
@@ -171,7 +182,7 @@ export default function BillingPage() {
             {Math.round(pctUsed)}% utilizado
           </span>
           <span className="text-[10px] text-muted-foreground font-medium">
-            {remaining.toLocaleString()} Stars restantes
+            {consumed.toLocaleString()} Stars consumidas no ciclo
           </span>
         </div>
       </div>
@@ -226,18 +237,20 @@ export default function BillingPage() {
             </Link>
           </div>
 
-          <button
-            onClick={handleOpenPortal}
-            className="w-full flex items-center justify-between p-4 rounded-xl border border-border hover:bg-muted/50 transition-colors group"
-          >
-            <div className="text-left">
-              <h3 className="text-sm font-medium">Ver faturas anteriores</h3>
-              <p className="text-[10px] text-muted-foreground">
-                Acesse recibos e histórico no Stripe
-              </p>
-            </div>
-            <ExternalLink className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-          </button>
+          {canManageBilling && (
+            <button
+              onClick={handleOpenPortal}
+              className="w-full flex items-center justify-between p-4 rounded-xl border border-border hover:bg-muted/50 transition-colors group"
+            >
+              <div className="text-left">
+                <h3 className="text-sm font-medium">Ver faturas anteriores</h3>
+                <p className="text-[10px] text-muted-foreground">
+                  Acesse recibos e histórico no Stripe
+                </p>
+              </div>
+              <ExternalLink className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+            </button>
+          )}
         </div>
       </div>
 
