@@ -245,7 +245,7 @@ export function TagSheet({ open, onOpenChange, trackingId }: Props) {
           </button>
         )}
 
-        <div className="space-y-4 ">
+        <div className="space-y-4 flex flex-col flex-1 min-h-0">
           {/* Toggle de escopo: Org-wide (default) ↔ Tracking-only.
               Ao ativar, mostra seletor de tracking. */}
           <div className="px-4 space-y-2 border rounded-md p-3 bg-muted/30">
@@ -402,7 +402,7 @@ export function TagSheet({ open, onOpenChange, trackingId }: Props) {
 
           <Separator className="my-4" />
 
-          <div className="px-4 h-full">
+          <div className="px-4 flex flex-col flex-1 min-h-0">
             {/* Tabs Ativas / Arquivadas. Arquivadas mostra contador no badge. */}
             <div className="flex items-center gap-2 border-b mb-3">
               <button
@@ -442,7 +442,7 @@ export function TagSheet({ open, onOpenChange, trackingId }: Props) {
               </button>
             </div>
 
-            <div className="flex items-center flex-wrap gap-2 mt-2 overflow-y-auto max-h-[calc(100vh-15rem)]">
+            <div className="flex items-start content-start flex-wrap gap-2 mt-2 flex-1 min-h-0 overflow-y-auto pb-4">
               {activeTab === "active" && (
                 <>
                   {isLoadingTags &&

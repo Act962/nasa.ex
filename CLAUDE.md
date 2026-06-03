@@ -172,6 +172,20 @@ src/features/<dominio>/
 
     **Checklist final OBRIGATÓRIO:** depois do(s) passo(s), validar via `curl -sI -m 10 http://localhost:3000/<rota-afetada>` que retorna 200/307 (não 404 nem 500). **Antes de devolver controle pro user**, fazer essa validação. Se ainda falhar, sugerir reiniciar `pnpm dev` (último recurso).
 
+12. **Clean Code — nomes semânticos (OBRIGATÓRIO)** — nomes de variáveis e funções devem descrever o que representam/fazem; o nome é a documentação. Nunca use abreviações de uma letra ou genéricas em código novo.
+
+    - **Proibido**: `p`, `d`, `c`, `b`, `u`, `a`, `o`, `m`, `e`, `res`, `acc`, `tmp`, `data`/`obj` soltos, `fn`/`cb` sem contexto. Exceções consagradas: `i`/`j` em índices de loop, `_` para descarte.
+    - **Padrões do projeto**:
+      - Payloads de entrada → `payload` (não `p`).
+      - Conversores → verbo + tipo: `toNullableDate`, `toIso` (não `d`, `iso`).
+      - Booleanos → prefixo `is`/`has`/`should`: `isSignatureValid`, `hasAccount` (não `ok`).
+      - Resultado de `fetch` → `response` (não `res`); corpo lido → `responseText`/`responseBody`.
+      - Funções que fazem POST/IO → verbo no nome: `postSyncEntity`, `resolveBaseUrl` (não `send`, `baseUrl`).
+      - Callbacks de coleção → nome do item no singular: `(user) =>`, `(account) =>`, `(cursor) =>` (não `u`, `a`, `c`).
+      - Constantes de configuração → unidade/intenção explícita: `PAGE_SIZE`, `TIMEOUT_MS` (não `PAGE`).
+      - Parâmetro genérico de origem/contexto → nomeie o domínio: `sourceApp` (não `source`).
+    - **Ao mexer em arquivo existente**, renomeie nomes ruins que tocar (boy-scout rule) — mas mantenha o escopo da renomeação dentro do que está sendo editado, sem PRs gigantes de rename.
+
 ## Obsidian
 
 Vault: `NASA Agents` em `/Users/weydsonlima/Documents/NASA Agents/`

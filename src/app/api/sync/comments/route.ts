@@ -4,10 +4,11 @@ import { applyInboundSync } from "@/features/sync/lib/inbound";
 import type { SyncEnvelope } from "@/features/sync/lib/payloads";
 
 /**
- * Endpoint INBOUND do sync de auth: NERP → NASA.
+ * Endpoint INBOUND do sync de auth: comments-app → NASA.
  *
- * Verifica a assinatura de sistema e delega o upsert ao handler compartilhado
- * `applyInboundSync` (Prisma cru, sem hooks → sem eco; idempotente por id).
+ * Sentido reverso da `src/http/ecosystem-sync/comments.ts`. Verifica a mesma
+ * assinatura de sistema (`SYNC_SHARED_SECRET`/`SYNC_API_KEY`) e delega o upsert
+ * ao handler compartilhado `applyInboundSync` (Prisma cru, sem hooks → sem eco).
  * Respostas: 200 aplicado/skip · 401 assinatura · 409 `{retryable}` FK ausente · 500 `{retryable}`.
  */
 export async function POST(request: Request) {
@@ -24,10 +25,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await applyInboundSync(envelope, "nerp");
+    const result = await applyInboundSync(envelope, "comments");
     return NextResponse.json(result.body, { status: result.status });
   } catch (e) {
-    console.error("[sync inbound nerp] upsert failed:", e);
+    console.error("[sync inbound comments] upsert failed:", e);
     return NextResponse.json(
       { error: "internal", retryable: true },
       { status: 500 },

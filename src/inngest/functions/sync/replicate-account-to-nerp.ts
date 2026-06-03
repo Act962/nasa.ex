@@ -1,12 +1,15 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { syncNerpClient } from "@/http/sync-nerp/client";
+import { ecosystemSyncComments } from "@/http/ecosystem-sync/comments";
 
 /**
- * Replica um `Account` do NASA no NERP (best-effort, retry/backoff).
+ * Replica um `Account` do NASA no NERP e no comments-app (best-effort, retry/backoff).
  * Como nenhum lado sobrescreve o hash de senha (scrypt default), o
- * `Account.password` replicado loga no NERP sem reset.
+ * `Account.password` replicado loga no destino sem reset.
  * Evento: `sync/account.upsert` — emitido pelo hook `account.create.after`.
+ *
+ * Fan-out: cada alvo em sua própria `step.run` → retries independentes.
  */
 export const replicateAccountToNerp = inngest.createFunction(
   { id: "sync-replicate-account-to-nerp", retries: 5 },
@@ -44,6 +47,9 @@ export const replicateAccountToNerp = inngest.createFunction(
 
     await step.run("upsert-to-nerp", () =>
       syncNerpClient.upsertAccount(payload),
+    );
+    await step.run("upsert-to-comments", () =>
+      ecosystemSyncComments.upsertAccount(payload),
     );
     return { ok: true, accountId };
   },
