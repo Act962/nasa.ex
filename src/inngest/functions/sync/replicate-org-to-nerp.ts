@@ -1,10 +1,13 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { syncNerpClient } from "@/http/sync-nerp/client";
+import { ecosystemSyncComments } from "@/http/ecosystem-sync/comments";
 
 /**
- * Replica uma `Organization` do NASA no NERP (best-effort, retry/backoff).
+ * Replica uma `Organization` do NASA no NERP e no comments-app (best-effort, retry/backoff).
  * Evento: `sync/org.upsert` — emitido por `organizationHooks.afterCreateOrganization`.
+ *
+ * Fan-out: cada alvo em sua própria `step.run` → retries independentes.
  */
 export const replicateOrgToNerp = inngest.createFunction(
   { id: "sync-replicate-org-to-nerp", retries: 5 },
@@ -31,6 +34,9 @@ export const replicateOrgToNerp = inngest.createFunction(
     if (!payload) return { skipped: "org_not_found", organizationId };
 
     await step.run("upsert-to-nerp", () => syncNerpClient.upsertOrg(payload));
+    await step.run("upsert-org-comments", () =>
+      ecosystemSyncComments.upsertOrg(payload),
+    );
     return { ok: true, organizationId };
   },
 );

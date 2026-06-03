@@ -1,9 +1,10 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { syncNerpClient } from "@/http/sync-nerp/client";
+import { ecosystemSyncComments } from "@/http/ecosystem-sync/comments";
 
 /**
- * Replica um `Member` do NASA no NERP (best-effort, retry/backoff).
+ * Replica um `Member` do NASA no NERP e no comments-app (best-effort, retry/backoff).
  * Evento: `sync/member.upsert`.
  *
  * AUTO-SUFICIENTE: além do Member, garante que User + Account(s) + Organization
@@ -79,20 +80,22 @@ export const replicateMemberToNerp = inngest.createFunction(
               createdAt: org.createdAt.toISOString(),
             }
           : null,
-        accounts: accounts.map((a) => ({
-          id: a.id,
-          accountId: a.accountId,
-          providerId: a.providerId,
-          userId: a.userId,
-          accessToken: a.accessToken,
-          refreshToken: a.refreshToken,
-          idToken: a.idToken,
-          accessTokenExpiresAt: a.accessTokenExpiresAt?.toISOString() ?? null,
-          refreshTokenExpiresAt: a.refreshTokenExpiresAt?.toISOString() ?? null,
-          scope: a.scope,
-          password: a.password,
-          createdAt: a.createdAt.toISOString(),
-          updatedAt: a.updatedAt.toISOString(),
+        accounts: accounts.map((account) => ({
+          id: account.id,
+          accountId: account.accountId,
+          providerId: account.providerId,
+          userId: account.userId,
+          accessToken: account.accessToken,
+          refreshToken: account.refreshToken,
+          idToken: account.idToken,
+          accessTokenExpiresAt:
+            account.accessTokenExpiresAt?.toISOString() ?? null,
+          refreshTokenExpiresAt:
+            account.refreshTokenExpiresAt?.toISOString() ?? null,
+          scope: account.scope,
+          password: account.password,
+          createdAt: account.createdAt.toISOString(),
+          updatedAt: account.updatedAt.toISOString(),
         })),
       };
     });
@@ -117,6 +120,28 @@ export const replicateMemberToNerp = inngest.createFunction(
     }
     await step.run("upsert-member", () =>
       syncNerpClient.upsertMember(graph.member),
+    );
+
+    // ── Fan-out comments-app: mesma ordem de FK (user → accounts → org → member).
+    // Steps próprios → retries independentes do NERP acima.
+    if (graph.user) {
+      await step.run("comments-upsert-user", () =>
+        ecosystemSyncComments.upsertUser(graph.user!),
+      );
+    }
+    for (let accountIndex = 0; accountIndex < graph.accounts.length; accountIndex++) {
+      const account = graph.accounts[accountIndex];
+      await step.run(`comments-upsert-account-${accountIndex}`, () =>
+        ecosystemSyncComments.upsertAccount(account),
+      );
+    }
+    if (graph.org) {
+      await step.run("comments-upsert-org", () =>
+        ecosystemSyncComments.upsertOrg(graph.org!),
+      );
+    }
+    await step.run("comments-upsert-member", () =>
+      ecosystemSyncComments.upsertMember(graph.member),
     );
 
     return { ok: true, memberId };
