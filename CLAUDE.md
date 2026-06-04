@@ -83,6 +83,9 @@ Arquivo `.env.local` na raiz. Variáveis principais:
 - `STRIPE_COURSE_WEBHOOK_SECRET` — secret do endpoint dedicado de cursos (`/api/stripe/webhook`)
 - `STRIPE_STARS_WEBHOOK_SECRET` — secret do endpoint dedicado de recarga de Stars (`/api/stars/webhook`). O fluxo de Stars usa o Stripe do sistema (`STRIPE_SECRET_KEY`), não o `PaymentGatewayConfig`.
 - `AI_SECRETS_KEY` — chave (≥16 chars) usada para criptografar API keys customizadas de IA em `AiSettings.aiApiKey` (AES-256-GCM via `src/lib/crypto.ts`). Obrigatória se algum tracking configurar provider customizado (BYO).
+- `SYNC_SHARED_SECRET` — chave master HMAC do sync bidirecional de auth NASA ↔ NERP (`feature/sync`). **Mesmo valor** nos dois apps (`openssl rand -hex 32`). Assina/verifica `User/Account/Organization/Member` replicados via `src/features/sync/lib/system-cred.ts`.
+- `SYNC_API_KEY` — identifica o caller app↔app no sync (mesmo valor nos dois).
+- `NERP_BASE_URL` — base do NERP (mesma usada pela integração por-org e pelo sync). O sync (`src/http/sync-nerp/client.ts`) entrega em `NERP_BASE_URL + /api/sync/nasa`; `NERP_SYNC_BASE_URL` é override opcional caso o sync precise de um host diferente.
 
 ## Estrutura do Projeto
 
@@ -168,6 +171,20 @@ src/features/<dominio>/
     d. **Touch nos catch-all routes** — `touch src/app/api/auth/[...all]/route.ts src/app/api/rpc/[[...rest]]/route.ts`. Bug crônico do Turbopack 16.2.4: após auto-restart por memory threshold OU compile pesado OU regen do client, rotas `[...slug]` e `[[...rest]]` saem do index e devolvem 404 silencioso. Touch força reindex.
 
     **Checklist final OBRIGATÓRIO:** depois do(s) passo(s), validar via `curl -sI -m 10 http://localhost:3000/<rota-afetada>` que retorna 200/307 (não 404 nem 500). **Antes de devolver controle pro user**, fazer essa validação. Se ainda falhar, sugerir reiniciar `pnpm dev` (último recurso).
+
+12. **Clean Code — nomes semânticos (OBRIGATÓRIO)** — nomes de variáveis e funções devem descrever o que representam/fazem; o nome é a documentação. Nunca use abreviações de uma letra ou genéricas em código novo.
+
+    - **Proibido**: `p`, `d`, `c`, `b`, `u`, `a`, `o`, `m`, `e`, `res`, `acc`, `tmp`, `data`/`obj` soltos, `fn`/`cb` sem contexto. Exceções consagradas: `i`/`j` em índices de loop, `_` para descarte.
+    - **Padrões do projeto**:
+      - Payloads de entrada → `payload` (não `p`).
+      - Conversores → verbo + tipo: `toNullableDate`, `toIso` (não `d`, `iso`).
+      - Booleanos → prefixo `is`/`has`/`should`: `isSignatureValid`, `hasAccount` (não `ok`).
+      - Resultado de `fetch` → `response` (não `res`); corpo lido → `responseText`/`responseBody`.
+      - Funções que fazem POST/IO → verbo no nome: `postSyncEntity`, `resolveBaseUrl` (não `send`, `baseUrl`).
+      - Callbacks de coleção → nome do item no singular: `(user) =>`, `(account) =>`, `(cursor) =>` (não `u`, `a`, `c`).
+      - Constantes de configuração → unidade/intenção explícita: `PAGE_SIZE`, `TIMEOUT_MS` (não `PAGE`).
+      - Parâmetro genérico de origem/contexto → nomeie o domínio: `sourceApp` (não `source`).
+    - **Ao mexer em arquivo existente**, renomeie nomes ruins que tocar (boy-scout rule) — mas mantenha o escopo da renomeação dentro do que está sendo editado, sem PRs gigantes de rename.
 
 ## Obsidian
 

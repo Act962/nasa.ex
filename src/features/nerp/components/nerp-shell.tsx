@@ -43,7 +43,7 @@ export function NerpShell({
 
   return (
     <div className="flex flex-col gap-4">
-      <nav className="flex flex-wrap gap-1 border-b pb-2">
+      <nav className="flex overflow-x-auto gap-1 border-b pb-2">
         {NAV.map((item) => {
           const Icon = item.icon;
           const isActive =
@@ -54,7 +54,7 @@ export function NerpShell({
               key={item.href}
               href={item.href}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",
+                "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors",
                 isActive
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",

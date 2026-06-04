@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { createId } from "@paralleldrive/cuid2";
+import { enqueueMemberSync } from "@/features/sync/lib/emit";
 
 export const joinViaInviteLink = base
   .use(requiredAuthMiddleware)
@@ -29,7 +30,7 @@ export const joinViaInviteLink = base
     });
 
     if (!existing) {
-      await prisma.member.create({
+      const newMember = await prisma.member.create({
         data: {
           id: createId(),
           organizationId: link.organizationId,
@@ -38,6 +39,9 @@ export const joinViaInviteLink = base
           createdAt: new Date(),
         },
       });
+
+      // Replica o membro pro NERP — best-effort.
+      await enqueueMemberSync(newMember.id);
 
       await prisma.organizationInviteLink.update({
         where: { id: link.id },

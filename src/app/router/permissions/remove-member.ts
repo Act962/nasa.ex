@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
+import { guardBillingRoleExit } from "@/features/billing/lib/guard-billing-role-exit";
 
 export const removeMember = base
   .use(requiredAuthMiddleware)
@@ -29,6 +30,16 @@ export const removeMember = base
     if (target.userId === context.user.id && target.role === "owner") {
       const ownerCount = await prisma.member.count({ where: { organizationId: orgId, role: "owner" } });
       if (ownerCount <= 1) throw new ORPCError("BAD_REQUEST", { message: "Não é possível remover o único Master" });
+    }
+
+    // Bloqueia se o membro removido é o único pagante (casos 7/8 de
+    // docs/subscription-org-model.md).
+    const billingGuard = await guardBillingRoleExit({
+      userId: target.userId,
+      organizationId: orgId,
+    });
+    if (billingGuard) {
+      throw new ORPCError("BAD_REQUEST", { message: billingGuard.reason });
     }
 
     await prisma.member.delete({ where: { id: input.memberId } });

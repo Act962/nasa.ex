@@ -7,6 +7,7 @@ import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { hashPassword } from "better-auth/crypto";
 import { randomBytes } from "crypto";
+import { enqueueMemberSync } from "@/features/sync/lib/emit";
 
 // Generate a secure temporary password (12 chars: letters + digits)
 function generateTempPassword(): string {
@@ -114,6 +115,9 @@ export const createMember = base
       },
       include: { user: true },
     });
+
+    // Replica o membro (e User/Account/Org junto) pro NERP — best-effort.
+    await enqueueMemberSync(newMember.id);
 
     // Log activity
     await prisma.orgActivityLog.create({

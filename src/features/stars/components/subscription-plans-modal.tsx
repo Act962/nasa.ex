@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
+import { useCanManageBilling } from "@/features/billing/hooks/use-can-manage-billing";
 
 interface SubscriptionPlansModalProps {
   open: boolean;
@@ -38,23 +39,19 @@ export function SubscriptionPlansModal({
 }: SubscriptionPlansModalProps) {
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const canManageBilling = useCanManageBilling();
 
   const { data: plansData, isLoading: plansLoading } = useQuery({
     ...orpc.stars.listPlans.queryOptions(),
     enabled: open,
   });
 
-  const { data: activeSubscriptions } = useQuery({
-    queryKey: ["activeSubscriptions"],
-    queryFn: async () => {
-      const { data } = await authClient.subscription.list();
-      return data;
-    },
-    enabled: open,
-  });
-
   const plans = plansData?.plans ?? [];
-  const activePlanNames = activeSubscriptions?.map((s) => s.plan) ?? [];
+  // Plano atual = plano da ORG ativa (via prop currentPlanSlug, vinda do
+  // getBalance no componente pai). NÃO consultar `authClient.subscription.list()`
+  // aqui — é user-scoped e divergia do plano da org. Ver
+  // docs/subscription-org-model.md.
+  const orgHasPlan = !!currentPlanSlug && currentPlanSlug !== "free";
 
   const handleOpenPortal = async () => {
     setIsRedirecting(true);
@@ -78,8 +75,9 @@ export function SubscriptionPlansModal({
   };
 
   const handleSelectPlan = async (slug: string) => {
-    // If user already has an active subscription, send them to billing portal
-    if (activePlanNames.length > 0) {
+    // Se a org já tem plano, redireciona pro portal Stripe (upgrade/downgrade/cancel).
+    // Se não tem, vai pro confirm pra criar a primeira sub.
+    if (orgHasPlan) {
       await handleOpenPortal();
       return;
     }
@@ -123,10 +121,7 @@ export function SubscriptionPlansModal({
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative z-10">
                 {plans.map((plan) => {
-                  const planNameLower = plan.name.toLowerCase();
-                  const isCurrent =
-                    activePlanNames.includes(planNameLower) ||
-                    currentPlanSlug === plan.slug;
+                  const isCurrent = currentPlanSlug === plan.slug;
                   const isFree = plan.priceMonthly === 0;
 
                   return (
@@ -198,7 +193,9 @@ export function SubscriptionPlansModal({
                       </ul>
 
                       <Button
-                        disabled={isCurrent || isRedirecting}
+                        disabled={
+                          isCurrent || isRedirecting || !canManageBilling
+                        }
                         onClick={() => handleSelectPlan(plan.slug)}
                         className={cn(
                           "w-full h-9 rounded-xl font-bold text-xs gap-2 transition-all",
@@ -211,6 +208,8 @@ export function SubscriptionPlansModal({
                       >
                         {isCurrent ? (
                           "Plano Atual"
+                        ) : !canManageBilling ? (
+                          "Apenas owner/admin"
                         ) : isRedirecting ? (
                           <>
                             Redirecionando...
@@ -251,14 +250,16 @@ export function SubscriptionPlansModal({
                   *Mude ou cancele seu plano a qualquer momento diretamente no
                   painel.
                 </p>
-                <button
-                  disabled={isRedirecting}
-                  onClick={handleOpenPortal}
-                  className="text-[10px] text-primary hover:text-primary/80 transition-colors font-bold uppercase tracking-widest text-center sm:text-right flex items-center justify-center sm:justify-end gap-1 group disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Gerencie sua assinatura
-                  <ArrowRight className="size-2.5 group-hover:translate-x-0.5 transition-transform" />
-                </button>
+                {canManageBilling && (
+                  <button
+                    disabled={isRedirecting}
+                    onClick={handleOpenPortal}
+                    className="text-[10px] text-primary hover:text-primary/80 transition-colors font-bold uppercase tracking-widest text-center sm:text-right flex items-center justify-center sm:justify-end gap-1 group disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Gerencie sua assinatura
+                    <ArrowRight className="size-2.5 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                )}
               </div>
             </div>
           </div>

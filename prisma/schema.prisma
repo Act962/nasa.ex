@@ -1768,11 +1768,11 @@ enum NodeType {
   CALL_WORKFLOW // sub-workflow
 
   // Apps NASA / Pagamento / Mídia
-  CHECK_PAYMENT // consulta StripePurchase/AsaasCharge
-  SEND_VOICE // TTS Astro → áudio WhatsApp
-  SEND_MEDIA // imagem/vídeo/áudio/documento WhatsApp
-  SEND_EMAIL // email transacional via Resend + React Email
-  // WEB_SEARCH — Fase 6 (requer SERPAPI_API_KEY)
+  CHECK_PAYMENT     // consulta StripePurchase/AsaasCharge
+  SEND_VOICE        // TTS Astro → áudio WhatsApp
+  SEND_MEDIA        // imagem/vídeo/áudio/documento WhatsApp
+  SEND_EMAIL        // email transacional via Resend + React Email
+  WEB_SEARCH        // busca web via Gemini Grounding / OpenAI Search
 
   // Triggers novos (multi-trigger num só workflow)
   PAYMENT_RECEIVED
@@ -1898,29 +1898,30 @@ model Form {
 }
 
 model FormSettings {
-  id               String   @id @default(cuid())
-  primaryColor     String
-  backgroundColor  String
-  backgroundImage  String?  @map("background_image")
-  createdAt        DateTime @default(now())
-  updateAt         DateTime @default(now()) @updatedAt
-  trackingId       String?  @map("tracking_id")
-  statusId         String?  @map("status_id")
-  formId           String   @unique
-  redirectUrl      String?  @map("redirect_url")
-  idPixel          String?  @map("id_pixel")
-  idTagManager     String?  @map("id_tag_manager")
-  needLogin        Boolean  @default(true) @map("need_login")
-  showName         Boolean  @default(true) @map("show_name")
-  showEmail        Boolean  @default(true) @map("show_email")
-  showPhone        Boolean  @default(true) @map("show_phone")
-  finishMessage    String   @default("Obrigado por seu cadastro!") @map("finish_message")
-  stepMode         String   @default("off") @map("step_mode")
-  nextButtonLabel  String   @default("Próximo") @map("next_button_label")
-  progressMascots  Json     @default("[]") @map("progress_mascots")
-  nextButtonAction Json     @default("{\"type\":\"next_block\"}") @map("next_button_action")
-  whatsappChats    Json     @default("[]") @map("whatsapp_chats")
-  whatsappMessage  String?  @map("whatsapp_message")
+  id              String   @id @default(cuid())
+  primaryColor    String
+  backgroundColor String
+  backgroundImage String?  @map("background_image")
+  createdAt       DateTime @default(now())
+  updateAt        DateTime @default(now()) @updatedAt
+  trackingId      String?  @map("tracking_id")
+  statusId        String?  @map("status_id")
+  formId          String   @unique
+  redirectUrl     String?  @map("redirect_url")
+  idPixel         String?  @map("id_pixel")
+  idTagManager    String?  @map("id_tag_manager")
+  needLogin       Boolean  @default(true) @map("need_login")
+  showName        Boolean  @default(true) @map("show_name")
+  showEmail       Boolean  @default(true) @map("show_email")
+  showPhone       Boolean  @default(true) @map("show_phone")
+  finishMessage   String   @default("Obrigado por seu cadastro!") @map("finish_message")
+  stepMode        String   @default("off") @map("step_mode")
+  nextButtonLabel String   @default("Próximo") @map("next_button_label")
+  progressMascots Json     @default("[]") @map("progress_mascots")
+  nextButtonAction Json    @default("{\"type\":\"next_block\"}") @map("next_button_action")
+  whatsappChats    Json    @default("[]") @map("whatsapp_chats")
+  whatsappMessage  String? @map("whatsapp_message")
+  validateWhatsapp Boolean @default(false) @map("validate_whatsapp")
 
   tracking Tracking? @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   status   Status?   @relation(fields: [statusId], references: [id], onDelete: SetNull)
