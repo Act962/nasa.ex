@@ -4,7 +4,7 @@ import { MacWindow } from "./mac-window";
 
 export function ChatMock() {
   return (
-    <MacWindow title="Chat — João Silva • WhatsApp Business">
+    <MacWindow title="Chat, João Silva • WhatsApp Business">
       <div className="flex" style={{ height: 200 }}>
         {/* Sidebar list */}
         <div className="w-28 border-r border-white/8 bg-[#080613] overflow-hidden">

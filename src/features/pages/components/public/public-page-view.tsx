@@ -5,6 +5,10 @@ import { client } from "@/lib/orpc";
 import { authClient } from "@/lib/auth-client";
 import { PublicPageRenderer } from "./public-page-renderer";
 import { InlineEditProvider } from "../inline-edit/inline-edit-provider";
+// CSS de animações NASA Pages (Fase 4 do builder evoluído).
+// Importado aqui no client component public-page-view pra que toda
+// página publicada já tenha as keyframes disponíveis.
+import "../../lib/animations.css";
 import type { PageLayout } from "../../types";
 
 interface Props {

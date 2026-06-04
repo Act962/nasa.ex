@@ -31,19 +31,69 @@ export const INTENT_DESCRIPTIONS: Record<PageIntent, string> = {
 };
 
 export const ELEMENT_TYPES = [
-  "text",
-  "image",
-  "svg",
-  "shape",
-  "divider",
-  "icon",
-  "button",
-  "video",
-  "social",
-  "spacer",
-  "nasa-link",
-  "embed",
+  // Átomos
+  "text", "image", "svg", "shape", "divider", "icon", "button",
+  "video", "social", "spacer", "nasa-link", "embed",
+  // Sections completas (Fase 1)
+  "section-hero", "section-features", "section-pricing", "section-cta",
+  "section-stats", "section-testimonials", "section-faq", "section-logo-cloud",
+  // Blocos interativos (Fase 2)
+  "marquee", "tabs", "accordion", "counter",
+  // Data binding (Fase 5)
+  "data-bound",
 ] as const;
+
+/**
+ * Mapeia ElementType → categoria do sidebar do builder.
+ */
+export const ELEMENT_TYPE_CATEGORIES: Record<string, string> = {
+  text: "basic", image: "basic", svg: "basic", shape: "basic",
+  divider: "basic", icon: "basic", button: "basic", video: "basic",
+  social: "basic", spacer: "basic", embed: "basic",
+  "section-hero": "sections", "section-features": "sections",
+  "section-pricing": "sections", "section-cta": "sections",
+  "section-stats": "sections", "section-testimonials": "sections",
+  "section-faq": "sections", "section-logo-cloud": "sections",
+  marquee: "interactive", tabs: "interactive",
+  accordion: "interactive", counter: "interactive",
+  "nasa-link": "app",
+  "data-bound": "data",
+};
+
+/**
+ * Labels visuais (ícone + texto) por ElementType — usado nos botões
+ * do sidebar do builder.
+ */
+export const ELEMENT_TYPE_LABELS: Record<
+  string,
+  { label: string; icon: string }
+> = {
+  text: { label: "Texto", icon: "📝" },
+  image: { label: "Imagem", icon: "🖼" },
+  svg: { label: "SVG", icon: "🎨" },
+  shape: { label: "Forma", icon: "▭" },
+  divider: { label: "Linha", icon: "—" },
+  icon: { label: "Ícone", icon: "⭐" },
+  button: { label: "Botão", icon: "🔘" },
+  video: { label: "Vídeo", icon: "🎥" },
+  social: { label: "Social", icon: "🌐" },
+  spacer: { label: "Espaço", icon: "↕" },
+  embed: { label: "Embed", icon: "<>" },
+  "nasa-link": { label: "Link NASA", icon: "🚀" },
+  "section-hero": { label: "Hero", icon: "🎯" },
+  "section-features": { label: "Features", icon: "✨" },
+  "section-pricing": { label: "Planos", icon: "💎" },
+  "section-cta": { label: "CTA Final", icon: "📢" },
+  "section-stats": { label: "Stats", icon: "📊" },
+  "section-testimonials": { label: "Depoimentos", icon: "💬" },
+  "section-faq": { label: "FAQ", icon: "❓" },
+  "section-logo-cloud": { label: "Logos", icon: "🏷" },
+  marquee: { label: "Carrossel", icon: "🎠" },
+  tabs: { label: "Abas", icon: "📑" },
+  accordion: { label: "Accordion", icon: "📂" },
+  counter: { label: "Contador", icon: "🔢" },
+  "data-bound": { label: "Dados ao vivo", icon: "🔌" },
+};
 
 export const DEFAULT_PALETTES: Array<Record<string, string>> = [
   { primary: "#6366f1", accent: "#a78bfa", bg: "#0f172a", fg: "#f8fafc", muted: "#64748b" },

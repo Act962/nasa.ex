@@ -389,17 +389,33 @@ const TagMultiSelect = ({
           )}
           {selectedTagIds.map((tagId) => {
             const tag = tags.find((t) => t.id === tagId);
-            if (!tag) return null;
+            // IDs sem tag correspondente = placeholders agent-mode
+            // (`<<TAG_*>>`) ou tags hard-deletadas. Em vez de
+            // `return null` (escondia tudo e prendia o ID), renderiza
+            // badge especial com X clicável pro user limpar.
+            const isPlaceholder = /^<<.+>>$/.test(tagId);
+            const isOrphan = !tag;
             return (
               <Badge
                 key={tagId}
-                className="text-[11px] h-6 gap-1 pr-1"
-                style={{
-                  backgroundColor: tag.color || "",
-                  color: "white",
-                }}
+                className={cn(
+                  "text-[11px] h-6 gap-1 pr-1",
+                  isPlaceholder &&
+                    "bg-amber-500/15 text-amber-700 border border-amber-500/40 dark:text-amber-300",
+                  isOrphan &&
+                    !isPlaceholder &&
+                    "bg-red-500/15 text-red-700 border border-red-500/40 dark:text-red-300",
+                )}
+                style={
+                  tag && !isOrphan
+                    ? {
+                        backgroundColor: tag.color || "",
+                        color: "white",
+                      }
+                    : undefined
+                }
               >
-                {tag.name}
+                {tag?.name ?? tagId}
                 <button
                   type="button"
                   onClick={(e) => {

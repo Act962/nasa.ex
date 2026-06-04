@@ -35,6 +35,13 @@ export const STYLES = `
     0%   { transform:scale(1); opacity:1; }
     75%, 100% { transform:scale(2); opacity:0; }
   }
+  /* nasaFlow, usado pelo AutomationSection na linha de fluxo entre
+     os 5 estágios. Indica continuidade do processo. */
+  @keyframes nasaFlow {
+    0%   { transform:translateX(-100%); opacity:0; }
+    50%  { opacity:1; }
+    100% { transform:translateX(100%); opacity:0; }
+  }
 
   .nasa-float      { animation: nasaFloat 7s ease-in-out infinite; }
   .nasa-float-d2   { animation: nasaFloat 7s ease-in-out infinite 1s; }
@@ -45,6 +52,10 @@ export const STYLES = `
   .nasa-fade-up-d3 { animation: nasaFadeUp .7s ease-out .45s forwards; opacity:0; }
   .nasa-slide-left { animation: nasaSlideLeft .7s ease-out forwards; }
   .nasa-marquee    { animation: nasaMarquee 35s linear infinite; }
+  /* Variante rápida, usada pelo carrossel de parceiros pra dar
+     mais dinamismo que o de integrações (que segue calmo). */
+  .nasa-marquee-fast { animation: nasaMarquee 15s linear infinite; }
+  .nasa-flow       { animation: nasaFlow 3s linear infinite; }
   .nasa-badge      { animation: nasaBadge 2.5s ease-in-out infinite; }
   .nasa-spin       { animation: nasaSpin 22s linear infinite; }
   .nasa-ping       { animation: nasaPing 1.5s cubic-bezier(0,0,.2,1) infinite; }

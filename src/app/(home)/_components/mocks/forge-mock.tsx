@@ -3,7 +3,7 @@ import { MacWindow } from "./mac-window";
 
 export function ForgeMock() {
   return (
-    <MacWindow title="FORGE — Proposta #0047 • Tech Corp">
+    <MacWindow title="FORGE, Proposta #0047 • Tech Corp">
       <div className="bg-[#0d0a1a]" style={{ minHeight: 200 }}>
         {/* Tabs */}
         <div className="flex border-b border-white/8">
@@ -27,7 +27,7 @@ export function ForgeMock() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-white/70 text-[9px] font-semibold">
-                João Silva — Tech Corp
+                João Silva, Tech Corp
               </p>
               <p className="text-white/30 text-[8px]">Criada em 28 Mar 2026</p>
             </div>

@@ -23,6 +23,7 @@ import {
   messagesEventSchema,
   webhookBaseSchema,
 } from "@/http/uazapi/webhook-schema";
+import { getCachedTrackingContext } from "@/features/tracking-chat/lib/get-cached-tracking-context";
 
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -66,6 +67,65 @@ export async function POST(request: NextRequest) {
       }
 
       const fromMe = json.message.fromMe;
+
+      const phone = json.message.chatid.split("@")[0];
+      const remoteJid = json.message.chatid;
+
+      const tracking = await getCachedTrackingContext(trackingId);
+
+      if (!tracking) {
+        return NextResponse.json(
+          { error: "Tracking context not found" },
+          { status: 400 },
+        );
+      }
+
+      // ── Astro Bot via WhatsApp ─────────────────────────────────
+      // Se o remetente (não-fromMe) é um membro com UserWhatsappBinding
+      // ativo NA ORG DESTE TRACKING, intercepta e roteia pro orchestrator
+      // IA em vez do fluxo de atendimento. Mensagem do membro = comando
+      // pro bot, não lead novo. Texto puro só — mídia ainda cai no fluxo
+      // normal (Fase 3 adiciona OCR/visão). Roda DEPOIS do tracking lookup
+      // pra escopar o binding por org e evitar colisão multi-org.
+      const bodyForBot = (json.message.text ?? "").trim();
+      if (!fromMe && bodyForBot && json.message.messageType === "TextMessage") {
+        try {
+          const { maybeHandleBotMessage } = await import(
+            "@/features/astro-bot/lib/webhook-handler"
+          );
+          const botResult = await maybeHandleBotMessage({
+            fromPhone: phone,
+            messageText: bodyForBot,
+            receivingInstanceToken: json.token,
+            deviceId: json.deviceId ?? undefined,
+            trackingOrganizationId: tracking.organizationId,
+          });
+          if (botResult.handled) {
+            // Bot processou — não cria Lead/Conversation/Message.
+            return NextResponse.json(
+              {
+                ok: true,
+                handledBy: "astro-bot",
+                bindingId: botResult.bindingId,
+                status: botResult.status,
+              },
+              { status: 200 },
+            );
+          }
+        } catch (err) {
+          // Best-effort: falha no bot NÃO derruba o webhook de atendimento.
+          // Loga e segue pro fluxo normal de Lead/Message.
+          console.error(
+            "[webhook:chat] astro-bot handler failed — fallback to atendimento normal",
+            err,
+          );
+        }
+      }
+
+      // ── Cálculo de nomes (lazy) ────────────────────────────────
+      // Postergado pra depois do bloco bot — quando o bot intercepta, esse
+      // trabalho ia pro lixo. Cadeia de fallbacks rara, mas multiplica por
+      // mensagem inbound.
       const senderName =
         json.message.senderName || json.chat?.name || "Sem nome";
 
@@ -83,25 +143,6 @@ export async function POST(request: NextRequest) {
            json.chat?.wa_name ||
            json.chat?.name ||
            "Sem nome");
-
-      const phone = json.message.chatid.split("@")[0];
-      const remoteJid = json.message.chatid;
-
-      const tracking = await prisma.tracking.findUnique({
-        where: { id: trackingId },
-        select: {
-          id: true,
-          organizationId: true,
-          globalAiActive: true,
-        },
-      });
-
-      if (!tracking) {
-        return NextResponse.json(
-          { error: "Tracking context not found" },
-          { status: 400 },
-        );
-      }
 
       let lead = await prisma.lead.findUnique({
         where: {

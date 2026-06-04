@@ -36,16 +36,16 @@ export function Navbar() {
           Planos
         </Link>
         <Link
-          href="/#funcionalidades"
+          href="/#o-que-e-nasa"
           className="text-white/50 hover:text-white text-sm font-medium px-4 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
         >
-          Funcionalidades
+          O que é NASA?
         </Link>
         <Link
-          href="/#integrações"
+          href="/#como-funciona"
           className="text-white/50 hover:text-white text-sm font-medium px-4 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
         >
-          Integrações
+          Como funciona
         </Link>
       </nav>
       <div className="md:ml-auto md:justify-end justify-between w-full flex items-center gap-x-2">
@@ -71,7 +71,7 @@ export function Navbar() {
 
         {session?.user && !isPending && (
           <>
-            {/* Plan name button — opens PlanPurchaseModal */}
+            {/* Plan name button, opens PlanPurchaseModal */}
             {planName && (
               <Button
                 variant="ghost"

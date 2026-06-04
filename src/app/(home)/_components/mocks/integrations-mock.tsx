@@ -11,7 +11,7 @@ export function IntegrationsMock() {
     { name: "Stripe", color: "#635BFF", installed: false },
   ];
   return (
-    <MacWindow title="Integrações — Marketplace">
+    <MacWindow title="Integrações, Marketplace">
       <div className="p-3 bg-[#0d0a1a]" style={{ minHeight: 200 }}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-1">
