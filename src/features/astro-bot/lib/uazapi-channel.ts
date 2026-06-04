@@ -78,7 +78,7 @@ export class UazapiBotChannel implements WhatsappBotChannel {
         },
         this.baseUrl,
       );
-      lastId = result?.response?.id ?? lastId;
+      lastId = result?.id ?? lastId;
     }
     return { messageId: lastId };
   }
@@ -100,7 +100,7 @@ export class UazapiBotChannel implements WhatsappBotChannel {
       },
       this.baseUrl,
     );
-    return { messageId: result?.response?.id ?? null };
+    return { messageId: result?.id ?? null };
   }
 
   async sendTyping(_phone: string, _durationMs: number): Promise<void> {

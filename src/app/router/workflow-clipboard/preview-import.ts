@@ -186,8 +186,12 @@ async function loadCandidates(
     ).map((r) => ({ id: r.id, name: r.name }));
   }
   if (used.has("column")) {
+    // No DSL do workflow-clipboard "column" e "status" são a mesma entidade
+    // — kanban column = Status com trackingId. Não existe model Column no
+    // schema. Mantemos o ref type "column" pra compat com placeholders
+    // legados ({{COLUMN:slug:label}}), mas resolvemos contra prisma.status.
     out.column = (
-      await prisma.column.findMany({
+      await prisma.status.findMany({
         where: { trackingId },
         select: { id: true, name: true },
       })

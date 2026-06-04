@@ -63,6 +63,7 @@ export const pageLayoutSchema = z.discriminatedUnion("mode", [
     artboard: artboardSchema,
     meta: metaSchema.optional(),
     sections: z.array(z.any()).optional(),
+    tokens: z.any().optional(),
   }),
   z.object({
     mode: z.literal("stacked"),
@@ -71,6 +72,7 @@ export const pageLayoutSchema = z.discriminatedUnion("mode", [
     artboard: artboardSchema,
     meta: metaSchema.optional(),
     sections: z.array(z.any()).optional(),
+    tokens: z.any().optional(),
     parallax: z
       .object({
         backSpeed: z.number().default(0.3),

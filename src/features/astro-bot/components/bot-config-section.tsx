@@ -81,8 +81,9 @@ export function BotConfigSection() {
     );
   }
 
-  // @ts-expect-error — config vem com _count quando existe
-  const bindingCount = config?._count?.bindings ?? 0;
+  const bindingCount =
+    (config as { _count?: { bindings?: number } } | null)?._count?.bindings ??
+    0;
 
   return (
     <Card className="p-6 space-y-5">

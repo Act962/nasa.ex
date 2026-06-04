@@ -305,8 +305,11 @@ async function buildLookup(
   }
 
   // ── Columns ─────────────────────────────────────────────────────
+  // "column" no DSL do workflow-clipboard é o mesmo que "status" no schema
+  // (kanban column = Status com trackingId). Mantemos o ref type "column"
+  // pra compat com placeholders legados, mas resolvemos contra prisma.status.
   if (byType.column.size > 0) {
-    const rows = await client.column.findMany({
+    const rows = await client.status.findMany({
       where: { id: { in: [...byType.column] } },
       select: { id: true, name: true },
     });

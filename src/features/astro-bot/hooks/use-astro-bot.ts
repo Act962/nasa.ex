@@ -48,7 +48,7 @@ export function useVerifyBindingOtp() {
     orpc.astroBot.binding.verifyOtp.mutationOptions({
       onSuccess: () => {
         qc.invalidateQueries({
-          queryKey: orpc.astroBot.binding.list.queryKey(),
+          queryKey: orpc.astroBot.binding.list.key(),
         });
       },
     }),
@@ -61,7 +61,7 @@ export function useRevokeBinding() {
     orpc.astroBot.binding.revoke.mutationOptions({
       onSuccess: () => {
         qc.invalidateQueries({
-          queryKey: orpc.astroBot.binding.list.queryKey(),
+          queryKey: orpc.astroBot.binding.list.key(),
         });
       },
     }),

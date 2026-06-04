@@ -125,9 +125,15 @@ export async function importNodeSelection(
     select: { id: true, trackingId: true },
   });
   if (!target) throw new Error("target_workflow_not_found");
+  if (!target.trackingId) {
+    // Workflow sem tracking não tem como resolver refs por escopo de
+    // tracking/org. Bloqueia o import antes de tentar usar id null.
+    throw new Error("target_workflow_has_no_tracking");
+  }
+  const targetTrackingId = target.trackingId;
 
   const org = await client.tracking.findUnique({
-    where: { id: target.trackingId },
+    where: { id: targetTrackingId },
     select: { organizationId: true },
   });
   if (!org) throw new Error("target_org_resolution_failed");
@@ -135,7 +141,7 @@ export async function importNodeSelection(
   const { resolvedMapping, audit } = await resolveCreations(
     client,
     org.organizationId,
-    target.trackingId,
+    targetTrackingId,
     params.blueprint,
     params.mapping,
   );

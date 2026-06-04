@@ -23,6 +23,7 @@ import {
   messagesEventSchema,
   webhookBaseSchema,
 } from "@/http/uazapi/webhook-schema";
+import { getCachedTrackingContext } from "@/features/tracking-chat/lib/get-cached-tracking-context";
 
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -66,33 +67,26 @@ export async function POST(request: NextRequest) {
       }
 
       const fromMe = json.message.fromMe;
-      const senderName =
-        json.message.senderName || json.chat?.name || "Sem nome";
-
-      // When fromMe=true the sender is the consultant — use chat contact info
-      // for the lead name so the consultant's name is never stored on the lead.
-      const leadName = fromMe
-        ? (json.chat?.lead_fullName ||
-           json.chat?.lead_name ||
-           json.chat?.wa_contactName ||
-           json.chat?.wa_name ||
-           json.chat?.name ||
-           "Sem nome")
-        : (json.message.senderName ||
-           json.chat?.wa_contactName ||
-           json.chat?.wa_name ||
-           json.chat?.name ||
-           "Sem nome");
 
       const phone = json.message.chatid.split("@")[0];
       const remoteJid = json.message.chatid;
 
+      const tracking = await getCachedTrackingContext(trackingId);
+
+      if (!tracking) {
+        return NextResponse.json(
+          { error: "Tracking context not found" },
+          { status: 400 },
+        );
+      }
+
       // ── Astro Bot via WhatsApp ─────────────────────────────────
       // Se o remetente (não-fromMe) é um membro com UserWhatsappBinding
-      // ativo, intercepta e roteia pro orchestrator IA em vez do fluxo
-      // de atendimento. Mensagem do membro = comando pro bot, não lead
-      // novo. Texto puro só — mídia ainda cai no fluxo normal (Fase 3
-      // adiciona OCR/visão).
+      // ativo NA ORG DESTE TRACKING, intercepta e roteia pro orchestrator
+      // IA em vez do fluxo de atendimento. Mensagem do membro = comando
+      // pro bot, não lead novo. Texto puro só — mídia ainda cai no fluxo
+      // normal (Fase 3 adiciona OCR/visão). Roda DEPOIS do tracking lookup
+      // pra escopar o binding por org e evitar colisão multi-org.
       const bodyForBot = (json.message.text ?? "").trim();
       if (!fromMe && bodyForBot && json.message.messageType === "TextMessage") {
         try {
@@ -104,6 +98,7 @@ export async function POST(request: NextRequest) {
             messageText: bodyForBot,
             receivingInstanceToken: json.token,
             deviceId: json.deviceId ?? undefined,
+            trackingOrganizationId: tracking.organizationId,
           });
           if (botResult.handled) {
             // Bot processou — não cria Lead/Conversation/Message.
@@ -127,21 +122,27 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const tracking = await prisma.tracking.findUnique({
-        where: { id: trackingId },
-        select: {
-          id: true,
-          organizationId: true,
-          globalAiActive: true,
-        },
-      });
+      // ── Cálculo de nomes (lazy) ────────────────────────────────
+      // Postergado pra depois do bloco bot — quando o bot intercepta, esse
+      // trabalho ia pro lixo. Cadeia de fallbacks rara, mas multiplica por
+      // mensagem inbound.
+      const senderName =
+        json.message.senderName || json.chat?.name || "Sem nome";
 
-      if (!tracking) {
-        return NextResponse.json(
-          { error: "Tracking context not found" },
-          { status: 400 },
-        );
-      }
+      // When fromMe=true the sender is the consultant — use chat contact info
+      // for the lead name so the consultant's name is never stored on the lead.
+      const leadName = fromMe
+        ? (json.chat?.lead_fullName ||
+           json.chat?.lead_name ||
+           json.chat?.wa_contactName ||
+           json.chat?.wa_name ||
+           json.chat?.name ||
+           "Sem nome")
+        : (json.message.senderName ||
+           json.chat?.wa_contactName ||
+           json.chat?.wa_name ||
+           json.chat?.name ||
+           "Sem nome");
 
       let lead = await prisma.lead.findUnique({
         where: {
