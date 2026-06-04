@@ -49,6 +49,7 @@ import { WorkflowIssuesProvider } from "@/features/workflows/components/workflow
 import { useWorkflowValidation } from "@/features/workflows/hooks/use-workflow-validation";
 import type { GraphIssue } from "@/features/workflows/lib/validate-workflow-graph";
 import { ValidatedEdge } from "./validated-edge";
+import { WorkflowClipboardButton } from "@/features/workflow-clipboard/components/workflow-clipboard-button";
 
 const edgeTypes = {
   // Edge default ganha validação automática — quando algum endpoint tem
@@ -322,6 +323,14 @@ export function Editor({ workflowId }: { workflowId: string }) {
               <WorkflowIssuesPanel workflowId={workflowId} />
               {agentMode && <DryRunButton workflowId={workflowId} />}
               <StepByStepContainer workflowId={workflowId} />
+              {/* Copy/paste de workflow ou nodes selecionados. Cobre
+                  cross-tracking + cross-org via dialog de mapping. */}
+              <WorkflowClipboardButton
+                workflowId={workflowId}
+                trackingId={
+                  (data?.workflow as { trackingId?: string })?.trackingId
+                }
+              />
               {/* Auto-layout via Dagre — recalcula positions pra eliminar
                   sobreposições. Marca workflow como dirty pra user salvar. */}
               <OptimizeLayoutButton />

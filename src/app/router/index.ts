@@ -66,6 +66,7 @@ import { brandRouter } from "./brand";
 import { trackingPresetsRouter } from "./tracking-presets";
 import { agentsRouter } from "./agents";
 import { inChatRouter } from "./in-chat";
+import { workflowClipboardRouter } from "./workflow-clipboard";
 import { astroBotRouter } from "./astro-bot";
 
 export const router = {
@@ -138,4 +139,6 @@ export const router = {
   stickers: stickersRouter,
   brand: brandRouter,
   inChat: inChatRouter,
+  /** Copy/paste/export/import de workflows entre trackings/orgs. */
+  workflowClipboard: workflowClipboardRouter,
 };
