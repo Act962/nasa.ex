@@ -12,6 +12,7 @@
  */
 import { createId } from "@paralleldrive/cuid2";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { NodeType } from "@/generated/prisma/enums";
 import { agentSpecSchema } from "@/features/auto-agent/lib/agent-spec.schema";
 
@@ -227,7 +228,7 @@ export async function convertSpecToWorkflow(
           name: n.type,
           type: n.type,
           position: n.position,
-          data: n.data,
+          data: n.data as Prisma.InputJsonValue,
         },
       });
     }

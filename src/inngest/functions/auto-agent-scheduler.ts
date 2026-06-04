@@ -1,6 +1,9 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { runAgentTurn } from "@/features/auto-agent/lib/run-agent-turn";
+import {
+  runAgentTurn,
+  type RunAgentTurnInput,
+} from "@/features/auto-agent/lib/run-agent-turn";
 
 /**
  * Scheduler do NASA Auto Agent — orquestra turns assíncronos via Inngest.
@@ -119,13 +122,16 @@ export const autoAgentTickScheduledFn = inngest.createFunction(
 
     // 5. Roda turn (Fase 1 stub — Fase 2 plug LLM via Astro)
     const result = await step.run("run-turn", async () => {
+      // Inngest serializa Date→string no retorno de step.run; runAgentTurn é
+      // puro e não lê campos de data desses objetos (só spec/limites), então
+      // o cast é seguro.
       return runAgentTurn({
         agent: fresh.agent,
         session: fresh,
         lead: fresh.lead,
         incomingMessage: null,
         conversationHistory: [], // TODO: loadAgentContext na integração real
-      });
+      } as unknown as RunAgentTurnInput);
     });
 
     // 6. Aplica resultado
@@ -199,7 +205,7 @@ export const autoAgentOnLeadReplyFn = inngest.createFunction(
         lead: session.lead,
         incomingMessage: message,
         conversationHistory: [],
-      });
+      } as unknown as RunAgentTurnInput);
     });
 
     await step.run("apply-result-reply", async () => {

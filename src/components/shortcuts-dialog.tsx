@@ -26,6 +26,9 @@ export function ShortcutsDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const isMac =
+    typeof navigator !== "undefined" &&
+    /Mac|iPhone|iPod|iPad/.test(navigator.platform);
   const categories = [...new Set(SHORTCUTS.map((s) => s.category))];
 
   return (
@@ -47,24 +50,30 @@ export function ShortcutsDialog({
                 {category}
               </h3>
               <div className="space-y-2">
-                {SHORTCUTS.filter((s) => s.category === category).map((s, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-zinc-900"
-                  >
-                    <span className="text-zinc-300">{s.description}</span>
-                    <div className="flex items-center gap-1">
-                      {s.keys.map((k, j) => (
-                        <span key={j} className="flex items-center gap-0.5">
-                          <Key label={k} />
-                          {j < s.keys.length - 1 && (
-                            <span className="text-zinc-600 text-xs">+</span>
-                          )}
-                        </span>
-                      ))}
+                {SHORTCUTS.filter((s) => s.category === category).map((s, i) => {
+                  const keys = !isMac && s.keysWin ? s.keysWin : s.keys;
+                  const separator = s.sequence ? "->" : "+";
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-zinc-900"
+                    >
+                      <span className="text-zinc-300">{s.description}</span>
+                      <div className="flex items-center gap-1">
+                        {keys.map((k, j) => (
+                          <span key={j} className="flex items-center gap-0.5">
+                            <Key label={k} />
+                            {j < keys.length - 1 && (
+                              <span className="text-zinc-600 text-xs">
+                                {separator}
+                              </span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}

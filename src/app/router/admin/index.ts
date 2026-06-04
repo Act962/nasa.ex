@@ -60,6 +60,7 @@ import { adminPartnersRouter } from "./partners";
 import { calendarDisputesRouter } from "./calendar-disputes";
 import { getRouterPaymentSettings } from "./get-router-payment-settings";
 import { updateRouterPaymentSettings } from "./update-router-payment-settings";
+import { nerpLoginAs } from "./nerp-login-as";
 
 export const adminRouter = {
   getDashboard,
@@ -121,4 +122,6 @@ export const adminRouter = {
   updateRouterPaymentSettings,
   // Calendário Público — disputas/reivindicações
   calendarDisputes: calendarDisputesRouter,
+  // Login cross-app no NERP como usuário (auth sincronizada)
+  nerpLoginAs,
 };

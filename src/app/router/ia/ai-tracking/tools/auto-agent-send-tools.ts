@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { tool } from "ai";
 import { z } from "zod";
 import { sendLinkToLead } from "@/features/executions/lib/send-link-to-lead";
@@ -72,8 +73,7 @@ export const sendAgendaTool = (userId: string) =>
         await sendLinkToLead({
           leadId: lead.id,
           trackingId: lead.trackingId,
-          message: body,
-          actorUserId: userId,
+          body,
         });
         return {
           success: true,
@@ -121,8 +121,7 @@ export const sendFormTool = (userId: string) =>
         await sendLinkToLead({
           leadId: lead.id,
           trackingId: lead.trackingId,
-          message: body,
-          actorUserId: userId,
+          body,
         });
         return {
           success: true,
@@ -156,7 +155,7 @@ export const sendLinnkerTool = (userId: string) =>
             id: linnkerPageId,
             organizationId: lead.tracking.organizationId,
           },
-          select: { id: true, name: true, slug: true },
+          select: { id: true, title: true, slug: true },
         });
         if (!page) return { success: false, error: "Linnker não encontrada" };
 
@@ -172,8 +171,7 @@ export const sendLinnkerTool = (userId: string) =>
         await sendLinkToLead({
           leadId: lead.id,
           trackingId: lead.trackingId,
-          message: body,
-          actorUserId: userId,
+          body,
         });
         return { success: true, message: `Linnker enviada pra ${lead.name}` };
       } catch (err) {
@@ -200,8 +198,8 @@ export const sendNasaRouteTool = (userId: string) =>
         const lead = await loadLead(leadId);
         if (!lead) return { success: false, error: "Lead não encontrado" };
         const course = await prisma.nasaRouteCourse.findFirst({
-          where: { id: courseId, organizationId: lead.tracking.organizationId },
-          select: { id: true, name: true, slug: true },
+          where: { id: courseId, creatorOrgId: lead.tracking.organizationId },
+          select: { id: true, title: true, slug: true },
         });
         if (!course) return { success: false, error: "Curso não encontrado" };
 
@@ -212,14 +210,13 @@ export const sendNasaRouteTool = (userId: string) =>
         const body = applyVariables(template, {
           ...buildLeadVariables(lead),
           "{{url}}": url,
-          "{{curso_nome}}": course.name,
+          "{{curso_nome}}": course.title,
         });
 
         await sendLinkToLead({
           leadId: lead.id,
           trackingId: lead.trackingId,
-          message: body,
-          actorUserId: userId,
+          body,
         });
         return {
           success: true,
@@ -300,7 +297,7 @@ export const sendProposalTool = (userId: string) =>
             createdById: userId,
             number,
             validUntil,
-            leadId: lead.id,
+            clientId: lead.id,
             products: {
               createMany: {
                 data: products.map((p, i) => ({
@@ -312,10 +309,10 @@ export const sendProposalTool = (userId: string) =>
               },
             },
           },
-          select: { id: true, title: true, shareToken: true, number: true },
+          select: { id: true, title: true, publicToken: true, number: true },
         });
 
-        const url = `${baseUrl()}/forge/proposta/${proposal.shareToken}`;
+        const url = `${baseUrl()}/forge/proposta/${proposal.publicToken}`;
         const template =
           messageTemplate?.trim() ||
           "Olá {{nome}}! Sua proposta #{{proposta_numero}} está pronta: {{url}}";
@@ -328,8 +325,7 @@ export const sendProposalTool = (userId: string) =>
         await sendLinkToLead({
           leadId: lead.id,
           trackingId: lead.trackingId,
-          message: body,
-          actorUserId: userId,
+          body,
         });
 
         return {
@@ -379,6 +375,17 @@ export const sendContractTool = (userId: string) =>
         });
         const number = (last?.number ?? 0) + 1;
 
+        // Clona signers do template gerando tokens novos por signatário
+        // (modelo de compartilhamento é por token de signatário em
+        // `/contrato/[token]`, não por token de contrato).
+        const clonedSigners = (
+          Array.isArray(template.signers) ? template.signers : []
+        ).map((s) => ({
+          ...(s as Record<string, unknown>),
+          signed_at: null,
+          token: crypto.randomUUID(),
+        }));
+
         const contract = await prisma.forgeContract.create({
           data: {
             organizationId: lead.tracking.organizationId,
@@ -387,14 +394,22 @@ export const sendContractTool = (userId: string) =>
             endDate: template.endDate,
             value: template.value,
             content: template.content,
-            signers: template.signers as any,
+            signers: clonedSigners as Prisma.InputJsonValue,
             createdById: userId,
-            leadId: lead.id,
           },
-          select: { id: true, number: true, shareToken: true },
+          select: { id: true, number: true, signers: true },
         });
 
-        const url = `${baseUrl()}/forge/contrato/${contract.shareToken}`;
+        const firstSignerToken = (
+          (contract.signers as Array<{ token?: string }> | null) ?? []
+        )[0]?.token;
+        if (!firstSignerToken) {
+          return {
+            success: false,
+            error: "Contrato criado sem signatário válido pra gerar link",
+          };
+        }
+        const url = `${baseUrl()}/contrato/${firstSignerToken}`;
         const tplStr =
           messageTemplate?.trim() ||
           "Olá {{nome}}! Aqui está o contrato #{{contrato_numero}}: {{url}}";
@@ -407,8 +422,7 @@ export const sendContractTool = (userId: string) =>
         await sendLinkToLead({
           leadId: lead.id,
           trackingId: lead.trackingId,
-          message: body,
-          actorUserId: userId,
+          body,
         });
 
         return {

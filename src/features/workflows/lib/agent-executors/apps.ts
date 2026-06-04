@@ -75,12 +75,12 @@ export const checkPaymentExecutor: NodeExecutor = async ({ data, context }) => {
       where: {
         lead: { is: { id: leadId } },
       } as never,
-      orderBy: { createdAt: "desc" },
+      orderBy: { enrolledAt: "desc" },
       select: {
         status: true,
         paidBrlCents: true,
         stripePaymentIntentId: true,
-        createdAt: true,
+        enrolledAt: true,
       },
     });
     if (enrollment) {
@@ -543,9 +543,22 @@ export const tagExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
       ? (data.action as Record<string, unknown>)
       : data) ?? {};
   const type = String(action.type ?? "ADD").toUpperCase();
-  const tagsIds = Array.isArray(action.tagsIds)
+  const rawTagsIds = Array.isArray(action.tagsIds)
     ? (action.tagsIds as string[])
     : [];
+  // Filtra placeholders de presets agent-mode (`<<TAG_OPCAO_X_ID>>` e
+  // afins) e IDs vazios. Sem isso, o `leadTag.create` abaixo viola FK
+  // e o workflow inteiro falha — bug reportado em workflows herdados
+  // dos presets do sistema (closer-com-followup, proposta-contrato).
+  // Defesa em profundidade: o TagDialog tenta evitar que cheguem aqui,
+  // mas workflows antigos podem ter placeholders presos no banco.
+  const PLACEHOLDER_RX = /^<<.+>>$/;
+  const skippedPlaceholders = rawTagsIds.filter(
+    (id) => !id || PLACEHOLDER_RX.test(id),
+  );
+  const tagsIds = rawTagsIds.filter(
+    (id) => id && !PLACEHOLDER_RX.test(id),
+  );
   const leadId = String(
     (context.lead as Record<string, unknown> | undefined)?.id ?? "",
   );
@@ -555,6 +568,23 @@ export const tagExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
       output: { error: "context.lead.id obrigatório" },
       status: "FAILED",
       errorMessage: "lead_missing",
+    };
+  }
+  // Se TODAS as tags eram placeholders, não falha — só skip com aviso.
+  // Workflow continua pra próximo nó. Status SUCCESS pra não tratar
+  // como erro fatal no runtime.
+  if (tagsIds.length === 0 && skippedPlaceholders.length > 0) {
+    console.warn(
+      `[tag-executor] skipping node — all ${skippedPlaceholders.length} tagsIds são placeholders não resolvidos:`,
+      skippedPlaceholders,
+    );
+    return {
+      output: {
+        skipped: true,
+        reason: "all_placeholders",
+        placeholders: skippedPlaceholders,
+        hint: "Edite o nó TAG no canvas e substitua o(s) placeholder(s) por tags reais.",
+      },
     };
   }
   if (tagsIds.length === 0) {
@@ -567,7 +597,15 @@ export const tagExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
 
   if (dryRun) {
     return {
-      output: { dryRun: true, action: type, tagsIds },
+      output: {
+        dryRun: true,
+        action: type,
+        tagsIds,
+        ...(skippedPlaceholders.length > 0 && {
+          skippedPlaceholders,
+          placeholderWarning: `${skippedPlaceholders.length} placeholder(s) seriam ignorado(s) no run real.`,
+        }),
+      },
     };
   }
 
@@ -662,6 +700,12 @@ export const tagExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
         action: type,
         tagsIds,
         journeyTracked: changedTagIds.length,
+        // Reporta placeholders skipados pro timeline aparecer aviso
+        // (UI já trata `output.skippedPlaceholders` em outros nós).
+        ...(skippedPlaceholders.length > 0 && {
+          skippedPlaceholders,
+          placeholderWarning: `${skippedPlaceholders.length} placeholder(s) ignorado(s) — edite o nó pra substituir por tags reais.`,
+        }),
       },
     };
   } catch (err) {

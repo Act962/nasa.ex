@@ -139,6 +139,9 @@ model User {
   // ── NASA Auto Agent — agentes criados por este user ──
   autoAgentsCreated Agent[] @relation("AgentCreator")
 
+  // ── Astro Bot via WhatsApp ──
+  whatsappBindings UserWhatsappBinding[]
+
   @@unique([email])
   @@map("user")
 }
@@ -343,12 +346,12 @@ model Organization {
   // automaticamente nos prompts de IA via `buildBrandedContext(orgId)`
   // (src/features/nasa-planner/lib/brand-context.ts) — garantindo
   // consistência visual em TODA geração (imagem, vídeo, texto).
-  brandPaletteHex   Json?     @map("brand_palette_hex")    // ["#7C3AED", "#1447E6", ...]
-  brandFontHeading  String?   @map("brand_font_heading")    // "Inter", "Manrope"
+  brandPaletteHex   Json?     @map("brand_palette_hex") // ["#7C3AED", "#1447E6", ...]
+  brandFontHeading  String?   @map("brand_font_heading") // "Inter", "Manrope"
   brandFontBody     String?   @map("brand_font_body")
-  brandLogoUrl      String?   @map("brand_logo_url")        // R2 key (não URL completa)
-  brandLogoVariants Json?     @map("brand_logo_variants")   // {dark, light, monochrome}
-  brandExtractedAt  DateTime? @map("brand_extracted_at")    // quando IA extraiu auto
+  brandLogoUrl      String?   @map("brand_logo_url") // R2 key (não URL completa)
+  brandLogoVariants Json?     @map("brand_logo_variants") // {dark, light, monochrome}
+  brandExtractedAt  DateTime? @map("brand_extracted_at") // quando IA extraiu auto
 
   // ── Localização (para diretório Empresas no mapa) ──
   addressLine String?   @map("address_line")
@@ -360,26 +363,26 @@ model Organization {
   longitude   Float?
   geocodedAt  DateTime? @map("geocoded_at")
 
-  companyType                 String?               @map("company_type") // slug ex: "agencia-publicidade" — vide src/features/company/constants.ts
-  companySegment              String?               @map("company_segment") // texto livre opcional (sub-nicho)
+  companyType                 String?                @map("company_type") // slug ex: "agencia-publicidade" — vide src/features/company/constants.ts
+  companySegment              String?                @map("company_segment") // texto livre opcional (sub-nicho)
   cnpj                        String?
-  contactEmail                String?               @map("contact_email")
-  contactPhone                String?               @map("contact_phone")
+  contactEmail                String?                @map("contact_email")
+  contactPhone                String?                @map("contact_phone")
   bio                         String?
-  bannerUrl                   String?               @map("banner_url")
+  bannerUrl                   String?                @map("banner_url")
   website                     String?
-  isSpacehomePublic           Boolean               @default(false) @map("is_spacehome_public")
-  spacehomeTemplate           String?               @default("default") @map("spacehome_template")
-  nasaPageId                  String?               @unique @map("nasa_page_id")
-  nasaPage                    NasaPage?             @relation("OrgSpacehome", fields: [nasaPageId], references: [id], onDelete: SetNull)
+  isSpacehomePublic           Boolean                @default(false) @map("is_spacehome_public")
+  spacehomeTemplate           String?                @default("default") @map("spacehome_template")
+  nasaPageId                  String?                @unique @map("nasa_page_id")
+  nasaPage                    NasaPage?              @relation("OrgSpacehome", fields: [nasaPageId], references: [id], onDelete: SetNull)
   orgRoles                    OrgRole[]
   orgFollows                  OrgFollow[]
   companyReviews              CompanyReview[]
   companyPosts                CompanyPost[]
   spacehomeAuditLogs          SpacehomeAuditLog[]
-  nasaRouteCoursesCreated     NasaRouteCourse[]     @relation("NasaRouteCreatorOrg")
-  nasaRouteEnrollmentsAsBuyer NasaRouteEnrollment[] @relation("NasaRouteBuyerOrg")
-  nasaRouteFreeAccess         NasaRouteFreeAccess[] @relation("NasaRouteFreeAccessOrg")
+  nasaRouteCoursesCreated     NasaRouteCourse[]      @relation("NasaRouteCreatorOrg")
+  nasaRouteEnrollmentsAsBuyer NasaRouteEnrollment[]  @relation("NasaRouteBuyerOrg")
+  nasaRouteFreeAccess         NasaRouteFreeAccess[]  @relation("NasaRouteFreeAccessOrg")
   nasaRouteVideoUploads       NasaRouteVideoUpload[]
 
   // ── NASA Partner ──
@@ -413,6 +416,10 @@ model Organization {
   // ── NASA Auto Agent — agentes IA autônomos da org ──
   autoAgents        Agent[]
   leadAgentSessions LeadAgentSession[]
+
+  // ── Astro Bot via WhatsApp ──────────────────────────────────
+  botConfig        OrganizationBotConfig?
+  whatsappBindings UserWhatsappBinding[]
 
   @@unique([slug])
   @@map("organization")
@@ -477,49 +484,49 @@ model OrganizationInviteLink {
 // ─────────────────────────────────────────────
 
 model Tracking {
-  id                        String    @id @default(cuid())
-  name                      String
-  description               String?
-  organizationId            String    @map("organization_id")
-  orgProjectId              String?   @map("org_project_id")
-  isArchived                Boolean   @default(false) @map("is_archived")
-  archivedAt                DateTime? @map("archived_at")
-  globalAiActive            Boolean   @default(false) @map("global_ai_active")
-  isTemplate                Boolean   @default(false) @map("is_template")
-  templateMarkedByModerator Boolean   @default(false) @map("template_marked_by_moderator")
+  id                            String    @id @default(cuid())
+  name                          String
+  description                   String?
+  organizationId                String    @map("organization_id")
+  orgProjectId                  String?   @map("org_project_id")
+  isArchived                    Boolean   @default(false) @map("is_archived")
+  archivedAt                    DateTime? @map("archived_at")
+  globalAiActive                Boolean   @default(false) @map("global_ai_active")
+  isTemplate                    Boolean   @default(false) @map("is_template")
+  templateMarkedByModerator     Boolean   @default(false) @map("template_marked_by_moderator")
   // Aparência do card no dashboard de Tracking. `cardBorderColor` é uma
   // cor hex/rgb/hsl ou null (sem cor); `cardBackgroundImage` é a chave S3
   // de uma imagem que vira fundo desfocado do card.
   // `cardBackgroundBlur` é o raio do filter blur em px (0-30, default 8).
   // `cardBackgroundOpacity` é a opacidade da imagem em % (0-100, default 25).
-  cardBorderColor           String?   @map("card_border_color")
-  cardBackgroundImage       String?   @map("card_background_image")
-  cardBackgroundBlur        Int       @default(8) @map("card_background_blur")
-  cardBackgroundOpacity     Int       @default(25) @map("card_background_opacity")
+  cardBorderColor               String?   @map("card_border_color")
+  cardBackgroundImage           String?   @map("card_background_image")
+  cardBackgroundBlur            Int       @default(8) @map("card_background_blur")
+  cardBackgroundOpacity         Int       @default(25) @map("card_background_opacity")
   // Aparência do Kanban (view de pipeline). Cor de fundo + borda dos
   // cards de lead, da coluna de status e do canvas do tracking. Para o
   // canvas suporta imagem com blur + opacity (mesclada com a cor base).
-  kanbanCardBackgroundColor    String? @map("kanban_card_background_color")
-  kanbanCardBorderColor        String? @map("kanban_card_border_color")
+  kanbanCardBackgroundColor     String?   @map("kanban_card_background_color")
+  kanbanCardBorderColor         String?   @map("kanban_card_border_color")
   // Transparência do fundo do card (0-100). Default 100 = opaco. Só
   // aplica quando `kanbanCardBackgroundColor` está definido.
-  kanbanCardBackgroundOpacity  Int     @default(100) @map("kanban_card_background_opacity")
-  kanbanColumnBackgroundColor  String? @map("kanban_column_background_color")
-  kanbanColumnBorderColor      String? @map("kanban_column_border_color")
+  kanbanCardBackgroundOpacity   Int       @default(100) @map("kanban_card_background_opacity")
+  kanbanColumnBackgroundColor   String?   @map("kanban_column_background_color")
+  kanbanColumnBorderColor       String?   @map("kanban_column_border_color")
   // Transparência do fundo da coluna (0-100). Default 100 = opaco.
-  kanbanColumnBackgroundOpacity Int    @default(100) @map("kanban_column_background_opacity")
-  kanbanBackgroundColor        String? @map("kanban_background_color")
-  kanbanBackgroundImage        String? @map("kanban_background_image")
+  kanbanColumnBackgroundOpacity Int       @default(100) @map("kanban_column_background_opacity")
+  kanbanBackgroundColor         String?   @map("kanban_background_color")
+  kanbanBackgroundImage         String?   @map("kanban_background_image")
   // Raio do blur da imagem de fundo (0-30px). Default 0 = sem desfoque.
-  kanbanBackgroundBlur         Int     @default(0) @map("kanban_background_blur")
+  kanbanBackgroundBlur          Int       @default(0) @map("kanban_background_blur")
   // Opacidade da imagem em % (0-100). Default 50 = 50% mesclado com a cor.
-  kanbanBackgroundOpacity      Int     @default(50) @map("kanban_background_opacity")
-  createdAt                 DateTime  @default(now()) @map("created_at")
-  updatedAt                 DateTime  @updatedAt @map("updated_at")
+  kanbanBackgroundOpacity       Int       @default(50) @map("kanban_background_opacity")
+  createdAt                     DateTime  @default(now()) @map("created_at")
+  updatedAt                     DateTime  @updatedAt @map("updated_at")
 
   // Relacionamentos
-  organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  orgProject          OrgProject?           @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
+  organization        Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orgProject          OrgProject?             @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
   participants        TrackingParticipant[]
   status              Status[]
   leads               Lead[]
@@ -568,21 +575,21 @@ model TrackingIdleAutomation {
 
   // Cenário 1: lead criado e ninguém respondeu ainda
   noFirstRespActive       Boolean                   @default(false) @map("no_first_resp_active")
-  noFirstRespMinutes      Int                       @default(60)    @map("no_first_resp_minutes")
+  noFirstRespMinutes      Int                       @default(60) @map("no_first_resp_minutes")
   noFirstRespEnableAi     Boolean                   @default(false) @map("no_first_resp_enable_ai")
-  noFirstRespMessageMode  IdleAutomationMessageMode @default(NONE)  @map("no_first_resp_message_mode")
-  noFirstRespMessage      String?                                    @map("no_first_resp_message")
+  noFirstRespMessageMode  IdleAutomationMessageMode @default(NONE) @map("no_first_resp_message_mode")
+  noFirstRespMessage      String?                   @map("no_first_resp_message")
   noFirstRespNotifyResp   Boolean                   @default(false) @map("no_first_resp_notify_resp")
-  noFirstRespRespTemplate String?                                    @map("no_first_resp_resp_template")
+  noFirstRespRespTemplate String?                   @map("no_first_resp_resp_template")
 
   // Cenário 2: lead em conversa, sem nova outbound do atendente
   inConvActive       Boolean                   @default(false) @map("in_conv_active")
-  inConvMinutes      Int                       @default(120)   @map("in_conv_minutes")
+  inConvMinutes      Int                       @default(120) @map("in_conv_minutes")
   inConvEnableAi     Boolean                   @default(false) @map("in_conv_enable_ai")
-  inConvMessageMode  IdleAutomationMessageMode @default(NONE)  @map("in_conv_message_mode")
-  inConvMessage      String?                                    @map("in_conv_message")
+  inConvMessageMode  IdleAutomationMessageMode @default(NONE) @map("in_conv_message_mode")
+  inConvMessage      String?                   @map("in_conv_message")
   inConvNotifyResp   Boolean                   @default(false) @map("in_conv_notify_resp")
-  inConvRespTemplate String?                                    @map("in_conv_resp_template")
+  inConvRespTemplate String?                   @map("in_conv_resp_template")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -591,12 +598,12 @@ model TrackingIdleAutomation {
 }
 
 model TrackingCardConfig {
-  id         String   @id @default(cuid())
-  trackingId String   @unique @map("tracking_id")
-  fields     Json     @default("[]")
-  showSlaTimer Boolean @default(true) @map("show_sla_timer")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(cuid())
+  trackingId   String   @unique @map("tracking_id")
+  fields       Json     @default("[]")
+  showSlaTimer Boolean  @default(true) @map("show_sla_timer")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   tracking Tracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
 
@@ -734,16 +741,16 @@ enum ParticipantRole {
 }
 
 model Status {
-  id                  String   @id @default(cuid())
-  name                String
-  color               String?  @default("#1447e6")
-  order               Decimal  @default(0) @db.Decimal(20, 10)
-  slaHours            Int?     @map("sla_hours")
-  notifyClientOnEnter Boolean  @default(false) @map("notify_client_on_enter")
-  clientNotifyTemplate String? @map("client_notify_template") @db.Text
-  trackingId          String   @map("tracking_id")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(cuid())
+  name                 String
+  color                String?  @default("#1447e6")
+  order                Decimal  @default(0) @db.Decimal(20, 10)
+  slaHours             Int?     @map("sla_hours")
+  notifyClientOnEnter  Boolean  @default(false) @map("notify_client_on_enter")
+  clientNotifyTemplate String?  @map("client_notify_template") @db.Text
+  trackingId           String   @map("tracking_id")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   // Relacionamentos
   tracking     Tracking       @relation(fields: [trackingId], references: [id], onDelete: Cascade)
@@ -763,35 +770,35 @@ enum LeadAction {
 }
 
 enum LeadEventType {
-  ACTION_CHANGE       // mudança de currentAction (ACTIVE/WON/LOST/DELETED) — compat
-  STATUS_CHANGE       // mudou de coluna no tracking
-  TRACKING_CHANGE     // mudou de tracking (setor)
-  RESPONSIBLE_CHANGE  // mudou de responsável
-  FORM_SUBMITTED      // formulário público respondido
+  ACTION_CHANGE // mudança de currentAction (ACTIVE/WON/LOST/DELETED) — compat
+  STATUS_CHANGE // mudou de coluna no tracking
+  TRACKING_CHANGE // mudou de tracking (setor)
+  RESPONSIBLE_CHANGE // mudou de responsável
+  FORM_SUBMITTED // formulário público respondido
   TAG_ADDED
   TAG_REMOVED
   FILE_UPLOADED
   NOTE
-  PUBLIC_LINK_VIEWED  // cliente abriu o link público
-  SLA_BREACHED        // SLA da etapa estourou
+  PUBLIC_LINK_VIEWED // cliente abriu o link público
+  SLA_BREACHED // SLA da etapa estourou
 }
 
 model LeadHistory {
-  id        String     @id @default(cuid())
-  leadId    String     @map("lead_id")
-  action    LeadAction
-  eventType LeadEventType? @map("event_type")
-  previousStatusId      String?   @map("previous_status_id")
-  newStatusId           String?   @map("new_status_id")
-  previousTrackingId    String?   @map("previous_tracking_id")
-  newTrackingId         String?   @map("new_tracking_id")
-  previousResponsibleId String?   @map("previous_responsible_id")
-  newResponsibleId      String?   @map("new_responsible_id")
+  id                    String         @id @default(cuid())
+  leadId                String         @map("lead_id")
+  action                LeadAction
+  eventType             LeadEventType? @map("event_type")
+  previousStatusId      String?        @map("previous_status_id")
+  newStatusId           String?        @map("new_status_id")
+  previousTrackingId    String?        @map("previous_tracking_id")
+  newTrackingId         String?        @map("new_tracking_id")
+  previousResponsibleId String?        @map("previous_responsible_id")
+  newResponsibleId      String?        @map("new_responsible_id")
   metadata              Json?
-  reasonId  String?    @map("reason_id")
-  notes     String?
-  userId    String?    @map("user_id")
-  createdAt DateTime   @default(now()) @map("created_at")
+  reasonId              String?        @map("reason_id")
+  notes                 String?
+  userId                String?        @map("user_id")
+  createdAt             DateTime       @default(now()) @map("created_at")
 
   // Relacionamentos
   lead   Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -944,6 +951,8 @@ model Lead {
   clientOnboardingProcesses ClientOnboardingProcess[]
   linnkerScans              LinnkerScan[]
   paymentEntries            PaymentEntry[]
+  // NASA Auto Agent — sessões abertas pra este lead
+  agentSessions             LeadAgentSession[]
 
   @@unique([phone, trackingId])
   @@index([trackingId])
@@ -951,9 +960,6 @@ model Lead {
   @@index([email])
   @@index([phone])
   @@index([createdAt])
-  // NASA Auto Agent — sessões abertas pra este lead
-  agentSessions LeadAgentSession[]
-
   @@index([currentAction])
   @@index([isActive])
   @@index([responsibleId])
@@ -1330,17 +1336,17 @@ model Action {
 // Reports leves (denúncia rápida) acumulam score; threshold dispara flag.
 
 enum EventClaimStatus {
-  PENDING        // aguardando resposta do criador (7 dias)
-  ACCEPTED       // criador aceitou — evento despublicado
-  REJECTED       // criador rejeitou — virou disputa pra admin
-  EXPIRED        // 7 dias sem resposta — auto-despublicado
+  PENDING // aguardando resposta do criador (7 dias)
+  ACCEPTED // criador aceitou — evento despublicado
+  REJECTED // criador rejeitou — virou disputa pra admin
+  EXPIRED // 7 dias sem resposta — auto-despublicado
   ADMIN_RESOLVED // admin decidiu manualmente (uphold ou dismiss)
 }
 
 model EventClaim {
-  id             String @id @default(cuid())
-  actionId       String @map("action_id")
-  action         Action @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  id             String  @id @default(cuid())
+  actionId       String  @map("action_id")
+  action         Action  @relation(fields: [actionId], references: [id], onDelete: Cascade)
   claimantUserId String? @map("claimant_user_id")
   claimantOrgId  String? @map("claimant_org_id")
   claimantEmail  String  @map("claimant_email")
@@ -1350,11 +1356,11 @@ model EventClaim {
   responseToken String @unique @default(cuid()) @map("response_token")
   trackingToken String @unique @default(cuid()) @map("tracking_token")
 
-  reason          String  @db.Text
+  reason          String           @db.Text
   evidence        Json? // URLs de prova, descrições adicionais
   status          EventClaimStatus @default(PENDING)
-  creatorResponse String? @map("creator_response") @db.Text // resposta do criador ao rejeitar
-  adminNote       String? @map("admin_note") @db.Text
+  creatorResponse String?          @map("creator_response") @db.Text // resposta do criador ao rejeitar
+  adminNote       String?          @map("admin_note") @db.Text
 
   expiresAt        DateTime  @map("expires_at") // createdAt + 7 dias
   resolvedAt       DateTime? @map("resolved_at")
@@ -1392,7 +1398,7 @@ model EventReport {
   reporterIp     String? @map("reporter_ip") // anti-spam, rate-limit
 
   reason EventReportReason
-  detail String? @db.Text
+  detail String?           @db.Text
 
   // Peso do report: 1 padrão, 5 quando reporter pertence a org verificada
   // ou é admin. Soma de PENDING vai pra Action.reportScore — threshold
@@ -1593,28 +1599,28 @@ model SubActionGroup {
 // ─────────────────────────────────────────────
 
 model Workflow {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  userId      String?  @map("user_id")
-  trackingId  String?  @map("tracking_id")
-  workspaceId String?  @map("workspace_id")
-  folderId    String?  @map("folder_id")
-  isActive    Boolean  @default(true) @map("is_active")
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  userId         String?  @map("user_id")
+  trackingId     String?  @map("tracking_id")
+  workspaceId    String?  @map("workspace_id")
+  folderId       String?  @map("folder_id")
+  isActive       Boolean  @default(true) @map("is_active")
   /// Modo Agente IA — habilita multi-gatilhos, branches condicionais (IF/SWITCH),
   /// loops, AI Decision nodes, wait-for-event, sub-workflows e conexão de volta
   /// pro gatilho. Quando false, mantém comportamento clássico (1 trigger + N
   /// ações lineares via topo-sort no workspace-workflow-executor). Quando true,
   /// engine delega pro run-workflow.ts (DAG executor com fan-out por
   /// Connection.fromOutput).
-  agentMode      Boolean @default(false) @map("agent_mode")
+  agentMode      Boolean  @default(false) @map("agent_mode")
   /// Rate limit de execuções por hora pra evitar loop infinito. Cap aplicado
   /// pelo workflow-rate-limiter Inngest function. Default 60 (1/min médio).
-  maxRunsPerHour Int     @default(60) @map("max_runs_per_hour")
+  maxRunsPerHour Int      @default(60) @map("max_runs_per_hour")
   /// Linkado opcionalmente ao Agent (Auto Agent). null = workflow comum.
   /// Quando setado, o Agent delega execução pra este workflow em vez da
   /// spec linear em Agent.spec.goals[].
-  agentId        String? @map("agent_id")
+  agentId        String?  @map("agent_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -1641,24 +1647,24 @@ model Workflow {
 /// no canvas pra mostrar histórico ("Workflow rodou 47x; última decisão IA
 /// foi pra branch 'true'"). Cap absoluto: 100 node-executions por run.
 model WorkflowRun {
-  id            String   @id @default(cuid())
-  workflowId    String   @map("workflow_id")
+  id             String    @id @default(cuid())
+  workflowId     String    @map("workflow_id")
   /// Lead/contexto que disparou (se aplicável). Workflows org-wide podem ter null.
-  leadId        String?  @map("lead_id")
+  leadId         String?   @map("lead_id")
   /// Trigger que iniciou ("NEW_LEAD", "LEAD_TAGGED", "PAYMENT_RECEIVED", "DRY_RUN").
-  triggerType   String   @map("trigger_type")
+  triggerType    String    @map("trigger_type")
   /// Snapshot do contexto inicial (lead, vars, payload do evento).
-  initialContext Json    @default("{}") @map("initial_context")
+  initialContext Json      @default("{}") @map("initial_context")
   /// Status: RUNNING | SUCCESS | FAILED | RATE_LIMITED | MAX_EXECUTIONS_HIT | DRY_RUN
-  status        String   @default("RUNNING")
+  status         String    @default("RUNNING")
   /// Total de nodes executados (cap 100).
-  nodesExecuted Int      @default(0) @map("nodes_executed")
+  nodesExecuted  Int       @default(0) @map("nodes_executed")
   /// Stars cobrados nesta run.
-  starsSpent    Int      @default(0) @map("stars_spent")
+  starsSpent     Int       @default(0) @map("stars_spent")
   /// Mensagem de erro / motivo da parada.
-  errorMessage  String?  @map("error_message")
-  startedAt     DateTime @default(now()) @map("started_at")
-  finishedAt    DateTime? @map("finished_at")
+  errorMessage   String?   @map("error_message")
+  startedAt      DateTime  @default(now()) @map("started_at")
+  finishedAt     DateTime? @map("finished_at")
 
   workflow Workflow          @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   nodeRuns WorkflowNodeRun[]
@@ -1673,20 +1679,20 @@ model WorkflowRun {
 /// e debugar fluxos visualmente. Pra IF_CONDITION/SWITCH_CASE/AI_DECISION,
 /// `chosenOutput` registra qual branch foi escolhida.
 model WorkflowNodeRun {
-  id            String   @id @default(cuid())
-  runId         String   @map("run_id")
-  nodeId        String   @map("node_id")
+  id           String    @id @default(cuid())
+  runId        String    @map("run_id")
+  nodeId       String    @map("node_id")
   /// NodeType resolvido na hora (snapshot — node pode mudar depois).
-  nodeType      String   @map("node_type")
+  nodeType     String    @map("node_type")
   /// "main" | "true" | "false" | "case_X" | "loop" | "done" | "success" | "error"
-  chosenOutput  String?  @map("chosen_output")
+  chosenOutput String?   @map("chosen_output")
   /// Resultado/output do node passado adiante (merged no context).
-  output        Json     @default("{}")
+  output       Json      @default("{}")
   /// Status: SUCCESS | FAILED | SKIPPED | WAITING
-  status        String   @default("SUCCESS")
-  errorMessage  String?  @map("error_message")
-  startedAt     DateTime @default(now()) @map("started_at")
-  finishedAt    DateTime? @map("finished_at")
+  status       String    @default("SUCCESS")
+  errorMessage String?   @map("error_message")
+  startedAt    DateTime  @default(now()) @map("started_at")
+  finishedAt   DateTime? @map("finished_at")
 
   run WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
@@ -1752,21 +1758,21 @@ enum NodeType {
   WAIT_FOR_EVENT
 
   // IA: nós que chamam LLM em pontos específicos do grafo.
-  AI_DECISION       // Astro escolhe próxima branch baseado em contexto
-  AI_GENERATE_TEXT  // gera mensagem contextualizada (chama nome, etc)
-  AI_VISION         // analisa imagem do lead (Claude Vision)
-  READ_PDF          // extrai texto via pdf-parse + LLM
+  AI_DECISION // Astro escolhe próxima branch baseado em contexto
+  AI_GENERATE_TEXT // gera mensagem contextualizada (chama nome, etc)
+  AI_VISION // analisa imagem do lead (Claude Vision)
+  READ_PDF // extrai texto via pdf-parse + LLM
 
   // Dados
-  SET_VARIABLE      // {{var}} no contexto do workflow
-  CALL_WORKFLOW     // sub-workflow
+  SET_VARIABLE // {{var}} no contexto do workflow
+  CALL_WORKFLOW // sub-workflow
 
   // Apps NASA / Pagamento / Mídia
   CHECK_PAYMENT     // consulta StripePurchase/AsaasCharge
   SEND_VOICE        // TTS Astro → áudio WhatsApp
   SEND_MEDIA        // imagem/vídeo/áudio/documento WhatsApp
   SEND_EMAIL        // email transacional via Resend + React Email
-  // WEB_SEARCH — Fase 6 (requer SERPAPI_API_KEY)
+  WEB_SEARCH        // busca web via Gemini Grounding / OpenAI Search
 
   // Triggers novos (multi-trigger num só workflow)
   PAYMENT_RECEIVED
@@ -1915,6 +1921,7 @@ model FormSettings {
   nextButtonAction Json    @default("{\"type\":\"next_block\"}") @map("next_button_action")
   whatsappChats    Json    @default("[]") @map("whatsapp_chats")
   whatsappMessage  String? @map("whatsapp_message")
+  validateWhatsapp Boolean @default(false) @map("validate_whatsapp")
 
   tracking Tracking? @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   status   Status?   @relation(fields: [statusId], references: [id], onDelete: SetNull)
@@ -1941,8 +1948,8 @@ model FormResponses {
   //   `attributes.useAsResponseLabel === true`.
   // - Se `labelManuallyEdited === true`, saves seguintes não sobrescrevem
   //   (manual prevalece). Limpar manualmente devolve ao modo automático.
-  label               String?  @map("label")
-  labelManuallyEdited Boolean  @default(false) @map("label_manually_edited")
+  label               String? @map("label")
+  labelManuallyEdited Boolean @default(false) @map("label_manually_edited")
 
   form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
 
@@ -1961,17 +1968,17 @@ enum MessageChannel {
 }
 
 model Conversation {
-  id            String   @id @default(cuid())
-  createdAt     DateTime @default(now()) @map("created_at")
-  lastMessageAt DateTime @updatedAt @map("last_message_at")
-  name          String?
+  id                     String   @id @default(cuid())
+  createdAt              DateTime @default(now()) @map("created_at")
+  lastMessageAt          DateTime @updatedAt @map("last_message_at")
+  name                   String?
   // `isGroup` já existia (default false). `groupSubject` é o nome do
   // grupo (vem do uazapi find-chat); `groupParticipantsCount` ajuda a
   // renderizar badge "12 participantes" no card. Ambos nullables pra
   // compat com conversas individuais existentes.
-  isGroup                Boolean @default(false)
-  groupSubject           String? @map("group_subject")
-  groupParticipantsCount Int?    @map("group_participants_count")
+  isGroup                Boolean  @default(false)
+  groupSubject           String?  @map("group_subject")
+  groupParticipantsCount Int?     @map("group_participants_count")
 
   remoteJid     String         @map("remote_jid")
   profilePicUrl String?        @map("profile_pic_url")
@@ -2055,10 +2062,8 @@ model Message {
  * composer do `/tracking-chat`. Cada figurinha aponta pra um arquivo no
  * R2 e é escopada por org (todos os usuários da org vêem o mesmo banco
  * de figurinhas).
- *
  * `mimetype`: tipicamente `image/webp` (formato nativo de sticker
  * WhatsApp), mas aceitamos PNG/GIF e o uazapi converte na hora do envio.
- *
  * Envio: ao clicar numa figurinha, o front chama `sendMedia` da uazapi
  * com `type: "sticker"`, passando a URL do R2.
  */
@@ -2068,7 +2073,7 @@ model UserSticker {
   userId         String   @map("user_id") // criador
   url            String
   mimetype       String   @default("image/webp")
-  label          String?  // nome/tag opcional pra busca
+  label          String? // nome/tag opcional pra busca
   createdAt      DateTime @default(now()) @map("created_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -2125,12 +2130,18 @@ model WhatsAppInstance {
   // /tracking-chat avisando o time que tem leads usando o In-Chat.
   // Página pública /whatsapp/[slug] passou a ser sempre acessível, então
   // este flag NÃO controla visibilidade — só UI de awareness do time.
-  inChatModeManual   Boolean   @default(false) @map("in_chat_mode_manual")
-  inChatManualSetBy  String?   @map("in_chat_manual_set_by")
-  inChatManualSetAt  DateTime? @map("in_chat_manual_set_at")
+  inChatModeManual  Boolean   @default(false) @map("in_chat_mode_manual")
+  inChatManualSetBy String?   @map("in_chat_manual_set_by")
+  inChatManualSetAt DateTime? @map("in_chat_manual_set_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   tracking     Tracking     @relation(fields: [trackingId], references: [id])
+
+  // Astro Bot WhatsApp: 0 ou 1 OrganizationBotConfig usa essa instância
+  // como canal dedicado (separada do atendimento). Quando setado, esse
+  // WhatsAppInstance NÃO deve receber mensagens de leads — só comandos
+  // de membros autenticados via UserWhatsappBinding.
+  botConfigs OrganizationBotConfig[] @relation("BotConfigInstance")
 
   @@index([organizationId])
   @@index([status])
@@ -3059,11 +3070,11 @@ model NasaPlannerPost {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  planner    NasaPlanner            @relation(fields: [plannerId], references: [id], onDelete: Cascade)
-  createdBy  User                   @relation("NasaPlannerPostCreatedBy", fields: [createdById], references: [id])
-  orgProject OrgProject?            @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
-  campaign   NasaCampaignPlanner?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  action     Action?                @relation("ActionPlannerPosts", fields: [actionId], references: [id], onDelete: SetNull)
+  planner    NasaPlanner              @relation(fields: [plannerId], references: [id], onDelete: Cascade)
+  createdBy  User                     @relation("NasaPlannerPostCreatedBy", fields: [createdById], references: [id])
+  orgProject OrgProject?              @relation(fields: [orgProjectId], references: [id], onDelete: SetNull)
+  campaign   NasaCampaignPlanner?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  action     Action?                  @relation("ActionPlannerPosts", fields: [actionId], references: [id], onDelete: SetNull)
   template   NasaPlannerPostTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   slides     NasaPlannerPostSlide[]
 
@@ -3084,20 +3095,20 @@ model NasaPlannerPost {
 // via Remotion Lambda. Templates `isGlobal` são curados pela plataforma;
 // templates por-org permitem personalizações salvas pelo usuário.
 model NasaPlannerPostTemplate {
-  id             String   @id @default(cuid())
+  id             String  @id @default(cuid())
   name           String
-  slug           String   @unique
-  category       String   // "minimal-serif", "bold-modern", "elegant-luxury", "vibrant-popart", "clean-corporate"
-  ratio          String   // "1:1", "9:16", "4:5", "1.91:1"
-  layoutJson     Json     // Konva nodes spec: positions + types of layers
-  previewKey     String?  @map("preview_key") // S3 key do thumb estático pra galeria
-  isGlobal       Boolean  @default(false) @map("is_global")
-  organizationId String?  @map("organization_id")
+  slug           String  @unique
+  category       String // "minimal-serif", "bold-modern", "elegant-luxury", "vibrant-popart", "clean-corporate"
+  ratio          String // "1:1", "9:16", "4:5", "1.91:1"
+  layoutJson     Json // Konva nodes spec: positions + types of layers
+  previewKey     String? @map("preview_key") // S3 key do thumb estático pra galeria
+  isGlobal       Boolean @default(false) @map("is_global")
+  organizationId String? @map("organization_id")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   posts        NasaPlannerPost[]
 
   @@index([organizationId, isGlobal])
@@ -3581,13 +3592,13 @@ model UserChatPreferences {
 
   /// Tipo de fundo: "default" (padrão WhatsApp), "color" (cor sólida),
   /// "image" (URL de imagem custom). Default "default".
-  chatBackgroundType  String  @default("default") @map("chat_background_type")
+  chatBackgroundType    String  @default("default") @map("chat_background_type")
   /// Quando type=color: hex string (#RRGGBB). Quando type=image: URL R2.
-  chatBackgroundValue String? @map("chat_background_value")
+  chatBackgroundValue   String? @map("chat_background_value")
   /// Opacidade da imagem de fundo (0-100). Só usado quando type=image.
   /// Default 100 (opaca). Valores menores mesclam com o tema (light=branco/
   /// dark=zinc-900) por baixo, deixando a imagem mais sutil.
-  chatBackgroundOpacity Int @default(100) @map("chat_background_opacity")
+  chatBackgroundOpacity Int     @default(100) @map("chat_background_opacity")
 
   /// Cor de fundo das bolhas próprias (fromMe=true) — hex.
   /// NULL = default verde-WhatsApp (#d9fdd3 light / #005c4b dark).
@@ -3625,13 +3636,13 @@ model AdminNotification {
   // severity governa o tratamento visual (info=bell, warning=toast,
   // critical=popup). displaySurface permite override por regra.
   // requiresAck=true só fecha o popup quando user confirmar explicitamente.
-  severity       String   @default("info") // info | warning | critical
-  displaySurface String   @default("bell") @map("display_surface") // bell | toast | popup
-  requiresAck    Boolean  @default(false) @map("requires_ack")
-  alertRuleId    String?  @map("alert_rule_id")
+  severity       String     @default("info") // info | warning | critical
+  displaySurface String     @default("bell") @map("display_surface") // bell | toast | popup
+  requiresAck    Boolean    @default(false) @map("requires_ack")
+  alertRuleId    String?    @map("alert_rule_id")
   alertRule      AlertRule? @relation(fields: [alertRuleId], references: [id], onDelete: SetNull)
-  eventType      String?  @map("event_type")
-  eventPayload   Json?    @map("event_payload")
+  eventType      String?    @map("event_type")
+  eventPayload   Json?      @map("event_payload")
 
   reads AdminNotificationRead[]
 
@@ -3693,11 +3704,11 @@ model AlertRule {
 /// Ledger de idempotência — uma chave (alertRuleId, entityKey) só dispara 1x.
 /// entityKey é construído pelo handler do evento (ex: "lead-stale:<id>:<YYYY-MM-DD>").
 model AlertDispatch {
-  id           String   @id @default(cuid())
-  alertRuleId  String   @map("alert_rule_id")
+  id           String    @id @default(cuid())
+  alertRuleId  String    @map("alert_rule_id")
   alertRule    AlertRule @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
-  entityKey    String   @map("entity_key")
-  dispatchedAt DateTime @default(now()) @map("dispatched_at")
+  entityKey    String    @map("entity_key")
+  dispatchedAt DateTime  @default(now()) @map("dispatched_at")
 
   @@unique([alertRuleId, entityKey])
   @@index([alertRuleId, dispatchedAt])
@@ -5464,11 +5475,11 @@ model NasaRouteCourse {
   // ── Integrações de marketing ───────────────────────────────
   // URL pra redirecionar o comprador após o checkout (ex: página
   // de obrigado/agradecimento do criador). Vazio = sem redirect.
-  redirectUrl  String? @map("redirect_url")
+  redirectUrl String? @map("redirect_url")
   // IDs externos pra injetar scripts de tracking na página pública
   // do curso. Exemplos: "123456789" (Pixel), "GTM-XXXXXXX" (GTM).
-  pixelId      String? @map("pixel_id")
-  gtmId        String? @map("gtm_id")
+  pixelId     String? @map("pixel_id")
+  gtmId       String? @map("gtm_id")
 
   // ── E-mail de pós-compra ───────────────────────────────────
   // Quando enabled=true e bodyJson presente, dispara e-mail customizado
@@ -5569,8 +5580,8 @@ model NasaRouteLesson {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  course       NasaRouteCourse        @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  module       NasaRouteModule?       @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  course       NasaRouteCourse             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  module       NasaRouteModule?            @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   planLessons  NasaRoutePlanLesson[]
   videoUploads NasaRouteVideoUpload[]
   attachments  NasaRouteLessonAttachment[]
@@ -5615,11 +5626,11 @@ model NasaRouteLessonAttachment {
 // cron Inngest se ficar >7d sem progredir. STARs são cobradas upfront e
 // registradas em `costStars` pra auditoria.
 model NasaRouteVideoUpload {
-  id                String @id @default(cuid())
-  courseId          String @map("course_id")
-  lessonId          String @map("lesson_id")
-  userId            String @map("user_id") // criador que iniciou
-  organizationId    String @map("organization_id") // org que pagou STARs
+  id             String @id @default(cuid())
+  courseId       String @map("course_id")
+  lessonId       String @map("lesson_id")
+  userId         String @map("user_id") // criador que iniciou
+  organizationId String @map("organization_id") // org que pagou STARs
 
   fileKey           String @map("file_key") // key final no R2
   multipartUploadId String @map("multipart_upload_id") // UploadId do R2
@@ -5628,8 +5639,8 @@ model NasaRouteVideoUpload {
   sizeBytes         BigInt @map("size_bytes")
   totalParts        Int    @map("total_parts")
 
-  costStars         Int    @map("cost_stars") // cobrado upfront via debitStars
-  status            String @default("uploading") // "uploading" | "completed" | "aborted" | "failed" | "expired"
+  costStars Int    @map("cost_stars") // cobrado upfront via debitStars
+  status    String @default("uploading") // "uploading" | "completed" | "aborted" | "failed" | "expired"
 
   startedAt   DateTime  @default(now()) @map("started_at")
   completedAt DateTime? @map("completed_at")
@@ -5646,22 +5657,22 @@ model NasaRouteVideoUpload {
 }
 
 model NasaRouteEnrollment {
-  id          String    @id @default(cuid())
-  userId      String    @map("user_id")
-  courseId    String    @map("course_id")
-  planId      String?   @map("plan_id")
-  buyerOrgId  String?   @map("buyer_org_id")
-  paidStars   Int       @default(0) @map("paid_stars")
+  id                      String    @id @default(cuid())
+  userId                  String    @map("user_id")
+  courseId                String    @map("course_id")
+  planId                  String?   @map("plan_id")
+  buyerOrgId              String?   @map("buyer_org_id")
+  paidStars               Int       @default(0) @map("paid_stars")
   // Pagamento via Stripe (BRL). Snapshot do valor pago em centavos +
   // referências à sessão/payment intent para reconciliação e refund.
-  paidBrlCents            Int?    @map("paid_brl_cents")
-  stripeCheckoutSessionId String? @unique @map("stripe_checkout_session_id")
-  stripePaymentIntentId   String? @map("stripe_payment_intent_id")
-  source      String    @default("purchase") // "purchase" | "free_access" | "gift" | "stripe_purchase"
-  paymentRef  String?   @map("payment_ref")
-  status      String    @default("active") // "active" | "refunded"
-  enrolledAt  DateTime  @default(now()) @map("enrolled_at")
-  completedAt DateTime? @map("completed_at")
+  paidBrlCents            Int?      @map("paid_brl_cents")
+  stripeCheckoutSessionId String?   @unique @map("stripe_checkout_session_id")
+  stripePaymentIntentId   String?   @map("stripe_payment_intent_id")
+  source                  String    @default("purchase") // "purchase" | "free_access" | "gift" | "stripe_purchase"
+  paymentRef              String?   @map("payment_ref")
+  status                  String    @default("active") // "active" | "refunded"
+  enrolledAt              DateTime  @default(now()) @map("enrolled_at")
+  completedAt             DateTime? @map("completed_at")
 
   user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   course       NasaRouteCourse        @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -5736,17 +5747,17 @@ model NasaRouteFreeAccess {
 }
 
 model NasaRoutePlan {
-  id          String   @id @default(cuid())
-  courseId    String   @map("course_id")
-  name        String
-  description String?
-  priceStars  Int      @default(0) @map("price_stars")
+  id            String   @id @default(cuid())
+  courseId      String   @map("course_id")
+  name          String
+  description   String?
+  priceStars    Int      @default(0) @map("price_stars")
   // Preço do plano em centavos BRL — fonte de verdade para Stripe Checkout.
-  priceBrlCents Int    @default(0) @map("price_brl_cents")
-  order       Int      @default(0)
-  isDefault   Boolean  @default(false) @map("is_default")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  priceBrlCents Int      @default(0) @map("price_brl_cents")
+  order         Int      @default(0)
+  isDefault     Boolean  @default(false) @map("is_default")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   course           NasaRouteCourse           @relation(fields: [courseId], references: [id], onDelete: Cascade)
   lessons          NasaRoutePlanLesson[]
@@ -6590,42 +6601,42 @@ enum LeadAgentSessionStatus {
 }
 
 model Agent {
-  id             String  @id @default(cuid())
-  organizationId String  @map("organization_id")
+  id                 String   @id @default(cuid())
+  organizationId     String   @map("organization_id")
   /// null = agente org-wide (atua em qualquer tracking)
-  trackingId     String? @map("tracking_id")
-  name           String
-  description    String?
+  trackingId         String?  @map("tracking_id")
+  name               String
+  description        String?
   /// Prompt original em linguagem natural (pedido inicial do user).
   /// Editável depois — re-gera spec quando muda.
-  rawPrompt      String  @db.Text @map("raw_prompt")
+  rawPrompt          String   @map("raw_prompt") @db.Text
   /// "Manual" da IA — separado do rawPrompt. Aqui o user TREINA a IA:
   /// o que pode/não pode fazer, tom de voz, info da empresa, restrições
   /// éticas, dados de contato. Concatenado com goal atual no system prompt
   /// final que vai pro LLM em cada turn.
-  systemInstructions String @db.Text @default("") @map("system_instructions")
+  systemInstructions String   @default("") @map("system_instructions") @db.Text
   /// Spec executável gerado pela Astro a partir de rawPrompt+systemInstructions.
   /// Estrutura: { goals: [...], allowedTools: [...], contextVars: [...] }
   /// Validado por Zod em src/features/auto-agent/lib/agent-spec.schema.ts
-  spec           Json
+  spec               Json
   /// AUTO | SEMI | MANUAL. AUTO = sem aprovação, SEMI = aprova críticas,
   /// MANUAL = aprova tudo. Default AUTO (decisão do user).
-  mode           String  @default("AUTO")
+  mode               String   @default("AUTO")
   /// Toggle individual deste agent. AiAgentConfig.enabled controla global.
-  isActive       Boolean @default(false) @map("is_active")
+  isActive           Boolean  @default(false) @map("is_active")
   /// Schedule de follow-ups (dias após última msg). Configurável livre.
   /// Default [1,3,5,7]. User pode mudar pra [2,5,10,30] ou qualquer outro.
   /// attemptCount da session indexa esse array.
-  followUpSchedule Int[]  @default([1, 3, 5, 7]) @map("follow_up_schedule")
+  followUpSchedule   Int[]    @default([1, 3, 5, 7]) @map("follow_up_schedule")
   /// Cap de follow-ups antes de marcar COMPLETED (default = length do schedule).
-  maxAttempts        Int  @default(4)  @map("max_attempts")
+  maxAttempts        Int      @default(4) @map("max_attempts")
   /// Cap cumulativo de Stars por lead — atingiu, TRANSFERRED pra humano.
-  maxStarsPerLead    Int  @default(50) @map("max_stars_per_lead")
+  maxStarsPerLead    Int      @default(50) @map("max_stars_per_lead")
   /// Mínimo de minutos entre 2 mensagens do agente pro mesmo lead.
-  cooldownMinutes    Int  @default(30) @map("cooldown_minutes")
+  cooldownMinutes    Int      @default(30) @map("cooldown_minutes")
   /// Palavras-chave que disparam TRANSFERRED (case-insensitive contém).
   stopWords          String[] @default(["não quero", "remover", "sair", "spam", "parar", "stop"]) @map("stop_words")
-  createdById        String? @map("created_by_id")
+  createdById        String?  @map("created_by_id")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
@@ -6637,7 +6648,7 @@ model Agent {
   /// Workflow, esse workflow vira o "cérebro" do agent — runAgentTurn delega
   /// pra ele. Manter como hasMany pra futuro: agent pode ter workflows
   /// auxiliares (qualificação, follow-up, pós-venda separados).
-  workflows    Workflow[] @relation("AgentWorkflow")
+  workflows    Workflow[]         @relation("AgentWorkflow")
 
   @@index([organizationId, isActive])
   @@index([trackingId])
@@ -6648,31 +6659,31 @@ model Agent {
 /// `nextActionAt` é o sleepUntil que o Inngest usa pra acordar e rodar turn.
 /// Evento `auto-agent/lead-replied` cancela sleep quando lead responde.
 model LeadAgentSession {
-  id              String  @id @default(cuid())
-  agentId         String  @map("agent_id")
-  leadId          String  @map("lead_id")
-  organizationId  String  @map("organization_id")
-  status          LeadAgentSessionStatus @default(ACTIVE)
+  id             String                 @id @default(cuid())
+  agentId        String                 @map("agent_id")
+  leadId         String                 @map("lead_id")
+  organizationId String                 @map("organization_id")
+  status         LeadAgentSessionStatus @default(ACTIVE)
   /// Goal atual do spec.goals[] (ex: "qualify", "send_proposal", "follow_up")
-  currentGoalId   String? @map("current_goal_id")
+  currentGoalId  String?                @map("current_goal_id")
   /// Tentativa atual no loop de follow-up (0..maxAttempts).
   /// Indexa Agent.followUpSchedule[attemptCount] pra calcular nextActionAt.
-  attemptCount    Int     @default(0) @map("attempt_count")
+  attemptCount   Int                    @default(0) @map("attempt_count")
   /// Próxima ação agendada (Inngest sleepUntil). null = ACTIVE rodando AGORA.
-  nextActionAt    DateTime? @map("next_action_at")
+  nextActionAt   DateTime?              @map("next_action_at")
   /// Última msg/ação enviada pra cálculo de cooldown.
-  lastActionAt    DateTime? @map("last_action_at")
+  lastActionAt   DateTime?              @map("last_action_at")
   /// Custo cumulativo em Stars. Cap em Agent.maxStarsPerLead.
-  starsSpent      Int     @default(0) @map("stars_spent")
+  starsSpent     Int                    @default(0) @map("stars_spent")
   /// Razão de transição final: transfer_to_human, budget_exceeded,
   /// stop_word, goal_achieved, max_attempts, paused_by_user.
-  exitReason      String? @map("exit_reason")
+  exitReason     String?                @map("exit_reason")
   /// Snapshot de variáveis do contexto (produto escolhido, opção do menu,
   /// valores extraídos pela IA durante a conversa).
-  contextVars     Json    @default("{}") @map("context_vars")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  closedAt        DateTime? @map("closed_at")
+  contextVars    Json                   @default("{}") @map("context_vars")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  closedAt       DateTime?              @map("closed_at")
 
   agent        Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
   lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -6684,4 +6695,137 @@ model LeadAgentSession {
   /// Scheduler do Inngest faz scan periódico de WAITING com nextActionAt < now.
   @@index([nextActionAt, status])
   @@map("lead_agent_sessions")
+}
+
+// ─────────────────────────────────────────────────────────────
+// ASTRO BOT VIA WHATSAPP — cada org tem nº WhatsApp dedicado pra
+// membros conversarem com Astro IA pelo celular. Reusa orchestrator
+// + tools existentes. Doc completo: docs/astro-bot-whatsapp.md
+// ─────────────────────────────────────────────────────────────
+
+enum BotProvider {
+  /// uazapi não-oficial — Earth tier (default). Risco de ban, NASA paga.
+  UAZAPI
+  /// WhatsApp Business Cloud API (Meta oficial) — Suite/Constellation tier.
+  /// Zero risco, cliente paga por conversa direto na Meta.
+  META_CLOUD
+}
+
+model OrganizationBotConfig {
+  id             String      @id @default(cuid())
+  organizationId String      @unique @map("organization_id")
+  provider       BotProvider @default(UAZAPI)
+
+  // ── UAZAPI fields ────────────────────────────────────────
+  /// FK pra `WhatsAppInstance.id` — instância DEDICADA pro bot,
+  /// SEPARADA da instância de atendimento da org. Isolamento garante
+  /// que ban da instância do bot NÃO afeta atendimento ao cliente.
+  uazapiInstanceId String? @map("uazapi_instance_id")
+
+  // ── Meta Cloud fields ────────────────────────────────────
+  metaPhoneId     String? @map("meta_phone_id")
+  /// Criptografado com AI_SECRETS_KEY (AES-256-GCM via @/lib/crypto).
+  metaAccessToken String? @map("meta_access_token")
+  metaWabaId      String? @map("meta_waba_id")
+
+  // ── Limites compartilhados ───────────────────────────────
+  maxPhonesPerOrg Int  @default(3) @map("max_phones_per_org")
+  maxCmdsPerHour  Int  @default(30) @map("max_cmds_per_hour")
+  /// Hora local (0-23) — bot fica silencioso fora dessa janela. NULL = sem quiet hours.
+  quietHoursStart Int? @map("quiet_hours_start")
+  quietHoursEnd   Int? @map("quiet_hours_end")
+
+  isActive  Boolean  @default(false) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uazapiInstance WhatsAppInstance?     @relation("BotConfigInstance", fields: [uazapiInstanceId], references: [id], onDelete: SetNull)
+  bindings       UserWhatsappBinding[]
+
+  @@index([organizationId])
+  @@index([uazapiInstanceId])
+  @@map("organization_bot_config")
+}
+
+model UserWhatsappBinding {
+  id                      String @id @default(cuid())
+  userId                  String @map("user_id")
+  organizationId          String @map("organization_id")
+  organizationBotConfigId String @map("organization_bot_config_id")
+
+  /// Phone em formato E.164 sem `+` (ex: "5511999999999"). Único globalmente
+  /// porque o webhook routing identifica o remetente pelo phone.
+  phoneE164  String    @unique @map("phone_e164")
+  verifiedAt DateTime? @map("verified_at")
+
+  // ── Auth: PIN + sessão diária ──────────────────────────────
+  /// bcrypt do PIN (4-6 dígitos) — never store raw.
+  pinHash        String    @map("pin_hash")
+  pinFailures    Int       @default(0) @map("pin_failures")
+  /// Lockout temporário após 3 PINs errados — 1h.
+  pinLockedUntil DateTime? @map("pin_locked_until")
+
+  /// Token de sessão (random 32 bytes hex) — válido por 8h após PIN.
+  /// Comandos read-only só exigem sessão; comandos destrutivos sempre
+  /// pedem PIN novo independente da sessão.
+  sessionToken     String?   @map("session_token")
+  sessionExpiresAt DateTime? @map("session_expires_at")
+  /// uazapi deviceId no momento da auth — se mudar (SIM swap), auto-revoke.
+  sessionDeviceId  String?   @map("session_device_id")
+
+  // ── Permissões ─────────────────────────────────────────────
+  /// Whitelist de prefixos de tools que esse binding pode executar.
+  /// Default: ["search", "lists", "analytics"] (read-only).
+  /// Owner expande pra ["actions", "mutations"] em UI por usuário.
+  allowedTools String[]  @default([]) @map("allowed_tools")
+  isActive     Boolean   @default(true) @map("is_active")
+  lastSeenAt   DateTime? @map("last_seen_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  botConfig    OrganizationBotConfig @relation(fields: [organizationBotConfigId], references: [id], onDelete: Cascade)
+  commands     WhatsappBotCommand[]
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([phoneE164])
+  @@index([organizationBotConfigId])
+  @@map("user_whatsapp_binding")
+}
+
+/// Log de cada comando recebido via WhatsApp pro Astro Bot. Usado pra:
+///   - Rate limit (count cmds/hora por binding)
+///   - Audit (debug "por que o bot não respondeu?")
+///   - Telemetria de uso (qual tipo de comando mais usam)
+model WhatsappBotCommand {
+  id             String @id @default(cuid())
+  bindingId      String @map("binding_id")
+  organizationId String @map("organization_id")
+
+  receivedAt      DateTime @default(now()) @map("received_at")
+  messageText     String   @map("message_text") @db.Text
+  /// Resumo da response Astro (1-2 frases ou erro). NULL = não respondeu ainda.
+  responseSummary String?  @map("response_summary") @db.Text
+
+  /// "ok" | "rate_limited" | "quiet_hours" | "pin_required" | "pin_locked" |
+  /// "session_expired" | "tool_denied" | "error_orchestrator"
+  status      String   @default("ok")
+  /// Tools que o Astro chamou (pra audit). Ex: ["search.list_leads"]
+  toolsCalled String[] @default([]) @map("tools_called")
+
+  /// Tokens consumidos pra essa execução (input + output).
+  tokensUsed   Int? @map("tokens_used")
+  /// Stars cobrados (já reflete cobrança real).
+  starsCharged Int? @map("stars_charged")
+
+  binding UserWhatsappBinding @relation(fields: [bindingId], references: [id], onDelete: Cascade)
+
+  @@index([bindingId, receivedAt])
+  @@index([organizationId, receivedAt])
+  @@index([status])
+  @@map("whatsapp_bot_command")
 }

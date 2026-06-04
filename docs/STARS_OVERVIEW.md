@@ -119,6 +119,8 @@ Preço **uniforme** R$/★ (`RouterPaymentSettings.starPriceBrl`, default R$0,15
 3. `orpc.stars.createStarsCheckout({ stars, returnPath })` ([src/app/router/stars/create-stars-checkout.ts](../src/app/router/stars/create-stars-checkout.ts)) valida o mínimo, aplica desconto de parceiro (snapshot), cria `StarsPayment` (status `pending`, `packageId: null`) e abre **Stripe Checkout Session** com `metadata.kind = "stars_topup"` (propagado também em `payment_intent_data.metadata`) e `idempotencyKey: stars-topup:<paymentId>`.
 4. Cliente é redirecionado pro Checkout. O crédito é **assíncrono** — acontece no webhook dedicado `/api/stars/webhook` (ver §9). Ao voltar com `?stars=success`, o `StarsWidget` faz polling do saldo até refletir o crédito.
 
+> **Cupom:** o Checkout habilita `allow_promotion_codes` — o cliente pode aplicar um **Promotion Code** (criado no Stripe Dashboard) na própria página de pagamento. O desconto reduz o `amount_total` pago, mas as **Stars creditadas continuam cheias** (o cupom é um benefício de preço, não reduz a quantidade). Cupom e desconto de parceiro podem coexistir (ambos reduzem o valor pago).
+
 > Existem fluxos legacy preservados (não usados pelo modal novo): `createGatewayCheckout` (multi-gateway, base do PIX/Asaas futuro) e `createCheckoutSession` + `purchasePackage` (Stripe legado por `StarPackage`).
 
 ### 5.2. Plano mensal
@@ -206,7 +208,7 @@ Componentes em [src/features/stars/components/](../src/features/stars/components
 | `charge.refunded` (total) | Acha o payment por `stripePaymentIntentId` e debita as Stars creditadas (`revertStarsTopUpInTx`). **Permite saldo negativo.** Parcial → só log. | claim `where status='paid'` |
 | `charge.dispute.created` | Não reverte (merchant pode contestar). Log + Inngest `stripe/charge.dispute.created` (notificação manual). | `ProcessedStripeEvent` |
 
-**Garantias:** crédito/débito são atômicos (`{ increment }`), não read-modify-write. `finalizeStarsTopUpInTx` recalcula proporcionalmente se o valor recebido divergir do snapshot e **nunca credita mais que o comprado** (cap em `starsAmount`). Org em grace/suspensa tem `starsGraceStartedAt`/`starsSuspendedAt` limpos quando o saldo volta a ser positivo. Pendências órfãs (>24h) são varridas pelo cron `stars-pending-sweep` (de hora em hora).
+**Garantias:** crédito/débito são atômicos (`{ increment }`), não read-modify-write. `finalizeStarsTopUpInTx` credita a **quantidade comprada cheia** mesmo com cupom/desconto aplicado (o cupom reduz o valor pago, não as Stars) e **nunca credita mais que o comprado** (`unit_amount` fixo → sem over-credit). Org em grace/suspensa tem `starsGraceStartedAt`/`starsSuspendedAt` limpos quando o saldo volta a ser positivo. Pendências órfãs (>24h) são varridas pelo cron `stars-pending-sweep` (de hora em hora).
 
 **Hardening de segurança (checkout):**
 - Preço/valor calculados **server-side** (`stars × starPriceBrl`) — o client nunca envia preço. `organizationId` vem da sessão, não do input (sem IDOR).

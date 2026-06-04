@@ -199,6 +199,11 @@ export const createStarsCheckout = base
         cancel_url: cancelUrl,
         payment_method_types: ["card"],
         locale: "pt-BR",
+        // Campo nativo de cupom no Checkout do Stripe. Aceita apenas Promotion
+        // Codes ativos criados no Dashboard — validação 100 % server-side do Stripe.
+        // O desconto reduz o amount_total; as Stars creditadas continuam cheias
+        // (ver finalizeStarsTopUpInTx).
+        allow_promotion_codes: true,
         metadata: piMetadata,
         // Propaga pro PaymentIntent pra o fallback `payment_intent.succeeded`.
         payment_intent_data: { metadata: piMetadata },

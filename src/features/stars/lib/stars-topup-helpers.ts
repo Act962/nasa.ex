@@ -73,24 +73,16 @@ export async function finalizeStarsTopUpInTx(
     },
   });
 
-  // 3. Defesa de valor: se o recebido divergir do snapshot, credita proporcional.
-  //    Nunca credita MAIS do que o comprado (cap em starsAmount).
+  // 3. Cupom Stripe reduz o amount_total, mas o cliente comprou `starsAmount`
+  //    e recebe a quantidade CHEIA — o desconto é uma promoção legítima do
+  //    merchant (allow_promotion_codes só aceita Promotion Codes ativos do
+  //    Dashboard). Não reduzimos as Stars proporcionalmente. Como o unit_amount
+  //    é fixo, o cliente nunca paga MAIS que o esperado (sem over-credit).
   const expectedCents = Math.round(Number(payment.amountBrl) * 100);
-  let effectiveStars = payment.starsAmount;
-  if (
-    receivedBrlCents !== null &&
-    expectedCents > 0 &&
-    receivedBrlCents !== expectedCents
-  ) {
-    effectiveStars = Math.max(
-      0,
-      Math.min(
-        payment.starsAmount,
-        Math.floor(payment.starsAmount * (receivedBrlCents / expectedCents)),
-      ),
-    );
-    console.warn(
-      `[stars/finalize] amount divergence payment=${starsPaymentId} expected=${expectedCents} got=${receivedBrlCents} stars ${payment.starsAmount}→${effectiveStars}`,
+  const effectiveStars = payment.starsAmount;
+  if (receivedBrlCents !== null && receivedBrlCents < expectedCents) {
+    console.info(
+      `[stars/finalize] cupom/desconto aplicado payment=${starsPaymentId} expected=${expectedCents} got=${receivedBrlCents} — credita ${effectiveStars}★ cheios`,
     );
   }
 

@@ -7,6 +7,7 @@ import { updateForm } from "./update";
 import { submitResponse } from "./public/submut-response";
 import { savePartialResponse } from "./public/save-partial-response";
 import { findDraftByPhone } from "./public/find-draft";
+import { validateLeadPhone } from "./public/validate-lead-phone";
 import { PublishForm } from "./publish";
 import { insightForm } from "./status";
 import { deleteForm } from "./delete";
@@ -41,6 +42,7 @@ export const formRouter = {
   submitResponse,
   savePartialResponse,
   findDraftByPhone,
+  validateLeadPhone,
   PublishForm,
   togglePublicOnSpace,
   insightForm,
