@@ -30,6 +30,55 @@ export interface AnimationPreset {
   easing?: string;
 }
 
+/**
+ * Catálogo de animações disponíveis. Cada preset mapeia pra uma
+ * keyframe CSS em `animations.css`. Usado no properties panel pra
+ * popular o dropdown.
+ */
+export const ANIMATION_PRESET_IDS = [
+  "fade",
+  "slide-up",
+  "slide-down",
+  "slide-left",
+  "slide-right",
+  "zoom-in",
+  "zoom-out",
+  "bounce",
+  "pulse",
+  "shake",
+  "glow",
+  "float",
+  "spin",
+  "marquee",
+  "flow",
+] as const;
+export type AnimationPresetId = (typeof ANIMATION_PRESET_IDS)[number];
+
+/**
+ * Design tokens — paleta + tipografia + espaçamento centralizados.
+ * Cada page tem uma `tokens` que seções consomem. Permite trocar
+ * cor da marca uma vez e refletir em tudo.
+ */
+export interface DesignTokens {
+  colors?: {
+    primary?: string;
+    accent?: string;
+    bg?: string;
+    fg?: string;
+    muted?: string;
+    danger?: string;
+    success?: string;
+  };
+  /** Gradientes nomeados — referenciáveis via "gradient.primary" em sections. */
+  gradients?: Record<string, string>;
+  /** Família de fontes — default Inter. */
+  fontFamily?: string;
+  /** Tamanho base (px) — escala usa multiplicadores. */
+  fontSizeBase?: number;
+  /** Border radius padrão pra cards e botões. */
+  radiusBase?: number;
+}
+
 export interface LinkTarget {
   kind:
     | "url"
@@ -78,6 +127,7 @@ export interface ElementBase {
 }
 
 export type ElementType =
+  // ── Átomos (existiam antes) ──
   | "text"
   | "image"
   | "svg"
@@ -90,7 +140,61 @@ export type ElementType =
   | "spacer"
   | "nasa-link"
   | "embed"
-  | "group";
+  | "group"
+  // ── Sections completas (Fase 1) ──
+  // Mega-blocos pré-montados — user arrasta e edita inline.
+  // Cada section traz layout pronto + sub-elementos editáveis.
+  | "section-hero"
+  | "section-features"
+  | "section-pricing"
+  | "section-cta"
+  | "section-stats"
+  | "section-testimonials"
+  | "section-faq"
+  | "section-logo-cloud"
+  // ── Blocos interativos (Fase 2) ──
+  | "marquee"
+  | "tabs"
+  | "accordion"
+  | "counter"
+  // ── Data binding (Fase 5) ──
+  // Renderiza dados do app em tempo real (planos, cursos, leaderboard).
+  | "data-bound";
+
+/**
+ * Categorias usadas no builder pra agrupar elementos no sidebar.
+ * Adicionar elemento? Inclua aqui sua categoria também.
+ */
+export const ELEMENT_CATEGORIES = {
+  basic: "Básicos",
+  sections: "Sections prontas",
+  interactive: "Interativos",
+  app: "Apps NASA",
+  data: "Dados ao vivo",
+} as const;
+export type ElementCategory = keyof typeof ELEMENT_CATEGORIES;
+
+/**
+ * Origens de dados pra elementos data-bound. Cada bloco data-bound
+ * referencia um destes — server-side resolve query do oRPC e injeta
+ * no render.
+ */
+export type DataSourceKind =
+  | "plans-list"
+  | "nasa-route-courses"
+  | "space-points-leaderboard"
+  | "org-stats"
+  | "tag-counts";
+
+export interface DataBindingConfig {
+  source: DataSourceKind;
+  /** Limita quantos registros mostra (default 10). */
+  limit?: number;
+  /** Variant visual: como o array de dados é renderizado. */
+  layout?: "grid" | "list" | "table" | "carousel";
+  /** Filtros simples passados pra query. */
+  filters?: Record<string, string | number | boolean>;
+}
 
 export interface Layer {
   elements: ElementBase[];
@@ -117,6 +221,7 @@ export type PageLayout =
       artboard: Artboard;
       meta?: PageMeta;
       sections?: unknown[];
+      tokens?: DesignTokens;
     }
   | {
       mode: "stacked";
@@ -126,6 +231,7 @@ export type PageLayout =
       meta?: PageMeta;
       sections?: unknown[];
       parallax: { backSpeed: number; frontSpeed: number };
+      tokens?: DesignTokens;
     };
 
 export interface NasaPageSummary {

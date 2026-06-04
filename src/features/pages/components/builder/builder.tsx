@@ -8,6 +8,9 @@ import { usePage } from "../../hooks/use-pages";
 import { usePagesBuilderStore } from "../../context/pages-builder-store";
 import { BuilderTopbar } from "./builder-topbar";
 import { BuilderSidebar } from "./builder-sidebar";
+// Animações disponíveis no editor (preview de sections + previews
+// dos blocos interativos como marquee/counter).
+import "../../lib/animations.css";
 import { BuilderCanvas } from "./builder-canvas";
 import type { PageLayout } from "../../types";
 

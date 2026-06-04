@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Check, Layers, Layers2, Sparkles, Palette } from "lucide-react";
-import type { PageIntent } from "../../types";
+import type { ElementBase, PageIntent } from "../../types";
 import {
   DEFAULT_PALETTES,
   INTENT_DESCRIPTIONS,
@@ -28,13 +28,21 @@ import {
   STARS_COST,
 } from "../../constants";
 import { usePagesCost } from "../../hooks/use-pages";
+import { TemplateGallery } from "../template-gallery";
+import {
+  applyTemplate,
+  type PageTemplate,
+} from "../../lib/page-templates";
 
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }
 
-type Step = "intent" | "layers" | "palette" | "details" | "confirm";
+// "template" é o NOVO primeiro step — galeria de templates prontos
+// + opção "começar do zero" (que mantém o fluxo antigo dos outros 5
+// steps).
+type Step = "template" | "intent" | "layers" | "palette" | "details" | "confirm";
 
 function slugify(input: string) {
   return input
@@ -46,7 +54,7 @@ function slugify(input: string) {
     .slice(0, 64);
 }
 
-const STEPS: Step[] = ["intent", "layers", "palette", "details", "confirm"];
+const STEPS: Step[] = ["template", "intent", "layers", "palette", "details", "confirm"];
 
 const PALETTE_KEYS: { key: string; label: string }[] = [
   { key: "primary", label: "Primária" },
@@ -151,23 +159,29 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
   const qc = useQueryClient();
   const { data: cost } = usePagesCost();
 
-  const [step, setStep] = useState<Step>("intent");
+  const [step, setStep] = useState<Step>("template");
   const [intent, setIntent] = useState<PageIntent>("LANDING");
   const [layerCount, setLayerCount] = useState<1 | 2>(1);
   const [palette, setPalette] = useState<Record<string, string>>(DEFAULT_PALETTES[0]);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
+  // Template selecionado (null = "começar do zero"). Quando setado,
+  // intent + palette ficam derivados do template e a aplicação dos
+  // elements acontece depois da criação da page (via updatePage).
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<PageTemplate | null>(null);
 
   useEffect(() => {
     if (!open) {
-      setStep("intent");
+      setStep("template");
       setIntent("LANDING");
       setLayerCount(1);
       setPalette(DEFAULT_PALETTES[0]);
       setTitle("");
       setSlug("");
       setDescription("");
+      setSelectedTemplate(null);
     }
   }, [open]);
 
@@ -176,17 +190,56 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
   }, [title, slug]);
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () =>
-      client.pages.createPage({
+    mutationFn: async () => {
+      // 1) Cria a page com layout em branco (server-side gera
+      //    `emptyLayout(layerCount)` pelo padrão atual).
+      const res = await client.pages.createPage({
         title,
         slug: slug || slugify(title),
         description: description || undefined,
         intent,
         layerCount,
         palette,
-      }),
+      });
+
+      // 2) Se o user escolheu um template, faz uma segunda chamada
+      //    `updatePage` com layout customizado contendo os elements
+      //    do template aplicado. Isso garante que o builder abre já
+      //    com a página populada.
+      if (selectedTemplate) {
+        const applied = applyTemplate(selectedTemplate.id);
+        if (applied) {
+          // Calcula altura total dos elements pra dimensionar artboard.
+          const totalH = applied.elements.reduce(
+            (acc, el) => Math.max(acc, (el.y ?? 0) + (el.h ?? 0)),
+            0,
+          );
+          await client.pages.updatePage({
+            id: res.page.id,
+            layout: {
+              mode: "single",
+              main: {
+                elements: applied.elements as ElementBase[],
+              },
+              artboard: {
+                width: 1200,
+                minHeight: Math.max(800, totalH),
+              },
+              tokens: {
+                colors: applied.tokens,
+              },
+            },
+          });
+        }
+      }
+
+      return res;
+    },
     onSuccess: (res) => {
-      toast.success("Site criado — 2.000 Stars debitadas");
+      const msg = selectedTemplate
+        ? `Site criado com modelo "${selectedTemplate.name}" — 2.000 ★`
+        : "Site criado — 2.000 Stars debitadas";
+      toast.success(msg);
       qc.invalidateQueries({ queryKey: orpc.pages.listPages.queryKey() });
       qc.invalidateQueries({ queryKey: orpc.pages.getCost.queryKey() });
       qc.invalidateQueries({ queryKey: orpc.stars.getBalance.queryKey() });
@@ -200,6 +253,8 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
   const canAfford = cost ? cost.canAfford : true;
 
   const canAdvance = useMemo(() => {
+    // "template" sempre pode avançar (selecionar template ou "do zero")
+    if (step === "template") return true;
     if (step === "intent") return !!intent;
     if (step === "layers") return !!layerCount;
     if (step === "palette") return !!palette;
@@ -221,6 +276,50 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
         </DialogHeader>
 
         <div className="py-2 min-h-[320px]">
+          {step === "template" && (
+            <div className="flex flex-col gap-3">
+              {/* Status do template selecionado (banner topo) */}
+              {selectedTemplate && (
+                <div className="flex items-center justify-between rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-xs">
+                  <span>
+                    <strong>Modelo selecionado:</strong>{" "}
+                    {selectedTemplate.name}{" "}
+                    <span className="text-muted-foreground">
+                      · {selectedTemplate.elements.length} blocos
+                    </span>
+                  </span>
+                  <button
+                    onClick={() => setSelectedTemplate(null)}
+                    className="text-violet-300 hover:text-violet-200 underline-offset-2 hover:underline"
+                  >
+                    Remover
+                  </button>
+                </div>
+              )}
+              <TemplateGallery
+                onSelect={(template) => {
+                  setSelectedTemplate(template);
+                  // Pré-aplica intent + palette do template aos
+                  // próximos steps (user ainda pode mudar).
+                  setIntent(template.intent);
+                  setPalette({
+                    primary: template.tokens.primary,
+                    accent: template.tokens.accent,
+                    bg: template.tokens.bg,
+                    fg: template.tokens.fg,
+                    muted: template.tokens.muted,
+                  });
+                  // Avança automático pro próximo step (details).
+                  setStep("intent");
+                }}
+                onStartBlank={() => {
+                  setSelectedTemplate(null);
+                  setStep("intent");
+                }}
+              />
+            </div>
+          )}
+
           {step === "intent" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(Object.keys(INTENT_LABELS) as PageIntent[]).map((i) => (

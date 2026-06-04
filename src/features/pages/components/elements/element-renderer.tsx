@@ -1,13 +1,29 @@
 "use client";
 
-import type { ElementBase, LinkTarget } from "../../types";
+import type { DesignTokens, ElementBase, LinkTarget } from "../../types";
+import { SectionHero } from "./sections/section-hero";
+import { SectionFeatures } from "./sections/section-features";
+import { SectionPricing } from "./sections/section-pricing";
+import { SectionCta } from "./sections/section-cta";
+import { SectionStats } from "./sections/section-stats";
+import { SectionTestimonials } from "./sections/section-testimonials";
+import { SectionFaq } from "./sections/section-faq";
+import { SectionLogoCloud } from "./sections/section-logo-cloud";
+import {
+  AccordionBlock,
+  CounterBlock,
+  MarqueeBlock,
+  TabsBlock,
+} from "./interactive";
+import { DataBoundBlock } from "./data-bound";
 
 interface Props {
   element: ElementBase;
   readonly?: boolean;
+  tokens?: DesignTokens;
 }
 
-export function ElementRenderer({ element, readonly = false }: Props) {
+export function ElementRenderer({ element, readonly = false, tokens }: Props) {
   const common = { width: "100%", height: "100%" };
 
   switch (element.type) {
@@ -312,6 +328,35 @@ export function ElementRenderer({ element, readonly = false }: Props) {
         </div>
       );
     }
+    // ── Sections completas (Fase 1) ──────────────────────────────
+    case "section-hero":
+      return <SectionHero element={element} tokens={tokens} readonly={readonly} />;
+    case "section-features":
+      return <SectionFeatures element={element} tokens={tokens} readonly={readonly} />;
+    case "section-pricing":
+      return <SectionPricing element={element} tokens={tokens} readonly={readonly} />;
+    case "section-cta":
+      return <SectionCta element={element} tokens={tokens} readonly={readonly} />;
+    case "section-stats":
+      return <SectionStats element={element} tokens={tokens} readonly={readonly} />;
+    case "section-testimonials":
+      return <SectionTestimonials element={element} tokens={tokens} readonly={readonly} />;
+    case "section-faq":
+      return <SectionFaq element={element} tokens={tokens} readonly={readonly} />;
+    case "section-logo-cloud":
+      return <SectionLogoCloud element={element} tokens={tokens} readonly={readonly} />;
+    // ── Blocos interativos (Fase 2) ──────────────────────────────
+    case "marquee":
+      return <MarqueeBlock element={element} tokens={tokens} readonly={readonly} />;
+    case "tabs":
+      return <TabsBlock element={element} tokens={tokens} readonly={readonly} />;
+    case "accordion":
+      return <AccordionBlock element={element} tokens={tokens} readonly={readonly} />;
+    case "counter":
+      return <CounterBlock element={element} tokens={tokens} readonly={readonly} />;
+    // ── Data binding (Fase 5) ────────────────────────────────────
+    case "data-bound":
+      return <DataBoundBlock element={element} tokens={tokens} readonly={readonly} />;
     default:
       return null;
   }
