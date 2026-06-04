@@ -387,7 +387,229 @@ function productPage(): Omit<PageTemplate, "id" | "name" | "description" | "cate
   };
 }
 
+/**
+ * Template 5 — RÉPLICA da landing orbita.nasaex.com (PR #82)
+ *
+ * Reproduz a narrativa "OS do processo" usando os blocos novos do
+ * NASA Pages. Não consegue 100% de fidelidade (a landing original tem
+ * componentes React custom como SVG de foguete + grid agrupado de
+ * apps + mock do Space Point) — usa os blocos mais próximos pra
+ * cobrir a estrutura. Bom como **SHOWCASE** dos ElementTypes novos:
+ * cobre hero, stats, marquee, features (3 instâncias com narrativas
+ * diferentes), cta (3 instâncias), pricing, testimonials, faq,
+ * data-bound.
+ *
+ * 13 blocos, cobre 10 ElementTypes diferentes.
+ */
+function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" | "category" | "intent"> {
+  resetY();
+  const T = DARK_VIOLET_TOKENS;
+  return {
+    tokens: T,
+    elements: [
+      // ── 1. HERO — Sistema Operacional do processo ──
+      pushAt({
+        type: "section-hero",
+        x: 0, y: 0, w: 1200, h: 560,
+        badge: "★ Powered pelo Método N.A.S.A.®",
+        titleLine1: "Seu processo não devia morrer",
+        titleLine2: "toda vez que muda de setor.",
+        subtitle:
+          "Comercial, atendimento, financeiro e entrega rodando como um processo só. Sem print no WhatsApp, sem planilha entre setores. O sistema leva o trabalho de um setor pro outro sozinho.",
+        primaryCta: "Ver funcionando",
+        secondaryCta: "Começar de graça",
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 2. STATS — social proof ──
+      pushAt({
+        type: "section-stats",
+        x: 0, y: 0, w: 1200, h: 160,
+        stats: [
+          { id: "1", value: "2.300+", label: "Empresas ativas" },
+          { id: "2", value: "847k+", label: "Contatos organizados" },
+          { id: "3", value: "89%", label: "Aumento em conversão" },
+          { id: "4", value: "200+", label: "Integrações" },
+        ],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 3. MARQUEE — logos de parceiros ──
+      pushAt({
+        type: "marquee",
+        x: 0, y: 0, w: 1200, h: 100,
+        items: [
+          { id: "1", label: "Empresas que confiam na N.A.S.A" },
+          { id: "2", label: "Parceiro 1" },
+          { id: "3", label: "Parceiro 2" },
+          { id: "4", label: "Parceiro 3" },
+          { id: "5", label: "Parceiro 4" },
+          { id: "6", label: "Parceiro 5" },
+        ],
+        speed: 25, gap: 64,
+        bgColor: T.bg, fgColor: T.fg,
+      }),
+
+      // ── 4. FEATURES — Método N.A.S.A.® (4 etapas) ──
+      pushAt({
+        type: "section-features",
+        x: 0, y: 0, w: 1200, h: 460,
+        heading: "O Método N.A.S.A.® — do primeiro contato à entrega",
+        subheading: "4 estágios que organizam o processo inteiro, não só a venda.",
+        features: [
+          { id: "1", icon: "🛰", title: "Necessidade", description: "Preparação. Recebe contatos de qualquer canal num lugar só." },
+          { id: "2", icon: "🔥", title: "Análise", description: "Ignição. Entende quem está pronto pra comprar." },
+          { id: "3", icon: "🚀", title: "Sistematização", description: "Propulsão. Automações empurram o cliente entre etapas." },
+          { id: "4", icon: "🌍", title: "Ação", description: "Em órbita. Proposta assinada, entrega feita, ciclo girando." },
+        ],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 5. FEATURES — Automação (5 estágios fluindo) ──
+      pushAt({
+        type: "section-features",
+        x: 0, y: 0, w: 1200, h: 460,
+        heading: "Um processo que anda sozinho, do começo ao fim.",
+        subheading: "O sistema leva o trabalho de um setor pro outro. Sem ninguém esquecendo.",
+        features: [
+          { id: "1", icon: "📥", title: "Chega", description: "Cliente entra por WhatsApp, Instagram, formulário ou anúncio." },
+          { id: "2", icon: "💬", title: "Avança", description: "Mensagem certa sai na hora certa, sem ninguém lembrar." },
+          { id: "3", icon: "📄", title: "Fecha", description: "Proposta assinada → atendimento recebe com histórico." },
+          { id: "4", icon: "💳", title: "Cobra", description: "Payment gera cobrança e dá baixa sozinho." },
+          { id: "5", icon: "📦", title: "Entrega", description: "NASA Route libera, atendimento segue com tudo." },
+        ],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 6. FEATURES — Apps NASA (destaques dos 14 módulos) ──
+      pushAt({
+        type: "section-features",
+        x: 0, y: 0, w: 1200, h: 460,
+        heading: "Uma plataforma. O processo inteiro, na ordem certa.",
+        subheading: "Cada ferramenta é um passo do mesmo processo, não um app solto.",
+        features: [
+          { id: "1", icon: "📊", title: "Tracking", description: "Caminho do cliente em Kanban com as etapas que vocês usam." },
+          { id: "2", icon: "✨", title: "Astro IA", description: "IA que conhece cada cliente em qualquer etapa." },
+          { id: "3", icon: "🔥", title: "Forge", description: "Propostas, contratos com assinatura, link público." },
+          { id: "4", icon: "💳", title: "Payment", description: "Cobrança multi-gateway com baixa automática." },
+          { id: "5", icon: "🛰", title: "NASA Route", description: "Cursos, trilhas, comunidade pós-venda." },
+          { id: "6", icon: "📈", title: "Insights", description: "Onde o processo trava e quanto cada etapa custa." },
+        ],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 7. CTA — Astro ──
+      pushAt({
+        type: "section-cta",
+        x: 0, y: 0, w: 1200, h: 380,
+        heading: "Conheça o Astro.",
+        headingAccent: "IA que responde pelo seu time.",
+        subtitle: "Conhece o histórico de cada cliente em qualquer etapa e responde mesmo quando você está dormindo.",
+        primaryCta: "Testar o Astro",
+        secondaryCta: "Ver demo",
+        guarantees: ["🧠 Claude + Gemini + GPT", "🇧🇷 Português nativo"],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 8. MARQUEE — integrações ──
+      pushAt({
+        type: "marquee",
+        x: 0, y: 0, w: 1200, h: 80,
+        items: [
+          { id: "1", label: "WhatsApp Business" },
+          { id: "2", label: "Instagram DM" },
+          { id: "3", label: "Telegram" },
+          { id: "4", label: "Meta Ads" },
+          { id: "5", label: "Google Ads" },
+          { id: "6", label: "Stripe" },
+          { id: "7", label: "Asaas" },
+          { id: "8", label: "RD Station" },
+          { id: "9", label: "Pipedrive" },
+          { id: "10", label: "TikTok Ads" },
+        ],
+        speed: 35, gap: 48,
+        bgColor: T.bg, fgColor: T.fg,
+      }),
+
+      // ── 9. DATA-BOUND — leaderboard real do Space Points ──
+      pushAt({
+        type: "data-bound",
+        x: 0, y: 0, w: 1200, h: 360,
+        binding: {
+          source: "space-points-leaderboard",
+          layout: "list",
+          limit: 5,
+        },
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 10. PRICING — planos da NASA ──
+      pushAt({
+        type: "section-pricing",
+        x: 0, y: 0, w: 1200, h: 560,
+        heading: "Planos pra todo time",
+        subheading: "Sem cartão pra começar. Cancele quando quiser.",
+        plans: [
+          { id: "free", name: "Suit", price: "R$ 0", period: "/mês", slogan: "Pra tirar o processo do WhatsApp.", features: ["1 usuário", "CRM completo", "Suporte email"], ctaLabel: "Começar grátis" },
+          { id: "earth", name: "Earth", price: "R$ 197", period: "/mês", slogan: "Pra comercial e atendimento conversando.", features: ["~5 usuários", "1.000★/mês", "Suporte prioritário"], ctaLabel: "Assinar Earth", highlighted: true, badge: "Mais popular" },
+          { id: "explore", name: "Explore", price: "R$ 397", period: "/mês", slogan: "Pra processo entre vários setores.", features: ["~15 usuários", "3.000★/mês", "Astro completo"], ctaLabel: "Assinar Explore" },
+        ],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 11. TESTIMONIALS ──
+      pushAt({
+        type: "section-testimonials",
+        x: 0, y: 0, w: 1200, h: 380,
+        heading: "Quem usa, vê diferença.",
+        testimonials: [
+          { id: "1", quote: "Saí de 7 ferramentas pra uma. Time inteiro agradeceu.", author: "Rafael Lima", role: "Lima Consultoria", avatar: "https://i.pravatar.cc/120?img=11" },
+          { id: "2", quote: "Em 2 meses, dobrei minha conversão.", author: "Mariana F.", role: "Studio MF Design", avatar: "https://i.pravatar.cc/120?img=5" },
+          { id: "3", quote: "A IA conhece cada cliente. Game changer.", author: "Ana Carvalho", role: "AC Imóveis", avatar: "https://i.pravatar.cc/120?img=20" },
+        ],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 12. FAQ ──
+      pushAt({
+        type: "section-faq",
+        x: 0, y: 0, w: 1200, h: 460,
+        heading: "Perguntas frequentes",
+        items: [
+          { id: "1", question: "Preciso de cartão pra começar?", answer: "Não. O plano Suit é gratuito pra sempre." },
+          { id: "2", question: "Como faço a migração?", answer: "Importadores nativos pra RD, Pipedrive, CSV. Acompanhamento na primeira semana incluído." },
+          { id: "3", question: "Posso cancelar a qualquer momento?", answer: "Sim, em 1 clique. Sem multa, sem retenção." },
+          { id: "4", question: "Vou precisar de dev?", answer: "Não pra começar. Setup completo em ~5 minutos." },
+        ],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 13. CTA FINAL ──
+      pushAt({
+        type: "section-cta",
+        x: 0, y: 0, w: 1200, h: 460,
+        heading: "O processo que mais te dói",
+        headingAccent: "pode estar em órbita até sexta-feira.",
+        subtitle: "Sem cartão. Sem trocar tudo às cegas. A gente monta o lançamento com você.",
+        primaryCta: "Começar meu primeiro processo",
+        secondaryCta: "Ver demo ao vivo",
+        guarantees: ["🛡 LGPD", "🌎 Brasil", "⚡ 5 min", "📞 1ª semana acompanhada"],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+    ],
+  };
+}
+
 export const PAGE_TEMPLATES: PageTemplate[] = [
+  {
+    id: "nasa-orbita-landing",
+    name: "Landing NASA Orbita (PR #82)",
+    description:
+      "Réplica da landing institucional do NASA (orbita.nasaex.com). 13 blocos cobrindo a narrativa 'OS do processo': hero, stats, marquee, método, automação, apps, Astro, integrações, leaderboard ao vivo, planos, depoimentos, FAQ, CTA. Mostra na prática 10 dos novos ElementTypes do builder.",
+    intent: "INSTITUTIONAL",
+    category: "Sales",
+    ...nasaOrbitaLanding(),
+  },
   {
     id: "institutional-landing",
     name: "Landing Institucional",
