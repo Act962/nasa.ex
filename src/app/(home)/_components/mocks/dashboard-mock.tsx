@@ -47,7 +47,7 @@ export function DashboardMock() {
   ];
 
   return (
-    <MacWindow title="nasa.ex — Tracking • Pipeline Comercial">
+    <MacWindow title="nasa.ex, Tracking • Pipeline Comercial">
       <div className="flex" style={{ height: 320 }}>
         {/* Sidebar */}
         <div className="w-40 flex flex-col bg-[#080613] border-r border-white/5 py-3 shrink-0">

@@ -39,7 +39,7 @@ export function InsightsAnimatedMock() {
   ];
 
   return (
-    <MacWindow title="NASA Insights — Tráfego Pago">
+    <MacWindow title="NASA Insights, Tráfego Pago">
       <div className="bg-[#0d0a1a] p-4">
         {/* KPI row */}
         <div className="grid grid-cols-4 gap-2 mb-4">

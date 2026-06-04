@@ -76,7 +76,7 @@ export function AstroAnimatedMock() {
   const showProposal = step === "proposal";
 
   return (
-    <MacWindow title="ASTRO — Assistente de IA">
+    <MacWindow title="ASTRO, Assistente de IA">
       <div
         className="p-3 space-y-2 bg-[#0d0a1a] overflow-hidden"
         style={{ minHeight: 320 }}
@@ -149,7 +149,7 @@ export function AstroAnimatedMock() {
           <div className="flex justify-end nasa-pop-in">
             <div className="bg-white/6 border border-white/10 rounded-xl rounded-tr-sm p-3 max-w-[80%]">
               <p className="text-white/60 text-xs">
-                Gera uma proposta para o João — R$2.400/mês
+                Gera uma proposta para o João, R$2.400/mês
               </p>
             </div>
           </div>
@@ -170,11 +170,11 @@ export function AstroAnimatedMock() {
         {showProposal && (
           <div className="bg-[#7C3AED]/10 border border-[#7C3AED]/20 rounded-xl rounded-tl-sm p-3 nasa-pop-in">
             <p className="text-[#a78bfa] text-[10px] font-semibold mb-2">
-              📄 Proposta gerada — pronta para enviar
+              📄 Proposta gerada, pronta para enviar
             </p>
             <div className="bg-black/30 rounded-lg p-2.5 border border-white/8">
               <p className="text-white/70 text-[10px] font-medium mb-1">
-                Proposta Comercial — João Silva
+                Proposta Comercial, João Silva
               </p>
               <p className="text-white/40 text-[9px] leading-relaxed">
                 Plano NASA Explore · 3 usuários · WhatsApp + CRM + Insights

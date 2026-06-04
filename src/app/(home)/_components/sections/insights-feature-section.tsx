@@ -21,12 +21,15 @@ export function InsightsFeatureSection({
               Tráfego pago unificado
             </span>
           </div>
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white mb-5">
-            NASA <span className="text-nasa">Insights</span>
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white mb-5 leading-tight">
+            Onde o processo trava —
+            <br className="hidden sm:inline" />{" "}
+            <span className="text-nasa">e quanto cada etapa custa.</span>
           </h2>
-          <p className="text-white/45 text-xl max-w-2xl mx-auto">
-            Todos os dados do seu tráfego pago em um único painel. Meta, Google,
-            TikTok — tudo integrado ao seu CRM.
+          <p className="text-white/55 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed">
+            Todos os dados do seu investimento em divulgação num painel só.
+            Meta Ads, Google Ads, TikTok Ads, conectados às etapas do seu
+            processo, em tempo real.
           </p>
         </div>
 
@@ -68,19 +71,19 @@ export function InsightsFeatureSection({
                 {[
                   {
                     icon: "📊",
-                    text: "ROAS, CPL, CPC, impressões e conversões por canal em tempo real",
+                    text: "Retorno do que você investiu, quanto cada cliente custou, impressões e cliques por canal, em tempo real",
                   },
                   {
                     icon: "🎯",
-                    text: "Atribua cada lead ao anúncio que o gerou — funil completo",
+                    text: "Cada cliente atribuído ao anúncio que o gerou, com o caminho completo da venda",
                   },
                   {
                     icon: "🤖",
-                    text: "ASTRO analisa os dados e sugere onde investir mais orçamento",
+                    text: "Astro analisa os dados e sugere onde investir mais",
                   },
                   {
                     icon: "🔁",
-                    text: "Dados fluem direto para o pipeline — nenhum lead se perde",
+                    text: "Dados entram direto nas etapas, nenhum contato se perde",
                   },
                   {
                     icon: "📈",
@@ -107,13 +110,13 @@ export function InsightsFeatureSection({
               <div className="grid grid-cols-2 gap-3 mb-8">
                 {[
                   {
-                    label: "Redução de CPL",
+                    label: "Redução no custo por cliente",
                     value: "até 40%",
                     color: "text-emerald-400",
                     bg: "bg-emerald-400/8 border-emerald-400/20",
                   },
                   {
-                    label: "ROAS médio",
+                    label: "Retorno médio do investido",
                     value: "3.8×",
                     color: "text-[#a78bfa]",
                     bg: "bg-[#7C3AED]/10 border-[#7C3AED]/20",

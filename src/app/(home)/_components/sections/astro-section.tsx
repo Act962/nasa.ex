@@ -18,11 +18,13 @@ export function AstroSection() {
             </span>
           </div>
           <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white mb-5">
-            Conheça o <span className="text-nasa">ASTRO</span>
+            Conheça o <span className="text-nasa">Astro</span>.
           </h2>
-          <p className="text-white/45 text-xl max-w-2xl mx-auto">
-            A maior IA de vendas do Brasil — une os melhores modelos do mundo em
-            um único assistente nativo.
+          <p className="text-white/55 text-lg sm:text-xl max-w-3xl mx-auto leading-relaxed">
+            A inteligência artificial do NASA, treinada pra informar, preparar o
+            atendimento e quebrar objeções. Ela conhece o histórico de cada
+            cliente em qualquer etapa, e responde pelo seu time mesmo quando
+            você está dormindo.
           </p>
         </div>
 
@@ -60,15 +62,15 @@ export function AstroSection() {
                 {[
                   {
                     icon: "🎙️",
-                    text: "Envia áudio e o ASTRO entende, cria agenda e proposta automaticamente",
+                    text: "Recebe áudio, entende a intenção, cria agenda e proposta no fluxo",
                   },
                   {
                     icon: "📄",
-                    text: "Gera propostas comerciais personalizadas em segundos",
+                    text: "Monta propostas comerciais com o histórico do cliente em segundos",
                   },
                   {
                     icon: "📅",
-                    text: "Agenda reuniões e follow-ups direto no calendário",
+                    text: "Agenda reuniões e marca os retornos direto no calendário",
                   },
                   {
                     icon: "🔌",
@@ -80,7 +82,7 @@ export function AstroSection() {
                   },
                   {
                     icon: "📊",
-                    text: "Sugere ações baseadas nos seus dados reais de pipeline",
+                    text: "Sugere o próximo passo com base no que está acontecendo agora",
                   },
                 ].map((item) => (
                   <li
@@ -100,7 +102,7 @@ export function AstroSection() {
                 className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-7 py-5 rounded-xl card-hover nasa-glow-sm"
               >
                 <Link href="/sign-up">
-                  Testar o ASTRO grátis
+                  Testar o Astro
                   <ArrowRight className="size-4 ml-2" />
                 </Link>
               </Button>
