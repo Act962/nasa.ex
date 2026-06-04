@@ -435,11 +435,116 @@ function EmbedProps({ el, update }: { el: ElementBase; update: (p: Partial<Eleme
   );
 }
 
+// ─── LogoUploader (helper compartilhado entre Navbar e Footer) ──────────────
+//
+// Renderiza um uploader de imagem completo: botão "Fazer upload" que
+// abre file picker → POST em /api/upload-local → seta o `logoSrc`.
+// Mostra preview da imagem atual e botão pra remover.
+//
+// Reusa a mesma rota usada pelo ImageProps — já validada em produção.
+
+function LogoUploader({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const res = await fetch("/api/upload-local", {
+        method: "POST",
+        body: form,
+      });
+      const { url } = await res.json();
+      update({ logoSrc: url });
+      toast.success("Logo carregada");
+    } catch {
+      toast.error("Falha no upload");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const logoSrc = (el.logoSrc as string) ?? "";
+
+  return (
+    <>
+      <Label className="text-[10px] text-muted-foreground">
+        Logo (imagem)
+      </Label>
+
+      {/* Botão de upload + preview */}
+      <div className="flex gap-2 mt-1">
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1 text-xs h-8"
+          disabled={uploading}
+          onClick={() => fileRef.current?.click()}
+        >
+          {uploading ? "Carregando…" : logoSrc ? "Trocar imagem" : "Fazer upload"}
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,.svg"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleUpload(f);
+          }}
+        />
+        {logoSrc && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-8"
+            onClick={() => update({ logoSrc: "" })}
+            title="Remover imagem"
+          >
+            <Trash2 className="size-3.5 text-destructive" />
+          </Button>
+        )}
+      </div>
+
+      {/* Preview */}
+      {logoSrc && (
+        <div className="mt-2 rounded-md border bg-muted/30 p-2 flex items-center justify-center" style={{ height: 64 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logoSrc}
+            alt="Preview da logo"
+            className="max-h-full max-w-full object-contain"
+          />
+        </div>
+      )}
+
+      {/* URL manual (alternativa) */}
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        ou cola a URL diretamente
+      </Label>
+      <Input
+        value={logoSrc}
+        onChange={(e) => update({ logoSrc: e.target.value })}
+        placeholder="https://meusite.com/logo.png"
+        className="text-xs font-mono"
+      />
+    </>
+  );
+}
+
 // ─── Navbar (section-navbar) ────────────────────────────────────────────────
 //
 // Editor dedicado pro section-navbar. Permite trocar logo (texto ou
-// imagem), editar links com âncoras, configurar destinos dos CTAs e
-// ajustar cores via tokens.
+// imagem via upload), editar links com âncoras, configurar destinos
+// dos CTAs e ajustar cores via tokens.
 
 function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<ElementBase>) => void }) {
   type NavLink = { id: string; label: string; href: string };
@@ -468,17 +573,9 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
         Logo
       </p>
-      <Label className="text-[10px] text-muted-foreground">
-        URL da imagem (deixa vazio pra mostrar texto)
-      </Label>
-      <Input
-        value={(el.logoSrc as string) ?? ""}
-        onChange={(e) => update({ logoSrc: e.target.value })}
-        placeholder="https://meusite.com/logo.png"
-        className="text-xs"
-      />
-      <Label className="text-[10px] text-muted-foreground mt-2">
-        Texto da logo (fallback)
+      <LogoUploader el={el} update={update} />
+      <Label className="text-[10px] text-muted-foreground mt-3">
+        Texto da logo (fallback, mostra se a imagem estiver vazia)
       </Label>
       <Input
         value={(el.logoText as string) ?? ""}
@@ -596,14 +693,8 @@ function FooterProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
         Logo do rodapé
       </p>
-      <Label className="text-[10px] text-muted-foreground">URL da imagem</Label>
-      <Input
-        value={(el.logoSrc as string) ?? ""}
-        onChange={(e) => update({ logoSrc: e.target.value })}
-        placeholder="https://..."
-        className="text-xs"
-      />
-      <Label className="text-[10px] text-muted-foreground mt-2">Texto (fallback)</Label>
+      <LogoUploader el={el} update={update} />
+      <Label className="text-[10px] text-muted-foreground mt-3">Texto (fallback)</Label>
       <Input
         value={(el.logoText as string) ?? ""}
         onChange={(e) => update({ logoText: e.target.value })}
@@ -664,6 +755,86 @@ function FooterProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
   );
 }
 
+// ─── Hero image uploader (mesmo padrão do LogoUploader mas pro field
+//      `imageUrl` do section-hero) ────────────────────────────────────────────
+function HeroImageUploader({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const res = await fetch("/api/upload-local", { method: "POST", body: form });
+      const { url } = await res.json();
+      update({ imageUrl: url });
+      toast.success("Imagem do hero carregada");
+    } catch {
+      toast.error("Falha no upload");
+    } finally {
+      setUploading(false);
+    }
+  };
+  const imageUrl = (el.imageUrl as string) ?? "";
+  return (
+    <>
+      <div className="flex gap-2 mt-1">
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1 text-xs h-8"
+          disabled={uploading}
+          onClick={() => fileRef.current?.click()}
+        >
+          {uploading ? "Carregando…" : imageUrl ? "Trocar imagem" : "Fazer upload"}
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleUpload(f);
+          }}
+        />
+        {imageUrl && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-8"
+            onClick={() => update({ imageUrl: "" })}
+            title="Remover"
+          >
+            <Trash2 className="size-3.5 text-destructive" />
+          </Button>
+        )}
+      </div>
+      {imageUrl && (
+        <div className="mt-2 rounded-md overflow-hidden border" style={{ height: 80 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+        </div>
+      )}
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        ou cola a URL
+      </Label>
+      <Input
+        value={imageUrl}
+        onChange={(e) => update({ imageUrl: e.target.value })}
+        placeholder="https://..."
+        className="text-xs font-mono"
+      />
+    </>
+  );
+}
+
 // ─── Hero (section-hero) ────────────────────────────────────────────────────
 
 function HeroProps({ el, update }: { el: ElementBase; update: (p: Partial<ElementBase>) => void }) {
@@ -701,13 +872,10 @@ function HeroProps({ el, update }: { el: ElementBase; update: (p: Partial<Elemen
         onChange={(e) => update({ subtitle: e.target.value })}
         className="text-xs"
       />
-      <Label className="text-[10px] text-muted-foreground mt-2">Imagem (URL)</Label>
-      <Input
-        value={(el.imageUrl as string) ?? ""}
-        onChange={(e) => update({ imageUrl: e.target.value })}
-        placeholder="https://..."
-        className="text-xs"
-      />
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        Imagem do Hero
+      </Label>
+      <HeroImageUploader el={el} update={update} />
 
       <Seg />
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
