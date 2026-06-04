@@ -21,7 +21,13 @@ export function SectionHero({ element, tokens }: SectionRendererProps) {
     "Uma frase clara que explica em 1 segundo o que sua empresa faz.";
   const primaryCta = (element.primaryCta as string) ?? "Começar agora";
   const secondaryCta = (element.secondaryCta as string) ?? "Ver demo";
+  // Hrefs configuráveis — aceita âncoras (#), URLs externas, mailto
+  const primaryCtaHref = (element.primaryCtaHref as string) ?? "#";
+  const secondaryCtaHref = (element.secondaryCtaHref as string) ?? "#";
   const imageUrl = (element.imageUrl as string) ?? "";
+  // `anchorId` permite linkar pra essa section via "#<id>" em outros
+  // CTAs / navbar. Default: gera a partir do tipo do bloco.
+  const anchorId = (element.anchorId as string) ?? undefined;
 
   const primary = primaryColor(element, tokens);
   const bg = bgColor(element, tokens);
@@ -30,7 +36,8 @@ export function SectionHero({ element, tokens }: SectionRendererProps) {
 
   return (
     <section
-      className="w-full px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-28 flex flex-col items-center text-center gap-5 sm:gap-6 overflow-hidden"
+      id={anchorId}
+      className="w-full px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-28 flex flex-col items-center text-center gap-5 sm:gap-6 overflow-hidden scroll-mt-20"
       style={{ background: bg, color: fg }}
     >
       {/* Badge */}
@@ -63,20 +70,23 @@ export function SectionHero({ element, tokens }: SectionRendererProps) {
         {subtitle}
       </p>
 
-      {/* CTAs - empilha em mobile, lado-a-lado em sm+ */}
+      {/* CTAs - empilha em mobile, lado-a-lado em sm+. Aceitam
+          href configurável: âncora (#section), URL externa, mailto. */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 mt-2 w-full sm:w-auto">
-        <button
-          className="text-sm font-bold px-7 py-3 sm:py-3.5 rounded-xl transition-opacity hover:opacity-90"
-          style={{ background: primary, color: "#fff" }}
+        <a
+          href={primaryCtaHref}
+          className="text-sm font-bold px-7 py-3 sm:py-3.5 rounded-xl transition-opacity hover:opacity-90 inline-flex items-center justify-center"
+          style={{ background: primary, color: "#fff", textDecoration: "none" }}
         >
           {primaryCta}
-        </button>
-        <button
-          className="text-sm font-semibold px-7 py-3 sm:py-3.5 rounded-xl transition-colors hover:bg-white/5 border"
-          style={{ color: fg, borderColor: `${fg}30` }}
+        </a>
+        <a
+          href={secondaryCtaHref}
+          className="text-sm font-semibold px-7 py-3 sm:py-3.5 rounded-xl transition-colors hover:bg-white/5 border inline-flex items-center justify-center"
+          style={{ color: fg, borderColor: `${fg}30`, textDecoration: "none" }}
         >
           {secondaryCta}
-        </button>
+        </a>
       </div>
 
       {/* Imagem opcional */}

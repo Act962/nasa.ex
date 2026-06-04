@@ -15,6 +15,7 @@ interface NavLink {
 export function SectionNavbar({ element, tokens }: SectionRendererProps) {
   const logoSrc = (element.logoSrc as string) ?? "";
   const logoText = (element.logoText as string) ?? "N.A.S.A";
+  const logoHref = (element.logoHref as string) ?? "#top";
   const links =
     (element.links as NavLink[] | undefined) ?? [
       { id: "1", label: "Planos", href: "#planos" },
@@ -23,6 +24,12 @@ export function SectionNavbar({ element, tokens }: SectionRendererProps) {
     ];
   const primaryCta = (element.primaryCta as string) ?? "Começar grátis";
   const secondaryCta = (element.secondaryCta as string) ?? "Entrar";
+  // Hrefs configuráveis dos CTAs. Aceitam:
+  //   - URL absoluta: "https://..."
+  //   - Âncora interna: "#planos" (rola pra section com id="planos")
+  //   - mailto/tel: "mailto:..." / "tel:..."
+  const primaryCtaHref = (element.primaryCtaHref as string) ?? "#";
+  const secondaryCtaHref = (element.secondaryCtaHref as string) ?? "#";
 
   const primary = primaryColor(element, tokens);
   const bg = bgColor(element, tokens);
@@ -39,8 +46,8 @@ export function SectionNavbar({ element, tokens }: SectionRendererProps) {
       }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
-        {/* Logo */}
-        <a href="#top" className="flex items-center gap-2 shrink-0">
+        {/* Logo — clicável volta pro topo (ou pra URL custom) */}
+        <a href={logoHref} className="flex items-center gap-2 shrink-0">
           {logoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -72,20 +79,23 @@ export function SectionNavbar({ element, tokens }: SectionRendererProps) {
           ))}
         </nav>
 
-        {/* CTAs - secundário hidden em mobile, primário sempre visível */}
+        {/* CTAs - secundário hidden em mobile, primário sempre visível.
+            Renderizados como <a> pra suportar ancoras e URL externas. */}
         <div className="flex items-center gap-2 shrink-0">
-          <button
+          <a
+            href={secondaryCtaHref}
             className="hidden sm:inline-flex text-sm font-medium px-3 py-1.5 rounded-lg transition-colors hover:bg-white/5"
-            style={{ color: muted }}
+            style={{ color: muted, textDecoration: "none" }}
           >
             {secondaryCta}
-          </button>
-          <button
+          </a>
+          <a
+            href={primaryCtaHref}
             className="text-xs sm:text-sm font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all hover:opacity-90"
-            style={{ background: primary, color: "#fff" }}
+            style={{ background: primary, color: "#fff", textDecoration: "none" }}
           >
             {primaryCta}
-          </button>
+          </a>
         </div>
       </div>
     </header>

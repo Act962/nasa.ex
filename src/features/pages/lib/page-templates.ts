@@ -412,13 +412,17 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
         type: "section-navbar",
         x: 0, y: 0, w: 1200, h: 80,
         logoText: "N.A.S.A",
+        logoSrc: "",  // ← Edita aqui pra trocar pela URL da sua logo
+        logoHref: "#top",
         links: [
           { id: "1", label: "Planos", href: "#planos" },
           { id: "2", label: "O que é NASA?", href: "#o-que-e-nasa" },
           { id: "3", label: "Como funciona", href: "#como-funciona" },
         ],
         primaryCta: "Começar grátis",
+        primaryCtaHref: "#cta-final",  // ← scroll pro CTA final
         secondaryCta: "Entrar",
+        secondaryCtaHref: "/sign-in",
         bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
       }),
 
@@ -466,9 +470,11 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
       }),
 
       // ── 4. FEATURES — Método N.A.S.A.® (4 etapas) ──
+      // Âncora #o-que-e-nasa configurada pra linkar pela navbar.
       pushAt({
         type: "section-features",
         x: 0, y: 0, w: 1200, h: 460,
+        anchorId: "o-que-e-nasa",
         heading: "O Método N.A.S.A.® — do primeiro contato à entrega",
         subheading: "4 estágios que organizam o processo inteiro, não só a venda.",
         features: [
@@ -497,9 +503,11 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
       }),
 
       // ── 6. FEATURES — Apps NASA (destaques dos 14 módulos) ──
+      // Âncora #como-funciona configurada pra linkar pela navbar.
       pushAt({
         type: "section-features",
         x: 0, y: 0, w: 1200, h: 460,
+        anchorId: "como-funciona",
         heading: "Uma plataforma. O processo inteiro, na ordem certa.",
         subheading: "Cada ferramenta é um passo do mesmo processo, não um app solto.",
         features: [
@@ -559,9 +567,11 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
       }),
 
       // ── 10. PRICING — planos da NASA ──
+      // Âncora #planos configurada pra linkar pela navbar.
       pushAt({
         type: "section-pricing",
         x: 0, y: 0, w: 1200, h: 560,
+        anchorId: "planos",
         heading: "Planos pra todo time",
         subheading: "Sem cartão pra começar. Cancele quando quiser.",
         plans: [
@@ -600,14 +610,18 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
       }),
 
       // ── 13. CTA FINAL ──
+      // Âncora #cta-final — destino do CTA primário da navbar.
       pushAt({
         type: "section-cta",
         x: 0, y: 0, w: 1200, h: 460,
+        anchorId: "cta-final",
         heading: "O processo que mais te dói",
         headingAccent: "pode estar em órbita até sexta-feira.",
         subtitle: "Sem cartão. Sem trocar tudo às cegas. A gente monta o lançamento com você.",
         primaryCta: "Começar meu primeiro processo",
+        primaryCtaHref: "/sign-up",
         secondaryCta: "Ver demo ao vivo",
+        secondaryCtaHref: "#",
         guarantees: ["🛡 LGPD", "🌎 Brasil", "⚡ 5 min", "📞 1ª semana acompanhada"],
         bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
       }),

@@ -18,6 +18,9 @@ export function SectionCta({ element, tokens }: SectionRendererProps) {
     "Sem cartão, sem contrato. Comece num clique e cancele quando quiser.";
   const primaryCta = (element.primaryCta as string) ?? "Começar agora";
   const secondaryCta = (element.secondaryCta as string) ?? "Falar com vendas";
+  const primaryCtaHref = (element.primaryCtaHref as string) ?? "#";
+  const secondaryCtaHref = (element.secondaryCtaHref as string) ?? "#";
+  const anchorId = (element.anchorId as string) ?? undefined;
   const guarantees =
     (element.guarantees as string[] | undefined) ?? [
       "🛡 LGPD Compliant",
@@ -32,7 +35,8 @@ export function SectionCta({ element, tokens }: SectionRendererProps) {
 
   return (
     <section
-      className="relative w-full px-4 sm:px-6 lg:px-8 py-14 sm:py-20 md:py-24 text-center overflow-hidden"
+      id={anchorId}
+      className="relative w-full px-4 sm:px-6 lg:px-8 py-14 sm:py-20 md:py-24 text-center overflow-hidden scroll-mt-20"
       style={{ background: bg, color: fg }}
     >
       {/* Glow */}
@@ -56,18 +60,20 @@ export function SectionCta({ element, tokens }: SectionRendererProps) {
         </p>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 mt-2">
-          <button
-            className="text-sm font-extrabold px-8 py-3.5 sm:py-4 rounded-xl transition-opacity hover:opacity-90"
-            style={{ background: primary, color: "#fff", boxShadow: `0 0 40px ${primary}50` }}
+          <a
+            href={primaryCtaHref}
+            className="text-sm font-extrabold px-8 py-3.5 sm:py-4 rounded-xl transition-opacity hover:opacity-90 inline-flex items-center justify-center"
+            style={{ background: primary, color: "#fff", boxShadow: `0 0 40px ${primary}50`, textDecoration: "none" }}
           >
             {primaryCta}
-          </button>
-          <button
-            className="text-sm font-semibold px-8 py-3.5 sm:py-4 rounded-xl transition-colors hover:bg-white/5 border"
-            style={{ color: fg, borderColor: `${fg}30` }}
+          </a>
+          <a
+            href={secondaryCtaHref}
+            className="text-sm font-semibold px-8 py-3.5 sm:py-4 rounded-xl transition-colors hover:bg-white/5 border inline-flex items-center justify-center"
+            style={{ color: fg, borderColor: `${fg}30`, textDecoration: "none" }}
           >
             {secondaryCta}
-          </button>
+          </a>
         </div>
 
         {/* Selos */}

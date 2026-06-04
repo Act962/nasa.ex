@@ -284,15 +284,18 @@ const DEFAULTS: Record<ElementType, (palette: Record<string, string>) => Omit<El
   "section-navbar": (p) => ({
     type: "section-navbar",
     x: 0, y: 0, w: 1200, h: 80,
-    logoSrc: "",
-    logoText: "N.A.S.A",
+    logoSrc: "",            // ← URL da imagem (vazio = mostra logoText)
+    logoText: "N.A.S.A",    // ← Texto fallback se logoSrc vazio
+    logoHref: "#top",       // ← Destino do click na logo
     links: [
       { id: "1", label: "Planos", href: "#planos" },
       { id: "2", label: "O que é NASA?", href: "#o-que-e-nasa" },
       { id: "3", label: "Como funciona", href: "#como-funciona" },
     ],
     primaryCta: "Começar grátis",
+    primaryCtaHref: "#",
     secondaryCta: "Entrar",
+    secondaryCtaHref: "#",
     bgColor: p.bg ?? "#0f172a",
     fgColor: p.fg ?? "#f8fafc",
     primaryColor: p.primary ?? "#7C3AED",

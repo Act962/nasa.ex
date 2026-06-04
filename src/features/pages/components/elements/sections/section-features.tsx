@@ -26,10 +26,12 @@ export function SectionFeatures({ element, tokens }: SectionRendererProps) {
   const bg = bgColor(element, tokens);
   const fg = fgColor(element, tokens);
   const muted = mutedColor(element, tokens);
+  const anchorId = (element.anchorId as string) ?? undefined;
 
   return (
     <section
-      className="w-full px-4 sm:px-6 lg:px-8 py-14 sm:py-20"
+      id={anchorId}
+      className="w-full px-4 sm:px-6 lg:px-8 py-14 sm:py-20 scroll-mt-20"
       style={{ background: bg, color: fg }}
     >
       <div className="max-w-7xl mx-auto flex flex-col gap-8 sm:gap-10">
