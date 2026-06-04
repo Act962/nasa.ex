@@ -23,14 +23,54 @@ import { NerpShell } from "../../../../features/nerp/components/nerp-shell";
 import { useNerpConnection } from "@/features/nerp/hooks/use-nerp-connection";
 
 const DOMAINS = [
-  { href: "/nerp/dashboard", label: "Dashboard", desc: "Métricas e overview", icon: LayoutDashboard },
-  { href: "/nerp/org", label: "Organização", desc: "Dados da org nerp", icon: Building2 },
-  { href: "/nerp/products", label: "Produtos", desc: "CRUD de catálogo", icon: Package },
-  { href: "/nerp/categories", label: "Categorias", desc: "Hierarquia de produtos", icon: Tags },
-  { href: "/nerp/catalog-settings", label: "Catálogo", desc: "Configurações gerais", icon: Settings2 },
-  { href: "/nerp/stocks", label: "Estoque", desc: "Movimentações", icon: Boxes },
-  { href: "/nerp/customer", label: "Clientes", desc: "CRUD de clientes", icon: Users },
-  { href: "/nerp/sales", label: "Vendas", desc: "Listar e criar", icon: Receipt },
+  {
+    href: "/nerp/dashboard",
+    label: "Dashboard",
+    desc: "Métricas e overview",
+    icon: LayoutDashboard,
+  },
+  {
+    href: "/nerp/org",
+    label: "Organização",
+    desc: "Dados da org nerp",
+    icon: Building2,
+  },
+  {
+    href: "/nerp/products",
+    label: "Produtos",
+    desc: "CRUD de catálogo",
+    icon: Package,
+  },
+  {
+    href: "/nerp/categories",
+    label: "Categorias",
+    desc: "Hierarquia de produtos",
+    icon: Tags,
+  },
+  {
+    href: "/nerp/catalog-settings",
+    label: "Catálogo",
+    desc: "Configurações gerais",
+    icon: Settings2,
+  },
+  {
+    href: "/nerp/stocks",
+    label: "Estoque",
+    desc: "Movimentações",
+    icon: Boxes,
+  },
+  {
+    href: "/nerp/customer",
+    label: "Clientes",
+    desc: "CRUD de clientes",
+    icon: Users,
+  },
+  {
+    href: "/nerp/sales",
+    label: "Vendas",
+    desc: "Listar e criar",
+    icon: Receipt,
+  },
 ];
 
 export default function NerpHubPage() {
@@ -53,7 +93,9 @@ export default function NerpHubPage() {
                         <Icon className="size-4" />
                         {label}
                       </CardTitle>
-                      <CardDescription className="text-xs">{desc}</CardDescription>
+                      <CardDescription className="text-xs">
+                        {desc}
+                      </CardDescription>
                     </CardHeader>
                   </Card>
                 </Link>
@@ -64,7 +106,8 @@ export default function NerpHubPage() {
               <CardHeader>
                 <CardTitle>Conecte primeiro</CardTitle>
                 <CardDescription>
-                  Após conectar, os domínios do nerp aparecem aqui pra navegação.
+                  Após conectar, os domínios do nerp aparecem aqui pra
+                  navegação.
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
