@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,10 +14,14 @@ import {
   Eye,
   Layers,
   Globe,
+  Check,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { usePagesBuilderStore } from "../../context/pages-builder-store";
 import { useState } from "react";
 import { PublishDialog } from "../publish-dialog/publish-dialog";
+import type { SaveStatus } from "./builder";
 
 interface Props {
   page: {
@@ -29,9 +34,20 @@ interface Props {
   };
   onPublish: () => void;
   publishing: boolean;
+  saveStatus: SaveStatus;
+  // Flush manual do autosave. Aguarda concluir antes de
+  // navegar/abrir preview. Resolve race condition autosave→navega.
+  flushSave: () => Promise<void>;
 }
 
-export function BuilderTopbar({ page, onPublish, publishing }: Props) {
+export function BuilderTopbar({
+  page,
+  onPublish,
+  publishing,
+  saveStatus,
+  flushSave,
+}: Props) {
+  const router = useRouter();
   const undo = usePagesBuilderStore((s) => s.undo);
   const redo = usePagesBuilderStore((s) => s.redo);
   const canUndo = usePagesBuilderStore((s) => s.canUndo());
@@ -40,14 +56,35 @@ export function BuilderTopbar({ page, onPublish, publishing }: Props) {
   const setActiveLayer = usePagesBuilderStore((s) => s.setActiveLayer);
   const [publishOpen, setPublishOpen] = useState(false);
 
+  // Antes de navegar pra outra rota (Voltar, Prévia, Ver publicado),
+  // flush autosave pra garantir que o user vê as últimas mudanças.
+  const navigateAfterSave = async (
+    href: string,
+    opts?: { newTab?: boolean },
+  ) => {
+    try {
+      await flushSave();
+    } catch {
+      // Mesmo se falhar, deixa navegar — o aviso já apareceu via toast
+    }
+    if (opts?.newTab) {
+      window.open(href, "_blank", "noreferrer");
+    } else {
+      router.push(href);
+    }
+  };
+
   return (
     <>
       <header className="h-14 border-b bg-card px-3 flex items-center gap-2 shrink-0">
-        <Button asChild size="sm" variant="ghost" className="gap-1">
-          <Link href="/pages">
-            <ArrowLeft className="size-4" />
-            Voltar
-          </Link>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="gap-1"
+          onClick={() => navigateAfterSave("/pages")}
+        >
+          <ArrowLeft className="size-4" />
+          Voltar
         </Button>
         <div className="h-5 w-px bg-border mx-1" />
         <div className="min-w-0 flex flex-col">
@@ -92,24 +129,68 @@ export function BuilderTopbar({ page, onPublish, publishing }: Props) {
 
         <div className="flex-1" />
 
-        <Badge variant={page.status === "PUBLISHED" ? "default" : "secondary"}>
+        {/* Indicador de autosave — feedback claro do estado da gravação.
+            "Salvando…" durante save, ✓ "Salvo" quando ok, ⚠ "Falha"
+            quando rejected, • "Mudanças não salvas" quando dirty mas
+            ainda no debounce. */}
+        <div className="flex items-center gap-1.5 text-xs">
+          {saveStatus === "saving" && (
+            <>
+              <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+              <span className="text-muted-foreground">Salvando…</span>
+            </>
+          )}
+          {saveStatus === "saved" && (
+            <>
+              <Check className="size-3.5 text-emerald-600" />
+              <span className="text-emerald-700">Salvo</span>
+            </>
+          )}
+          {saveStatus === "dirty" && (
+            <>
+              <span className="size-1.5 rounded-full bg-amber-500" />
+              <span className="text-muted-foreground">Mudanças pendentes…</span>
+            </>
+          )}
+          {saveStatus === "error" && (
+            <>
+              <AlertCircle className="size-3.5 text-destructive" />
+              <span className="text-destructive">Falha ao salvar</span>
+            </>
+          )}
+        </div>
+
+        <Badge
+          variant={page.status === "PUBLISHED" ? "default" : "secondary"}
+          className="ml-1"
+        >
           <Save className="size-3 mr-1" />
           {page.status === "PUBLISHED" ? "Publicado" : "Rascunho"}
         </Badge>
 
-        <Button asChild size="sm" variant="outline" className="gap-1">
-          <a href={`/pages/${page.id}/preview`} target="_blank" rel="noreferrer">
-            <Eye className="size-3.5" />
-            Prévia
-          </a>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1"
+          onClick={() =>
+            navigateAfterSave(`/pages/${page.id}/preview`, { newTab: true })
+          }
+        >
+          <Eye className="size-3.5" />
+          Prévia
         </Button>
 
         {page.status === "PUBLISHED" && (
-          <Button asChild size="sm" variant="outline" className="gap-1">
-            <a href={`/s/${page.slug}`} target="_blank" rel="noreferrer">
-              <ExternalLink className="size-3.5" />
-              Ver
-            </a>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            onClick={() =>
+              navigateAfterSave(`/s/${page.slug}`, { newTab: true })
+            }
+          >
+            <ExternalLink className="size-3.5" />
+            Ver
           </Button>
         )}
 

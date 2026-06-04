@@ -7,8 +7,12 @@ import {
   Star as StarIcon, Shapes, SquareStack, LayoutTemplate,
   Settings2,
 } from "lucide-react";
-import { usePagesBuilderStore } from "../../context/pages-builder-store";
+import {
+  usePagesBuilderStore,
+  getActiveLayerElements,
+} from "../../context/pages-builder-store";
 import { createElement } from "../../lib/element-factory";
+import { computeInsertPosition } from "../../lib/insert-position";
 import type { ElementType } from "../../types";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -113,14 +117,59 @@ export function BuilderSidebar() {
   const layout = usePagesBuilderStore((s) => s.layout);
   const selected = usePagesBuilderStore((s) => s.selected);
 
+  // Posiciona o elemento no centro da viewport visível (pra free
+  // elements) ou no fim da pilha (pra flow sections). Antes ficavam
+  // todos em x:0 y:0 — apareciam atrás dos blocos, "sumindo".
   const handleAdd = (t: ElementType) => {
-    addElement(createElement(t, {}));
+    const lay = usePagesBuilderStore.getState().layout;
+    const layer = usePagesBuilderStore.getState().activeLayer;
+    const zoom = usePagesBuilderStore.getState().zoom;
+    const base = createElement(t, {});
+    if (!lay) {
+      addElement(base);
+      return;
+    }
+    const existing = getActiveLayerElements(lay, layer);
+    const pos = computeInsertPosition({
+      type: t,
+      w: base.w,
+      h: base.h,
+      existingElements: existing,
+      zoom,
+      artboardWidth: lay.artboard.width ?? 1440,
+    });
+    addElement({ ...base, x: pos.x, y: pos.y });
   };
 
+  // Blocos pré-feitos (heros completos com text+button+shape juntos)
+  // — sobe TODOS pro fim da pilha mantendo a relação interna entre os
+  // elementos do bloco (offsets relativos preservados).
   const handleBlock = (block: (typeof BLOCKS)[number]) => {
     const { nanoid } = require("nanoid");
-    block.elements().forEach((el) => {
-      addElement({ ...el, id: `el_${nanoid(10)}` } as never);
+    const lay = usePagesBuilderStore.getState().layout;
+    const layer = usePagesBuilderStore.getState().activeLayer;
+    const els = block.elements();
+    if (!lay || els.length === 0) {
+      els.forEach((el) =>
+        addElement({ ...el, id: `el_${nanoid(10)}` } as never),
+      );
+      return;
+    }
+    const existing = getActiveLayerElements(lay, layer);
+    // y mínimo do bloco (offset interno) — todos os elementos vão
+    // ser deslocados por esse offset pra ficar no topo, depois +
+    // bottom da pilha existente.
+    const minY = Math.min(...els.map((e) => e.y));
+    const stackBottom = existing.reduce(
+      (m, e) => Math.max(m, e.y + e.h),
+      0,
+    );
+    els.forEach((el) => {
+      addElement({
+        ...el,
+        id: `el_${nanoid(10)}`,
+        y: el.y - minY + stackBottom,
+      } as never);
     });
   };
 
@@ -225,8 +274,32 @@ export function BuilderSidebar() {
         )}
 
         {/* ─── Properties panel embutido ─────────────────────────────── */}
-        {selected.length > 0 && (
+        {selected.length > 0 ? (
           <PropertiesPanelContent />
+        ) : (
+          // Empty state educativo — mostra DESTACADO quando nada está
+          // selecionado. Usuário tá confuso: "criou só uma imagem
+          // fixa?". Não é fixa — cada bloco é editável. Esse hint
+          // resolve a falha de discoverability.
+          <div className="mt-2 mx-2 mb-3 rounded-lg border-2 border-dashed border-indigo-300 bg-gradient-to-br from-indigo-50 to-violet-50 p-4 text-center">
+            <div className="text-2xl mb-1.5">👆</div>
+            <p className="text-xs font-semibold text-indigo-900 leading-tight mb-1.5">
+              Clique em qualquer bloco no canvas
+            </p>
+            <p className="text-[11px] text-indigo-700/80 leading-relaxed">
+              Cada seção (hero, navbar, features, footer…) é{" "}
+              <strong>editável</strong>. Quando você clica, este painel
+              mostra todos os campos: <em>título, subtítulo, textos,
+              imagens, botões, links, cores</em> — tudo dá pra trocar.
+            </p>
+            <div className="mt-2.5 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1 rounded-full bg-white border px-2 py-0.5">
+                <span className="size-1.5 rounded-full bg-indigo-500" />
+                Dica
+              </span>
+              <span>arrasta também pra mover</span>
+            </div>
+          </div>
         )}
       </div>
     </aside>

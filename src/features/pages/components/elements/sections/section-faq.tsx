@@ -24,6 +24,9 @@ const DEFAULT_FAQ: FaqItem[] = [
 export function SectionFaq({ element, tokens }: SectionRendererProps) {
   const heading = (element.heading as string) ?? "Perguntas frequentes";
   const items = (element.items as FaqItem[] | undefined) ?? DEFAULT_FAQ;
+  // `anchorId` permite navbar/botões linkarem aqui via #faq.
+  // Antes esse campo era escrito pelo editor mas ignorado.
+  const anchorId = (element.anchorId as string) ?? undefined;
 
   const primary = primaryColor(element, tokens);
   const bg = bgColor(element, tokens);
@@ -32,7 +35,8 @@ export function SectionFaq({ element, tokens }: SectionRendererProps) {
 
   return (
     <section
-      className="w-full px-4 sm:px-6 lg:px-8 py-14 sm:py-20"
+      id={anchorId}
+      className="w-full px-4 sm:px-6 lg:px-8 py-14 sm:py-20 scroll-mt-20"
       style={{ background: bg, color: fg }}
     >
       <div className="max-w-3xl mx-auto flex flex-col gap-8">

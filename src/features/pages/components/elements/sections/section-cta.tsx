@@ -1,6 +1,12 @@
 /**
  * Section CTA — bloco final de conversão, responsivo.
+ *
+ * **Botões variáveis** — aceita `buttons: SectionButton[]` (N botões
+ * com variant primary/outline/ghost). Mantém compat com legacy
+ * `primaryCta`/`secondaryCta`: se `buttons` não existir, monta lista
+ * a partir dos campos legados.
  */
+import { resolveButtons, renderSectionButton } from "./buttons";
 import {
   bgColor,
   fgColor,
@@ -16,10 +22,6 @@ export function SectionCta({ element, tokens }: SectionRendererProps) {
   const subtitle =
     (element.subtitle as string) ??
     "Sem cartão, sem contrato. Comece num clique e cancele quando quiser.";
-  const primaryCta = (element.primaryCta as string) ?? "Começar agora";
-  const secondaryCta = (element.secondaryCta as string) ?? "Falar com vendas";
-  const primaryCtaHref = (element.primaryCtaHref as string) ?? "#";
-  const secondaryCtaHref = (element.secondaryCtaHref as string) ?? "#";
   const anchorId = (element.anchorId as string) ?? undefined;
   const guarantees =
     (element.guarantees as string[] | undefined) ?? [
@@ -32,6 +34,12 @@ export function SectionCta({ element, tokens }: SectionRendererProps) {
   const bg = bgColor(element, tokens);
   const fg = fgColor(element, tokens);
   const muted = mutedColor(element, tokens);
+
+  // Lista de botões (legacy fallback embutido)
+  const buttons = resolveButtons(element, {
+    defaultPrimary: "Começar agora",
+    defaultSecondary: "Falar com vendas",
+  });
 
   return (
     <section
@@ -59,22 +67,13 @@ export function SectionCta({ element, tokens }: SectionRendererProps) {
           {subtitle}
         </p>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 mt-2">
-          <a
-            href={primaryCtaHref}
-            className="text-sm font-extrabold px-8 py-3.5 sm:py-4 rounded-xl transition-opacity hover:opacity-90 inline-flex items-center justify-center"
-            style={{ background: primary, color: "#fff", boxShadow: `0 0 40px ${primary}50`, textDecoration: "none" }}
-          >
-            {primaryCta}
-          </a>
-          <a
-            href={secondaryCtaHref}
-            className="text-sm font-semibold px-8 py-3.5 sm:py-4 rounded-xl transition-colors hover:bg-white/5 border inline-flex items-center justify-center"
-            style={{ color: fg, borderColor: `${fg}30`, textDecoration: "none" }}
-          >
-            {secondaryCta}
-          </a>
-        </div>
+        {buttons.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center flex-wrap gap-3 mt-2">
+            {buttons.map((b) =>
+              renderSectionButton(b, { primary, fg, size: "lg" }),
+            )}
+          </div>
+        )}
 
         {/* Selos */}
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs sm:text-sm mt-4" style={{ color: muted }}>

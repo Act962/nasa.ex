@@ -117,16 +117,21 @@ export function SectionPricing({ element, tokens }: SectionRendererProps) {
                 ))}
               </ul>
 
-              <button
-                className="w-full py-3 rounded-xl font-bold text-sm transition-opacity hover:opacity-90"
+              {/* Botão do plano com href real — antes era <button>
+                  sem destino, o campo "Link do botão" do editor era
+                  ignorado silenciosamente. Agora respeita p.ctaHref. */}
+              <a
+                href={p.ctaHref ?? "#"}
+                className="w-full py-3 rounded-xl font-bold text-sm transition-opacity hover:opacity-90 inline-flex items-center justify-center"
                 style={{
                   background: p.highlighted ? primary : "transparent",
                   color: p.highlighted ? "#fff" : fg,
                   border: p.highlighted ? "none" : `1px solid ${fg}30`,
+                  textDecoration: "none",
                 }}
               >
                 {p.ctaLabel}
-              </button>
+              </a>
             </div>
           ))}
         </div>

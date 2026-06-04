@@ -16,6 +16,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePagesBuilderStore, getActiveLayerElements } from "../../context/pages-builder-store";
+import {
+  legacyToButtonsList,
+  type SectionButton,
+} from "../elements/sections/buttons";
 import type { Device, ElementBase } from "../../types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -835,6 +839,154 @@ function HeroImageUploader({
   );
 }
 
+// ─── Hero background uploader (cobre o fundo da section toda,
+//      estilo A MINA / drathaine) ──────────────────────────────────
+function HeroBackgroundUploader({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const bgUrl = (el.backgroundImage as string) ?? "";
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const res = await fetch("/api/upload-local", { method: "POST", body: form });
+      const { url } = await res.json();
+      update({ backgroundImage: url });
+      toast.success("Imagem de fundo aplicada");
+    } catch {
+      toast.error("Falha no upload");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="flex gap-2 mt-1">
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1 text-xs h-8"
+          disabled={uploading}
+          onClick={() => fileRef.current?.click()}
+        >
+          {uploading ? "Carregando…" : bgUrl ? "Trocar fundo" : "Fazer upload"}
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleUpload(f);
+          }}
+        />
+        {bgUrl && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-8"
+            onClick={() => update({ backgroundImage: "" })}
+            title="Remover fundo"
+          >
+            <Trash2 className="size-3.5 text-destructive" />
+          </Button>
+        )}
+      </div>
+      {bgUrl && (
+        <div
+          className="mt-2 rounded-md overflow-hidden border relative"
+          style={{ height: 80 }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={bgUrl}
+            alt="Preview fundo"
+            className="w-full h-full object-cover"
+          />
+          {/* overlay preview pra mostrar como vai parecer com texto */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                (el.backgroundOverlay as string) ??
+                "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.80) 100%)",
+            }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center text-[10px] text-white font-bold uppercase tracking-wider">
+            Preview com overlay
+          </div>
+        </div>
+      )}
+      <Label className="text-[10px] text-muted-foreground mt-2">ou cola a URL</Label>
+      <Input
+        value={bgUrl}
+        onChange={(e) => update({ backgroundImage: e.target.value })}
+        placeholder="https://..."
+        className="text-xs font-mono"
+      />
+      {bgUrl && (
+        <>
+          <Label className="text-[10px] text-muted-foreground mt-3">
+            Escurecimento da imagem (overlay)
+          </Label>
+          <select
+            value={(el.backgroundOverlay as string) ?? ""}
+            onChange={(e) => update({ backgroundOverlay: e.target.value })}
+            className="w-full text-xs border rounded-md bg-background h-8 px-2"
+          >
+            <option value="linear-gradient(180deg, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0.40) 100%)">
+              Claro (texto + visível)
+            </option>
+            <option value="linear-gradient(180deg, rgba(0,0,0,0.40) 0%, rgba(0,0,0,0.60) 100%)">
+              Médio
+            </option>
+            <option value="linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.80) 100%)">
+              Escuro (padrão)
+            </option>
+            <option value="linear-gradient(180deg, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.90) 100%)">
+              Muito escuro
+            </option>
+            <option value="linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.10) 100%)">
+              Esquerda → direita (texto à esq.)
+            </option>
+            <option value="linear-gradient(270deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.10) 100%)">
+              Direita → esquerda (texto à dir.)
+            </option>
+          </select>
+          <Label className="text-[10px] text-muted-foreground mt-2">
+            Posição da imagem
+          </Label>
+          <select
+            value={(el.backgroundPosition as string) ?? "center"}
+            onChange={(e) => update({ backgroundPosition: e.target.value })}
+            className="w-full text-xs border rounded-md bg-background h-8 px-2"
+          >
+            <option value="center">Centro</option>
+            <option value="top">Topo</option>
+            <option value="bottom">Embaixo</option>
+            <option value="left">Esquerda</option>
+            <option value="right">Direita</option>
+            <option value="top left">Topo esquerda</option>
+            <option value="top right">Topo direita</option>
+            <option value="bottom left">Embaixo esquerda</option>
+            <option value="bottom right">Embaixo direita</option>
+          </select>
+        </>
+      )}
+    </>
+  );
+}
+
 // ─── Hero (section-hero) ────────────────────────────────────────────────────
 
 function HeroProps({ el, update }: { el: ElementBase; update: (p: Partial<ElementBase>) => void }) {
@@ -872,44 +1024,28 @@ function HeroProps({ el, update }: { el: ElementBase; update: (p: Partial<Elemen
         onChange={(e) => update({ subtitle: e.target.value })}
         className="text-xs"
       />
-      <Label className="text-[10px] text-muted-foreground mt-2">
-        Imagem do Hero
-      </Label>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Imagem de fundo (full-bleed)
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
+        Cobre todo o fundo da section. Use pra criar heros estilo "A
+        MINA" / evento — imagem + texto sobreposto. Mobile e desktop
+        recebem a mesma imagem com ajuste automático.
+      </p>
+      <HeroBackgroundUploader el={el} update={update} />
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Imagem central (abaixo do texto)
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
+        Mockup / produto que aparece embaixo do título. Pode usar
+        junto com imagem de fundo ou sozinho.
+      </p>
       <HeroImageUploader el={el} update={update} />
 
-      <Seg />
-      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
-        Botão primário
-      </p>
-      <Input
-        value={(el.primaryCta as string) ?? ""}
-        onChange={(e) => update({ primaryCta: e.target.value })}
-        placeholder="Começar agora"
-        className="text-xs mb-1.5"
-      />
-      <Input
-        value={(el.primaryCtaHref as string) ?? ""}
-        onChange={(e) => update({ primaryCtaHref: e.target.value })}
-        placeholder="#planos"
-        className="text-xs font-mono"
-      />
-
-      <Seg />
-      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
-        Botão secundário
-      </p>
-      <Input
-        value={(el.secondaryCta as string) ?? ""}
-        onChange={(e) => update({ secondaryCta: e.target.value })}
-        placeholder="Ver demo"
-        className="text-xs mb-1.5"
-      />
-      <Input
-        value={(el.secondaryCtaHref as string) ?? ""}
-        onChange={(e) => update({ secondaryCtaHref: e.target.value })}
-        placeholder="#"
-        className="text-xs font-mono"
-      />
+      <ButtonsListEditor el={el} update={update} />
 
       <Seg />
       <Label className="text-[10px] text-muted-foreground">
@@ -1000,12 +1136,996 @@ function ResponsiveProps({ el, update }: { el: ElementBase; update: (p: Partial<
   );
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// EDITORES DAS DEMAIS SECTIONS (Fase 2)
+//
+// Cada section type tem props específicas (heading, listas de cards,
+// planos, depoimentos, FAQ, stats, CTA). Sem esses editores, o user
+// clica num bloco section-* e o painel não mostra os campos — só os
+// genéricos (x/y/w/h). Esses 7 editores resolvem essa lacuna.
+// ───────────────────────────────────────────────────────────────────────────
+
+// ─── Lista de botões (Hero, CTA) ─────────────────────────────────────────
+// User reclamou que não dava pra adicionar/remover botões nesses
+// blocos — só editava os 2 fixos (primary/secondary). Agora é lista
+// dinâmica com variants. Usa `legacyToButtonsList` pra inicializar
+// a partir dos campos legados (primaryCta/secondaryCta) na primeira
+// vez que o user mexe.
+function ButtonsListEditor({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  const buttons = legacyToButtonsList(el);
+  const writeButtons = (next: SectionButton[]) => {
+    // Ao primeira edição, persistimos buttons[] e zeramos os legados
+    // pra não ficar source-of-truth duplo.
+    update({
+      buttons: next,
+      primaryCta: undefined,
+      primaryCtaHref: undefined,
+      secondaryCta: undefined,
+      secondaryCtaHref: undefined,
+    } as Partial<ElementBase>);
+  };
+  const patch = (idx: number, p: Partial<SectionButton>) => {
+    const next = buttons.slice();
+    next[idx] = { ...next[idx], ...p };
+    writeButtons(next);
+  };
+  const add = () =>
+    writeButtons([
+      ...buttons,
+      {
+        id: `b${Date.now()}`,
+        label: "Novo botão",
+        href: "#",
+        variant: buttons.length === 0 ? "primary" : "outline",
+      },
+    ]);
+  const remove = (idx: number) =>
+    writeButtons(buttons.filter((_, i) => i !== idx));
+  const move = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir;
+    if (target < 0 || target >= buttons.length) return;
+    const next = buttons.slice();
+    [next[idx], next[target]] = [next[target], next[idx]];
+    writeButtons(next);
+  };
+
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Botões ({buttons.length})
+      </p>
+      {buttons.map((b, idx) => (
+        <div
+          key={b.id}
+          className="p-2 border rounded-md mb-2 bg-muted/30 flex flex-col gap-1.5"
+        >
+          <div className="flex items-center gap-1">
+            <Input
+              value={b.label}
+              onChange={(e) => patch(idx, { label: e.target.value })}
+              placeholder="Texto do botão"
+              className="text-xs flex-1"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => move(idx, -1)}
+              disabled={idx === 0}
+              className="size-7 shrink-0"
+              title="Subir"
+            >
+              ↑
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => move(idx, 1)}
+              disabled={idx === buttons.length - 1}
+              className="size-7 shrink-0"
+              title="Descer"
+            >
+              ↓
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => remove(idx)}
+              className="size-7 shrink-0"
+              title="Remover"
+            >
+              <Trash2 className="size-3.5 text-destructive" />
+            </Button>
+          </div>
+          <Label className="text-[10px] text-muted-foreground">
+            Link (âncora #, URL, mailto, tel:)
+          </Label>
+          <Input
+            value={b.href}
+            onChange={(e) => patch(idx, { href: e.target.value })}
+            placeholder="#cta-final ou https://..."
+            className="text-xs font-mono"
+          />
+          <Label className="text-[10px] text-muted-foreground">Estilo</Label>
+          <select
+            value={b.variant}
+            onChange={(e) =>
+              patch(idx, {
+                variant: e.target.value as SectionButton["variant"],
+              })
+            }
+            className="w-full text-xs border rounded-md bg-background h-8 px-2"
+          >
+            <option value="primary">Primário (sólido)</option>
+            <option value="outline">Outline (borda)</option>
+            <option value="ghost">Ghost (link sublinhado)</option>
+          </select>
+
+          {/* Cores opcionais por botão. Override do variant — útil
+              quando o user quer destacar 1 botão sem mexer nos
+              tokens globais da section. */}
+          <Row cols={2}>
+            <ColorField
+              label="Fundo (opc)"
+              value={b.bgColor ?? ""}
+              onChange={(v) => patch(idx, { bgColor: v || undefined })}
+            />
+            <ColorField
+              label="Texto (opc)"
+              value={b.fgColor ?? ""}
+              onChange={(v) => patch(idx, { fgColor: v || undefined })}
+            />
+          </Row>
+          {(b.bgColor || b.fgColor) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-[10px] h-6 -mt-1"
+              onClick={() =>
+                patch(idx, { bgColor: undefined, fgColor: undefined })
+              }
+            >
+              Resetar cores (usar do tema)
+            </Button>
+          )}
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={add} className="text-xs">
+        + Adicionar botão
+      </Button>
+    </>
+  );
+}
+
+// ─── Features (section-features) ──────────────────────────────────────────
+function FeaturesProps({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  type Feature = {
+    id: string;
+    icon: string;
+    title: string;
+    description: string;
+  };
+  const items = ((el.features as Feature[] | undefined) ?? []).slice();
+  const patch = (idx: number, p: Partial<Feature>) => {
+    const next = items.slice();
+    next[idx] = { ...next[idx], ...p };
+    update({ features: next });
+  };
+  const add = () => {
+    update({
+      features: [
+        ...items,
+        {
+          id: `f${Date.now()}`,
+          icon: "✨",
+          title: "Novo card",
+          description: "Descrição do card",
+        },
+      ],
+    });
+  };
+  const remove = (idx: number) =>
+    update({ features: items.filter((_, i) => i !== idx) });
+  const move = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir;
+    if (target < 0 || target >= items.length) return;
+    const next = items.slice();
+    [next[idx], next[target]] = [next[target], next[idx]];
+    update({ features: next });
+  };
+
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Cabeçalho da seção
+      </p>
+      <Label className="text-[10px] text-muted-foreground">Título (heading)</Label>
+      <Input
+        value={(el.heading as string) ?? ""}
+        onChange={(e) => update({ heading: e.target.value })}
+        placeholder="Por que escolher a gente"
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">Subtítulo</Label>
+      <Textarea
+        rows={2}
+        value={(el.subheading as string) ?? ""}
+        onChange={(e) => update({ subheading: e.target.value })}
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        Anchor ID (pra link via #)
+      </Label>
+      <Input
+        value={(el.anchorId as string) ?? ""}
+        onChange={(e) => update({ anchorId: e.target.value })}
+        placeholder="por-que"
+        className="text-xs font-mono"
+      />
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Cards ({items.length})
+      </p>
+      {items.map((item, idx) => (
+        <div
+          key={item.id}
+          className="p-2 border rounded-md mb-2 bg-muted/30 flex flex-col gap-1.5"
+        >
+          <div className="flex items-center gap-1">
+            <Input
+              value={item.icon}
+              onChange={(e) => patch(idx, { icon: e.target.value })}
+              placeholder="🎯"
+              className="text-base w-12 text-center"
+              maxLength={4}
+            />
+            <Input
+              value={item.title}
+              onChange={(e) => patch(idx, { title: e.target.value })}
+              placeholder="Título do card"
+              className="text-xs flex-1"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => move(idx, -1)}
+              disabled={idx === 0}
+              className="size-7 shrink-0"
+              title="Subir"
+            >
+              ↑
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => move(idx, 1)}
+              disabled={idx === items.length - 1}
+              className="size-7 shrink-0"
+              title="Descer"
+            >
+              ↓
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => remove(idx)}
+              className="size-7 shrink-0"
+              title="Remover"
+            >
+              <Trash2 className="size-3.5 text-destructive" />
+            </Button>
+          </div>
+          <Textarea
+            rows={2}
+            value={item.description}
+            onChange={(e) => patch(idx, { description: e.target.value })}
+            placeholder="Descrição"
+            className="text-xs"
+          />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={add} className="text-xs">
+        + Adicionar card
+      </Button>
+
+      <ColorBlock el={el} update={update} />
+    </>
+  );
+}
+
+// ─── Pricing (section-pricing) ────────────────────────────────────────────
+function PricingProps({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  type Plan = {
+    id: string;
+    name: string;
+    price: string;
+    period?: string;
+    slogan?: string;
+    features: string[];
+    ctaLabel: string;
+    ctaHref?: string;
+    highlighted?: boolean;
+    badge?: string;
+  };
+  const plans = ((el.plans as Plan[] | undefined) ?? []).slice();
+  const patch = (idx: number, p: Partial<Plan>) => {
+    const next = plans.slice();
+    next[idx] = { ...next[idx], ...p };
+    update({ plans: next });
+  };
+  const add = () => {
+    update({
+      plans: [
+        ...plans,
+        {
+          id: `p${Date.now()}`,
+          name: "Novo plano",
+          price: "R$ 0",
+          period: "/mês",
+          slogan: "",
+          features: ["Recurso 1"],
+          ctaLabel: "Assinar",
+        },
+      ],
+    });
+  };
+  const remove = (idx: number) =>
+    update({ plans: plans.filter((_, i) => i !== idx) });
+
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Cabeçalho
+      </p>
+      <Label className="text-[10px] text-muted-foreground">Título</Label>
+      <Input
+        value={(el.heading as string) ?? ""}
+        onChange={(e) => update({ heading: e.target.value })}
+        placeholder="Escolha seu plano"
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">Subtítulo</Label>
+      <Textarea
+        rows={2}
+        value={(el.subheading as string) ?? ""}
+        onChange={(e) => update({ subheading: e.target.value })}
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">Anchor ID</Label>
+      <Input
+        value={(el.anchorId as string) ?? "planos"}
+        onChange={(e) => update({ anchorId: e.target.value })}
+        placeholder="planos"
+        className="text-xs font-mono"
+      />
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Planos ({plans.length})
+      </p>
+      {plans.map((plan, idx) => (
+        <div
+          key={plan.id}
+          className="p-2 border rounded-md mb-3 bg-muted/30 flex flex-col gap-1.5"
+        >
+          <div className="flex items-center gap-1">
+            <Input
+              value={plan.name}
+              onChange={(e) => patch(idx, { name: e.target.value })}
+              placeholder="Nome (Silver, VIP, Master…)"
+              className="text-xs font-semibold flex-1"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => remove(idx)}
+              className="size-7 shrink-0"
+              title="Remover plano"
+            >
+              <Trash2 className="size-3.5 text-destructive" />
+            </Button>
+          </div>
+          <Row cols={2}>
+            <div>
+              <Label className="text-[10px] text-muted-foreground">Preço</Label>
+              <Input
+                value={plan.price}
+                onChange={(e) => patch(idx, { price: e.target.value })}
+                placeholder="R$ 197"
+                className="text-xs"
+              />
+            </div>
+            <div>
+              <Label className="text-[10px] text-muted-foreground">Período</Label>
+              <Input
+                value={plan.period ?? ""}
+                onChange={(e) => patch(idx, { period: e.target.value })}
+                placeholder="/mês"
+                className="text-xs"
+              />
+            </div>
+          </Row>
+          <Label className="text-[10px] text-muted-foreground">Slogan</Label>
+          <Input
+            value={plan.slogan ?? ""}
+            onChange={(e) => patch(idx, { slogan: e.target.value })}
+            placeholder="Pra equipes pequenas"
+            className="text-xs"
+          />
+          <Label className="text-[10px] text-muted-foreground">
+            Features (uma por linha)
+          </Label>
+          <Textarea
+            rows={4}
+            value={plan.features.join("\n")}
+            onChange={(e) =>
+              patch(idx, {
+                features: e.target.value
+                  .split("\n")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              })
+            }
+            placeholder="Recurso 1&#10;Recurso 2"
+            className="text-xs"
+          />
+          <Row cols={2}>
+            <div>
+              <Label className="text-[10px] text-muted-foreground">
+                Texto do botão
+              </Label>
+              <Input
+                value={plan.ctaLabel}
+                onChange={(e) => patch(idx, { ctaLabel: e.target.value })}
+                placeholder="Assinar"
+                className="text-xs"
+              />
+            </div>
+            <div>
+              <Label className="text-[10px] text-muted-foreground">
+                Link do botão
+              </Label>
+              <Input
+                value={plan.ctaHref ?? ""}
+                onChange={(e) => patch(idx, { ctaHref: e.target.value })}
+                placeholder="#cta-final"
+                className="text-xs font-mono"
+              />
+            </div>
+          </Row>
+          <Row cols={2}>
+            <div>
+              <Label className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  checked={plan.highlighted ?? false}
+                  onChange={(e) => patch(idx, { highlighted: e.target.checked })}
+                />
+                Em destaque
+              </Label>
+            </div>
+            <div>
+              <Label className="text-[10px] text-muted-foreground">Badge</Label>
+              <Input
+                value={plan.badge ?? ""}
+                onChange={(e) => patch(idx, { badge: e.target.value })}
+                placeholder="Mais popular"
+                className="text-xs"
+              />
+            </div>
+          </Row>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={add} className="text-xs">
+        + Adicionar plano
+      </Button>
+
+      <ColorBlock el={el} update={update} />
+    </>
+  );
+}
+
+// ─── Testimonials (section-testimonials) ──────────────────────────────────
+function TestimonialsProps({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  type T = {
+    id: string;
+    quote: string;
+    author: string;
+    role?: string;
+    avatar?: string;
+  };
+  const items = ((el.testimonials as T[] | undefined) ?? []).slice();
+  const patch = (idx: number, p: Partial<T>) => {
+    const next = items.slice();
+    next[idx] = { ...next[idx], ...p };
+    update({ testimonials: next });
+  };
+  const add = () =>
+    update({
+      testimonials: [
+        ...items,
+        {
+          id: `t${Date.now()}`,
+          quote: "Depoimento incrível.",
+          author: "Nome",
+          role: "Cargo",
+          avatar: `https://i.pravatar.cc/120?img=${
+            (items.length + 1) * 7
+          }`,
+        },
+      ],
+    });
+  const remove = (idx: number) =>
+    update({ testimonials: items.filter((_, i) => i !== idx) });
+
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Cabeçalho
+      </p>
+      <Label className="text-[10px] text-muted-foreground">Título</Label>
+      <Input
+        value={(el.heading as string) ?? ""}
+        onChange={(e) => update({ heading: e.target.value })}
+        placeholder="O que dizem"
+        className="text-xs"
+      />
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Depoimentos ({items.length})
+      </p>
+      {items.map((item, idx) => (
+        <div
+          key={item.id}
+          className="p-2 border rounded-md mb-2 bg-muted/30 flex flex-col gap-1.5"
+        >
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-muted-foreground flex-1">
+              #{idx + 1}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => remove(idx)}
+              className="size-7 shrink-0"
+              title="Remover"
+            >
+              <Trash2 className="size-3.5 text-destructive" />
+            </Button>
+          </div>
+          <Label className="text-[10px] text-muted-foreground">Citação</Label>
+          <Textarea
+            rows={3}
+            value={item.quote}
+            onChange={(e) => patch(idx, { quote: e.target.value })}
+            placeholder="Mudou minha rotina completamente"
+            className="text-xs"
+          />
+          <Row cols={2}>
+            <div>
+              <Label className="text-[10px] text-muted-foreground">Autor</Label>
+              <Input
+                value={item.author}
+                onChange={(e) => patch(idx, { author: e.target.value })}
+                placeholder="Mariana F."
+                className="text-xs"
+              />
+            </div>
+            <div>
+              <Label className="text-[10px] text-muted-foreground">Cargo</Label>
+              <Input
+                value={item.role ?? ""}
+                onChange={(e) => patch(idx, { role: e.target.value })}
+                placeholder="Designer"
+                className="text-xs"
+              />
+            </div>
+          </Row>
+          <Label className="text-[10px] text-muted-foreground">
+            Avatar (URL)
+          </Label>
+          <Input
+            value={item.avatar ?? ""}
+            onChange={(e) => patch(idx, { avatar: e.target.value })}
+            placeholder="https://..."
+            className="text-xs font-mono"
+          />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={add} className="text-xs">
+        + Adicionar depoimento
+      </Button>
+
+      <ColorBlock el={el} update={update} />
+    </>
+  );
+}
+
+// ─── Stats (section-stats) ────────────────────────────────────────────────
+function StatsProps({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  type Stat = { id: string; value: string; label: string };
+  const items = ((el.stats as Stat[] | undefined) ?? []).slice();
+  const patch = (idx: number, p: Partial<Stat>) => {
+    const next = items.slice();
+    next[idx] = { ...next[idx], ...p };
+    update({ stats: next });
+  };
+  const add = () =>
+    update({
+      stats: [
+        ...items,
+        { id: `s${Date.now()}`, value: "100+", label: "Novo stat" },
+      ],
+    });
+  const remove = (idx: number) =>
+    update({ stats: items.filter((_, i) => i !== idx) });
+
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Estatísticas ({items.length})
+      </p>
+      {items.map((item, idx) => (
+        <div
+          key={item.id}
+          className="p-2 border rounded-md mb-2 bg-muted/30 flex flex-col gap-1.5"
+        >
+          <Row cols={2}>
+            <div>
+              <Label className="text-[10px] text-muted-foreground">Valor</Label>
+              <Input
+                value={item.value}
+                onChange={(e) => patch(idx, { value: e.target.value })}
+                placeholder="2.3k+"
+                className="text-xs font-bold"
+              />
+            </div>
+            <div className="flex items-end gap-1">
+              <div className="flex-1">
+                <Label className="text-[10px] text-muted-foreground">
+                  Rótulo
+                </Label>
+                <Input
+                  value={item.label}
+                  onChange={(e) => patch(idx, { label: e.target.value })}
+                  placeholder="Clientes"
+                  className="text-xs"
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => remove(idx)}
+                className="size-7 shrink-0"
+                title="Remover"
+              >
+                <Trash2 className="size-3.5 text-destructive" />
+              </Button>
+            </div>
+          </Row>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={add} className="text-xs">
+        + Adicionar estatística
+      </Button>
+
+      <ColorBlock el={el} update={update} />
+    </>
+  );
+}
+
+// ─── FAQ (section-faq) ────────────────────────────────────────────────────
+function FaqProps({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  type Item = { id: string; question: string; answer: string };
+  const items = ((el.items as Item[] | undefined) ?? []).slice();
+  const patch = (idx: number, p: Partial<Item>) => {
+    const next = items.slice();
+    next[idx] = { ...next[idx], ...p };
+    update({ items: next });
+  };
+  const add = () =>
+    update({
+      items: [
+        ...items,
+        {
+          id: `q${Date.now()}`,
+          question: "Nova pergunta?",
+          answer: "Resposta…",
+        },
+      ],
+    });
+  const remove = (idx: number) =>
+    update({ items: items.filter((_, i) => i !== idx) });
+
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Cabeçalho
+      </p>
+      <Label className="text-[10px] text-muted-foreground">Título</Label>
+      <Input
+        value={(el.heading as string) ?? ""}
+        onChange={(e) => update({ heading: e.target.value })}
+        placeholder="Perguntas frequentes"
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">Anchor ID</Label>
+      <Input
+        value={(el.anchorId as string) ?? "faq"}
+        onChange={(e) => update({ anchorId: e.target.value })}
+        placeholder="faq"
+        className="text-xs font-mono"
+      />
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Perguntas ({items.length})
+      </p>
+      {items.map((item, idx) => (
+        <div
+          key={item.id}
+          className="p-2 border rounded-md mb-2 bg-muted/30 flex flex-col gap-1.5"
+        >
+          <div className="flex items-center gap-1">
+            <Input
+              value={item.question}
+              onChange={(e) => patch(idx, { question: e.target.value })}
+              placeholder="Pergunta?"
+              className="text-xs font-semibold flex-1"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => remove(idx)}
+              className="size-7 shrink-0"
+              title="Remover"
+            >
+              <Trash2 className="size-3.5 text-destructive" />
+            </Button>
+          </div>
+          <Textarea
+            rows={3}
+            value={item.answer}
+            onChange={(e) => patch(idx, { answer: e.target.value })}
+            placeholder="Resposta"
+            className="text-xs"
+          />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={add} className="text-xs">
+        + Adicionar pergunta
+      </Button>
+
+      <ColorBlock el={el} update={update} />
+    </>
+  );
+}
+
+// ─── CTA (section-cta) ────────────────────────────────────────────────────
+function CtaProps({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  const guarantees = ((el.guarantees as string[] | undefined) ?? []).slice();
+  const updateGuarantees = (next: string[]) =>
+    update({ guarantees: next });
+
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Cabeçalho
+      </p>
+      <Label className="text-[10px] text-muted-foreground">Título</Label>
+      <Input
+        value={(el.heading as string) ?? ""}
+        onChange={(e) => update({ heading: e.target.value })}
+        placeholder="Pronto pra começar?"
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        Acento do título (colorido)
+      </Label>
+      <Input
+        value={(el.headingAccent as string) ?? ""}
+        onChange={(e) => update({ headingAccent: e.target.value })}
+        placeholder="Vamos decolar."
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">Subtítulo</Label>
+      <Textarea
+        rows={2}
+        value={(el.subtitle as string) ?? ""}
+        onChange={(e) => update({ subtitle: e.target.value })}
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">Anchor ID</Label>
+      <Input
+        value={(el.anchorId as string) ?? "cta-final"}
+        onChange={(e) => update({ anchorId: e.target.value })}
+        placeholder="cta-final"
+        className="text-xs font-mono"
+      />
+
+      <ButtonsListEditor el={el} update={update} />
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Garantias (selos abaixo do CTA)
+      </p>
+      <Textarea
+        rows={3}
+        value={guarantees.join("\n")}
+        onChange={(e) =>
+          updateGuarantees(
+            e.target.value
+              .split("\n")
+              .map((s) => s.trim())
+              .filter(Boolean),
+          )
+        }
+        placeholder={"🛡 LGPD\n🌎 Brasil\n⚡ 5 min"}
+        className="text-xs"
+      />
+
+      <ColorBlock el={el} update={update} />
+    </>
+  );
+}
+
+// ─── Logo Cloud (section-logo-cloud) ──────────────────────────────────────
+function LogoCloudProps({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  type Logo = { id: string; imageUrl: string; alt: string };
+  const items = ((el.logos as Logo[] | undefined) ?? []).slice();
+  const patch = (idx: number, p: Partial<Logo>) => {
+    const next = items.slice();
+    next[idx] = { ...next[idx], ...p };
+    update({ logos: next });
+  };
+  const add = () =>
+    update({
+      logos: [
+        ...items,
+        { id: `lg${Date.now()}`, imageUrl: "", alt: "Marca" },
+      ],
+    });
+  const remove = (idx: number) =>
+    update({ logos: items.filter((_, i) => i !== idx) });
+
+  return (
+    <>
+      <Seg />
+      <Label className="text-[10px] text-muted-foreground">Título</Label>
+      <Input
+        value={(el.heading as string) ?? ""}
+        onChange={(e) => update({ heading: e.target.value })}
+        placeholder="Empresas que confiam em nós"
+        className="text-xs"
+      />
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Logos ({items.length})
+      </p>
+      {items.map((logo, idx) => (
+        <div
+          key={logo.id}
+          className="p-2 border rounded-md mb-2 bg-muted/30 flex flex-col gap-1.5"
+        >
+          <div className="flex items-center gap-1">
+            <Input
+              value={logo.alt}
+              onChange={(e) => patch(idx, { alt: e.target.value })}
+              placeholder="Nome da marca (alt)"
+              className="text-xs flex-1"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => remove(idx)}
+              className="size-7 shrink-0"
+              title="Remover"
+            >
+              <Trash2 className="size-3.5 text-destructive" />
+            </Button>
+          </div>
+          <Input
+            value={logo.imageUrl}
+            onChange={(e) => patch(idx, { imageUrl: e.target.value })}
+            placeholder="https://… (URL da logo)"
+            className="text-xs font-mono"
+          />
+          {logo.imageUrl && (
+            <div className="rounded border bg-white p-2 flex items-center justify-center h-14">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logo.imageUrl}
+                alt={logo.alt}
+                className="max-h-full max-w-full object-contain"
+              />
+            </div>
+          )}
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={add} className="text-xs">
+        + Adicionar logo
+      </Button>
+
+      <ColorBlock el={el} update={update} />
+    </>
+  );
+}
+
 // ─── Main panel ──────────────────────────────────────────────────────────────
 
 const TYPE_LABELS: Record<string, string> = {
   text: "Texto", image: "Imagem", shape: "Forma", button: "Botão",
   video: "Vídeo", embed: "Embed", icon: "Ícone", divider: "Divisor",
   social: "Social", spacer: "Espaço", svg: "SVG", "nasa-link": "Link NASA", group: "Grupo",
+  // Sections — labels editor-friendly pra usuário identificar
+  "section-navbar": "Navbar / Cabeçalho",
+  "section-hero": "Hero (cabeçalho da landing)",
+  "section-features": "Cards / Features",
+  "section-pricing": "Planos / Pricing",
+  "section-testimonials": "Depoimentos",
+  "section-stats": "Estatísticas / Números",
+  "section-faq": "Perguntas Frequentes (FAQ)",
+  "section-cta": "Call to Action (CTA)",
+  "section-logo-cloud": "Logos / Marcas",
+  "section-footer": "Footer / Rodapé",
+  marquee: "Marquee (texto rolando)",
 };
 
 /** Renders just the properties content (no outer wrapper) — for embedding inside the sidebar */
@@ -1074,9 +2194,16 @@ export function PropertiesPanelContent() {
         {el.type === "video"  && <VideoProps  el={el} update={update} />}
         {el.type === "embed"  && <EmbedProps  el={el} update={update} />}
         {/* Sections novas (Fase 1 do builder evoluído) */}
-        {el.type === "section-navbar" && <NavbarProps el={el} update={update} />}
-        {el.type === "section-footer" && <FooterProps el={el} update={update} />}
-        {el.type === "section-hero"   && <HeroProps   el={el} update={update} />}
+        {el.type === "section-navbar"        && <NavbarProps        el={el} update={update} />}
+        {el.type === "section-footer"        && <FooterProps        el={el} update={update} />}
+        {el.type === "section-hero"          && <HeroProps          el={el} update={update} />}
+        {el.type === "section-features"      && <FeaturesProps      el={el} update={update} />}
+        {el.type === "section-pricing"       && <PricingProps       el={el} update={update} />}
+        {el.type === "section-testimonials"  && <TestimonialsProps  el={el} update={update} />}
+        {el.type === "section-stats"         && <StatsProps         el={el} update={update} />}
+        {el.type === "section-faq"           && <FaqProps           el={el} update={update} />}
+        {el.type === "section-cta"           && <CtaProps           el={el} update={update} />}
+        {el.type === "section-logo-cloud"    && <LogoCloudProps     el={el} update={update} />}
         <ResponsiveProps el={el} update={update} />
       </div>
     </div>

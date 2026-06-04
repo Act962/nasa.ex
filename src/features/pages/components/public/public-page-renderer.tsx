@@ -132,14 +132,22 @@ function LayerSurface({
 }
 
 /**
- * Modo "landing" — renderiza sections em fluxo vertical responsivo
- * (sem position absolute). Sections de fluxo (section-*, navbar,
- * footer, marquee) ocupam 100% da largura e altura intrínseca.
- * Átomos (text, image, etc) ficam dentro de um "canvas residual"
- * com posicionamento absoluto, encaixado no meio do fluxo.
+ * Modo "landing" — renderiza TODOS os elementos em fluxo vertical
+ * responsivo (ordenados por `y` no canvas), respeitando o tipo:
  *
- * Ordem: sections ordenadas por `y` ascendente. Permite reordenar
- * arrastando no builder.
+ * - **Flow sections** (section-*, navbar, footer, marquee): 100% da
+ *   largura, altura intrínseca do componente.
+ *
+ * - **Átomos** (button, text, image, shape, video, embed, etc):
+ *   renderizados em containers centralizados (max-w-4xl mx-auto),
+ *   preservando o tamanho do elemento mas SEM o posicionamento
+ *   absoluto do builder. O `x` do canvas vira "centralizado" e o
+ *   `w/h` viram o tamanho da box. Padding vertical pra não colar
+ *   nas sections vizinhas.
+ *
+ * Bug histórico: átomos eram filtrados fora silenciosamente quando
+ * a page entrava em modo landing — botões/textos adicionados
+ * sumiam ao publicar.
  */
 function LandingFlow({
   elements,
@@ -148,31 +156,64 @@ function LandingFlow({
   elements: ElementBase[];
   tokens?: unknown;
 }) {
-  // Separa flow sections de átomos (átomos ficam ignorados nesse modo
-  // por enquanto — landings raramente misturam os dois).
-  const flowElements = elements
-    .filter((el) => isFlowSection(el.type as ElementType))
+  const ordered = elements
+    .slice()
     .sort((a, b) => (a.y ?? 0) - (b.y ?? 0));
 
   return (
     <div className="flex flex-col w-full">
-      {flowElements.map((el) => (
-        <div
-          key={el.id}
-          data-el-id={el.id}
-          className="w-full"
-          style={{
-            opacity: el.opacity ?? 1,
-            zIndex: el.zIndex ?? 1,
-          }}
-        >
-          <ElementRenderer
-            element={el}
-            readonly
-            tokens={tokens as never}
-          />
-        </div>
-      ))}
+      {ordered.map((el) => {
+        const isFlow = isFlowSection(el.type as ElementType);
+        if (isFlow) {
+          // Section em fluxo — full-width
+          return (
+            <div
+              key={el.id}
+              data-el-id={el.id}
+              className="w-full"
+              style={{
+                opacity: el.opacity ?? 1,
+                zIndex: el.zIndex ?? 1,
+              }}
+            >
+              <ElementRenderer
+                element={el}
+                readonly
+                tokens={tokens as never}
+              />
+            </div>
+          );
+        }
+        // Átomo — container centralizado com padding vertical.
+        // Box interna mantém o tamanho desenhado no builder (w x h),
+        // mas se for maior que 100% da viewport, fica max-width 100%.
+        return (
+          <div
+            key={el.id}
+            data-el-id={el.id}
+            className="w-full px-4 sm:px-6 lg:px-8 py-4 flex justify-center"
+            style={{
+              opacity: el.opacity ?? 1,
+              zIndex: el.zIndex ?? 1,
+            }}
+          >
+            <div
+              style={{
+                width: el.w,
+                maxWidth: "100%",
+                height: el.h,
+                position: "relative",
+              }}
+            >
+              <ElementRenderer
+                element={el}
+                readonly
+                tokens={tokens as never}
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
