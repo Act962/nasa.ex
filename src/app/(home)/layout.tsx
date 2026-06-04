@@ -8,7 +8,7 @@ export default function MarketingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Não redireciona usuários autenticados — eles podem visualizar os planos
+  // Não redireciona usuários autenticados, eles podem visualizar os planos
   // e a landing page normalmente. O navbar detecta o estado de login
   // e exibe "Entrar no NASA" em vez dos botões de cadastro.
 

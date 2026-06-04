@@ -3,7 +3,7 @@ import { MacWindow } from "./mac-window";
 
 export function InsightsMock() {
   return (
-    <MacWindow title="Insights — Geral • Resumo">
+    <MacWindow title="Insights, Geral • Resumo">
       <div className="p-3 space-y-2.5 bg-[#0d0a1a]" style={{ minHeight: 200 }}>
         {/* KPI grid */}
         <div className="grid grid-cols-4 gap-2">

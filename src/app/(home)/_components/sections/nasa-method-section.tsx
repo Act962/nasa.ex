@@ -5,20 +5,32 @@ import { ForgeMock } from "../mocks/forge-mock";
 import { InsightsMock } from "../mocks/insights-mock";
 import { IntegrationsMock } from "../mocks/integrations-mock";
 
+/**
+ * Método N.A.S.A.®, 4 etapas + estágios de foguete.
+ * Cada etapa traz nome + apelido espacial grudado na função real
+ * (Preparação, Ignição, Propulsão, Em órbita). NÃO há parágrafo
+ * espacial solto: a metáfora nomeia, a copy explica.
+ *
+ * Briefing diz: considerar conectar visualmente as 4 etapas pra
+ * reforçar "estágios em sequência". A grid permanece 2x2 mas cada
+ * card ganha um marcador de estágio (01, 02, 03, 04) que cresce em
+ * intensidade, simula a sequência de ignição dos estágios.
+ */
 export function NasaMethodSection() {
   const pillars = [
     {
+      stage: "01",
       letter: "N",
       color: "blue",
       title: "Necessidade",
-      subtitle: "Chat & Pipeline",
+      stageLabel: "Preparação",
       description:
-        "Capture e qualifique leads de qualquer canal. Pipeline visual Kanban para nunca perder uma oportunidade comercial.",
+        "Você recebe e organiza os contatos que chegam de qualquer canal: WhatsApp, Instagram, formulário, anúncio. Tudo num lugar só, sem planilha.",
       features: [
-        "Chat omnichannel unificado",
-        "Pipeline Kanban drag & drop",
-        "IA ASTRO integrada no chat",
-        "Captura automática de leads",
+        "Chat de todos os canais juntos",
+        "Etapas da venda em Kanban",
+        "Astro IA dentro do chat",
+        "Captura automática de contatos",
       ],
       mock: <ChatMock />,
       gradFrom: "from-blue-600/15",
@@ -28,17 +40,18 @@ export function NasaMethodSection() {
       accent: "text-blue-400",
     },
     {
+      stage: "02",
       letter: "A",
       color: "emerald",
       title: "Análise",
-      subtitle: "Insights & Métricas",
+      stageLabel: "Ignição",
       description:
-        "Dashboards em tempo real. Entenda seu funil, meça o ROI de cada canal e tome decisões baseadas em dados reais.",
+        "Você entende quem está pronto pra comprar e qual o próximo passo de cada contato. Os números mostram onde focar.",
       features: [
-        "8 KPIs de conversão",
-        "Gráficos por canal e status",
+        "8 indicadores de conversão",
+        "Gráficos por canal e etapa",
         "Performance por atendente",
-        "Relatórios exportáveis",
+        "Relatórios pra exportar",
       ],
       mock: <InsightsMock />,
       gradFrom: "from-emerald-600/15",
@@ -48,15 +61,16 @@ export function NasaMethodSection() {
       accent: "text-emerald-400",
     },
     {
+      stage: "03",
       letter: "S",
       color: "amber",
       title: "Sistematização",
-      subtitle: "Integrações & Automações",
+      stageLabel: "Propulsão",
       description:
-        "Conecte +200 ferramentas ao seu processo comercial. ASTRO instala e configura integrações por comando de texto.",
+        "As automações empurram cada cliente de uma etapa pra próxima sozinhas: marcam o retorno na hora certa, mandam a mensagem, avisam o setor seguinte.",
       features: [
         "200+ integrações disponíveis",
-        "ASTRO instala por comando",
+        "Astro instala por comando",
         "Automações sem código",
         "WhatsApp, Instagram, Telegram",
       ],
@@ -68,20 +82,21 @@ export function NasaMethodSection() {
       accent: "text-amber-400",
     },
     {
+      stage: "04",
       letter: "A",
       color: "purple",
       title: "Ação",
-      subtitle: "FORGE — Propostas & Contratos",
+      stageLabel: "Em órbita",
       description:
-        "Feche negócios mais rápido. Crie propostas profissionais, contratos digitais e links de pagamento em minutos.",
+        "Proposta assinada, pagamento confirmado, entrega feita, e o atendimento já segue com todo o histórico. O processo não acaba na venda. Ele continua girando.",
       features: [
         "Propostas comerciais",
         "Contratos com assinatura digital",
-        "Links de pagamento integrados",
-        "Multi-gateway: Stripe, Pix, etc.",
+        "Cobranças geradas automáticas",
+        "Atendimento com histórico cheio",
       ],
       mock: <ForgeMock />,
-      gradFrom: "from-[#7C3AED]/20",
+      gradFrom: "from-[#7C3AED]/15",
       gradTo: "to-pink-600/10",
       border: "border-[#7C3AED]/30",
       letter_color: "text-[#a78bfa]",
@@ -90,7 +105,7 @@ export function NasaMethodSection() {
   ];
 
   return (
-    <section className="relative py-28 px-4">
+    <section id="o-que-e-nasa" className="relative py-28 px-4 scroll-mt-24">
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#7C3AED]/4 to-transparent pointer-events-none" />
 
       <div className="max-w-7xl mx-auto">
@@ -102,17 +117,22 @@ export function NasaMethodSection() {
               Nossa metodologia exclusiva
             </span>
           </div>
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white mb-5">
-            O Método <span className="text-nasa">N.A.S.A.®</span>
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white mb-5 leading-tight">
+            O Método <span className="text-nasa">N.A.S.A.®</span>, do primeiro
+            contato à entrega,
+            <br className="hidden sm:inline" />
+            <span className="text-white/70"> sem trocar de sistema.</span>
           </h2>
-          <p className="text-white/45 text-xl max-w-2xl mx-auto leading-relaxed">
-            4 etapas que estruturam seu processo comercial do zero ao
-            fechamento. Uma metodologia criada para times de vendas que querem
-            resultados reais.
+          <p className="text-white/45 text-lg sm:text-xl max-w-3xl mx-auto leading-relaxed">
+            Quatro etapas que organizam o processo inteiro, não só a venda. O
+            que começa no comercial segue pro atendimento, pra entrega e pro
+            financeiro sem ninguém precisar passar o recado na mão.
           </p>
         </div>
 
-        {/* Grid */}
+        {/* Grid de estágios, conexão visual entre eles via numeração e
+            opacidade crescente. Mantém grid 2x2 mas cada card sinaliza
+            "estágio N" pra reforçar sequência. */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {pillars.map((p) => (
             <div
@@ -129,6 +149,11 @@ export function NasaMethodSection() {
                   p.gradTo,
                 )}
               />
+              {/* Marcador de estágio no canto sup-direito, sequência
+                  do foguete (01→02→03→04). */}
+              <div className="absolute top-4 right-5 text-[10px] uppercase tracking-[0.2em] text-white/30 font-mono">
+                Estágio {p.stage}
+              </div>
               <div className="relative z-10">
                 <div className="flex items-start gap-4 mb-4">
                   <div
@@ -141,11 +166,13 @@ export function NasaMethodSection() {
                     {p.letter}
                   </div>
                   <div className="pt-1">
-                    <h3 className="text-xl font-bold text-white">{p.title}</h3>
-                    <p className={cn("text-sm font-semibold mt-0.5", p.accent)}>
-                      {p.subtitle}
-                    </p>
-                    <p className="text-white/45 text-xs mt-1.5 leading-relaxed max-w-sm">
+                    <h3 className="text-xl font-bold text-white">
+                      {p.title},{" "}
+                      <span className={cn("text-sm font-semibold", p.accent)}>
+                        {p.stageLabel}
+                      </span>
+                    </h3>
+                    <p className="text-white/55 text-sm mt-2 leading-relaxed max-w-md">
                       {p.description}
                     </p>
                   </div>

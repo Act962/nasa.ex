@@ -17,7 +17,7 @@ const STARS_CARDS = [
     color: "text-emerald-400",
     bg: "bg-emerald-400/10",
     border: "border-emerald-400/20",
-    title: "Plano Suit — Gratuito para sempre",
+    title: "Plano Suit, Gratuito para sempre",
     desc: "Comece sem pagar nada. CRM completo, pipeline de vendas e usuários ilimitados (30★/usuário). Sem expiração.",
   },
   {
@@ -76,7 +76,7 @@ export function StarsInfoSection({ isLoggedIn }: { isLoggedIn: boolean }) {
           <div className="inline-flex items-center gap-2 bg-yellow-400/10 border border-yellow-400/25 rounded-full px-5 py-2">
             <Star className="size-3.5 text-yellow-400 fill-yellow-400" />
             <span className="text-yellow-300 text-sm font-semibold tracking-wide">
-              ★ Stars — A moeda do crescimento
+              ★ Stars, A moeda do crescimento
             </span>
           </div>
         </div>
@@ -86,10 +86,23 @@ export function StarsInfoSection({ isLoggedIn }: { isLoggedIn: boolean }) {
           <br />
           <span className="text-nasa">tudo começa de graça</span>
         </h2>
-        <p className="text-white/40 text-center text-lg mb-16 max-w-2xl mx-auto leading-relaxed">
-          Stars são a moeda interna do NASA. Cada plano inclui um crédito mensal
-          para ativar integrações, automações e funcionalidades avançadas. E o
-          melhor: você começa sem gastar nada.
+
+        {/* Reposicionamento das STARs, briefing § 3.7. Bloco novo
+            ANTES do conteúdo de rollover/simulador (que segue intacto).
+            Posiciona STARs como ferramenta de visibilidade de custo do
+            processo, não só "moeda interna". */}
+        <p className="text-white/60 text-center text-base sm:text-lg mb-6 max-w-3xl mx-auto leading-relaxed">
+          As STARs não são só como você paga, são como você enxerga{" "}
+          <span className="text-white/90 font-semibold">
+            quanto custa cada passo do seu processo
+          </span>
+          . Você vê qual automação gasta mais, qual etapa pesa no bolso, e
+          decide onde economizar. Conta no fim do mês sem saber o que pagou,
+          nunca mais.
+        </p>
+        <p className="text-white/40 text-center text-sm sm:text-base mb-16 max-w-2xl mx-auto leading-relaxed">
+          Cada plano inclui um crédito mensal pra ativar integrações,
+          automações e ferramentas. Você começa sem gastar nada.
         </p>
 
         {/* How Stars work visual */}
@@ -173,7 +186,7 @@ export function StarsInfoSection({ isLoggedIn }: { isLoggedIn: boolean }) {
           </h3>
           <p className="text-white/50 text-sm mb-6 max-w-lg mx-auto leading-relaxed">
             Uma parte das suas Stars inutilizadas rolam para o próximo ciclo.
-            Quanto melhor seu plano, maior o rollover — recompensando quem
+            Quanto melhor seu plano, maior o rollover, recompensando quem
             planeja com inteligência.
           </p>
           <div className="flex justify-center gap-6 flex-wrap">
@@ -228,7 +241,7 @@ export function StarsInfoSection({ isLoggedIn }: { isLoggedIn: boolean }) {
             className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-black px-10 py-6 text-base rounded-2xl nasa-glow-sm"
           >
             <Link href={isLoggedIn ? "/tracking" : "/sign-up"}>
-              Começar com Suit — Grátis
+              Começar com Suit, Grátis
               <Gift className="size-4 ml-2" />
             </Link>
           </Button>
