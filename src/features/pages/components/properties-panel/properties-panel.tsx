@@ -435,6 +435,353 @@ function EmbedProps({ el, update }: { el: ElementBase; update: (p: Partial<Eleme
   );
 }
 
+// ─── Navbar (section-navbar) ────────────────────────────────────────────────
+//
+// Editor dedicado pro section-navbar. Permite trocar logo (texto ou
+// imagem), editar links com âncoras, configurar destinos dos CTAs e
+// ajustar cores via tokens.
+
+function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<ElementBase>) => void }) {
+  type NavLink = { id: string; label: string; href: string };
+  const links = ((el.links as NavLink[] | undefined) ?? []).slice();
+
+  const updateLink = (idx: number, patch: Partial<NavLink>) => {
+    const next = links.slice();
+    next[idx] = { ...next[idx], ...patch };
+    update({ links: next });
+  };
+  const addLink = () => {
+    update({
+      links: [
+        ...links,
+        { id: `l${Date.now()}`, label: "Novo link", href: "#" },
+      ],
+    });
+  };
+  const removeLink = (idx: number) => {
+    update({ links: links.filter((_, i) => i !== idx) });
+  };
+
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Logo
+      </p>
+      <Label className="text-[10px] text-muted-foreground">
+        URL da imagem (deixa vazio pra mostrar texto)
+      </Label>
+      <Input
+        value={(el.logoSrc as string) ?? ""}
+        onChange={(e) => update({ logoSrc: e.target.value })}
+        placeholder="https://meusite.com/logo.png"
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        Texto da logo (fallback)
+      </Label>
+      <Input
+        value={(el.logoText as string) ?? ""}
+        onChange={(e) => update({ logoText: e.target.value })}
+        placeholder="N.A.S.A"
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        Destino da logo (href)
+      </Label>
+      <Input
+        value={(el.logoHref as string) ?? "#top"}
+        onChange={(e) => update({ logoHref: e.target.value })}
+        placeholder="#top"
+        className="text-xs"
+      />
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Links da navegação
+      </p>
+      {links.map((link, idx) => (
+        <div key={link.id} className="flex flex-col gap-1 p-2 border rounded-md mb-2 bg-muted/30">
+          <div className="flex items-center gap-1">
+            <Input
+              value={link.label}
+              onChange={(e) => updateLink(idx, { label: e.target.value })}
+              placeholder="Rótulo"
+              className="text-xs"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => removeLink(idx)}
+              className="size-7 shrink-0"
+              title="Remover link"
+            >
+              <Trash2 className="size-3.5 text-destructive" />
+            </Button>
+          </div>
+          <Input
+            value={link.href}
+            onChange={(e) => updateLink(idx, { href: e.target.value })}
+            placeholder="#planos ou https://..."
+            className="text-xs font-mono"
+          />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={addLink} className="text-xs">
+        + Adicionar link
+      </Button>
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Botão primário
+      </p>
+      <Input
+        value={(el.primaryCta as string) ?? ""}
+        onChange={(e) => update({ primaryCta: e.target.value })}
+        placeholder="Começar grátis"
+        className="text-xs mb-1.5"
+      />
+      <Input
+        value={(el.primaryCtaHref as string) ?? ""}
+        onChange={(e) => update({ primaryCtaHref: e.target.value })}
+        placeholder="#cta-final"
+        className="text-xs font-mono"
+      />
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Botão secundário
+      </p>
+      <Input
+        value={(el.secondaryCta as string) ?? ""}
+        onChange={(e) => update({ secondaryCta: e.target.value })}
+        placeholder="Entrar"
+        className="text-xs mb-1.5"
+      />
+      <Input
+        value={(el.secondaryCtaHref as string) ?? ""}
+        onChange={(e) => update({ secondaryCtaHref: e.target.value })}
+        placeholder="/sign-in"
+        className="text-xs font-mono"
+      />
+
+      <ColorBlock el={el} update={update} />
+    </>
+  );
+}
+
+// ─── Footer (section-footer) ────────────────────────────────────────────────
+
+function FooterProps({ el, update }: { el: ElementBase; update: (p: Partial<ElementBase>) => void }) {
+  type FooterLink = { id: string; label: string; href: string };
+  const links = ((el.links as FooterLink[] | undefined) ?? []).slice();
+  const updateLink = (idx: number, patch: Partial<FooterLink>) => {
+    const next = links.slice();
+    next[idx] = { ...next[idx], ...patch };
+    update({ links: next });
+  };
+  const addLink = () =>
+    update({
+      links: [
+        ...links,
+        { id: `l${Date.now()}`, label: "Novo", href: "#" },
+      ],
+    });
+  const removeLink = (idx: number) =>
+    update({ links: links.filter((_, i) => i !== idx) });
+
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Logo do rodapé
+      </p>
+      <Label className="text-[10px] text-muted-foreground">URL da imagem</Label>
+      <Input
+        value={(el.logoSrc as string) ?? ""}
+        onChange={(e) => update({ logoSrc: e.target.value })}
+        placeholder="https://..."
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">Texto (fallback)</Label>
+      <Input
+        value={(el.logoText as string) ?? ""}
+        onChange={(e) => update({ logoText: e.target.value })}
+        placeholder="N.A.S.A"
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">Tagline</Label>
+      <Input
+        value={(el.tagline as string) ?? ""}
+        onChange={(e) => update({ tagline: e.target.value })}
+        placeholder="Powered pelo Método N.A.S.A.®"
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">Copyright</Label>
+      <Input
+        value={(el.copyright as string) ?? ""}
+        onChange={(e) => update({ copyright: e.target.value })}
+        placeholder="© 2026 N.A.S.A"
+        className="text-xs"
+      />
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Links do rodapé
+      </p>
+      {links.map((link, idx) => (
+        <div key={link.id} className="flex flex-col gap-1 p-2 border rounded-md mb-2 bg-muted/30">
+          <div className="flex items-center gap-1">
+            <Input
+              value={link.label}
+              onChange={(e) => updateLink(idx, { label: e.target.value })}
+              placeholder="Rótulo"
+              className="text-xs"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => removeLink(idx)}
+              className="size-7 shrink-0"
+            >
+              <Trash2 className="size-3.5 text-destructive" />
+            </Button>
+          </div>
+          <Input
+            value={link.href}
+            onChange={(e) => updateLink(idx, { href: e.target.value })}
+            placeholder="#"
+            className="text-xs font-mono"
+          />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={addLink} className="text-xs">
+        + Adicionar link
+      </Button>
+
+      <ColorBlock el={el} update={update} />
+    </>
+  );
+}
+
+// ─── Hero (section-hero) ────────────────────────────────────────────────────
+
+function HeroProps({ el, update }: { el: ElementBase; update: (p: Partial<ElementBase>) => void }) {
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Conteúdo do Hero
+      </p>
+      <Label className="text-[10px] text-muted-foreground">Badge (acima do título)</Label>
+      <Input
+        value={(el.badge as string) ?? ""}
+        onChange={(e) => update({ badge: e.target.value })}
+        placeholder="★ Novo"
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">Título — linha 1</Label>
+      <Input
+        value={(el.titleLine1 as string) ?? ""}
+        onChange={(e) => update({ titleLine1: e.target.value })}
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        Título — linha 2 (acento)
+      </Label>
+      <Input
+        value={(el.titleLine2 as string) ?? ""}
+        onChange={(e) => update({ titleLine2: e.target.value })}
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">Subtítulo</Label>
+      <Textarea
+        rows={3}
+        value={(el.subtitle as string) ?? ""}
+        onChange={(e) => update({ subtitle: e.target.value })}
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">Imagem (URL)</Label>
+      <Input
+        value={(el.imageUrl as string) ?? ""}
+        onChange={(e) => update({ imageUrl: e.target.value })}
+        placeholder="https://..."
+        className="text-xs"
+      />
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Botão primário
+      </p>
+      <Input
+        value={(el.primaryCta as string) ?? ""}
+        onChange={(e) => update({ primaryCta: e.target.value })}
+        placeholder="Começar agora"
+        className="text-xs mb-1.5"
+      />
+      <Input
+        value={(el.primaryCtaHref as string) ?? ""}
+        onChange={(e) => update({ primaryCtaHref: e.target.value })}
+        placeholder="#planos"
+        className="text-xs font-mono"
+      />
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Botão secundário
+      </p>
+      <Input
+        value={(el.secondaryCta as string) ?? ""}
+        onChange={(e) => update({ secondaryCta: e.target.value })}
+        placeholder="Ver demo"
+        className="text-xs mb-1.5"
+      />
+      <Input
+        value={(el.secondaryCtaHref as string) ?? ""}
+        onChange={(e) => update({ secondaryCtaHref: e.target.value })}
+        placeholder="#"
+        className="text-xs font-mono"
+      />
+
+      <Seg />
+      <Label className="text-[10px] text-muted-foreground">
+        Anchor ID (pra outros botões linkarem aqui)
+      </Label>
+      <Input
+        value={(el.anchorId as string) ?? ""}
+        onChange={(e) => update({ anchorId: e.target.value })}
+        placeholder="hero"
+        className="text-xs font-mono"
+      />
+
+      <ColorBlock el={el} update={update} />
+    </>
+  );
+}
+
+// ─── Bloco genérico de cores (compartilhado) ────────────────────────────────
+
+function ColorBlock({ el, update }: { el: ElementBase; update: (p: Partial<ElementBase>) => void }) {
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Cores
+      </p>
+      <Row>
+        <ColorField label="Fundo" value={(el.bgColor as string) ?? ""} onChange={(v) => update({ bgColor: v })} />
+        <ColorField label="Texto" value={(el.fgColor as string) ?? ""} onChange={(v) => update({ fgColor: v })} />
+      </Row>
+      <Row>
+        <ColorField label="Primária" value={(el.primaryColor as string) ?? ""} onChange={(v) => update({ primaryColor: v })} />
+        <ColorField label="Secundária" value={(el.mutedColor as string) ?? ""} onChange={(v) => update({ mutedColor: v })} />
+      </Row>
+    </>
+  );
+}
+
+// (ColorField já está definido em outro lugar do arquivo — usa a versão existente)
+
 // ─── Responsive section ──────────────────────────────────────────────────────
 
 function ResponsiveProps({ el, update }: { el: ElementBase; update: (p: Partial<ElementBase>) => void }) {
@@ -558,6 +905,10 @@ export function PropertiesPanelContent() {
         {el.type === "button" && <ButtonProps el={el} update={update} />}
         {el.type === "video"  && <VideoProps  el={el} update={update} />}
         {el.type === "embed"  && <EmbedProps  el={el} update={update} />}
+        {/* Sections novas (Fase 1 do builder evoluído) */}
+        {el.type === "section-navbar" && <NavbarProps el={el} update={update} />}
+        {el.type === "section-footer" && <FooterProps el={el} update={update} />}
+        {el.type === "section-hero"   && <HeroProps   el={el} update={update} />}
         <ResponsiveProps el={el} update={update} />
       </div>
     </div>
