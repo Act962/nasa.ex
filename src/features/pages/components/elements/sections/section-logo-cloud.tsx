@@ -1,6 +1,5 @@
 /**
- * Section Logo Cloud — grid estático de logos de parceiros/marcas.
- * Editável: heading, lista de logos {imageUrl, alt}.
+ * Section Logo Cloud — grid responsivo de logos.
  */
 import {
   bgColor,
@@ -32,66 +31,40 @@ export function SectionLogoCloud({ element, tokens }: SectionRendererProps) {
   const muted = mutedColor(element, tokens);
 
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        padding: "40px 32px",
-        background: bg,
-        color: fg,
-        display: "flex",
-        flexDirection: "column",
-        gap: 24,
-        overflow: "hidden",
-      }}
+    <section
+      className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12"
+      style={{ background: bg, color: fg }}
     >
-      <p
-        style={{
-          textAlign: "center",
-          fontSize: 11,
-          letterSpacing: "0.25em",
-          textTransform: "uppercase",
-          color: muted,
-          margin: 0,
-        }}
-      >
-        {heading}
-      </p>
+      <div className="max-w-7xl mx-auto flex flex-col gap-6">
+        <p
+          className="text-center text-[10px] sm:text-xs tracking-[0.25em] uppercase"
+          style={{ color: muted }}
+        >
+          {heading}
+        </p>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 32,
-          flexWrap: "wrap",
-        }}
-      >
-        {logos.map((l) => (
-          <div
-            key={l.id}
-            style={{
-              opacity: 0.6,
-              height: 32,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: 80,
-            }}
-          >
-            {l.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={l.imageUrl}
-                alt={l.alt}
-                style={{ height: "100%", width: "auto", objectFit: "contain" }}
-              />
-            ) : (
-              <span style={{ color: muted, fontSize: 12 }}>{l.alt}</span>
-            )}
-          </div>
-        ))}
+        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 sm:gap-x-12">
+          {logos.map((l) => (
+            <div
+              key={l.id}
+              className="h-7 sm:h-8 opacity-60 flex items-center justify-center min-w-[80px]"
+            >
+              {l.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={l.imageUrl}
+                  alt={l.alt}
+                  className="h-full w-auto object-contain"
+                />
+              ) : (
+                <span className="text-xs" style={{ color: muted }}>
+                  {l.alt}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }

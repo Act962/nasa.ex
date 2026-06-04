@@ -1,6 +1,7 @@
 /**
- * Section Hero — mega-bloco pré-montado pra topo de landing.
+ * Section Hero — mobile-first responsive.
  * Editável: badge, headline (2 linhas), subtitle, 2 CTAs, imagem.
+ * Cores via tokens. Layout fluido com Tailwind responsive classes.
  */
 import {
   bgColor,
@@ -28,35 +29,17 @@ export function SectionHero({ element, tokens }: SectionRendererProps) {
   const muted = mutedColor(element, tokens);
 
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        padding: "48px 32px",
-        background: bg,
-        color: fg,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-        gap: 18,
-        overflow: "hidden",
-      }}
+    <section
+      className="w-full px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-28 flex flex-col items-center text-center gap-5 sm:gap-6 overflow-hidden"
+      style={{ background: bg, color: fg }}
     >
       {/* Badge */}
       <div
+        className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs sm:text-sm font-medium border"
         style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "6px 14px",
-          borderRadius: 999,
           background: `${primary}20`,
           color: primary,
-          fontSize: 12,
-          fontWeight: 600,
-          border: `1px solid ${primary}50`,
+          borderColor: `${primary}50`,
         }}
       >
         {badge}
@@ -64,13 +47,8 @@ export function SectionHero({ element, tokens }: SectionRendererProps) {
 
       {/* Headline */}
       <h1
-        style={{
-          fontSize: 48,
-          fontWeight: 900,
-          lineHeight: 1.05,
-          margin: 0,
-          maxWidth: 800,
-        }}
+        className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.05] max-w-4xl"
+        style={{ color: fg }}
       >
         {titleLine1}
         <br />
@@ -79,44 +57,23 @@ export function SectionHero({ element, tokens }: SectionRendererProps) {
 
       {/* Subtitle */}
       <p
-        style={{
-          fontSize: 18,
-          color: muted,
-          maxWidth: 600,
-          lineHeight: 1.5,
-          margin: 0,
-        }}
+        className="text-sm sm:text-base md:text-lg leading-relaxed max-w-2xl"
+        style={{ color: muted }}
       >
         {subtitle}
       </p>
 
-      {/* CTAs */}
-      <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+      {/* CTAs - empilha em mobile, lado-a-lado em sm+ */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 mt-2 w-full sm:w-auto">
         <button
-          style={{
-            background: primary,
-            color: "#fff",
-            padding: "12px 28px",
-            borderRadius: 10,
-            fontWeight: 700,
-            fontSize: 14,
-            border: "none",
-            cursor: "pointer",
-          }}
+          className="text-sm font-bold px-7 py-3 sm:py-3.5 rounded-xl transition-opacity hover:opacity-90"
+          style={{ background: primary, color: "#fff" }}
         >
           {primaryCta}
         </button>
         <button
-          style={{
-            background: "transparent",
-            color: fg,
-            padding: "12px 28px",
-            borderRadius: 10,
-            fontWeight: 600,
-            fontSize: 14,
-            border: `1px solid ${fg}30`,
-            cursor: "pointer",
-          }}
+          className="text-sm font-semibold px-7 py-3 sm:py-3.5 rounded-xl transition-colors hover:bg-white/5 border"
+          style={{ color: fg, borderColor: `${fg}30` }}
         >
           {secondaryCta}
         </button>
@@ -128,14 +85,10 @@ export function SectionHero({ element, tokens }: SectionRendererProps) {
         <img
           src={imageUrl}
           alt=""
-          style={{
-            maxWidth: "85%",
-            marginTop: 24,
-            borderRadius: 12,
-            boxShadow: `0 20px 60px ${primary}30`,
-          }}
+          className="w-full max-w-4xl rounded-xl mt-4 sm:mt-6"
+          style={{ boxShadow: `0 20px 60px ${primary}30` }}
         />
       )}
-    </div>
+    </section>
   );
 }

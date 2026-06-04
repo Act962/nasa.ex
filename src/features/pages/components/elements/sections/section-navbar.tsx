@@ -1,0 +1,93 @@
+/**
+ * Section Navbar — header fixo no topo da landing.
+ * Logo à esquerda, links centralizados, CTAs à direita.
+ * Responsivo: em mobile vira hamburguer simples (links escondidos).
+ */
+import type { SectionRendererProps } from "./types";
+import { bgColor, fgColor, mutedColor, primaryColor } from "./types";
+
+interface NavLink {
+  id: string;
+  label: string;
+  href?: string;
+}
+
+export function SectionNavbar({ element, tokens }: SectionRendererProps) {
+  const logoSrc = (element.logoSrc as string) ?? "";
+  const logoText = (element.logoText as string) ?? "N.A.S.A";
+  const links =
+    (element.links as NavLink[] | undefined) ?? [
+      { id: "1", label: "Planos", href: "#planos" },
+      { id: "2", label: "O que é NASA?", href: "#o-que-e-nasa" },
+      { id: "3", label: "Como funciona", href: "#como-funciona" },
+    ];
+  const primaryCta = (element.primaryCta as string) ?? "Começar grátis";
+  const secondaryCta = (element.secondaryCta as string) ?? "Entrar";
+
+  const primary = primaryColor(element, tokens);
+  const bg = bgColor(element, tokens);
+  const fg = fgColor(element, tokens);
+  const muted = mutedColor(element, tokens);
+
+  return (
+    <header
+      className="w-full sticky top-0 z-50 backdrop-blur-md border-b"
+      style={{
+        background: `${bg}cc`,
+        borderColor: `${fg}10`,
+        color: fg,
+      }}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+        {/* Logo */}
+        <a href="#top" className="flex items-center gap-2 shrink-0">
+          {logoSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoSrc}
+              alt={logoText}
+              className="h-8 sm:h-10 w-auto"
+            />
+          ) : (
+            <span
+              className="text-xl font-black tracking-tight"
+              style={{ color: fg }}
+            >
+              {logoText}
+            </span>
+          )}
+        </a>
+
+        {/* Links centralizados - hidden em mobile */}
+        <nav className="hidden md:flex items-center gap-1">
+          {links.map((link) => (
+            <a
+              key={link.id}
+              href={link.href ?? "#"}
+              className="text-sm font-medium px-3 py-1.5 rounded-lg transition-colors hover:bg-white/5"
+              style={{ color: muted }}
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
+
+        {/* CTAs - secundário hidden em mobile, primário sempre visível */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            className="hidden sm:inline-flex text-sm font-medium px-3 py-1.5 rounded-lg transition-colors hover:bg-white/5"
+            style={{ color: muted }}
+          >
+            {secondaryCta}
+          </button>
+          <button
+            className="text-xs sm:text-sm font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all hover:opacity-90"
+            style={{ background: primary, color: "#fff" }}
+          >
+            {primaryCta}
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}

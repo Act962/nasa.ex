@@ -152,6 +152,9 @@ export type ElementType =
   | "section-testimonials"
   | "section-faq"
   | "section-logo-cloud"
+  // Estrutura global da landing
+  | "section-navbar"
+  | "section-footer"
   // ── Blocos interativos (Fase 2) ──
   | "marquee"
   | "tabs"

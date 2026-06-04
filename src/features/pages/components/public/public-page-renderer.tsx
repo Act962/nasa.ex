@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Device, PageLayout, ElementBase } from "../../types";
+import type { Device, ElementType, PageLayout, ElementBase } from "../../types";
 import { DEVICE_PRESETS } from "../../constants";
 import { ElementRenderer } from "../elements/element-renderer";
 import { resolveElements, getDeviceFromWidth } from "../../lib/responsive";
+import { isFlowSection, pageRenderMode } from "../../lib/section-flow";
 
 interface Props {
   layout: PageLayout;
@@ -33,11 +34,19 @@ export function PublicPageRenderer({ layout, palette, fontFamily }: Props) {
   const artboardWidth = layout.artboard.width ?? 1440;
   const containerWidth = DEVICE_PRESETS[device].width;
 
+  // Detecta se a page é "landing" (tem sections de fluxo) ou "canvas"
+  // (átomos posicionados absolutamente, comportamento original).
+  const mainElements =
+    layout.mode === "single" ? layout.main.elements : layout.front.elements;
+  const renderMode = pageRenderMode(mainElements);
+
+  // No modo landing, ocupa viewport inteiro responsivamente. No canvas,
+  // mantém maxWidth do device preset (comportamento original).
   const wrapperStyle: React.CSSProperties = {
     position: "relative",
     width: "100%",
-    maxWidth: containerWidth,
-    minHeight: layout.artboard.minHeight,
+    maxWidth: renderMode === "landing" ? "100%" : containerWidth,
+    minHeight: renderMode === "landing" ? "100vh" : layout.artboard.minHeight,
     margin: "0 auto",
     background:
       (palette?.bg as string | undefined) ??
@@ -45,14 +54,18 @@ export function PublicPageRenderer({ layout, palette, fontFamily }: Props) {
       "#ffffff",
     fontFamily: fontFamily ?? "Inter, system-ui, sans-serif",
     color: (palette?.fg as string | undefined) ?? "#0f172a",
-    overflow: "hidden",
+    overflow: renderMode === "landing" ? undefined : "hidden",
   };
 
   if (layout.mode === "single") {
     const elements = resolveElements(layout.main.elements, device, artboardWidth);
     return (
       <div style={wrapperStyle}>
-        <LayerSurface elements={elements} minHeight={layout.artboard.minHeight} />
+        {renderMode === "landing" ? (
+          <LandingFlow elements={elements} tokens={(layout as { tokens?: unknown }).tokens} />
+        ) : (
+          <LayerSurface elements={elements} minHeight={layout.artboard.minHeight} />
+        )}
       </div>
     );
   }
@@ -112,6 +125,52 @@ function LayerSurface({
           }}
         >
           <ElementRenderer element={el} readonly />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Modo "landing" — renderiza sections em fluxo vertical responsivo
+ * (sem position absolute). Sections de fluxo (section-*, navbar,
+ * footer, marquee) ocupam 100% da largura e altura intrínseca.
+ * Átomos (text, image, etc) ficam dentro de um "canvas residual"
+ * com posicionamento absoluto, encaixado no meio do fluxo.
+ *
+ * Ordem: sections ordenadas por `y` ascendente. Permite reordenar
+ * arrastando no builder.
+ */
+function LandingFlow({
+  elements,
+  tokens,
+}: {
+  elements: ElementBase[];
+  tokens?: unknown;
+}) {
+  // Separa flow sections de átomos (átomos ficam ignorados nesse modo
+  // por enquanto — landings raramente misturam os dois).
+  const flowElements = elements
+    .filter((el) => isFlowSection(el.type as ElementType))
+    .sort((a, b) => (a.y ?? 0) - (b.y ?? 0));
+
+  return (
+    <div className="flex flex-col w-full">
+      {flowElements.map((el) => (
+        <div
+          key={el.id}
+          data-el-id={el.id}
+          className="w-full"
+          style={{
+            opacity: el.opacity ?? 1,
+            zIndex: el.zIndex ?? 1,
+          }}
+        >
+          <ElementRenderer
+            element={el}
+            readonly
+            tokens={tokens as never}
+          />
         </div>
       ))}
     </div>

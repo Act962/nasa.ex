@@ -9,6 +9,8 @@ import { SectionStats } from "./sections/section-stats";
 import { SectionTestimonials } from "./sections/section-testimonials";
 import { SectionFaq } from "./sections/section-faq";
 import { SectionLogoCloud } from "./sections/section-logo-cloud";
+import { SectionNavbar } from "./sections/section-navbar";
+import { SectionFooter } from "./sections/section-footer";
 import {
   AccordionBlock,
   CounterBlock,
@@ -345,6 +347,10 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
       return <SectionFaq element={element} tokens={tokens} readonly={readonly} />;
     case "section-logo-cloud":
       return <SectionLogoCloud element={element} tokens={tokens} readonly={readonly} />;
+    case "section-navbar":
+      return <SectionNavbar element={element} tokens={tokens} readonly={readonly} />;
+    case "section-footer":
+      return <SectionFooter element={element} tokens={tokens} readonly={readonly} />;
     // ── Blocos interativos (Fase 2) ──────────────────────────────
     case "marquee":
       return <MarqueeBlock element={element} tokens={tokens} readonly={readonly} />;

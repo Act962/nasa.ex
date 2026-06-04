@@ -407,6 +407,21 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
   return {
     tokens: T,
     elements: [
+      // ── 0. NAVBAR (sticky topo) ──
+      pushAt({
+        type: "section-navbar",
+        x: 0, y: 0, w: 1200, h: 80,
+        logoText: "N.A.S.A",
+        links: [
+          { id: "1", label: "Planos", href: "#planos" },
+          { id: "2", label: "O que é NASA?", href: "#o-que-e-nasa" },
+          { id: "3", label: "Como funciona", href: "#como-funciona" },
+        ],
+        primaryCta: "Começar grátis",
+        secondaryCta: "Entrar",
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
       // ── 1. HERO — Sistema Operacional do processo ──
       pushAt({
         type: "section-hero",
@@ -595,6 +610,20 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
         secondaryCta: "Ver demo ao vivo",
         guarantees: ["🛡 LGPD", "🌎 Brasil", "⚡ 5 min", "📞 1ª semana acompanhada"],
         bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 14. FOOTER ──
+      pushAt({
+        type: "section-footer",
+        x: 0, y: 0, w: 1200, h: 140,
+        logoText: "N.A.S.A",
+        tagline: "Powered pelo Método N.A.S.A.®",
+        copyright: "© 2026 N.A.S.A",
+        links: [
+          { id: "1", label: "Políticas de Privacidade", href: "#" },
+          { id: "2", label: "Termos & Condições", href: "#" },
+        ],
+        bgColor: T.bg, fgColor: T.fg, mutedColor: T.muted,
       }),
     ],
   };

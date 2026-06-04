@@ -281,6 +281,40 @@ const DEFAULTS: Record<ElementType, (palette: Record<string, string>) => Omit<El
     mutedColor: p.muted ?? "#94a3b8",
   }),
 
+  "section-navbar": (p) => ({
+    type: "section-navbar",
+    x: 0, y: 0, w: 1200, h: 80,
+    logoSrc: "",
+    logoText: "N.A.S.A",
+    links: [
+      { id: "1", label: "Planos", href: "#planos" },
+      { id: "2", label: "O que é NASA?", href: "#o-que-e-nasa" },
+      { id: "3", label: "Como funciona", href: "#como-funciona" },
+    ],
+    primaryCta: "Começar grátis",
+    secondaryCta: "Entrar",
+    bgColor: p.bg ?? "#0f172a",
+    fgColor: p.fg ?? "#f8fafc",
+    primaryColor: p.primary ?? "#7C3AED",
+    mutedColor: p.muted ?? "#94a3b8",
+  }),
+
+  "section-footer": (p) => ({
+    type: "section-footer",
+    x: 0, y: 0, w: 1200, h: 140,
+    logoSrc: "",
+    logoText: "N.A.S.A",
+    tagline: "Powered pelo Método N.A.S.A.®",
+    copyright: "© 2026 N.A.S.A",
+    links: [
+      { id: "1", label: "Políticas de Privacidade", href: "#" },
+      { id: "2", label: "Termos & Condições", href: "#" },
+    ],
+    bgColor: p.bg ?? "#0f172a",
+    fgColor: p.fg ?? "#f8fafc",
+    mutedColor: p.muted ?? "#94a3b8",
+  }),
+
   // ── Blocos interativos (Fase 2) ──────────────────────────────
 
   marquee: (p) => ({
