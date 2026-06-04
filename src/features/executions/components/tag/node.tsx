@@ -4,7 +4,7 @@ import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { memo, useState, useMemo } from "react";
 import { BaseExecutionNode } from "../base-execution-node";
 import { TagIcon } from "lucide-react";
-import { TagDialog, TagFormValues } from "./dialog";
+import { TagDialog, TagFormValues, isPlaceholderTagId } from "./dialog";
 import { useNodeStatus } from "../../hook/use-node-status";
 import { TAG_CHANNEL_NAME } from "@/inngest/channels/tag";
 import { fetchTagRealtimeToken } from "./actions";
@@ -49,21 +49,41 @@ export const TagNode = memo((props: NodeProps<TagNodeType>) => {
 
   const nodeData = props.data;
 
-  // Detecta se o node referencia tags arquivadas (Tags V2 soft-delete).
-  // Quando sim, mostra warning visual no card pra alertar o user.
-  // Inclui arquivadas no fetch pra resolver as referências históricas.
+  // Detecta:
+  //  - placeholders não resolvidos (presets agent-mode com `<<...>>`)
+  //  - tags arquivadas (Tags V2 soft-delete)
+  //  - IDs órfãos (tag hard-deletada antes da v2)
+  // Cada caso vira warning visual no card pra o user entender que
+  // precisa abrir o nó e ajustar antes do workflow rodar.
   const { tags: allTags } = useTags({
     trackingId: "ALL",
     includeArchived: true,
   });
-  const archivedRefs = useMemo(() => {
+  const { placeholderRefs, archivedRefs, orphanRefs } = useMemo(() => {
     const ids = nodeData.action?.tagsIds ?? [];
-    if (ids.length === 0) return [];
-    return allTags.filter((t) => ids.includes(t.id) && t.isArchived);
+    const placeholders = ids.filter(isPlaceholderTagId);
+    const real = ids.filter((id) => !isPlaceholderTagId(id));
+    const archived = allTags.filter(
+      (t) => real.includes(t.id) && t.isArchived,
+    );
+    const orphan = real.filter((id) => !allTags.find((t) => t.id === id));
+    return {
+      placeholderRefs: placeholders,
+      archivedRefs: archived,
+      orphanRefs: orphan,
+    };
   }, [nodeData.action?.tagsIds, allTags]);
 
+  // Prioridade da mensagem: placeholders > órfãos > arquivadas > default.
+  // Placeholder é mais grave porque ID inexistente quebraria FK antes
+  // do fix do executor — agora skipa, mas user ainda precisa resolver
+  // pra workflow fazer algo útil.
   const description =
-    archivedRefs.length > 0
+    placeholderRefs.length > 0
+      ? `⚠️ ${placeholderRefs.length} placeholder(s) não resolvido(s) — clique e edite`
+      : orphanRefs.length > 0
+      ? `⚠️ ${orphanRefs.length} tag(s) inválida(s) — clique e remova`
+      : archivedRefs.length > 0
       ? `⚠️ ${archivedRefs.length} tag(s) arquivada(s) — serão skipadas`
       : "Adiciona/remove uma tag";
 
