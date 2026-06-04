@@ -7,10 +7,15 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Copy, Layers, Layers2, Sparkles } from "lucide-react";
+import { ArrowLeft, Copy, Layers, Layers2, Sparkles, Zap } from "lucide-react";
 import Link from "next/link";
 import { INTENT_LABELS } from "../../constants";
-import type { PageIntent } from "../../types";
+import type { ElementBase, PageIntent } from "../../types";
+import {
+  PAGE_TEMPLATES,
+  applyTemplate,
+  type PageTemplate,
+} from "../../lib/page-templates";
 
 export function PageTemplatesGallery() {
   const router = useRouter();
@@ -38,6 +43,58 @@ export function PageTemplatesGallery() {
     onError: (e: Error) => toast.error(e.message ?? "Erro ao usar template"),
   });
 
+  /**
+   * Aplica um template **de código** (PAGE_TEMPLATES em lib/) — diferente
+   * dos templates do banco que são duplicação de pages existentes.
+   * Pipeline: createPage vazio → updatePage injetando layout com os
+   * elements do template aplicado.
+   */
+  const { mutate: useCodeTemplate, isPending: isApplyingCode } = useMutation({
+    mutationFn: async (template: PageTemplate) => {
+      const applied = applyTemplate(template.id);
+      if (!applied) throw new Error("Template inválido");
+
+      // 1) Cria page vazia com palette do template
+      const res = await client.pages.createPage({
+        title: template.name,
+        slug: `${template.id}-${Math.random().toString(36).slice(2, 7)}`,
+        description: template.description,
+        intent: template.intent,
+        layerCount: 1,
+        palette: {
+          primary: template.tokens.primary,
+          accent: template.tokens.accent,
+          bg: template.tokens.bg,
+          fg: template.tokens.fg,
+          muted: template.tokens.muted,
+        },
+      });
+
+      // 2) Injeta layout com elements do template
+      const totalH = applied.elements.reduce(
+        (acc, el) => Math.max(acc, (el.y ?? 0) + (el.h ?? 0)),
+        0,
+      );
+      await client.pages.updatePage({
+        id: res.page.id,
+        layout: {
+          mode: "single",
+          main: { elements: applied.elements as ElementBase[] },
+          artboard: { width: 1200, minHeight: Math.max(800, totalH) },
+          tokens: { colors: applied.tokens },
+        },
+      });
+
+      return res;
+    },
+    onSuccess: (res) => {
+      toast.success("Site criado com modelo da plataforma");
+      qc.invalidateQueries({ queryKey: orpc.pages.listPages.queryKey() });
+      router.push(`/pages/${res.page.id}`);
+    },
+    onError: (e: Error) => toast.error(e.message ?? "Erro ao usar template"),
+  });
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex items-center gap-4">
@@ -58,6 +115,83 @@ export function PageTemplatesGallery() {
         </div>
       </header>
 
+      {/* ── Templates da PLATAFORMA (código) ────────────────────
+          Sempre disponíveis. Vêm de `lib/page-templates.ts`. */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-baseline gap-2">
+          <h2 className="text-base font-bold flex items-center gap-1.5">
+            <Zap className="size-4 text-violet-500" />
+            Templates da plataforma
+          </h2>
+          <span className="text-xs text-muted-foreground">
+            {PAGE_TEMPLATES.length} modelos prontos
+          </span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {PAGE_TEMPLATES.map((t) => (
+            <Card
+              key={t.id}
+              className="flex flex-col group hover:border-violet-400 transition-colors"
+            >
+              {/* Thumbnail gerado a partir dos tokens do template */}
+              <div
+                className="relative h-32 rounded-t-xl overflow-hidden"
+                style={{
+                  background: `linear-gradient(135deg, ${t.tokens.primary}40 0%, ${t.tokens.accent}20 100%)`,
+                }}
+              >
+                <div className="absolute inset-0 flex items-center justify-center text-5xl opacity-70">
+                  {t.category === "Sales" && "💼"}
+                  {t.category === "Eventos" && "🎉"}
+                  {t.category === "Pessoal" && "👤"}
+                  {t.category === "Comunidade" && "👥"}
+                </div>
+                <span
+                  className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                  style={{
+                    background: t.tokens.bg,
+                    color: t.tokens.primary,
+                    border: `1px solid ${t.tokens.primary}40`,
+                  }}
+                >
+                  {t.category}
+                </span>
+                <span className="absolute top-2 right-2 text-[10px] font-mono text-white/90 bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full">
+                  {t.elements.length} blocos
+                </span>
+              </div>
+              <CardContent className="p-4 flex-1 flex flex-col gap-2.5">
+                <h3 className="font-semibold leading-tight text-sm">
+                  {t.name}
+                </h3>
+                <p className="text-xs text-muted-foreground line-clamp-2 flex-1">
+                  {t.description}
+                </p>
+                <Button
+                  className="mt-auto gap-1.5"
+                  onClick={() => useCodeTemplate(t)}
+                  disabled={isApplyingCode}
+                >
+                  <Copy className="size-3.5" />
+                  Usar este modelo (2.000 ★)
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Templates do BANCO (pages duplicadas marcadas como template) ── */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-baseline gap-2">
+          <h2 className="text-base font-bold flex items-center gap-1.5">
+            <Sparkles className="size-4 text-indigo-500" />
+            Templates da comunidade
+          </h2>
+          <span className="text-xs text-muted-foreground">
+            Páginas marcadas como template pela equipe NASA
+          </span>
+        </div>
       {isLoading ? (
         <div className="text-sm text-muted-foreground">Carregando templates…</div>
       ) : !data?.templates?.length ? (
@@ -119,6 +253,7 @@ export function PageTemplatesGallery() {
           ))}
         </div>
       )}
+      </section>
     </div>
   );
 }
