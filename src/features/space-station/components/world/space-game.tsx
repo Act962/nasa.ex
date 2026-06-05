@@ -167,6 +167,11 @@ export function SpaceGame({
   const sfuToken = joinWorldQuery.data?.sfuToken ?? null;
   const sfuWsUrl = joinWorldQuery.data?.sfuWsUrl ?? null;
   const sfuReady = USE_SFU && Boolean(sfuToken && sfuWsUrl);
+  // Enquanto buscamos o token SFU de um usuário logado, NÃO subimos o mesh: ele
+  // só conectaria no Pusher pra ser derrubado segundos depois quando o token
+  // chega (churn + risco de listeners órfãos). Só caímos no mesh quando o join
+  // resolve sem SFU utilizável (guest, LiveKit off, ou mint falhou).
+  const sfuPending = USE_SFU && isLoggedIn && joinWorldQuery.isLoading;
 
   const sfu = useSfuRoom({
     token: sfuReady ? sfuToken : null,
@@ -180,7 +185,7 @@ export function SpaceGame({
     userId,
     userName,
     userImage,
-    enabled: !sfuReady,
+    enabled: !sfuReady && !sfuPending,
   });
   const webrtc = sfuReady ? sfu : mesh;
 
@@ -498,7 +503,7 @@ export function SpaceGame({
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950">
       {/* ── Banner de áudio bloqueado (autoplay policy) ── */}
-      {sfuReady && sfu.audioBlocked && (
+      {webrtc.audioBlocked && (
         <div
           className="absolute top-3 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full
                      bg-amber-500/90 text-amber-950 text-xs font-medium shadow-lg
@@ -513,7 +518,7 @@ export function SpaceGame({
         </div>
       )}
       {/* ── Banner de reconexão ── */}
-      {sfuReady && sfu.connectionState === "reconnecting" && (
+      {webrtc.connectionState === "reconnecting" && (
         <div
           className="absolute top-3 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full
                      bg-yellow-500/90 text-yellow-950 text-xs font-medium shadow-lg"

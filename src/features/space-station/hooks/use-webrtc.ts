@@ -133,6 +133,70 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
     let ch: import("pusher-js").Channel | null = null;
     let pusherRtcInstance: import("pusher-js").default | null = null;
 
+    // Handlers de proximidade/sprite registrados SINCRONAMENTE (fora do setup()
+    // async) pra que o cleanup os remova de forma determinística. Antes ficavam
+    // dentro do setup() async e nunca eram removidos: com a flag `enabled`
+    // alternando (SFU ligado), vazavam e disparavam conexões P2P fantasma +
+    // POSTs em /api/pusher/rtc durante o modo SFU.
+    const onProximityEnter = (e: Event) => {
+      const { peerId, peerName, peerImage } = (e as CustomEvent).detail as {
+        peerId: string; peerName: string; peerImage: string | null;
+      };
+      if (peerId === userId) return;
+      // Don't admit new peers if bubble is locked
+      if (bubbleLockedRef.current) return;
+      setBubblePeers(prev => new Set([...prev, peerId]));
+      // Tie-breaker: only the "smaller" userId initiates the offer → avoids glare.
+      // The other side creates the PC and waits for the incoming offer.
+      if (!pcsRef.current.has(peerId)) {
+        if (userId < peerId) {
+          createOffer(peerId, peerName, peerImage);
+        } else {
+          getOrCreatePC(peerId, peerName, peerImage, false);
+        }
+      }
+      // If we're currently sharing, re-announce so the new peer knows
+      if (screenOnRef.current) {
+        setTimeout(() => triggerScreenServer(true), 300);
+      }
+    };
+
+    const onProximityLeave = (e: Event) => {
+      const { peerId } = (e as CustomEvent).detail as { peerId: string };
+      setBubblePeers(prev => { const n = new Set(prev); n.delete(peerId); return n; });
+      closePeer(peerId);
+    };
+
+    const onPeerSprite = (e: Event) => {
+      const { userId: pid, name, nick, spriteUrl } = (e as CustomEvent).detail as {
+        userId: string; name: string; nick?: string | null; spriteUrl: string | null;
+      };
+      if (pid === userId) return;
+      // Remaps "pixel_astronaut" → deterministic Pipoya so every remote
+      // peer tile looks visually distinct (the base astronaut PNG is shared).
+      const resolvedSprite = resolveRemoteSpriteUrl(spriteUrl, pid);
+      let isNew = false;
+      setPeers(prev => {
+        const next = new Map(prev);
+        const existing = next.get(pid);
+        if (existing) {
+          next.set(pid, { ...existing, name, nick: nick ?? existing.nick, spriteUrl: resolvedSprite });
+        } else {
+          isNew = true;
+          next.set(pid, { userId: pid, name, nick: nick ?? null, image: null, spriteUrl: resolvedSprite, stream: null, micOn: false, camOn: false });
+        }
+        return next;
+      });
+      // Re-broadcast current media state so the new peer knows our status
+      if (isNew) {
+        rtcPost({ type: "media", micOn: micOnRef.current, camOn: camOnRef.current });
+      }
+    };
+
+    window.addEventListener("space-station:proximity-enter", onProximityEnter);
+    window.addEventListener("space-station:proximity-leave", onProximityLeave);
+    window.addEventListener("space-station:peer-sprite",     onPeerSprite);
+
     async function setup() {
       const PusherClient = (await import("pusher-js")).default;
       pusherRtcInstance = new PusherClient(
@@ -219,70 +283,15 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
         });
       });
 
-      const onProximityEnter = (e: Event) => {
-        const { peerId, peerName, peerImage } = (e as CustomEvent).detail as {
-          peerId: string; peerName: string; peerImage: string | null;
-        };
-        if (peerId === userId) return;
-        // Don't admit new peers if bubble is locked
-        if (bubbleLockedRef.current) return;
-        setBubblePeers(prev => new Set([...prev, peerId]));
-        // Tie-breaker: only the "smaller" userId initiates the offer → avoids glare.
-        // The other side creates the PC and waits for the incoming offer.
-        if (!pcsRef.current.has(peerId)) {
-          if (userId < peerId) {
-            createOffer(peerId, peerName, peerImage);
-          } else {
-            getOrCreatePC(peerId, peerName, peerImage, false);
-          }
-        }
-        // If we're currently sharing, re-announce so the new peer knows
-        if (screenOnRef.current) {
-          setTimeout(() => triggerScreenServer(true), 300);
-        }
-      };
-
-      const onProximityLeave = (e: Event) => {
-        const { peerId } = (e as CustomEvent).detail as { peerId: string };
-        setBubblePeers(prev => { const n = new Set(prev); n.delete(peerId); return n; });
-        closePeer(peerId);
-      };
-
-      const onPeerSprite = (e: Event) => {
-        const { userId: pid, name, nick, spriteUrl } = (e as CustomEvent).detail as {
-          userId: string; name: string; nick?: string | null; spriteUrl: string | null;
-        };
-        if (pid === userId) return;
-        // Remaps "pixel_astronaut" → deterministic Pipoya so every remote
-        // peer tile looks visually distinct (the base astronaut PNG is shared).
-        const resolvedSprite = resolveRemoteSpriteUrl(spriteUrl, pid);
-        let isNew = false;
-        setPeers(prev => {
-          const next = new Map(prev);
-          const existing = next.get(pid);
-          if (existing) {
-            next.set(pid, { ...existing, name, nick: nick ?? existing.nick, spriteUrl: resolvedSprite });
-          } else {
-            isNew = true;
-            next.set(pid, { userId: pid, name, nick: nick ?? null, image: null, spriteUrl: resolvedSprite, stream: null, micOn: false, camOn: false });
-          }
-          return next;
-        });
-        // Re-broadcast current media state so the new peer knows our status
-        if (isNew) {
-          rtcPost({ type: "media", micOn: micOnRef.current, camOn: camOnRef.current });
-        }
-      };
-
-      window.addEventListener("space-station:proximity-enter", onProximityEnter);
-      window.addEventListener("space-station:proximity-leave", onProximityLeave);
-      window.addEventListener("space-station:peer-sprite",     onPeerSprite);
     }
 
     setup();
     refreshDevices();
 
     return () => {
+      window.removeEventListener("space-station:proximity-enter", onProximityEnter);
+      window.removeEventListener("space-station:proximity-leave", onProximityLeave);
+      window.removeEventListener("space-station:peer-sprite",     onPeerSprite);
       ch?.unsubscribe();
       pusherRtcInstance?.disconnect();
       pusherRtcInstance = null;
@@ -644,5 +653,10 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
     screenOn, screenStream, screenStreamRef, toggleScreen,
     // Communication bubble
     bubblePeers, bubbleLocked, toggleBubbleLock,
+    // Sinais de saúde — o mesh não tem autoplay-unlock nem reconexão LiveKit,
+    // então retornamos valores estáticos só pra unificar a fachada com o SFU
+    // (space-game lê os banners via `webrtc.*`, não via `sfu.*`).
+    audioBlocked: false,
+    connectionState: "connected" as const,
   };
 }

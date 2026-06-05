@@ -72,6 +72,16 @@ export const joinWorld = base
     }
     const isOwner = isUserOwner || isOrgMember;
 
+    // Estação privada (isPublic=false) não é acessível a não-donos — espelha o
+    // gate `checkStationAccess`, que só encontra a station com isPublic:true.
+    // Sem isso, uma station oculta com accessMode OPEN entregaria token de
+    // publicação a qualquer logado que soubesse o stationId.
+    if (!isOwner && !station.isPublic) {
+      throw errors.FORBIDDEN({
+        message: "Você não tem acesso ao mundo desta station.",
+      });
+    }
+
     if (!isOwner && station.accessMode !== "OPEN") {
       // MEMBERS_ONLY / REQUEST: precisa ser membro/conectado/aprovado.
       let allowed = false;
@@ -110,15 +120,19 @@ export const joinWorld = base
 
     // ── Token SFU (LiveKit) ────────────────────────────────────────────────
     const presenceChannel = `presence-world-${station.id}`;
-    const sfuConfigured = isLiveKitConfigured();
+    // `isLiveKitConfigured()` só checa API key/secret; sem a WS URL o cliente
+    // não consegue conectar. Incluímos a URL aqui pra não reportar
+    // sfuConfigured=true e mintar um token inútil (cliente cairia no mesh).
+    const wsUrl =
+      process.env.LIVEKIT_WS_URL ?? process.env.NEXT_PUBLIC_LIVEKIT_URL ?? null;
+    const sfuConfigured = isLiveKitConfigured() && Boolean(wsUrl);
     let sfuToken: string | null = null;
     let sfuRoom: string | null = null;
     let sfuWsUrl: string | null = null;
 
     if (sfuConfigured) {
       sfuRoom = `station:${station.id}:world`;
-      sfuWsUrl =
-        process.env.LIVEKIT_WS_URL ?? process.env.NEXT_PUBLIC_LIVEKIT_URL ?? null;
+      sfuWsUrl = wsUrl;
       try {
         sfuToken = await mintLiveKitToken({
           roomName: sfuRoom,
@@ -131,7 +145,13 @@ export const joinWorld = base
           },
         });
       } catch (err) {
-        console.warn("[space-station/join-world] LiveKit mint falhou:", err);
+        // Configurado mas o mint falhou (secret inválido, relógio, rede). Não
+        // mascaramos como sucesso com token nulo (cair calado no mesh, sem
+        // retry, esconde a misconfig) — relançamos pra que o react-query
+        // tente de novo e o erro fique visível. Se persistir, o cliente cai no
+        // mesh por sfuReady=false.
+        console.error("[space-station/join-world] LiveKit mint falhou:", err);
+        throw err;
       }
     }
 

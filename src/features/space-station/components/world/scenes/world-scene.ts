@@ -3995,10 +3995,21 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
       }
     }
     const speed = 160;
-    const up    = this.cursors.up.isDown    || this.wasd.up.isDown;
-    const down  = this.cursors.down.isDown  || this.wasd.down.isDown;
-    const left  = this.cursors.left.isDown  || this.wasd.left.isDown;
-    const right = this.cursors.right.isDown || this.wasd.right.isDown;
+    // Não mover o avatar enquanto o usuário digita num input/textarea/select/
+    // contentEditable. WASD são letras comuns — sem essa trava, digitar no chat
+    // ou na busca faz o avatar andar (o focusin→resetKeys só reseta na entrada
+    // do foco, não a cada tecla). Também cobre as setas dentro de inputs.
+    const ae = typeof document !== "undefined" ? document.activeElement as HTMLElement | null : null;
+    const typing =
+      !!ae &&
+      (ae.tagName === "INPUT" ||
+        ae.tagName === "TEXTAREA" ||
+        ae.tagName === "SELECT" ||
+        ae.isContentEditable);
+    const up    = !typing && (this.cursors.up.isDown    || this.wasd.up.isDown);
+    const down  = !typing && (this.cursors.down.isDown  || this.wasd.down.isDown);
+    const left  = !typing && (this.cursors.left.isDown  || this.wasd.left.isDown);
+    const right = !typing && (this.cursors.right.isDown || this.wasd.right.isDown);
     const moving = up || down || left || right;
 
     if (this.lpcSprite) {

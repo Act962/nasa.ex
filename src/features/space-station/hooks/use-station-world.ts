@@ -23,9 +23,13 @@ export function useJoinWorld(
       input: { stationId: stationId ?? "" },
     }),
     enabled: Boolean(stationId) && (options?.enabled ?? true),
-    // Token tem TTL de 6h (default do mintLiveKitToken). Refetch generoso
-    // mantém a sala viva sem renovar a cada navegação.
-    staleTime: 5 * 60 * 1000,
+    // Token tem TTL de 6h. Cada mint gera um JWT NOVO, e a connection effect do
+    // use-sfu-room reconecta a Room quando o token muda de identidade — então um
+    // refetch no meio da sessão derrubaria a mídia de todos (mic/cam resetam).
+    // staleTime Infinity + sem refetch em focus/reconnect evita esse churn; um
+    // novo mount (cache expirado por gcTime) ainda renova normalmente.
+    staleTime: Infinity,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }

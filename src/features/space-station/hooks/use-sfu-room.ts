@@ -132,7 +132,9 @@ export function useSfuRoom({
   const selectedAudioRef = useRef("");
   const selectedVideoRef = useRef("");
   const selectedOutputRef = useRef("");
-  const bubbleLockedRef = useRef(false);
+  // Ids que já estiveram na sala SFU — pra remover quem saiu sem apagar peers
+  // que vieram só do Pusher (guests / presence antes de entrar no SFU).
+  const sfuIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     micOnRef.current = micOn;
@@ -152,9 +154,6 @@ export function useSfuRoom({
   useEffect(() => {
     selectedOutputRef.current = selectedOutput;
   }, [selectedOutput]);
-  useEffect(() => {
-    bubbleLockedRef.current = bubbleLocked;
-  }, [bubbleLocked]);
 
   // ── Enumera devices (precisa de permissão prévia pra labels) ────────────
   const refreshDevices = useCallback(async () => {
@@ -174,14 +173,19 @@ export function useSfuRoom({
   const rebuildPeers = useCallback(() => {
     const room = roomRef.current;
     if (!room) return;
-    const next = new Map<string, RemotePeer>();
+    const currentSfuIds = new Set<string>();
+    const snapshots = new Map<string, RemotePeer>();
     room.remoteParticipants.forEach((p: RemoteParticipant) => {
-      next.set(p.identity, snapshotRemotePeer(p));
+      currentSfuIds.add(p.identity);
+      snapshots.set(p.identity, snapshotRemotePeer(p));
     });
-    // Preserva spriteUrl/nick/image que vieram do Pusher (presence).
     setPeers((prev) => {
-      const merged = new Map<string, RemotePeer>();
-      next.forEach((peer, id) => {
+      // Mantém peers que vieram só do Pusher (presence) e ainda não entraram no
+      // SFU — não apagamos só porque um evento do LiveKit disparou.
+      const merged = new Map(prev);
+      // Upsert dos participantes SFU atuais, preservando sprite/nick/image do
+      // presence (Pusher).
+      snapshots.forEach((peer, id) => {
         const old = prev.get(id);
         merged.set(id, {
           ...peer,
@@ -191,8 +195,13 @@ export function useSfuRoom({
           spriteUrl: old?.spriteUrl ?? peer.spriteUrl,
         });
       });
+      // Remove quem ESTAVA no SFU mas saiu — sem mexer nos peers só-Pusher.
+      sfuIdsRef.current.forEach((id) => {
+        if (!currentSfuIds.has(id)) merged.delete(id);
+      });
       return merged;
     });
+    sfuIdsRef.current = currentSfuIds;
   }, []);
 
   // ── Conexão à Room ──────────────────────────────────────────────────────
@@ -213,8 +222,13 @@ export function useSfuRoom({
           token,
           url: wsUrl,
           roomOptions: {
-            adaptiveStream: true,
-            dynacast: true,
+            // adaptiveStream/dynacast exigem track.attach() pro LiveKit
+            // observar a visibilidade dos elementos de vídeo. Os overlays
+            // renderizam via `el.srcObject` (sem attach), então deixá-los ON
+            // faz o SFU pausar o vídeo remoto (ninguém é "visto") → tela preta.
+            // Mantemos OFF até migrar os overlays pra track.attach() (Fase 2+).
+            adaptiveStream: false,
+            dynacast: false,
           },
         });
         if (cancelled) {
@@ -235,7 +249,11 @@ export function useSfuRoom({
           const s = String(room.state);
           if (s === "connected") setConnectionState("connected");
           else if (s === "connecting") setConnectionState("connecting");
-          else if (s === "reconnecting") setConnectionState("reconnecting");
+          // "signalReconnecting" é o reconnect de sinalização do livekit-client;
+          // tratamos como "reconnecting" pra mostrar o banner em vez de
+          // "desconectado" durante uma recuperação transitória.
+          else if (s === "reconnecting" || s === "signalReconnecting")
+            setConnectionState("reconnecting");
           else setConnectionState("disconnected");
         };
         room.on("connectionStateChanged" as never, onConnState as never);
@@ -253,6 +271,18 @@ export function useSfuRoom({
         room.on("trackUnpublished" as never, refreshAll as never);
         room.on("localTrackPublished" as never, refreshAll as never);
         room.on("localTrackUnpublished" as never, refreshAll as never);
+        // Sincroniza o estado local de screen-share quando a track de tela é
+        // despublicada — inclusive ao clicar em "Parar de compartilhar" na
+        // barra nativa do browser (sem isso, screenOn travava em true e o
+        // botão de tela ficava invertido).
+        const onLocalUnpublished = (pub: unknown) => {
+          const src = String((pub as { source?: unknown })?.source ?? "");
+          if (src === "screen_share" || src === "screen_share_audio") {
+            setScreenOn(false);
+            setScreenStream(null);
+          }
+        };
+        room.on("localTrackUnpublished" as never, onLocalUnpublished as never);
         refreshAll();
 
         // ── Devices ───────────────────────────────────────────────────────
@@ -292,10 +322,11 @@ export function useSfuRoom({
   }, [token, wsUrl, rebuildPeers, refreshDevices]);
 
   // ── Sincroniza bubblePeers com peers (Fase 1: bubble = todos) ───────────
+  // Depende de `bubbleLocked` (estado, não ref) pra re-sincronizar ao destravar.
   useEffect(() => {
-    if (bubbleLockedRef.current) return;
+    if (bubbleLocked) return;
     setBubblePeers(new Set(peers.keys()));
-  }, [peers]);
+  }, [peers, bubbleLocked]);
 
   // ── Toggle Mic ──────────────────────────────────────────────────────────
   const toggleMic = useCallback(async () => {
@@ -423,6 +454,26 @@ export function useSfuRoom({
       window.removeEventListener("space-station:peer-sprite", onPeerSprite);
     };
   }, [userId]);
+
+  // ── Remoção de peers que saíram (presence Pusher) ───────────────────────
+  // Cobre guests/peers que nunca entraram no SFU: `rebuildPeers` só remove quem
+  // ESTEVE no SFU, então tratamos aqui quem veio só do presence.
+  useEffect(() => {
+    const onRemoteLeave = (e: Event) => {
+      const { userId: pid } = (e as CustomEvent).detail as { userId: string };
+      if (!pid) return;
+      setPeers((prev) => {
+        if (!prev.has(pid)) return prev;
+        const next = new Map(prev);
+        next.delete(pid);
+        return next;
+      });
+    };
+    window.addEventListener("space-station:remote-leave", onRemoteLeave);
+    return () => {
+      window.removeEventListener("space-station:remote-leave", onRemoteLeave);
+    };
+  }, []);
 
   // userImage do user local — não tocamos no peers (é o local), só registramos
   // pra evitar lint sobre prop não usada na Fase 1. Útil em fases futuras pra
