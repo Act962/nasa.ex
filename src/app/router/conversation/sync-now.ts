@@ -4,7 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { findMessages } from "@/http/uazapi/find-messages";
-import { MessageStatus } from "@/features/tracking-chat/types";
+import { MessageStatus } from "@/generated/prisma/enums";
 import type { FindMessageItem } from "@/http/uazapi/types";
 
 /**
