@@ -25,7 +25,22 @@ import { MapMenu } from "./map-editor/map-menu";
 import { MapEditor } from "./map-editor/map-editor";
 import { PublishTemplateModal } from "./publish-template-modal";
 import { useWebRTC } from "../../hooks/use-webrtc";
+import { useSfuRoom } from "../../hooks/use-sfu-room";
+import { useJoinWorld } from "../../hooks/use-station-world";
 import { useWorldPresence } from "../../hooks/use-world-presence";
+
+/**
+ * Feature flag de transporte de mídia.
+ *
+ * - `useSfuRoom` (LiveKit) é a estratégia alvo: escala pra ~100 pessoas com
+ *   TURN/relay e resolve a classe inteira dos bugs de NAT/firewall/autoplay.
+ *   Default ON quando o LiveKit está configurado (env vars de servidor).
+ * - `useWebRTC` (mesh P2P) fica como fallback até a Fase 2 validar o SFU em
+ *   produção. Defina `NEXT_PUBLIC_USE_SFU=false` pra forçar o mesh.
+ *
+ * A flag e o mesh saem na Fase 4 (limpeza).
+ */
+const USE_SFU = process.env.NEXT_PUBLIC_USE_SFU !== "false";
 
 interface Props {
   worldConfig: StationWorldConfig;
@@ -141,8 +156,38 @@ export function SpaceGame({
   } | null>(null);
   const areaAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // ── WebRTC ─────────────────────────────────────────────────────────────────
-  const webrtc = useWebRTC({ stationId, userId, userName, userImage });
+  // ── Mídia (LiveKit SFU com fallback mesh) ─────────────────────────────────
+  // Dois caminhos:
+  //   1. Usuário logado → `useJoinWorld` busca token da station no servidor.
+  //   2. Guest → SFU desabilitado (sem auth), cai no mesh (P2P).
+  const isLoggedIn = !rawUserId.startsWith("guest");
+  const joinWorldQuery = useJoinWorld(stationId, {
+    enabled: USE_SFU && isLoggedIn,
+  });
+  const sfuToken = joinWorldQuery.data?.sfuToken ?? null;
+  const sfuWsUrl = joinWorldQuery.data?.sfuWsUrl ?? null;
+  const sfuReady = USE_SFU && Boolean(sfuToken && sfuWsUrl);
+  // Enquanto buscamos o token SFU de um usuário logado, NÃO subimos o mesh: ele
+  // só conectaria no Pusher pra ser derrubado segundos depois quando o token
+  // chega (churn + risco de listeners órfãos). Só caímos no mesh quando o join
+  // resolve sem SFU utilizável (guest, LiveKit off, ou mint falhou).
+  const sfuPending = USE_SFU && isLoggedIn && joinWorldQuery.isLoading;
+
+  const sfu = useSfuRoom({
+    token: sfuReady ? sfuToken : null,
+    wsUrl: sfuReady ? sfuWsUrl : null,
+    userId,
+    userName,
+    userImage,
+  });
+  const mesh = useWebRTC({
+    stationId,
+    userId,
+    userName,
+    userImage,
+    enabled: !sfuReady && !sfuPending,
+  });
+  const webrtc = sfuReady ? sfu : mesh;
 
   // ── World presence (multiplayer positions) ─────────────────────────────────
   // IMPORTANT: broadcast the RAW spriteUrl (may be the "pixel_astronaut"
@@ -457,6 +502,30 @@ export function SpaceGame({
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950">
+      {/* ── Banner de áudio bloqueado (autoplay policy) ── */}
+      {webrtc.audioBlocked && (
+        <div
+          className="absolute top-3 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full
+                     bg-amber-500/90 text-amber-950 text-xs font-medium shadow-lg
+                     animate-pulse cursor-pointer select-none"
+          onClick={() => {
+            // Qualquer gesto dispara o startAudio interno do hook; este click
+            // já é capturado pelo audio-unlock. Mantemos o elemento clicável
+            // como pista visual.
+          }}
+        >
+          🔊 Clique em qualquer lugar para ativar o áudio
+        </div>
+      )}
+      {/* ── Banner de reconexão ── */}
+      {webrtc.connectionState === "reconnecting" && (
+        <div
+          className="absolute top-3 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full
+                     bg-yellow-500/90 text-yellow-950 text-xs font-medium shadow-lg"
+        >
+          🔄 Reconectando ao servidor de mídia…
+        </div>
+      )}
       {/* ── Loading overlay ── */}
       {loading && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950">

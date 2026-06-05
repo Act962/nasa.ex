@@ -129,6 +129,13 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
   private playerLabel!: Phaser.GameObjects.Text;
   private walls!: Phaser.Physics.Arcade.StaticGroup;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  /** Atalhos WASD em paralelo às setas, somados via OR no update(). */
+  private wasd!: {
+    up:    Phaser.Input.Keyboard.Key;
+    down:  Phaser.Input.Keyboard.Key;
+    left:  Phaser.Input.Keyboard.Key;
+    right: Phaser.Input.Keyboard.Key;
+  };
   private remotePlayers: Map<string, RemotePlayer> = new Map();
   private worldConfig?: StationWorldConfig;
   private avatarConfig?: AvatarConfig;
@@ -550,6 +557,22 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     });
 
     this.cursors = this.input.keyboard!.createCursorKeys();
+    // Atalhos WASD — somam com as setas, ambos funcionam ao mesmo tempo.
+    // Usar a forma por string ("W,A,S,D") evita depender de `Phaser.Input.
+    // Keyboard.KeyCodes` no escopo global (que veio undefined no bundle aqui
+    // e fazia o create() lançar antes da scene desenhar — tela toda preta).
+    const wasdRaw = this.input.keyboard!.addKeys("W,A,S,D") as {
+      W: Phaser.Input.Keyboard.Key;
+      A: Phaser.Input.Keyboard.Key;
+      S: Phaser.Input.Keyboard.Key;
+      D: Phaser.Input.Keyboard.Key;
+    };
+    this.wasd = {
+      up:    wasdRaw.W,
+      down:  wasdRaw.S,
+      left:  wasdRaw.A,
+      right: wasdRaw.D,
+    };
     // createCursorKeys() captura SPACE internamente e chama preventDefault().
     // disableGlobalCapture() garante que nenhum input HTML perca o espaço.
     this.input.keyboard!.disableGlobalCapture();
@@ -3972,10 +3995,21 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
       }
     }
     const speed = 160;
-    const up    = this.cursors.up.isDown;
-    const down  = this.cursors.down.isDown;
-    const left  = this.cursors.left.isDown;
-    const right = this.cursors.right.isDown;
+    // Não mover o avatar enquanto o usuário digita num input/textarea/select/
+    // contentEditable. WASD são letras comuns — sem essa trava, digitar no chat
+    // ou na busca faz o avatar andar (o focusin→resetKeys só reseta na entrada
+    // do foco, não a cada tecla). Também cobre as setas dentro de inputs.
+    const ae = typeof document !== "undefined" ? document.activeElement as HTMLElement | null : null;
+    const typing =
+      !!ae &&
+      (ae.tagName === "INPUT" ||
+        ae.tagName === "TEXTAREA" ||
+        ae.tagName === "SELECT" ||
+        ae.isContentEditable);
+    const up    = !typing && (this.cursors.up.isDown    || this.wasd.up.isDown);
+    const down  = !typing && (this.cursors.down.isDown  || this.wasd.down.isDown);
+    const left  = !typing && (this.cursors.left.isDown  || this.wasd.left.isDown);
+    const right = !typing && (this.cursors.right.isDown || this.wasd.right.isDown);
     const moving = up || down || left || right;
 
     if (this.lpcSprite) {
