@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash2, Copy, Lock, Unlock, ExternalLink, Crop, Wand2 } from "lucide-react";
 import { ImageCropEditor } from "../elements/image-crop-editor";
 import { Input } from "@/components/ui/input";
@@ -2352,6 +2352,54 @@ function CarouselProps({
         <option value="static">Grid estático (todas visíveis)</option>
       </select>
 
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Imagens visíveis por vez
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
+        {mode === "slide"
+          ? "Quantos slides aparecem na tela ao mesmo tempo. 1 = clássico (1 imagem grande). 2-4 = mini-galeria."
+          : "Quantas colunas o grid terá. Mobile pode ter menos pra não ficar apertado."}
+      </p>
+      <Row cols={2}>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Desktop
+          </Label>
+          <select
+            value={(el.slidesPerView as number) ?? 1}
+            onChange={(e) =>
+              update({ slidesPerView: Number(e.target.value) })
+            }
+            className="w-full text-xs border rounded-md bg-background h-8 px-2"
+          >
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <option key={n} value={n}>
+                {n} {n === 1 ? "imagem" : "imagens"}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Mobile
+          </Label>
+          <select
+            value={(el.slidesPerViewMobile as number) ?? 1}
+            onChange={(e) =>
+              update({ slidesPerViewMobile: Number(e.target.value) })
+            }
+            className="w-full text-xs border rounded-md bg-background h-8 px-2"
+          >
+            {[1, 2, 3].map((n) => (
+              <option key={n} value={n}>
+                {n} {n === 1 ? "imagem" : "imagens"}
+              </option>
+            ))}
+          </select>
+        </div>
+      </Row>
+
       {mode === "slide" && (
         <>
           <Row cols={2}>
@@ -2758,6 +2806,77 @@ function LinnkerSelector({
   );
 }
 
+/**
+ * Dropdown reusável de Tracking — usado por ChatButton e
+ * EmbeddedForm. Mostra status do WhatsApp inline pra dar feedback
+ * visual ("✓" se conectado, "(DISCONNECTED)" se off).
+ */
+function TrackingSelector({
+  value,
+  onChange,
+  emptyLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  emptyLabel: string;
+}) {
+  const { data, isLoading } = useQuery(
+    orpc.trackings.listTrackings.queryOptions({ input: undefined }),
+  );
+  const trackings =
+    ((data as {
+      trackings?: Array<{
+        id: string;
+        name: string;
+        whatsappInstance?: { status?: string } | null;
+      }>;
+    })?.trackings ?? []) as Array<{
+      id: string;
+      name: string;
+      whatsappInstance?: { status?: string } | null;
+    }>;
+
+  if (isLoading) {
+    return <p className="text-[10px] text-muted-foreground">Carregando…</p>;
+  }
+  if (trackings.length === 0) {
+    return (
+      <p className="text-[10px] text-muted-foreground">
+        Você não participa de nenhum tracking. Crie um em{" "}
+        <a href="/tracking" className="underline">
+          Tracking
+        </a>
+        .
+      </p>
+    );
+  }
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full text-xs border rounded-md bg-background h-8 px-2"
+    >
+      <option value="">{emptyLabel}</option>
+      {trackings.map((t) => {
+        const wpp = t.whatsappInstance;
+        const wppStatus = wpp
+          ? wpp.status === "CONNECTED"
+            ? " ✓"
+            : wpp.status
+              ? ` (${wpp.status})`
+              : ""
+          : " (sem WhatsApp)";
+        return (
+          <option key={t.id} value={t.id}>
+            {t.name}
+            {wppStatus}
+          </option>
+        );
+      })}
+    </select>
+  );
+}
+
 // ─── Chat Button (chat-button) ──────────────────────────────────────────
 function ChatButtonProps({
   el,
@@ -2766,6 +2885,29 @@ function ChatButtonProps({
   el: ElementBase;
   update: (p: Partial<ElementBase>) => void;
 }) {
+  // Org slug auto: vem da org ativa do user. NÃO é editável — o
+  // chat IA só conecta na própria org. Persistimos em `el.orgSlug`
+  // pra que o renderer público (servido pra visitantes anônimos)
+  // saiba qual org chamar.
+  const orgQ = useQuery(
+    orpc.org.getCurrentCompany.queryOptions({ input: undefined }),
+  );
+  const org = (orgQ.data as { organization?: { slug?: string; name?: string } })
+    ?.organization;
+  const orgSlug = org?.slug ?? "";
+
+  // Sincroniza orgSlug do element com a org ativa toda vez que ela
+  // for resolvida — evita ficar com slug stale se o user trocar de
+  // org no NASA antes de publicar.
+  useEffect(() => {
+    if (orgSlug && el.orgSlug !== orgSlug) {
+      update({ orgSlug });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgSlug]);
+
+  const trackingId = (el.trackingId as string) ?? "";
+
   return (
     <>
       <Seg />
@@ -2777,32 +2919,47 @@ function ChatButtonProps({
         tracking selecionado, com nome/número pedidos no próprio
         popover quando o user ainda não foi identificado.
       </p>
-      <Label className="text-[10px] text-muted-foreground">
-        Slug da organização (orgSlug)
-      </Label>
-      <Input
-        value={(el.orgSlug as string) ?? ""}
-        onChange={(e) => update({ orgSlug: e.target.value })}
-        placeholder="minha-empresa"
-        className="text-xs font-mono"
-      />
+
+      <Label className="text-[10px] text-muted-foreground">Organização</Label>
+      {orgQ.isLoading ? (
+        <p className="text-[10px] text-muted-foreground">Carregando…</p>
+      ) : !org?.slug ? (
+        <div className="text-[10px] text-destructive bg-destructive/10 border border-destructive/20 rounded p-2 leading-relaxed">
+          Sua organização não tem slug configurado. O chat não vai
+          funcionar até resolver isso em{" "}
+          <a href="/settings/organization" className="underline">
+            Configurações → Organização
+          </a>
+          .
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/30">
+          <div className="size-7 rounded bg-violet-500/20 text-violet-700 flex items-center justify-center text-xs font-bold shrink-0">
+            {org.name?.charAt(0).toUpperCase() ?? "?"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold truncate">{org.name}</p>
+            <p className="text-[10px] text-muted-foreground font-mono truncate">
+              /whatsapp/{org.slug}
+            </p>
+          </div>
+        </div>
+      )}
       <p className="text-[10px] text-muted-foreground mt-1">
-        Necessário pra conectar ao backend do In-Chat. Encontre em
-        Configurações → Organização.
+        Detectado automaticamente da sua sessão. Não editável.
       </p>
 
       <Label className="text-[10px] text-muted-foreground mt-3">
-        Tracking de destino (ID, opcional)
+        Tracking de destino
       </Label>
-      <Input
-        value={(el.trackingId as string) ?? ""}
-        onChange={(e) => update({ trackingId: e.target.value })}
-        placeholder="ck123..."
-        className="text-xs font-mono"
+      <TrackingSelector
+        value={trackingId}
+        onChange={(v) => update({ trackingId: v })}
+        emptyLabel="— Usar tracking padrão da org —"
       />
       <p className="text-[10px] text-muted-foreground mt-1">
-        Se vazio, usa tracking default da org. Útil quando você tem
-        vários pipelines (vendas, atendimento, suporte).
+        Leads gerados pelo chat caem aqui. Se vazio, usa o tracking
+        ativo padrão da organização (mesmo fluxo do /whatsapp/{org?.slug ?? "[slug]"}).
       </p>
 
       <Seg />
@@ -2897,12 +3054,16 @@ function EmbeddedFormProps({
       <Label className="text-[10px] text-muted-foreground mt-3">
         Tracking de destino (override, opcional)
       </Label>
-      <Input
+      <TrackingSelector
         value={(el.trackingId as string) ?? ""}
-        onChange={(e) => update({ trackingId: e.target.value })}
-        placeholder="Deixe vazio pra usar o do form"
-        className="text-xs font-mono"
+        onChange={(v) => update({ trackingId: v })}
+        emptyLabel="— Usar o tracking do form —"
       />
+      <p className="text-[10px] text-muted-foreground mt-1">
+        Se selecionado, sobrescreve o tracking configurado no
+        próprio form. Útil quando o mesmo form aparece em pages
+        diferentes que devem cair em pipelines distintos.
+      </p>
 
       <Seg />
       <ColorField

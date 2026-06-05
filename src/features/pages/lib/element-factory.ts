@@ -387,6 +387,8 @@ const DEFAULTS: Record<ElementType, (palette: Record<string, string>) => Omit<El
     showArrows: true,
     gap: 12,
     radius: 12,
+    slidesPerView: 1,
+    slidesPerViewMobile: 1,
     slides: [
       { id: "s1", imageUrl: "", alt: "Slide 1", aspectRatio: "16:9" },
       { id: "s2", imageUrl: "", alt: "Slide 2", aspectRatio: "16:9" },

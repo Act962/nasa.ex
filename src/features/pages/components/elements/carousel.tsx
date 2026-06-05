@@ -36,17 +36,44 @@ export function CarouselElement({ element }: { element: ElementBase }) {
   const gap = (element.gap as number) ?? 12;
   const radius = (element.radius as number) ?? 8;
   const autoplay = (element.autoplay as boolean) ?? true;
+  // Slides visíveis por viewport. Mobile usa metade (mín 1).
+  // Default desktop = 1 (clássico carrossel "1 por vez").
+  const perViewDesktop = Math.max(
+    1,
+    Math.min(8, (element.slidesPerView as number) ?? 1),
+  );
+  const perViewMobile = Math.max(
+    1,
+    Math.min(perViewDesktop, (element.slidesPerViewMobile as number) ??
+      Math.max(1, Math.floor(perViewDesktop / 2))),
+  );
 
+  // useState do idx — mas em slide-multi, "idx" é o índice do
+  // primeiro slide visível (avança 1 a 1; quando + perView > total,
+  // volta pro começo).
   const [idx, setIdx] = useState(0);
-
-  // Auto-slide
+  // Tracker responsivo do perView atual — usa window.innerWidth.
+  const [perView, setPerView] = useState(perViewDesktop);
   useEffect(() => {
-    if (mode !== "slide" || !autoplay || slides.length < 2) return;
+    if (typeof window === "undefined") return;
+    const update = () => {
+      setPerView(window.innerWidth < 640 ? perViewMobile : perViewDesktop);
+    };
+    update();
+    window.addEventListener("resize", update, { passive: true });
+    return () => window.removeEventListener("resize", update);
+  }, [perViewDesktop, perViewMobile]);
+
+  // Auto-slide — avança 1 slide por tick. Volta pro começo quando
+  // o último grupo (idx + perView) ultrapassa total.
+  const maxIdx = Math.max(0, slides.length - perView);
+  useEffect(() => {
+    if (mode !== "slide" || !autoplay || slides.length <= perView) return;
     const handle = setInterval(() => {
-      setIdx((prev) => (prev + 1) % slides.length);
+      setIdx((prev) => (prev >= maxIdx ? 0 : prev + 1));
     }, Math.max(1000, intervalMs));
     return () => clearInterval(handle);
-  }, [mode, autoplay, intervalMs, slides.length]);
+  }, [mode, autoplay, intervalMs, slides.length, perView, maxIdx]);
 
   if (slides.length === 0) {
     return (
@@ -56,12 +83,22 @@ export function CarouselElement({ element }: { element: ElementBase }) {
     );
   }
 
-  // ── MODO STATIC: grid responsivo ──
+  // ── MODO STATIC: grid responsivo com N colunas ──
+  // perView controla N colunas (1-6). Mobile = perViewMobile cols.
   if (mode === "static") {
     return (
       <div
-        className="w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4"
-        style={{ gap }}
+        className="w-full grid"
+        style={{
+          gap,
+          gridTemplateColumns: `repeat(var(--cols), minmax(0, 1fr))`,
+          // Variáveis CSS pra mobile vs desktop. Tailwind sm: pode
+          // não compilar aqui (classe dinâmica) — usar style + media
+          // via CSS-in-JS inline com data-attrs seria mais complexo.
+          // Como fallback responsivo, usamos JS `perView` que já
+          // observa resize.
+          ["--cols" as keyof React.CSSProperties]: perView,
+        } as React.CSSProperties}
       >
         {slides.map((s) => (
           <CarouselImage key={s.id} slide={s} radius={radius} />
@@ -70,8 +107,15 @@ export function CarouselElement({ element }: { element: ElementBase }) {
     );
   }
 
-  // ── MODO SLIDE: 1 por vez com transform animado ──
-  const safeIdx = Math.min(idx, slides.length - 1);
+  // ── MODO SLIDE: N por vez com transform animado ──
+  const safeIdx = Math.min(idx, maxIdx);
+  // Cada slide vira `(100 / perView)%` da largura do viewport
+  // visível. translateX move em passos de `100 / perView`%.
+  const slideBasisPct = 100 / perView;
+  const translatePct = safeIdx * slideBasisPct;
+  // Quantidade de "dots" = quantos grupos cabem (slides - perView + 1)
+  const totalDots = Math.max(1, slides.length - perView + 1);
+
   return (
     <div
       className="relative w-full overflow-hidden"
@@ -79,33 +123,39 @@ export function CarouselElement({ element }: { element: ElementBase }) {
     >
       <div
         className="flex transition-transform duration-700 ease-out"
-        style={{ transform: `translateX(-${safeIdx * 100}%)` }}
+        style={{ transform: `translateX(-${translatePct}%)`, gap }}
       >
         {slides.map((s) => (
-          <div key={s.id} className="w-full flex-shrink-0">
-            <CarouselImage slide={s} radius={0} />
+          <div
+            key={s.id}
+            className="flex-shrink-0"
+            style={{
+              flexBasis: `calc(${slideBasisPct}% - ${gap * (perView - 1) / perView}px)`,
+            }}
+          >
+            <CarouselImage slide={s} radius={radius} />
           </div>
         ))}
       </div>
 
       {/* Setas */}
-      {showArrows && slides.length > 1 && (
+      {showArrows && slides.length > perView && (
         <>
           <button
             type="button"
             aria-label="Anterior"
-            onClick={() =>
-              setIdx((p) => (p - 1 + slides.length) % slides.length)
-            }
-            className="absolute left-2 top-1/2 -translate-y-1/2 size-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center backdrop-blur transition-colors"
+            onClick={() => setIdx((p) => Math.max(0, p - 1))}
+            disabled={safeIdx === 0}
+            className="absolute left-2 top-1/2 -translate-y-1/2 size-9 rounded-full bg-black/40 hover:bg-black/60 disabled:opacity-30 text-white flex items-center justify-center backdrop-blur transition-colors"
           >
             ‹
           </button>
           <button
             type="button"
             aria-label="Próximo"
-            onClick={() => setIdx((p) => (p + 1) % slides.length)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 size-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center backdrop-blur transition-colors"
+            onClick={() => setIdx((p) => Math.min(maxIdx, p + 1))}
+            disabled={safeIdx >= maxIdx}
+            className="absolute right-2 top-1/2 -translate-y-1/2 size-9 rounded-full bg-black/40 hover:bg-black/60 disabled:opacity-30 text-white flex items-center justify-center backdrop-blur transition-colors"
           >
             ›
           </button>
@@ -113,11 +163,11 @@ export function CarouselElement({ element }: { element: ElementBase }) {
       )}
 
       {/* Dots */}
-      {showDots && slides.length > 1 && (
+      {showDots && slides.length > perView && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-          {slides.map((s, i) => (
+          {Array.from({ length: totalDots }).map((_, i) => (
             <button
-              key={s.id}
+              key={i}
               type="button"
               aria-label={`Ir para slide ${i + 1}`}
               onClick={() => setIdx(i)}
