@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { pusherServer } from "@/lib/pusher";
 import prisma from "@/lib/prisma";
+import { inngest } from "@/inngest/client";
 import { LeadSource, WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import { downloadFile } from "@/http/uazapi/get-file";
 import { S3 } from "@/lib/s3-client";
@@ -22,6 +23,7 @@ import {
   messagesEventSchema,
   webhookBaseSchema,
 } from "@/http/uazapi/webhook-schema";
+import { getCachedTrackingContext } from "@/features/tracking-chat/lib/get-cached-tracking-context";
 
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -65,6 +67,65 @@ export async function POST(request: NextRequest) {
       }
 
       const fromMe = json.message.fromMe;
+
+      const phone = json.message.chatid.split("@")[0];
+      const remoteJid = json.message.chatid;
+
+      const tracking = await getCachedTrackingContext(trackingId);
+
+      if (!tracking) {
+        return NextResponse.json(
+          { error: "Tracking context not found" },
+          { status: 400 },
+        );
+      }
+
+      // ── Astro Bot via WhatsApp ─────────────────────────────────
+      // Se o remetente (não-fromMe) é um membro com UserWhatsappBinding
+      // ativo NA ORG DESTE TRACKING, intercepta e roteia pro orchestrator
+      // IA em vez do fluxo de atendimento. Mensagem do membro = comando
+      // pro bot, não lead novo. Texto puro só — mídia ainda cai no fluxo
+      // normal (Fase 3 adiciona OCR/visão). Roda DEPOIS do tracking lookup
+      // pra escopar o binding por org e evitar colisão multi-org.
+      const bodyForBot = (json.message.text ?? "").trim();
+      if (!fromMe && bodyForBot && json.message.messageType === "TextMessage") {
+        try {
+          const { maybeHandleBotMessage } = await import(
+            "@/features/astro-bot/lib/webhook-handler"
+          );
+          const botResult = await maybeHandleBotMessage({
+            fromPhone: phone,
+            messageText: bodyForBot,
+            receivingInstanceToken: json.token,
+            deviceId: json.deviceId ?? undefined,
+            trackingOrganizationId: tracking.organizationId,
+          });
+          if (botResult.handled) {
+            // Bot processou — não cria Lead/Conversation/Message.
+            return NextResponse.json(
+              {
+                ok: true,
+                handledBy: "astro-bot",
+                bindingId: botResult.bindingId,
+                status: botResult.status,
+              },
+              { status: 200 },
+            );
+          }
+        } catch (err) {
+          // Best-effort: falha no bot NÃO derruba o webhook de atendimento.
+          // Loga e segue pro fluxo normal de Lead/Message.
+          console.error(
+            "[webhook:chat] astro-bot handler failed — fallback to atendimento normal",
+            err,
+          );
+        }
+      }
+
+      // ── Cálculo de nomes (lazy) ────────────────────────────────
+      // Postergado pra depois do bloco bot — quando o bot intercepta, esse
+      // trabalho ia pro lixo. Cadeia de fallbacks rara, mas multiplica por
+      // mensagem inbound.
       const senderName =
         json.message.senderName || json.chat?.name || "Sem nome";
 
@@ -82,25 +143,6 @@ export async function POST(request: NextRequest) {
            json.chat?.wa_name ||
            json.chat?.name ||
            "Sem nome");
-
-      const phone = json.message.chatid.split("@")[0];
-      const remoteJid = json.message.chatid;
-
-      const tracking = await prisma.tracking.findUnique({
-        where: { id: trackingId },
-        select: {
-          id: true,
-          organizationId: true,
-          globalAiActive: true,
-        },
-      });
-
-      if (!tracking) {
-        return NextResponse.json(
-          { error: "Tracking context not found" },
-          { status: 400 },
-        );
-      }
 
       let lead = await prisma.lead.findUnique({
         where: {
@@ -939,26 +981,31 @@ export async function POST(request: NextRequest) {
       const newStatus = String(json.instance?.status ?? "").toLowerCase();
 
       if (newStatus === "disconnected") {
-        await prisma.whatsAppInstance.update({
+        const disconnectedInstance = await prisma.whatsAppInstance.update({
           where: { apiKey: json.token },
           data: {
             status: WhatsAppInstanceStatus.DISCONNECTED,
           },
+          select: { id: true, trackingId: true, baseUrl: true },
         });
-        // Incrementa contador + ativa modo In-Chat se passar do threshold.
-        // Detecção push-based — substitui a necessidade de cron a cada 5min
-        // varrendo todas as instâncias da plataforma.
-        const { markInstanceConnectionFailure } = await import(
-          "@/features/tracking-chat/lib/in-chat-mode"
-        );
-        await markInstanceConnectionFailure({
-          apiKey: json.token,
-          source: "webhook",
+        // Detecção push-based — dispara a confirmação da queda (carência +
+        // checagem de status) que ativa o modo In-Chat se a queda for
+        // sustentada. Substitui o contador "3 falhas" e o cron de varredura.
+        await inngest.send({
+          name: "whatsapp/instance.disconnected",
+          data: {
+            instanceId: disconnectedInstance.id,
+            trackingId: disconnectedInstance.trackingId,
+            apiKey: json.token,
+            baseUrl: disconnectedInstance.baseUrl,
+            reason: json.instance?.lastDisconnectReason ?? null,
+          },
         });
       } else if (newStatus === "connected") {
-        // Reconexão bem-sucedida — zera contador + desativa modo se
-        // estava ligado. Espelho do `markInstanceConnectionFailure` mas
-        // pro sucesso. Roda mesmo sem cron de recovery rodar antes.
+        // Reconexão bem-sucedida — zera contador + desativa o modo In-Chat
+        // se estava ligado. É o caminho de recuperação instantâneo; a
+        // checagem preguiçosa (`checkInChatRecovery`) cobre quando este
+        // webhook não chega.
         const { markInstanceConnectionHealthy } = await import(
           "@/features/tracking-chat/lib/in-chat-mode"
         );

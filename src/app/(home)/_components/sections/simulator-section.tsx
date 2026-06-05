@@ -131,7 +131,7 @@ export function SimulatorSection({ isLoggedIn }: { isLoggedIn: boolean }) {
           <span className="text-nasa">faz sentido para você</span>
         </h2>
         <p className="text-white/40 text-center text-lg mb-12 max-w-xl mx-auto">
-          Ajuste usuários e integrações — veja o consumo de Stars em tempo real
+          Ajuste usuários e integrações, veja o consumo de Stars em tempo real
           e qual plano cobre sua operação.
         </p>
 

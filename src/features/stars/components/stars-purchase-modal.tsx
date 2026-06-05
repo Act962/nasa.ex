@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Loader2, CreditCard, Zap } from "lucide-react";
+import { Loader2, CreditCard, Zap, Ticket } from "lucide-react";
 import { StarIcon } from "./star-icon";
 import { toast } from "sonner";
 import {
@@ -187,6 +187,11 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
               pagamento.
             </p>
           </div>
+
+          <p className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
+            <Ticket className="size-3.5 shrink-0" />
+            Tem um cupom? Aplique na etapa de pagamento.
+          </p>
 
           <Button
             onClick={handleBuy}

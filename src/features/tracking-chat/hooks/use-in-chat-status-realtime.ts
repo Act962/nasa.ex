@@ -11,8 +11,10 @@ import { orpc } from "@/lib/orpc";
  *
  * O server emite `inchat:status-changed` no channel `<trackingId>` quando:
  *  - Toggle manual liga/desliga (procedure `toggleInChatManual`)
- *  - Cron detecta ban automático (`markInstanceConnectionFailure` ativa)
- *  - Cron detecta recovery (`markInstanceConnectionHealthy` desativa)
+ *  - Queda confirmada ativa o modo (`activateInChatMode`, via Inngest
+ *    `confirmDisconnectAndActivate` disparado pelo webhook `disconnected`)
+ *  - Reconexão desativa o modo (`markInstanceConnectionHealthy`, via webhook
+ *    `connected` ou a checagem preguiçosa `checkInChatRecovery`)
  *
  * O cliente assina o channel UMA vez por trackingId (channel já é
  * compartilhado com `conversation:new`/`message:new` — zero conexão

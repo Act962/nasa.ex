@@ -115,6 +115,9 @@ export function useFormAutosave() {
               redirectUrl: currentSettings.redirectUrl,
               idPixel: currentSettings.idPixel,
               idTagManager: currentSettings.idTagManager,
+              validateWhatsapp: ((currentSettings as unknown) as {
+                validateWhatsapp?: boolean;
+              }).validateWhatsapp,
               stepMode:
                 ((currentSettings as unknown) as { stepMode?: string })
                   .stepMode || "off",

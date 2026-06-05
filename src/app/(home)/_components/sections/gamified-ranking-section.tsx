@@ -1,141 +1,85 @@
 import Link from "next/link";
-import { Crown, Medal, Star, Target, Trophy } from "lucide-react";
+import {
+  ArrowRight,
+  BarChart2,
+  Crown,
+  Rocket,
+  Settings,
+  Trophy,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const FAKE_USERS = [
+/**
+ * Seção que demonstra o sistema Space Points (gamificação) reproduzindo
+ * visualmente a UI real do app, com pódio (top 3 astronautas),
+ * classificação completa e tabs de período (semanal/quinzenal/mensal/
+ * anual). Não é screenshot, é um mock React.
+ *
+ * Mostrar a UI real (em vez de um banner "Space Points coming soon")
+ * deixa claro que a feature existe e como funciona.
+ */
+
+const RANKING = [
   {
-    initials: "MF",
-    name: "Mariana F.",
-    company: "Studio MF Design",
-    stars: 18_420,
-    pts: 9_810,
-    level: "Orbital",
-    plan: "Explore",
-    color: "#a855f7",
+    pos: 1,
+    name: "Weydson Lima",
+    galaxy: "Galaxy 2",
+    pts: 232,
+    avatar: "https://i.pravatar.cc/120?img=12",
+    isYou: true,
   },
   {
-    initials: "RL",
-    name: "Rafael Lima",
-    company: "Lima Consultoria",
-    stars: 15_880,
-    pts: 8_340,
-    level: "Satélite",
-    plan: "Constellation",
-    color: "#f59e0b",
+    pos: 2,
+    name: "Arthur Fabrícyo",
+    galaxy: "Galaxy 1",
+    pts: 214,
+    avatar: "https://i.pravatar.cc/120?img=33",
+    isYou: false,
   },
   {
-    initials: "AC",
-    name: "Ana Carvalho",
-    company: "AC Imóveis",
-    stars: 12_300,
-    pts: 7_120,
-    level: "Astronauta",
-    plan: "Explore",
-    color: "#3b82f6",
+    pos: 3,
+    name: "João Gabriel",
+    galaxy: "Galaxy 1",
+    pts: 213,
+    avatar: "https://i.pravatar.cc/120?img=15",
+    isYou: false,
   },
   {
-    initials: "JM",
-    name: "João Mendes",
-    company: "Mendes & Cia",
-    stars: 10_750,
-    pts: 6_900,
-    level: "Astronauta",
-    plan: "Explore",
-    color: "#10b981",
-  },
-  {
-    initials: "PS",
-    name: "Patrícia S.",
-    company: "PS Educação",
-    stars: 9_200,
-    pts: 5_600,
-    level: "Explorador",
-    plan: "Earth",
-    color: "#f97316",
-  },
-  {
-    initials: "GT",
-    name: "Guilherme T.",
-    company: "GTech Soluções",
-    stars: 7_800,
-    pts: 4_920,
-    level: "Explorador",
-    plan: "Earth",
-    color: "#ec4899",
-  },
-  {
-    initials: "VN",
-    name: "Vitória Nunes",
-    company: "VN Marketing",
-    stars: 6_100,
-    pts: 3_870,
-    level: "Lunar",
-    plan: "Earth",
-    color: "#06b6d4",
-  },
-  {
-    initials: "BS",
-    name: "Bruno Silva",
-    company: "Silva Advocacia",
-    stars: 4_950,
-    pts: 3_200,
-    level: "Lunar",
-    plan: "Suit",
-    color: "#84cc16",
+    pos: 4,
+    name: "Christyan Melo",
+    galaxy: "Saturno",
+    pts: 150,
+    avatar: "https://i.pravatar.cc/120?img=58",
+    isYou: false,
   },
 ];
 
-const LEVEL_COLORS: Record<string, string> = {
-  Orbital: "text-violet-400 bg-violet-400/15 border-violet-400/30",
-  Satélite: "text-yellow-400 bg-yellow-400/15 border-yellow-400/30",
-  Astronauta: "text-blue-400   bg-blue-400/15   border-blue-400/30",
-  Explorador: "text-orange-400 bg-orange-400/15 border-orange-400/30",
-  Lunar: "text-cyan-400   bg-cyan-400/15   border-cyan-400/30",
-  Terra: "text-emerald-400 bg-emerald-400/15 border-emerald-400/30",
-};
-
-const SPACE_LEVELS = [
-  { level: 1, name: "Terra", pts: 0, color: "#10b981", emoji: "🌍" },
-  { level: 3, name: "Lunar", pts: 1_000, color: "#06b6d4", emoji: "🌙" },
-  { level: 5, name: "Explorador", pts: 3_000, color: "#f97316", emoji: "🚀" },
-  { level: 8, name: "Astronauta", pts: 6_000, color: "#3b82f6", emoji: "👨‍🚀" },
-  { level: 12, name: "Orbital", pts: 10_000, color: "#a855f7", emoji: "🛸" },
-  { level: 16, name: "Satélite", pts: 18_000, color: "#f59e0b", emoji: "🛰️" },
-  { level: 20, name: "Galáxia", pts: 30_000, color: "#ff6b6b", emoji: "✨" },
-];
-
-const MISSIONS = [
+const PODIUM = [
   {
-    icon: "🎯",
-    title: "Primeiro Lead",
-    desc: "Cadastre seu primeiro lead",
-    pts: 50,
+    pos: 2,
+    name: "Arthur Fabrícyo",
+    pts: 214,
+    avatar: RANKING[1].avatar,
+    medal: "🥈",
+    gold: false,
   },
   {
-    icon: "📊",
-    title: "Analista Espacial",
-    desc: "Visualize 10 relatórios",
-    pts: 200,
+    pos: 1,
+    name: "Weydson Lima",
+    pts: 232,
+    avatar: RANKING[0].avatar,
+    medal: "👑",
+    gold: true,
   },
   {
-    icon: "🤝",
-    title: "Negociador Estelar",
-    desc: "Feche 5 negócios no FORGE",
-    pts: 500,
-  },
-  { icon: "🤖", title: "Piloto de IA", desc: "Use o ASTRO 20 vezes", pts: 300 },
-  {
-    icon: "⚡",
-    title: "Mestre das Flows",
-    desc: "Crie 3 automações ativas",
-    pts: 400,
-  },
-  {
-    icon: "👥",
-    title: "Comandante",
-    desc: "Adicione 5 membros à organização",
-    pts: 250,
+    pos: 3,
+    name: "João Gabriel",
+    pts: 213,
+    avatar: RANKING[2].avatar,
+    medal: "🥉",
+    gold: false,
   },
 ];
 
@@ -145,317 +89,327 @@ export function GamifiedRankingSection({
   isLoggedIn: boolean;
 }) {
   return (
-    <section className="py-28 px-4 relative overflow-hidden border-t border-white/5">
+    <section className="relative py-28 px-4 overflow-hidden border-t border-white/5">
+      {/* Glow violeta de fundo */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-violet-600/4 blur-3xl rounded-full" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-yellow-400/3 blur-3xl rounded-full" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[500px] rounded-full bg-violet-500/[0.06] blur-[140px]" />
       </div>
 
-      <div className="max-w-6xl mx-auto relative z-10">
-        {/* Header */}
-        <div className="flex justify-center mb-6">
-          <div className="inline-flex items-center gap-2 bg-yellow-400/10 border border-yellow-400/25 rounded-full px-5 py-2">
-            <Trophy className="size-3.5 text-yellow-400" />
-            <span className="text-yellow-300 text-sm font-semibold tracking-wide">
-              Gamificação NASA — Space Points
+      <div className="relative z-10 max-w-6xl mx-auto">
+        {/* Header da section */}
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-2 bg-violet-500/15 border border-violet-500/30 rounded-full px-5 py-2 mb-5">
+            <Trophy className="size-3.5 text-violet-300" />
+            <span className="text-violet-200 text-sm font-semibold tracking-wide">
+              Gamificação N.A.S.A · Space Points
             </span>
           </div>
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white mb-4 leading-[1.05]">
+            Quem produz aparece.{" "}
+            <span className="text-nasa">A equipe inteira vê.</span>
+          </h2>
+          <p className="text-white/55 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
+            Cada ação na operação vira ponto. Toda semana sua equipe vê quem
+            está produzindo, em que galáxia está, e onde está o esforço.
+          </p>
         </div>
 
-        <h2 className="text-4xl sm:text-5xl font-black text-white text-center mb-4 leading-tight">
-          NASA tem <span className="text-nasa">alma de jogo</span>
-        </h2>
-        <p className="text-white/40 text-center text-lg mb-16 max-w-xl mx-auto">
-          Cada ação dentro da plataforma gera pontos. Evolua de nível,
-          desbloqueie conquistas e dispute o ranking com outros usuários do
-          NASA.
-        </p>
+        {/* Card Mock, reproduz visualmente a UI do Space Point dentro do app */}
+        <div className="relative rounded-3xl border border-violet-500/30 bg-gradient-to-br from-violet-950/40 via-zinc-950/60 to-zinc-950/80 backdrop-blur-sm overflow-hidden shadow-[0_0_120px_rgba(124,58,237,0.2)] nasa-float">
+          {/* Linha violeta superior */}
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/60 to-transparent" />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-          {/* Leaderboard */}
-          <div className="nasa-glass rounded-2xl border border-white/8 overflow-hidden">
-            {/* Leaderboard header */}
-            <div className="bg-[#7C3AED]/15 border-b border-white/8 px-5 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Trophy className="size-4 text-yellow-400" />
-                <span className="text-white font-bold text-sm">
-                  Ranking Global — Julho 2026
-                </span>
+          {/* Cabeçalho do mock, Space Point + pontos + Galaxy */}
+          <div className="flex items-start justify-between p-5 sm:p-6 border-b border-white/5">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-violet-500/25 border border-violet-400/40 flex items-center justify-center shrink-0">
+                <Rocket
+                  className="size-5 text-violet-200"
+                  strokeWidth={1.6}
+                />
               </div>
-              <div className="text-white/30 text-xs">Top 8</div>
-            </div>
-
-            {/* Top 3 podium */}
-            <div className="flex items-end justify-center gap-3 px-5 pt-6 pb-4 border-b border-white/5">
-              {/* 2nd */}
-              <div className="text-center flex-1">
-                <div
-                  className="w-12 h-12 rounded-full border-2 border-blue-400/50 flex items-center justify-center mx-auto mb-2 text-sm font-black"
-                  style={{
-                    background: `linear-gradient(135deg, ${FAKE_USERS[1].color}30, ${FAKE_USERS[1].color}10)`,
-                    color: FAKE_USERS[1].color,
-                  }}
-                >
-                  {FAKE_USERS[1].initials}
-                </div>
-                <p className="text-white/70 text-[11px] font-semibold">
-                  {FAKE_USERS[1].name}
+              <div>
+                <h3 className="text-white font-bold text-base sm:text-lg">
+                  Space Point
+                </h3>
+                <p className="text-white/45 text-xs sm:text-sm flex items-center gap-1.5">
+                  <span className="font-semibold text-white/70">
+                    3.926 pts
+                  </span>
+                  <span className="text-white/20">·</span>
+                  <span className="inline-flex items-center gap-1">
+                    📈 Galaxy 2
+                  </span>
                 </p>
-                <p className="text-blue-400 font-black text-sm">#{2}</p>
-                <div className="w-full bg-blue-500/20 rounded-t-lg h-14 mt-2 flex items-center justify-center">
-                  <span className="text-blue-400 text-[10px] font-bold">
-                    {FAKE_USERS[1].pts.toLocaleString("pt-BR")} pts
-                  </span>
-                </div>
-              </div>
-              {/* 1st */}
-              <div className="text-center flex-1">
-                <div className="relative">
-                  <div className="text-xl text-center mb-1">👑</div>
-                  <div
-                    className="w-14 h-14 rounded-full border-2 border-yellow-400/70 flex items-center justify-center mx-auto mb-2 text-sm font-black nasa-level-up"
-                    style={{
-                      background: `linear-gradient(135deg, ${FAKE_USERS[0].color}40, ${FAKE_USERS[0].color}15)`,
-                      color: FAKE_USERS[0].color,
-                    }}
-                  >
-                    {FAKE_USERS[0].initials}
-                  </div>
-                </div>
-                <p className="text-white/90 text-[11px] font-bold">
-                  {FAKE_USERS[0].name}
-                </p>
-                <p className="text-yellow-400 font-black text-sm">🥇 #1</p>
-                <div className="w-full bg-yellow-500/20 rounded-t-lg h-20 mt-2 flex items-center justify-center">
-                  <span className="text-yellow-400 text-[10px] font-bold">
-                    {FAKE_USERS[0].pts.toLocaleString("pt-BR")} pts
-                  </span>
-                </div>
-              </div>
-              {/* 3rd */}
-              <div className="text-center flex-1">
-                <div
-                  className="w-12 h-12 rounded-full border-2 border-orange-400/50 flex items-center justify-center mx-auto mb-2 text-sm font-black"
-                  style={{
-                    background: `linear-gradient(135deg, ${FAKE_USERS[2].color}30, ${FAKE_USERS[2].color}10)`,
-                    color: FAKE_USERS[2].color,
-                  }}
-                >
-                  {FAKE_USERS[2].initials}
-                </div>
-                <p className="text-white/70 text-[11px] font-semibold">
-                  {FAKE_USERS[2].name}
-                </p>
-                <p className="text-orange-400 font-black text-sm">#{3}</p>
-                <div className="w-full bg-orange-500/20 rounded-t-lg h-10 mt-2 flex items-center justify-center">
-                  <span className="text-orange-400 text-[10px] font-bold">
-                    {FAKE_USERS[2].pts.toLocaleString("pt-BR")} pts
-                  </span>
-                </div>
               </div>
             </div>
-
-            {/* Remaining users */}
-            <div className="divide-y divide-white/4">
-              {FAKE_USERS.slice(3).map((user, i) => (
-                <div
-                  key={user.name}
-                  className="rank-row nasa-rank-in flex items-center gap-3 px-5 py-3 hover:bg-white/3 transition-colors"
-                >
-                  <span className="text-white/25 font-black text-sm w-5 text-center">
-                    {i + 4}
-                  </span>
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0"
-                    style={{
-                      background: `linear-gradient(135deg, ${user.color}30, ${user.color}10)`,
-                      color: user.color,
-                      border: `1.5px solid ${user.color}40`,
-                    }}
-                  >
-                    {user.initials}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white/80 font-semibold text-xs truncate">
-                      {user.name}
-                    </p>
-                    <p className="text-white/25 text-[10px] truncate">
-                      {user.company}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-white/60 font-bold text-xs">
-                      {user.pts.toLocaleString("pt-BR")} pts
-                    </p>
-                    <div
-                      className={cn(
-                        "text-[9px] font-bold px-1.5 py-0.5 rounded-full border mt-0.5 inline-block",
-                        LEVEL_COLORS[user.level] ||
-                          "text-white/30 bg-white/5 border-white/10",
-                      )}
-                    >
-                      {user.level}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0 w-12">
-                    <p className="text-yellow-400/70 text-[10px] font-semibold">
-                      {(user.stars / 1000).toFixed(1)}K ★
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Stars total banner */}
-            <div className="bg-gradient-to-r from-yellow-400/8 to-violet-400/8 border-t border-white/5 px-5 py-3 flex items-center justify-between">
-              <span className="text-white/30 text-xs">
-                Total de Stars na plataforma
-              </span>
-              <span className="text-yellow-400 font-black text-sm">
-                {FAKE_USERS.reduce((s, u) => s + u.stars, 0).toLocaleString(
-                  "pt-BR",
-                )}{" "}
-                ★
-              </span>
-            </div>
+            <button
+              type="button"
+              aria-label="Fechar"
+              className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 transition-colors"
+            >
+              <X className="size-4" />
+            </button>
           </div>
 
-          {/* Right: Levels + Missions */}
-          <div className="flex flex-col gap-5">
-            {/* Level progression */}
-            <div className="nasa-glass rounded-2xl border border-white/8 p-5">
-              <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Crown className="size-3.5 text-yellow-400" /> Níveis de
-                Progressão
-              </p>
-              <div className="space-y-2.5">
-                {SPACE_LEVELS.map((lvl, i) => {
-                  const _nextPts = SPACE_LEVELS[i + 1]?.pts ?? 50_000;
-                  void _nextPts;
-                  const barPct = Math.min(100, (lvl.pts / 30_000) * 100);
-                  return (
-                    <div key={lvl.name} className="flex items-center gap-3">
-                      <div className="text-xl shrink-0 w-7 text-center">
-                        {lvl.emoji}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-white/70 text-xs font-semibold">
-                            {lvl.name}
-                          </span>
-                          <span className="text-white/25 text-[10px]">
-                            Nível {lvl.level}
-                          </span>
-                        </div>
-                        <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{
-                              width: `${barPct}%`,
-                              background: lvl.color,
-                            }}
-                          />
-                        </div>
-                      </div>
-                      <span className="text-white/25 text-[10px] shrink-0 w-14 text-right">
-                        {lvl.pts >= 1000 ? `${lvl.pts / 1000}K` : lvl.pts} pts
-                      </span>
-                    </div>
-                  );
-                })}
+          {/* Tabs principais */}
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-4 py-4 border-b border-white/5">
+            {[
+              { icon: "🏅", label: "Meus Selos", active: false },
+              { icon: "🗺️", label: "Minha Rota", active: false },
+              { icon: "🏆", label: "Ranking", active: true },
+              { icon: "⚙️", label: "Configurações", active: false },
+            ].map((t) => (
+              <div
+                key={t.label}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium",
+                  t.active
+                    ? "bg-violet-600 text-white shadow-lg shadow-violet-500/40"
+                    : "text-white/50",
+                )}
+              >
+                <span>{t.icon}</span>
+                {t.label}
               </div>
-              <p className="text-white/20 text-[10px] text-center mt-4">
-                20 níveis no total · De Terra 🌍 a Galáxia 10 ✨
+            ))}
+          </div>
+
+          {/* Sub-tabs de período */}
+          <div className="flex flex-wrap items-center gap-1.5 px-4 sm:px-6 pt-5">
+            {[
+              { label: "Semanal", active: true },
+              { label: "Quinzenal", active: false },
+              { label: "Mensal", active: false },
+              { label: "Anual", active: false },
+              { label: "Histórico", active: false },
+              { label: "📅 Data", active: false },
+            ].map((t) => (
+              <div
+                key={t.label}
+                className={cn(
+                  "px-3 py-1 rounded-md text-xs font-medium",
+                  t.active ? "bg-violet-600 text-white" : "text-white/45",
+                )}
+              >
+                {t.label}
+              </div>
+            ))}
+          </div>
+
+          {/* Conteúdo principal, pódio à esquerda, ranking à direita */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 sm:p-6">
+            {/* PÓDIO, 3 astronautas */}
+            <div className="relative rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/30 to-zinc-950/40 p-6 overflow-hidden">
+              {/* Fundo de estrelas */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 opacity-60 pointer-events-none"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(1px 1px at 25% 30%, white 1px, transparent 1px), radial-gradient(1px 1px at 70% 45%, white 1px, transparent 1px), radial-gradient(1px 1px at 40% 70%, white 1px, transparent 1px), radial-gradient(1px 1px at 85% 80%, white 1px, transparent 1px), radial-gradient(1px 1px at 15% 85%, white 1px, transparent 1px)",
+                }}
+              />
+
+              <div className="relative z-10 flex items-end justify-center gap-2 sm:gap-3">
+                {PODIUM.map((p) => (
+                  <div
+                    key={p.pos}
+                    className="flex flex-col items-center flex-1 min-w-0"
+                  >
+                    {/* Coroa/medalha em cima */}
+                    <div className="text-2xl sm:text-3xl mb-1">{p.medal}</div>
+
+                    {/* Capacete de astronauta, vidro circular com foto */}
+                    <div className="relative">
+                      <div
+                        className={cn(
+                          "rounded-full border-4 overflow-hidden bg-zinc-900 shadow-2xl",
+                          p.gold
+                            ? "border-yellow-400 shadow-[0_0_40px_rgba(250,204,21,0.5)] w-24 h-24 sm:w-28 sm:h-28"
+                            : "border-white/30 w-20 h-20 sm:w-24 sm:h-24",
+                        )}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={p.avatar}
+                          alt={p.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      {/* Indicador de posição */}
+                      <div
+                        className={cn(
+                          "absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border-2",
+                          p.gold
+                            ? "bg-yellow-400 text-black border-yellow-200"
+                            : "bg-white/10 text-white border-white/40",
+                        )}
+                      >
+                        {p.pos}
+                      </div>
+                    </div>
+
+                    {/* Nome */}
+                    <p
+                      className={cn(
+                        "mt-3 text-xs sm:text-sm font-bold text-center truncate w-full",
+                        p.gold ? "text-yellow-300" : "text-white/80",
+                      )}
+                    >
+                      {p.name.split(" ")[0]}
+                    </p>
+
+                    {/* Badge de pontos */}
+                    <div
+                      className={cn(
+                        "mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                        p.gold
+                          ? "bg-yellow-500/15 text-yellow-300 border-yellow-500/40"
+                          : "bg-white/5 text-white/60 border-white/15",
+                      )}
+                    >
+                      ✦ {p.pts} pts
+                    </div>
+
+                    {/* Selo */}
+                    <div className="mt-2 w-6 h-6 rounded-full bg-violet-500/30 border border-violet-400/40 flex items-center justify-center">
+                      <span className="text-[10px]">🏆</span>
+                    </div>
+
+                    {/* CTA Ver stats */}
+                    <button
+                      type="button"
+                      className="mt-2 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/5 border border-white/10 text-[10px] text-white/55"
+                    >
+                      <BarChart2 className="size-3" />
+                      Ver stats
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <p className="relative z-10 text-center text-white/30 text-xs mt-6">
+                Últimos 7 dias
               </p>
             </div>
 
-            {/* Missions */}
-            <div className="nasa-glass rounded-2xl border border-white/8 p-5">
-              <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Target className="size-3.5 text-violet-400" /> Missões
-                Disponíveis
+            {/* CLASSIFICAÇÃO, lista completa */}
+            <div className="rounded-2xl">
+              <p className="text-white/30 text-[10px] uppercase tracking-[0.2em] font-semibold mb-3">
+                Classificação
               </p>
-              <div className="grid grid-cols-1 gap-2">
-                {MISSIONS.map((m) => (
+              <div className="space-y-2">
+                {RANKING.map((u) => (
                   <div
-                    key={m.title}
-                    className="flex items-center gap-3 bg-white/3 rounded-xl px-3 py-2.5 border border-white/5 hover:border-violet-500/20 transition-colors group"
+                    key={u.pos}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border px-3 py-3 transition-colors",
+                      u.isYou
+                        ? "border-violet-500/40 bg-violet-500/10"
+                        : "border-white/5 bg-white/[0.02]",
+                    )}
                   >
-                    <span className="text-lg shrink-0">{m.icon}</span>
+                    {/* Número da posição */}
+                    <div className="w-6 text-center text-white/40 font-bold text-sm shrink-0">
+                      {u.pos}
+                    </div>
+                    {/* Avatar */}
+                    <div className="w-9 h-9 rounded-full border border-white/15 overflow-hidden bg-zinc-900 shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={u.avatar}
+                        alt={u.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    {/* Nome + galáxia */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-white/80 text-xs font-semibold group-hover:text-white/90 transition-colors">
-                        {m.title}
-                      </p>
-                      <p className="text-white/30 text-[10px] truncate">
-                        {m.desc}
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-white font-semibold text-sm truncate">
+                          {u.name}
+                        </p>
+                        {u.isYou && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-violet-500/30 text-violet-200 border border-violet-400/40">
+                            você
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-white/40 text-[11px] flex items-center gap-1">
+                        <span className="text-violet-300">●</span>
+                        {u.galaxy}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Star className="size-2.5 text-yellow-400 fill-yellow-400" />
-                      <span className="text-yellow-400 text-[10px] font-bold">
-                        +{m.pts}
-                      </span>
+                    {/* Pontos */}
+                    <div className="text-right shrink-0">
+                      <p
+                        className={cn(
+                          "font-bold text-sm",
+                          u.isYou ? "text-violet-200" : "text-white/80",
+                        )}
+                      >
+                        {u.pts} pts
+                      </p>
                     </div>
+                    <button
+                      type="button"
+                      className="w-7 h-7 rounded-md border border-white/8 flex items-center justify-center text-white/35"
+                      aria-label="Ver stats"
+                    >
+                      <BarChart2 className="size-3" />
+                    </button>
                   </div>
                 ))}
               </div>
             </div>
-
-            {/* Achievements preview */}
-            <div className="nasa-glass rounded-2xl border border-white/8 p-5">
-              <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Medal className="size-3.5 text-blue-400" /> Conquistas
-                Desbloqueadas
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { emoji: "🚀", label: "Decolar", rarity: "comum" },
-                  { emoji: "💬", label: "Comunicador", rarity: "raro" },
-                  { emoji: "🎯", label: "Sniper de Leads", rarity: "épico" },
-                  { emoji: "🤖", label: "Piloto de IA", rarity: "raro" },
-                  { emoji: "👑", label: "Top 1", rarity: "lendário" },
-                  { emoji: "⚡", label: "Automatizador", rarity: "épico" },
-                  { emoji: "📊", label: "Analista", rarity: "comum" },
-                  { emoji: "🌟", label: "Estrela", rarity: "lendário" },
-                ].map(({ emoji, label, rarity }) => {
-                  const cls =
-                    rarity === "lendário"
-                      ? "border-yellow-400/40 bg-yellow-400/10 text-yellow-300"
-                      : rarity === "épico"
-                        ? "border-violet-400/40 bg-violet-400/10 text-violet-300"
-                        : rarity === "raro"
-                          ? "border-blue-400/40 bg-blue-400/10 text-blue-300"
-                          : "border-white/10 bg-white/5 text-white/50";
-                  return (
-                    <div
-                      key={label}
-                      className={cn(
-                        "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-semibold",
-                        cls,
-                      )}
-                    >
-                      <span>{emoji}</span> {label}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* Bottom CTA */}
-        <div className="text-center">
-          <p className="text-white/30 text-sm mb-4">
-            Comece a acumular pontos hoje mesmo
-          </p>
+        {/* Bullets de benefício abaixo do mock */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-10">
+          {[
+            {
+              icon: Crown,
+              title: "Quem produz aparece",
+              desc: "O time inteiro vê quem está liderando a galáxia da semana.",
+            },
+            {
+              icon: Trophy,
+              title: "Pontuação por ação real",
+              desc: "Pontos vêm de atendimento, vendas, tarefas concluídas, propostas assinadas. Não é vaidade.",
+            },
+            {
+              icon: Settings,
+              title: "Você ajusta as regras",
+              desc: "Defina quanto vale cada ação no painel. A gamificação adapta ao seu processo.",
+            },
+          ].map((b) => (
+            <div
+              key={b.title}
+              className="rounded-xl border border-white/10 bg-white/[0.02] p-4"
+            >
+              <b.icon
+                className="size-5 text-violet-300 mb-2"
+                strokeWidth={1.6}
+              />
+              <p className="text-white font-bold text-sm mb-1">{b.title}</p>
+              <p className="text-white/45 text-xs leading-relaxed">
+                {b.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div className="mt-10 flex justify-center">
           <Button
             asChild
             size="lg"
-            className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-black px-10 py-6 text-base rounded-2xl nasa-glow-sm"
+            className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-bold px-9 py-6 text-base rounded-xl card-hover nasa-glow-sm"
           >
-            <Link href={isLoggedIn ? "/tracking" : "/sign-up"}>
-              Entrar para o jogo
-              <Trophy className="size-4 ml-2" />
+            <Link href={isLoggedIn ? "/space-point" : "/sign-up"}>
+              Ver minha galáxia
+              <ArrowRight className="size-4 ml-2" />
             </Link>
           </Button>
         </div>

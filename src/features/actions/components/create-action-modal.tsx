@@ -146,7 +146,10 @@ export const CreateActionModal = ({
   // Sincroniza presetStartDate quando muda.
   useEffect(() => {
     if (presetStartDate && !form.formState.isDirty) {
-      form.setValue("startDate", dayjs(presetStartDate).startOf("day").toDate());
+      form.setValue(
+        "startDate",
+        dayjs(presetStartDate).startOf("day").toDate(),
+      );
       form.setValue(
         "dueDate",
         dayjs(presetStartDate).add(1, "day").startOf("day").toDate(),
@@ -227,8 +230,8 @@ export const CreateActionModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-125">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-125 flex max-h-[90vh] flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>
             {presetPublic ? "Criar evento público 🚀" : "Criar uma nova ação"}
           </DialogTitle>
@@ -239,8 +242,11 @@ export const CreateActionModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FieldGroup>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <FieldGroup className="min-h-0 flex-1 overflow-y-auto px-1 py-1 scroll-cols-tracking">
             <Field>
               <FieldLabel>Título</FieldLabel>
               <Input
@@ -257,6 +263,7 @@ export const CreateActionModal = ({
                 placeholder="Adicione mais detalhes sobre esta ação"
                 {...form.register("description")}
                 disabled={isPending}
+                className="max-h-32 resize-none overflow-y-auto"
               />
               <FieldError errors={[form.formState.errors.description]} />
             </Field>
@@ -440,7 +447,9 @@ export const CreateActionModal = ({
                           <Command>
                             <CommandInput placeholder="Buscar membro..." />
                             <CommandList>
-                              <CommandEmpty>Nenhum membro encontrado.</CommandEmpty>
+                              <CommandEmpty>
+                                Nenhum membro encontrado.
+                              </CommandEmpty>
                               <CommandGroup>
                                 {selectableMembers.map((m) => {
                                   const checked = selected.includes(m.user.id);
@@ -513,7 +522,7 @@ export const CreateActionModal = ({
             </div>
           </FieldGroup>
 
-          <DialogFooter className="pt-4">
+          <DialogFooter className="mt-4 shrink-0 border-t pt-4">
             <Button
               type="button"
               variant="ghost"

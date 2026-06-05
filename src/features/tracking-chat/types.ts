@@ -31,6 +31,7 @@ export interface CreatedMessageProps extends MessageBodyProps {
 }
 
 export enum MessageStatus {
+  PENDING = "PENDING", // client-only: mensagem otimista em trânsito (1 check cinza)
   SENT = "SENT",
   SEEN = "SEEN",
   DELETED = "DELETED",

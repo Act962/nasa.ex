@@ -246,6 +246,10 @@ export const useMutationSavePartialResponse = () => {
   );
 };
 
+export const useMutationValidateLeadPhone = () => {
+  return useMutation(orpc.form.validateLeadPhone.mutationOptions({}));
+};
+
 export const useMutationSubmitResponse = () => {
   const queryClient = useQueryClient();
 

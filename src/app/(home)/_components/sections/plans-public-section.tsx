@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 // Custo de Star por usuário ativo/mês (regra global)
 const STAR_PER_USER = 30;
 
-// CTA configurado como link externo (ex: "Falar com consultor") — pula checkout.
+// CTA configurado como link externo (ex: "Falar com consultor"), pula checkout.
 function isExternalCta(href?: string | null): href is string {
   if (!href) return false;
   return /^(https?:|mailto:|tel:)/i.test(href);
@@ -34,7 +34,8 @@ const PUBLIC_PLANS = [
   {
     id: "suit",
     name: "Suit",
-    slogan: "Para quem está dando os primeiros passos",
+    slogan:
+      "Pra tirar o processo do WhatsApp e da planilha e ver tudo num lugar só.",
     price: 0,
     billingLabel: "/mês",
     stars: 0,
@@ -45,10 +46,10 @@ const PUBLIC_PLANS = [
     badge: null,
     benefits: [
       "CRM completo e pipeline de vendas",
-      "Usuários ilimitados — 30★ por usuário/mês",
+      "Usuários ilimitados, 30★ por usuário/mês",
       "Agenda e agendamentos",
       "Proposta e contratos (FORGE)",
-      "N.Box — gerenciamento de arquivos",
+      "N.Box, gerenciamento de arquivos",
       "Compre Stars avulsas para crescer",
       "Suporte por e-mail",
     ],
@@ -56,7 +57,7 @@ const PUBLIC_PLANS = [
   {
     id: "earth",
     name: "Earth",
-    slogan: "Primeiros resultados com automação",
+    slogan: "Pra quando o comercial e o atendimento já precisam conversar.",
     price: 197,
     billingLabel: "/mês",
     stars: 1000,
@@ -77,7 +78,7 @@ const PUBLIC_PLANS = [
   {
     id: "explore",
     name: "Explore",
-    slogan: "Para empresas que automatizam e crescem",
+    slogan: "Pra rodar o processo entre vários setores.",
     price: 397,
     billingLabel: "/mês",
     stars: 3000,
@@ -100,7 +101,7 @@ const PUBLIC_PLANS = [
   {
     id: "constellation",
     name: "Constellation",
-    slogan: "Para empresas sem limites",
+    slogan: "Pra operação grande que precisa medir tudo de ponta a ponta.",
     price: 797,
     billingLabel: "/mês",
     stars: 20000,
@@ -240,7 +241,7 @@ function PublicPlanCard({
           </div>
         </div>
 
-        {/* Stats — igual ao admin PlanCard */}
+        {/* Stats, igual ao admin PlanCard */}
         <div className="grid grid-cols-3 gap-2 text-xs">
           <div className="flex flex-col items-center p-2 rounded-lg bg-white/5 border border-white/5">
             <Star className="w-3.5 h-3.5 text-yellow-400 mb-0.5" />
@@ -271,11 +272,11 @@ function PublicPlanCard({
         <div className="flex items-center gap-1.5 bg-violet-500/8 border border-violet-500/15 rounded-lg px-3 py-2">
           <Users className="size-3 text-violet-400 shrink-0" />
           <span className="text-violet-300/80 text-[11px] font-medium">
-            Usuários ilimitados — {STAR_PER_USER}★ por usuário/mês
+            Usuários ilimitados, {STAR_PER_USER}★ por usuário/mês
           </span>
         </div>
 
-        {/* Benefits colapsável — igual ao admin */}
+        {/* Benefits colapsável, igual ao admin */}
         <div>
           <button
             type="button"
@@ -426,7 +427,7 @@ export function PlansPublicSection({ isLoggedIn }: { isLoggedIn: boolean }) {
       : PUBLIC_PLANS;
 
   return (
-    <section id="planos" className="py-28 px-4 relative overflow-hidden">
+    <section id="planos" className="py-28 px-4 relative overflow-hidden scroll-mt-24">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-200 h-100 bg-[#7C3AED]/5 blur-3xl rounded-full" />
       </div>
@@ -445,11 +446,11 @@ export function PlansPublicSection({ isLoggedIn }: { isLoggedIn: boolean }) {
           Escolha seu <span className="text-nasa">ponto de partida</span>
         </h2>
         <p className="text-white/40 text-center text-lg mb-6 max-w-xl mx-auto">
-          De startups a operações enterprise — escale flexível com o Método
+          De startups a operações enterprise, escale flexível com o Método
           N.A.S.A.®
         </p>
 
-        {/* Regra de Stars por usuário — destaque */}
+        {/* Regra de Stars por usuário, destaque */}
         <div className="max-w-2xl mx-auto mb-12">
           <div className="flex flex-col sm:flex-row items-center gap-4 bg-linear-to-r from-violet-950/40 to-blue-950/30 border border-violet-500/25 rounded-2xl px-6 py-5">
             <div className="text-4xl shrink-0">🚀</div>
@@ -503,6 +504,19 @@ export function PlansPublicSection({ isLoggedIn }: { isLoggedIn: boolean }) {
         <p className="text-center text-white/15 text-xs mt-8">
           🔒 Pagamento seguro via Stripe e PIX (Asaas) · Cancele quando quiser ·
           LGPD Compliant
+        </p>
+
+        {/* Linha de fecho, briefing § 3.11.
+            Posiciona NASA como agregador econômico de stack, sem
+            comparar concorrente nominalmente (pra não criar atrito
+            de marca). */}
+        <p className="mt-10 text-center text-white/55 text-base sm:text-lg max-w-3xl mx-auto leading-relaxed italic">
+          Some o que você paga hoje em CRM, atendimento, agenda, contrato e
+          financeiro separados.{" "}
+          <span className="text-white/85 not-italic font-semibold">
+            O NASA costuma custar menos, e entrega o que nenhum deles
+            entrega sozinho: o processo inteiro, junto.
+          </span>
         </p>
       </div>
 

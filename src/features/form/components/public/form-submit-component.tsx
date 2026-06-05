@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import {
   useMutationSubmitResponse,
   useMutationSavePartialResponse,
+  useMutationValidateLeadPhone,
 } from "../../hooks/use-form";
 import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
 import { useMutation } from "@tanstack/react-query";
@@ -123,6 +124,10 @@ export function FormSubmitComponent({
   // parou em qualquer dispositivo. Mutation (não query) porque queremos
   // disparar uma vez no clique de "Continuar", não auto-fetch.
   const findDraft = useMutation(orpc.form.findDraftByPhone.mutationOptions({}));
+  // Valida, na etapa 1, se o telefone digitado é um WhatsApp válido — usando
+  // a instância do tracking vinculado ao form. Mutation (não query) porque
+  // disparamos no clique de "Continuar", não em auto-fetch.
+  const validateLeadPhone = useMutationValidateLeadPhone();
   const [resumeLoading, setResumeLoading] = useState(false);
 
   // Id do draft de FormResponses criado pelo primeiro "Próximo" via
@@ -607,13 +612,13 @@ export function FormSubmitComponent({
             toda respeitando seu próprio padding interno. Só em desktop
             (≥ 1280px, laptops 13"+/monitores) limita a 650px centralizado.
             iPad Pro (1194px) e tudo abaixo agora usa full-width. */}
-        <div className="w-full h-full mx-auto max-w-full xl:max-w-[650px]">
+        <div className="w-full h-full mx-auto max-w-full xl:max-w-162.5">
           <div className="w-full relative bg-transparent px-4 sm:px-6 md:px-8 xl:px-2 flex flex-col items-center justify-start pt-1 pb-14">
             <div className="w-full h-auto">
               {isSubmitted ? (
                 <Card
                   className={cn(
-                    "w-full border shadow-sm min-h-[120px] rounded-md p-0",
+                    "w-full border shadow-sm min-h-30 rounded-md p-0",
                     backgroundImage
                       ? "bg-white/20 backdrop-blur-md"
                       : "bg-foreground/10",
@@ -805,6 +810,48 @@ export function FormSubmitComponent({
                             if (!validateLeadFields()) {
                               toast("Campos obrigatórios não preenchidos");
                               return;
+                            }
+                            // Validação de WhatsApp (etapa 1): se o dono do
+                            // form habilitou e o tracking tem instância
+                            // conectada, confere se o número existe no
+                            // WhatsApp. Fail-open: qualquer cenário que não
+                            // seja "invalid" (sem instância, desconectada,
+                            // erro de rede, validação desligada) deixa passar.
+                            // Não roda no modo edição (lead já existe).
+                            if (
+                              showPhone &&
+                              leadInfo.phone.trim() &&
+                              !onSubmitOverride
+                            ) {
+                              setResumeLoading(true);
+                              try {
+                                const phoneNormalized = normalizePhone(
+                                  `${selectedCountry.ddi} ${leadInfo.phone}`,
+                                );
+                                const { result } =
+                                  await validateLeadPhone.mutateAsync({
+                                    formId: id,
+                                    phone: phoneNormalized,
+                                  });
+                                if (result.status === "invalid") {
+                                  setFormErrors({
+                                    lead_phone: "Número de telefone inválido",
+                                  });
+                                  toast.error(
+                                    "O telefone informado não é um número válido.",
+                                  );
+                                  setResumeLoading(false);
+                                  return;
+                                }
+                              } catch (err) {
+                                // Falha na validação não bloqueia (fail-open).
+                                console.warn(
+                                  "[form] validateLeadPhone failed",
+                                  err,
+                                );
+                              } finally {
+                                setResumeLoading(false);
+                              }
                             }
                             // Cross-device resume: tenta achar draft pelo
                             // telefone+formId. Best-effort — qualquer erro

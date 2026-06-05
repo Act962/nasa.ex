@@ -58,6 +58,7 @@
  *   <<MSG_FALLBACK>>     Texto pra leads que escolheram outra opção
  */
 import type { PrismaClient } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { NodeType } from "@/generated/prisma/enums";
 import { createId } from "@paralleldrive/cuid2";
 
@@ -611,7 +612,7 @@ export async function seedCloserComFollowup(
           name: n.type,
           type: n.type,
           position: n.position,
-          data: n.data,
+          data: n.data as Prisma.InputJsonValue,
         },
       });
     }

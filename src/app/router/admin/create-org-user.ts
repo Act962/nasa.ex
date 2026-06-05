@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { hashPassword } from "better-auth/crypto";
 import { randomBytes } from "crypto";
 import { z } from "zod";
+import { enqueueMemberSync } from "@/features/sync/lib/emit";
 
 function generateTempPassword(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
@@ -65,6 +66,9 @@ export const adminCreateOrgUser = base
     const member = await prisma.member.create({
       data: { id: cid(), organizationId: input.orgId, userId, role: input.role, cargo: input.cargo ?? null, createdAt: new Date() },
     });
+
+    // Replica o membro (e User/Account/Org junto) pro NERP — best-effort.
+    await enqueueMemberSync(member.id);
 
     return { userId, memberId: member.id, isNewUser, tempPassword: isNewUser ? tempPassword : null };
   });

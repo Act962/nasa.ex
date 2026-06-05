@@ -42,7 +42,10 @@ import { chatSyncMessages } from "@/inngest/functions/chat/sync-conversation-mes
 import { autoResolveExpiredClaims } from "@/inngest/functions/calendar/auto-resolve-expired-claims";
 import { detectStaleLeads } from "@/inngest/functions/crons/detect-stale-leads";
 import { detectBrokenIntegrations } from "@/inngest/functions/crons/detect-broken-integrations";
-import { detectWhatsappBan } from "@/inngest/functions/crons/detect-whatsapp-ban";
+import {
+  confirmDisconnectAndActivate,
+  checkInChatRecovery,
+} from "@/inngest/functions/chat/whatsapp-in-chat";
 import { detectAgendaStarting } from "@/inngest/functions/crons/detect-agenda-starting";
 import { detectFormAbandoned } from "@/inngest/functions/crons/detect-form-abandoned";
 import { detectLowMetrics } from "@/inngest/functions/crons/detect-low-metrics";
@@ -55,6 +58,10 @@ import {
   checkNoFirstResponse,
   checkInConvIdle,
 } from "@/inngest/functions/triggers/idle-automation";
+import { replicateUserToNerp } from "@/inngest/functions/sync/replicate-user-to-nerp";
+import { replicateAccountToNerp } from "@/inngest/functions/sync/replicate-account-to-nerp";
+import { replicateOrgToNerp } from "@/inngest/functions/sync/replicate-org-to-nerp";
+import { replicateMemberToNerp } from "@/inngest/functions/sync/replicate-member-to-nerp";
 import {
   autoAgentTickScheduledFn,
   autoAgentOnLeadReplyFn,
@@ -107,6 +114,9 @@ export const { GET, POST, PUT } = serve({
     chatSyncMessages,
     // ── Chat AI (WhatsApp agent interno) ──
     chatAiWhatsappAgent,
+    // ── In-Chat (fallback anti-ban): confirma queda → ativa; recuperação preguiçosa ──
+    confirmDisconnectAndActivate,
+    checkInChatRecovery,
     // ── Calendário Público: auto-resolução de reivindicações expiradas ──
     autoResolveExpiredClaims,
     // ── Forms: notificação WhatsApp ao submeter ──
@@ -114,7 +124,6 @@ export const { GET, POST, PUT } = serve({
     // ── Alerts: detecção time-based ──
     detectStaleLeads,
     detectBrokenIntegrations,
-    detectWhatsappBan,
     detectAgendaStarting,
     detectFormAbandoned,
     detectLowMetrics,
@@ -126,6 +135,11 @@ export const { GET, POST, PUT } = serve({
     scheduleIdleChecks,
     checkNoFirstResponse,
     checkInConvIdle,
+    // ── Sync auth NASA → NERP ──
+    replicateUserToNerp,
+    replicateAccountToNerp,
+    replicateOrgToNerp,
+    replicateMemberToNerp,
     // ── NASA Auto Agent — scheduler de turns assíncronos ──
     autoAgentTickScheduledFn,
     autoAgentOnLeadReplyFn,

@@ -7,6 +7,12 @@ import { reactInvitationEmail } from "./email/invitation";
 import { reactResetPasswordEmail } from "./email/reset-password";
 import { stripeClient } from "./stripe";
 import prisma from "./prisma";
+import { inngest } from "@/inngest/client";
+import {
+  resolvePlanFromSubscription,
+  syncOrgPlansForUser,
+} from "@/features/billing/lib/sync-billing-role-plan-to-orgs";
+import { runMonthlyCycle } from "@/features/stars/lib/star-service";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -84,6 +90,38 @@ export const auth = betterAuth({
     },
   },
   databaseHooks: {
+    // ── Sync de auth NASA → NERP (best-effort) ──────────────────
+    // Só ENFILEIRA o evento; o processamento real (com retry/backoff) roda
+    // numa função Inngest. try/catch que só loga: NUNCA quebra o sign-up se
+    // o Inngest/NERP estiver fora.
+    user: {
+      create: {
+        after: async (user) => {
+          try {
+            await inngest.send({
+              name: "sync/user.upsert",
+              data: { userId: user.id },
+            });
+          } catch (e) {
+            console.error("[sync emit] user.create enqueue failed:", e);
+          }
+        },
+      },
+    },
+    account: {
+      create: {
+        after: async (account) => {
+          try {
+            await inngest.send({
+              name: "sync/account.upsert",
+              data: { accountId: account.id },
+            });
+          } catch (e) {
+            console.error("[sync emit] account.create enqueue failed:", e);
+          }
+        },
+      },
+    },
     session: {
       create: {
         after: async (session) => {
@@ -158,6 +196,82 @@ export const auth = betterAuth({
   },
   plugins: [
     organization({
+      // ── Sync de auth NASA → NERP (best-effort) ──────────────────
+      // Só enfileira; replicação real com retry roda no Inngest.
+      organizationHooks: {
+        afterCreateOrganization: async ({ organization, member }) => {
+          try {
+            // Org primeiro, depois o Member do owner (a ordem do inbound já é
+            // defensiva, mas enfileirar nessa ordem ajuda a convergir rápido).
+            await inngest.send({
+              name: "sync/org.upsert",
+              data: { organizationId: organization.id },
+            });
+            if (member?.id) {
+              await inngest.send({
+                name: "sync/member.upsert",
+                data: { memberId: member.id },
+              });
+            }
+          } catch (e) {
+            console.error("[sync emit] org.create enqueue failed:", e);
+          }
+
+          // ── Billing: auto-herança do plano (Frente C) ──────────────
+          // Criador de uma org vira `owner` por default do plugin. Se ele já tem
+          // sub ativa em outra org, a nova nasce com o mesmo planId. Detalhes:
+          // [docs/subscription-org-model.md]
+          if (member?.userId) {
+            try {
+              const activeSub = await prisma.subscription.findFirst({
+                where: {
+                  referenceId: member.userId,
+                  status: { in: ["active", "trialing"] },
+                },
+                select: { plan: true },
+              });
+              if (activeSub) {
+                const plan = await resolvePlanFromSubscription(activeSub.plan);
+                if (plan) {
+                  await prisma.organization.update({
+                    where: { id: organization.id },
+                    data: {
+                      planId: plan.id,
+                      starsCycleStart: new Date(),
+                    },
+                  });
+                  await runMonthlyCycle(organization.id);
+                }
+              }
+            } catch (e) {
+              console.error("[billing] afterCreateOrganization inherit failed:", e);
+            }
+          }
+        },
+        afterAddMember: async ({ member }) => {
+          try {
+            await inngest.send({
+              name: "sync/member.upsert",
+              data: { memberId: member.id },
+            });
+          } catch (e) {
+            console.error("[sync emit] member.add enqueue failed:", e);
+          }
+        },
+        // better-auth NÃO dispara afterAddMember ao ACEITAR convite — só
+        // afterAcceptInvitation (crud-invites cria o Member por fora). Sem este
+        // hook, membros que entram por convite nunca replicavam pro NERP.
+        afterAcceptInvitation: async ({ member }) => {
+          try {
+            await inngest.send({
+              name: "sync/member.upsert",
+              data: { memberId: member.id },
+            });
+          } catch (e) {
+            console.error("[sync emit] member.accept enqueue failed:", e);
+          }
+        },
+      },
       async sendInvitationEmail(data) {
         await resend.emails.send({
           from: "Nasaex <noreply@notifications.nasaex.com>",
@@ -217,6 +331,55 @@ export const auth = betterAuth({
               allow_promotion_codes: true,
             },
           };
+        },
+        // ── Billing-role authorization (Frente B) ────────────────────
+        // No nosso modelo `Subscription.referenceId === user.id` (sub vive
+        // por usuário, plano propaga pra orgs onde ele é owner/admin via
+        // `syncOrgPlansForUser`). Bloqueamos qualquer chamada que tente
+        // mexer em sub de outro user.
+        authorizeReference: async ({ user, referenceId }) => {
+          return user.id === referenceId;
+        },
+        // ── Propagação sub → Organization.planId (Frente B) ──────────
+        // Todos os 5 hooks chamam o MESMO `syncOrgPlansForUser`: ele
+        // rederive o estado consultando `prisma.subscription` direto,
+        // logo é idempotente e tolera eventos fora de ordem (caso 15
+        // de docs/subscription-org-model.md).
+        onSubscriptionComplete: async ({ subscription }) => {
+          try {
+            await syncOrgPlansForUser(subscription.referenceId);
+          } catch (e) {
+            console.error("[billing] onSubscriptionComplete failed:", e);
+          }
+        },
+        onSubscriptionCreated: async ({ subscription }) => {
+          // Sub criada fora do checkout (ex: direto no Stripe Dashboard — caso 16)
+          try {
+            await syncOrgPlansForUser(subscription.referenceId);
+          } catch (e) {
+            console.error("[billing] onSubscriptionCreated failed:", e);
+          }
+        },
+        onSubscriptionUpdate: async ({ subscription }) => {
+          try {
+            await syncOrgPlansForUser(subscription.referenceId);
+          } catch (e) {
+            console.error("[billing] onSubscriptionUpdate failed:", e);
+          }
+        },
+        onSubscriptionCancel: async ({ subscription }) => {
+          try {
+            await syncOrgPlansForUser(subscription.referenceId);
+          } catch (e) {
+            console.error("[billing] onSubscriptionCancel failed:", e);
+          }
+        },
+        onSubscriptionDeleted: async ({ subscription }) => {
+          try {
+            await syncOrgPlansForUser(subscription.referenceId);
+          } catch (e) {
+            console.error("[billing] onSubscriptionDeleted failed:", e);
+          }
         },
       },
     }),

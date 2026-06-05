@@ -39,7 +39,7 @@ export interface PageTemplate {
 let nextY = 0;
 function pushAt<T extends Omit<ElementBase, "id">>(
   base: T,
-  height = base.h,
+  height: number = base.h as number,
 ): T & { y: number } {
   const out = { ...base, x: 0, y: nextY, h: height };
   nextY += height;

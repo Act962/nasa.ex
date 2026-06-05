@@ -107,41 +107,39 @@ export function NotificationBell() {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <PopoverTrigger asChild>
-            <SidebarMenuButton
-              size="default"
-              className={cn(
-                "relative transition-all duration-200",
-                open &&
-                  "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm",
-              )}
-              tooltip="Notificações"
-            >
-              <span className="relative shrink-0">
-                <Bell
-                  className={cn(
-                    "size-4",
-                    unread > 0 && "animate-[wiggle_1.5s_ease-in-out_infinite]",
-                  )}
-                />
-                {unread > 0 && (
-                  <span className="absolute -top-2 -right-2 min-w-[16px] h-4 px-0.5 bg-red-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center leading-none pointer-events-none">
-                    {unread > 99 ? "99+" : unread}
-                  </span>
+      <SidebarMenuItem>
+        <PopoverTrigger asChild>
+          <SidebarMenuButton
+            size="default"
+            className={cn(
+              "relative transition-all duration-200",
+              open &&
+                "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm",
+            )}
+            tooltip="Notificações"
+          >
+            <span className="relative shrink-0">
+              <Bell
+                className={cn(
+                  "size-4",
+                  unread > 0 && "animate-[wiggle_1.5s_ease-in-out_infinite]",
                 )}
-              </span>
-
-              <span>Notificações</span>
-
-              {isLoading && (
-                <Loader2 className="ml-auto size-3 animate-spin opacity-40 shrink-0" />
+              />
+              {unread > 0 && (
+                <span className="absolute -top-2 -right-2 min-w-[16px] h-4 px-0.5 bg-red-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center leading-none pointer-events-none">
+                  {unread > 99 ? "99+" : unread}
+                </span>
               )}
-            </SidebarMenuButton>
-          </PopoverTrigger>
-        </SidebarMenuItem>
-      </SidebarMenu>
+            </span>
+
+            <span>Notificações</span>
+
+            {isLoading && (
+              <Loader2 className="ml-auto size-3 animate-spin opacity-40 shrink-0" />
+            )}
+          </SidebarMenuButton>
+        </PopoverTrigger>
+      </SidebarMenuItem>
 
       <PopoverContent
         side="right"
