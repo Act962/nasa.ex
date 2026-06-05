@@ -60,13 +60,16 @@ export function PublicPageRenderer({ layout, palette, fontFamily }: Props) {
   if (layout.mode === "single") {
     const elements = resolveElements(layout.main.elements, device, artboardWidth);
     return (
-      <div style={wrapperStyle}>
-        {renderMode === "landing" ? (
-          <LandingFlow elements={elements} tokens={(layout as { tokens?: unknown }).tokens} />
-        ) : (
-          <LayerSurface elements={elements} minHeight={layout.artboard.minHeight} />
-        )}
-      </div>
+      <>
+        <SmoothScrollStyle />
+        <div style={wrapperStyle}>
+          {renderMode === "landing" ? (
+            <LandingFlow elements={elements} tokens={(layout as { tokens?: unknown }).tokens} />
+          ) : (
+            <LayerSurface elements={elements} minHeight={layout.artboard.minHeight} />
+          )}
+        </div>
+      </>
     );
   }
 
@@ -76,27 +79,56 @@ export function PublicPageRenderer({ layout, palette, fontFamily }: Props) {
   const frontElements = resolveElements(layout.front.elements, device, artboardWidth);
 
   return (
-    <div style={wrapperStyle}>
-      <div
-        style={{
-          transform: `translate3d(0, ${-scrollY * backSpeed}px, 0)`,
-          willChange: "transform",
-          position: "absolute",
-          inset: 0,
-        }}
-      >
-        <LayerSurface elements={backElements} minHeight={layout.artboard.minHeight} />
+    <>
+      <SmoothScrollStyle />
+      <div style={wrapperStyle}>
+        <div
+          style={{
+            transform: `translate3d(0, ${-scrollY * backSpeed}px, 0)`,
+            willChange: "transform",
+            position: "absolute",
+            inset: 0,
+          }}
+        >
+          <LayerSurface elements={backElements} minHeight={layout.artboard.minHeight} />
+        </div>
+        <div
+          style={{
+            transform: `translate3d(0, ${-scrollY * (frontSpeed - 1)}px, 0)`,
+            willChange: "transform",
+            position: "relative",
+          }}
+        >
+          <LayerSurface elements={frontElements} minHeight={layout.artboard.minHeight} />
+        </div>
       </div>
-      <div
-        style={{
-          transform: `translate3d(0, ${-scrollY * (frontSpeed - 1)}px, 0)`,
-          willChange: "transform",
-          position: "relative",
-        }}
-      >
-        <LayerSurface elements={frontElements} minHeight={layout.artboard.minHeight} />
-      </div>
-    </div>
+    </>
+  );
+}
+
+/**
+ * Aplica `scroll-behavior: smooth` no <html> dentro do contexto de
+ * landing/preview — clicar em <a href="#x"> rola suave ao destino
+ * em vez de saltar abrupto. Respeita `prefers-reduced-motion` do
+ * usuário (se ele desabilitou animações no OS, mantém scroll
+ * instantâneo).
+ *
+ * Por ser injetado como `<style>` global, só fica ativo enquanto o
+ * componente está montado. O editor (que NÃO usa esse renderer)
+ * mantém scroll padrão.
+ */
+function SmoothScrollStyle() {
+  return (
+    <style
+      dangerouslySetInnerHTML={{
+        __html: `
+          html { scroll-behavior: smooth; }
+          @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+          }
+        `,
+      }}
+    />
   );
 }
 
