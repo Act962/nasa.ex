@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { Plus, Trash2, Palette, Share2, User, ImageIcon } from "lucide-react";
+import { Plus, Trash2, Palette, Share2, User, ImageIcon, QrCode, IdCard } from "lucide-react";
 import { LinnkerImageUploader } from "./linnker-image-uploader";
 import type { LinnkerPage, LinnkerButtonStyle, SocialLink } from "../types";
 import { SOCIAL_PLATFORMS } from "../types";
@@ -96,8 +96,23 @@ export function LinnkerAppearanceEditor({ page, onRefetch, onPreviewChange }: Pr
   const [socialIconColor, setSocialIconColor] = useState(page.socialIconColor ?? "#52525b");
   const [titleColor, setTitleColor] = useState(page.titleColor ?? "#111827");
   const [bioColor, setBioColor] = useState(page.bioColor ?? "#6b7280");
+  const [qrEnabled, setQrEnabled] = useState<boolean>(page.qrEnabled ?? true);
+  const [qrMessageTemplate, setQrMessageTemplate] = useState<string>(
+    page.qrMessageTemplate ?? "Olá! Te conheci pelo QR no evento. Quero saber mais sobre {org} 👋",
+  );
+  // vCard overrides — alimentam o `.vcf` baixado pelo botão "Baixar
+  // contato" ou pelo iPhone após escanear o QR.
+  const [vcardFirstName, setVcardFirstName] = useState(page.vcardOverrides?.firstName ?? "");
+  const [vcardLastName, setVcardLastName] = useState(page.vcardOverrides?.lastName ?? "");
+  const [vcardJobTitle, setVcardJobTitle] = useState(page.vcardOverrides?.jobTitle ?? "");
+  const [vcardCompany, setVcardCompany] = useState(page.vcardOverrides?.company ?? "");
+  const [vcardPhone, setVcardPhone] = useState(page.vcardOverrides?.phone ?? "");
+  const [vcardEmail, setVcardEmail] = useState(page.vcardOverrides?.email ?? "");
+  const [vcardBirthday, setVcardBirthday] = useState(page.vcardOverrides?.birthday ?? "");
+  const [vcardWebsite, setVcardWebsite] = useState(page.vcardOverrides?.website ?? "");
+  const [vcardNotes, setVcardNotes] = useState(page.vcardOverrides?.notes ?? "");
 
-  const [activeSection, setActiveSection] = useState<"profile" | "colors" | "background" | "social">("profile");
+  const [activeSection, setActiveSection] = useState<"profile" | "colors" | "background" | "social" | "qr" | "vcard">("profile");
 
   // Sincroniza estado quando page é atualizada após save + refetch
   useEffect(() => {
@@ -115,6 +130,20 @@ export function LinnkerAppearanceEditor({ page, onRefetch, onPreviewChange }: Pr
     setSocialIconColor(page.socialIconColor ?? "#52525b");
     setTitleColor(page.titleColor ?? "#111827");
     setBioColor(page.bioColor ?? "#6b7280");
+    setQrEnabled(page.qrEnabled ?? true);
+    setQrMessageTemplate(
+      page.qrMessageTemplate ??
+        "Olá! Te conheci pelo QR no evento. Quero saber mais sobre {org} 👋",
+    );
+    setVcardFirstName(page.vcardOverrides?.firstName ?? "");
+    setVcardLastName(page.vcardOverrides?.lastName ?? "");
+    setVcardJobTitle(page.vcardOverrides?.jobTitle ?? "");
+    setVcardCompany(page.vcardOverrides?.company ?? "");
+    setVcardPhone(page.vcardOverrides?.phone ?? "");
+    setVcardEmail(page.vcardOverrides?.email ?? "");
+    setVcardBirthday(page.vcardOverrides?.birthday ?? "");
+    setVcardWebsite(page.vcardOverrides?.website ?? "");
+    setVcardNotes(page.vcardOverrides?.notes ?? "");
   }, [page.id]); // re-inicializa apenas se mudar de página
 
   const { data: resourcesData } = useQuery(orpc.linnker.getResources.queryOptions({}));
@@ -142,6 +171,25 @@ export function LinnkerAppearanceEditor({ page, onRefetch, onPreviewChange }: Pr
         socialIconColor,
         titleColor,
         bioColor,
+        qrEnabled,
+        qrMessageTemplate: qrMessageTemplate.trim() || null,
+        vcardOverrides: (() => {
+          // Normaliza: vazio vira null pro overall obj, e cada campo
+          // vazio vira null pra cair no default do builder.
+          const ov = {
+            firstName: vcardFirstName.trim() || null,
+            lastName: vcardLastName.trim() || null,
+            jobTitle: vcardJobTitle.trim() || null,
+            company: vcardCompany.trim() || null,
+            phone: vcardPhone.replace(/\D+/g, "").trim() || null,
+            email: vcardEmail.trim() || null,
+            birthday: vcardBirthday.trim() || null,
+            website: vcardWebsite.trim() || null,
+            notes: vcardNotes.trim() || null,
+          };
+          const hasAny = Object.values(ov).some((v) => v);
+          return hasAny ? ov : null;
+        })(),
         socialLinks: socialLinks.filter((s) => s.url.trim()).length > 0
           ? socialLinks.filter((s) => s.url.trim())
           : null,
@@ -168,7 +216,18 @@ export function LinnkerAppearanceEditor({ page, onRefetch, onPreviewChange }: Pr
     { key: "colors", label: "Cores", icon: Palette },
     { key: "background", label: "Fundo", icon: ImageIcon },
     { key: "social", label: "Social", icon: Share2 },
+    { key: "vcard", label: "Cartão", icon: IdCard },
+    { key: "qr", label: "QR", icon: QrCode },
   ] as const;
+
+  // Extrai phone do WhatsApp pra preview do wa.me URL
+  const previewPhone = (() => {
+    const wpp = socialLinks.find((l) => l.platform?.toLowerCase() === "whatsapp");
+    if (!wpp?.url) return null;
+    const digits = wpp.url.replace(/\D+/g, "");
+    if (digits.length < 8) return null;
+    return digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
+  })();
 
   return (
     <div className="space-y-5">
@@ -411,6 +470,227 @@ export function LinnkerAppearanceEditor({ page, onRefetch, onPreviewChange }: Pr
             <Button type="button" variant="outline" size="sm" className="w-full border-dashed" onClick={addSocialLink}>
               <Plus className="size-3.5 mr-1.5" /> Adicionar rede social
             </Button>
+          )}
+        </div>
+      )}
+
+      {/* ── Cartão de Visita (.vcf) ──────────────────────────── */}
+      {activeSection === "vcard" && (
+        <div className="space-y-4">
+          <div className="rounded-lg border bg-muted/40 p-3 text-xs leading-relaxed">
+            <p className="font-semibold mb-1 flex items-center gap-1.5">
+              <IdCard className="size-3.5" />
+              Cartão de contato (.vcf)
+            </p>
+            <p className="text-muted-foreground">
+              Esses campos vão pro arquivo <code className="font-mono">.vcf</code> que
+              a pessoa baixa ao clicar em "Baixar meu contato" no popup do
+              QR. Quando aberto no iPhone (Safari/Mail), o iOS mostra
+              "Adicionar aos Contatos" com tudo pré-preenchido.
+            </p>
+            <p className="text-muted-foreground mt-2">
+              <strong>Deixe vazio</strong> pra usar os valores padrão (nome
+              da página, organização, WhatsApp do social link, etc).
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">Primeiro nome</Label>
+              <Input
+                value={vcardFirstName}
+                onChange={(e) => setVcardFirstName(e.target.value)}
+                placeholder={page.title.split(" ")[0] ?? ""}
+                className="text-xs h-9 mt-1"
+                maxLength={100}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Sobrenome</Label>
+              <Input
+                value={vcardLastName}
+                onChange={(e) => setVcardLastName(e.target.value)}
+                placeholder={page.title.split(" ").slice(1).join(" ") || ""}
+                className="text-xs h-9 mt-1"
+                maxLength={100}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">Cargo / função</Label>
+            <Input
+              value={vcardJobTitle}
+              onChange={(e) => setVcardJobTitle(e.target.value)}
+              placeholder="Ex: CEO, Designer, Consultor"
+              className="text-xs h-9 mt-1"
+              maxLength={200}
+            />
+          </div>
+
+          <div>
+            <Label className="text-xs">Empresa</Label>
+            <Input
+              value={vcardCompany}
+              onChange={(e) => setVcardCompany(e.target.value)}
+              placeholder="Default: nome da sua organização NASA"
+              className="text-xs h-9 mt-1"
+              maxLength={200}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">Telefone</Label>
+              <Input
+                value={vcardPhone}
+                onChange={(e) => setVcardPhone(e.target.value)}
+                placeholder="5586999999999"
+                className="text-xs h-9 mt-1 font-mono"
+                maxLength={20}
+              />
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Só dígitos. Default: WhatsApp do Social.
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs">Aniversário</Label>
+              <Input
+                type="date"
+                value={vcardBirthday}
+                onChange={(e) => setVcardBirthday(e.target.value)}
+                className="text-xs h-9 mt-1"
+                max="2026-12-31"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">Email</Label>
+            <Input
+              type="email"
+              value={vcardEmail}
+              onChange={(e) => setVcardEmail(e.target.value)}
+              placeholder="Default: email do seu usuário NASA"
+              className="text-xs h-9 mt-1"
+              maxLength={200}
+            />
+          </div>
+
+          <div>
+            <Label className="text-xs">Site pessoal (extra)</Label>
+            <Input
+              value={vcardWebsite}
+              onChange={(e) => setVcardWebsite(e.target.value)}
+              placeholder="https://meusite.com"
+              className="text-xs h-9 mt-1 font-mono"
+              maxLength={500}
+            />
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              O link do Linnker já vai automático. Esse é um extra.
+            </p>
+          </div>
+
+          <div>
+            <Label className="text-xs">Notas</Label>
+            <Textarea
+              value={vcardNotes}
+              onChange={(e) => setVcardNotes(e.target.value)}
+              placeholder="Default: sua bio. Pode customizar pra ficar diferente do que aparece no perfil."
+              rows={3}
+              className="text-xs mt-1"
+              maxLength={1000}
+            />
+          </div>
+
+          {/* Link pra baixar o .vcf atual pra testar */}
+          <a
+            href={`/api/linnker/${page.slug}/vcard`}
+            download
+            className="block text-center text-xs underline text-indigo-600 hover:text-indigo-700"
+          >
+            ⬇ Testar download do meu cartão atual (.vcf)
+          </a>
+        </div>
+      )}
+
+      {/* ── QR Code de Contato ───────────────────────────────── */}
+      {activeSection === "qr" && (
+        <div className="space-y-4">
+          <div className="rounded-lg border bg-muted/40 p-3 text-xs leading-relaxed">
+            <p className="font-semibold mb-1 flex items-center gap-1.5">
+              <QrCode className="size-3.5" />
+              QR Code de contato
+            </p>
+            <p className="text-muted-foreground">
+              Mostra um botão de QR ao lado da sua foto na página
+              pública. Ao escanear, abre WhatsApp com mensagem
+              pré-digitada. O scan fica registrado e pode disparar
+              workflow no seu tracking.
+            </p>
+          </div>
+
+          {!previewPhone && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 leading-relaxed">
+              ⚠ Adicione um link de WhatsApp em <strong>Social</strong>
+              {" "}primeiro. O QR usa esse número como destino.
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card">
+            <div className="min-w-0">
+              <Label className="text-xs font-semibold">Mostrar QR no perfil público</Label>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Sem isso, o botão de QR não aparece pra visitantes.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setQrEnabled((v) => !v)}
+              role="switch"
+              aria-checked={qrEnabled}
+              className={`relative h-6 w-11 rounded-full transition-colors shrink-0 ${
+                qrEnabled ? "bg-indigo-500" : "bg-zinc-300"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform ${
+                  qrEnabled ? "translate-x-5" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </div>
+
+          <div>
+            <Label className="text-xs font-semibold">Mensagem template</Label>
+            <p className="text-[10px] text-muted-foreground mt-0.5 mb-1.5">
+              Texto que vai pré-preencher no WhatsApp da pessoa que
+              escaneou. Use <code className="font-mono bg-muted px-1 rounded">{"{org}"}</code> pra
+              inserir o nome da sua empresa automaticamente.
+            </p>
+            <Textarea
+              rows={3}
+              value={qrMessageTemplate}
+              onChange={(e) => setQrMessageTemplate(e.target.value)}
+              placeholder="Olá! Te conheci pelo QR no evento. Quero saber mais sobre {org} 👋"
+              className="text-xs"
+              maxLength={500}
+            />
+          </div>
+
+          {previewPhone && (
+            <div className="rounded-md border bg-white p-3">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
+                Preview do link
+              </p>
+              <code className="text-[10px] font-mono break-all text-zinc-700">
+                wa.me/{previewPhone}?text=
+                {encodeURIComponent(
+                  qrMessageTemplate.replace(/\{org\}/g, "Sua Empresa"),
+                ).slice(0, 80)}
+                …
+              </code>
+            </div>
           )}
         </div>
       )}

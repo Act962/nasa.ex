@@ -4488,6 +4488,18 @@ model LinnkerPage {
   socialIconColor   String?  @map("social_icon_color")
   titleColor        String?  @map("title_color")
   bioColor          String?  @map("bio_color")
+  // QR de contato — quando ON, perfil público mostra botão QR ao lado
+  // do avatar. Escaneando, redireciona pra wa.me/<phone>?text=template,
+  // registrando LinnkerScan pra rastrear jornada.
+  qrEnabled         Boolean  @default(true) @map("qr_enabled")
+  qrMessageTemplate String?  @map("qr_message_template")
+  // Overrides do .vcf gerado pelo endpoint /api/linnker/<slug>/vcard.
+  // JSON pra evitar 10 colunas separadas. Shape:
+  //   { firstName?, lastName?, jobTitle?, company?, phone?, email?,
+  //     birthday? (YYYY-MM-DD), website?, notes? }
+  // Quando vazio, o vCard cai nos defaults (page.title split, org.name,
+  // socialLink WhatsApp, user.email, page.bio).
+  vcardOverrides    Json?    @map("vcard_overrides")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
@@ -4535,12 +4547,22 @@ model LinnkerScan {
   userAgent String?  @map("user_agent")
   latitude  Float?
   longitude Float?
+  // UTM tracking — alimentados pelo redirect /l/<slug>/wa quando
+  // o QR é escaneado. Permite correlacionar scan ao inbound do
+  // tracking via match por phone OU User-Agent + janela de tempo.
+  utmSource   String? @map("utm_source")
+  utmMedium   String? @map("utm_medium")
+  utmCampaign String? @map("utm_campaign")
+  // "Fonte" classificada — "qr_button" pra scan via QR popup,
+  // "link" pra click em LinnkerLink. Distingue origem do scan.
+  scanKind  String?  @map("scan_kind")
   createdAt DateTime @default(now()) @map("created_at")
 
   page LinnkerPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
   lead Lead?       @relation(fields: [leadId], references: [id], onDelete: SetNull)
 
   @@index([pageId])
+  @@index([userAgent, createdAt])
   @@map("linnker_scans")
 }
 
