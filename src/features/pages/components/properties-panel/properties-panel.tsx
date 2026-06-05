@@ -101,6 +101,69 @@ function NumField({ label, value, onChange, step = 1, min }: {
   );
 }
 
+/**
+ * Sanitiza um anchor ID digitado. HTML `id` não pode começar com `#`
+ * nem ter espaços/caracteres especiais. Browser silenciosamente
+ * ignora `id="#planos"` ao procurar destino do `<a href="#planos">`
+ * — URL muda mas página não rola. Sanitizando aqui evita bug
+ * crônico.
+ */
+function sanitizeAnchorId(raw: string): string {
+  return raw
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // strip diacritics
+    .replace(/^#+/, "") // remove # do começo
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
+/**
+ * Editor reutilizável de anchor ID. Sanitiza valor onChange, mostra
+ * preview do destino real ("vira #X"), explica como usar.
+ */
+function AnchorIdField({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <>
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        Anchor ID (pra navbar/botões linkarem aqui)
+      </Label>
+      <Input
+        value={value}
+        onChange={(e) => onChange(sanitizeAnchorId(e.target.value))}
+        placeholder={placeholder}
+        className="text-xs font-mono"
+      />
+      <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+        {value ? (
+          <>
+            ✓ Vira destino <code className="font-mono">#{value}</code> —
+            qualquer botão com link <code className="font-mono">#{value}</code>{" "}
+            rola até essa seção.
+          </>
+        ) : (
+          <>
+            Defina um identificador sem espaços (ex:{" "}
+            <code className="font-mono">{placeholder}</code>). Depois use{" "}
+            <code className="font-mono">#{placeholder}</code> no link de qualquer
+            botão pra rolar até aqui.
+          </>
+        )}
+      </p>
+    </>
+  );
+}
+
 function Seg({ className }: { className?: string }) {
   return <Separator className={cn("my-3", className)} />;
 }
@@ -368,6 +431,14 @@ function ShapeProps({ el, update }: { el: ElementBase; update: (p: Partial<Eleme
 }
 
 function ButtonProps({ el, update }: { el: ElementBase; update: (p: Partial<ElementBase>) => void }) {
+  const link = (el.link as { kind?: string; href?: string; openInNewTab?: boolean } | undefined) ?? {};
+  const href = link.href ?? "";
+  const openInNewTab = link.openInNewTab ?? false;
+  // Âncoras (#x), mailto:, tel: nunca abrem em nova aba mesmo se
+  // o user marcar — explica isso pra ele.
+  const isInternal =
+    href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:");
+
   return (
     <>
       <Seg />
@@ -381,14 +452,39 @@ function ButtonProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
       </Row>
       <NumField label="Arredondamento (px)" value={(el.radius as number) ?? 10} onChange={(v) => update({ radius: v })} min={0} />
       <Seg />
-      <Field label="Link">
+      <Field label="Link / âncora">
         <Input
-          placeholder="https://..."
-          value={((el.link as { href?: string })?.href) ?? ""}
-          onChange={(e) => update({ link: { kind: "url", href: e.target.value, openInNewTab: true } })}
-          className="h-8 text-xs"
+          placeholder="https://... ou #planos ou mailto:..."
+          value={href}
+          onChange={(e) =>
+            update({
+              link: { kind: "url", href: e.target.value, openInNewTab },
+            })
+          }
+          className="h-8 text-xs font-mono"
         />
       </Field>
+      <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+        Use <code className="font-mono">#id-da-section</code> pra scroll
+        interno (precisa que a section tenha esse Anchor ID configurado).
+        URL externa abre na mesma aba a menos que você marque abaixo.
+      </p>
+      <label className="flex items-center gap-2 text-xs mt-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={openInNewTab}
+          disabled={isInternal}
+          onChange={(e) =>
+            update({
+              link: { kind: "url", href, openInNewTab: e.target.checked },
+            })
+          }
+        />
+        <span className={isInternal ? "text-muted-foreground" : ""}>
+          Abrir em nova aba
+          {isInternal && " (âncora interna sempre rola na mesma página)"}
+        </span>
+      </label>
     </>
   );
 }
@@ -601,13 +697,19 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
         Links da navegação
       </p>
+      <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
+        Cada link tem um <strong>rótulo</strong> (texto visível) e um{" "}
+        <strong>destino</strong>. Pra fazer scroll pra uma section da
+        própria página, use <code className="font-mono">#id-da-section</code>{" "}
+        (esse ID é definido no campo "Anchor ID" da section destino).
+      </p>
       {links.map((link, idx) => (
         <div key={link.id} className="flex flex-col gap-1 p-2 border rounded-md mb-2 bg-muted/30">
           <div className="flex items-center gap-1">
             <Input
               value={link.label}
               onChange={(e) => updateLink(idx, { label: e.target.value })}
-              placeholder="Rótulo"
+              placeholder="Rótulo (ex: Planos)"
               className="text-xs"
             />
             <Button
@@ -620,6 +722,9 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
               <Trash2 className="size-3.5 text-destructive" />
             </Button>
           </div>
+          <Label className="text-[10px] text-muted-foreground">
+            Link / âncora
+          </Label>
           <Input
             value={link.href}
             onChange={(e) => updateLink(idx, { href: e.target.value })}
@@ -636,12 +741,16 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
         Botão primário
       </p>
+      <Label className="text-[10px] text-muted-foreground">Texto</Label>
       <Input
         value={(el.primaryCta as string) ?? ""}
         onChange={(e) => update({ primaryCta: e.target.value })}
         placeholder="Começar grátis"
         className="text-xs mb-1.5"
       />
+      <Label className="text-[10px] text-muted-foreground">
+        Link / âncora (#id-da-section)
+      </Label>
       <Input
         value={(el.primaryCtaHref as string) ?? ""}
         onChange={(e) => update({ primaryCtaHref: e.target.value })}
@@ -653,16 +762,20 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
         Botão secundário
       </p>
+      <Label className="text-[10px] text-muted-foreground">Texto</Label>
       <Input
         value={(el.secondaryCta as string) ?? ""}
         onChange={(e) => update({ secondaryCta: e.target.value })}
         placeholder="Entrar"
         className="text-xs mb-1.5"
       />
+      <Label className="text-[10px] text-muted-foreground">
+        Link / âncora (#id-da-section)
+      </Label>
       <Input
         value={(el.secondaryCtaHref as string) ?? ""}
         onChange={(e) => update({ secondaryCtaHref: e.target.value })}
-        placeholder="/sign-in"
+        placeholder="/sign-in ou #depoimentos"
         className="text-xs font-mono"
       />
 
@@ -693,6 +806,12 @@ function FooterProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
 
   return (
     <>
+      <Seg />
+      <AnchorIdField
+        value={(el.anchorId as string) ?? ""}
+        onChange={(v) => update({ anchorId: v })}
+        placeholder="contato"
+      />
       <Seg />
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
         Logo do rodapé
@@ -1048,14 +1167,10 @@ function HeroProps({ el, update }: { el: ElementBase; update: (p: Partial<Elemen
       <ButtonsListEditor el={el} update={update} />
 
       <Seg />
-      <Label className="text-[10px] text-muted-foreground">
-        Anchor ID (pra outros botões linkarem aqui)
-      </Label>
-      <Input
+      <AnchorIdField
         value={(el.anchorId as string) ?? ""}
-        onChange={(e) => update({ anchorId: e.target.value })}
+        onChange={(v) => update({ anchorId: v })}
         placeholder="hero"
-        className="text-xs font-mono"
       />
 
       <ColorBlock el={el} update={update} />
@@ -1366,14 +1481,10 @@ function FeaturesProps({
         onChange={(e) => update({ subheading: e.target.value })}
         className="text-xs"
       />
-      <Label className="text-[10px] text-muted-foreground mt-2">
-        Anchor ID (pra link via #)
-      </Label>
-      <Input
+      <AnchorIdField
         value={(el.anchorId as string) ?? ""}
-        onChange={(e) => update({ anchorId: e.target.value })}
+        onChange={(v) => update({ anchorId: v })}
         placeholder="por-que"
-        className="text-xs font-mono"
       />
 
       <Seg />
@@ -1512,12 +1623,10 @@ function PricingProps({
         onChange={(e) => update({ subheading: e.target.value })}
         className="text-xs"
       />
-      <Label className="text-[10px] text-muted-foreground mt-2">Anchor ID</Label>
-      <Input
+      <AnchorIdField
         value={(el.anchorId as string) ?? "planos"}
-        onChange={(e) => update({ anchorId: e.target.value })}
+        onChange={(v) => update({ anchorId: v })}
         placeholder="planos"
-        className="text-xs font-mono"
       />
 
       <Seg />
@@ -1698,6 +1807,11 @@ function TestimonialsProps({
         placeholder="O que dizem"
         className="text-xs"
       />
+      <AnchorIdField
+        value={(el.anchorId as string) ?? ""}
+        onChange={(v) => update({ anchorId: v })}
+        placeholder="depoimentos"
+      />
 
       <Seg />
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
@@ -1798,6 +1912,12 @@ function StatsProps({
   return (
     <>
       <Seg />
+      <AnchorIdField
+        value={(el.anchorId as string) ?? ""}
+        onChange={(v) => update({ anchorId: v })}
+        placeholder="numeros"
+      />
+      <Seg />
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
         Estatísticas ({items.length})
       </p>
@@ -1892,12 +2012,10 @@ function FaqProps({
         placeholder="Perguntas frequentes"
         className="text-xs"
       />
-      <Label className="text-[10px] text-muted-foreground mt-2">Anchor ID</Label>
-      <Input
+      <AnchorIdField
         value={(el.anchorId as string) ?? "faq"}
-        onChange={(e) => update({ anchorId: e.target.value })}
+        onChange={(v) => update({ anchorId: v })}
         placeholder="faq"
-        className="text-xs font-mono"
       />
 
       <Seg />
@@ -1985,12 +2103,10 @@ function CtaProps({
         onChange={(e) => update({ subtitle: e.target.value })}
         className="text-xs"
       />
-      <Label className="text-[10px] text-muted-foreground mt-2">Anchor ID</Label>
-      <Input
+      <AnchorIdField
         value={(el.anchorId as string) ?? "cta-final"}
-        onChange={(e) => update({ anchorId: e.target.value })}
+        onChange={(v) => update({ anchorId: v })}
         placeholder="cta-final"
-        className="text-xs font-mono"
       />
 
       <ButtonsListEditor el={el} update={update} />
@@ -2053,6 +2169,11 @@ function LogoCloudProps({
         onChange={(e) => update({ heading: e.target.value })}
         placeholder="Empresas que confiam em nós"
         className="text-xs"
+      />
+      <AnchorIdField
+        value={(el.anchorId as string) ?? ""}
+        onChange={(v) => update({ anchorId: v })}
+        placeholder="parceiros"
       />
 
       <Seg />

@@ -24,13 +24,16 @@ export function SectionFooter({ element, tokens }: SectionRendererProps) {
       { id: "2", label: "Termos & Condições", href: "#" },
     ];
 
+  const anchorId = (element.anchorId as string) ?? undefined;
+
   const bg = bgColor(element, tokens);
   const fg = fgColor(element, tokens);
   const muted = mutedColor(element, tokens);
 
   return (
     <footer
-      className="w-full border-t py-8 sm:py-10 px-4"
+      id={anchorId}
+      className="w-full border-t py-8 sm:py-10 px-4 scroll-mt-20"
       style={{ background: bg, color: fg, borderColor: `${fg}10` }}
     >
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">

@@ -381,10 +381,21 @@ function resolveLink(link: LinkTarget | undefined) {
   const href = link.kind === "url"
     ? link.href ?? "#"
     : nasaLinkHref(link.kind, link.resourceId);
+  // Âncoras internas (#algo) e mailto:/tel: NÃO devem abrir em nova
+  // aba mesmo com openInNewTab=true — abrir #planos em _blank cria
+  // uma aba sem conteúdo (a página fresh não tem a section ainda
+  // renderizada quando o scroll dispara). Bug crônico: o
+  // ButtonProps tava forçando openInNewTab=true sempre, fazendo
+  // âncoras internas "não funcionarem".
+  const isInternal =
+    href.startsWith("#") ||
+    href.startsWith("mailto:") ||
+    href.startsWith("tel:");
+  const openNewTab = link.openInNewTab && !isInternal;
   return {
     href,
-    target: link.openInNewTab ? ("_blank" as const) : undefined,
-    rel: link.openInNewTab ? ("noreferrer" as const) : undefined,
+    target: openNewTab ? ("_blank" as const) : undefined,
+    rel: openNewTab ? ("noreferrer" as const) : undefined,
   };
 }
 

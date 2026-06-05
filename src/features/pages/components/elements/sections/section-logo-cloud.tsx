@@ -26,13 +26,16 @@ export function SectionLogoCloud({ element, tokens }: SectionRendererProps) {
       { id: "5", imageUrl: "", alt: "Logo 5" },
     ];
 
+  const anchorId = (element.anchorId as string) ?? undefined;
+
   const bg = bgColor(element, tokens);
   const fg = fgColor(element, tokens);
   const muted = mutedColor(element, tokens);
 
   return (
     <section
-      className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12"
+      id={anchorId}
+      className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12 scroll-mt-20"
       style={{ background: bg, color: fg }}
     >
       <div className="max-w-7xl mx-auto flex flex-col gap-6">

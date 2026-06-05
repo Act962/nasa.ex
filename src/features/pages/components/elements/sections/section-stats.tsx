@@ -24,6 +24,7 @@ export function SectionStats({ element, tokens }: SectionRendererProps) {
       { id: "3", value: "89%", label: "Aumento médio em conversão" },
       { id: "4", value: "200+", label: "Integrações" },
     ];
+  const anchorId = (element.anchorId as string) ?? undefined;
 
   const primary = primaryColor(element, tokens);
   const bg = bgColor(element, tokens);
@@ -32,7 +33,8 @@ export function SectionStats({ element, tokens }: SectionRendererProps) {
 
   return (
     <section
-      className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 border-y"
+      id={anchorId}
+      className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 border-y scroll-mt-20"
       style={{ background: bg, color: fg, borderColor: `${fg}10` }}
     >
       <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 text-center">
