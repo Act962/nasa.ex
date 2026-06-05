@@ -6,11 +6,30 @@ import { DashboardHeader } from "./dashboard-header";
 import { DashboardFilters } from "./dashboard-filters";
 import { KPIGeneralCards } from "./kpi/general-cards";
 import { ChartWrapper } from "./chart-wrapper";
-import { StatusChart } from "./charts/status-chart";
-import { ChannelChart } from "./charts/channel-chart";
-import { AttendantChart } from "./charts/attendant-chart";
-import { TagsChart } from "./charts/tags-chart";
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
+
+// Charts puxam recharts (pesado) e só aparecem nesta rota de insights. Lazy com
+// ssr:false mantém recharts fora do grafo até o dashboard montar de fato.
+const chartLoading = () => (
+  <div className="h-full min-h-48 w-full animate-pulse rounded-md bg-muted" />
+);
+const StatusChart = dynamic(
+  () => import("./charts/status-chart").then((m) => ({ default: m.StatusChart })),
+  { ssr: false, loading: chartLoading },
+);
+const ChannelChart = dynamic(
+  () => import("./charts/channel-chart").then((m) => ({ default: m.ChannelChart })),
+  { ssr: false, loading: chartLoading },
+);
+const AttendantChart = dynamic(
+  () => import("./charts/attendant-chart").then((m) => ({ default: m.AttendantChart })),
+  { ssr: false, loading: chartLoading },
+);
+const TagsChart = dynamic(
+  () => import("./charts/tags-chart").then((m) => ({ default: m.TagsChart })),
+  { ssr: false, loading: chartLoading },
+);
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ListLeadByRelatoryModal } from "./list-lead-by-relatory-modal";

@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import { RichtTextEditor } from "@/components/rich-text-editor/editor";
+import { RichtTextEditor } from "@/components/rich-text-editor/editor-lazy";
 
 interface DescriptionProps {
   description?: string | null;

@@ -1,6 +1,10 @@
+# `shell:` roda pelo shell do SO (sh no Linux/macOS, cmd no Windows) — cross-platform.
+# Inngest começa parado (autostart: false): numa máquina apertada, suba só quando
+# for testar automações (tecla `s` no mprocs, ou `pnpm inngest:dev` separado).
 procs:
-  inngest:
-    cmd: ["cmd", "/C", "npm run inngest:dev"]
-
   next:
-    cmd: ["cmd", "/C", "npm run dev"]
+    shell: "pnpm dev"
+
+  inngest:
+    shell: "pnpm inngest:dev"
+    autostart: false
