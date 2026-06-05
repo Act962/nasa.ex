@@ -2827,12 +2827,12 @@ function OrgSlugSetup({ orgName }: { orgName: string }) {
   const [error, setError] = useState<string | null>(null);
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (s: string) => client.org.setSlug({ slug: s }),
+    mutationFn: (s: string) => client.orgs.setSlug({ slug: s }),
     onSuccess: () => {
       toast.success("Slug da organização configurado!");
       // Invalida getCurrentCompany pra refetch automático
       qc.invalidateQueries({
-        queryKey: orpc.org.getCurrentCompany.queryKey(),
+        queryKey: orpc.orgs.getCurrentCompany.queryKey(),
       });
       setError(null);
     },
@@ -2928,20 +2928,14 @@ function TrackingSelector({
   emptyLabel: string;
 }) {
   const { data, isLoading } = useQuery(
-    orpc.trackings.listTrackings.queryOptions({ input: undefined }),
+    orpc.tracking.list.queryOptions({}),
   );
-  const trackings =
-    ((data as {
-      trackings?: Array<{
-        id: string;
-        name: string;
-        whatsappInstance?: { status?: string } | null;
-      }>;
-    })?.trackings ?? []) as Array<{
-      id: string;
-      name: string;
-      whatsappInstance?: { status?: string } | null;
-    }>;
+  // tracking.list retorna array direto (não { trackings: [...] })
+  const trackings = (Array.isArray(data) ? data : []) as Array<{
+    id: string;
+    name: string;
+    whatsappInstance?: { status?: string } | null;
+  }>;
 
   if (isLoading) {
     return <p className="text-[10px] text-muted-foreground">Carregando…</p>;
@@ -2996,9 +2990,7 @@ function ChatButtonProps({
   // chat IA só conecta na própria org. Persistimos em `el.orgSlug`
   // pra que o renderer público (servido pra visitantes anônimos)
   // saiba qual org chamar.
-  const orgQ = useQuery(
-    orpc.org.getCurrentCompany.queryOptions({ input: undefined }),
-  );
+  const orgQ = useQuery(orpc.orgs.getCurrentCompany.queryOptions());
   const org = (orgQ.data as { organization?: { slug?: string; name?: string } })
     ?.organization;
   const orgSlug = org?.slug ?? "";
