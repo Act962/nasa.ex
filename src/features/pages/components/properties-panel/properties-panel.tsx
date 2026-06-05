@@ -15,8 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { orpc, client } from "@/lib/orpc";
 import { usePagesBuilderStore, getActiveLayerElements } from "../../context/pages-builder-store";
 import {
   legacyToButtonsList,
@@ -2807,6 +2807,113 @@ function LinnkerSelector({
 }
 
 /**
+ * Setup inline do slug da organização — usado pelo ChatButtonProps
+ * quando a org NÃO tem slug salvo no banco. Sem slug, o endpoint
+ * `/api/in-chat/[slug]/identify` retorna 404 e o chat IA não
+ * funciona.
+ *
+ * Em vez de só mostrar erro, sugere um slug derivado do nome da org
+ * (lowercase, sem acentos, espaços → hífens) e oferece input
+ * editável + botão "Usar este slug" que dispara mutation. Após
+ * salvar, refetch da org → o componente pai automaticamente sai
+ * desse estado pro estado normal (card com slug).
+ */
+function OrgSlugSetup({ orgName }: { orgName: string }) {
+  const qc = useQueryClient();
+  // Sugestão inicial baseada no nome da org
+  const initialSuggestion =
+    suggestSlug(orgName) || `org-${Math.random().toString(36).slice(2, 8)}`;
+  const [slug, setSlug] = useState(initialSuggestion);
+  const [error, setError] = useState<string | null>(null);
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: (s: string) => client.org.setSlug({ slug: s }),
+    onSuccess: () => {
+      toast.success("Slug da organização configurado!");
+      // Invalida getCurrentCompany pra refetch automático
+      qc.invalidateQueries({
+        queryKey: orpc.org.getCurrentCompany.queryKey(),
+      });
+      setError(null);
+    },
+    onError: (e: Error) => {
+      setError(e.message ?? "Falha ao salvar slug");
+    },
+  });
+
+  const isValid = /^[a-z0-9][a-z0-9-]+[a-z0-9]$/.test(slug);
+
+  return (
+    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 flex flex-col gap-2">
+      <p className="text-[11px] text-amber-900 leading-relaxed">
+        Sua organização não tem <strong>slug público</strong> configurado.
+        Esse slug é o que vai aparecer no link público do chat IA (
+        <code className="font-mono">/whatsapp/&lt;slug&gt;</code>).
+        Sugerimos um nome baseado no seu cadastro — você pode aceitar ou
+        editar.
+      </p>
+      <Label className="text-[10px] text-muted-foreground">
+        Slug sugerido
+      </Label>
+      <div className="flex items-center gap-1 rounded-md border bg-background px-2">
+        <span className="text-[10px] text-muted-foreground font-mono shrink-0">
+          /whatsapp/
+        </span>
+        <input
+          type="text"
+          value={slug}
+          onChange={(e) => {
+            setSlug(sanitizeOrgSlug(e.target.value));
+            setError(null);
+          }}
+          className="flex-1 h-8 bg-transparent border-0 text-xs font-mono focus:outline-none"
+          maxLength={32}
+        />
+      </div>
+      {!isValid && slug.length > 0 && (
+        <p className="text-[10px] text-amber-700">
+          Use 3-32 caracteres: letras minúsculas, números, hífens. Não
+          pode começar/terminar com hífen.
+        </p>
+      )}
+      {error && (
+        <p className="text-[10px] text-destructive">{error}</p>
+      )}
+      <Button
+        size="sm"
+        className="w-full text-xs h-8"
+        disabled={!isValid || isPending}
+        onClick={() => mutate(slug)}
+      >
+        {isPending ? "Salvando…" : `Usar "${slug}" como slug`}
+      </Button>
+      <p className="text-[10px] text-muted-foreground leading-relaxed">
+        ⚠ Slug é definitivo — não pode trocar depois sem suporte.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Deriva sugestão de slug a partir do nome da org. Igual ao
+ * `sanitizeAnchorId` mas com regra extra: mínimo 3 chars, máximo 32,
+ * remove dupla-hífen.
+ */
+function suggestSlug(name: string): string {
+  return sanitizeOrgSlug(name).slice(0, 32);
+}
+function sanitizeOrgSlug(raw: string): string {
+  return raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 32);
+}
+
+/**
  * Dropdown reusável de Tracking — usado por ChatButton e
  * EmbeddedForm. Mostra status do WhatsApp inline pra dar feedback
  * visual ("✓" se conectado, "(DISCONNECTED)" se off).
@@ -2924,14 +3031,7 @@ function ChatButtonProps({
       {orgQ.isLoading ? (
         <p className="text-[10px] text-muted-foreground">Carregando…</p>
       ) : !org?.slug ? (
-        <div className="text-[10px] text-destructive bg-destructive/10 border border-destructive/20 rounded p-2 leading-relaxed">
-          Sua organização não tem slug configurado. O chat não vai
-          funcionar até resolver isso em{" "}
-          <a href="/settings/organization" className="underline">
-            Configurações → Organização
-          </a>
-          .
-        </div>
+        <OrgSlugSetup orgName={org?.name ?? ""} />
       ) : (
         <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/30">
           <div className="size-7 rounded bg-violet-500/20 text-violet-700 flex items-center justify-center text-xs font-bold shrink-0">
@@ -2946,7 +3046,7 @@ function ChatButtonProps({
         </div>
       )}
       <p className="text-[10px] text-muted-foreground mt-1">
-        Detectado automaticamente da sua sessão. Não editável.
+        Detectado automaticamente da sua sessão.
       </p>
 
       <Label className="text-[10px] text-muted-foreground mt-3">
