@@ -21,8 +21,10 @@ import { startPurchaseDomain } from "./domain-start-purchase";
 import { getDomainPurchaseStatus } from "./domain-purchase-status";
 import { inlineEditSave } from "./inline-edit-save";
 import { cloneFromUrl } from "./clone-from-url";
+import { getPageAnalytics } from "./get-analytics";
 
 export const pagesRouter = {
+  getAnalytics: getPageAnalytics,
   getCost: getPagesCost,
   createPage,
   listPages,

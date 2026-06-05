@@ -26,6 +26,7 @@ import {
   LayoutTemplate,
   Trash2,
   Loader2,
+  BarChart3,
 } from "lucide-react";
 import Link from "next/link";
 import { usePages, usePagesCost } from "../../hooks/use-pages";
@@ -148,6 +149,11 @@ export function PagesList() {
                       </a>
                     </Button>
                   )}
+                  <Button asChild size="sm" variant="ghost" className="gap-1" title="Analytics">
+                    <Link href={`/pages/${p.id}/analytics`}>
+                      <BarChart3 className="size-3.5" />
+                    </Link>
+                  </Button>
                   {/* Botão de excluir — disponível pra rascunho OU
                       publicado. Confirmação extra pra publicado
                       no dialog (texto + tag). */}

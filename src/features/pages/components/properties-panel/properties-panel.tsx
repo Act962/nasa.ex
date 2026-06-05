@@ -15,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
 import { usePagesBuilderStore, getActiveLayerElements } from "../../context/pages-builder-store";
 import {
   legacyToButtonsList,
@@ -403,6 +405,71 @@ function ImageProps({ el, update }: { el: ElementBase; update: (p: Partial<Eleme
       <Field label="Texto alternativo (acessibilidade)">
         <Input value={(el.alt as string) ?? ""} onChange={(e) => update({ alt: e.target.value })} className="h-8 text-xs" />
       </Field>
+
+      <LinkEditor el={el} update={update} />
+    </>
+  );
+}
+
+/**
+ * Editor compartilhado de link/âncora — usado por Image (e pode ser
+ * reusado em outros átomos). Aceita URL externa OU âncora interna
+ * (#id). Marca "abrir em nova aba" só pra URLs externas (auto-
+ * disabled pra âncoras pelos mesmos motivos do ButtonProps).
+ */
+function LinkEditor({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  const link =
+    (el.link as { kind?: string; href?: string; openInNewTab?: boolean } | undefined) ??
+    {};
+  const href = link.href ?? "";
+  const openInNewTab = link.openInNewTab ?? false;
+  const isInternal =
+    href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:");
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Link / âncora (opcional)
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
+        Cole uma URL externa, âncora interna (<code className="font-mono">#planos</code>),
+        ou <code className="font-mono">mailto:</code>/<code className="font-mono">tel:</code>.
+        Deixe vazio pra não ser clicável.
+      </p>
+      <Input
+        value={href}
+        onChange={(e) =>
+          update({
+            link: { kind: "url", href: e.target.value, openInNewTab },
+          })
+        }
+        placeholder="https://... ou #section-id"
+        className="text-xs font-mono"
+      />
+      {href && (
+        <label className="flex items-center gap-2 text-xs mt-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={openInNewTab && !isInternal}
+            disabled={isInternal}
+            onChange={(e) =>
+              update({
+                link: { kind: "url", href, openInNewTab: e.target.checked },
+              })
+            }
+          />
+          <span className={isInternal ? "text-muted-foreground" : ""}>
+            Abrir em nova aba
+            {isInternal && " (âncora interna sempre na mesma aba)"}
+          </span>
+        </label>
+      )}
     </>
   );
 }
@@ -2229,6 +2296,725 @@ function LogoCloudProps({
   );
 }
 
+// ─── Carousel (carousel) ───────────────────────────────────────────────────
+function CarouselProps({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  type Slide = {
+    id: string;
+    imageUrl: string;
+    alt?: string;
+    caption?: string;
+    link?: string;
+    aspectRatio?: string;
+  };
+  const slides = ((el.slides as Slide[] | undefined) ?? []).slice();
+  const mode = (el.carouselMode as string) ?? "slide";
+
+  const patch = (idx: number, p: Partial<Slide>) => {
+    const next = slides.slice();
+    next[idx] = { ...next[idx], ...p };
+    update({ slides: next });
+  };
+  const add = () =>
+    update({
+      slides: [
+        ...slides,
+        { id: `s${Date.now()}`, imageUrl: "", alt: "", aspectRatio: "16:9" },
+      ],
+    });
+  const remove = (idx: number) =>
+    update({ slides: slides.filter((_, i) => i !== idx) });
+  const move = (idx: number, dir: -1 | 1) => {
+    const t = idx + dir;
+    if (t < 0 || t >= slides.length) return;
+    const next = slides.slice();
+    [next[idx], next[t]] = [next[t], next[idx]];
+    update({ slides: next });
+  };
+
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Modo
+      </p>
+      <select
+        value={mode}
+        onChange={(e) => update({ carouselMode: e.target.value })}
+        className="w-full text-xs border rounded-md bg-background h-8 px-2"
+      >
+        <option value="slide">Slide animado (auto-play)</option>
+        <option value="static">Grid estático (todas visíveis)</option>
+      </select>
+
+      {mode === "slide" && (
+        <>
+          <Row cols={2}>
+            <div>
+              <Label className="text-[10px] text-muted-foreground">
+                Velocidade (ms)
+              </Label>
+              <Input
+                type="number"
+                min={1000}
+                step={500}
+                value={(el.intervalMs as number) ?? 4000}
+                onChange={(e) =>
+                  update({ intervalMs: Number(e.target.value) })
+                }
+                className="text-xs"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs flex items-center gap-1.5 mt-4 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={(el.autoplay as boolean) ?? true}
+                  onChange={(e) => update({ autoplay: e.target.checked })}
+                />
+                Auto-play
+              </label>
+            </div>
+          </Row>
+          <Row cols={2}>
+            <label className="text-xs flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={(el.showDots as boolean) ?? true}
+                onChange={(e) => update({ showDots: e.target.checked })}
+              />
+              Bolinhas
+            </label>
+            <label className="text-xs flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={(el.showArrows as boolean) ?? true}
+                onChange={(e) => update({ showArrows: e.target.checked })}
+              />
+              Setas
+            </label>
+          </Row>
+        </>
+      )}
+
+      <Row cols={2}>
+        <NumField
+          label="Espaço entre (px)"
+          value={(el.gap as number) ?? 12}
+          onChange={(v) => update({ gap: v })}
+          min={0}
+        />
+        <NumField
+          label="Borda (px)"
+          value={(el.radius as number) ?? 8}
+          onChange={(v) => update({ radius: v })}
+          min={0}
+        />
+      </Row>
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Imagens ({slides.length})
+      </p>
+      {slides.map((s, idx) => (
+        <CarouselSlideEditor
+          key={s.id}
+          slide={s}
+          onChange={(p) => patch(idx, p)}
+          onRemove={() => remove(idx)}
+          onUp={() => move(idx, -1)}
+          onDown={() => move(idx, 1)}
+          isFirst={idx === 0}
+          isLast={idx === slides.length - 1}
+        />
+      ))}
+      <Button variant="outline" size="sm" onClick={add} className="text-xs">
+        + Adicionar imagem
+      </Button>
+    </>
+  );
+}
+
+function CarouselSlideEditor({
+  slide,
+  onChange,
+  onRemove,
+  onUp,
+  onDown,
+  isFirst,
+  isLast,
+}: {
+  slide: {
+    id: string;
+    imageUrl: string;
+    alt?: string;
+    caption?: string;
+    link?: string;
+    aspectRatio?: string;
+  };
+  onChange: (p: Partial<typeof slide>) => void;
+  onRemove: () => void;
+  onUp: () => void;
+  onDown: () => void;
+  isFirst: boolean;
+  isLast: boolean;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const res = await fetch("/api/upload-local", {
+        method: "POST",
+        body: form,
+      });
+      const { url } = await res.json();
+      onChange({ imageUrl: url });
+    } catch {
+      toast.error("Falha no upload");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="p-2 border rounded-md mb-2 bg-muted/30 flex flex-col gap-1.5">
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] text-muted-foreground flex-1">
+          {slide.alt || "(sem alt)"}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onUp}
+          disabled={isFirst}
+          className="size-7 shrink-0"
+          title="Subir"
+        >
+          ↑
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onDown}
+          disabled={isLast}
+          className="size-7 shrink-0"
+          title="Descer"
+        >
+          ↓
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onRemove}
+          className="size-7 shrink-0"
+          title="Remover"
+        >
+          <Trash2 className="size-3.5 text-destructive" />
+        </Button>
+      </div>
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1 text-xs h-8"
+          disabled={uploading}
+          onClick={() => fileRef.current?.click()}
+        >
+          {uploading
+            ? "Carregando…"
+            : slide.imageUrl
+              ? "Trocar"
+              : "Upload"}
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleUpload(f);
+          }}
+        />
+      </div>
+      <Input
+        value={slide.imageUrl}
+        onChange={(e) => onChange({ imageUrl: e.target.value })}
+        placeholder="https://… (URL)"
+        className="text-xs font-mono"
+      />
+      {slide.imageUrl && (
+        <div
+          className="rounded border overflow-hidden bg-white"
+          style={{ height: 60 }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={slide.imageUrl}
+            alt={slide.alt}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
+      <Row cols={2}>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">Proporção</Label>
+          <select
+            value={slide.aspectRatio ?? "16:9"}
+            onChange={(e) => onChange({ aspectRatio: e.target.value })}
+            className="w-full text-xs border rounded-md bg-background h-7 px-2"
+          >
+            <option value="16:9">16:9 (widescreen)</option>
+            <option value="4:3">4:3 (clássica)</option>
+            <option value="1:1">1:1 (quadrada)</option>
+            <option value="3:4">3:4 (vertical)</option>
+            <option value="9:16">9:16 (stories)</option>
+            <option value="free">Livre (sem ratio)</option>
+          </select>
+        </div>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">Alt</Label>
+          <Input
+            value={slide.alt ?? ""}
+            onChange={(e) => onChange({ alt: e.target.value })}
+            placeholder="Descrição"
+            className="text-xs"
+          />
+        </div>
+      </Row>
+      <Label className="text-[10px] text-muted-foreground">Legenda (opc)</Label>
+      <Input
+        value={slide.caption ?? ""}
+        onChange={(e) => onChange({ caption: e.target.value })}
+        placeholder="Legenda da imagem"
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground">Link (opc)</Label>
+      <Input
+        value={slide.link ?? ""}
+        onChange={(e) => onChange({ link: e.target.value })}
+        placeholder="https://… ou #section"
+        className="text-xs font-mono"
+      />
+    </div>
+  );
+}
+
+// ─── NASA Link (nasa-link) ─────────────────────────────────────────────────
+//
+// Permite escolher um App NASA (tracking/form/agenda/linnker/chat/
+// payment/forge/page) + resource específico da org. Pra "linnker",
+// busca lista de LinnkerPages via orpc.linnker.listPages e mostra
+// dropdown.
+
+const NASA_APPS: Array<{ id: string; label: string }> = [
+  { id: "linnker", label: "Linnker" },
+  { id: "tracking", label: "Tracking (CRM)" },
+  { id: "form", label: "Formulário" },
+  { id: "agenda", label: "Agenda" },
+  { id: "chat", label: "In-Chat" },
+  { id: "payment", label: "Payment" },
+  { id: "forge", label: "Forge" },
+  { id: "page", label: "Outra page NASA" },
+];
+
+function NasaLinkProps({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  const appId = (el.appId as string) ?? "linnker";
+  const resourceId = (el.resourceId as string) ?? "";
+
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Link NASA
+      </p>
+      <Field label="Rótulo">
+        <Input
+          value={(el.label as string) ?? ""}
+          onChange={(e) => update({ label: e.target.value })}
+          placeholder="Acesse meu Linnker"
+          className="h-8 text-xs"
+        />
+      </Field>
+
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        App NASA de destino
+      </Label>
+      <select
+        value={appId}
+        onChange={(e) => update({ appId: e.target.value, resourceId: "" })}
+        className="w-full text-xs border rounded-md bg-background h-8 px-2"
+      >
+        {NASA_APPS.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.label}
+          </option>
+        ))}
+      </select>
+
+      {appId === "linnker" && (
+        <LinnkerSelector
+          value={resourceId}
+          onChange={(v) => update({ resourceId: v })}
+        />
+      )}
+
+      {appId !== "linnker" && (
+        <>
+          <Label className="text-[10px] text-muted-foreground mt-2">
+            ID do recurso (opcional — deixe vazio pra ir pra home do app)
+          </Label>
+          <Input
+            value={resourceId}
+            onChange={(e) => update({ resourceId: e.target.value })}
+            placeholder="ID ou slug"
+            className="text-xs font-mono"
+          />
+        </>
+      )}
+
+      <Seg />
+      <Row>
+        <ColorField
+          label="Fundo"
+          value={(el.bg as string) ?? "#ffffff"}
+          onChange={(v) => update({ bg: v })}
+        />
+        <ColorField
+          label="Texto"
+          value={(el.fg as string) ?? "#0f172a"}
+          onChange={(v) => update({ fg: v })}
+        />
+      </Row>
+    </>
+  );
+}
+
+/** Dropdown que busca Linnkers da org logada. */
+function LinnkerSelector({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  // Tenta usar orpc.linnker.listPages. Se falhar (org sem linnkers),
+  // cai pra input livre.
+  const { data, isLoading, error } = useQuery(
+    orpc.linnker.listPages.queryOptions({ input: {} }),
+  );
+  const linnkers =
+    ((data as { pages?: Array<{ id: string; slug: string; title: string }> })
+      ?.pages ?? []) as Array<{ id: string; slug: string; title: string }>;
+
+  return (
+    <>
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        Qual Linnker da empresa?
+      </Label>
+      {isLoading ? (
+        <p className="text-[10px] text-muted-foreground">Carregando…</p>
+      ) : error ? (
+        <p className="text-[10px] text-destructive">
+          Falha ao carregar. Cole o slug manualmente:
+        </p>
+      ) : linnkers.length === 0 ? (
+        <p className="text-[10px] text-muted-foreground">
+          Você ainda não tem Linnkers — crie em /linnker primeiro.
+        </p>
+      ) : (
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full text-xs border rounded-md bg-background h-8 px-2"
+        >
+          <option value="">— Escolha um Linnker —</option>
+          {linnkers.map((l) => (
+            <option key={l.id} value={l.slug}>
+              {l.title} (/{l.slug})
+            </option>
+          ))}
+        </select>
+      )}
+      <p className="text-[10px] text-muted-foreground mt-1">
+        Link público vira <code className="font-mono">/l/{value || "<slug>"}</code>
+      </p>
+    </>
+  );
+}
+
+// ─── Chat Button (chat-button) ──────────────────────────────────────────
+function ChatButtonProps({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Botão Chat IA
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
+        Fica fixo no canto inferior direito. Lead criado vai pro
+        tracking selecionado, com nome/número pedidos no próprio
+        popover quando o user ainda não foi identificado.
+      </p>
+      <Label className="text-[10px] text-muted-foreground">
+        Slug da organização (orgSlug)
+      </Label>
+      <Input
+        value={(el.orgSlug as string) ?? ""}
+        onChange={(e) => update({ orgSlug: e.target.value })}
+        placeholder="minha-empresa"
+        className="text-xs font-mono"
+      />
+      <p className="text-[10px] text-muted-foreground mt-1">
+        Necessário pra conectar ao backend do In-Chat. Encontre em
+        Configurações → Organização.
+      </p>
+
+      <Label className="text-[10px] text-muted-foreground mt-3">
+        Tracking de destino (ID, opcional)
+      </Label>
+      <Input
+        value={(el.trackingId as string) ?? ""}
+        onChange={(e) => update({ trackingId: e.target.value })}
+        placeholder="ck123..."
+        className="text-xs font-mono"
+      />
+      <p className="text-[10px] text-muted-foreground mt-1">
+        Se vazio, usa tracking default da org. Útil quando você tem
+        vários pipelines (vendas, atendimento, suporte).
+      </p>
+
+      <Seg />
+      <Label className="text-[10px] text-muted-foreground">
+        Mensagem de boas-vindas
+      </Label>
+      <Textarea
+        rows={2}
+        value={(el.welcomeMessage as string) ?? ""}
+        onChange={(e) => update({ welcomeMessage: e.target.value })}
+        placeholder="Olá! 👋 Como posso ajudar?"
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        Nome do atendente
+      </Label>
+      <Input
+        value={(el.agentName as string) ?? ""}
+        onChange={(e) => update({ agentName: e.target.value })}
+        placeholder="Atendente"
+        className="text-xs"
+      />
+
+      <Seg />
+      <Row>
+        <ColorField
+          label="Cor do botão"
+          value={(el.bgColor as string) ?? "#6366f1"}
+          onChange={(v) => update({ bgColor: v })}
+        />
+        <ColorField
+          label="Cor do ícone"
+          value={(el.fgColor as string) ?? "#ffffff"}
+          onChange={(v) => update({ fgColor: v })}
+        />
+      </Row>
+    </>
+  );
+}
+
+// ─── Embedded Form (embedded-form) ──────────────────────────────────────
+function EmbeddedFormProps({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  // Lista forms da org
+  const { data, isLoading } = useQuery(
+    orpc.form.list.queryOptions({ input: {} }),
+  );
+  const forms =
+    ((data as { forms?: Array<{ id: string; name: string }> })?.forms ?? []) as
+      Array<{ id: string; name: string }>;
+
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Formulário NASA
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
+        Embeda um formulário existente. Submissão cria lead no
+        tracking definido (override ou o do form).
+      </p>
+
+      <Label className="text-[10px] text-muted-foreground">
+        Formulário
+      </Label>
+      {isLoading ? (
+        <p className="text-[10px] text-muted-foreground">Carregando…</p>
+      ) : forms.length === 0 ? (
+        <p className="text-[10px] text-muted-foreground">
+          Você ainda não tem formulários. Crie em /forms primeiro.
+        </p>
+      ) : (
+        <select
+          value={(el.formId as string) ?? ""}
+          onChange={(e) => update({ formId: e.target.value })}
+          className="w-full text-xs border rounded-md bg-background h-8 px-2"
+        >
+          <option value="">— Escolha um formulário —</option>
+          {forms.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      <Label className="text-[10px] text-muted-foreground mt-3">
+        Tracking de destino (override, opcional)
+      </Label>
+      <Input
+        value={(el.trackingId as string) ?? ""}
+        onChange={(e) => update({ trackingId: e.target.value })}
+        placeholder="Deixe vazio pra usar o do form"
+        className="text-xs font-mono"
+      />
+
+      <Seg />
+      <ColorField
+        label="Fundo do container"
+        value={(el.bgColor as string) ?? "#ffffff"}
+        onChange={(v) => update({ bgColor: v })}
+      />
+    </>
+  );
+}
+
+// ─── Exit Intent (exit-intent) ──────────────────────────────────────────
+function ExitIntentProps({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  return (
+    <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Popover de saída
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
+        Aparece quando o usuário move o mouse pra fora do topo (intent
+        de fechar a aba). Mostra cupom + CTA.
+      </p>
+
+      <Label className="text-[10px] text-muted-foreground">Título</Label>
+      <Input
+        value={(el.heading as string) ?? ""}
+        onChange={(e) => update({ heading: e.target.value })}
+        placeholder="Espera! Antes de sair…"
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">Mensagem</Label>
+      <Textarea
+        rows={2}
+        value={(el.subtitle as string) ?? ""}
+        onChange={(e) => update({ subtitle: e.target.value })}
+        placeholder="Ganha 10% de desconto…"
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        Código de cupom (opcional)
+      </Label>
+      <Input
+        value={(el.couponCode as string) ?? ""}
+        onChange={(e) => update({ couponCode: e.target.value })}
+        placeholder="VOLTA10"
+        className="text-xs font-mono"
+      />
+
+      <Seg />
+      <Label className="text-[10px] text-muted-foreground">Botão — texto</Label>
+      <Input
+        value={(el.ctaLabel as string) ?? ""}
+        onChange={(e) => update({ ctaLabel: e.target.value })}
+        placeholder="Aproveitar agora"
+        className="text-xs"
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">Botão — link</Label>
+      <Input
+        value={(el.ctaHref as string) ?? ""}
+        onChange={(e) => update({ ctaHref: e.target.value })}
+        placeholder="#planos ou URL"
+        className="text-xs font-mono"
+      />
+
+      <Seg />
+      <Row cols={2}>
+        <NumField
+          label="Espera inicial (ms)"
+          value={(el.triggerDelayMs as number) ?? 2000}
+          onChange={(v) => update({ triggerDelayMs: v })}
+          step={500}
+          min={0}
+        />
+        <label className="text-xs flex items-center gap-1.5 mt-5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={(el.showOnce as boolean) ?? true}
+            onChange={(e) => update({ showOnce: e.target.checked })}
+          />
+          Só 1× por sessão
+        </label>
+      </Row>
+
+      <Seg />
+      <Row>
+        <ColorField
+          label="Fundo"
+          value={(el.bgColor as string) ?? "#0f172a"}
+          onChange={(v) => update({ bgColor: v })}
+        />
+        <ColorField
+          label="Texto"
+          value={(el.fgColor as string) ?? "#ffffff"}
+          onChange={(v) => update({ fgColor: v })}
+        />
+      </Row>
+      <ColorField
+        label="Cor primária (cupom + CTA)"
+        value={(el.primaryColor as string) ?? "#7C3AED"}
+        onChange={(v) => update({ primaryColor: v })}
+      />
+    </>
+  );
+}
+
 // ─── Main panel ──────────────────────────────────────────────────────────────
 
 const TYPE_LABELS: Record<string, string> = {
@@ -2314,6 +3100,11 @@ export function PropertiesPanelContent() {
         {el.type === "button" && <ButtonProps el={el} update={update} />}
         {el.type === "video"  && <VideoProps  el={el} update={update} />}
         {el.type === "embed"  && <EmbedProps  el={el} update={update} />}
+        {el.type === "nasa-link" && <NasaLinkProps el={el} update={update} />}
+        {el.type === "carousel"      && <CarouselProps     el={el} update={update} />}
+        {el.type === "chat-button"   && <ChatButtonProps   el={el} update={update} />}
+        {el.type === "embedded-form" && <EmbeddedFormProps el={el} update={update} />}
+        {el.type === "exit-intent"   && <ExitIntentProps   el={el} update={update} />}
         {/* Sections novas (Fase 1 do builder evoluído) */}
         {el.type === "section-navbar"        && <NavbarProps        el={el} update={update} />}
         {el.type === "section-footer"        && <FooterProps        el={el} update={update} />}

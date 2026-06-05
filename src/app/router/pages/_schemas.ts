@@ -53,6 +53,16 @@ export const metaSchema = z
     description: z.string().optional(),
     favicon: z.string().optional(),
     og: z.string().optional(),
+    // Tracking IDs (UI guarda aqui pra evitar migration no NasaPage).
+    metaPixelId: z.string().optional(),
+    googleTagId: z.string().optional(),
+    gtmId: z.string().optional(),
+    // UTM defaults aplicados quando o lead chega sem utm na URL.
+    utmSource: z.string().optional(),
+    utmMedium: z.string().optional(),
+    utmCampaign: z.string().optional(),
+    utmContent: z.string().optional(),
+    utmTerm: z.string().optional(),
   })
   .default({});
 

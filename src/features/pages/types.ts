@@ -160,6 +160,11 @@ export type ElementType =
   | "tabs"
   | "accordion"
   | "counter"
+  | "carousel"
+  // ── Lead capture & engagement (Fase 6) ──
+  | "chat-button"
+  | "embedded-form"
+  | "exit-intent"
   // ── Data binding (Fase 5) ──
   // Renderiza dados do app em tempo real (planos, cursos, leaderboard).
   | "data-bound";

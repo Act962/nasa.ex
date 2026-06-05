@@ -31,22 +31,9 @@ export function PublicPageView({
   const { data: session } = authClient.useSession();
   const isOwner = session?.user?.id === ownerUserId;
 
-  useEffect(() => {
-    const device =
-      window.innerWidth < 640
-        ? "mobile"
-        : window.innerWidth < 1024
-          ? "tablet"
-          : "desktop";
-    client.pages
-      .registerVisit({
-        slug,
-        referrer: document.referrer || undefined,
-        userAgent: navigator.userAgent,
-        device,
-      })
-      .catch(() => {});
-  }, [slug]);
+  // Page-view + tracking de scroll/click/section/dwell agora
+  // gerenciado pelo PageTracker — incluído via PublicPageRenderer
+  // recebendo `slug`. Mantemos esse useEffect comentado pra docs.
 
   if (isOwner) {
     return (
@@ -64,6 +51,7 @@ export function PublicPageView({
       layout={layout}
       palette={palette}
       fontFamily={fontFamily}
+      trackingSlug={slug}
     />
   );
 }

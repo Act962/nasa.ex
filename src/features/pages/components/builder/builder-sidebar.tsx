@@ -6,6 +6,7 @@ import {
   Video as VideoIcon, Share2, Link as LinkIcon, Code2,
   Star as StarIcon, Shapes, SquareStack, LayoutTemplate,
   Settings2,
+  Images, MessageCircle, ClipboardList, LogOut,
 } from "lucide-react";
 import {
   usePagesBuilderStore,
@@ -18,7 +19,9 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { PropertiesPanelContent } from "../properties-panel/properties-panel";
 
-const ICONS: Record<ElementType, React.ComponentType<{ className?: string }>> = {
+const ICONS: Partial<
+  Record<ElementType, React.ComponentType<{ className?: string }>>
+> = {
   text:        Type,
   image:       ImageIcon,
   svg:         Shapes,
@@ -32,9 +35,13 @@ const ICONS: Record<ElementType, React.ComponentType<{ className?: string }>> = 
   "nasa-link": LinkIcon,
   embed:       Code2,
   group:       SquareStack,
+  carousel:    Images,
+  "chat-button":   MessageCircle,
+  "embedded-form": ClipboardList,
+  "exit-intent":   LogOut,
 };
 
-const LABELS: Record<ElementType, string> = {
+const LABELS: Partial<Record<ElementType, string>> = {
   text:        "Texto",
   image:       "Imagem",
   svg:         "SVG",
@@ -48,11 +55,16 @@ const LABELS: Record<ElementType, string> = {
   "nasa-link": "Link NASA",
   embed:       "Embed",
   group:       "Grupo",
+  carousel:    "Carrossel",
+  "chat-button":   "Chat IA flutuante",
+  "embedded-form": "Formulário NASA",
+  "exit-intent":   "Exit intent (recuperar)",
 };
 
 const ELEMENT_ORDER: ElementType[] = [
   "text", "image", "button", "shape", "divider",
   "icon", "video", "social", "spacer", "nasa-link", "embed",
+  "carousel", "chat-button", "embedded-form", "exit-intent",
 ];
 
 // ─── Predefined section templates ───────────────────────────────────────────
@@ -208,7 +220,7 @@ export function BuilderSidebar() {
             <p className="px-3 text-[10px] font-semibold uppercase text-muted-foreground mb-1.5">Elementos</p>
             <div className="flex flex-col gap-0.5 px-2">
               {ELEMENT_ORDER.map((t) => {
-                const Icon = ICONS[t];
+                const Icon = ICONS[t] ?? SquareStack;
                 return (
                   <button
                     key={t}
@@ -216,7 +228,7 @@ export function BuilderSidebar() {
                     className="flex items-center gap-3 px-2 py-2 rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
                   >
                     <Icon className="size-4 shrink-0 text-muted-foreground" />
-                    <span>{LABELS[t]}</span>
+                    <span>{LABELS[t] ?? t}</span>
                   </button>
                 );
               })}
@@ -243,34 +255,11 @@ export function BuilderSidebar() {
         )}
 
         {tab === "page" && (
-          <div className="py-2 px-3">
-            <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-3">Configurações da página</p>
-            <div className="space-y-4">
-              <div>
-                <Label className="text-[11px] text-muted-foreground">Cor de fundo</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <input
-                    type="color"
-                    value={bgColor}
-                    onChange={(e) => updateArtboard({ background: e.target.value })}
-                    className="size-9 rounded border cursor-pointer p-0.5 bg-transparent"
-                  />
-                  <span className="text-xs font-mono text-muted-foreground">{bgColor}</span>
-                </div>
-              </div>
-              <div>
-                <Label className="text-[11px] text-muted-foreground">Altura mínima (px)</Label>
-                <input
-                  type="number"
-                  min={400}
-                  step={100}
-                  value={layout?.artboard.minHeight ?? 800}
-                  onChange={(e) => updateArtboard({ minHeight: Number(e.target.value) })}
-                  className="mt-1 w-full h-8 rounded border px-2 text-xs bg-background"
-                />
-              </div>
-            </div>
-          </div>
+          <PageSettingsPanel
+            bgColor={bgColor}
+            updateArtboard={updateArtboard}
+            layout={layout}
+          />
         )}
 
         {/* ─── Properties panel embutido ─────────────────────────────── */}
@@ -303,5 +292,146 @@ export function BuilderSidebar() {
         )}
       </div>
     </aside>
+  );
+}
+
+/**
+ * Configurações da página inteira — aparência básica (background,
+ * height) + tracking (Meta Pixel, Google Analytics, UTM defaults).
+ *
+ * UTM defaults: usados quando alguém chega na page SEM utm na URL.
+ * O lead criado herda esses valores. Útil pra campanhas externas
+ * que esquecem de adicionar UTM.
+ *
+ * Tracking IDs (Meta Pixel, GA, GTM) ficam no `layout.meta` — sem
+ * migration. O public renderer injeta os scripts no client.
+ */
+function PageSettingsPanel({
+  bgColor,
+  updateArtboard,
+  layout,
+}: {
+  bgColor: string;
+  updateArtboard: (p: Partial<{ background: string; minHeight: number }>) => void;
+  layout: ReturnType<typeof usePagesBuilderStore.getState>["layout"];
+}) {
+  const updateMeta = usePagesBuilderStore((s) => s.updateMeta);
+  const meta =
+    ((layout as unknown as { meta?: Record<string, unknown> })?.meta ?? {}) as Record<
+      string,
+      string | undefined
+    >;
+
+  return (
+    <div className="py-2 px-3">
+      <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-3">
+        Aparência da página
+      </p>
+      <div className="space-y-4">
+        <div>
+          <Label className="text-[11px] text-muted-foreground">Cor de fundo</Label>
+          <div className="flex items-center gap-2 mt-1">
+            <input
+              type="color"
+              value={bgColor}
+              onChange={(e) => updateArtboard({ background: e.target.value })}
+              className="size-9 rounded border cursor-pointer p-0.5 bg-transparent"
+            />
+            <span className="text-xs font-mono text-muted-foreground">{bgColor}</span>
+          </div>
+        </div>
+        <div>
+          <Label className="text-[11px] text-muted-foreground">Altura mínima (px)</Label>
+          <input
+            type="number"
+            min={400}
+            step={100}
+            value={layout?.artboard.minHeight ?? 800}
+            onChange={(e) => updateArtboard({ minHeight: Number(e.target.value) })}
+            className="mt-1 w-full h-8 rounded border px-2 text-xs bg-background"
+          />
+        </div>
+      </div>
+
+      <hr className="my-4" />
+
+      <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">
+        Pixels & Analytics
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
+        IDs injetados no <code className="font-mono">&lt;head&gt;</code> da
+        página pública. Funcionam só após publicar.
+      </p>
+      <div className="space-y-3">
+        <div>
+          <Label className="text-[11px] text-muted-foreground">Meta Pixel ID</Label>
+          <input
+            type="text"
+            value={meta.metaPixelId ?? ""}
+            onChange={(e) => updateMeta({ metaPixelId: e.target.value || undefined })}
+            placeholder="123456789012345"
+            className="mt-1 w-full h-8 rounded border px-2 text-xs bg-background font-mono"
+          />
+        </div>
+        <div>
+          <Label className="text-[11px] text-muted-foreground">
+            Google Tag (G- ou AW-)
+          </Label>
+          <input
+            type="text"
+            value={meta.googleTagId ?? ""}
+            onChange={(e) => updateMeta({ googleTagId: e.target.value || undefined })}
+            placeholder="G-XXXXXXXXXX ou AW-XXXXXXXXX"
+            className="mt-1 w-full h-8 rounded border px-2 text-xs bg-background font-mono"
+          />
+        </div>
+        <div>
+          <Label className="text-[11px] text-muted-foreground">
+            Google Tag Manager (GTM-)
+          </Label>
+          <input
+            type="text"
+            value={meta.gtmId ?? ""}
+            onChange={(e) => updateMeta({ gtmId: e.target.value || undefined })}
+            placeholder="GTM-XXXXXXX"
+            className="mt-1 w-full h-8 rounded border px-2 text-xs bg-background font-mono"
+          />
+        </div>
+      </div>
+
+      <hr className="my-4" />
+
+      <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">
+        UTM defaults
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
+        Aplicados quando o lead chega sem utm na URL. Sobrescrevidos
+        pela URL quando presentes.
+      </p>
+      <div className="space-y-3">
+        {(
+          [
+            ["utmSource", "utm_source", "google, facebook, ig…"],
+            ["utmMedium", "utm_medium", "cpc, organic, email…"],
+            ["utmCampaign", "utm_campaign", "black-friday-2026"],
+            ["utmContent", "utm_content", "banner-top"],
+            ["utmTerm", "utm_term", "palavra-chave"],
+          ] as const
+        ).map(([key, lbl, ph]) => (
+          <div key={key}>
+            <Label className="text-[11px] text-muted-foreground">{lbl}</Label>
+            <input
+              type="text"
+              value={(meta[key] as string) ?? ""}
+              onChange={(e) =>
+                updateMeta({ [key]: e.target.value || undefined })
+              }
+              placeholder={ph}
+              className="mt-1 w-full h-8 rounded border px-2 text-xs bg-background font-mono"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

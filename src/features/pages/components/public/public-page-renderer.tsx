@@ -6,14 +6,20 @@ import { DEVICE_PRESETS } from "../../constants";
 import { ElementRenderer } from "../elements/element-renderer";
 import { resolveElements, getDeviceFromWidth } from "../../lib/responsive";
 import { isFlowSection, pageRenderMode } from "../../lib/section-flow";
+import { PageAnalytics } from "./page-analytics";
+import { PageTracker } from "./page-tracker";
 
 interface Props {
   layout: PageLayout;
   palette?: Record<string, string>;
   fontFamily?: string | null;
+  /** Quando definido, ativa o tracker analítico (page view, scroll
+   *  markers, clicks, dwell). Pass `undefined` no preview pra não
+   *  contar analytics de quem tá só visualizando o rascunho. */
+  trackingSlug?: string;
 }
 
-export function PublicPageRenderer({ layout, palette, fontFamily }: Props) {
+export function PublicPageRenderer({ layout, palette, fontFamily, trackingSlug }: Props) {
   const [device, setDevice] = useState<Device>("desktop");
   const [scrollY, setScrollY] = useState(0);
 
@@ -57,11 +63,28 @@ export function PublicPageRenderer({ layout, palette, fontFamily }: Props) {
     overflow: renderMode === "landing" ? undefined : "hidden",
   };
 
+  // Meta da page (Pixel/GA/UTM defaults) fica em layout.meta.
+  // Não há migration de schema — tudo armazenado dentro do JSON
+  // `layout` ou `publishedLayout`.
+  const pageMeta =
+    ((layout as unknown as { meta?: Record<string, string> }).meta ?? {}) as {
+      metaPixelId?: string;
+      googleTagId?: string;
+      gtmId?: string;
+      utmSource?: string;
+      utmMedium?: string;
+      utmCampaign?: string;
+      utmContent?: string;
+      utmTerm?: string;
+    };
+
   if (layout.mode === "single") {
     const elements = resolveElements(layout.main.elements, device, artboardWidth);
     return (
       <>
         <SmoothScrollStyle />
+        <PageAnalytics meta={pageMeta} />
+        {trackingSlug && <PageTracker slug={trackingSlug} />}
         <div style={wrapperStyle}>
           {renderMode === "landing" ? (
             <LandingFlow elements={elements} tokens={(layout as { tokens?: unknown }).tokens} />
@@ -81,6 +104,8 @@ export function PublicPageRenderer({ layout, palette, fontFamily }: Props) {
   return (
     <>
       <SmoothScrollStyle />
+      <PageAnalytics meta={pageMeta} />
+      {trackingSlug && <PageTracker slug={trackingSlug} />}
       <div style={wrapperStyle}>
         <div
           style={{
