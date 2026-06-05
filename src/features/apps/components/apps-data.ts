@@ -178,9 +178,10 @@ export const APPS: AppDef[] = [
     sidebarKey: "linnker",
   },
   {
-    // NASA PAGES — builder de landing pages. Oculto por default
-    // (hidden: true) enquanto a feature está em rollout. Pra ativar:
-    // tirar o `hidden: true` ou habilitar via flag de admin.
+    // NASA PAGES — builder de landing pages.
+    // Visível em /apps. Sidebar oculto por default — user ativa
+    // manualmente em "Personalizar menu" (entry em sidebar-items.ts
+    // com defaultVisible: false).
     id: "nasa-pages",
     name: "NASA PAGES",
     byline: "by NASA®",
@@ -195,8 +196,7 @@ export const APPS: AppDef[] = [
     href: "/pages",
     activeUsers: null,
     theme: "purple",
-    sidebarKey: "pages",
-    hidden: true,
+    sidebarKey: "nasa-pages",
   },
   {
     id: "demand",
