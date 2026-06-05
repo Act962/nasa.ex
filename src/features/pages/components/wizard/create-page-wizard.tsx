@@ -264,8 +264,12 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      {/* Layout flex column com header/footer fixos e body scrollable
+          — sem isso, listas longas (templates, paletas) vazavam pra
+          fora do viewport e nada rolava. max-h: 92vh deixa
+          confortável em qualquer tela. */}
+      <DialogContent className="max-w-2xl max-h-[92vh] p-0 gap-0 flex flex-col">
+        <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="size-5 text-indigo-500" />
             Novo site NASA Pages
@@ -275,7 +279,8 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-2 min-h-[320px]">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-2">
+        <div className="min-h-[320px]">
           {step === "template" && (
             <div className="flex flex-col gap-3">
               {/* Status do template selecionado (banner topo) */}
@@ -462,8 +467,9 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
             </div>
           )}
         </div>
+        </div>
 
-        <DialogFooter className="gap-2 sm:gap-2">
+        <DialogFooter className="px-6 py-4 border-t gap-2 sm:gap-2 shrink-0">
           {stepIndex > 0 && (
             <Button
               variant="ghost"
