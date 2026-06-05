@@ -1,6 +1,5 @@
 /**
- * Section FAQ — perguntas frequentes em formato accordion.
- * Estado expandido controlado por <details> nativo (sem JS).
+ * Section FAQ — accordion responsivo.
  */
 import {
   bgColor,
@@ -17,27 +16,17 @@ interface FaqItem {
 }
 
 const DEFAULT_FAQ: FaqItem[] = [
-  {
-    id: "1",
-    question: "Preciso de cartão de crédito pra começar?",
-    answer: "Não. O plano Free é gratuito pra sempre.",
-  },
-  {
-    id: "2",
-    question: "Como faço a migração dos meus dados?",
-    answer:
-      "Temos importadores nativos pra RD, Pipedrive e CSV. A primeira semana tem acompanhamento incluído.",
-  },
-  {
-    id: "3",
-    question: "Posso cancelar a qualquer momento?",
-    answer: "Sim. Cancelamento em 1 clique, sem multa ou retenção.",
-  },
+  { id: "1", question: "Preciso de cartão de crédito pra começar?", answer: "Não. O plano Free é gratuito pra sempre." },
+  { id: "2", question: "Como faço a migração dos meus dados?", answer: "Temos importadores nativos pra RD, Pipedrive e CSV. A primeira semana tem acompanhamento incluído." },
+  { id: "3", question: "Posso cancelar a qualquer momento?", answer: "Sim. Cancelamento em 1 clique, sem multa ou retenção." },
 ];
 
 export function SectionFaq({ element, tokens }: SectionRendererProps) {
   const heading = (element.heading as string) ?? "Perguntas frequentes";
   const items = (element.items as FaqItem[] | undefined) ?? DEFAULT_FAQ;
+  // `anchorId` permite navbar/botões linkarem aqui via #faq.
+  // Antes esse campo era escrito pelo editor mas ignorado.
+  const anchorId = (element.anchorId as string) ?? undefined;
 
   const primary = primaryColor(element, tokens);
   const bg = bgColor(element, tokens);
@@ -45,80 +34,42 @@ export function SectionFaq({ element, tokens }: SectionRendererProps) {
   const muted = mutedColor(element, tokens);
 
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        padding: "56px 32px",
-        background: bg,
-        color: fg,
-        display: "flex",
-        flexDirection: "column",
-        gap: 24,
-        overflow: "hidden",
-      }}
+    <section
+      id={anchorId}
+      className="w-full px-4 sm:px-6 lg:px-8 py-14 sm:py-20 scroll-mt-20"
+      style={{ background: bg, color: fg }}
     >
-      <h2
-        style={{
-          fontSize: 32,
-          fontWeight: 900,
-          textAlign: "center",
-          margin: 0,
-        }}
-      >
-        {heading}
-      </h2>
+      <div className="max-w-3xl mx-auto flex flex-col gap-8">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-center">
+          {heading}
+        </h2>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          maxWidth: 700,
-          width: "100%",
-          margin: "0 auto",
-        }}
-      >
-        {items.map((item) => (
-          <details
-            key={item.id}
-            style={{
-              padding: 16,
-              borderRadius: 12,
-              background: `${fg}05`,
-              border: `1px solid ${fg}15`,
-              cursor: "pointer",
-            }}
-          >
-            <summary
-              style={{
-                fontWeight: 700,
-                fontSize: 15,
-                listStyle: "none",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                color: fg,
-              }}
+        <div className="flex flex-col gap-2">
+          {items.map((item) => (
+            <details
+              key={item.id}
+              className="p-4 sm:p-5 rounded-xl border cursor-pointer"
+              style={{ background: `${fg}05`, borderColor: `${fg}15` }}
             >
-              {item.question}
-              <span style={{ color: primary, fontSize: 18 }}>+</span>
-            </summary>
-            <p
-              style={{
-                marginTop: 12,
-                fontSize: 14,
-                color: muted,
-                lineHeight: 1.5,
-                margin: 0,
-                paddingTop: 12,
-              }}
-            >
-              {item.answer}
-            </p>
-          </details>
-        ))}
+              <summary
+                className="font-bold text-sm sm:text-base flex items-center justify-between list-none"
+                style={{ color: fg }}
+              >
+                <span className="pr-4">{item.question}</span>
+                <span className="text-lg shrink-0" style={{ color: primary }}>
+                  +
+                </span>
+              </summary>
+              <p
+                className="mt-3 pt-3 text-xs sm:text-sm leading-relaxed border-t"
+                style={{ color: muted, borderColor: `${fg}10` }}
+              >
+                {item.answer}
+              </p>
+            </details>
+          ))}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }

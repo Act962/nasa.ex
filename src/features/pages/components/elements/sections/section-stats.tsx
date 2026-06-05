@@ -1,6 +1,6 @@
 /**
- * Section Stats — strip horizontal de 3-4 números em destaque.
- * Editável: lista de stats {value, label}.
+ * Section Stats — strip horizontal de 3-4 números.
+ * Mobile: 2 col. Desktop: N col.
  */
 import {
   bgColor,
@@ -24,6 +24,7 @@ export function SectionStats({ element, tokens }: SectionRendererProps) {
       { id: "3", value: "89%", label: "Aumento médio em conversão" },
       { id: "4", value: "200+", label: "Integrações" },
     ];
+  const anchorId = (element.anchorId as string) ?? undefined;
 
   const primary = primaryColor(element, tokens);
   const bg = bgColor(element, tokens);
@@ -31,37 +32,26 @@ export function SectionStats({ element, tokens }: SectionRendererProps) {
   const muted = mutedColor(element, tokens);
 
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        padding: "32px 24px",
-        background: bg,
-        color: fg,
-        borderTop: `1px solid ${fg}10`,
-        borderBottom: `1px solid ${fg}10`,
-        display: "grid",
-        gridTemplateColumns: `repeat(${stats.length}, 1fr)`,
-        gap: 24,
-        alignItems: "center",
-      }}
+    <section
+      id={anchorId}
+      className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 border-y scroll-mt-20"
+      style={{ background: bg, color: fg, borderColor: `${fg}10` }}
     >
-      {stats.map((s) => (
-        <div key={s.id} style={{ textAlign: "center" }}>
-          <div
-            style={{
-              fontSize: 36,
-              fontWeight: 900,
-              color: primary,
-              lineHeight: 1,
-              marginBottom: 6,
-            }}
-          >
-            {s.value}
+      <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 text-center">
+        {stats.map((s) => (
+          <div key={s.id}>
+            <div
+              className="text-2xl sm:text-3xl md:text-4xl font-black leading-none mb-1.5"
+              style={{ color: primary }}
+            >
+              {s.value}
+            </div>
+            <div className="text-xs sm:text-sm" style={{ color: muted }}>
+              {s.label}
+            </div>
           </div>
-          <div style={{ fontSize: 13, color: muted }}>{s.label}</div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </section>
   );
 }

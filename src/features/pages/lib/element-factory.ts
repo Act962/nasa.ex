@@ -281,6 +281,43 @@ const DEFAULTS: Record<ElementType, (palette: Record<string, string>) => Omit<El
     mutedColor: p.muted ?? "#94a3b8",
   }),
 
+  "section-navbar": (p) => ({
+    type: "section-navbar",
+    x: 0, y: 0, w: 1200, h: 80,
+    logoSrc: "",            // ← URL da imagem (vazio = mostra logoText)
+    logoText: "N.A.S.A",    // ← Texto fallback se logoSrc vazio
+    logoHref: "#top",       // ← Destino do click na logo
+    links: [
+      { id: "1", label: "Planos", href: "#planos" },
+      { id: "2", label: "O que é NASA?", href: "#o-que-e-nasa" },
+      { id: "3", label: "Como funciona", href: "#como-funciona" },
+    ],
+    primaryCta: "Começar grátis",
+    primaryCtaHref: "#",
+    secondaryCta: "Entrar",
+    secondaryCtaHref: "#",
+    bgColor: p.bg ?? "#0f172a",
+    fgColor: p.fg ?? "#f8fafc",
+    primaryColor: p.primary ?? "#7C3AED",
+    mutedColor: p.muted ?? "#94a3b8",
+  }),
+
+  "section-footer": (p) => ({
+    type: "section-footer",
+    x: 0, y: 0, w: 1200, h: 140,
+    logoSrc: "",
+    logoText: "N.A.S.A",
+    tagline: "Powered pelo Método N.A.S.A.®",
+    copyright: "© 2026 N.A.S.A",
+    links: [
+      { id: "1", label: "Políticas de Privacidade", href: "#" },
+      { id: "2", label: "Termos & Condições", href: "#" },
+    ],
+    bgColor: p.bg ?? "#0f172a",
+    fgColor: p.fg ?? "#f8fafc",
+    mutedColor: p.muted ?? "#94a3b8",
+  }),
+
   // ── Blocos interativos (Fase 2) ──────────────────────────────
 
   marquee: (p) => ({
@@ -338,6 +375,60 @@ const DEFAULTS: Record<ElementType, (palette: Record<string, string>) => Omit<El
     bgColor: p.bg ?? "#0f172a",
     primaryColor: p.primary ?? "#7C3AED",
     mutedColor: p.muted ?? "#94a3b8",
+  }),
+
+  carousel: () => ({
+    type: "carousel",
+    x: 0, y: 0, w: 800, h: 400,
+    carouselMode: "slide",
+    autoplay: true,
+    intervalMs: 4000,
+    showDots: true,
+    showArrows: true,
+    gap: 12,
+    radius: 12,
+    slidesPerView: 1,
+    slidesPerViewMobile: 1,
+    slides: [
+      { id: "s1", imageUrl: "", alt: "Slide 1", aspectRatio: "16:9" },
+      { id: "s2", imageUrl: "", alt: "Slide 2", aspectRatio: "16:9" },
+      { id: "s3", imageUrl: "", alt: "Slide 3", aspectRatio: "16:9" },
+    ],
+  }),
+
+  "chat-button": () => ({
+    type: "chat-button",
+    x: 0, y: 0, w: 60, h: 60,
+    label: "Falar com a gente",
+    welcomeMessage: "Olá! 👋 Como posso ajudar?",
+    trackingId: "",
+    agentName: "Atendente",
+    bgColor: "#6366f1",
+    fgColor: "#ffffff",
+  }),
+
+  "embedded-form": () => ({
+    type: "embedded-form",
+    x: 0, y: 0, w: 600, h: 400,
+    formId: "",
+    trackingId: "",
+    bgColor: "#ffffff",
+    fgColor: "#0f172a",
+  }),
+
+  "exit-intent": () => ({
+    type: "exit-intent",
+    x: 0, y: 0, w: 480, h: 320,
+    heading: "Espera! Antes de sair…",
+    subtitle: "Ganha 10% de desconto pra fechar hoje.",
+    couponCode: "VOLTA10",
+    ctaLabel: "Aproveitar agora",
+    ctaHref: "#planos",
+    triggerDelayMs: 2000,
+    showOnce: true,
+    bgColor: "#0f172a",
+    fgColor: "#ffffff",
+    primaryColor: "#7C3AED",
   }),
 
   // ── Data binding (Fase 5) ────────────────────────────────────

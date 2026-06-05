@@ -11,6 +11,7 @@ import { enableCalendarShare } from "./enable-calendar-share";
 import { disableCalendarShare } from "./disable-calendar-share";
 import { rotateCalendarShareToken } from "./rotate-calendar-share-token";
 import { getCalendarShareStatus } from "./get-calendar-share-status";
+import { setOrgSlug } from "./set-slug";
 
 export const orgRoutes = {
   listMembers,
@@ -22,6 +23,8 @@ export const orgRoutes = {
   updateCompanyProfile,
   updateMemberCargo,
   updateCompanyDetails,
+  // Slug público da organização (1× setup pra orgs antigas)
+  setSlug: setOrgSlug,
   // Compartilhamento público do Calendário Workspace
   enableCalendarShare,
   disableCalendarShare,

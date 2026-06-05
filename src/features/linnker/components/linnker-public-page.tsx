@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { client } from "@/lib/orpc";
 import type { LinnkerPage, LinnkerLink, SocialLink } from "../types";
 import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
+import { extractWhatsappPhone } from "../lib/extract-whatsapp-phone";
+import { LinnkerQrButton } from "./linnker-qr-button";
 
 const BUTTON_RADIUS: Record<string, string> = {
   pill: "9999px",
@@ -86,6 +88,14 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null }: P
   const socialLinks = (page.socialLinks as SocialLink[]) ?? [];
   const iconColor = page.socialIconColor ?? "#52525b";
 
+  // QR de contato — só renderiza o botão se a page tem WhatsApp
+  // configurado nos socialLinks E o owner não desabilitou
+  // explicitamente (qrEnabled default = true). Verificação
+  // server-side garantida pela rota /l/<slug>/wa que faria 404
+  // se algum desses gates falhasse.
+  const qrPhoneDigits = extractWhatsappPhone(socialLinks);
+  const qrShouldShow = page.qrEnabled !== false;
+
   useEffect(() => {
     if (!isDraft) {
       client.linnker
@@ -150,13 +160,24 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null }: P
           className="w-full flex items-end justify-center"
           style={{ background: page.coverColor, minHeight: "120px" }}
         >
-          <div
-            className="size-24 rounded-full bg-white border-4 border-white shadow-lg flex items-center justify-center -mb-12 overflow-hidden"
-          >
-            {page.avatarUrl ? (
-              <img src={page.avatarUrl} alt={page.title} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-4xl">🔗</span>
+          <div className="relative -mb-12">
+            <div className="size-24 rounded-full bg-white border-4 border-white shadow-lg flex items-center justify-center overflow-hidden">
+              {page.avatarUrl ? (
+                <img src={page.avatarUrl} alt={page.title} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-4xl">🔗</span>
+              )}
+            </div>
+            {qrPhoneDigits && qrShouldShow && (
+              <div className="absolute -right-2 bottom-0">
+                <LinnkerQrButton
+                  slug={page.slug}
+                  title={page.title}
+                  avatarUrl={page.avatarUrl}
+                  phoneDigits={qrPhoneDigits}
+                  socialIconColor={page.socialIconColor}
+                />
+              </div>
             )}
           </div>
         </div>
@@ -165,14 +186,27 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null }: P
       {/* Avatar when banner exists */}
       {page.bannerUrl && (
         <div className="flex justify-center -mt-12 relative z-10">
-          <div className="size-24 rounded-full bg-white border-4 shadow-lg overflow-hidden"
-            style={{ borderColor: page.coverColor }}>
-            {page.avatarUrl ? (
-              <img src={page.avatarUrl} alt={page.title} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-4xl"
-                style={{ background: page.coverColor }}>
-                🔗
+          <div className="relative">
+            <div className="size-24 rounded-full bg-white border-4 shadow-lg overflow-hidden"
+              style={{ borderColor: page.coverColor }}>
+              {page.avatarUrl ? (
+                <img src={page.avatarUrl} alt={page.title} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-4xl"
+                  style={{ background: page.coverColor }}>
+                  🔗
+                </div>
+              )}
+            </div>
+            {qrPhoneDigits && qrShouldShow && (
+              <div className="absolute -right-2 bottom-0">
+                <LinnkerQrButton
+                  slug={page.slug}
+                  title={page.title}
+                  avatarUrl={page.avatarUrl}
+                  phoneDigits={qrPhoneDigits}
+                  socialIconColor={page.socialIconColor}
+                />
               </div>
             )}
           </div>

@@ -33,6 +33,13 @@ export interface AppDef {
   activeUsers?: number | null;
   theme: "purple" | "dark" | "blue";
   sidebarKey?: string;
+  /**
+   * Quando `true`, o app NÃO aparece no AppsPage por default.
+   * Usado pra apps em beta/internos que ainda não devem estar
+   * visíveis pro user final mas existem no sistema.
+   * Pra revelar: filtro "Mostrar ocultos" ou edição manual deste flag.
+   */
+  hidden?: boolean;
 }
 
 export const APPS: AppDef[] = [
@@ -169,6 +176,27 @@ export const APPS: AppDef[] = [
     activeUsers: null,
     theme: "purple",
     sidebarKey: "linnker",
+  },
+  {
+    // NASA PAGES — builder de landing pages.
+    // Visível em /apps. Sidebar oculto por default — user ativa
+    // manualmente em "Personalizar menu" (entry em sidebar-items.ts
+    // com defaultVisible: false).
+    id: "nasa-pages",
+    name: "NASA PAGES",
+    byline: "by NASA®",
+    status: "installed",
+    icon: LinnkerIcon, // ← TODO: substituir por NasaPagesIcon dedicado
+    shortDesc: "Construa landing pages completas com templates prontos",
+    fullDesc:
+      "Builder visual de landing pages com 26 tipos de bloco prontos: hero, pricing, FAQ, testimonials, marquee, navbar, footer e mais. Aplica templates inteiros num clique, edita inline e publica em domínio próprio. Dados ao vivo dos planos, cursos e leaderboard do app integrados.",
+    category: "Marketing",
+    integration: "Templates · Dados ao vivo · Domínio próprio",
+    action: "internal",
+    href: "/pages",
+    activeUsers: null,
+    theme: "purple",
+    sidebarKey: "nasa-pages",
   },
   {
     id: "demand",
