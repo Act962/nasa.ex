@@ -538,8 +538,9 @@ export function MessageBox({
 // de mensagem apagada renderiza "🚫 Mensagem apagada" no lugar do
 // conteúdo + esconde os checks (vide `isDeleted` em MessageBox).
 const IconsStatus: Partial<Record<MessageStatus, LucideIcon>> = {
-  [MessageStatus.SENT]: CheckIcon,
-  [MessageStatus.SEEN]: CheckCheckIcon,
+  [MessageStatus.PENDING]: CheckIcon, // 1 check  — indo
+  [MessageStatus.SENT]: CheckCheckIcon, // 2 checks — enviada
+  [MessageStatus.SEEN]: CheckCheckIcon, // 2 checks — visualizada (azul)
 };
 
 /**

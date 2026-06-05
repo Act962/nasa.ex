@@ -114,7 +114,8 @@ const updateCacheMessageStatus = (
         ...group,
         messages: group.messages.map((m) =>
           m.id === tempId
-            ? { ...updatedMessage, status: MessageStatus.SEEN }
+            ? // usa o status retornado pelo servidor (SENT → 2 checks cinzas)
+              { ...updatedMessage }
             : m,
         ),
       })),
@@ -149,7 +150,7 @@ export function useMutationTextMessage({
           body: data.body,
           quotedMessageId: data.replyId ?? undefined,
           createdAt: new Date(),
-          status: MessageStatus.SENT,
+          status: MessageStatus.PENDING,
           fromMe: true,
           senderName: session?.user.name,
           mediaUrl: data.mediaUrl ?? null,
@@ -255,7 +256,7 @@ export function useMutationImageMessage({
           fromMe: true,
           mediaUrl: data.mediaUrl ?? null,
           mimetype: "image/jpeg",
-          status: MessageStatus.SENT,
+          status: MessageStatus.PENDING,
           senderName: session?.user.name,
           conversation: {
             lead: {
@@ -350,7 +351,7 @@ export function useMutationFileMessage({
           mediaUrl: data.mediaUrl ?? null,
           mimetype: data.mimetype,
           fileName: data.fileName,
-          status: MessageStatus.SENT,
+          status: MessageStatus.PENDING,
           senderName: session?.user.name,
           conversation: {
             lead: {
@@ -441,7 +442,7 @@ export function useMutationAudioMessage({
           mediaUrl: URL.createObjectURL(data.blob),
           mimetype: data.mimetype,
           fileName: tempId + ".mp3",
-          status: MessageStatus.SENT,
+          status: MessageStatus.PENDING,
           conversation: {
             lead: {
               id: lead.id,
@@ -538,7 +539,7 @@ export function useMutationLocationMessage({
           body: bodyText,
           quotedMessageId: data.replyId ?? undefined,
           createdAt: new Date(),
-          status: MessageStatus.SENT,
+          status: MessageStatus.PENDING,
           fromMe: true,
           senderName: session?.user.name,
           mediaUrl: null,
@@ -624,7 +625,7 @@ export function useMutationContactMessage({
           body: data.contactName,
           quotedMessageId: data.replyId ?? undefined,
           createdAt: new Date(),
-          status: MessageStatus.SENT,
+          status: MessageStatus.PENDING,
           fromMe: true,
           senderName: session?.user.name,
           mediaUrl: null,
@@ -946,7 +947,7 @@ export function useMutationButtonsMessage({
           messageId: tempId,
           body: summary,
           createdAt: new Date(),
-          status: MessageStatus.SENT,
+          status: MessageStatus.PENDING,
           fromMe: true,
           senderName: session?.user.name,
           mediaUrl: null,
