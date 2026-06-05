@@ -425,10 +425,10 @@ function TemplateMiniPreview({ template }: { template: PageTemplate }) {
         />
       ) : (
         <div
-          className="absolute top-0 left-1/2"
+          className="absolute top-0 left-0"
           style={{
-            transform: `translateX(-50%) scale(${SCALE})`,
-            transformOrigin: "top center",
+            transform: `scale(${SCALE})`,
+            transformOrigin: "top left",
             width: 1280,
           }}
         >

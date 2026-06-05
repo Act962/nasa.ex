@@ -69,20 +69,20 @@ export function PagesList() {
             Construa sites e landing pages integradas ao ecossistema NASA.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {cost ? (
             <Badge variant="outline" className="text-xs gap-1 py-1">
               <span className="text-yellow-500">★</span>
               {cost.stars.toLocaleString("pt-BR")} / site
             </Badge>
           ) : null}
-          <Button asChild variant="outline" className="gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-2 sm:size-default">
             <Link href="/pages/templates">
               <LayoutTemplate className="size-4" />
               Templates
             </Link>
           </Button>
-          <Button onClick={() => setWizardOpen(true)} className="gap-2">
+          <Button onClick={() => setWizardOpen(true)} size="sm" className="gap-2 sm:size-default">
             <Plus className="size-4" />
             Novo site
           </Button>
@@ -134,7 +134,7 @@ export function PagesList() {
                     </span>
                   ) : null}
                 </div>
-                <div className="flex items-center gap-2 mt-auto pt-3 border-t">
+                <div className="flex items-center gap-2 flex-wrap mt-auto pt-3 border-t">
                   <Button asChild size="sm" variant="outline" className="gap-1">
                     <Link href={`/pages/${p.id}`}>
                       <Pencil className="size-3.5" />
@@ -188,7 +188,7 @@ export function PagesList() {
         open={!!deleteTarget}
         onOpenChange={(open) => !open && !isDeleting && setDeleteTarget(null)}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {deleteTarget?.isPublished

@@ -122,7 +122,20 @@ const BLOCKS = [
 
 type Tab = "elements" | "blocks" | "page";
 
+/**
+ * Versão drawer/sheet: mesmo conteúdo do BuilderSidebar mas SEM o
+ * `<aside>` wrapper. Pra usar dentro de `<SheetContent>` quando em
+ * mobile (sidebar lateral vira gaveta deslizante).
+ */
+export function BuilderSidebarPanel() {
+  return <BuilderSidebarBody asPanel />;
+}
+
 export function BuilderSidebar() {
+  return <BuilderSidebarBody />;
+}
+
+function BuilderSidebarBody({ asPanel = false }: { asPanel?: boolean }) {
   const [tab, setTab] = useState<Tab>("elements");
   const addElement = usePagesBuilderStore((s) => s.addElement);
   const updateArtboard = usePagesBuilderStore((s) => s.updateArtboard);
@@ -187,8 +200,13 @@ export function BuilderSidebar() {
 
   const bgColor = layout?.artboard.background ?? "#ffffff";
 
+  const wrapperCls = asPanel
+    ? "w-full h-full flex flex-col overflow-hidden bg-card"
+    : "w-[300px] border-r bg-card hidden md:flex flex-col shrink-0 overflow-hidden";
+  const Tag: React.ElementType = asPanel ? "div" : "aside";
+
   return (
-    <aside className="w-[300px] border-r bg-card flex flex-col shrink-0 overflow-hidden">
+    <Tag data-builder-sidebar className={wrapperCls}>
       {/* tab bar */}
       <div className="flex border-b shrink-0">
         {([
@@ -291,7 +309,7 @@ export function BuilderSidebar() {
           </div>
         )}
       </div>
-    </aside>
+    </Tag>
   );
 }
 

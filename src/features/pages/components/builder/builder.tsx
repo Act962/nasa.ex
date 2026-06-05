@@ -157,7 +157,10 @@ export function PagesBuilder({ pageId }: Props) {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col bg-muted/20">
+    // h-dvh (dynamic viewport) em vez de calc(100vh - 4rem) — `dvh`
+    // respeita a barra do navegador móvel (ela some/aparece) e evita
+    // scroll-duplo. -4rem do header global do app.
+    <div className="h-[calc(100dvh-4rem)] flex flex-col bg-muted/20">
       <BuilderTopbar
         page={page}
         onPublish={handlePublish}
@@ -166,6 +169,9 @@ export function PagesBuilder({ pageId }: Props) {
         flushSave={saveNow}
       />
       <div className="flex-1 flex min-h-0">
+        {/* Em mobile (<md), sidebar e properties são drawers
+            controlados pelo topbar (botões + e ⚙). No desktop ficam
+            grudados nas laterais. */}
         <BuilderSidebar />
         <BuilderCanvas />
       </div>

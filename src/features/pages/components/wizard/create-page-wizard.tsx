@@ -266,9 +266,12 @@ export function CreatePageWizard({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Layout flex column com header/footer fixos e body scrollable
           — sem isso, listas longas (templates, paletas) vazavam pra
-          fora do viewport e nada rolava. max-h: 92vh deixa
-          confortável em qualquer tela. */}
-      <DialogContent className="max-w-2xl max-h-[92vh] p-0 gap-0 flex flex-col">
+          fora do viewport e nada rolava.
+          Width: 80vw em telas grandes, full em mobile. max-h: 92vh
+          deixa confortável em qualquer tela. */}
+      <DialogContent
+        className="p-0 gap-0 flex flex-col w-[calc(100vw-2rem)] sm:w-[80vw] max-w-[80vw] max-h-[92vh]"
+      >
         <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="size-5 text-indigo-500" />

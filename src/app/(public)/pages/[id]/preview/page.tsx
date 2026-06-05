@@ -165,14 +165,20 @@ export default async function PreviewPage({
           }}
         >
           <Pencil size={14} />
-          Editar elementos
+          <span className="preview-cta-label">Editar elementos</span>
+          <span className="preview-cta-label-short">Editar</span>
         </Link>
       </div>
 
-      {/* CSS pra mostrar o hint texto só em telas >= 720px */}
+      {/* CSS pra mostrar o hint texto só em telas >= 720px e
+          encurtar o CTA em mobile pra não estourar a topbar. */}
       <style>{`
+        .preview-cta-label { display: none; }
+        .preview-cta-label-short { display: inline; }
         @media (min-width: 720px) {
           .preview-hint-text { display: inline-flex !important; }
+          .preview-cta-label { display: inline; }
+          .preview-cta-label-short { display: none; }
         }
       `}</style>
 
