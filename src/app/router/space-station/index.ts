@@ -31,6 +31,7 @@ import { publishAvatarTemplate } from "./publish-avatar-template";
 import { listAvatarTemplates } from "./list-avatar-templates";
 import { createUserConnection } from "./create-user-connection";
 import { listMyConnections } from "./list-my-connections";
+import { joinWorld } from "./join-world";
 
 export const spaceStationRouter = {
   create: createStation,
@@ -69,4 +70,5 @@ export const spaceStationRouter = {
   listAvatarTemplates,
   createUserConnection,
   listMyConnections,
+  joinWorld,
 };

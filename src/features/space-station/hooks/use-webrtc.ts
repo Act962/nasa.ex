@@ -21,6 +21,14 @@ interface UseWebRTCOptions {
   userId:     string;
   userName:   string;
   userImage?: string | null;
+  /**
+   * Quando `false`, o hook não conecta no Pusher de sinalização nem captura
+   * mídia — usado como fallback quando o SFU (LiveKit) está ativo. Default
+   * `true` pra preservar o comportamento legado.
+   *
+   * O hook continua sendo chamado (regra dos hooks de React) mas vira no-op.
+   */
+  enabled?:   boolean;
 }
 
 // STUN público sempre, TURN opcional via env (precisa em NAT simétrico
@@ -44,7 +52,7 @@ const ICE_SERVERS: RTCIceServer[] = [
     : []),
 ];
 
-export function useWebRTC({ stationId, userId, userName, userImage }: UseWebRTCOptions) {
+export function useWebRTC({ stationId, userId, userName, userImage, enabled = true }: UseWebRTCOptions) {
   // ── Server-side signaling helpers (no "Enable client events" needed) ───────
   function rtcPost(body: Record<string, unknown>) {
     fetch("/api/pusher/rtc", {
@@ -119,6 +127,9 @@ export function useWebRTC({ stationId, userId, userName, userImage }: UseWebRTCO
 
   // ── Pusher presence channel ──────────────────────────────────────────────
   useEffect(() => {
+    // No-op quando o transporte SFU (LiveKit) está ativo. Evita conexão Pusher
+    // duplicada e custo de sinalização inútil enquanto a flag está OFF aqui.
+    if (!enabled) return;
     let ch: import("pusher-js").Channel | null = null;
     let pusherRtcInstance: import("pusher-js").default | null = null;
 
@@ -280,7 +291,7 @@ export function useWebRTC({ stationId, userId, userName, userImage }: UseWebRTCO
       localStreamRef.current?.getTracks().forEach(t => t.stop());
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stationId, userId]);
+  }, [stationId, userId, enabled]);
 
   // ── RTCPeerConnection ────────────────────────────────────────────────────
   function getOrCreatePC(peerId: string, peerName: string, peerImage: string | null, _isInitiator: boolean): RTCPeerConnection {
