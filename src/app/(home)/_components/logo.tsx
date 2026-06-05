@@ -15,17 +15,17 @@ export function Logo() {
       <Image
         src={"/logo-dark.png"}
         height={200}
-        width={600}
+        width={300}
         alt="N.A.S.A"
-        className="hidden dark:block h-[75px] w-auto"
+        className="hidden dark:block h-[35px] w-auto"
         priority
       />
       <Image
         src={"/logo.png"}
         height={200}
-        width={600}
+        width={300}
         alt="N.A.S.A"
-        className="dark:hidden h-[75px] w-auto"
+        className="dark:hidden h-[35px] w-auto"
         priority
       />
     </div>
