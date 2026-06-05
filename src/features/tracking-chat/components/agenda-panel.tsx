@@ -1,7 +1,24 @@
 "use client";
 
 import { CalendarIcon, XIcon } from "lucide-react";
-import { AllAppointmentsCalendar } from "@/features/agenda/components/all-appointments-calendar";
+import dynamic from "next/dynamic";
+
+// react-big-calendar (+ addon DnD + 3 folhas de CSS) é pesado e só é usado neste
+// painel, que abre sob demanda. Lazy com ssr:false tira do grafo até abrir.
+const AllAppointmentsCalendar = dynamic(
+  () =>
+    import("@/features/agenda/components/all-appointments-calendar").then((m) => ({
+      default: m.AllAppointmentsCalendar,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full w-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    ),
+  },
+);
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 

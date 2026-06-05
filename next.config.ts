@@ -2,8 +2,40 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  reactCompiler: true,
-  experimental: {},
+  // React Compiler custa CPU+RAM a cada compile. Mantemos no build de produção
+  // (ganho de perf real) e desligamos no dev pra aliviar o `next dev` numa
+  // máquina com pouca RAM. Funcionalmente inócuo — o compiler só memoiza.
+  reactCompiler: process.env.NODE_ENV === "production",
+  // Libs server-only / nativas que NÃO precisam passar pelo bundler do Turbopack.
+  // Tira peso enorme do grafo de módulos em dev (são carregadas via require no
+  // runtime do server). Inclui SDKs de IA server-side, AWS, parsers e nativos.
+  serverExternalPackages: [
+    "sharp",
+    "pdf-parse",
+    "mammoth",
+    "@langchain/community",
+    "@langchain/openai",
+    "@langchain/textsplitters",
+    "@aws-sdk/client-s3",
+    "@aws-sdk/lib-storage",
+    "@aws-sdk/s3-request-presigner",
+  ],
+  experimental: {
+    // Não cacheia respostas de `fetch` de Server Components entre refreshes de
+    // HMR — em dev isso evita acúmulo de memória a cada hot-reload. Sem efeito
+    // em produção. Default do Next é `true`.
+    serverComponentsHmrCache: false,
+    // Carrega só os sub-módulos usados (em vez do barrel inteiro) das libs com
+    // muitos exports. Reduz o tamanho do grafo client que o Turbopack segura.
+    optimizePackageImports: [
+      "lucide-react",
+      "recharts",
+      "@tanstack/react-table",
+      "@tanstack/react-query",
+      "date-fns",
+      "lodash",
+    ],
+  },
   async headers() {
     // Libera câmera, microfone e captura de tela pra origem própria.
     // Sem isso, alguns hosts/proxies (Vercel/Cloudflare) e browsers em
