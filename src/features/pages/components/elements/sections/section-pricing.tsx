@@ -18,6 +18,7 @@ interface PricingPlan {
   slogan?: string;
   features: string[];
   ctaLabel: string;
+  ctaHref?: string;
   highlighted?: boolean;
   badge?: string;
 }
