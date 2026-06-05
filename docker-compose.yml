@@ -8,6 +8,10 @@ services:
       POSTGRES_USER: docker
       POSTGRES_PASSWORD: docker
       POSTGRES_DB: nasa_db
+    # Teto de RAM: numa máquina de 14 GB total, sem limite o Postgres infla
+    # buff/cache e disputa memória com o `next dev`. 1 GB é folgado pra dev.
+    mem_limit: 1g
+    shm_size: 256m
 
   # ─────────────────────────────────────────────────────────────────────
   # Piper TTS HTTP — voz natural pt-BR (Faber, VITS open source).
@@ -24,6 +28,7 @@ services:
       context: ./docker/piper
       dockerfile: Dockerfile
     container_name: nasa-piper
+    mem_limit: 512m
     ports:
       - "10200:10200"
     volumes:
