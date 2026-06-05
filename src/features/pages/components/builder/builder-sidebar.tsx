@@ -8,6 +8,7 @@ import {
   Settings2,
   Images, MessageCircle, ClipboardList, LogOut,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   usePagesBuilderStore,
   getActiveLayerElements,
@@ -15,6 +16,29 @@ import {
 import { createElement } from "../../lib/element-factory";
 import { computeInsertPosition } from "../../lib/insert-position";
 import type { ElementType } from "../../types";
+
+/**
+ * Elementos "singleton" — só podem existir 1 instância por page:
+ * - chat-button   → flutuante fixo no canto, 2 ficaria sobreposto
+ * - exit-intent   → modal de saída, 2 disparariam simultâneo
+ * - section-navbar → cabeçalho único da landing
+ * - section-footer → rodapé único da landing
+ *
+ * Toast user-friendly explica em vez de só rejeitar silenciosamente.
+ */
+const SINGLETON_TYPES = new Set<ElementType>([
+  "chat-button",
+  "exit-intent",
+  "section-navbar",
+  "section-footer",
+]);
+
+const SINGLETON_LABELS: Record<string, string> = {
+  "chat-button": "Chat IA flutuante",
+  "exit-intent": "Exit intent",
+  "section-navbar": "Navbar",
+  "section-footer": "Footer",
+};
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { PropertiesPanelContent } from "../properties-panel/properties-panel";
@@ -155,6 +179,21 @@ function BuilderSidebarBody({ asPanel = false }: { asPanel?: boolean }) {
       return;
     }
     const existing = getActiveLayerElements(lay, layer);
+
+    // Singleton elements: em vez de bloquear, SELECIONA o existente
+    // pra o user editar. Mais útil que toast.error "já tem 1".
+    if (SINGLETON_TYPES.has(t)) {
+      const existingOfType = existing.find((el) => el.type === t);
+      if (existingOfType) {
+        const label = SINGLETON_LABELS[t] ?? t;
+        usePagesBuilderStore.getState().setSelected([existingOfType.id]);
+        toast.info(`Já existe 1 ${label} — selecionei pra você editar.`, {
+          description: "Esse tipo só pode existir 1× por page. Edite no painel direito.",
+        });
+        return;
+      }
+    }
+
     const pos = computeInsertPosition({
       type: t,
       w: base.w,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ElementBase } from "../../types";
 
 /**
@@ -89,9 +90,11 @@ export function ExitIntent({ element }: { element: ElementBase }) {
 
   // No editor (sem `id` ou em iframe sem mouseleave funcional), o
   // popover não dispara — mostra preview inline.
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  // Portal pro <body> — sem isso o `position: fixed` é resolvido
+  // relativo ao wrapper do LandingFlow.
+  return createPortal(
     <div
       className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in"
       onClick={() => setOpen(false)}
@@ -132,6 +135,7 @@ export function ExitIntent({ element }: { element: ElementBase }) {
           {ctaLabel}
         </a>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -18,6 +18,8 @@ interface Props {
   initialLayout: PageLayout;
   palette?: Record<string, string>;
   fontFamily?: string | null;
+  /** Slug da org — propagado pro ChatButton ao não estar editando. */
+  organizationSlug?: string;
 }
 
 export function InlineEditProvider({
@@ -25,6 +27,7 @@ export function InlineEditProvider({
   initialLayout,
   palette,
   fontFamily,
+  organizationSlug,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const setPage = usePagesBuilderStore((s) => s.setPage);
@@ -66,6 +69,7 @@ export function InlineEditProvider({
           layout={initialLayout}
           palette={palette}
           fontFamily={fontFamily}
+          organizationSlug={organizationSlug}
         />
         <button
           onClick={() => setEditing(true)}

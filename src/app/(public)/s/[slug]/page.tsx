@@ -44,6 +44,10 @@ export default async function Page({ params }: { params: Promise<Params> }) {
       palette: true,
       fontFamily: true,
       userId: true,
+      // Org slug pra alimentar o ChatButton — single source of
+      // truth, evita drift entre el.orgSlug (que pode ficar stale)
+      // e o slug real da org.
+      organization: { select: { slug: true } },
     },
   });
 
@@ -57,6 +61,7 @@ export default async function Page({ params }: { params: Promise<Params> }) {
       palette={(page.palette as Record<string, string>) ?? {}}
       fontFamily={page.fontFamily}
       ownerUserId={page.userId}
+      organizationSlug={page.organization?.slug ?? null}
     />
   );
 }

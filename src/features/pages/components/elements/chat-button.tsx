@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ElementBase } from "../../types";
+import { usePageRenderContext } from "../public/page-context";
 
 /**
  * Chat Button — botão flutuante no canto inferior direito que
@@ -30,7 +32,13 @@ export function ChatButton({ element }: { element: ElementBase }) {
   const welcome =
     (element.welcomeMessage as string) ?? "Olá! 👋 Como posso ajudar?";
   const trackingId = (element.trackingId as string) ?? "";
-  const orgSlug = (element.orgSlug as string) ?? "";
+  // Slug da org: prioridade pro Context (server-side resolved, never
+  // stale) e fallback pro element.orgSlug salvo no layout. Se o
+  // element foi publicado antes do user trocar de slug da org, o
+  // context sobrescreve com o atual.
+  const ctx = usePageRenderContext();
+  const orgSlug =
+    ctx.organizationSlug || (element.orgSlug as string) || "";
   const agentName = (element.agentName as string) ?? "Atendente";
   const bg = (element.bgColor as string) ?? "#6366f1";
   const fg = (element.fgColor as string) ?? "#ffffff";
@@ -232,13 +240,33 @@ export function ChatButton({ element }: { element: ElementBase }) {
     }
   };
 
-  return (
+  // Portal pro <body> — sem ele, o `position: fixed` do botão é
+  // resolvido relativo ao wrapper do LandingFlow (que tem
+  // position: relative + width fixos), botão sai do viewport.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted || typeof document === "undefined") return null;
+
+  return createPortal(
     <>
-      {/* Botão flutuante */}
+      {/* Botão flutuante — usa style inline pra position pra escapar
+          de classes Tailwind que possam vazar do canvas (`top`/`left`
+          residual dos wrappers do builder). */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-5 right-5 z-[9999] rounded-full shadow-2xl size-14 sm:size-16 flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
-        style={{ background: bg, color: fg }}
+        className="rounded-full shadow-2xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+        style={{
+          position: "fixed",
+          bottom: "20px",
+          right: "20px",
+          top: "auto",
+          left: "auto",
+          zIndex: 9999,
+          width: "56px",
+          height: "56px",
+          background: bg,
+          color: fg,
+        }}
         aria-label={label}
       >
         {open ? (
@@ -252,7 +280,19 @@ export function ChatButton({ element }: { element: ElementBase }) {
 
       {/* Popover */}
       {open && (
-        <div className="fixed bottom-24 right-5 z-[9998] w-[calc(100vw-2.5rem)] max-w-md h-[28rem] sm:h-[32rem] bg-white text-zinc-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-3">
+        <div
+          className="bg-white text-zinc-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-3"
+          style={{
+            position: "fixed",
+            bottom: "92px",
+            right: "20px",
+            top: "auto",
+            left: "auto",
+            zIndex: 9998,
+            width: "min(calc(100vw - 40px), 28rem)",
+            height: "min(calc(100dvh - 130px), 32rem)",
+          }}
+        >
           <div
             className="px-4 py-3 flex items-center gap-2 border-b"
             style={{ background: bg, color: fg }}
@@ -376,6 +416,7 @@ export function ChatButton({ element }: { element: ElementBase }) {
           )}
         </div>
       )}
-    </>
+    </>,
+    document.body,
   );
 }

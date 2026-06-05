@@ -38,6 +38,8 @@ export default async function PreviewPage({
       layout: true,
       palette: true,
       fontFamily: true,
+      // Slug da org pro ChatButton (server-side resolved)
+      organization: { select: { slug: true } },
     },
   });
 
@@ -221,6 +223,7 @@ export default async function PreviewPage({
           layout={page.layout as unknown as PageLayout}
           palette={(page.palette as Record<string, string>) ?? {}}
           fontFamily={page.fontFamily}
+          organizationSlug={page.organization?.slug ?? undefined}
         />
       </div>
     </>

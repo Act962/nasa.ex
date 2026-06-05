@@ -18,6 +18,10 @@ interface Props {
   palette?: Record<string, string>;
   fontFamily?: string | null;
   ownerUserId: string;
+  /** Slug da organização dona da page (resolvido server-side).
+   *  Source of truth pro ChatButton — element.orgSlug salvo no JSON
+   *  pode estar stale (mudança de slug, edição manual antiga). */
+  organizationSlug?: string | null;
 }
 
 export function PublicPageView({
@@ -27,6 +31,7 @@ export function PublicPageView({
   palette,
   fontFamily,
   ownerUserId,
+  organizationSlug,
 }: Props) {
   const { data: session } = authClient.useSession();
   const isOwner = session?.user?.id === ownerUserId;
@@ -42,6 +47,7 @@ export function PublicPageView({
         initialLayout={layout}
         palette={palette}
         fontFamily={fontFamily}
+        organizationSlug={organizationSlug ?? undefined}
       />
     );
   }
@@ -52,6 +58,7 @@ export function PublicPageView({
       palette={palette}
       fontFamily={fontFamily}
       trackingSlug={slug}
+      organizationSlug={organizationSlug ?? undefined}
     />
   );
 }

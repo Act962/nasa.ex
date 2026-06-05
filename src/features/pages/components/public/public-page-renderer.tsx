@@ -8,6 +8,7 @@ import { resolveElements, getDeviceFromWidth } from "../../lib/responsive";
 import { isFlowSection, pageRenderMode } from "../../lib/section-flow";
 import { PageAnalytics } from "./page-analytics";
 import { PageTracker } from "./page-tracker";
+import { PageRenderContextProvider } from "./page-context";
 
 interface Props {
   layout: PageLayout;
@@ -17,9 +18,19 @@ interface Props {
    *  markers, clicks, dwell). Pass `undefined` no preview pra não
    *  contar analytics de quem tá só visualizando o rascunho. */
   trackingSlug?: string;
+  /** Slug da org dona da page (server-side resolved). Propagado via
+   *  Context pro ChatButton — evita confiar em element.orgSlug que
+   *  pode ficar stale. */
+  organizationSlug?: string;
 }
 
-export function PublicPageRenderer({ layout, palette, fontFamily, trackingSlug }: Props) {
+export function PublicPageRenderer({
+  layout,
+  palette,
+  fontFamily,
+  trackingSlug,
+  organizationSlug,
+}: Props) {
   const [device, setDevice] = useState<Device>("desktop");
   const [scrollY, setScrollY] = useState(0);
 
@@ -78,10 +89,15 @@ export function PublicPageRenderer({ layout, palette, fontFamily, trackingSlug }
       utmTerm?: string;
     };
 
+  const ctxValue = {
+    organizationSlug,
+    pageSlug: trackingSlug,
+  };
+
   if (layout.mode === "single") {
     const elements = resolveElements(layout.main.elements, device, artboardWidth);
     return (
-      <>
+      <PageRenderContextProvider value={ctxValue}>
         <SmoothScrollStyle />
         <PageAnalytics meta={pageMeta} />
         {trackingSlug && <PageTracker slug={trackingSlug} />}
@@ -92,7 +108,7 @@ export function PublicPageRenderer({ layout, palette, fontFamily, trackingSlug }
             <LayerSurface elements={elements} minHeight={layout.artboard.minHeight} />
           )}
         </div>
-      </>
+      </PageRenderContextProvider>
     );
   }
 
@@ -102,7 +118,7 @@ export function PublicPageRenderer({ layout, palette, fontFamily, trackingSlug }
   const frontElements = resolveElements(layout.front.elements, device, artboardWidth);
 
   return (
-    <>
+    <PageRenderContextProvider value={ctxValue}>
       <SmoothScrollStyle />
       <PageAnalytics meta={pageMeta} />
       {trackingSlug && <PageTracker slug={trackingSlug} />}
@@ -127,7 +143,7 @@ export function PublicPageRenderer({ layout, palette, fontFamily, trackingSlug }
           <LayerSurface elements={frontElements} minHeight={layout.artboard.minHeight} />
         </div>
       </div>
-    </>
+    </PageRenderContextProvider>
   );
 }
 
@@ -213,7 +229,25 @@ function LandingFlow({
   elements: ElementBase[];
   tokens?: unknown;
 }) {
-  const ordered = elements
+  // Singleton types — só renderizamos a primeira ocorrência. Pages
+  // antigas podem ter múltiplos chat-buttons/exit-intents por bug
+  // do editor antigo; o renderer dedupa em vez de exibir vários
+  // botões empilhados / 2 popovers simultâneos.
+  const SINGLETON_RENDER = new Set([
+    "chat-button",
+    "exit-intent",
+    "section-navbar",
+    "section-footer",
+  ]);
+  const seenSingletons = new Set<string>();
+  const deduped = elements.filter((el) => {
+    if (!SINGLETON_RENDER.has(el.type)) return true;
+    if (seenSingletons.has(el.type)) return false;
+    seenSingletons.add(el.type);
+    return true;
+  });
+
+  const ordered = deduped
     .slice()
     .sort((a, b) => (a.y ?? 0) - (b.y ?? 0));
 

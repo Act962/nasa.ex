@@ -3005,6 +3005,27 @@ function ChatButtonProps({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgSlug]);
 
+  // Detecta duplicatas (page com >1 chat-button — bug histórico do
+  // editor antigo). Oferece cleanup com 1 clique. Antes dessa fase
+  // o renderer público dedupa silenciosamente; mas no JSON ainda
+  // ficam N entries acumulando peso/erros de seleção.
+  const layout = usePagesBuilderStore((s) => s.layout);
+  const activeLayer = usePagesBuilderStore((s) => s.activeLayer);
+  const removeElement = usePagesBuilderStore((s) => s.removeElement);
+  const allChatButtons = layout
+    ? getActiveLayerElements(layout, activeLayer).filter(
+        (e) => e.type === "chat-button",
+      )
+    : [];
+  const dupCount = Math.max(0, allChatButtons.length - 1);
+  const removeDuplicates = () => {
+    // Remove tudo exceto o próprio (o que o user está editando agora)
+    allChatButtons
+      .filter((e) => e.id !== el.id)
+      .forEach((e) => removeElement(e.id));
+    toast.success(`${dupCount} duplicata${dupCount === 1 ? "" : "s"} removida${dupCount === 1 ? "" : "s"}`);
+  };
+
   const trackingId = (el.trackingId as string) ?? "";
 
   return (
@@ -3018,6 +3039,25 @@ function ChatButtonProps({
         tracking selecionado, com nome/número pedidos no próprio
         popover quando o user ainda não foi identificado.
       </p>
+
+      {dupCount > 0 && (
+        <div className="mb-3 p-2 rounded-md border border-amber-500/40 bg-amber-500/10">
+          <p className="text-[10px] text-amber-900 leading-relaxed mb-2">
+            ⚠ Você tem <strong>{allChatButtons.length} botões Chat IA</strong> nessa
+            page. Só pode existir 1 — o público mostra só este, mas
+            os outros {dupCount} entram no JSON e podem causar
+            confusão. Limpe agora.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-7 w-full"
+            onClick={removeDuplicates}
+          >
+            🧹 Remover {dupCount} duplicata{dupCount === 1 ? "" : "s"}
+          </Button>
+        </div>
+      )}
 
       <Label className="text-[10px] text-muted-foreground">Organização</Label>
       {orgQ.isLoading ? (
