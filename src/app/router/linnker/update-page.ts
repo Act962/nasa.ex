@@ -28,10 +28,28 @@ export const updateLinnkerPage = base
       socialIconColor: z.string().optional().nullable(),
       titleColor: z.string().optional().nullable(),
       bioColor: z.string().optional().nullable(),
+      // QR de contato (Fase 5 do plano)
+      qrEnabled: z.boolean().optional(),
+      qrMessageTemplate: z.string().max(500).optional().nullable(),
+      // vCard overrides — editáveis pelo dono
+      vcardOverrides: z
+        .object({
+          firstName: z.string().max(100).optional().nullable(),
+          lastName: z.string().max(100).optional().nullable(),
+          jobTitle: z.string().max(200).optional().nullable(),
+          company: z.string().max(200).optional().nullable(),
+          phone: z.string().max(30).optional().nullable(),
+          email: z.string().max(200).optional().nullable(),
+          birthday: z.string().max(10).optional().nullable(),
+          website: z.string().max(500).optional().nullable(),
+          notes: z.string().max(1000).optional().nullable(),
+        })
+        .optional()
+        .nullable(),
     }),
   )
   .handler(async ({ input, context, errors }) => {
-    const { id, socialLinks, ...rest } = input;
+    const { id, socialLinks, vcardOverrides, ...rest } = input;
     const organizationId = context.session.activeOrganizationId;
     if (!organizationId) throw errors.BAD_REQUEST({ message: "Organization not found" });
 
@@ -43,6 +61,9 @@ export const updateLinnkerPage = base
       ...rest,
       ...(socialLinks !== undefined
         ? { socialLinks: socialLinks === null ? Prisma.DbNull : socialLinks }
+        : {}),
+      ...(vcardOverrides !== undefined
+        ? { vcardOverrides: vcardOverrides === null ? Prisma.DbNull : vcardOverrides }
         : {}),
     };
 

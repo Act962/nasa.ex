@@ -2,7 +2,7 @@ import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { findMessages } from "@/http/uazapi/find-messages";
 import { pusherServer } from "@/lib/pusher";
-import { MessageStatus } from "@/features/tracking-chat/types";
+import { MessageStatus } from "@/generated/prisma/enums";
 import type { FindMessageItem } from "@/http/uazapi/types";
 
 const PAGE_SIZE = 100;

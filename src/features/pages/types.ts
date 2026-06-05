@@ -152,11 +152,19 @@ export type ElementType =
   | "section-testimonials"
   | "section-faq"
   | "section-logo-cloud"
+  // Estrutura global da landing
+  | "section-navbar"
+  | "section-footer"
   // ── Blocos interativos (Fase 2) ──
   | "marquee"
   | "tabs"
   | "accordion"
   | "counter"
+  | "carousel"
+  // ── Lead capture & engagement (Fase 6) ──
+  | "chat-button"
+  | "embedded-form"
+  | "exit-intent"
   // ── Data binding (Fase 5) ──
   // Renderiza dados do app em tempo real (planos, cursos, leaderboard).
   | "data-bound";

@@ -18,6 +18,10 @@ interface Props {
   palette?: Record<string, string>;
   fontFamily?: string | null;
   ownerUserId: string;
+  /** Slug da organização dona da page (resolvido server-side).
+   *  Source of truth pro ChatButton — element.orgSlug salvo no JSON
+   *  pode estar stale (mudança de slug, edição manual antiga). */
+  organizationSlug?: string | null;
 }
 
 export function PublicPageView({
@@ -27,26 +31,14 @@ export function PublicPageView({
   palette,
   fontFamily,
   ownerUserId,
+  organizationSlug,
 }: Props) {
   const { data: session } = authClient.useSession();
   const isOwner = session?.user?.id === ownerUserId;
 
-  useEffect(() => {
-    const device =
-      window.innerWidth < 640
-        ? "mobile"
-        : window.innerWidth < 1024
-          ? "tablet"
-          : "desktop";
-    client.pages
-      .registerVisit({
-        slug,
-        referrer: document.referrer || undefined,
-        userAgent: navigator.userAgent,
-        device,
-      })
-      .catch(() => {});
-  }, [slug]);
+  // Page-view + tracking de scroll/click/section/dwell agora
+  // gerenciado pelo PageTracker — incluído via PublicPageRenderer
+  // recebendo `slug`. Mantemos esse useEffect comentado pra docs.
 
   if (isOwner) {
     return (
@@ -55,6 +47,7 @@ export function PublicPageView({
         initialLayout={layout}
         palette={palette}
         fontFamily={fontFamily}
+        organizationSlug={organizationSlug ?? undefined}
       />
     );
   }
@@ -64,6 +57,8 @@ export function PublicPageView({
       layout={layout}
       palette={palette}
       fontFamily={fontFamily}
+      trackingSlug={slug}
+      organizationSlug={organizationSlug ?? undefined}
     />
   );
 }

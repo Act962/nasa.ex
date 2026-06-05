@@ -1,6 +1,6 @@
 /**
- * Section Features — grid de cards "ícone + título + descrição".
- * Editável: heading, subheading, lista de features.
+ * Section Features — grid responsivo de cards.
+ * Mobile: 1 coluna. Tablet+: auto-fit min 220px.
  */
 import {
   bgColor,
@@ -17,102 +17,56 @@ export function SectionFeatures({ element, tokens }: SectionRendererProps) {
     (element.subheading as string) ??
     "3 motivos pra você acreditar antes mesmo de testar.";
   const features = (element.features as SectionListItem[] | undefined) ?? [
-    {
-      id: "1",
-      icon: "⚡",
-      title: "Rápido",
-      description: "Configure tudo em minutos, sem precisar de dev.",
-    },
-    {
-      id: "2",
-      icon: "🛡",
-      title: "Seguro",
-      description: "Criptografia ponta a ponta + LGPD compliant.",
-    },
-    {
-      id: "3",
-      icon: "🚀",
-      title: "Escalável",
-      description: "Cresce com sua empresa, sem limite artificial.",
-    },
+    { id: "1", icon: "⚡", title: "Rápido", description: "Configure tudo em minutos, sem precisar de dev." },
+    { id: "2", icon: "🛡", title: "Seguro", description: "Criptografia ponta a ponta + LGPD compliant." },
+    { id: "3", icon: "🚀", title: "Escalável", description: "Cresce com sua empresa, sem limite artificial." },
   ];
 
   const primary = primaryColor(element, tokens);
   const bg = bgColor(element, tokens);
   const fg = fgColor(element, tokens);
   const muted = mutedColor(element, tokens);
+  const anchorId = (element.anchorId as string) ?? undefined;
 
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        padding: "56px 32px",
-        background: bg,
-        color: fg,
-        display: "flex",
-        flexDirection: "column",
-        gap: 32,
-        overflow: "hidden",
-      }}
+    <section
+      id={anchorId}
+      className="w-full px-4 sm:px-6 lg:px-8 py-14 sm:py-20 scroll-mt-20"
+      style={{ background: bg, color: fg }}
     >
-      {/* Header */}
-      <div style={{ textAlign: "center", maxWidth: 700, margin: "0 auto" }}>
-        <h2
-          style={{
-            fontSize: 36,
-            fontWeight: 900,
-            margin: 0,
-            marginBottom: 12,
-          }}
-        >
-          {heading}
-        </h2>
-        <p style={{ fontSize: 16, color: muted, margin: 0 }}>{subheading}</p>
-      </div>
+      <div className="max-w-7xl mx-auto flex flex-col gap-8 sm:gap-10">
+        {/* Header */}
+        <div className="text-center max-w-2xl mx-auto px-2">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black leading-tight mb-3">
+            {heading}
+          </h2>
+          <p className="text-sm sm:text-base" style={{ color: muted }}>
+            {subheading}
+          </p>
+        </div>
 
-      {/* Grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(auto-fit, minmax(220px, 1fr))`,
-          gap: 16,
-        }}
-      >
-        {features.map((f) => (
-          <div
-            key={f.id}
-            style={{
-              padding: 24,
-              borderRadius: 16,
-              background: `${primary}08`,
-              border: `1px solid ${primary}30`,
-            }}
-          >
-            <div style={{ fontSize: 32, marginBottom: 12 }}>{f.icon}</div>
-            <h3
+        {/* Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {features.map((f) => (
+            <div
+              key={f.id}
+              className="p-5 sm:p-6 rounded-2xl border"
               style={{
-                fontSize: 18,
-                fontWeight: 700,
-                margin: 0,
-                marginBottom: 6,
+                background: `${primary}08`,
+                borderColor: `${primary}30`,
               }}
             >
-              {f.title}
-            </h3>
-            <p
-              style={{
-                fontSize: 14,
-                color: muted,
-                margin: 0,
-                lineHeight: 1.5,
-              }}
-            >
-              {f.description}
-            </p>
-          </div>
-        ))}
+              <div className="text-2xl sm:text-3xl mb-3">{f.icon}</div>
+              <h3 className="text-base sm:text-lg font-bold mb-1.5" style={{ color: fg }}>
+                {f.title}
+              </h3>
+              <p className="text-xs sm:text-sm leading-relaxed" style={{ color: muted }}>
+                {f.description}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }

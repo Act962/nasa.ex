@@ -407,6 +407,25 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
   return {
     tokens: T,
     elements: [
+      // ── 0. NAVBAR (sticky topo) ──
+      pushAt({
+        type: "section-navbar",
+        x: 0, y: 0, w: 1200, h: 80,
+        logoText: "N.A.S.A",
+        logoSrc: "",  // ← Edita aqui pra trocar pela URL da sua logo
+        logoHref: "#top",
+        links: [
+          { id: "1", label: "Planos", href: "#planos" },
+          { id: "2", label: "O que é NASA?", href: "#o-que-e-nasa" },
+          { id: "3", label: "Como funciona", href: "#como-funciona" },
+        ],
+        primaryCta: "Começar grátis",
+        primaryCtaHref: "#cta-final",  // ← scroll pro CTA final
+        secondaryCta: "Entrar",
+        secondaryCtaHref: "/sign-in",
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
       // ── 1. HERO — Sistema Operacional do processo ──
       pushAt({
         type: "section-hero",
@@ -451,9 +470,11 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
       }),
 
       // ── 4. FEATURES — Método N.A.S.A.® (4 etapas) ──
+      // Âncora #o-que-e-nasa configurada pra linkar pela navbar.
       pushAt({
         type: "section-features",
         x: 0, y: 0, w: 1200, h: 460,
+        anchorId: "o-que-e-nasa",
         heading: "O Método N.A.S.A.® — do primeiro contato à entrega",
         subheading: "4 estágios que organizam o processo inteiro, não só a venda.",
         features: [
@@ -482,9 +503,11 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
       }),
 
       // ── 6. FEATURES — Apps NASA (destaques dos 14 módulos) ──
+      // Âncora #como-funciona configurada pra linkar pela navbar.
       pushAt({
         type: "section-features",
         x: 0, y: 0, w: 1200, h: 460,
+        anchorId: "como-funciona",
         heading: "Uma plataforma. O processo inteiro, na ordem certa.",
         subheading: "Cada ferramenta é um passo do mesmo processo, não um app solto.",
         features: [
@@ -544,9 +567,11 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
       }),
 
       // ── 10. PRICING — planos da NASA ──
+      // Âncora #planos configurada pra linkar pela navbar.
       pushAt({
         type: "section-pricing",
         x: 0, y: 0, w: 1200, h: 560,
+        anchorId: "planos",
         heading: "Planos pra todo time",
         subheading: "Sem cartão pra começar. Cancele quando quiser.",
         plans: [
@@ -585,22 +610,336 @@ function nasaOrbitaLanding(): Omit<PageTemplate, "id" | "name" | "description" |
       }),
 
       // ── 13. CTA FINAL ──
+      // Âncora #cta-final — destino do CTA primário da navbar.
       pushAt({
         type: "section-cta",
         x: 0, y: 0, w: 1200, h: 460,
+        anchorId: "cta-final",
         heading: "O processo que mais te dói",
         headingAccent: "pode estar em órbita até sexta-feira.",
         subtitle: "Sem cartão. Sem trocar tudo às cegas. A gente monta o lançamento com você.",
         primaryCta: "Começar meu primeiro processo",
+        primaryCtaHref: "/sign-up",
         secondaryCta: "Ver demo ao vivo",
+        secondaryCtaHref: "#",
         guarantees: ["🛡 LGPD", "🌎 Brasil", "⚡ 5 min", "📞 1ª semana acompanhada"],
         bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 14. FOOTER ──
+      pushAt({
+        type: "section-footer",
+        x: 0, y: 0, w: 1200, h: 140,
+        logoText: "N.A.S.A",
+        tagline: "Powered pelo Método N.A.S.A.®",
+        copyright: "© 2026 N.A.S.A",
+        links: [
+          { id: "1", label: "Políticas de Privacidade", href: "#" },
+          { id: "2", label: "Termos & Condições", href: "#" },
+        ],
+        bgColor: T.bg, fgColor: T.fg, mutedColor: T.muted,
+      }),
+    ],
+  };
+}
+
+/**
+ * Template — A MINA (réplica da landing leonardoloureiro.com.br/a-mina/)
+ *
+ * Página de venda de imersão presencial de 3 dias com tema dourado
+ * (#CEB15D) sobre empreendedorismo + propósito + família. Usa todos
+ * os blocos novos pra reproduzir a estrutura:
+ *
+ * Navbar → Hero → Stats → Logo Cloud (mídia) → Features (4 pilares:
+ * crescer sem perder família, autocontrole, finanças, equilíbrio) →
+ * Features (3 níveis de ingresso) → Pricing (ingressos) → CTA mid →
+ * Testimonials → FAQ → CTA final → Footer.
+ *
+ * 14 blocos, mostra paleta customizada (dourado em fundo escuro).
+ */
+function aMinaImersao(): Omit<PageTemplate, "id" | "name" | "description" | "category" | "intent"> {
+  resetY();
+  // Tokens dourados — paleta da landing original
+  const T = {
+    primary: "#CEB15D",
+    accent: "#f59e0b",
+    bg: "#0a0a0a",
+    fg: "#f8fafc",
+    muted: "#9ca3af",
+  };
+  return {
+    tokens: T,
+    elements: [
+      // ── 0. NAVBAR ──
+      pushAt({
+        type: "section-navbar",
+        x: 0, y: 0, w: 1200, h: 80,
+        logoText: "A MINA",
+        links: [
+          { id: "1", label: "Sobre", href: "#sobre" },
+          { id: "2", label: "O que você aprende", href: "#aprender" },
+          { id: "3", label: "Ingressos", href: "#ingressos" },
+          { id: "4", label: "Depoimentos", href: "#depoimentos" },
+        ],
+        primaryCta: "Garantir vaga",
+        secondaryCta: "Saber mais",
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 1. HERO ──
+      pushAt({
+        type: "section-hero",
+        x: 0, y: 0, w: 1200, h: 600,
+        badge: "⛏ Imersão presencial · 3 dias",
+        titleLine1: "Você tem uma MINA de ouro",
+        titleLine2: "dentro de você.",
+        subtitle:
+          "Eu vou te ajudar a tratar seu CPF, minerar o ouro que está aí dentro de você e construir um CNPJ de sucesso pra você vivenciar sua próxima década de ouro.",
+        primaryCta: "GARANTA O SEU INGRESSO",
+        secondaryCta: "Conhecer o método",
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 2. STATS ──
+      pushAt({
+        type: "section-stats",
+        x: 0, y: 0, w: 1200, h: 180,
+        stats: [
+          { id: "1", value: "3 dias", label: "De imersão presencial" },
+          { id: "2", value: "+1.000", label: "Alunos transformados" },
+          { id: "3", value: "6 a 9", label: "Dígitos faturamento dos alunos" },
+          { id: "4", value: "100%", label: "Foco em propósito + lucro" },
+        ],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 3. LOGO CLOUD (mídia) ──
+      pushAt({
+        type: "section-logo-cloud",
+        x: 0, y: 0, w: 1200, h: 140,
+        heading: "Leonardo Loureiro na mídia",
+        logos: [
+          { id: "1", imageUrl: "", alt: "Globo" },
+          { id: "2", imageUrl: "", alt: "Record TV" },
+          { id: "3", imageUrl: "", alt: "SBT" },
+          { id: "4", imageUrl: "", alt: "Band" },
+          { id: "5", imageUrl: "", alt: "EXAME" },
+        ],
+        bgColor: T.bg, fgColor: T.fg, mutedColor: T.muted,
+      }),
+
+      // ── 4. FEATURES — Os 4 pilares ──
+      pushAt({
+        type: "section-features",
+        x: 0, y: 0, w: 1200, h: 500,
+        heading: "Os 4 pilares da década de ouro",
+        subheading:
+          "Sua vida é tal qual o Burj Khalifa: precisa de fundação sólida pra escalar sem desabar.",
+        features: [
+          { id: "1", icon: "👨‍👩‍👧", title: "Família primeiro", description: "Crescer seu negócio sem perder sua família. Propósito antes de faturamento." },
+          { id: "2", icon: "🧠", title: "Autocontrole emocional", description: "Gestão de equipe, liderança e clareza mental pra decisões difíceis." },
+          { id: "3", icon: "💰", title: "Finanças saudáveis", description: "Gerir melhor suas finanças pessoais e empresariais. CPF forte, CNPJ forte." },
+          { id: "4", icon: "⚖", title: "Equilíbrio total", description: "Vida pessoal e profissional fluindo juntas, sem culpa nem esgotamento." },
+        ],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 5. FEATURES — O que você aprende ──
+      pushAt({
+        type: "section-features",
+        x: 0, y: 0, w: 1200, h: 500,
+        heading: "O que você vai aprender em 3 dias",
+        subheading:
+          "Conteúdo prático, aplicável no Monday-morning, com o método que já transformou +1.000 empresários.",
+        features: [
+          { id: "1", icon: "📈", title: "Aumentar resultados", description: "Estratégias pra escalar faturamento com inteligência, não com sacrifício." },
+          { id: "2", icon: "🎯", title: "Definir metas claras", description: "Metas pessoais e profissionais com clareza, sem confundir números com propósito." },
+          { id: "3", icon: "👥", title: "Liderar equipes", description: "Técnicas pra liderar melhor, construir cultura forte e atrair talento certo." },
+          { id: "4", icon: "🔥", title: "Encontrar o propósito", description: "Descobrir o porquê do seu negócio existir além do dinheiro." },
+          { id: "5", icon: "🛡", title: "Proteger sua família", description: "Manter laços fortes mesmo crescendo profissionalmente." },
+          { id: "6", icon: "🏗", title: "Construir fundação", description: "Bases sólidas pro CNPJ aguentar a próxima década de crescimento." },
+        ],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 6. CTA mid-page ──
+      pushAt({
+        type: "section-cta",
+        x: 0, y: 0, w: 1200, h: 400,
+        heading: "Você não nasceu pra mediocridade.",
+        headingAccent: "Encontre seu lugar de paz.",
+        subtitle: "3 dias presenciais que podem mudar sua próxima década inteira.",
+        primaryCta: "QUERO MEU INGRESSO",
+        secondaryCta: "Falar com consultor",
+        guarantees: ["⛏ 3 dias presenciais", "🍽 Coffee + almoço", "📜 Certificado", "🎁 Kit do Aluno"],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 7. PRICING — Ingressos ──
+      pushAt({
+        type: "section-pricing",
+        x: 0, y: 0, w: 1200, h: 620,
+        heading: "Escolha seu ingresso",
+        subheading: "Vagas limitadas. Lote promocional encerra em breve.",
+        plans: [
+          {
+            id: "basic",
+            name: "Ingresso Padrão",
+            price: "R$ 1.497",
+            period: "à vista",
+            slogan: "Acesso completo aos 3 dias.",
+            features: [
+              "Acesso aos 3 dias de evento",
+              "Material completo",
+              "Coffee break",
+              "Certificado de participação",
+            ],
+            ctaLabel: "Garantir Padrão",
+          },
+          {
+            id: "vip",
+            name: "Espaço VIP",
+            price: "R$ 2.997",
+            period: "à vista",
+            slogan: "Tudo do Padrão + acesso preferencial.",
+            features: [
+              "Tudo do Padrão",
+              "Lugar reservado nas primeiras filas",
+              "Almoço incluso (3 dias)",
+              "Mesão de apoio exclusivo",
+              "Kit do Aluno premium",
+              "Coffee e bebidas premium",
+            ],
+            ctaLabel: "QUERO O VIP",
+            highlighted: true,
+            badge: "Mais escolhido",
+          },
+          {
+            id: "vip-plus",
+            name: "VIP + Mentoria",
+            price: "R$ 5.997",
+            period: "à vista",
+            slogan: "Tudo do VIP + 1h de mentoria 1:1.",
+            features: [
+              "Tudo do VIP",
+              "1h de mentoria individual com Leonardo",
+              "Acesso ao grupo de alunos por 6 meses",
+              "Diagnóstico personalizado do CPF/CNPJ",
+              "Acesso vitalício às gravações",
+            ],
+            ctaLabel: "Falar com vendas",
+          },
+        ],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 8. TESTIMONIALS ──
+      pushAt({
+        type: "section-testimonials",
+        x: 0, y: 0, w: 1200, h: 420,
+        heading: "Depoimentos de quem viveu A MINA",
+        testimonials: [
+          {
+            id: "1",
+            quote: "Saí do evento com a clareza que eu precisava há 5 anos. Mudei minha empresa em 6 meses.",
+            author: "João Picoli",
+            role: "Empresário",
+            avatar: "https://i.pravatar.cc/120?img=33",
+          },
+          {
+            id: "2",
+            quote: "O Leonardo não vende método. Ele te entrega uma vida.",
+            author: "Carla Mendes",
+            role: "CEO Construtora",
+            avatar: "https://i.pravatar.cc/120?img=44",
+          },
+          {
+            id: "3",
+            quote: "Achei meu propósito em 3 dias. Faturamento dobrou no semestre seguinte.",
+            author: "Marcus Vinícius",
+            role: "Founder Tech",
+            avatar: "https://i.pravatar.cc/120?img=51",
+          },
+        ],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 9. FAQ ──
+      pushAt({
+        type: "section-faq",
+        x: 0, y: 0, w: 1200, h: 460,
+        heading: "Dúvidas comuns",
+        items: [
+          {
+            id: "1",
+            question: "Onde acontece a imersão?",
+            answer:
+              "Em local premium no Rio de Janeiro. O endereço completo é enviado aos inscritos 15 dias antes do evento.",
+          },
+          {
+            id: "2",
+            question: "E se eu não puder ir num dos dias?",
+            answer:
+              "O conteúdo é progressivo, mas se faltar 1 dia você pode acompanhar pela gravação no portal de alunos (somente VIP+).",
+          },
+          {
+            id: "3",
+            question: "Posso parcelar?",
+            answer:
+              "Sim. Aceitamos cartão de crédito em até 12x, PIX e boleto. Consulta nossa equipe pra condições especiais.",
+          },
+          {
+            id: "4",
+            question: "Tem garantia?",
+            answer:
+              "Sim. Garantia incondicional de 7 dias após o evento. Se não fizer sentido pra você, devolvemos 100%.",
+          },
+        ],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 10. CTA FINAL ──
+      pushAt({
+        type: "section-cta",
+        x: 0, y: 0, w: 1200, h: 480,
+        heading: "Espero ajudar você a encontrar o seu lugar.",
+        headingAccent: "Você me permite?",
+        subtitle:
+          "Vagas limitadas pra manter a qualidade da experiência. Quando lotar, fecha.",
+        primaryCta: "GARANTIR INGRESSO AGORA",
+        secondaryCta: "Clique aqui pra falar com um especialista",
+        guarantees: ["🛡 7 dias de garantia", "💳 Parcela em 12x", "📞 1ª semana acompanhada"],
+        bgColor: T.bg, fgColor: T.fg, primaryColor: T.primary, mutedColor: T.muted,
+      }),
+
+      // ── 11. FOOTER ──
+      pushAt({
+        type: "section-footer",
+        x: 0, y: 0, w: 1200, h: 140,
+        logoText: "A MINA",
+        tagline: "Imersão Leonardo Loureiro",
+        copyright: "© 2025 Leonardo Loureiro · Todos os direitos reservados",
+        links: [
+          { id: "1", label: "Política de Privacidade", href: "#" },
+          { id: "2", label: "Termos & Condições", href: "#" },
+          { id: "3", label: "Contato", href: "#" },
+        ],
+        bgColor: T.bg, fgColor: T.fg, mutedColor: T.muted,
       }),
     ],
   };
 }
 
 export const PAGE_TEMPLATES: PageTemplate[] = [
+  {
+    id: "a-mina-imersao",
+    name: "A MINA — Imersão Leonardo Loureiro",
+    description:
+      "Réplica da landing de imersão presencial de 3 dias (a-mina) sobre empreendedorismo + propósito + família. Tema dourado (#CEB15D) em fundo escuro. 12 blocos: navbar, hero, stats, mídia, 2 features (pilares + aprendizados), 3 níveis de ingresso no pricing, CTA mid, depoimentos, FAQ, CTA final, footer.",
+    intent: "EVENT",
+    category: "Eventos",
+    ...aMinaImersao(),
+  },
   {
     id: "nasa-orbita-landing",
     name: "Landing NASA Orbita (PR #82)",
