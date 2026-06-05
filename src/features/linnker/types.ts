@@ -45,6 +45,25 @@ export interface LinnkerPage {
   socialIconColor?: string | null;
   titleColor?: string | null;
   bioColor?: string | null;
+  /** QR de contato — quando ON, perfil público mostra botão QR ao
+   *  lado do avatar. Default true (vem do schema). */
+  qrEnabled?: boolean;
+  /** Mensagem template usada no `wa.me/<phone>?text=` quando alguém
+   *  escaneia. Suporta `{org}` como placeholder. */
+  qrMessageTemplate?: string | null;
+  /** Overrides do vCard gerado pelo endpoint `/api/linnker/<slug>/vcard`.
+   *  Quando vazio, cai nos defaults (title split, org.name, etc). */
+  vcardOverrides?: {
+    firstName?: string | null;
+    lastName?: string | null;
+    jobTitle?: string | null;
+    company?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    birthday?: string | null;
+    website?: string | null;
+    notes?: string | null;
+  } | null;
   links: LinnkerLink[];
   _count?: { scans: number };
   createdAt: Date | string;
