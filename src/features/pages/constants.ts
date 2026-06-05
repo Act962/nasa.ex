@@ -37,6 +37,7 @@ export const ELEMENT_TYPES = [
   // Sections completas (Fase 1)
   "section-hero", "section-features", "section-pricing", "section-cta",
   "section-stats", "section-testimonials", "section-faq", "section-logo-cloud",
+  "section-navbar", "section-footer",
   // Blocos interativos (Fase 2)
   "marquee", "tabs", "accordion", "counter",
   // Data binding (Fase 5)
@@ -54,6 +55,7 @@ export const ELEMENT_TYPE_CATEGORIES: Record<string, string> = {
   "section-pricing": "sections", "section-cta": "sections",
   "section-stats": "sections", "section-testimonials": "sections",
   "section-faq": "sections", "section-logo-cloud": "sections",
+  "section-navbar": "sections", "section-footer": "sections",
   marquee: "interactive", tabs: "interactive",
   accordion: "interactive", counter: "interactive",
   "nasa-link": "app",
@@ -88,6 +90,8 @@ export const ELEMENT_TYPE_LABELS: Record<
   "section-testimonials": { label: "Depoimentos", icon: "💬" },
   "section-faq": { label: "FAQ", icon: "❓" },
   "section-logo-cloud": { label: "Logos", icon: "🏷" },
+  "section-navbar": { label: "Header", icon: "🧭" },
+  "section-footer": { label: "Footer", icon: "📜" },
   marquee: { label: "Carrossel", icon: "🎠" },
   tabs: { label: "Abas", icon: "📑" },
   accordion: { label: "Accordion", icon: "📂" },

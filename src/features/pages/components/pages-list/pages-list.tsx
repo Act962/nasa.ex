@@ -1,10 +1,33 @@
 "use client";
 
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { orpc, client } from "@/lib/orpc";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Globe, Pencil, ExternalLink, Sparkles, LayoutTemplate } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Plus,
+  Globe,
+  Pencil,
+  ExternalLink,
+  Sparkles,
+  LayoutTemplate,
+  Trash2,
+  Loader2,
+  BarChart3,
+} from "lucide-react";
 import Link from "next/link";
 import { usePages, usePagesCost } from "../../hooks/use-pages";
 import { CreatePageWizard } from "../wizard/create-page-wizard";
@@ -12,8 +35,27 @@ import { INTENT_LABELS } from "../../constants";
 
 export function PagesList() {
   const [wizardOpen, setWizardOpen] = useState(false);
+  // Page selecionada pra exclusão. null = dialog fechado.
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    title: string;
+    isPublished: boolean;
+  } | null>(null);
   const { data, isLoading } = usePages();
   const { data: cost } = usePagesCost();
+  const qc = useQueryClient();
+
+  const { mutate: deletePage, isPending: isDeleting } = useMutation({
+    mutationFn: (id: string) => client.pages.deletePage({ id }),
+    onSuccess: () => {
+      toast.success("Rascunho apagado");
+      qc.invalidateQueries({ queryKey: orpc.pages.listPages.queryKey() });
+      setDeleteTarget(null);
+    },
+    onError: (e: Error) => {
+      toast.error(e.message ?? "Erro ao apagar");
+    },
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -27,20 +69,20 @@ export function PagesList() {
             Construa sites e landing pages integradas ao ecossistema NASA.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {cost ? (
             <Badge variant="outline" className="text-xs gap-1 py-1">
               <span className="text-yellow-500">★</span>
               {cost.stars.toLocaleString("pt-BR")} / site
             </Badge>
           ) : null}
-          <Button asChild variant="outline" className="gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-2 sm:size-default">
             <Link href="/pages/templates">
               <LayoutTemplate className="size-4" />
               Templates
             </Link>
           </Button>
-          <Button onClick={() => setWizardOpen(true)} className="gap-2">
+          <Button onClick={() => setWizardOpen(true)} size="sm" className="gap-2 sm:size-default">
             <Plus className="size-4" />
             Novo site
           </Button>
@@ -92,7 +134,7 @@ export function PagesList() {
                     </span>
                   ) : null}
                 </div>
-                <div className="flex gap-2 mt-auto pt-3 border-t">
+                <div className="flex items-center gap-2 flex-wrap mt-auto pt-3 border-t">
                   <Button asChild size="sm" variant="outline" className="gap-1">
                     <Link href={`/pages/${p.id}`}>
                       <Pencil className="size-3.5" />
@@ -107,6 +149,29 @@ export function PagesList() {
                       </a>
                     </Button>
                   )}
+                  <Button asChild size="sm" variant="ghost" className="gap-1" title="Analytics">
+                    <Link href={`/pages/${p.id}/analytics`}>
+                      <BarChart3 className="size-3.5" />
+                    </Link>
+                  </Button>
+                  {/* Botão de excluir — disponível pra rascunho OU
+                      publicado. Confirmação extra pra publicado
+                      no dialog (texto + tag). */}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gap-1 ml-auto text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() =>
+                      setDeleteTarget({
+                        id: p.id,
+                        title: p.title,
+                        isPublished: p.status === "PUBLISHED",
+                      })
+                    }
+                    title="Apagar"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -115,6 +180,74 @@ export function PagesList() {
       )}
 
       <CreatePageWizard open={wizardOpen} onOpenChange={setWizardOpen} />
+
+      {/* Dialog de confirmação de exclusão.
+          Pra page publicada, alerta mais forte (cor + texto explícito).
+          Logactivity é registrada server-side em delete-page.ts. */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && !isDeleting && setDeleteTarget(null)}
+      >
+        <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteTarget?.isPublished
+                ? "Apagar page publicada?"
+                : "Apagar rascunho?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.isPublished ? (
+                <>
+                  Você vai apagar <strong>"{deleteTarget?.title}"</strong>{" "}
+                  permanentemente.{" "}
+                  <strong className="text-destructive">
+                    Esta página está publicada
+                  </strong>{" "}
+                  — o link público vai parar de funcionar imediatamente.
+                  Visitantes vão receber 404.
+                </>
+              ) : (
+                <>
+                  Você vai apagar o rascunho{" "}
+                  <strong>"{deleteTarget?.title}"</strong> permanentemente.
+                  Como ele nunca foi publicado, nada além das suas
+                  edições será perdido.
+                </>
+              )}
+              <br />
+              <br />
+              <span className="text-xs">
+                Esta ação é irreversível e fica registrada em Insights →
+                Atividade.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget) deletePage(deleteTarget.id);
+              }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="size-3.5 mr-2 animate-spin" />
+                  Apagando…
+                </>
+              ) : (
+                <>
+                  <Trash2 className="size-3.5 mr-2" />
+                  Apagar definitivamente
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

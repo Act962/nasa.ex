@@ -1,7 +1,12 @@
 /**
- * Section CTA — bloco final de conversão.
- * Editável: heading (2 linhas), subtitle, 2 botões, selos de garantia.
+ * Section CTA — bloco final de conversão, responsivo.
+ *
+ * **Botões variáveis** — aceita `buttons: SectionButton[]` (N botões
+ * com variant primary/outline/ghost). Mantém compat com legacy
+ * `primaryCta`/`secondaryCta`: se `buttons` não existir, monta lista
+ * a partir dos campos legados.
  */
+import { resolveButtons, renderSectionButton } from "./buttons";
 import {
   bgColor,
   fgColor,
@@ -17,8 +22,7 @@ export function SectionCta({ element, tokens }: SectionRendererProps) {
   const subtitle =
     (element.subtitle as string) ??
     "Sem cartão, sem contrato. Comece num clique e cancele quando quiser.";
-  const primaryCta = (element.primaryCta as string) ?? "Começar agora";
-  const secondaryCta = (element.secondaryCta as string) ?? "Falar com vendas";
+  const anchorId = (element.anchorId as string) ?? undefined;
   const guarantees =
     (element.guarantees as string[] | undefined) ?? [
       "🛡 LGPD Compliant",
@@ -31,122 +35,53 @@ export function SectionCta({ element, tokens }: SectionRendererProps) {
   const fg = fgColor(element, tokens);
   const muted = mutedColor(element, tokens);
 
+  // Lista de botões (legacy fallback embutido)
+  const buttons = resolveButtons(element, {
+    defaultPrimary: "Começar agora",
+    defaultSecondary: "Falar com vendas",
+  });
+
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        padding: "56px 32px",
-        background: bg,
-        color: fg,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 24,
-        textAlign: "center",
-        position: "relative",
-        overflow: "hidden",
-      }}
+    <section
+      id={anchorId}
+      className="relative w-full px-4 sm:px-6 lg:px-8 py-14 sm:py-20 md:py-24 text-center overflow-hidden scroll-mt-20"
+      style={{ background: bg, color: fg }}
     >
-      {/* Glow de fundo */}
+      {/* Glow */}
       <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full pointer-events-none"
         style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: 600,
-          height: 400,
           background: `${primary}15`,
           filter: "blur(120px)",
-          pointerEvents: "none",
         }}
       />
 
-      <div style={{ position: "relative", zIndex: 1 }}>
-        <h2
-          style={{
-            fontSize: 48,
-            fontWeight: 900,
-            margin: 0,
-            lineHeight: 1.05,
-            marginBottom: 16,
-          }}
-        >
+      <div className="relative z-10 max-w-3xl mx-auto flex flex-col gap-6">
+        <h2 className="text-3xl sm:text-4xl md:text-5xl font-black leading-[1.05]">
           {heading}
           <br />
           <span style={{ color: primary }}>{headingAccent}</span>
         </h2>
 
-        <p
-          style={{
-            fontSize: 18,
-            color: muted,
-            maxWidth: 500,
-            margin: "0 auto 24px",
-            lineHeight: 1.5,
-          }}
-        >
+        <p className="text-sm sm:text-base md:text-lg leading-relaxed max-w-xl mx-auto" style={{ color: muted }}>
           {subtitle}
         </p>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            justifyContent: "center",
-            marginBottom: 32,
-            flexWrap: "wrap",
-          }}
-        >
-          <button
-            style={{
-              background: primary,
-              color: "#fff",
-              padding: "14px 32px",
-              borderRadius: 12,
-              fontWeight: 800,
-              fontSize: 15,
-              border: "none",
-              cursor: "pointer",
-              boxShadow: `0 0 40px ${primary}50`,
-            }}
-          >
-            {primaryCta}
-          </button>
-          <button
-            style={{
-              background: "transparent",
-              color: fg,
-              padding: "14px 32px",
-              borderRadius: 12,
-              fontWeight: 700,
-              fontSize: 15,
-              border: `1px solid ${fg}30`,
-              cursor: "pointer",
-            }}
-          >
-            {secondaryCta}
-          </button>
-        </div>
+        {buttons.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center flex-wrap gap-3 mt-2">
+            {buttons.map((b) =>
+              renderSectionButton(b, { primary, fg, size: "lg" }),
+            )}
+          </div>
+        )}
 
         {/* Selos */}
-        <div
-          style={{
-            display: "flex",
-            gap: 24,
-            justifyContent: "center",
-            flexWrap: "wrap",
-            fontSize: 13,
-            color: muted,
-          }}
-        >
+        <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs sm:text-sm mt-4" style={{ color: muted }}>
           {guarantees.map((g, i) => (
             <span key={i}>{g}</span>
           ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

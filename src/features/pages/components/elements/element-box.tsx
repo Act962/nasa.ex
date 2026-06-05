@@ -4,8 +4,14 @@ import { useRef, useState, useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePagesBuilderStore } from "../../context/pages-builder-store";
-import type { ElementBase } from "../../types";
+import { isFlowSection } from "../../lib/section-flow";
+import type { ElementBase, ElementType } from "../../types";
 import { ElementRenderer } from "./element-renderer";
+
+// Threshold em px de tela pra distinguir "clique" de "drag". Sem
+// isso, qualquer micro-tremor do mouse vira drag e a section (que
+// ocupa 1200×600px) voa pra fora do viewport.
+const DRAG_THRESHOLD_PX = 4;
 
 interface Props {
   element: ElementBase;
@@ -31,11 +37,17 @@ export function ElementBox({ element, editable }: Props) {
 
   const [isEditing, setIsEditing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Sections "de flow" (hero, features, navbar, footer…) ocupam
+  // 1200×600+ e devem ser empilhadas verticalmente, NUNCA arrastadas
+  // livremente — senão somem do canvas no primeiro tremor de cursor.
+  // Clicar nelas seleciona; arrastar não faz nada.
+  const isSection = isFlowSection(element.type as ElementType);
   const dragRef = useRef<{
     mode: DragMode;
     startX: number;
     startY: number;
     startEl: ElementBase;
+    moved: boolean; // true depois que passou do threshold — confirma drag real
   } | null>(null);
 
   useEffect(() => {
@@ -48,17 +60,46 @@ export function ElementBox({ element, editable }: Props) {
 
   const startDrag = (mode: DragMode) => (e: React.PointerEvent<HTMLDivElement>) => {
     if (!editable || element.locked || isEditing) return;
+    // Sections (flow): nunca iniciam drag de move. Só seleciona.
+    // Resize ainda funciona — handles ainda chamam startDrag com
+    // mode="resize-*" e isso continua válido.
+    if (isSection && mode === "move") {
+      e.stopPropagation();
+      toggleSelected(element.id, e.shiftKey);
+      return;
+    }
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    dragRef.current = { mode, startX: e.clientX, startY: e.clientY, startEl: { ...element } };
-    toggleSelected(element.id, e.shiftKey);
+    dragRef.current = {
+      mode,
+      startX: e.clientX,
+      startY: e.clientY,
+      startEl: { ...element },
+      moved: false,
+    };
+    // NÃO seleciona ainda — espera pra ver se é clique ou drag.
+    // Se for clique puro (pointerUp sem mover), seleciona no up.
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag) return;
-    const dx = e.clientX - drag.startX;
-    const dy = e.clientY - drag.startY;
+    // Compensa o zoom do canvas — sem isso, o elemento "foge" do
+    // cursor em zoom != 1.0 e parece sumir.
+    const zoom = usePagesBuilderStore.getState().zoom || 1;
+    const rawDx = e.clientX - drag.startX;
+    const rawDy = e.clientY - drag.startY;
+    // Threshold: só começa a mover de verdade depois de N pixels.
+    if (
+      !drag.moved &&
+      Math.abs(rawDx) < DRAG_THRESHOLD_PX &&
+      Math.abs(rawDy) < DRAG_THRESHOLD_PX
+    ) {
+      return;
+    }
+    drag.moved = true;
+    const dx = rawDx / zoom;
+    const dy = rawDy / zoom;
     if (drag.mode === "move") {
       updateElement(element.id, {
         x: Math.round(drag.startEl.x + dx),
@@ -92,8 +133,17 @@ export function ElementBox({ element, editable }: Props) {
   };
 
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    // Clique puro (sem passar do threshold) → só seleciona.
+    if (drag && !drag.moved && drag.mode === "move") {
+      toggleSelected(element.id, e.shiftKey);
+    }
     dragRef.current = null;
-    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // pointerId pode já ter sido liberado se o ponteiro saiu do elemento
+    }
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
@@ -115,7 +165,9 @@ export function ElementBox({ element, editable }: Props) {
       data-el-id={element.id}
       className={cn(
         "absolute select-none",
-        editable && !isEditing && "cursor-move",
+        // Sections não têm cursor-move (não são draggable) — usa
+        // cursor-pointer pra deixar claro que é clicável.
+        editable && !isEditing && (isSection ? "cursor-pointer" : "cursor-move"),
         selected && !isEditing && "outline-2 outline-offset-2 outline-indigo-500 outline",
         isEditing && "outline-2 outline-offset-2 outline-indigo-400 outline",
       )}
@@ -127,6 +179,9 @@ export function ElementBox({ element, editable }: Props) {
         transform: element.rotation ? `rotate(${element.rotation}deg)` : undefined,
         opacity: element.opacity ?? 1,
         zIndex: element.zIndex ?? 1,
+        // touchAction: none impede o navegador de capturar o gesto
+        // como scroll quando o user tá tentando arrastar/redimensionar.
+        touchAction: editable && !isEditing ? "none" : undefined,
       }}
       onPointerDown={isEditing ? undefined : startDrag("move")}
       onPointerMove={isEditing ? undefined : onPointerMove}

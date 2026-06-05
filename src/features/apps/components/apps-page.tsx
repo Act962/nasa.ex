@@ -38,7 +38,9 @@ export function AppsPage() {
   const [modalApp, setModalApp] = useState<AppDef | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const filteredApps = APPS.filter((app) => {
+  // Filtra apps com `hidden: true` por default (apps em beta/rollout).
+  // Pra revelar, basta tirar o `.filter((a) => !a.hidden)` daqui.
+  const filteredApps = APPS.filter((app) => !app.hidden).filter((app) => {
     if (filter === "all") return true;
     if (filter === "installed") return app.status === "installed";
     if (filter === "development") return app.status === "development";

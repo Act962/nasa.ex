@@ -85,6 +85,7 @@ export function BuilderCanvas() {
   return (
     <div
       ref={scrollRef}
+      data-pages-canvas-scroll
       className="flex-1 overflow-auto py-8 flex justify-center"
       style={{ background: "repeating-linear-gradient(45deg, #f5f5f5, #f5f5f5 10px, #ffffff 10px, #ffffff 20px)" }}
       onClick={handleCanvasClick}
@@ -98,6 +99,7 @@ export function BuilderCanvas() {
         }}
       >
         <div
+          data-pages-artboard
           className="relative bg-white shadow-lg rounded-sm"
           style={{
             width: artboardWidth,

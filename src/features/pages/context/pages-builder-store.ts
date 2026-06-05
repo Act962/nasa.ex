@@ -28,6 +28,7 @@ interface BuilderState {
   removeElement: (id: string) => void;
   duplicateSelected: () => void;
   updateArtboard: (patch: Partial<{ width: number; minHeight: number; background: string }>) => void;
+  updateMeta: (patch: Record<string, unknown>) => void;
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
@@ -155,6 +156,18 @@ export const usePagesBuilderStore = create<BuilderState>((set, get) => ({
     const { layout } = get();
     if (!layout) return;
     const next = { ...layout, artboard: { ...layout.artboard, ...patch } };
+    get().setLayout(next);
+  },
+
+  updateMeta: (patch) => {
+    const { layout } = get();
+    if (!layout) return;
+    const currentMeta =
+      (layout as unknown as { meta?: Record<string, unknown> }).meta ?? {};
+    const next = {
+      ...layout,
+      meta: { ...currentMeta, ...patch },
+    } as unknown as typeof layout;
     get().setLayout(next);
   },
 

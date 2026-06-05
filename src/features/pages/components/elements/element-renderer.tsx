@@ -9,12 +9,18 @@ import { SectionStats } from "./sections/section-stats";
 import { SectionTestimonials } from "./sections/section-testimonials";
 import { SectionFaq } from "./sections/section-faq";
 import { SectionLogoCloud } from "./sections/section-logo-cloud";
+import { SectionNavbar } from "./sections/section-navbar";
+import { SectionFooter } from "./sections/section-footer";
 import {
   AccordionBlock,
   CounterBlock,
   MarqueeBlock,
   TabsBlock,
 } from "./interactive";
+import { CarouselElement } from "./carousel";
+import { ChatButton } from "./chat-button";
+import { EmbeddedForm } from "./embedded-form";
+import { ExitIntent } from "./exit-intent";
 import { DataBoundBlock } from "./data-bound";
 
 interface Props {
@@ -93,7 +99,18 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
             opacity: imageOpacity,
           };
 
-      return (
+      // Imagem clicável — quando o user configura `link` (URL ou
+      // âncora interna), a imagem inteira vira <a>. Caso contrário,
+      // continua sendo apenas <div> (não clicável). Mesma lógica do
+      // botão átomo: âncoras (#/mailto/tel) NUNCA abrem nova aba.
+      const imgLinkAttrs = (() => {
+        const link = element.link as LinkTarget | undefined;
+        if (!link) return null;
+        const r = resolveLink(link);
+        if (r.href === "#") return null;
+        return r;
+      })();
+      const imageContent = (
         <div style={{ ...common, position: "relative", borderRadius, overflow: "hidden" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt={(element.alt as string) ?? ""} style={imgStyle} />
@@ -110,6 +127,18 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
           )}
         </div>
       );
+      if (imgLinkAttrs) {
+        return (
+          <a
+            {...imgLinkAttrs}
+            style={{ ...common, display: "block", textDecoration: "none" }}
+            aria-label={(element.alt as string) ?? "Imagem clicável"}
+          >
+            {imageContent}
+          </a>
+        );
+      }
+      return imageContent;
     }
     case "shape": {
       const shape = (element.shape as string) ?? "rect";
@@ -345,6 +374,10 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
       return <SectionFaq element={element} tokens={tokens} readonly={readonly} />;
     case "section-logo-cloud":
       return <SectionLogoCloud element={element} tokens={tokens} readonly={readonly} />;
+    case "section-navbar":
+      return <SectionNavbar element={element} tokens={tokens} readonly={readonly} />;
+    case "section-footer":
+      return <SectionFooter element={element} tokens={tokens} readonly={readonly} />;
     // ── Blocos interativos (Fase 2) ──────────────────────────────
     case "marquee":
       return <MarqueeBlock element={element} tokens={tokens} readonly={readonly} />;
@@ -354,6 +387,23 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
       return <AccordionBlock element={element} tokens={tokens} readonly={readonly} />;
     case "counter":
       return <CounterBlock element={element} tokens={tokens} readonly={readonly} />;
+    case "carousel":
+      return <CarouselElement element={element} />;
+    // ── Lead capture & engagement (Fase 6) ───────────────────────
+    case "chat-button":
+      return <ChatButton element={element} />;
+    case "embedded-form":
+      return <EmbeddedForm element={element} />;
+    case "exit-intent":
+      // No editor (não-readonly), mostra preview estático "caixa
+      // de exit intent" pra user saber onde está. Em readonly,
+      // monta o listener real.
+      if (readonly) return <ExitIntent element={element} />;
+      return (
+        <div className="w-full h-full p-4 border-2 border-dashed border-amber-500/40 bg-amber-50/30 rounded-lg flex items-center justify-center text-xs text-amber-900 text-center">
+          🚪 Exit Intent — dispara quando user vai sair da página
+        </div>
+      );
     // ── Data binding (Fase 5) ────────────────────────────────────
     case "data-bound":
       return <DataBoundBlock element={element} tokens={tokens} readonly={readonly} />;
@@ -375,10 +425,21 @@ function resolveLink(link: LinkTarget | undefined) {
   const href = link.kind === "url"
     ? link.href ?? "#"
     : nasaLinkHref(link.kind, link.resourceId);
+  // Âncoras internas (#algo) e mailto:/tel: NÃO devem abrir em nova
+  // aba mesmo com openInNewTab=true — abrir #planos em _blank cria
+  // uma aba sem conteúdo (a página fresh não tem a section ainda
+  // renderizada quando o scroll dispara). Bug crônico: o
+  // ButtonProps tava forçando openInNewTab=true sempre, fazendo
+  // âncoras internas "não funcionarem".
+  const isInternal =
+    href.startsWith("#") ||
+    href.startsWith("mailto:") ||
+    href.startsWith("tel:");
+  const openNewTab = link.openInNewTab && !isInternal;
   return {
     href,
-    target: link.openInNewTab ? ("_blank" as const) : undefined,
-    rel: link.openInNewTab ? ("noreferrer" as const) : undefined,
+    target: openNewTab ? ("_blank" as const) : undefined,
+    rel: openNewTab ? ("noreferrer" as const) : undefined,
   };
 }
 
