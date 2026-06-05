@@ -62,7 +62,9 @@ export function ChatButton({ element }: { element: ElementBase }) {
     ]);
     // Tenta carregar mensagens — se 401, é a primeira vez (precisa identify)
     if (orgSlug) {
-      fetch(`/api/in-chat/${orgSlug}/messages`)
+      fetch(`/api/in-chat/${orgSlug}/messages`, {
+        credentials: "same-origin",
+      })
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
           if (data?.messages?.length) {
@@ -96,7 +98,7 @@ export function ChatButton({ element }: { element: ElementBase }) {
         const url = cursorRef.current
           ? `/api/in-chat/${orgSlug}/messages?cursor=${encodeURIComponent(cursorRef.current)}`
           : `/api/in-chat/${orgSlug}/messages`;
-        const r = await fetch(url);
+        const r = await fetch(url, { credentials: "same-origin" });
         if (!r.ok) return;
         const data = await r.json();
         if (data?.messages?.length) {
@@ -131,42 +133,66 @@ export function ChatButton({ element }: { element: ElementBase }) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
+  // Mapa de erros do endpoint pra mensagens user-friendly.
+  // Endpoint pode retornar status 200 com `error: needs_name` quando
+  // phone é novo + sem nome — não é uma falha de rede, mas o
+  // `r.ok` retorna true. Por isso check explícito do body.
+  const errorMessages: Record<string, string> = {
+    invalid_body: "Erro inesperado. Recarregue a página.",
+    invalid_input: "Verifique nome e número.",
+    phone_too_short: "Número muito curto. Tente com DDD.",
+    not_found:
+      "Organização não encontrada. Avise o site que o chat está mal configurado.",
+    no_tracking_available:
+      "Sem atendimento disponível agora. Tente novamente em breve.",
+    invalid_tracking: "Tracking inválido. Avise o site.",
+    create_lead_failed: "Não consegui te cadastrar. Tente de novo.",
+    needs_name: "Como podemos te chamar?",
+  };
+
   const identify = async () => {
-    if (!phone || !name) {
-      setError("Preencha nome e número");
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.replace(/[^\d]/g, "");
+    if (!trimmedName || !trimmedPhone) {
+      setError("Preencha nome e número.");
+      return;
+    }
+    if (trimmedPhone.length < 8) {
+      setError("Número muito curto. Use o formato DDD + número.");
+      return;
+    }
+    if (!orgSlug) {
+      setError("Chat não configurado pelo dono do site.");
       return;
     }
     setSending(true);
     setError(null);
     try {
-      // Lê UTM persistido pelo PageAnalytics
-      let utm = {};
-      try {
-        const stored = sessionStorage.getItem("nasa_page_utm");
-        if (stored) utm = JSON.parse(stored);
-      } catch {
-        /* ignora */
-      }
+      // Endpoint espera SÓ { phone, name?, trackingId? } — campos extras
+      // são strippados pelo Zod, mas mandar limpo evita ambiguidade.
       const r = await fetch(`/api/in-chat/${orgSlug}/identify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({
-          name,
-          phone,
+          name: trimmedName,
+          phone: trimmedPhone,
           trackingId: trackingId || undefined,
-          ...utm,
         }),
       });
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        throw new Error(j.error ?? `HTTP ${r.status}`);
+      const json = await r.json().catch(() => ({}));
+      // Endpoint pode retornar 200 com `error: needs_name` (caso phone
+      // novo + sem nome). Tratamos AMBOS r.ok=false E json.error.
+      if (!r.ok || json.error) {
+        const code = json.error ?? `HTTP ${r.status}`;
+        throw new Error(errorMessages[code] ?? code);
       }
       setPhase("chatting");
       setMessages((prev) => [
         ...prev,
         {
           id: `confirm-${Date.now()}`,
-          body: `Beleza ${name}! Pode mandar sua dúvida 👇`,
+          body: `Beleza ${trimmedName.split(" ")[0]}! Pode mandar sua dúvida 👇`,
           fromAgent: true,
           createdAt: Date.now(),
         },
@@ -193,6 +219,7 @@ export function ChatButton({ element }: { element: ElementBase }) {
       const r = await fetch(`/api/in-chat/${orgSlug}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ body }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
