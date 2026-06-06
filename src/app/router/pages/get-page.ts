@@ -20,6 +20,10 @@ export const getPage = base
       where: { id: input.id, organizationId },
       include: {
         domainPurchase: true,
+        // Pra UrlSlugEditor mostrar a URL completa de subpages
+        // (`/s/<rootSlug>/<subSlug>`) — sem isso o front teria que
+        // disparar 2ª query.
+        parent: { select: { id: true, slug: true, title: true } },
       },
     });
     if (!page) throw errors.NOT_FOUND({ message: "Página não encontrada" });

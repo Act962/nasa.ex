@@ -1,5 +1,18 @@
 /**
  * Section Testimonials — grid responsivo de depoimentos.
+ *
+ * Personalização tipográfica:
+ *   - O cabeçalho da section tem `headingStyle?: TextStyle` (no
+ *     element).
+ *   - Cada card tem `quoteStyle?`, `authorStyle?`, `roleStyle?`
+ *     (override por card). Cai pra `quoteStyle`/`authorStyle`/`roleStyle`
+ *     da section. Cai pros defaults aqui.
+ *   - Cards também ganham `cardBg`, `cardBorder`, `cardRadius`,
+ *     `cardPadding` opcionais (cada card sobrepõe os da section).
+ *
+ * Resolução via `resolveTextStyle(card, section, defaults)`. Pages
+ * antigas continuam pixel-perfect (props undefined → fallback no
+ * default, que copia o estilo anterior).
  */
 import {
   bgColor,
@@ -8,6 +21,16 @@ import {
   primaryColor,
   type SectionRendererProps,
 } from "./types";
+import {
+  resolveTextStyle,
+  textStyleToCSS,
+  type TextStyle,
+} from "../../../lib/text-style";
+import {
+  RenderInterludeBlocks,
+  type InterludeZones,
+} from "./interlude-block";
+import { wrapCardWithAnimatedBorder } from "../animated-border";
 
 interface Testimonial {
   id: string;
@@ -15,6 +38,13 @@ interface Testimonial {
   author: string;
   role?: string;
   avatar?: string;
+  /** Overrides por card — sobrescrevem os da section. */
+  quoteStyle?: TextStyle;
+  authorStyle?: TextStyle;
+  roleStyle?: TextStyle;
+  /** Aparência do card individual. */
+  cardBg?: string;
+  cardBorder?: string;
 }
 
 const DEFAULT_TESTIMONIALS: Testimonial[] = [
@@ -34,6 +64,45 @@ export function SectionTestimonials({ element, tokens }: SectionRendererProps) {
   const fg = fgColor(element, tokens);
   const muted = mutedColor(element, tokens);
 
+  // Section-level styles (vêm direto do element JSON).
+  const sectionHeadingStyle = element.headingStyle as TextStyle | undefined;
+  const sectionQuoteStyle = element.quoteStyle as TextStyle | undefined;
+  const sectionAuthorStyle = element.authorStyle as TextStyle | undefined;
+  const sectionRoleStyle = element.roleStyle as TextStyle | undefined;
+
+  // Defaults — preservam o look original quando NENHUM override existe.
+  const headingDefaults: TextStyle = {
+    color: fg,
+    fontSize: 32,
+    fontWeight: "900",
+    align: "center",
+  };
+  const quoteDefaults: TextStyle = {
+    color: fg,
+    fontSize: 15,
+    fontWeight: "400",
+    italic: true,
+    lineHeight: 1.6,
+  };
+  const authorDefaults: TextStyle = {
+    color: fg,
+    fontSize: 14,
+    fontWeight: "700",
+  };
+  const roleDefaults: TextStyle = {
+    color: muted,
+    fontSize: 12,
+    fontWeight: "400",
+  };
+
+  const headingMerged = resolveTextStyle(undefined, sectionHeadingStyle, headingDefaults);
+  const sectionCardBg = (element.cardBg as string) ?? `${fg}05`;
+  const sectionCardBorder = (element.cardBorder as string) ?? `${fg}15`;
+  const cardRadius = (element.cardRadius as number) ?? 16;
+  const cardPadding = (element.cardPadding as number) ?? 24;
+
+  const interlude = (element.interlude as InterludeZones | undefined) ?? {};
+
   return (
     <section
       id={anchorId}
@@ -41,47 +110,69 @@ export function SectionTestimonials({ element, tokens }: SectionRendererProps) {
       style={{ background: bg, color: fg }}
     >
       <div className="max-w-7xl mx-auto flex flex-col gap-8 sm:gap-10">
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-center">
-          {heading}
-        </h2>
+        <RenderInterludeBlocks blocks={interlude.aboveHeading} />
+        <h2 style={textStyleToCSS(headingMerged)}>{heading}</h2>
+        <RenderInterludeBlocks blocks={interlude.betweenHeadingAndCards} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {testimonials.map((t) => (
-            <div
-              key={t.id}
-              className="p-5 sm:p-6 rounded-2xl border"
-              style={{ background: `${fg}05`, borderColor: `${fg}15` }}
-            >
-              <p
-                className="text-sm sm:text-base leading-relaxed mb-4 italic"
-                style={{ color: fg }}
+          {testimonials.map((card) => {
+            const quoteMerged = resolveTextStyle(
+              card.quoteStyle,
+              sectionQuoteStyle,
+              quoteDefaults,
+            );
+            const authorMerged = resolveTextStyle(
+              card.authorStyle,
+              sectionAuthorStyle,
+              authorDefaults,
+            );
+            const roleMerged = resolveTextStyle(
+              card.roleStyle,
+              sectionRoleStyle,
+              roleDefaults,
+            );
+            const cardInner = (
+              <div
+                className="border"
+                style={{
+                  background: card.cardBg ?? sectionCardBg,
+                  borderColor: card.cardBorder ?? sectionCardBorder,
+                  borderRadius: cardRadius,
+                  padding: cardPadding,
+                  width: "100%",
+                  height: "100%",
+                }}
               >
-                "{t.quote}"
-              </p>
-              <div className="flex items-center gap-3">
-                {t.avatar && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={t.avatar}
-                    alt={t.author}
-                    className="w-10 h-10 rounded-full object-cover border-2"
-                    style={{ borderColor: `${primary}40` }}
-                  />
-                )}
-                <div>
-                  <div className="text-sm font-bold" style={{ color: fg }}>
-                    {t.author}
-                  </div>
-                  {t.role && (
-                    <div className="text-xs" style={{ color: muted }}>
-                      {t.role}
-                    </div>
+                <p style={{ ...textStyleToCSS(quoteMerged), marginBottom: 16 }}>
+                  &ldquo;{card.quote}&rdquo;
+                </p>
+                <div className="flex items-center gap-3">
+                  {card.avatar && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={card.avatar}
+                      alt={card.author}
+                      className="w-10 h-10 rounded-full object-cover border-2"
+                      style={{ borderColor: `${primary}40` }}
+                    />
                   )}
+                  <div>
+                    <div style={textStyleToCSS(authorMerged)}>{card.author}</div>
+                    {card.role && (
+                      <div style={textStyleToCSS(roleMerged)}>{card.role}</div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+            return (
+              <div key={card.id}>
+                {wrapCardWithAnimatedBorder(element, cardInner)}
+              </div>
+            );
+          })}
         </div>
+        <RenderInterludeBlocks blocks={interlude.afterCards} />
       </div>
     </section>
   );

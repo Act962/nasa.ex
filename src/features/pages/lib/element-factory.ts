@@ -95,6 +95,55 @@ const DEFAULTS: Record<ElementType, (palette: Record<string, string>) => Omit<El
     x: 40, y: 40, w: 400, h: 200,
     children: [] as ElementBase[],
   }),
+  marketing: () => ({
+    type: "marketing",
+    // Tamanho da "carta visual" no editor — o elemento real é
+    // singleton-renderizado via portal no público, então essas
+    // dimensões só importam pro preview no canvas.
+    x: 40, y: 40, w: 340, h: 200,
+    // Defaults dos toggles: toasts + countdown ligados (foco do user),
+    // outros desligados pra não bombardear.
+    toastsEnabled: true,
+    toastMessage: "{name} acabou de entrar - {city}-{state}",
+    toastIntervalMinSec: 5,
+    toastIntervalMaxSec: 25,
+    toastPosition: "bottom-left",
+    toastPeople: [] as Array<{ name: string; city: string; state: string }>,
+    // Percentual masculino default 50/50. Percentual de cidade local
+    // default 0 (desligado pra não exigir IP geolocation se o user não
+    // quiser).
+    toastMalePercent: 50,
+    toastLocalCityPercent: 0,
+    purchaseToastsEnabled: false,
+    purchaseToastMessage: "{name} acabou de adquirir {plan}",
+    purchaseToastIntervalMinSec: 15,
+    purchaseToastIntervalMaxSec: 60,
+    purchaseToastPosition: "bottom-right",
+    purchasePlans: [] as string[],
+    discountBarEnabled: true,
+    discountBarText: "Você conseguiu 10% de desconto, adquirindo qualquer produto em",
+    discountBarDurationSec: 300,
+    discountBarPosition: "top",
+    discountBarBg: "#7C3AED",
+    discountBarFg: "#ffffff",
+    discountBarCtaLabel: "",
+    discountBarCtaHref: "",
+    visitorsOnlineEnabled: false,
+    visitorsOnlineMin: 30,
+    visitorsOnlineMax: 80,
+    visitorsOnlinePosition: "bottom-right",
+    stickyCtaEnabled: false,
+    stickyCtaText: "Garanta sua vaga com 10% off",
+    stickyCtaLabel: "Quero garantir",
+    stickyCtaHref: "#",
+    stickyCtaBg: "#10b981",
+    stickyCtaFg: "#ffffff",
+    scarcityEnabled: false,
+    scarcityText: "Apenas 12 vagas restantes",
+    scarcityPosition: "top-right",
+    autoOpenChat: false,
+    autoOpenChatDelaySec: 2,
+  }),
 
   // ── Sections completas (Fase 1) ──────────────────────────────
   // Dimensões grandes (full-width canvas) — sections sempre ocupam
@@ -389,6 +438,11 @@ const DEFAULTS: Record<ElementType, (palette: Record<string, string>) => Omit<El
     radius: 12,
     slidesPerView: 1,
     slidesPerViewMobile: 1,
+    // Altura uniforme por default — padrão visual consistente sem o
+    // user precisar configurar cada slide individualmente.
+    imageMode: "uniform",
+    imageHeight: 240,
+    imageWidth: 320,
     slides: [
       { id: "s1", imageUrl: "", alt: "Slide 1", aspectRatio: "16:9" },
       { id: "s2", imageUrl: "", alt: "Slide 2", aspectRatio: "16:9" },

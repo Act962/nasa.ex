@@ -31,8 +31,13 @@ export const createPage = base
       throw errors.BAD_REQUEST({ message: "Organização não encontrada" });
     }
 
-    const existing = await prisma.nasaPage.findUnique({
-      where: { slug: input.slug },
+    // Slug de top-level é único globalmente (partial unique index
+    // `nasa_pages_top_level_slug_key`). Subpages têm slug único por
+    // parent — esta procedure só cria top-level (create-subpage cuida
+    // do outro fluxo). `findFirst` aqui porque `slug` não é mais
+    // `@unique` no Prisma schema (vide migration `add_nasa_page_parent_subpages`).
+    const existing = await prisma.nasaPage.findFirst({
+      where: { slug: input.slug, parentPageId: null },
       select: { id: true },
     });
     if (existing) {

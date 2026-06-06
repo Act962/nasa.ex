@@ -38,6 +38,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryTracking } from "@/features/tracking-settings/hooks/use-tracking";
 import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import { pusherClient } from "@/lib/pusher";
+import { playIncomingChatBeep } from "../lib/notification-sound";
 import { orpc } from "@/lib/orpc";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Spinner } from "@/components/ui/spinner";
@@ -193,9 +194,23 @@ export function ConversationsList() {
 
   useEffect(() => {
     if (!selectedTracking) return;
-    pusherClient.subscribe(selectedTracking);
+    const channel = pusherClient.subscribe(selectedTracking);
+
+    // Notificação sonora pra mensagens inbound que chegam via in-chat
+    // (widget público da page NASA Pages). Funciona mesmo se o atendente
+    // não tiver a conversa aberta — fica monitorando o channel do
+    // tracking inteiro. O cooldown interno de 1.5s no
+    // `playIncomingChatBeep` evita duplicação se o Body também tocar
+    // pra mesma mensagem.
+    const handler = (body: { fromMe?: boolean; viaInChat?: boolean }) => {
+      if (body?.fromMe === false && body?.viaInChat === true) {
+        playIncomingChatBeep();
+      }
+    };
+    channel.bind("message:new", handler);
 
     return () => {
+      channel.unbind("message:new", handler);
       pusherClient.unsubscribe(selectedTracking);
     };
   }, [selectedTracking]);
