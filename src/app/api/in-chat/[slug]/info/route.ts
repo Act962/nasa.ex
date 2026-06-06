@@ -1,14 +1,14 @@
 /**
- * In-Chat — info pública da empresa pro header da página.
+ * In-Chat — info pública da empresa pro header do widget/chat.
  *
  * GET /api/in-chat/[slug]/info
  *
- * Retorna dados básicos da org (nome, logo, endereço, site, telefone)
- * pra o lead consultar quando clica no nome no header — equivalente a
- * "ver perfil" do WhatsApp. Não exige cookie de identificação.
+ * Retorna dados básicos da org (nome, logo, nicho, CEP, telefone) pra o
+ * widget público do NASA Pages mostrar logo+nome da empresa no header
+ * do ChatButton, e pra página `/whatsapp/[slug]` exibir no "ver perfil".
  *
- * Só retorna info se a org tem alguma instância em modo In-Chat ativo
- * (não vaza dados de orgs em estado normal).
+ * SEM gate de in-chat-mode — o widget do ChatButton precisa funcionar
+ * mesmo com instância ok. Só retorna 404 se a org não existir.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -29,16 +29,13 @@ export async function GET(
       companyNiche: true,
       companyCep: true,
       whatsappInstances: {
-        where: { inChatModeActive: true },
-        select: {
-          phoneNumber: true,
-        },
+        select: { phoneNumber: true },
         take: 1,
       },
     },
   });
 
-  if (!org || org.whatsappInstances.length === 0) {
+  if (!org) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
@@ -47,6 +44,6 @@ export async function GET(
     logo: org.logo,
     niche: org.companyNiche,
     cep: org.companyCep,
-    phone: org.whatsappInstances[0].phoneNumber,
+    phone: org.whatsappInstances[0]?.phoneNumber ?? null,
   });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 
 export function usePages() {
@@ -28,5 +28,30 @@ export function usePageResources() {
   return useQuery({
     ...orpc.pages.getResources.queryOptions({ input: {} }),
     staleTime: 30_000,
+  });
+}
+
+/**
+ * Exclui uma página (root OU subpage). Invalida listas dependentes.
+ * Roots com subpages caem em cascade pela FK do schema.
+ */
+export function useDeletePage() {
+  const qc = useQueryClient();
+  return useMutation({
+    ...orpc.pages.deletePage.mutationOptions(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pages"] }),
+  });
+}
+
+/**
+ * Atualiza o slug de uma página (parte da URL pública). Valida unicidade
+ * server-side respeitando hierarquia (top-level único global, subpage
+ * único por parent).
+ */
+export function useUpdatePageSlug() {
+  const qc = useQueryClient();
+  return useMutation({
+    ...orpc.pages.updatePageSlug.mutationOptions(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pages"] }),
   });
 }

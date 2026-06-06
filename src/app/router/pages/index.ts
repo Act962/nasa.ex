@@ -22,6 +22,12 @@ import { getDomainPurchaseStatus } from "./domain-purchase-status";
 import { inlineEditSave } from "./inline-edit-save";
 import { cloneFromUrl } from "./clone-from-url";
 import { getPageAnalytics } from "./get-analytics";
+import { createSubpage } from "./create-subpage";
+import { listSubpages } from "./list-subpages";
+import { reorderSubpages } from "./reorder-subpages";
+import { setAsHome } from "./set-as-home";
+import { bulkUpdateSubpagesElement } from "./bulk-update-subpages-element";
+import { updatePageSlug } from "./update-page-slug";
 
 export const pagesRouter = {
   getAnalytics: getPageAnalytics,
@@ -48,4 +54,12 @@ export const pagesRouter = {
   domainPurchaseStatus: getDomainPurchaseStatus,
   inlineEditSave,
   cloneFromUrl,
+  // Multi-page (mudança 6)
+  createSubpage,
+  listSubpages,
+  reorderSubpages,
+  setAsHome,
+  bulkUpdateSubpagesElement,
+  // Customização de URL
+  updatePageSlug,
 };

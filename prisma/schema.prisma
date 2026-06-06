@@ -4930,7 +4930,13 @@ model NasaPage {
   id                        String                @id @default(cuid())
   organizationId            String                @map("organization_id")
   userId                    String                @map("user_id")
-  slug                      String                @unique
+  /// Slug da página.
+  /// • Top-level (parentPageId NULL): único globalmente (mesmo
+  ///   comportamento de antes) — partial unique index via SQL.
+  /// • Subpage (parentPageId != NULL): único dentro do mesmo parent.
+  ///   Permite que 2 sites diferentes tenham subpage "sobre" / "contato"
+  ///   sem colidir. Partial unique index `(parent_page_id, slug)`.
+  slug                      String
   title                     String
   description               String?
   faviconUrl                String?               @map("favicon_url")
@@ -4951,6 +4957,13 @@ model NasaPage {
   templateMarkedByModerator Boolean               @default(false) @map("template_marked_by_moderator")
   templateCategory          String?               @map("template_category")
   starsSpent                Int                   @default(0) @map("stars_spent")
+  /// Self-relation pra multi-page sites — quando NOT NULL, esta page é
+  /// uma subpage do site cujo root é `parentPageId`. NULL = top-level
+  /// (root do site).
+  parentPageId              String?               @map("parent_page_id")
+  /// Ordem da subpage dentro do site (asc). NULL pra top-level.
+  /// Usado pelo painel "Páginas" do builder e pelo menu da navbar.
+  subpageOrder              Int?                  @map("subpage_order")
   createdAt                 DateTime              @default(now()) @map("created_at")
   updatedAt                 DateTime              @updatedAt @map("updated_at")
 
@@ -4961,11 +4974,15 @@ model NasaPage {
   assets         NasaPageAsset[]
   domainPurchase NasaPageDomainPurchase?
 
+  parent   NasaPage?  @relation("NasaPageSubpages", fields: [parentPageId], references: [id], onDelete: Cascade)
+  subpages NasaPage[] @relation("NasaPageSubpages")
+
   orgAsSpacehome Organization? @relation("OrgSpacehome")
 
   @@index([organizationId])
   @@index([status])
   @@index([customDomain])
+  @@index([parentPageId])
   @@map("nasa_pages")
 }
 

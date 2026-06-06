@@ -5,14 +5,30 @@
  */
 import type { SectionRendererProps } from "./types";
 import { bgColor, fgColor, mutedColor, primaryColor } from "./types";
+import { usePageRenderContext } from "../../public/page-context";
+import { resolveNavLinkHref, type NavLinkShape } from "../../../lib/resolve-nav-link";
 
 interface NavLink {
   id: string;
   label: string;
   href?: string;
+  /** Quando setado, link aponta pra subpage do mesmo site. Resolvido
+   *  via context `siblingPages` no public renderer pra montar URL
+   *  `/s/<rootSlug>/<subSlug>` (ou root). */
+  subpageId?: string;
 }
 
 export function SectionNavbar({ element, tokens }: SectionRendererProps) {
+  const { rootSlug, siblingPages } = usePageRenderContext();
+  // O `stickyMode` (sticky/fixed/static) NÃO é aplicado aqui dentro —
+  // é o wrapper externo (no `PublicPageRenderer`) que renderiza a
+  // navbar com a posição correta FORA do flex-col, garantindo
+  // z-index real do viewport. Aqui só renderizamos o conteúdo visual
+  // estático da navbar.
+  //
+  // No editor (canvas), a navbar é renderizada como qualquer outro
+  // element via ElementBox (position: absolute). O comportamento real
+  // de fixed/sticky aparece SÓ na página publicada.
   const logoSrc = (element.logoSrc as string) ?? "";
   const logoText = (element.logoText as string) ?? "N.A.S.A";
   const logoHref = (element.logoHref as string) ?? "#top";
@@ -38,7 +54,7 @@ export function SectionNavbar({ element, tokens }: SectionRendererProps) {
 
   return (
     <header
-      className="w-full sticky top-0 z-50 backdrop-blur-md border-b"
+      className="w-full backdrop-blur-md border-b"
       style={{
         background: `${bg}cc`,
         borderColor: `${fg}10`,
@@ -65,12 +81,18 @@ export function SectionNavbar({ element, tokens }: SectionRendererProps) {
           )}
         </a>
 
-        {/* Links centralizados - hidden em mobile */}
+        {/* Links centralizados - hidden em mobile. Resolução suporta
+            URL externa, âncora interna OU subpage do mesmo site
+            (NavLink.subpageId). */}
         <nav className="hidden md:flex items-center gap-1">
           {links.map((link) => (
             <a
               key={link.id}
-              href={link.href ?? "#"}
+              href={resolveNavLinkHref(
+                link as NavLinkShape,
+                rootSlug,
+                siblingPages,
+              )}
               className="text-sm font-medium px-3 py-1.5 rounded-lg transition-colors hover:bg-white/5"
               style={{ color: muted }}
             >

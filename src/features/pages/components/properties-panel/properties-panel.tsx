@@ -19,6 +19,24 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc, client } from "@/lib/orpc";
 import { usePagesBuilderStore, getActiveLayerElements } from "../../context/pages-builder-store";
 import {
+  useNasaPageSubpages,
+  useBulkApplyElement,
+} from "../../hooks/use-nasa-page-subpages";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableSectionItem } from "./sortable-section-item";
+import { TypographyEditor } from "./typography-editor";
+import { InterludeZonesEditor } from "./interlude-zones-editor";
+import { AnchorPicker } from "./anchor-picker";
+import { AnimatedBorderEditor } from "./animated-border-editor";
+import { CardAnimatedBorderEditor } from "./card-animated-border-editor";
+import { ImageUploaderField } from "./image-uploader-field";
+import { ScrollRevealEditor } from "./scroll-reveal-editor";
+import { MarketingProps } from "./marketing-props";
+import type { TextStyle } from "../../lib/text-style";
+import {
   legacyToButtonsList,
   type SectionButton,
 } from "../elements/sections/buttons";
@@ -168,6 +186,61 @@ function AnchorIdField({
 
 function Seg({ className }: { className?: string }) {
   return <Separator className={cn("my-3", className)} />;
+}
+
+/**
+ * Botão "Aplicar em todas as páginas do site" — disponível pra
+ * navbar/footer. Pega o element atual (o user editou), clona ele
+ * em todas as subpages do site E no root.
+ *
+ * Snapshot copy: cada page mantém sua própria cópia depois (editar
+ * uma não afeta as outras). Pra refletir mudanças permanentemente em
+ * todas, user roda o botão de novo.
+ *
+ * Só fica visível quando há ao menos 1 subpage (faz sentido — não há
+ * "todas" se só há 1 página).
+ */
+function ApplyToAllSubpagesButton({
+  el,
+  type,
+}: {
+  el: ElementBase;
+  type: "section-navbar" | "section-footer";
+}) {
+  const pageId = usePagesBuilderStore((s) => s.pageId);
+  const { data: subpagesData } = useNasaPageSubpages(pageId ?? undefined);
+  const { mutate: apply, isPending } = useBulkApplyElement();
+  const subpages = subpagesData?.subpages ?? [];
+  if (!pageId || subpages.length === 0) return null;
+  const label = type === "section-navbar" ? "navbar" : "footer";
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      disabled={isPending}
+      onClick={() =>
+        apply(
+          {
+            parentPageId: pageId,
+            element: el as unknown as never,
+            includeRoot: true,
+          },
+          {
+            onSuccess: (result) =>
+              toast.success(
+                `${label} aplicada em ${result.affected} página(s) do site`,
+              ),
+            onError: (error: Error) =>
+              toast.error(`Falha ao aplicar em todas: ${error.message}`),
+          },
+        )
+      }
+      className="text-xs w-full mt-2"
+      title={`Substitui o ${label} em todas as páginas (root + subpages) deste site.`}
+    >
+      {isPending ? "Aplicando…" : `Aplicar em todas as páginas`}
+    </Button>
+  );
 }
 
 // ─── Type-specific panels ────────────────────────────────────────────────────
@@ -714,8 +787,18 @@ function LogoUploader({
 // dos CTAs e ajustar cores via tokens.
 
 function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<ElementBase>) => void }) {
-  type NavLink = { id: string; label: string; href: string };
+  type NavLink = {
+    id: string;
+    label: string;
+    href?: string;
+    /** Link interno pra subpage do site (multi-page).
+     *  Resolvido server-side via context `siblingPages`. */
+    subpageId?: string;
+  };
   const links = ((el.links as NavLink[] | undefined) ?? []).slice();
+  const pageId = usePagesBuilderStore((s) => s.pageId);
+  const { data: subpagesData } = useNasaPageSubpages(pageId ?? undefined);
+  const subpages = subpagesData?.subpages ?? [];
 
   const updateLink = (idx: number, patch: Partial<NavLink>) => {
     const next = links.slice();
@@ -733,9 +816,93 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
   const removeLink = (idx: number) => {
     update({ links: links.filter((_, i) => i !== idx) });
   };
+  // Tipo do link (URL externa / Âncora interna / Página do site)
+  // derivado do estado atual do link — não armazenamos `kind`
+  // explicitamente pra evitar drift entre fonte de verdade (subpageId
+  // OU href) e flag. Single source of truth = qual campo está preenchido.
+  const getLinkKind = (link: NavLink): "subpage" | "anchor" | "url" => {
+    if (link.subpageId) return "subpage";
+    if ((link.href ?? "").trim().startsWith("#")) return "anchor";
+    return "url";
+  };
+  const setLinkKind = (idx: number, kind: "subpage" | "anchor" | "url") => {
+    const cur = links[idx];
+    if (kind === "subpage") {
+      // Limpa href; preserva label/id.
+      updateLink(idx, { subpageId: subpages[0]?.id, href: undefined });
+    } else if (kind === "anchor") {
+      updateLink(idx, {
+        subpageId: undefined,
+        href: cur.href?.startsWith("#") ? cur.href : "#section-id",
+      });
+    } else {
+      updateLink(idx, {
+        subpageId: undefined,
+        href: cur.href && !cur.href.startsWith("#") ? cur.href : "https://",
+      });
+    }
+  };
+
+  const stickyMode =
+    ((el.stickyMode as "sticky" | "fixed" | "static" | undefined) ?? "sticky");
 
   return (
     <>
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Posição e comportamento
+      </p>
+      <Label className="text-[10px] text-muted-foreground">
+        Como a navbar se comporta ao rolar a página
+      </Label>
+      <div className="grid grid-cols-3 gap-1 mt-1">
+        {(
+          [
+            {
+              value: "sticky",
+              label: "Fixado",
+              hint: "Gruda no topo conforme rola (recomendado)",
+            },
+            {
+              value: "fixed",
+              label: "Sempre fixo",
+              hint: "Cobre o conteúdo de baixo",
+            },
+            {
+              value: "static",
+              label: "Estático",
+              hint: "Rolagem normal, navbar some quando desce",
+            },
+          ] as const
+        ).map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => update({ stickyMode: opt.value })}
+            title={opt.hint}
+            className={cn(
+              "rounded border px-2 py-1.5 text-[10px] font-medium transition-colors text-center",
+              stickyMode === opt.value
+                ? "bg-indigo-500 text-white border-indigo-500"
+                : "bg-background text-muted-foreground border-border hover:bg-accent",
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      <p className="text-[10px] text-muted-foreground/80 mt-1 leading-snug">
+        💡 &quot;Fixado&quot; é o padrão moderno — a navbar acompanha a rolagem
+        sem cobrir o conteúdo.
+      </p>
+      {stickyMode === "fixed" && (
+        <p className="text-[10px] text-amber-700 mt-1 leading-snug">
+          ⚠ No editor o &quot;Sempre fixo&quot; é exibido como &quot;Fixado&quot;
+          (limitação do canvas com zoom). O comportamento real só
+          aparece na página publicada.
+        </p>
+      )}
+
       <Seg />
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
         Logo
@@ -751,13 +918,12 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
         className="text-xs"
       />
       <Label className="text-[10px] text-muted-foreground mt-2">
-        Destino da logo (href)
+        Destino da logo
       </Label>
-      <Input
+      <AnchorPicker
         value={(el.logoHref as string) ?? "#top"}
-        onChange={(e) => update({ logoHref: e.target.value })}
-        placeholder="#top"
-        className="text-xs"
+        onChange={(next) => update({ logoHref: next })}
+        placeholder="Topo ou outra section…"
       />
 
       <Seg />
@@ -770,7 +936,9 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
         própria página, use <code className="font-mono">#id-da-section</code>{" "}
         (esse ID é definido no campo "Anchor ID" da section destino).
       </p>
-      {links.map((link, idx) => (
+      {links.map((link, idx) => {
+        const kind = getLinkKind(link);
+        return (
         <div key={link.id} className="flex flex-col gap-1 p-2 border rounded-md mb-2 bg-muted/30">
           <div className="flex items-center gap-1">
             <Input
@@ -790,19 +958,70 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
             </Button>
           </div>
           <Label className="text-[10px] text-muted-foreground">
-            Link / âncora
+            Tipo do link
           </Label>
-          <Input
-            value={link.href}
-            onChange={(e) => updateLink(idx, { href: e.target.value })}
-            placeholder="#planos ou https://..."
-            className="text-xs font-mono"
-          />
+          <select
+            value={kind}
+            onChange={(e) => setLinkKind(idx, e.target.value as typeof kind)}
+            className="h-7 w-full rounded border bg-background text-[11px] px-1"
+          >
+            <option value="anchor">Âncora interna (#id)</option>
+            <option value="url">URL externa</option>
+            <option value="subpage" disabled={subpages.length === 0}>
+              Página do site{subpages.length === 0 ? " (sem subpages)" : ""}
+            </option>
+          </select>
+          {kind === "subpage" ? (
+            <>
+              <Label className="text-[10px] text-muted-foreground">
+                Subpage destino
+              </Label>
+              <select
+                value={link.subpageId ?? ""}
+                onChange={(e) =>
+                  updateLink(idx, { subpageId: e.target.value })
+                }
+                className="h-7 w-full rounded border bg-background text-[11px] px-1"
+              >
+                {subpages.map((sub) => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.title} (/{sub.slug})
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : kind === "anchor" ? (
+            <>
+              <Label className="text-[10px] text-muted-foreground">
+                Camada destino (âncora)
+              </Label>
+              <AnchorPicker
+                value={link.href ?? ""}
+                onChange={(next) => updateLink(idx, { href: next })}
+                placeholder="Escolha uma section…"
+              />
+            </>
+          ) : (
+            <>
+              <Label className="text-[10px] text-muted-foreground">
+                URL (https://...)
+              </Label>
+              <Input
+                value={link.href ?? ""}
+                onChange={(e) => updateLink(idx, { href: e.target.value })}
+                placeholder="https://..."
+                className="text-xs font-mono"
+              />
+            </>
+          )}
         </div>
-      ))}
+        );
+      })}
       <Button variant="outline" size="sm" onClick={addLink} className="text-xs">
         + Adicionar link
       </Button>
+
+      <ApplyToAllSubpagesButton el={el} type="section-navbar" />
 
       <Seg />
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
@@ -816,13 +1035,12 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
         className="text-xs mb-1.5"
       />
       <Label className="text-[10px] text-muted-foreground">
-        Link / âncora (#id-da-section)
+        Destino do botão primário
       </Label>
-      <Input
+      <AnchorPicker
         value={(el.primaryCtaHref as string) ?? ""}
-        onChange={(e) => update({ primaryCtaHref: e.target.value })}
-        placeholder="#cta-final"
-        className="text-xs font-mono"
+        onChange={(next) => update({ primaryCtaHref: next })}
+        placeholder="Escolha uma section ou URL…"
       />
 
       <Seg />
@@ -837,13 +1055,12 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
         className="text-xs mb-1.5"
       />
       <Label className="text-[10px] text-muted-foreground">
-        Link / âncora (#id-da-section)
+        Destino do botão secundário
       </Label>
-      <Input
+      <AnchorPicker
         value={(el.secondaryCtaHref as string) ?? ""}
-        onChange={(e) => update({ secondaryCtaHref: e.target.value })}
-        placeholder="/sign-in ou #depoimentos"
-        className="text-xs font-mono"
+        onChange={(next) => update({ secondaryCtaHref: next })}
+        placeholder="Escolha uma section ou URL…"
       />
 
       <ColorBlock el={el} update={update} />
@@ -939,6 +1156,8 @@ function FooterProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
       <Button variant="outline" size="sm" onClick={addLink} className="text-xs">
         + Adicionar link
       </Button>
+
+      <ApplyToAllSubpagesButton el={el} type="section-footer" />
 
       <ColorBlock el={el} update={update} />
     </>
@@ -1498,6 +1717,10 @@ function FeaturesProps({
     icon: string;
     title: string;
     description: string;
+    titleStyle?: TextStyle;
+    descriptionStyle?: TextStyle;
+    cardBg?: string;
+    cardBorder?: string;
   };
   const items = ((el.features as Feature[] | undefined) ?? []).slice();
   const patch = (idx: number, p: Partial<Feature>) => {
@@ -1505,7 +1728,7 @@ function FeaturesProps({
     next[idx] = { ...next[idx], ...p };
     update({ features: next });
   };
-  const add = () => {
+  const add = () =>
     update({
       features: [
         ...items,
@@ -1517,16 +1740,19 @@ function FeaturesProps({
         },
       ],
     });
-  };
   const remove = (idx: number) =>
     update({ features: items.filter((_, i) => i !== idx) });
-  const move = (idx: number, dir: -1 | 1) => {
-    const target = idx + dir;
-    if (target < 0 || target >= items.length) return;
-    const next = items.slice();
-    [next[idx], next[target]] = [next[target], next[idx]];
-    update({ features: next });
+  const duplicate = (idx: number) => {
+    const clone = {
+      ...items[idx],
+      id: `f${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    };
+    update({
+      features: [...items.slice(0, idx + 1), clone, ...items.slice(idx + 1)],
+    });
   };
+
+  // Reorder: orquestrado pelo DndContext global do BuilderSidebar (handleDragEnd reconhece data.kind="section-item")
 
   return (
     <>
@@ -1534,19 +1760,29 @@ function FeaturesProps({
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
         Cabeçalho da seção
       </p>
-      <Label className="text-[10px] text-muted-foreground">Título (heading)</Label>
+      <Label className="text-[10px] text-muted-foreground">Título</Label>
       <Input
         value={(el.heading as string) ?? ""}
         onChange={(e) => update({ heading: e.target.value })}
         placeholder="Por que escolher a gente"
-        className="text-xs"
+        className="text-xs mb-2"
+      />
+      <TypographyEditor
+        label="Tipografia do título"
+        value={el.headingStyle as TextStyle | undefined}
+        onChange={(v) => update({ headingStyle: v })}
       />
       <Label className="text-[10px] text-muted-foreground mt-2">Subtítulo</Label>
       <Textarea
         rows={2}
         value={(el.subheading as string) ?? ""}
         onChange={(e) => update({ subheading: e.target.value })}
-        className="text-xs"
+        className="text-xs mb-2"
+      />
+      <TypographyEditor
+        label="Tipografia do subtítulo"
+        value={el.subheadingStyle as TextStyle | undefined}
+        onChange={(v) => update({ subheadingStyle: v })}
       />
       <AnchorIdField
         value={(el.anchorId as string) ?? ""}
@@ -1556,69 +1792,194 @@ function FeaturesProps({
 
       <Seg />
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
-        Cards ({items.length})
+        Tipografia padrão dos cards
       </p>
-      {items.map((item, idx) => (
-        <div
-          key={item.id}
-          className="p-2 border rounded-md mb-2 bg-muted/30 flex flex-col gap-1.5"
-        >
-          <div className="flex items-center gap-1">
-            <Input
-              value={item.icon}
-              onChange={(e) => patch(idx, { icon: e.target.value })}
-              placeholder="🎯"
-              className="text-base w-12 text-center"
-              maxLength={4}
-            />
-            <Input
-              value={item.title}
-              onChange={(e) => patch(idx, { title: e.target.value })}
-              placeholder="Título do card"
-              className="text-xs flex-1"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => move(idx, -1)}
-              disabled={idx === 0}
-              className="size-7 shrink-0"
-              title="Subir"
-            >
-              ↑
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => move(idx, 1)}
-              disabled={idx === items.length - 1}
-              className="size-7 shrink-0"
-              title="Descer"
-            >
-              ↓
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => remove(idx)}
-              className="size-7 shrink-0"
-              title="Remover"
-            >
-              <Trash2 className="size-3.5 text-destructive" />
-            </Button>
-          </div>
-          <Textarea
-            rows={2}
-            value={item.description}
-            onChange={(e) => patch(idx, { description: e.target.value })}
-            placeholder="Descrição"
-            className="text-xs"
+      <TypographyEditor
+        label="Padrão do título do card"
+        value={el.titleStyle as TextStyle | undefined}
+        onChange={(v) => update({ titleStyle: v })}
+      />
+      <TypographyEditor
+        label="Padrão da descrição"
+        value={el.descriptionStyle as TextStyle | undefined}
+        onChange={(v) => update({ descriptionStyle: v })}
+      />
+
+      <CardAnimatedBorderEditor el={el} update={update} />
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Aparência dos cards
+      </p>
+      <Row cols={2}>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Fundo (padrão)
+          </Label>
+          <Input
+            value={(el.cardBg as string) ?? ""}
+            onChange={(e) => update({ cardBg: e.target.value || undefined })}
+            placeholder="rgba(...)"
+            className="text-[11px] font-mono"
           />
         </div>
-      ))}
-      <Button variant="outline" size="sm" onClick={add} className="text-xs">
+        <div>
+          <Label className="text-[10px] text-muted-foreground">Borda</Label>
+          <Input
+            value={(el.cardBorder as string) ?? ""}
+            onChange={(e) => update({ cardBorder: e.target.value || undefined })}
+            placeholder="rgba(...)"
+            className="text-[11px] font-mono"
+          />
+        </div>
+      </Row>
+      <Row cols={3}>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">Raio</Label>
+          <Input
+            type="number"
+            min={0}
+            max={64}
+            value={(el.cardRadius as number) ?? 16}
+            onChange={(e) => update({ cardRadius: Number(e.target.value) })}
+            className="text-[11px]"
+          />
+        </div>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">Padding</Label>
+          <Input
+            type="number"
+            min={0}
+            max={64}
+            value={(el.cardPadding as number) ?? 24}
+            onChange={(e) => update({ cardPadding: Number(e.target.value) })}
+            className="text-[11px]"
+          />
+        </div>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">Ícone</Label>
+          <Input
+            type="number"
+            min={12}
+            max={96}
+            value={(el.iconSize as number) ?? 32}
+            onChange={(e) => update({ iconSize: Number(e.target.value) })}
+            className="text-[11px]"
+          />
+        </div>
+      </Row>
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Cards ({items.length})
+      </p>
+        <SortableContext
+          items={items.map((it) => it.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {items.map((item, idx) => (
+            <SortableSectionItem
+              key={item.id}
+              id={item.id}
+              collection="features"
+              elementId={el.id}
+              label={`#${idx + 1}`}
+              summary={item.title}
+              onDuplicate={() => duplicate(idx)}
+              onRemove={() => remove(idx)}
+            >
+              <Row cols={2}>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Ícone
+                  </Label>
+                  <Input
+                    value={item.icon}
+                    onChange={(e) => patch(idx, { icon: e.target.value })}
+                    placeholder="🎯"
+                    className="text-base text-center"
+                    maxLength={4}
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Título
+                  </Label>
+                  <Input
+                    value={item.title}
+                    onChange={(e) => patch(idx, { title: e.target.value })}
+                    placeholder="Rápido"
+                    className="text-xs"
+                  />
+                </div>
+              </Row>
+              <Label className="text-[10px] text-muted-foreground">
+                Descrição
+              </Label>
+              <Textarea
+                rows={2}
+                value={item.description}
+                onChange={(e) => patch(idx, { description: e.target.value })}
+                placeholder="Descrição"
+                className="text-xs"
+              />
+              <div className="mt-2">
+                <TypographyEditor
+                  label="Título"
+                  value={item.titleStyle}
+                  inherited={el.titleStyle as TextStyle | undefined}
+                  onChange={(v) => patch(idx, { titleStyle: v })}
+                />
+                <TypographyEditor
+                  label="Descrição"
+                  value={item.descriptionStyle}
+                  inherited={el.descriptionStyle as TextStyle | undefined}
+                  onChange={(v) => patch(idx, { descriptionStyle: v })}
+                />
+              </div>
+              <Row cols={2}>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Fundo
+                  </Label>
+                  <Input
+                    value={item.cardBg ?? ""}
+                    onChange={(e) =>
+                      patch(idx, { cardBg: e.target.value || undefined })
+                    }
+                    placeholder="(herda)"
+                    className="text-[10px] font-mono"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Borda
+                  </Label>
+                  <Input
+                    value={item.cardBorder ?? ""}
+                    onChange={(e) =>
+                      patch(idx, { cardBorder: e.target.value || undefined })
+                    }
+                    placeholder="(herda)"
+                    className="text-[10px] font-mono"
+                  />
+                </div>
+              </Row>
+            </SortableSectionItem>
+          ))}
+        </SortableContext>
+      <Button variant="outline" size="sm" onClick={add} className="text-xs w-full">
         + Adicionar card
       </Button>
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Blocos intermediários
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
+        Insira texto, imagem, botão, badge etc. <strong>entre</strong> o
+        cabeçalho e os cards, ou em outras zonas da section.
+      </p>
+      <InterludeZonesEditor el={el} update={update} />
 
       <ColorBlock el={el} update={update} />
     </>
@@ -1644,6 +2005,14 @@ function PricingProps({
     ctaHref?: string;
     highlighted?: boolean;
     badge?: string;
+    nameStyle?: TextStyle;
+    sloganStyle?: TextStyle;
+    priceStyle?: TextStyle;
+    periodStyle?: TextStyle;
+    featureStyle?: TextStyle;
+    ctaStyle?: TextStyle;
+    cardBg?: string;
+    cardBorder?: string;
   };
   const plans = ((el.plans as Plan[] | undefined) ?? []).slice();
   const patch = (idx: number, p: Partial<Plan>) => {
@@ -1651,7 +2020,7 @@ function PricingProps({
     next[idx] = { ...next[idx], ...p };
     update({ plans: next });
   };
-  const add = () => {
+  const add = () =>
     update({
       plans: [
         ...plans,
@@ -1666,9 +2035,19 @@ function PricingProps({
         },
       ],
     });
-  };
   const remove = (idx: number) =>
     update({ plans: plans.filter((_, i) => i !== idx) });
+  const duplicate = (idx: number) => {
+    const clone = {
+      ...plans[idx],
+      id: `p${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    };
+    update({
+      plans: [...plans.slice(0, idx + 1), clone, ...plans.slice(idx + 1)],
+    });
+  };
+
+  // Reorder: orquestrado pelo DndContext global do BuilderSidebar (handleDragEnd reconhece data.kind="section-item")
 
   return (
     <>
@@ -1681,14 +2060,26 @@ function PricingProps({
         value={(el.heading as string) ?? ""}
         onChange={(e) => update({ heading: e.target.value })}
         placeholder="Escolha seu plano"
-        className="text-xs"
+        className="text-xs mb-2"
       />
-      <Label className="text-[10px] text-muted-foreground mt-2">Subtítulo</Label>
+      <TypographyEditor
+        label="Tipografia do título"
+        value={el.headingStyle as TextStyle | undefined}
+        onChange={(v) => update({ headingStyle: v })}
+      />
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        Subtítulo
+      </Label>
       <Textarea
         rows={2}
         value={(el.subheading as string) ?? ""}
         onChange={(e) => update({ subheading: e.target.value })}
-        className="text-xs"
+        className="text-xs mb-2"
+      />
+      <TypographyEditor
+        label="Tipografia do subtítulo"
+        value={el.subheadingStyle as TextStyle | undefined}
+        onChange={(v) => update({ subheadingStyle: v })}
       />
       <AnchorIdField
         value={(el.anchorId as string) ?? "planos"}
@@ -1698,124 +2089,227 @@ function PricingProps({
 
       <Seg />
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Tipografia padrão dos planos
+      </p>
+      <TypographyEditor label="Nome do plano" value={el.nameStyle as TextStyle | undefined} onChange={(v) => update({ nameStyle: v })} />
+      <TypographyEditor label="Slogan" value={el.sloganStyle as TextStyle | undefined} onChange={(v) => update({ sloganStyle: v })} />
+      <TypographyEditor label="Preço" value={el.priceStyle as TextStyle | undefined} onChange={(v) => update({ priceStyle: v })} />
+      <TypographyEditor label="Período" value={el.periodStyle as TextStyle | undefined} onChange={(v) => update({ periodStyle: v })} />
+      <TypographyEditor label="Feature" value={el.featureStyle as TextStyle | undefined} onChange={(v) => update({ featureStyle: v })} />
+      <TypographyEditor label="Botão CTA" value={el.ctaStyle as TextStyle | undefined} onChange={(v) => update({ ctaStyle: v })} />
+
+      <CardAnimatedBorderEditor el={el} update={update} />
+
+      <Seg />
+      <Row cols={2}>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Raio (px)
+          </Label>
+          <Input
+            type="number"
+            min={0}
+            max={64}
+            value={(el.cardRadius as number) ?? 16}
+            onChange={(e) => update({ cardRadius: Number(e.target.value) })}
+            className="text-[11px]"
+          />
+        </div>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Padding (px)
+          </Label>
+          <Input
+            type="number"
+            min={0}
+            max={64}
+            value={(el.cardPadding as number) ?? 24}
+            onChange={(e) => update({ cardPadding: Number(e.target.value) })}
+            className="text-[11px]"
+          />
+        </div>
+      </Row>
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
         Planos ({plans.length})
       </p>
-      {plans.map((plan, idx) => (
-        <div
-          key={plan.id}
-          className="p-2 border rounded-md mb-3 bg-muted/30 flex flex-col gap-1.5"
+        <SortableContext
+          items={plans.map((p) => p.id)}
+          strategy={verticalListSortingStrategy}
         >
-          <div className="flex items-center gap-1">
-            <Input
-              value={plan.name}
-              onChange={(e) => patch(idx, { name: e.target.value })}
-              placeholder="Nome (Silver, VIP, Master…)"
-              className="text-xs font-semibold flex-1"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => remove(idx)}
-              className="size-7 shrink-0"
-              title="Remover plano"
+          {plans.map((plan, idx) => (
+            <SortableSectionItem
+              key={plan.id}
+              id={plan.id}
+              collection="plans"
+              elementId={el.id}
+              label={`#${idx + 1}`}
+              summary={`${plan.name} · ${plan.price}`}
+              onDuplicate={() => duplicate(idx)}
+              onRemove={() => remove(idx)}
             >
-              <Trash2 className="size-3.5 text-destructive" />
-            </Button>
-          </div>
-          <Row cols={2}>
-            <div>
-              <Label className="text-[10px] text-muted-foreground">Preço</Label>
+              <Label className="text-[10px] text-muted-foreground">Nome</Label>
               <Input
-                value={plan.price}
-                onChange={(e) => patch(idx, { price: e.target.value })}
-                placeholder="R$ 197"
+                value={plan.name}
+                onChange={(e) => patch(idx, { name: e.target.value })}
+                placeholder="Pro"
                 className="text-xs"
               />
-            </div>
-            <div>
-              <Label className="text-[10px] text-muted-foreground">Período</Label>
-              <Input
-                value={plan.period ?? ""}
-                onChange={(e) => patch(idx, { period: e.target.value })}
-                placeholder="/mês"
-                className="text-xs"
-              />
-            </div>
-          </Row>
-          <Label className="text-[10px] text-muted-foreground">Slogan</Label>
-          <Input
-            value={plan.slogan ?? ""}
-            onChange={(e) => patch(idx, { slogan: e.target.value })}
-            placeholder="Pra equipes pequenas"
-            className="text-xs"
-          />
-          <Label className="text-[10px] text-muted-foreground">
-            Features (uma por linha)
-          </Label>
-          <Textarea
-            rows={4}
-            value={plan.features.join("\n")}
-            onChange={(e) =>
-              patch(idx, {
-                features: e.target.value
-                  .split("\n")
-                  .map((s) => s.trim())
-                  .filter(Boolean),
-              })
-            }
-            placeholder="Recurso 1&#10;Recurso 2"
-            className="text-xs"
-          />
-          <Row cols={2}>
-            <div>
+              <Row cols={2}>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Preço
+                  </Label>
+                  <Input
+                    value={plan.price}
+                    onChange={(e) => patch(idx, { price: e.target.value })}
+                    placeholder="R$ 197"
+                    className="text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Período
+                  </Label>
+                  <Input
+                    value={plan.period ?? ""}
+                    onChange={(e) => patch(idx, { period: e.target.value })}
+                    placeholder="/mês"
+                    className="text-xs"
+                  />
+                </div>
+              </Row>
               <Label className="text-[10px] text-muted-foreground">
-                Texto do botão
+                Slogan
               </Label>
               <Input
-                value={plan.ctaLabel}
-                onChange={(e) => patch(idx, { ctaLabel: e.target.value })}
-                placeholder="Assinar"
+                value={plan.slogan ?? ""}
+                onChange={(e) => patch(idx, { slogan: e.target.value })}
+                placeholder="Pra equipes pequenas"
                 className="text-xs"
               />
-            </div>
-            <div>
               <Label className="text-[10px] text-muted-foreground">
-                Link do botão
+                Features (uma por linha)
               </Label>
-              <Input
-                value={plan.ctaHref ?? ""}
-                onChange={(e) => patch(idx, { ctaHref: e.target.value })}
-                placeholder="#cta-final"
-                className="text-xs font-mono"
-              />
-            </div>
-          </Row>
-          <Row cols={2}>
-            <div>
-              <Label className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <input
-                  type="checkbox"
-                  checked={plan.highlighted ?? false}
-                  onChange={(e) => patch(idx, { highlighted: e.target.checked })}
-                />
-                Em destaque
-              </Label>
-            </div>
-            <div>
-              <Label className="text-[10px] text-muted-foreground">Badge</Label>
-              <Input
-                value={plan.badge ?? ""}
-                onChange={(e) => patch(idx, { badge: e.target.value })}
-                placeholder="Mais popular"
+              <Textarea
+                rows={4}
+                value={plan.features.join("\n")}
+                onChange={(e) =>
+                  patch(idx, {
+                    features: e.target.value
+                      .split("\n")
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                  })
+                }
+                placeholder="Recurso 1&#10;Recurso 2"
                 className="text-xs"
               />
-            </div>
-          </Row>
-        </div>
-      ))}
-      <Button variant="outline" size="sm" onClick={add} className="text-xs">
+              <Row cols={2}>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Texto do botão
+                  </Label>
+                  <Input
+                    value={plan.ctaLabel}
+                    onChange={(e) => patch(idx, { ctaLabel: e.target.value })}
+                    placeholder="Assinar"
+                    className="text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Link do botão
+                  </Label>
+                  <Input
+                    value={plan.ctaHref ?? ""}
+                    onChange={(e) => patch(idx, { ctaHref: e.target.value })}
+                    placeholder="#cta-final"
+                    className="text-xs font-mono"
+                  />
+                </div>
+              </Row>
+              <Row cols={2}>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={plan.highlighted ?? false}
+                      onChange={(e) =>
+                        patch(idx, { highlighted: e.target.checked })
+                      }
+                    />
+                    Em destaque
+                  </Label>
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Badge
+                  </Label>
+                  <Input
+                    value={plan.badge ?? ""}
+                    onChange={(e) => patch(idx, { badge: e.target.value })}
+                    placeholder="Mais popular"
+                    className="text-xs"
+                  />
+                </div>
+              </Row>
+              <div className="mt-2">
+                <p className="text-[10px] text-muted-foreground mb-1 leading-relaxed">
+                  Sobrescreve a tipografia padrão SÓ deste plano.
+                </p>
+                <TypographyEditor label="Nome" value={plan.nameStyle} inherited={el.nameStyle as TextStyle | undefined} onChange={(v) => patch(idx, { nameStyle: v })} />
+                <TypographyEditor label="Slogan" value={plan.sloganStyle} inherited={el.sloganStyle as TextStyle | undefined} onChange={(v) => patch(idx, { sloganStyle: v })} />
+                <TypographyEditor label="Preço" value={plan.priceStyle} inherited={el.priceStyle as TextStyle | undefined} onChange={(v) => patch(idx, { priceStyle: v })} />
+                <TypographyEditor label="Período" value={plan.periodStyle} inherited={el.periodStyle as TextStyle | undefined} onChange={(v) => patch(idx, { periodStyle: v })} />
+                <TypographyEditor label="Feature" value={plan.featureStyle} inherited={el.featureStyle as TextStyle | undefined} onChange={(v) => patch(idx, { featureStyle: v })} />
+                <TypographyEditor label="Botão" value={plan.ctaStyle} inherited={el.ctaStyle as TextStyle | undefined} onChange={(v) => patch(idx, { ctaStyle: v })} />
+              </div>
+              <Row cols={2}>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Fundo do card
+                  </Label>
+                  <Input
+                    value={plan.cardBg ?? ""}
+                    onChange={(e) =>
+                      patch(idx, { cardBg: e.target.value || undefined })
+                    }
+                    placeholder="(herda)"
+                    className="text-[10px] font-mono"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Borda
+                  </Label>
+                  <Input
+                    value={plan.cardBorder ?? ""}
+                    onChange={(e) =>
+                      patch(idx, { cardBorder: e.target.value || undefined })
+                    }
+                    placeholder="(herda)"
+                    className="text-[10px] font-mono"
+                  />
+                </div>
+              </Row>
+            </SortableSectionItem>
+          ))}
+        </SortableContext>
+      <Button variant="outline" size="sm" onClick={add} className="text-xs w-full">
         + Adicionar plano
       </Button>
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Blocos intermediários
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
+        Insira texto, imagem, botão, badge etc. <strong>entre</strong> o
+        cabeçalho e os cards, ou em outras zonas da section.
+      </p>
+      <InterludeZonesEditor el={el} update={update} />
 
       <ColorBlock el={el} update={update} />
     </>
@@ -1823,6 +2317,16 @@ function PricingProps({
 }
 
 // ─── Testimonials (section-testimonials) ──────────────────────────────────
+//
+// Editor completo:
+//   • Cabeçalho da section com TypographyEditor próprio.
+//   • Tipografia "padrão" pros campos dos cards (quote/author/role) —
+//     aplica em todos sem override individual.
+//   • Lista de depoimentos com drag-reorder, duplicar, colapsar.
+//   • Cada card: campos texto + avatar + overrides tipográficos
+//     próprios (sobrescrevem o "padrão").
+//   • Aparência dos cards (background, borda, raio, padding) — também
+//     overridável por card.
 function TestimonialsProps({
   el,
   update,
@@ -1836,6 +2340,11 @@ function TestimonialsProps({
     author: string;
     role?: string;
     avatar?: string;
+    quoteStyle?: TextStyle;
+    authorStyle?: TextStyle;
+    roleStyle?: TextStyle;
+    cardBg?: string;
+    cardBorder?: string;
   };
   const items = ((el.testimonials as T[] | undefined) ?? []).slice();
   const patch = (idx: number, p: Partial<T>) => {
@@ -1860,6 +2369,19 @@ function TestimonialsProps({
     });
   const remove = (idx: number) =>
     update({ testimonials: items.filter((_, i) => i !== idx) });
+  const duplicate = (idx: number) => {
+    const clone = {
+      ...items[idx],
+      id: `t${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    };
+    const next = [...items.slice(0, idx + 1), clone, ...items.slice(idx + 1)];
+    update({ testimonials: next });
+  };
+
+  // Reorder é orquestrado pelo `DndContext` global do BuilderSidebar
+  // via `handleDragEnd` (data.kind="section-item" + collection). Sem
+  // DndContext local — nested DndContexts no @dnd-kit fazem o de fora
+  // engolir eventos do de dentro.
 
   return (
     <>
@@ -1872,7 +2394,12 @@ function TestimonialsProps({
         value={(el.heading as string) ?? ""}
         onChange={(e) => update({ heading: e.target.value })}
         placeholder="O que dizem"
-        className="text-xs"
+        className="text-xs mb-2"
+      />
+      <TypographyEditor
+        label="Tipografia do título"
+        value={el.headingStyle as TextStyle | undefined}
+        onChange={(v) => update({ headingStyle: v })}
       />
       <AnchorIdField
         value={(el.anchorId as string) ?? ""}
@@ -1882,69 +2409,223 @@ function TestimonialsProps({
 
       <Seg />
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
-        Depoimentos ({items.length})
+        Tipografia padrão dos cards
       </p>
-      {items.map((item, idx) => (
-        <div
-          key={item.id}
-          className="p-2 border rounded-md mb-2 bg-muted/30 flex flex-col gap-1.5"
-        >
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] text-muted-foreground flex-1">
-              #{idx + 1}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => remove(idx)}
-              className="size-7 shrink-0"
-              title="Remover"
-            >
-              <Trash2 className="size-3.5 text-destructive" />
-            </Button>
-          </div>
-          <Label className="text-[10px] text-muted-foreground">Citação</Label>
-          <Textarea
-            rows={3}
-            value={item.quote}
-            onChange={(e) => patch(idx, { quote: e.target.value })}
-            placeholder="Mudou minha rotina completamente"
-            className="text-xs"
-          />
-          <Row cols={2}>
-            <div>
-              <Label className="text-[10px] text-muted-foreground">Autor</Label>
-              <Input
-                value={item.author}
-                onChange={(e) => patch(idx, { author: e.target.value })}
-                placeholder="Mariana F."
-                className="text-xs"
-              />
-            </div>
-            <div>
-              <Label className="text-[10px] text-muted-foreground">Cargo</Label>
-              <Input
-                value={item.role ?? ""}
-                onChange={(e) => patch(idx, { role: e.target.value })}
-                placeholder="Designer"
-                className="text-xs"
-              />
-            </div>
-          </Row>
+      <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
+        Aplica em <strong>todos os depoimentos</strong>. Cada card pode
+        sobrescrever individualmente abaixo.
+      </p>
+      <TypographyEditor
+        label="Padrão da citação"
+        value={el.quoteStyle as TextStyle | undefined}
+        onChange={(v) => update({ quoteStyle: v })}
+      />
+      <TypographyEditor
+        label="Padrão do autor"
+        value={el.authorStyle as TextStyle | undefined}
+        onChange={(v) => update({ authorStyle: v })}
+      />
+      <TypographyEditor
+        label="Padrão do cargo"
+        value={el.roleStyle as TextStyle | undefined}
+        onChange={(v) => update({ roleStyle: v })}
+      />
+
+      <CardAnimatedBorderEditor el={el} update={update} />
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Aparência dos cards
+      </p>
+      <Row cols={2}>
+        <div>
           <Label className="text-[10px] text-muted-foreground">
-            Avatar (URL)
+            Fundo (padrão)
           </Label>
           <Input
-            value={item.avatar ?? ""}
-            onChange={(e) => patch(idx, { avatar: e.target.value })}
-            placeholder="https://..."
-            className="text-xs font-mono"
+            value={(el.cardBg as string) ?? ""}
+            onChange={(e) =>
+              update({ cardBg: e.target.value || undefined })
+            }
+            placeholder="rgba(...)"
+            className="text-[11px] font-mono"
           />
         </div>
-      ))}
-      <Button variant="outline" size="sm" onClick={add} className="text-xs">
+        <div>
+          <Label className="text-[10px] text-muted-foreground">Borda</Label>
+          <Input
+            value={(el.cardBorder as string) ?? ""}
+            onChange={(e) =>
+              update({ cardBorder: e.target.value || undefined })
+            }
+            placeholder="rgba(...)"
+            className="text-[11px] font-mono"
+          />
+        </div>
+      </Row>
+      <Row cols={2}>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Raio (px)
+          </Label>
+          <Input
+            type="number"
+            min={0}
+            max={64}
+            value={(el.cardRadius as number) ?? 16}
+            onChange={(e) =>
+              update({ cardRadius: Number(e.target.value) })
+            }
+            className="text-[11px]"
+          />
+        </div>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Padding (px)
+          </Label>
+          <Input
+            type="number"
+            min={0}
+            max={64}
+            value={(el.cardPadding as number) ?? 24}
+            onChange={(e) =>
+              update({ cardPadding: Number(e.target.value) })
+            }
+            className="text-[11px]"
+          />
+        </div>
+      </Row>
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Depoimentos ({items.length})
+      </p>
+      <SortableContext
+        items={items.map((it) => it.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        {items.map((item, idx) => (
+            <SortableSectionItem
+              key={item.id}
+              id={item.id}
+              collection="testimonials"
+              elementId={el.id}
+              label={`#${idx + 1}`}
+              summary={item.author}
+              onDuplicate={() => duplicate(idx)}
+              onRemove={() => remove(idx)}
+            >
+              <Label className="text-[10px] text-muted-foreground">
+                Citação
+              </Label>
+              <Textarea
+                rows={3}
+                value={item.quote}
+                onChange={(e) => patch(idx, { quote: e.target.value })}
+                placeholder="Mudou minha rotina completamente"
+                className="text-xs"
+              />
+              <Row cols={2}>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Autor
+                  </Label>
+                  <Input
+                    value={item.author}
+                    onChange={(e) => patch(idx, { author: e.target.value })}
+                    placeholder="Mariana F."
+                    className="text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Cargo
+                  </Label>
+                  <Input
+                    value={item.role ?? ""}
+                    onChange={(e) => patch(idx, { role: e.target.value })}
+                    placeholder="Designer"
+                    className="text-xs"
+                  />
+                </div>
+              </Row>
+              <Label className="text-[10px] text-muted-foreground">
+                Avatar (URL)
+              </Label>
+              <Input
+                value={item.avatar ?? ""}
+                onChange={(e) => patch(idx, { avatar: e.target.value })}
+                placeholder="https://..."
+                className="text-[10px] font-mono"
+              />
+              <div className="mt-2">
+                <p className="text-[10px] text-muted-foreground mb-1.5 leading-relaxed">
+                  Sobrescreve a tipografia padrão SÓ pra este card.
+                </p>
+                <TypographyEditor
+                  label="Citação"
+                  value={item.quoteStyle}
+                  inherited={el.quoteStyle as TextStyle | undefined}
+                  onChange={(v) => patch(idx, { quoteStyle: v })}
+                />
+                <TypographyEditor
+                  label="Autor"
+                  value={item.authorStyle}
+                  inherited={el.authorStyle as TextStyle | undefined}
+                  onChange={(v) => patch(idx, { authorStyle: v })}
+                />
+                <TypographyEditor
+                  label="Cargo"
+                  value={item.roleStyle}
+                  inherited={el.roleStyle as TextStyle | undefined}
+                  onChange={(v) => patch(idx, { roleStyle: v })}
+                />
+              </div>
+              <div className="mt-1">
+                <Row cols={2}>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">
+                      Fundo do card
+                    </Label>
+                    <Input
+                      value={item.cardBg ?? ""}
+                      onChange={(e) =>
+                        patch(idx, { cardBg: e.target.value || undefined })
+                      }
+                      placeholder="(herda)"
+                      className="text-[10px] font-mono"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">
+                      Borda
+                    </Label>
+                    <Input
+                      value={item.cardBorder ?? ""}
+                      onChange={(e) =>
+                        patch(idx, { cardBorder: e.target.value || undefined })
+                      }
+                      placeholder="(herda)"
+                      className="text-[10px] font-mono"
+                    />
+                  </div>
+                </Row>
+              </div>
+            </SortableSectionItem>
+          ))}
+        </SortableContext>
+      <Button variant="outline" size="sm" onClick={add} className="text-xs w-full">
         + Adicionar depoimento
       </Button>
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Blocos intermediários
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
+        Insira texto, imagem, botão, badge etc. <strong>entre</strong> o
+        cabeçalho e os cards, ou em outras zonas da section.
+      </p>
+      <InterludeZonesEditor el={el} update={update} />
 
       <ColorBlock el={el} update={update} />
     </>
@@ -1959,7 +2640,13 @@ function StatsProps({
   el: ElementBase;
   update: (p: Partial<ElementBase>) => void;
 }) {
-  type Stat = { id: string; value: string; label: string };
+  type Stat = {
+    id: string;
+    value: string;
+    label: string;
+    valueStyle?: TextStyle;
+    labelStyle?: TextStyle;
+  };
   const items = ((el.stats as Stat[] | undefined) ?? []).slice();
   const patch = (idx: number, p: Partial<Stat>) => {
     const next = items.slice();
@@ -1975,6 +2662,17 @@ function StatsProps({
     });
   const remove = (idx: number) =>
     update({ stats: items.filter((_, i) => i !== idx) });
+  const duplicate = (idx: number) => {
+    const clone = {
+      ...items[idx],
+      id: `s${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    };
+    update({
+      stats: [...items.slice(0, idx + 1), clone, ...items.slice(idx + 1)],
+    });
+  };
+
+  // Reorder: orquestrado pelo DndContext global do BuilderSidebar (handleDragEnd reconhece data.kind="section-item")
 
   return (
     <>
@@ -1984,53 +2682,95 @@ function StatsProps({
         onChange={(v) => update({ anchorId: v })}
         placeholder="numeros"
       />
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Tipografia padrão
+      </p>
+      <TypographyEditor
+        label="Padrão do valor (número grande)"
+        value={el.valueStyle as TextStyle | undefined}
+        onChange={(v) => update({ valueStyle: v })}
+      />
+      <TypographyEditor
+        label="Padrão do rótulo (legenda)"
+        value={el.labelStyle as TextStyle | undefined}
+        onChange={(v) => update({ labelStyle: v })}
+      />
+
       <Seg />
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
         Estatísticas ({items.length})
       </p>
-      {items.map((item, idx) => (
-        <div
-          key={item.id}
-          className="p-2 border rounded-md mb-2 bg-muted/30 flex flex-col gap-1.5"
+        <SortableContext
+          items={items.map((it) => it.id)}
+          strategy={verticalListSortingStrategy}
         >
-          <Row cols={2}>
-            <div>
-              <Label className="text-[10px] text-muted-foreground">Valor</Label>
-              <Input
-                value={item.value}
-                onChange={(e) => patch(idx, { value: e.target.value })}
-                placeholder="2.3k+"
-                className="text-xs font-bold"
-              />
-            </div>
-            <div className="flex items-end gap-1">
-              <div className="flex-1">
-                <Label className="text-[10px] text-muted-foreground">
-                  Rótulo
-                </Label>
-                <Input
-                  value={item.label}
-                  onChange={(e) => patch(idx, { label: e.target.value })}
-                  placeholder="Clientes"
-                  className="text-xs"
+          {items.map((item, idx) => (
+            <SortableSectionItem
+              key={item.id}
+              id={item.id}
+              collection="stats"
+              elementId={el.id}
+              label={`#${idx + 1}`}
+              summary={`${item.value} · ${item.label}`}
+              onDuplicate={() => duplicate(idx)}
+              onRemove={() => remove(idx)}
+            >
+              <Row cols={2}>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Valor
+                  </Label>
+                  <Input
+                    value={item.value}
+                    onChange={(e) => patch(idx, { value: e.target.value })}
+                    placeholder="2.3k+"
+                    className="text-xs font-bold"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">
+                    Rótulo
+                  </Label>
+                  <Input
+                    value={item.label}
+                    onChange={(e) => patch(idx, { label: e.target.value })}
+                    placeholder="Clientes"
+                    className="text-xs"
+                  />
+                </div>
+              </Row>
+              <div className="mt-2">
+                <TypographyEditor
+                  label="Valor"
+                  value={item.valueStyle}
+                  inherited={el.valueStyle as TextStyle | undefined}
+                  onChange={(v) => patch(idx, { valueStyle: v })}
+                />
+                <TypographyEditor
+                  label="Rótulo"
+                  value={item.labelStyle}
+                  inherited={el.labelStyle as TextStyle | undefined}
+                  onChange={(v) => patch(idx, { labelStyle: v })}
                 />
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => remove(idx)}
-                className="size-7 shrink-0"
-                title="Remover"
-              >
-                <Trash2 className="size-3.5 text-destructive" />
-              </Button>
-            </div>
-          </Row>
-        </div>
-      ))}
-      <Button variant="outline" size="sm" onClick={add} className="text-xs">
+            </SortableSectionItem>
+          ))}
+        </SortableContext>
+      <Button variant="outline" size="sm" onClick={add} className="text-xs w-full">
         + Adicionar estatística
       </Button>
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Blocos intermediários
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
+        Insira texto, imagem, botão, badge etc. <strong>entre</strong> o
+        cabeçalho e os cards, ou em outras zonas da section.
+      </p>
+      <InterludeZonesEditor el={el} update={update} />
 
       <ColorBlock el={el} update={update} />
     </>
@@ -2045,7 +2785,15 @@ function FaqProps({
   el: ElementBase;
   update: (p: Partial<ElementBase>) => void;
 }) {
-  type Item = { id: string; question: string; answer: string };
+  type Item = {
+    id: string;
+    question: string;
+    answer: string;
+    questionStyle?: TextStyle;
+    answerStyle?: TextStyle;
+    cardBg?: string;
+    cardBorder?: string;
+  };
   const items = ((el.items as Item[] | undefined) ?? []).slice();
   const patch = (idx: number, p: Partial<Item>) => {
     const next = items.slice();
@@ -2065,6 +2813,17 @@ function FaqProps({
     });
   const remove = (idx: number) =>
     update({ items: items.filter((_, i) => i !== idx) });
+  const duplicate = (idx: number) => {
+    const clone = {
+      ...items[idx],
+      id: `q${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    };
+    update({
+      items: [...items.slice(0, idx + 1), clone, ...items.slice(idx + 1)],
+    });
+  };
+
+  // Reorder: orquestrado pelo DndContext global do BuilderSidebar (handleDragEnd reconhece data.kind="section-item")
 
   return (
     <>
@@ -2077,7 +2836,12 @@ function FaqProps({
         value={(el.heading as string) ?? ""}
         onChange={(e) => update({ heading: e.target.value })}
         placeholder="Perguntas frequentes"
-        className="text-xs"
+        className="text-xs mb-2"
+      />
+      <TypographyEditor
+        label="Tipografia do título"
+        value={el.headingStyle as TextStyle | undefined}
+        onChange={(v) => update({ headingStyle: v })}
       />
       <AnchorIdField
         value={(el.anchorId as string) ?? "faq"}
@@ -2087,42 +2851,141 @@ function FaqProps({
 
       <Seg />
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
-        Perguntas ({items.length})
+        Tipografia padrão dos itens
       </p>
-      {items.map((item, idx) => (
-        <div
-          key={item.id}
-          className="p-2 border rounded-md mb-2 bg-muted/30 flex flex-col gap-1.5"
-        >
-          <div className="flex items-center gap-1">
-            <Input
-              value={item.question}
-              onChange={(e) => patch(idx, { question: e.target.value })}
-              placeholder="Pergunta?"
-              className="text-xs font-semibold flex-1"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => remove(idx)}
-              className="size-7 shrink-0"
-              title="Remover"
-            >
-              <Trash2 className="size-3.5 text-destructive" />
-            </Button>
-          </div>
-          <Textarea
-            rows={3}
-            value={item.answer}
-            onChange={(e) => patch(idx, { answer: e.target.value })}
-            placeholder="Resposta"
-            className="text-xs"
+      <TypographyEditor
+        label="Padrão da pergunta"
+        value={el.questionStyle as TextStyle | undefined}
+        onChange={(v) => update({ questionStyle: v })}
+      />
+      <TypographyEditor
+        label="Padrão da resposta"
+        value={el.answerStyle as TextStyle | undefined}
+        onChange={(v) => update({ answerStyle: v })}
+      />
+
+      <CardAnimatedBorderEditor el={el} update={update} />
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Aparência dos cards
+      </p>
+      <Row cols={2}>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Fundo (padrão)
+          </Label>
+          <Input
+            value={(el.cardBg as string) ?? ""}
+            onChange={(e) => update({ cardBg: e.target.value || undefined })}
+            placeholder="rgba(...)"
+            className="text-[11px] font-mono"
           />
         </div>
-      ))}
-      <Button variant="outline" size="sm" onClick={add} className="text-xs">
+        <div>
+          <Label className="text-[10px] text-muted-foreground">Borda</Label>
+          <Input
+            value={(el.cardBorder as string) ?? ""}
+            onChange={(e) => update({ cardBorder: e.target.value || undefined })}
+            placeholder="rgba(...)"
+            className="text-[11px] font-mono"
+          />
+        </div>
+      </Row>
+      <Row cols={2}>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">Raio (px)</Label>
+          <Input
+            type="number"
+            min={0}
+            max={64}
+            value={(el.cardRadius as number) ?? 12}
+            onChange={(e) => update({ cardRadius: Number(e.target.value) })}
+            className="text-[11px]"
+          />
+        </div>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Padding (px)
+          </Label>
+          <Input
+            type="number"
+            min={0}
+            max={64}
+            value={(el.cardPadding as number) ?? 20}
+            onChange={(e) => update({ cardPadding: Number(e.target.value) })}
+            className="text-[11px]"
+          />
+        </div>
+      </Row>
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Perguntas ({items.length})
+      </p>
+        <SortableContext
+          items={items.map((it) => it.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {items.map((item, idx) => (
+            <SortableSectionItem
+              key={item.id}
+              id={item.id}
+              collection="items"
+              elementId={el.id}
+              label={`#${idx + 1}`}
+              summary={item.question}
+              onDuplicate={() => duplicate(idx)}
+              onRemove={() => remove(idx)}
+            >
+              <Label className="text-[10px] text-muted-foreground">
+                Pergunta
+              </Label>
+              <Input
+                value={item.question}
+                onChange={(e) => patch(idx, { question: e.target.value })}
+                placeholder="Pergunta?"
+                className="text-xs"
+              />
+              <Label className="text-[10px] text-muted-foreground">
+                Resposta
+              </Label>
+              <Textarea
+                rows={3}
+                value={item.answer}
+                onChange={(e) => patch(idx, { answer: e.target.value })}
+                placeholder="Resposta"
+                className="text-xs"
+              />
+              <div className="mt-2">
+                <TypographyEditor
+                  label="Pergunta"
+                  value={item.questionStyle}
+                  inherited={el.questionStyle as TextStyle | undefined}
+                  onChange={(v) => patch(idx, { questionStyle: v })}
+                />
+                <TypographyEditor
+                  label="Resposta"
+                  value={item.answerStyle}
+                  inherited={el.answerStyle as TextStyle | undefined}
+                  onChange={(v) => patch(idx, { answerStyle: v })}
+                />
+              </div>
+            </SortableSectionItem>
+          ))}
+        </SortableContext>
+      <Button variant="outline" size="sm" onClick={add} className="text-xs w-full">
         + Adicionar pergunta
       </Button>
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Blocos intermediários
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
+        Insira texto, imagem, botão, badge etc. <strong>entre</strong> o
+        cabeçalho e os cards, ou em outras zonas da section.
+      </p>
+      <InterludeZonesEditor el={el} update={update} />
 
       <ColorBlock el={el} update={update} />
     </>
@@ -2226,6 +3089,17 @@ function LogoCloudProps({
     });
   const remove = (idx: number) =>
     update({ logos: items.filter((_, i) => i !== idx) });
+  const duplicate = (idx: number) => {
+    const clone = {
+      ...items[idx],
+      id: `lg${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    };
+    update({
+      logos: [...items.slice(0, idx + 1), clone, ...items.slice(idx + 1)],
+    });
+  };
+
+  // Reorder: orquestrado pelo DndContext global do BuilderSidebar (handleDragEnd reconhece data.kind="section-item")
 
   return (
     <>
@@ -2235,7 +3109,12 @@ function LogoCloudProps({
         value={(el.heading as string) ?? ""}
         onChange={(e) => update({ heading: e.target.value })}
         placeholder="Empresas que confiam em nós"
-        className="text-xs"
+        className="text-xs mb-2"
+      />
+      <TypographyEditor
+        label="Tipografia do título"
+        value={el.headingStyle as TextStyle | undefined}
+        onChange={(v) => update({ headingStyle: v })}
       />
       <AnchorIdField
         value={(el.anchorId as string) ?? ""}
@@ -2245,51 +3124,99 @@ function LogoCloudProps({
 
       <Seg />
       <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Aparência dos logos
+      </p>
+      <Row cols={2}>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Altura (px)
+          </Label>
+          <Input
+            type="number"
+            min={16}
+            max={120}
+            value={(el.logoHeight as number) ?? 32}
+            onChange={(e) => update({ logoHeight: Number(e.target.value) })}
+            className="text-[11px]"
+          />
+        </div>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Opacidade (0–1)
+          </Label>
+          <Input
+            type="number"
+            min={0}
+            max={1}
+            step={0.05}
+            value={(el.logoOpacity as number) ?? 0.6}
+            onChange={(e) => update({ logoOpacity: Number(e.target.value) })}
+            className="text-[11px]"
+          />
+        </div>
+      </Row>
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
         Logos ({items.length})
       </p>
-      {items.map((logo, idx) => (
-        <div
-          key={logo.id}
-          className="p-2 border rounded-md mb-2 bg-muted/30 flex flex-col gap-1.5"
+        <SortableContext
+          items={items.map((it) => it.id)}
+          strategy={verticalListSortingStrategy}
         >
-          <div className="flex items-center gap-1">
-            <Input
-              value={logo.alt}
-              onChange={(e) => patch(idx, { alt: e.target.value })}
-              placeholder="Nome da marca (alt)"
-              className="text-xs flex-1"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => remove(idx)}
-              className="size-7 shrink-0"
-              title="Remover"
+          {items.map((logo, idx) => (
+            <SortableSectionItem
+              key={logo.id}
+              id={logo.id}
+              collection="logos"
+              elementId={el.id}
+              label={`#${idx + 1}`}
+              summary={logo.alt}
+              onDuplicate={() => duplicate(idx)}
+              onRemove={() => remove(idx)}
             >
-              <Trash2 className="size-3.5 text-destructive" />
-            </Button>
-          </div>
-          <Input
-            value={logo.imageUrl}
-            onChange={(e) => patch(idx, { imageUrl: e.target.value })}
-            placeholder="https://… (URL da logo)"
-            className="text-xs font-mono"
-          />
-          {logo.imageUrl && (
-            <div className="rounded border bg-white p-2 flex items-center justify-center h-14">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logo.imageUrl}
-                alt={logo.alt}
-                className="max-h-full max-w-full object-contain"
+              <Label className="text-[10px] text-muted-foreground">
+                Nome (alt)
+              </Label>
+              <Input
+                value={logo.alt}
+                onChange={(e) => patch(idx, { alt: e.target.value })}
+                placeholder="Nome da marca"
+                className="text-xs"
               />
-            </div>
-          )}
-        </div>
-      ))}
-      <Button variant="outline" size="sm" onClick={add} className="text-xs">
+              <Label className="text-[10px] text-muted-foreground">URL</Label>
+              <Input
+                value={logo.imageUrl}
+                onChange={(e) => patch(idx, { imageUrl: e.target.value })}
+                placeholder="https://…"
+                className="text-[11px] font-mono"
+              />
+              {logo.imageUrl && (
+                <div className="rounded border bg-white p-2 flex items-center justify-center h-14 mt-1">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={logo.imageUrl}
+                    alt={logo.alt}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+              )}
+            </SortableSectionItem>
+          ))}
+        </SortableContext>
+      <Button variant="outline" size="sm" onClick={add} className="text-xs w-full">
         + Adicionar logo
       </Button>
+
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Blocos intermediários
+      </p>
+      <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
+        Insira texto, imagem, botão, badge etc. <strong>entre</strong> o
+        cabeçalho e os cards, ou em outras zonas da section.
+      </p>
+      <InterludeZonesEditor el={el} update={update} />
 
       <ColorBlock el={el} update={update} />
     </>
@@ -2399,6 +3326,76 @@ function CarouselProps({
           </select>
         </div>
       </Row>
+
+      {/* ─── Modo de exibição das imagens (uniform/original/custom) ─── */}
+      <Seg />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Exibição da imagem
+      </p>
+      <Label className="text-[10px] text-muted-foreground">Modo</Label>
+      <select
+        value={(el.imageMode as string) ?? "uniform"}
+        onChange={(e) => update({ imageMode: e.target.value })}
+        className="w-full text-xs border rounded-md bg-background h-8 px-2 mt-1"
+      >
+        <option value="uniform">Altura uniforme (recomendado)</option>
+        <option value="original">Proporção original da imagem</option>
+        <option value="custom">Largura e altura personalizadas</option>
+      </select>
+      <p className="text-[10px] text-muted-foreground/80 mt-1 leading-snug">
+        {(el.imageMode ?? "uniform") === "uniform"
+          ? "Todas as imagens com a mesma altura, cortadas proporcionalmente pra preencher (object-cover)."
+          : (el.imageMode ?? "uniform") === "original"
+            ? "Cada imagem mantém sua proporção natural. Útil pra screenshots/infográficos/logos."
+            : "Largura e altura fixas pra todas as imagens. Pode esticar/comprimir."}
+      </p>
+
+      {/* Campos contextuais — só aparecem quando relevantes */}
+      {(el.imageMode ?? "uniform") === "uniform" && (
+        <div className="mt-2">
+          <Label className="text-[10px] text-muted-foreground">
+            Altura padrão (px)
+          </Label>
+          <Input
+            type="number"
+            min={80}
+            max={1200}
+            value={(el.imageHeight as number | undefined) ?? 240}
+            onChange={(e) => update({ imageHeight: Number(e.target.value) })}
+            className="text-xs h-8"
+          />
+        </div>
+      )}
+      {(el.imageMode as string) === "custom" && (
+        <Row cols={2}>
+          <div>
+            <Label className="text-[10px] text-muted-foreground">
+              Largura (px)
+            </Label>
+            <Input
+              type="number"
+              min={40}
+              max={1600}
+              value={(el.imageWidth as number | undefined) ?? 320}
+              onChange={(e) => update({ imageWidth: Number(e.target.value) })}
+              className="text-xs h-8"
+            />
+          </div>
+          <div>
+            <Label className="text-[10px] text-muted-foreground">
+              Altura (px)
+            </Label>
+            <Input
+              type="number"
+              min={40}
+              max={1200}
+              value={(el.imageHeight as number | undefined) ?? 240}
+              onChange={(e) => update({ imageHeight: Number(e.target.value) })}
+              className="text-xs h-8"
+            />
+          </div>
+        </Row>
+      )}
 
       {mode === "slide" && (
         <>
@@ -2512,27 +3509,6 @@ function CarouselSlideEditor({
   isFirst: boolean;
   isLast: boolean;
 }) {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-
-  const handleUpload = async (file: File) => {
-    setUploading(true);
-    const form = new FormData();
-    form.append("file", file);
-    try {
-      const res = await fetch("/api/upload-local", {
-        method: "POST",
-        body: form,
-      });
-      const { url } = await res.json();
-      onChange({ imageUrl: url });
-    } catch {
-      toast.error("Falha no upload");
-    } finally {
-      setUploading(false);
-    }
-  };
-
   return (
     <div className="p-2 border rounded-md mb-2 bg-muted/30 flex flex-col gap-1.5">
       <div className="flex items-center gap-1">
@@ -2569,50 +3545,15 @@ function CarouselSlideEditor({
           <Trash2 className="size-3.5 text-destructive" />
         </Button>
       </div>
-      <div className="flex gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          className="flex-1 text-xs h-8"
-          disabled={uploading}
-          onClick={() => fileRef.current?.click()}
-        >
-          {uploading
-            ? "Carregando…"
-            : slide.imageUrl
-              ? "Trocar"
-              : "Upload"}
-        </Button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) handleUpload(f);
-          }}
-        />
-      </div>
-      <Input
-        value={slide.imageUrl}
-        onChange={(e) => onChange({ imageUrl: e.target.value })}
-        placeholder="https://… (URL)"
-        className="text-xs font-mono"
+      {/* Upload + preview + URL fallback unificado num só componente.
+          Usa mesmo endpoint `/api/upload-local` que o LogoUploader. */}
+      <ImageUploaderField
+        value={slide.imageUrl ?? ""}
+        onChange={(url) => onChange({ imageUrl: url })}
+        label="Imagem do slide"
+        uploadLabel="Fazer upload"
+        previewHeight={80}
       />
-      {slide.imageUrl && (
-        <div
-          className="rounded border overflow-hidden bg-white"
-          style={{ height: 60 }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={slide.imageUrl}
-            alt={slide.alt}
-            className="w-full h-full object-cover"
-          />
-        </div>
-      )}
       <Row cols={2}>
         <div>
           <Label className="text-[10px] text-muted-foreground">Proporção</Label>
@@ -3326,6 +4267,7 @@ const TYPE_LABELS: Record<string, string> = {
   "section-logo-cloud": "Logos / Marcas",
   "section-footer": "Footer / Rodapé",
   marquee: "Marquee (texto rolando)",
+  marketing: "Marketing (conversão)",
 };
 
 /** Renders just the properties content (no outer wrapper) — for embedding inside the sidebar */
@@ -3387,6 +4329,13 @@ export function PropertiesPanelContent() {
           <NumField label="Opac. %" value={Math.round((el.opacity ?? 1) * 100)} onChange={(v) => update({ opacity: Math.min(1, Math.max(0, v / 100)) })} step={5} min={0} />
           <NumField label="Z-index" value={el.zIndex ?? 1} onChange={(v) => update({ zIndex: v })} min={0} />
         </Row>
+        {/* Borda animada — efeito Explorer reusável. Funciona pra
+            qualquer element. Toggle off por default. */}
+        <AnimatedBorderEditor el={el} update={update} />
+        {/* Scroll reveal — animação suave de entrada/saída ao rolar a
+            página. Aceita preset (slide/fade/zoom/blur), distância,
+            duração, atraso e threshold. Toggle off por default. */}
+        <ScrollRevealEditor el={el} update={update} />
         {el.type === "text"   && <TextProps   el={el} update={update} />}
         {el.type === "image"  && <ImageProps  el={el} update={update} />}
         {el.type === "shape"  && <ShapeProps  el={el} update={update} />}
@@ -3398,6 +4347,7 @@ export function PropertiesPanelContent() {
         {el.type === "chat-button"   && <ChatButtonProps   el={el} update={update} />}
         {el.type === "embedded-form" && <EmbeddedFormProps el={el} update={update} />}
         {el.type === "exit-intent"   && <ExitIntentProps   el={el} update={update} />}
+        {el.type === "marketing"     && <MarketingProps    el={el} update={update} />}
         {/* Sections novas (Fase 1 do builder evoluído) */}
         {el.type === "section-navbar"        && <NavbarProps        el={el} update={update} />}
         {el.type === "section-footer"        && <FooterProps        el={el} update={update} />}
