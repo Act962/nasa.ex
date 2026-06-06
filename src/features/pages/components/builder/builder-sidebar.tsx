@@ -7,7 +7,8 @@ import {
   Star as StarIcon, Shapes, SquareStack, LayoutTemplate,
   Settings2, LayoutGrid, DollarSign, Megaphone, BarChart3,
   Quote, HelpCircle, Building2, MoveHorizontal, Layers,
-  Rows3, Hash, Database, Layers3, Files, Sparkles,
+  Rows3, Hash, Database,
+  PanelTop, PanelBottom, Images, MessageCircle, ClipboardList, LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -83,10 +84,16 @@ const ICONS: Record<ElementType, React.ComponentType<{ className?: string }>> = 
   "section-testimonials": Quote,
   "section-faq":         HelpCircle,
   "section-logo-cloud":  Building2,
+  "section-navbar":      PanelTop,
+  "section-footer":      PanelBottom,
   marquee:               MoveHorizontal,
   tabs:                  Layers,
   accordion:             Rows3,
   counter:               Hash,
+  carousel:              Images,
+  "chat-button":         MessageCircle,
+  "embedded-form":       ClipboardList,
+  "exit-intent":         LogOut,
   "data-bound":          Database,
   marketing:             Sparkles,
 };
@@ -113,10 +120,16 @@ const LABELS: Record<ElementType, string> = {
   "section-testimonials": "Depoimentos",
   "section-faq":         "FAQ",
   "section-logo-cloud":  "Logos",
+  "section-navbar":      "Navbar",
+  "section-footer":      "Footer",
   marquee:               "Marquee",
   tabs:                  "Tabs",
   accordion:             "Accordion",
   counter:               "Contador",
+  carousel:              "Carrossel",
+  "chat-button":         "Chat IA",
+  "embedded-form":       "Formulário",
+  "exit-intent":         "Exit intent",
   "data-bound":          "Data bound",
   marketing:             "Marketing",
 };

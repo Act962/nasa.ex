@@ -463,10 +463,10 @@ export const cloneFromUrl = base
     try {
       await logActivity({
         organizationId,
-        userId: context.session.userId,
-        userName: context.session.userName ?? "Usuário",
-        userEmail: context.session.userEmail ?? "",
-        userImage: undefined,
+        userId: context.user.id,
+        userName: context.user.name ?? "Usuário",
+        userEmail: context.user.email ?? "",
+        userImage: (context.user as { image?: string | null }).image ?? undefined,
         appSlug: "nasa-pages",
         action: "nasa_pages.cloned_from_url",
         actionLabel: `Importou página semelhante de "${new URL(input.url).hostname}"`,
