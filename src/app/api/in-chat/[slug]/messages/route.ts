@@ -68,7 +68,7 @@ export async function GET(
   }
 
   const cursor = req.nextUrl.searchParams.get("cursor") ?? undefined;
-  const messages = await prisma.message.findMany({
+  const messagesRaw = await prisma.message.findMany({
     where: {
       conversationId: auth.conversationId,
       // Em mensagens deletadas (status DELETED), só mostra placeholder
@@ -92,6 +92,7 @@ export async function GET(
       fromMe: true,
       status: true,
       senderName: true,
+      senderId: true,
       viaInChat: true,
       quotedMessage: {
         select: {
@@ -105,6 +106,28 @@ export async function GET(
       },
     },
   });
+  // Enriquece com a `image` dos users que enviaram (atendentes). Bate
+  // 1 query a mais mas é tabela User (índice em PK), <1ms. Sem isso o
+  // widget público não consegue mostrar a foto do atendente no header.
+  const senderIds = Array.from(
+    new Set(
+      messagesRaw.map((m) => m.senderId).filter((v): v is string => !!v),
+    ),
+  );
+  const userMap = senderIds.length
+    ? new Map(
+        (
+          await prisma.user.findMany({
+            where: { id: { in: senderIds } },
+            select: { id: true, name: true, image: true },
+          })
+        ).map((user) => [user.id, user] as const),
+      )
+    : new Map<string, { id: string; name: string | null; image: string | null }>();
+  const messages = messagesRaw.map((m) => ({
+    ...m,
+    senderImage: m.senderId ? userMap.get(m.senderId)?.image ?? null : null,
+  }));
 
   return NextResponse.json({
     items: messages,

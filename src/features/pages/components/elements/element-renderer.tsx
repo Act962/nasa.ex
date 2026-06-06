@@ -22,6 +22,8 @@ import { ChatButton } from "./chat-button";
 import { EmbeddedForm } from "./embedded-form";
 import { ExitIntent } from "./exit-intent";
 import { DataBoundBlock } from "./data-bound";
+import { GroupRenderer } from "./group-renderer";
+import { MarketingElement } from "./marketing";
 
 interface Props {
   element: ElementBase;
@@ -407,6 +409,12 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
     // ── Data binding (Fase 5) ────────────────────────────────────
     case "data-bound":
       return <DataBoundBlock element={element} tokens={tokens} readonly={readonly} />;
+    // ── Container "transparente" — children posicionados rel ao group
+    case "group":
+      return <GroupRenderer element={element} tokens={tokens} readonly={readonly} />;
+    // ── Marketing toolkit (singleton — renderiza via portal no público)
+    case "marketing":
+      return <MarketingElement element={element} readonly={readonly} />;
     default:
       return null;
   }

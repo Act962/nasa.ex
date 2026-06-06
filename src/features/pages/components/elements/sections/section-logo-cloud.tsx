@@ -1,5 +1,6 @@
 /**
  * Section Logo Cloud — grid responsivo de logos.
+ * Editor: heading tipográfico + drag-reorder + tamanho/opacity ajustáveis.
  */
 import {
   bgColor,
@@ -7,6 +8,15 @@ import {
   mutedColor,
   type SectionRendererProps,
 } from "./types";
+import {
+  resolveTextStyle,
+  textStyleToCSS,
+  type TextStyle,
+} from "../../../lib/text-style";
+import {
+  RenderInterludeBlocks,
+  type InterludeZones,
+} from "./interlude-block";
 
 interface LogoItem {
   id: string;
@@ -27,10 +37,24 @@ export function SectionLogoCloud({ element, tokens }: SectionRendererProps) {
     ];
 
   const anchorId = (element.anchorId as string) ?? undefined;
+  const logoHeight = (element.logoHeight as number) ?? 32;
+  const logoOpacity = (element.logoOpacity as number) ?? 0.6;
 
   const bg = bgColor(element, tokens);
   const fg = fgColor(element, tokens);
   const muted = mutedColor(element, tokens);
+
+  const sectionHeadingStyle = element.headingStyle as TextStyle | undefined;
+  const headingDefaults: TextStyle = {
+    color: muted,
+    fontSize: 12,
+    fontWeight: "600",
+    align: "center",
+    letterSpacing: 4,
+  };
+  const merged = resolveTextStyle(undefined, sectionHeadingStyle, headingDefaults);
+
+  const interlude = (element.interlude as InterludeZones | undefined) ?? {};
 
   return (
     <section
@@ -40,33 +64,43 @@ export function SectionLogoCloud({ element, tokens }: SectionRendererProps) {
     >
       <div className="max-w-7xl mx-auto flex flex-col gap-6">
         <p
-          className="text-center text-[10px] sm:text-xs tracking-[0.25em] uppercase"
-          style={{ color: muted }}
+          style={{
+            ...textStyleToCSS(merged),
+            textTransform: "uppercase",
+          }}
         >
           {heading}
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 sm:gap-x-12">
-          {logos.map((l) => (
+          {logos.map((logo) => (
             <div
-              key={l.id}
-              className="h-7 sm:h-8 opacity-60 flex items-center justify-center min-w-[80px]"
+              key={logo.id}
+              style={{
+                height: logoHeight,
+                opacity: logoOpacity,
+                minWidth: 80,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              {l.imageUrl ? (
+              {logo.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={l.imageUrl}
-                  alt={l.alt}
-                  className="h-full w-auto object-contain"
+                  src={logo.imageUrl}
+                  alt={logo.alt}
+                  style={{ height: "100%", width: "auto", objectFit: "contain" }}
                 />
               ) : (
                 <span className="text-xs" style={{ color: muted }}>
-                  {l.alt}
+                  {logo.alt}
                 </span>
               )}
             </div>
           ))}
         </div>
+        <RenderInterludeBlocks blocks={interlude.afterCards} />
       </div>
     </section>
   );
