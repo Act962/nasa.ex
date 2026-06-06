@@ -9,6 +9,7 @@ import {
   Quote, HelpCircle, Building2, MoveHorizontal, Layers,
   Rows3, Hash, Database,
   PanelTop, PanelBottom, Images, MessageCircle, ClipboardList, LogOut,
+  Sparkles, Layers3, Files,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
