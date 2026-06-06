@@ -20,6 +20,10 @@ interface Props {
   fontFamily?: string | null;
   /** Slug da org — propagado pro ChatButton ao não estar editando. */
   organizationSlug?: string;
+  /** Slug do root site (multi-page). */
+  rootSlug?: string;
+  /** Páginas-irmãs publicadas — navbar resolve links internos com isso. */
+  siblingPages?: Array<{ id: string; slug: string; title: string; isRoot: boolean }>;
 }
 
 export function InlineEditProvider({
@@ -28,6 +32,8 @@ export function InlineEditProvider({
   palette,
   fontFamily,
   organizationSlug,
+  rootSlug,
+  siblingPages,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const setPage = usePagesBuilderStore((s) => s.setPage);
@@ -70,6 +76,8 @@ export function InlineEditProvider({
           palette={palette}
           fontFamily={fontFamily}
           organizationSlug={organizationSlug}
+          rootSlug={rootSlug}
+          siblingPages={siblingPages}
         />
         <button
           onClick={() => setEditing(true)}

@@ -30,8 +30,11 @@ export const duplicatePage = base
     });
     if (!src) throw errors.NOT_FOUND({ message: "Página de origem não encontrada" });
 
-    const taken = await prisma.nasaPage.findUnique({
-      where: { slug: input.newSlug },
+    // Duplicar SEMPRE cria top-level (subpages duplicam via createSubpage
+    // do feature). `findFirst` porque `slug` perdeu `@unique` global —
+    // partial unique index gerencia exclusividade.
+    const taken = await prisma.nasaPage.findFirst({
+      where: { slug: input.newSlug, parentPageId: null },
       select: { id: true },
     });
     if (taken) throw errors.BAD_REQUEST({ message: "Este slug já está em uso" });

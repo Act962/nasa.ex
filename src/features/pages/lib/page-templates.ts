@@ -930,7 +930,533 @@ function aMinaImersao(): Omit<PageTemplate, "id" | "name" | "description" | "cat
   };
 }
 
+/**
+ * Tokens pro Aulão LiftBumbum® Pós-PMMA — paleta navy + dourado
+ * champanhe pra passar autoridade clínica e estética premium.
+ */
+const AULAO_LIFTBUMBUM_TOKENS = {
+  primary: "#D4AF37", // dourado champanhe — botões e destaques
+  accent: "#F4C2C2",  // rose powder — toques femininos
+  bg: "#0F172A",      // navy escuro — fundo principal
+  fg: "#F8FAFC",      // off-white — texto principal
+  muted: "#94A3B8",   // cinza médio — textos secundários
+};
+
+/**
+ * Template "Aulão LiftBumbum® — Pós-PMMA" — landing de captação +
+ * conversão pra aulão ao vivo no Google Meet sobre harmonização
+ * glútea segura num cenário pós-banimento do PMMA.
+ *
+ * 12 blocos seguindo a arquitetura estratégica:
+ *   1.  Navbar sticky com badge "🔴 AO VIVO" + CTA
+ *   2.  Hero — headline "O FIM DO PMMA?" + oferta R$ 99,90 + CTA
+ *   3.  Stats fininha — formato/data/preço
+ *   4.  Ponte da empatia — 6 cards de dores ("você se sente assim?")
+ *   5.  Problema — explicação do cenário PMMA
+ *   6.  Oportunidade — 3 cards (ticket, ativos, posicionamento)
+ *   7.  Conteúdo do aulão — 8 cards numerados (o que vai aprender)
+ *   8.  Autoridade Dra. Thaine — 1 card grande com bio + quote
+ *   9.  Depoimentos — 3 testimonials de alunas
+ *   10. Oferta final / CTA — preço + bullets + botão escasso
+ *   11. FAQ — 4 perguntas frequentes
+ *   12. Footer — créditos + links
+ *
+ * Tom: autoridade clínica + urgência (banimento PMMA), sem soar
+ * "guru de faturamento". Promessa-mãe: dominar segurança no
+ * pós-PMMA = virar referência da cidade. Dinheiro vem como
+ * consequência.
+ *
+ * Nota: pra incluir o formulário embedded (seção 9 do briefing),
+ * o user precisa criar um Form NASA primeiro e arrastar o
+ * `embedded-form` na page editando — formId é configurado
+ * runtime no editor, não no template.
+ */
+function aulaoLiftbumbumPosPmma(): Omit<
+  PageTemplate,
+  "id" | "name" | "description" | "category" | "intent"
+> {
+  resetY();
+  const T = AULAO_LIFTBUMBUM_TOKENS;
+  return {
+    tokens: T,
+    elements: [
+      // ── 1. NAVBAR (sticky topo) ──
+      pushAt({
+        type: "section-navbar",
+        x: 0, y: 0, w: 1200, h: 72,
+        logoText: "LIFTBUMBUM®",
+        logoSrc: "",
+        logoHref: "#top",
+        links: [
+          { id: "l1", label: "Aulão", href: "#aulao" },
+          { id: "l2", label: "Programa", href: "#programa" },
+          { id: "l3", label: "Mentora", href: "#mentora" },
+          { id: "l4", label: "Depoimentos", href: "#depoimentos" },
+        ],
+        primaryCta: "QUERO MINHA VAGA",
+        primaryCtaHref: "#oferta-final",
+        secondaryCta: "🔴 17/06 · 20H",
+        secondaryCtaHref: "#hero",
+        bgColor: T.bg,
+        fgColor: T.fg,
+        primaryColor: T.primary,
+        mutedColor: T.muted,
+      }),
+
+      // ── 2. HERO — headline + oferta + 1º botão ──
+      pushAt({
+        type: "section-hero",
+        x: 0, y: 0, w: 1200, h: 720,
+        anchorId: "hero",
+        badge: "📅 17 DE JUNHO · 20H BRASÍLIA · AO VIVO NO GOOGLE MEET",
+        titleLine1: "LIFTBUMBUM® — O FIM DO PMMA?",
+        titleLine2: "Segurança vira sua maior vantagem competitiva.",
+        subtitle:
+          "O PMMA está sendo banido, questionado e abandonado. Enquanto muitos profissionais ainda estão perdidos sobre o que usar, você pode se tornar a referência em harmonização glútea segura da sua cidade. Aprenda o raciocínio clínico e a escolha de ativos com respaldo científico — e cobre por isso.",
+        imageUrl: "",
+        backgroundImage: "",
+        backgroundOverlay:
+          "linear-gradient(180deg, rgba(15,23,42,0.78) 0%, rgba(15,23,42,0.92) 100%)",
+        backgroundPosition: "center",
+        // Lista de botões — primary R$ 99,90 + secundário escassez
+        buttons: [
+          {
+            id: "btn-hero-1",
+            label: "QUERO MINHA VAGA POR R$ 99,90",
+            href: "#oferta-final",
+            variant: "primary",
+          },
+          {
+            id: "btn-hero-2",
+            label: "De R$ 497 por R$ 99,90 · só hoje",
+            href: "#oferta-final",
+            variant: "ghost",
+          },
+        ],
+        bgColor: T.bg,
+        fgColor: T.fg,
+        primaryColor: T.primary,
+        mutedColor: T.muted,
+      }),
+
+      // ── 3. STATS — formato/data/preço/escassez ──
+      pushAt({
+        type: "section-stats",
+        x: 0, y: 0, w: 1200, h: 160,
+        stats: [
+          { id: "s1", value: "17/06", label: "Quarta · 20h Brasília" },
+          { id: "s2", value: "120min", label: "De aula prática" },
+          { id: "s3", value: "R$ 99,90", label: "12x de R$ 9,68" },
+          { id: "s4", value: "87%", label: "Vagas preenchidas" },
+        ],
+        bgColor: T.bg,
+        fgColor: T.fg,
+        primaryColor: T.primary,
+        mutedColor: T.muted,
+      }),
+
+      // ── 4. PONTE DA EMPATIA — "você se sente assim?" (6 dores) ──
+      pushAt({
+        type: "section-features",
+        x: 0, y: 0, w: 1200, h: 720,
+        anchorId: "empatia",
+        heading: "VOCÊ ESTÁ INSEGURA COM ESSE NOVO CENÁRIO?",
+        subheading:
+          "Se uma dessas frases já passou pela sua cabeça, este aulão é pra você. Vou te entregar o raciocínio clínico que separa quem só aplica de quem domina.",
+        features: [
+          {
+            id: "d1",
+            icon: "❓",
+            title: "Confusa sobre o que usar agora?",
+            description:
+              "O PMMA está sendo abandonado e questionado. Você não sabe ao certo o que pode substituir com segurança.",
+          },
+          {
+            id: "d2",
+            icon: "⚠️",
+            title: "Medo de intercorrências e complicações?",
+            description:
+              "Aplica, mas não domina o perfil de segurança de cada ativo. Cada agenda é uma noite mal-dormida.",
+          },
+          {
+            id: "d3",
+            icon: "🎯",
+            title: "Sem saber qual protocolo indicar?",
+            description:
+              "Cada glúteo é único, mas você usa sempre a mesma técnica. Resultado: previsibilidade baixa.",
+          },
+          {
+            id: "d4",
+            icon: "🔬",
+            title: "Aplica, mas não avalia o tecido?",
+            description:
+              "Falta o passo da análise estrutural. Sem isso o planejamento é chute e o paciente sente.",
+          },
+          {
+            id: "d5",
+            icon: "👀",
+            title: "Pacientes pedindo segurança e você travada?",
+            description:
+              "Sem argumento técnico pra se posicionar como referência. Você compete por preço enquanto outras cobram caro.",
+          },
+          {
+            id: "d6",
+            icon: "💰",
+            title: "Sem coragem de cobrar caro pela segurança?",
+            description:
+              "Entrega trabalho de elite mas precifica como iniciante. O ticket não acompanha a expertise.",
+          },
+        ],
+        bgColor: T.bg,
+        fgColor: T.fg,
+        primaryColor: T.primary,
+        mutedColor: T.muted,
+      }),
+
+      // ── 5. PROBLEMA — "PMMA acabou. E agora?" (texto + 3 bullets) ──
+      pushAt({
+        type: "section-features",
+        x: 0, y: 0, w: 1200, h: 520,
+        anchorId: "problema",
+        heading: "O PMMA ACABOU. E AGORA?",
+        subheading:
+          "O PMMA (polimetilmetacrilato) é proibido para fins estéticos em diversos países e tem uso restrito no Brasil. O debate sobre os riscos voltou ao centro das atenções — e com ele, uma multidão de pacientes inseguros e profissionais sem direção.",
+        features: [
+          {
+            id: "p1",
+            icon: "💉",
+            title: "Aplicação sem entendimento",
+            description:
+              "Muitos ainda aplicam substâncias sem entender o perfil de segurança de cada uma — e os pacientes pagam o preço.",
+          },
+          {
+            id: "p2",
+            icon: "📐",
+            title: "Avaliação ignorada",
+            description:
+              "Espessura do tecido, plano correto, biossegurança — passos pulados que viram complicação evitável.",
+          },
+          {
+            id: "p3",
+            icon: "💎",
+            title: "Quem entende, vira referência",
+            description:
+              "Nem tudo que dá volume tem o mesmo perfil de segurança. Quem domina isso e sabe explicar não compete por preço — vira autoridade.",
+          },
+        ],
+        bgColor: T.bg,
+        fgColor: T.fg,
+        primaryColor: T.primary,
+        mutedColor: T.muted,
+      }),
+
+      // ── 6. OPORTUNIDADE — 3 cards ──
+      pushAt({
+        type: "section-features",
+        x: 0, y: 0, w: 1200, h: 520,
+        anchorId: "oportunidade",
+        heading:
+          "A HARMONIZAÇÃO GLÚTEA SEGURA É O MERCADO MAIS VALIOSO DE 2026",
+        subheading:
+          "O fim do PMMA não é uma crise — é a maior janela de oportunidade da estética avançada. O paciente nunca buscou tanto SEGURANÇA, e está disposto a pagar mais por ela.",
+        features: [
+          {
+            id: "o1",
+            icon: "💰",
+            title: "Ticket alto justificado",
+            description:
+              "Protocolos com respaldo científico têm o maior valor percebido. O paciente paga 3x mais por segurança real.",
+          },
+          {
+            id: "o2",
+            icon: "🧬",
+            title: "Bioestimuladores + Ácido Hialurônico",
+            description:
+              "As alternativas estudadas, aprovadas e previsíveis. A combinação certa transforma resultado.",
+          },
+          {
+            id: "o3",
+            icon: "👑",
+            title: "Posicionamento de elite",
+            description:
+              "Ser 'a profissional que faz com segurança' é o melhor argumento de venda da estética hoje. Imbatível.",
+          },
+        ],
+        bgColor: T.bg,
+        fgColor: T.fg,
+        primaryColor: T.primary,
+        mutedColor: T.muted,
+      }),
+
+      // ── 7. PROGRAMA — o que vai aprender (8 cards numerados) ──
+      pushAt({
+        type: "section-features",
+        x: 0, y: 0, w: 1200, h: 900,
+        anchorId: "programa",
+        heading: "O QUE VOCÊ VAI DOMINAR NESTE AULÃO",
+        subheading:
+          "120 minutos de conteúdo prático e direto. Você sai com o método e a clareza pra aplicar na próxima paciente.",
+        features: [
+          {
+            id: "c1",
+            icon: "1️⃣",
+            title: "O cenário pós-PMMA",
+            description:
+              "O que mudou, o que é proibido e o que o paciente está pedindo. Panorama completo de regulação e tendências.",
+          },
+          {
+            id: "c2",
+            icon: "2️⃣",
+            title: "Alternativas seguras",
+            description:
+              "Bioestimuladores de colágeno e ácido hialurônico: quando usar, onde aplicar e por quê — com respaldo científico.",
+          },
+          {
+            id: "c3",
+            icon: "3️⃣",
+            title: "Leitura estrutural do glúteo",
+            description:
+              "Avaliação de flacidez, celulite e sustentação. O passo-a-passo da análise que orienta a escolha.",
+          },
+          {
+            id: "c4",
+            icon: "4️⃣",
+            title: "Tratamento em camadas",
+            description:
+              "Bioestimulador para estrutura, ácido hialurônico para contorno. Como combinar pra resultado completo.",
+          },
+          {
+            id: "c5",
+            icon: "5️⃣",
+            title: "Anatomia estratégica",
+            description:
+              "Zonas seguras, de atenção e de risco. O mapa que evita intercorrência e dá previsibilidade.",
+          },
+          {
+            id: "c6",
+            icon: "6️⃣",
+            title: "Biossegurança rígida",
+            description:
+              "Como evitar infecções e intercorrências. O protocolo que protege paciente e profissional.",
+          },
+          {
+            id: "c7",
+            icon: "7️⃣",
+            title: "Planejamento individualizado",
+            description:
+              "Não existe protocolo único — cada paciente, uma estratégia. O raciocínio que personaliza cada caso.",
+          },
+          {
+            id: "c8",
+            icon: "8️⃣",
+            title: "Posicionamento e vendas",
+            description:
+              "Como se tornar a referência em segurança da sua cidade — e cobrar por isso. Argumentos, scripts e ticket.",
+          },
+        ],
+        bgColor: T.bg,
+        fgColor: T.fg,
+        primaryColor: T.primary,
+        mutedColor: T.muted,
+      }),
+
+      // ── 8. AUTORIDADE — Dra. Thaine (1 card grande + quote) ──
+      pushAt({
+        type: "section-features",
+        x: 0, y: 0, w: 1200, h: 560,
+        anchorId: "mentora",
+        heading: "QUEM VAI TE ENSINAR",
+        subheading:
+          "Dra. Thaine Malinowski — mais de 18 anos de experiência em saúde e estética corporal, criadora do consagrado Método LiftBumbum®, referência nacional em harmonização corporal e formação de profissionais da estética avançada. Lidera a Modelart Estética & Saúde, com unidades em Manaus e Boa Vista.",
+        features: [
+          {
+            id: "a1",
+            icon: "💬",
+            title:
+              '"Segurança sempre vem antes da tendência."',
+            description:
+              '"Segurança sempre deve vir antes de qualquer tendência estética. O resultado seguro e harmonioso depende de análise criteriosa, escolha adequada dos produtos e experiência do profissional." — Dra. Thaine Malinowski · @drathainemalinowski',
+          },
+        ],
+        bgColor: T.bg,
+        fgColor: T.fg,
+        primaryColor: T.primary,
+        mutedColor: T.muted,
+      }),
+
+      // ── 9. CTA INTERMEDIÁRIO (botão 2) ──
+      pushAt({
+        type: "section-cta",
+        x: 0, y: 0, w: 1200, h: 360,
+        anchorId: "cta-meio",
+        heading: "Vagas limitadas.",
+        headingAccent: "Já fechamos 87%.",
+        subtitle:
+          "Não fique sem a sua. O grupo VIP já está em movimento e a próxima turma é só em 2027.",
+        buttons: [
+          {
+            id: "btn-meio-1",
+            label: "QUERO GARANTIR MINHA VAGA",
+            href: "#oferta-final",
+            variant: "primary",
+          },
+        ],
+        guarantees: [
+          "🔒 Compra 100% segura",
+          "⚡ Acesso imediato ao Grupo VIP",
+          "🎯 Garantia de 7 dias",
+        ],
+        bgColor: T.bg,
+        fgColor: T.fg,
+        primaryColor: T.primary,
+        mutedColor: T.muted,
+      }),
+
+      // ── 10. PROVA SOCIAL — depoimentos ──
+      pushAt({
+        type: "section-testimonials",
+        x: 0, y: 0, w: 1200, h: 480,
+        anchorId: "depoimentos",
+        heading: "O QUE AS ALUNAS DIZEM SOBRE O LIFTBUMBUM®",
+        testimonials: [
+          {
+            id: "t1",
+            quote:
+              "Eu já tinha cursos com 'as grandes' do mercado e nenhum me deu o raciocínio que a Dra. Thaine me passou. Hoje cobro 3x mais e durmo tranquila.",
+            author: "Dra. Camila R.",
+            role: "Biomédica · Goiânia",
+            avatar: "https://i.pravatar.cc/120?img=5",
+          },
+          {
+            id: "t2",
+            quote:
+              "Em 4 meses depois do Aulão, virei a referência em harmonização segura da minha cidade. Agenda de 6 meses pra frente.",
+            author: "Dra. Mariana L.",
+            role: "Fisioterapeuta dermato · Ribeirão",
+            avatar: "https://i.pravatar.cc/120?img=20",
+          },
+          {
+            id: "t3",
+            quote:
+              "Saí do PMMA com medo e voltei pra clínica com plano. Bioestimulador + AH agora é meu carro-chefe. Ticket subiu, complicação caiu.",
+            author: "Dra. Patrícia S.",
+            role: "Enfermeira esteta · Florianópolis",
+            avatar: "https://i.pravatar.cc/120?img=23",
+          },
+        ],
+        bgColor: T.bg,
+        fgColor: T.fg,
+        primaryColor: T.primary,
+        mutedColor: T.muted,
+      }),
+
+      // ── 11. OFERTA FINAL — preço, bullets, botão escasso ──
+      pushAt({
+        type: "section-cta",
+        x: 0, y: 0, w: 1200, h: 640,
+        anchorId: "oferta-final",
+        heading: "ACESSO IMEDIATO AO CONHECIMENTO",
+        headingAccent: "QUE GERA SEGURANÇA E RESULTADO.",
+        subtitle:
+          "Você vai sair do Aulão com o raciocínio por trás da técnica — aquilo que forma profissionais seguras, confiantes e bem pagas. Inclui: aulão completo · método de planejamento · estratégia de precificação · posicionamento de referência · BÔNUS: Grupo VIP imediato. De R$ 497 por apenas R$ 99,90 à vista (ou 12x de R$ 9,68). Menos que o custo de uma única intercorrência que você pode evitar.",
+        buttons: [
+          {
+            id: "btn-final-1",
+            label: "QUERO ME TORNAR REFERÊNCIA EM SEGURANÇA",
+            href: "https://pagamento.exemplo.com/aulao-liftbumbum",
+            variant: "primary",
+          },
+          {
+            id: "btn-final-2",
+            label: "💳 12x de R$ 9,68 sem juros",
+            href: "https://pagamento.exemplo.com/aulao-liftbumbum",
+            variant: "ghost",
+          },
+        ],
+        guarantees: [
+          "🔒 Compra 100% segura",
+          "⚡ Acesso imediato ao Grupo VIP",
+          "📱 Pelo WhatsApp e e-mail",
+          "🎯 Garantia de 7 dias",
+        ],
+        bgColor: T.bg,
+        fgColor: T.fg,
+        primaryColor: T.primary,
+        mutedColor: T.muted,
+      }),
+
+      // ── 12. FAQ ──
+      pushAt({
+        type: "section-faq",
+        x: 0, y: 0, w: 1200, h: 480,
+        anchorId: "faq",
+        heading: "DÚVIDAS FREQUENTES",
+        items: [
+          {
+            id: "f1",
+            question: "Quando é o aulão?",
+            answer:
+              "17 de junho de 2026, às 20h (Brasília), ao vivo no Google Meet. O link chega pelo WhatsApp e e-mail informados no cadastro.",
+          },
+          {
+            id: "f2",
+            question: "Vou receber a gravação?",
+            answer:
+              "Sim — todas as alunas recebem acesso à gravação por 30 dias após o aulão, junto com o material complementar enviado no Grupo VIP.",
+          },
+          {
+            id: "f3",
+            question: "Preciso já atuar na área?",
+            answer:
+              "Não. O Aulão serve tanto pra quem já atua e quer atualizar o repertório pós-PMMA, quanto pra quem quer entrar com segurança e estrutura clínica desde o início.",
+          },
+          {
+            id: "f4",
+            question: "Como recebo o acesso ao Grupo VIP?",
+            answer:
+              "Logo após o pagamento, você recebe pelo WhatsApp e pelo e-mail cadastrados o link de entrada no Grupo VIP — onde o material extra e a interação com a Dra. Thaine acontecem.",
+          },
+        ],
+        bgColor: T.bg,
+        fgColor: T.fg,
+        primaryColor: T.primary,
+        mutedColor: T.muted,
+      }),
+
+      // ── 13. FOOTER ──
+      pushAt({
+        type: "section-footer",
+        x: 0, y: 0, w: 1200, h: 200,
+        logoText: "LIFTBUMBUM®",
+        logoSrc: "",
+        tagline:
+          "Método de harmonização glútea segura criado pela Dra. Thaine Malinowski.",
+        copyright:
+          "© 2026 LiftBumbum® · Modelart Estética & Saúde · Todos os direitos reservados",
+        links: [
+          { id: "fl1", label: "Política de Privacidade", href: "#" },
+          { id: "fl2", label: "Termos de Uso", href: "#" },
+          { id: "fl3", label: "Suporte", href: "https://wa.me/" },
+          { id: "fl4", label: "Instagram", href: "https://instagram.com/drathainemalinowski" },
+        ],
+        bgColor: T.bg,
+        fgColor: T.fg,
+        mutedColor: T.muted,
+      }),
+    ],
+  };
+}
+
 export const PAGE_TEMPLATES: PageTemplate[] = [
+  {
+    id: "aulao-liftbumbum-pos-pmma",
+    name: "Aulão LiftBumbum® — Pós-PMMA",
+    description:
+      "Landing de captação + conversão pra aulão ao vivo sobre harmonização glútea segura pós-banimento do PMMA. 13 blocos com navbar sticky, hero com badge AO VIVO, stats fininha, 6 cards de empatia, problema + oportunidade, 8 itens de programa, autoridade Dra. Thaine, CTA mid, depoimentos, oferta final R$ 99,90 e FAQ. Paleta navy + dourado champanhe (autoridade clínica).",
+    intent: "EVENT",
+    category: "Eventos",
+    ...aulaoLiftbumbumPosPmma(),
+  },
   {
     id: "a-mina-imersao",
     name: "A MINA — Imersão Leonardo Loureiro",

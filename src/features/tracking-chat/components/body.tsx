@@ -34,6 +34,7 @@ import { EditMessage } from "./edit-message";
 import { SaveToNBoxPanel } from "./save-to-nbox-panel";
 
 import { useMessageStore } from "../context/use-message";
+import { playIncomingChatBeep } from "../lib/notification-sound";
 import { useMutationEditMessage } from "../hooks/use-messages";
 
 interface BodyProps {
@@ -358,11 +359,28 @@ export function Body({ messageSelected, onSelectMessage, conversationId: convers
       )
         return;
       updateCacheWithNewMessage(body);
+      // Notificação sonora: mensagens inbound (fromMe=false) que vêm
+      // via in-chat fallback (`viaInChat=true`) tocam beep — atendente
+      // sabe que tem cliente esperando no widget público. Mensagens de
+      // WhatsApp normais NÃO tocam aqui (já têm notificação do
+      // browser/whatsapp), evitando ruído.
+      if (
+        (body as unknown as { fromMe?: boolean }).fromMe === false &&
+        (body as unknown as { viaInChat?: boolean }).viaInChat === true
+      ) {
+        playIncomingChatBeep();
+      }
     };
 
     const messageNewHandler = (body: MessageBodyProps) => {
       if (body.conversation?.id !== conversationId) return;
       updateCacheWithNewMessage(body);
+      if (
+        (body as unknown as { fromMe?: boolean }).fromMe === false &&
+        (body as unknown as { viaInChat?: boolean }).viaInChat === true
+      ) {
+        playIncomingChatBeep();
+      }
     };
 
     // Atualização in-place de uma mensagem específica (ex: revoke do

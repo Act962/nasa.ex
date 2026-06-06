@@ -93,9 +93,25 @@ export async function shouldSkipUazapiForConversation(
           whatsappInstance: { select: { inChatModeActive: true } },
         },
       },
+      // Detecção complementar: se o lead veio pelo widget público
+      // (`source: IN_CHAT`) ou se a conversation tem qualquer mensagem
+      // marcada com `viaInChat=true`, NUNCA tenta enviar via uazapi —
+      // o destinatário não tem WhatsApp real, é só um cliente do
+      // widget. Tentar uazapi falha e a mensagem some sem ser gravada,
+      // causando o sintoma de "mensagem apagada".
+      lead: { select: { source: true } },
+      _count: {
+        select: {
+          messages: { where: { viaInChat: true } },
+        },
+      },
     },
   });
-  return !!conv?.tracking?.whatsappInstance?.inChatModeActive;
+  if (!conv) return false;
+  if (conv.tracking?.whatsappInstance?.inChatModeActive) return true;
+  if (conv.lead?.source === "IN_CHAT") return true;
+  if ((conv._count?.messages ?? 0) > 0) return true;
+  return false;
 }
 
 /**

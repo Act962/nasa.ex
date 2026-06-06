@@ -165,6 +165,10 @@ export type ElementType =
   | "chat-button"
   | "embedded-form"
   | "exit-intent"
+  // ── Marketing toolkit (Fase 7) ──
+  // Singleton com táticas de conversão: social-proof toasts,
+  // countdown de desconto, visitantes online, sticky CTA, scarcity.
+  | "marketing"
   // ── Data binding (Fase 5) ──
   // Renderiza dados do app em tempo real (planos, cursos, leaderboard).
   | "data-bound";

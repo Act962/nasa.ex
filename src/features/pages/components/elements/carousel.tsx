@@ -36,6 +36,13 @@ export function CarouselElement({ element }: { element: ElementBase }) {
   const gap = (element.gap as number) ?? 12;
   const radius = (element.radius as number) ?? 8;
   const autoplay = (element.autoplay as boolean) ?? true;
+  // Modo de exibição das imagens — controla altura uniforme vs proporção
+  // natural vs dimensões fixas. Default "uniform" pra dar consistência
+  // visual no carrossel sem precisar configurar slide a slide.
+  const imageMode =
+    (element.imageMode as "uniform" | "original" | "custom") ?? "uniform";
+  const imageHeight = (element.imageHeight as number | undefined) ?? 240;
+  const imageWidth = (element.imageWidth as number | undefined) ?? 320;
   // Slides visíveis por viewport. Mobile usa metade (mín 1).
   // Default desktop = 1 (clássico carrossel "1 por vez").
   const perViewDesktop = Math.max(
@@ -101,7 +108,7 @@ export function CarouselElement({ element }: { element: ElementBase }) {
         } as React.CSSProperties}
       >
         {slides.map((s) => (
-          <CarouselImage key={s.id} slide={s} radius={radius} />
+          <CarouselImage key={s.id} slide={s} radius={radius} imageMode={imageMode} imageHeight={imageHeight} imageWidth={imageWidth} />
         ))}
       </div>
     );
@@ -133,7 +140,7 @@ export function CarouselElement({ element }: { element: ElementBase }) {
               flexBasis: `calc(${slideBasisPct}% - ${gap * (perView - 1) / perView}px)`,
             }}
           >
-            <CarouselImage slide={s} radius={radius} />
+            <CarouselImage slide={s} radius={radius} imageMode={imageMode} imageHeight={imageHeight} imageWidth={imageWidth} />
           </div>
         ))}
       </div>
@@ -182,31 +189,65 @@ export function CarouselElement({ element }: { element: ElementBase }) {
   );
 }
 
-/** Imagem individual com aspect ratio + link opcional. */
+/** Imagem individual com modo de exibição (uniform/original/custom) + link opcional. */
 function CarouselImage({
   slide,
   radius,
+  imageMode,
+  imageHeight,
+  imageWidth,
 }: {
   slide: CarouselSlide;
   radius: number;
+  imageMode: "uniform" | "original" | "custom";
+  imageHeight: number;
+  imageWidth: number;
 }) {
-  // Resolve aspect-ratio CSS — formato "W:H" ou "free" (sem ratio).
-  const aspectStyle = (() => {
-    if (!slide.aspectRatio || slide.aspectRatio === "free") return {};
+  // Decide o estilo do wrapper baseado no modo:
+  //  - uniform: altura fixa pra padronizar TODOS os slides, com
+  //    `object-fit: cover` cortando proporcionalmente.
+  //  - original: respeita proporção natural da imagem (object-contain
+  //    + altura auto). Boa pra screenshots, infográficos, logos.
+  //  - custom: largura/altura definidas explicitamente pelo user.
+  //
+  // `slide.aspectRatio` (legacy, por slide) ainda é respeitado quando
+  // o user usa override no slide — mas o modo do carrossel é o
+  // controle principal/padrão.
+  const wrapperStyle: React.CSSProperties = { borderRadius: radius };
+  let imgClassName = "w-full h-full object-cover";
+
+  if (imageMode === "uniform") {
+    wrapperStyle.height = imageHeight;
+  } else if (imageMode === "original") {
+    wrapperStyle.height = "auto";
+    imgClassName = "w-full h-auto block";
+  } else {
+    // custom: aplica width/height explícitos
+    wrapperStyle.width = imageWidth;
+    wrapperStyle.height = imageHeight;
+    wrapperStyle.maxWidth = "100%";
+  }
+
+  // Override por slide (aspect ratio legacy) — vence quando setado e
+  // o modo NÃO é "original" (em original não faz sentido forçar ratio).
+  if (slide.aspectRatio && slide.aspectRatio !== "free" && imageMode !== "original") {
     const [w, h] = slide.aspectRatio.split(":").map((n) => Number(n) || 1);
-    return { aspectRatio: `${w} / ${h}` };
-  })();
+    wrapperStyle.aspectRatio = `${w} / ${h}`;
+    // Quando o slide define aspect ratio, deixamos a altura ser calculada
+    // pela proporção em vez do `imageHeight` fixo.
+    delete wrapperStyle.height;
+  }
 
   const content = (
     <div
       className="w-full relative overflow-hidden bg-muted/20"
-      style={{ ...aspectStyle, borderRadius: radius }}
+      style={wrapperStyle}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={slide.imageUrl}
         alt={slide.alt ?? ""}
-        className="w-full h-full object-cover"
+        className={imgClassName}
       />
       {slide.caption && (
         <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent text-white text-xs sm:text-sm">

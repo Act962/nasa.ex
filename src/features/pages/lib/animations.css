@@ -167,3 +167,30 @@
 .nasa-pages-anim-spin        { animation: nasa-pages-spin 8s linear infinite; }
 .nasa-pages-anim-marquee     { animation: nasa-pages-marquee 35s linear infinite; }
 .nasa-pages-anim-flow        { animation: nasa-pages-flow 3s linear infinite; }
+
+/* ─── Animated gradient border ("Explorer effect") ────────────────────
+ * Inspirado no command-input do NASA Explorer no /home. Aplica um
+ * gradiente que desliza horizontalmente no anel externo (padding=1.5px),
+ * deixando o conteúdo do elemento intacto no centro.
+ *
+ * Uso: envolver o conteúdo num wrapper com a classe `nasa-anim-border`.
+ * Cores customizáveis via CSS var `--nasa-anim-border-gradient`. Duração
+ * via `--nasa-anim-border-speed` (ex: `5s`).
+ */
+@keyframes nasa-anim-border-slide {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.nasa-anim-border {
+  position: relative;
+  background: var(--nasa-anim-border-gradient, linear-gradient(
+    270deg,
+    #7C3AED, #9333ea, #a855f7, #EC4899,
+    rgba(255, 255, 255, 0.92),
+    #EC4899, #a855f7, #7C3AED
+  ));
+  background-size: 600% 600%;
+  animation: nasa-anim-border-slide var(--nasa-anim-border-speed, 5s) ease infinite;
+  border-radius: var(--nasa-anim-border-radius, 16px);
+}

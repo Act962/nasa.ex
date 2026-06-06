@@ -16,6 +16,10 @@ export function BuilderCanvas() {
   const updateElement = usePagesBuilderStore((s) => s.updateElement);
   const undo = usePagesBuilderStore((s) => s.undo);
   const redo = usePagesBuilderStore((s) => s.redo);
+  const groupElements = usePagesBuilderStore((s) => s.groupElements);
+  const ungroupElement = usePagesBuilderStore((s) => s.ungroupElement);
+  const toggleVisibility = usePagesBuilderStore((s) => s.toggleVisibility);
+  const toggleLock = usePagesBuilderStore((s) => s.toggleLock);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -53,6 +57,47 @@ export function BuilderCanvas() {
         }
         return;
       }
+      // ── Cmd/Ctrl+Shift+G: desagrupar (precisa do shift ANTES de
+      //    cair no Cmd+G normal). 1 group selecionado → vira filhos
+      //    no top-level mesma ordem.
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        (e.key === "g" || e.key === "G")
+      ) {
+        e.preventDefault();
+        if (selected.length === 1) {
+          const lay = usePagesBuilderStore.getState().layout;
+          const layer = usePagesBuilderStore.getState().activeLayer;
+          if (lay) {
+            const el = getActiveLayerElements(lay, layer).find(
+              (x) => x.id === selected[0],
+            );
+            if (el?.type === "group") ungroupElement(selected[0]);
+          }
+        }
+        return;
+      }
+      // ── Cmd/Ctrl+G: agrupar 2+ elements selecionados.
+      if ((e.metaKey || e.ctrlKey) && (e.key === "g" || e.key === "G")) {
+        e.preventDefault();
+        if (selected.length >= 2) groupElements(selected);
+        return;
+      }
+      // ── H: toggle visibility do selected (Photoshop-style).
+      if (!e.metaKey && !e.ctrlKey && (e.key === "h" || e.key === "H")) {
+        if (selected.length === 0) return;
+        e.preventDefault();
+        selected.forEach((id) => toggleVisibility(id));
+        return;
+      }
+      // ── L: toggle lock do selected.
+      if (!e.metaKey && !e.ctrlKey && (e.key === "l" || e.key === "L")) {
+        if (selected.length === 0) return;
+        e.preventDefault();
+        selected.forEach((id) => toggleLock(id));
+        return;
+      }
       if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key) && selected.length > 0) {
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
@@ -70,13 +115,25 @@ export function BuilderCanvas() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected, removeElement, duplicateSelected, updateElement, setSelected, undo, redo]);
+  }, [
+    selected, removeElement, duplicateSelected, updateElement, setSelected,
+    undo, redo, groupElements, ungroupElement, toggleVisibility, toggleLock,
+  ]);
 
   if (!layout) return null;
 
   const artboardWidth = layout.artboard.width ?? 1440;
-  const minHeight = layout.artboard.minHeight;
   const elements = getActiveLayerElements(layout, activeLayer);
+
+  // Altura real do canvas = max(minHeight do artboard, bottom da última
+  // section/elemento). Sem isso o scroll wrapper trava em `minHeight`
+  // e as sections que crescem (via auto-altura) ficam cortadas embaixo,
+  // tornando impossível visualizar/clicar nas últimas sections.
+  const contentBottom = elements.reduce(
+    (max, el) => Math.max(max, (el.y ?? 0) + (el.h ?? 0)),
+    0,
+  );
+  const minHeight = Math.max(layout.artboard.minHeight, contentBottom + 40);
 
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) setSelected([]);

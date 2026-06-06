@@ -1,5 +1,5 @@
 /**
- * Section FAQ — accordion responsivo.
+ * Section FAQ — accordion responsivo com tipografia editável por item.
  */
 import {
   bgColor,
@@ -8,11 +8,25 @@ import {
   primaryColor,
   type SectionRendererProps,
 } from "./types";
+import {
+  resolveTextStyle,
+  textStyleToCSS,
+  type TextStyle,
+} from "../../../lib/text-style";
+import {
+  RenderInterludeBlocks,
+  type InterludeZones,
+} from "./interlude-block";
+import { wrapCardWithAnimatedBorder } from "../animated-border";
 
 interface FaqItem {
   id: string;
   question: string;
   answer: string;
+  questionStyle?: TextStyle;
+  answerStyle?: TextStyle;
+  cardBg?: string;
+  cardBorder?: string;
 }
 
 const DEFAULT_FAQ: FaqItem[] = [
@@ -24,14 +38,40 @@ const DEFAULT_FAQ: FaqItem[] = [
 export function SectionFaq({ element, tokens }: SectionRendererProps) {
   const heading = (element.heading as string) ?? "Perguntas frequentes";
   const items = (element.items as FaqItem[] | undefined) ?? DEFAULT_FAQ;
-  // `anchorId` permite navbar/botões linkarem aqui via #faq.
-  // Antes esse campo era escrito pelo editor mas ignorado.
   const anchorId = (element.anchorId as string) ?? undefined;
 
   const primary = primaryColor(element, tokens);
   const bg = bgColor(element, tokens);
   const fg = fgColor(element, tokens);
   const muted = mutedColor(element, tokens);
+
+  const sectionHeadingStyle = element.headingStyle as TextStyle | undefined;
+  const sectionQuestionStyle = element.questionStyle as TextStyle | undefined;
+  const sectionAnswerStyle = element.answerStyle as TextStyle | undefined;
+
+  const headingDefaults: TextStyle = {
+    color: fg,
+    fontSize: 32,
+    fontWeight: "900",
+    align: "center",
+  };
+  const questionDefaults: TextStyle = {
+    color: fg,
+    fontSize: 15,
+    fontWeight: "700",
+  };
+  const answerDefaults: TextStyle = {
+    color: muted,
+    fontSize: 14,
+    lineHeight: 1.55,
+  };
+
+  const sectionCardBg = (element.cardBg as string) ?? `${fg}05`;
+  const sectionCardBorder = (element.cardBorder as string) ?? `${fg}15`;
+  const cardRadius = (element.cardRadius as number) ?? 12;
+  const cardPadding = (element.cardPadding as number) ?? 20;
+
+  const interlude = (element.interlude as InterludeZones | undefined) ?? {};
 
   return (
     <section
@@ -40,35 +80,63 @@ export function SectionFaq({ element, tokens }: SectionRendererProps) {
       style={{ background: bg, color: fg }}
     >
       <div className="max-w-3xl mx-auto flex flex-col gap-8">
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-center">
+        <RenderInterludeBlocks blocks={interlude.aboveHeading} />
+        <h2 style={textStyleToCSS(resolveTextStyle(undefined, sectionHeadingStyle, headingDefaults))}>
           {heading}
         </h2>
+        <RenderInterludeBlocks blocks={interlude.betweenHeadingAndCards} />
 
         <div className="flex flex-col gap-2">
-          {items.map((item) => (
-            <details
-              key={item.id}
-              className="p-4 sm:p-5 rounded-xl border cursor-pointer"
-              style={{ background: `${fg}05`, borderColor: `${fg}15` }}
-            >
-              <summary
-                className="font-bold text-sm sm:text-base flex items-center justify-between list-none"
-                style={{ color: fg }}
+          {items.map((item) => {
+            const questionMerged = resolveTextStyle(
+              item.questionStyle,
+              sectionQuestionStyle,
+              questionDefaults,
+            );
+            const answerMerged = resolveTextStyle(
+              item.answerStyle,
+              sectionAnswerStyle,
+              answerDefaults,
+            );
+            const itemInner = (
+              <details
+                className="cursor-pointer border"
+                style={{
+                  background: item.cardBg ?? sectionCardBg,
+                  borderColor: item.cardBorder ?? sectionCardBorder,
+                  borderRadius: cardRadius,
+                  padding: cardPadding,
+                  width: "100%",
+                }}
               >
-                <span className="pr-4">{item.question}</span>
-                <span className="text-lg shrink-0" style={{ color: primary }}>
-                  +
-                </span>
-              </summary>
-              <p
-                className="mt-3 pt-3 text-xs sm:text-sm leading-relaxed border-t"
-                style={{ color: muted, borderColor: `${fg}10` }}
-              >
-                {item.answer}
-              </p>
-            </details>
-          ))}
+                <summary
+                  className="flex items-center justify-between list-none"
+                  style={textStyleToCSS(questionMerged)}
+                >
+                  <span className="pr-4">{item.question}</span>
+                  <span className="text-lg shrink-0" style={{ color: primary }}>
+                    +
+                  </span>
+                </summary>
+                <p
+                  className="mt-3 pt-3 border-t"
+                  style={{
+                    ...textStyleToCSS(answerMerged),
+                    borderColor: `${fg}10`,
+                  }}
+                >
+                  {item.answer}
+                </p>
+              </details>
+            );
+            return (
+              <div key={item.id}>
+                {wrapCardWithAnimatedBorder(element, itemInner)}
+              </div>
+            );
+          })}
         </div>
+        <RenderInterludeBlocks blocks={interlude.afterCards} />
       </div>
     </section>
   );

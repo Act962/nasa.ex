@@ -14,8 +14,11 @@ export const listPages = base
     if (!organizationId) {
       throw errors.BAD_REQUEST({ message: "Organização não encontrada" });
     }
+    // Listagem só de SITES (top-level). Subpages são listadas via
+    // `listSubpages` dentro do builder. `_count.subpages` alimenta o
+    // badge "3 páginas" no card.
     const pages = await prisma.nasaPage.findMany({
-      where: { organizationId },
+      where: { organizationId, parentPageId: null },
       orderBy: { updatedAt: "desc" },
       select: {
         id: true,
@@ -30,6 +33,7 @@ export const listPages = base
         publishedAt: true,
         createdAt: true,
         updatedAt: true,
+        _count: { select: { subpages: true } },
       },
     });
     return { pages };

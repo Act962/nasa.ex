@@ -1,11 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Device, ElementType, PageLayout, ElementBase } from "../../types";
 import { DEVICE_PRESETS } from "../../constants";
 import { ElementRenderer } from "../elements/element-renderer";
 import { resolveElements, getDeviceFromWidth } from "../../lib/responsive";
 import { isFlowSection, pageRenderMode } from "../../lib/section-flow";
+import { flattenGroupsForRender } from "../../lib/layer-utils";
+import {
+  AnimatedBorder,
+  getAnimatedBorderProps,
+} from "../elements/animated-border";
+import {
+  ScrollReveal,
+  getScrollRevealProps,
+} from "../elements/scroll-reveal";
 import { PageAnalytics } from "./page-analytics";
 import { PageTracker } from "./page-tracker";
 import { PageRenderContextProvider } from "./page-context";
@@ -22,6 +31,11 @@ interface Props {
    *  Context pro ChatButton — evita confiar em element.orgSlug que
    *  pode ficar stale. */
   organizationSlug?: string;
+  /** Slug do root site (multi-page). Vai pro contexto pra navbar
+   *  resolver links internos. */
+  rootSlug?: string;
+  /** Páginas-irmãs publicadas (root + subpages). Default empty array. */
+  siblingPages?: Array<{ id: string; slug: string; title: string; isRoot: boolean }>;
 }
 
 export function PublicPageRenderer({
@@ -30,6 +44,8 @@ export function PublicPageRenderer({
   fontFamily,
   trackingSlug,
   organizationSlug,
+  rootSlug,
+  siblingPages,
 }: Props) {
   const [device, setDevice] = useState<Device>("desktop");
   const [scrollY, setScrollY] = useState(0);
@@ -89,23 +105,65 @@ export function PublicPageRenderer({
       utmTerm?: string;
     };
 
+  // Detecta os nomes dos planos em qualquer section-pricing presente na
+  // page atual — usado pelo elemento Marketing pra gerar toasts
+  // "Fulano adquiriu <plano>". Sem pricing na page, fica empty e o
+  // toggle de toasts de compra fica neutralizado.
+  const availablePlans: string[] = [];
+  for (const el of mainElements) {
+    if (el.type === "section-pricing") {
+      const plans = (el.plans as Array<{ name?: string }> | undefined) ?? [];
+      for (const plan of plans) {
+        if (plan.name && !availablePlans.includes(plan.name)) {
+          availablePlans.push(plan.name);
+        }
+      }
+    }
+  }
+
   const ctxValue = {
     organizationSlug,
     pageSlug: trackingSlug,
+    rootSlug,
+    siblingPages,
+    availablePlans,
   };
 
   if (layout.mode === "single") {
     const elements = resolveElements(layout.main.elements, device, artboardWidth);
+    // Extrai a navbar com stickyMode `fixed` ou `sticky` pra renderizar
+    // FORA do flex-col do LandingFlow — direto no root. Sem isso, o
+    // wrapper `<div className="w-full">` ao redor de cada section
+    // interfere com `position: fixed` (que precisa "escapar" pra topo
+    // do viewport sem interferência de pais).
+    const navbarOverlay = elements.find(
+      (el) =>
+        el.type === "section-navbar" &&
+        ((el.stickyMode as string) === "fixed" ||
+          (el.stickyMode as string) === "sticky" ||
+          el.stickyMode === undefined),
+    );
+    const restElements = navbarOverlay
+      ? elements.filter((el) => el.id !== navbarOverlay.id)
+      : elements;
     return (
       <PageRenderContextProvider value={ctxValue}>
         <SmoothScrollStyle />
         <PageAnalytics meta={pageMeta} />
         {trackingSlug && <PageTracker slug={trackingSlug} />}
+        {/* Navbar overlay (fora do flex-col): garante z-index real do
+            viewport, sem interferência do wrapper interno. */}
+        {navbarOverlay && (
+          <NavbarOverlay
+            navbarElement={navbarOverlay}
+            tokens={(layout as { tokens?: unknown }).tokens}
+          />
+        )}
         <div style={wrapperStyle}>
           {renderMode === "landing" ? (
-            <LandingFlow elements={elements} tokens={(layout as { tokens?: unknown }).tokens} />
+            <LandingFlow elements={restElements} tokens={(layout as { tokens?: unknown }).tokens} />
           ) : (
-            <LayerSurface elements={elements} minHeight={layout.artboard.minHeight} />
+            <LayerSurface elements={restElements} minHeight={layout.artboard.minHeight} />
           )}
         </div>
       </PageRenderContextProvider>
@@ -180,9 +238,12 @@ function LayerSurface({
   elements: ElementBase[];
   minHeight: number;
 }) {
+  // Mesmo tratamento do LandingFlow: flatten groups + filtra hidden
+  // pra que o modo canvas livre também respeite visibilidade e grupos.
+  const visible = flattenGroupsForRender(elements);
   return (
     <div style={{ position: "relative", minHeight }}>
-      {elements.map((el) => (
+      {visible.map((el) => (
         <div
           key={el.id}
           data-el-id={el.id}
@@ -197,7 +258,7 @@ function LayerSurface({
             zIndex: el.zIndex ?? 1,
           }}
         >
-          <ElementRenderer element={el} readonly />
+          {wrapWithEffects(el, <ElementRenderer element={el} readonly />)}
         </div>
       ))}
     </div>
@@ -229,18 +290,25 @@ function LandingFlow({
   elements: ElementBase[];
   tokens?: unknown;
 }) {
-  // Singleton types — só renderizamos a primeira ocorrência. Pages
-  // antigas podem ter múltiplos chat-buttons/exit-intents por bug
-  // do editor antigo; o renderer dedupa em vez de exibir vários
-  // botões empilhados / 2 popovers simultâneos.
+  // 1. Expande filhos de groups pro top-level + filtra `hidden`.
+  //    Sem isso, agrupar 1 chat-button + 1 text esconde o chat-button
+  //    do dedup (sumiria visualmente), e a flag `hidden` (toggle 👁 na
+  //    aba Camadas) ficaria ineficaz no público.
+  const flat = flattenGroupsForRender(elements);
+
+  // 2. Singleton types — só renderizamos a primeira ocorrência. Pages
+  //    antigas podem ter múltiplos chat-buttons/exit-intents por bug
+  //    do editor antigo; o renderer dedupa em vez de exibir vários
+  //    botões empilhados / 2 popovers simultâneos.
   const SINGLETON_RENDER = new Set([
     "chat-button",
     "exit-intent",
     "section-navbar",
     "section-footer",
+    "marketing",
   ]);
   const seenSingletons = new Set<string>();
-  const deduped = elements.filter((el) => {
+  const deduped = flat.filter((el) => {
     if (!SINGLETON_RENDER.has(el.type)) return true;
     if (seenSingletons.has(el.type)) return false;
     seenSingletons.add(el.type);
@@ -267,11 +335,14 @@ function LandingFlow({
                 zIndex: el.zIndex ?? 1,
               }}
             >
-              <ElementRenderer
-                element={el}
-                readonly
-                tokens={tokens as never}
-              />
+              {wrapWithEffects(
+                el,
+                <ElementRenderer
+                  element={el}
+                  readonly
+                  tokens={tokens as never}
+                />,
+              )}
             </div>
           );
         }
@@ -296,15 +367,136 @@ function LandingFlow({
                 position: "relative",
               }}
             >
-              <ElementRenderer
-                element={el}
-                readonly
-                tokens={tokens as never}
-              />
+              {wrapWithEffects(
+                el,
+                <ElementRenderer
+                  element={el}
+                  readonly
+                  tokens={tokens as never}
+                />,
+              )}
             </div>
           </div>
         );
       })}
     </div>
   );
+}
+
+/**
+ * Renderiza a navbar FORA do flex-col do LandingFlow pra garantir que
+ * `position: fixed` realmente fixe no topo do viewport — sem
+ * interferência do wrapper interno que cria stacking context indesejado.
+ *
+ * Quando `stickyMode === "fixed"`, mede dinamicamente a altura real da
+ * navbar via ResizeObserver e renderiza um SPACER invisível com a
+ * mesma altura logo após — pra compensar o `position: fixed` (que tira
+ * a navbar do fluxo) e evitar que o conteúdo abaixo "suba" pra debaixo
+ * dela.
+ *
+ * z-index: 9999 garante que fique acima de qualquer outra section
+ * sem precisar configuração.
+ */
+function NavbarOverlay({
+  navbarElement,
+  tokens,
+}: {
+  navbarElement: ElementBase;
+  tokens: unknown;
+}) {
+  const stickyMode = (navbarElement.stickyMode as string | undefined) ?? "sticky";
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [measuredHeight, setMeasuredHeight] = useState(0);
+
+  useEffect(() => {
+    const node = wrapperRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      setMeasuredHeight(Math.ceil(entry.contentRect.height));
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const position =
+    stickyMode === "static"
+      ? "relative"
+      : stickyMode === "fixed"
+        ? "fixed"
+        : "sticky";
+
+  return (
+    <>
+      <div
+        ref={wrapperRef}
+        style={{
+          position,
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 9999,
+        }}
+      >
+        <ElementRenderer
+          element={navbarElement}
+          readonly
+          tokens={tokens as never}
+        />
+      </div>
+      {/* Spacer compensatório: só quando "fixed", porque sticky/static
+          já ocupam espaço no fluxo. */}
+      {stickyMode === "fixed" && measuredHeight > 0 && (
+        <div aria-hidden style={{ height: measuredHeight }} />
+      )}
+    </>
+  );
+}
+
+/**
+ * Aplica os efeitos opcionais do element (borda animada + scroll
+ * reveal) ao redor do conteúdo renderizado. Ordem de aninhamento:
+ *
+ *   ScrollReveal (mais externo)
+ *     └── AnimatedBorder
+ *           └── conteúdo (children)
+ *
+ * Quando NENHUM efeito está ligado, devolve `children` direto (zero
+ * overhead).
+ */
+function wrapWithEffects(
+  el: ElementBase,
+  children: React.ReactNode,
+): React.ReactNode {
+  const border = getAnimatedBorderProps(el as unknown as Record<string, unknown>);
+  const scroll = getScrollRevealProps(el as unknown as Record<string, unknown>);
+  let content: React.ReactNode = children;
+  if (border) {
+    content = (
+      <AnimatedBorder
+        colors={border.colors}
+        width={border.width}
+        speedSec={border.speedSec}
+        radius={border.radius}
+      >
+        {content}
+      </AnimatedBorder>
+    );
+  }
+  if (scroll) {
+    content = (
+      <ScrollReveal
+        preset={scroll.preset}
+        distance={scroll.distance}
+        durationMs={scroll.durationMs}
+        delayMs={scroll.delayMs}
+        threshold={scroll.threshold}
+        replay={scroll.replay}
+      >
+        {content}
+      </ScrollReveal>
+    );
+  }
+  return content;
 }

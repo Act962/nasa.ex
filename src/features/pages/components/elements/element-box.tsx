@@ -7,6 +7,8 @@ import { usePagesBuilderStore } from "../../context/pages-builder-store";
 import { isFlowSection } from "../../lib/section-flow";
 import type { ElementBase, ElementType } from "../../types";
 import { ElementRenderer } from "./element-renderer";
+import { AnimatedBorder, getAnimatedBorderProps } from "./animated-border";
+import { ScrollReveal, getScrollRevealProps } from "./scroll-reveal";
 
 // Threshold em px de tela pra distinguir "clique" de "drag". Sem
 // isso, qualquer micro-tremor do mouse vira drag e a section (que
@@ -42,6 +44,39 @@ export function ElementBox({ element, editable }: Props) {
   // livremente — senão somem do canvas no primeiro tremor de cursor.
   // Clicar nelas seleciona; arrastar não faz nada.
   const isSection = isFlowSection(element.type as ElementType);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Auto-altura pras flow sections — mede o conteúdo REAL renderizado
+   * e atualiza `element.h` no store quando muda. Sem isso, o conteúdo
+   * cresce (mais cards/blocos intermediários) mas a `h` fica fixa no
+   * valor inicial do factory, fazendo a próxima section abaixo ficar
+   * sobreposta visualmente no editor.
+   *
+   * Threshold de 4px pra evitar loops de microajuste e arredondamento.
+   * Só roda pra sections (átomos têm h definida pelo user).
+   */
+  useEffect(() => {
+    if (!isSection || !contentRef.current) return;
+    const node = contentRef.current;
+    let lastH = element.h;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const measuredH = Math.ceil(entry.contentRect.height);
+      if (measuredH <= 0) return;
+      if (Math.abs(measuredH - lastH) < 4) return;
+      lastH = measuredH;
+      // Patch só `h` — o reducer do store já dispara reindexFlowY
+      // pra acomodar a mudança nas vizinhas.
+      usePagesBuilderStore.getState().updateElement(element.id, { h: measuredH });
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+    // Reage a mudanças do tipo (caso o user troque) ou do próprio id.
+    // O conteúdo interno (ElementRenderer) é puramente reativo via
+    // element prop — sem deps adicionais aqui.
+  }, [isSection, element.id, element.h]);
   const dragRef = useRef<{
     mode: DragMode;
     startX: number;
@@ -175,9 +210,18 @@ export function ElementBox({ element, editable }: Props) {
         left: element.x,
         top: element.y,
         width: element.w,
-        height: element.h,
+        // Pra flow sections: NÃO travamos altura — deixa o conteúdo
+        // medir naturalmente. O ResizeObserver acima sincroniza `h`
+        // pro store, e a próxima section abaixo é deslocada via
+        // reindexFlowY. Pra átomos a altura continua fixa (resize
+        // manual pelo handle).
+        height: isSection ? "auto" : element.h,
+        minHeight: isSection ? element.h : undefined,
         transform: element.rotation ? `rotate(${element.rotation}deg)` : undefined,
-        opacity: element.opacity ?? 1,
+        // hidden=true (toggle 👁 da aba Camadas): fica opaco no editor
+        // pra dar feedback visual ("escondido") sem sumir do canvas.
+        // No público o `flattenGroupsForRender` filtra fora.
+        opacity: element.hidden ? 0.3 : element.opacity ?? 1,
         zIndex: element.zIndex ?? 1,
         // touchAction: none impede o navegador de capturar o gesto
         // como scroll quando o user tá tentando arrastar/redimensionar.
@@ -188,7 +232,45 @@ export function ElementBox({ element, editable }: Props) {
       onPointerUp={isEditing ? undefined : onPointerUp}
       onDoubleClick={handleDoubleClick}
     >
-      <ElementRenderer element={element} />
+      <div ref={contentRef} style={{ width: "100%", height: isSection ? "auto" : "100%" }}>
+        {(() => {
+          const borderProps = getAnimatedBorderProps(element);
+          const scrollProps = getScrollRevealProps(element);
+          // Conteúdo base — eventualmente envolvido por borda animada.
+          let content: React.ReactNode = <ElementRenderer element={element} />;
+          if (borderProps) {
+            content = (
+              <AnimatedBorder
+                colors={borderProps.colors}
+                width={borderProps.width}
+                speedSec={borderProps.speedSec}
+                radius={borderProps.radius}
+              >
+                {content}
+              </AnimatedBorder>
+            );
+          }
+          // Scroll reveal: aplicado no canvas com `replay=false` SE
+          // estiver editável (user vê o efeito 1x ao rolar até o
+          // elemento e depois o conteúdo fica nítido pra editar). No
+          // modo readonly (preview no canvas) respeita config do user.
+          if (scrollProps) {
+            content = (
+              <ScrollReveal
+                preset={scrollProps.preset}
+                distance={scrollProps.distance}
+                durationMs={scrollProps.durationMs}
+                delayMs={scrollProps.delayMs}
+                threshold={scrollProps.threshold}
+                replay={editable ? false : scrollProps.replay}
+              >
+                {content}
+              </ScrollReveal>
+            );
+          }
+          return content;
+        })()}
+      </div>
 
       {isEditing && element.type === "text" && (
         <textarea
