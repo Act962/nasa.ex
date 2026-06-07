@@ -1,7 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Trash2, Copy, Lock, Unlock, ExternalLink, Crop, Wand2 } from "lucide-react";
+import {
+  Trash2,
+  Copy,
+  Lock,
+  Unlock,
+  ExternalLink,
+  Crop,
+  Wand2,
+  ChevronUp,
+  ChevronDown,
+  CornerDownRight,
+} from "lucide-react";
 import { ImageCropEditor } from "../elements/image-crop-editor";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +44,10 @@ import { AnchorPicker } from "./anchor-picker";
 import { AnimatedBorderEditor } from "./animated-border-editor";
 import { CardAnimatedBorderEditor } from "./card-animated-border-editor";
 import { ImageUploaderField } from "./image-uploader-field";
+import { uploadImage } from "../../lib/upload-image";
+import { isFlowSection } from "../../lib/section-flow";
+import { getElementDisplayName } from "../../lib/layer-utils";
+import { mapElementToInterludeBlock } from "../../lib/visible-section";
 import { ScrollRevealEditor } from "./scroll-reveal-editor";
 import { MarketingProps } from "./marketing-props";
 import type { TextStyle } from "../../lib/text-style";
@@ -333,14 +348,11 @@ function ImageProps({ el, update }: { el: ElementBase; update: (p: Partial<Eleme
   const [removingBg, setRemovingBg] = useState(false);
 
   const handleUpload = async (file: File) => {
-    const form = new FormData();
-    form.append("file", file);
     try {
-      const res = await fetch("/api/upload-local", { method: "POST", body: form });
-      const { url } = await res.json();
+      const url = await uploadImage(file);
       update({ src: url });
-    } catch {
-      toast.error("Falha no upload");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha no upload");
     }
   };
 
@@ -359,10 +371,7 @@ function ImageProps({ el, update }: { el: ElementBase; update: (p: Partial<Eleme
         output: { format: "image/png", quality: 1 },
       });
       const file = new File([blob], "sem-fundo.png", { type: "image/png" });
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch("/api/upload-local", { method: "POST", body: form });
-      const { url } = await res.json();
+      const url = await uploadImage(file);
       update({ src: url });
       toast.success("Fundo removido!");
     } catch {
@@ -678,7 +687,7 @@ function EmbedProps({ el, update }: { el: ElementBase; update: (p: Partial<Eleme
 // ─── LogoUploader (helper compartilhado entre Navbar e Footer) ──────────────
 //
 // Renderiza um uploader de imagem completo: botão "Fazer upload" que
-// abre file picker → POST em /api/upload-local → seta o `logoSrc`.
+// abre file picker → uploadImage() (R2 server-side em prod, local em dev) → seta o `logoSrc`.
 // Mostra preview da imagem atual e botão pra remover.
 //
 // Reusa a mesma rota usada pelo ImageProps — já validada em produção.
@@ -695,18 +704,12 @@ function LogoUploader({
 
   const handleUpload = async (file: File) => {
     setUploading(true);
-    const form = new FormData();
-    form.append("file", file);
     try {
-      const res = await fetch("/api/upload-local", {
-        method: "POST",
-        body: form,
-      });
-      const { url } = await res.json();
+      const url = await uploadImage(file);
       update({ logoSrc: url });
       toast.success("Logo carregada");
-    } catch {
-      toast.error("Falha no upload");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha no upload");
     } finally {
       setUploading(false);
     }
@@ -843,8 +846,15 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
     }
   };
 
+  // Default "fixed" — quando o user clica "Fixado", queremos position:fixed
+  // de verdade (sempre visível no topo), não sticky (que depende do
+  // ancestor ter altura e overflow correto pra funcionar).
+  //
+  // Pages legadas que tinham stickyMode = "sticky" continuam funcionando:
+  // o renderer trata "sticky" como variante que acompanha o flow (alternativa
+  // ao "Fixado"). "static" desliga o pin no topo.
   const stickyMode =
-    ((el.stickyMode as "sticky" | "fixed" | "static" | undefined) ?? "sticky");
+    ((el.stickyMode as "sticky" | "fixed" | "static" | undefined) ?? "fixed");
 
   return (
     <>
@@ -859,14 +869,14 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
         {(
           [
             {
-              value: "sticky",
+              value: "fixed",
               label: "Fixado",
-              hint: "Gruda no topo conforme rola (recomendado)",
+              hint: "Sempre visível no topo (recomendado)",
             },
             {
-              value: "fixed",
-              label: "Sempre fixo",
-              hint: "Cobre o conteúdo de baixo",
+              value: "sticky",
+              label: "Acompanha",
+              hint: "Gruda no topo conforme rola (alternativa CSS sticky)",
             },
             {
               value: "static",
@@ -897,7 +907,7 @@ function NavbarProps({ el, update }: { el: ElementBase; update: (p: Partial<Elem
       </p>
       {stickyMode === "fixed" && (
         <p className="text-[10px] text-amber-700 mt-1 leading-snug">
-          ⚠ No editor o &quot;Sempre fixo&quot; é exibido como &quot;Fixado&quot;
+          ⚠ No editor o &quot;Fixado&quot; aparece no fluxo normal
           (limitação do canvas com zoom). O comportamento real só
           aparece na página publicada.
         </p>
@@ -1177,15 +1187,12 @@ function HeroImageUploader({
   const [uploading, setUploading] = useState(false);
   const handleUpload = async (file: File) => {
     setUploading(true);
-    const form = new FormData();
-    form.append("file", file);
     try {
-      const res = await fetch("/api/upload-local", { method: "POST", body: form });
-      const { url } = await res.json();
+      const url = await uploadImage(file);
       update({ imageUrl: url });
       toast.success("Imagem do hero carregada");
-    } catch {
-      toast.error("Falha no upload");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha no upload");
     } finally {
       setUploading(false);
     }
@@ -1259,15 +1266,12 @@ function HeroBackgroundUploader({
 
   const handleUpload = async (file: File) => {
     setUploading(true);
-    const form = new FormData();
-    form.append("file", file);
     try {
-      const res = await fetch("/api/upload-local", { method: "POST", body: form });
-      const { url } = await res.json();
+      const url = await uploadImage(file);
       update({ backgroundImage: url });
       toast.success("Imagem de fundo aplicada");
-    } catch {
-      toast.error("Falha no upload");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha no upload");
     } finally {
       setUploading(false);
     }
@@ -4317,6 +4321,12 @@ export function PropertiesPanelContent() {
 
       {/* body */}
       <div className="px-3 py-3 flex flex-col gap-2">
+        {/* Ordem e localização — botões ⬆/⬇ pra reordenar no fluxo +
+            dropdown "Adicionar à camada" pra mover o element pra DENTRO
+            de outra section como interlude block. Funciona pra qualquer
+            tipo de element (incluindo flow sections — Subir/Descer
+            espelha o drag da aba Camadas). */}
+        <ElementOrderControls element={el} />
         <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-1">Posição e tamanho</p>
         <Row>
           <NumField label="X" value={el.x} onChange={(v) => update({ x: v })} />
@@ -4343,6 +4353,7 @@ export function PropertiesPanelContent() {
         {el.type === "video"  && <VideoProps  el={el} update={update} />}
         {el.type === "embed"  && <EmbedProps  el={el} update={update} />}
         {el.type === "nasa-link" && <NasaLinkProps el={el} update={update} />}
+        {el.type === "social" && <SocialProps el={el} update={update} />}
         {el.type === "carousel"      && <CarouselProps     el={el} update={update} />}
         {el.type === "chat-button"   && <ChatButtonProps   el={el} update={update} />}
         {el.type === "embedded-form" && <EmbeddedFormProps el={el} update={update} />}
@@ -4402,4 +4413,373 @@ function extractText(node: unknown): string {
   if (n.text) return n.text;
   if (Array.isArray(n.content)) return n.content.map(extractText).join(" ");
   return "";
+}
+
+// ─── ElementOrderControls — bloco no topo do painel de propriedades
+//     com 2 utilitários de organização visual: ────────────────────────
+//
+//   1. Botões ⬆ Subir / ⬇ Descer — chamam `moveElement(id, idx ± 1)`
+//      no store. Pra flow sections, isso reordena o fluxo vertical da
+//      landing (com reindex Y em cascata). Pra átomos, reordena no
+//      array mas mantém posição absoluta (afeta z-stack quando
+//      sobrepostos).
+//
+//   2. Dropdown "Adicionar à camada" — lista todas as flow sections do
+//      canvas (exceto o próprio element). Ao escolher uma, o element
+//      atual é REMOVIDO do top-level e RE-INSERIDO como InterludeBlock
+//      no fim da section escolhida (zona "afterCards"). Funciona com
+//      mapElementToInterludeBlock — átomos sem mapeamento (chat-button,
+//      marketing, etc) ficam desabilitados.
+function ElementOrderControls({ element }: { element: ElementBase }) {
+  const layout = usePagesBuilderStore((s) => s.layout);
+  const activeLayer = usePagesBuilderStore((s) => s.activeLayer);
+  const moveElement = usePagesBuilderStore((s) => s.moveElement);
+  const removeElement = usePagesBuilderStore((s) => s.removeElement);
+  const appendInterludeBlockToSection = usePagesBuilderStore(
+    (s) => s.appendInterludeBlockToSection,
+  );
+
+  if (!layout) return null;
+  const allElements = getActiveLayerElements(layout, activeLayer);
+  const currentIndex = allElements.findIndex((e) => e.id === element.id);
+  const canMoveUp = currentIndex > 0;
+  const canMoveDown =
+    currentIndex >= 0 && currentIndex < allElements.length - 1;
+
+  // Candidatas a receber o element como interlude block: flow sections
+  // que NÃO são o próprio element. Inclui navbar/footer pq também têm
+  // interlude zones (ainda que faça menos sentido).
+  const candidateSections = allElements.filter(
+    (candidate) =>
+      candidate.id !== element.id && isFlowSection(candidate.type),
+  );
+
+  // Tenta gerar um InterludeBlock equivalente do element. Quando null,
+  // o dropdown fica desabilitado (átomo sem mapeamento — chat-button,
+  // marketing, sticky-cta, formulário, etc).
+  const candidateBlock = mapElementToInterludeBlock(element.type, element);
+  const canMoveIntoSection =
+    candidateBlock !== null && candidateSections.length > 0;
+
+  const moveIntoSection = (sectionId: string) => {
+    if (!candidateBlock) return;
+    const ok = appendInterludeBlockToSection(
+      sectionId,
+      candidateBlock as unknown as Record<string, unknown>,
+      "after",
+    );
+    if (!ok) {
+      toast.error("Não consegui mover esse element pra essa camada");
+      return;
+    }
+    // Remove o element original do top-level — ele agora vive só dentro
+    // da section escolhida.
+    removeElement(element.id);
+    const targetLabel =
+      getElementDisplayName(
+        allElements.find((e) => e.id === sectionId) ?? element,
+      ) ?? "camada";
+    toast.success(`Movido pra dentro de ${targetLabel}`, {
+      description:
+        "Edite a ordem dentro da camada no painel direito da section.",
+    });
+  };
+
+  return (
+    <div className="rounded border bg-muted/30 px-2 py-2 mb-2">
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-1.5">
+        Organização
+      </p>
+      {/* Subir/Descer no fluxo */}
+      <div className="grid grid-cols-2 gap-1 mb-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-7 text-[11px] gap-1"
+          disabled={!canMoveUp}
+          onClick={() => moveElement(element.id, Math.max(0, currentIndex - 1))}
+          title="Mover pra cima no fluxo"
+        >
+          <ChevronUp className="size-3" />
+          Subir
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-7 text-[11px] gap-1"
+          disabled={!canMoveDown}
+          onClick={() =>
+            moveElement(
+              element.id,
+              Math.min(allElements.length - 1, currentIndex + 1),
+            )
+          }
+          title="Mover pra baixo no fluxo"
+        >
+          <ChevronDown className="size-3" />
+          Descer
+        </Button>
+      </div>
+
+      {/* Adicionar à camada — converte element em InterludeBlock e
+          insere como último filho da section escolhida. */}
+      <Label className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1">
+        <CornerDownRight className="size-3" />
+        Adicionar à camada
+      </Label>
+      <Select
+        value=""
+        onValueChange={(value) => {
+          if (value) moveIntoSection(value);
+        }}
+        disabled={!canMoveIntoSection}
+      >
+        <SelectTrigger className="h-7 text-[11px]">
+          <SelectValue
+            placeholder={
+              !candidateBlock
+                ? "Esse tipo não pode entrar em camadas"
+                : candidateSections.length === 0
+                  ? "Sem camadas disponíveis"
+                  : "Escolher camada…"
+            }
+          />
+        </SelectTrigger>
+        <SelectContent>
+          {candidateSections.map((section) => (
+            <SelectItem
+              key={section.id}
+              value={section.id}
+              className="text-[11px]"
+            >
+              {getElementDisplayName(section)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="text-[9px] text-muted-foreground/70 mt-1 leading-snug">
+        Move este elemento como último item dentro da camada escolhida.
+      </p>
+    </div>
+  );
+}
+
+// ─── SocialProps — editor de plataformas + URLs do elemento "social" ──
+//
+// Migra automaticamente do formato legacy (`platforms: string[]`) pro
+// novo (`links: { id, platform, url }[]`) na primeira edição. Aceita 9
+// plataformas comuns + opção custom.
+
+const SOCIAL_PLATFORM_OPTIONS = [
+  { value: "instagram", label: "Instagram" },
+  { value: "facebook", label: "Facebook" },
+  { value: "tiktok", label: "TikTok" },
+  { value: "youtube", label: "YouTube" },
+  { value: "twitter", label: "X (Twitter)" },
+  { value: "linkedin", label: "LinkedIn" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "telegram", label: "Telegram" },
+  { value: "spotify", label: "Spotify" },
+  { value: "github", label: "GitHub" },
+  { value: "custom", label: "Outro" },
+];
+
+interface SocialLink {
+  id: string;
+  platform: string;
+  url?: string;
+}
+
+function SocialProps({
+  el,
+  update,
+}: {
+  el: ElementBase;
+  update: (p: Partial<ElementBase>) => void;
+}) {
+  // Migração: se há `platforms` legado mas não `links`, converte
+  // automaticamente. Isso roda no primeiro render do painel.
+  const links = (el.links as SocialLink[] | undefined) ?? null;
+  const legacyPlatforms = (el.platforms as string[] | undefined) ?? [];
+  const effectiveLinks: SocialLink[] = links
+    ? links
+    : legacyPlatforms.map((p, i) => ({
+        id: `lg_${i}_${Math.random().toString(36).slice(2, 5)}`,
+        platform: p,
+      }));
+
+  const updateLinks = (next: SocialLink[]) => {
+    // Sempre salva no formato novo. Limpa o `platforms` legacy.
+    update({ links: next, platforms: undefined });
+  };
+
+  const addLink = () => {
+    const nextLink: SocialLink = {
+      id: `sl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      platform: "instagram",
+      url: "",
+    };
+    updateLinks([...effectiveLinks, nextLink]);
+  };
+
+  const updateLink = (idx: number, patch: Partial<SocialLink>) => {
+    const next = effectiveLinks.slice();
+    next[idx] = { ...next[idx], ...patch };
+    updateLinks(next);
+  };
+
+  const removeLink = (idx: number) => {
+    updateLinks(effectiveLinks.filter((_, i) => i !== idx));
+  };
+
+  const moveLink = (idx: number, delta: number) => {
+    const next = effectiveLinks.slice();
+    const newIdx = idx + delta;
+    if (newIdx < 0 || newIdx >= next.length) return;
+    [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
+    updateLinks(next);
+  };
+
+  return (
+    <>
+      <Separator className="my-2" />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Plataformas e links
+      </p>
+
+      <div className="flex flex-col gap-2">
+        {effectiveLinks.length === 0 && (
+          <p className="text-[11px] text-muted-foreground italic">
+            Nenhum link ainda. Use o botão abaixo pra adicionar.
+          </p>
+        )}
+        {effectiveLinks.map((link, idx) => (
+          <div
+            key={link.id}
+            className="border rounded p-1.5 bg-muted/30 flex flex-col gap-1.5"
+          >
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-muted-foreground flex-1">
+                #{idx + 1}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => moveLink(idx, -1)}
+                disabled={idx === 0}
+                className="size-6 shrink-0"
+                title="Subir"
+              >
+                <ChevronUp className="size-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => moveLink(idx, 1)}
+                disabled={idx === effectiveLinks.length - 1}
+                className="size-6 shrink-0"
+                title="Descer"
+              >
+                <ChevronDown className="size-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => removeLink(idx)}
+                className="size-6 shrink-0"
+                title="Remover"
+              >
+                <Trash2 className="size-3 text-destructive" />
+              </Button>
+            </div>
+            <Select
+              value={link.platform}
+              onValueChange={(value) => updateLink(idx, { platform: value })}
+            >
+              <SelectTrigger className="h-7 text-[11px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SOCIAL_PLATFORM_OPTIONS.map((opt) => (
+                  <SelectItem
+                    key={opt.value}
+                    value={opt.value}
+                    className="text-[11px]"
+                  >
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              value={link.url ?? ""}
+              onChange={(e) => updateLink(idx, { url: e.target.value })}
+              placeholder="https://instagram.com/seu-perfil"
+              className="text-[10px] font-mono"
+            />
+          </div>
+        ))}
+      </div>
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={addLink}
+        className="text-[10px] w-full gap-1 mt-2"
+      >
+        + Adicionar plataforma
+      </Button>
+
+      <Separator className="my-3" />
+      <p className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wide mb-2">
+        Aparência
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Tamanho (px)
+          </Label>
+          <Input
+            type="number"
+            value={(el.size as number | undefined) ?? 32}
+            onChange={(e) => update({ size: Number(e.target.value) })}
+            className="text-[11px]"
+            min={16}
+            max={96}
+          />
+        </div>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Espaçamento
+          </Label>
+          <Input
+            type="number"
+            value={(el.gap as number | undefined) ?? 12}
+            onChange={(e) => update({ gap: Number(e.target.value) })}
+            className="text-[11px]"
+            min={0}
+            max={48}
+          />
+        </div>
+      </div>
+      <Label className="text-[10px] text-muted-foreground mt-2">
+        Cor dos ícones
+      </Label>
+      <div className="flex items-center gap-2 mt-1">
+        <input
+          type="color"
+          value={(el.iconColor as string | undefined) ?? "#0f172a"}
+          onChange={(e) => update({ iconColor: e.target.value })}
+          className="size-7 rounded border cursor-pointer p-0.5 bg-transparent shrink-0"
+        />
+        <Input
+          value={(el.iconColor as string | undefined) ?? "#0f172a"}
+          onChange={(e) => update({ iconColor: e.target.value })}
+          className="text-[10px] font-mono"
+        />
+      </div>
+    </>
+  );
 }

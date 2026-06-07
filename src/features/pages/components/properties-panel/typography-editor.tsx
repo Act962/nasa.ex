@@ -33,6 +33,7 @@ import {
   COMMON_FONTS,
   FONT_WEIGHTS,
 } from "../../lib/text-style";
+import { usePagesBuilderStore } from "../../context/pages-builder-store";
 
 interface Props {
   label: string;
@@ -136,6 +137,23 @@ export function TypographyEditor({
               className="text-[10px] font-mono h-7"
             />
           </div>
+          {/* Swatches da paleta da página — atalho pra aplicar cores da
+              marca sem precisar digitar hex. Só renderiza quando há
+              paleta definida. */}
+          <PaletteSwatchesRow
+            onPick={(hex) => update({ color: hex })}
+          />
+          {/* Botão "herdar" — limpa override e volta a usar o `inherited`
+              calculado a partir do tipo do elemento. */}
+          {style.color && (
+            <button
+              type="button"
+              onClick={() => update({ color: undefined })}
+              className="text-[10px] text-muted-foreground self-start hover:text-foreground underline"
+            >
+              Limpar cor (herdar do elemento)
+            </button>
+          )}
 
           {/* Tamanho + Peso na mesma linha */}
           <div className="grid grid-cols-2 gap-2">
@@ -276,6 +294,39 @@ export function TypographyEditor({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Linha compacta de swatches da paleta da página — usada nos editores
+ * de cor (typography, animated border, etc) pra aplicação rápida das
+ * cores da marca. Não renderiza nada quando paleta vazia.
+ */
+export function PaletteSwatchesRow({
+  onPick,
+}: {
+  onPick: (hex: string) => void;
+}) {
+  const layout = usePagesBuilderStore((s) => s.layout);
+  const palette =
+    (layout as unknown as { palette?: Record<string, string> } | null)
+      ?.palette ?? {};
+  const swatches = Object.entries(palette);
+  if (swatches.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1 pl-14">
+      {swatches.map(([name, color]) => (
+        <button
+          key={name}
+          type="button"
+          title={`${name} (${color})`}
+          onClick={() => onPick(color)}
+          className="size-4 rounded border shadow-sm hover:scale-125 transition-transform"
+          style={{ background: color }}
+          aria-label={`Aplicar cor ${name}`}
+        />
+      ))}
     </div>
   );
 }

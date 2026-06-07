@@ -248,31 +248,68 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
       );
     }
     case "social": {
-      const platforms = (element.platforms as string[]) ?? [];
+      // 2 formatos suportados (compat):
+      //   1. legacy: `platforms: string[]` — só nomes sem URL. Ainda renderiza
+      //      como círculos coloridos com a 1ª letra.
+      //   2. atual: `links: { id, platform, url }[]` — cada ícone vira
+      //      <a href={url} target=_blank> envolvendo o círculo.
+      //
+      // Quando ambos existem, `links` vence. Quando o user salva via
+      // SocialProps, ele migra automaticamente do legado pro novo.
+      type SocialLink = { id: string; platform: string; url?: string };
+      const links = (element.links as SocialLink[] | undefined) ?? null;
+      const legacyPlatforms = (element.platforms as string[] | undefined) ?? [];
+      const itemsToRender: SocialLink[] = links
+        ? links
+        : legacyPlatforms.map((p, i) => ({ id: `lg_${i}`, platform: p }));
+      const iconColor = (element.iconColor as string) ?? "#0f172a";
+      const size = (element.size as number) ?? 32;
+      const gap = (element.gap as number) ?? 8;
       return (
         <div
-          style={{ display: "flex", gap: (element.gap as number) ?? 8, alignItems: "center" }}
+          style={{
+            display: "flex",
+            gap,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
         >
-          {platforms.map((p) => (
-            <div
-              key={p}
-              style={{
-                width: element.size as number,
-                height: element.size as number,
-                borderRadius: "50%",
-                background: (element.iconColor as string) ?? "#0f172a",
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12,
-                fontWeight: 700,
-                textTransform: "uppercase",
-              }}
-            >
-              {p.charAt(0)}
-            </div>
-          ))}
+          {itemsToRender.map((link) => {
+            const circle = (
+              <div
+                style={{
+                  width: size,
+                  height: size,
+                  borderRadius: "50%",
+                  background: iconColor,
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: Math.max(10, size * 0.4),
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                }}
+                title={link.platform}
+              >
+                {link.platform.charAt(0)}
+              </div>
+            );
+            if (readonly && link.url) {
+              return (
+                <a
+                  key={link.id}
+                  href={link.url}
+                  target={link.url.startsWith("#") ? undefined : "_blank"}
+                  rel={link.url.startsWith("#") ? undefined : "noreferrer"}
+                  aria-label={link.platform}
+                >
+                  {circle}
+                </a>
+              );
+            }
+            return <span key={link.id}>{circle}</span>;
+          })}
         </div>
       );
     }
