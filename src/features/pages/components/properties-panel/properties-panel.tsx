@@ -687,7 +687,7 @@ function EmbedProps({ el, update }: { el: ElementBase; update: (p: Partial<Eleme
 // ─── LogoUploader (helper compartilhado entre Navbar e Footer) ──────────────
 //
 // Renderiza um uploader de imagem completo: botão "Fazer upload" que
-// abre file picker → uploadImage() (R2 server-side em prod, local em dev) → seta o `logoSrc`.
+// abre file picker → uploadImage() (R2 server-side via /api/s3/upload-direct) → seta o `logoSrc`.
 // Mostra preview da imagem atual e botão pra remover.
 //
 // Reusa a mesma rota usada pelo ImageProps — já validada em produção.
@@ -3550,7 +3550,7 @@ function CarouselSlideEditor({
         </Button>
       </div>
       {/* Upload + preview + URL fallback unificado num só componente.
-          Usa mesmo endpoint `/api/upload-local` que o LogoUploader. */}
+          Usa `uploadImage()` → R2 via `/api/s3/upload-direct`. */}
       <ImageUploaderField
         value={slide.imageUrl ?? ""}
         onChange={(url) => onChange({ imageUrl: url })}

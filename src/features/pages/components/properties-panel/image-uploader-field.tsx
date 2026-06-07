@@ -4,8 +4,8 @@
  * Campo de upload de imagem reusável — abstrai o padrão usado pelo
  * LogoUploader / ImageProps / HeroImageUploader.
  *
- * Usa o helper `uploadImage` (lib/upload-image) que tenta R2 server-side
- * primeiro (funciona em prod) e cai pro `/api/upload-local` em dev.
+ * Usa o helper `uploadImage` (lib/upload-image) que faz upload direto
+ * pro R2 via `POST /api/s3/upload-direct` (server-side PUT, sem CORS).
  *
  * Características:
  *   - Botão de upload (file picker)
