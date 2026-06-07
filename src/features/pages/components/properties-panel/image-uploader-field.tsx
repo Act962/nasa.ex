@@ -4,10 +4,8 @@
  * Campo de upload de imagem reusável — abstrai o padrão usado pelo
  * LogoUploader / ImageProps / HeroImageUploader.
  *
- * Usa o mesmo endpoint `/api/upload-local` que os outros uploaders. Em
- * dev grava no `public/uploads/` direto. Em produção, o dev deve
- * configurar R2 (Cloudflare S3-compat) e migrar o endpoint pra usar
- * presigned URLs — a interface deste componente não muda.
+ * Usa o helper `uploadImage` (lib/upload-image) que tenta R2 server-side
+ * primeiro (funciona em prod) e cai pro `/api/upload-local` em dev.
  *
  * Características:
  *   - Botão de upload (file picker)
@@ -22,6 +20,7 @@ import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { uploadImage } from "../../lib/upload-image";
 
 interface Props {
   value: string;
@@ -51,25 +50,12 @@ export function ImageUploaderField({
 
   const handleUpload = async (file: File) => {
     setUploading(true);
-    const form = new FormData();
-    form.append("file", file);
     try {
-      const res = await fetch("/api/upload-local", {
-        method: "POST",
-        body: form,
-      });
-      if (!res.ok) {
-        // Tenta extrair mensagem do backend pra UX melhor.
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error ?? `HTTP ${res.status}`);
-      }
-      const { url } = await res.json();
+      const url = await uploadImage(file);
       onChange(url);
       toast.success("Imagem carregada");
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Falha no upload",
-      );
+      toast.error(err instanceof Error ? err.message : "Falha no upload");
     } finally {
       setUploading(false);
     }

@@ -18,6 +18,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import {
   Type as TypeIcon, Image as ImageIcon, MousePointerClick,
   Minus, SquareStack, Tag, Video as VideoIcon, Code2, Images,
+  Shapes,
   Plus, Trash2,
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
@@ -56,6 +57,7 @@ const KIND_ICONS: Record<InterludeBlockKind, React.ComponentType<{ className?: s
   video: VideoIcon,
   embed: Code2,
   carousel: Images,
+  "inline-element": Shapes,
 };
 
 const KIND_LABELS: Record<InterludeBlockKind, string> = {
@@ -68,6 +70,7 @@ const KIND_LABELS: Record<InterludeBlockKind, string> = {
   video: "Vídeo",
   embed: "Embed",
   carousel: "Carrossel",
+  "inline-element": "Elemento",
 };
 
 export function InterludeZonesEditor({ el, update }: Props) {
@@ -554,12 +557,98 @@ function CarouselSlidesEditor({
   const removeSlide = (idx: number) =>
     onPatch({ slides: slides.filter((_, i) => i !== idx) });
 
+  const carouselMode = block.carouselMode ?? "slide";
+  const imageMode = block.imageMode ?? "uniform";
+  const isTransparent = block.backgroundTransparent ?? true;
+
   return (
     <>
-      <div className="grid grid-cols-2 gap-2">
+      {/* ── Modo do carrossel (espelha o elemento Carrossel principal) ── */}
+      <Label className="text-[10px] text-muted-foreground">
+        Modo do carrossel
+      </Label>
+      <div className="grid grid-cols-2 gap-1 mt-1">
+        {(
+          [
+            { value: "slide", label: "Slide (auto)" },
+            { value: "static", label: "Grid estático" },
+          ] as const
+        ).map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onPatch({ carouselMode: opt.value })}
+            className={`rounded border px-2 py-1 text-[10px] font-medium ${
+              carouselMode === opt.value
+                ? "bg-indigo-500 text-white border-indigo-500"
+                : "bg-background text-muted-foreground border-border hover:bg-accent"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Cor de fundo: toggle "sem fundo" vs cor escolhida ── */}
+      <Label className="text-[10px] text-muted-foreground mt-3">
+        Cor de fundo do carrossel
+      </Label>
+      <div className="grid grid-cols-2 gap-1 mt-1">
+        <button
+          type="button"
+          onClick={() => onPatch({ backgroundTransparent: true })}
+          className={`rounded border px-2 py-1 text-[10px] font-medium ${
+            isTransparent
+              ? "bg-indigo-500 text-white border-indigo-500"
+              : "bg-background text-muted-foreground border-border hover:bg-accent"
+          }`}
+        >
+          Sem cor de fundo
+        </button>
+        <button
+          type="button"
+          onClick={() => onPatch({ backgroundTransparent: false })}
+          className={`rounded border px-2 py-1 text-[10px] font-medium ${
+            !isTransparent
+              ? "bg-indigo-500 text-white border-indigo-500"
+              : "bg-background text-muted-foreground border-border hover:bg-accent"
+          }`}
+        >
+          Cor sólida
+        </button>
+      </div>
+      {!isTransparent && (
+        <div className="flex items-center gap-2 mt-2">
+          <input
+            type="color"
+            value={block.backgroundColor ?? "#ffffff"}
+            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
+            className="size-8 rounded border cursor-pointer p-0.5 bg-transparent shrink-0"
+          />
+          <Input
+            value={block.backgroundColor ?? "#ffffff"}
+            onChange={(e) => onPatch({ backgroundColor: e.target.value })}
+            placeholder="#ffffff"
+            className="text-[10px] font-mono"
+          />
+          <Input
+            type="number"
+            value={block.backgroundPadding ?? 16}
+            onChange={(e) =>
+              onPatch({ backgroundPadding: Number(e.target.value) })
+            }
+            placeholder="Padding (px)"
+            className="text-[10px] w-20"
+            title="Padding interno em px"
+          />
+        </div>
+      )}
+
+      {/* ── Layout: slides por viewport (desktop/mobile) + autoplay ── */}
+      <div className="grid grid-cols-2 gap-2 mt-3">
         <div>
           <Label className="text-[10px] text-muted-foreground">
-            Slides por viewport
+            Slides desktop
           </Label>
           <Input
             type="number"
@@ -574,17 +663,140 @@ function CarouselSlidesEditor({
         </div>
         <div>
           <Label className="text-[10px] text-muted-foreground">
-            Altura (px)
+            Slides mobile
           </Label>
           <Input
             type="number"
-            value={block.height ?? 240}
-            onChange={(e) => onPatch({ height: Number(e.target.value) })}
+            min={1}
+            max={4}
+            value={block.slidesPerViewMobile ?? 1}
+            onChange={(e) =>
+              onPatch({ slidesPerViewMobile: Number(e.target.value) })
+            }
             className="text-[11px]"
           />
         </div>
       </div>
-      <Label className="text-[10px] text-muted-foreground mt-2">
+
+      {carouselMode === "slide" && (
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          <label className="flex items-center gap-2 text-[11px]">
+            <input
+              type="checkbox"
+              checked={block.autoplay ?? true}
+              onChange={(e) => onPatch({ autoplay: e.target.checked })}
+            />
+            Autoplay
+          </label>
+          <Input
+            type="number"
+            value={block.intervalMs ?? 4000}
+            onChange={(e) => onPatch({ intervalMs: Number(e.target.value) })}
+            placeholder="Intervalo (ms)"
+            className="text-[11px]"
+            disabled={!(block.autoplay ?? true)}
+          />
+          <label className="flex items-center gap-2 text-[11px]">
+            <input
+              type="checkbox"
+              checked={block.showDots ?? true}
+              onChange={(e) => onPatch({ showDots: e.target.checked })}
+            />
+            Dots
+          </label>
+          <label className="flex items-center gap-2 text-[11px]">
+            <input
+              type="checkbox"
+              checked={block.showArrows ?? true}
+              onChange={(e) => onPatch({ showArrows: e.target.checked })}
+            />
+            Setas
+          </label>
+        </div>
+      )}
+
+      {/* ── Modo de exibição das imagens (uniform/original/custom) ── */}
+      <Label className="text-[10px] text-muted-foreground mt-3">
+        Modo das imagens
+      </Label>
+      <div className="grid grid-cols-3 gap-1 mt-1">
+        {(
+          [
+            { value: "uniform", label: "Uniforme" },
+            { value: "original", label: "Original" },
+            { value: "custom", label: "Custom" },
+          ] as const
+        ).map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onPatch({ imageMode: opt.value })}
+            className={`rounded border px-2 py-1 text-[10px] font-medium ${
+              imageMode === opt.value
+                ? "bg-indigo-500 text-white border-indigo-500"
+                : "bg-background text-muted-foreground border-border hover:bg-accent"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {(imageMode === "uniform" || imageMode === "custom") && (
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          <div>
+            <Label className="text-[10px] text-muted-foreground">
+              Altura (px)
+            </Label>
+            <Input
+              type="number"
+              value={block.imageHeight ?? 240}
+              onChange={(e) => onPatch({ imageHeight: Number(e.target.value) })}
+              className="text-[11px]"
+            />
+          </div>
+          {imageMode === "custom" && (
+            <div>
+              <Label className="text-[10px] text-muted-foreground">
+                Largura (px)
+              </Label>
+              <Input
+                type="number"
+                value={block.imageWidth ?? 320}
+                onChange={(e) => onPatch({ imageWidth: Number(e.target.value) })}
+                className="text-[11px]"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-2 mt-2">
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Gap entre slides (px)
+          </Label>
+          <Input
+            type="number"
+            value={block.gap ?? 12}
+            onChange={(e) => onPatch({ gap: Number(e.target.value) })}
+            className="text-[11px]"
+          />
+        </div>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">
+            Borda (px)
+          </Label>
+          <Input
+            type="number"
+            value={block.borderRadius ?? 12}
+            onChange={(e) => onPatch({ borderRadius: Number(e.target.value) })}
+            className="text-[11px]"
+          />
+        </div>
+      </div>
+
+      <Label className="text-[10px] text-muted-foreground mt-3">
         Slides ({slides.length})
       </Label>
       <div className="flex flex-col gap-1.5">
@@ -618,6 +830,18 @@ function CarouselSlidesEditor({
               onChange={(e) => updateSlide(idx, { caption: e.target.value })}
               placeholder="Legenda (opcional)"
               className="text-[10px] mt-1"
+            />
+            <Input
+              value={slide.link ?? ""}
+              onChange={(e) => updateSlide(idx, { link: e.target.value })}
+              placeholder="Link ao clicar (opcional)"
+              className="text-[10px]"
+            />
+            <Input
+              value={slide.alt ?? ""}
+              onChange={(e) => updateSlide(idx, { alt: e.target.value })}
+              placeholder="Alt text (acessibilidade)"
+              className="text-[10px]"
             />
           </div>
         ))}
