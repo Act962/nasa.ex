@@ -29,6 +29,10 @@ import {
 import { createElement } from "../../lib/element-factory";
 import { computeInsertPosition } from "../../lib/insert-position";
 import { isFlowSection } from "../../lib/section-flow";
+import {
+  findVisibleSectionId,
+  mapElementToInterludeBlock,
+} from "../../lib/visible-section";
 import type { ElementType, ElementBase } from "../../types";
 import { LayersPanel } from "./layers-panel";
 import { PagesPanel } from "./pages-panel";
@@ -62,6 +66,7 @@ const SINGLETON_LABELS: Record<string, string> = {
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { PropertiesPanelContent } from "../properties-panel/properties-panel";
+import { ColorPickerWithPalette } from "../properties-panel/color-picker-with-palette";
 
 const ICONS: Record<ElementType, React.ComponentType<{ className?: string }>> = {
   text:                  Type,
@@ -165,6 +170,9 @@ function BuilderSidebarBody({ asPanel = false }: { asPanel?: boolean }) {
   const [tab, setTab] = useState<Tab>("elements");
   const addElement = usePagesBuilderStore((s) => s.addElement);
   const insertElementAt = usePagesBuilderStore((s) => s.insertElementAt);
+  const appendInterludeBlockToSection = usePagesBuilderStore(
+    (s) => s.appendInterludeBlockToSection,
+  );
   const moveElement = usePagesBuilderStore((s) => s.moveElement);
   const updateArtboard = usePagesBuilderStore((s) => s.updateArtboard);
   const layout = usePagesBuilderStore((s) => s.layout);
@@ -295,6 +303,19 @@ function BuilderSidebarBody({ asPanel = false }: { asPanel?: boolean }) {
   // Posiciona o elemento no centro da viewport visível (pra free
   // elements) ou no fim da pilha (pra flow sections). Antes ficavam
   // todos em x:0 y:0 — apareciam atrás dos blocos, "sumindo".
+  //
+  // Comportamento "entra dentro da section visível": quando o user
+  // adiciona um ÁTOMO (text/button/image/video/embed) E há uma flow
+  // section atualmente visível no viewport do canvas, em vez de criar
+  // posicionamento absoluto sobre as outras coisas, convertemos o
+  // átomo em InterludeBlock e adicionamos DENTRO da section (zona
+  // "afterCards"). A section cresce automaticamente via ResizeObserver,
+  // e o user reorganiza com drag-and-drop no painel direito da section.
+  //
+  // Fallback: tipos sem mapeamento de InterludeBlock (chat-button,
+  // marketing, sticky-cta, formulário, etc) continuam com posicionamento
+  // absoluto via computeInsertPosition — esses geralmente são overlays
+  // ou widgets independentes que NÃO devem entrar em sections.
   const handleAdd = (t: ElementType) => {
     const lay = usePagesBuilderStore.getState().layout;
     const layer = usePagesBuilderStore.getState().activeLayer;
@@ -320,6 +341,60 @@ function BuilderSidebarBody({ asPanel = false }: { asPanel?: boolean }) {
       }
     }
 
+    // Flow sections novas: continuam empilhando no fluxo (já é o
+    // comportamento desejado, não entram dentro de outras sections).
+    if (!isFlowSection(t)) {
+      // Resolução do alvo onde o átomo vai entrar como InterludeBlock,
+      // em ordem de prioridade:
+      //
+      //   1. Element SELECIONADO no canvas, se for flow section. Esse é
+      //      o caso explícito do user — clicou numa section e mandou
+      //      adicionar coisa: vai DENTRO dela.
+      //   2. Section atualmente VISÍVEL no viewport (fallback do nº 1).
+      //
+      // Sem alvo válido em nenhum dos dois → fallback ao posicionamento
+      // absoluto antigo (átomo flutua sobre o canvas).
+      const selectedIds = usePagesBuilderStore.getState().selected;
+      const selectedElement = selectedIds[0]
+        ? existing.find((el) => el.id === selectedIds[0])
+        : undefined;
+      const selectedTargetId =
+        selectedElement && isFlowSection(selectedElement.type)
+          ? selectedElement.id
+          : null;
+      const targetSectionId =
+        selectedTargetId ?? findVisibleSectionId(existing);
+
+      if (targetSectionId) {
+        const block = mapElementToInterludeBlock(t, base);
+        if (block) {
+          const added = appendInterludeBlockToSection(
+            targetSectionId,
+            block as unknown as Record<string, unknown>,
+            "after",
+          );
+          if (added) {
+            const targetElement = existing.find((el) => el.id === targetSectionId);
+            const sectionLabel = targetElement?.type ?? "elemento";
+            const reason =
+              selectedTargetId === targetSectionId
+                ? "Adicionado dentro do elemento selecionado"
+                : `Adicionado dentro do ${sectionLabel}`;
+            toast.success(`${LABELS[t] ?? t} — ${reason}`, {
+              description:
+                "Arraste pra reordenar dentro da camada no painel direito.",
+            });
+            // Mantém a section como selecionada — o user provavelmente
+            // quer editar a nova ordem dela em seguida.
+            usePagesBuilderStore.getState().setSelected([targetSectionId]);
+            return;
+          }
+        }
+      }
+    }
+
+    // Fallback: comportamento absoluto antigo — flow section nova ou
+    // átomo sem mapeamento (chat-button, marketing, formulário, etc).
     const pos = computeInsertPosition({
       type: t,
       w: base.w,
@@ -513,11 +588,15 @@ function PageSettingsPanel({
   layout: ReturnType<typeof usePagesBuilderStore.getState>["layout"];
 }) {
   const updateMeta = usePagesBuilderStore((s) => s.updateMeta);
+  const updatePalette = usePagesBuilderStore((s) => s.updatePalette);
   const meta =
     ((layout as unknown as { meta?: Record<string, unknown> })?.meta ?? {}) as Record<
       string,
       string | undefined
     >;
+  const palette =
+    ((layout as unknown as { palette?: Record<string, string> })?.palette ??
+      {}) as Record<string, string>;
 
   return (
     <div>
@@ -527,18 +606,11 @@ function PageSettingsPanel({
         Aparência da página
       </p>
       <div className="space-y-4">
-        <div>
-          <Label className="text-[11px] text-muted-foreground">Cor de fundo</Label>
-          <div className="flex items-center gap-2 mt-1">
-            <input
-              type="color"
-              value={bgColor}
-              onChange={(e) => updateArtboard({ background: e.target.value })}
-              className="size-9 rounded border cursor-pointer p-0.5 bg-transparent"
-            />
-            <span className="text-xs font-mono text-muted-foreground">{bgColor}</span>
-          </div>
-        </div>
+        <ColorPickerWithPalette
+          label="Cor de fundo"
+          value={bgColor}
+          onChange={(hex) => updateArtboard({ background: hex })}
+        />
         <div>
           <Label className="text-[11px] text-muted-foreground">Altura mínima (px)</Label>
           <input
@@ -551,6 +623,14 @@ function PageSettingsPanel({
           />
         </div>
       </div>
+
+      <hr className="my-4" />
+
+      {/* Padrão de cores da página — vira swatches reusáveis em todos os
+          color pickers via ColorPickerWithPalette. Editor inline com
+          input nome + cor + botão remover, e botão "+ Adicionar cor"
+          no fim. */}
+      <PalettePanel palette={palette} updatePalette={updatePalette} />
 
       <hr className="my-4" />
 
@@ -671,4 +751,148 @@ function setByPath(
   return {
     [head]: { ...current, ...setByPath(current, rest.join("."), value) },
   };
+}
+
+// ─── PalettePanel — bloco "Padrão de cores da página" em Ajustes ──────
+//
+// Cada cor tem nome (livre) + valor hex. Persistido em `layout.palette`
+// como Record<string, string>. Quando o user adiciona uma cor aqui, ela
+// aparece como swatch em TODOS os color pickers da página
+// (ColorPickerWithPalette).
+//
+// Defaults sugeridos: primary, accent, bg, fg, muted, danger, success.
+// O user pode renomear/remover/adicionar à vontade.
+
+const DEFAULT_PALETTE_SUGGESTIONS = [
+  { name: "primary", color: "#6366f1" },
+  { name: "accent", color: "#f59e0b" },
+  { name: "bg", color: "#ffffff" },
+  { name: "fg", color: "#0f172a" },
+  { name: "muted", color: "#94a3b8" },
+  { name: "danger", color: "#ef4444" },
+  { name: "success", color: "#10b981" },
+];
+
+function PalettePanel({
+  palette,
+  updatePalette,
+}: {
+  palette: Record<string, string>;
+  updatePalette: (patch: Record<string, string | undefined>) => void;
+}) {
+  const entries = Object.entries(palette);
+
+  const addColor = () => {
+    // Gera nome único — color1, color2, etc — pra não colidir com
+    // existentes. O user pode renomear depois.
+    let suffix = 1;
+    while (palette[`color${suffix}`] !== undefined) suffix++;
+    updatePalette({ [`color${suffix}`]: "#000000" });
+  };
+
+  const renameColor = (oldName: string, newName: string) => {
+    if (!newName || newName === oldName || palette[newName] !== undefined) {
+      return;
+    }
+    const value = palette[oldName];
+    // Como `updatePalette` é um merge, precisa remover a antiga + setar nova.
+    updatePalette({ [oldName]: undefined, [newName]: value });
+  };
+
+  const updateColor = (name: string, hex: string) => {
+    updatePalette({ [name]: hex });
+  };
+
+  const removeColor = (name: string) => {
+    updatePalette({ [name]: undefined });
+  };
+
+  const seedDefaults = () => {
+    // Só preenche as que faltam — não sobrescreve as já existentes.
+    const patch: Record<string, string | undefined> = {};
+    for (const { name, color } of DEFAULT_PALETTE_SUGGESTIONS) {
+      if (palette[name] === undefined) patch[name] = color;
+    }
+    if (Object.keys(patch).length > 0) updatePalette(patch);
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[10px] font-semibold uppercase text-muted-foreground flex items-center gap-1">
+          <Palette className="size-3" />
+          Padrão de cores da página
+        </p>
+      </div>
+      <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
+        Cores reusáveis em toda a página — vão aparecer como atalhos nos
+        seletores de cor dos elementos.
+      </p>
+
+      {entries.length === 0 && (
+        <div className="rounded border border-dashed bg-muted/30 p-3 text-center mb-2">
+          <p className="text-[10px] text-muted-foreground mb-2">
+            Nenhuma cor na paleta ainda.
+          </p>
+          <button
+            type="button"
+            onClick={seedDefaults}
+            className="text-[10px] text-indigo-600 hover:text-indigo-700 font-medium underline"
+          >
+            Usar paleta padrão (primary, accent, bg…)
+          </button>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        {entries.map(([name, color]) => (
+          <div key={name} className="flex items-center gap-1.5">
+            <input
+              type="color"
+              value={color}
+              onChange={(e) => updateColor(name, e.target.value)}
+              className="size-7 rounded border cursor-pointer p-0.5 bg-transparent shrink-0"
+              title={`Editar ${name}`}
+            />
+            <input
+              type="text"
+              defaultValue={name}
+              onBlur={(e) => renameColor(name, e.target.value.trim())}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
+              }}
+              className="flex-1 min-w-0 h-7 rounded border px-2 text-[11px] bg-background"
+              placeholder="nome"
+            />
+            <input
+              type="text"
+              value={color}
+              onChange={(e) => updateColor(name, e.target.value)}
+              className="w-20 h-7 rounded border px-2 text-[10px] font-mono bg-background"
+              placeholder="#000000"
+            />
+            <button
+              type="button"
+              onClick={() => removeColor(name)}
+              className="size-7 rounded border flex items-center justify-center hover:bg-destructive/10 shrink-0"
+              title={`Remover ${name}`}
+            >
+              <Trash2 className="size-3 text-destructive" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={addColor}
+        className="mt-2 w-full h-8 rounded border border-dashed text-[11px] flex items-center justify-center gap-1 hover:bg-accent text-muted-foreground"
+      >
+        <Plus className="size-3" />
+        Adicionar cor
+      </button>
+    </div>
+  );
 }

@@ -29,6 +29,20 @@ interface BuilderState {
   setActiveSubpage: (id: string | null) => void;
   addElement: (el: ElementBase) => void;
   insertElementAt: (el: ElementBase, targetIndex: number) => void;
+  /**
+   * Adiciona um InterludeBlock numa section composta (ou navbar/footer) por id.
+   * Usado quando o user clica "adicionar texto/botão/imagem" e queremos que
+   * vá DENTRO da section visível em vez de criar um átomo absoluto no canvas.
+   *
+   * `zone` controla onde dentro da section o bloco entra. Default "after"
+   * (após os cards) — é a zona mais comum pro fluxo de "adicionar coisa
+   * no fim do que tá visível".
+   */
+  appendInterludeBlockToSection: (
+    sectionId: string,
+    block: Record<string, unknown>,
+    zone?: "before" | "between" | "after",
+  ) => boolean;
   updateElement: (id: string, patch: Partial<ElementBase>) => void;
   removeElement: (id: string) => void;
   duplicateSelected: () => void;
@@ -44,6 +58,16 @@ interface BuilderState {
   toggleLock: (id: string) => void;
   updateArtboard: (patch: Partial<{ width: number; minHeight: number; background: string }>) => void;
   updateMeta: (patch: Record<string, unknown>) => void;
+  /**
+   * Atualiza a paleta de cores da página (tokens). Cada chave é uma cor
+   * reusável (primary, accent, bg, fg, muted, danger, success...) que
+   * vira swatch nos color pickers dos elementos. Persistido no
+   * `layout.palette` (Json arbitrário do schema), independente do
+   * `layout.tokens.colors` (legacy de DesignTokens).
+   *
+   * Passar valor `undefined` numa chave remove ela da paleta.
+   */
+  updatePalette: (patch: Record<string, string | undefined>) => void;
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
@@ -150,6 +174,37 @@ export const usePagesBuilderStore = create<BuilderState>((set, get) => ({
     const next = withLayer(layout, activeLayer, (els) => [...els, el]);
     get().setLayout(next);
     set({ selected: [el.id] });
+  },
+
+  appendInterludeBlockToSection: (sectionId, block, zone = "after") => {
+    const { layout, activeLayer } = get();
+    if (!layout) return false;
+    const zoneKey =
+      zone === "before"
+        ? "aboveHeading"
+        : zone === "between"
+          ? "betweenHeadingAndCards"
+          : "afterCards";
+    let found = false;
+    const next = withLayer(layout, activeLayer, (els) =>
+      els.map((el) => {
+        if (el.id !== sectionId) return el;
+        found = true;
+        const interlude =
+          (el.interlude as Record<string, unknown[]> | undefined) ?? {};
+        const currentBlocks = (interlude[zoneKey] as unknown[] | undefined) ?? [];
+        return {
+          ...el,
+          interlude: {
+            ...interlude,
+            [zoneKey]: [...currentBlocks, block],
+          },
+        };
+      }),
+    );
+    if (!found) return false;
+    get().setLayout(next);
+    return true;
   },
 
   updateElement: (id, patch) => {
@@ -324,6 +379,26 @@ export const usePagesBuilderStore = create<BuilderState>((set, get) => ({
     const next = {
       ...layout,
       meta: { ...currentMeta, ...patch },
+    } as unknown as typeof layout;
+    get().setLayout(next);
+  },
+
+  updatePalette: (patch) => {
+    const { layout } = get();
+    if (!layout) return;
+    const currentPalette =
+      (layout as unknown as { palette?: Record<string, string> }).palette ?? {};
+    const merged: Record<string, string> = { ...currentPalette };
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined || value === "") {
+        delete merged[key];
+      } else {
+        merged[key] = value;
+      }
+    }
+    const next = {
+      ...layout,
+      palette: merged,
     } as unknown as typeof layout;
     get().setLayout(next);
   },
