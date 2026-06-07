@@ -147,12 +147,29 @@ layout.tokens = {
 
 Sections consomem automaticamente via `primaryColor(element, tokens)` (fallback pro default se token ausente).
 
+## Upload de imagens (logos, hero, slides)
+
+Todos os uploaders do NASA Pages (`LogoUploader` na Navbar/Footer, `ImageUploaderField`, `HeroImageUploader`, `ImageProps`) chamam o helper único [`uploadImage()`](../src/features/pages/lib/upload-image.ts).
+
+**Fluxo atual** (2026-06):
+
+- `uploadImage(file)` → `POST /api/s3/upload-direct` (server-side PUT no R2, sem CORS).
+- Resposta `{ key }` + `NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL` → URL pública `https://<bucket-host>/<key>`.
+- Se a env var ou o endpoint falharem, joga erro (toast pro user). **Sem fallback local em `/uploads/`** — em prod o volume não justifica, e em dev força configurar R2 corretamente.
+
+**Substituir depois (quando CORS no bucket R2 `nasa-ex` estiver configurado):**
+
+- Trocar `uploadImage` pelo fluxo presigned-URL (`POST /api/s3/upload` → `PUT presignedUrl`), igual ao [`components/file-uploader/uploader.tsx`](../src/components/file-uploader/uploader.tsx) e aos uploaders das features `actions`, `tracking-chat`, `nasa-planner`.
+- Vantagem: arquivo vai browser → R2 direto, sem passar pelo nosso server (poupa banda/RAM).
+- Pendência rastreada em `CLOUDFLARE_R2_CORS_PENDING.md` (raiz) e no header de `src/app/api/s3/upload/route.ts`.
+
 ## Roadmap das próximas iterações
 
 | Item | Status |
 |-|-|
 | Properties panel sub-painéis por section type (editor de lista de features, lista de plans) | ⚠️ Hoje usa reflection genérica — funciona mas UX bruta |
 | Data sources reais via oRPC (não mock) | ⚠️ Mock por enquanto |
+| Trocar `uploadImage` pelo fluxo presigned URL (após CORS no R2) | ⚠️ Hoje usa `/api/s3/upload-direct` server-side |
 | Mais templates (5+) | Adicionar em `page-templates.ts` |
 | Bloco `comparison-table` (vs concorrentes) | Não feito |
 | Bloco `timeline` / `steps` | Não feito |
