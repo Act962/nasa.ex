@@ -7,9 +7,9 @@ import {
   Star as StarIcon, Shapes, SquareStack, LayoutTemplate,
   Settings2, LayoutGrid, DollarSign, Megaphone, BarChart3,
   Quote, HelpCircle, Building2, MoveHorizontal, Layers,
-  Rows3, Hash, Database, Layers3, Files, Sparkles,
-  Plus, Trash2, Palette, Images,
-  PanelTop, PanelBottom, MessageCircle, ClipboardList, LogOut,
+  Rows3, Hash, Database,
+  PanelTop, PanelBottom, Images, MessageCircle, ClipboardList, LogOut,
+  Sparkles, Layers3, Files,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
