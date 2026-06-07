@@ -404,7 +404,12 @@ function NavbarOverlay({
   navbarElement: ElementBase;
   tokens: unknown;
 }) {
-  const stickyMode = (navbarElement.stickyMode as string | undefined) ?? "sticky";
+  // Default agora é "fixed" — quando o user escolhe "Fixado" no editor,
+  // queremos position:fixed real (sempre visível no topo do viewport).
+  // Pages legadas que tinham stickyMode = "sticky" continuam usando CSS
+  // sticky (modo "Acompanha"), mas a melhoria abaixo torna sticky robusto
+  // também (era a causa do bug de "Navbar fixed sumindo no scroll").
+  const stickyMode = (navbarElement.stickyMode as string | undefined) ?? "fixed";
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [measuredHeight, setMeasuredHeight] = useState(0);
 
@@ -420,25 +425,37 @@ function NavbarOverlay({
     return () => observer.disconnect();
   }, []);
 
-  const position =
+  const position: React.CSSProperties["position"] =
     stickyMode === "static"
       ? "relative"
       : stickyMode === "fixed"
         ? "fixed"
         : "sticky";
 
+  // `isolation: isolate` cria um stacking context próprio garantindo que
+  // o z-index 9999 seja respeitado mesmo quando algum ancestor cria um
+  // contexto de empilhamento via transform/filter/will-change. Era a
+  // causa do "navbar sumindo no scroll" — algum ancestor (animated
+  // border, scroll reveal, transform de animações) criava stacking
+  // context e capturava o fixed/sticky.
+  //
+  // `transform: translateZ(0)` força o navegador a promover o elemento
+  // pra GPU layer, evitando o repaint bug do Chrome/Safari onde fixed
+  // elements com backdrop-blur "piscam" ou somem ao scrollar rápido.
+  const overlayStyle: React.CSSProperties = {
+    position,
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 9999,
+    isolation: "isolate",
+    transform: "translateZ(0)",
+    willChange: stickyMode === "fixed" ? "transform" : undefined,
+  };
+
   return (
     <>
-      <div
-        ref={wrapperRef}
-        style={{
-          position,
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 9999,
-        }}
-      >
+      <div ref={wrapperRef} style={overlayStyle}>
         <ElementRenderer
           element={navbarElement}
           readonly
