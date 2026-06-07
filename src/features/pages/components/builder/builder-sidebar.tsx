@@ -10,6 +10,7 @@ import {
   Rows3, Hash, Database,
   PanelTop, PanelBottom, Images, MessageCircle, ClipboardList, LogOut,
   Sparkles, Layers3, Files,
+  Palette, Trash2, Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
