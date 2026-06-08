@@ -410,7 +410,14 @@ function BuilderSidebarBody({ asPanel = false }: { asPanel?: boolean }) {
   // (handleBlock antigo removido — aba "Blocos" agora consome a
   // biblioteca rica via `BlocksPanel` + `block-library.ts`.)
 
-  const bgColor = layout?.artboard.background ?? "#ffffff";
+  // Espelha a precedência do renderer (palette.bg ?? artboard.background)
+  // pra exibir a cor de fundo EFETIVA — páginas de template mostram o
+  // navy real em vez de branco enganoso.
+  const pagePalette =
+    ((layout as unknown as { palette?: Record<string, string> })?.palette ??
+      {}) as Record<string, string>;
+  const bgColor =
+    pagePalette.bg ?? layout?.artboard.background ?? "#ffffff";
 
   // Sidebar 320px (era 300) — abre espaço pras 5 abas + properties
   // panel embutido sem ficar apertado.
@@ -610,7 +617,14 @@ function PageSettingsPanel({
         <ColorPickerWithPalette
           label="Cor de fundo"
           value={bgColor}
-          onChange={(hex) => updateArtboard({ background: hex })}
+          onChange={(hex) => {
+            // Grava nos DOIS canais: artboard.background (layout) e
+            // palette.bg (coluna via write-through). Mantém sincronizados
+            // pra que a página pública — que lê palette.bg primeiro —
+            // reflita a cor escolhida.
+            updateArtboard({ background: hex });
+            updatePalette({ bg: hex });
+          }}
         />
         <div>
           <Label className="text-[11px] text-muted-foreground">Altura mínima (px)</Label>

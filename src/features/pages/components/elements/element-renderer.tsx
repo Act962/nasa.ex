@@ -18,7 +18,7 @@ import {
   TabsBlock,
 } from "./interactive";
 import { CarouselElement } from "./carousel";
-import { ChatButton } from "./chat-button";
+import { ChatButton } from "./chat-button/chat-button";
 import { EmbeddedForm } from "./embedded-form";
 import { ExitIntent } from "./exit-intent";
 import { DataBoundBlock } from "./data-bound";
@@ -38,7 +38,7 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
     case "text": {
       const content = element.content as { text?: string } | undefined;
       const text =
-        (content && typeof content === "object" && "content" in content)
+        content && typeof content === "object" && "content" in content
           ? extractText(content as unknown)
           : typeof element.content === "string"
             ? (element.content as string)
@@ -52,13 +52,20 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
             fontFamily: `${(element.fontFamily as string) ?? "Inter"}, sans-serif`,
             fontWeight: (element.fontWeight as string) ?? "400",
             lineHeight: (element.lineHeight as number) ?? 1.4,
-            letterSpacing: element.letterSpacing ? `${element.letterSpacing}px` : undefined,
-            textAlign: (element.align as "left" | "center" | "right" | "justify") ?? "left",
+            letterSpacing: element.letterSpacing
+              ? `${element.letterSpacing}px`
+              : undefined,
+            textAlign:
+              (element.align as "left" | "center" | "right" | "justify") ??
+              "left",
             fontStyle: element.italic ? "italic" : undefined,
-            textDecoration: [
-              element.underline ? "underline" : "",
-              element.strikethrough ? "line-through" : "",
-            ].filter(Boolean).join(" ") || undefined,
+            textDecoration:
+              [
+                element.underline ? "underline" : "",
+                element.strikethrough ? "line-through" : "",
+              ]
+                .filter(Boolean)
+                .join(" ") || undefined,
             backgroundColor: (element.textBg as string) || undefined,
             overflow: "hidden",
             whiteSpace: "pre-wrap",
@@ -81,7 +88,9 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
       const colorOverlay = element.colorOverlay as string | undefined;
       const overlayOpacity = (element.overlayOpacity as number) ?? 0.5;
       const borderRadius = (element.borderRadius as number) ?? 0;
-      const crop = element.crop as { x: number; y: number; w: number; h: number } | undefined;
+      const crop = element.crop as
+        | { x: number; y: number; w: number; h: number }
+        | undefined;
 
       const imgStyle: React.CSSProperties = crop
         ? {
@@ -96,7 +105,8 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
         : {
             width: "100%",
             height: "100%",
-            objectFit: (element.fit as "cover" | "contain" | "fill" | "none") ?? "cover",
+            objectFit:
+              (element.fit as "cover" | "contain" | "fill" | "none") ?? "cover",
             display: "block",
             opacity: imageOpacity,
           };
@@ -113,7 +123,14 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
         return r;
       })();
       const imageContent = (
-        <div style={{ ...common, position: "relative", borderRadius, overflow: "hidden" }}>
+        <div
+          style={{
+            ...common,
+            position: "relative",
+            borderRadius,
+            overflow: "hidden",
+          }}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt={(element.alt as string) ?? ""} style={imgStyle} />
           {colorOverlay && (
@@ -149,7 +166,12 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
       const strokeWidth = (element.strokeWidth as number) ?? 1;
       if (shape === "triangle") {
         return (
-          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+          >
             <polygon
               points="50,0 100,100 0,100"
               fill={fill}
@@ -161,7 +183,12 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
       }
       if (shape === "star") {
         return (
-          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+          >
             <polygon
               points="50,5 61,35 95,35 68,57 79,91 50,70 21,91 32,57 5,35 39,35"
               fill={fill}
@@ -173,7 +200,12 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
       }
       if (shape === "hexagon") {
         return (
-          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+          >
             <polygon
               points="50,0 100,25 100,75 50,100 0,75 0,25"
               fill={fill}
@@ -188,7 +220,10 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
           style={{
             ...common,
             background: fill,
-            borderRadius: shape === "ellipse" ? "50%" : (element.borderRadius as number) ?? 0,
+            borderRadius:
+              shape === "ellipse"
+                ? "50%"
+                : ((element.borderRadius as number) ?? 0),
             border: stroke ? `${strokeWidth}px solid ${stroke}` : undefined,
           }}
         />
@@ -317,7 +352,11 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
       const label = (element.label as string) ?? "Link NASA";
       const appId = (element.appId as string) ?? "tracking";
       const hrefAttrs = readonly
-        ? { href: nasaLinkHref(appId, element.resourceId as string | undefined), target: "_blank" as const, rel: "noreferrer" as const }
+        ? {
+            href: nasaLinkHref(appId, element.resourceId as string | undefined),
+            target: "_blank" as const,
+            rel: "noreferrer" as const,
+          }
         : { href: "#", onClick: (e: React.MouseEvent) => e.preventDefault() };
       return (
         <a
@@ -360,12 +399,7 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
     }
     case "embed": {
       const html = (element.html as string) ?? "";
-      return (
-        <div
-          style={common}
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
-      );
+      return <div style={common} dangerouslySetInnerHTML={{ __html: html }} />;
     }
     case "spacer":
       return <div style={common} />;
@@ -398,34 +432,74 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
     }
     // ── Sections completas (Fase 1) ──────────────────────────────
     case "section-hero":
-      return <SectionHero element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <SectionHero element={element} tokens={tokens} readonly={readonly} />
+      );
     case "section-features":
-      return <SectionFeatures element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <SectionFeatures
+          element={element}
+          tokens={tokens}
+          readonly={readonly}
+        />
+      );
     case "section-pricing":
-      return <SectionPricing element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <SectionPricing element={element} tokens={tokens} readonly={readonly} />
+      );
     case "section-cta":
-      return <SectionCta element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <SectionCta element={element} tokens={tokens} readonly={readonly} />
+      );
     case "section-stats":
-      return <SectionStats element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <SectionStats element={element} tokens={tokens} readonly={readonly} />
+      );
     case "section-testimonials":
-      return <SectionTestimonials element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <SectionTestimonials
+          element={element}
+          tokens={tokens}
+          readonly={readonly}
+        />
+      );
     case "section-faq":
-      return <SectionFaq element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <SectionFaq element={element} tokens={tokens} readonly={readonly} />
+      );
     case "section-logo-cloud":
-      return <SectionLogoCloud element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <SectionLogoCloud
+          element={element}
+          tokens={tokens}
+          readonly={readonly}
+        />
+      );
     case "section-navbar":
-      return <SectionNavbar element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <SectionNavbar element={element} tokens={tokens} readonly={readonly} />
+      );
     case "section-footer":
-      return <SectionFooter element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <SectionFooter element={element} tokens={tokens} readonly={readonly} />
+      );
     // ── Blocos interativos (Fase 2) ──────────────────────────────
     case "marquee":
-      return <MarqueeBlock element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <MarqueeBlock element={element} tokens={tokens} readonly={readonly} />
+      );
     case "tabs":
-      return <TabsBlock element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <TabsBlock element={element} tokens={tokens} readonly={readonly} />
+      );
     case "accordion":
-      return <AccordionBlock element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <AccordionBlock element={element} tokens={tokens} readonly={readonly} />
+      );
     case "counter":
-      return <CounterBlock element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <CounterBlock element={element} tokens={tokens} readonly={readonly} />
+      );
     case "carousel":
       return <CarouselElement element={element} />;
     // ── Lead capture & engagement (Fase 6) ───────────────────────
@@ -445,10 +519,14 @@ export function ElementRenderer({ element, readonly = false, tokens }: Props) {
       );
     // ── Data binding (Fase 5) ────────────────────────────────────
     case "data-bound":
-      return <DataBoundBlock element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <DataBoundBlock element={element} tokens={tokens} readonly={readonly} />
+      );
     // ── Container "transparente" — children posicionados rel ao group
     case "group":
-      return <GroupRenderer element={element} tokens={tokens} readonly={readonly} />;
+      return (
+        <GroupRenderer element={element} tokens={tokens} readonly={readonly} />
+      );
     // ── Marketing toolkit (singleton — renderiza via portal no público)
     case "marketing":
       return <MarketingElement element={element} readonly={readonly} />;
@@ -467,9 +545,10 @@ function extractText(node: unknown): string {
 
 function resolveLink(link: LinkTarget | undefined) {
   if (!link) return { href: "#" };
-  const href = link.kind === "url"
-    ? link.href ?? "#"
-    : nasaLinkHref(link.kind, link.resourceId);
+  const href =
+    link.kind === "url"
+      ? (link.href ?? "#")
+      : nasaLinkHref(link.kind, link.resourceId);
   // Âncoras internas (#algo) e mailto:/tel: NÃO devem abrir em nova
   // aba mesmo com openInNewTab=true — abrir #planos em _blank cria
   // uma aba sem conteúdo (a página fresh não tem a section ainda
@@ -490,15 +569,24 @@ function resolveLink(link: LinkTarget | undefined) {
 
 function nasaLinkHref(kind: string, resourceId?: string) {
   switch (kind) {
-    case "tracking": return resourceId ? `/tracking/${resourceId}` : "/tracking";
-    case "form":     return resourceId ? `/submit-form/${resourceId}` : "/form";
-    case "agenda":   return resourceId ? `/agenda/${resourceId}` : "/agendas";
-    case "linnker":  return resourceId ? `/l/${resourceId}` : "/linnker";
-    case "chat":     return "/tracking-chat";
-    case "payment":  return "/payment";
-    case "forge":    return resourceId ? `/forge/${resourceId}` : "/forge";
-    case "page":     return resourceId ? `/s/${resourceId}` : "/pages";
-    default:         return "#";
+    case "tracking":
+      return resourceId ? `/tracking/${resourceId}` : "/tracking";
+    case "form":
+      return resourceId ? `/submit-form/${resourceId}` : "/form";
+    case "agenda":
+      return resourceId ? `/agenda/${resourceId}` : "/agendas";
+    case "linnker":
+      return resourceId ? `/l/${resourceId}` : "/linnker";
+    case "chat":
+      return "/tracking-chat";
+    case "payment":
+      return "/payment";
+    case "forge":
+      return resourceId ? `/forge/${resourceId}` : "/forge";
+    case "page":
+      return resourceId ? `/s/${resourceId}` : "/pages";
+    default:
+      return "#";
   }
 }
 

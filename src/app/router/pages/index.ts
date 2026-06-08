@@ -13,6 +13,7 @@ import { listPageVersions } from "./list-versions";
 import { restorePageVersion } from "./restore-version";
 import { getPagePublic } from "./public-get";
 import { getPagePublicByDomain } from "./public-get-by-domain";
+import { resolvePublicPage } from "./public-resolve";
 import { registerPageVisit } from "./register-visit";
 import { setCustomDomain } from "./set-custom-domain";
 import { verifyCustomDomain } from "./verify-custom-domain";
@@ -46,6 +47,7 @@ export const pagesRouter = {
   restoreVersion: restorePageVersion,
   publicGet: getPagePublic,
   publicGetByDomain: getPagePublicByDomain,
+  publicResolve: resolvePublicPage,
   registerVisit: registerPageVisit,
   setCustomDomain,
   verifyCustomDomain,
