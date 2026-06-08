@@ -28,7 +28,14 @@ import { messagesEventSchema } from "@/http/uazapi/webhook-schema";
 
 import { registerProvider } from "../../factory";
 import type {
+  CanonicalInboundContact,
+  CanonicalInboundInteractiveReply,
+  CanonicalInboundLocation,
+  CanonicalInboundMedia,
   CanonicalInboundMessage,
+  CanonicalInboundRevoke,
+  CanonicalInboundText,
+  CanonicalInboundUnsupported,
   CanonicalMediaKind,
   NormalizedInbound,
   ProviderBuilder,
@@ -79,10 +86,16 @@ function toUazapiMediaType(kind: CanonicalMediaKind): MediaType {
 // Mapeamento Uazapi → canônico (inbound)
 // ────────────────────────────────────────────────────────────────────────────
 
-function mapUazapiMessageType(messageType: string | undefined): {
-  type: CanonicalInboundMessage["type"];
-  mediaKind?: CanonicalMediaKind;
-} {
+type UazapiMessageKind =
+  | { type: "text" }
+  | { type: "media"; mediaKind: CanonicalMediaKind }
+  | { type: "location" }
+  | { type: "contact" }
+  | { type: "interactive_reply" }
+  | { type: "protocol" }
+  | { type: "unsupported" };
+
+function mapUazapiMessageType(messageType: string | undefined): UazapiMessageKind {
   switch (messageType) {
     case "Conversation":
     case "ExtendedTextMessage":
@@ -97,6 +110,19 @@ function mapUazapiMessageType(messageType: string | undefined): {
       return { type: "media", mediaKind: "document" };
     case "StickerMessage":
       return { type: "media", mediaKind: "sticker" };
+    case "LocationMessage":
+    case "Location":
+      return { type: "location" };
+    case "ContactMessage":
+    case "ContactsArrayMessage":
+      return { type: "contact" };
+    case "TemplateButtonReplyMessage":
+    case "ButtonsResponseMessage":
+    case "ListResponseMessage":
+    case "InteractiveResponseMessage":
+      return { type: "interactive_reply" };
+    case "ProtocolMessage":
+      return { type: "protocol" };
     default:
       return { type: "unsupported" };
   }
@@ -109,6 +135,84 @@ function mapUazapiMessageType(messageType: string | undefined): {
 function extractPhoneFromChatId(chatid: string): string {
   const at = chatid.indexOf("@");
   return at >= 0 ? chatid.slice(0, at) : chatid;
+}
+
+/** Safe-ish acessor pra `obj[key]` quando `obj` é unknown. */
+function pick(source: unknown, key: string): unknown {
+  if (source && typeof source === "object") {
+    return (source as Record<string, unknown>)[key];
+  }
+  return undefined;
+}
+
+function pickString(source: unknown, key: string): string | undefined {
+  const value = pick(source, key);
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function pickNumber(source: unknown, key: string): number | undefined {
+  const value = pick(source, key);
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function pickBoolean(source: unknown, key: string): boolean | undefined {
+  const value = pick(source, key);
+  return typeof value === "boolean" ? value : undefined;
+}
+
+/**
+ * Extrai `{ name, phone }` de um vcard de contato. Mesma lógica do route.ts
+ * — quando `phone` vem com `waid=` no parâmetro do TEL, preferimos esse
+ * (é o WhatsApp ID limpo). Senão cai pro número formatado.
+ */
+function extractFromVcard(
+  vcard: string | undefined | null,
+): { name: string | null; phone: string | null } | null {
+  if (!vcard || typeof vcard !== "string") return null;
+  const fnMatch = vcard.match(
+    /(?:^|\r?\n)(?:item\d+\.)?FN[^:]*:([^\r\n]+)/i,
+  );
+  const telLine = vcard.match(
+    /(?:^|\r?\n)(?:item\d+\.)?TEL[^:]*:([^\r\n]+)/i,
+  );
+  let phone: string | null = null;
+  if (telLine) {
+    const waidMatch = telLine[0].match(/waid=([0-9]+)/i);
+    phone = waidMatch ? waidMatch[1] : telLine[1].replace(/[^0-9+]/g, "");
+  }
+  return {
+    name: fnMatch?.[1]?.trim() || null,
+    phone,
+  };
+}
+
+/** Detecta se um ProtocolMessage é revoke ("apagada para todos"). */
+function isProtocolRevoke(content: unknown): boolean {
+  if (!content || typeof content !== "object") return false;
+  const c = content as Record<string, unknown>;
+  const ptype = String(c.type ?? "").toUpperCase();
+  return (
+    c.type === 0 ||
+    ptype.includes("REVOKE") ||
+    !!c.revokedMessageKey ||
+    !!c.revokeMessageKey
+  );
+}
+
+/** Extrai o `messageId` alvo de um ProtocolMessage revoke. */
+function extractRevokeTargetId(content: unknown): string | null {
+  if (!content || typeof content !== "object") return null;
+  const c = content as Record<string, unknown>;
+  const candidates: unknown[] = [
+    pick(c.key, "id"),
+    pick(c.revokedMessageKey, "id"),
+    pick(c.revokeMessageKey, "id"),
+    c.id,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.length > 0) return candidate;
+  }
+  return null;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -200,76 +304,181 @@ export class UazapiProvider implements WhatsAppChatProvider {
     const parsed = messagesEventSchema.safeParse(rawPayload);
     if (!parsed.success) return null;
 
+    // O schema é permissivo (.passthrough). Os campos críticos (messageid,
+    // messageTimestamp, text, quoted, edited, owner) ficam fora dos campos
+    // tipados. Acessamos via raw com helpers seguros.
+    const raw = rawPayload as Record<string, unknown>;
+    const message = raw.message as Record<string, unknown>;
     const event = parsed.data;
-    const message = event.message;
+    const content = message.content;
 
-    const { type, mediaKind } = mapUazapiMessageType(message.messageType);
-    const phone = extractPhoneFromChatId(message.chatid);
+    const messageType =
+      typeof message.messageType === "string" ? message.messageType : undefined;
+    const kind = mapUazapiMessageType(messageType);
+    const chatid = String(message.chatid ?? "");
+    const phone = extractPhoneFromChatId(chatid);
+    const fromMe = Boolean(message.fromMe);
 
-    const content = message.content as Record<string, unknown> | undefined;
     const messageId =
-      typeof content?.["messageid"] === "string"
-        ? (content["messageid"] as string)
-        : typeof content?.["id"] === "string"
-          ? (content["id"] as string)
-          : String(content?.["messageid"] ?? "");
-    const sentAtSec =
-      typeof content?.["messageTimestamp"] === "number"
-        ? (content["messageTimestamp"] as number)
-        : Math.floor(Date.now() / 1000);
+      pickString(message, "messageid") ?? pickString(content, "messageid") ?? "";
+    const sentAtMs = pickNumber(message, "messageTimestamp");
+    const sentAt = sentAtMs ? new Date(sentAtMs) : new Date();
+
+    const replyToExternalMessageId = pickString(message, "quoted");
+    const editedExternalMessageId = pickString(message, "edited");
+
+    const instance = {
+      externalId: event.token ?? this.config.token,
+      instanceToken: event.token ?? this.config.token,
+      ownerExternalId: pickString(raw, "owner"),
+    } as const;
+
+    // displayName fallback: senderName → chat.name (paridade com fallback
+    // chain do route.ts pré-Fase 3).
+    const sender = {
+      phone,
+      displayName:
+        pickString(message, "senderName") ?? pickString(raw.chat, "name"),
+      fromMe,
+    } as const;
 
     const base = {
       externalMessageId: messageId,
-      sentAt: new Date(sentAtSec * 1000),
-      sender: {
-        phone,
-        displayName: message.senderName,
-        fromMe: Boolean(message.fromMe),
-      },
-      instance: {
-        externalId: event.token ?? this.config.token,
-        instanceToken: event.token ?? this.config.token,
-      },
+      sentAt,
+      ...(replyToExternalMessageId ? { replyToExternalMessageId } : {}),
+      ...(editedExternalMessageId ? { editedExternalMessageId } : {}),
+      sender,
+      instance,
     } as const;
 
-    let canonical: CanonicalInboundMessage;
-    if (type === "text") {
-      const body =
-        typeof content?.["text"] === "string"
-          ? (content["text"] as string)
-          : "";
-      canonical = { ...base, type: "text", body };
-    } else if (type === "media" && mediaKind) {
-      const url =
-        typeof content?.["fileURL"] === "string"
-          ? (content["fileURL"] as string)
-          : undefined;
-      const mimetype =
-        typeof content?.["mimetype"] === "string"
-          ? (content["mimetype"] as string)
-          : undefined;
-      const fileName =
-        typeof content?.["fileName"] === "string"
-          ? (content["fileName"] as string)
-          : undefined;
-      const caption =
-        typeof content?.["caption"] === "string"
-          ? (content["caption"] as string)
-          : undefined;
-      canonical = {
+    // ── Revoke (ProtocolMessage) ────────────────────────────────────────
+    if (kind.type === "protocol") {
+      if (!isProtocolRevoke(content)) {
+        // ProtocolMessage não-revoke (ex.: confirmação de leitura) — ignora.
+        return { messages: [] };
+      }
+      const targetExternalMessageId = extractRevokeTargetId(content);
+      if (!targetExternalMessageId) return { messages: [] };
+      const revoke: CanonicalInboundRevoke = {
         ...base,
-        type: "media",
-        kind: mediaKind,
-        mediaUrl: url,
-        mimetype,
-        fileName,
-        caption,
+        type: "revoke",
+        targetExternalMessageId,
       };
-    } else {
-      canonical = { ...base, type: "unsupported", providerType: message.messageType };
+      return { messages: [revoke] };
     }
 
-    return { messages: [canonical] };
+    // ── Body extraction (compartilhado entre text e interactive) ────────
+    const textTop = pickString(message, "text");
+    const contentText = pickString(content, "text");
+    const contentString = typeof content === "string" ? content : undefined;
+    const contentCaption = pickString(content, "caption");
+    const body =
+      textTop ?? contentText ?? contentString ?? contentCaption ?? "";
+
+    if (kind.type === "text") {
+      const text: CanonicalInboundText = { ...base, type: "text", body };
+      return { messages: [text] };
+    }
+
+    if (kind.type === "interactive_reply") {
+      // Mantém paridade com route.ts:
+      //  finalBody = body || selectedDisplayText || selectedButtonId
+      //                   || title || vote || "";
+      const replyText =
+        body ||
+        pickString(content, "selectedDisplayText") ||
+        pickString(content, "selectedButtonId") ||
+        pickString(content, "title") ||
+        pickString(message, "vote") ||
+        "";
+      const replyId =
+        pickString(content, "selectedButtonId") ??
+        pickString(content, "selectedRowId") ??
+        pickString(content, "id");
+      const interactive: CanonicalInboundInteractiveReply = {
+        ...base,
+        type: "interactive_reply",
+        ...(replyId ? { replyId } : {}),
+        replyText,
+      };
+      return { messages: [interactive] };
+    }
+
+    if (kind.type === "media") {
+      const media: CanonicalInboundMedia = {
+        ...base,
+        type: "media",
+        kind: kind.mediaKind,
+        mediaUrl: pickString(content, "fileURL"),
+        mimetype: pickString(content, "mimetype"),
+        fileName: pickString(content, "fileName"),
+        caption: contentCaption,
+      };
+      return { messages: [media] };
+    }
+
+    if (kind.type === "location") {
+      const latitude =
+        pickNumber(content, "degreesLatitude") ??
+        pickNumber(content, "latitude") ??
+        pickNumber(content, "lat");
+      const longitude =
+        pickNumber(content, "degreesLongitude") ??
+        pickNumber(content, "longitude") ??
+        pickNumber(content, "lng");
+      if (latitude === undefined || longitude === undefined) {
+        // Sem coordenadas — não há localização válida pra persistir.
+        const unsupported: CanonicalInboundUnsupported = {
+          ...base,
+          type: "unsupported",
+          providerType: messageType,
+        };
+        return { messages: [unsupported] };
+      }
+      const location: CanonicalInboundLocation = {
+        ...base,
+        type: "location",
+        latitude,
+        longitude,
+        name: pickString(content, "name"),
+        address: pickString(content, "address"),
+      };
+      return { messages: [location] };
+    }
+
+    if (kind.type === "contact") {
+      const contacts = pick(content, "contacts");
+      const firstContact =
+        Array.isArray(contacts) && contacts.length > 0
+          ? contacts[0]
+          : content;
+      const vcardString = pickString(firstContact, "vcard");
+      const parsedVcard = extractFromVcard(vcardString ?? null);
+      const contactName =
+        pickString(firstContact, "displayName") ??
+        pickString(firstContact, "fullName") ??
+        parsedVcard?.name ??
+        "";
+      const contactPhone =
+        parsedVcard?.phone ?? pickString(firstContact, "phoneNumber") ?? "";
+      if (!contactName && !contactPhone) {
+        return { messages: [] };
+      }
+      const contact: CanonicalInboundContact = {
+        ...base,
+        type: "contact",
+        contactName,
+        contactPhone,
+      };
+      return { messages: [contact] };
+    }
+
+    const unsupported: CanonicalInboundUnsupported = {
+      ...base,
+      type: "unsupported",
+      providerType: messageType,
+    };
+    return { messages: [unsupported] };
   }
 }
 
