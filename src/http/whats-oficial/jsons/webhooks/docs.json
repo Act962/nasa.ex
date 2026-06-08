@@ -1,0 +1,74 @@
+[
+    {
+      "headers": {
+        "host": "n8n.nasaex.com",
+        "user-agent": "facebookexternalua",
+        "content-length": "857",
+        "accept": "*/*",
+        "accept-encoding": "gzip, br",
+        "cdn-loop": "cloudflare; loops=1",
+        "cf-connecting-ip": "2a03:2880:22ff:4d::",
+        "cf-ipcountry": "US",
+        "cf-ray": "a087f0edfa92e5c3-IAD",
+        "cf-visitor": "{\"scheme\":\"https\"}",
+        "content-type": "application/json",
+        "x-forwarded-for": "172.71.190.101",
+        "x-forwarded-host": "n8n.nasaex.com",
+        "x-forwarded-port": "443",
+        "x-forwarded-proto": "https",
+        "x-forwarded-server": "0551472ba9ac",
+        "x-hub-signature": "sha1=a47a500c692c486435ee3fed6e43f9e091cd4872",
+        "x-hub-signature-256": "sha256=3ec3e4367a7dac7aeedf98526141c694c41cdcff81535c948741247b52d85402",
+        "x-real-ip": "172.71.190.101"
+      },
+      "params": {},
+      "query": {},
+      "body": {
+        "object": "whatsapp_business_account",
+        "entry": [
+          {
+            "id": "1902286413770030",
+            "changes": [
+              {
+                "value": {
+                  "messaging_product": "whatsapp",
+                  "metadata": {
+                    "display_phone_number": "15556518046",
+                    "phone_number_id": "1098624330008863"
+                  },
+                  "contacts": [
+                    {
+                      "profile": {
+                        "name": "João Gabriel"
+                      },
+                      "wa_id": "558688923098",
+                      "user_id": "BR.1782704099769542"
+                    }
+                  ],
+                  "messages": [
+                    {
+                      "from": "558688923098",
+                      "from_user_id": "BR.1782704099769542",
+                      "id": "wamid.HBgMNTU4Njg4OTIzMDk4FQIAEhgWM0VCMEI2MzQ5OUQwMDRFRDM3NzI5MQA=",
+                      "timestamp": "1780922173",
+                      "type": "document",
+                      "document": {
+                        "filename": "livro.pdf",
+                        "mime_type": "application/pdf",
+                        "sha256": "qbVTBwFbRIJFAi8lT8N1UW2JbN2nG4XlphfxlwE3lyk=",
+                        "id": "1017448384068675",
+                        "url": "https://lookaside.fbsbx.com/whatsapp_business/attachments/?mid=1017448384068675&source=webhook&ext=1780922475&hash=ARkMumdqNm-vpPLVOm4Ui-huhzWAys-TwVZ25qbNNjmEZw"
+                      }
+                    }
+                  ]
+                },
+                "field": "messages"
+              }
+            ]
+          }
+        ]
+      },
+      "webhookUrl": "n8n.nasaex.com/webhook/whats",
+      "executionMode": "production"
+    }
+  ]
