@@ -96,7 +96,12 @@ export async function fetchMessages(
  */
 export async function postIdentify(
   orgSlug: string,
-  payload: { name: string; phone: string; trackingId?: string },
+  payload: {
+    name: string;
+    phone: string;
+    trackingId?: string;
+    statusId?: string;
+  },
 ): Promise<{ leadName?: string }> {
   const response = await fetch(`/api/in-chat/${orgSlug}/identify`, {
     method: "POST",

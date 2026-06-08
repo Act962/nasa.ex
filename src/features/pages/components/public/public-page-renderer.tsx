@@ -101,6 +101,8 @@ export function PublicPageRenderer({
       utmCampaign?: string;
       utmContent?: string;
       utmTerm?: string;
+      inChatTrackingId?: string;
+      inChatStatusId?: string;
     };
 
   // Detecta os nomes dos planos em qualquer section-pricing presente na
@@ -125,6 +127,8 @@ export function PublicPageRenderer({
     rootSlug,
     siblingPages,
     availablePlans,
+    inChatTrackingId: pageMeta.inChatTrackingId,
+    inChatStatusId: pageMeta.inChatStatusId,
   };
 
   if (layout.mode === "single") {

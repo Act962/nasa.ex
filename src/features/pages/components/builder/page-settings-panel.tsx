@@ -21,6 +21,7 @@ import { usePagesBuilderStore } from "../../context/pages-builder-store";
 import { ColorPickerWithPalette } from "../properties-panel/color-picker-with-palette";
 import { UrlSlugEditor } from "./url-slug-editor";
 import { PalettePanel } from "./palette-panel";
+import { ChatLeadDestinationFields } from "./chat-lead-destination-fields";
 
 export function PageSettingsPanel({
   bgColor,
@@ -172,6 +173,21 @@ export function PageSettingsPanel({
             </div>
           ))}
         </div>
+
+        <hr className="my-4" />
+
+        <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1">
+          Destino do lead (Chat)
+        </p>
+        <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
+          Funil e status onde cai o lead que se identifica pelo botão de chat
+          desta página. Vazio = primeiro status do funil padrão.
+        </p>
+        <ChatLeadDestinationFields
+          trackingId={meta.inChatTrackingId}
+          statusId={meta.inChatStatusId}
+          updateMeta={updateMeta}
+        />
       </div>
     </div>
   );

@@ -40,11 +40,17 @@ export function useChatButton(element: ElementBase) {
   const welcome =
     (element.welcomeMessage as string) ??
     "Oi. Se precisar de ajuda, estou aqui 👋";
-  const trackingId = (element.trackingId as string) ?? "";
   // Slug da org: prioridade pro Context (server-side resolved, never
   // stale) e fallback pro element.orgSlug salvo no layout.
   const ctx = usePageRenderContext();
   const orgSlug = ctx.organizationSlug || (element.orgSlug as string) || "";
+  // Destino do lead: as Configurações da Página têm prioridade sobre o
+  // `element.trackingId` do botão. O status só acompanha quando o
+  // tracking também veio da página (coerência status↔tracking — um
+  // status pertence a um único tracking).
+  const trackingId =
+    ctx.inChatTrackingId || (element.trackingId as string) || "";
+  const statusId = ctx.inChatTrackingId ? ctx.inChatStatusId || "" : "";
   const agentName = (element.agentName as string) ?? "Atendente";
   const bg = (element.bgColor as string) ?? "#6366f1";
   const fg = (element.fgColor as string) ?? "#ffffff";
@@ -299,6 +305,7 @@ export function useChatButton(element: ElementBase) {
         name: trimmedName,
         phone: trimmedPhone,
         trackingId: trackingId || undefined,
+        statusId: statusId || undefined,
       });
       // Pega o primeiro nome (resposta do servidor — pode diferir do
       // que user digitou se já existia cadastro com outro nome).

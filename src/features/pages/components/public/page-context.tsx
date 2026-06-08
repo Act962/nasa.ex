@@ -33,6 +33,13 @@ export type PageRenderContext = {
    *  Usado pelo elemento Marketing pra gerar toasts "Fulano adquiriu
    *  <plano>". Vazio se a page não tem pricing. */
   availablePlans?: string[];
+  /** Tracking destino dos leads criados pelo ChatButton desta page —
+   *  configurado nas Configurações da Página (layout.meta). Tem
+   *  prioridade sobre `element.trackingId` do botão. */
+  inChatTrackingId?: string;
+  /** Status destino dos leads (dentro do `inChatTrackingId`). Só vale
+   *  junto com o tracking da página. */
+  inChatStatusId?: string;
 };
 
 const ctx = createContext<PageRenderContext>({});
