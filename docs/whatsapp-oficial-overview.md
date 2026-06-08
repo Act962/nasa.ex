@@ -1,6 +1,6 @@
 # WhatsApp Oficial (Meta Cloud API) — Visão Geral
 
-> Documento vivo da integração com a **API Oficial do WhatsApp Business (Meta Cloud API)** no NASA. Última revisão: 2026-06-08 (estratégia de branch de integração formalizada).
+> Documento vivo da integração com a **API Oficial do WhatsApp Business (Meta Cloud API)** no NASA. Última revisão: 2026-06-08 (Fase 3 concluída — pipeline canônica inbound).
 >
 > **Regra de manutenção (CLAUDE.md item 13):** sempre que alterar qualquer coisa em `src/http/whats-oficial/`, `src/features/tracking-chat/lib/providers/`, o webhook oficial (`src/app/api/chat/webhook/official/`), ou modelos Prisma relacionados ao provider de WhatsApp, **atualize este arquivo na mesma sessão** — tabelas, roadmap/status, decisões e changelog sincronizados com o código.
 
@@ -18,9 +18,9 @@ A arquitetura é deliberadamente aberta a **N providers**: amanhã podemos pluga
 
 | Item | Status |
 | --- | --- |
-| Fase em andamento | **Fase 2 concluída ✅** — pronta para Fase 3 (pipeline canônico) |
-| Provider em produção | **Uazapi (100%)** — chat segue intocado |
-| Meta Cloud API | Clients HTTP em `src/http/whats-oficial/` + PORT/adapters em `src/features/tracking-chat/lib/providers/`, sem wiring em prod |
+| Fase em andamento | **Fase 3 concluída ✅** — pronta para Fase 4 (schema + UI de provider) |
+| Provider em produção | **Uazapi (100%)** — chat segue intocado em comportamento, agora via pipeline canônica |
+| Meta Cloud API | Clients HTTP em `src/http/whats-oficial/` + PORT/adapters em `src/features/tracking-chat/lib/providers/`. Pipeline canônica pronta para receber a Meta na Fase 5 |
 | App Meta configurada | Sim (sandbox, número de testes) |
 | Webhook real recebendo | Configurado em `n8n.nasaex.com/webhook/whats` (capturas em `jsons/webhooks/`) |
 | Branch de integração | **`feature/whatsapp-oficial-integration`** (alvo de TODOS os PRs de fase — ver §2.1) |
@@ -114,21 +114,42 @@ Camadas:
 | `jsons/webhooks/*.json` | Capturas reais de webhook (text, image, audio, document, sticker, message-with-image, message-with-docs) |
 | `jsons/outputs/send-message.json` | Resposta real de envio (`{ messages: [{ id: "wamid..." }] }`) |
 
-### 4.2 PORT + adapters (Fase 2, implementados)
+### 4.2 PORT + adapters (Fase 2 + expansão Fase 3)
 
 | Arquivo | Função |
 | --- | --- |
-| [providers/types.ts](../src/features/tracking-chat/lib/providers/types.ts) | PORT `WhatsAppChatProvider` + `CanonicalInboundMessage` (union por `type`) + `SendCanonicalInput` + `SendResult` + `ProviderId` (string extensível) |
+| [providers/types.ts](../src/features/tracking-chat/lib/providers/types.ts) | PORT `WhatsAppChatProvider` + `CanonicalInboundMessage` (union por `type`) + `SendCanonicalInput` + `SendResult` + `ProviderId` (string extensível). **Fase 3** adicionou `CanonicalInboundRevoke`, `editedExternalMessageId` em `InboundBase`, e `ownerExternalId` em `CanonicalInboundInstance` |
 | [providers/factory.ts](../src/features/tracking-chat/lib/providers/factory.ts) | `registerProvider`/`createProvider`/`listRegisteredProviders` + `UnknownProviderError`. Registry `Map<ProviderId, ProviderBuilder>` — **aberto a N providers** |
-| [providers/adapters/uazapi/provider.ts](../src/features/tracking-chat/lib/providers/adapters/uazapi/provider.ts) | `UazapiProvider implements WhatsAppChatProvider`. Mapeia send canônico↔Uazapi (`MediaType`), normaliza `messagesEventSchema` da Uazapi → canônico. Auto-registra como `"uazapi"` |
+| [providers/adapters/uazapi/provider.ts](../src/features/tracking-chat/lib/providers/adapters/uazapi/provider.ts) | `UazapiProvider implements WhatsAppChatProvider`. Mapeia send canônico↔Uazapi (`MediaType`). **Fase 3** expandiu `normalizeInbound` pra cobrir todos os tipos do route antigo: text/extended/conversation, image/video/audio/document/sticker, location/contact (com parse de vcard FN+TEL waid=), interactive (template button/buttons/list/interactive response), protocol-revoke, `quoted`/`edited`/`owner`. Auto-registra como `"uazapi"` |
 | [providers/adapters/meta-cloud/provider.ts](../src/features/tracking-chat/lib/providers/adapters/meta-cloud/provider.ts) | `OfficialProvider implements WhatsAppChatProvider`. Mapeia send canônico↔Meta, normaliza envelope completo (`entry[].changes[].value.{messages,statuses}`) incluindo mídia, reaction, button/interactive. `verifyWebhook` delega a `isMetaSignatureValid`. Auto-registra como `"meta-cloud"` |
 | [providers/index.ts](../src/features/tracking-chat/lib/providers/index.ts) | Barrel: re-exports + **side-effect imports** dos dois adapters (registro automático) |
 
-### 4.3 Pipeline canônico inbound (Fase 3, ainda não criado)
+### 4.3 Pipeline canônica inbound (Fase 3, implementada)
 
-| Caminho previsto | Função |
+| Arquivo | Função |
 | --- | --- |
-| `src/features/tracking-chat/lib/inbound/persist-canonical-inbound.ts` | Pipeline único; reusa `firePostInboundAutomations` |
+| [inbound/persist-canonical-inbound.ts](../src/features/tracking-chat/lib/inbound/persist-canonical-inbound.ts) | **`persistCanonicalInbound(canonical, ctx)`** — caminho único de persistência inbound, provider-agnostic. Handles `revoke`, lead lookup/create (com strategies `fetchProfilePicture` + `ctwaSources`), conversation, quoted/edited lookups, per-type message upsert (`text`/`media`/`location`/`contact`/`interactive_reply`), agent IA dispatch (`dispatchMessageIncoming`), e `firePostInboundAutomations`. `reaction`/`unsupported` são skip silencioso. |
+| [inbound/uazapi-strategies.ts](../src/features/tracking-chat/lib/inbound/uazapi-strategies.ts) | Strategies Uazapi-specific consumidas pelo pipeline: `buildUazapiFetchProfilePicture(token)` (via `/chat/details` + S3) e `buildUazapiDownloadInboundMedia(token)` (via `/message/download` + S3 com `generate_mp3` em áudio, fallback de extensão por kind). |
+
+#### Extensões nos tipos canônicos (Fase 3)
+
+`CanonicalInboundMessage` ganhou:
+- `editedExternalMessageId?` em `InboundBase` — preenchido quando o webhook indica edição (Uazapi: `json.message.edited`); pipeline localiza o `Message` original e atualiza in-place via `messageId` original como upsert key.
+- `ownerExternalId?` em `CanonicalInboundInstance` — captura `json.owner` da Uazapi (ex.: `5586...@s.whatsapp.net`); pipeline usa como `senderId` quando `fromMe=true`. Meta não ecoa fromMe via webhook, então não usa.
+- Novo `CanonicalInboundRevoke { type: "revoke"; targetExternalMessageId }` — modela "mensagem apagada para todos". O adapter Uazapi normaliza `ProtocolMessage` com `content.type` revoke (0/"REVOKE"/`revokedMessageKey`) pra esse shape; pipeline marca a `Message` alvo como `MessageStatus.DELETED` + limpa body/mídia + dispara `pusher message:updated`.
+
+#### Refator no webhook Uazapi
+
+`src/app/api/chat/webhook/route.ts` caiu de **1298 → 490 linhas** (~62% de redução). O branch `messages` agora só:
+
+1. Parse `messagesEventSchema`.
+2. Lookup tracking via `getCachedTrackingContext`.
+3. Intercept do Astro Bot (texto puro, `messageType==="TextMessage"`).
+4. `createProvider("uazapi", { token, baseUrl })` + `provider.normalizeInbound(json)`.
+5. Loop `persistCanonicalInbound(canonical, { trackingId, providerId: "uazapi", fetchProfilePicture, downloadInboundMedia, ctwaSources: [json.message, json], channel: "WHATSAPP" })`.
+6. Mapeia falhas estruturais (`tracking_not_found`, `lead_creation_failed`) pra 400 — paridade com o "Status context not found" do route antigo.
+
+Branches `connection`/`calls`/`labels`/`chat_labels` ficaram intactas (eventos Uazapi-specific sem equivalente Meta).
 
 ### 4.4 Webhook oficial (Fase 5, ainda não criado)
 
@@ -182,7 +203,7 @@ Content-Type: application/json
 | --- | --- | --- | --- |
 | **1** | ✅ Concluída (2026-06-08) | Clients HTTP crus + verify-signature, isolados em `src/http/whats-oficial/` | Typecheck ok; sandbox envia texto e retorna `wamid`; HMAC self-check passa; chat Uazapi intocado |
 | **2** | ✅ Concluída (2026-06-08) | PORT `WhatsAppChatProvider` + tipos canônicos + adapters `UazapiProvider`/`OfficialProvider` em `src/features/tracking-chat/lib/providers/`. Factory como **registry aberto** (N providers) | Typecheck ok; factory aceita `"uazapi"` e `"meta-cloud"`; nenhum import novo em prod (chat continua via `src/http/uazapi/*` direto) |
-| **3** | ⬜ Pendente | Extrair persistência inbound do `route.ts` (1298 linhas) para `persistCanonicalInbound`. Uazapi passa a usar o caminho canônico | Webhook Uazapi de prod roda 100% pelo caminho canônico, comportamento idêntico |
+| **3** | ✅ Concluída (2026-06-08) | Extraída persistência inbound do `route.ts` (1298 → 490 linhas) para `persistCanonicalInbound`. Uazapi roda 100% via caminho canônico; tipos canônicos estendidos com `revoke`, `editedExternalMessageId`, `ownerExternalId`. Strategies Uazapi (avatar + download de mídia) isoladas em `inbound/uazapi-strategies.ts` | Typecheck ok; auditoria de paridade cobriu 28 comportamentos do route antigo (lead create, revoke, edit, quoted, per-type upsert, agent IA, `firePostInboundAutomations`, error codes); chat Uazapi intocado em comportamento |
 | **4** | ⬜ Pendente | Schema (`WhatsAppInstance.provider` + credenciais Meta cifradas) + UI de seleção de provider pelo cliente. Migração aditiva via `pnpm db:migrate` + ritual pós-migration | Cliente grava credenciais Meta cifradas, provider visível no banco, sem afetar envio/recebimento |
 | **5** | ⬜ Pendente | `src/app/api/chat/webhook/official/route.ts` (GET verify + POST HMAC) reusando `persistCanonicalInbound` | Mensagem real do número Meta cria Lead/Conversation/Message e dispara automações idênticas ao Uazapi |
 | **6** | ⬜ Pendente | `router/message/*` resolve provider via factory por-tracking. Uazapi e Oficial coexistem; default Uazapi | Dois trackings em paralelo, um por provider, sem regressão |
@@ -244,6 +265,7 @@ Credenciais por-tracking vivem no banco (`WhatsAppInstance.meta*`, cifradas). En
 
 | Data | Mudança |
 | --- | --- |
+| 2026-06-08 | **Fase 3 concluída.** Pipeline canônica inbound implementada em `src/features/tracking-chat/lib/inbound/persist-canonical-inbound.ts` (~720 linhas) + strategies Uazapi em `inbound/uazapi-strategies.ts`. Tipos canônicos estendidos: `editedExternalMessageId`, `ownerExternalId`, `CanonicalInboundRevoke`. `UazapiProvider.normalizeInbound` completado pra cobrir todos os tipos do route antigo (text/extended/conversation/image/video/audio/document/sticker/location/contact/interactive/protocol-revoke/edited/quoted). `src/app/api/chat/webhook/route.ts` caiu de 1298 → 490 linhas; o branch `messages` agora normaliza → loop persistCanonicalInbound. Branches `connection`/`calls`/`labels`/`chat_labels` intactas. Auditoria de paridade interna pegou 3 regressões e foram corrigidas: (a) `lead_creation_failed` agora retorna 400 "Status context not found" (paridade com route antigo); (b) extensão fallback de documento é `pdf` (não `bin`); (c) áudio mantém `update: {}` idempotente (não toca em `createdAt`/`status` em re-entrega). Typecheck do projeto inteiro: exit 0. Branch: `feature/tracking-chat-whatsapp-oficial-pipeline-canonical-20260608`. |
 | 2026-06-08 | **Estratégia de branch de integração formalizada.** Criada `feature/whatsapp-oficial-integration` a partir de `origin/main`. PR #297 (Fases 1+2) retargetado: base agora é a integração, não `main`. CLAUDE.md ganhou item 14 com as regras: branches de fase nascem da integração; PRs de fase têm base integração; só o PR final mergeia a integração em `main`. Seção §2.1 adicionada a este documento explicando o porquê. |
 | 2026-06-08 | **Fase 2 concluída.** PORT `WhatsAppChatProvider` + tipos canônicos (`types.ts`), factory aberta a N providers via registry (`factory.ts`), adapters `UazapiProvider` e `OfficialProvider` (cobrindo send + normalizeInbound + verifyWebhook), e `index.ts` com side-effect imports que auto-registram os adapters. Typecheck do projeto inteiro: exit 0. Único diretório alterado: `src/features/tracking-chat/lib/providers/`. Chat Uazapi: intocado — `router/message/*` e `route.ts` continuam falando Uazapi direto até a Fase 6. Branch: `feature/tracking-chat-whatsapp-oficial-port-adapters-20260608`. |
 | 2026-06-08 | **Fase 1 validada ponta-a-ponta.** Envio real no sandbox Meta retornou `wamid` e mensagem chegou no WhatsApp. HMAC self-check (3/3) e parse de fixtures (7/7) verdes. Typecheck do projeto inteiro: exit 0. Chat Uazapi: intocado. |

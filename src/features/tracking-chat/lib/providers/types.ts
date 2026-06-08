@@ -43,6 +43,13 @@ export interface CanonicalInboundInstance {
   /** Token/nome interno da instância (Uazapi). */
   readonly instanceToken?: string;
   readonly instanceName?: string;
+  /**
+   * ID do "dono" do número (operador) — preenchido pela Uazapi como
+   * `json.owner` (ex.: `5586999999999@s.whatsapp.net`). Usado pela pipeline
+   * canônica como `senderId` quando `fromMe=true` (atendente). Meta não
+   * ecoa mensagens próprias via webhook, então não usa este campo.
+   */
+  readonly ownerExternalId?: string;
 }
 
 /**
@@ -65,6 +72,14 @@ interface InboundBase {
   readonly sentAt: Date;
   /** ID externo da mensagem que está sendo respondida (reply). */
   readonly replyToExternalMessageId?: string;
+  /**
+   * ID externo da mensagem que está sendo editada. Quando preenchido, a
+   * pipeline trata este envelope como uma edição: localiza a mensagem
+   * original (por `messageId`), atualiza body/createdAt em vez de criar
+   * uma nova. Uazapi expõe via `json.message.edited`; Meta ainda não envia
+   * edições por webhook (placeholder pra futura ampliação).
+   */
+  readonly editedExternalMessageId?: string;
   readonly sender: CanonicalInboundSender;
   readonly instance: CanonicalInboundInstance;
 }
@@ -130,6 +145,21 @@ export interface CanonicalInboundUnsupported extends InboundBase {
   readonly providerType?: string;
 }
 
+/**
+ * Revoke ("apagada para todos") — uma mensagem anterior foi removida pelo
+ * autor. A pipeline canônica marca a mensagem alvo (`targetExternalMessageId`)
+ * como `MessageStatus.DELETED` e limpa body/mídia. A UI já renderiza como
+ * "Mensagem apagada".
+ *
+ * Uazapi entrega via `messageType: "ProtocolMessage"` com `content.type`
+ * indicando REVOKE. Meta atualmente não notifica delete por webhook.
+ */
+export interface CanonicalInboundRevoke extends InboundBase {
+  readonly type: "revoke";
+  /** ID externo da mensagem revogada. */
+  readonly targetExternalMessageId: string;
+}
+
 export type CanonicalInboundMessage =
   | CanonicalInboundText
   | CanonicalInboundMedia
@@ -137,6 +167,7 @@ export type CanonicalInboundMessage =
   | CanonicalInboundContact
   | CanonicalInboundReaction
   | CanonicalInboundInteractiveReply
+  | CanonicalInboundRevoke
   | CanonicalInboundUnsupported;
 
 /**
