@@ -26,6 +26,11 @@ export type PageRenderContext = {
   /** Slug do root site (multi-page). Usado pelo navbar pra construir
    *  hrefs `/s/<rootSlug>` e `/s/<rootSlug>/<sub>`. */
   rootSlug?: string;
+  /** Base dos links internos da navbar. Quando a page é servida num
+   *  domínio próprio (`_sites/[host]`), vem como `""` pra que a home
+   *  vire `/` e as subpages `/<sub>`. Ausente na rota `/s` (cai no
+   *  padrão `/s/<rootSlug>`). */
+  linkBasePath?: string;
   /** Páginas-irmãs publicadas do site (root + subpages). Alimentada
    *  pelo dropdown "link interno" e pela resolução de NavLink.subpageId. */
   siblingPages?: SiblingPageInfo[];

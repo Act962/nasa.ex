@@ -3,6 +3,7 @@ import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 
 const PRIMARY_HOST = process.env.NEXT_PUBLIC_PRIMARY_HOST ?? "nasaex.com";
+const SERVER_IP = process.env.NEXT_PUBLIC_PAGES_SERVER_IP;
 
 async function isStillValid(
   domain: string,
@@ -13,18 +14,26 @@ async function isStillValid(
       const txt = await dns.resolveTxt(`_nasa-verify.${domain}`);
       if (!txt.some((chunks) => chunks.join("").trim() === token)) return false;
     }
-    try {
-      const cname = await dns.resolveCname(domain);
-      if (cname.some((r) => r.toLowerCase().includes(PRIMARY_HOST))) return true;
-    } catch {
-      /* try www */
+    // Apontamento: A-record (apex → IP) OU CNAME (www → plataforma).
+    if (SERVER_IP) {
+      for (const target of [domain, `www.${domain}`]) {
+        try {
+          const aRecords = await dns.resolve4(target);
+          if (aRecords.includes(SERVER_IP)) return true;
+        } catch {
+          /* sem A-record nesse host */
+        }
+      }
     }
-    try {
-      const cname = await dns.resolveCname(`www.${domain}`);
-      return cname.some((r) => r.toLowerCase().includes(PRIMARY_HOST));
-    } catch {
-      return false;
+    for (const target of [domain, `www.${domain}`]) {
+      try {
+        const cname = await dns.resolveCname(target);
+        if (cname.some((r) => r.toLowerCase().includes(PRIMARY_HOST))) return true;
+      } catch {
+        /* sem CNAME nesse host */
+      }
     }
+    return false;
   } catch {
     return false;
   }

@@ -17,6 +17,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 
+/** IP público do servidor pro A-record do apex. Quando ausente, o dialog
+ *  cai nas instruções de CNAME (`www`). Env pública porque o IP fica
+ *  visível no DNS de qualquer forma. */
+const SERVER_IP = process.env.NEXT_PUBLIC_PAGES_SERVER_IP;
+
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -104,15 +109,30 @@ export function PublishDialog({ open, onOpenChange, pageId }: Props) {
             {page?.customDomain && page?.domainVerifyToken && (
               <div className="rounded-md border p-3 text-xs space-y-2">
                 <div className="font-semibold">Configure no seu DNS:</div>
-                <div className="font-mono">
-                  CNAME <b>www</b> → pages.nasaex.com
-                </div>
+                {SERVER_IP ? (
+                  <>
+                    <div className="font-mono">
+                      A <b>@</b> → {SERVER_IP}
+                    </div>
+                    <div className="font-mono">
+                      A <b>www</b> → {SERVER_IP}
+                    </div>
+                  </>
+                ) : (
+                  <div className="font-mono">
+                    CNAME <b>www</b> → pages.nasaex.com
+                  </div>
+                )}
                 <div className="font-mono">
                   TXT{" "}
                   <b>_nasa-verify.{page.customDomain}</b> ={" "}
                   <span className="bg-muted px-1 rounded">
                     {page.domainVerifyToken}
                   </span>
+                </div>
+                <div className="text-muted-foreground">
+                  Aponte o domínio e crie o registro TXT, depois clique em
+                  verificar (a propagação do DNS pode levar alguns minutos).
                 </div>
                 <div className="flex items-center gap-2 pt-2">
                   <StatusBadge status={page.domainStatus ?? "PENDING"} />

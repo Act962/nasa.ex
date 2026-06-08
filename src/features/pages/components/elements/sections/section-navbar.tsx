@@ -23,7 +23,7 @@ interface NavLink {
 }
 
 export function SectionNavbar({ element, tokens }: SectionRendererProps) {
-  const { rootSlug, siblingPages } = usePageRenderContext();
+  const { rootSlug, siblingPages, linkBasePath } = usePageRenderContext();
   // O `stickyMode` (sticky/fixed/static) NÃO é aplicado aqui dentro —
   // é o wrapper externo (no `PublicPageRenderer`) que renderiza a
   // navbar com a posição correta FORA do flex-col, garantindo
@@ -127,6 +127,7 @@ export function SectionNavbar({ element, tokens }: SectionRendererProps) {
                 link as NavLinkShape,
                 rootSlug,
                 siblingPages,
+                linkBasePath,
               )}
               className="text-sm font-medium px-3 py-1.5 rounded-lg transition-colors hover:bg-white/5"
               style={{ color: muted }}
@@ -193,6 +194,7 @@ export function SectionNavbar({ element, tokens }: SectionRendererProps) {
                   link as NavLinkShape,
                   rootSlug,
                   siblingPages,
+                  linkBasePath,
                 )}
                 onClick={() => setMenuOpen(false)}
                 className="text-sm font-medium px-3 py-2.5 rounded-lg transition-colors hover:bg-white/5"

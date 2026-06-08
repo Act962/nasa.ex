@@ -37,6 +37,9 @@ interface Props {
   rootSlug?: string;
   /** Páginas-irmãs publicadas (root + subpages). Default empty array. */
   siblingPages?: Array<{ id: string; slug: string; title: string; isRoot: boolean }>;
+  /** Base dos links internos da navbar. `""` quando servido num domínio
+   *  próprio (home = `/`, subpages = `/<sub>`). Ausente na rota `/s`. */
+  linkBasePath?: string;
 }
 
 export function PublicPageRenderer({
@@ -47,6 +50,7 @@ export function PublicPageRenderer({
   organizationSlug,
   rootSlug,
   siblingPages,
+  linkBasePath,
 }: Props) {
   const [device, setDevice] = useState<Device>("desktop");
   const [scrollY, setScrollY] = useState(0);
@@ -124,6 +128,7 @@ export function PublicPageRenderer({
     pageSlug: trackingSlug,
     rootSlug,
     siblingPages,
+    linkBasePath,
     availablePlans,
   };
 

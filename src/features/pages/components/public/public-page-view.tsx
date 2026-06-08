@@ -40,6 +40,10 @@ interface Props {
   rootSlug?: string;
   /** Páginas-irmãs publicadas do site atual (root + subpages). */
   siblingPages?: SiblingPage[];
+  /** Base dos links internos da navbar. `""` quando a page é servida num
+   *  domínio próprio (`_sites/[host]`) — a home vira `/` e as subpages
+   *  `/<sub>`. Ausente na rota `/s` (cai no padrão `/s/<rootSlug>`). */
+  linkBasePath?: string;
 }
 
 export function PublicPageView({
@@ -52,6 +56,7 @@ export function PublicPageView({
   organizationSlug,
   rootSlug,
   siblingPages,
+  linkBasePath,
 }: Props) {
   const { data: session } = authClient.useSession();
   const isOwner = session?.user?.id === ownerUserId;
@@ -87,6 +92,7 @@ export function PublicPageView({
         organizationSlug={organizationSlug ?? undefined}
         rootSlug={rootSlug}
         siblingPages={siblingPages}
+        linkBasePath={linkBasePath}
       />
       <PoweredByNasa />
     </>

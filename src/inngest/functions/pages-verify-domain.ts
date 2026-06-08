@@ -9,6 +9,7 @@ export type PagesVerifyDomainEvent = {
 };
 
 const PRIMARY_HOST = process.env.NEXT_PUBLIC_PRIMARY_HOST ?? "nasaex.com";
+const SERVER_IP = process.env.NEXT_PUBLIC_PAGES_SERVER_IP;
 
 async function checkTxt(domain: string, token: string): Promise<boolean> {
   try {
@@ -19,18 +20,33 @@ async function checkTxt(domain: string, token: string): Promise<boolean> {
   }
 }
 
-async function checkCname(domain: string): Promise<boolean> {
-  try {
-    const records = await dns.resolveCname(domain);
-    return records.some((r) => r.toLowerCase().includes(PRIMARY_HOST));
-  } catch {
-    try {
-      const records = await dns.resolveCname(`www.${domain}`);
-      return records.some((r) => r.toLowerCase().includes(PRIMARY_HOST));
-    } catch {
-      return false;
+/**
+ * Domínio aponta pra plataforma: A-record (apex → `NASA_PAGES_SERVER_IP`)
+ * OU CNAME (www/subdomínio → host da plataforma). Tenta o domínio e o
+ * `www.` em ambos os formatos.
+ */
+async function checkPointing(domain: string): Promise<boolean> {
+  if (SERVER_IP) {
+    for (const target of [domain, `www.${domain}`]) {
+      try {
+        const records = await dns.resolve4(target);
+        if (records.includes(SERVER_IP)) return true;
+      } catch {
+        /* sem A-record nesse host */
+      }
     }
   }
+  for (const target of [domain, `www.${domain}`]) {
+    try {
+      const records = await dns.resolveCname(target);
+      if (records.some((record) => record.toLowerCase().includes(PRIMARY_HOST))) {
+        return true;
+      }
+    } catch {
+      /* sem CNAME nesse host */
+    }
+  }
+  return false;
 }
 
 export const pagesVerifyDomain = inngest.createFunction(
@@ -57,11 +73,11 @@ export const pagesVerifyDomain = inngest.createFunction(
     const txtOk = await step.run("check-txt", () =>
       checkTxt(page.customDomain!, page.domainVerifyToken!),
     );
-    const cnameOk = await step.run("check-cname", () =>
-      checkCname(page.customDomain!),
+    const pointingOk = await step.run("check-pointing", () =>
+      checkPointing(page.customDomain!),
     );
 
-    const verified = txtOk && cnameOk;
+    const verified = txtOk && pointingOk;
 
     await step.run("persist-status", async () => {
       await prisma.nasaPage.update({
@@ -70,6 +86,6 @@ export const pagesVerifyDomain = inngest.createFunction(
       });
     });
 
-    return { pageId, verified, txtOk, cnameOk };
+    return { pageId, verified, txtOk, pointingOk };
   },
 );

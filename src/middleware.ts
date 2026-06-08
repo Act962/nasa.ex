@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { DOMAIN_REGEX, isPlatformHost } from "@/features/pages/lib/domain-utils";
 
 const REF_COOKIE = "nasa_ref";
 const TRACKING_COOKIE = "nasa_tracking";
@@ -7,30 +8,21 @@ const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 dias
 const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"] as const;
 
 /**
- * Middleware Edge — captura:
- *  1. `?ref=<code>` para o programa de parceria (cookie httpOnly `nasa_ref`)
- *  2. `?utm_*` para tracking de origem do lead (cookie httpOnly `nasa_tracking`)
+ * Captura `?ref=` (parceria) e `?utm_*` (origem do lead) em cookies
+ * httpOnly, mutando a `res` recebida. Extraída numa função porque agora
+ * roda tanto no fluxo normal quanto no rewrite de domínio customizado
+ * (uma landing em domínio próprio também pode chegar com UTMs).
  *
- * O cookie de tracking é JSON-encoded com `{ utmSource, utmMedium, utmCampaign,
- * utmContent, utmTerm, referrer, landingPage }`. É lido server-side em todas as
- * rotas de criação de lead (form submit, agenda, linnker, etc.) via
- * `extractTracking()`.
- *
- * NÃO registramos a visita aqui (lookups de DB são caros no edge runtime).
+ * No-op quando não há `ref` nem UTMs — não escreve cookie à toa.
  */
-export function middleware(req: NextRequest) {
+function applyTrackingCookies(req: NextRequest, res: NextResponse): void {
   const url = req.nextUrl;
   const ref = url.searchParams.get("ref");
-
-  // Captura UTMs se presentes
-  const utmEntries = UTM_KEYS.map((k) => [k, url.searchParams.get(k)] as const).filter(
-    ([, v]) => !!v,
+  const utmEntries = UTM_KEYS.map((key) => [key, url.searchParams.get(key)] as const).filter(
+    ([, value]) => !!value,
   );
 
-  // Atalho: nada a fazer
-  if (!ref && utmEntries.length === 0) return NextResponse.next();
-
-  const res = NextResponse.next();
+  if (!ref && utmEntries.length === 0) return;
 
   // ── Referral parceiro ────────────────────────────────
   if (ref) {
@@ -51,20 +43,20 @@ export function middleware(req: NextRequest) {
 
   // ── UTMs / origem ─────────────────────────────────────
   if (utmEntries.length > 0) {
-    const sanitize = (val: string | null) =>
-      (val ?? "").replace(/[\r\n\t]/g, "").slice(0, 200);
+    const sanitize = (value: string | null) =>
+      (value ?? "").replace(/[\r\n\t]/g, "").slice(0, 200);
 
     // Camel-case keys para combinar com Prisma fields
     const tracking: Record<string, string | undefined> = {};
-    for (const [k, v] of utmEntries) {
-      const camel = k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
-      tracking[camel] = sanitize(v);
+    for (const [key, value] of utmEntries) {
+      const camel = key.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
+      tracking[camel] = sanitize(value);
     }
     tracking.landingPage = sanitize(url.pathname + url.search);
     tracking.referrer = sanitize(req.headers.get("referer"));
 
-    // Não re-seta o cookie se o conteúdo não mudou — evita escrita desnecessária
-    // em refreshes da mesma URL.
+    // Não re-seta o cookie se o conteúdo não mudou — evita escrita
+    // desnecessária em refreshes da mesma URL.
     const newCookieValue = encodeURIComponent(JSON.stringify(tracking));
     if (req.cookies.get(TRACKING_COOKIE)?.value !== newCookieValue) {
       res.cookies.set({
@@ -78,31 +70,54 @@ export function middleware(req: NextRequest) {
       });
     }
   }
+}
 
+/**
+ * Middleware Edge. Duas responsabilidades:
+ *
+ *  1. **Roteamento de domínio dinâmico** — quando a requisição chega num
+ *     domínio customizado (não-plataforma), reescreve `meusite.com/<path>`
+ *     → `/_sites/meusite.com/<path>` pra que a rota catch-all
+ *     `_sites/[host]/[[...path]]` sirva a NASA Page com aquele
+ *     `customDomain`. O host da plataforma (`nasaex.com` e subdomínios)
+ *     segue o fluxo normal.
+ *
+ *  2. **Tracking** — captura `?ref=` e `?utm_*` em cookies (`applyTrackingCookies`).
+ */
+export function middleware(req: NextRequest) {
+  const url = req.nextUrl;
+
+  // Host efetivo (Traefik/proxy repassa o original em x-forwarded-host).
+  const host = (req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "")
+    .toLowerCase()
+    .split(":")[0];
+
+  // ── Rewrite por domínio customizado ───────────────────
+  // Guard de loop (`/_sites` já reescrito), allowlist da plataforma e
+  // validação do host (anti path-traversal em `/_sites/${host}`).
+  const isCustomDomain =
+    !url.pathname.startsWith("/_sites") &&
+    !isPlatformHost(host) &&
+    DOMAIN_REGEX.test(host);
+
+  if (isCustomDomain) {
+    const rewriteUrl = url.clone();
+    rewriteUrl.pathname = `/_sites/${host}${url.pathname === "/" ? "" : url.pathname}`;
+    const res = NextResponse.rewrite(rewriteUrl);
+    applyTrackingCookies(req, res);
+    return res;
+  }
+
+  const res = NextResponse.next();
+  applyTrackingCookies(req, res);
   return res;
 }
 
 export const config = {
-  // Matcher amplo cobrindo todos os entrypoints públicos onde pode aparecer
-  // UTMs. Excluímos APIs e estáticos pra reduzir overhead no edge.
-  matcher: [
-    "/sign-up",
-    "/sign-in",
-    "/",
-    "/submit-form/:path*",
-    "/agenda/:path*",
-    "/calendario/:path*",
-    "/c/:path*",
-    "/s/:path*",
-    "/pages/:path*",
-    "/portal/:path*",
-    "/profile/:path*",
-    "/proposta/:path*",
-    "/contrato/:path*",
-    "/checkout/:path*",
-    "/space/:path*",
-    "/l/:path*",
-    "/join/:path*",
-    "/resgatar/:path*",
-  ],
+  // Matcher global: o rewrite de domínio customizado bate em `/` e em
+  // qualquer subpath, então não dá pra usar allow-list de rotas. Excluímos
+  // APIs, assets do Next e arquivos estáticos (com extensão) pra reduzir
+  // overhead. A captura de UTM continua acontecendo nas rotas públicas
+  // (todas casam aqui).
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };

@@ -3,8 +3,7 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { nanoid } from "nanoid";
 import z from "zod";
-
-const domainRegex = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i;
+import { DOMAIN_REGEX, isBlockedCustomDomain } from "@/features/pages/lib/domain-utils";
 
 export const setCustomDomain = base
   .use(requiredAuthMiddleware)
@@ -16,7 +15,7 @@ export const setCustomDomain = base
   .input(
     z.object({
       id: z.string(),
-      domain: z.string().regex(domainRegex, "Domínio inválido"),
+      domain: z.string().regex(DOMAIN_REGEX, "Domínio inválido"),
     }),
   )
   .handler(async ({ input, context, errors }) => {
@@ -25,6 +24,15 @@ export const setCustomDomain = base
       throw errors.BAD_REQUEST({ message: "Organização não encontrada" });
     }
     const normalized = input.domain.toLowerCase();
+
+    // Blocklist: não deixa registrar o host da plataforma nem seus
+    // subdomínios (evita hijack de `pages.nasaex.com` etc), localhost ou IP.
+    if (isBlockedCustomDomain(normalized)) {
+      throw errors.BAD_REQUEST({
+        message: "Este domínio não pode ser usado",
+      });
+    }
+
     const page = await prisma.nasaPage.findFirst({
       where: { id: input.id, organizationId },
       select: { id: true, customDomain: true },
