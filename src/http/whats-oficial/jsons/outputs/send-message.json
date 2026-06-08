@@ -1,0 +1,16 @@
+[
+    {
+      "messaging_product": "whatsapp",
+      "contacts": [
+        {
+          "input": "5586988923098",
+          "wa_id": "558688923098"
+        }
+      ],
+      "messages": [
+        {
+          "id": "wamid.HBgMNTU4Njg4OTIzMDk4FQIAERgSOUQyRERDNDc4QkEwMjM4NkYwAA=="
+        }
+      ]
+    }
+  ]

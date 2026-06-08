@@ -186,6 +186,8 @@ src/features/<dominio>/
       - Parâmetro genérico de origem/contexto → nomeie o domínio: `sourceApp` (não `source`).
     - **Ao mexer em arquivo existente**, renomeie nomes ruins que tocar (boy-scout rule) — mas mantenha o escopo da renomeação dentro do que está sendo editado, sem PRs gigantes de rename.
 
+13. **Documentação do WhatsApp Oficial (Meta Cloud API)** — sempre que criar ou atualizar qualquer coisa dentro de `src/http/whats-oficial/`, `src/features/tracking-chat/lib/providers/`, o webhook oficial (`src/app/api/chat/webhook/official/`), ou modelos Prisma relacionados ao provider de WhatsApp (ex.: `WhatsAppInstance.provider`, credenciais `meta*` cifradas, novos enums `WhatsAppProvider`), **atualize também [`docs/whatsapp-oficial-overview.md`](docs/whatsapp-oficial-overview.md)** na mesma sessão. Aplica-se a: novos clients HTTP, mudanças na PORT/adapters, novo handler de webhook, mudanças no pipeline canônico de inbound, schema/migrations, env vars, decisões de roadmap, novas fases concluídas. Mantenha tabelas de arquivos, roadmap/status (✅/🚧/⬜), contrato Meta API e changelog sincronizados com o código — o documento é a fonte de verdade do domínio e o canal de acompanhamento entre sessões. Espelha a mesma regra do item 10 (NASA Route).
+
 ## Obsidian
 
 Vault: `NASA Agents` em `/Users/weydsonlima/Documents/NASA Agents/`
