@@ -1,6 +1,6 @@
 # WhatsApp Oficial (Meta Cloud API) — Visão Geral
 
-> Documento vivo da integração com a **API Oficial do WhatsApp Business (Meta Cloud API)** no NASA. Última revisão: 2026-06-08 (Fase 2 — PORT + adapters).
+> Documento vivo da integração com a **API Oficial do WhatsApp Business (Meta Cloud API)** no NASA. Última revisão: 2026-06-08 (estratégia de branch de integração formalizada).
 >
 > **Regra de manutenção (CLAUDE.md item 13):** sempre que alterar qualquer coisa em `src/http/whats-oficial/`, `src/features/tracking-chat/lib/providers/`, o webhook oficial (`src/app/api/chat/webhook/official/`), ou modelos Prisma relacionados ao provider de WhatsApp, **atualize este arquivo na mesma sessão** — tabelas, roadmap/status, decisões e changelog sincronizados com o código.
 
@@ -23,6 +23,36 @@ A arquitetura é deliberadamente aberta a **N providers**: amanhã podemos pluga
 | Meta Cloud API | Clients HTTP em `src/http/whats-oficial/` + PORT/adapters em `src/features/tracking-chat/lib/providers/`, sem wiring em prod |
 | App Meta configurada | Sim (sandbox, número de testes) |
 | Webhook real recebendo | Configurado em `n8n.nasaex.com/webhook/whats` (capturas em `jsons/webhooks/`) |
+| Branch de integração | **`feature/whatsapp-oficial-integration`** (alvo de TODOS os PRs de fase — ver §2.1) |
+
+### 2.1 Estratégia de branch de integração
+
+Para mitigar o risco de regressão no chat (especialmente nas Fases 3 e 6, que refatoram código de produção quente), **todas as fases vivem em uma branch de integração de longa duração** antes de chegar em `main`:
+
+```
+main
+ └─ feature/whatsapp-oficial-integration  (long-lived; tudo do feature passa por aqui)
+     ├─ feature/tracking-chat-whatsapp-oficial-clients-meta-20260608  (Fase 1+2 — PR #297)
+     ├─ feature/tracking-chat-whatsapp-oficial-pipeline-canonical-…  (Fase 3 — futuro)
+     ├─ feature/tracking-chat-whatsapp-oficial-schema-…              (Fase 4 — futuro)
+     ├─ feature/tracking-chat-whatsapp-oficial-webhook-…             (Fase 5 — futuro)
+     └─ feature/tracking-chat-whatsapp-oficial-wiring-…              (Fase 6 — futuro)
+```
+
+**Regras (formalizadas no CLAUDE.md item 14):**
+
+1. **PR de fase → integração.** Cada fase abre PR contra `feature/whatsapp-oficial-integration`, NUNCA contra `main`. Quando o `/ship` opera, retargetar com `gh pr edit <num> --base feature/whatsapp-oficial-integration` se necessário.
+2. **Branch de fase nasce da integração.** `git fetch origin && git checkout -b feature/<app>-<desc>-<YYYYMMDD> origin/feature/whatsapp-oficial-integration` — assim a Fase 3 já enxerga a Fase 2 sem rebase manual.
+3. **Cada PR de fase é mergeado por squash** na integração quando o critério de pronto da fase estiver verde. A branch de fase é deletada após o merge.
+4. **Testes de integração** rodam contra `feature/whatsapp-oficial-integration` (e contra cada branch de fase enquanto ela está aberta). Bug encontrado na integração = nova PR contra a integração, não hotfix em fase já mergeada.
+5. **PR final** `feature/whatsapp-oficial-integration` → `main` é aberto **só quando todas as 6 fases estão dentro** e o smoke test full (envio + recebimento em ambos providers) está verde. Esse PR é o release.
+
+**Por que branch longa em vez de fases mergeadas direto em main:**
+
+- Cada fase é entregável mas só faz sentido **junto** — Fase 3 sem Fase 5 deixa o caminho canônico aberto sem usar; Fase 4 sem Fase 6 grava schema que ninguém lê. Manter tudo em uma branch isola o "release" do estado intermediário.
+- Permite rollback de granularidade fina: `git revert` de um commit de fase específica dentro da integração sem afetar as demais.
+- Reduz pressão de manter `main` 100% verde durante o refator de 1298 linhas da Fase 3 — testes podem quebrar dentro da integração sem bloquear deploy de outras features.
+- Quando o release for pra prod, **um único merge** entra em `main` (squash do PR final ou merge commit nomeado), facilitando bisect.
 
 ---
 
@@ -214,6 +244,7 @@ Credenciais por-tracking vivem no banco (`WhatsAppInstance.meta*`, cifradas). En
 
 | Data | Mudança |
 | --- | --- |
+| 2026-06-08 | **Estratégia de branch de integração formalizada.** Criada `feature/whatsapp-oficial-integration` a partir de `origin/main`. PR #297 (Fases 1+2) retargetado: base agora é a integração, não `main`. CLAUDE.md ganhou item 14 com as regras: branches de fase nascem da integração; PRs de fase têm base integração; só o PR final mergeia a integração em `main`. Seção §2.1 adicionada a este documento explicando o porquê. |
 | 2026-06-08 | **Fase 2 concluída.** PORT `WhatsAppChatProvider` + tipos canônicos (`types.ts`), factory aberta a N providers via registry (`factory.ts`), adapters `UazapiProvider` e `OfficialProvider` (cobrindo send + normalizeInbound + verifyWebhook), e `index.ts` com side-effect imports que auto-registram os adapters. Typecheck do projeto inteiro: exit 0. Único diretório alterado: `src/features/tracking-chat/lib/providers/`. Chat Uazapi: intocado — `router/message/*` e `route.ts` continuam falando Uazapi direto até a Fase 6. Branch: `feature/tracking-chat-whatsapp-oficial-port-adapters-20260608`. |
 | 2026-06-08 | **Fase 1 validada ponta-a-ponta.** Envio real no sandbox Meta retornou `wamid` e mensagem chegou no WhatsApp. HMAC self-check (3/3) e parse de fixtures (7/7) verdes. Typecheck do projeto inteiro: exit 0. Chat Uazapi: intocado. |
 | 2026-06-08 | **Fase 1 implementada.** Clients HTTP crus em `src/http/whats-oficial/`: `client.ts`, `send-{text,media,location,contact}.ts`, `upload-media.ts`, `get-media.ts`, `webhook-schema.ts` (Zod), `verify-signature.ts` (HMAC + `timingSafeEqual`), `types.ts`, `index.ts` (barrel re-export — substitui o esboço SOLID original), `playground/send-test.ts` (tsx). |
