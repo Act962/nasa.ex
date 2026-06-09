@@ -10,6 +10,7 @@ import {
   maskMetaCredentials,
   type MetaCredentialsInput,
 } from "@/features/tracking-chat/lib/providers/meta-credentials";
+import { clearMetaPhoneNumberIdLookupCache } from "@/features/tracking-chat/lib/get-cached-tracking-by-meta-phone-number-id";
 import z from "zod";
 
 /**
@@ -127,6 +128,10 @@ export const setProviderSettings = base
         organizationId: true,
         provider: true,
         phoneNumber: true,
+        metaAccessToken: true,
+        metaPhoneNumberId: true,
+        metaAppSecret: true,
+        metaVerifyToken: true,
       },
     });
 
@@ -135,6 +140,41 @@ export const setProviderSettings = base
     }
     if (instance.organizationId !== context.org.id) {
       throw errors.NOT_FOUND({ message: "Instância não encontrada" });
+    }
+
+    // ── Gate: trocar pra META_CLOUD exige credenciais completas ────────
+    // Adicionado pós-Fase 5: o webhook oficial só funciona se as 4
+    // credenciais obrigatórias (accessToken, phoneNumberId, appSecret,
+    // verifyToken) estiverem gravadas. Sem o gate, admin trocaria
+    // provider sem perceber que inbound silenciosamente para. O check
+    // considera o estado *após* este update — se o payload está
+    // completando credenciais faltantes, deixa passar.
+    if (input.provider === "META_CLOUD") {
+      const willHaveAccessToken =
+        Boolean(input.meta?.accessToken) ||
+        (input.meta?.accessToken !== null && Boolean(instance.metaAccessToken));
+      const willHavePhoneNumberId =
+        Boolean(input.meta?.phoneNumberId) ||
+        (input.meta?.phoneNumberId !== null &&
+          Boolean(instance.metaPhoneNumberId));
+      const willHaveAppSecret =
+        Boolean(input.meta?.appSecret) ||
+        (input.meta?.appSecret !== null && Boolean(instance.metaAppSecret));
+      const willHaveVerifyToken =
+        Boolean(input.meta?.verifyToken) ||
+        (input.meta?.verifyToken !== null && Boolean(instance.metaVerifyToken));
+
+      const missing: string[] = [];
+      if (!willHaveAccessToken) missing.push("accessToken");
+      if (!willHavePhoneNumberId) missing.push("phoneNumberId");
+      if (!willHaveAppSecret) missing.push("appSecret");
+      if (!willHaveVerifyToken) missing.push("verifyToken");
+
+      if (missing.length > 0) {
+        throw errors.BAD_REQUEST({
+          message: `Pra ativar Meta Cloud API é preciso preencher: ${missing.join(", ")}. O webhook oficial não funciona sem essas credenciais.`,
+        });
+      }
     }
 
     const updateData: {
@@ -183,8 +223,21 @@ export const setProviderSettings = base
       },
     });
 
-    // ── Audit log (sem segredos!) ──────────────────────────────────────
+    // ── Invalida cache de lookup do webhook oficial ────────────────────
+    // Se phone_number_id, provider ou credenciais cifradas mudaram, o
+    // cache in-process em `get-cached-tracking-by-meta-phone-number-id`
+    // pode estar apontando pra estado obsoleto. Como não temos a chave
+    // antiga (cifrada com IV randômico), limpamos o cache inteiro — é
+    // pequeno (algumas dezenas de entradas) e o evento é raro.
     const changedKeys = Object.keys(updateData);
+    const touchedMetaCreds = changedKeys.some(
+      (key) => key.startsWith("meta") || key === "provider",
+    );
+    if (touchedMetaCreds) {
+      clearMetaPhoneNumberIdLookupCache();
+    }
+
+    // ── Audit log (sem segredos!) ──────────────────────────────────────
     logActivity({
       organizationId: context.org.id,
       userId: context.user.id,
