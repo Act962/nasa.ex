@@ -4,7 +4,6 @@ import {
   CreatedMessageProps,
   MessageStatus,
 } from "@/features/tracking-chat/types";
-import { sendContact } from "@/http/uazapi/send-contact";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { MessageChannel } from "@/generated/prisma/enums";
@@ -21,6 +20,7 @@ import {
   shouldSkipUazapiForConversation,
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import { v4 as uuidv4 } from "uuid";
 
 export const createContactMessage = base
@@ -77,29 +77,37 @@ export const createContactMessage = base
 
       let messageid = uuidv4();
       if (!inChatMode) {
+        // Provider dispatch (Fase 6).
+        if (!conversation?.trackingId) {
+          throw new Error(
+            "Conversation sem trackingId — não é possível resolver provider.",
+          );
+        }
+        const resolved = await resolveOutboundProvider(conversation.trackingId);
         try {
-          const response = await sendContact(input.token, {
-            number: input.leadPhone,
+          const response = await resolved.provider.sendContact({
+            kind: "contact",
+            to: input.leadPhone,
             fullName: input.contactName,
             phoneNumber: input.contactPhone,
-            replyid: input.replyId,
-            readmessages: true,
-            readchat: true,
+            replyToExternalMessageId: input.replyId,
           });
-          messageid = response.messageid;
+          messageid = response.externalMessageId;
         } catch (err: any) {
-          const msg = String(err?.message ?? "");
-          const isLikelyBan =
-            msg.includes("status 401") ||
-            msg.includes("status 403") ||
-            msg.includes("status 500") ||
-            msg.toLowerCase().includes("invalid token") ||
-            msg.toLowerCase().includes("timeout");
-          if (isLikelyBan) {
-            markInstanceConnectionFailure({
-              apiKey: input.token,
-              source: "send_failure",
-            }).catch(() => {});
+          if (resolved.providerId === "uazapi" && resolved.uazapiToken) {
+            const msg = String(err?.message ?? "");
+            const isLikelyBan =
+              msg.includes("status 401") ||
+              msg.includes("status 403") ||
+              msg.includes("status 500") ||
+              msg.toLowerCase().includes("invalid token") ||
+              msg.toLowerCase().includes("timeout");
+            if (isLikelyBan) {
+              markInstanceConnectionFailure({
+                apiKey: resolved.uazapiToken,
+                source: "send_failure",
+              }).catch(() => {});
+            }
           }
           throw err;
         }

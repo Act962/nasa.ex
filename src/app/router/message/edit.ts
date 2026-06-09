@@ -4,7 +4,8 @@ import z from "zod";
 import { editMessage } from "@/http/uazapi/edit-message";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
-import { MessageStatus } from "@/generated/prisma/enums";
+import { MessageStatus, WhatsAppProvider } from "@/generated/prisma/enums";
+import { MetaFeatureUnsupportedError } from "@/features/tracking-chat/lib/providers";
 
 export const editMessageHandler = base
   .use(requiredAuthMiddleware)
@@ -20,7 +21,7 @@ export const editMessageHandler = base
       token: z.string(),
     }),
   )
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
     try {
       const messageBefore = await prisma.message.findUnique({
         where: { messageId: input.id },
@@ -39,6 +40,23 @@ export const editMessageHandler = base
           },
         },
       });
+
+      // ── Gate Meta unsupported (Fase 6) ─────────────────────────────────
+      // Meta Cloud API não tem endpoint pra editar mensagem outbound. Se o
+      // tracking estiver em META_CLOUD recusamos antes de chamar Uazapi.
+      if (messageBefore?.conversation?.trackingId) {
+        const instance = await prisma.whatsAppInstance.findUnique({
+          where: { trackingId: messageBefore.conversation.trackingId },
+          select: { provider: true },
+        });
+        if (instance?.provider === WhatsAppProvider.META_CLOUD) {
+          const err = new MetaFeatureUnsupportedError("edit");
+          throw errors.BAD_REQUEST({
+            message: err.message,
+            data: { code: err.code, feature: err.feature } as never,
+          });
+        }
+      }
 
       const response = await editMessage({
         data: {

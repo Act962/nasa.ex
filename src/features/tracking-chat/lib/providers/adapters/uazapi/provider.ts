@@ -27,6 +27,7 @@ import type { MediaType } from "@/http/uazapi/types";
 import { messagesEventSchema } from "@/http/uazapi/webhook-schema";
 
 import { registerProvider } from "../../factory";
+import { ProviderSendInvalidResponseError } from "../../outbound-errors";
 import type {
   CanonicalInboundContact,
   CanonicalInboundInteractiveReply,
@@ -219,6 +220,28 @@ function extractRevokeTargetId(content: unknown): string | null {
 // Implementação da PORT
 // ────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Garante que o `id` da resposta Uazapi é uma string não-vazia. Se
+ * Uazapi devolveu 200 sem `id` (timeout interno raro), falhamos com
+ * `ProviderSendInvalidResponseError` em vez de gravar string vazia em
+ * `Message.messageId` (mesma classe de bug do `OfficialProvider` —
+ * fix paralelo). Ver outbound-errors.ts.
+ */
+function extractUazapiId(
+  response: { id?: string | null },
+  operation: string,
+): string {
+  const id = response?.id;
+  if (typeof id !== "string" || id.length === 0) {
+    throw new ProviderSendInvalidResponseError(
+      "uazapi",
+      operation,
+      `Resposta: ${JSON.stringify(response).slice(0, 200)}`,
+    );
+  }
+  return id;
+}
+
 export class UazapiProvider implements WhatsAppChatProvider {
   readonly id = "uazapi" as const;
 
@@ -235,7 +258,10 @@ export class UazapiProvider implements WhatsAppChatProvider {
       },
       this.config.baseUrl,
     );
-    return { externalMessageId: response.id, raw: response };
+    return {
+      externalMessageId: extractUazapiId(response, "sendText"),
+      raw: response,
+    };
   }
 
   async sendMedia(input: SendCanonicalMedia): Promise<SendResult> {
@@ -258,7 +284,10 @@ export class UazapiProvider implements WhatsAppChatProvider {
       },
       this.config.baseUrl,
     );
-    return { externalMessageId: response.id, raw: response };
+    return {
+      externalMessageId: extractUazapiId(response, "sendMedia"),
+      raw: response,
+    };
   }
 
   async sendLocation(input: SendCanonicalLocation): Promise<SendResult> {
@@ -274,7 +303,10 @@ export class UazapiProvider implements WhatsAppChatProvider {
       },
       this.config.baseUrl,
     );
-    return { externalMessageId: response.id, raw: response };
+    return {
+      externalMessageId: extractUazapiId(response, "sendLocation"),
+      raw: response,
+    };
   }
 
   async sendContact(input: SendCanonicalContact): Promise<SendResult> {
@@ -290,7 +322,10 @@ export class UazapiProvider implements WhatsAppChatProvider {
       },
       this.config.baseUrl,
     );
-    return { externalMessageId: response.id, raw: response };
+    return {
+      externalMessageId: extractUazapiId(response, "sendContact"),
+      raw: response,
+    };
   }
 
   verifyWebhook(_rawBody: string, _headers: ProviderWebhookHeaders): boolean {

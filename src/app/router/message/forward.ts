@@ -6,6 +6,7 @@ import {
 } from "@/features/tracking-chat/lib/forward-strategies";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 import { MessageChannel } from "@/generated/prisma/enums";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -50,6 +51,7 @@ export const forwardMessageHandler = base
           select: {
             remoteJid: true,
             channel: true,
+            trackingId: true,
             lead: { select: { phone: true } },
             tracking: { select: { organizationId: true } },
           },
@@ -75,10 +77,14 @@ export const forwardMessageHandler = base
           mediaType: payloadKindToMediaType(input.payload.kind),
         });
 
+        // Provider dispatch (Fase 6) — `input.token` mantido no schema
+        // por backward compat mas ignorado. Source of truth é o banco.
+        const resolved = await resolveOutboundProvider(conversation.trackingId);
+
         const ctx = {
           conversationId,
           number,
-          token: input.token,
+          provider: resolved.provider,
           senderName: context.user.name,
         };
 

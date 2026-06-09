@@ -11,6 +11,7 @@ import {
   type MetaCredentialsInput,
 } from "@/features/tracking-chat/lib/providers/meta-credentials";
 import { clearMetaPhoneNumberIdLookupCache } from "@/features/tracking-chat/lib/get-cached-tracking-by-meta-phone-number-id";
+import { invalidateOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
 import z from "zod";
 
 /**
@@ -235,6 +236,9 @@ export const setProviderSettings = base
     );
     if (touchedMetaCreds) {
       clearMetaPhoneNumberIdLookupCache();
+      // Cache outbound da Fase 6 é por-tracking, então invalida só esta
+      // entrada — não precisa nuke geral.
+      invalidateOutboundProvider(input.trackingId);
     }
 
     // ── Audit log (sem segredos!) ──────────────────────────────────────

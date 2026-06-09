@@ -34,6 +34,8 @@ import {
 } from "@/http/whats-oficial";
 
 import { registerProvider } from "../../factory";
+import { ProviderSendInvalidResponseError } from "../../outbound-errors";
+import { normalizePhoneToMetaE164 } from "./normalize-phone";
 import type {
   CanonicalInboundMessage,
   CanonicalInboundStatusUpdate,
@@ -291,6 +293,39 @@ function normalizeStatus(
 // Implementação da PORT
 // ────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Extrai e valida o `wamid` da resposta da Meta. Se a Meta devolveu 200
+ * mas `messages[]` está vazio ou sem `id` válido — o que seria razoável
+ * apenas em soft-fail/rate-limit raros — falhamos com erro estruturado
+ * (`ProviderSendInvalidResponseError`) em vez de gravar string vazia em
+ * `Message.messageId` (que tem `@unique`).
+ *
+ * Sem isso:
+ *  - O próximo send que caísse no mesmo bug bateria em
+ *    `PrismaClientKnownRequestError` por colisão de chave única.
+ *  - Deletes/edits keyed em `messageId === ""` poderiam atingir a
+ *    mensagem errada.
+ *
+ * Usar `ProviderSendInvalidResponseError` (subclasse de
+ * `OutboundProviderError`) garante que o handler oRPC mapeie pra
+ * `errors.BAD_REQUEST({ data: { code: "PROVIDER_SEND_INVALID_RESPONSE" } })`
+ * — frontend reconhece como falha transitória e pode oferecer retry.
+ */
+function extractWamid(
+  response: { messages: Array<{ id: string }> },
+  operation: string,
+): string {
+  const wamid = response.messages[0]?.id;
+  if (!wamid) {
+    throw new ProviderSendInvalidResponseError(
+      "meta-cloud",
+      operation,
+      `Resposta: ${JSON.stringify(response).slice(0, 200)}`,
+    );
+  }
+  return wamid;
+}
+
 export class OfficialProvider implements WhatsAppChatProvider {
   readonly id = "meta-cloud" as const;
 
@@ -301,14 +336,14 @@ export class OfficialProvider implements WhatsAppChatProvider {
       this.config.accessToken,
       this.config.phoneNumberId,
       {
-        to: input.to,
+        to: normalizePhoneToMetaE164(input.to),
         body: input.body,
         previewUrl: input.previewUrl,
         replyToWamid: input.replyToExternalMessageId,
       },
     );
     return {
-      externalMessageId: response.messages[0]?.id ?? "",
+      externalMessageId: extractWamid(response, "sendText"),
       raw: response,
     };
   }
@@ -325,7 +360,7 @@ export class OfficialProvider implements WhatsAppChatProvider {
       this.config.accessToken,
       this.config.phoneNumberId,
       {
-        to: input.to,
+        to: normalizePhoneToMetaE164(input.to),
         kind: toMetaMediaKind(input.mediaKind),
         mediaIdOrLink,
         caption: input.caption,
@@ -334,7 +369,7 @@ export class OfficialProvider implements WhatsAppChatProvider {
       },
     );
     return {
-      externalMessageId: response.messages[0]?.id ?? "",
+      externalMessageId: extractWamid(response, "sendMedia"),
       raw: response,
     };
   }
@@ -344,7 +379,7 @@ export class OfficialProvider implements WhatsAppChatProvider {
       this.config.accessToken,
       this.config.phoneNumberId,
       {
-        to: input.to,
+        to: normalizePhoneToMetaE164(input.to),
         latitude: input.latitude,
         longitude: input.longitude,
         name: input.name,
@@ -353,7 +388,7 @@ export class OfficialProvider implements WhatsAppChatProvider {
       },
     );
     return {
-      externalMessageId: response.messages[0]?.id ?? "",
+      externalMessageId: extractWamid(response, "sendLocation"),
       raw: response,
     };
   }
@@ -363,7 +398,7 @@ export class OfficialProvider implements WhatsAppChatProvider {
       this.config.accessToken,
       this.config.phoneNumberId,
       {
-        to: input.to,
+        to: normalizePhoneToMetaE164(input.to),
         fullName: input.fullName,
         phoneNumber: input.phoneNumber,
         organization: input.organization,
@@ -372,7 +407,7 @@ export class OfficialProvider implements WhatsAppChatProvider {
       },
     );
     return {
-      externalMessageId: response.messages[0]?.id ?? "",
+      externalMessageId: extractWamid(response, "sendContact"),
       raw: response,
     };
   }
