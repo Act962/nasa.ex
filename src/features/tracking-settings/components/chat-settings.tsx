@@ -42,6 +42,7 @@ import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Lock } from "lucide-react";
 import { InChatManualToggle } from "@/features/tracking-chat/components/in-chat-manual-toggle";
+import { WhatsAppProviderSettings } from "./whatsapp-provider-settings";
 
 // ── Popup plano necessário ────────────────────────────────────────────────────
 function NoPlanPopup({
@@ -343,6 +344,11 @@ export function ChatSettings() {
           </div>
         )}
       </div>
+
+      {/* WhatsApp Provider (Fase 4 — Roadmap Oficial Meta) — só aparece
+          se existe instância (no Fase 4 não criamos provider sem Uazapi
+          base). UI grava credenciais cifradas; Fase 5+6 plugam de fato. */}
+      {instance && <WhatsAppProviderSettings trackingId={trackingId} />}
 
       {/* In-Chat Manual Toggle (Sprint 3.5) — só renderiza se existe instância */}
       <InChatManualToggle trackingId={trackingId} />
