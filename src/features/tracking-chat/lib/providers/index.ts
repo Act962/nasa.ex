@@ -68,3 +68,19 @@ export { UazapiProvider } from "./adapters/uazapi/provider";
 export type { UazapiProviderConfig } from "./adapters/uazapi/provider";
 export { OfficialProvider } from "./adapters/meta-cloud/provider";
 export type { MetaCloudProviderConfig } from "./adapters/meta-cloud/provider";
+
+// Credenciais Meta cifradas (Fase 4). Não re-exporta `decryptStored...`
+// porque é puro server-only consumido nas procedures — pra evitar import
+// acidental de client.
+export {
+  encryptMetaCredentialsInput,
+  maskMetaCredentials,
+  MetaCredentialsMissingError,
+} from "./meta-credentials";
+export type {
+  MetaCredentialsInput,
+  MetaCredentialsCipher,
+  MetaCredentialsStored,
+  MetaCredentialsMasked,
+  MetaCredentialsPlain,
+} from "./meta-credentials";

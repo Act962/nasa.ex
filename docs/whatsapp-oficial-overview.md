@@ -1,6 +1,6 @@
 # WhatsApp Oficial (Meta Cloud API) — Visão Geral
 
-> Documento vivo da integração com a **API Oficial do WhatsApp Business (Meta Cloud API)** no NASA. Última revisão: 2026-06-08 (Fase 3 concluída — pipeline canônica inbound).
+> Documento vivo da integração com a **API Oficial do WhatsApp Business (Meta Cloud API)** no NASA. Última revisão: 2026-06-08 (Fase 4 concluída — schema + UI de provider).
 >
 > **Regra de manutenção (CLAUDE.md item 13):** sempre que alterar qualquer coisa em `src/http/whats-oficial/`, `src/features/tracking-chat/lib/providers/`, o webhook oficial (`src/app/api/chat/webhook/official/`), ou modelos Prisma relacionados ao provider de WhatsApp, **atualize este arquivo na mesma sessão** — tabelas, roadmap/status, decisões e changelog sincronizados com o código.
 
@@ -18,9 +18,9 @@ A arquitetura é deliberadamente aberta a **N providers**: amanhã podemos pluga
 
 | Item | Status |
 | --- | --- |
-| Fase em andamento | **Fase 3 concluída ✅** — pronta para Fase 4 (schema + UI de provider) |
-| Provider em produção | **Uazapi (100%)** — chat segue intocado em comportamento, agora via pipeline canônica |
-| Meta Cloud API | Clients HTTP em `src/http/whats-oficial/` + PORT/adapters em `src/features/tracking-chat/lib/providers/`. Pipeline canônica pronta para receber a Meta na Fase 5 |
+| Fase em andamento | **Fase 4 concluída ✅** — pronta para Fase 5 (webhook oficial) |
+| Provider em produção | **Uazapi (100%)** — chat segue intocado em comportamento; coluna `provider` agora gravável (default UAZAPI) |
+| Meta Cloud API | Clients HTTP + PORT/adapters + pipeline canônica + **schema + UI de credenciais cifradas**. Falta só webhook (Fase 5) e wiring de envio (Fase 6) |
 | App Meta configurada | Sim (sandbox, número de testes) |
 | Webhook real recebendo | Configurado em `n8n.nasaex.com/webhook/whats` (capturas em `jsons/webhooks/`) |
 | Branch de integração | **`feature/whatsapp-oficial-integration`** (alvo de TODOS os PRs de fase — ver §2.1) |
@@ -32,9 +32,9 @@ Para mitigar o risco de regressão no chat (especialmente nas Fases 3 e 6, que r
 ```
 main
  └─ feature/whatsapp-oficial-integration  (long-lived; tudo do feature passa por aqui)
-     ├─ feature/tracking-chat-whatsapp-oficial-clients-meta-20260608  (Fase 1+2 — PR #297)
-     ├─ feature/tracking-chat-whatsapp-oficial-pipeline-canonical-…  (Fase 3 — futuro)
-     ├─ feature/tracking-chat-whatsapp-oficial-schema-…              (Fase 4 — futuro)
+     ├─ feature/tracking-chat-whatsapp-oficial-clients-meta-20260608  (Fase 1+2 — PR #297 mergeado)
+     ├─ feature/tracking-chat-whatsapp-oficial-pipeline-canonical-20260608  (Fase 3 — PR #298 mergeado)
+     ├─ feature/tracking-chat-whatsapp-oficial-schema-20260608      (Fase 4 — aberto)
      ├─ feature/tracking-chat-whatsapp-oficial-webhook-…             (Fase 5 — futuro)
      └─ feature/tracking-chat-whatsapp-oficial-wiring-…              (Fase 6 — futuro)
 ```
@@ -89,7 +89,7 @@ Camadas:
 2. **PORT + adapters** (`src/features/tracking-chat/lib/providers/`) — interface + classes que envolvem os clients e normalizam payloads para o shape canônico.
 3. **Pipeline canônico** (`src/features/tracking-chat/lib/inbound/persist-canonical-inbound.ts`) — único caminho de persistência inbound, alimentado pelos normalizadores. Termina chamando `firePostInboundAutomations` existente. (Fase 3+)
 4. **Webhooks** — um endpoint por provider (`/api/chat/webhook` Uazapi vs `/api/chat/webhook/official` Meta), ambos convergindo no pipeline canônico.
-5. **Schema** — `WhatsAppInstance.provider` + credenciais por-provider (cifradas com `@/lib/crypto` + `AI_SECRETS_KEY`). Decisão de modelagem na Fase 4.
+5. **Schema** — `WhatsAppInstance.provider` (enum `WhatsAppProvider`, default `UAZAPI`) + 5 colunas `meta*` cifradas com `@/lib/crypto` + `AI_SECRETS_KEY` (Fase 4 ✅). Forma 1:1 com a `WhatsAppInstance` existente, sem JOIN novo.
 
 ---
 
@@ -151,7 +151,20 @@ Camadas:
 
 Branches `connection`/`calls`/`labels`/`chat_labels` ficaram intactas (eventos Uazapi-specific sem equivalente Meta).
 
-### 4.4 Webhook oficial (Fase 5, ainda não criado)
+### 4.4 Schema + UI de provider (Fase 4, implementada)
+
+| Arquivo | Função |
+| --- | --- |
+| [prisma/schema.prisma](../prisma/schema.prisma) (`WhatsAppInstance`) | Adicionado enum `WhatsAppProvider { UAZAPI, META_CLOUD }`; coluna `provider WhatsAppProvider @default(UAZAPI)`; 5 colunas `meta*` cifradas (`metaAccessToken`, `metaPhoneNumberId`, `metaAppSecret`, `metaVerifyToken`, `metaBusinessAccountId`); índice `@@index([provider])`. Migration `20260609013136_add_whatsapp_provider_and_meta_credentials`. |
+| [providers/meta-credentials.ts](../src/features/tracking-chat/lib/providers/meta-credentials.ts) | `encryptMetaCredentialsInput`, `maskMetaCredentials`, `decryptStoredMetaCredentials` (server-only), `MetaCredentialsMissingError`. AES-256-GCM via `@/lib/crypto` + `AI_SECRETS_KEY`. |
+| [router/integrations/provider-settings.ts](../src/app/router/integrations/provider-settings.ts) | Procedures oRPC `getProviderSettings` (devolve `{ provider, meta: masked }`) e `setProviderSettings` (grava provider + credenciais cifradas). Role check: owner/admin/moderador (mesma regra do toggle In-Chat). Audit log sem segredos. |
+| [hooks/use-whatsapp-provider.ts](../src/features/tracking-settings/hooks/use-whatsapp-provider.ts) | `useWhatsAppProviderSettings(trackingId)` + `useUpdateWhatsAppProviderSettings(trackingId)`. Invalida `integrations.get` também pra UI refletir. |
+| [components/whatsapp-provider-settings.tsx](../src/features/tracking-settings/components/whatsapp-provider-settings.tsx) | Card no `chat-settings` com RadioGroup Uazapi/Meta + form de credenciais Meta (5 campos). Placeholder `•••• <last4> (deixe vazio para manter)` quando já gravado. Botão "Remover" zera todos os segredos. Render condicional ao `instance` existir. |
+| [components/chat-settings.tsx](../src/features/tracking-settings/components/chat-settings.tsx) | Renderiza `<WhatsAppProviderSettings trackingId={trackingId} />` logo antes do `InChatManualToggle`. |
+
+**Comportamento na Fase 4:** salvar `provider=META_CLOUD` aqui não muda envio/recebimento — Uazapi segue como caminho de produção. A coluna existe e a UI grava credenciais cifradas, mas o `router/message/*` ainda fala Uazapi direto. As Fases 5 e 6 conectarão o switch ao webhook oficial e ao caminho de envio. Isto é deliberado pra permitir provisionamento antes do switch operacional.
+
+### 4.5 Webhook oficial (Fase 5, ainda não criado)
 
 | Caminho previsto | Função |
 | --- | --- |
@@ -204,7 +217,7 @@ Content-Type: application/json
 | **1** | ✅ Concluída (2026-06-08) | Clients HTTP crus + verify-signature, isolados em `src/http/whats-oficial/` | Typecheck ok; sandbox envia texto e retorna `wamid`; HMAC self-check passa; chat Uazapi intocado |
 | **2** | ✅ Concluída (2026-06-08) | PORT `WhatsAppChatProvider` + tipos canônicos + adapters `UazapiProvider`/`OfficialProvider` em `src/features/tracking-chat/lib/providers/`. Factory como **registry aberto** (N providers) | Typecheck ok; factory aceita `"uazapi"` e `"meta-cloud"`; nenhum import novo em prod (chat continua via `src/http/uazapi/*` direto) |
 | **3** | ✅ Concluída (2026-06-08) | Extraída persistência inbound do `route.ts` (1298 → 490 linhas) para `persistCanonicalInbound`. Uazapi roda 100% via caminho canônico; tipos canônicos estendidos com `revoke`, `editedExternalMessageId`, `ownerExternalId`. Strategies Uazapi (avatar + download de mídia) isoladas em `inbound/uazapi-strategies.ts` | Typecheck ok; auditoria de paridade cobriu 28 comportamentos do route antigo (lead create, revoke, edit, quoted, per-type upsert, agent IA, `firePostInboundAutomations`, error codes); chat Uazapi intocado em comportamento |
-| **4** | ⬜ Pendente | Schema (`WhatsAppInstance.provider` + credenciais Meta cifradas) + UI de seleção de provider pelo cliente. Migração aditiva via `pnpm db:migrate` + ritual pós-migration | Cliente grava credenciais Meta cifradas, provider visível no banco, sem afetar envio/recebimento |
+| **4** | ✅ Concluída (2026-06-08) | Schema (`WhatsAppInstance.provider` + 5 colunas `meta*` cifradas) via migration `20260609013136_add_whatsapp_provider_and_meta_credentials`; helpers cifragem/máscara em `providers/meta-credentials.ts`; procedures oRPC `integrations.{get,set}ProviderSettings` (RBAC owner/admin/moderador); UI em `whatsapp-provider-settings.tsx` (RadioGroup Uazapi/Meta + form de credenciais cifradas com `•••• <last4>` placeholder). `SCHEMA_VERSION` bumpada pra `v37`. Audit log sem segredos | Cliente grava credenciais Meta cifradas via UI, provider visível no banco, typecheck verde, sem afetar envio/recebimento (Uazapi segue intocado) |
 | **5** | ⬜ Pendente | `src/app/api/chat/webhook/official/route.ts` (GET verify + POST HMAC) reusando `persistCanonicalInbound` | Mensagem real do número Meta cria Lead/Conversation/Message e dispara automações idênticas ao Uazapi |
 | **6** | ⬜ Pendente | `router/message/*` resolve provider via factory por-tracking. Uazapi e Oficial coexistem; default Uazapi | Dois trackings em paralelo, um por provider, sem regressão |
 
@@ -223,7 +236,8 @@ Princípio: cada fase é entregável e testável isoladamente. **Uazapi nunca é
 | Default `UAZAPI` no schema (Fase 4) | Migração puramente aditiva (colunas nullable); todo tracking existente segue Uazapi até o cliente trocar. |
 | Endpoints de webhook separados por provider | Sem cross-talk; cada tracking recebe só onde seu webhook aponta; rollback simples. |
 | Reusar `firePostInboundAutomations` (Fase 3) | Evita duplicar as 1298 linhas do `route.ts`; ambos os providers convergem no mesmo pipeline pós-inbound. |
-| Onde guardar credenciais Meta — decidir na Fase 4 | Decisão postergada; estender `WhatsAppInstance` é o caminho mais provável (1:1 com tracking, sem JOIN novo). |
+| Onde guardar credenciais Meta — `WhatsAppInstance.meta*` (Fase 4) | Confirmada: estender `WhatsAppInstance` mantém 1:1 com tracking sem JOIN novo, reaproveita `provider` no mesmo lugar do `apiKey`/`baseUrl` Uazapi, e o CASCADE de delete já cobre. Tudo cifrado via `@/lib/crypto`. |
+| Switch de provider grava sem efeito operacional (Fase 4) | Permite cliente preparar credenciais antes do webhook oficial (Fase 5) entrar — separação clara entre provisionamento e mudança de comportamento, reduz risco. |
 
 ---
 
@@ -236,9 +250,9 @@ Princípio: cada fase é entregável e testável isoladamente. **Uazapi nunca é
 | `x-hub-signature-256` é sobre RAW body | Handler (Fase 5) deve ler `request.text()` antes de qualquer parse; já refletido em `verify-signature.ts`. |
 | URL lookaside expira (~5 min) | Sempre baixar mídia inbound na hora e subir no R2 — nunca persistir a URL crua. |
 | Templates obrigatórios (HSM) na Meta | Decisão de produto na Fase 6: trackings `OFFICIAL` precisam de pelo menos um template "abertura". |
-| Access token / App Secret | Cifrados via `@/lib/crypto` + `AI_SECRETS_KEY` no banco (Fase 4); nunca logar (usar `last4`). Na Fase 1 vivem em env local. |
+| Access token / App Secret | Cifrados via `@/lib/crypto` + `AI_SECRETS_KEY` no banco (Fase 4 ✅); UI nunca recebe o segredo de volta — só `hasX`/`lastX`; audit log sem segredos. |
 | `fromMe` / eco | Meta **não** ecoa via webhook as mensagens que você enviou (diferente da Uazapi). `Message{fromMe:true}` no Official vem só do caminho outbound. |
-| Verify token compartilhado entre múltiplos trackings | `WhatsAppInstance.metaVerifyToken` por instância cobre o caso (Fase 4). |
+| Verify token compartilhado entre múltiplos trackings | `WhatsAppInstance.metaVerifyToken` por instância cobre o caso (Fase 4 ✅). |
 
 ---
 
@@ -265,6 +279,7 @@ Credenciais por-tracking vivem no banco (`WhatsAppInstance.meta*`, cifradas). En
 
 | Data | Mudança |
 | --- | --- |
+| 2026-06-08 | **Fase 4 concluída.** Schema: enum `WhatsAppProvider { UAZAPI, META_CLOUD }` + coluna `WhatsAppInstance.provider` (default `UAZAPI`) + 5 colunas cifradas `metaAccessToken`/`metaPhoneNumberId`/`metaAppSecret`/`metaVerifyToken`/`metaBusinessAccountId` + `@@index([provider])`. Migration aplicada (`20260609013136_add_whatsapp_provider_and_meta_credentials`); `SCHEMA_VERSION` bumpada pra `v37-whatsapp-provider-meta-credentials`; ritual pós-migration completo (db:generate + bump + touch catch-all). Helpers em `src/features/tracking-chat/lib/providers/meta-credentials.ts` (`encryptMetaCredentialsInput`, `maskMetaCredentials`, `decryptStoredMetaCredentials`, `MetaCredentialsMissingError`). Procedures oRPC: `integrations.getProviderSettings` (devolve `{ provider, meta: { hasX, lastX } }`) e `integrations.setProviderSettings` (cifra e grava; role check owner/admin/moderador via `canToggleInChatManual`; audit log sem segredos). UI: `WhatsAppProviderSettings` no `chat-settings` com RadioGroup Uazapi/Meta + form de 5 campos com placeholder `•••• <last4> (deixe vazio para manter)` + botão "Remover" pra zerar segredos. Comportamento intocado: gravar `META_CLOUD` aqui **não** muda envio/recebimento — Fases 5 e 6 conectam o switch. Typecheck do projeto inteiro: exit 0. Branch: `feature/tracking-chat-whatsapp-oficial-schema-20260608`. |
 | 2026-06-08 | **Fase 3 concluída.** Pipeline canônica inbound implementada em `src/features/tracking-chat/lib/inbound/persist-canonical-inbound.ts` (~720 linhas) + strategies Uazapi em `inbound/uazapi-strategies.ts`. Tipos canônicos estendidos: `editedExternalMessageId`, `ownerExternalId`, `CanonicalInboundRevoke`. `UazapiProvider.normalizeInbound` completado pra cobrir todos os tipos do route antigo (text/extended/conversation/image/video/audio/document/sticker/location/contact/interactive/protocol-revoke/edited/quoted). `src/app/api/chat/webhook/route.ts` caiu de 1298 → 490 linhas; o branch `messages` agora normaliza → loop persistCanonicalInbound. Branches `connection`/`calls`/`labels`/`chat_labels` intactas. Auditoria de paridade interna pegou 3 regressões e foram corrigidas: (a) `lead_creation_failed` agora retorna 400 "Status context not found" (paridade com route antigo); (b) extensão fallback de documento é `pdf` (não `bin`); (c) áudio mantém `update: {}` idempotente (não toca em `createdAt`/`status` em re-entrega). Typecheck do projeto inteiro: exit 0. Branch: `feature/tracking-chat-whatsapp-oficial-pipeline-canonical-20260608`. |
 | 2026-06-08 | **Estratégia de branch de integração formalizada.** Criada `feature/whatsapp-oficial-integration` a partir de `origin/main`. PR #297 (Fases 1+2) retargetado: base agora é a integração, não `main`. CLAUDE.md ganhou item 14 com as regras: branches de fase nascem da integração; PRs de fase têm base integração; só o PR final mergeia a integração em `main`. Seção §2.1 adicionada a este documento explicando o porquê. |
 | 2026-06-08 | **Fase 2 concluída.** PORT `WhatsAppChatProvider` + tipos canônicos (`types.ts`), factory aberta a N providers via registry (`factory.ts`), adapters `UazapiProvider` e `OfficialProvider` (cobrindo send + normalizeInbound + verifyWebhook), e `index.ts` com side-effect imports que auto-registram os adapters. Typecheck do projeto inteiro: exit 0. Único diretório alterado: `src/features/tracking-chat/lib/providers/`. Chat Uazapi: intocado — `router/message/*` e `route.ts` continuam falando Uazapi direto até a Fase 6. Branch: `feature/tracking-chat-whatsapp-oficial-port-adapters-20260608`. |
