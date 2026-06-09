@@ -4,7 +4,6 @@ import {
   CreatedMessageProps,
   MessageStatus,
 } from "@/features/tracking-chat/types";
-import { sendText } from "@/http/uazapi/send-text";
 import { sendInstagramDm } from "@/http/meta/send-instagram-dm";
 import { sendFacebookMessage } from "@/http/meta/send-facebook-message";
 import prisma from "@/lib/prisma";
@@ -24,6 +23,7 @@ import {
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 
 export const createTextMessage = base
   .use(requiredAuthMiddleware)
@@ -57,6 +57,7 @@ export const createTextMessage = base
 
       const channel = conversation?.channel ?? MessageChannel.WHATSAPP;
       const organizationId = conversation?.tracking?.organizationId;
+      const trackingId = conversation?.trackingId;
 
       // ── In-Chat Fallback ─────────────────────────────────────────────
       // Quando a instância está banida/offline (detectado pelo cron
@@ -124,50 +125,57 @@ export const createTextMessage = base
         // `externalMessageId` fica como `uuidv4()` (gerado acima), o que
         // é OK porque In-Chat não precisa de tracking external.
       } else {
+        // ── Provider dispatch (Fase 6) ─────────────────────────────────
+        // Resolve provider (Uazapi vs Meta Cloud) via `trackingId`. O
+        // `input.token` é mantido no schema por backward compat mas
+        // ignorado — single source of truth é o banco.
+        if (!trackingId) {
+          throw new Error(
+            "Conversation sem trackingId — não é possível resolver provider.",
+          );
+        }
+        const resolved = await resolveOutboundProvider(trackingId);
         try {
-          const response = await sendText(input.token, {
-            text: input.body,
-            number: input.leadPhone,
-            replyid: input.replyId,
-            readmessages: true,
-            readchat: true,
+          const response = await resolved.provider.sendText({
+            kind: "text",
+            to: input.leadPhone,
+            body: input.body,
+            replyToExternalMessageId: input.replyId,
           });
-          externalMessageId = response.messageid;
+          externalMessageId = response.externalMessageId;
         } catch (err: any) {
-          // Lazy detection do ban: se a uazapi rejeitou por auth/erro
-          // de servidor, incrementa o contador. Quando passar do
-          // threshold (3 falhas), ativa modo In-Chat — próximas
-          // mensagens pulam o uazapi automaticamente.
           const msg = String(err?.message ?? "");
-          const isLikelyBan =
-            msg.includes("status 401") ||
-            msg.includes("status 403") ||
-            msg.includes("status 500") ||
-            msg.toLowerCase().includes("invalid token") ||
-            msg.toLowerCase().includes("timeout");
-          if (isLikelyBan) {
-            markInstanceConnectionFailure({
-              apiKey: input.token,
-              source: "send_failure",
-            }).catch(() => {});
-          }
-          // Erro específico de sessão WhatsApp caída — devolve um BAD_REQUEST
-          // com código semântico pro frontend mostrar UI de reconexão em vez
-          // do toast genérico "Erro ao enviar mensagem".
-          const isWhatsappDown =
-            msg.includes("session is not reconnectable") ||
-            msg.includes("status 503") ||
-            msg.toLowerCase().includes("whatsapp disconnected");
-          if (isWhatsappDown) {
-            throw errors.BAD_REQUEST({
-              message: "WHATSAPP_DISCONNECTED",
-              data: {
-                code: "WHATSAPP_DISCONNECTED",
-                detail:
-                  "A sessão do WhatsApp caiu. Reconecte a instância em Configurações → Instâncias → Gerar novo QR.",
-                originalMessage: msg,
-              } as never,
-            });
+          // ── Uazapi-only: detecção lazy de ban + In-Chat trigger ────
+          // Meta não bana o número, então só rodamos esse branch quando
+          // o provider ativo é Uazapi. `uazapiToken` vem do resolver.
+          if (resolved.providerId === "uazapi" && resolved.uazapiToken) {
+            const isLikelyBan =
+              msg.includes("status 401") ||
+              msg.includes("status 403") ||
+              msg.includes("status 500") ||
+              msg.toLowerCase().includes("invalid token") ||
+              msg.toLowerCase().includes("timeout");
+            if (isLikelyBan) {
+              markInstanceConnectionFailure({
+                apiKey: resolved.uazapiToken,
+                source: "send_failure",
+              }).catch(() => {});
+            }
+            const isWhatsappDown =
+              msg.includes("session is not reconnectable") ||
+              msg.includes("status 503") ||
+              msg.toLowerCase().includes("whatsapp disconnected");
+            if (isWhatsappDown) {
+              throw errors.BAD_REQUEST({
+                message: "WHATSAPP_DISCONNECTED",
+                data: {
+                  code: "WHATSAPP_DISCONNECTED",
+                  detail:
+                    "A sessão do WhatsApp caiu. Reconecte a instância em Configurações → Instâncias → Gerar novo QR.",
+                  originalMessage: msg,
+                } as never,
+              });
+            }
           }
           throw err;
         }

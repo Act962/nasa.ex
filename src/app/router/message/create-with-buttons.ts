@@ -9,7 +9,8 @@ import z from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { triggerFirstChatInteractionIfFirst } from "./utils";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
-import { MessageChannel } from "@/generated/prisma/enums";
+import { MessageChannel, WhatsAppProvider } from "@/generated/prisma/enums";
+import { MetaFeatureUnsupportedError } from "@/features/tracking-chat/lib/providers";
 
 const buttonSchema = z.object({
   text: z.string().min(1).max(20),
@@ -55,12 +56,34 @@ export const createButtonsMessage = base
       }),
     ]),
   )
-  .handler(async ({ input, context }) => {
-    // Cobra 1★ antes de chamar uazapi — evita custo de API sem saldo.
+  .handler(async ({ input, context, errors }) => {
+    // ── Gate Meta unsupported (Fase 6) ───────────────────────────────────
+    // Meta Cloud API exige template HSM aprovado pra botões interativos.
+    // Aqui mandamos sempre via Uazapi `sendButtons/sendList` — então se o
+    // tracking estiver em META_CLOUD recusamos antes da cobrança em ★.
     const conv = await prisma.conversation.findUnique({
       where: { id: input.conversationId },
-      select: { channel: true, tracking: { select: { organizationId: true } } },
+      select: {
+        channel: true,
+        trackingId: true,
+        tracking: { select: { organizationId: true } },
+      },
     });
+    if (conv?.trackingId) {
+      const instance = await prisma.whatsAppInstance.findUnique({
+        where: { trackingId: conv.trackingId },
+        select: { provider: true },
+      });
+      if (instance?.provider === WhatsAppProvider.META_CLOUD) {
+        const err = new MetaFeatureUnsupportedError("buttons");
+        throw errors.BAD_REQUEST({
+          message: err.message,
+          data: { code: err.code, feature: err.feature } as never,
+        });
+      }
+    }
+
+    // Cobra 1★ antes de chamar uazapi — evita custo de API sem saldo.
     if (conv?.tracking?.organizationId) {
       await chargeMessageOutbound({
         organizationId: conv.tracking.organizationId,

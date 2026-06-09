@@ -5,7 +5,6 @@ import {
   MessageStatus,
 } from "@/features/tracking-chat/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
-import { sendMedia } from "@/http/uazapi/send-media";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import z from "zod";
@@ -22,6 +21,7 @@ import {
   shouldSkipUazapiForConversation,
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import { v4 as uuidv4 } from "uuid";
 
 export const createMessageWithImage = base
@@ -47,7 +47,11 @@ export const createMessageWithImage = base
       // Cobra 1★ antes de chamar uazapi — evita custo de API sem saldo.
       const conv = await prisma.conversation.findUnique({
         where: { id: input.conversationId },
-        select: { channel: true, tracking: { select: { organizationId: true } } },
+        select: {
+          channel: true,
+          trackingId: true,
+          tracking: { select: { organizationId: true } },
+        },
       });
       if (conv?.tracking?.organizationId) {
         await chargeMessageOutbound({
@@ -72,32 +76,41 @@ export const createMessageWithImage = base
 
       let externalMessageId = uuidv4();
       if (!inChatMode) {
+        // Provider dispatch (Fase 6) — Uazapi vs Meta resolvido por
+        // `trackingId`. `input.token` mantido por backward compat mas
+        // ignorado.
+        if (!conv?.trackingId) {
+          throw new Error(
+            "Conversation sem trackingId — não é possível resolver provider.",
+          );
+        }
+        const resolved = await resolveOutboundProvider(conv.trackingId);
         try {
-          const response = await sendMedia(input.token, {
-            file: useConstructUrl(input.mediaUrl),
-            text: input.body,
-            number: input.leadPhone,
-            type: "image",
-            readchat: true,
-            readmessages: true,
-            replyid: input.quotedMessageId,
+          const response = await resolved.provider.sendMedia({
+            kind: "media",
+            mediaKind: "image",
+            to: input.leadPhone,
+            mediaUrl: useConstructUrl(input.mediaUrl),
+            caption: input.body,
+            replyToExternalMessageId: input.quotedMessageId,
           });
-          externalMessageId = response.id;
+          externalMessageId = response.externalMessageId;
         } catch (err: any) {
-          // Lazy detection do ban: incrementa contador em erros de
-          // auth/timeout. Threshold 3 ativa modo In-Chat automaticamente.
-          const msg = String(err?.message ?? "");
-          const isLikelyBan =
-            msg.includes("status 401") ||
-            msg.includes("status 403") ||
-            msg.includes("status 500") ||
-            msg.toLowerCase().includes("invalid token") ||
-            msg.toLowerCase().includes("timeout");
-          if (isLikelyBan) {
-            markInstanceConnectionFailure({
-              apiKey: input.token,
-              source: "send_failure",
-            }).catch(() => {});
+          // Uazapi-only: detecção lazy de ban. Meta não bana.
+          if (resolved.providerId === "uazapi" && resolved.uazapiToken) {
+            const msg = String(err?.message ?? "");
+            const isLikelyBan =
+              msg.includes("status 401") ||
+              msg.includes("status 403") ||
+              msg.includes("status 500") ||
+              msg.toLowerCase().includes("invalid token") ||
+              msg.toLowerCase().includes("timeout");
+            if (isLikelyBan) {
+              markInstanceConnectionFailure({
+                apiKey: resolved.uazapiToken,
+                source: "send_failure",
+              }).catch(() => {});
+            }
           }
           throw err;
         }

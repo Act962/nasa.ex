@@ -136,6 +136,27 @@ export async function persistCanonicalInbound(
     return { ok: false, reason: "tracking_not_found" };
   }
 
+  // ── 0.5. Guard: externalMessageId inválido ─────────────────────────────
+  // Defesa em profundidade (Bug 1 sweep). Os schemas Zod dos webhooks
+  // (Uazapi `messagesEventSchema` + Meta `whatsAppOfficialWebhookSchema`)
+  // já validam que `id` é string não-vazia, mas se um adapter futuro
+  // produzir canônico com `externalMessageId === ""`, vamos pular em vez
+  // de gravar string vazia em `Message.messageId` (que tem `@unique` e
+  // causaria colisão na próxima entrega + deletes/edits keyed em "").
+  // Não vale revoke (que usa `targetExternalMessageId`).
+  if (canonical.type !== "revoke") {
+    const externalId = (canonical as { externalMessageId?: string })
+      .externalMessageId;
+    if (typeof externalId !== "string" || externalId.length === 0) {
+      console.warn("[persist-canonical-inbound] empty_external_message_id", {
+        trackingId: ctx.trackingId,
+        providerId: ctx.providerId,
+        type: canonical.type,
+      });
+      return { ok: true, skipped: "empty_external_message_id" };
+    }
+  }
+
   // ── 1. Revoke — atualização in-place de mensagem existente ──────────────
   if (canonical.type === "revoke") {
     return persistRevoke(canonical);

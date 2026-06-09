@@ -84,3 +84,21 @@ export type {
   MetaCredentialsMasked,
   MetaCredentialsPlain,
 } from "./meta-credentials";
+
+// Resolver outbound (Fase 6) — único caminho dos handlers `router/message/*`
+// pra falar com um provider. Cacheado por `trackingId`.
+export {
+  resolveOutboundProvider,
+  invalidateOutboundProvider,
+  clearOutboundProviderCache,
+} from "./resolve-outbound-provider";
+export type { ResolvedOutboundProvider } from "./resolve-outbound-provider";
+
+// Erros estruturados do caminho outbound.
+export {
+  OutboundProviderError,
+  InstanceNotFoundError,
+  MetaCredentialsIncompleteError,
+  MetaFeatureUnsupportedError,
+  ProviderSendInvalidResponseError,
+} from "./outbound-errors";
