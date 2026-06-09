@@ -585,10 +585,16 @@ async function persistMedia(
   const body = canonical.caption || params.editedExistingBody || "";
 
   if (canonical.kind === "sticker") {
-    // Sticker do route.ts antigo era `prisma.message.create` (sem upsert)
-    // — paridade total.
-    return prisma.message.create({
-      data: {
+    // Pré-Fase 5 era `prisma.message.create` em paridade com o route.ts
+    // antigo (Uazapi não retenta webhooks, então duplicata era
+    // improvável). Fase 5 ativou Meta no caminho, e a Meta REENTREGA
+    // agressivamente em qualquer 5xx — sem upsert, sticker reentregue
+    // duplicaria na conversa. Trocamos por `upsert` idempotente (mesmo
+    // padrão de áudio: `update: {}` deixa intacto em re-entrega).
+    return prisma.message.upsert({
+      where: { messageId: upsertKey },
+      update: {},
+      create: {
         ...baseCreate(params),
         mediaUrl: upload?.key ?? null,
         mimetype: upload?.mimetype ?? canonical.mimetype ?? null,

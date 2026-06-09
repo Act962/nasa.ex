@@ -1,6 +1,6 @@
 # WhatsApp Oficial (Meta Cloud API) — Visão Geral
 
-> Documento vivo da integração com a **API Oficial do WhatsApp Business (Meta Cloud API)** no NASA. Última revisão: 2026-06-08 (Fase 4 concluída — schema + UI de provider).
+> Documento vivo da integração com a **API Oficial do WhatsApp Business (Meta Cloud API)** no NASA. Última revisão: 2026-06-09 (Fase 5 concluída — webhook oficial recebendo inbound via pipeline canônica).
 >
 > **Regra de manutenção (CLAUDE.md item 13):** sempre que alterar qualquer coisa em `src/http/whats-oficial/`, `src/features/tracking-chat/lib/providers/`, o webhook oficial (`src/app/api/chat/webhook/official/`), ou modelos Prisma relacionados ao provider de WhatsApp, **atualize este arquivo na mesma sessão** — tabelas, roadmap/status, decisões e changelog sincronizados com o código.
 
@@ -18,9 +18,9 @@ A arquitetura é deliberadamente aberta a **N providers**: amanhã podemos pluga
 
 | Item | Status |
 | --- | --- |
-| Fase em andamento | **Fase 4 concluída ✅** — pronta para Fase 5 (webhook oficial) |
-| Provider em produção | **Uazapi (100%)** — chat segue intocado em comportamento; coluna `provider` agora gravável (default UAZAPI) |
-| Meta Cloud API | Clients HTTP + PORT/adapters + pipeline canônica + **schema + UI de credenciais cifradas**. Falta só webhook (Fase 5) e wiring de envio (Fase 6) |
+| Fase em andamento | **Fase 5 concluída ✅** — pronta para Fase 6 (wiring de envio via factory) |
+| Provider em produção | **Uazapi (100%) no envio**; **Meta recebendo** via webhook oficial em `/api/chat/webhook/official` (cria Lead/Conversation/Message pela pipeline canônica; envio ainda Uazapi até Fase 6) |
+| Meta Cloud API | Clients HTTP + PORT/adapters + pipeline canônica + schema/UI cifrados + **webhook oficial GET verify / POST HMAC + strategies Meta + cache de lookup por `phone_number_id`**. Falta wiring de envio (Fase 6) |
 | App Meta configurada | Sim (sandbox, número de testes) |
 | Webhook real recebendo | Configurado em `n8n.nasaex.com/webhook/whats` (capturas em `jsons/webhooks/`) |
 | Branch de integração | **`feature/whatsapp-oficial-integration`** (alvo de TODOS os PRs de fase — ver §2.1) |
@@ -34,8 +34,8 @@ main
  └─ feature/whatsapp-oficial-integration  (long-lived; tudo do feature passa por aqui)
      ├─ feature/tracking-chat-whatsapp-oficial-clients-meta-20260608  (Fase 1+2 — PR #297 mergeado)
      ├─ feature/tracking-chat-whatsapp-oficial-pipeline-canonical-20260608  (Fase 3 — PR #298 mergeado)
-     ├─ feature/tracking-chat-whatsapp-oficial-schema-20260608      (Fase 4 — aberto)
-     ├─ feature/tracking-chat-whatsapp-oficial-webhook-…             (Fase 5 — futuro)
+     ├─ feature/tracking-chat-whatsapp-oficial-schema-20260608      (Fase 4 — PR #300 mergeado)
+     ├─ feature/tracking-chat-whatsapp-oficial-webhook-20260609     (Fase 5 — aberto)
      └─ feature/tracking-chat-whatsapp-oficial-wiring-…              (Fase 6 — futuro)
 ```
 
@@ -88,7 +88,7 @@ Camadas:
 1. **Clients HTTP crus** (`src/http/<provider>/`) — só `fetch`, sem domínio. Cada provider tem o seu.
 2. **PORT + adapters** (`src/features/tracking-chat/lib/providers/`) — interface + classes que envolvem os clients e normalizam payloads para o shape canônico.
 3. **Pipeline canônico** (`src/features/tracking-chat/lib/inbound/persist-canonical-inbound.ts`) — único caminho de persistência inbound, alimentado pelos normalizadores. Termina chamando `firePostInboundAutomations` existente. (Fase 3+)
-4. **Webhooks** — um endpoint por provider (`/api/chat/webhook` Uazapi vs `/api/chat/webhook/official` Meta), ambos convergindo no pipeline canônico.
+4. **Webhooks** — um endpoint por provider (`/api/chat/webhook?trackingId=...` Uazapi vs `/api/chat/webhook/official` Meta), ambos convergindo no pipeline canônico. Uazapi roteia por querystring; Meta (endpoint compartilhado por todas as instâncias `META_CLOUD`) roteia por `phone_number_id` extraído do envelope + lookup cacheado (`getCachedTrackingByMetaPhoneNumberId`). Fase 5 ✅.
 5. **Schema** — `WhatsAppInstance.provider` (enum `WhatsAppProvider`, default `UAZAPI`) + 5 colunas `meta*` cifradas com `@/lib/crypto` + `AI_SECRETS_KEY` (Fase 4 ✅). Forma 1:1 com a `WhatsAppInstance` existente, sem JOIN novo.
 
 ---
@@ -164,11 +164,23 @@ Branches `connection`/`calls`/`labels`/`chat_labels` ficaram intactas (eventos U
 
 **Comportamento na Fase 4:** salvar `provider=META_CLOUD` aqui não muda envio/recebimento — Uazapi segue como caminho de produção. A coluna existe e a UI grava credenciais cifradas, mas o `router/message/*` ainda fala Uazapi direto. As Fases 5 e 6 conectarão o switch ao webhook oficial e ao caminho de envio. Isto é deliberado pra permitir provisionamento antes do switch operacional.
 
-### 4.5 Webhook oficial (Fase 5, ainda não criado)
+### 4.5 Webhook oficial (Fase 5, implementada)
 
-| Caminho previsto | Função |
+| Arquivo | Função |
 | --- | --- |
-| `src/app/api/chat/webhook/official/route.ts` | GET verify (`hub.challenge`) + POST com HMAC + delegate ao pipeline canônico |
+| [app/api/chat/webhook/official/route.ts](../src/app/api/chat/webhook/official/route.ts) | Endpoint compartilhado por todas as instâncias `META_CLOUD`. **GET** = handshake `hub.mode=subscribe&hub.verify_token&hub.challenge` (200 text/plain). **POST** = raw body → extrair `metadata.phone_number_id` → resolver instância via cache → validar HMAC com `appSecret` decifrado → `parseWhatsAppOfficialWebhook` → `provider.normalizeInbound` → loop `persistCanonicalInbound`. Astro-bot intercept em texto puro (paridade com Uazapi). Política anti-retry: 200 em erros de config (tracking_not_found, lead_creation_failed), 500 em race transiente, 401 em HMAC inválido / phone_number_id desconhecido. |
+| [inbound/meta-strategies.ts](../src/features/tracking-chat/lib/inbound/meta-strategies.ts) | Strategies Meta-specific: `buildMetaFetchProfilePicture(accessToken)` retorna sempre `null` (Cloud API não expõe foto de contato — só do business próprio), `buildMetaDownloadInboundMedia(accessToken)` via `downloadInboundMedia` da Fase 1 + S3 upload no mesmo bucket Uazapi. |
+| [inbound/media-helpers.ts](../src/features/tracking-chat/lib/inbound/media-helpers.ts) | `defaultMimetypeForKind` + `pickExtension` extraídos pra compartilhar entre Uazapi e Meta. Uazapi mantém cópias por ora (refactor opcional). |
+| [get-cached-tracking-by-meta-phone-number-id.ts](../src/features/tracking-chat/lib/get-cached-tracking-by-meta-phone-number-id.ts) | Cache in-process do mapeamento `phone_number_id → ResolvedMetaInstance` (credenciais decifradas, TTL 30s). Scan + decrypt em `findMany({ provider: META_CLOUD })` no cold miss (logado com `count` e `elapsedMs` pra observabilidade). `invalidateMetaPhoneNumberIdLookup(id)` invalida 1 entrada; `clearMetaPhoneNumberIdLookupCache()` zera tudo — usado em `setProviderSettings` quando credencial muda. |
+| [router/integrations/provider-settings.ts](../src/app/router/integrations/provider-settings.ts) | Atualizada pra chamar `clearMetaPhoneNumberIdLookupCache()` quando `provider` ou qualquer `meta*` muda, evitando que o webhook fique rotando pra estado obsoleto por até 30s. |
+
+**Decisões de design**:
+
+- **Endpoint único compartilhado** — diferente do Uazapi (`?trackingId=...` na query), Meta não permite querystring custom no Webhook URL. Tudo cai aqui, roteamento via `phone_number_id`.
+- **Lookup por scan + decrypt** — `metaPhoneNumberId` é cifrado com IV randômico, então `where: { metaPhoneNumberId: <cipher> }` jamais bate. Scan no subset `provider = META_CLOUD` (já indexado) + decifragem em memória custa < 20 ms no cold miss; sub-ms no hit (TTL 30s). Plano de melhoria documentado pra quando passar de ~500 instâncias ativas: coluna `metaPhoneNumberIdHash` SHA-256 indexada → lookup constant-time. Observabilidade já está plugada (log estruturado no cold miss).
+- **HMAC validado APÓS lookup do appSecret** — sem o `appSecret` da instância correta, é impossível validar a assinatura. Por isso o handler primeiro extrai o `phone_number_id` cru do JSON (sem Zod) pra achar a instância; só então valida HMAC com o `appSecret` decifrado. Fail-closed: se `phone_number_id` é desconhecido → 401 (não sabemos com qual `appSecret` validar, sinal claro de config errada na Meta App).
+- **Política anti-retry Meta**: Meta retenta em backoff exponencial por horas em qualquer não-2xx. Por isso erros que **não se resolvem com retry** viram 200+log (tracking_not_found = config nossa; lead_creation_failed = funil sem status; shape inválido = evento novo). Só 401 (HMAC/phone desconhecido — config Meta errada) e 500 (race transiente). Politica documentada no comentário do handler.
+- **Astro-bot intercept** — replica o branch da Uazapi pra texto puro. Webhook-handler do astro-bot já tem branch `META_CLOUD` que devolve `handled=true` + status `provider_not_implemented` (suprime phantom lead). Passamos o `accessToken` decifrado como `receivingInstanceToken` por simetria — Fase 6+ provavelmente refina o branch META_CLOUD lá.
 
 ---
 
@@ -218,7 +230,7 @@ Content-Type: application/json
 | **2** | ✅ Concluída (2026-06-08) | PORT `WhatsAppChatProvider` + tipos canônicos + adapters `UazapiProvider`/`OfficialProvider` em `src/features/tracking-chat/lib/providers/`. Factory como **registry aberto** (N providers) | Typecheck ok; factory aceita `"uazapi"` e `"meta-cloud"`; nenhum import novo em prod (chat continua via `src/http/uazapi/*` direto) |
 | **3** | ✅ Concluída (2026-06-08) | Extraída persistência inbound do `route.ts` (1298 → 490 linhas) para `persistCanonicalInbound`. Uazapi roda 100% via caminho canônico; tipos canônicos estendidos com `revoke`, `editedExternalMessageId`, `ownerExternalId`. Strategies Uazapi (avatar + download de mídia) isoladas em `inbound/uazapi-strategies.ts` | Typecheck ok; auditoria de paridade cobriu 28 comportamentos do route antigo (lead create, revoke, edit, quoted, per-type upsert, agent IA, `firePostInboundAutomations`, error codes); chat Uazapi intocado em comportamento |
 | **4** | ✅ Concluída (2026-06-08) | Schema (`WhatsAppInstance.provider` + 5 colunas `meta*` cifradas) via migration `20260609013136_add_whatsapp_provider_and_meta_credentials`; helpers cifragem/máscara em `providers/meta-credentials.ts`; procedures oRPC `integrations.{get,set}ProviderSettings` (RBAC owner/admin/moderador); UI em `whatsapp-provider-settings.tsx` (RadioGroup Uazapi/Meta + form de credenciais cifradas com `•••• <last4>` placeholder). `SCHEMA_VERSION` bumpada pra `v37`. Audit log sem segredos | Cliente grava credenciais Meta cifradas via UI, provider visível no banco, typecheck verde, sem afetar envio/recebimento (Uazapi segue intocado) |
-| **5** | ⬜ Pendente | `src/app/api/chat/webhook/official/route.ts` (GET verify + POST HMAC) reusando `persistCanonicalInbound` | Mensagem real do número Meta cria Lead/Conversation/Message e dispara automações idênticas ao Uazapi |
+| **5** | ✅ Concluída (2026-06-09) | `src/app/api/chat/webhook/official/route.ts` (GET verify `hub.challenge` + POST HMAC fail-closed) reusando `persistCanonicalInbound`. Strategies `buildMeta{FetchProfilePicture,DownloadInboundMedia}`. Lookup `phone_number_id → WhatsAppInstance` via scan+decrypt cacheado 30s (in-process). `setProviderSettings` invalida o cache em mudanças de credenciais. Política anti-retry Meta (200+log em config errada, 500 em race transiente). Astro-bot intercept replicado | Mensagem real do número Meta cria Lead/Conversation/Message via mesmo pipeline canônico do Uazapi, dispara automações idênticas. Typecheck verde, chat Uazapi intocado |
 | **6** | ⬜ Pendente | `router/message/*` resolve provider via factory por-tracking. Uazapi e Oficial coexistem; default Uazapi | Dois trackings em paralelo, um por provider, sem regressão |
 
 Princípio: cada fase é entregável e testável isoladamente. **Uazapi nunca é removida.**
@@ -235,9 +247,18 @@ Princípio: cada fase é entregável e testável isoladamente. **Uazapi nunca é
 | Fase 1 = só os clients crus | Menor fatia segura; zero risco para o chat Uazapi de produção. |
 | Default `UAZAPI` no schema (Fase 4) | Migração puramente aditiva (colunas nullable); todo tracking existente segue Uazapi até o cliente trocar. |
 | Endpoints de webhook separados por provider | Sem cross-talk; cada tracking recebe só onde seu webhook aponta; rollback simples. |
+| Endpoint Meta **único** compartilhado por todas as instâncias `META_CLOUD` (Fase 5) | Meta não permite querystring custom no Webhook URL (URL é fixa por App configurada). Diferente do Uazapi (`?trackingId=...`), o roteamento Meta acontece via `metadata.phone_number_id` no payload + lookup `WhatsAppInstance.metaPhoneNumberId`. Aceitamos isso porque a Meta App é por-organização (e o número é único globalmente nela). |
+| Lookup `phone_number_id → WhatsAppInstance` via scan + decrypt (Fase 5) | `metaPhoneNumberId` é cifrado com IV randômico (AES-GCM): `where: { metaPhoneNumberId: cipher }` jamais bate. Scan no subset `provider = META_CLOUD` + cache 30s in-process resolve em ~10-20ms cold, sub-ms hit. Universo esperado: dezenas/baixas centenas no 1º ano — adicionar coluna hash agora é otimização prematura. Plano (b) documentado pra quando cruzar threshold. |
+| Política anti-retry Meta no webhook oficial (Fase 5) | Meta retenta com backoff exponencial por horas em qualquer não-2xx. Para evitar dead-letter, erros que **não se resolvem com retry** (config errada nossa: tracking_not_found, funil sem status, shape novo) viram 200 + log. Só HMAC inválido / phone desconhecido (401) e race transiente (500) escapam. |
 | Reusar `firePostInboundAutomations` (Fase 3) | Evita duplicar as 1298 linhas do `route.ts`; ambos os providers convergem no mesmo pipeline pós-inbound. |
 | Onde guardar credenciais Meta — `WhatsAppInstance.meta*` (Fase 4) | Confirmada: estender `WhatsAppInstance` mantém 1:1 com tracking sem JOIN novo, reaproveita `provider` no mesmo lugar do `apiKey`/`baseUrl` Uazapi, e o CASCADE de delete já cobre. Tudo cifrado via `@/lib/crypto`. |
 | Switch de provider grava sem efeito operacional (Fase 4) | Permite cliente preparar credenciais antes do webhook oficial (Fase 5) entrar — separação clara entre provisionamento e mudança de comportamento, reduz risco. |
+| **Gate META_CLOUD na Fase 5**: `setProviderSettings` recusa o switch sem as 4 credenciais Meta obrigatórias (UI também desabilita o Save). | Pós-Fase 5 trocar pra Meta sem credenciais não é mais "no-op" — vira bug (webhook responde 401 silenciosamente, Meta retenta). Defense in depth no backend + warning na UI. |
+| **Idempotência de re-entregas Meta** garantida via `prisma.message.upsert({ where: { messageId: externalMessageId } })` em todos os branches de persistência (text/media/location/contact/interactive/sticker). | Meta reentrega em qualquer 5xx por horas. `wamid` é único por mensagem — re-entrega vira no-op silencioso. Sem necessidade de tabela de deduplicação externa. Sticker era `create` sem upsert pré-Fase 5 (paridade Uazapi, que não retentava); migrado pra `upsert` no commit da Fase 5. |
+| **Cache só com hits + cap defensivo** em `get-cached-tracking-by-meta-phone-number-id`. | Pra evitar DoS por memory exhaustion: atacante poderia enviar POSTs com `phone_number_id` aleatórios distintos antes da validação HMAC (HMAC só roda depois do lookup). Misses não entram no map; cap de 5.000 entradas + sweep de expiradas/LRU. |
+| **Multi-entry com `phone_number_id` distintos** → 200 + skip + log. | Meta normalmente entrega 1 entry por POST mas o shape permite N WABAs. Como o HMAC é com o `appSecret` da App e o lookup é por instância (cada uma com seu appSecret), multi-distinct é cenário ambíguo. Rejeitamos pra evitar gravar mensagens no tracking errado. |
+| **Astro-bot intercept Meta só se 1 mensagem no POST** | Meta agrupa N messages por POST. Se interceptamos a primeira como comando bot e retornamos 200, perderíamos as outras (mídia + texto subsequente do mesmo POST). Conservador: bot só atua quando o POST é exclusivo de uma mensagem texto. |
+| **CTWA via `referral` preservado** passando `[rawMessage, parsed]` em `ctwaSources`. | O canônico normalizado perde o `referral` cru (vive em `messages[].referral` do envelope). Sem reconstruir o `rawMessage` via wamid antes de `persistCanonicalInbound`, todo Lead criado via Meta perderia atribuição CTWA (gasto pago zerado em relatórios). |
 
 ---
 
@@ -279,6 +300,7 @@ Credenciais por-tracking vivem no banco (`WhatsAppInstance.meta*`, cifradas). En
 
 | Data | Mudança |
 | --- | --- |
+| 2026-06-09 | **Fase 5 concluída.** Webhook oficial Meta em `src/app/api/chat/webhook/official/route.ts` (GET handshake + POST HMAC fail-closed). Roteamento por `phone_number_id` extraído do envelope, com lookup via `getCachedTrackingByMetaPhoneNumberId` (cache in-process TTL 30s, scan + decrypt das instâncias `META_CLOUD`; log estruturado no cold miss pra observar quando migrar pra coluna hash). Strategies Meta em `meta-strategies.ts`: `buildMetaDownloadInboundMedia` (via `downloadInboundMedia` da Fase 1 + S3) e `buildMetaFetchProfilePicture` (sempre `null` — Cloud API não expõe foto de contato). Helpers `defaultMimetypeForKind`/`pickExtension` extraídos pra `media-helpers.ts` (compartilhado entre Uazapi/Meta). Política anti-retry Meta: 200+log em config errada (`tracking_not_found`, `lead_creation_failed`, shape inválido); 401 em HMAC inválido / `phone_number_id` desconhecido (param congelado anti-loop); 500 em race transiente (`lead_reload_failed`, `conversation_missing`). Astro-bot intercept replicado pra texto puro. `setProviderSettings` invalida o cache de lookup quando provider/credenciais mudam. **Review adversarial paralelo** (security/correctness/completeness) pegou 13 findings; os high+medium foram corrigidos no mesmo commit: (a) **CTWA preservado** via `Map<wamid, rawMessage>` passando `[rawMessage, parsed]` em `ctwaSources`; (b) **multi-`phone_number_id` distintos no POST** → 200+skip+log (cenário ambíguo de HMAC); (c) **astro-bot só intercepta se 1 mensagem texto no POST** (Meta agrupa N por POST — evita descartar mídia subsequente); (d) **sticker `create` → `upsert`** (Meta reentrega; idempotência via wamid); (e) **gate `setProviderSettings`** rejeita `META_CLOUD` sem as 4 credenciais Meta obrigatórias + UI desabilita Save; (f) **cache só hits + cap 5k + sweep** anti-DoS; (g) **GET handshake constant-work + `timingSafeEqual`** anti-timing-leak; (h) **log `statusUpdates` count** pra observabilidade Fase 6. Typecheck do projeto inteiro: exit 0. Branch: `feature/tracking-chat-whatsapp-oficial-webhook-20260609`. |
 | 2026-06-08 | **Fase 4 concluída.** Schema: enum `WhatsAppProvider { UAZAPI, META_CLOUD }` + coluna `WhatsAppInstance.provider` (default `UAZAPI`) + 5 colunas cifradas `metaAccessToken`/`metaPhoneNumberId`/`metaAppSecret`/`metaVerifyToken`/`metaBusinessAccountId` + `@@index([provider])`. Migration aplicada (`20260609013136_add_whatsapp_provider_and_meta_credentials`); `SCHEMA_VERSION` bumpada pra `v37-whatsapp-provider-meta-credentials`; ritual pós-migration completo (db:generate + bump + touch catch-all). Helpers em `src/features/tracking-chat/lib/providers/meta-credentials.ts` (`encryptMetaCredentialsInput`, `maskMetaCredentials`, `decryptStoredMetaCredentials`, `MetaCredentialsMissingError`). Procedures oRPC: `integrations.getProviderSettings` (devolve `{ provider, meta: { hasX, lastX } }`) e `integrations.setProviderSettings` (cifra e grava; role check owner/admin/moderador via `canToggleInChatManual`; audit log sem segredos). UI: `WhatsAppProviderSettings` no `chat-settings` com RadioGroup Uazapi/Meta + form de 5 campos com placeholder `•••• <last4> (deixe vazio para manter)` + botão "Remover" pra zerar segredos. Comportamento intocado: gravar `META_CLOUD` aqui **não** muda envio/recebimento — Fases 5 e 6 conectam o switch. Typecheck do projeto inteiro: exit 0. Branch: `feature/tracking-chat-whatsapp-oficial-schema-20260608`. |
 | 2026-06-08 | **Fase 3 concluída.** Pipeline canônica inbound implementada em `src/features/tracking-chat/lib/inbound/persist-canonical-inbound.ts` (~720 linhas) + strategies Uazapi em `inbound/uazapi-strategies.ts`. Tipos canônicos estendidos: `editedExternalMessageId`, `ownerExternalId`, `CanonicalInboundRevoke`. `UazapiProvider.normalizeInbound` completado pra cobrir todos os tipos do route antigo (text/extended/conversation/image/video/audio/document/sticker/location/contact/interactive/protocol-revoke/edited/quoted). `src/app/api/chat/webhook/route.ts` caiu de 1298 → 490 linhas; o branch `messages` agora normaliza → loop persistCanonicalInbound. Branches `connection`/`calls`/`labels`/`chat_labels` intactas. Auditoria de paridade interna pegou 3 regressões e foram corrigidas: (a) `lead_creation_failed` agora retorna 400 "Status context not found" (paridade com route antigo); (b) extensão fallback de documento é `pdf` (não `bin`); (c) áudio mantém `update: {}` idempotente (não toca em `createdAt`/`status` em re-entrega). Typecheck do projeto inteiro: exit 0. Branch: `feature/tracking-chat-whatsapp-oficial-pipeline-canonical-20260608`. |
 | 2026-06-08 | **Estratégia de branch de integração formalizada.** Criada `feature/whatsapp-oficial-integration` a partir de `origin/main`. PR #297 (Fases 1+2) retargetado: base agora é a integração, não `main`. CLAUDE.md ganhou item 14 com as regras: branches de fase nascem da integração; PRs de fase têm base integração; só o PR final mergeia a integração em `main`. Seção §2.1 adicionada a este documento explicando o porquê. |
@@ -286,3 +308,53 @@ Credenciais por-tracking vivem no banco (`WhatsAppInstance.meta*`, cifradas). En
 | 2026-06-08 | **Fase 1 validada ponta-a-ponta.** Envio real no sandbox Meta retornou `wamid` e mensagem chegou no WhatsApp. HMAC self-check (3/3) e parse de fixtures (7/7) verdes. Typecheck do projeto inteiro: exit 0. Chat Uazapi: intocado. |
 | 2026-06-08 | **Fase 1 implementada.** Clients HTTP crus em `src/http/whats-oficial/`: `client.ts`, `send-{text,media,location,contact}.ts`, `upload-media.ts`, `get-media.ts`, `webhook-schema.ts` (Zod), `verify-signature.ts` (HMAC + `timingSafeEqual`), `types.ts`, `index.ts` (barrel re-export — substitui o esboço SOLID original), `playground/send-test.ts` (tsx). |
 | 2026-06-08 | **Fase 1 iniciada.** Plano aprovado. Branch `feature/tracking-chat-whatsapp-oficial-clients-meta-20260608`. Documento vivo criado. CLAUDE.md item 13 grava a regra de manter este documento atualizado. |
+
+---
+
+## 11. Validação local (Fase 5 — receber mensagem real)
+
+Sem deploy / sem playground dedicado. Checklist mínimo pra confirmar que o webhook está ponta-a-ponta:
+
+1. **Provisionar credenciais no banco** via UI:
+   - `pnpm dev` + abrir um tracking com instância Uazapi conectada → Configurações → Atendimento → **Provider WhatsApp**.
+   - RadioGroup em **Meta Cloud API**, preencher Access Token / Phone Number ID / App Secret / Verify Token (do Meta App sandbox). O botão Save só habilita quando as 4 estão preenchidas.
+2. **Tunelar a porta local** com ngrok / Cloudflare Tunnel:
+   ```bash
+   ngrok http 3000
+   # ex: https://abcd-1234.ngrok-free.app
+   ```
+3. **Configurar webhook no Meta App**:
+   - Painel da Meta → App → WhatsApp → Configuration → Webhooks.
+   - Callback URL: `https://<tunnel>/api/chat/webhook/official`
+   - Verify token: o **mesmo** valor gravado no passo 1 (`verify_token`).
+   - Subscribe nos campos `messages` e `message_status`.
+   - O GET handshake deve retornar 200 com o `hub.challenge` ecoado.
+4. **Enviar mensagem do celular pessoal** pro número Meta sandbox.
+5. **Verificar criação do Lead/Conversation/Message**:
+   - `pnpm db:studio` → tabelas `Lead`, `Conversation`, `Message` no tracking esperado.
+   - Ou recarregar `/chat/<trackingId>` no app — o lead novo deve aparecer na coluna inicial do funil.
+6. **Smoke de mídia**: enviar uma imagem do celular; conferir `Message.mediaUrl` populado (key S3) e visualização no chat.
+7. **Smoke de re-entrega (opcional)**: forçar 500 manualmente uma vez (ex: parar o app a meio request), reiniciar, esperar Meta reentregar — a re-entrega deve ser no-op (upsert por `messageId`).
+
+Se algum passo falha, conferir logs por:
+- `[webhook:official:GET] decrypt_failed` → credencial corrompida.
+- `[webhook:official:POST] invalid_signature` → App Secret errado no banco vs no Meta App.
+- `[webhook:official:POST] unknown_phone_number_id` → Phone Number ID gravado no banco diferente do que a Meta entrega.
+- `[meta-phone-lookup] cold_miss matched=false` → idem.
+
+---
+
+## 12. Followups conhecidos
+
+Itens listados aqui não bloqueiam mergeio da Fase 5 — são endereços de melhoria operados depois com evidência (telemetria/tickets).
+
+| # | Item | Trigger pra implementar | Como |
+| --- | --- | --- | --- |
+| 1 | Migrar lookup pra `metaPhoneNumberIdHash` indexada | `count(META_CLOUD) > 500` OU p95 cold miss > 50ms | Migration aditiva + backfill (decifrar + SHA-256). Lookup vira `findUnique` constant-time. Comentário em `get-cached-tracking-by-meta-phone-number-id.ts` topo. |
+| 2 | Pluggar `cold_miss` em métrica/alerta | Time tiver pipeline Prometheus/Sentry/datadog | Trocar `console.log` por emit de métrica (`elapsedMs`, `matched`, `candidates`). |
+| 3 | Astro-bot branch META_CLOUD funcional | Cliente em `META_CLOUD` reclamar de bot fora do ar | Em `src/features/astro-bot/lib/webhook-handler.ts` linha 97-106, implementar verify por `metaPhoneNumberId` igual ao branch UAZAPI faz por `apiKey`. |
+| 4 | Persistir `statusUpdates` (delivered/read/failed) | Cliente abrir ticket de "ticks azuis não aparecem em Meta" | Estender `persistCanonicalInbound` com branch `statusUpdates` que faz `UPDATE Message SET status = ... WHERE messageId = ...`. Log já registra contagem desde Fase 5. |
+| 5 | Astro-bot intercept multi-mensagem | Cliente abrir ticket de "comando bot não funcionou quando mandei junto" | Hoje só intercepta POSTs com 1 mensagem. Melhoria: interceptar texto identificado como bot e persistir as outras mensagens do mesmo POST via `persistCanonicalInbound`. |
+| 6 | `interactive_reply` no intercept astro-bot | Quando começar a enviar botões pra membros via bot | Hoje só checa `type === "text"`. Aceitar `interactive_reply.replyText` como fonte do `messageText`. |
+| 7 | Auto-desabilitar instância órfã (tracking deletado) | Spam de `tracking_not_found_for_instance` em logs | Quando handler detecta o caso, marcar a instância como `isActive: false` + invalidar cache. |
+| 8 | Decisão sobre fixtures de teste local | Antes de deprecar mudança nas fixtures `jsons/webhooks/` | Criar `src/http/whats-oficial/playground/post-webhook.ts` que lê fixture + computa HMAC + POSTa em `localhost:3000/api/chat/webhook/official`. Permite smoke sem ngrok. |

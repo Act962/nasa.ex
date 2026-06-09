@@ -85,6 +85,30 @@ export function WhatsAppProviderSettings({
     [metaSummary],
   );
 
+  // Gate UI (Fase 5): ativar META_CLOUD exige as 4 credenciais
+  // obrigatórias gravadas (ou preenchidas no form). Sem isso o webhook
+  // oficial não acha a instância e Meta retenta em loop. O backend
+  // também bloqueia (defense in depth), mas a UI mostra exatamente o
+  // que falta.
+  const metaMissing = useMemo(() => {
+    if (selectedProvider !== "META_CLOUD") return [] as string[];
+    const missing: string[] = [];
+    const willHaveAccessToken =
+      Boolean(metaForm.accessToken) || Boolean(metaSummary?.hasAccessToken);
+    const willHavePhoneNumberId =
+      Boolean(metaForm.phoneNumberId) ||
+      Boolean(metaSummary?.hasPhoneNumberId);
+    const willHaveAppSecret =
+      Boolean(metaForm.appSecret) || Boolean(metaSummary?.hasAppSecret);
+    const willHaveVerifyToken =
+      Boolean(metaForm.verifyToken) || Boolean(metaSummary?.hasVerifyToken);
+    if (!willHaveAccessToken) missing.push("Access Token");
+    if (!willHavePhoneNumberId) missing.push("Phone Number ID");
+    if (!willHaveAppSecret) missing.push("App Secret");
+    if (!willHaveVerifyToken) missing.push("Verify Token");
+    return missing;
+  }, [selectedProvider, metaForm, metaSummary]);
+
   if (isLoading) {
     return (
       <Card className="border-border/50">
@@ -299,22 +323,37 @@ export function WhatsAppProviderSettings({
 
             <Alert>
               <AlertTitle className="text-xs">
-                Fase 4 — gravação apenas
+                Recebimento ativo (Fase 5)
               </AlertTitle>
               <AlertDescription className="text-xs">
-                Por enquanto, salvar as credenciais não muda o
-                comportamento do chat — a Fase 5 plugará o webhook
-                oficial e a Fase 6 conectará o envio. O switch já fica
-                pronto pra acompanhar.
+                Com as 4 credenciais obrigatórias gravadas e o webhook
+                configurado no Meta App apontando pra{" "}
+                <code>/api/chat/webhook/official</code>, mensagens
+                inbound já criam Lead/Conversation/Message via o mesmo
+                pipeline canônico do Uazapi. O envio outbound (Fase 6)
+                ainda usa Uazapi até a fase final entrar.
               </AlertDescription>
             </Alert>
+
+            {metaMissing.length > 0 && (
+              <Alert variant="destructive">
+                <AlertTitle className="text-xs">
+                  Credenciais incompletas
+                </AlertTitle>
+                <AlertDescription className="text-xs">
+                  Pra salvar com provider Meta Cloud API, preencha:{" "}
+                  {metaMissing.join(", ")}. Sem essas o webhook oficial
+                  não consegue receber mensagens.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         )}
 
         <div className="flex items-center justify-end gap-2 pt-2">
           <Button
             onClick={handleSave}
-            disabled={updateMutation.isPending}
+            disabled={updateMutation.isPending || metaMissing.length > 0}
             size="sm"
           >
             {updateMutation.isPending && (
