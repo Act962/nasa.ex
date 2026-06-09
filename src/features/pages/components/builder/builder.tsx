@@ -48,13 +48,38 @@ export function PagesBuilder({ pageId }: Props) {
   useEffect(() => {
     if (data?.page) {
       skipNextAutosaveRef.current = true;
-      setPage(pageId, data.page.layout as unknown as PageLayout);
+      // Hidrata a palette da COLUNA `NasaPage.palette` dentro de
+      // `layout.palette` — sem isso o store/UI ignoram a palette real
+      // (incluindo `bg`) e o autosave gravaria palette vazia. Edições já
+      // salvas dentro do layout vencem; a coluna preenche o que faltar.
+      const loaded = data.page.layout as unknown as PageLayout;
+      const columnPalette =
+        (data.page.palette as Record<string, string>) ?? {};
+      const layoutPalette =
+        (loaded as unknown as { palette?: Record<string, string> }).palette ??
+        {};
+      const hydrated = {
+        ...loaded,
+        palette: { ...columnPalette, ...layoutPalette },
+      } as unknown as PageLayout;
+      setPage(pageId, hydrated);
     }
   }, [data?.page, pageId, setPage]);
 
   const saveMutation = useMutation({
-    mutationFn: (lay: PageLayout) =>
-      client.pages.updatePage({ id: pageId, layout: lay }),
+    mutationFn: (lay: PageLayout) => {
+      // Write-through da palette: extrai `layout.palette` e envia como
+      // campo `palette` pra sincronizar a COLUNA do banco (lida pela
+      // página pública). Sem isso, edições de palette/cor de fundo se
+      // perdem. Cobre autosave e saveNow (mesmo mutationFn).
+      const palette = (lay as unknown as { palette?: Record<string, string> })
+        .palette;
+      return client.pages.updatePage({
+        id: pageId,
+        layout: lay,
+        ...(palette ? { palette } : {}),
+      });
+    },
     onMutate: () => setSaveStatus("saving"),
     onSuccess: () => {
       dirtyRef.current = false;

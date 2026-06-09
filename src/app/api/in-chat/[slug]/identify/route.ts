@@ -38,6 +38,10 @@ const inputSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   /** Tracking de destino quando lead novo + org tem múltiplos. */
   trackingId: z.string().optional(),
+  /** Status de destino dentro do tracking (configurado nas Configurações
+   *  da Página). Validado contra o tracking no `createInChatLead`; se
+   *  ausente/inválido, cai no primeiro status do funil. */
+  statusId: z.string().optional(),
 });
 
 const COOKIE_NAME = "nasa_inchat_lead";
@@ -161,6 +165,7 @@ export async function POST(
     const appOrigin = req.nextUrl.origin;
     const created = await createInChatLead({
       trackingId,
+      statusId: parsed.data.statusId,
       phone,
       name: parsed.data.name.trim(),
       appOrigin,
