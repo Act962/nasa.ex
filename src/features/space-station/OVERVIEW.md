@@ -86,22 +86,37 @@ Implementação atual em [`src/features/space-station/hooks/`](./hooks/):
   — adeus renegociação manual, glare e perfect-negotiation.
 - **[`use-station-world.ts`](./hooks/use-station-world.ts)** — `useJoinWorld()` busca o
   token LiveKit via oRPC ([`join-world.ts`](../../app/router/space-station/join-world.ts)).
-- **[`use-webrtc.ts`](./hooks/use-webrtc.ts)** — mesh P2P legacy, hoje só para
-  **convidados anônimos** e fallback (logado com LiveKit configurado vai pro SFU).
-  Conexões são dirigidas por **presença** (`space-station:remote-join/leave`), não
-  mais por proximidade: todos na sala se ouvem (sem "bolha" gateando áudio). A
-  negociação usa "perfect negotiation" com `onnegotiationneeded` como única fonte
-  de oferta (`setLocalDescription()` atômico). Controlado por `NEXT_PUBLIC_USE_SFU`.
-  Sai na Fase 4.
+  Aceita `sessionId` (sufixo por aba pro logado), `guestId` e `guestName` (convidado).
+- **[`use-webrtc.ts`](./hooks/use-webrtc.ts)** — mesh P2P legacy, hoje **só fallback**
+  (quando o LiveKit não está configurado). Com o LiveKit ligado, logados **E
+  convidados** vão pro SFU. Conexões são dirigidas por **presença**
+  (`space-station:remote-join/leave`), não mais por proximidade: todos na sala se
+  ouvem (sem "bolha" gateando áudio). A negociação usa "perfect negotiation" com
+  `onnegotiationneeded` como única fonte de oferta (`setLocalDescription()`
+  atômico). Controlado por `NEXT_PUBLIC_USE_SFU`. Sai na Fase 4.
 
-A escolha do transporte está em [`space-game.tsx:159`](./components/world/space-game.tsx):
+**Identidade (anti-kick do LiveKit):** o LiveKit derruba conexões que compartilham
+a mesma `identity` numa sala. Pra duas abas do mesmo usuário coexistirem, o token é
+mintado com um sufixo por aba — `identity: ${userId}:${tabSessionId}` (logado) — e o
+`use-sfu-room` remove o sufixo (`toAccountId`) ao casar participantes com a presença
+do Pusher (que segue por usuário). Convidado usa `identity: effectiveUserId`
+(já único por aba). Veja [`join-world.ts`](../../app/router/space-station/join-world.ts).
+
+A escolha do transporte está em [`space-game.tsx`](./components/world/space-game.tsx):
 
 ```ts
 const isLoggedIn = !rawUserId.startsWith("guest");
-const joinWorldQuery = useJoinWorld(stationId, { enabled: USE_SFU && isLoggedIn });
-const sfuReady = USE_SFU && isLoggedIn && Boolean(joinWorldQuery.data?.sfuToken);
+// Logados E convidados entram no SFU. Logado: identity `${userId}:${tabSessionId}`.
+// Convidado: identity = effectiveUserId, token só em station OPEN/pública.
+const joinWorldQuery = useJoinWorld(stationId, {
+  enabled: USE_SFU,
+  sessionId: tabSessionId,
+  guestId: isLoggedIn ? undefined : effectiveUserId,
+  guestName: userName,
+});
+const sfuReady = USE_SFU && Boolean(joinWorldQuery.data?.sfuToken && joinWorldQuery.data?.sfuWsUrl);
 const sfu  = useSfuRoom({ token: sfuReady ? ... : null, ... });
-const mesh = useWebRTC({ ..., enabled: !sfuReady });
+const mesh = useWebRTC({ ..., enabled: !sfuReady && !sfuPending });
 const webrtc = sfuReady ? sfu : mesh;
 ```
 
@@ -122,8 +137,11 @@ LiveKit Cloud configurado via variáveis em `.env`:
 Esta camada permanece em Pusher mesmo após a migração para LiveKit (Pusher trata da
 presença global do mundo; LiveKit trata da mídia da sala/proximidade).
 
-Convidados anônimos (sem login) vêem o mundo e os avatares via Pusher, mas **não
-entram no SFU** (não publicam nem recebem mídia).
+Convidados anônimos (sem login) **também entram no SFU** em stations OPEN/públicas —
+falam e ouvem como qualquer um. O [`/api/pusher/auth`](../../app/api/pusher/auth/route.ts)
+autoriza a presença do guest usando o `?uid=` do cliente (validado, prefixo `guest`)
+para que `member.id === effectiveUserId === identity do LiveKit` — sem isso o guest
+ganhava um id derivado do socket e aparecia como avatar duplicado.
 
 ### 4. Motor — Phaser
 
