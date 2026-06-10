@@ -256,18 +256,35 @@ function VideoTile({ name, image, stream, micOn, camOn, isLocal, isScreen, width
   // O <video> agora fica MUTADO sempre — áudio único vem desse <audio>.
   useEffect(() => {
     const el = audioRef.current;
-    if (!el) return;
-    if (stream && !isLocal) {
-      if (el.srcObject !== stream) {
-        el.srcObject = stream;
-        el.play().catch(() => {
-          // Autoplay bloqueado (browser sem interação do user ainda).
-          // Quando o user clicar em qualquer canto, autoplay libera.
-        });
-      }
-    } else {
+    if (!el || isLocal) return;
+    if (!stream) {
       el.srcObject = null;
+      return;
     }
+    if (el.srcObject !== stream) el.srcObject = stream;
+
+    // Autoplay pode ser bloqueado quando o usuário ainda não interagiu com a
+    // página. O mesh (diferente do SFU) não tinha "destrava de áudio": a
+    // rejeição era engolida e nunca retentada, então quem não tinha clicado
+    // ficava sem ouvir o peer — um dos jeitos do bug "um ouve, o outro não".
+    // Aqui, se o play() falhar, religamos no primeiro gesto do usuário.
+    let detachGesture: (() => void) | null = null;
+    el.play().catch(() => {
+      if (detachGesture) return;
+      const onGesture = () => {
+        void el.play().catch(() => {});
+        detachGesture?.();
+        detachGesture = null;
+      };
+      window.addEventListener("pointerdown", onGesture);
+      window.addEventListener("keydown", onGesture);
+      detachGesture = () => {
+        window.removeEventListener("pointerdown", onGesture);
+        window.removeEventListener("keydown", onGesture);
+      };
+    });
+
+    return () => { detachGesture?.(); };
   }, [stream, isLocal]);
 
   // Aplica saída de áudio selecionada (setSinkId — feature-detect interno;

@@ -86,8 +86,13 @@ Implementação atual em [`src/features/space-station/hooks/`](./hooks/):
   — adeus renegociação manual, glare e perfect-negotiation.
 - **[`use-station-world.ts`](./hooks/use-station-world.ts)** — `useJoinWorld()` busca o
   token LiveKit via oRPC ([`join-world.ts`](../../app/router/space-station/join-world.ts)).
-- **[`use-webrtc.ts`](./hooks/use-webrtc.ts)** — mesh P2P legacy. Permanece como fallback
-  controlado por feature flag `NEXT_PUBLIC_USE_SFU`. Sai na Fase 4.
+- **[`use-webrtc.ts`](./hooks/use-webrtc.ts)** — mesh P2P legacy, hoje só para
+  **convidados anônimos** e fallback (logado com LiveKit configurado vai pro SFU).
+  Conexões são dirigidas por **presença** (`space-station:remote-join/leave`), não
+  mais por proximidade: todos na sala se ouvem (sem "bolha" gateando áudio). A
+  negociação usa "perfect negotiation" com `onnegotiationneeded` como única fonte
+  de oferta (`setLocalDescription()` atômico). Controlado por `NEXT_PUBLIC_USE_SFU`.
+  Sai na Fase 4.
 
 A escolha do transporte está em [`space-game.tsx:159`](./components/world/space-game.tsx):
 
