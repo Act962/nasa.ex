@@ -30,6 +30,12 @@ import {
 } from "@/lib/livekit/client";
 import { attachAudioUnlock, type AudioUnlockState } from "@/lib/media/audio-unlock";
 import { resolveRemoteSpriteUrl } from "../utils/sprite-defaults";
+import {
+  isDeviceUnavailableError,
+  resolvePreferredDeviceId,
+} from "../utils/media-devices";
+import { useMediaDeviceStore } from "./use-media-device-store";
+import { useMediaDevices, type EnumeratedDevices } from "./use-media-devices";
 import type { RemotePeer } from "./use-webrtc";
 
 interface UseSfuRoomOptions {
@@ -55,12 +61,8 @@ export interface UseSfuRoomReturn {
   // Peers remotos
   peers: Map<string, RemotePeer>;
 
-  // Devices
-  devices: {
-    audio: MediaDeviceInfo[];
-    video: MediaDeviceInfo[];
-    output: MediaDeviceInfo[];
-  };
+  // Devices — seleção persistida em useMediaDeviceStore (localStorage)
+  devices: EnumeratedDevices;
   selectedAudio: string;
   selectedVideo: string;
   selectedOutput: string;
@@ -68,6 +70,8 @@ export interface UseSfuRoomReturn {
   setSelectedVideo: (id: string) => void;
   setSelectedOutput: (id: string) => void;
   applyDeviceChange: () => Promise<void>;
+  /** Prime de permissão pra liberar labels/saídas no painel (clique explícito). */
+  requestDevicePermissions: () => Promise<void>;
 
   // Toggles
   toggleMic: () => Promise<void>;
@@ -105,14 +109,6 @@ export function useSfuRoom({
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   const [peers, setPeers] = useState<Map<string, RemotePeer>>(new Map());
-  const [devices, setDevices] = useState<UseSfuRoomReturn["devices"]>({
-    audio: [],
-    video: [],
-    output: [],
-  });
-  const [selectedAudio, setSelectedAudio] = useState("");
-  const [selectedVideo, setSelectedVideo] = useState("");
-  const [selectedOutput, setSelectedOutput] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [bubbleLocked, setBubbleLocked] = useState(false);
   const [audioBlocked, setAudioBlocked] = useState(false);
@@ -123,15 +119,23 @@ export function useSfuRoom({
   // Derivada de `peers` via useEffect abaixo.
   const [bubblePeers, setBubblePeers] = useState<Set<string>>(new Set());
 
+  // ── Seleção de devices — persistida (localStorage) e compartilhada com o
+  // transporte mesh, então sobrevive a reload e à troca SFU↔mesh.
+  const audioInputId = useMediaDeviceStore((state) => state.audioInputId);
+  const videoInputId = useMediaDeviceStore((state) => state.videoInputId);
+  const audioOutputId = useMediaDeviceStore((state) => state.audioOutputId);
+  const setAudioInputId = useMediaDeviceStore((state) => state.setAudioInputId);
+  const setVideoInputId = useMediaDeviceStore((state) => state.setVideoInputId);
+  const setAudioOutputId = useMediaDeviceStore((state) => state.setAudioOutputId);
+  const { devices, refreshDevices, getCurrentDevices, requestDevicePermissions } =
+    useMediaDevices();
+
   // ── Refs (evitar closures estale e re-renders) ──────────────────────────
   const roomRef = useRef<Room | null>(null);
   const audioUnlockDisposeRef = useRef<(() => void) | null>(null);
   const micOnRef = useRef(false);
   const camOnRef = useRef(false);
   const screenOnRef = useRef(false);
-  const selectedAudioRef = useRef("");
-  const selectedVideoRef = useRef("");
-  const selectedOutputRef = useRef("");
   // Ids que já estiveram na sala SFU — pra remover quem saiu sem apagar peers
   // que vieram só do Pusher (guests / presence antes de entrar no SFU).
   const sfuIdsRef = useRef<Set<string>>(new Set());
@@ -145,29 +149,6 @@ export function useSfuRoom({
   useEffect(() => {
     screenOnRef.current = screenOn;
   }, [screenOn]);
-  useEffect(() => {
-    selectedAudioRef.current = selectedAudio;
-  }, [selectedAudio]);
-  useEffect(() => {
-    selectedVideoRef.current = selectedVideo;
-  }, [selectedVideo]);
-  useEffect(() => {
-    selectedOutputRef.current = selectedOutput;
-  }, [selectedOutput]);
-
-  // ── Enumera devices (precisa de permissão prévia pra labels) ────────────
-  const refreshDevices = useCallback(async () => {
-    try {
-      const all = await navigator.mediaDevices.enumerateDevices();
-      setDevices({
-        audio: all.filter((d) => d.kind === "audioinput"),
-        video: all.filter((d) => d.kind === "videoinput"),
-        output: all.filter((d) => d.kind === "audiooutput"),
-      });
-    } catch {
-      /* permissão ainda não concedida */
-    }
-  }, []);
 
   // ── Reconstrução dos peers a partir do estado atual da Room ─────────────
   const rebuildPeers = useCallback(() => {
@@ -333,13 +314,27 @@ export function useSfuRoom({
     const room = roomRef.current;
     if (!room) return;
     const next = !micOnRef.current;
+    // Só usa `exact` se o device persistido está na enumeração atual; se ele
+    // sumiu (headset desconectado), cai no default sem apagar a preferência.
+    const preferredAudioInputId = resolvePreferredDeviceId(
+      useMediaDeviceStore.getState().audioInputId,
+      getCurrentDevices().audio,
+    );
     try {
-      await room.localParticipant.setMicrophoneEnabled(
-        next,
-        selectedAudioRef.current
-          ? { deviceId: { exact: selectedAudioRef.current } }
-          : undefined,
-      );
+      try {
+        await room.localParticipant.setMicrophoneEnabled(
+          next,
+          preferredAudioInputId
+            ? { deviceId: { exact: preferredAudioInputId } }
+            : undefined,
+        );
+      } catch (err) {
+        // Corrida enumeração×unplug: device saiu depois da última enumeração.
+        if (!next || !preferredAudioInputId || !isDeviceUnavailableError(err)) {
+          throw err;
+        }
+        await room.localParticipant.setMicrophoneEnabled(next);
+      }
       setMicOn(next);
       setCamError(null);
       void refreshDevices();
@@ -349,20 +344,31 @@ export function useSfuRoom({
       console.error("[use-sfu-room] toggleMic:", err);
       setCamError(humanizeMediaError(err));
     }
-  }, [refreshDevices]);
+  }, [refreshDevices, getCurrentDevices]);
 
   // ── Toggle Cam ──────────────────────────────────────────────────────────
   const toggleCam = useCallback(async () => {
     const room = roomRef.current;
     if (!room) return;
     const next = !camOnRef.current;
+    const preferredVideoInputId = resolvePreferredDeviceId(
+      useMediaDeviceStore.getState().videoInputId,
+      getCurrentDevices().video,
+    );
     try {
-      await room.localParticipant.setCameraEnabled(
-        next,
-        selectedVideoRef.current
-          ? { deviceId: { exact: selectedVideoRef.current } }
-          : undefined,
-      );
+      try {
+        await room.localParticipant.setCameraEnabled(
+          next,
+          preferredVideoInputId
+            ? { deviceId: { exact: preferredVideoInputId } }
+            : undefined,
+        );
+      } catch (err) {
+        if (!next || !preferredVideoInputId || !isDeviceUnavailableError(err)) {
+          throw err;
+        }
+        await room.localParticipant.setCameraEnabled(next);
+      }
       setCamOn(next);
       setCamError(null);
       void refreshDevices();
@@ -371,7 +377,7 @@ export function useSfuRoom({
       console.error("[use-sfu-room] toggleCam:", err);
       setCamError(humanizeMediaError(err));
     }
-  }, [refreshDevices]);
+  }, [refreshDevices, getCurrentDevices]);
 
   // ── Toggle Screen Share ─────────────────────────────────────────────────
   const toggleScreen = useCallback(async () => {
@@ -388,26 +394,54 @@ export function useSfuRoom({
     }
   }, []);
 
-  // ── Apply device change (input/output) ──────────────────────────────────
+  // ── Apply device change (inputs) ─────────────────────────────────────────
+  // Lê direto do store (getState é síncrono) — o padrão antigo de refs
+  // espelhadas via useEffect fazia o PRIMEIRO apply usar o device anterior.
   const applyDeviceChange = useCallback(async () => {
     const room = roomRef.current;
     if (!room) return;
+    const storedPreferences = useMediaDeviceStore.getState();
+    const currentDevices = getCurrentDevices();
+    const preferredAudioInputId = resolvePreferredDeviceId(
+      storedPreferences.audioInputId,
+      currentDevices.audio,
+    );
+    const preferredVideoInputId = resolvePreferredDeviceId(
+      storedPreferences.videoInputId,
+      currentDevices.video,
+    );
     try {
-      if (selectedAudioRef.current) {
-        await room.switchActiveDevice("audioinput", selectedAudioRef.current);
+      if (preferredAudioInputId) {
+        await room.switchActiveDevice("audioinput", preferredAudioInputId);
       }
-      if (selectedVideoRef.current) {
-        await room.switchActiveDevice("videoinput", selectedVideoRef.current);
-      }
-      if (selectedOutputRef.current) {
-        await room.switchActiveDevice("audiooutput", selectedOutputRef.current);
+      if (preferredVideoInputId) {
+        await room.switchActiveDevice("videoinput", preferredVideoInputId);
       }
       setLocalStream(buildLocalStream(room));
     } catch (err) {
       console.error("[use-sfu-room] applyDeviceChange:", err);
       setCamError(humanizeMediaError(err));
     }
-  }, []);
+  }, [getCurrentDevices]);
+
+  // ── Saída de áudio (reativa) ─────────────────────────────────────────────
+  // Hoje o LiveKit só aplica sinkId em elementos anexados via track.attach(),
+  // que os overlays NÃO usam (renderizam via el.srcObject — ver comentário em
+  // connectRoom). Quem garante a saída audível é o setSinkId do VideoOverlay.
+  // Mantemos o switchActiveDevice como future-proofing pra quando a Fase 2+
+  // migrar os overlays pro attach().
+  useEffect(() => {
+    const room = roomRef.current;
+    if (!room || connectionState !== "connected") return;
+    const preferredOutputId = resolvePreferredDeviceId(
+      audioOutputId,
+      getCurrentDevices().output,
+    );
+    if (!preferredOutputId) return;
+    room.switchActiveDevice("audiooutput", preferredOutputId).catch(() => {
+      /* device stale/sem suporte — saída efetiva segue via setSinkId */
+    });
+  }, [audioOutputId, connectionState, getCurrentDevices]);
 
   const toggleBubbleLock = useCallback(() => {
     setBubbleLocked((v) => !v);
@@ -490,13 +524,14 @@ export function useSfuRoom({
     screenStream,
     peers,
     devices,
-    selectedAudio,
-    selectedVideo,
-    selectedOutput,
-    setSelectedAudio,
-    setSelectedVideo,
-    setSelectedOutput,
+    selectedAudio: audioInputId,
+    selectedVideo: videoInputId,
+    selectedOutput: audioOutputId,
+    setSelectedAudio: setAudioInputId,
+    setSelectedVideo: setVideoInputId,
+    setSelectedOutput: setAudioOutputId,
     applyDeviceChange,
+    requestDevicePermissions,
     toggleMic,
     toggleCam,
     toggleScreen,

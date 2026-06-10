@@ -14,6 +14,7 @@ import {
   TrackingIcon,
   NasaPlannerIcon,
   NasaRouteIcon,
+  SpaceStationIcon,
 } from "./app-icons";
 
 export type AppStatus = "installed" | "development" | "available";
@@ -204,7 +205,8 @@ export const APPS: AppDef[] = [
     byline: "by NASA®",
     status: "installed",
     icon: DemandIcon,
-    shortDesc: "Painel de controle com tarefas, equipe, clientes e treinamentos",
+    shortDesc:
+      "Painel de controle com tarefas, equipe, clientes e treinamentos",
     fullDesc:
       "O painel de controle da sua operação. Organize tarefas, equipe, clientes e treinamentos em um único lugar. Kanban, listas, automações e mensagens integradas.",
     category: "Gestão",
@@ -253,7 +255,8 @@ export const APPS: AppDef[] = [
     byline: "by NASA®",
     status: "installed",
     icon: NasaPlannerIcon,
-    shortDesc: "Planeje, crie e execute estratégias de marketing com IA e Mapas Mentais",
+    shortDesc:
+      "Planeje, crie e execute estratégias de marketing com IA e Mapas Mentais",
     fullDesc:
       "Planejamento estratégico de marketing com IA e Mapas Mentais. Crie múltiplos planners com identidade de marca, Voz & Tom, SWOT e IA integrados. Gere posts para redes sociais, organize ações em mapas mentais (Gantt, diagrama, checklist), acompanhe no calendário e compartilhe com clientes via link. Conectado a todos os apps do NASA.",
     category: "Marketing",
@@ -297,5 +300,23 @@ export const APPS: AppDef[] = [
     activeUsers: null,
     theme: "purple",
     sidebarKey: "nasa-route",
+  },
+  {
+    id: "space-station",
+    name: "SPACE STATION",
+    byline: "by NASA®",
+    status: "installed",
+    icon: SpaceStationIcon,
+    shortDesc:
+      "Mundo virtual 2D da sua marca — avatares, salas e presença em tempo real",
+    fullDesc:
+      "Crie um mundo virtual navegável para sua empresa: avatares, salas temáticas, presença em tempo real e módulos públicos (formulários, chat, agenda). Configure o mapa, o tema e quem pode entrar.",
+    category: "Social",
+    integration: "Pusher · LiveKit",
+    action: "internal",
+    href: "/space-station",
+    activeUsers: null,
+    theme: "purple",
+    sidebarKey: "space-station",
   },
 ];

@@ -4,8 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Package } from "lucide-react";
-import { StarsWidget } from "@/features/stars";
-import { SpacePointWidget } from "@/features/space-point";
 import { APPS, type AppDef } from "./apps-data";
 import { AppCard, ComingSoonModal } from "./app-card";
 import { PersonalizarMenu } from "./personalizar-menu";
