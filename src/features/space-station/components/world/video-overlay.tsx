@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import type { RemotePeer } from "../../hooks/use-webrtc";
+import { applySinkId } from "../../utils/media-devices";
 
 type Layout = "grid" | "strip-h" | "strip-v";
 
@@ -269,13 +270,11 @@ function VideoTile({ name, image, stream, micOn, camOn, isLocal, isScreen, width
     }
   }, [stream, isLocal]);
 
-  // Aplica saída de áudio selecionada (setSinkId — Chrome/Edge only).
-  // Firefox/Safari ignoram silenciosamente por falta de suporte.
+  // Aplica saída de áudio selecionada (setSinkId — feature-detect interno;
+  // browsers sem suporte ignoram silenciosamente).
   useEffect(() => {
-    if (isLocal) return;
-    const el = audioRef.current as (HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }) | null;
-    if (!el?.setSinkId || !sinkId) return;
-    el.setSinkId(sinkId).catch(() => {});
+    if (isLocal || !audioRef.current || !sinkId) return;
+    applySinkId(audioRef.current, sinkId);
   }, [sinkId, isLocal]);
 
   const handlePiP = useCallback(async () => {

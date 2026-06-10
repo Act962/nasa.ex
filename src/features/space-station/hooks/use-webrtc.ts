@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { resolveRemoteSpriteUrl } from "../utils/sprite-defaults";
+import {
+  isDeviceUnavailableError,
+  resolvePreferredDeviceId,
+} from "../utils/media-devices";
+import { useMediaDeviceStore } from "./use-media-device-store";
+import { useMediaDevices } from "./use-media-devices";
 
 export interface RemotePeer {
   userId:       string;
@@ -74,12 +80,17 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
   const [localStream,  setLocalStream]  = useState<MediaStream | null>(null);
   const [peers, setPeers]   = useState<Map<string, RemotePeer>>(new Map());
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [devices, setDevices] = useState<{ audio: MediaDeviceInfo[]; video: MediaDeviceInfo[]; output: MediaDeviceInfo[] }>({
-    audio: [], video: [], output: [],
-  });
-  const [selectedAudio, setSelectedAudio] = useState<string>("");
-  const [selectedVideo, setSelectedVideo] = useState<string>("");
-  const [selectedOutput, setSelectedOutput] = useState<string>("");
+
+  // ── Devices: enumeração compartilhada + seleção persistida (localStorage),
+  // mesmo store do transporte SFU — sobrevive a reload e à troca SFU↔mesh.
+  const audioInputId = useMediaDeviceStore((state) => state.audioInputId);
+  const videoInputId = useMediaDeviceStore((state) => state.videoInputId);
+  const audioOutputId = useMediaDeviceStore((state) => state.audioOutputId);
+  const setAudioInputId = useMediaDeviceStore((state) => state.setAudioInputId);
+  const setVideoInputId = useMediaDeviceStore((state) => state.setVideoInputId);
+  const setAudioOutputId = useMediaDeviceStore((state) => state.setAudioOutputId);
+  const { devices, refreshDevices, getCurrentDevices, requestDevicePermissions } =
+    useMediaDevices();
 
   // Screen sharing
   const [screenOn,     setScreenOn]     = useState(false);
@@ -99,31 +110,14 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
   const makingOfferRef  = useRef<Map<string, boolean>>(new Map());
   const micOnRef        = useRef(false);
   const camOnRef        = useRef(false);
-  // Refs para device IDs — evita closures estale em toggleMic/toggleCam
-  const selectedAudioRef  = useRef("");
-  const selectedVideoRef  = useRef("");
-  const selectedOutputRef = useRef("");
+  // Seleção de device é lida via useMediaDeviceStore.getState() (síncrono) —
+  // sem refs espelhadas, sem stale closure.
 
   // Manter refs sincronizados com estado
   useEffect(() => { micOnRef.current = micOn; }, [micOn]);
   useEffect(() => { camOnRef.current = camOn; }, [camOn]);
-  useEffect(() => { selectedAudioRef.current = selectedAudio; }, [selectedAudio]);
-  useEffect(() => { selectedVideoRef.current = selectedVideo; }, [selectedVideo]);
-  useEffect(() => { selectedOutputRef.current = selectedOutput; }, [selectedOutput]);
   useEffect(() => { bubbleLockedRef.current = bubbleLocked; }, [bubbleLocked]);
   useEffect(() => { screenOnRef.current = screenOn; }, [screenOn]);
-
-  // ── Enumerate devices ────────────────────────────────────────────────────
-  const refreshDevices = useCallback(async () => {
-    try {
-      const all = await navigator.mediaDevices.enumerateDevices();
-      setDevices({
-        audio:  all.filter(d => d.kind === "audioinput"),
-        video:  all.filter(d => d.kind === "videoinput"),
-        output: all.filter(d => d.kind === "audiooutput"),
-      });
-    } catch { /* permissão não concedida ainda */ }
-  }, []);
 
   // ── Pusher presence channel ──────────────────────────────────────────────
   useEffect(() => {
@@ -452,15 +446,37 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
         );
       }
 
+      // Só usa `exact` se o device persistido está na enumeração atual; se
+      // sumiu (headset desconectado), cai no default sem apagar a preferência.
+      const storedPreferences = useMediaDeviceStore.getState();
+      const currentDevices = getCurrentDevices();
+      const preferredAudioInputId = resolvePreferredDeviceId(
+        storedPreferences.audioInputId, currentDevices.audio,
+      );
+      const preferredVideoInputId = resolvePreferredDeviceId(
+        storedPreferences.videoInputId, currentDevices.video,
+      );
       const constraints: MediaStreamConstraints = {
         audio: audio
-          ? (selectedAudioRef.current ? { deviceId: { exact: selectedAudioRef.current } } : true)
+          ? (preferredAudioInputId ? { deviceId: { exact: preferredAudioInputId } } : true)
           : false,
         video: video
-          ? (selectedVideoRef.current ? { deviceId: { exact: selectedVideoRef.current } } : { width: 640, height: 480, facingMode: "user" })
+          ? (preferredVideoInputId ? { deviceId: { exact: preferredVideoInputId } } : { width: 640, height: 480, facingMode: "user" })
           : false,
       };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err) {
+        // Corrida enumeração×unplug: device preferido saiu depois da última
+        // enumeração — tenta uma vez com os defaults do sistema.
+        const hadPreferredDevice = Boolean(preferredAudioInputId || preferredVideoInputId);
+        if (!hadPreferredDevice || !isDeviceUnavailableError(err)) throw err;
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio,
+          video: video ? { width: 640, height: 480, facingMode: "user" } : false,
+        });
+      }
       localStreamRef.current = stream;
       setLocalStream(stream);
       await refreshDevices();
@@ -643,12 +659,16 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
     toggleMic, toggleCam,
     settingsOpen, setSettingsOpen,
     devices,
-    selectedAudio, setSelectedAudio,
-    selectedVideo, setSelectedVideo,
-    selectedOutput, setSelectedOutput,
+    selectedAudio: audioInputId,
+    setSelectedAudio: setAudioInputId,
+    selectedVideo: videoInputId,
+    setSelectedVideo: setVideoInputId,
+    selectedOutput: audioOutputId,
+    setSelectedOutput: setAudioOutputId,
     applyDeviceChange: useCallback(async () => {
       await acquireStream(micOnRef.current, camOnRef.current);
     }, [acquireStream]),
+    requestDevicePermissions,
     // Screen sharing
     screenOn, screenStream, screenStreamRef, toggleScreen,
     // Communication bubble

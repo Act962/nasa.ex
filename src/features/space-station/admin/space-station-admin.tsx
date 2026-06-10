@@ -5,7 +5,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,8 +25,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Rocket, Globe, Users, Settings, Gamepad2, Star, ExternalLink } from "lucide-react";
-import { useMyStation, useCreateStation, useUpdateStation, useUpdateWorld, useUpdateModules } from "../hooks/use-station";
+import {
+  Rocket,
+  Globe,
+  Users,
+  Settings,
+  Gamepad2,
+  Star,
+  ExternalLink,
+} from "lucide-react";
+import {
+  useMyStation,
+  useCreateStation,
+  useUpdateStation,
+  useUpdateWorld,
+  useUpdateModules,
+} from "../hooks/use-station";
 import { MyStationsList } from "./my-stations-list";
 import { AMBIENT_THEMES, MODULE_ICONS, MODULE_LABELS } from "../types";
 import type { StationModule, AmbientTheme } from "../types";
@@ -30,14 +50,26 @@ const stationSchema = z.object({
     .string()
     .min(2)
     .max(30)
-    .regex(/^[a-z0-9_-]+$/, "Apenas letras minúsculas, números, hífens e underscores"),
+    .regex(
+      /^[a-z0-9_-]+$/,
+      "Apenas letras minúsculas, números, hífens e underscores",
+    ),
   bio: z.string().max(300).optional(),
   isPublic: z.boolean(),
 });
 
 type StationForm = z.infer<typeof stationSchema>;
 
-const ALL_MODULES: StationModule[] = ["FORM", "CHAT", "AGENDA", "INTEGRATION", "NBOX", "FORGE", "APPS", "NOTIFICATIONS"];
+const ALL_MODULES: StationModule[] = [
+  "FORM",
+  "CHAT",
+  "AGENDA",
+  "INTEGRATION",
+  "NBOX",
+  "FORGE",
+  "APPS",
+  "NOTIFICATIONS",
+];
 
 export function SpaceStationAdmin() {
   const { data: myData, isLoading } = useMyStation("ORG");
@@ -52,8 +84,12 @@ export function SpaceStationAdmin() {
   const [ambientTheme, setAmbientTheme] = useState<AmbientTheme>("space");
   const [suitColor, setSuitColor] = useState("#4f46e5");
   const [helmetColor, setHelmetColor] = useState("#818cf8");
-  const [accessory, setAccessory] = useState<"none" | "flag" | "jetpack">("none");
-  const [activeModules, setActiveModules] = useState<Set<StationModule>>(new Set());
+  const [accessory, setAccessory] = useState<"none" | "flag" | "jetpack">(
+    "none",
+  );
+  const [activeModules, setActiveModules] = useState<Set<StationModule>>(
+    new Set(),
+  );
 
   const form = useForm<StationForm>({
     resolver: zodResolver(stationSchema),
@@ -69,15 +105,25 @@ export function SpaceStationAdmin() {
       });
       if (station.worldConfig) {
         setPlanetColor(station.worldConfig.planetColor ?? "#4B0082");
-        setAmbientTheme((station.worldConfig.ambientTheme as AmbientTheme) ?? "space");
-        const av = station.worldConfig.avatarConfig as { suitColor?: string; helmetColor?: string; accessory?: string } | null;
+        setAmbientTheme(
+          (station.worldConfig.ambientTheme as AmbientTheme) ?? "space",
+        );
+        const av = station.worldConfig.avatarConfig as {
+          suitColor?: string;
+          helmetColor?: string;
+          accessory?: string;
+        } | null;
         if (av) {
           setSuitColor(av.suitColor ?? "#4f46e5");
           setHelmetColor(av.helmetColor ?? "#818cf8");
           setAccessory((av.accessory as typeof accessory) ?? "none");
         }
       }
-      const mods = new Set(station.publicModules.filter((m) => m.isActive).map((m) => m.module as StationModule));
+      const mods = new Set(
+        station.publicModules
+          .filter((m) => m.isActive)
+          .map((m) => m.module as StationModule),
+      );
       setActiveModules(mods);
     }
   }, [station]);
@@ -85,10 +131,18 @@ export function SpaceStationAdmin() {
   async function onSubmitProfile(data: StationForm) {
     try {
       if (!station) {
-        await createStation.mutateAsync({ type: "ORG", nick: data.nick, bio: data.bio });
+        await createStation.mutateAsync({
+          type: "ORG",
+          nick: data.nick,
+          bio: data.bio,
+        });
         toast.success("Space Station criada!");
       } else {
-        await updateStation.mutateAsync({ id: station.id, bio: data.bio, isPublic: data.isPublic });
+        await updateStation.mutateAsync({
+          id: station.id,
+          bio: data.bio,
+          isPublic: data.isPublic,
+        });
         toast.success("Perfil atualizado!");
       }
     } catch (err: unknown) {
@@ -103,7 +157,12 @@ export function SpaceStationAdmin() {
         stationId: station.id,
         planetColor,
         ambientTheme,
-        avatarConfig: { suitColor, helmetColor, accessory, skinTone: "#f5cba7" },
+        avatarConfig: {
+          suitColor,
+          helmetColor,
+          accessory,
+          skinTone: "#f5cba7",
+        },
       });
       toast.success("Mundo configurado!");
     } catch {
@@ -116,7 +175,10 @@ export function SpaceStationAdmin() {
     try {
       await updateModules.mutateAsync({
         stationId: station.id,
-        modules: ALL_MODULES.map((m) => ({ module: m, isActive: activeModules.has(m) })),
+        modules: ALL_MODULES.map((m) => ({
+          module: m,
+          isActive: activeModules.has(m),
+        })),
       });
       toast.success("Módulos atualizados!");
     } catch {
@@ -135,7 +197,7 @@ export function SpaceStationAdmin() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 px-4 py-6">
       {/* Lista de stations do usuário */}
       <MyStationsList />
 
@@ -146,10 +208,19 @@ export function SpaceStationAdmin() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-white">Space Station</h1>
-          <p className="text-sm text-slate-400">Configure o ambiente virtual público da sua empresa</p>
+          <p className="text-sm text-slate-400">
+            Configure o ambiente virtual público da sua empresa
+          </p>
         </div>
         {station && (
-          <Badge variant="outline" className={station.isPublic ? "border-green-500/30 text-green-400 ml-auto" : "border-slate-500/30 text-slate-400 ml-auto"}>
+          <Badge
+            variant="outline"
+            className={
+              station.isPublic
+                ? "border-green-500/30 text-green-400 ml-auto"
+                : "border-slate-500/30 text-slate-400 ml-auto"
+            }
+          >
             {station.isPublic ? "● Pública" : "○ Privada"}
           </Badge>
         )}
@@ -162,7 +233,9 @@ export function SpaceStationAdmin() {
             <Globe className="h-4 w-4 text-indigo-400" />
             Identidade da Station
           </CardTitle>
-          <CardDescription>Define como sua empresa aparece para o mundo</CardDescription>
+          <CardDescription>
+            Define como sua empresa aparece para o mundo
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -177,10 +250,14 @@ export function SpaceStationAdmin() {
               />
             </div>
             {form.formState.errors.nick && (
-              <p className="text-red-400 text-xs mt-1">{form.formState.errors.nick.message}</p>
+              <p className="text-red-400 text-xs mt-1">
+                {form.formState.errors.nick.message}
+              </p>
             )}
             {station && (
-              <p className="text-slate-500 text-xs mt-1">O @nick não pode ser alterado após criação.</p>
+              <p className="text-slate-500 text-xs mt-1">
+                O @nick não pode ser alterado após criação.
+              </p>
             )}
           </div>
 
@@ -197,8 +274,12 @@ export function SpaceStationAdmin() {
           {station && (
             <div className="flex items-center justify-between p-3 rounded-lg bg-white/5">
               <div>
-                <p className="text-white text-sm font-medium">Station Pública</p>
-                <p className="text-slate-400 text-xs">Permite que qualquer pessoa visite sua station</p>
+                <p className="text-white text-sm font-medium">
+                  Station Pública
+                </p>
+                <p className="text-slate-400 text-xs">
+                  Permite que qualquer pessoa visite sua station
+                </p>
               </div>
               <Switch
                 checked={form.watch("isPublic")}
@@ -221,7 +302,11 @@ export function SpaceStationAdmin() {
                 className="border-indigo-500/40 text-indigo-400 hover:bg-indigo-600/10 hover:text-indigo-300"
                 asChild
               >
-                <a href={`/station/${station.nick}/world`} target="_blank" rel="noopener noreferrer">
+                <a
+                  href={`/station/${station.nick}/world`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   <ExternalLink className="h-4 w-4 mr-2" />
                   Abrir Space Station
                 </a>
@@ -240,7 +325,9 @@ export function SpaceStationAdmin() {
                 <Settings className="h-4 w-4 text-indigo-400" />
                 Módulos Públicos
               </CardTitle>
-              <CardDescription>Escolha quais serviços aparecerão na sua página pública</CardDescription>
+              <CardDescription>
+                Escolha quais serviços aparecerão na sua página pública
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -263,12 +350,18 @@ export function SpaceStationAdmin() {
                       }`}
                     >
                       <div className="text-2xl mb-1">{MODULE_ICONS[m]}</div>
-                      <div className="text-xs font-medium">{MODULE_LABELS[m]}</div>
+                      <div className="text-xs font-medium">
+                        {MODULE_LABELS[m]}
+                      </div>
                     </button>
                   );
                 })}
               </div>
-              <Button onClick={onSaveModules} disabled={updateModules.isPending} className="bg-indigo-600 hover:bg-indigo-700">
+              <Button
+                onClick={onSaveModules}
+                disabled={updateModules.isPending}
+                className="bg-indigo-600 hover:bg-indigo-700"
+              >
                 Salvar Módulos
               </Button>
             </CardContent>
@@ -281,12 +374,16 @@ export function SpaceStationAdmin() {
                 <Gamepad2 className="h-4 w-4 text-indigo-400" />
                 Mundo Virtual 2D
               </CardTitle>
-              <CardDescription>Configure o ambiente pixel art da sua empresa</CardDescription>
+              <CardDescription>
+                Configure o ambiente pixel art da sua empresa
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               {/* Tema ambiental */}
               <div>
-                <Label className="text-slate-300 mb-2 block">Tema do Ambiente</Label>
+                <Label className="text-slate-300 mb-2 block">
+                  Tema do Ambiente
+                </Label>
                 <div className="grid grid-cols-2 gap-3">
                   {AMBIENT_THEMES.map((t) => (
                     <button
@@ -299,8 +396,12 @@ export function SpaceStationAdmin() {
                           : "bg-white/5 border-white/10 hover:border-white/20"
                       }`}
                     >
-                      <p className="text-white text-sm font-medium">{t.label}</p>
-                      <p className="text-slate-400 text-xs mt-0.5">{t.description}</p>
+                      <p className="text-white text-sm font-medium">
+                        {t.label}
+                      </p>
+                      <p className="text-slate-400 text-xs mt-0.5">
+                        {t.description}
+                      </p>
                     </button>
                   ))}
                 </div>
@@ -308,7 +409,9 @@ export function SpaceStationAdmin() {
 
               {/* Cor do planeta */}
               <div>
-                <Label className="text-slate-300 mb-2 block">Cor do Planeta</Label>
+                <Label className="text-slate-300 mb-2 block">
+                  Cor do Planeta
+                </Label>
                 <div className="flex items-center gap-3">
                   <input
                     type="color"
@@ -316,16 +419,22 @@ export function SpaceStationAdmin() {
                     onChange={(e) => setPlanetColor(e.target.value)}
                     className="h-10 w-16 rounded-lg border border-white/10 bg-transparent cursor-pointer"
                   />
-                  <span className="text-slate-400 font-mono text-sm">{planetColor}</span>
+                  <span className="text-slate-400 font-mono text-sm">
+                    {planetColor}
+                  </span>
                 </div>
               </div>
 
               {/* Avatar padrão */}
               <div>
-                <Label className="text-slate-300 mb-2 block">Traje Padrão da Tripulação</Label>
+                <Label className="text-slate-300 mb-2 block">
+                  Traje Padrão da Tripulação
+                </Label>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-xs text-slate-400 mb-1 block">Cor do Traje</Label>
+                    <Label className="text-xs text-slate-400 mb-1 block">
+                      Cor do Traje
+                    </Label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
@@ -333,11 +442,15 @@ export function SpaceStationAdmin() {
                         onChange={(e) => setSuitColor(e.target.value)}
                         className="h-8 w-12 rounded border border-white/10 bg-transparent cursor-pointer"
                       />
-                      <span className="text-slate-500 font-mono text-xs">{suitColor}</span>
+                      <span className="text-slate-500 font-mono text-xs">
+                        {suitColor}
+                      </span>
                     </div>
                   </div>
                   <div>
-                    <Label className="text-xs text-slate-400 mb-1 block">Cor do Capacete</Label>
+                    <Label className="text-xs text-slate-400 mb-1 block">
+                      Cor do Capacete
+                    </Label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
@@ -345,14 +458,21 @@ export function SpaceStationAdmin() {
                         onChange={(e) => setHelmetColor(e.target.value)}
                         className="h-8 w-12 rounded border border-white/10 bg-transparent cursor-pointer"
                       />
-                      <span className="text-slate-500 font-mono text-xs">{helmetColor}</span>
+                      <span className="text-slate-500 font-mono text-xs">
+                        {helmetColor}
+                      </span>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-3">
-                  <Label className="text-xs text-slate-400 mb-1 block">Acessório</Label>
-                  <Select value={accessory} onValueChange={(v) => setAccessory(v as typeof accessory)}>
+                  <Label className="text-xs text-slate-400 mb-1 block">
+                    Acessório
+                  </Label>
+                  <Select
+                    value={accessory}
+                    onValueChange={(v) => setAccessory(v as typeof accessory)}
+                  >
                     <SelectTrigger className="bg-slate-800 border-white/10 text-white w-48">
                       <SelectValue />
                     </SelectTrigger>
@@ -365,7 +485,11 @@ export function SpaceStationAdmin() {
                 </div>
               </div>
 
-              <Button onClick={onSaveWorld} disabled={updateWorld.isPending} className="bg-indigo-600 hover:bg-indigo-700">
+              <Button
+                onClick={onSaveWorld}
+                disabled={updateWorld.isPending}
+                className="bg-indigo-600 hover:bg-indigo-700"
+              >
                 Salvar Mundo
               </Button>
             </CardContent>
@@ -379,14 +503,19 @@ export function SpaceStationAdmin() {
                 Organograma
               </CardTitle>
               <CardDescription>
-                Configure Comandantes e Tripulação na seção de membros da organização.
-                Membros com cargo "owner" são automaticamente Comandantes.
+                Configure Comandantes e Tripulação na seção de membros da
+                organização. Membros com cargo "owner" são automaticamente
+                Comandantes.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-slate-400">
-                Acesse <span className="font-mono text-indigo-400">Configurações → Membros</span> para definir
-                o rank de cada membro como Comandante ou Tripulação.
+                Acesse{" "}
+                <span className="font-mono text-indigo-400">
+                  Configurações → Membros
+                </span>{" "}
+                para definir o rank de cada membro como Comandante ou
+                Tripulação.
               </p>
             </CardContent>
           </Card>
@@ -395,7 +524,9 @@ export function SpaceStationAdmin() {
           <div className="flex items-center gap-3 p-4 rounded-xl bg-indigo-600/10 border border-indigo-500/20">
             <Star className="h-5 w-5 text-indigo-400 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-white text-sm font-medium">Sua Space Station pública</p>
+              <p className="text-white text-sm font-medium">
+                Sua Space Station pública
+              </p>
               <a
                 href={`/@${station.nick}`}
                 target="_blank"
@@ -405,8 +536,17 @@ export function SpaceStationAdmin() {
                 nasaagents.com/@{station.nick}
               </a>
             </div>
-            <Button size="sm" variant="outline" className="border-indigo-500/30 text-indigo-400" asChild>
-              <a href={`/@${station.nick}`} target="_blank" rel="noopener noreferrer">
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-indigo-500/30 text-indigo-400"
+              asChild
+            >
+              <a
+                href={`/@${station.nick}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 Visitar
               </a>
             </Button>

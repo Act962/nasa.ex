@@ -28,6 +28,8 @@ import { useWebRTC } from "../../hooks/use-webrtc";
 import { useSfuRoom } from "../../hooks/use-sfu-room";
 import { useJoinWorld } from "../../hooks/use-station-world";
 import { useWorldPresence } from "../../hooks/use-world-presence";
+import { useMediaDeviceStore } from "../../hooks/use-media-device-store";
+import { applySinkId } from "../../utils/media-devices";
 
 /**
  * Feature flag de transporte de mídia.
@@ -188,6 +190,13 @@ export function SpaceGame({
     enabled: !sfuReady && !sfuPending,
   });
   const webrtc = sfuReady ? sfu : mesh;
+
+  // Re-roteia o som de área que já está tocando quando a saída muda.
+  useEffect(() => {
+    if (areaAudioRef.current) {
+      applySinkId(areaAudioRef.current, webrtc.selectedOutput);
+    }
+  }, [webrtc.selectedOutput]);
 
   // ── World presence (multiplayer positions) ─────────────────────────────────
   // IMPORTANT: broadcast the RAW spriteUrl (may be the "pixel_astronaut"
@@ -366,6 +375,8 @@ export function SpaceGame({
             const audio = new Audio(audioUrl);
             audio.loop = true;
             audio.volume = 0.4;
+            // Som de área respeita a saída escolhida nas configs de mídia.
+            applySinkId(audio, useMediaDeviceStore.getState().audioOutputId);
             audio.play().catch(() => {
               /* autoplay blocked — silently ignore */
             });
@@ -719,6 +730,7 @@ export function SpaceGame({
         selectedOutput={webrtc.selectedOutput}
         setSelectedOutput={webrtc.setSelectedOutput}
         onApplyDevices={webrtc.applyDeviceChange}
+        onRequestPermissions={webrtc.requestDevicePermissions}
       />
 
       {/* ── Connect people panel (Conectar pessoas) — sempre montado para notificações ── */}
