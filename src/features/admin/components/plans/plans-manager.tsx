@@ -57,6 +57,7 @@ interface PlanRow {
   sortOrder: number;
   monthlyStars: number;
   priceMonthly: number;
+  priceLabel: string | null;
   billingType: string;
   maxUsers: number;
   rolloverPct: number;
@@ -95,6 +96,7 @@ function PlanFormDialog({
     slogan: "",
     sortOrder: 0,
     priceMonthly: 0,
+    priceLabel: null as string | null,
     billingType: "monthly",
     monthlyStars: 0,
     maxUsers: 3,
@@ -113,6 +115,7 @@ function PlanFormDialog({
   const [slogan, setSlogan] = useState(init.slogan ?? "");
   const [sortOrder, setSortOrder] = useState(String(init.sortOrder));
   const [price, setPrice] = useState(String(init.priceMonthly));
+  const [priceLabel, setPriceLabel] = useState(init.priceLabel ?? "");
   const [billingType, setBillingType] = useState(init.billingType);
   const [stars, setStars] = useState(String(init.monthlyStars));
   const [maxUsers, setMaxUsers] = useState(String(init.maxUsers));
@@ -173,6 +176,7 @@ function PlanFormDialog({
       slogan: slogan || undefined,
       sortOrder: Number(sortOrder) || 0,
       priceMonthly: Number(price) || 0,
+      priceLabel: priceLabel.trim() || undefined,
       billingType: billingType as "monthly" | "annual" | "weekly",
       monthlyStars: Number(stars) || 0,
       maxUsers: Number(maxUsers) || 3,
@@ -282,6 +286,22 @@ function PlanFormDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Rótulo de preço (override do canto direito do card) */}
+          <div className="space-y-1.5">
+            <Label className="text-zinc-300 text-xs">
+              Rótulo de preço{" "}
+              <span className="text-zinc-500">
+                (opcional — substitui o "R$ X" / "Consultar" no card)
+              </span>
+            </Label>
+            <Input
+              value={priceLabel}
+              onChange={(e) => setPriceLabel(e.target.value)}
+              placeholder='Ex: "Gratuito", "Sob consulta", "A partir de R$ 197"'
+              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+            />
           </div>
 
           {/* Row: stars + usuários + rollover */}
