@@ -39,6 +39,10 @@ import {
   SubscriptionSection,
   type SubscriptionData,
 } from "./forms/subscription-section";
+import {
+  centsToBrlInput,
+  parseBrlInputToCents,
+} from "@/features/nasa-route/lib/price-input";
 
 interface InitialCourse {
   id: string;
@@ -129,9 +133,7 @@ export function CourseForm({ courseId, initial, onSaved }: Props) {
   const [isFree, setIsFree] = useState<boolean>(initial?.isFree ?? false);
   // Mantemos o valor em reais (não centavos) na UI para o criador.
   const [priceBrl, setPriceBrl] = useState<string>(
-    initial?.priceBrlCents != null
-      ? (initial.priceBrlCents / 100).toFixed(2)
-      : "",
+    centsToBrlInput(initial?.priceBrlCents),
   );
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [rewardSpOnComplete, setRewardSpOnComplete] = useState(
@@ -263,7 +265,7 @@ export function CourseForm({ courseId, initial, onSaved }: Props) {
       format,
       durationMin: durationMin ? Number(durationMin) : null,
       priceStars: Number(priceStars) || 0,
-      priceBrlCents: isFree ? 0 : Math.round((Number(priceBrl) || 0) * 100),
+      priceBrlCents: isFree ? 0 : parseBrlInputToCents(priceBrl),
       isFree,
       categoryId: categoryId || null,
       rewardSpOnComplete: Number(rewardSpOnComplete) || 0,
@@ -502,9 +504,8 @@ export function CourseForm({ courseId, initial, onSaved }: Props) {
           </Label>
           <Input
             id="priceBrl"
-            type="number"
-            min={0}
-            step="0.01"
+            type="text"
+            inputMode="decimal"
             value={priceBrl}
             onChange={(e) => setPriceBrl(e.target.value)}
             disabled={isFree}

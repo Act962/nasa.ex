@@ -166,7 +166,11 @@ export function CreatorDashboard() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <PriceStarsDisplay priceStars={c.priceStars} size="md" />
+                  <PriceStarsDisplay
+                    priceBrlCents={(c as any).displayPriceBrlCents}
+                    isFree={(c as any).isFree}
+                    size="md"
+                  />
                   <Pencil className="size-4 text-muted-foreground" />
                 </div>
               </Link>

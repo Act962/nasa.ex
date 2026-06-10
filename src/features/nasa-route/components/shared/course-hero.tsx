@@ -17,7 +17,12 @@ interface HeroCourse {
   level?: string;
   format?: string;
   durationMin?: number | null;
-  priceStars: number;
+  /** Stars permanece no tipo por compat — não é mais usado pra exibição. */
+  priceStars?: number;
+  priceBrlCents?: number | null;
+  /** Preço derivado do plano padrão; quando presente, prevalece sobre `priceBrlCents`. */
+  displayPriceBrlCents?: number | null;
+  isFree?: boolean;
   studentsCount?: number;
   // Datas do evento (format = "event") — exibidas como badge proeminente no hero.
   eventStartsAt?: Date | string | null;
@@ -95,7 +100,11 @@ export function CourseHero({ course, href, publicHref }: Props) {
           )}
 
           <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-foreground/80">
-            <PriceStarsDisplay priceStars={course.priceStars} size="md" />
+            <PriceStarsDisplay
+              priceBrlCents={course.displayPriceBrlCents ?? course.priceBrlCents}
+              isFree={course.isFree}
+              size="md"
+            />
             {course.durationMin && (
               <span className="inline-flex items-center gap-1.5">
                 <Clock className="size-4" />

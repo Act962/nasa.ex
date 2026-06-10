@@ -321,7 +321,8 @@ function ContinueWatchingPoster({
         endsAt: enrollment.course.endsAt,
         eventStartsAt: enrollment.course.eventStartsAt,
         eventEndsAt: enrollment.course.eventEndsAt,
-        priceStars: 0,
+        priceBrlCents: (enrollment.course as any).priceBrlCents,
+        isFree: (enrollment.course as any).isFree,
         creatorOrg: enrollment.course.creatorOrg,
       }}
     />
