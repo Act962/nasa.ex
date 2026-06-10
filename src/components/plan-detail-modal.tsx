@@ -21,6 +21,7 @@ export interface PlanDetail {
   name:         string;
   slogan?:      string | null;
   price:        number;
+  priceLabel?:  string | null;
   stars:        number;
   rollover:     number;
   highlighted:  boolean;
@@ -120,7 +121,21 @@ export function PlanDetailModal({
               )}
             </div>
             <div className="text-right shrink-0">
-              {isFree ? (
+              {plan.priceLabel ? (
+                <>
+                  <p
+                    className={cn(
+                      "text-2xl font-black",
+                      isFree ? "text-emerald-400" : "text-white",
+                    )}
+                  >
+                    {plan.priceLabel}
+                  </p>
+                  {!isFree && (
+                    <p className="text-[11px] text-white/35">por mês</p>
+                  )}
+                </>
+              ) : isFree ? (
                 <p className="text-2xl font-black text-emerald-400">Grátis</p>
               ) : (
                 <>

@@ -2722,6 +2722,7 @@ model Plan {
   sortOrder       Int      @default(0) @map("sort_order")
   monthlyStars    Int      @map("monthly_stars")
   priceMonthly    Decimal  @map("price_monthly") @db.Decimal(10, 2)
+  priceLabel      String?  @map("price_label") // override do texto no canto direito do card (ex: "Gratuito", "Sob consulta"). Quando nulo cai no default ("R$ X" ou "Consultar" se price=0).
   billingType     String   @default("monthly") @map("billing_type") // monthly | annual | weekly
   maxUsers        Int      @default(3) @map("max_users")
   rolloverPct     Int      @default(30) @map("rollover_pct")
