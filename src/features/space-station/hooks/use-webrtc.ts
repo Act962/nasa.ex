@@ -101,7 +101,6 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
   // Communication bubble
   const [bubblePeers,  setBubblePeers]  = useState<Set<string>>(new Set());
   const [bubbleLocked, setBubbleLocked] = useState(false);
-  const bubbleLockedRef = useRef(false);
 
   // Refs — sobrevivem re-renders sem disparar effects
   const localStreamRef  = useRef<MediaStream | null>(null);
@@ -116,7 +115,6 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
   // Manter refs sincronizados com estado
   useEffect(() => { micOnRef.current = micOn; }, [micOn]);
   useEffect(() => { camOnRef.current = camOn; }, [camOn]);
-  useEffect(() => { bubbleLockedRef.current = bubbleLocked; }, [bubbleLocked]);
   useEffect(() => { screenOnRef.current = screenOn; }, [screenOn]);
 
   // ── Pusher presence channel ──────────────────────────────────────────────
@@ -127,37 +125,34 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
     let ch: import("pusher-js").Channel | null = null;
     let pusherRtcInstance: import("pusher-js").default | null = null;
 
-    // Handlers de proximidade/sprite registrados SINCRONAMENTE (fora do setup()
+    // Handlers de presença/sprite registrados SINCRONAMENTE (fora do setup()
     // async) pra que o cleanup os remova de forma determinística. Antes ficavam
     // dentro do setup() async e nunca eram removidos: com a flag `enabled`
     // alternando (SFU ligado), vazavam e disparavam conexões P2P fantasma +
     // POSTs em /api/pusher/rtc durante o modo SFU.
-    const onProximityEnter = (e: Event) => {
-      const { peerId, peerName, peerImage } = (e as CustomEvent).detail as {
-        peerId: string; peerName: string; peerImage: string | null;
+    // ── Conexão full-mesh dirigida por PRESENÇA (não por proximidade) ────────
+    // O dono pediu: todos que entram na sala se escutam, sem "bolha". O
+    // use-world-presence emite `space-station:remote-join` pra cada membro
+    // existente (ao entrarmos) e pra cada novo membro; abrimos uma
+    // RTCPeerConnection com todo mundo da sala. getOrCreatePC é idempotente, e a
+    // oferta sai sozinha via onnegotiationneeded quando há track local — sem
+    // gating por distância, sem o glare do createOffer explícito.
+    const onRemoteJoin = (e: Event) => {
+      const { userId: peerId, name, spriteUrl } = (e as CustomEvent).detail as {
+        userId: string; name?: string; spriteUrl?: string | null;
       };
-      if (peerId === userId) return;
-      // Don't admit new peers if bubble is locked
-      if (bubbleLockedRef.current) return;
-      setBubblePeers(prev => new Set([...prev, peerId]));
-      // Tie-breaker: only the "smaller" userId initiates the offer → avoids glare.
-      // The other side creates the PC and waits for the incoming offer.
-      if (!pcsRef.current.has(peerId)) {
-        if (userId < peerId) {
-          createOffer(peerId, peerName, peerImage);
-        } else {
-          getOrCreatePC(peerId, peerName, peerImage, false);
-        }
-      }
-      // If we're currently sharing, re-announce so the new peer knows
+      if (!peerId || peerId === userId) return;
+      void spriteUrl; // sprite/nick chegam enriquecidos via onPeerSprite
+      getOrCreatePC(peerId, name ?? peerId, null, false);
+      // Se já estamos compartilhando tela, re-anuncia pro recém-chegado.
       if (screenOnRef.current) {
         setTimeout(() => triggerScreenServer(true), 300);
       }
     };
 
-    const onProximityLeave = (e: Event) => {
-      const { peerId } = (e as CustomEvent).detail as { peerId: string };
-      setBubblePeers(prev => { const n = new Set(prev); n.delete(peerId); return n; });
+    const onRemoteLeave = (e: Event) => {
+      const { userId: peerId } = (e as CustomEvent).detail as { userId: string };
+      if (!peerId || peerId === userId) return;
       closePeer(peerId);
     };
 
@@ -187,9 +182,9 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
       }
     };
 
-    window.addEventListener("space-station:proximity-enter", onProximityEnter);
-    window.addEventListener("space-station:proximity-leave", onProximityLeave);
-    window.addEventListener("space-station:peer-sprite",     onPeerSprite);
+    window.addEventListener("space-station:remote-join",  onRemoteJoin);
+    window.addEventListener("space-station:remote-leave", onRemoteLeave);
+    window.addEventListener("space-station:peer-sprite",  onPeerSprite);
 
     async function setup() {
       const PusherClient = (await import("pusher-js")).default;
@@ -283,9 +278,9 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
     refreshDevices();
 
     return () => {
-      window.removeEventListener("space-station:proximity-enter", onProximityEnter);
-      window.removeEventListener("space-station:proximity-leave", onProximityLeave);
-      window.removeEventListener("space-station:peer-sprite",     onPeerSprite);
+      window.removeEventListener("space-station:remote-join",  onRemoteJoin);
+      window.removeEventListener("space-station:remote-leave", onRemoteLeave);
+      window.removeEventListener("space-station:peer-sprite",  onPeerSprite);
       ch?.unsubscribe();
       pusherRtcInstance?.disconnect();
       pusherRtcInstance = null;
@@ -296,6 +291,15 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stationId, userId, enabled]);
 
+  // ── bubblePeers = todos os peers da sala (somente UI) ─────────────────────
+  // A bolha NÃO gateia mais áudio: todo mundo na sala se ouve. Este set só
+  // alimenta ProximityBar/BubbleAppsPanel. Respeita bubbleLocked (congela o set
+  // exibido enquanto travado).
+  useEffect(() => {
+    if (bubbleLocked) return;
+    setBubblePeers(new Set(peers.keys()));
+  }, [peers, bubbleLocked]);
+
   // ── RTCPeerConnection ────────────────────────────────────────────────────
   function getOrCreatePC(peerId: string, peerName: string, peerImage: string | null, _isInitiator: boolean): RTCPeerConnection {
     if (pcsRef.current.has(peerId)) return pcsRef.current.get(peerId)!;
@@ -303,27 +307,41 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     pcsRef.current.set(peerId, pc);
 
-    // Add existing local tracks (mic/cam) and screen tracks (if already sharing)
-    localStreamRef.current?.getTracks().forEach(t => pc.addTrack(t, localStreamRef.current!));
-    screenStreamRef.current?.getTracks().forEach(t => pc.addTrack(t, screenStreamRef.current!));
-
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) rtcPost({ type: "ice", to: peerId, candidate });
     };
 
-    // Auto-renegotiation whenever tracks are added/removed
+    // ── Negociação: a ÚNICA fonte de oferta é onnegotiationneeded ────────────
+    // Antes havia DUAS fontes: createOffer explícito ao entrar na proximidade +
+    // onnegotiationneeded disparado pelo addTrack. As duas ofertas quase
+    // simultâneas geravam glare e o rollback caseiro às vezes deixava o
+    // transceiver de áudio unidirecional → "um ouve, o outro não, e vice-versa".
+    // Agora só onnegotiationneeded oferta; o glare é resolvido no receptor
+    // (polite/impolite no handler rtc:offer) — padrão "perfect negotiation".
     pc.onnegotiationneeded = async () => {
       try {
         makingOfferRef.current.set(peerId, true);
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        rtcPost({ type: "offer", to: peerId, fromName: userName, fromImage: userImage ?? null, sdp: offer });
+        // setLocalDescription() sem argumento = createOffer + setLocalDescription
+        // atômico (sem janela de corrida entre os dois passos). O browser só
+        // dispara negotiationneeded quando o estado está "stable", então não há
+        // guarda manual de signalingState a fazer aqui — fazer isso poderia
+        // dropar a renegociação de um toggle de mic/cam.
+        await pc.setLocalDescription();
+        if (pc.localDescription) {
+          rtcPost({ type: "offer", to: peerId, fromName: userName, fromImage: userImage ?? null, sdp: pc.localDescription });
+        }
       } catch (err) {
         console.warn("[useWebRTC] onnegotiationneeded error:", err);
       } finally {
         makingOfferRef.current.set(peerId, false);
       }
     };
+
+    // Tracks adicionadas DEPOIS dos handlers, pra que o primeiro
+    // negotiationneeded (disparado pelo addTrack) já encontre onnegotiationneeded
+    // setado e gere a oferta inicial.
+    localStreamRef.current?.getTracks().forEach(t => pc.addTrack(t, localStreamRef.current!));
+    screenStreamRef.current?.getTracks().forEach(t => pc.addTrack(t, screenStreamRef.current!));
 
     pc.ontrack = ({ streams, track }) => {
       const incomingStream = streams[0];
@@ -380,6 +398,10 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "failed" || pc.connectionState === "closed") {
         pcsRef.current.delete(peerId);
+        // Limpa o flag de glare junto com a PC: senão, ao reconectar com o mesmo
+        // peerId, um makingOffer=true obsoleto faria o handler rtc:offer tratar
+        // uma oferta válida como glare e ignorá-la → áudio unidirecional.
+        makingOfferRef.current.delete(peerId);
         setPeers(prev => { const n = new Map(prev); n.delete(peerId); return n; });
       }
     };
@@ -394,21 +416,10 @@ export function useWebRTC({ stationId, userId, userName, userImage, enabled = tr
     return pc;
   }
 
-  async function createOffer(peerId: string, peerName: string, peerImage: string | null) {
-    const pc = getOrCreatePC(peerId, peerName, peerImage, true);
-    try {
-      makingOfferRef.current.set(peerId, true);
-      const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
-      await pc.setLocalDescription(offer);
-      rtcPost({ type: "offer", to: peerId, fromName: userName, fromImage: userImage ?? null, sdp: offer });
-    } finally {
-      makingOfferRef.current.set(peerId, false);
-    }
-  }
-
   function closePeer(peerId: string) {
     pcsRef.current.get(peerId)?.close();
     pcsRef.current.delete(peerId);
+    makingOfferRef.current.delete(peerId); // evita glare fantasma se o peer voltar
     setPeers(prev => { const n = new Map(prev); n.delete(peerId); return n; });
   }
 

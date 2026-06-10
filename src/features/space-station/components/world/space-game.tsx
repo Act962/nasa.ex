@@ -760,16 +760,6 @@ export function SpaceGame({
               ? "/lpc_pixel_astronaut.png"
               : (rawSpriteUrl ?? null)
           }
-          onLeave={() => {
-            // Dispatch leave for all bubble peers to clear the bubble
-            webrtc.bubblePeers.forEach((peerId) => {
-              window.dispatchEvent(
-                new CustomEvent("space-station:proximity-leave", {
-                  detail: { peerId },
-                }),
-              );
-            });
-          }}
         />
       )}
 
