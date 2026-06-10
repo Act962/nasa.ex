@@ -143,13 +143,14 @@ export const setProviderSettings = base
       throw errors.NOT_FOUND({ message: "Instância não encontrada" });
     }
 
-    // ── Gate: trocar pra META_CLOUD exige credenciais completas ────────
-    // Adicionado pós-Fase 5: o webhook oficial só funciona se as 4
-    // credenciais obrigatórias (accessToken, phoneNumberId, appSecret,
-    // verifyToken) estiverem gravadas. Sem o gate, admin trocaria
-    // provider sem perceber que inbound silenciosamente para. O check
-    // considera o estado *após* este update — se o payload está
-    // completando credenciais faltantes, deixa passar.
+    // ── Gate: trocar pra META_CLOUD exige credenciais essenciais ───────
+    // Pós-Fase 7: `appSecret` e `verifyToken` podem ser fornecidos pelo
+    // env global (`META_APP_SECRET` / `META_VERIFY_TOKEN_GLOBAL`) — só
+    // exigimos `accessToken` e `phoneNumberId` por instância. Se a env
+    // global não estiver configurada, o webhook responde 401 com log
+    // claro (não é silent failure). Instâncias Fase 4 que ainda tenham
+    // appSecret/verifyToken próprios continuam tendo prioridade no
+    // webhook (coluna > env).
     if (input.provider === "META_CLOUD") {
       const willHaveAccessToken =
         Boolean(input.meta?.accessToken) ||
@@ -158,22 +159,14 @@ export const setProviderSettings = base
         Boolean(input.meta?.phoneNumberId) ||
         (input.meta?.phoneNumberId !== null &&
           Boolean(instance.metaPhoneNumberId));
-      const willHaveAppSecret =
-        Boolean(input.meta?.appSecret) ||
-        (input.meta?.appSecret !== null && Boolean(instance.metaAppSecret));
-      const willHaveVerifyToken =
-        Boolean(input.meta?.verifyToken) ||
-        (input.meta?.verifyToken !== null && Boolean(instance.metaVerifyToken));
 
       const missing: string[] = [];
       if (!willHaveAccessToken) missing.push("accessToken");
       if (!willHavePhoneNumberId) missing.push("phoneNumberId");
-      if (!willHaveAppSecret) missing.push("appSecret");
-      if (!willHaveVerifyToken) missing.push("verifyToken");
 
       if (missing.length > 0) {
         throw errors.BAD_REQUEST({
-          message: `Pra ativar Meta Cloud API é preciso preencher: ${missing.join(", ")}. O webhook oficial não funciona sem essas credenciais.`,
+          message: `Pra ativar Meta Cloud API é preciso preencher: ${missing.join(", ")}. (App Secret e Verify Token são opcionais — caem pro env global se vazios.)`,
         });
       }
     }

@@ -15,7 +15,9 @@ import {
 import {
   useWhatsAppProviderSettings,
   useUpdateWhatsAppProviderSettings,
+  useMetaPhoneStatus,
 } from "../hooks/use-whatsapp-provider";
+import { WhatsAppEmbeddedSignupButton } from "./whatsapp-embedded-signup-button";
 
 /**
  * Fase 4 — Seletor de provider WhatsApp + form de credenciais Meta.
@@ -60,6 +62,19 @@ export function WhatsAppProviderSettings({
 }) {
   const { data, isLoading } = useWhatsAppProviderSettings(trackingId);
   const updateMutation = useUpdateWhatsAppProviderSettings(trackingId);
+  // Status real do número via Graph API — só busca quando o provider
+  // armazenado é META_CLOUD (evita chamada desnecessária pra Uazapi).
+  const { data: phoneStatus } = useMetaPhoneStatus(
+    trackingId,
+    data?.provider === "META_CLOUD",
+  );
+
+  // Mesmo gate do WhatsAppEmbeddedSignupButton — quando false, o botão
+  // retorna null. Replicamos aqui só pra decidir mostrar o divisor "ou".
+  const hasEmbeddedSignupConfigured = Boolean(
+    process.env.NEXT_PUBLIC_META_APP_ID &&
+      process.env.NEXT_PUBLIC_META_LOGIN_CONFIG_ID,
+  );
 
   const [selectedProvider, setSelectedProvider] =
     useState<ProviderId>("UAZAPI");
@@ -85,11 +100,11 @@ export function WhatsAppProviderSettings({
     [metaSummary],
   );
 
-  // Gate UI (Fase 5): ativar META_CLOUD exige as 4 credenciais
-  // obrigatórias gravadas (ou preenchidas no form). Sem isso o webhook
-  // oficial não acha a instância e Meta retenta em loop. O backend
-  // também bloqueia (defense in depth), mas a UI mostra exatamente o
-  // que falta.
+  // Gate UI (Fase 5 → atualizado na Fase 7.3): ativar META_CLOUD exige
+  // apenas `Access Token` + `Phone Number ID` por instância. `App Secret`
+  // e `Verify Token` viraram opcionais — quando vazios, o webhook usa o
+  // env global (`META_APP_SECRET` / `META_VERIFY_TOKEN_GLOBAL`) do App
+  // único da NASA. Preenchidos, têm prioridade (Fase 4 backward compat).
   const metaMissing = useMemo(() => {
     if (selectedProvider !== "META_CLOUD") return [] as string[];
     const missing: string[] = [];
@@ -98,14 +113,8 @@ export function WhatsAppProviderSettings({
     const willHavePhoneNumberId =
       Boolean(metaForm.phoneNumberId) ||
       Boolean(metaSummary?.hasPhoneNumberId);
-    const willHaveAppSecret =
-      Boolean(metaForm.appSecret) || Boolean(metaSummary?.hasAppSecret);
-    const willHaveVerifyToken =
-      Boolean(metaForm.verifyToken) || Boolean(metaSummary?.hasVerifyToken);
     if (!willHaveAccessToken) missing.push("Access Token");
     if (!willHavePhoneNumberId) missing.push("Phone Number ID");
-    if (!willHaveAppSecret) missing.push("App Secret");
-    if (!willHaveVerifyToken) missing.push("Verify Token");
     return missing;
   }, [selectedProvider, metaForm, metaSummary]);
 
@@ -197,6 +206,17 @@ export function WhatsAppProviderSettings({
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Status real do número Meta (Fase 7.5). On-demand via Graph API. */}
+        {phoneStatus && (
+          <MetaPhoneStatusCard
+            displayPhoneNumber={phoneStatus.displayPhoneNumber}
+            verifiedName={phoneStatus.verifiedName}
+            qualityRating={phoneStatus.qualityRating}
+            codeVerificationStatus={phoneStatus.codeVerificationStatus}
+            messagingLimitTier={phoneStatus.messagingLimitTier}
+          />
+        )}
+
         <RadioGroup
           value={selectedProvider}
           onValueChange={(value) =>
@@ -221,15 +241,39 @@ export function WhatsAppProviderSettings({
         </RadioGroup>
 
         {selectedProvider === "META_CLOUD" && (
-          <div className="space-y-4 rounded-xl border border-border/50 bg-muted/20 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h4 className="text-sm font-semibold flex items-center gap-2">
-                  <Lock className="size-3.5" />
-                  Credenciais Meta Cloud API
-                </h4>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Encontradas em{" "}
+          <div className="space-y-4">
+            {/*
+             * Caminho rápido: Embedded Signup (Fase 7). Esconde por
+             * presença das envs públicas; sem elas, o componente retorna
+             * null e só o form manual aparece.
+             */}
+            <WhatsAppEmbeddedSignupButton trackingId={trackingId} />
+
+            {/* Divisor visual quando os dois caminhos coexistem. */}
+            {hasEmbeddedSignupConfigured && (
+              <div className="relative py-1">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border/50" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-card px-3 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    ou configure manualmente
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4 rounded-xl border border-border/50 bg-muted/20 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <Lock className="size-3.5" />
+                    Credenciais Meta Cloud API (manual)
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Útil pra cliente white-label com App Meta próprio ou
+                    quando o fluxo OAuth não está disponível. Credenciais
+                    em{" "}
                   <a
                     href="https://developers.facebook.com/apps"
                     target="_blank"
@@ -347,6 +391,7 @@ export function WhatsAppProviderSettings({
                 </AlertDescription>
               </Alert>
             )}
+            </div>
           </div>
         )}
 
@@ -435,4 +480,64 @@ function placeholderFor(
     return last ? `•••• ${last} (deixe vazio para manter)` : "•••• (gravado)";
   }
   return fallback;
+}
+
+function MetaPhoneStatusCard({
+  displayPhoneNumber,
+  verifiedName,
+  qualityRating,
+  codeVerificationStatus,
+  messagingLimitTier,
+}: {
+  displayPhoneNumber: string;
+  verifiedName: string;
+  qualityRating: string | null;
+  codeVerificationStatus: string | null;
+  messagingLimitTier: string | null;
+}) {
+  const qualityColor =
+    qualityRating === "GREEN"
+      ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+      : qualityRating === "YELLOW"
+        ? "bg-amber-500/10 text-amber-700 border-amber-500/30"
+        : qualityRating === "RED"
+          ? "bg-red-500/10 text-red-700 border-red-500/30"
+          : "bg-muted text-muted-foreground border-border/50";
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-muted/10 p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h4 className="text-sm font-semibold">{verifiedName}</h4>
+          <p className="text-xs text-muted-foreground font-mono mt-0.5">
+            {displayPhoneNumber}
+          </p>
+        </div>
+        {qualityRating && (
+          <Badge
+            variant="outline"
+            className={`text-[10px] uppercase ${qualityColor}`}
+          >
+            {qualityRating}
+          </Badge>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+        {codeVerificationStatus && (
+          <div>
+            <span className="text-muted-foreground">Verificação: </span>
+            <span className="font-medium">{codeVerificationStatus}</span>
+          </div>
+        )}
+        {messagingLimitTier && (
+          <div>
+            <span className="text-muted-foreground">Limite: </span>
+            <span className="font-medium">
+              {messagingLimitTier.replace("TIER_", "")}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

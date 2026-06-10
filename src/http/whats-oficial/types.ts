@@ -96,3 +96,62 @@ export interface UploadMediaInput {
   mimetype: string;
   filename?: string;
 }
+
+// ─── Embedded Signup (Fase 7) ────────────────────────────────────────────
+
+/** Resposta do endpoint OAuth de troca de `code` por Business Token. */
+export interface OAuthExchangeResponse {
+  access_token: string;
+  token_type: string;
+  /** Em segundos. Business Integration tokens são long-lived (omitido pelo Meta normalmente). */
+  expires_in?: number;
+}
+
+/** Resposta de `POST /{waba_id}/subscribed_apps`. */
+export interface SubscribeAppResponse {
+  success: boolean;
+}
+
+/** Resposta de `POST /{phone_number_id}/register`. */
+export interface RegisterPhoneResponse {
+  success: boolean;
+}
+
+/** Status de verificação do código exigido pelo Meta no register-phone. */
+export type CodeVerificationStatus =
+  | "NOT_VERIFIED"
+  | "VERIFIED"
+  | "EXPIRED";
+
+/** Qualidade do número (Meta atualiza com base no engajamento). */
+export type QualityRating = "GREEN" | "YELLOW" | "RED" | "UNKNOWN";
+
+export interface PhoneNumberMetadata {
+  id: string;
+  display_phone_number: string;
+  verified_name: string;
+  code_verification_status?: CodeVerificationStatus;
+  quality_rating?: QualityRating;
+  /** Faixa de janelas/dia (TIER_50, TIER_250, TIER_1K, TIER_10K, TIER_100K, TIER_UNLIMITED). */
+  messaging_limit_tier?: string;
+  /** "CLOUD_API" | "ON_PREMISE" — esperado sempre CLOUD_API para Embedded Signup. */
+  platform_type?: string;
+}
+
+export interface PhoneNumbersListResponse {
+  data: PhoneNumberMetadata[];
+  paging?: {
+    cursors?: { before?: string; after?: string };
+    next?: string;
+    previous?: string;
+  };
+}
+
+export interface WabaInfo {
+  id: string;
+  name?: string;
+  currency?: string;
+  timezone_id?: string;
+  message_template_namespace?: string;
+  account_review_status?: string;
+}

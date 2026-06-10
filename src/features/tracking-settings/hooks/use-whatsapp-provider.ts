@@ -3,6 +3,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 /**
+ * Status real do número Meta (Fase 7.5). On-demand — chama
+ * `GET /{waba_id}/phone_numbers` no servidor. Devolve `null` se a
+ * instância não tem `provider=META_CLOUD` OU não tem WABA gravada.
+ */
+export const useMetaPhoneStatus = (trackingId: string, enabled = true) => {
+  return useQuery({
+    ...orpc.integrations.getMetaPhoneStatus.queryOptions({
+      input: { trackingId },
+    }),
+    enabled,
+  });
+};
+
+/**
  * Hooks Fase 4 — Roadmap WhatsApp Oficial.
  *
  * Consome `integrations.getProviderSettings` (lê provider + credenciais

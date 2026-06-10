@@ -69,6 +69,19 @@ export interface MetaCredentialsPlain {
 }
 
 /**
+ * Variante de `MetaCredentialsPlain` pra Fase 7: instâncias provisionadas
+ * via Embedded Signup têm `appSecret`/`verifyToken` NULL no banco (vão
+ * usar env global). Só `accessToken` e `phoneNumberId` são obrigatórios.
+ */
+export interface MetaCredentialsPartialPlain {
+  readonly accessToken: string;
+  readonly phoneNumberId: string;
+  readonly appSecret: string | null;
+  readonly verifyToken: string | null;
+  readonly businessAccountId: string | null;
+}
+
+/**
  * Converte input do formulário em payload de update do Prisma:
  *
  *  - Valor não-vazio  → cifra e grava.
@@ -150,6 +163,37 @@ export function decryptStoredMetaCredentials(
     phoneNumberId: decryptSecret(stored.metaPhoneNumberId!),
     appSecret: decryptSecret(stored.metaAppSecret!),
     verifyToken: decryptSecret(stored.metaVerifyToken!),
+    businessAccountId: stored.metaBusinessAccountId
+      ? decryptSecret(stored.metaBusinessAccountId)
+      : null,
+  };
+}
+
+/**
+ * Variante "partial" do `decryptStoredMetaCredentials` pra Fase 7:
+ * - `accessToken` e `phoneNumberId` continuam OBRIGATÓRIOS (sem eles, nem
+ *   webhook nem envio funcionam — não dá pra dar fallback global).
+ * - `appSecret` e `verifyToken` ficam OPCIONAIS — instâncias Embedded
+ *   Signup gravam NULL nessas colunas e o webhook usa env global.
+ *
+ * Quem chama decide: usar a coluna se presente, ou cair pro env.
+ * Lança `MetaCredentialsMissingError` se accessToken/phoneNumberId
+ * faltarem (errado-pra-todo-cenário).
+ */
+export function decryptStoredMetaCredentialsPartial(
+  stored: MetaCredentialsStored,
+): MetaCredentialsPartialPlain {
+  const missing: string[] = [];
+  if (!stored.metaAccessToken) missing.push("accessToken");
+  if (!stored.metaPhoneNumberId) missing.push("phoneNumberId");
+  if (missing.length > 0) {
+    throw new MetaCredentialsMissingError(missing);
+  }
+  return {
+    accessToken: decryptSecret(stored.metaAccessToken!),
+    phoneNumberId: decryptSecret(stored.metaPhoneNumberId!),
+    appSecret: stored.metaAppSecret ? decryptSecret(stored.metaAppSecret) : null,
+    verifyToken: stored.metaVerifyToken ? decryptSecret(stored.metaVerifyToken) : null,
     businessAccountId: stored.metaBusinessAccountId
       ? decryptSecret(stored.metaBusinessAccountId)
       : null,
