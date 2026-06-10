@@ -54,6 +54,13 @@ export {
   verifyWebhookChallenge,
 } from "./verify-signature";
 
+// Embedded Signup (Fase 7) — HTTP clients de onboarding/provisioning.
+export { exchangeCodeForToken } from "./exchange-code-for-token";
+export { subscribeApp } from "./subscribe-app";
+export { registerPhone } from "./register-phone";
+export { getPhoneNumbers } from "./get-phone-numbers";
+export { getWaba } from "./get-waba";
+
 export type {
   MetaApiError,
   SendMessageResponse,
@@ -68,4 +75,13 @@ export type {
   SendLocationInput,
   SendContactInput,
   UploadMediaInput,
+  // Embedded Signup (Fase 7)
+  OAuthExchangeResponse,
+  SubscribeAppResponse,
+  RegisterPhoneResponse,
+  PhoneNumberMetadata,
+  PhoneNumbersListResponse,
+  CodeVerificationStatus,
+  QualityRating,
+  WabaInfo,
 } from "./types";

@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { WhatsAppProvider } from "@/generated/prisma/enums";
 import { createProvider } from "./factory";
 import {
-  decryptStoredMetaCredentials,
+  decryptStoredMetaCredentialsPartial,
   MetaCredentialsMissingError,
 } from "./meta-credentials";
 import {
@@ -105,7 +105,12 @@ export async function resolveOutboundProvider(
   if (instance.provider === WhatsAppProvider.META_CLOUD) {
     let plain;
     try {
-      plain = decryptStoredMetaCredentials({
+      // Partial: accessToken/phoneNumberId obrigatórios; appSecret pode
+      // ser null (Embedded Signup grava NULL na coluna — vai usar env
+      // global no path do webhook). Outbound aqui não precisa do
+      // verifyToken nem do appSecret necessariamente — só o accessToken
+      // e o phoneNumberId pra mandar HTTP pra Graph.
+      plain = decryptStoredMetaCredentialsPartial({
         metaAccessToken: instance.metaAccessToken,
         metaPhoneNumberId: instance.metaPhoneNumberId,
         metaAppSecret: instance.metaAppSecret,
@@ -121,7 +126,10 @@ export async function resolveOutboundProvider(
     const provider = createProvider("meta-cloud", {
       accessToken: plain.accessToken,
       phoneNumberId: plain.phoneNumberId,
-      appSecret: plain.appSecret,
+      // OfficialProvider aceita appSecret opcional (só usado em
+      // verifyWebhook, que outbound não chama). Quando null (Embedded
+      // Signup), passa undefined.
+      ...(plain.appSecret ? { appSecret: plain.appSecret } : {}),
     });
     result = {
       provider,

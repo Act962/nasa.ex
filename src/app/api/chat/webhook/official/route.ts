@@ -54,7 +54,7 @@ import {
 import { parseWhatsAppOfficialWebhook } from "@/http/whats-oficial/webhook-schema";
 import prisma from "@/lib/prisma";
 import { WhatsAppProvider } from "@/generated/prisma/enums";
-import { decryptStoredMetaCredentials } from "@/features/tracking-chat/lib/providers/meta-credentials";
+import { decryptStoredMetaCredentialsPartial } from "@/features/tracking-chat/lib/providers/meta-credentials";
 import { getCachedTrackingByMetaPhoneNumberId } from "@/features/tracking-chat/lib/get-cached-tracking-by-meta-phone-number-id";
 import { getCachedTrackingContext } from "@/features/tracking-chat/lib/get-cached-tracking-context";
 import { createProvider } from "@/features/tracking-chat/lib/providers";
@@ -75,10 +75,24 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 
-  // Qual instância tem esse verify_token? Como ele vem cifrado com IV
-  // randômico (igual o phone_number_id), também precisamos scan +
-  // decrypt. Mais raro que o POST (handshake é uma vez por configuração),
-  // então não cacheamos.
+  // ── Tentativa 1: bate contra `META_VERIFY_TOKEN_GLOBAL` (Fase 7) ────
+  // Instâncias provisionadas via Embedded Signup não têm
+  // `metaVerifyToken` próprio — usam o token global da App da NASA.
+  // Verificação em timing-safe pra não vazar via timing.
+  const globalVerifyToken = process.env.META_VERIFY_TOKEN_GLOBAL;
+  let matchedVerifyToken: string | null = null;
+  if (
+    globalVerifyToken &&
+    constantTimeEquals(globalVerifyToken, verifyToken)
+  ) {
+    matchedVerifyToken = globalVerifyToken;
+  }
+
+  // ── Tentativa 2: scan + decrypt em instâncias com verify token próprio ─
+  // Backward compat com Fase 4 — instâncias antigas têm `metaVerifyToken`
+  // gravado e podem ser diferentes do global. Como vem cifrado com IV
+  // randômico, precisa scan + decrypt. Mais raro que o POST (handshake é
+  // uma vez por configuração), então não cacheamos.
   const candidates = await prisma.whatsAppInstance.findMany({
     where: { provider: WhatsAppProvider.META_CLOUD },
     select: {
@@ -97,18 +111,16 @@ export async function GET(request: NextRequest) {
   // verify_token char-a-char (`===` em strings termina no 1º char
   // divergente). Custo: scan completo do subset META_CLOUD, mas o GET é
   // chamado uma vez por configuração (não é hot path).
-  let matchedVerifyToken: string | null = null;
   for (const candidate of candidates) {
-    if (
-      !candidate.metaAccessToken ||
-      !candidate.metaPhoneNumberId ||
-      !candidate.metaAppSecret ||
-      !candidate.metaVerifyToken
-    ) {
+    if (!candidate.metaAccessToken || !candidate.metaPhoneNumberId) {
       continue;
     }
+    // Instâncias sem verify token próprio (Embedded Signup, Fase 7) já
+    // foram cobertas pelo `META_VERIFY_TOKEN_GLOBAL` acima. Aqui só
+    // testamos as que têm token específico (Fase 4 backward compat).
+    if (!candidate.metaVerifyToken) continue;
     try {
-      const plain = decryptStoredMetaCredentials({
+      const plain = decryptStoredMetaCredentialsPartial({
         metaAccessToken: candidate.metaAccessToken,
         metaPhoneNumberId: candidate.metaPhoneNumberId,
         metaAppSecret: candidate.metaAppSecret,
@@ -117,6 +129,7 @@ export async function GET(request: NextRequest) {
       });
       if (
         matchedVerifyToken === null &&
+        plain.verifyToken !== null &&
         constantTimeEquals(plain.verifyToken, verifyToken)
       ) {
         matchedVerifyToken = plain.verifyToken;
@@ -220,12 +233,28 @@ export async function POST(request: NextRequest) {
   }
 
   // ── 3. Validar HMAC ─────────────────────────────────────────────────
+  // Fase 7: instâncias provisionadas via Embedded Signup têm
+  // `instance.appSecret === null` — caem pro `META_APP_SECRET` global do
+  // App da NASA. Instâncias Fase 4 mantêm o appSecret próprio. Sem
+  // nenhum dos dois, não dá pra validar — retorna 401 (config errada).
+  const appSecret =
+    instance.appSecret ?? process.env.META_APP_SECRET ?? null;
+  if (!appSecret) {
+    console.warn("[webhook:official:POST] no_app_secret_available", {
+      phoneNumberId,
+      instanceId: instance.instanceId,
+      hasInstanceSecret: false,
+      hasGlobalSecret: false,
+    });
+    return new NextResponse("App Secret not configured", { status: 401 });
+  }
   const signatureHeader = request.headers.get("x-hub-signature-256");
-  if (!isMetaSignatureValid(rawBody, signatureHeader, instance.appSecret)) {
+  if (!isMetaSignatureValid(rawBody, signatureHeader, appSecret)) {
     console.warn("[webhook:official:POST] invalid_signature", {
       phoneNumberId,
       instanceId: instance.instanceId,
       hasHeader: Boolean(signatureHeader),
+      secretSource: instance.appSecret ? "instance" : "global_env",
     });
     return new NextResponse("Invalid signature", { status: 401 });
   }

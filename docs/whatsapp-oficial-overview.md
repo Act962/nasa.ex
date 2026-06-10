@@ -1,6 +1,6 @@
 # WhatsApp Oficial (Meta Cloud API) — Visão Geral
 
-> Documento vivo da integração com a **API Oficial do WhatsApp Business (Meta Cloud API)** no NASA. Última revisão: 2026-06-09 (Fase 6 em PR — outbound via factory por-tracking; Uazapi e Meta coexistem; envio canônico unificado).
+> Documento vivo da integração com a **API Oficial do WhatsApp Business (Meta Cloud API)** no NASA. Última revisão: 2026-06-09 (Fase 7 implementada — Embedded Signup OAuth substitui colagem manual de credenciais; App Secret + Verify Token viraram globais com fallback por-instância).
 >
 > **Regra de manutenção (CLAUDE.md item 13):** sempre que alterar qualquer coisa em `src/http/whats-oficial/`, `src/features/tracking-chat/lib/providers/`, o webhook oficial (`src/app/api/chat/webhook/official/`), ou modelos Prisma relacionados ao provider de WhatsApp, **atualize este arquivo na mesma sessão** — tabelas, roadmap/status, decisões e changelog sincronizados com o código.
 
@@ -18,7 +18,7 @@ A arquitetura é deliberadamente aberta a **N providers**: amanhã podemos pluga
 
 | Item | Status |
 | --- | --- |
-| Fase em andamento | **Fase 6 em PR ✅** — outbound resolvendo provider via factory por-tracking; Uazapi e Meta coexistem |
+| Fase em andamento | **Fase 7 implementada ✅** — Embedded Signup OAuth (Facebook Login for Business) substitui colagem manual de credenciais; App Secret + Verify Token globais com fallback por-instância |
 | Provider em produção | **Uazapi continua default** (zero regressão); trackings com `provider=META_CLOUD` enviam via Meta Cloud API após gravar credenciais |
 | Meta Cloud API | Clients HTTP + PORT/adapters + pipeline canônica + schema/UI cifrados + webhook oficial + **outbound via factory por-tracking + gates Meta unsupported (edit/delete/buttons) + cache outbound de provider TTL 30s**. Roadmap completo |
 | App Meta configurada | Sim (sandbox, número de testes) |
@@ -260,6 +260,7 @@ Content-Type: application/json
 | **4** | ✅ Concluída (2026-06-08) | Schema (`WhatsAppInstance.provider` + 5 colunas `meta*` cifradas) via migration `20260609013136_add_whatsapp_provider_and_meta_credentials`; helpers cifragem/máscara em `providers/meta-credentials.ts`; procedures oRPC `integrations.{get,set}ProviderSettings` (RBAC owner/admin/moderador); UI em `whatsapp-provider-settings.tsx` (RadioGroup Uazapi/Meta + form de credenciais cifradas com `•••• <last4>` placeholder). `SCHEMA_VERSION` bumpada pra `v37`. Audit log sem segredos | Cliente grava credenciais Meta cifradas via UI, provider visível no banco, typecheck verde, sem afetar envio/recebimento (Uazapi segue intocado) |
 | **5** | ✅ Concluída (2026-06-09) | `src/app/api/chat/webhook/official/route.ts` (GET verify `hub.challenge` + POST HMAC fail-closed) reusando `persistCanonicalInbound`. Strategies `buildMeta{FetchProfilePicture,DownloadInboundMedia}`. Lookup `phone_number_id → WhatsAppInstance` via scan+decrypt cacheado 30s (in-process). `setProviderSettings` invalida o cache em mudanças de credenciais. Política anti-retry Meta (200+log em config errada, 500 em race transiente). Astro-bot intercept replicado | Mensagem real do número Meta cria Lead/Conversation/Message via mesmo pipeline canônico do Uazapi, dispara automações idênticas. Typecheck verde, chat Uazapi intocado |
 | **6** | ✅ Concluída (2026-06-09) | `resolveOutboundProvider(trackingId)` resolve provider+credenciais por-tracking (cache TTL 30s) e os handlers `router/message/*` despacham via `provider.send*(canonical)`. Erros estruturados `MetaFeatureUnsupportedError` em `edit`/`delete`/`buttons` retornados como `BAD_REQUEST { code: "META_FEATURE_UNSUPPORTED" }`. `forward-strategies/*` migradas pra `ctx.provider` em vez de `ctx.token`. In-Chat fallback + detecção de ban Uazapi gateados por `providerId`. `input.token` mantido por backward compat (ignorado) | Dois trackings em paralelo (um Uazapi, um Meta) enviam sem regressão. Typecheck verde, Uazapi default; Meta ativado por flip do `provider` na UI |
+| **7** | ✅ Implementada (2026-06-09) | **Embedded Signup OAuth** substitui colagem manual de credenciais. 5 HTTP clients novos em `src/http/whats-oficial/` (`exchange-code-for-token`, `subscribe-app`, `register-phone`, `get-phone-numbers`, `get-waba`); orchestrator + procedure `integrations.completeWhatsAppEmbeddedSignup` em `src/features/integrations/lib/whatsapp-embedded-signup/`; webhook ganha **fallback global** (`META_APP_SECRET` / `META_VERIFY_TOKEN_GLOBAL`) com prioridade pra colunas por-instância (Fase 4 backward compat); UI tem botão "Conectar via Meta" com FB SDK + listener `postMessage WA_EMBEDDED_SIGNUP` e form manual virou `<Collapsible>` "Configuração avançada"; PIN 2FA gerado server-side e descartado; rate-limit 3 onboardings/org/hora; logger estruturado com eventos `embedded_signup.{code_received,token_exchanged,subscribed,registered,phone_validated,completed,failed}`; procedure `getMetaPhoneStatus` mostra `display_phone_number`/`quality_rating`/`code_verification_status` on-demand. Helper `decryptStoredMetaCredentialsPartial` aceita `appSecret`/`verifyToken` nulos. **Gate é presença das envs `NEXT_PUBLIC_META_*`** — sem elas, o botão não renderiza | Dev seta envs Meta no `.env`, clica "Conectar via Meta", completa fluxo no pop-up Meta, instância vai pra `provider=META_CLOUD` com `metaAccessToken/metaPhoneNumberId/metaBusinessAccountId` cifrados e `metaAppSecret/metaVerifyToken` NULL (usam env global). Webhook valida HMAC + GET handshake com env global. Typecheck verde, Uazapi e Fase 4 intocados |
 
 Princípio: cada fase é entregável e testável isoladamente. **Uazapi nunca é removida.**
 
@@ -328,6 +329,7 @@ Credenciais por-tracking vivem no banco (`WhatsAppInstance.meta*`, cifradas). En
 
 | Data | Mudança |
 | --- | --- |
+| 2026-06-09 | **Fase 7 implementada — Embedded Signup OAuth.** Substitui a colagem manual das 5 credenciais Meta da Fase 4 por um fluxo OAuth (Facebook Login for Business + JS SDK). Cliente clica "Conectar via Meta", autoriza no pop-up, e a NASA recebe `code` + `waba_id` + `phone_number_id` automaticamente — orchestrator faz exchange→subscribe→register→fetch+upsert. **App Secret e Verify Token viraram globais** (`META_APP_SECRET` + `META_VERIFY_TOKEN_GLOBAL` em env) com fallback pra colunas por-instância (Fase 4 backward compat). Helper `decryptStoredMetaCredentialsPartial` aceita esses 2 campos nulos. Webhook GET ganha primeiro match contra env global antes do scan; POST usa `instance.appSecret ?? process.env.META_APP_SECRET`. **PIN 2FA gerado server-side e descartado** (sem custódia). **Rate-limit** 3 onboardings/org/hora in-process. **Logger estruturado** com 7 eventos (`code_received`/`token_exchanged`/`subscribed`/`registered`/`phone_validated`/`completed`/`failed`). **Procedure `getMetaPhoneStatus`** mostra status real do número on-demand (`display_phone_number`, `verified_name`, `quality_rating`, `code_verification_status`, `messaging_limit_tier`). **UI**: botão "Conectar via Meta" no card de provider via `<Script>` next/script (gate por presença de `NEXT_PUBLIC_META_APP_ID` + `NEXT_PUBLIC_META_LOGIN_CONFIG_ID`); form manual da Fase 4 mantido **lado a lado, sempre visível** quando o provider selecionado é META_CLOUD — agora rotulado "Credenciais Meta Cloud API (manual)" e apresentado como alternativa ao OAuth (útil pra cliente white-label com App Meta próprio); novo card de status quando provider é META_CLOUD. Sem migration (schema atual cobre 100%). Tech Provider only nesta fase (`featureType:""`); Coexistence adiada pra 7.7. Gate operacional = branch `feature/whatsapp-oficial-integration` (sem `isSystemAdmin` check). Typecheck do projeto inteiro: exit 0. Plano em `C:/Users/joaog/.claude/plans/vamos-implementar-essa-forma-federated-sifakis.md`. |
 | 2026-06-09 | **Bug 1 do code review corrigido + 12 findings registrados como followups (§12.1).** Code review adversarial xhigh (9 ângulos + verifier por candidato + sweep) levantou 13 findings. Bug 1 (empty `wamid` corrompendo `Message.messageId @unique`) corrigido **no PR da Fase 6** com defesa em 3 camadas: (a) `extractWamid(response, op)` no `OfficialProvider` que joga `ProviderSendInvalidResponseError` (subclasse de `OutboundProviderError`, code `PROVIDER_SEND_INVALID_RESPONSE`) em vez de `?? ""`; (b) `extractUazapiId(response, op)` simétrico no `UazapiProvider` (workflow adversarial revelou o mesmo padrão); (c) guard defensivo em `persistCanonicalInbound` que pula+log `empty_external_message_id` se canônico chegar com id vazio. Os 12 restantes (Bugs 2-13) registrados como followups #11-22 no §12.1 com severidade, trigger e plano de execução. Typecheck verde. |
 | 2026-06-09 | **Fix BR 9º dígito (smoke Fase 6).** Smoke test do envio Meta retornou `(#131030) Recipient phone number not in allowed list` mesmo com o destino na allowlist — diagnóstico: `wa_id` de conta mobile antiga vem com 12 dígitos (sem o 9) no inbound da Meta, mas allowlist sandbox tem 13. `Lead.phone` salvo cru (12) → `to` enviado cru → mismatch. Fix: novo helper `normalizePhoneToMetaE164` em `providers/adapters/meta-cloud/normalize-phone.ts` (strip não-dígitos + insere 9 entre DDD e os 8 finais quando length=12 e starts="55"), aplicado nos 4 sends do `OfficialProvider`. Idempotente, isolado no adapter (Uazapi e Lead.phone intocados). Typecheck verde. |
 | 2026-06-09 | **Fase 6 concluída.** Outbound resolve provider via `resolveOutboundProvider(trackingId)` (novo helper em `src/features/tracking-chat/lib/providers/resolve-outbound-provider.ts`, cache in-process TTL 30s) e despacha via PORT (`provider.sendText/sendMedia/sendLocation/sendContact`). Refatorados: `router/message/create.ts`, `create-with-{image,file,audio,sticker,location,contact}.ts`, `forward.ts` (provider injetado no `ForwardContext`), todas as `forward-strategies/{text,media,contact,location}.ts` (eliminado import direto de `@/http/uazapi/*`). `input.token` segue no schema oRPC por backward compat, mas é **ignorado** — single source of truth virou `WhatsAppInstance.provider`+credenciais cifradas. Gates Meta-unsupported (BAD_REQUEST estruturado com `code: "META_FEATURE_UNSUPPORTED"`) adicionados em `create-with-buttons.ts`, `edit.ts`, `delet-message.ts`. In-Chat fallback + `markInstanceConnectionFailure` Uazapi-only (`if (providerId === "uazapi")`). `setProviderSettings` invalida o novo cache outbound junto com o cache de `phone_number_id`. Helper `inferUazapiMediaType` substituído por `inferMediaKind` (canônico) no `forward-strategies/media.ts`. Typecheck do projeto inteiro: exit 0 (~8GB heap). Branch: `feature/tracking-chat-whatsapp-oficial-outbound-wiring-20260609`. |
@@ -372,6 +374,52 @@ Se algum passo falha, conferir logs por:
 - `[webhook:official:POST] invalid_signature` → App Secret errado no banco vs no Meta App.
 - `[webhook:official:POST] unknown_phone_number_id` → Phone Number ID gravado no banco diferente do que a Meta entrega.
 - `[meta-phone-lookup] cold_miss matched=false` → idem.
+
+---
+
+### 11.1 Embedded Signup (Fase 7)
+
+Checklist pra validar o fluxo OAuth ponta-a-ponta sem mexer no painel da Meta a cada teste:
+
+**Setup uma vez (no painel Meta App):**
+
+1. App type = Business. Produtos: WhatsApp + Facebook Login for Business adicionados.
+2. Facebook Login for Business → criar Login Configuration (template "WhatsApp Embedded Signup Configuration With 60 Expiration Token"). Anotar `config_id`.
+3. Em `Settings → Basic`, anotar **App ID** e **App Secret** do App da NASA.
+4. **Adicionar contas Facebook dos devs** como Admins/Devs/Testers do App (sem isso, só o dono completa o fluxo enquanto App Review não estiver aprovada).
+5. **Webhook URL** no painel WhatsApp = `https://orbita.nasaex.com/api/chat/webhook/official` + Verify Token = mesmo valor de `META_VERIFY_TOKEN_GLOBAL`. Subscribe em `messages` + `message_status`.
+
+**No `.env` local:**
+```
+META_APP_ID=<da Settings → Basic>
+META_APP_SECRET=<da Settings → Basic>
+META_VERIFY_TOKEN_GLOBAL=<32+ chars aleatórios>
+NEXT_PUBLIC_META_APP_ID=<mesmo do META_APP_ID>
+NEXT_PUBLIC_META_LOGIN_CONFIG_ID=<da Login Configuration>
+```
+
+**Smoke (executar em sequência):**
+
+1. `pnpm dev` + abrir tracking de teste com instância Uazapi conectada (Embedded Signup só promove — não cria).
+2. Configurações → Atendimento → Provider WhatsApp → confere botão **"Conectar via Meta"** visível.
+3. Clica → pop-up Meta abre → completar fluxo com sandbox da NASA.
+4. Toast "WhatsApp Oficial conectado: +55..." aparece.
+5. `pnpm db:studio` → tabela `whatsapp_instances` → row do tracking:
+   - `provider` = `META_CLOUD` ✓
+   - `meta_access_token` / `meta_phone_number_id` / `meta_business_account_id` = cifrados ✓
+   - `meta_app_secret` / `meta_verify_token` = **NULL** (fallback global) ✓
+6. WhatsApp do dev → manda mensagem pro sandbox → `Lead`/`Conversation`/`Message` aparecem no chat.
+7. Responde via chat → mensagem chega no WhatsApp.
+8. Card de status do número aparece com `display_phone_number`, `verified_name`, `quality_rating`.
+9. Re-onboard mesmo tracking (clicar Conectar de novo) → idempotente, não duplica.
+
+**Troubleshooting:**
+- `EMBEDDED_SIGNUP_CONFIG_MISSING` → env vars do App Meta não setadas.
+- `EMBEDDED_SIGNUP_INSTANCE_MISSING` → tracking sem WhatsAppInstance Uazapi. Criar uma primeiro.
+- `EMBEDDED_SIGNUP_PHONE_MISMATCH` → `phone_number_id` não está na WABA (postMessage adulterado ou cliente errou seleção).
+- `EMBEDDED_SIGNUP_RATE_LIMITED` → 3 onboardings/org/hora. Aguardar janela.
+- Logs `[embedded-signup]` mostram cada passo (`code_received` → `token_exchanged` → `subscribed` → `registered` → `phone_validated` → `completed`).
+- Logs `[webhook:official:POST]` com `secretSource:"global_env"` confirmam que o fallback ativou.
 
 ---
 

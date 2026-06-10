@@ -2,7 +2,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { WhatsAppProvider } from "@/generated/prisma/enums";
 import {
-  decryptStoredMetaCredentials,
+  decryptStoredMetaCredentialsPartial,
   MetaCredentialsMissingError,
 } from "./providers/meta-credentials";
 
@@ -53,8 +53,14 @@ export interface ResolvedMetaInstance {
   readonly organizationId: string;
   readonly accessToken: string;
   readonly phoneNumberId: string;
-  readonly appSecret: string;
-  readonly verifyToken: string;
+  /**
+   * `null` quando a instância foi provisionada via Embedded Signup (Fase 7) —
+   * o caller deve cair pro `META_APP_SECRET` global. Continuar com `null`
+   * sem fallback é um erro de configuração e o webhook responde 401.
+   */
+  readonly appSecret: string | null;
+  /** `null` em instâncias Embedded Signup — caller cai pro `META_VERIFY_TOKEN_GLOBAL`. */
+  readonly verifyToken: string | null;
   readonly businessAccountId: string | null;
 }
 
@@ -112,18 +118,15 @@ export async function getCachedTrackingByMetaPhoneNumberId(
 
   let resolved: ResolvedMetaInstance | null = null;
   for (const candidate of candidates) {
-    // Skip silencioso de instâncias com credenciais ausentes — o admin
-    // ainda não completou o provisionamento. Nem loga (vai poluir).
-    if (
-      !candidate.metaAccessToken ||
-      !candidate.metaPhoneNumberId ||
-      !candidate.metaAppSecret ||
-      !candidate.metaVerifyToken
-    ) {
+    // Skip silencioso de instâncias com credenciais ESSENCIAIS ausentes
+    // (accessToken/phoneNumberId) — operador ainda não completou o
+    // provisionamento. `metaAppSecret`/`metaVerifyToken` PODEM estar
+    // ausentes (Fase 7 Embedded Signup grava NULL — fallback global).
+    if (!candidate.metaAccessToken || !candidate.metaPhoneNumberId) {
       continue;
     }
     try {
-      const plain = decryptStoredMetaCredentials({
+      const plain = decryptStoredMetaCredentialsPartial({
         metaAccessToken: candidate.metaAccessToken,
         metaPhoneNumberId: candidate.metaPhoneNumberId,
         metaAppSecret: candidate.metaAppSecret,

@@ -20,6 +20,10 @@ import {
   getProviderSettings,
   setProviderSettings,
 } from "./provider-settings";
+import {
+  completeWhatsAppEmbeddedSignup,
+  getMetaPhoneStatus,
+} from "./whatsapp-embedded-signup";
 
 export const integrationsRouter = {
   create: createInstanceUazapi,
@@ -43,4 +47,6 @@ export const integrationsRouter = {
   toggleInChatManual,
   getProviderSettings,
   setProviderSettings,
+  completeWhatsAppEmbeddedSignup,
+  getMetaPhoneStatus,
 };
