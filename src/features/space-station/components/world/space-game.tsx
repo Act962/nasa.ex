@@ -90,6 +90,29 @@ export function SpaceGame({
   });
   const userId = effectiveUserId;
 
+  // ID estável por aba (persistido em sessionStorage). Vira o sufixo da identity
+  // do LiveKit pro usuário logado (`${userId}:${tabSessionId}`, montado no
+  // servidor) — assim duas abas do mesmo usuário são participantes distintos e o
+  // LiveKit não derruba uma pela outra ("kick-the-zombie"). Um F5 na MESMA aba
+  // reaproveita o id → takeover limpo da conexão anterior, sem oscilar pros
+  // outros peers. (Guest já carrega um id único por aba no próprio effectiveUserId.)
+  const [tabSessionId] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    const KEY = `_nasa_world_session_${stationId}`;
+    try {
+      const stored = sessionStorage.getItem(KEY);
+      if (stored) return stored;
+      const fresh =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2);
+      sessionStorage.setItem(KEY, fresh);
+      return fresh;
+    } catch {
+      return Math.random().toString(36).slice(2);
+    }
+  });
+
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<import("phaser").Game | null>(null);
   const [loading, setLoading] = useState(true);
@@ -159,21 +182,24 @@ export function SpaceGame({
   const areaAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // ── Mídia (LiveKit SFU com fallback mesh) ─────────────────────────────────
-  // Dois caminhos:
-  //   1. Usuário logado → `useJoinWorld` busca token da station no servidor.
-  //   2. Guest → SFU desabilitado (sem auth), cai no mesh (P2P).
+  // Logados E convidados entram no SFU: `useJoinWorld` minta token pra ambos
+  // (convidado só em station OPEN/pública, identity = effectiveUserId). O mesh
+  // (P2P) fica como fallback quando o LiveKit não está configurado.
   const isLoggedIn = !rawUserId.startsWith("guest");
   const joinWorldQuery = useJoinWorld(stationId, {
-    enabled: USE_SFU && isLoggedIn,
+    enabled: USE_SFU,
+    sessionId: tabSessionId,
+    guestId: isLoggedIn ? undefined : effectiveUserId,
+    guestName: userName,
   });
   const sfuToken = joinWorldQuery.data?.sfuToken ?? null;
   const sfuWsUrl = joinWorldQuery.data?.sfuWsUrl ?? null;
   const sfuReady = USE_SFU && Boolean(sfuToken && sfuWsUrl);
-  // Enquanto buscamos o token SFU de um usuário logado, NÃO subimos o mesh: ele
-  // só conectaria no Pusher pra ser derrubado segundos depois quando o token
-  // chega (churn + risco de listeners órfãos). Só caímos no mesh quando o join
-  // resolve sem SFU utilizável (guest, LiveKit off, ou mint falhou).
-  const sfuPending = USE_SFU && isLoggedIn && joinWorldQuery.isLoading;
+  // Enquanto buscamos o token SFU, NÃO subimos o mesh: ele só conectaria no
+  // Pusher pra ser derrubado segundos depois quando o token chega (churn + risco
+  // de listeners órfãos). Só caímos no mesh quando o join resolve sem SFU
+  // utilizável (LiveKit off ou mint falhou).
+  const sfuPending = USE_SFU && joinWorldQuery.isLoading;
 
   const sfu = useSfuRoom({
     token: sfuReady ? sfuToken : null,

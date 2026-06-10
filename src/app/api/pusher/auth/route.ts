@@ -46,17 +46,24 @@ export async function POST(req: NextRequest) {
   const userImage = session?.user?.image ?? null;
 
   try {
-    // Presence — qualquer um (logado ou guest); identidade vai no payload
+    // Presence — qualquer um (logado ou guest); identidade vai no payload.
     if (channel.startsWith("presence-")) {
-      const presenceUserId = userId ?? `guest_${socketId.replace(".", "_")}`;
-      const authResponse = pusherServer.authorizeChannel(
-        socketId,
-        channel,
-        {
-          user_id: presenceUserId,
-          user_info: { name: userName, image: userImage },
-        },
-      );
+      // Logado: usa sempre o id da sessão (não deixa um cliente spoofar outro
+      // usuário). Guest: usa o `uid` auto-atribuído pelo cliente (estável por
+      // aba, `?uid=`) pra que member.id === effectiveUserId. Sem isso o guest
+      // ganha um id derivado do socket que diverge do world:joined e da identity
+      // do LiveKit → avatar duplicado. Validado por formato (prefixo `guest`);
+      // cai pro id do socket se faltar/for inválido.
+      const requestedUid = req.nextUrl.searchParams.get("uid");
+      const presenceUserId = userId
+        ? userId
+        : requestedUid && /^guest[a-zA-Z0-9_-]*$/.test(requestedUid)
+          ? requestedUid
+          : `guest_${socketId.replace(".", "_")}`;
+      const authResponse = pusherServer.authorizeChannel(socketId, channel, {
+        user_id: presenceUserId,
+        user_info: { name: userName, image: userImage },
+      });
       return NextResponse.json(authResponse);
     }
 
