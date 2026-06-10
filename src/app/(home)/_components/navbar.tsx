@@ -15,7 +15,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import Link from "next/link";
-import { ModeToggle } from "@/components/mode-toggle";
 import { PlanPurchaseModal } from "@/features/stars/components/plan-purchase-modal";
 import { Menu, Sparkles } from "lucide-react";
 
@@ -102,10 +101,6 @@ export function Navbar() {
           </>
         )}
 
-        <div className="hidden md:flex">
-          <ModeToggle />
-        </div>
-
         {/* Mobile menu */}
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetTrigger asChild>
@@ -165,10 +160,6 @@ export function Navbar() {
                 </SheetClose>
               )}
 
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-sm text-white/50">Tema</span>
-                <ModeToggle />
-              </div>
             </div>
           </SheetContent>
         </Sheet>
