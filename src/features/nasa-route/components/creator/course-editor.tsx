@@ -121,7 +121,7 @@ export function CourseEditor({ courseId }: Props) {
   const { course } = data;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
+    <div className="mx-auto w-full max-w-5xl px-4 py-8" style={{ scrollbarGutter: "stable" }}>
       <Link
         href="/nasa-route/criador"
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -269,7 +269,7 @@ export function CourseEditor({ courseId }: Props) {
         </button>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 min-h-[60vh] w-full">
         {tab === "info" ? (
           <CourseForm
             courseId={course.id}

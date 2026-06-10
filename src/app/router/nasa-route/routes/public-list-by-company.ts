@@ -46,6 +46,11 @@ export const publicListByCompany = base
         eventTimezone: true,
         category: { select: { id: true, slug: true, name: true, iconKey: true } },
         _count: { select: { lessons: true } },
+        // Planos pra derivar o `displayPriceBrlCents` exibido nos cards.
+        plans: {
+          select: { priceBrlCents: true, isDefault: true, order: true },
+          orderBy: [{ isDefault: "desc" }, { order: "asc" }],
+        },
       },
     });
 
@@ -56,21 +61,30 @@ export const publicListByCompany = base
         slug: org.slug,
         logo: org.logo,
       },
-      courses: courses.map((c) => ({
-        id: c.id,
-        slug: c.slug,
-        title: c.title,
-        subtitle: c.subtitle,
-        coverUrl: c.coverUrl,
-        level: c.level,
-        durationMin: c.durationMin,
-        format: c.format,
-        priceStars: c.priceStars,
-        priceBrlCents: c.priceBrlCents,
-        isFree: c.isFree,
-        studentsCount: c.studentsCount,
-        category: c.category,
-        lessonCount: c._count.lessons,
-      })),
+      courses: courses.map((c) => {
+        const planPrice =
+          c.plans.find((p) => p.isDefault && p.priceBrlCents > 0)
+            ?.priceBrlCents ??
+          c.plans.find((p) => p.priceBrlCents > 0)?.priceBrlCents ??
+          0;
+        const displayPriceBrlCents = planPrice > 0 ? planPrice : c.priceBrlCents;
+        return {
+          id: c.id,
+          slug: c.slug,
+          title: c.title,
+          subtitle: c.subtitle,
+          coverUrl: c.coverUrl,
+          level: c.level,
+          durationMin: c.durationMin,
+          format: c.format,
+          priceStars: c.priceStars,
+          priceBrlCents: c.priceBrlCents,
+          displayPriceBrlCents,
+          isFree: c.isFree,
+          studentsCount: c.studentsCount,
+          category: c.category,
+          lessonCount: c._count.lessons,
+        };
+      }),
     };
   });

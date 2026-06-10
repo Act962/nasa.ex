@@ -17,7 +17,12 @@ export interface PosterCourse {
   level?: string;
   durationMin?: number | null;
   format?: string;
-  priceStars: number;
+  /** Stars permanece no tipo por compat — não é mais usado pra exibição. */
+  priceStars?: number;
+  priceBrlCents?: number | null;
+  /** Preço derivado do plano padrão; quando presente, prevalece sobre `priceBrlCents`. */
+  displayPriceBrlCents?: number | null;
+  isFree?: boolean;
   studentsCount?: number;
   // Datas UNIFICADAS — válidas pra qualquer formato (curso/treinamento/
   // mentoria/ebook/evento/etc). Exibidas como badge na capa quando
@@ -86,7 +91,11 @@ export function CoursePoster({ href, course, size = "md", progressPct, completed
         )}
 
         <div className="absolute right-2 top-2">
-          <PriceStarsDisplay priceStars={course.priceStars} size="sm" />
+          <PriceStarsDisplay
+            priceBrlCents={course.displayPriceBrlCents ?? course.priceBrlCents}
+            isFree={course.isFree}
+            size="sm"
+          />
         </div>
 
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />

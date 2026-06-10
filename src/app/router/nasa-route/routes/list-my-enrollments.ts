@@ -23,6 +23,8 @@ export const listMyEnrollments = base
             durationMin: true,
             format: true,
             priceStars: true,
+            priceBrlCents: true,
+            isFree: true,
             // Datas unificadas (todos formatos)
             startsAt: true,
             endsAt: true,
@@ -73,6 +75,8 @@ export const listMyEnrollments = base
             durationMin: e.course.durationMin,
             format: e.course.format,
             priceStars: e.course.priceStars,
+            priceBrlCents: e.course.priceBrlCents,
+            isFree: e.course.isFree,
             startsAt: e.course.startsAt,
             endsAt: e.course.endsAt,
             eventStartsAt: e.course.eventStartsAt,

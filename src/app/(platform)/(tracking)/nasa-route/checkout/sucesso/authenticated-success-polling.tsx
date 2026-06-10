@@ -54,8 +54,16 @@ export function AuthenticatedSuccessPolling({ pendingId }: Props) {
             courseId: data.course.id,
             courseTitle: data.course.title,
           });
+          // Redirect: URL externa configurada em Integrações (página de
+          // obrigado/upsell do criador) prevalece; caso contrário, vai pro
+          // player default. `redirectUrl` é validado como URL no upsert.
+          const externalUrl = data.course.redirectUrl?.trim();
           setTimeout(() => {
-            router.replace(`/nasa-route/curso/${data.course.id}`);
+            if (externalUrl) {
+              window.location.href = externalUrl;
+            } else {
+              router.replace(`/nasa-route/curso/${data.course.id}`);
+            }
           }, 1200);
           return;
         }

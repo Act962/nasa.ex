@@ -48,6 +48,10 @@ export const getPendingPurchase = base
             slug: true,
             title: true,
             coverUrl: true,
+            // URL externa configurada em Integrações; usada pelo polling
+            // autenticado pra redirecionar o aluno pós-checkout em vez de
+            // mandar pro player default.
+            redirectUrl: true,
             creatorOrg: { select: { name: true, slug: true } },
           },
         },
@@ -91,6 +95,7 @@ export const getPendingPurchase = base
         slug: pending.course.slug,
         title: pending.course.title,
         coverUrl: pending.course.coverUrl,
+        redirectUrl: pending.course.redirectUrl,
         creatorOrg: pending.course.creatorOrg,
       },
       plan: pending.plan,
