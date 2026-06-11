@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
-import type { RemotePeer } from "../../hooks/use-webrtc";
+import type { RemotePeer } from "../../hooks/use-sfu-room";
 
 interface Props {
   bubblePeers:  Set<string>;

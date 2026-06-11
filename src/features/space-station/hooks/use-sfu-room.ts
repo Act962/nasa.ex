@@ -3,7 +3,8 @@
 /**
  * Hook de mídia (áudio/vídeo/tela) do mundo via LiveKit SFU.
  *
- * Substitui `use-webrtc.ts` (mesh P2P), expondo a MESMA fachada para que
+ * Único transporte de mídia do mundo (o mesh P2P `use-webrtc.ts` foi removido).
+ * Expõe a fachada `RemotePeer` para que
  * `space-game.tsx` e os overlays (MediaBar, VideoOverlay, ProximityBar,
  * ScreenShareOverlay, MediaSettingsPanel, BubbleAppsPanel) não precisem
  * conhecer o transporte.
@@ -28,6 +29,7 @@ import {
   type RemoteParticipant,
   type RemoteTrackPublication,
 } from "@/lib/livekit/client";
+import type { TrackReference } from "@livekit/components-react";
 import { attachAudioUnlock, type AudioUnlockState } from "@/lib/media/audio-unlock";
 import { resolveRemoteSpriteUrl } from "../utils/sprite-defaults";
 import {
@@ -36,7 +38,32 @@ import {
 } from "../utils/media-devices";
 import { useMediaDeviceStore } from "./use-media-device-store";
 import { useMediaDevices, type EnumeratedDevices } from "./use-media-devices";
-import type { RemotePeer } from "./use-webrtc";
+
+/**
+ * Forma canônica de um peer remoto no mundo (mic/cam/tela + streams agregadas).
+ * Vivia em `use-webrtc.ts` (mesh) — migrou pra cá quando o mesh saiu e o LiveKit
+ * virou o único transporte. Os overlays (VideoOverlay, ProximityBar, MediaBar,
+ * etc.) consomem este tipo, agnósticos de onde os streams vêm.
+ */
+export interface RemotePeer {
+  userId: string;
+  name: string;
+  nick?: string | null;
+  image: string | null;
+  spriteUrl?: string | null;
+  stream: MediaStream | null;
+  screenStream?: MediaStream | null;
+  /**
+   * Referência da track de câmera p/ o componente pronto `<VideoTrack>` (que faz
+   * `track.attach()` — habilita o adaptiveStream a observar a visibilidade).
+   * Só nos peers REMOTOS; o tile local segue por MediaStream (`srcObject`).
+   * Ausente → o tile cai pro avatar.
+   */
+  cameraTrackRef?: TrackReference;
+  micOn: boolean;
+  camOn: boolean;
+  screenOn?: boolean;
+}
 
 interface UseSfuRoomOptions {
   /** Quando vazio, o hook fica idle (não conecta). */
@@ -90,6 +117,15 @@ export interface UseSfuRoomReturn {
   // Sinais de saúde da conexão
   audioBlocked: boolean;
   connectionState: "idle" | "connecting" | "connected" | "reconnecting" | "disconnected";
+
+  /**
+   * Room LiveKit já conectada (null enquanto idle/conectando). Exposta pro
+   * `<RoomAudioRenderer room={...}>` renderizar o áudio remoto via
+   * `track.attach()` — o caminho do POC, que integra com
+   * `room.canPlaybackAudio`/`startAudio()` (autoplay). O VÍDEO dos overlays
+   * segue por MediaStream (mesma fachada do mesh); só o ÁUDIO migra pra cá.
+   */
+  room: Room | null;
 }
 
 const PIXEL_ASTRONAUT_SENTINEL = "pixel_astronaut";
@@ -114,6 +150,9 @@ export function useSfuRoom({
   const [audioBlocked, setAudioBlocked] = useState(false);
   const [connectionState, setConnectionState] =
     useState<UseSfuRoomReturn["connectionState"]>("idle");
+  // Room exposta como ESTADO (não só ref): o <RoomAudioRenderer> precisa
+  // re-renderizar quando a Room (re)conecta pra (re)assinar os tracks de áudio.
+  const [room, setRoom] = useState<Room | null>(null);
 
   // Bubble = todos os peers conectados, na Fase 1 (sem proximidade).
   // Derivada de `peers` via useEffect abaixo.
@@ -209,13 +248,14 @@ export function useSfuRoom({
           token,
           url: wsUrl,
           roomOptions: {
-            // adaptiveStream/dynacast exigem track.attach() pro LiveKit
-            // observar a visibilidade dos elementos de vídeo. Os overlays
-            // renderizam via `el.srcObject` (sem attach), então deixá-los ON
-            // faz o SFU pausar o vídeo remoto (ninguém é "visto") → tela preta.
-            // Mantemos OFF até migrar os overlays pra track.attach() (Fase 2+).
-            adaptiveStream: false,
-            dynacast: false,
+            // adaptiveStream: o LiveKit pausa/baixa a qualidade do vídeo remoto
+            // conforme a visibilidade do elemento — exige `track.attach()`. Os
+            // tiles REMOTOS agora renderizam via `<VideoTrack>` (componente
+            // pronto, que faz o attach), então isto é seguro e economiza banda.
+            // dynacast: o servidor dropa camadas simulcast sem consumidor. O
+            // tile LOCAL segue via `srcObject` (não é afetado por adaptiveStream).
+            adaptiveStream: true,
+            dynacast: true,
           },
         });
         if (cancelled) {
@@ -224,6 +264,8 @@ export function useSfuRoom({
         }
         activeRoom = room;
         roomRef.current = room;
+        // Publica a Room no estado pro <RoomAudioRenderer> assinar o áudio.
+        setRoom(room);
 
         // ── Audio unlock (fix "não ouço" autoplay bloqueado) ───────────────
         audioUnlockDisposeRef.current = attachAudioUnlock(
@@ -339,6 +381,7 @@ export function useSfuRoom({
         activeRoom.disconnect();
       }
       roomRef.current = null;
+      setRoom(null);
       // NÃO zeramos `peers` aqui: numa reconexão (token/wsUrl novos) isso apagava
       // os peers vindos só da presença (Pusher) — guests/usuários que ainda não
       // publicaram no SFU — e eles só reapareceriam no próximo `peer-sprite`
@@ -504,6 +547,9 @@ export function useSfuRoom({
           spriteUrl: resolvedSprite,
           stream: existing?.stream ?? null,
           screenStream: existing?.screenStream,
+          // Preserva a ref de vídeo vinda do SFU — senão um peer-sprite (Pusher)
+          // re-emitido apagaria o <VideoTrack> até o próximo rebuildPeers.
+          cameraTrackRef: existing?.cameraTrackRef,
           micOn: existing?.micOn ?? false,
           camOn: existing?.camOn ?? false,
           screenOn: existing?.screenOn ?? false,
@@ -571,6 +617,7 @@ export function useSfuRoom({
     toggleBubbleLock,
     audioBlocked,
     connectionState,
+    room,
   };
 }
 
@@ -674,6 +721,7 @@ function snapshotRemotePeer(
   let micOn = false;
   let camOn = false;
   let screenOn = false;
+  let cameraTrackRef: TrackReference | undefined;
   const mediaTracks: MediaStreamTrack[] = [];
   const screenTracks: MediaStreamTrack[] = [];
 
@@ -684,7 +732,13 @@ function snapshotRemotePeer(
       sourceStr === "screen_share" || sourceStr === "screen_share_audio";
 
     if (sourceStr === "microphone") micOn = !rpub.isMuted && rpub.isSubscribed;
-    if (sourceStr === "camera") camOn = !rpub.isMuted && rpub.isSubscribed;
+    if (sourceStr === "camera") {
+      camOn = !rpub.isMuted && rpub.isSubscribed;
+      // TrackReference pro <VideoTrack>. `rpub.source` já é o enum Track.Source
+      // correto — evita importar o valor `Track` do livekit-client (mantém o
+      // lazy-load do SDK). O <VideoTrack> cuida do attach quando a track chega.
+      cameraTrackRef = { participant: p, publication: rpub, source: rpub.source };
+    }
     if (isScreen) screenOn = !rpub.isMuted && rpub.isSubscribed;
 
     const t = rpub.track?.mediaStreamTrack;
@@ -705,6 +759,7 @@ function snapshotRemotePeer(
     spriteUrl: null,
     stream,
     screenStream,
+    cameraTrackRef,
     micOn,
     camOn,
     screenOn,

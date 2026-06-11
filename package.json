@@ -42,6 +42,8 @@
     "@langchain/community": "^1.1.28",
     "@langchain/openai": "^1.4.5",
     "@langchain/textsplitters": "^1.0.1",
+    "@livekit/components-react": "2.9.21",
+    "@livekit/components-styles": "^1.2.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@next/third-parties": "^16.2.6",
     "@openrouter/ai-sdk-provider": "^2.2.3",

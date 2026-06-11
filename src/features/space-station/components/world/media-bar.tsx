@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import NextImage from "next/image";
 import { useEffect, useRef, useState } from "react";
-import type { RemotePeer } from "../../hooks/use-webrtc";
+import type { RemotePeer } from "../../hooks/use-sfu-room";
 
 /* ─── Avatar canvas — idle-down frame Pipoya (32×32 ou 64×64) ─────────────── */
 
