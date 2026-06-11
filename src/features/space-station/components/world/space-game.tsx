@@ -30,6 +30,10 @@ import { useJoinWorld } from "../../hooks/use-station-world";
 import { useWorldPresence } from "../../hooks/use-world-presence";
 import { useMediaDeviceStore } from "../../hooks/use-media-device-store";
 import { applySinkId } from "../../utils/media-devices";
+import {
+  useRemoteAudioBlocked,
+  unlockAudioNow,
+} from "@/lib/media/remote-audio-unlock";
 
 /**
  * Feature flag de transporte de mídia.
@@ -537,18 +541,25 @@ export function SpaceGame({
 
   const zoomPct = Math.round((zoomLevel / 1.6) * 100);
 
+  // Áudio remoto bloqueado pelo autoplay — detecção REAL dos <audio> do mundo
+  // (ver remote-audio-unlock.ts). Dirige o banner abaixo, em vez do
+  // `webrtc.audioBlocked` que olhava só o áudio interno do LiveKit (sempre
+  // "ok" aqui, já que o mundo não usa track.attach()).
+  const remoteAudioBlocked = useRemoteAudioBlocked();
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950">
       {/* ── Banner de áudio bloqueado (autoplay policy) ── */}
-      {webrtc.audioBlocked && (
+      {(webrtc.audioBlocked || remoteAudioBlocked) && (
         <div
           className="absolute top-3 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full
                      bg-amber-500/90 text-amber-950 text-xs font-medium shadow-lg
                      animate-pulse cursor-pointer select-none"
           onClick={() => {
-            // Qualquer gesto dispara o startAudio interno do hook; este click
-            // já é capturado pelo audio-unlock. Mantemos o elemento clicável
-            // como pista visual.
+            // Força o play() em TODOS os <audio> remotos de uma vez. O clique
+            // também é capturado pelos listeners de gesto do coordenador, mas
+            // chamamos explícito pra resposta imediata.
+            void unlockAudioNow();
           }}
         >
           🔊 Clique em qualquer lugar para ativar o áudio

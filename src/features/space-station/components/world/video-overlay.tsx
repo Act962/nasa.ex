@@ -8,6 +8,10 @@ import {
 import Image from "next/image";
 import type { RemotePeer } from "../../hooks/use-webrtc";
 import { applySinkId } from "../../utils/media-devices";
+import {
+  registerRemoteAudio,
+  tryPlayRemoteAudio,
+} from "@/lib/media/remote-audio-unlock";
 
 type Layout = "grid" | "strip-h" | "strip-v";
 
@@ -249,11 +253,21 @@ function VideoTile({ name, image, stream, micOn, camOn, isLocal, isScreen, width
     }
   }, [stream, camOn]);
 
-  // BUG FIX: <audio> separado pra remote peers — toca o áudio independente
-  // do <video> existir/renderizar. Antes o áudio só tocava se camOn=true
-  // (porque o <video> embedded tocava o áudio junto). Resultado: peers com
-  // mic mas sem câmera (cenário do 3º usuário) ficavam mudos.
-  // O <video> agora fica MUTADO sempre — áudio único vem desse <audio>.
+  // <audio> separado pra remote peers — toca o áudio independente do <video>
+  // existir/renderizar (peers com mic mas sem câmera precisam ser ouvidos).
+  // O <video> fica SEMPRE mutado; o áudio único vem deste <audio>.
+  //
+  // Registramos o elemento no coordenador central de unlock, que detecta o
+  // bloqueio de autoplay DESTES elementos (não o áudio interno do LiveKit, que
+  // o mundo não usa) e destrava todos no primeiro gesto. Substitui o antigo
+  // play()+listener por-tile, que era frágil: o `stream` é recriado a cada
+  // rebuildPeers, então o effect remontava o listener no meio de uma rejeição.
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || isLocal) return;
+    return registerRemoteAudio(el);
+  }, [isLocal]);
+
   useEffect(() => {
     const el = audioRef.current;
     if (!el || isLocal) return;
@@ -262,29 +276,9 @@ function VideoTile({ name, image, stream, micOn, camOn, isLocal, isScreen, width
       return;
     }
     if (el.srcObject !== stream) el.srcObject = stream;
-
-    // Autoplay pode ser bloqueado quando o usuário ainda não interagiu com a
-    // página. O mesh (diferente do SFU) não tinha "destrava de áudio": a
-    // rejeição era engolida e nunca retentada, então quem não tinha clicado
-    // ficava sem ouvir o peer — um dos jeitos do bug "um ouve, o outro não".
-    // Aqui, se o play() falhar, religamos no primeiro gesto do usuário.
-    let detachGesture: (() => void) | null = null;
-    el.play().catch(() => {
-      if (detachGesture) return;
-      const onGesture = () => {
-        void el.play().catch(() => {});
-        detachGesture?.();
-        detachGesture = null;
-      };
-      window.addEventListener("pointerdown", onGesture);
-      window.addEventListener("keydown", onGesture);
-      detachGesture = () => {
-        window.removeEventListener("pointerdown", onGesture);
-        window.removeEventListener("keydown", onGesture);
-      };
-    });
-
-    return () => { detachGesture?.(); };
+    // Tenta tocar; se o autoplay barrar, o coordenador marca "bloqueado" e
+    // destrava no 1º gesto (banner em space-game.tsx).
+    tryPlayRemoteAudio(el);
   }, [stream, isLocal]);
 
   // Aplica saída de áudio selecionada (setSinkId — feature-detect interno;
