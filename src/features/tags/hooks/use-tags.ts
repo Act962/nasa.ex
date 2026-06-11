@@ -115,6 +115,12 @@ export function useReferencedWorkflows(tagId: string | null) {
   });
 }
 
+/** Grupos de tags duplicadas detectados na org — usado pelo banner amber
+ *  do TagSheet que abre o resolver de duplicatas. */
+export function useDuplicateTags() {
+  return useQuery(orpc.tags.getDuplicateTags.queryOptions({ input: undefined }));
+}
+
 export function useQueryWithoutWidgetTags({
   organizationIds,
 }: {

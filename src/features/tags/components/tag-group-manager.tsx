@@ -18,12 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  FolderIcon,
-  PlusIcon,
-  PencilIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { FolderIcon, PlusIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DEFAULT_UI_COLORS } from "@/utils/whatsapp-utils";
 import { getContrastColor } from "@/utils/get-contrast-color";
@@ -80,8 +75,9 @@ export function TagGroupManager({
           <DialogHeader>
             <DialogTitle>Grupos de tags</DialogTitle>
             <DialogDescription>
-              Crie seções pra organizar tags por contexto (ex: &ldquo;Estética&rdquo;
-              em azul, &ldquo;Mecânica&rdquo; em laranja).
+              Crie seções pra organizar tags por contexto (ex:
+              &ldquo;Estética&rdquo; em azul, &ldquo;Mecânica&rdquo; em
+              laranja).
             </DialogDescription>
           </DialogHeader>
 
@@ -106,8 +102,7 @@ export function TagGroupManager({
                         type="button"
                         className={cn(
                           "size-5 rounded-sm cursor-pointer hover:scale-110 transition-transform",
-                          newColor === c &&
-                            "ring-1 ring-offset-1 ring-primary",
+                          newColor === c && "ring-1 ring-offset-1 ring-primary",
                         )}
                         style={{ backgroundColor: c }}
                         onClick={() => setNewColor(c)}
@@ -139,7 +134,7 @@ export function TagGroupManager({
           </div>
 
           {/* Lista de grupos */}
-          <div className="space-y-1 max-h-72 overflow-y-auto">
+          <div className="space-y-1 max-h-72 overflow-y-auto scroll-cols-tracking">
             {isLoading && (
               <p className="text-xs text-muted-foreground p-2">Carregando...</p>
             )}
@@ -185,10 +180,7 @@ export function TagGroupManager({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmDeleteId(null)}
-            >
+            <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>
               Cancelar
             </Button>
             <Button
