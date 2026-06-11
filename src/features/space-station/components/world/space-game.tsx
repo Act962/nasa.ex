@@ -24,7 +24,7 @@ import { ScreenShareOverlay } from "./screen-share-overlay";
 import { MapMenu } from "./map-editor/map-menu";
 import { MapEditor } from "./map-editor/map-editor";
 import { PublishTemplateModal } from "./publish-template-modal";
-import { useWebRTC } from "../../hooks/use-webrtc";
+import { RoomAudioRenderer } from "@livekit/components-react";
 import { useSfuRoom } from "../../hooks/use-sfu-room";
 import { useJoinWorld } from "../../hooks/use-station-world";
 import { useWorldPresence } from "../../hooks/use-world-presence";
@@ -32,17 +32,12 @@ import { useMediaDeviceStore } from "../../hooks/use-media-device-store";
 import { applySinkId } from "../../utils/media-devices";
 
 /**
- * Feature flag de transporte de mídia.
- *
- * - `useSfuRoom` (LiveKit) é a estratégia alvo: escala pra ~100 pessoas com
- *   TURN/relay e resolve a classe inteira dos bugs de NAT/firewall/autoplay.
- *   Default ON quando o LiveKit está configurado (env vars de servidor).
- * - `useWebRTC` (mesh P2P) fica como fallback até a Fase 2 validar o SFU em
- *   produção. Defina `NEXT_PUBLIC_USE_SFU=false` pra forçar o mesh.
- *
- * A flag e o mesh saem na Fase 4 (limpeza).
+ * Transporte de mídia: **LiveKit SFU é o único** (o mesh P2P caseiro foi
+ * removido). Escala pra ~100 pessoas com TURN/relay e resolve a classe inteira
+ * dos bugs de NAT/firewall/autoplay. Quando o LiveKit não está configurado
+ * (sem `sfuToken`/`sfuWsUrl`), o mundo segue funcionando para movimento, só sem
+ * áudio/vídeo — não há mais fallback.
  */
-const USE_SFU = process.env.NEXT_PUBLIC_USE_SFU !== "false";
 
 interface Props {
   worldConfig: StationWorldConfig;
@@ -187,35 +182,24 @@ export function SpaceGame({
   // (P2P) fica como fallback quando o LiveKit não está configurado.
   const isLoggedIn = !rawUserId.startsWith("guest");
   const joinWorldQuery = useJoinWorld(stationId, {
-    enabled: USE_SFU,
+    enabled: true,
     sessionId: tabSessionId,
     guestId: isLoggedIn ? undefined : effectiveUserId,
     guestName: userName,
   });
   const sfuToken = joinWorldQuery.data?.sfuToken ?? null;
   const sfuWsUrl = joinWorldQuery.data?.sfuWsUrl ?? null;
-  const sfuReady = USE_SFU && Boolean(sfuToken && sfuWsUrl);
-  // Enquanto buscamos o token SFU, NÃO subimos o mesh: ele só conectaria no
-  // Pusher pra ser derrubado segundos depois quando o token chega (churn + risco
-  // de listeners órfãos). Só caímos no mesh quando o join resolve sem SFU
-  // utilizável (LiveKit off ou mint falhou).
-  const sfuPending = USE_SFU && joinWorldQuery.isLoading;
+  const sfuReady = Boolean(sfuToken && sfuWsUrl);
 
-  const sfu = useSfuRoom({
+  // LiveKit é o ÚNICO transporte de mídia. `webrtc` é só um alias estável que o
+  // resto do componente já consome (mic/cam/tela/peers), agnóstico da origem.
+  const webrtc = useSfuRoom({
     token: sfuReady ? sfuToken : null,
     wsUrl: sfuReady ? sfuWsUrl : null,
     userId,
     userName,
     userImage,
   });
-  const mesh = useWebRTC({
-    stationId,
-    userId,
-    userName,
-    userImage,
-    enabled: !sfuReady && !sfuPending,
-  });
-  const webrtc = sfuReady ? sfu : mesh;
 
   // Re-roteia o som de área que já está tocando quando a saída muda.
   useEffect(() => {
@@ -539,21 +523,6 @@ export function SpaceGame({
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950">
-      {/* ── Banner de áudio bloqueado (autoplay policy) ── */}
-      {webrtc.audioBlocked && (
-        <div
-          className="absolute top-3 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full
-                     bg-amber-500/90 text-amber-950 text-xs font-medium shadow-lg
-                     animate-pulse cursor-pointer select-none"
-          onClick={() => {
-            // Qualquer gesto dispara o startAudio interno do hook; este click
-            // já é capturado pelo audio-unlock. Mantemos o elemento clicável
-            // como pista visual.
-          }}
-        >
-          🔊 Clique em qualquer lugar para ativar o áudio
-        </div>
-      )}
       {/* ── Banner de reconexão ── */}
       {webrtc.connectionState === "reconnecting" && (
         <div
@@ -843,8 +812,18 @@ export function SpaceGame({
           localImage={userImage}
           peers={webrtc.peers}
           onPiPToggle={setPipActive}
-          sinkId={webrtc.selectedOutput}
         />
+      )}
+
+      {/* Áudio remoto pelo componente pronto: faz track.attach() de todo
+          mic/screen-share-audio remoto e integra com room.canPlaybackAudio/
+          startAudio() (autoplay) — o MESMO caminho do POC. Renderiza um <div>
+          invisível; o <video> dos tiles fica mudo.
+          IMPORTANTE: só montamos com `webrtc.room` JÁ existente — o
+          RoomAudioRenderer chama useEnsureRoom(), que LANÇA se a room for nula e
+          não houver RoomContext. Sem este guard, o mundo crasharia na conexão. */}
+      {!loading && sfuReady && webrtc.room && (
+        <RoomAudioRenderer room={webrtc.room} />
       )}
 
       {/* ── HUD — nick (top-left) + controls (bottom-center) ── */}

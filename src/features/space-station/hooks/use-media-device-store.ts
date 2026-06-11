@@ -6,10 +6,9 @@ import { persist } from "zustand/middleware";
 /**
  * Preferência de dispositivos de mídia do World (mic/câmera/saída).
  *
- * Store ÚNICO compartilhado pelos dois transportes (`use-sfu-room` LiveKit e
- * `use-webrtc` mesh) — antes cada hook tinha seu próprio `useState`, então a
- * escolha se perdia no reload E na troca de transporte (os dois hooks são
- * sempre instanciados em space-game.tsx).
+ * Store ÚNICO da seleção de devices do `use-sfu-room` (LiveKit) — persiste a
+ * escolha entre reloads. (Antes era compartilhado com o mesh `use-webrtc`, hoje
+ * removido; o store seguiu como fonte única da preferência.)
  *
  * `""` = default do sistema. deviceIds são per-browser/per-origin, por isso
  * localStorage (e não banco). Se o device persistido não estiver conectado,

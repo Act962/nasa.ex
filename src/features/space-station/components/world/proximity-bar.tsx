@@ -7,7 +7,7 @@
 
 import { useEffect, useRef } from "react";
 import { Mic, MicOff, X } from "lucide-react";
-import type { RemotePeer } from "../../hooks/use-webrtc";
+import type { RemotePeer } from "../../hooks/use-sfu-room";
 
 interface TileProps {
   name:      string;

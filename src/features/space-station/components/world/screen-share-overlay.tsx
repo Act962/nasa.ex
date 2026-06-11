@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Monitor, X, Maximize2, Minimize2 } from "lucide-react";
-import type { RemotePeer } from "../../hooks/use-webrtc";
+import type { RemotePeer } from "../../hooks/use-sfu-room";
 
 interface Props {
   /** Local screen stream (when I'm sharing) */

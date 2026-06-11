@@ -6,8 +6,8 @@ import {
   X, Minus, Plus, Grip, LayoutGrid, Rows, Columns, Video,
 } from "lucide-react";
 import Image from "next/image";
-import type { RemotePeer } from "../../hooks/use-webrtc";
-import { applySinkId } from "../../utils/media-devices";
+import { VideoTrack, type TrackReference } from "@livekit/components-react";
+import type { RemotePeer } from "../../hooks/use-sfu-room";
 
 type Layout = "grid" | "strip-h" | "strip-v";
 
@@ -41,10 +41,9 @@ interface Props {
   localImage?:       string | null;
   peers:             Map<string, RemotePeer>;
   onPiPToggle?:      (active: boolean) => void;
-  sinkId?:           string;
 }
 
-export function VideoOverlay({ localStream, localScreenStream, localMicOn, localCamOn, localScreenOn, localName, localImage, peers, onPiPToggle, sinkId }: Props) {
+export function VideoOverlay({ localStream, localScreenStream, localMicOn, localCamOn, localScreenOn, localName, localImage, peers, onPiPToggle }: Props) {
   const [prefs, setPrefs] = useState<OverlayPrefs>(DEFAULT_PREFS);
   useEffect(() => { setPrefs(loadPrefs()); }, []);
   const updatePrefs = useCallback((patch: Partial<OverlayPrefs>) => {
@@ -112,10 +111,12 @@ export function VideoOverlay({ localStream, localScreenStream, localMicOn, local
       stream: effectiveLocalCamOn ? effectiveLocalStream : null,
       micOn: localMicOn, camOn: effectiveLocalCamOn,
       isLocal: true, isScreen: (localScreenOn ?? false) && !localCamOn,
+      trackRef: undefined as TrackReference | undefined,
     },
     ...Array.from(peers.values()).map(p => ({
       key: p.userId, name: p.name, image: p.image, stream: p.stream,
       micOn: p.micOn, camOn: p.camOn, isLocal: false, isScreen: false,
+      trackRef: p.cameraTrackRef,
     })),
   ];
 
@@ -185,7 +186,7 @@ export function VideoOverlay({ localStream, localScreenStream, localMicOn, local
         style={{ maxHeight: prefs.layout === "strip-v" ? "70vh" : undefined, overflowY: prefs.layout === "strip-v" ? "auto" : undefined }}
       >
         {tiles.map(({ key, isScreen, ...tile }) => (
-          <VideoTile key={key} {...tile} width={tileW} onPiPToggle={onPiPToggle} isScreen={isScreen} sinkId={sinkId} />
+          <VideoTile key={key} {...tile} width={tileW} onPiPToggle={onPiPToggle} isScreen={isScreen} />
         ))}
       </div>
     </div>
@@ -219,12 +220,11 @@ interface TileProps {
   isScreen?:   boolean;
   width:       number;
   onPiPToggle?: (active: boolean) => void;
-  sinkId?:     string;
+  trackRef?:   TrackReference;
 }
 
-function VideoTile({ name, image, stream, micOn, camOn, isLocal, isScreen, width, onPiPToggle, sinkId }: TileProps) {
+function VideoTile({ name, image, stream, micOn, camOn, isLocal, isScreen, width, onPiPToggle, trackRef }: TileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
   const [pipActive, setPipActive] = useState(false);
 
   const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
@@ -237,6 +237,8 @@ function VideoTile({ name, image, stream, micOn, camOn, isLocal, isScreen, width
   }, [stream, camOn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    // Tile remoto usa <VideoTrack> (que faz o attach) — não tocar no srcObject.
+    if (trackRef) return;
     const el = videoRef.current;
     if (!el) return;
     if (stream && camOn) {
@@ -247,52 +249,13 @@ function VideoTile({ name, image, stream, micOn, camOn, isLocal, isScreen, width
     } else {
       el.srcObject = null;
     }
-  }, [stream, camOn]);
+  }, [stream, camOn, trackRef]);
 
-  // BUG FIX: <audio> separado pra remote peers — toca o áudio independente
-  // do <video> existir/renderizar. Antes o áudio só tocava se camOn=true
-  // (porque o <video> embedded tocava o áudio junto). Resultado: peers com
-  // mic mas sem câmera (cenário do 3º usuário) ficavam mudos.
-  // O <video> agora fica MUTADO sempre — áudio único vem desse <audio>.
-  useEffect(() => {
-    const el = audioRef.current;
-    if (!el || isLocal) return;
-    if (!stream) {
-      el.srcObject = null;
-      return;
-    }
-    if (el.srcObject !== stream) el.srcObject = stream;
-
-    // Autoplay pode ser bloqueado quando o usuário ainda não interagiu com a
-    // página. O mesh (diferente do SFU) não tinha "destrava de áudio": a
-    // rejeição era engolida e nunca retentada, então quem não tinha clicado
-    // ficava sem ouvir o peer — um dos jeitos do bug "um ouve, o outro não".
-    // Aqui, se o play() falhar, religamos no primeiro gesto do usuário.
-    let detachGesture: (() => void) | null = null;
-    el.play().catch(() => {
-      if (detachGesture) return;
-      const onGesture = () => {
-        void el.play().catch(() => {});
-        detachGesture?.();
-        detachGesture = null;
-      };
-      window.addEventListener("pointerdown", onGesture);
-      window.addEventListener("keydown", onGesture);
-      detachGesture = () => {
-        window.removeEventListener("pointerdown", onGesture);
-        window.removeEventListener("keydown", onGesture);
-      };
-    });
-
-    return () => { detachGesture?.(); };
-  }, [stream, isLocal]);
-
-  // Aplica saída de áudio selecionada (setSinkId — feature-detect interno;
-  // browsers sem suporte ignoram silenciosamente).
-  useEffect(() => {
-    if (isLocal || !audioRef.current || !sinkId) return;
-    applySinkId(audioRef.current, sinkId);
-  }, [sinkId, isLocal]);
+  // O áudio remoto NÃO é tocado aqui: sai do <RoomAudioRenderer> (LiveKit faz
+  // track.attach() num <audio> próprio, integrado a room.startAudio()/autoplay).
+  // Estes tiles mostram só VÍDEO (sempre mutado). A seleção de saída de áudio
+  // (output device) é aplicada pelo room.switchActiveDevice("audiooutput") no
+  // use-sfu-room, que alcança os elementos do RoomAudioRenderer.
 
   const handlePiP = useCallback(async () => {
     const el = videoRef.current;
@@ -321,11 +284,20 @@ function VideoTile({ name, image, stream, micOn, camOn, isLocal, isScreen, width
       className="relative rounded-xl overflow-hidden bg-slate-800 border border-white/10 shadow-xl flex-shrink-0"
       style={{ width, height }}
     >
-      {camOn && stream ? (
+      {camOn && trackRef ? (
+        // Peer REMOTO via componente pronto: <VideoTrack> faz track.attach(), o
+        // que liga o adaptiveStream (qualidade/banda conforme a visibilidade do
+        // tile). Encaminha o ref pro PiP; já vem mutado (áudio = RoomAudioRenderer).
+        <VideoTrack
+          trackRef={trackRef}
+          ref={videoRef}
+          className="w-full h-full object-cover"
+        />
+      ) : camOn && stream ? (
         <video
           ref={setVideoRef}
-          // SEMPRE mutado — áudio remoto vem do <audio> separado abaixo.
-          // Sem isso, áudio tocaria duas vezes (video + audio = echo).
+          // Tile LOCAL (srcObject): preview da própria câmera, espelhado. SEMPRE
+          // mutado (o áudio remoto é do <RoomAudioRenderer>; o local não ecoa).
           muted
           autoPlay playsInline
           className="w-full h-full object-cover"
@@ -349,12 +321,6 @@ function VideoTile({ name, image, stream, micOn, camOn, isLocal, isScreen, width
             </div>
           )}
         </div>
-      )}
-
-      {/* Áudio remoto — invisível, toca quando há stream e o peer não é local.
-          Garante que ouvimos o peer mesmo sem câmera ligada. */}
-      {!isLocal && (
-        <audio ref={audioRef} autoPlay playsInline className="hidden" />
       )}
 
       {isScreen && (
