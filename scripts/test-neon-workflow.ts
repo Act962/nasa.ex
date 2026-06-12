@@ -53,7 +53,6 @@ async function main() {
       phone: FAKE_PHONE,
       trackingId: TRACKING_ID,
       statusId: initialStatus.id,
-      organizationId: tracking.organizationId,
     },
   });
   console.log(`✓ Lead criado: ${lead.id} (phone fake ${FAKE_PHONE})`);
@@ -78,28 +77,29 @@ async function main() {
   }
   console.log();
 
-  // Lê todas as mensagens geradas no chat desse lead
-  const messages = await prisma.leadMessage.findMany({
-    where: { leadId: lead.id },
+  // Lê todas as mensagens geradas no chat desse lead. Message não tem
+  // leadId direto — relaciona via Conversation (Conversation.leadId @unique).
+  const messages = await prisma.message.findMany({
+    where: { conversation: { leadId: lead.id } },
     orderBy: { createdAt: "asc" },
-    select: { id: true, fromMe: true, content: true, mediaUrl: true, createdAt: true },
+    select: { id: true, fromMe: true, body: true, mediaUrl: true, createdAt: true },
   });
 
   console.log(`\n=== Timeline (${messages.length} mensagens) ===`);
-  for (const m of messages) {
-    const arrow = m.fromMe ? "←" : "→";
-    const text = (m.content ?? "").slice(0, 140);
-    const t = m.createdAt.toISOString().slice(11, 19);
-    console.log(`[${t}] ${arrow} ${text}${text.length === 140 ? "…" : ""}`);
+  for (const message of messages) {
+    const arrow = message.fromMe ? "←" : "→";
+    const text = (message.body ?? "").slice(0, 140);
+    const time = message.createdAt.toISOString().slice(11, 19);
+    console.log(`[${time}] ${arrow} ${text}${text.length === 140 ? "…" : ""}`);
   }
 
-  // Lê tags aplicadas
-  const leadTags = await prisma.lead.findUnique({
+  // Lê tags aplicadas (Lead.leadTags → LeadTag → tag.name)
+  const leadWithTags = await prisma.lead.findUnique({
     where: { id: lead.id },
-    select: { tags: { select: { name: true } } },
+    select: { leadTags: { select: { tag: { select: { name: true } } } } },
   });
-  console.log(`\n=== Tags (${leadTags?.tags.length ?? 0}) ===`);
-  for (const t of leadTags?.tags ?? []) console.log(`  • ${t.name}`);
+  console.log(`\n=== Tags (${leadWithTags?.leadTags.length ?? 0}) ===`);
+  for (const leadTag of leadWithTags?.leadTags ?? []) console.log(`  • ${leadTag.tag.name}`);
 
   console.log(`\n✓ Lead deixado vivo (id: ${lead.id}) — inspecione em:`);
   console.log(`  https://orbita.nasaex.com/tracking/${TRACKING_ID}/chat/${lead.id}`);
