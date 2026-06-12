@@ -27,7 +27,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   Popover,
@@ -97,8 +96,6 @@ function getStatus(args: {
 }
 
 export function StarsMeter() {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
   const [open, setOpen] = useState(false);
 
   const { data: balance } = useQuery({
@@ -156,38 +153,36 @@ export function StarsMeter() {
                   ? `Pay-per-use — ${consumed.toLocaleString()} Stars no ciclo`
                   : `Stars: ${consumed.toLocaleString()} / ${planLimit.toLocaleString()} (${Math.round(percent)}%)`
               }
-              className={cn(
-                "data-[state=open]:bg-accent",
-                collapsed && "justify-center",
-              )}
+              className="data-[state=open]:bg-accent"
             >
               <Sparkles className={cn("size-4 shrink-0", thresh.color)} />
-              {!collapsed && (
-                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                  <div className="flex items-center justify-between gap-2 text-[11px]">
-                    <span className="text-foreground/80 font-medium truncate">
-                      Stars
-                    </span>
-                    <span className={cn("tabular-nums", thresh.color)}>
-                      {isPayPerUse
-                        ? `${consumed.toLocaleString()}`
-                        : `${Math.round(percent)}%`}
-                    </span>
-                  </div>
-                  {/* Barra de progresso compacta */}
-                  {!isPayPerUse && (
-                    <div className="h-1 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={cn("h-full transition-all", thresh.bg)}
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
-                  )}
+              <div className="flex-1 min-w-0 flex flex-col gap-0.5 group-data-[collapsible=icon]:hidden">
+                <div className="flex items-center justify-between gap-2 text-[11px]">
+                  <span className="text-foreground/80 font-medium truncate">
+                    Stars
+                  </span>
+                  <span className={cn("tabular-nums", thresh.color)}>
+                    {isPayPerUse
+                      ? `${consumed.toLocaleString()}`
+                      : `${Math.round(percent)}%`}
+                  </span>
                 </div>
-              )}
-              {showAlert && !collapsed && (
+                {/* Barra de progresso compacta */}
+                {!isPayPerUse && (
+                  <div className="h-1 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={cn("h-full transition-all", thresh.bg)}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+              {showAlert && (
                 <AlertTriangle
-                  className={cn("size-3 shrink-0", thresh.color)}
+                  className={cn(
+                    "size-3 shrink-0 group-data-[collapsible=icon]:hidden",
+                    thresh.color,
+                  )}
                 />
               )}
             </SidebarMenuButton>
