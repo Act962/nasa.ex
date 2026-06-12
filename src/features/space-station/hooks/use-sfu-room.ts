@@ -406,6 +406,67 @@ export function useSfuRoom({
     setBubblePeers(new Set(peers.keys()));
   }, [peers, bubbleLocked]);
 
+  // ── Áudio gating por proximidade (Fase 2) ────────────────────────────────
+  // Peers fora da bolha física (raio do WorldScene) NÃO ouvem os de dentro
+  // e vice-versa. Implementado via `RemoteTrackPublication.setSubscribed` —
+  // API nativa do LiveKit, ZERO mudança em env/connect/init.
+  //
+  // O WorldScene (world-scene.ts:checkProximity) já dispara os eventos
+  // `space-station:proximity-enter/leave` com o `peerId` do peer alvo.
+  // Aqui apenas escutamos e mantemos o Set autoritativo, depois sincronizamos
+  // o estado de subscription dos audio tracks em sync.
+  const [nearbyPeerIds, setNearbyPeerIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const onEnter = (e: Event) => {
+      const { peerId } = (e as CustomEvent).detail as { peerId: string };
+      if (!peerId) return;
+      setNearbyPeerIds((prev) => {
+        if (prev.has(peerId)) return prev;
+        const next = new Set(prev);
+        next.add(peerId);
+        return next;
+      });
+    };
+    const onLeave = (e: Event) => {
+      const { peerId } = (e as CustomEvent).detail as { peerId: string };
+      if (!peerId) return;
+      setNearbyPeerIds((prev) => {
+        if (!prev.has(peerId)) return prev;
+        const next = new Set(prev);
+        next.delete(peerId);
+        return next;
+      });
+    };
+    window.addEventListener("space-station:proximity-enter", onEnter);
+    window.addEventListener("space-station:proximity-leave", onLeave);
+    return () => {
+      window.removeEventListener("space-station:proximity-enter", onEnter);
+      window.removeEventListener("space-station:proximity-leave", onLeave);
+    };
+  }, []);
+
+  // Sincroniza subscriptions: peer próximo → subscribe audio; longe → unsubscribe.
+  // Roda em todo cliente, então é recíproco (A não ouve B se B não está perto
+  // de A localmente; B também não ouve A pelo mesmo motivo em B).
+  // Vídeo e screen-share NÃO são afetados — só audio tracks.
+  // Depende também de `peers` pra cobrir o caso de peer novo entrando: o
+  // join dispara rebuildPeers, que muda `peers`, e o effect reaplica o
+  // estado correto na track de áudio recém-publicada.
+  useEffect(() => {
+    const room = roomRef.current;
+    if (!room) return;
+    room.remoteParticipants.forEach((participant: RemoteParticipant) => {
+      const accountId = toAccountId(participant.identity);
+      const isNearby = nearbyPeerIds.has(accountId);
+      participant.audioTrackPublications.forEach((pub) => {
+        if (pub.isSubscribed !== isNearby) {
+          pub.setSubscribed(isNearby);
+        }
+      });
+    });
+  }, [nearbyPeerIds, peers]);
+
   // ── Toggle Mic ──────────────────────────────────────────────────────────
   const toggleMic = useCallback(async () => {
     const room = roomRef.current;

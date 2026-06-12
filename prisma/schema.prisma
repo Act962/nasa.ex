@@ -4630,8 +4630,26 @@ model SpaceStation {
   publicModules  StationPublicModule[]
   accessRequests StationAccessRequest[]
   worldEvents    WorldEvent[]
+  chatMessages   StationMessage[]
 
   @@map("space_stations")
+}
+
+/// Chat geral do World: mensagens broadcast pra todos os participantes da
+/// Station. Separado totalmente de LeadMessage (que serve o chat 1:1 do
+/// Cutucar via resolvePeerAsLead → WhatsApp).
+model StationMessage {
+  id          String       @id @default(cuid())
+  stationId   String       @map("station_id")
+  station     SpaceStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  senderId    String       @map("sender_id")
+  senderName  String       @map("sender_name")
+  senderImage String?      @map("sender_image")
+  body        String       @db.Text
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  @@index([stationId, createdAt])
+  @@map("station_messages")
 }
 
 model StationAccessRequest {

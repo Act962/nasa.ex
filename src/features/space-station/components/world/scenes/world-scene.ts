@@ -166,6 +166,22 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
   private animTimer = 0;
   private facingDir: "down" | "up" | "left" | "right" = "down";
 
+  // ─── Touch joystick virtual (mobile) ──────────────────────────
+  // Permite mover o avatar arrastando o dedo na tela: pointerdown captura
+  // posição inicial; pointermove calcula delta; se delta > DEADZONE, o
+  // update() lê o vetor normalizado e converte em up/down/left/right (mesmo
+  // pipeline do teclado). Tap rápido (< DEADZONE) não move — preserva o
+  // clique em avatares remotos (CutucarPopover) e cliques em áreas.
+  private readonly TOUCH_DEADZONE = 18; // pixels (screen-space)
+  private touchJoystick: {
+    pointerId: number | null;
+    startX: number;
+    startY: number;
+    curX: number;
+    curY: number;
+    active: boolean; // true quando passou da deadzone
+  } = { pointerId: null, startX: 0, startY: 0, curX: 0, curY: 0, active: false };
+
   // ─── Proximity detection (for WebRTC) ────────────────────────
   private readonly PROXIMITY_RADIUS = T * 6; // ~192px — ~6 tiles
   private nearbyPeers: Set<string> = new Set(); // currently in range
@@ -545,6 +561,55 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
       }
       void ptr;
     });
+
+    // ── Touch joystick virtual (mobile drag-to-move) ─────────────
+    // Funciona em qualquer pointer (touch ou mouse). Se o user arrasta o
+    // dedo mais de TOUCH_DEADZONE pixels, ativa o joystick e o update()
+    // converte o vetor em movimento. Tap curto (sem ultrapassar a
+    // deadzone) NÃO ativa — fica reservado pra clique em avatar/área.
+    this.input.on("pointerdown", (ptr: Phaser.Input.Pointer) => {
+      // Não capturar pointers secundários (pinch zoom usa pointer1+pointer2).
+      if (this.input.pointer1.isDown && this.input.pointer2.isDown) return;
+      // Não iniciar joystick se clicou em GameObject interativo (avatar
+      // remoto, área). Phaser passa o GameObject como propriedade extra
+      // no event, mas aqui só checamos via hitTest pra evitar conflict.
+      const hits = this.input.manager.hitTest(
+        ptr,
+        this.children.list as Phaser.GameObjects.GameObject[],
+        this.cameras.main,
+      ) as Phaser.GameObjects.GameObject[];
+      const hitInteractive = hits.some((h) => h.input?.enabled);
+      if (hitInteractive) return;
+      this.touchJoystick = {
+        pointerId: ptr.id,
+        startX: ptr.x,
+        startY: ptr.y,
+        curX: ptr.x,
+        curY: ptr.y,
+        active: false,
+      };
+    });
+
+    this.input.on("pointermove", (ptr: Phaser.Input.Pointer) => {
+      if (this.touchJoystick.pointerId !== ptr.id) return;
+      this.touchJoystick.curX = ptr.x;
+      this.touchJoystick.curY = ptr.y;
+      const dx = ptr.x - this.touchJoystick.startX;
+      const dy = ptr.y - this.touchJoystick.startY;
+      if (!this.touchJoystick.active && Math.hypot(dx, dy) > this.TOUCH_DEADZONE) {
+        this.touchJoystick.active = true;
+      }
+    });
+
+    const resetJoystick = (ptr: Phaser.Input.Pointer) => {
+      if (this.touchJoystick.pointerId === ptr.id) {
+        this.touchJoystick = {
+          pointerId: null, startX: 0, startY: 0, curX: 0, curY: 0, active: false,
+        };
+      }
+    };
+    this.input.on("pointerup",   resetJoystick);
+    this.input.on("pointerupoutside", resetJoystick);
 
     // ── Keyboard zoom  +  /  - ────────────────────────────────────
     this.input.keyboard!.on("keydown-PLUS", () =>
@@ -4984,6 +5049,30 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
         .setDepth(20)
         .setScale(fw === 32 ? 1.5 : 0.5);
 
+      // Feature Cutucar: clique no sprite remoto dispara CustomEvent que o
+      // React (space-game.tsx) ouve pra abrir o CutucarPopover ancorado nas
+      // coordenadas de tela. Lê nameText.text no momento do clique (em vez de
+      // capturar no closure) pra refletir mudanças de nome em tempo real.
+      spr.setInteractive({ useHandCursor: true });
+      spr.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+        const canvas = this.game.canvas;
+        const rect = canvas.getBoundingClientRect();
+        // Escala CSS do canvas (responsive) vs resolução interna do Phaser:
+        // pointer.x é em coords internas, dividir pelo ratio pra screen-space.
+        const scaleX = rect.width  / canvas.width;
+        const scaleY = rect.height / canvas.height;
+        window.dispatchEvent(
+          new CustomEvent("space-station:peer-click", {
+            detail: {
+              peerId: userId,
+              peerName: entry.nameText?.text ?? "",
+              screenX: rect.left + pointer.x * scaleX,
+              screenY: rect.top  + pointer.y * scaleY,
+            },
+          }),
+        );
+      });
+
       entry.sprite = spr;
       entry.loadedSpriteUrl = cacheKey;
       entry.pendingSpriteUrl = null;
@@ -5174,11 +5263,26 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
         ae.tagName === "TEXTAREA" ||
         ae.tagName === "SELECT" ||
         ae.isContentEditable);
-    const up = !typing && (this.cursors.up.isDown || this.wasd.up.isDown);
-    const down = !typing && (this.cursors.down.isDown || this.wasd.down.isDown);
-    const left = !typing && (this.cursors.left.isDown || this.wasd.left.isDown);
+    // ── Joystick virtual (touch drag) — converte delta em direções ──
+    // Se delta horizontal/vertical passa de THRESHOLD (proporção da
+    // deadzone), considera "pressionando" aquela direção. Diagonais
+    // funcionam porque H e V são checados independentemente.
+    let touchUp = false, touchDown = false, touchLeft = false, touchRight = false;
+    if (this.touchJoystick.active && !typing) {
+      const dx = this.touchJoystick.curX - this.touchJoystick.startX;
+      const dy = this.touchJoystick.curY - this.touchJoystick.startY;
+      const TH = this.TOUCH_DEADZONE * 0.5;
+      if (dx >  TH) touchRight = true;
+      if (dx < -TH) touchLeft  = true;
+      if (dy >  TH) touchDown  = true;
+      if (dy < -TH) touchUp    = true;
+    }
+
+    const up = !typing && (this.cursors.up.isDown || this.wasd.up.isDown || touchUp);
+    const down = !typing && (this.cursors.down.isDown || this.wasd.down.isDown || touchDown);
+    const left = !typing && (this.cursors.left.isDown || this.wasd.left.isDown || touchLeft);
     const right =
-      !typing && (this.cursors.right.isDown || this.wasd.right.isDown);
+      !typing && (this.cursors.right.isDown || this.wasd.right.isDown || touchRight);
     const moving = up || down || left || right;
 
     if (this.lpcSprite) {
