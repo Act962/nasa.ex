@@ -286,6 +286,11 @@ export function WorldSettingsPanel({
       {
         onSuccess: () => {
           markAvatarDirty(false);
+          // Força re-render do canvas Phaser com o avatar atualizado — sem
+          // isso, o WorldScene continua mostrando o sprite antigo até o user
+          // dar F5. O onChange dispara onApply durante edição, mas o Salvar
+          // pulava esse passo.
+          onApply({ ...worldConfig, mapData: buildMapData() }, avatar);
           onDone?.();
         },
         onError: (err) => {

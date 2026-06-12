@@ -378,7 +378,7 @@ function CustomUploadTab({
           {state === "done" && (
             <>
               <p className="text-[10px] text-green-400 text-center">
-                Sprite carregado! Clique em &ldquo;Terminar&rdquo; para salvar.
+                Sprite ativo. Clique em &ldquo;Trocar arquivo&rdquo; pra substituir.
               </p>
               <button onClick={onReset} className="w-full py-2 rounded-xl bg-white/6 hover:bg-white/10 text-[11px] text-slate-300 border border-white/8 transition-all">
                 Trocar arquivo
@@ -602,11 +602,22 @@ export function WokaCustomizer({ avatarConfig, onChange, onClose, externalTab }:
       setCustomPreviewUrl(url);
       setSelectedUrl(url);
       setCustomState("done");
+
+      // Auto-Terminar: o user fez upload do sprite custom — intenção explícita.
+      // Aplica no preview do mundo + marca avatarDirty pro Salvar do painel
+      // gravar tudo. NÃO fecha o painel (keepOpen=true) — onClose seria
+      // requestClose, que dispararia o modal "Salvar alterações?" confuso.
+      // User continua vendo o sprite ativo no preview e clica Salvar no rodapé.
+      handleFinish(url, true);
     } catch (err) {
       setCustomState("error");
       setCustomError(err instanceof Error ? err.message : "Falha no upload.");
       setSelectedUrl(initialUrl);
     }
+    // handleFinish é redefinido a cada render mas usá-lo aqui sem dep não causa
+    // bug — handleCustomUpload só roda em resposta a click, depois do render
+    // que declarou a versão atual de handleFinish.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialUrl]);
 
   const handleCustomReset = useCallback(() => {
@@ -631,16 +642,23 @@ export function WokaCustomizer({ avatarConfig, onChange, onClose, externalTab }:
     setSelectedUrl(t.url);
   }, []);
 
-  const handleFinish = () => {
-    // Se a URL selecionada é um blob: local (sprite gerado mas não enviado ao servidor),
+  // Aplica a config atual no preview (onChange marca avatarDirty no parent).
+  // `urlOverride` permite chamar logo após um setSelectedUrl sem ler valor stale.
+  // `keepOpen=true` é usado pelo auto-Terminar pós-upload pra NÃO fechar o
+  // painel ("onClose" é wired a `requestClose` do WorldSettingsPanel, que
+  // fecha o painel inteiro e abre o modal "Salvar?"). Pra upload custom o
+  // user só quer ver o sprite aplicado e continuar mexendo.
+  const handleFinish = (urlOverride?: string, keepOpen = false) => {
+    const finalUrl = urlOverride ?? selectedUrl;
+    // Se a URL é um blob: local (sprite gerado mas não enviado ao servidor),
     // o usuário precisa clicar em "Fazer Upload" antes de finalizar.
-    if (selectedUrl.startsWith("blob:")) {
+    if (finalUrl.startsWith("blob:")) {
       alert("Clique em 'Fazer Upload' antes de finalizar para salvar o sprite personalizado.");
       return;
     }
     finishedRef.current = true;
     onChange({
-      lpcSpritesheetUrl: selectedUrl,
+      lpcSpritesheetUrl: finalUrl,
       lpcCharacterName:  undefined,
       wokaEyesUrl:       overlays.eyes,
       wokaHairUrl:       overlays.hair,
@@ -649,7 +667,7 @@ export function WokaCustomizer({ avatarConfig, onChange, onClose, externalTab }:
       wokaAccessoryUrl:  overlays.accessory,
       avatarScale:       avatarScale,
     });
-    onClose();
+    if (!keepOpen) onClose();
   };
 
   const handleReset = () => {

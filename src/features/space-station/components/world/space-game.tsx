@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 const EmpresasPanel = dynamic(() => import("./empresas-panel"), { ssr: false });
-import { X, Globe, Settings, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { X, Globe, Settings, ZoomIn, ZoomOut, Maximize2, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { StationWorldConfig, AvatarConfig, AreaType } from "../../types";
 import { AREA_TYPE_META } from "../../types";
@@ -14,6 +14,9 @@ import { MediaSettingsPanel } from "./media-settings-panel";
 import { VideoOverlay } from "./video-overlay";
 import { BubbleAppsPanel, type BubbleApp } from "./bubble-apps-panel";
 import { BubbleChatPanel } from "./bubble-chat-panel";
+import { CutucarPopover } from "./cutucar-popover";
+import { StationChatPanel } from "./station-chat-panel";
+import { useStationChat } from "../../hooks/use-station-chat";
 import { toast } from "sonner";
 import { ProximityBar } from "./proximity-bar";
 import { ConnectPeoplePanel } from "./connect-people-panel";
@@ -160,6 +163,17 @@ export function SpaceGame({
   const [empresasOpen, setEmpresasOpen] = useState(false);
   const [chatPeerId, setChatPeerId] = useState<string | null>(null);
   const [chatPeerName, setChatPeerName] = useState<string | null>(null);
+  // Feature Cutucar: estado do popover ancorado ao avatar clicado. O CustomEvent
+  // `space-station:peer-click` vem do WorldScene (sprite remoto) com coords
+  // screen-space pra ancorar o popover no canvas.
+  const [cutucar, setCutucar] = useState<{
+    peerId: string;
+    peerName: string;
+    anchorX: number;
+    anchorY: number;
+  } | null>(null);
+  // Chat geral da Station (drawer + botão flutuante com badge unread).
+  const [stationChatOpen, setStationChatOpen] = useState(false);
   const [areaToast, setAreaToast] = useState<{
     id: string;
     type: AreaType;
@@ -496,6 +510,29 @@ export function SpaceGame({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [worldConfig, avatarConfig, stationId]);
 
+  // Feature Cutucar: WorldScene dispara `space-station:peer-click` quando o
+  // user clica num sprite remoto. Capturamos as coords (já em screen-space) e
+  // populamos o state que renderiza o `CutucarPopover` ancorado nelas.
+  useEffect(() => {
+    function onPeerClick(e: Event) {
+      const detail = (e as CustomEvent).detail as {
+        peerId: string;
+        peerName: string;
+        screenX: number;
+        screenY: number;
+      };
+      setCutucar({
+        peerId: detail.peerId,
+        peerName: detail.peerName,
+        anchorX: detail.screenX,
+        anchorY: detail.screenY,
+      });
+    }
+    window.addEventListener("space-station:peer-click", onPeerClick);
+    return () =>
+      window.removeEventListener("space-station:peer-click", onPeerClick);
+  }, []);
+
   function handleApply(
     newWorldConfig: StationWorldConfig,
     newAvatarConfig: AvatarConfig,
@@ -800,6 +837,26 @@ export function SpaceGame({
         }}
       />
 
+      {/* ── Cutucar popover (ancorado no avatar clicado) ── */}
+      {cutucar && (
+        <CutucarPopover
+          peerId={cutucar.peerId}
+          peerName={cutucar.peerName}
+          anchorX={cutucar.anchorX}
+          anchorY={cutucar.anchorY}
+          onClose={() => setCutucar(null)}
+        />
+      )}
+
+      {/* ── Botão flutuante "Chat geral" + drawer ── */}
+      <StationChatButtonAndPanel
+        stationId={stationId}
+        open={stationChatOpen}
+        onOpen={() => setStationChatOpen(true)}
+        onClose={() => setStationChatOpen(false)}
+      />
+
+
       {/* ── Video overlay (bottom-right) ── */}
       {!loading && (
         <VideoOverlay
@@ -986,5 +1043,46 @@ export function SpaceGame({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Isola o hook `useStationChat` (que cria sua própria conexão Pusher e
+ * subscreve a um channel) em um sub-componente. Assim a conexão só sobe
+ * quando o World tá montado, e o badge unread vive perto do botão.
+ */
+function StationChatButtonAndPanel({
+  stationId,
+  open,
+  onOpen,
+  onClose,
+}: {
+  stationId: string;
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+}) {
+  const { unreadCount } = useStationChat({ stationId, isOpen: open });
+  return (
+    <>
+      {/* Botão flutuante: bottom-left do canvas pra não conflitar com a Bolha
+          (canto inferior direito) nem com Video Overlay (também à direita). */}
+      {!open && (
+        <button
+          onClick={onOpen}
+          title="Chat geral da Station"
+          className="absolute bottom-20 left-4 z-30 pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-full bg-indigo-600/90 hover:bg-indigo-500 text-white text-xs font-semibold shadow-2xl shadow-indigo-900/40 border border-indigo-400/30 transition-all"
+        >
+          <MessageCircle className="h-3.5 w-3.5" />
+          Chat geral
+          {unreadCount > 0 && (
+            <span className="text-[10px] bg-rose-500 text-white px-1.5 py-0.5 rounded-full font-bold min-w-[18px] text-center">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
+        </button>
+      )}
+      <StationChatPanel stationId={stationId} open={open} onClose={onClose} />
+    </>
   );
 }
