@@ -102,17 +102,33 @@ export const resolvePeerAsLead = base
       });
     });
 
-    // 6) Upsert Conversation
-    const conversation = await prisma.conversation.upsert({
-      where: { leadId_trackingId: { leadId: lead.id, trackingId } },
-      create: {
-        trackingId,
-        leadId: lead.id,
-        remoteJid: `${peerPhone}@s.whatsapp.net`,
-      },
-      update: {},
-      select: { id: true },
+    // 6) Resolve Conversation — idempotente por (remoteJid, trackingId) E
+    // (leadId, trackingId). Se já existe Conversation com o mesmo remoteJid
+    // mas linkada a outro Lead (cenário: phone trocou de Lead), atualizamos
+    // o leadId em vez de tentar criar uma nova e violar a constraint unique.
+    const remoteJid = `${peerPhone}@s.whatsapp.net`;
+    let conversation = await prisma.conversation.findUnique({
+      where: { remoteJid_trackingId: { remoteJid, trackingId } },
+      select: { id: true, leadId: true },
     });
+    if (conversation) {
+      // Re-aponta pro Lead atual se necessário (mantém histórico, troca dono).
+      if (conversation.leadId !== lead.id) {
+        await prisma.conversation.update({
+          where: { id: conversation.id },
+          data: { leadId: lead.id },
+        });
+      }
+    } else {
+      conversation = await prisma.conversation.create({
+        data: {
+          trackingId,
+          leadId: lead.id,
+          remoteJid,
+        },
+        select: { id: true, leadId: true },
+      });
+    }
 
     return {
       leadId: lead.id,
