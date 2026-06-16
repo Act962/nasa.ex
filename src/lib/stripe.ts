@@ -93,6 +93,16 @@ export interface CreateCheckoutParams {
 export async function createCheckoutSession(
   params: CreateCheckoutParams,
 ): Promise<{ url: string; sessionId: string }> {
+  // Subscriptions agora vivem 100% no fluxo do better-auth
+  // (`authClient.subscription.upgrade()` / `billingPortal()`). Criar sub
+  // por aqui ignorava a sub existente do usuário e gerava cobrança dupla
+  // em upgrades. Endpoint mantido só pra topup avulso (`mode=payment`).
+  if (params.mode === "subscription") {
+    throw new Error(
+      "Subscriptions de plano migraram pro better-auth. Use authClient.subscription.upgrade() ou redirecione pra /subscription/confirm?plan=<slug>.",
+    );
+  }
+
   const stripe = getStripe();
 
   const hourBucket = Math.floor(Date.now() / (60 * 60 * 1000));
