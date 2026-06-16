@@ -105,10 +105,10 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null }: P
   }, [page.slug, isDraft]);
 
   const handleLinkClick = (link: LinnkerLink) => {
-    // In-Chat Fallback — quando o WhatsApp da org está banido e o link
-    // aponta pra wa.me, redireciona pra página pública In-Chat. Lead não
-    // percebe diferença visual.
-    if (inChatUrl && isWhatsAppUrl(link.url)) {
+    // In-Chat Fallback — só vale pra links do tipo CHAT (que apontam pro
+    // WhatsApp da própria org). Links EXTERNAL com URL de WhatsApp são
+    // do owner pra outro número e devem passar batido.
+    if (inChatUrl && link.type === "CHAT" && isWhatsAppUrl(link.url)) {
       window.location.href = inChatUrl;
       return;
     }
