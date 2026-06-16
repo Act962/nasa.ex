@@ -1,6 +1,10 @@
 import "server-only";
 import prisma from "@/lib/prisma";
 import { validWhatsappPhone } from "@/http/uazapi/valid-whatsapp-phone";
+import {
+  requireUazapiToken,
+  requireUazapiBaseUrl,
+} from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 
 /**
  * Resultado discriminado da validação de WhatsApp de um lead.
@@ -74,8 +78,8 @@ export async function validateLeadWhatsapp(
 
   try {
     const [result] = await validWhatsappPhone({
-      token: instance.apiKey,
-      baseUrl: instance.baseUrl,
+      token: requireUazapiToken(instance.apiKey),
+      baseUrl: requireUazapiBaseUrl(instance.baseUrl),
       data: { numbers: [digits] },
     });
     return result?.isInWhatsapp ? { status: "valid" } : { status: "invalid" };

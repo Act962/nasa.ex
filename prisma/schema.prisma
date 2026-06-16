@@ -2101,12 +2101,19 @@ enum WhatsAppProvider {
 }
 
 model WhatsAppInstance {
-  id             String                 @id @default(cuid())
-  instanceName   String                 @map("instance_name")
-  instanceId     String                 @unique @map("instance_id")
-  apiKey         String                 @unique @map("api_key") // Token
-  baseUrl        String                 @map("base_url") // URL
-  provider       WhatsAppProvider       @default(UAZAPI)
+  id           String @id @default(cuid())
+  instanceName String @map("instance_name")
+  // ── Credenciais Uazapi (legado) ──────────────────────────────────────
+  // NULLABLE desde que o provider passou a ser escolhido na criação: uma
+  // instância `META_CLOUD` nasce sem essas 3 colunas (não há instância
+  // Uazapi por trás). Para `provider == UAZAPI` continuam sempre
+  // preenchidas. Code-paths Uazapi devem narrowar via
+  // `requireUazapiCredentials(instance)` antes de usá-las. `@unique`
+  // segue válido: Postgres permite múltiplos NULL na mesma coluna unique.
+  instanceId String?          @unique @map("instance_id")
+  apiKey     String?          @unique @map("api_key") // Token
+  baseUrl    String?          @map("base_url") // URL
+  provider   WhatsAppProvider @default(UAZAPI)
   status         WhatsAppInstanceStatus @default(DISCONNECTED)
   qrCode         String?                @map("qr_code") // Base64 do QR Code
   phoneNumber    String?                @map("phone_number") // Número conectado

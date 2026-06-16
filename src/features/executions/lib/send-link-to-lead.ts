@@ -24,6 +24,7 @@ import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { sendText } from "@/http/uazapi/send-text";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import {
   type CreatedMessageProps,
@@ -106,7 +107,7 @@ export async function sendLinkToLead(
     if (!instance) {
       throw new NonRetriableError("WhatsApp instance not found for tracking");
     }
-    const response = await sendText(instance.apiKey, {
+    const response = await sendText(requireUazapiToken(instance.apiKey), {
       text: params.body,
       number: lead.phone,
       delay: 2000,

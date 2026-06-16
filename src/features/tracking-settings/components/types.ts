@@ -1,6 +1,13 @@
-import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
+import {
+  WhatsAppInstanceStatus,
+  WhatsAppProvider,
+} from "@/generated/prisma/enums";
 
 // Instance Types
+// `baseUrl`/`apiKey`/`instanceId` são credenciais Uazapi — sempre presentes
+// quando `provider === UAZAPI`. Para `META_CLOUD` o backend devolve null;
+// a camada de UI coalesce pra "" porque as ações que os consomem (QR connect,
+// status, disconnect) são gateadas a Uazapi.
 export interface Instance {
   id: string;
   instanceName: string;
@@ -8,6 +15,7 @@ export interface Instance {
   apiKey: string;
   status: WhatsAppInstanceStatus;
   instanceId: string;
+  provider?: WhatsAppProvider;
   phoneNumber?: string | null;
   profileName?: string | null;
   isBusiness?: boolean;

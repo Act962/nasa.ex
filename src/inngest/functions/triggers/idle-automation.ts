@@ -2,6 +2,7 @@ import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { NonRetriableError } from "inngest";
 import { sendText } from "@/http/uazapi/send-text";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { persistOutboundMessage } from "@/features/tracking-chat-ai/lib/persist";
 import { renderIdleTemplate } from "@/features/tracking-settings/lib/idle-template";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
@@ -394,9 +395,9 @@ async function executeIdleActions(args: {
           minutesWaiting,
         });
         const res = await sendText(
-          instance.apiKey,
+          requireUazapiToken(instance.apiKey),
           { number: lead.phone, text: rendered, delay: 0 },
-          instance.baseUrl,
+          instance.baseUrl ?? undefined,
         );
         if (lead.conversation?.id) {
           await persistOutboundMessage({
