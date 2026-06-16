@@ -1,26 +1,21 @@
 /**
  * POST /api/stripe/webhook
  *
- * Endpoint dedicado ao NASA Route (cursos) + topup legacy de Stars + refund/
- * dispute. Subscriptions de plano são tratadas pelo webhook do better-auth
- * em `/api/auth/stripe/webhook` — não duplicar handlers aqui.
+ * Recebe eventos do Stripe e atualiza o banco de dados da plataforma NASA.
  *
  * Configurar no Stripe Dashboard:
  *   Endpoint URL: https://seudominio.com/api/stripe/webhook
- *   Secret: STRIPE_COURSE_WEBHOOK_SECRET
  *   Eventos a ouvir:
  *     - checkout.session.completed
- *     - payment_intent.succeeded     (async methods: PIX/Boleto)
- *     - checkout.session.expired
- *     - charge.refunded
- *     - charge.dispute.created
+ *     - invoice.payment_succeeded   (renovação de plano)
+ *     - customer.subscription.deleted (cancelamento)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { constructWebhookEvent } from "@/lib/stripe";
 import prisma from "@/lib/prisma";
-import { purchaseTopUp } from "@/features/stars/lib/star-service";
+import { purchaseTopUp, runMonthlyCycle } from "@/features/stars/lib/star-service";
 import { inngest } from "@/inngest/client";
 import {
   finalizeStripePurchaseInTx,
@@ -96,18 +91,41 @@ export async function POST(req: NextRequest) {
         // Este webhook não credita mais Stars do novo fluxo de gateway.
 
         // ── Legacy flow (organizationId in metadata) ──────────────────────────
-        // Subscriptions de plano migraram pro better-auth (webhook próprio em
-        // `/api/auth/stripe/webhook`). Aqui só sobra topup legacy de Stars.
         if (!organizationId) break;
 
-        if (itemType === "topup") {
+        if (itemType === "plan") {
+          // Busca o plano pelo slug e associa à org
+          const plan = await prisma.plan.findUnique({ where: { slug: itemSlug } });
+          if (plan) {
+            const hasNoStars = (await prisma.organization.findUnique({
+              where: { id: organizationId },
+              select: { starsBalance: true, starsCycleStart: true },
+            }))?.starsCycleStart === null;
+
+            await prisma.organization.update({
+              where: { id: organizationId },
+              data: {
+                planId: plan.id,
+                // Iniciar ciclo se for a primeira vez
+                ...(hasNoStars && { starsCycleStart: new Date() }),
+              },
+            });
+
+            // Creditar stars do plano se for primeiro ciclo
+            if (hasNoStars) {
+              await runMonthlyCycle(organizationId);
+            }
+          }
+        } else if (itemType === "topup") {
           // itemSlug é o packageId
           await purchaseTopUp(organizationId, itemSlug);
+        }
 
+        if (itemType === "plan" || itemType === "topup") {
           const posthog = getPostHogClient();
           posthog.capture({
             distinctId: organizationId,
-            event: "stars_topup_purchased",
+            event: itemType === "plan" ? "plan_purchased" : "stars_topup_purchased",
             properties: {
               organization_id: organizationId,
               item_type: itemType,
@@ -294,9 +312,24 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      // Subscriptions (invoice.payment_succeeded, customer.subscription.*)
-      // são tratadas pelo webhook do better-auth em `/api/auth/stripe/webhook`.
-      // Não duplicar handlers aqui.
+      // ── Renovação de assinatura (nova fatura paga) ───────────────────────────
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object;
+        const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
+        // TODO: mapear customerId → organizationId após salvar stripeCustomerId na org
+        // Por ora, apenas loga
+        console.log("[stripe/webhook] invoice paid for customer:", customerId);
+        break;
+      }
+
+      // ── Cancelamento de assinatura ───────────────────────────────────────────
+      case "customer.subscription.deleted": {
+        const sub = event.data.object;
+        const customerId = typeof sub.customer === "string" ? sub.customer : null;
+        // TODO: remover plano da org ao cancelar
+        console.log("[stripe/webhook] subscription cancelled for customer:", customerId);
+        break;
+      }
 
       default:
         // Ignorar eventos não tratados

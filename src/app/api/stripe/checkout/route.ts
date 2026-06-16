@@ -1,12 +1,11 @@
 /**
  * POST /api/stripe/checkout
  *
- * Cria uma Stripe Checkout Session para compras one-shot de Stars top-up.
- * Subscriptions de plano NÃO passam mais por aqui — vivem no fluxo do
- * better-auth (`authClient.subscription.upgrade()` / `billingPortal()`).
- * Detalhes em [docs/subscription-org-model.md].
+ * Cria uma Stripe Checkout Session para:
+ *  - Assinar um plano (mode=subscription)
+ *  - Comprar um pacote de Stars top-up (mode=payment)
  *
- * Body: { priceId, mode="payment", itemType="topup", itemSlug, cancelPath? }
+ * Body: { priceId, mode, itemType, itemSlug, cancelPath? }
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -19,8 +18,8 @@ import { getPostHogClient } from "@/lib/posthog-server";
 
 const BodySchema = z.object({
   priceId:    z.string(),
-  mode:       z.literal("payment"),
-  itemType:   z.literal("topup"),
+  mode:       z.enum(["subscription", "payment"]),
+  itemType:   z.enum(["plan", "topup"]),
   itemSlug:   z.string(),
   cancelPath: z.string().optional(),
 });
@@ -56,8 +55,9 @@ export async function POST(req: NextRequest) {
 
   // ── Build URLs ──────────────────────────────────────────────────────────────
   const origin = req.nextUrl.origin;
-  const successUrl = `${origin}/integrations?topup=1&session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${origin}${cancelPath ?? "/integrations"}`;
+  const successPath = itemType === "plan" ? "/settings/plan?success=1" : "/integrations?topup=1";
+  const successUrl = `${origin}${successPath}&session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl  = `${origin}${cancelPath ?? (itemType === "plan" ? "/settings/plan" : "/integrations")}`;
 
   // ── Create session ──────────────────────────────────────────────────────────
   try {

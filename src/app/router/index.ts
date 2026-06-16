@@ -37,6 +37,7 @@ import { sidebarPrefsRouter } from "./sidebar-prefs";
 import { spacePointRouter } from "./space-point";
 import { userRouter } from "./user";
 import { publicRouter } from "./public";
+import { plansRouter } from "./plans";
 import { paymentRouter } from "./payment";
 import { orgProjectsRouter } from "./org-projects";
 import { clientPortalRouter } from "./client-portal";
@@ -111,6 +112,7 @@ export const router = {
   spacePoint: spacePointRouter,
   user: userRouter,
   public: publicRouter,
+  plans: plansRouter,
   payment: paymentRouter,
   orgProjects: orgProjectsRouter,
   clientPortal: clientPortalRouter,
