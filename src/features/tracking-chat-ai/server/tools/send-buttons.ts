@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { sendButtons } from "@/http/uazapi/send-menu";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { persistOutboundMessage } from "../../lib/persist";
 import type { AgentContext } from "../../lib/context";
 
@@ -40,7 +41,7 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
 
       try {
         const result = await sendButtons(
-          ctx.instance.apiKey,
+          requireUazapiToken(ctx.instance.apiKey),
           {
             number: ctx.lead.phone,
             text: preset.bodyText,
@@ -51,7 +52,7 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
             readchat: true,
             readmessages: true,
           },
-          ctx.instance.baseUrl,
+          ctx.instance.baseUrl ?? undefined,
         );
 
         const summary = buttons.map((b) => `• ${b.text}`).join("\n");

@@ -12,6 +12,10 @@ import {
 } from "@/features/tracking-chat/lib/providers/meta-credentials";
 import { clearMetaPhoneNumberIdLookupCache } from "@/features/tracking-chat/lib/get-cached-tracking-by-meta-phone-number-id";
 import { invalidateOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
+import { createInstance } from "@/http/uazapi/admin/create-instance";
+import { configureWebhook } from "@/http/uazapi/configure-webhook";
+import { deleteInstance } from "@/http/uazapi/delete-instance";
+import { disconnectInstance } from "@/http/uazapi/disconnect-instance";
 import z from "zod";
 
 /**
@@ -129,6 +133,11 @@ export const setProviderSettings = base
         organizationId: true,
         provider: true,
         phoneNumber: true,
+        instanceName: true,
+        profileName: true,
+        instanceId: true,
+        apiKey: true,
+        baseUrl: true,
         metaAccessToken: true,
         metaPhoneNumberId: true,
         metaAppSecret: true,
@@ -173,6 +182,9 @@ export const setProviderSettings = base
 
     const updateData: {
       provider?: WhatsAppProvider;
+      apiKey?: string | null;
+      baseUrl?: string | null;
+      instanceId?: string | null;
       metaAccessToken?: string | null;
       metaPhoneNumberId?: string | null;
       metaAppSecret?: string | null;
@@ -198,6 +210,88 @@ export const setProviderSettings = base
       Object.assign(updateData, encryptMetaCredentialsInput(credentialsInput));
     }
 
+    // ── Switch META_CLOUD → UAZAPI: provisão Uazapi sob demanda ───────
+    // Quando o cliente vira o RadioGroup pra UAZAPI e a row não tem as
+    // credenciais Uazapi (caso típico: instância nasceu com `provider=
+    // META_CLOUD`, sem chamar a Uazapi no `create.ts`), provisionamos
+    // aqui — chamando o admin `createInstance` + `configureWebhook` com
+    // o `UAZAPI_TOKEN`. Idempotente: se já tem credenciais, reaproveita.
+    //
+    // Se a Uazapi falhar (rede, token admin inválido, quota), NÃO trocamos
+    // o provider — devolvemos BAD_REQUEST com mensagem clara pro operador
+    // tentar de novo. Isso evita o estado inconsistente onde
+    // `provider=UAZAPI` mas a row segue sem `apiKey`/`baseUrl`/`instanceId`.
+    if (
+      input.provider === "UAZAPI" &&
+      instance.provider !== WhatsAppProvider.UAZAPI &&
+      (!instance.apiKey || !instance.baseUrl || !instance.instanceId)
+    ) {
+      try {
+        const responseData = await createInstance({
+          data: {
+            name: instance.instanceName,
+            systemName: instance.profileName ?? undefined,
+          },
+          token: process.env.UAZAPI_TOKEN!,
+          baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
+        });
+
+        if (!responseData.response) {
+          throw new Error("Uazapi não devolveu instância válida");
+        }
+
+        await configureWebhook({
+          token: responseData.token,
+          data: {
+            url: `${process.env.NEXT_PUBLIC_APP_URL}/api/chat/webhook?trackingId=${input.trackingId}`,
+            enabled: true,
+            events: ["messages", "connection", "labels", "chat_labels"],
+            action: "add",
+            excludeMessages: ["wasSentByApi", "isGroupYes"],
+          },
+        });
+
+        updateData.apiKey = responseData.token;
+        updateData.baseUrl = process.env.NEXT_PUBLIC_UAZAPI_BASE_URL!;
+        updateData.instanceId = responseData.instance.id;
+      } catch (error) {
+        console.error("[provider-settings] uazapi_provision_failed", {
+          trackingId: input.trackingId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw errors.BAD_REQUEST({
+          message:
+            "Falha ao provisionar instância Uazapi. Tente novamente em alguns segundos ou contate o suporte.",
+        });
+      }
+    }
+
+    // ── Switch UAZAPI → META_CLOUD: tear-down Uazapi remoto ───────────
+    // Snapshot das credenciais Uazapi ANTES do update — vamos zerar elas
+    // no banco (linhas abaixo) e o tear-down remoto roda DEPOIS, com o
+    // snapshot em mãos. Falha do tear-down não bloqueia o switch
+    // (instância já pode ter sido removida fora do app, ou Uazapi tá
+    // fora do ar) — é best-effort + log.
+    const uazapiTearDown =
+      input.provider === "META_CLOUD" &&
+      instance.provider === WhatsAppProvider.UAZAPI &&
+      instance.apiKey &&
+      instance.baseUrl
+        ? {
+            apiKey: instance.apiKey,
+            baseUrl: instance.baseUrl,
+            instanceId: instance.instanceId,
+          }
+        : null;
+
+    if (uazapiTearDown) {
+      // Zera as credenciais locais junto com a troca de provider — assim
+      // o cache outbound não tenta usar token revogado.
+      updateData.apiKey = null;
+      updateData.baseUrl = null;
+      updateData.instanceId = null;
+    }
+
     if (Object.keys(updateData).length === 0) {
       // No-op: nem provider nem credenciais foram informados.
       return { changed: false, provider: instance.provider };
@@ -217,6 +311,31 @@ export const setProviderSettings = base
       },
     });
 
+    // ── Tear-down Uazapi remoto (best-effort, pós-commit local) ───────
+    // Disconnect + delete na Uazapi. Se falhar (já removida fora, Uazapi
+    // down, token revogado), só logamos — o banco local já está coerente
+    // (sem credenciais Uazapi) e a próxima provisão usa um token novo.
+    if (uazapiTearDown) {
+      try {
+        await disconnectInstance(uazapiTearDown.apiKey, uazapiTearDown.baseUrl);
+      } catch (error) {
+        console.warn("[provider-settings] uazapi_disconnect_failed", {
+          trackingId: input.trackingId,
+          instanceId: uazapiTearDown.instanceId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      try {
+        await deleteInstance(uazapiTearDown.apiKey, uazapiTearDown.baseUrl);
+      } catch (error) {
+        console.warn("[provider-settings] uazapi_delete_failed", {
+          trackingId: input.trackingId,
+          instanceId: uazapiTearDown.instanceId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
     // ── Invalida cache de lookup do webhook oficial ────────────────────
     // Se phone_number_id, provider ou credenciais cifradas mudaram, o
     // cache in-process em `get-cached-tracking-by-meta-phone-number-id`
@@ -229,8 +348,20 @@ export const setProviderSettings = base
     );
     if (touchedMetaCreds) {
       clearMetaPhoneNumberIdLookupCache();
-      // Cache outbound da Fase 6 é por-tracking, então invalida só esta
-      // entrada — não precisa nuke geral.
+    }
+    // Cache outbound da Fase 6 é por-tracking — invalida sempre que
+    // provider ou QUALQUER credencial muda (inclui apiKey/baseUrl/
+    // instanceId Uazapi mexidos pelo switch). Sem isso, send subsequente
+    // pode pegar provider antigo do cache por até 30s.
+    const touchedAnyCredential = changedKeys.some(
+      (key) =>
+        key === "provider" ||
+        key === "apiKey" ||
+        key === "baseUrl" ||
+        key === "instanceId" ||
+        key.startsWith("meta"),
+    );
+    if (touchedAnyCredential) {
       invalidateOutboundProvider(input.trackingId);
     }
 

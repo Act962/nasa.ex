@@ -16,6 +16,7 @@ import OpenAI from "openai";
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { sendMedia } from "@/http/uazapi/send-media";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import type { MediaType } from "@/http/uazapi/types";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { AGENT_STARS_ACTIONS } from "../agent-stars-actions";
@@ -193,7 +194,7 @@ export const sendVoiceExecutor: NodeExecutor = async ({ data, context, dryRun })
   }
 
   // 4. Envia como ptt (push-to-talk = mensagem de voz)
-  const result = await sendMedia(instance.apiKey, {
+  const result = await sendMedia(requireUazapiToken(instance.apiKey), {
     number: lead.phone,
     type: "ptt",
     file: dataUrl,
@@ -298,7 +299,7 @@ export const sendMediaExecutor: NodeExecutor = async ({ data, context, dryRun })
     throw new NonRetriableError("Instância WhatsApp não encontrada");
   }
 
-  const result = await sendMedia(instance.apiKey, {
+  const result = await sendMedia(requireUazapiToken(instance.apiKey), {
     number: lead.phone,
     type: uazapiType,
     file: url,

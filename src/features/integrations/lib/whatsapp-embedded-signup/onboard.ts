@@ -30,12 +30,12 @@ import { logEmbeddedSignup } from "./logger";
  *      esses passam a vir de env globais (Fase 7.3).
  *   6. Invalida caches (lookup do webhook + outbound).
  *
- * **Decisão de escopo (Fase 7):** este helper só *promove* uma instância
- * Uazapi existente pra META_CLOUD. Tracking sem `WhatsAppInstance`
- * precisa criar pelo fluxo Uazapi padrão primeiro. Razão: a coluna
- * `WhatsAppInstance.{instanceName,instanceId,apiKey,baseUrl}` continua
- * required no schema (legado Uazapi); criar placeholder aqui sujaria o
- * domínio.
+ * **Decisão de escopo:** este helper só *preenche* as credenciais de uma
+ * `WhatsAppInstance` já existente pra esse tracking — não cria a row. Com a
+ * seleção de provider na criação, o cliente que quer Meta Cloud cria a
+ * instância (provider=META_CLOUD, campos Uazapi NULL) pelo fluxo de "Nova
+ * Instância" e só então conecta via Embedded Signup. A criação e a conexão
+ * ficam em passos separados de propósito (cria → conecta).
  */
 
 interface OnboardInput {
@@ -71,7 +71,7 @@ export class EmbeddedSignupConfigError extends Error {
 export class EmbeddedSignupInstanceMissingError extends Error {
   constructor(trackingId: string) {
     super(
-      `Tracking ${trackingId} não tem WhatsAppInstance. Crie uma instância Uazapi primeiro e depois promova pra Meta via Embedded Signup.`,
+      `Tracking ${trackingId} não tem WhatsAppInstance. Crie a instância (selecionando "API Oficial") em "Nova Instância" antes de conectar via Embedded Signup.`,
     );
     this.name = "EmbeddedSignupInstanceMissingError";
   }

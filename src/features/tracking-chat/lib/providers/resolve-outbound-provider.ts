@@ -10,6 +10,10 @@ import {
   InstanceNotFoundError,
   MetaCredentialsIncompleteError,
 } from "./outbound-errors";
+import {
+  requireUazapiBaseUrl,
+  requireUazapiToken,
+} from "./uazapi-credentials";
 import type { ProviderId, WhatsAppChatProvider } from "./types";
 
 /**
@@ -139,17 +143,18 @@ export async function resolveOutboundProvider(
     };
   } else {
     // Default UAZAPI. Coberto também pelo schema default — qualquer enum
-    // não-META cai aqui.
-    const provider = createProvider("uazapi", {
-      token: instance.apiKey,
-      baseUrl: instance.baseUrl,
-    });
+    // não-META cai aqui. As colunas Uazapi viraram nullable (instância
+    // META_CLOUD não as tem), então narrowamos com erro claro caso uma
+    // instância Uazapi esteja sem credenciais (estado corrompido).
+    const token = requireUazapiToken(instance.apiKey);
+    const baseUrl = requireUazapiBaseUrl(instance.baseUrl);
+    const provider = createProvider("uazapi", { token, baseUrl });
     result = {
       provider,
       providerId: "uazapi",
       instanceId: instance.id,
       organizationId: instance.organizationId,
-      uazapiToken: instance.apiKey,
+      uazapiToken: token,
     };
   }
 

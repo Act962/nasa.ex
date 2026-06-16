@@ -1,6 +1,7 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { sendText } from "@/http/uazapi/send-text";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { computeNextRemindAt } from "@/lib/reminder-recurrence";
 import { createNotification } from "@/features/admin/lib/notification-service";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
@@ -146,9 +147,9 @@ export const processReminder = inngest.createFunction(
 
       const sendResponse = await step.run("send-whatsapp", () =>
         sendText(
-          instance.apiKey,
+          requireUazapiToken(instance.apiKey),
           { number: phone, text: message },
-          instance.baseUrl,
+          instance.baseUrl ?? undefined,
         ),
       );
 

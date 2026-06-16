@@ -11,11 +11,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Instance } from "./types";
 import { useCreateIntegration } from "../hooks/use-integration";
 import { useParams } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
 import { AlertCircleIcon, CheckCircle2Icon } from "lucide-react";
+import { WhatsAppProvider } from "@/generated/prisma/enums";
 
 interface CreateInstanceModalProps {
   open: boolean;
@@ -31,6 +33,9 @@ export function CreateInstanceModal({
   trackingId,
 }: CreateInstanceModalProps) {
   const [name, setName] = useState("");
+  const [provider, setProvider] = useState<WhatsAppProvider>(
+    WhatsAppProvider.UAZAPI,
+  );
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -40,6 +45,7 @@ export function CreateInstanceModal({
   useEffect(() => {
     if (open) {
       setName("");
+      setProvider(WhatsAppProvider.UAZAPI);
       setError(null);
       setSuccess(null);
     }
@@ -49,6 +55,7 @@ export function CreateInstanceModal({
 
   const resetForm = () => {
     setName("");
+    setProvider(WhatsAppProvider.UAZAPI);
     setError(null);
     setSuccess(null);
   };
@@ -58,6 +65,7 @@ export function CreateInstanceModal({
     createInstanceMutation.mutate(
       {
         name,
+        provider,
         trackingId: params.trackingId,
       },
       {
@@ -65,10 +73,11 @@ export function CreateInstanceModal({
           onCreated({
             id: data.instance.id,
             instanceName: data.instance.instanceName,
-            baseUrl: data.instance.baseUrl,
-            apiKey: data.instance.apiKey,
+            baseUrl: data.instance.baseUrl ?? "",
+            apiKey: data.instance.apiKey ?? "",
             status: data.instance.status,
-            instanceId: data.instance.instanceId,
+            instanceId: data.instance.instanceId ?? "",
+            provider: data.instance.provider,
           });
           resetForm();
         },
@@ -83,7 +92,7 @@ export function CreateInstanceModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md border-border/50">
         <DialogHeader>
-          <DialogTitle className="text-xl">Criar Instancia</DialogTitle>
+          <DialogTitle className="text-xl">Criar Instância</DialogTitle>
         </DialogHeader>
 
         {success ? (
@@ -101,14 +110,40 @@ export function CreateInstanceModal({
             )}
 
             <div className="space-y-2">
+              <Label className="text-sm font-medium">Provedor</Label>
+              <RadioGroup
+                value={provider}
+                onValueChange={(value) =>
+                  setProvider(value as WhatsAppProvider)
+                }
+                className="grid gap-3"
+              >
+                <ProviderOption
+                  id="create-provider-uazapi"
+                  value={WhatsAppProvider.UAZAPI}
+                  title="Uazapi (não-oficial)"
+                  description="Conexão via QR Code com número pessoal/business. Sem template HSM, com risco de ban da Meta."
+                  selected={provider === WhatsAppProvider.UAZAPI}
+                />
+                <ProviderOption
+                  id="create-provider-meta"
+                  value={WhatsAppProvider.META_CLOUD}
+                  title="API Oficial (Meta Cloud)"
+                  description="API oficial do WhatsApp Business. Após criar, conecte via Meta (OAuth) ou credenciais manuais no card do provedor."
+                  selected={provider === WhatsAppProvider.META_CLOUD}
+                />
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="name" className="text-sm font-medium">
-                Nome da Instancia
+                Nome da Instância
               </Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Nome unico da instancia"
+                placeholder="Nome único da instância"
                 required
                 disabled={createInstanceMutation.isPending}
                 className="h-11 bg-input/50"
@@ -128,5 +163,37 @@ export function CreateInstanceModal({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ProviderOption({
+  id,
+  value,
+  title,
+  description,
+  selected,
+}: {
+  id: string;
+  value: WhatsAppProvider;
+  title: string;
+  description: string;
+  selected: boolean;
+}) {
+  return (
+    <Label
+      htmlFor={id}
+      className={
+        "flex items-start gap-3 rounded-xl border p-4 cursor-pointer transition-colors " +
+        (selected
+          ? "border-primary bg-primary/5"
+          : "border-border/50 hover:bg-muted/30")
+      }
+    >
+      <RadioGroupItem id={id} value={value} className="mt-1" />
+      <div className="space-y-1">
+        <div className="text-sm font-semibold">{title}</div>
+        <div className="text-xs text-muted-foreground">{description}</div>
+      </div>
+    </Label>
   );
 }

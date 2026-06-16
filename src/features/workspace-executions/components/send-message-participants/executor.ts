@@ -1,6 +1,10 @@
 import { NodeExecutor } from "@/features/workspace-executions/types";
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
+import {
+  requireUazapiToken,
+  requireUazapiBaseUrl,
+} from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { wsSendMessageChannel } from "@/inngest/channels/workspace";
 import { ActionContext } from "../../schemas";
 import { loadActionContext } from "../../lib/load-action-context";
@@ -93,25 +97,25 @@ export const wsSendMessageParticipantsExecutor: NodeExecutor<Data> = async ({
           await sendTextRaw({
             body: renderFor(payload.message, participant),
             number,
-            token: instance.apiKey,
-            baseUrl: instance.baseUrl,
+            token: requireUazapiToken(instance.apiKey),
+            baseUrl: requireUazapiBaseUrl(instance.baseUrl),
           });
         } else if (payload.type === "IMAGE") {
           await sendImageRaw({
             body: renderFor(payload.caption ?? "", participant),
             number,
-            token: instance.apiKey,
+            token: requireUazapiToken(instance.apiKey),
             mediaUrl: payload.imageUrl,
-            baseUrl: instance.baseUrl,
+            baseUrl: requireUazapiBaseUrl(instance.baseUrl),
           });
         } else if (payload.type === "DOCUMENT") {
           await sendDocumentRaw({
             body: renderFor(payload.caption ?? "", participant),
             number,
-            token: instance.apiKey,
+            token: requireUazapiToken(instance.apiKey),
             mediaUrl: payload.documentUrl,
             fileName: payload.fileName,
-            baseUrl: instance.baseUrl,
+            baseUrl: requireUazapiBaseUrl(instance.baseUrl),
           });
         }
       };
