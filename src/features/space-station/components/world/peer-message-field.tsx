@@ -31,6 +31,9 @@ import { useMutationTextMessage } from "@/features/tracking-chat/hooks/use-messa
 interface Props {
   peerId: string;
   peerName: string;
+  /** stationId pra dispar o broadcast `peer:poked` que mostra o 👋 acima
+      do avatar do peer cutucado e o toast detalhado pra ele. */
+  stationId?: string;
   onSent?: () => void;
 }
 
@@ -42,7 +45,7 @@ interface Resolved {
   leadPhone: string;
 }
 
-export function PeerMessageField({ peerId, peerName, onSent }: Props) {
+export function PeerMessageField({ peerId, peerName, stationId, onSent }: Props) {
   const { data: session } = authClient.useSession();
   const [message, setMessage] = useState("");
   const [resolved, setResolved] = useState<Resolved | null>(null);
@@ -91,7 +94,8 @@ export function PeerMessageField({ peerId, peerName, onSent }: Props) {
 
   function handleSend() {
     if (!canSend || !resolved || !apiKey) return;
-    const body = `*${session?.user.name ?? "Usuário"}*\n${message.trim()}`;
+    const trimmedMessage = message.trim();
+    const body = `*${session?.user.name ?? "Usuário"}*\n${trimmedMessage}`;
     sendMutation.mutate(
       {
         body,
@@ -101,6 +105,25 @@ export function PeerMessageField({ peerId, peerName, onSent }: Props) {
       },
       {
         onSuccess: () => {
+          // Dispara o "poke" visual: 👋 sobre o avatar do peer + toast pro
+          // peer cutucado mostrar "X te cutucou com uma mensagem".
+          if (stationId) {
+            // Best-effort: se falhar, mensagem já foi enviada pelo WhatsApp.
+            void fetch("/api/rpc/spaceStation/pokePeer", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                json: {
+                  stationId,
+                  toUserId: peerId,
+                  action: "chat",
+                  preview: trimmedMessage.slice(0, 80),
+                },
+              }),
+            }).catch(() => {
+              /* ignore */
+            });
+          }
           setMessage("");
           onSent?.();
         },

@@ -1,4 +1,9 @@
-import type Phaser from "phaser";
+// Import direto (NÃO `import type`) — precisamos da classe Phaser.Scene em
+// runtime pra estender. O pattern antigo `extends (globalThis.Phaser?.Scene
+// ?? class {})` quebrava em mobile/HMR quando o módulo era avaliado antes do
+// phaser ter populado globalThis → key da scene virava "default" → scene
+// nunca iniciava → tela preta (avatares não apareciam).
+import * as PhaserNS from "phaser";
 import type {
   AvatarConfig,
   StationWorldConfig,
@@ -144,7 +149,7 @@ const LPC_WALK_FRAMES = 9;
 // Player display scale for LPC sprites (64px → 32px logical)
 const LPC_SCALE = 0.5;
 
-export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
+export class WorldScene extends PhaserNS.Scene {
   private player!: Phaser.Physics.Arcade.Image;
   /** Animated LPC sprite — used instead of `player` when lpcSpritesheetUrl is set */
   private lpcSprite: Phaser.Physics.Arcade.Sprite | null = null;
@@ -185,6 +190,16 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
   // ─── Proximity detection (for WebRTC) ────────────────────────
   private readonly PROXIMITY_RADIUS = T * 6; // ~192px — ~6 tiles
   private nearbyPeers: Set<string> = new Set(); // currently in range
+
+  // ─── Poke indicators (Cutucar feature) ────────────────────────
+  // Map peerUserId → Phaser.GameObjects.Text com o emoji 👋 flutuando acima
+  // do sprite do peer. Removido após POKE_TTL_MS ou ao tomar nova cutucada.
+  private pokeIndicators: Map<string, {
+    text: Phaser.GameObjects.Text;
+    expiresAt: number;
+    tween?: Phaser.Tweens.Tween;
+  }> = new Map();
+  private readonly POKE_TTL_MS = 4000;
 
   // ─── Proximity circle visual ──────────────────────────────────
   private proximityCircle: Phaser.GameObjects.Graphics | null = null;
@@ -307,9 +322,16 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
   }
 
   preload(this: Phaser.Scene & WorldScene) {
-    // Cenário "image" — pré-carrega a imagem de fundo do user
+    // Cenário "image" e "custom" — pré-carrega a imagem de fundo do user.
+    // O editor de mapa permite anexar `backgroundImageUrl` ao scenario
+    // "custom" também (mapa do zero com imagem por trás dos tiles); antes
+    // a imagem era lida só em "image", então salvava no banco mas nunca
+    // renderizava — usuário via apenas a bg color sólida.
     const raw = this.worldConfig?.mapData as WorldMapData | null;
-    if (raw?.scenario === "image" && raw.backgroundImageUrl) {
+    if (
+      (raw?.scenario === "image" || raw?.scenario === "custom") &&
+      raw.backgroundImageUrl
+    ) {
       this.load.image("__bg_image__", raw.backgroundImageUrl);
     }
   }
@@ -351,12 +373,35 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     else if (scenario === "observatory") this.drawObservatory();
     else if (scenario === "bridge") this.drawBridge();
     else if (scenario === "custom") {
+      // 1) Cor sólida de fundo (sempre desenhada — fallback se a imagem
+      // ainda não terminou de carregar).
       const bgColor = raw?.tileLayer?.bgColor ?? "#1a1a2e";
       const bgInt = parseInt(bgColor.replace("#", ""), 16);
       this.add
         .rectangle(0, 0, WORLD_W, WORLD_H, bgInt)
         .setOrigin(0, 0)
         .setDepth(0);
+      // 2) Imagem de fundo (se o user anexou uma) — FIXA NA VIEWPORT.
+      // `setScrollFactor(0)` mantém a imagem fixa relativa à tela do user
+      // (não scrolla com a câmera) e `setDisplaySize(cam.width, cam.height)`
+      // a estica exatamente pra cobrir a janela visível. Isso significa:
+      // independente de onde o player se mova no mundo, a imagem fica
+      // sempre ocupando a tela toda — como um background paralax-zero.
+      // Tiles/áreas/objetos do mapa continuam fluindo livre por cima,
+      // movendo com a câmera (scrollFactor default = 1).
+      if (raw?.backgroundImageUrl && this.textures.exists("__bg_image__")) {
+        const cam = this.cameras.main;
+        const bgImg = this.add
+          .image(0, 0, "__bg_image__")
+          .setOrigin(0, 0)
+          .setDepth(0.5)
+          .setScrollFactor(0)
+          .setDisplaySize(cam.width, cam.height);
+        // Redimensiona junto com resize da janela (Phaser.Scale.RESIZE)
+        this.scale.on("resize", (size: { width: number; height: number }) => {
+          bgImg.setDisplaySize(size.width, size.height);
+        });
+      }
     } else this.drawStation(elements, rooms, meetingCount);
 
     // Render tile layer on top of any scenario (applies to "custom" and overlays on others)
@@ -382,18 +427,33 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
 
     const isTiled = scenario === "tiled";
     const isImage = scenario === "image";
+    // Cenário "custom" pode opcionalmente ter `backgroundImageUrl` —
+    // nesse caso a imagem é esticada pra cobrir o WORLD inteiro, então
+    // o spawn vai pro CENTRO do mundo (WORLD_W/2, WORLD_H/2). Pro "image"
+    // (que respeita as dimensões originais salvas) usamos o centro da
+    // imagem em si.
+    const isCustomWithBg =
+      scenario === "custom" && !!raw?.backgroundImageUrl;
     let startX = isTiled
       ? this.tiledSpawnX || this.tiledMapW / 2
       : isImage
         ? (raw?.backgroundImageWidth ?? WORLD_W) / 2
-        : WORLD_W / 4;
+        : isCustomWithBg
+          ? WORLD_W / 2
+          : WORLD_W / 4;
     let startY = isTiled
       ? this.tiledSpawnY || this.tiledMapH / 2
       : isImage
         ? (raw?.backgroundImageHeight ?? WORLD_H) / 2
-        : OFFICE_H / 2;
+        : isCustomWithBg
+          ? WORLD_H / 2
+          : OFFICE_H / 2;
 
-    // Restore last position from localStorage (persisted by useWorldPresence)
+    // Restore last position from localStorage (persisted by useWorldPresence).
+    // Mas só se a posição salva estiver DENTRO do mapa atual — se o usuário
+    // tinha jogado num cenário "station" (grande) e o mapa agora é "image"
+    // ou "custom" (geralmente 800×400), a posição salva fica fora da área
+    // visível → câmera segue o player pra fora da imagem → tela preta.
     try {
       const saved =
         typeof localStorage !== "undefined"
@@ -404,8 +464,23 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
       if (saved) {
         const { x, y } = JSON.parse(saved) as { x: number; y: number };
         if (Number.isFinite(x) && Number.isFinite(y) && x > 0 && y > 0) {
-          startX = x;
-          startY = y;
+          // Calcula bounds máximos do cenário atual pra rejeitar posições stale.
+          // Pro "custom" com bg, a imagem cobre o WORLD inteiro — bounds = WORLD.
+          const maxX = isTiled
+            ? this.tiledMapW
+            : isImage
+              ? raw?.backgroundImageWidth ?? WORLD_W
+              : WORLD_W;
+          const maxY = isTiled
+            ? this.tiledMapH
+            : isImage
+              ? raw?.backgroundImageHeight ?? WORLD_H
+              : WORLD_H;
+          if (x <= maxX && y <= maxY) {
+            startX = x;
+            startY = y;
+          }
+          // se fora dos limites, mantém o startX/startY default (centro do bg)
         }
       }
     } catch {
@@ -611,6 +686,48 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     this.input.on("pointerup",   resetJoystick);
     this.input.on("pointerupoutside", resetJoystick);
 
+    // ── Joystick virtual VISÍVEL (MobileJoystick React) ─────────────
+    // O componente `MobileJoystick` (canto inferior-esquerdo) dispara
+    // `space-station:virtual-joystick` com `{ active, dx, dy }` onde
+    // dx/dy estão clampados em ±MAX_RADIUS (~32px). Aqui mapeamos o
+    // vetor pro mesmo `touchJoystick` que o drag-anywhere já usa —
+    // assim o `update()` (lá embaixo) converte automaticamente em
+    // movimento. Quando `active=false`, reseta o estado.
+    const onVirtualJoystick = (event: Event) => {
+      const detail = (event as CustomEvent).detail as {
+        active: boolean;
+        dx: number;
+        dy: number;
+      };
+      if (!detail.active) {
+        // Só reseta se o pointer não está controlando o joystick
+        // físico (drag-anywhere) — preserva touch drag concorrente.
+        if (this.touchJoystick.pointerId === -1) {
+          this.touchJoystick = {
+            pointerId: null, startX: 0, startY: 0, curX: 0, curY: 0, active: false,
+          };
+        }
+        return;
+      }
+      // Usa pointerId=-1 como sentinela "virtual" pra não conflitar com
+      // pointers reais (Phaser usa IDs positivos).
+      this.touchJoystick = {
+        pointerId: -1,
+        startX: 0,
+        startY: 0,
+        curX: detail.dx,
+        curY: detail.dy,
+        active: true,
+      };
+    };
+    window.addEventListener("space-station:virtual-joystick", onVirtualJoystick);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      window.removeEventListener("space-station:virtual-joystick", onVirtualJoystick);
+    });
+    this.events.once(Phaser.Scenes.Events.DESTROY, () => {
+      window.removeEventListener("space-station:virtual-joystick", onVirtualJoystick);
+    });
+
     // ── Keyboard zoom  +  /  - ────────────────────────────────────
     this.input.keyboard!.on("keydown-PLUS", () =>
       this.applyZoom(this.ZOOM_STEP),
@@ -804,10 +921,30 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
     window.addEventListener("space-station:remote-join", onJoin);
     window.addEventListener("space-station:remote-move", onMove);
     window.addEventListener("space-station:remote-leave", onLeave);
+
+    // ── Cutucar (poke): mostra emoji 👋 acima do avatar do peer cutucado.
+    // Funciona tanto pra peers remotos (lookup em `remotePlayers`) quanto
+    // pro próprio user (toUserId === this.localUserId) usando o sprite local.
+    const onPoked = (e: Event) => {
+      const detail = (e as CustomEvent).detail as {
+        toUserId: string;
+        fromName: string;
+      };
+      this.showPokeAt(detail.toUserId, detail.fromName);
+    };
+    window.addEventListener("space-station:peer-poked", onPoked);
+
     this.events.once("shutdown", () => {
       window.removeEventListener("space-station:remote-join", onJoin);
       window.removeEventListener("space-station:remote-move", onMove);
       window.removeEventListener("space-station:remote-leave", onLeave);
+      window.removeEventListener("space-station:peer-poked", onPoked);
+      // Limpa indicators ativos
+      this.pokeIndicators.forEach((p) => {
+        p.tween?.stop();
+        p.text.destroy();
+      });
+      this.pokeIndicators.clear();
     });
 
     // ── Teleporte local (Conectar pessoas: follow-accept) ─────────────
@@ -5165,6 +5302,87 @@ export class WorldScene extends (globalThis.Phaser?.Scene ?? class {}) {
         }),
       );
     }
+    // Limpa indicator de poke se houver
+    const poke = this.pokeIndicators.get(data.userId);
+    if (poke) {
+      poke.tween?.stop();
+      poke.text.destroy();
+      this.pokeIndicators.delete(data.userId);
+    }
+  }
+
+  /**
+   * showPokeAt — renderiza um "👋 Nome" flutuando acima do avatar do peer
+   * (ou do próprio user) com tween de bobbing e fade out automático após
+   * POKE_TTL_MS. Chamado pelo CustomEvent `space-station:peer-poked` que
+   * vem do broadcast Pusher `peer:poked`.
+   *
+   * Visível pra TODOS no World — feedback que "fulano cutucou ciclano".
+   * O conteúdo da mensagem (preview) só vai no toast pro alvo, fora daqui.
+   */
+  private showPokeAt(targetUserId: string, fromName: string) {
+    // Acha o sprite alvo: local (player/lpcSprite) ou remoto.
+    let targetX: number, targetY: number;
+    if (targetUserId === this.localUserId) {
+      const active = this.lpcSprite ?? this.player;
+      if (!active) return;
+      targetX = active.x;
+      targetY = active.y;
+    } else {
+      const remote = this.remotePlayers.get(targetUserId);
+      if (!remote) return;
+      targetX = remote.gfx.x;
+      targetY = remote.gfx.y;
+    }
+
+    // Remove indicator antigo desse peer (se ainda na tela, "renova" a pose).
+    const existing = this.pokeIndicators.get(targetUserId);
+    if (existing) {
+      existing.tween?.stop();
+      existing.text.destroy();
+    }
+
+    const labelText = `👋 ${fromName.slice(0, 16)} cutucou!`;
+    const text = this.add
+      .text(targetX, targetY - 60, labelText, {
+        fontSize: "12px",
+        color: "#ffffff",
+        backgroundColor: "#7c3aedcc",
+        padding: { x: 6, y: 3 },
+        align: "center",
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(50)
+      .setAlpha(0);
+
+    // Anima: fade in, bobs pra cima, depois fade out.
+    const tween = this.tweens.add({
+      targets: text,
+      alpha: { from: 0, to: 1 },
+      y: { from: targetY - 50, to: targetY - 70 },
+      duration: 300,
+      ease: "Sine.easeOut",
+      onComplete: () => {
+        // Fica visível 3s e some
+        this.tweens.add({
+          targets: text,
+          alpha: 0,
+          y: text.y - 20,
+          duration: 700,
+          delay: this.POKE_TTL_MS - 1000,
+          onComplete: () => {
+            text.destroy();
+            this.pokeIndicators.delete(targetUserId);
+          },
+        });
+      },
+    });
+
+    this.pokeIndicators.set(targetUserId, {
+      text,
+      expiresAt: Date.now() + this.POKE_TTL_MS,
+      tween,
+    });
   }
 
   // ─── Avatar scale helpers ────────────────────────────────────
