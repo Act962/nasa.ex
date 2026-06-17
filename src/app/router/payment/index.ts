@@ -40,6 +40,17 @@ import {
   getPaymentGovernanceConfig,
   updatePaymentGovernanceConfig,
 } from "./approvals";
+import {
+  listDunningRules,
+  createDunningRule,
+  updateDunningRule,
+  deleteDunningRule,
+  createDunningStep,
+  updateDunningStep,
+  deleteDunningStep,
+  assignDunningRuleToEntry,
+  listDunningExecutionsByEntry,
+} from "./dunning";
 
 export const paymentRouter = {
   access: {
@@ -91,5 +102,25 @@ export const paymentRouter = {
   governance: {
     get:    getPaymentGovernanceConfig,
     update: updatePaymentGovernanceConfig,
+  },
+  // ── NASA Payment Fase 2: Régua de cobrança (event-driven via Inngest) ─
+  dunning: {
+    rules: {
+      list:   listDunningRules,
+      create: createDunningRule,
+      update: updateDunningRule,
+      delete: deleteDunningRule,
+    },
+    steps: {
+      create: createDunningStep,
+      update: updateDunningStep,
+      delete: deleteDunningStep,
+    },
+    entries: {
+      assignRule: assignDunningRuleToEntry,
+    },
+    executions: {
+      listByEntry: listDunningExecutionsByEntry,
+    },
   },
 };

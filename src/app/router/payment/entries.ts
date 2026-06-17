@@ -217,16 +217,24 @@ export const createPaymentEntry = base
       );
 
       // ── Cria PaymentApprovalRequest pra cada parcela triggered ──────────
-      // E notifica aprovadores. Em try/catch isolado: se falhar, a entry
-      // continua existindo (operação principal) — o status PENDING_APPROVAL
-      // sinaliza no histórico e o cron de reminder eventualmente cobre.
+      // Notifica aprovadores AGORA + agenda reminder event-driven (sem cron).
+      // try/catch isolado: se falhar, a entry continua existindo — o status
+      // PENDING_APPROVAL preserva o histórico pra retry manual.
       const triggeredEntries = entries.filter(
         (e) => e.status === "PENDING_APPROVAL",
       );
       if (triggeredEntries.length > 0) {
-        const { notifyApproversOfRequest } = await import(
-          "@/features/payment/server/approvals/notify-approvers"
-        );
+        const [{ notifyApproversOfRequest }, { scheduleApprovalReminder }] = await Promise.all([
+          import("@/features/payment/server/approvals/notify-approvers"),
+          import("@/features/payment/server/dunning/schedule"),
+        ]);
+        // Lê config 1x (não dentro do loop) pra evitar N queries iguais.
+        const governance = await prisma.paymentGovernanceConfig.findUnique({
+          where:  { organizationId: context.org.id },
+          select: { notifyApproversAfterHours: true },
+        });
+        const reminderHours = governance?.notifyApproversAfterHours ?? 24;
+
         await Promise.all(
           triggeredEntries.map(async (entry) => {
             try {
@@ -246,6 +254,14 @@ export const createPaymentEntry = base
                 description: entry.description,
                 type: entry.type,
               });
+              // Agenda reminder (Inngest dorme até a hora). Self-reschedule
+              // se ainda PENDING após disparo (até MAX_RETRIES no handler).
+              await scheduleApprovalReminder({
+                requestId:     request.id,
+                organizationId: entry.organizationId,
+                delayHours:    reminderHours,
+                retryCount:    0,
+              });
             } catch (err) {
               console.error(
                 "[payment/entries create] approval request side-effect failed:",
@@ -253,6 +269,25 @@ export const createPaymentEntry = base
               );
             }
           }),
+        );
+      }
+
+      // ── Agenda eventos de dunning pra parcelas RECEIVABLE com régua ─────
+      // 1 evento Inngest por step (com `ts: dueDate + daysOffset`). Inngest
+      // dorme até o ts. Idempotência via dedup key + DB constraint no handler.
+      const receivablesWithRule = entries.filter(
+        (e) => e.type === "RECEIVABLE" && e.dunningRuleId,
+      );
+      if (receivablesWithRule.length > 0) {
+        const { scheduleDunningForEntry } = await import(
+          "@/features/payment/server/dunning/schedule"
+        );
+        await Promise.all(
+          receivablesWithRule.map((entry) =>
+            scheduleDunningForEntry(entry.id).catch((err) => {
+              console.error("[payment/entries create] dunning schedule failed:", err);
+            }),
+          ),
         );
       }
 

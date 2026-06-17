@@ -71,6 +71,9 @@ import {
   agentTriggerMessageIncomingFn,
   agentTriggerWebhookExternalFn,
 } from "@/inngest/functions/agent-workflow-triggers";
+// ── NASA Payment Fase 2 (governança + cobrança event-driven) ──
+import { paymentDunningFire }      from "@/inngest/functions/payment/dunning-fire";
+import { paymentApprovalReminder } from "@/inngest/functions/payment/approval-reminder";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -147,6 +150,9 @@ export const { GET, POST, PUT } = serve({
     agentTriggerPaymentReceivedFn,
     agentTriggerMessageIncomingFn,
     agentTriggerWebhookExternalFn,
+    // ── NASA Payment Fase 2 — event-driven, sem cron ──
+    paymentDunningFire,
+    paymentApprovalReminder,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

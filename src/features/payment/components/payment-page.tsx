@@ -20,6 +20,7 @@ import { PaymentSettings } from "./settings/payment-settings";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
 import { ApprovalsTab } from "./approvals/approvals-tab";
 import { GovernanceSettingsTab } from "./governance/governance-settings-tab";
+import { DunningRulesTab } from "./dunning/dunning-rules-tab";
 import {
   usePendingApprovals,
   useCanApprovePayments,
@@ -137,6 +138,12 @@ export function PaymentPage() {
                 Governança e Aprovações
               </h3>
               <GovernanceSettingsTab />
+            </section>
+            <section>
+              <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-3">
+                Régua de Cobrança
+              </h3>
+              <DunningRulesTab />
             </section>
             <section>
               <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-3">
