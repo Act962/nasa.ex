@@ -23,7 +23,11 @@ import {
   Trash2,
   Search,
   Plus,
+  Bell,
+  History,
 } from "lucide-react";
+import { DunningAssignDialog } from "../dunning/dunning-assign-dialog";
+import { DunningHistoryDrawer } from "../dunning/dunning-history-drawer";
 import {
   usePaymentEntries,
   useCreatePaymentEntry,
@@ -51,6 +55,9 @@ export function EntriesTable({ type }: EntriesTableProps) {
   const [showForm, setShowForm] = useState(false);
   const [payDialog, setPayDialog] = useState<{ id: string; amount: number } | null>(null);
   const [payAmount, setPayAmount] = useState("");
+  // ── Dunning (Fase 2) — atribuir régua + ver histórico de execuções.
+  const [assignDunning, setAssignDunning] = useState<{ id: string; ruleId: string | null; name: string } | null>(null);
+  const [historyDunning, setHistoryDunning] = useState<{ id: string; name: string } | null>(null);
 
   const { data, isLoading } = usePaymentEntries({
     type,
@@ -226,6 +233,30 @@ export function EntriesTable({ type }: EntriesTableProps) {
                             Registrar Pagamento
                           </DropdownMenuItem>
                         )}
+                        {entry.type === "RECEIVABLE" && (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setAssignDunning({
+                                  id: entry.id,
+                                  ruleId: (entry as { dunningRuleId?: string | null }).dunningRuleId ?? null,
+                                  name: entry.description,
+                                })
+                              }
+                              className="gap-2"
+                            >
+                              <Bell className="size-4 text-amber-500" />
+                              Atribuir régua de cobrança
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setHistoryDunning({ id: entry.id, name: entry.description })}
+                              className="gap-2"
+                            >
+                              <History className="size-4 text-indigo-400" />
+                              Histórico de cobrança
+                            </DropdownMenuItem>
+                          </>
+                        )}
                         <DropdownMenuItem
                           onClick={() => handleDelete(entry.id)}
                           className="gap-2 text-red-400"
@@ -314,6 +345,21 @@ export function EntriesTable({ type }: EntriesTableProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dunning — atribuir régua */}
+      <DunningAssignDialog
+        entryId={assignDunning?.id ?? null}
+        initialRuleId={assignDunning?.ruleId ?? null}
+        entryName={assignDunning?.name}
+        onClose={() => setAssignDunning(null)}
+      />
+
+      {/* Dunning — histórico de execuções */}
+      <DunningHistoryDrawer
+        entryId={historyDunning?.id ?? null}
+        entryName={historyDunning?.name ?? null}
+        onClose={() => setHistoryDunning(null)}
+      />
     </div>
   );
 }

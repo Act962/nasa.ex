@@ -39,6 +39,8 @@ import {
   cancelPaymentApprovalRequest,
   getPaymentGovernanceConfig,
   updatePaymentGovernanceConfig,
+  getNerpFinancialFlag,
+  updateNerpFinancialFlag,
 } from "./approvals";
 import {
   listDunningRules,
@@ -102,6 +104,10 @@ export const paymentRouter = {
   governance: {
     get:    getPaymentGovernanceConfig,
     update: updatePaymentGovernanceConfig,
+  },
+  nerp: {
+    getFlag:    getNerpFinancialFlag,
+    updateFlag: updateNerpFinancialFlag,
   },
   // ── NASA Payment Fase 2: Régua de cobrança (event-driven via Inngest) ─
   dunning: {

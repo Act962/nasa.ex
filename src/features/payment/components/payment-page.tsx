@@ -21,6 +21,7 @@ import { HeaderTracking } from "@/features/leads/components/header-tracking";
 import { ApprovalsTab } from "./approvals/approvals-tab";
 import { GovernanceSettingsTab } from "./governance/governance-settings-tab";
 import { DunningRulesTab } from "./dunning/dunning-rules-tab";
+import { NerpFinancialToggle } from "./governance/nerp-financial-toggle";
 import {
   usePendingApprovals,
   useCanApprovePayments,
@@ -125,28 +126,34 @@ export function PaymentPage() {
       <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
         <SheetContent
           side="right"
-          className="w-full sm:max-w-lg overflow-y-auto"
+          className="w-full sm:max-w-lg overflow-y-auto p-0"
         >
-          <SheetHeader>
+          <SheetHeader className="px-6 pt-6 pb-4 border-b sticky top-0 bg-background z-10">
             <SheetTitle className="flex items-center gap-2">
               <Settings className="size-4" /> Configurações do Payment
             </SheetTitle>
           </SheetHeader>
-          <div className="mt-6 space-y-8">
-            <section>
-              <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-3">
+          <div className="px-6 py-6 space-y-10">
+            <section className="space-y-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">
                 Governança e Aprovações
               </h3>
               <GovernanceSettingsTab />
             </section>
-            <section>
-              <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-3">
+            <section className="space-y-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">
                 Régua de Cobrança
               </h3>
               <DunningRulesTab />
             </section>
-            <section>
-              <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-3">
+            <section className="space-y-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">
+                Integrações
+              </h3>
+              <NerpFinancialToggle />
+            </section>
+            <section className="space-y-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">
                 Outras configurações
               </h3>
               <PaymentSettings />

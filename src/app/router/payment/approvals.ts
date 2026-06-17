@@ -419,3 +419,58 @@ export const updatePaymentGovernanceConfig = base
 
     return { success: true };
   });
+
+// ── NERP financeiro: toggle placeholder (Fase 2 — sem sync ainda) ─────────
+
+export const getNerpFinancialFlag = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .route({ method: "GET", summary: "Get NERP financial integration flag", tags: ["Payment"] })
+  .input(z.object({}))
+  .output(z.object({ enabled: z.boolean() }))
+  .handler(async ({ context }) => {
+    const org = await prisma.organization.findUnique({
+      where: { id: context.org.id },
+      select: { nerpFinancialEnabled: true },
+    });
+    return { enabled: !!org?.nerpFinancialEnabled };
+  });
+
+export const updateNerpFinancialFlag = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .route({ method: "POST", summary: "Toggle NERP financial integration flag (Master only)", tags: ["Payment"] })
+  .input(z.object({ enabled: z.boolean() }))
+  .output(z.object({ success: z.boolean() }))
+  .handler(async ({ input, context }) => {
+    const member = await prisma.member.findFirst({
+      where: { organizationId: context.org.id, userId: context.user.id },
+      select: { role: true },
+    });
+    if (member?.role !== "owner") {
+      throw new ORPCError("FORBIDDEN", {
+        message: "Apenas o Master pode alterar integrações",
+      });
+    }
+    await prisma.organization.update({
+      where: { id: context.org.id },
+      data:  { nerpFinancialEnabled: input.enabled },
+    });
+    await logActivity({
+      organizationId: context.org.id,
+      userId:    context.user.id,
+      userName:  context.user.name,
+      userEmail: context.user.email,
+      userImage: (context.user as any).image,
+      appSlug:    "payment",
+      subAppSlug: "payment-nerp",
+      featureKey: input.enabled ? "payment.nerp.enabled" : "payment.nerp.disabled",
+      action:     input.enabled ? "payment.nerp.enabled" : "payment.nerp.disabled",
+      actionLabel: input.enabled
+        ? "Ativou integração NERP financeira (placeholder)"
+        : "Desativou integração NERP financeira",
+      resource:   "nerp-financial",
+      metadata:   { enabled: input.enabled },
+    });
+    return { success: true };
+  });
