@@ -29,6 +29,8 @@ interface Props {
   /** Coords screen-space (px) do clique, vindas do CustomEvent. */
   anchorX: number;
   anchorY: number;
+  /** stationId pra disparar o broadcast `peer:poked`. */
+  stationId: string;
   onClose: () => void;
 }
 
@@ -42,6 +44,7 @@ export function CutucarPopover({
   peerName,
   anchorX,
   anchorY,
+  stationId,
   onClose,
 }: Props) {
   const [view, setView] = useState<"apps" | "chat">("apps");
@@ -106,6 +109,18 @@ export function CutucarPopover({
 
   function handleStubApp(app: BubbleApp, label: string) {
     toast.info(`${label} → ${peerName} — em implementação`);
+    // Mesmo sendo stub, dispara o "poke" visual: avisa o peer cutucado +
+    // mostra 👋 acima do avatar dele pra todos. Quando os apps forem
+    // implementados de verdade, o poke continua disparando junto.
+    void fetch("/api/rpc/spaceStation/pokePeer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: { stationId, toUserId: peerId, action: app },
+      }),
+    }).catch(() => {
+      /* ignore — poke é best-effort */
+    });
     onClose();
   }
 
@@ -190,6 +205,7 @@ export function CutucarPopover({
             <PeerMessageField
               peerId={peerId}
               peerName={peerName}
+              stationId={stationId}
               onSent={() => {
                 toast.success(`Mensagem enviada pra ${peerName}`);
                 onClose();

@@ -212,6 +212,23 @@ export function useWorldPresence({ stationId, userId, userName, userNick, sprite
           detail: { connectedUserId },
         }));
       });
+
+      // peer:poked → broadcast sem filtro: todos os clients renderizam 👋
+      // acima do avatar do peer cutucado (`toUserId`). O cliente que É o
+      // alvo também recebe um toast detalhado com `preview` (vem do
+      // `WorldScene` / `space-game.tsx` que ouve o CustomEvent abaixo).
+      ch.bind("peer:poked", (data: {
+        fromUserId: string;
+        fromName: string;
+        toUserId: string;
+        action: string;
+        preview: string | null;
+        at: string;
+      }) => {
+        window.dispatchEvent(new CustomEvent("space-station:peer-poked", {
+          detail: data,
+        }));
+      });
     }
 
     setup();

@@ -38,6 +38,7 @@ import {
   Loader2,
   Eye,
   EyeOff,
+  Rocket,
 } from "lucide-react";
 
 /**
@@ -159,17 +160,36 @@ export default function PerfilPublicoPage() {
               Só aparece se o usuário tem uma SpaceStation ORG configurada
               (nick definido). */}
           {stationNick && (
-            <Button variant="outline" asChild>
-              <Link
-                href={`/space/${stationNick}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Abrir minha página pública em nova aba"
+            <>
+              <Button variant="outline" asChild>
+                <Link
+                  href={`/space/${stationNick}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Abrir minha página pública em nova aba"
+                >
+                  <ExternalLink className="mr-2 size-4" />
+                  Ver perfil público
+                </Link>
+              </Button>
+              {/* Atalho direto pro World 2D da Station (sem passar por
+                  /space/<nick>). Útil pro owner editar o mundo / colaborar
+                  sem precisar abrir o perfil público antes. */}
+              <Button
+                asChild
+                className="bg-gradient-to-r from-orange-500 to-purple-500 text-white hover:opacity-90"
               >
-                <ExternalLink className="mr-2 size-4" />
-                Ver perfil público
-              </Link>
-            </Button>
+                <Link
+                  href={`/station/${stationNick}/world`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Entrar no World (Space Station 2D)"
+                >
+                  <Rocket className="mr-2 size-4" />
+                  Space Station
+                </Link>
+              </Button>
+            </>
           )}
           <Button onClick={handleSave} disabled={upsert.isPending}>
             {upsert.isPending && (
