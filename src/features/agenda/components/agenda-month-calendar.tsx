@@ -182,6 +182,7 @@ function MiniCard({
 
   const ringClass = STATUS_RING[appt.status] ?? "ring-slate-300/60";
   const isCancelled = appt.status === "CANCELLED";
+  const isDone = appt.status === "DONE";
 
   return (
     <button
@@ -236,7 +237,7 @@ function MiniCard({
         <div
           className={cn(
             "w-full truncate text-left text-[9px] font-bold leading-none text-white drop-shadow",
-            isCancelled && "line-through decoration-white/80 decoration-[1px]",
+            (isCancelled || isDone) && "line-through decoration-white/80 decoration-[1px]",
           )}
         >
           {clientName}

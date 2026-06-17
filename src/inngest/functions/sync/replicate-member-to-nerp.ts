@@ -102,47 +102,57 @@ export const replicateMemberToNerp = inngest.createFunction(
 
     if (!graph) return { skipped: "member_not_found", memberId };
 
-    // Ordem de FK: user → accounts → org → member. Cada upsert é idempotente
-    // por id no inbound do NERP.
-    if (graph.user) {
-      await step.run("upsert-user", () =>
-        syncNerpClient.upsertUser(graph.user!),
+    // Cada destino é uma cadeia FK independente (user → accounts → org →
+    // member, idempotente por id no inbound). A ordem de FK é preservada DENTRO
+    // de cada destino; os dois destinos rodam em PARALELO via `Promise.all`, de
+    // modo que o NERP fora do ar não bloqueia o comments-app e vice-versa.
+    const replicateToNerp = (async () => {
+      if (graph.user) {
+        await step.run("upsert-user", () =>
+          syncNerpClient.upsertUser(graph.user!),
+        );
+      }
+      for (let i = 0; i < graph.accounts.length; i++) {
+        const account = graph.accounts[i];
+        await step.run(`upsert-account-${i}`, () =>
+          syncNerpClient.upsertAccount(account),
+        );
+      }
+      if (graph.org) {
+        await step.run("upsert-org", () => syncNerpClient.upsertOrg(graph.org!));
+      }
+      await step.run("upsert-member", () =>
+        syncNerpClient.upsertMember(graph.member),
       );
-    }
-    for (let i = 0; i < graph.accounts.length; i++) {
-      const acc = graph.accounts[i];
-      await step.run(`upsert-account-${i}`, () =>
-        syncNerpClient.upsertAccount(acc),
-      );
-    }
-    if (graph.org) {
-      await step.run("upsert-org", () => syncNerpClient.upsertOrg(graph.org!));
-    }
-    await step.run("upsert-member", () =>
-      syncNerpClient.upsertMember(graph.member),
-    );
+    })();
 
-    // ── Fan-out comments-app: mesma ordem de FK (user → accounts → org → member).
-    // Steps próprios → retries independentes do NERP acima.
-    if (graph.user) {
-      await step.run("comments-upsert-user", () =>
-        ecosystemSyncComments.upsertUser(graph.user!),
+    const replicateToComments = (async () => {
+      if (graph.user) {
+        await step.run("comments-upsert-user", () =>
+          ecosystemSyncComments.upsertUser(graph.user!),
+        );
+      }
+      for (
+        let accountIndex = 0;
+        accountIndex < graph.accounts.length;
+        accountIndex++
+      ) {
+        const account = graph.accounts[accountIndex];
+        await step.run(`comments-upsert-account-${accountIndex}`, () =>
+          ecosystemSyncComments.upsertAccount(account),
+        );
+      }
+      if (graph.org) {
+        await step.run("comments-upsert-org", () =>
+          ecosystemSyncComments.upsertOrg(graph.org!),
+        );
+      }
+      await step.run("comments-upsert-member", () =>
+        ecosystemSyncComments.upsertMember(graph.member),
       );
-    }
-    for (let accountIndex = 0; accountIndex < graph.accounts.length; accountIndex++) {
-      const account = graph.accounts[accountIndex];
-      await step.run(`comments-upsert-account-${accountIndex}`, () =>
-        ecosystemSyncComments.upsertAccount(account),
-      );
-    }
-    if (graph.org) {
-      await step.run("comments-upsert-org", () =>
-        ecosystemSyncComments.upsertOrg(graph.org!),
-      );
-    }
-    await step.run("comments-upsert-member", () =>
-      ecosystemSyncComments.upsertMember(graph.member),
-    );
+    })();
+
+    await Promise.all([replicateToNerp, replicateToComments]);
 
     return { ok: true, memberId };
   },

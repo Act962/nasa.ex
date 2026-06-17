@@ -112,7 +112,7 @@ export function DashboardFilters({
             onToggle={onWorkspaceToggle}
           />
         )}
-        {showTrackingFilter && (
+        {showTrackingFilter &&
           (() => {
             // Se o trackingId persistido (localStorage) não está mais
             // disponível (tracking deletado/sem acesso), cai pra "ALL"
@@ -135,8 +135,7 @@ export function DashboardFilters({
                 </SelectContent>
               </Select>
             );
-          })()
-        )}
+          })()}
 
         <Popover>
           <PopoverTrigger asChild>

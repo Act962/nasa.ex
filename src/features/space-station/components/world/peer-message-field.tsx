@@ -168,7 +168,7 @@ export function PeerMessageField({ peerId, peerName, stationId, onSent }: Props)
   }
 
   // Estado: resolved mas sem instância WhatsApp configurada
-  if (resolved && !instance.isLoading && !apiKey) {
+  if (resolved && !instance.instanceLoading && !apiKey) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 p-4 text-center">
         <AlertTriangle className="h-5 w-5 text-amber-400" />
