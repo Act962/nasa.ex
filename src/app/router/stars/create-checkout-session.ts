@@ -4,7 +4,10 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { STRIPE_PRICE_IDS } from "@/lib/stripe";
 import { z } from "zod";
 
-const ItemTypeEnum = z.enum(["plan", "topup"]);
+// Restrito a topup. Subscriptions de plano vivem no fluxo do better-auth
+// (`authClient.subscription.upgrade()` / `billingPortal()`) — criar sub aqui
+// gerava cobrança dupla em upgrades porque ignorava a sub existente.
+const ItemTypeEnum = z.literal("topup");
 
 export const createCheckoutSession = base
   .use(requiredAuthMiddleware)
@@ -12,40 +15,24 @@ export const createCheckoutSession = base
   .input(
     z.object({
       itemType: ItemTypeEnum,
-      /** Para plans: earth | explore | constellation. Para topups: pkg_100 | pkg_500 | pkg_1000 */
+      /** Para topups: pkg_100 | pkg_500 | pkg_1000 */
       itemSlug: z.string(),
       cancelPath: z.string().optional(),
-    })
+    }),
   )
   .output(
     z.object({
       url: z.string(),
       sessionId: z.string(),
-    })
+    }),
   )
-  .handler(async ({ input, context }) => {
-    // Resolve priceId
-    let priceId: string;
-    let mode: "subscription" | "payment";
+  .handler(async ({ input }) => {
+    const topupPrices = STRIPE_PRICE_IDS.topups as Record<string, string>;
+    const priceId = topupPrices[input.itemSlug];
+    if (!priceId) throw new Error(`Pacote inválido: ${input.itemSlug}`);
 
-    if (input.itemType === "plan") {
-      const planPrices = STRIPE_PRICE_IDS.plans as Record<string, string>;
-      priceId = planPrices[input.itemSlug];
-      if (!priceId) throw new Error(`Plano inválido: ${input.itemSlug}`);
-      mode = "subscription";
-    } else {
-      const topupPrices = STRIPE_PRICE_IDS.topups as Record<string, string>;
-      priceId = topupPrices[input.itemSlug];
-      if (!priceId) throw new Error(`Pacote inválido: ${input.itemSlug}`);
-      mode = "payment";
-    }
-
-    // Delegamos ao route handler da API para usar o auth completo do Next.js
-    // O ORPC handler não tem acesso ao origin, então retornamos os dados
-    // para o cliente chamar /api/stripe/checkout diretamente.
-    // Este handler serve apenas para validar e resolver o priceId.
     return {
-      url: `/api/stripe/checkout?priceId=${priceId}&mode=${mode}&itemType=${input.itemType}&itemSlug=${input.itemSlug}`,
+      url: `/api/stripe/checkout?priceId=${priceId}&mode=payment&itemType=topup&itemSlug=${input.itemSlug}`,
       sessionId: "",
     };
   });
