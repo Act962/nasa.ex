@@ -54,13 +54,30 @@ export const ROLE_COLORS: Record<string, string> = {
   moderador: "orange",
 };
 
-// Default permissions per role
-export const DEFAULT_PERMISSIONS: Record<string, { canView: boolean; canCreate: boolean; canEdit: boolean; canDelete: boolean }> = {
-  owner:     { canView: true,  canCreate: true,  canEdit: true,  canDelete: true  },
-  admin:     { canView: true,  canCreate: true,  canEdit: true,  canDelete: false },
-  member:    { canView: true,  canCreate: true,  canEdit: false, canDelete: false },
-  moderador: { canView: true,  canCreate: true,  canEdit: true,  canDelete: false },
+// Tipo das permissões — `canApprove` e `canPay` são opcionais e só
+// interpretados quando `appKey ∈ APPS_WITH_EXTENDED_ACTIONS` (ex: financeiro).
+export type AppPermissions = {
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canApprove: boolean;
+  canPay: boolean;
 };
+
+// Default permissions per role. Owner/admin recebem canApprove/canPay True
+// automaticamente (master pode revogar via UI); member/moderador precisam de
+// override explícito em Settings → Permissões → Financeiro.
+export const DEFAULT_PERMISSIONS: Record<string, AppPermissions> = {
+  owner:     { canView: true,  canCreate: true,  canEdit: true,  canDelete: true,  canApprove: true,  canPay: true  },
+  admin:     { canView: true,  canCreate: true,  canEdit: true,  canDelete: false, canApprove: true,  canPay: true  },
+  member:    { canView: true,  canCreate: true,  canEdit: false, canDelete: false, canApprove: false, canPay: false },
+  moderador: { canView: true,  canCreate: true,  canEdit: true,  canDelete: false, canApprove: false, canPay: false },
+};
+
+// Apps com actions estendidas (`canApprove`, `canPay`). UI da matriz só
+// renderiza essas colunas pra esses appKeys; pros demais, ignora silenciosamente.
+export const APPS_WITH_EXTENDED_ACTIONS = new Set<string>(["financeiro"]);
 
 export const getPermissions = base
   .use(requiredAuthMiddleware)
@@ -86,13 +103,22 @@ export const getPermissions = base
     });
 
     // Build permission matrix: role → appKey → permissions
-    const matrix: Record<string, Record<string, { canView: boolean; canCreate: boolean; canEdit: boolean; canDelete: boolean }>> = {};
+    // `canApprove`/`canPay` ficam no payload independente do app — o cliente
+    // decide se renderiza/usa baseado em APPS_WITH_EXTENDED_ACTIONS.
+    const matrix: Record<string, Record<string, AppPermissions>> = {};
     for (const role of NASA_ROLES) {
       matrix[role] = {};
       for (const app of ALL_APPS) {
         const override = dbPerms.find((p) => p.role === role && p.appKey === app.key);
         matrix[role][app.key] = override
-          ? { canView: override.canView, canCreate: override.canCreate, canEdit: override.canEdit, canDelete: override.canDelete }
+          ? {
+              canView:    override.canView,
+              canCreate:  override.canCreate,
+              canEdit:    override.canEdit,
+              canDelete:  override.canDelete,
+              canApprove: override.canApprove,
+              canPay:     override.canPay,
+            }
           : { ...DEFAULT_PERMISSIONS[role] };
       }
     }
@@ -118,6 +144,9 @@ export const getPermissions = base
       roleLabels: ROLE_LABELS,
       roleColors: ROLE_COLORS,
       matrix,
+      // Sinaliza pra UI quais appKeys mostram as colunas extra (Aprovar/Pagar).
+      // Hoje só "financeiro"; UI usa pra renderizar 6 colunas (vs 4 default).
+      extendedActionApps: Array.from(APPS_WITH_EXTENDED_ACTIONS),
       starsBalance: (context.org as any).starsBalance ?? 0,
       logs: logs.map((l) => ({
         id: l.id,

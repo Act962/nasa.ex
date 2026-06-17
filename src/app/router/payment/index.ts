@@ -31,6 +31,15 @@ import {
 } from "./entries";
 import { getPaymentDashboard, getCashflow } from "./dashboard";
 import { listExternalContacts } from "./external-contacts";
+import {
+  listPendingPaymentApprovals,
+  canCurrentUserApprovePayment,
+  approvePaymentRequest,
+  rejectPaymentRequest,
+  cancelPaymentApprovalRequest,
+  getPaymentGovernanceConfig,
+  updatePaymentGovernanceConfig,
+} from "./approvals";
 
 export const paymentRouter = {
   access: {
@@ -70,5 +79,17 @@ export const paymentRouter = {
   },
   externalContacts: {
     list: listExternalContacts,
+  },
+  // ── NASA Payment Fase 2: Governança + Aprovação ──────────────────────
+  approvals: {
+    listPending: listPendingPaymentApprovals,
+    canApprove:  canCurrentUserApprovePayment,
+    approve:     approvePaymentRequest,
+    reject:      rejectPaymentRequest,
+    cancel:      cancelPaymentApprovalRequest,
+  },
+  governance: {
+    get:    getPaymentGovernanceConfig,
+    update: updatePaymentGovernanceConfig,
   },
 };

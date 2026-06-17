@@ -15,6 +15,11 @@ export const updatePermission = base
     canCreate: z.boolean(),
     canEdit: z.boolean(),
     canDelete: z.boolean(),
+    // Actions estendidas — opcionais; só interpretadas quando o app tá em
+    // APPS_WITH_EXTENDED_ACTIONS (hoje "financeiro"). Pra outros apps a UI
+    // não envia esses campos e o default `false` é gravado.
+    canApprove: z.boolean().optional(),
+    canPay:     z.boolean().optional(),
   }))
   .handler(async ({ input, context }) => {
     const orgId = context.org.id;
@@ -32,6 +37,9 @@ export const updatePermission = base
       throw new ORPCError("BAD_REQUEST", { message: "Permissões do Master não podem ser alteradas" });
     }
 
+    const canApprove = input.canApprove ?? false;
+    const canPay     = input.canPay     ?? false;
+
     await prisma.orgPermission.upsert({
       where: { organizationId_role_appKey: { organizationId: orgId, role: input.role, appKey: input.appKey } },
       create: {
@@ -42,12 +50,16 @@ export const updatePermission = base
         canCreate: input.canCreate,
         canEdit: input.canEdit,
         canDelete: input.canDelete,
+        canApprove,
+        canPay,
       },
       update: {
         canView: input.canView,
         canCreate: input.canCreate,
         canEdit: input.canEdit,
         canDelete: input.canDelete,
+        canApprove,
+        canPay,
       },
     });
 
@@ -60,7 +72,14 @@ export const updatePermission = base
         userEmail: context.user.email,
         action: "permission_updated",
         resource: `${input.role}:${input.appKey}`,
-        metadata: { canView: input.canView, canCreate: input.canCreate, canEdit: input.canEdit, canDelete: input.canDelete },
+        metadata: {
+          canView:    input.canView,
+          canCreate:  input.canCreate,
+          canEdit:    input.canEdit,
+          canDelete:  input.canDelete,
+          canApprove,
+          canPay,
+        },
       },
     });
 

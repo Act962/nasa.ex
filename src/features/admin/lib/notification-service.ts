@@ -12,15 +12,22 @@ import {
 } from "@/features/alerts/lib/severity";
 
 export const NOTIF_TYPES = {
-  NEW_LEAD:             "NEW_LEAD",
-  AI_TOKEN_ALERT:       "AI_TOKEN_ALERT",
-  STARS_ALERT:          "STARS_ALERT",
-  CARD_EDIT:            "CARD_EDIT",
-  APPOINTMENT_REMINDER: "APPOINTMENT_REMINDER",
-  INSIGHTS_MOVEMENT:    "INSIGHTS_MOVEMENT",
-  PLAN_EXPIRY:          "PLAN_EXPIRY",
-  ADMIN_MESSAGE:        "ADMIN_MESSAGE",
-  CUSTOM:               "CUSTOM",
+  NEW_LEAD:                  "NEW_LEAD",
+  AI_TOKEN_ALERT:            "AI_TOKEN_ALERT",
+  STARS_ALERT:               "STARS_ALERT",
+  CARD_EDIT:                 "CARD_EDIT",
+  APPOINTMENT_REMINDER:      "APPOINTMENT_REMINDER",
+  INSIGHTS_MOVEMENT:         "INSIGHTS_MOVEMENT",
+  PLAN_EXPIRY:               "PLAN_EXPIRY",
+  ADMIN_MESSAGE:             "ADMIN_MESSAGE",
+  CUSTOM:                    "CUSTOM",
+  // ── NASA Payment Fase 2 (governança + cobrança) ────────────────────────
+  PAYMENT_APPROVAL_PENDING:  "PAYMENT_APPROVAL_PENDING",
+  PAYMENT_APPROVAL_APPROVED: "PAYMENT_APPROVAL_APPROVED",
+  PAYMENT_APPROVAL_REJECTED: "PAYMENT_APPROVAL_REJECTED",
+  PAYMENT_RECEIVED:          "PAYMENT_RECEIVED",
+  PAYMENT_OVERDUE_ALERT:     "PAYMENT_OVERDUE_ALERT",
+  PAYMENT_DUNNING_SENT:      "PAYMENT_DUNNING_SENT",
 } as const;
 
 export type NotifType = (typeof NOTIF_TYPES)[keyof typeof NOTIF_TYPES];
@@ -35,6 +42,13 @@ export const NOTIF_META: Record<NotifType, { label: string; appKey: string; desc
   PLAN_EXPIRY:          { label: "Vencimento de Plano",         appKey: "billing",        description: "Plano da empresa próximo do vencimento" },
   ADMIN_MESSAGE:        { label: "Mensagem do Admin",           appKey: "admin",          description: "Comunicados enviados pelos administradores da plataforma" },
   CUSTOM:               { label: "Notificação Personalizada",   appKey: "custom",         description: "Alertas e lembretes configurados manualmente" },
+  // ── NASA Payment Fase 2 ─────────────────────────────────────────────────
+  PAYMENT_APPROVAL_PENDING:  { label: "Aprovação de pagamento pendente",  appKey: "financeiro", description: "Há um pagamento aguardando sua aprovação" },
+  PAYMENT_APPROVAL_APPROVED: { label: "Pagamento aprovado",                appKey: "financeiro", description: "Seu pedido de pagamento foi aprovado" },
+  PAYMENT_APPROVAL_REJECTED: { label: "Pagamento rejeitado",               appKey: "financeiro", description: "Seu pedido de pagamento foi rejeitado" },
+  PAYMENT_RECEIVED:          { label: "Recebimento confirmado",            appKey: "financeiro", description: "Uma conta a receber foi paga pelo cliente" },
+  PAYMENT_OVERDUE_ALERT:     { label: "Pagamento em atraso",               appKey: "financeiro", description: "Uma conta venceu e segue pendente" },
+  PAYMENT_DUNNING_SENT:      { label: "Cobrança automática enviada",       appKey: "financeiro", description: "A régua de cobrança disparou um lembrete pro cliente" },
 };
 
 interface CreateNotificationOptions {
