@@ -29,6 +29,7 @@ interface EntryFormProps {
     notes?: string;
     documentNumber?: string;
     installments: number;
+    requiresApproval?: boolean;
   }) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
@@ -44,6 +45,7 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
   const [notes, setNotes] = useState("");
   const [documentNumber, setDocumentNumber] = useState("");
   const [installments, setInstallments] = useState(1);
+  const [requiresApproval, setRequiresApproval] = useState(false);
 
   const { data: categoriesData } = usePaymentCategories(
     type === "RECEIVABLE" ? "REVENUE" : "EXPENSE"
@@ -67,6 +69,7 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
       notes: notes || undefined,
       documentNumber: documentNumber || undefined,
       installments,
+      requiresApproval,
     });
   }
 
@@ -162,6 +165,26 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
         <Label>Observações</Label>
         <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
+
+      <label
+        className="flex items-start gap-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 cursor-pointer hover:bg-amber-500/10 transition-colors"
+        title="Marca esse lançamento como exigindo aprovação manual antes de virar PENDENTE no fluxo de pagamento"
+      >
+        <input
+          type="checkbox"
+          checked={requiresApproval}
+          onChange={(e) => setRequiresApproval(e.target.checked)}
+          className="mt-0.5 size-4 accent-amber-500"
+        />
+        <div className="space-y-0.5">
+          <p className="text-xs font-medium">Exigir aprovação manual</p>
+          <p className="text-[11px] text-muted-foreground">
+            Vai pra aba "Aprovações" e só entra em PENDENTE depois que um aprovador
+            (Master, Adm ou usuário permissionado) liberar. Configuração de threshold
+            automático fica em Settings → Governança.
+          </p>
+        </div>
+      </label>
 
       <div className="flex gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={onCancel} className="flex-1">Cancelar</Button>

@@ -18,9 +18,20 @@ import { CashflowTab } from "./cashflow/cashflow-tab";
 import { ContactsTab } from "./contacts/contacts-tab";
 import { PaymentSettings } from "./settings/payment-settings";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
+import { ApprovalsTab } from "./approvals/approvals-tab";
+import { GovernanceSettingsTab } from "./governance/governance-settings-tab";
+import {
+  usePendingApprovals,
+  useCanApprovePayments,
+} from "../hooks/use-payment-approvals";
 
 export function PaymentPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Badge de pendências da aba Aprovações — só pra users com canApprove.
+  const canApproveQuery = useCanApprovePayments();
+  const pendingApprovals = usePendingApprovals();
+  const showApprovalsTab = canApproveQuery.data?.canApprove ?? false;
+  const pendingCount = pendingApprovals.data?.count ?? 0;
 
   return (
     <div className="h-full w-full flex flex-col">
@@ -72,6 +83,16 @@ export function PaymentPage() {
             <TabsTrigger value="contacts" className="text-xs gap-1.5">
               👥 Contatos
             </TabsTrigger>
+            {showApprovalsTab && (
+              <TabsTrigger value="approvals" className="text-xs gap-1.5">
+                🛡️ Aprovações
+                {pendingCount > 0 && (
+                  <span className="ml-1 rounded-full bg-amber-500 text-white text-[10px] px-1.5 leading-4 font-semibold">
+                    {pendingCount > 99 ? "99+" : pendingCount}
+                  </span>
+                )}
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
 
@@ -91,6 +112,11 @@ export function PaymentPage() {
           <TabsContent value="contacts" className="px-6 py-6 mt-0">
             <ContactsTab />
           </TabsContent>
+          {showApprovalsTab && (
+            <TabsContent value="approvals" className="px-6 py-6 mt-0">
+              <ApprovalsTab />
+            </TabsContent>
+          )}
         </div>
       </Tabs>
 
@@ -105,8 +131,19 @@ export function PaymentPage() {
               <Settings className="size-4" /> Configurações do Payment
             </SheetTitle>
           </SheetHeader>
-          <div className="mt-6">
-            <PaymentSettings />
+          <div className="mt-6 space-y-8">
+            <section>
+              <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-3">
+                Governança e Aprovações
+              </h3>
+              <GovernanceSettingsTab />
+            </section>
+            <section>
+              <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-3">
+                Outras configurações
+              </h3>
+              <PaymentSettings />
+            </section>
           </div>
         </SheetContent>
       </Sheet>

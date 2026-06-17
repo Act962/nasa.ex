@@ -55,7 +55,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
   const { data, isLoading } = usePaymentEntries({
     type,
     search: search || undefined,
-    status: (statusFilter as "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED") || undefined,
+    status: (statusFilter as "PENDING_APPROVAL" | "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED") || undefined,
   });
 
   const { data: accountsData } = usePaymentAccounts();
