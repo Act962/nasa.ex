@@ -71,6 +71,7 @@ import {
   agentTriggerMessageIncomingFn,
   agentTriggerWebhookExternalFn,
 } from "@/inngest/functions/agent-workflow-triggers";
+import { nfseStatusSync } from "@/inngest/functions/fiscal/nfse-status-sync";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -147,6 +148,8 @@ export const { GET, POST, PUT } = serve({
     agentTriggerPaymentReceivedFn,
     agentTriggerMessageIncomingFn,
     agentTriggerWebhookExternalFn,
+    // ── Fiscal (NFS-e Focus NFe) ──
+    nfseStatusSync,
     // bookingNotification,
     // processUserAction,
     // detectAbsence,

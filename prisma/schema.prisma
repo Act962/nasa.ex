@@ -142,6 +142,9 @@ model User {
   // ── Astro Bot via WhatsApp ──
   whatsappBindings UserWhatsappBinding[]
 
+  // ── Fiscal ──
+  fiscalInvoicesIssued FiscalInvoice[]
+
   @@unique([email])
   @@map("user")
 }
@@ -420,6 +423,10 @@ model Organization {
   // ── Astro Bot via WhatsApp ──────────────────────────────────
   botConfig        OrganizationBotConfig?
   whatsappBindings UserWhatsappBinding[]
+
+  // ── Fiscal ──
+  fiscalProfile  FiscalCompanyProfile?
+  fiscalInvoices FiscalInvoice[]
 
   @@unique([slug])
   @@map("organization")
@@ -2660,7 +2667,8 @@ model ForgeContract {
   template     ForgeContractTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   createdBy    User                   @relation("ForgeContractCreatedBy", fields: [createdById], references: [id])
 
-  clientData Json? @map("client_data")
+  clientData     Json?          @map("client_data")
+  fiscalInvoices FiscalInvoice[]
 
   @@index([organizationId])
   @@index([proposalId])
@@ -6886,4 +6894,120 @@ model WhatsappBotCommand {
   @@index([organizationId, receivedAt])
   @@index([status])
   @@map("whatsapp_bot_command")
+}
+
+// ─── Fiscal (NFS-e via Focus NFe) ──────────────────────────────────────────
+
+enum FiscalEnvironment {
+  HOMOLOGACAO
+  PRODUCAO
+}
+
+enum FiscalInvoiceStatus {
+  PROCESSANDO
+  AUTORIZADO
+  ERRO
+  CANCELADO
+}
+
+enum FiscalInvoiceType {
+  NFSE
+}
+
+enum TomadorType {
+  PF
+  PJ
+}
+
+model FiscalCompanyProfile {
+  id             String       @id @default(cuid())
+  organizationId String       @unique @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  cnpj                     String
+  razaoSocial              String  @map("razao_social")
+  inscricaoMunicipal       String  @map("inscricao_municipal")
+  codigoMunicipio          String  @map("codigo_municipio")
+  optanteSimplesNacional   Boolean @default(false) @map("optante_simples_nacional")
+  regimeEspecialTributacao String? @map("regime_especial_tributacao")
+
+  logradouro  String
+  numero      String
+  complemento String?
+  bairro      String
+  cep         String
+  uf          String
+
+  defaultItemListaServico String  @map("default_item_lista_servico")
+  defaultAliquotaIss      Decimal @map("default_aliquota_iss") @db.Decimal(5, 4)
+  defaultIssRetido        Boolean @default(false) @map("default_iss_retido")
+  defaultDiscriminacao    String? @map("default_discriminacao")
+
+  environment                 FiscalEnvironment @default(HOMOLOGACAO)
+  focusEmpresaRegistered      Boolean           @default(false) @map("focus_empresa_registered")
+  supportedByFocus            Boolean           @default(false) @map("supported_by_focus")
+  focusCertificadoUploadedAt  DateTime?         @map("focus_certificado_uploaded_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  fiscalInvoices FiscalInvoice[]
+
+  @@index([organizationId])
+  @@map("fiscal_company_profile")
+}
+
+model FiscalInvoice {
+  id             String               @id @default(cuid())
+  organizationId String               @map("organization_id")
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  profileId      String               @map("profile_id")
+  profile        FiscalCompanyProfile @relation(fields: [profileId], references: [id])
+  contractId     String?              @map("contract_id")
+  contract       ForgeContract?       @relation(fields: [contractId], references: [id])
+
+  ref         String              @unique
+  type        FiscalInvoiceType   @default(NFSE)
+  status      FiscalInvoiceStatus @default(PROCESSANDO)
+  environment FiscalEnvironment
+
+  valorServicos  Decimal  @map("valor_servicos") @db.Decimal(14, 2)
+  aliquotaIss    Decimal  @map("aliquota_iss") @db.Decimal(5, 4)
+  issRetido      Boolean  @default(false) @map("iss_retido")
+  valorIss       Decimal? @map("valor_iss") @db.Decimal(14, 2)
+  deducoes       Decimal? @db.Decimal(14, 2)
+  retencaoIr     Decimal? @map("retencao_ir") @db.Decimal(14, 2)
+  retencaoPis    Decimal? @map("retencao_pis") @db.Decimal(14, 2)
+  retencaoCofins Decimal? @map("retencao_cofins") @db.Decimal(14, 2)
+  retencaoCsll   Decimal? @map("retencao_csll") @db.Decimal(14, 2)
+  retencaoInss   Decimal? @map("retencao_inss") @db.Decimal(14, 2)
+
+  dataCompetencia DateTime @map("data_competencia")
+
+  requestPayload Json  @map("request_payload")
+  focusResponse  Json? @map("focus_response")
+
+  numero             String? @map("numero")
+  codigoVerificacao  String? @map("codigo_verificacao")
+  urlEspelho         String? @map("url_espelho")
+  urlDanfse          String? @map("url_danfse")
+  caminhoXmlFocus    String? @map("caminho_xml_focus")
+  caminhoXmlStorage  String? @map("caminho_xml_storage")
+
+  tomadorSnapshot Json        @map("tomador_snapshot")
+  tipoTomador     TomadorType @map("tipo_tomador")
+
+  errorMessage String? @map("error_message")
+  issuedById   String  @map("issued_by_id")
+  issuedBy     User    @relation(fields: [issuedById], references: [id])
+
+  authorizedAt DateTime? @map("authorized_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@index([contractId])
+  @@index([status, createdAt])
+  @@index([ref])
+  @@map("fiscal_invoice")
 }

@@ -39,6 +39,7 @@ import {
   Plus, FileCheck2, Pencil, Trash2, Users,
   BookText, Calendar, AlignLeft,
   Eye, Share2, Copy, MessageCircle, Mail, CheckCircle2, Clock, Sparkles,
+  Receipt,
 } from "lucide-react";
 import {
   Popover,
@@ -50,6 +51,7 @@ import { toast } from "sonner";
 import { ContractForm } from "./contract-form";
 import { TemplateModal } from "./template-modal";
 import { PatternsSection } from "@/features/admin/components/patterns-section";
+import { FiscalInvoiceCard } from "@/features/fiscal/components/fiscal-invoice-card";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   PENDENTE_ASSINATURA: { label: "Pendente Assinatura", color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
@@ -318,6 +320,18 @@ function TemplateManager({ onClose }: { onClose: () => void }) {
 
 // ─── Main tab ─────────────────────────────────────────────────────────────────
 
+interface FiscalSheetContract {
+  id: string;
+  number: number;
+  value: string;
+  clientData: {
+    name?: string | null;
+    document?: string | null;
+    email?: string | null;
+    address?: string | null;
+  } | null;
+}
+
 export function ContractsTab() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -325,6 +339,7 @@ export function ContractsTab() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [templateToggling, setTemplateToggling] = useState<string | null>(null);
+  const [fiscalContract, setFiscalContract] = useState<FiscalSheetContract | null>(null);
 
   const { data, isLoading } = useForgeContracts(statusFilter !== "ALL" ? { status: statusFilter } : {});
   const deleteContract = useDeleteForgeContract();
@@ -474,6 +489,20 @@ export function ContractsTab() {
                           <Pencil className="size-3.5" />
                         </Button>
                         <Button
+                          size="icon" variant="ghost" className="size-7 text-[#7C3AED] hover:text-[#7C3AED]"
+                          onClick={() =>
+                            setFiscalContract({
+                              id: c.id,
+                              number: c.number,
+                              value: c.value,
+                              clientData: c.clientData as FiscalSheetContract["clientData"],
+                            })
+                          }
+                          title="Nota Fiscal"
+                        >
+                          <Receipt className="size-3.5" />
+                        </Button>
+                        <Button
                           size="icon" variant="ghost" className="size-7 text-destructive hover:text-destructive"
                           onClick={() => setDeleteId(c.id)}
                           title="Excluir"
@@ -534,6 +563,26 @@ export function ContractsTab() {
       </AlertDialog>
 
       <PatternsSection appType="forge-contract" />
+
+      {/* Fiscal Sheet */}
+      <Sheet
+        open={!!fiscalContract}
+        onOpenChange={(isOpen) => !isOpen && setFiscalContract(null)}
+      >
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Receipt className="size-4 text-[#7C3AED]" />
+              Nota Fiscal — Contrato #{fiscalContract ? String(fiscalContract.number).padStart(4, "0") : ""}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mt-4">
+            {fiscalContract && (
+              <FiscalInvoiceCard contract={fiscalContract} />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

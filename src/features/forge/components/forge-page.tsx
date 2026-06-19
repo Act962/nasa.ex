@@ -10,6 +10,7 @@ import { ProductsTab } from "./products/products-tab";
 import { ProposalsTab } from "./proposals/proposals-tab";
 import { ContractsTab } from "./contracts/contracts-tab";
 import { ForgeSettingsPanel } from "./settings/forge-settings";
+import { FiscalProfileForm } from "@/features/fiscal/components/fiscal-profile-form";
 import {
   Sheet,
   SheetContent,
@@ -101,7 +102,22 @@ export function ForgePage() {
               <Settings className="size-4" /> Configurações do FORGE
             </SheetTitle>
           </SheetHeader>
-          <ForgeSettingsPanel />
+          <Tabs defaultValue="geral" className="mt-4">
+            <TabsList className="w-full">
+              <TabsTrigger value="geral" className="flex-1 text-xs">
+                Geral
+              </TabsTrigger>
+              <TabsTrigger value="fiscal" className="flex-1 text-xs">
+                Fiscal
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="geral" className="pt-4">
+              <ForgeSettingsPanel />
+            </TabsContent>
+            <TabsContent value="fiscal" className="pt-4">
+              <FiscalProfileForm />
+            </TabsContent>
+          </Tabs>
         </SheetContent>
       </Sheet>
     </div>
