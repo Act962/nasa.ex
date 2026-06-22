@@ -93,7 +93,7 @@ export function WhatsAppProviderSettings({
     () =>
       Boolean(
         metaSummary?.hasAccessToken ||
-          metaSummary?.hasPhoneNumberId ||
+          metaSummary?.phoneNumberId ||
           metaSummary?.hasAppSecret ||
           metaSummary?.hasVerifyToken,
       ),
@@ -111,8 +111,7 @@ export function WhatsAppProviderSettings({
     const willHaveAccessToken =
       Boolean(metaForm.accessToken) || Boolean(metaSummary?.hasAccessToken);
     const willHavePhoneNumberId =
-      Boolean(metaForm.phoneNumberId) ||
-      Boolean(metaSummary?.hasPhoneNumberId);
+      Boolean(metaForm.phoneNumberId) || Boolean(metaSummary?.phoneNumberId);
     if (!willHaveAccessToken) missing.push("Access Token");
     if (!willHavePhoneNumberId) missing.push("Phone Number ID");
     return missing;
@@ -314,9 +313,8 @@ export function WhatsAppProviderSettings({
             />
             <CredentialField
               label="Phone Number ID"
-              placeholder={placeholderFor(
-                metaSummary?.hasPhoneNumberId,
-                metaSummary?.lastPhoneNumberId,
+              placeholder={publicIdPlaceholder(
+                metaSummary?.phoneNumberId,
                 "Ex.: 1098765432109876",
               )}
               value={metaForm.phoneNumberId}
@@ -351,9 +349,8 @@ export function WhatsAppProviderSettings({
             />
             <CredentialField
               label="WhatsApp Business Account ID (opcional)"
-              placeholder={placeholderFor(
-                metaSummary?.hasBusinessAccountId,
-                metaSummary?.lastBusinessAccountId,
+              placeholder={publicIdPlaceholder(
+                metaSummary?.businessAccountId,
                 "Necessário pra templates (Fase 6+)",
               )}
               value={metaForm.businessAccountId}
@@ -480,6 +477,18 @@ function placeholderFor(
     return last ? `•••• ${last} (deixe vazio para manter)` : "•••• (gravado)";
   }
   return fallback;
+}
+
+/**
+ * Placeholder pros identificadores PÚBLICOS (`phoneNumberId`,
+ * `businessAccountId`). Mostra valor inteiro — não tem o que mascarar,
+ * são públicos (aparecem em todo webhook Meta).
+ */
+function publicIdPlaceholder(
+  current: string | null | undefined,
+  fallback: string,
+): string {
+  return current ? `${current} (deixe vazio para manter)` : fallback;
 }
 
 function MetaPhoneStatusCard({

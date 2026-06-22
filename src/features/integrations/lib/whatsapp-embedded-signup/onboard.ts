@@ -11,7 +11,6 @@ import {
 } from "@/http/whats-oficial";
 import { WhatsAppProvider } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
-import { clearMetaPhoneNumberIdLookupCache } from "@/features/tracking-chat/lib/get-cached-tracking-by-meta-phone-number-id";
 import { invalidateOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
 import { encryptMetaCredentialsInput } from "@/features/tracking-chat/lib/providers/meta-credentials";
 import { logEmbeddedSignup } from "./logger";
@@ -270,10 +269,10 @@ export async function onboardWhatsAppEmbeddedSignup(
     select: { id: true, provider: true },
   });
 
-  // ── Passo 6: invalidar caches ─────────────────────────────────────────
-  // metaPhoneNumberId mudou (ou apareceu pela primeira vez), e provider
-  // virou META_CLOUD. Os dois caches in-process precisam refletir.
-  clearMetaPhoneNumberIdLookupCache();
+  // ── Passo 6: invalidar cache outbound ─────────────────────────────────
+  // Provider virou META_CLOUD — `resolveOutboundProvider` precisa
+  // recarregar do banco. Lookup do webhook não tem cache (findUnique
+  // direto em coluna `@unique`).
   invalidateOutboundProvider(input.trackingId);
 
   logEmbeddedSignup({

@@ -10,7 +10,6 @@ import {
   maskMetaCredentials,
   type MetaCredentialsInput,
 } from "@/features/tracking-chat/lib/providers/meta-credentials";
-import { clearMetaPhoneNumberIdLookupCache } from "@/features/tracking-chat/lib/get-cached-tracking-by-meta-phone-number-id";
 import { invalidateOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
 import { createInstance } from "@/http/uazapi/admin/create-instance";
 import { configureWebhook } from "@/http/uazapi/configure-webhook";
@@ -336,19 +335,12 @@ export const setProviderSettings = base
       }
     }
 
-    // ── Invalida cache de lookup do webhook oficial ────────────────────
-    // Se phone_number_id, provider ou credenciais cifradas mudaram, o
-    // cache in-process em `get-cached-tracking-by-meta-phone-number-id`
-    // pode estar apontando pra estado obsoleto. Como não temos a chave
-    // antiga (cifrada com IV randômico), limpamos o cache inteiro — é
-    // pequeno (algumas dezenas de entradas) e o evento é raro.
+    // Lookup do webhook oficial não tem mais cache — `metaPhoneNumberId`
+    // virou plaintext indexado (`@unique`), resolvido em sub-ms via
+    // `findUnique`. Mudanças aqui propagam imediatamente sem ação extra.
+
     const changedKeys = Object.keys(updateData);
-    const touchedMetaCreds = changedKeys.some(
-      (key) => key.startsWith("meta") || key === "provider",
-    );
-    if (touchedMetaCreds) {
-      clearMetaPhoneNumberIdLookupCache();
-    }
+
     // Cache outbound da Fase 6 é por-tracking — invalida sempre que
     // provider ou QUALQUER credencial muda (inclui apiKey/baseUrl/
     // instanceId Uazapi mexidos pelo switch). Sem isso, send subsequente

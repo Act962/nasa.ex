@@ -2129,17 +2129,21 @@ model WhatsAppInstance {
   isBusiness     Boolean                @default(false) @map("is_business")
 
   // ── Credenciais Meta Cloud API (Fase 4) ──────────────────────────────
-  // Só preenchidos quando `provider == META_CLOUD`. Todos cifrados com
-  // `@/lib/crypto` (AES-256-GCM + `AI_SECRETS_KEY`); nunca logar em claro
-  // — usar `last4(...)` pra exibir parcial.
-  //  - `metaAccessToken`    — System User access token (long-lived).
-  //  - `metaPhoneNumberId`  — Phone Number ID do número de testes/prod.
-  //  - `metaAppSecret`      — App Secret pra validar HMAC `x-hub-signature-256`.
-  //  - `metaVerifyToken`    — `hub.verify_token` do GET de subscription.
-  //  - `metaBusinessAccountId` — WhatsApp Business Account ID (WABA), pra
-  //    operações que precisam dele (templates, etc — Fase 6+).
+  // Só preenchidos quando `provider == META_CLOUD`.
+  //
+  // **Cifrados** (AES-256-GCM via `@/lib/crypto` + `AI_SECRETS_KEY`; nunca
+  // logar em claro — usar `last4(...)` pra exibir parcial):
+  //  - `metaAccessToken`  — System User access token (long-lived).
+  //  - `metaAppSecret`    — App Secret pra validar HMAC `x-hub-signature-256`.
+  //  - `metaVerifyToken`  — `hub.verify_token` do GET de subscription.
+  //
+  // **Plaintext** (identificadores públicos, aparecem em todo webhook Meta
+  // e na URL de envio do Graph — cifrar só atrapalhava o lookup):
+  //  - `metaPhoneNumberId`     — Phone Number ID do número (chave de lookup
+  //    no webhook oficial; `@unique` faz `findUnique` constant-time).
+  //  - `metaBusinessAccountId` — WhatsApp Business Account ID (WABA).
   metaAccessToken       String? @map("meta_access_token")
-  metaPhoneNumberId     String? @map("meta_phone_number_id")
+  metaPhoneNumberId     String? @unique @map("meta_phone_number_id")
   metaAppSecret         String? @map("meta_app_secret")
   metaVerifyToken       String? @map("meta_verify_token")
   metaBusinessAccountId String? @map("meta_business_account_id")

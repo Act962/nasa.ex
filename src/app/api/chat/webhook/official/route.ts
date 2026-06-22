@@ -5,8 +5,8 @@
  * plataforma — diferente do Uazapi (`/api/chat/webhook?trackingId=...`),
  * a Meta não permite querystring custom no Webhook URL. O roteamento
  * pra tracking acontece via `entry[].changes[].value.metadata.phone_
- * number_id` → `WhatsAppInstance.metaPhoneNumberId` (cifrado, resolvido
- * via `getCachedTrackingByMetaPhoneNumberId`).
+ * number_id` → `WhatsAppInstance.metaPhoneNumberId` (plaintext + `@unique`,
+ * resolvido em sub-ms via `getTrackingByMetaPhoneNumberId`).
  *
  * ## Contratos Meta
  *
@@ -55,7 +55,7 @@ import { parseWhatsAppOfficialWebhook } from "@/http/whats-oficial/webhook-schem
 import prisma from "@/lib/prisma";
 import { WhatsAppProvider } from "@/generated/prisma/enums";
 import { decryptStoredMetaCredentialsPartial } from "@/features/tracking-chat/lib/providers/meta-credentials";
-import { getCachedTrackingByMetaPhoneNumberId } from "@/features/tracking-chat/lib/get-cached-tracking-by-meta-phone-number-id";
+import { getTrackingByMetaPhoneNumberId } from "@/features/tracking-chat/lib/get-tracking-by-meta-phone-number-id";
 import { getCachedTrackingContext } from "@/features/tracking-chat/lib/get-cached-tracking-context";
 import { createProvider } from "@/features/tracking-chat/lib/providers";
 import { persistCanonicalInbound } from "@/features/tracking-chat/lib/inbound/persist-canonical-inbound";
@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
   }
   const phoneNumberId = phoneNumberIds[0];
 
-  const instance = await getCachedTrackingByMetaPhoneNumberId(phoneNumberId);
+  const instance = await getTrackingByMetaPhoneNumberId(phoneNumberId);
   if (!instance) {
     // Phone number id não está em nenhuma WhatsAppInstance META_CLOUD.
     // Sem appSecret correspondente, NÃO podemos validar HMAC. Retorna

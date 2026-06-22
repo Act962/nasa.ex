@@ -5,18 +5,30 @@ import { decryptSecret, encryptSecret, last4 } from "@/lib/crypto";
 /**
  * Helpers de credenciais Meta Cloud API (Fase 4 — Roadmap WhatsApp Oficial).
  *
- * A coluna `WhatsAppInstance.meta*` guarda valores **cifrados** (AES-256-GCM
- * via `@/lib/crypto`). Estes helpers concentram dois movimentos:
+ * As colunas `WhatsAppInstance.meta*` se dividem em duas classes:
  *
- *  - **Encrypt em entrada** (`encryptMetaCredentialsInput`): vem do form
- *    da UI em texto claro → vai pro banco cifrado. Strings vazias /
- *    `undefined` significam "não alterar" no update; só cifra valores
- *    realmente preenchidos.
+ *  - **Segredos** (`metaAccessToken`, `metaAppSecret`, `metaVerifyToken`):
+ *    guardados cifrados (AES-256-GCM via `@/lib/crypto`). UI recebe
+ *    `hasX: boolean` + `lastX: string | null` (últimos 4 chars) pra
+ *    confirmar "qual token tá lá" sem expor o segredo.
  *
- *  - **Mask em saída** (`maskMetaCredentials`): a UI **nunca** recebe o
- *    valor em claro de volta — só `hasX: boolean` (existe segredo?) +
- *    `lastX: string | null` (últimos 4 chars). Operacional pra confirmar
- *    "qual token tá lá" sem expor o segredo inteiro nos logs.
+ *  - **Identificadores públicos** (`metaPhoneNumberId`,
+ *    `metaBusinessAccountId`): plaintext. Esses valores aparecem em
+ *    todo webhook Meta (`metadata.phone_number_id`, `entry[].id`) e
+ *    na URL pública de envio do Graph — cifrar só atrapalhava o
+ *    lookup. `metaPhoneNumberId` em particular é `@unique` no schema:
+ *    o webhook oficial usa `findUnique` direto pra rotear inbound.
+ *
+ * Estes helpers concentram dois movimentos:
+ *
+ *  - **`encryptMetaCredentialsInput`**: do form da UI em texto claro →
+ *    payload de update Prisma. Strings vazias / `undefined` significam
+ *    "não alterar". Segredos vão cifrados; identificadores públicos
+ *    passam direto.
+ *
+ *  - **`maskMetaCredentials`**: shape seguro pra UI/oRPC. Segredos
+ *    devolvem `hasX/lastX`; identificadores públicos devolvem o valor
+ *    inteiro (não tem o que mascarar).
  *
  * Pra ler em claro no caminho de envio/webhook (Fase 5+6), use
  * `decryptStoredMetaCredentials` — ele lança se algum campo obrigatório
@@ -50,14 +62,17 @@ export interface MetaCredentialsStored {
 export interface MetaCredentialsMasked {
   readonly hasAccessToken: boolean;
   readonly lastAccessToken: string | null;
-  readonly hasPhoneNumberId: boolean;
-  readonly lastPhoneNumberId: string | null;
+  /**
+   * `metaPhoneNumberId` é público (aparece em todo webhook + URL de envio
+   * Graph). UI recebe o valor completo pra operador conferir.
+   */
+  readonly phoneNumberId: string | null;
   readonly hasAppSecret: boolean;
   readonly lastAppSecret: string | null;
   readonly hasVerifyToken: boolean;
   readonly lastVerifyToken: string | null;
-  readonly hasBusinessAccountId: boolean;
-  readonly lastBusinessAccountId: string | null;
+  /** Público — valor inteiro vai pra UI. */
+  readonly businessAccountId: string | null;
 }
 
 export interface MetaCredentialsPlain {
@@ -84,7 +99,8 @@ export interface MetaCredentialsPartialPlain {
 /**
  * Converte input do formulário em payload de update do Prisma:
  *
- *  - Valor não-vazio  → cifra e grava.
+ *  - Valor não-vazio  → grava (cifra se for segredo; plaintext se for
+ *    identificador público — `phoneNumberId`/`businessAccountId`).
  *  - Valor `null`     → "limpar campo" (UI explicita zerar).
  *  - `undefined`      → não tocar (omite do `data` do Prisma).
  *
@@ -100,7 +116,7 @@ export function encryptMetaCredentialsInput(
     result.metaAccessToken = encryptIfPresent(input.accessToken);
   }
   if (input.phoneNumberId !== undefined) {
-    result.metaPhoneNumberId = encryptIfPresent(input.phoneNumberId);
+    result.metaPhoneNumberId = normalizeIfPresent(input.phoneNumberId);
   }
   if (input.appSecret !== undefined) {
     result.metaAppSecret = encryptIfPresent(input.appSecret);
@@ -109,7 +125,7 @@ export function encryptMetaCredentialsInput(
     result.metaVerifyToken = encryptIfPresent(input.verifyToken);
   }
   if (input.businessAccountId !== undefined) {
-    result.metaBusinessAccountId = encryptIfPresent(input.businessAccountId);
+    result.metaBusinessAccountId = normalizeIfPresent(input.businessAccountId);
   }
   return result;
 }
@@ -127,14 +143,12 @@ export function maskMetaCredentials(
   return {
     hasAccessToken: Boolean(stored.metaAccessToken),
     lastAccessToken: safeLast4(stored.metaAccessToken),
-    hasPhoneNumberId: Boolean(stored.metaPhoneNumberId),
-    lastPhoneNumberId: safeLast4(stored.metaPhoneNumberId),
+    phoneNumberId: stored.metaPhoneNumberId,
     hasAppSecret: Boolean(stored.metaAppSecret),
     lastAppSecret: safeLast4(stored.metaAppSecret),
     hasVerifyToken: Boolean(stored.metaVerifyToken),
     lastVerifyToken: safeLast4(stored.metaVerifyToken),
-    hasBusinessAccountId: Boolean(stored.metaBusinessAccountId),
-    lastBusinessAccountId: safeLast4(stored.metaBusinessAccountId),
+    businessAccountId: stored.metaBusinessAccountId,
   };
 }
 
@@ -160,12 +174,10 @@ export function decryptStoredMetaCredentials(
   }
   return {
     accessToken: decryptSecret(stored.metaAccessToken!),
-    phoneNumberId: decryptSecret(stored.metaPhoneNumberId!),
+    phoneNumberId: stored.metaPhoneNumberId!,
     appSecret: decryptSecret(stored.metaAppSecret!),
     verifyToken: decryptSecret(stored.metaVerifyToken!),
-    businessAccountId: stored.metaBusinessAccountId
-      ? decryptSecret(stored.metaBusinessAccountId)
-      : null,
+    businessAccountId: stored.metaBusinessAccountId,
   };
 }
 
@@ -191,12 +203,10 @@ export function decryptStoredMetaCredentialsPartial(
   }
   return {
     accessToken: decryptSecret(stored.metaAccessToken!),
-    phoneNumberId: decryptSecret(stored.metaPhoneNumberId!),
+    phoneNumberId: stored.metaPhoneNumberId!,
     appSecret: stored.metaAppSecret ? decryptSecret(stored.metaAppSecret) : null,
     verifyToken: stored.metaVerifyToken ? decryptSecret(stored.metaVerifyToken) : null,
-    businessAccountId: stored.metaBusinessAccountId
-      ? decryptSecret(stored.metaBusinessAccountId)
-      : null,
+    businessAccountId: stored.metaBusinessAccountId,
   };
 }
 
@@ -216,6 +226,13 @@ function encryptIfPresent(value: string | null): string | null {
   const trimmed = value.trim();
   if (trimmed.length === 0) return null;
   return encryptSecret(trimmed);
+}
+
+function normalizeIfPresent(value: string | null): string | null {
+  if (value === null) return null;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  return trimmed;
 }
 
 function safeLast4(cipher: string | null): string | null {
