@@ -279,7 +279,7 @@ export function SendMessageSheet({
 
           {!instanceLoading && !conversationId && instance && (
             <EmptyConversation
-              apikey={instance?.apiKey}
+              apikey={instance?.apiKey ?? ""}
               lead={{ ...lead, phone: lead.phone ?? "" }}
               trackingId={trackingId}
             />

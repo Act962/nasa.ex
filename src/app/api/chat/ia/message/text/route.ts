@@ -1,6 +1,7 @@
 import { CreatedMessageProps } from "@/features/tracking-chat/types";
 import { MessageStatus } from "@/generated/prisma/enums";
 import { sendText } from "@/http/uazapi/send-text";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { NextResponse } from "next/server";
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const response = await sendText(tracking.whatsappInstance.apiKey, {
+    const response = await sendText(requireUazapiToken(tracking.whatsappInstance.apiKey), {
       text: message,
       number: phone,
       delay: 2000,

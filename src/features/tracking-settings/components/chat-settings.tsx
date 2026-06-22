@@ -29,7 +29,10 @@ import { getInstanceStatus } from "@/http/uazapi/get-instance-status";
 import { disconnectInstance } from "@/http/uazapi/disconnect-instance";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
+import {
+  WhatsAppInstanceStatus,
+  WhatsAppProvider,
+} from "@/generated/prisma/enums";
 import {
   useQueryInstances,
   useDisconnectIntegrationStatus,
@@ -42,6 +45,7 @@ import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { Lock } from "lucide-react";
 import { InChatManualToggle } from "@/features/tracking-chat/components/in-chat-manual-toggle";
+import { WhatsAppProviderSettings } from "./whatsapp-provider-settings";
 
 // ── Popup plano necessário ────────────────────────────────────────────────────
 function NoPlanPopup({
@@ -119,7 +123,28 @@ export function ChatSettings() {
     null,
   );
 
-  const { instanceLoading, instance } = useQueryInstances(trackingId);
+  const { instanceLoading, instance: instanceData } =
+    useQueryInstances(trackingId);
+
+  // Normaliza o dado da query pro tipo Instance (UI). As credenciais Uazapi
+  // (apiKey/baseUrl/instanceId) vêm null quando provider=META_CLOUD — coalesce
+  // pra "" porque as ações que as consomem (QR connect / status / disconnect)
+  // são gateadas a Uazapi via `isMeta`.
+  const instance: Instance | null = instanceData
+    ? {
+        id: instanceData.id,
+        instanceName: instanceData.instanceName,
+        baseUrl: instanceData.baseUrl ?? "",
+        apiKey: instanceData.apiKey ?? "",
+        status: instanceData.status,
+        instanceId: instanceData.instanceId ?? "",
+        provider: instanceData.provider,
+        phoneNumber: instanceData.phoneNumber,
+        profileName: instanceData.profileName,
+        isBusiness: instanceData.isBusiness,
+      }
+    : null;
+  const isMeta = instance?.provider === WhatsAppProvider.META_CLOUD;
 
   const checkStatus = async (instance: Instance) => {
     try {
@@ -156,10 +181,19 @@ export function ChatSettings() {
     }
   };
 
-  const onInstanceCreated = (instance: Instance) => {
+  const onInstanceCreated = (created: Instance) => {
     setIsCreateOpen(false);
+    setSelectedInstance(created);
+    if (created.provider === WhatsAppProvider.META_CLOUD) {
+      // Meta Cloud não usa QR Code — a conexão (OAuth/credenciais) é feita
+      // no card "Provider WhatsApp" que aparece abaixo assim que a instância
+      // existe. Não abrimos o ConnectModal Uazapi.
+      toast.success(
+        'Instância criada. Conecte a API Oficial no card "Provider WhatsApp" abaixo.',
+      );
+      return;
+    }
     setIsConnectOpen(true);
-    setSelectedInstance(instance);
   };
 
   const openConnect = (instance: Instance) => {
@@ -234,22 +268,35 @@ export function ChatSettings() {
                   <div className="space-y-3">
                     <h2 className="text-xl font-semibold flex items-center gap-2">
                       {instance.instanceName}
+                      {/* Status Uazapi (QR). Pra Meta o status real vem do
+                          card "Provider WhatsApp" (Graph API), então só
+                          mostramos o badge do provedor. */}
+                      {!isMeta && (
+                        <Badge
+                          variant={
+                            instance.status ===
+                            WhatsAppInstanceStatus.CONNECTED
+                              ? "default"
+                              : "secondary"
+                          }
+                          className={cn(
+                            "text-[10px] px-1.5 h-4 font-bold uppercase",
+                            instance.status ===
+                              WhatsAppInstanceStatus.CONNECTED
+                              ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                              : "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          {instance.status === WhatsAppInstanceStatus.CONNECTED
+                            ? "Conectado"
+                            : "Desconectado"}
+                        </Badge>
+                      )}
                       <Badge
-                        variant={
-                          instance.status === WhatsAppInstanceStatus.CONNECTED
-                            ? "default"
-                            : "secondary"
-                        }
-                        className={cn(
-                          "text-[10px] px-1.5 h-4 font-bold uppercase",
-                          instance.status === WhatsAppInstanceStatus.CONNECTED
-                            ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                            : "bg-muted text-muted-foreground",
-                        )}
+                        variant="outline"
+                        className="text-[10px] px-1.5 h-4 font-bold uppercase"
                       >
-                        {instance.status === WhatsAppInstanceStatus.CONNECTED
-                          ? "Conectado"
-                          : "Desconectado"}
+                        {isMeta ? "Oficial Meta" : "Uazapi"}
                       </Badge>
                     </h2>
                     <CardDescription className="font-mono text-[10px] uppercase tracking-wider">
@@ -264,27 +311,36 @@ export function ChatSettings() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onClick={() => checkStatus(instance)}>
-                          <RefreshCw className="size-4" />
-                          Verificar Status
-                        </DropdownMenuItem>
+                        {/* Ações Uazapi-only (status/desconectar via QR).
+                            Meta Cloud é gerenciado pelo card "Provider
+                            WhatsApp" abaixo. */}
+                        {!isMeta && (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => checkStatus(instance)}
+                            >
+                              <RefreshCw className="size-4" />
+                              Verificar Status
+                            </DropdownMenuItem>
 
-                        <DropdownMenuSeparator />
-                        {instance.status ===
-                          WhatsAppInstanceStatus.CONNECTED && (
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleDisconnect({
-                                token: instance.apiKey,
-                                serverUrl: instance.baseUrl,
-                                instanceId: instance.instanceId,
-                              })
-                            }
-                            className="text-warning"
-                          >
-                            <Unlink className="size-4" />
-                            Desconectar
-                          </DropdownMenuItem>
+                            {instance.status ===
+                              WhatsAppInstanceStatus.CONNECTED && (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleDisconnect({
+                                    token: instance.apiKey,
+                                    serverUrl: instance.baseUrl,
+                                    instanceId: instance.instanceId,
+                                  })
+                                }
+                                className="text-warning"
+                              >
+                                <Unlink className="size-4" />
+                                Desconectar
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                          </>
                         )}
                         <DropdownMenuItem
                           onClick={() => handleDelete(instance)}
@@ -328,21 +384,37 @@ export function ChatSettings() {
                     </div>
                   </div>
 
-                  <Button
-                    onClick={() => openConnect(instance)}
-                    variant="outline"
-                  >
-                    <Smartphone className="size-4" />
-                    {instance.status === WhatsAppInstanceStatus.CONNECTED
-                      ? "Reconectar"
-                      : "Conectar Agora"}
-                  </Button>
+                  {/* Conexão via QR Code é Uazapi-only. Meta Cloud conecta
+                      pelo card "Provider WhatsApp" abaixo (OAuth/credenciais). */}
+                  {isMeta ? (
+                    <p className="text-xs text-muted-foreground">
+                      Conecte a API Oficial no card{" "}
+                      <span className="font-medium">Provider WhatsApp</span>{" "}
+                      abaixo.
+                    </p>
+                  ) : (
+                    <Button
+                      onClick={() => openConnect(instance)}
+                      variant="outline"
+                    >
+                      <Smartphone className="size-4" />
+                      {instance.status === WhatsAppInstanceStatus.CONNECTED
+                        ? "Reconectar"
+                        : "Conectar Agora"}
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Provider WhatsApp — gerencia/troca o provedor da instância e, pra
+          Meta Cloud, é onde a conexão acontece (Embedded Signup OAuth ou
+          credenciais manuais cifradas). Só renderiza quando a instância
+          existe (o provider é escolhido na criação). */}
+      {instance && <WhatsAppProviderSettings trackingId={trackingId} />}
 
       {/* In-Chat Manual Toggle (Sprint 3.5) — só renderiza se existe instância */}
       <InChatManualToggle trackingId={trackingId} />

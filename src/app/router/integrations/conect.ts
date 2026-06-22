@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { invalidateOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import { configureWebhook } from "@/http/uazapi/configure-webhook";
 import prisma from "@/lib/prisma";
@@ -64,8 +65,15 @@ export const connectInstanceUazapi = base
         id: true,
         instanceName: true,
         organizationId: true,
+        trackingId: true,
       },
     });
+
+    // Invalida cache outbound (Fix #4). Após (re)conexão Uazapi as
+    // credenciais podem ter sido atualizadas; mesmo que `apiKey` em si
+    // raramente mude, status/phoneNumber mudam — invalidar é defensivo
+    // e barato.
+    invalidateOutboundProvider(trackingId);
 
     if (instance.organizationId) {
       await logActivity({

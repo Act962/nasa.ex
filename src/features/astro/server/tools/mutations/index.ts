@@ -3,6 +3,10 @@ import { tool } from "ai";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { sendText } from "@/http/uazapi/send-text";
+import {
+  requireUazapiToken,
+  requireUazapiBaseUrl,
+} from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import {
   userBelongsToOrg,
@@ -812,7 +816,11 @@ export function buildMutationTools(ctx: AgentContext) {
             },
           });
           if (tk?.whatsappInstance?.status === "CONNECTED") {
-            inst = tk.whatsappInstance;
+            inst = {
+              ...tk.whatsappInstance,
+              apiKey: requireUazapiToken(tk.whatsappInstance.apiKey),
+              baseUrl: requireUazapiBaseUrl(tk.whatsappInstance.baseUrl),
+            };
           }
         }
         if (!inst) {
@@ -823,7 +831,13 @@ export function buildMutationTools(ctx: AgentContext) {
             },
             select: { apiKey: true, baseUrl: true, status: true },
           });
-          inst = fallback;
+          inst = fallback
+            ? {
+                ...fallback,
+                apiKey: requireUazapiToken(fallback.apiKey),
+                baseUrl: requireUazapiBaseUrl(fallback.baseUrl),
+              }
+            : null;
         }
         if (!inst || inst.status !== "CONNECTED") {
           return {
@@ -890,9 +904,9 @@ export function buildMutationTools(ctx: AgentContext) {
         }
         try {
           await sendText(
-            inst.apiKey,
+            requireUazapiToken(inst.apiKey),
             { number: lead.phone, text },
-            inst.baseUrl,
+            inst.baseUrl ?? undefined,
           );
           return {
             success: true,

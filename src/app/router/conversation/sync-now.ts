@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { findMessages } from "@/http/uazapi/find-messages";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { MessageStatus } from "@/generated/prisma/enums";
 import type { FindMessageItem } from "@/http/uazapi/types";
 
@@ -193,7 +194,7 @@ export const syncNowConversation = base
       let response;
       try {
         response = await findMessages(
-          conv.tracking.whatsappInstance.apiKey,
+          requireUazapiToken(conv.tracking.whatsappInstance.apiKey),
           { chatid: conv.remoteJid, limit: PAGE_LIMIT, offset },
           conv.tracking.whatsappInstance.baseUrl ?? undefined,
         );

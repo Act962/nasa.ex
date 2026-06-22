@@ -5,7 +5,6 @@ import {
   MessageStatus,
 } from "@/features/tracking-chat/types";
 import { useConstructUrl } from "@/hooks/use-construct-url";
-import { sendMedia } from "@/http/uazapi/send-media";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { S3 } from "@/lib/s3-client";
@@ -24,6 +23,7 @@ import {
   shouldSkipUazapiForConversation,
   markInstanceConnectionFailure,
 } from "@/features/tracking-chat/lib/in-chat-mode";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import { v4 as uuidv4 } from "uuid";
 
 export const createMessageWithAudio = base
@@ -37,7 +37,11 @@ export const createMessageWithAudio = base
     z.object({
       conversationId: z.string(),
       leadPhone: z.string(),
-      token: z.string(),
+      /**
+       * @deprecated Ignorado pelo servidor desde Fase 6 — provider
+       * resolvido server-side via `resolveOutboundProvider(trackingId)`.
+       */
+      token: z.string().nullish(),
       blob: z.instanceof(Blob),
       nameAudio: z.string(),
       mimetype: z.string(),
@@ -47,11 +51,35 @@ export const createMessageWithAudio = base
   )
   .handler(async ({ input, context }) => {
     try {
-      // Cobra 1★ ANTES do upload S3 + chamada uazapi — evita custo sem saldo.
       const conv = await prisma.conversation.findUnique({
         where: { id: input.conversationId },
-        select: { channel: true, tracking: { select: { organizationId: true } } },
+        select: {
+          channel: true,
+          trackingId: true,
+          tracking: { select: { organizationId: true } },
+        },
       });
+
+      // ── In-Chat Fallback ─────────────────────────────────────────────
+      // Mesmo em modo In-Chat o upload S3 acontece (lead vai consumir
+      // via página pública). Só pulamos a uazapi.
+      const inChatMode =
+        (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP &&
+        (await shouldSkipUazapiForConversation(input.conversationId));
+
+      // Resolve provider ANTES de cobrar ★ e ANTES do upload S3 (Fix #2).
+      // Se o resolver falhar (instância deletada, credenciais Meta
+      // incompletas), nem cobramos ★ nem fazemos upload pra nada.
+      let resolvedWhatsapp: Awaited<ReturnType<typeof resolveOutboundProvider>> | null = null;
+      if (!inChatMode && (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP) {
+        if (!conv?.trackingId) {
+          throw new Error(
+            "Conversation sem trackingId — não é possível resolver provider.",
+          );
+        }
+        resolvedWhatsapp = await resolveOutboundProvider(conv.trackingId);
+      }
+
       if (conv?.tracking?.organizationId) {
         await chargeMessageOutbound({
           organizationId: conv.tracking.organizationId,
@@ -81,38 +109,36 @@ export const createMessageWithAudio = base
         throw new Error("Falha ao gerar URL presignada");
       }
 
-      // ── In-Chat Fallback ─────────────────────────────────────────────
-      // Mesmo em modo In-Chat o upload S3 acontece (lead vai consumir
-      // via página pública). Só pulamos a uazapi.
-      const inChatMode =
-        (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP &&
-        (await shouldSkipUazapiForConversation(input.conversationId));
-
       let externalMessageId = uuidv4();
       if (!inChatMode) {
+        // Provider já resolvido lá em cima — reusa. Áudio mapeia
+        // "myaudio" Uazapi (arquivo) / `audio` Meta.
+        const resolved = resolvedWhatsapp!;
         try {
-          const response = await sendMedia(input.token, {
-            file: useConstructUrl(input.nameAudio),
-            number: input.leadPhone,
-            type: "myaudio",
-            readchat: true,
-            readmessages: true,
-            replyid: input.replyId,
+          const response = await resolved.provider.sendMedia({
+            kind: "media",
+            mediaKind: "audio",
+            to: input.leadPhone,
+            mediaUrl: useConstructUrl(input.nameAudio),
+            mimetype: input.mimetype,
+            replyToExternalMessageId: input.replyId,
           });
-          externalMessageId = response.messageid;
+          externalMessageId = response.externalMessageId;
         } catch (err: any) {
-          const msg = String(err?.message ?? "");
-          const isLikelyBan =
-            msg.includes("status 401") ||
-            msg.includes("status 403") ||
-            msg.includes("status 500") ||
-            msg.toLowerCase().includes("invalid token") ||
-            msg.toLowerCase().includes("timeout");
-          if (isLikelyBan) {
-            markInstanceConnectionFailure({
-              apiKey: input.token,
-              source: "send_failure",
-            }).catch(() => {});
+          if (resolved.providerId === "uazapi" && resolved.uazapiToken) {
+            const msg = String(err?.message ?? "");
+            const isLikelyBan =
+              msg.includes("status 401") ||
+              msg.includes("status 403") ||
+              msg.includes("status 500") ||
+              msg.toLowerCase().includes("invalid token") ||
+              msg.toLowerCase().includes("timeout");
+            if (isLikelyBan) {
+              markInstanceConnectionFailure({
+                apiKey: resolved.uazapiToken,
+                source: "send_failure",
+              }).catch(() => {});
+            }
           }
           throw err;
         }

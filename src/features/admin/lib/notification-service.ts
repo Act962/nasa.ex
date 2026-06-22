@@ -2,6 +2,7 @@ import "server-only";
 
 import prisma from "@/lib/prisma";
 import { sendText } from "@/http/uazapi/send-text";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { pusherServer } from "@/lib/pusher";
 import {
   isSeverity,
@@ -201,7 +202,7 @@ async function sendWhatsAppNotification({
 
   const text = `*${title}*\n\n${body}\n\n_NASA.ex Platform_`;
 
-  await sendText(instance.apiKey, { number: phone, text }, instance.baseUrl);
+  await sendText(requireUazapiToken(instance.apiKey), { number: phone, text }, instance.baseUrl ?? undefined);
 }
 
 /**

@@ -1,6 +1,7 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { findMessages } from "@/http/uazapi/find-messages";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { pusherServer } from "@/lib/pusher";
 import { MessageStatus } from "@/generated/prisma/enums";
 import type { FindMessageItem } from "@/http/uazapi/types";
@@ -121,9 +122,9 @@ export const chatSyncMessages = inngest.createFunction(
       const result: { imported: number; hasMore: boolean; nextOffset: number } =
         await step.run(`page-${pages}`, async () => {
           const response = await findMessages(
-            context.apiKey,
+            requireUazapiToken(context.apiKey),
             { chatid: context.remoteJid, limit: PAGE_SIZE, offset },
-            context.baseUrl,
+            context.baseUrl ?? undefined,
           );
           const incoming = response.messages ?? [];
           if (incoming.length === 0) {

@@ -4,6 +4,7 @@ import z from "zod";
 import prisma from "@/lib/prisma";
 import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import { findChats } from "@/http/uazapi/find-chat";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 
 export const findChatByPhone = base
   .use(requiredAuthMiddleware)
@@ -44,7 +45,7 @@ export const findChatByPhone = base
         throw errors.BAD_REQUEST();
       }
 
-      const response = await findChats(instace.apiKey, {
+      const response = await findChats(requireUazapiToken(instace.apiKey), {
         name,
         wa_isGroup: isGroup,
         limit,
