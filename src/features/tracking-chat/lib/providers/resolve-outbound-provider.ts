@@ -58,6 +58,13 @@ export interface ResolvedOutboundProvider {
    * continuarem funcionando sem novo lookup. `undefined` para Meta.
    */
   readonly uazapiToken?: string;
+  /**
+   * Base URL Uazapi quando `providerId === "uazapi"`. Permite chamadas
+   * Uazapi-only que ainda não estão na PORT canônica (ex.:
+   * `sendButtons`/`sendList` em `router/message/create-with-buttons.ts`)
+   * reusarem o cache sem novo lookup. `undefined` para Meta.
+   */
+  readonly uazapiBaseUrl?: string;
 }
 
 interface CacheEntry {
@@ -155,6 +162,7 @@ export async function resolveOutboundProvider(
       instanceId: instance.id,
       organizationId: instance.organizationId,
       uazapiToken: token,
+      uazapiBaseUrl: baseUrl,
     };
   }
 

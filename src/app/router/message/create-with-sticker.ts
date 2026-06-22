@@ -44,7 +44,11 @@ export const createMessageWithSticker = base
     z.object({
       conversationId: z.string(),
       leadPhone: z.string(),
-      token: z.string(),
+      /**
+       * @deprecated Ignorado pelo servidor desde Fase 6 — provider
+       * resolvido server-side via `resolveOutboundProvider(trackingId)`.
+       */
+      token: z.string().nullish(),
       /** URL do R2 onde a figurinha está salva (key ou URL completa). */
       mediaUrl: z.string(),
       /** Mimetype real do arquivo (image/webp típico). */
@@ -60,10 +64,11 @@ export const createMessageWithSticker = base
       input.conversationId,
     );
 
+    // Sticker não cobra ★ hoje (followup #18), mas o resolver pode lançar
+    // — mantemos o resolve no topo do bloco WhatsApp por simetria com os
+    // demais handlers (Fix #2).
     let externalMessageId = uuidv4();
     if (!inChatMode) {
-      // Provider dispatch (Fase 6). Sticker → mediaKind "sticker"; sem
-      // caption nos dois providers (Meta também rejeita).
       const conv = await prisma.conversation.findUnique({
         where: { id: input.conversationId },
         select: { trackingId: true },

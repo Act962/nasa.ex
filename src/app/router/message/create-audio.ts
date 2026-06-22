@@ -37,7 +37,11 @@ export const createMessageWithAudio = base
     z.object({
       conversationId: z.string(),
       leadPhone: z.string(),
-      token: z.string(),
+      /**
+       * @deprecated Ignorado pelo servidor desde Fase 6 — provider
+       * resolvido server-side via `resolveOutboundProvider(trackingId)`.
+       */
+      token: z.string().nullish(),
       blob: z.instanceof(Blob),
       nameAudio: z.string(),
       mimetype: z.string(),
@@ -47,7 +51,6 @@ export const createMessageWithAudio = base
   )
   .handler(async ({ input, context }) => {
     try {
-      // Cobra 1★ ANTES do upload S3 + chamada uazapi — evita custo sem saldo.
       const conv = await prisma.conversation.findUnique({
         where: { id: input.conversationId },
         select: {
@@ -56,6 +59,27 @@ export const createMessageWithAudio = base
           tracking: { select: { organizationId: true } },
         },
       });
+
+      // ── In-Chat Fallback ─────────────────────────────────────────────
+      // Mesmo em modo In-Chat o upload S3 acontece (lead vai consumir
+      // via página pública). Só pulamos a uazapi.
+      const inChatMode =
+        (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP &&
+        (await shouldSkipUazapiForConversation(input.conversationId));
+
+      // Resolve provider ANTES de cobrar ★ e ANTES do upload S3 (Fix #2).
+      // Se o resolver falhar (instância deletada, credenciais Meta
+      // incompletas), nem cobramos ★ nem fazemos upload pra nada.
+      let resolvedWhatsapp: Awaited<ReturnType<typeof resolveOutboundProvider>> | null = null;
+      if (!inChatMode && (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP) {
+        if (!conv?.trackingId) {
+          throw new Error(
+            "Conversation sem trackingId — não é possível resolver provider.",
+          );
+        }
+        resolvedWhatsapp = await resolveOutboundProvider(conv.trackingId);
+      }
+
       if (conv?.tracking?.organizationId) {
         await chargeMessageOutbound({
           organizationId: conv.tracking.organizationId,
@@ -85,23 +109,11 @@ export const createMessageWithAudio = base
         throw new Error("Falha ao gerar URL presignada");
       }
 
-      // ── In-Chat Fallback ─────────────────────────────────────────────
-      // Mesmo em modo In-Chat o upload S3 acontece (lead vai consumir
-      // via página pública). Só pulamos a uazapi.
-      const inChatMode =
-        (conv?.channel ?? MessageChannel.WHATSAPP) === MessageChannel.WHATSAPP &&
-        (await shouldSkipUazapiForConversation(input.conversationId));
-
       let externalMessageId = uuidv4();
       if (!inChatMode) {
-        // Provider dispatch (Fase 6). Áudio mapeia "myaudio" Uazapi
-        // (arquivo) / `audio` Meta — adapter Uazapi cuida da tradução.
-        if (!conv?.trackingId) {
-          throw new Error(
-            "Conversation sem trackingId — não é possível resolver provider.",
-          );
-        }
-        const resolved = await resolveOutboundProvider(conv.trackingId);
+        // Provider já resolvido lá em cima — reusa. Áudio mapeia
+        // "myaudio" Uazapi (arquivo) / `audio` Meta.
+        const resolved = resolvedWhatsapp!;
         try {
           const response = await resolved.provider.sendMedia({
             kind: "media",

@@ -12,7 +12,10 @@ import {
   webhookBaseSchema,
 } from "@/http/uazapi/webhook-schema";
 import { getCachedTrackingContext } from "@/features/tracking-chat/lib/get-cached-tracking-context";
-import { createProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  createProvider,
+  invalidateOutboundProvider,
+} from "@/features/tracking-chat/lib/providers";
 import { persistCanonicalInbound } from "@/features/tracking-chat/lib/inbound/persist-canonical-inbound";
 import {
   buildUazapiDownloadInboundMedia,
@@ -205,6 +208,12 @@ export async function POST(request: NextRequest) {
           },
           select: { id: true, trackingId: true, baseUrl: true },
         });
+        // Invalida cache outbound (Fix #4) — instância recém-desconectada,
+        // próximos sends devem cair no caminho In-Chat (não no provider
+        // direto, que ia falhar). O `shouldSkipUazapiForConversation` é o
+        // gate principal, mas invalidar mantém o cache coerente com o
+        // novo estado.
+        invalidateOutboundProvider(disconnectedInstance.trackingId);
         // Detecção push-based — dispara a confirmação da queda (carência +
         // checagem de status) que ativa o modo In-Chat se a queda for
         // sustentada. Substitui o contador "3 falhas" e o cron de varredura.

@@ -39,7 +39,11 @@ export const forwardMessageHandler = base
   .input(
     z.object({
       conversationIds: z.array(z.string()).min(1),
-      token: z.string(),
+      /**
+       * @deprecated Ignorado pelo servidor desde Fase 6 — provider
+       * resolvido server-side via `resolveOutboundProvider(trackingId)`.
+       */
+      token: z.string().nullish(),
       payload: forwardPayloadSchema,
     }),
   )
@@ -70,16 +74,17 @@ export const forwardMessageHandler = base
           conversation.lead.phone ??
           conversation.remoteJid.replace("@s.whatsapp.net", "");
 
+        // Resolve provider ANTES de cobrar ★ (Fix #2). `input.token`
+        // mantido no schema por backward compat mas ignorado — source of
+        // truth é o banco.
+        const resolved = await resolveOutboundProvider(conversation.trackingId);
+
         await chargeMessageOutbound({
           organizationId: conversation.tracking.organizationId,
           userId: context.user.id,
           channel: "whatsapp",
           mediaType: payloadKindToMediaType(input.payload.kind),
         });
-
-        // Provider dispatch (Fase 6) — `input.token` mantido no schema
-        // por backward compat mas ignorado. Source of truth é o banco.
-        const resolved = await resolveOutboundProvider(conversation.trackingId);
 
         const ctx = {
           conversationId,
