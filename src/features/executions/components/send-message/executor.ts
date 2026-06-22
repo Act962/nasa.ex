@@ -7,6 +7,7 @@ import { sendTextMessage } from "./message/send-text-message";
 import { sendImageMessage } from "./message/send-image";
 import { sendDocumentMessage } from "./message/send-document";
 import { sendButtonsOrList } from "@/http/uazapi/send-menu";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { sendMessageChannel } from "@/inngest/channels/send-message";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { normalizePhone } from "@/utils/format-phone";
@@ -173,7 +174,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             body: message,
             conversationId: conversation.id,
             leadPhone: phone,
-            token: instance.apiKey,
+            token: requireUazapiToken(instance.apiKey),
           });
 
           break;
@@ -188,7 +189,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             body: caption,
             conversationId: conversation.id,
             leadPhone: phone,
-            token: instance.apiKey,
+            token: requireUazapiToken(instance.apiKey),
             mediaUrl: data.action?.payload.imageUrl || "",
           });
           break;
@@ -203,7 +204,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             body: documentCaption,
             conversationId: conversation.id,
             leadPhone: phone,
-            token: instance.apiKey,
+            token: requireUazapiToken(instance.apiKey),
             mediaUrl: data.action?.payload.documentUrl || "",
             fileName: data.action?.payload.fileName || "",
           });
@@ -280,7 +281,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
           // wrapper `sendButtonsOrList` que auto-degrada pra `sendList`
           // se buttons.length > 3 (limite nativo do WhatsApp).
           const buttonsResponse = await sendButtonsOrList(
-            instance.apiKey,
+            requireUazapiToken(instance.apiKey),
             {
               number: phone,
               text: bodyText,
@@ -290,7 +291,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
               readmessages: true,
               delay: 2000,
             },
-            instance.baseUrl,
+            instance.baseUrl ?? undefined,
           );
 
           // Persiste Message no banco com format espelhado da produção

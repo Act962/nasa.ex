@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { CreatedMessageProps, MessageStatus } from "@/features/tracking-chat/types";
+import { markInstanceConnectionFailure } from "@/features/tracking-chat/lib/in-chat-mode";
 import { sendButtons, sendList } from "@/http/uazapi/send-menu";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
@@ -9,7 +10,11 @@ import z from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { triggerFirstChatInteractionIfFirst } from "./utils";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
-import { MessageChannel } from "@/generated/prisma/enums";
+import { MessageChannel, WhatsAppProvider } from "@/generated/prisma/enums";
+import {
+  MetaFeatureUnsupportedError,
+  resolveOutboundProvider,
+} from "@/features/tracking-chat/lib/providers";
 
 const buttonSchema = z.object({
   text: z.string().min(1).max(20),
@@ -36,7 +41,12 @@ export const createButtonsMessage = base
         type: z.literal("buttons"),
         conversationId: z.string(),
         leadPhone: z.string(),
-        token: z.string(),
+        /**
+         * @deprecated Ignorado pelo servidor — credenciais Uazapi são
+         * resolvidas via `resolveOutboundProvider(trackingId)`.
+         */
+        token: z.string().nullish(),
+        /** @deprecated Idem. */
         baseUrl: z.string().optional(),
         text: z.string().min(1).max(1024),
         footer: z.string().max(60).optional(),
@@ -46,7 +56,7 @@ export const createButtonsMessage = base
         type: z.literal("list"),
         conversationId: z.string(),
         leadPhone: z.string(),
-        token: z.string(),
+        token: z.string().nullish(),
         baseUrl: z.string().optional(),
         text: z.string().min(1).max(4096),
         footer: z.string().max(60).optional(),
@@ -55,12 +65,55 @@ export const createButtonsMessage = base
       }),
     ]),
   )
-  .handler(async ({ input, context }) => {
-    // Cobra 1★ antes de chamar uazapi — evita custo de API sem saldo.
+  .handler(async ({ input, context, errors }) => {
+    // ── Gate Meta unsupported (Fase 6) ───────────────────────────────────
+    // Meta Cloud API exige template HSM aprovado pra botões interativos.
+    // Aqui mandamos sempre via Uazapi `sendButtons/sendList` — então se o
+    // tracking estiver em META_CLOUD recusamos antes da cobrança em ★.
     const conv = await prisma.conversation.findUnique({
       where: { id: input.conversationId },
-      select: { channel: true, tracking: { select: { organizationId: true } } },
+      select: {
+        channel: true,
+        trackingId: true,
+        tracking: { select: { organizationId: true } },
+      },
     });
+    if (!conv?.trackingId) {
+      throw new ORPCError("BAD_REQUEST", {
+        message: "Conversation sem trackingId — não é possível enviar.",
+      });
+    }
+    const instance = await prisma.whatsAppInstance.findUnique({
+      where: { trackingId: conv.trackingId },
+      select: { provider: true },
+    });
+    if (instance?.provider === WhatsAppProvider.META_CLOUD) {
+      const err = new MetaFeatureUnsupportedError("buttons");
+      throw errors.BAD_REQUEST({
+        message: err.message,
+        data: { code: err.code, feature: err.feature } as never,
+      });
+    }
+
+    // ── Resolve provider ANTES de cobrar ★ (Fix #2 + #7) ────────────────
+    // Mesmo padrão dos outros handlers: o resolver pode lançar (instância
+    // deletada, credenciais inválidas), então cobrar depois evita custo
+    // sem envio. `input.token`/`input.baseUrl` mantidos por backward
+    // compat mas ignorados — source of truth é o banco.
+    const resolved = await resolveOutboundProvider(conv.trackingId);
+    if (resolved.providerId !== "uazapi" || !resolved.uazapiToken) {
+      // Defesa: o gate META_CLOUD acima já garantiu Uazapi, mas se um
+      // provider futuro chegar aqui sem suportar buttons, recusamos.
+      const err = new MetaFeatureUnsupportedError("buttons");
+      throw errors.BAD_REQUEST({
+        message: err.message,
+        data: { code: err.code, feature: err.feature } as never,
+      });
+    }
+    const uazapiToken = resolved.uazapiToken;
+    const uazapiBaseUrl = resolved.uazapiBaseUrl;
+
+    // Cobra 1★ depois do resolve — evita custo de API sem saldo.
     if (conv?.tracking?.organizationId) {
       await chargeMessageOutbound({
         organizationId: conv.tracking.organizationId,
@@ -80,10 +133,29 @@ export const createButtonsMessage = base
     // Constrói o texto resumido para salvar no DB
     let bodyText: string;
 
+    // Detecção de ban Uazapi (Fix #7) — simétrica aos outros handlers.
+    // Falha de auth/timeout/server-error indica número banido ou sessão
+    // caída; ativa contador do In-Chat fallback automaticamente.
+    const detectAndMarkBan = (err: any) => {
+      const msg = String(err?.message ?? "");
+      const isLikelyBan =
+        msg.includes("status 401") ||
+        msg.includes("status 403") ||
+        msg.includes("status 500") ||
+        msg.toLowerCase().includes("invalid token") ||
+        msg.toLowerCase().includes("timeout");
+      if (isLikelyBan) {
+        markInstanceConnectionFailure({
+          apiKey: uazapiToken,
+          source: "send_failure",
+        }).catch(() => {});
+      }
+    };
+
     if (input.type === "buttons") {
       try {
         const r = await sendButtons(
-          input.token,
+          uazapiToken,
           {
             number: input.leadPhone,
             text: input.text,
@@ -92,10 +164,11 @@ export const createButtonsMessage = base
             readchat: true,
             readmessages: true,
           },
-          input.baseUrl,
+          uazapiBaseUrl,
         );
         if (r?.messageid) externalMessageId = r.messageid;
       } catch (err: any) {
+        detectAndMarkBan(err);
         throw new ORPCError("BAD_REQUEST", {
           message: `UAZAPI: ${err?.message ?? "Erro ao enviar botões"}`,
         });
@@ -106,7 +179,7 @@ export const createButtonsMessage = base
     } else {
       try {
         const r = await sendList(
-          input.token,
+          uazapiToken,
           {
             number: input.leadPhone,
             text: input.text,
@@ -116,10 +189,11 @@ export const createButtonsMessage = base
             readchat: true,
             readmessages: true,
           },
-          input.baseUrl,
+          uazapiBaseUrl,
         );
         if (r?.messageid) externalMessageId = r.messageid;
       } catch (err: any) {
+        detectAndMarkBan(err);
         throw new ORPCError("BAD_REQUEST", {
           message: `UAZAPI: ${err?.message ?? "Erro ao enviar lista"}`,
         });

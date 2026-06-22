@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { findChats } from "@/http/uazapi/find-chat";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import {
   WhatsAppInstanceStatus,
@@ -146,7 +147,7 @@ export const importExistingChats = base
       // ordena por `wa_lastMsgTimestamp:desc` por padrão (que é o que
       // queremos). `baseUrl` também removido — usa env default igual
       // ao caller existente.
-      response = await findChats(tracking.whatsappInstance.apiKey, {
+      response = await findChats(requireUazapiToken(tracking.whatsappInstance.apiKey), {
         // `name: ""` força match-all igual ao padrão do find-chat
         // existente (ele sempre manda `name` mesmo vazio).
         name: "",

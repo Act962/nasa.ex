@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { getLabels } from "@/http/uazapi/list-labels";
+import { requireUazapiToken, requireUazapiBaseUrl } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { randomUUID } from "crypto";
 
 export const syncWhatsappTags = base
@@ -32,8 +33,8 @@ export const syncWhatsappTags = base
       }
 
       const labels = await getLabels({
-        token: instance.apiKey,
-        baseUrl: instance.baseUrl,
+        token: requireUazapiToken(instance.apiKey),
+        baseUrl: requireUazapiBaseUrl(instance.baseUrl),
       });
 
       if (!labels) {
