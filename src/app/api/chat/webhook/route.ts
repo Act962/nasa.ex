@@ -3,6 +3,7 @@ import { pusherServer } from "@/lib/pusher";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
 import { LeadSource, WhatsAppInstanceStatus } from "@/generated/prisma/enums";
+import { Prisma } from "@/generated/prisma/client";
 import { downloadFile } from "@/http/uazapi/get-file";
 import { S3 } from "@/lib/s3-client";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
@@ -884,6 +885,122 @@ export async function POST(request: NextRequest) {
           { success: true, warning: "Message type not processed" },
           { status: 201 },
         );
+      }
+
+      // ── Tag automática por clique em botão ─────────────────────────────
+      // Quando o lead responde um menu de botões enviado pela automação
+      // (send-message inline com tagId por botão), aplica a tag ao lead e
+      // dispara automações LEAD_TAGGED. A mensagem original carrega
+      // metadata.buttonTagMap com o mapa buttonId→tagId.
+      // 3 estratégias para localizar a mensagem original: o uazapi não
+      // garante json.message.quoted em respostas de botão.
+      console.log("[btn-tag] messageType:", messageType, "fromMe:", fromMe);
+      if (
+        !fromMe &&
+        lead?.id &&
+        messageData &&
+        (messageType === "ButtonsResponseMessage" ||
+          messageType === "TemplateButtonReplyMessage" ||
+          messageType === "ListResponseMessage" ||
+          messageType === "InteractiveResponseMessage")
+      ) {
+        const interactiveContent =
+          typeof json.message.content === "object" && json.message.content
+            ? (json.message.content as Record<string, any>)
+            : {};
+
+        console.log("[btn-tag] interactiveContent:", JSON.stringify(interactiveContent));
+        console.log("[btn-tag] quoted:", json.message.quoted, "quotedMessageData:", !!quotedMessageData);
+        console.log("[btn-tag] conversation:", lead.conversation?.id);
+
+        const clickedButtonId: string | undefined =
+          interactiveContent.selectedButtonId ||
+          interactiveContent.selectedID ||
+          interactiveContent.selectedRowId ||
+          interactiveContent.singleSelectReply?.selectedRowId ||
+          interactiveContent.buttonReply?.id ||
+          undefined;
+
+        console.log("[btn-tag] clickedButtonId:", clickedButtonId);
+
+        if (clickedButtonId) {
+          try {
+            // Estratégia 1: quotedMessageData (quando json.message.quoted foi populado)
+            let originalMeta: unknown =
+              (quotedMessageData as any)?.metadata ?? null;
+            console.log("[btn-tag] strategy1 originalMeta:", originalMeta);
+
+            // Estratégia 2: contextInfo.stanzaId (formato alternativo do uazapi)
+            if (!originalMeta) {
+              const contextStanzaId =
+                interactiveContent.contextInfo?.stanzaId ||
+                interactiveContent.contextInfo?.quotedMessageKey?.id;
+              console.log("[btn-tag] strategy2 contextStanzaId:", contextStanzaId);
+              if (contextStanzaId) {
+                const contextMsg = await prisma.message.findUnique({
+                  where: { messageId: String(contextStanzaId) },
+                  select: { metadata: true },
+                });
+                originalMeta = contextMsg?.metadata ?? null;
+                console.log("[btn-tag] strategy2 result:", originalMeta);
+              }
+            }
+
+            // Estratégia 3: mensagem outbound mais recente com buttonTagMap
+            // nesta conversa (fallback quando quoted não está disponível)
+            if (!originalMeta && lead.conversation?.id) {
+              const lastButtonMsg = await prisma.message.findFirst({
+                where: {
+                  conversationId: lead.conversation.id,
+                  fromMe: true,
+                  metadata: { not: Prisma.DbNull },
+                },
+                orderBy: { createdAt: "desc" },
+                select: { metadata: true },
+              });
+              originalMeta = lastButtonMsg?.metadata ?? null;
+              console.log("[btn-tag] strategy3 result:", originalMeta);
+            }
+
+            if (
+              originalMeta &&
+              typeof originalMeta === "object" &&
+              "buttonTagMap" in (originalMeta as object)
+            ) {
+              const buttonTagMap = (
+                originalMeta as { buttonTagMap: Record<string, string> }
+              ).buttonTagMap;
+              const resolvedTagId = buttonTagMap[clickedButtonId];
+              console.log("[btn-tag] buttonTagMap:", buttonTagMap, "resolvedTagId:", resolvedTagId);
+
+              if (resolvedTagId) {
+                const activeTag = await prisma.tag.findFirst({
+                  where: { id: resolvedTagId, archivedAt: null },
+                  select: { id: true },
+                });
+                console.log("[btn-tag] activeTag:", activeTag);
+
+                if (activeTag) {
+                  const { applyTagsByAi } = await import(
+                    "@/features/tracking-chat-ai/lib/apply-tags-by-ai"
+                  );
+                  await applyTagsByAi({
+                    leadId: lead.id,
+                    tagIds: [resolvedTagId],
+                  });
+                  await pusherServer.trigger(trackingId, "lead:updated", {
+                    leadId: lead.id,
+                  });
+                  console.log("[btn-tag] tag applied successfully:", resolvedTagId);
+                }
+              }
+            } else {
+              console.log("[btn-tag] no buttonTagMap found in originalMeta:", originalMeta);
+            }
+          } catch (err) {
+            console.error("[webhook:chat] button-tag-apply failed", err);
+          }
+        }
       }
 
       // ── Modo Agente IA: dispatch MESSAGE_INCOMING (texto OU mídia) ──

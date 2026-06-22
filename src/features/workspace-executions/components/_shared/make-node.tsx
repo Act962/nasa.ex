@@ -4,7 +4,7 @@ import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { memo, useState, ComponentType } from "react";
 import { LucideIcon } from "lucide-react";
 import { WsBaseExecutionNode } from "../base-execution-node";
-import { useNodeStatus } from "@/features/executions/hook/use-node-status";
+import { useNodeStatus } from "@/features/tracking-executions/hook/use-node-status";
 import { SimpleDialog } from "./simple-dialog";
 import type { Realtime } from "@inngest/realtime";
 

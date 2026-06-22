@@ -2047,6 +2047,7 @@ model Message {
   // Útil pra distinguir no histórico mensagens que tiveram trajeto
   // diferente — em Insights, por ex., separar "via WA" vs "via In-Chat".
   viaInChat Boolean @default(false) @map("via_in_chat")
+  metadata  Json?   @map("metadata")
 
   conversation Conversation  @relation("Messages", fields: [conversationId], references: [id], onDelete: Cascade)
   LastMessage  Conversation?

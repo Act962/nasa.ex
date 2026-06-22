@@ -20,7 +20,7 @@ import type { MediaType } from "@/http/uazapi/types";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { AGENT_STARS_ACTIONS } from "../agent-stars-actions";
 import { getByPath, interpolate } from "../workflow-context";
-import { sendLinkToLead } from "@/features/executions/lib/send-link-to-lead";
+import { sendLinkToLead } from "@/features/tracking-executions/lib/send-link-to-lead";
 import type { NodeExecutor } from "../run-workflow";
 
 // ─── CHECK_PAYMENT ─────────────────────────────────
@@ -31,9 +31,7 @@ import type { NodeExecutor } from "../run-workflow";
 // }
 export const checkPaymentExecutor: NodeExecutor = async ({ data, context }) => {
   const provider = String(data.provider ?? "STRIPE").toUpperCase();
-  const paymentIdRaw = data.paymentId
-    ? String(data.paymentId)
-    : "";
+  const paymentIdRaw = data.paymentId ? String(data.paymentId) : "";
   const leadIdRaw = data.leadId
     ? String(data.leadId)
     : (context.lead as Record<string, unknown> | undefined)?.id
@@ -51,7 +49,12 @@ export const checkPaymentExecutor: NodeExecutor = async ({ data, context }) => {
   if (paymentId) {
     const sp = await prisma.starsPayment.findFirst({
       where: { externalId: paymentId },
-      select: { status: true, amountBrl: true, provider: true, createdAt: true },
+      select: {
+        status: true,
+        amountBrl: true,
+        provider: true,
+        createdAt: true,
+      },
     });
     if (sp) {
       const paid = sp.status === "paid";
@@ -64,7 +67,11 @@ export const checkPaymentExecutor: NodeExecutor = async ({ data, context }) => {
           checkedAt: new Date().toISOString(),
           vars: { lastPaymentStatus: sp.status },
         },
-        chosenOutput: paid ? "paid" : sp.status === "pending" ? "pending" : "failed",
+        chosenOutput: paid
+          ? "paid"
+          : sp.status === "pending"
+            ? "pending"
+            : "failed",
       };
     }
   }
@@ -110,14 +117,20 @@ export const checkPaymentExecutor: NodeExecutor = async ({ data, context }) => {
 
 // ─── SEND_VOICE ────────────────────────────────────
 // data: { text?: string, textPath?: string, voice?: string, organizationId?, leadId?, trackingId? }
-export const sendVoiceExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
+export const sendVoiceExecutor: NodeExecutor = async ({
+  data,
+  context,
+  dryRun,
+}) => {
   const textRaw = data.text
     ? String(data.text)
     : data.textPath
       ? String(getByPath(context, String(data.textPath)) ?? "")
       : "";
   const voice = String(data.voice ?? "shimmer"); // OpenAI voices: alloy|echo|fable|onyx|nova|shimmer
-  const orgId = String(data.organizationId ?? context.trigger?.organizationId ?? "");
+  const orgId = String(
+    data.organizationId ?? context.trigger?.organizationId ?? "",
+  );
   const leadId = String(
     data.leadId ??
       (context.lead as Record<string, unknown> | undefined)?.id ??
@@ -233,7 +246,11 @@ const MEDIA_TYPE_MAP: Record<string, MediaType> = {
   DOCUMENT: "document",
 };
 
-export const sendMediaExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
+export const sendMediaExecutor: NodeExecutor = async ({
+  data,
+  context,
+  dryRun,
+}) => {
   const mediaTypeRaw = String(data.mediaType ?? "IMAGE").toUpperCase();
   const uazapiType = MEDIA_TYPE_MAP[mediaTypeRaw];
   if (!uazapiType) {
@@ -250,7 +267,9 @@ export const sendMediaExecutor: NodeExecutor = async ({ data, context, dryRun })
   const url = interpolate(context, urlRaw);
   const caption = interpolate(context, captionRaw);
   const fileName = interpolate(context, fileNameRaw);
-  const orgId = String(data.organizationId ?? context.trigger?.organizationId ?? "");
+  const orgId = String(
+    data.organizationId ?? context.trigger?.organizationId ?? "",
+  );
   const leadId = String(
     data.leadId ??
       (context.lead as Record<string, unknown> | undefined)?.id ??
@@ -369,9 +388,8 @@ export const sendMessageExecutor: NodeExecutor = async ({
 
   // ─── BUTTONS branch ───────────────────────────────────────────────
   if (payloadType === "BUTTONS") {
-    const { sendButtonsToLead } = await import(
-      "@/features/executions/lib/send-buttons-to-lead"
-    );
+    const { sendButtonsToLead } =
+      await import("@/features/tracking-executions/lib/send-buttons-to-lead");
     let bodyText = "";
     let footerText: string | undefined;
     let buttons: Array<{ text: string; id: string }> = [];
@@ -411,9 +429,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
         : [];
     } else {
       bodyText = String(payload.bodyText ?? "");
-      footerText = payload.footerText
-        ? String(payload.footerText)
-        : undefined;
+      footerText = payload.footerText ? String(payload.footerText) : undefined;
       buttons = Array.isArray(payload.buttons)
         ? (payload.buttons as Array<unknown>)
             .filter(
@@ -556,9 +572,7 @@ export const tagExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
   const skippedPlaceholders = rawTagsIds.filter(
     (id) => !id || PLACEHOLDER_RX.test(id),
   );
-  const tagsIds = rawTagsIds.filter(
-    (id) => id && !PLACEHOLDER_RX.test(id),
-  );
+  const tagsIds = rawTagsIds.filter((id) => id && !PLACEHOLDER_RX.test(id));
   const leadId = String(
     (context.lead as Record<string, unknown> | undefined)?.id ?? "",
   );
@@ -678,9 +692,8 @@ export const tagExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
       const orgId = String(context.trigger?.organizationId ?? "");
       if (trackingId) {
         try {
-          const { broadcastAgentWorkflowEvent } = await import(
-            "@/inngest/utils"
-          );
+          const { broadcastAgentWorkflowEvent } =
+            await import("@/inngest/utils");
           await broadcastAgentWorkflowEvent({
             event: "lead-tagged",
             leadId,
@@ -737,10 +750,11 @@ export const sendProposalExecutor: NodeExecutor = async ({ data, context }) => {
       ? (data.action as Record<string, unknown>)
       : data) ?? {};
   try {
-    const { sendProposalExecutor: legacy } = await import(
-      "@/features/executions/components/send-proposal/executor"
-    );
-    const fakeStep = { run: async <T>(_n: string, fn: () => Promise<T>) => fn() };
+    const { sendProposalExecutor: legacy } =
+      await import("@/features/tracking-executions/components/send-proposal/executor");
+    const fakeStep = {
+      run: async <T>(_n: string, fn: () => Promise<T>) => fn(),
+    };
     const noopPublish = async () => {};
     await legacy({
       data: action as never, // flat — legacy lê data.productIds direto
@@ -761,8 +775,7 @@ export const sendProposalExecutor: NodeExecutor = async ({ data, context }) => {
         error: err instanceof Error ? err.message : "send_proposal_failed",
       },
       status: "FAILED",
-      errorMessage:
-        err instanceof Error ? err.message : "send_proposal_failed",
+      errorMessage: err instanceof Error ? err.message : "send_proposal_failed",
     };
   }
 };
@@ -776,10 +789,11 @@ export const sendContractExecutor: NodeExecutor = async ({ data, context }) => {
       ? (data.action as Record<string, unknown>)
       : data) ?? {};
   try {
-    const { sendContractExecutor: legacy } = await import(
-      "@/features/executions/components/send-contract/executor"
-    );
-    const fakeStep = { run: async <T>(_n: string, fn: () => Promise<T>) => fn() };
+    const { sendContractExecutor: legacy } =
+      await import("@/features/tracking-executions/components/send-contract/executor");
+    const fakeStep = {
+      run: async <T>(_n: string, fn: () => Promise<T>) => fn(),
+    };
     const noopPublish = async () => {};
     await legacy({
       data: action as never,
@@ -800,8 +814,7 @@ export const sendContractExecutor: NodeExecutor = async ({ data, context }) => {
         error: err instanceof Error ? err.message : "send_contract_failed",
       },
       status: "FAILED",
-      errorMessage:
-        err instanceof Error ? err.message : "send_contract_failed",
+      errorMessage: err instanceof Error ? err.message : "send_contract_failed",
     };
   }
 };
@@ -812,10 +825,11 @@ export const sendContractExecutor: NodeExecutor = async ({ data, context }) => {
 // data como-está, sem achatar.
 export const moveLeadExecutor: NodeExecutor = async ({ data, context }) => {
   try {
-    const { moveLeadExecutor: legacy } = await import(
-      "@/features/executions/components/move-lead/executor"
-    );
-    const fakeStep = { run: async <T>(_n: string, fn: () => Promise<T>) => fn() };
+    const { moveLeadExecutor: legacy } =
+      await import("@/features/tracking-executions/components/move-lead/executor");
+    const fakeStep = {
+      run: async <T>(_n: string, fn: () => Promise<T>) => fn(),
+    };
     const noopPublish = async () => {};
     await legacy({
       data: data as never,
@@ -837,8 +851,7 @@ export const moveLeadExecutor: NodeExecutor = async ({ data, context }) => {
         error: err instanceof Error ? err.message : "move_lead_failed",
       },
       status: "FAILED",
-      errorMessage:
-        err instanceof Error ? err.message : "move_lead_failed",
+      errorMessage: err instanceof Error ? err.message : "move_lead_failed",
     };
   }
 };
