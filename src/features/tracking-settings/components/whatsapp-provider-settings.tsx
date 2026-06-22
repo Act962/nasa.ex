@@ -200,8 +200,7 @@ export function WhatsAppProviderSettings({
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           Escolha qual API responde pelo WhatsApp deste tracking. A troca
-          não afeta envios em andamento — a Fase 6 do roadmap conecta o
-          provider escolhido ao caminho de envio.
+          não afeta envios em andamento.
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -351,7 +350,7 @@ export function WhatsAppProviderSettings({
               label="WhatsApp Business Account ID (opcional)"
               placeholder={publicIdPlaceholder(
                 metaSummary?.businessAccountId,
-                "Necessário pra templates (Fase 6+)",
+                "Necessário pra templates",
               )}
               value={metaForm.businessAccountId}
               onChange={(value) =>
@@ -364,15 +363,14 @@ export function WhatsAppProviderSettings({
 
             <Alert>
               <AlertTitle className="text-xs">
-                Recebimento ativo (Fase 5)
+                Recebimento ativo
               </AlertTitle>
               <AlertDescription className="text-xs">
                 Com as 4 credenciais obrigatórias gravadas e o webhook
                 configurado no Meta App apontando pra{" "}
                 <code>/api/chat/webhook/official</code>, mensagens
                 inbound já criam Lead/Conversation/Message via o mesmo
-                pipeline canônico do Uazapi. O envio outbound (Fase 6)
-                ainda usa Uazapi até a fase final entrar.
+                pipeline canônico do Uazapi.
               </AlertDescription>
             </Alert>
 
