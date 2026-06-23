@@ -252,6 +252,7 @@ export const LeadItem = memo(
             do card. Sem isso, flex-children "esticam" pelo conteúdo. */}
           <div className="flex min-w-0 flex-1 flex-row items-center gap-2">
             <button
+              data-dnd-handle
               className="shrink-0 touch-none flex lg:hidden lg:group-hover:flex active:cursor-grabbing cursor-grab"
               {...listeners}
               {...attributes}
@@ -260,6 +261,7 @@ export const LeadItem = memo(
               <Grip className="size-4 " />
             </button>
             <Avatar
+              data-dnd-handle
               className="shrink-0 size-4 hidden lg:block lg:group-hover:hidden touch-none"
               {...listeners}
               {...attributes}
@@ -348,6 +350,7 @@ export const LeadItem = memo(
         </div>
         <Separator />
         <div
+          data-dnd-handle
           className="flex items-center justify-between bg-secondary px-3 py-2"
           {...listeners}
           {...attributes}
