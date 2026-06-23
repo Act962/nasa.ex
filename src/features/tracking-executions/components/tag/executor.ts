@@ -93,7 +93,7 @@ export const tagExecutor: NodeExecutor<TagNodeData> = async ({
         });
       }
 
-      await publishLeadChanged(publish, {
+      await publishLeadChanged({
         leadId: lead.id,
         trackingId: lead.trackingId,
         statusId: lead.statusId,

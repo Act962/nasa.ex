@@ -74,7 +74,7 @@ export const winLossExecutor: NodeExecutor<WinLossNodeData> = async ({
         },
       });
 
-      await publishLeadClosed(publish, {
+      await publishLeadClosed({
         leadId: lead.id,
         trackingId: lead.trackingId,
         statusId: lead.statusId,

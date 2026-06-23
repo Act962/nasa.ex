@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
+import { authorizeChannel } from "@/lib/realtime/channel-authorizers";
 
 /**
  * Pusher auth endpoint — autoriza subscriptions em canais privados/
@@ -17,15 +18,17 @@ import { pusherServer } from "@/lib/pusher";
  * receber as notificações/alertas/SP events alheios.
  *
  * Convenções de canal validadas:
- *   private-user-{userId}     → só o próprio user
- *   private-org-{orgId}       → só membros daquela org
- *   private-conversation-{id} → só participantes da conversa
- *   private-* (outros)        → reject (lista de allow é explícita)
- *   presence-*                → qualquer user logado
+ *   private-user-{userId}        → só o próprio user
+ *   private-org-{orgId}          → só membros daquela org
+ *   private-conversation-{id}    → só participantes da conversa
+ *   private-board-leads-{trkId}  → membros da org dona do tracking (registry)
+ *   private-* (outros)           → reject (lista de allow é explícita)
+ *   presence-*                   → qualquer user logado
  *
- * 🚨 DEV: quando criar uma feature nova que precisa de canal privado,
- * adicione um case no `validatePrivateChannel()` abaixo. Senão a
- * subscription vai falhar com 403 silenciosamente.
+ * 🚨 DEV: ao criar uma feature nova que precisa de canal privado, registre um
+ * `ChannelAuthorizer` em `src/lib/realtime/channel-authorizers.ts` (caminho
+ * preferido, Open/Closed) OU adicione um case no `validatePrivateChannel()`
+ * abaixo (legado). Senão a subscription falha com 403 silenciosamente.
  */
 export async function POST(req: NextRequest) {
   const reqHeaders = await headers();
@@ -72,7 +75,11 @@ export async function POST(req: NextRequest) {
       if (!userId) {
         return new NextResponse("Unauthorized", { status: 401 });
       }
-      const allowed = await validatePrivateChannel(channel, userId);
+      // Registry de authorizers (Open/Closed): se algum reconhece o canal,
+      // ele decide. Senão (null), cai no switch legado abaixo.
+      const viaRegistry = await authorizeChannel(channel, userId);
+      const allowed =
+        viaRegistry ?? (await validatePrivateChannel(channel, userId));
       if (!allowed) {
         return new NextResponse("Forbidden", { status: 403 });
       }
