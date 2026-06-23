@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/empty";
 import { CreateForm } from "./create-form";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Form } from "@/generated/prisma/client";
 
 export function FormList() {
   const { forms, isLoading } = useQueryListForms();

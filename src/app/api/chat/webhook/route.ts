@@ -3,6 +3,7 @@ import { pusherServer } from "@/lib/pusher";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
 import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
+import { Prisma } from "@/generated/prisma/client";
 import { MessageStatus } from "@/features/tracking-chat/types";
 import { WA_COLORS } from "@/utils/whatsapp-utils";
 import {
@@ -184,6 +185,136 @@ export async function POST(request: NextRequest) {
           { error: firstFailure.reason },
           { status: 500 },
         );
+      }
+
+      // ── Tag automática por clique em botão ─────────────────────────────
+      // Quando o lead responde um menu de botões enviado pela automação
+      // (send-message inline com tagId por botão), aplica a tag ao lead e
+      // dispara automações LEAD_TAGGED. A mensagem original carrega
+      // metadata.buttonTagMap com o mapa buttonId→tagId.
+      // 3 estratégias para localizar a mensagem original: o uazapi não
+      // garante json.message.quoted em respostas de botão.
+      const messageType = json.message.messageType as string | undefined;
+      console.log("[btn-tag] messageType:", messageType, "fromMe:", fromMe);
+      if (
+        !fromMe &&
+        normalized.messages.length > 0 &&
+        (messageType === "ButtonsResponseMessage" ||
+          messageType === "TemplateButtonReplyMessage" ||
+          messageType === "ListResponseMessage" ||
+          messageType === "InteractiveResponseMessage")
+      ) {
+        const buttonTagLead = await prisma.lead.findUnique({
+          where: { phone_trackingId: { phone, trackingId } },
+          select: { id: true, conversation: { select: { id: true } } },
+        });
+
+        if (buttonTagLead?.id) {
+          const interactiveContent =
+            typeof json.message.content === "object" && json.message.content
+              ? (json.message.content as Record<string, any>)
+              : {};
+
+          console.log("[btn-tag] interactiveContent:", JSON.stringify(interactiveContent));
+          console.log("[btn-tag] quoted:", json.message.quoted);
+          console.log("[btn-tag] conversation:", buttonTagLead.conversation?.id);
+
+          const clickedButtonId: string | undefined =
+            interactiveContent.selectedButtonId ||
+            interactiveContent.selectedID ||
+            interactiveContent.selectedRowId ||
+            interactiveContent.singleSelectReply?.selectedRowId ||
+            interactiveContent.buttonReply?.id ||
+            undefined;
+
+          console.log("[btn-tag] clickedButtonId:", clickedButtonId);
+
+          if (clickedButtonId) {
+            try {
+              // Estratégia 1: quotedMessageData (quando json.message.quoted foi populado)
+              let originalMeta: unknown = null;
+              const quotedMsgId = (json.message.quoted as any)?.messageId;
+              if (quotedMsgId) {
+                const quotedMsg = await prisma.message.findUnique({
+                  where: { messageId: String(quotedMsgId) },
+                  select: { metadata: true },
+                });
+                originalMeta = quotedMsg?.metadata ?? null;
+              }
+              console.log("[btn-tag] strategy1 originalMeta:", originalMeta);
+
+              // Estratégia 2: contextInfo.stanzaId (formato alternativo do uazapi)
+              if (!originalMeta) {
+                const contextStanzaId =
+                  interactiveContent.contextInfo?.stanzaId ||
+                  interactiveContent.contextInfo?.quotedMessageKey?.id;
+                console.log("[btn-tag] strategy2 contextStanzaId:", contextStanzaId);
+                if (contextStanzaId) {
+                  const contextMsg = await prisma.message.findUnique({
+                    where: { messageId: String(contextStanzaId) },
+                    select: { metadata: true },
+                  });
+                  originalMeta = contextMsg?.metadata ?? null;
+                  console.log("[btn-tag] strategy2 result:", originalMeta);
+                }
+              }
+
+              // Estratégia 3: mensagem outbound mais recente com buttonTagMap
+              // nesta conversa (fallback quando quoted não está disponível)
+              if (!originalMeta && buttonTagLead.conversation?.id) {
+                const lastButtonMsg = await prisma.message.findFirst({
+                  where: {
+                    conversationId: buttonTagLead.conversation.id,
+                    fromMe: true,
+                    metadata: { not: Prisma.DbNull },
+                  },
+                  orderBy: { createdAt: "desc" },
+                  select: { metadata: true },
+                });
+                originalMeta = lastButtonMsg?.metadata ?? null;
+                console.log("[btn-tag] strategy3 result:", originalMeta);
+              }
+
+              if (
+                originalMeta &&
+                typeof originalMeta === "object" &&
+                "buttonTagMap" in (originalMeta as object)
+              ) {
+                const buttonTagMap = (
+                  originalMeta as { buttonTagMap: Record<string, string> }
+                ).buttonTagMap;
+                const resolvedTagId = buttonTagMap[clickedButtonId];
+                console.log("[btn-tag] buttonTagMap:", buttonTagMap, "resolvedTagId:", resolvedTagId);
+
+                if (resolvedTagId) {
+                  const activeTag = await prisma.tag.findFirst({
+                    where: { id: resolvedTagId, archivedAt: null },
+                    select: { id: true },
+                  });
+                  console.log("[btn-tag] activeTag:", activeTag);
+
+                  if (activeTag) {
+                    const { applyTagsByAi } = await import(
+                      "@/features/tracking-chat-ai/lib/apply-tags-by-ai"
+                    );
+                    await applyTagsByAi({
+                      leadId: buttonTagLead.id,
+                      tagIds: [resolvedTagId],
+                    });
+                    await pusherServer.trigger(trackingId, "lead:updated", {
+                      leadId: buttonTagLead.id,
+                    });
+                    console.log("[btn-tag] tag applied successfully:", resolvedTagId);
+                  }
+                }
+              } else {
+                console.log("[btn-tag] no buttonTagMap found in originalMeta:", originalMeta);
+              }
+            } catch (err) {
+              console.error("[webhook:chat] button-tag-apply failed", err);
+            }
+          }
+        }
       }
 
       // Paridade de status com o handler antigo:

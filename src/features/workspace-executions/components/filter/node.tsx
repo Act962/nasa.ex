@@ -4,7 +4,7 @@ import { Node, NodeProps, useReactFlow } from "@xyflow/react";
 import { memo, useState } from "react";
 import { FunnelIcon } from "lucide-react";
 import { WsBaseExecutionNode } from "../base-execution-node";
-import { useNodeStatus } from "@/features/executions/hook/use-node-status";
+import { useNodeStatus } from "@/features/tracking-executions/hook/use-node-status";
 import { WS_FILTER_CHANNEL_NAME } from "@/inngest/channels/workspace";
 import { fetchWsFilterToken } from "../../lib/realtime-tokens";
 import { WsFilterDialog, WsFilterFormValues } from "./dialog";

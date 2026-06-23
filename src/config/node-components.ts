@@ -1,13 +1,13 @@
 import { InitialNode } from "@/components/initial-node";
-import { FilterLeadNode } from "@/features/executions/components/filter-lead/node";
-import { HttpRequestNode } from "@/features/executions/components/http-request/node";
-import { MoveLeadNode } from "@/features/executions/components/move-lead/node";
-import { ResponsibleNode } from "@/features/executions/components/responsible/node";
-import { SendMessageNode } from "@/features/executions/components/send-message/node";
-import { TagNode } from "@/features/executions/components/tag/node";
-import { TemperatureNode } from "@/features/executions/components/temperature/node";
-import { WaitNode } from "@/features/executions/components/wait/node";
-import { WinLossNode } from "@/features/executions/components/win_loss/node";
+import { FilterLeadNode } from "@/features/tracking-executions/components/filter-lead/node";
+import { HttpRequestNode } from "@/features/tracking-executions/components/http-request/node";
+import { MoveLeadNode } from "@/features/tracking-executions/components/move-lead/node";
+import { ResponsibleNode } from "@/features/tracking-executions/components/responsible/node";
+import { SendMessageNode } from "@/features/tracking-executions/components/send-message/node";
+import { TagNode } from "@/features/tracking-executions/components/tag/node";
+import { TemperatureNode } from "@/features/tracking-executions/components/temperature/node";
+import { WaitNode } from "@/features/tracking-executions/components/wait/node";
+import { WinLossNode } from "@/features/tracking-executions/components/win_loss/node";
 import { AiFinishedTriggerNode } from "@/features/triggers/components/ai-finished/node";
 import { FirstChatInteractionTriggerNode } from "@/features/triggers/components/first-chat-interaction/node";
 import { LeadTaggedTriggerNode } from "@/features/triggers/components/lead-tagged/node";
@@ -15,16 +15,16 @@ import { ManualTriggerNode } from "@/features/triggers/components/manual-trigger
 import { MoveLeadStatusTriggerNode } from "@/features/triggers/components/move-lead-status/node";
 import { NewLeadTriggerNode } from "@/features/triggers/components/new-lead-trigger/node";
 // ─── "Adicionar Lead no App" — 7 actions de envio (Sprint Automações) ──
-import { SendFormNode } from "@/features/executions/components/send-form/node";
-import { SendAgendaNode } from "@/features/executions/components/send-agenda/node";
-import { SendProposalNode } from "@/features/executions/components/send-proposal/node";
-import { SendContractNode } from "@/features/executions/components/send-contract/node";
-import { SendLinnkerNode } from "@/features/executions/components/send-linnker/node";
-import { SendNboxNode } from "@/features/executions/components/send-nbox/node";
-import { SendNasaRouteNode } from "@/features/executions/components/send-nasa-route/node";
-import { OpenFormNode } from "@/features/executions/components/open-form/node";
+import { SendFormNode } from "@/features/tracking-executions/components/send-form/node";
+import { SendAgendaNode } from "@/features/tracking-executions/components/send-agenda/node";
+import { SendProposalNode } from "@/features/tracking-executions/components/send-proposal/node";
+import { SendContractNode } from "@/features/tracking-executions/components/send-contract/node";
+import { SendLinnkerNode } from "@/features/tracking-executions/components/send-linnker/node";
+import { SendNboxNode } from "@/features/tracking-executions/components/send-nbox/node";
+import { SendNasaRouteNode } from "@/features/tracking-executions/components/send-nasa-route/node";
+import { OpenFormNode } from "@/features/tracking-executions/components/open-form/node";
 // ─── Modo Agente IA — componente genérico pros 14 NodeTypes novos ──
-import { AgentNode } from "@/features/executions/components/agent-node";
+import { AgentNode } from "@/features/tracking-executions/components/agent-node";
 import { NodeType } from "@/generated/prisma/enums";
 import type { NodeTypes } from "@xyflow/react";
 

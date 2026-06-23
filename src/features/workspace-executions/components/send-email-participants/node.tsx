@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 import { WS_SEND_EMAIL_CHANNEL_NAME } from "@/inngest/channels/workspace";
-import { useNodeStatus } from "@/features/executions/hook/use-node-status";
+import { useNodeStatus } from "@/features/tracking-executions/hook/use-node-status";
 import { fetchWsSendEmailToken } from "../../lib/realtime-tokens";
 import { workspaceVariables } from "../../lib/render-variables";
 import { WsBaseExecutionNode } from "../base-execution-node";

@@ -34,7 +34,7 @@ import {
   executionNodes,
   NodeTypeOption,
   triggerNodes,
-} from "@/features/executions/lib/node-options";
+} from "@/features/tracking-executions/lib/node-options";
 import { useUpdateWorkflowAgentMode } from "@/features/workflows/hooks/use-workflows";
 import { useWorkflowAgentMode } from "@/features/workflows/lib/agent-mode-context";
 

@@ -1,20 +1,11 @@
 "use client";
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ActivityIcon,
-  EllipsisIcon,
-  EyeIcon,
-  Globe,
-  GlobeLock,
-  LockKeyholeIcon,
-  MessageSquare,
-} from "lucide-react";
+import { EllipsisIcon, EyeIcon, Globe, GlobeLock } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -70,7 +61,9 @@ export const FormItem = (props: PropsType) => {
     ...orpc.form.togglePublicOnSpace.mutationOptions(),
     onSuccess: (res) => {
       toast.success(res.message);
-      qc.invalidateQueries({ queryKey: orpc.form.list.queryOptions({ input: {} }).queryKey });
+      qc.invalidateQueries({
+        queryKey: orpc.form.list.queryOptions({ input: {} }).queryKey,
+      });
     },
     onError: (err) => toast.error(err.message),
   });
@@ -205,6 +198,13 @@ export const FormItem = (props: PropsType) => {
             { onSuccess: () => setPublicConfirmOpen(false) },
           );
         }}
+      />
+
+      <DeleteFormModal
+        open={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+        id={formId}
+        formName={name}
       />
     </Item>
   );
