@@ -95,7 +95,7 @@ export const listResponsesOfForm = base
       }));
 
       return {
-        form: { id: form.id, name: form.name },
+        form: { id: form.id, name: form.name, jsonBlock: form.jsonBlock },
         lead: { id: lead.id, name: lead.name },
         responses: enriched,
       };
