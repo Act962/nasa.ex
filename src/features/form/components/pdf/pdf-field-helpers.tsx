@@ -30,6 +30,19 @@ export function renderFieldLabel(label?: string, required?: boolean) {
   );
 }
 
+export function constructUrl(key: string): string {
+  if (!key) return "";
+  if (key.startsWith("http://") || key.startsWith("https://")) return key;
+  if (key.startsWith("/") || key.startsWith("data:")) return key;
+
+  const bucket = process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL;
+  if (!bucket || bucket === "undefined") return `/uploads/${key.replace(/^\/+/, "")}`;
+
+  const host = bucket.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  const cleanKey = key.replace(/^\/+/, "");
+  return `https://${host}/${cleanKey}`;
+}
+
 export function parseMultiValue(value: string): string[] {
   try {
     const parsed = JSON.parse(value);

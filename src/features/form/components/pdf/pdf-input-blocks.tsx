@@ -298,7 +298,6 @@ export function renderRadioMatrixBlock(
       {renderFieldLabel(attrs.label as string, attrs.required as boolean)}
       {renderHelperText(attrs.helperText as string)}
       <View style={styles.matrixTable}>
-        {/* Header */}
         <View style={styles.matrixHeaderRow}>
           <View style={styles.matrixLabelCell}>
             <Text> </Text>
@@ -311,7 +310,6 @@ export function renderRadioMatrixBlock(
             </View>
           ))}
         </View>
-        {/* Rows */}
         {rows.map((row, rowIndex) => (
           <View
             key={row.id}

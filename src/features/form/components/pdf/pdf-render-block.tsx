@@ -64,7 +64,7 @@ export function renderBlock(
       return renderSignatureBlock(block);
     case "FileUpload":
     case "ImageUpload":
-      return renderFileUploadBlock(block);
+      return renderFileUploadBlock(block, responseValues);
     case "QrCodeMulti":
       return renderQrCodeBlock(block);
     case "ImageDisplay":
