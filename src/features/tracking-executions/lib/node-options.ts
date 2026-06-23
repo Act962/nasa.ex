@@ -30,6 +30,7 @@ import {
   SendIcon,
   ShuffleIcon,
   SparklesIcon,
+  SunriseIcon,
   TagIcon,
   TagsIcon,
   TimerIcon,
@@ -146,6 +147,14 @@ export const triggerNodes: NodeTypeOption[] = [
     description:
       "Executa o fluxo quando o usuário envia a primeira mensagem ao lead",
     icon: MessageSquareIcon,
+  },
+  {
+    type: NodeType.FIRST_INTERACTION_OF_DAY,
+    category: "trigger",
+    label: "Primeira Interação do Dia",
+    description:
+      "Executa quando um lead já existente volta a enviar mensagem pela primeira vez no dia",
+    icon: SunriseIcon,
   },
   // ─── Triggers do Modo Agente IA ──────────────────────────────────────
   // Habilitam multi-trigger por workflow. Liberados quando workflow.agentMode = true.

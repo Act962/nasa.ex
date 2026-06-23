@@ -953,6 +953,7 @@ model Lead {
   paymentEntries            PaymentEntry[]
   // NASA Auto Agent — sessões abertas pra este lead
   agentSessions             LeadAgentSession[]
+  dailyTriggerClaims        LeadDailyTriggerClaim[]
 
   @@unique([phone, trackingId])
   @@index([trackingId])
@@ -1630,9 +1631,10 @@ model Workflow {
   folder    WorkflowFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   agent     Agent?          @relation("AgentWorkflow", fields: [agentId], references: [id], onDelete: SetNull)
 
-  nodes       Node[]
-  connections Connection[]
-  runs        WorkflowRun[]
+  nodes             Node[]
+  connections       Connection[]
+  runs              WorkflowRun[]
+  dailyTriggerClaims LeadDailyTriggerClaim[]
 
   @@index([trackingId])
   @@index([workspaceId])
@@ -1733,6 +1735,11 @@ enum NodeType {
   // Gatilho time-based: dispara quando o lead fica X minutos sem mandar
   // mensagem nova (computado a partir de `Lead.lastInboundAt`).
   LAST_INBOUND_TIMEOUT
+  // Dispara na primeira interação (inbound) do lead num "dia lógico" que
+  // vira numa hora configurável (default 08:00, fuso America/Sao_Paulo).
+  // Para lead que JÁ está na base e volta a mandar mensagem após dias
+  // inativo — complementa o NEW_LEAD (que cobre só lead recém-criado).
+  FIRST_INTERACTION_OF_DAY
   // LEAD_UNTAGGED
 
   // Execuções
@@ -1838,7 +1845,32 @@ model Node {
   outputConnections Connection[] @relation("FromNode")
   inputConnections  Connection[] @relation("ToNode")
 
+  // Acelera o lookup de workflows por tipo de gatilho — `nodes: { some: { type } }`
+  // roda no hot path de TODO inbound (FIRST_INTERACTION_OF_DAY) e na criação de
+  // lead (NEW_LEAD), além de first-chat/lead-tagged. Sem isso o EXISTS varre `nodes`.
+  @@index([workflowId, type])
   @@map("nodes")
+}
+
+/// Idempotência do gatilho FIRST_INTERACTION_OF_DAY. Guarda, por (lead, workflow),
+/// a chave do "dia lógico" (YYYY-MM-DD no fuso configurado) em que o gatilho
+/// disparou pela última vez. O claim atômico (unique + create) garante que, mesmo
+/// sob mensagens concorrentes do mesmo lead, o fluxo dispare no máximo 1x por dia.
+/// Uma linha por (lead, workflow) — `dayKey` é sobrescrito a cada novo dia, então
+/// o crescimento é limitado a (#leads × #workflows com o gatilho).
+model LeadDailyTriggerClaim {
+  id         String   @id @default(cuid())
+  leadId     String   @map("lead_id")
+  workflowId String   @map("workflow_id")
+  dayKey     String   @map("day_key")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, workflowId])
+  @@index([workflowId])
+  @@map("lead_daily_trigger_claim")
 }
 
 model Connection {

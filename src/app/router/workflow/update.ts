@@ -182,6 +182,14 @@ export const updateNodes = base
 
       return workflow;
     }).then(async (result) => {
+      // Estrutura de nodes mudou — invalida o cache do gatilho
+      // FIRST_INTERACTION_OF_DAY (pode ter adicionado/removido o nó).
+      if (workflow.trackingId) {
+        const { invalidateReturningTriggerCache } = await import(
+          "@/features/triggers/components/first-interaction-of-day/dispatch"
+        );
+        invalidateReturningTriggerCache(workflow.trackingId);
+      }
       // Log fora da transaction — best-effort, não trava save.
       if (workflow.tracking?.organizationId) {
         await logActivity({
