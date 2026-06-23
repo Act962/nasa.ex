@@ -56,6 +56,8 @@ import { cn } from "@/lib/utils";
 import { countries } from "@/types/some";
 import { normalizePhone, phoneMask } from "@/utils/format-phone";
 
+const LOCAL_DRAFT_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 horas
+
 type FormSubmitProps = {
   id: string;
   blocks: FormBlockInstance[];
@@ -139,6 +141,7 @@ export function FormSubmitComponent({
   // refresh ou queda de conexão no mesmo tab. Key inclui o formId pra
   // não embaralhar drafts de forms diferentes.
   const responseIdStorageKey = `nasa.form.draft.${id}`;
+  const localStorageDraftKey = `nasa.form.ls.${id}`;
   const responseIdRef = useRef<string | null>(
     typeof window !== "undefined" && !initialResponseValues
       ? sessionStorage.getItem(responseIdStorageKey)
@@ -152,6 +155,28 @@ export function FormSubmitComponent({
     // Inicializa com valores existentes no fluxo edit. No fluxo público fica vazio.
     initialResponseValues ? { ...initialResponseValues } : {},
   );
+
+  const saveDraftToLocalStorage = () => {
+    if (typeof window === "undefined") return;
+    if (initialResponseValues) return; // modo edição — não usar localStorage
+    try {
+      localStorage.setItem(
+        localStorageDraftKey,
+        JSON.stringify({ fv: formVals.current, savedAt: Date.now() }),
+      );
+    } catch {
+      /* quota ou modo privado — ignorar */
+    }
+  };
+
+  const clearLocalStorageDraft = () => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.removeItem(localStorageDraftKey);
+    } catch {
+      /* ignorar */
+    }
+  };
 
   // Chave única por montagem (id do form + epoch ms). Propagada via
   // FormPrefillProvider; blocos que persistem em sessionStorage (ImageUpload)
@@ -310,6 +335,9 @@ export function FormSubmitComponent({
         return updated;
       });
     }
+    // Persiste imediatamente no localStorage — garante que fechar a aba
+    // antes de clicar "Próximo" não perde os dados do step atual.
+    saveDraftToLocalStorage();
   };
 
   /**
@@ -447,6 +475,8 @@ export function FormSubmitComponent({
       {
         onSuccess: (res) => {
           setSubmitted(true);
+          // Draft local não é mais necessário — submissão finalizada.
+          clearLocalStorageDraft();
           // Limpa o backup em sessionStorage agora que a submissão foi
           // persistida no servidor — evita que o "redirect pra mesma rota"
           // ou "abrir form novamente" inicialize com dados velhos.
@@ -531,6 +561,45 @@ export function FormSubmitComponent({
     borderColor: primaryColor || undefined,
     color: primaryColor ? getContrastColor(primaryColor) : undefined,
   };
+
+  // Restaura rascunho local (localStorage) ao montar. Cobre o cenário
+  // "user preenche campos, fecha a aba antes de clicar Próximo e reabre".
+  // Só roda no fluxo público (sem initialResponseValues). Descarta rascunhos
+  // com > 24h. Se um draft do servidor for encontrado depois (via findDraft),
+  // ele sobrescreve e limpa o localStorage.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (initialResponseValues) return;
+    try {
+      const raw = localStorage.getItem(localStorageDraftKey);
+      if (!raw) return;
+      const localDraft = JSON.parse(raw) as {
+        fv?: Record<string, FieldValue>;
+        savedAt?: number;
+      };
+      if (!localDraft.fv || !localDraft.savedAt) return;
+      if (Date.now() - localDraft.savedAt > LOCAL_DRAFT_EXPIRY_MS) {
+        localStorage.removeItem(localStorageDraftKey);
+        return;
+      }
+      const hydratedMap: PrefillFieldMap = {};
+      for (const [k, v] of Object.entries(localDraft.fv)) {
+        if (v && typeof v === "object" && typeof v.value === "string") {
+          formVals.current[k] = v;
+          hydratedMap[k] = v;
+        }
+      }
+      if (Object.keys(hydratedMap).length > 0) {
+        setPrefillMap(hydratedMap);
+        toast.success("Retomando onde você parou", {
+          description: "Seus respostas foram restauradas automaticamente.",
+        });
+      }
+    } catch {
+      /* JSON inválido ou localStorage indisponível — ignorar */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Limpa quaisquer backups de sessionStorage de submissions anteriores
   // (chaves com prefixo `nasa.form.image-upload.`) ao montar uma NOVA
@@ -927,6 +996,9 @@ export function FormSubmitComponent({
                                     } catch {
                                       /* ignore */
                                     }
+                                    // Draft do servidor é mais autoritativo
+                                    // (cross-device) — descarta versão local.
+                                    clearLocalStorageDraft();
                                     toast.success(
                                       "Continuando rascunho salvo",
                                       {
