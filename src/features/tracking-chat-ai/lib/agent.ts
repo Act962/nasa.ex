@@ -2,6 +2,7 @@ import "server-only";
 import { generateText } from "ai";
 import type { GetStepTools } from "inngest";
 import { sendText } from "@/http/uazapi/send-text";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { loadAgentContext, type AgentEventData } from "./context";
@@ -61,13 +62,13 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     // pra não deixar o lead "no escuro".
     await step.run("send-grace-fallback", async () => {
       await sendText(
-        ctx.instance!.apiKey,
+        requireUazapiToken(ctx.instance!.apiKey),
         {
           number: ctx.lead.phone!,
           text: "Estamos com você! Em instantes um atendente humano retornará. Obrigado pela paciência.",
           delay: 0,
         },
-        ctx.instance!.baseUrl,
+        ctx.instance!.baseUrl ?? undefined,
       );
     });
     return { skipped: true, reason: "stars_grace_no_balance" };
@@ -82,13 +83,13 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   if (!charge.success) {
     await step.run("send-no-balance-fallback", async () => {
       await sendText(
-        ctx.instance!.apiKey,
+        requireUazapiToken(ctx.instance!.apiKey),
         {
           number: ctx.lead.phone!,
           text: "Estamos com você! Em instantes um atendente humano retornará.",
           delay: 0,
         },
-        ctx.instance!.baseUrl,
+        ctx.instance!.baseUrl ?? undefined,
       );
     });
     return { skipped: true, reason: "stars_insufficient" };
@@ -171,13 +172,13 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
       for (let i = 0; i < parts.length; i++) {
         const chunk = parts[i];
         const res = await sendText(
-          ctx.instance!.apiKey,
+          requireUazapiToken(ctx.instance!.apiKey),
           {
             number: ctx.lead.phone!,
             text: chunk,
             delay: INTER_MESSAGE_DELAY_MS,
           },
-          ctx.instance!.baseUrl,
+          ctx.instance!.baseUrl ?? undefined,
         );
         await persistOutboundMessage({
           conversationId: ctx.conversation.id,

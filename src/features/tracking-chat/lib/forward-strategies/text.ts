@@ -1,11 +1,9 @@
 import { MessageStatus } from "@/features/tracking-chat/types";
-import { sendText } from "@/http/uazapi/send-text";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import type { TextPayload } from "./build-payload";
 import {
   MESSAGE_SELECT,
-  type ForwardContext,
   type ForwardedMessage,
   type ForwardStrategy,
 } from "./types";
@@ -19,17 +17,16 @@ export const textStrategy: ForwardStrategy<TextPayload> = {
   kind: "text",
   schema: textSchema,
   async execute(payload, ctx) {
-    const response = await sendText(ctx.token, {
-      text: payload.body,
-      number: ctx.number,
-      readchat: true,
-      readmessages: true,
+    const response = await ctx.provider.sendText({
+      kind: "text",
+      to: ctx.number,
+      body: payload.body,
     });
     const message = await prisma.message.create({
       data: {
         conversationId: ctx.conversationId,
         body: payload.body,
-        messageId: response.messageid,
+        messageId: response.externalMessageId,
         fromMe: true,
         status: MessageStatus.SEEN,
         senderName: ctx.senderName,

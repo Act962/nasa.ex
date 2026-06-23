@@ -2090,12 +2090,31 @@ enum WhatsAppInstanceStatus {
   DISCONNECTED
 }
 
+// ── WhatsApp Provider (Fase 4 — Roadmap WhatsApp Oficial) ────────────────
+// Cada `WhatsAppInstance` declara qual provider concreto fala WhatsApp
+// para o tracking. Default `UAZAPI` mantém todo tracking existente intacto
+// — a Fase 6 conecta `META_CLOUD` no caminho de envio/recebimento via
+// factory por-tracking. Adicionar novo provider amanhã = adicionar um
+// valor aqui + um adapter em `src/features/tracking-chat/lib/providers/`.
+enum WhatsAppProvider {
+  UAZAPI
+  META_CLOUD
+}
+
 model WhatsAppInstance {
-  id             String                 @id @default(cuid())
-  instanceName   String                 @map("instance_name")
-  instanceId     String                 @unique @map("instance_id")
-  apiKey         String                 @unique @map("api_key") // Token
-  baseUrl        String                 @map("base_url") // URL
+  id           String @id @default(cuid())
+  instanceName String @map("instance_name")
+  // ── Credenciais Uazapi (legado) ──────────────────────────────────────
+  // NULLABLE desde que o provider passou a ser escolhido na criação: uma
+  // instância `META_CLOUD` nasce sem essas 3 colunas (não há instância
+  // Uazapi por trás). Para `provider == UAZAPI` continuam sempre
+  // preenchidas. Code-paths Uazapi devem narrowar via
+  // `requireUazapiCredentials(instance)` antes de usá-las. `@unique`
+  // segue válido: Postgres permite múltiplos NULL na mesma coluna unique.
+  instanceId String?          @unique @map("instance_id")
+  apiKey     String?          @unique @map("api_key") // Token
+  baseUrl    String?          @map("base_url") // URL
+  provider   WhatsAppProvider @default(UAZAPI)
   status         WhatsAppInstanceStatus @default(DISCONNECTED)
   qrCode         String?                @map("qr_code") // Base64 do QR Code
   phoneNumber    String?                @map("phone_number") // Número conectado
@@ -2109,6 +2128,26 @@ model WhatsAppInstance {
   createdAt      DateTime               @default(now()) @map("created_at")
   updatedAt      DateTime               @updatedAt @map("updated_at")
   isBusiness     Boolean                @default(false) @map("is_business")
+
+  // ── Credenciais Meta Cloud API (Fase 4) ──────────────────────────────
+  // Só preenchidos quando `provider == META_CLOUD`.
+  //
+  // **Cifrados** (AES-256-GCM via `@/lib/crypto` + `AI_SECRETS_KEY`; nunca
+  // logar em claro — usar `last4(...)` pra exibir parcial):
+  //  - `metaAccessToken`  — System User access token (long-lived).
+  //  - `metaAppSecret`    — App Secret pra validar HMAC `x-hub-signature-256`.
+  //  - `metaVerifyToken`  — `hub.verify_token` do GET de subscription.
+  //
+  // **Plaintext** (identificadores públicos, aparecem em todo webhook Meta
+  // e na URL de envio do Graph — cifrar só atrapalhava o lookup):
+  //  - `metaPhoneNumberId`     — Phone Number ID do número (chave de lookup
+  //    no webhook oficial; `@unique` faz `findUnique` constant-time).
+  //  - `metaBusinessAccountId` — WhatsApp Business Account ID (WABA).
+  metaAccessToken       String? @map("meta_access_token")
+  metaPhoneNumberId     String? @unique @map("meta_phone_number_id")
+  metaAppSecret         String? @map("meta_app_secret")
+  metaVerifyToken       String? @map("meta_verify_token")
+  metaBusinessAccountId String? @map("meta_business_account_id")
 
   // ── In-Chat Fallback (anti-ban) ──────────────────────────────────────
   // `inChatModeActive` = true quando o cron `detect-whatsapp-ban` detecta
@@ -2148,6 +2187,7 @@ model WhatsAppInstance {
   @@index([status])
   @@index([inChatModeActive])
   @@index([inChatModeManual])
+  @@index([provider])
   @@map("whatsapp_instances")
 }
 

@@ -16,6 +16,7 @@ import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { sendButtonsOrList } from "@/http/uazapi/send-menu";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import {
   type CreatedMessageProps,
   MessageStatus,
@@ -82,7 +83,7 @@ export async function sendButtonsToLead(
     // só aceita 3 botões nativos; acima disso vira menu de lista com o
     // mesmo UX de seleção pro lead).
     const response = await sendButtonsOrList(
-      instance.apiKey,
+      requireUazapiToken(instance.apiKey),
       {
         number: lead.phone,
         text: bodyText,
@@ -92,7 +93,7 @@ export async function sendButtonsToLead(
         readmessages: true,
         delay: 2000,
       },
-      instance.baseUrl,
+      instance.baseUrl ?? undefined,
     );
     externalMessageId = response.messageid ?? externalMessageId;
   }

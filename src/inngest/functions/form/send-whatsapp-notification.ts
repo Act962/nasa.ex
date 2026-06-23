@@ -1,6 +1,7 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { sendText } from "@/http/uazapi/send-text";
+import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { MessageStatus } from "@/generated/prisma/enums";
 import type { WhatsappChat } from "@/features/form/types";
@@ -209,7 +210,7 @@ export const formSendWhatsappNotification = inngest.createFunction(
       extra?: Partial<SendTextPayload>,
     ): Promise<SendTextResponse> => {
       return sendText(
-        instance.apiKey,
+        requireUazapiToken(instance.apiKey),
         {
           number,
           text: messageText,
@@ -219,7 +220,7 @@ export const formSendWhatsappNotification = inngest.createFunction(
           track_source: "nasa-form",
           ...extra,
         },
-        instance.baseUrl,
+        instance.baseUrl ?? undefined,
       );
     };
 

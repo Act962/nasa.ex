@@ -2,22 +2,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import { pusherServer } from "@/lib/pusher";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
-import { LeadSource, WhatsAppInstanceStatus } from "@/generated/prisma/enums";
+import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import { Prisma } from "@/generated/prisma/client";
-import { downloadFile } from "@/http/uazapi/get-file";
-import { S3 } from "@/lib/s3-client";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { v4 as uuidv4 } from "uuid";
 import { MessageStatus } from "@/features/tracking-chat/types";
-import { getContactDetails } from "@/http/uazapi/get-contact-details";
 import { WA_COLORS } from "@/utils/whatsapp-utils";
-import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
-import { logActivity } from "@/features/admin/lib/activity-logger";
-import {
-  resolveReferralForOrg,
-  ctwaToLeadData,
-  captureMetaReferralForNewLead,
-} from "@/lib/lead-journey/ctwa";
 import {
   callsEventSchema,
   chatLabelsEventSchema,
@@ -25,8 +13,15 @@ import {
   webhookBaseSchema,
 } from "@/http/uazapi/webhook-schema";
 import { getCachedTrackingContext } from "@/features/tracking-chat/lib/get-cached-tracking-context";
-
-const FETCH_TIMEOUT_MS = 10_000;
+import {
+  createProvider,
+  invalidateOutboundProvider,
+} from "@/features/tracking-chat/lib/providers";
+import { persistCanonicalInbound } from "@/features/tracking-chat/lib/inbound/persist-canonical-inbound";
+import {
+  buildUazapiDownloadInboundMedia,
+  buildUazapiFetchProfilePicture,
+} from "@/features/tracking-chat/lib/inbound/uazapi-strategies";
 
 export async function POST(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -68,12 +63,9 @@ export async function POST(request: NextRequest) {
       }
 
       const fromMe = json.message.fromMe;
-
       const phone = json.message.chatid.split("@")[0];
-      const remoteJid = json.message.chatid;
 
       const tracking = await getCachedTrackingContext(trackingId);
-
       if (!tracking) {
         return NextResponse.json(
           { error: "Tracking context not found" },
@@ -86,8 +78,8 @@ export async function POST(request: NextRequest) {
       // ativo NA ORG DESTE TRACKING, intercepta e roteia pro orchestrator
       // IA em vez do fluxo de atendimento. Mensagem do membro = comando
       // pro bot, não lead novo. Texto puro só — mídia ainda cai no fluxo
-      // normal (Fase 3 adiciona OCR/visão). Roda DEPOIS do tracking lookup
-      // pra escopar o binding por org e evitar colisão multi-org.
+      // normal. Roda ANTES da normalização canônica pra escopar o binding
+      // por org e evitar criar Lead/Message indevidos.
       const bodyForBot = (json.message.text ?? "").trim();
       if (!fromMe && bodyForBot && json.message.messageType === "TextMessage") {
         try {
@@ -102,7 +94,6 @@ export async function POST(request: NextRequest) {
             trackingOrganizationId: tracking.organizationId,
           });
           if (botResult.handled) {
-            // Bot processou — não cria Lead/Conversation/Message.
             return NextResponse.json(
               {
                 ok: true,
@@ -114,8 +105,6 @@ export async function POST(request: NextRequest) {
             );
           }
         } catch (err) {
-          // Best-effort: falha no bot NÃO derruba o webhook de atendimento.
-          // Loga e segue pro fluxo normal de Lead/Message.
           console.error(
             "[webhook:chat] astro-bot handler failed — fallback to atendimento normal",
             err,
@@ -123,767 +112,78 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // ── Cálculo de nomes (lazy) ────────────────────────────────
-      // Postergado pra depois do bloco bot — quando o bot intercepta, esse
-      // trabalho ia pro lixo. Cadeia de fallbacks rara, mas multiplica por
-      // mensagem inbound.
-      const senderName =
-        json.message.senderName || json.chat?.name || "Sem nome";
-
-      // When fromMe=true the sender is the consultant — use chat contact info
-      // for the lead name so the consultant's name is never stored on the lead.
-      const leadName = fromMe
-        ? (json.chat?.lead_fullName ||
-           json.chat?.lead_name ||
-           json.chat?.wa_contactName ||
-           json.chat?.wa_name ||
-           json.chat?.name ||
-           "Sem nome")
-        : (json.message.senderName ||
-           json.chat?.wa_contactName ||
-           json.chat?.wa_name ||
-           json.chat?.name ||
-           "Sem nome");
-
-      let lead = await prisma.lead.findUnique({
-        where: {
-          phone_trackingId: { phone, trackingId },
-        },
-        include: {
-          conversation: true,
-          leadTags: {
-            include: {
-              tag: true,
-            },
-          },
-        },
+      // ── Pipeline canônica ─────────────────────────────────────────────
+      // Fase 3: o webhook não mais persiste mensagens diretamente. Ele
+      // normaliza o payload via `UazapiProvider.normalizeInbound` e delega
+      // pra `persistCanonicalInbound`, que é o único caminho de
+      // persistência inbound — Uazapi hoje, Meta na Fase 5.
+      //
+      // Strategies provider-specific (avatar + download de mídia) são
+      // injetadas; CTWA é resolvido passando `[json.message, json]` como
+      // sources de referral (paridade com `resolveReferralForOrg` antigo).
+      const uazapiToken = json.token ?? "";
+      const provider = createProvider("uazapi", {
+        token: uazapiToken,
+        baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
       });
 
-      let key = lead?.profile || null;
+      const normalized = provider.normalizeInbound(json);
+      if (!normalized) {
+        return NextResponse.json(
+          { ok: false, reason: "normalize_failed" },
+          { status: 200 },
+        );
+      }
 
-      if (!lead) {
-        try {
-          const profileLead = await getContactDetails({
-            token: json.token,
-            data: { number: phone as string, preview: false },
-          });
+      if (normalized.messages.length === 0) {
+        // Tipos sem persistência (ex.: ProtocolMessage não-revoke,
+        // contato sem nome/telefone) — Uazapi continua retornando 200/201.
+        return NextResponse.json(
+          { success: true, ignored: "no_canonical_messages" },
+          { status: 200 },
+        );
+      }
 
-          if (profileLead?.image) {
-            const imageResponse = await fetch(profileLead.image, {
-              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-            });
-            if (imageResponse.ok) {
-              const arrayBuffer = await imageResponse.arrayBuffer();
-              const buffer = Buffer.from(arrayBuffer);
-              const mimetype =
-                imageResponse.headers.get("content-type") || "image/jpeg";
+      const fetchProfilePicture = buildUazapiFetchProfilePicture(uazapiToken);
+      const downloadInboundMedia = buildUazapiDownloadInboundMedia(uazapiToken);
 
-              const extension = mimetype.split("/")[1] || "jpg";
-              key = `${uuidv4()}.${extension}`;
+      const results = [];
+      for (const canonical of normalized.messages) {
+        const result = await persistCanonicalInbound(canonical, {
+          trackingId,
+          providerId: "uazapi",
+          fetchProfilePicture,
+          downloadInboundMedia,
+          ctwaSources: [json.message, json],
+          channel: "WHATSAPP",
+        });
+        results.push(result);
+      }
 
-              await S3.send(
-                new PutObjectCommand({
-                  Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
-                  Key: key,
-                  Body: buffer,
-                  ContentType: mimetype,
-                }),
-              );
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching or uploading profile image:", error);
+      // Falhas estruturais (status do funil ausente, conversa não
+      // criada) devem virar 400/500 — paridade com o route antigo, que
+      // retornava 400 "Status context not found" quando o tracking não
+      // tinha funil configurado. Sem isso, o webhook esconde a falha de
+      // configuração e devolve sucesso falso pro provider.
+      const firstFailure = results.find((r) => !r.ok);
+      if (firstFailure && !firstFailure.ok) {
+        if (firstFailure.reason === "tracking_not_found") {
+          return NextResponse.json(
+            { error: "Tracking context not found" },
+            { status: 400 },
+          );
         }
-
-        const status = await prisma.status.findFirst({
-          where: { trackingId },
-          select: {
-            id: true,
-          },
-          orderBy: {
-            order: "asc",
-          },
-        });
-
-        const firstLead = await prisma.lead.findFirst({
-          where: { statusId: status?.id },
-          select: {
-            order: true,
-          },
-          orderBy: {
-            order: "asc",
-          },
-        });
-
-        if (!status) {
+        if (firstFailure.reason === "lead_creation_failed") {
+          // Mais provável: funil sem Status (`status_not_configured`).
+          // Paridade direta com o 400 do route antigo.
           return NextResponse.json(
             { error: "Status context not found" },
             { status: 400 },
           );
         }
-
-        const ctwa = await resolveReferralForOrg(
-          tracking.organizationId,
-          json.message,
-          json,
-        );
-
-        const createdLead = await prisma.lead.create({
-          data: {
-            name: leadName,
-            statusId: status.id,
-            phone,
-            trackingId: trackingId,
-            source: LeadSource.WHATSAPP,
-            profile: key,
-            order: firstLead ? Number(firstLead.order) - 1 : 0,
-            statusFlow: "WAITING",
-            lastInboundAt: new Date(),
-            ...(ctwa ? ctwaToLeadData(ctwa.ref, ctwa.resolved) : {}),
-            conversation: {
-              create: {
-                remoteJid,
-                trackingId,
-                isActive: true,
-              },
-            },
-          },
-
-          include: {
-            conversation: true,
-            leadTags: {
-              include: {
-                tag: true,
-              },
-            },
-          },
-        });
-
-        lead = createdLead;
-
-        // `message_in` é logado abaixo no bloco unificado de timestamps;
-        // aqui só registramos o referral CTWA pra dar contexto na timeline.
-        if (ctwa) {
-          await captureMetaReferralForNewLead(
-            lead.id,
-            ctwa.ref,
-            ctwa.resolved,
-            "WHATSAPP",
-          );
-        }
-
-        // Log system activity for new lead via WhatsApp
-        try {
-          const tracking = await prisma.tracking.findUnique({
-            where: { id: trackingId },
-            select: { name: true, organizationId: true },
-          });
-          if (tracking) {
-            await logActivity({
-              organizationId: tracking.organizationId,
-              userId: "system",
-              userName: "Sistema",
-              userEmail: "sistema@nasa",
-              appSlug: "tracking",
-              action: "lead.arrived",
-              actionLabel: `Um lead chegou no tracking "${tracking.name}" via WhatsApp (${lead.name ?? phone})`,
-              resource: lead.name ?? phone,
-              resourceId: lead.id,
-              metadata: {
-                phone,
-                trackingName: tracking.name,
-                source: "WHATSAPP",
-              },
-            });
-          }
-        } catch {}
-
-        try {
-          if (lead && lead.id) {
-            await prisma.$transaction((tx) =>
-              assignLeadRoundRobin(tx, lead?.id || ""),
-            );
-          }
-        } catch (error) {
-          console.error("Error assigning lead in round robin:", error);
-        }
-
-        try {
-          await fetch(
-            `${process.env.NEXT_PUBLIC_BASE_URL}/api/workflows/lead/new?trackingId=${trackingId}&leadId=${lead.id}`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ trackingId }),
-              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-            },
-          );
-        } catch (error) {
-          console.error("[webhook:chat] workflow_lead_new_failed", error);
-        }
-      } else {
-        if (!lead.conversation) {
-          await prisma.conversation.create({
-            data: {
-              remoteJid,
-              trackingId,
-              isActive: true,
-              leadId: lead.id,
-            },
-          });
-        }
-
-        if (!fromMe && lead.statusFlow === "FINISHED") {
-          lead = await prisma.lead.update({
-            where: { id: lead.id },
-            data: { statusFlow: "ACTIVE" },
-            include: {
-              conversation: true,
-              leadTags: { include: { tag: true } },
-            },
-          });
-        }
-      }
-
-      const senderId = fromMe ? json.owner : phone;
-      const messageId = json.message.messageid;
-      const messageType = json.message.messageType;
-      const messageTimestamp = json.message.messageTimestamp;
-      const createdAt = messageTimestamp
-        ? new Date(messageTimestamp)
-        : new Date();
-
-      let body = json.message.text || "";
-      if (!body && typeof json.message.content === "string") {
-        body = json.message.content;
-      } else if (!body && typeof json.message.content.text === "string") {
-        body = json.message.content?.text || "";
-      } else if (!body && typeof json.message.content.caption === "string") {
-        body = json.message.content?.caption || "";
-      }
-
-      // ── Revoke (mensagem apagada no WhatsApp pelo lead/atendente) ────
-      // O uazapi entrega como `messageType: "ProtocolMessage"` com
-      // `content.type` indicando REVOKE (geralmente 0 ou "REVOKE" como
-      // string). O campo `content.key.id` (ou `content.id`) aponta pra
-      // mensagem original que foi revogada. Estratégia idêntica ao
-      // soft-delete: marca status=DELETED + limpa body/mídia. UI já
-      // renderiza como "Mensagem apagada".
-      if (messageType === "ProtocolMessage") {
-        const content =
-          typeof json.message.content === "object" && json.message.content
-            ? (json.message.content as Record<string, any>)
-            : {};
-        // Tipos comuns observados: 0 (REVOKE_FOR_EVERYONE), "REVOKE",
-        // "MESSAGE_REVOKE". Tratamos tudo que parecer revoke.
-        const ptype = String(content.type ?? "").toUpperCase();
-        const isRevoke =
-          content.type === 0 ||
-          ptype.includes("REVOKE") ||
-          !!content.revokedMessageKey ||
-          !!content.revokeMessageKey;
-
-        if (isRevoke) {
-          const revokedKey =
-            content.key?.id ??
-            content.revokedMessageKey?.id ??
-            content.revokeMessageKey?.id ??
-            content.id ??
-            null;
-          if (revokedKey) {
-            try {
-              const updated = await prisma.message.update({
-                where: { messageId: String(revokedKey) },
-                data: {
-                  status: MessageStatus.DELETED,
-                  body: null,
-                  mediaUrl: null,
-                  mediaType: null,
-                  mediaCaption: null,
-                  mimetype: null,
-                  fileName: null,
-                },
-                select: { id: true, conversationId: true },
-              });
-              await pusherServer.trigger(
-                updated.conversationId,
-                "message:updated",
-                {
-                  messageId: updated.id,
-                  conversationId: updated.conversationId,
-                  status: MessageStatus.DELETED,
-                },
-              );
-            } catch (err) {
-              // Mensagem revogada pode não estar no nosso banco (foi
-              // enviada antes da conversa ser importada) — não polui o log.
-              console.debug(
-                "[webhook:chat] revoke target not found",
-                revokedKey,
-              );
-            }
-          }
-          return NextResponse.json({ success: true, revoked: true });
-        }
-        // ProtocolMessage de outro tipo (ex: confirmação de leitura) —
-        // ignora silenciosamente.
-        return NextResponse.json({ success: true, ignored: "protocol" });
-      }
-
-      let messageData: any = null;
-      const quotedMessage = json.message.quoted;
-      const messageEdited = json.message.edited;
-
-      let quotedMessageData = null;
-      let editedMessageData = null;
-
-      if (quotedMessage) {
-        quotedMessageData =
-          (await prisma.message.findUnique({
-            where: {
-              messageId: quotedMessage,
-            },
-          })) || null;
-      }
-
-      if (messageEdited) {
-        editedMessageData =
-          (await prisma.message.findUnique({
-            where: {
-              messageId: messageEdited,
-            },
-            select: {
-              id: true,
-              body: true,
-              messageId: true,
-            },
-          })) || null;
-      }
-
-      if (
-        messageType === "ExtendedTextMessage" ||
-        messageType === "Conversation" ||
-        messageType === "TemplateButtonReplyMessage" ||
-        messageType === "ButtonsResponseMessage" ||
-        messageType === "ListResponseMessage" ||
-        messageType === "InteractiveResponseMessage"
-      ) {
-        const content =
-          typeof json.message.content === "object" && json.message.content
-            ? (json.message.content as Record<string, any>)
-            : {};
-        const interactiveBody =
-          content.selectedDisplayText ||
-          content.selectedButtonId ||
-          content.title ||
-          json.message.vote ||
-          "";
-        const finalBody = body || interactiveBody;
-
-        messageData = await prisma.message.upsert({
-          where: { messageId: editedMessageData?.messageId || messageId },
-          update: {
-            status: MessageStatus.SEEN,
-            body: finalBody || editedMessageData?.body,
-            createdAt,
-          },
-          create: {
-            fromMe,
-            conversationId: lead.conversation?.id!,
-            senderId,
-            messageId,
-            body: finalBody,
-            status: MessageStatus.SEEN,
-            quotedMessageId: quotedMessageData?.id,
-            createdAt,
-            senderName,
-          },
-          include: {
-            quotedMessage: true,
-            conversation: {
-              include: { lead: true, lastMessage: true },
-            },
-          },
-        });
-
-        // Modo Agente IA: dispatch MESSAGE_INCOMING agora acontece DEPOIS
-        // do switch case (ver mais abaixo), pra incluir TAMBÉM mensagens
-        // de mídia (foto/PDF/áudio) — usado pelo preset
-        // "comprovante-pagamento" que lê o arquivo via AI_VISION/READ_PDF.
-      }
-
-      if (messageType === "ImageMessage") {
-        let key = null;
-        let mimetype = "";
-        if (!editedMessageData) {
-          const image = await downloadFile({
-            token: json.token,
-            baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
-            data: { id: messageId, return_base64: false },
-          });
-
-          if (image?.fileURL) {
-            try {
-              const imageResponse = await fetch(image.fileURL, {
-                signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-              });
-              if (imageResponse.ok) {
-                const arrayBuffer = await imageResponse.arrayBuffer();
-                const buffer = Buffer.from(arrayBuffer);
-                mimetype =
-                  imageResponse.headers.get("content-type") || "image/jpeg";
-
-                const extension = mimetype.split("/")[1] || "jpg";
-                key = `${uuidv4()}.${extension}`;
-
-                await S3.send(
-                  new PutObjectCommand({
-                    Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
-                    Key: key,
-                    Body: buffer,
-                    ContentType: mimetype,
-                  }),
-                );
-              }
-            } catch (error) {
-              console.error("Error uploading to S3:", error);
-            }
-          }
-        }
-
-        messageData = await prisma.message.upsert({
-          where: { messageId: editedMessageData?.messageId || messageId },
-          update: {
-            status: MessageStatus.SEEN,
-            body: body || editedMessageData?.body,
-            createdAt,
-          },
-          create: {
-            body,
-            mediaUrl: key,
-            fromMe,
-            status: MessageStatus.SEEN,
-            conversationId: lead.conversation?.id!,
-            quotedMessageId: quotedMessageData?.id,
-            mimetype,
-            senderId,
-            messageId,
-            createdAt,
-            senderName,
-          },
-          include: {
-            quotedMessage: true,
-            conversation: {
-              include: { lead: true },
-            },
-          },
-        });
-      }
-      if (messageType === "DocumentMessage") {
-        let key = null;
-        let mimetype = null;
-
-        if (!editedMessageData) {
-          const document = await downloadFile({
-            token: json.token,
-            baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
-            data: { id: messageId, return_base64: false },
-          });
-
-          mimetype = document.mimetype;
-
-          if (document?.fileURL) {
-            try {
-              const documentResponse = await fetch(document.fileURL, {
-                signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-              });
-              if (documentResponse.ok) {
-                const arrayBuffer = await documentResponse.arrayBuffer();
-                const buffer = Buffer.from(arrayBuffer);
-
-                const extension = document.fileURL.split(".").pop() || "pdf";
-                key = `${uuidv4()}.${extension}`;
-
-                await S3.send(
-                  new PutObjectCommand({
-                    Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
-                    Key: key,
-                    Body: buffer,
-                    ContentType: mimetype,
-                  }),
-                );
-              }
-            } catch (error) {
-              console.error("[webhook:chat] document_upload_failed", error);
-            }
-          }
-        }
-        messageData = await prisma.message.upsert({
-          where: { messageId: editedMessageData?.messageId || messageId },
-          update: {
-            status: MessageStatus.SEEN,
-            body: body || editedMessageData?.body,
-            createdAt,
-          },
-          create: {
-            body,
-            mediaUrl: key,
-            fileName: json.message.content.fileName,
-            fromMe,
-            mimetype,
-            status: MessageStatus.SEEN,
-            quotedMessageId: quotedMessageData?.id,
-            conversationId: lead.conversation?.id!,
-            senderId,
-            senderName,
-            messageId,
-            createdAt,
-          },
-          include: {
-            quotedMessage: true,
-            conversation: {
-              include: { lead: true },
-            },
-          },
-        });
-      }
-      if (messageType === "AudioMessage") {
-        const audio = await downloadFile({
-          token: json.token,
-          baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
-          data: { id: messageId, return_base64: false, generate_mp3: true },
-        });
-
-        let key = null;
-        let mimetype = "";
-        if (audio?.fileURL) {
-          try {
-            const audioResponse = await fetch(audio.fileURL, {
-              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-            });
-            if (audioResponse.ok) {
-              const arrayBuffer = await audioResponse.arrayBuffer();
-              const buffer = Buffer.from(arrayBuffer);
-              mimetype =
-                audioResponse.headers.get("content-type") || "audio/mpeg";
-              const extension = mimetype.split("/")[1] || "mp3";
-              key = `${uuidv4()}.${extension}`;
-
-              await S3.send(
-                new PutObjectCommand({
-                  Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
-                  Key: key,
-                  Body: buffer,
-                  ContentType: mimetype,
-                }),
-              );
-            }
-          } catch (error) {
-            console.error("Error uploading to S3:", error);
-          }
-        }
-
-        messageData = await prisma.message.upsert({
-          where: { messageId },
-          update: {},
-          create: {
-            mediaUrl: key,
-            fromMe,
-            mimetype,
-            quotedMessageId: quotedMessageData?.id,
-            status: MessageStatus.SEEN,
-            conversationId: lead.conversation?.id!,
-            senderId,
-            senderName,
-            messageId,
-            createdAt,
-          },
-          include: {
-            quotedMessage: true,
-            conversation: {
-              include: { lead: true },
-            },
-          },
-        });
-      }
-      if (messageType === "LocationMessage" || messageType === "Location") {
-        const content = (
-          typeof json.message.content === "object" && json.message.content
-            ? json.message.content
-            : {}
-        ) as Record<string, any>;
-        const latitude = Number(
-          content.degreesLatitude ?? content.latitude ?? content.lat,
-        );
-        const longitude = Number(
-          content.degreesLongitude ?? content.longitude ?? content.lng,
-        );
-        const locName: string | null = content.name ?? null;
-        const address: string | null = content.address ?? null;
-
-        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
-          messageData = await prisma.message.upsert({
-            where: { messageId },
-            update: {
-              status: MessageStatus.SEEN,
-              latitude,
-              longitude,
-              createdAt,
-            },
-            create: {
-              fromMe,
-              conversationId: lead.conversation?.id!,
-              senderId,
-              messageId,
-              status: MessageStatus.SEEN,
-              quotedMessageId: quotedMessageData?.id,
-              createdAt,
-              senderName,
-              latitude,
-              longitude,
-              mediaType: "location",
-              body: [locName, address].filter(Boolean).join(" — ") || null,
-            },
-            include: {
-              quotedMessage: true,
-              conversation: { include: { lead: true } },
-            },
-          });
-        }
-      }
-      if (messageType === "StickerMessage") {
-        const document = await downloadFile({
-          token: json.token,
-          baseUrl: process.env.NEXT_PUBLIC_UAZAPI_BASE_URL,
-          data: { id: messageId, return_base64: false },
-        });
-        let key = null;
-        if (document?.fileURL) {
-          try {
-            const documentResponse = await fetch(document.fileURL, {
-              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-            });
-            if (documentResponse.ok) {
-              const arrayBuffer = await documentResponse.arrayBuffer();
-              const buffer = Buffer.from(arrayBuffer);
-
-              const extension = document.fileURL.split(".").pop() || "webp";
-              key = `${uuidv4()}.${extension}`;
-
-              await S3.send(
-                new PutObjectCommand({
-                  Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!,
-                  Key: key,
-                  Body: buffer,
-                  ContentType: document.mimetype,
-                }),
-              );
-            }
-          } catch (error) {
-            console.error("[webhook:chat] sticker_upload_failed", error);
-          }
-        }
-
-        messageData = await prisma.message.create({
-          data: {
-            mediaUrl: key,
-            fromMe,
-            status: MessageStatus.SEEN,
-            conversationId: lead.conversation?.id!,
-            quotedMessageId: quotedMessageData?.id,
-            mimetype: document.mimetype,
-            senderId,
-            senderName,
-            messageId,
-            createdAt,
-          },
-          include: {
-            quotedMessage: true,
-            conversation: {
-              include: { lead: true },
-            },
-          },
-        });
-      }
-
-      if (
-        messageType === "ContactMessage" ||
-        messageType === "ContactsArrayMessage"
-      ) {
-        const content = (
-          typeof json.message.content === "object" && json.message.content
-            ? json.message.content
-            : {}
-        ) as Record<string, any>;
-
-        const extractFromVcard = (vcard: string | undefined | null) => {
-          if (!vcard || typeof vcard !== "string") return null;
-          const fnMatch = vcard.match(
-            /(?:^|\r?\n)(?:item\d+\.)?FN[^:]*:([^\r\n]+)/i,
-          );
-          const telLine = vcard.match(
-            /(?:^|\r?\n)(?:item\d+\.)?TEL[^:]*:([^\r\n]+)/i,
-          );
-          let phone: string | null = null;
-          if (telLine) {
-            const waidMatch = telLine[0].match(/waid=([0-9]+)/i);
-            phone = waidMatch
-              ? waidMatch[1]
-              : telLine[1].replace(/[^0-9+]/g, "");
-          }
-          return {
-            name: fnMatch?.[1]?.trim() || null,
-            phone,
-          };
-        };
-
-        const firstContact =
-          (Array.isArray(content.contacts) && content.contacts[0]) || content;
-
-        const parsed = extractFromVcard(firstContact.vcard);
-        const contactName =
-          firstContact.displayName ||
-          firstContact.fullName ||
-          parsed?.name ||
-          null;
-        const contactPhone = parsed?.phone || firstContact.phoneNumber || null;
-
-        if (contactName || contactPhone) {
-          messageData = await prisma.message.upsert({
-            where: { messageId },
-            update: {
-              status: MessageStatus.SEEN,
-              body: contactName,
-              fileName: contactPhone,
-              createdAt,
-            },
-            create: {
-              fromMe,
-              conversationId: lead.conversation?.id!,
-              senderId,
-              messageId,
-              status: MessageStatus.SEEN,
-              quotedMessageId: quotedMessageData?.id,
-              createdAt,
-              senderName,
-              mediaType: "contact",
-              body: contactName,
-              fileName: contactPhone,
-            },
-            include: {
-              quotedMessage: true,
-              conversation: { include: { lead: true } },
-            },
-          });
-        }
-      }
-
-      if (!messageData) {
         return NextResponse.json(
-          { success: true, warning: "Message type not processed" },
-          { status: 201 },
+          { error: firstFailure.reason },
+          { status: 500 },
         );
       }
 
@@ -894,204 +194,138 @@ export async function POST(request: NextRequest) {
       // metadata.buttonTagMap com o mapa buttonId→tagId.
       // 3 estratégias para localizar a mensagem original: o uazapi não
       // garante json.message.quoted em respostas de botão.
+      const messageType = json.message.messageType as string | undefined;
       console.log("[btn-tag] messageType:", messageType, "fromMe:", fromMe);
       if (
         !fromMe &&
-        lead?.id &&
-        messageData &&
+        normalized.messages.length > 0 &&
         (messageType === "ButtonsResponseMessage" ||
           messageType === "TemplateButtonReplyMessage" ||
           messageType === "ListResponseMessage" ||
           messageType === "InteractiveResponseMessage")
       ) {
-        const interactiveContent =
-          typeof json.message.content === "object" && json.message.content
-            ? (json.message.content as Record<string, any>)
-            : {};
+        const buttonTagLead = await prisma.lead.findUnique({
+          where: { phone_trackingId: { phone, trackingId } },
+          select: { id: true, conversation: { select: { id: true } } },
+        });
 
-        console.log("[btn-tag] interactiveContent:", JSON.stringify(interactiveContent));
-        console.log("[btn-tag] quoted:", json.message.quoted, "quotedMessageData:", !!quotedMessageData);
-        console.log("[btn-tag] conversation:", lead.conversation?.id);
+        if (buttonTagLead?.id) {
+          const interactiveContent =
+            typeof json.message.content === "object" && json.message.content
+              ? (json.message.content as Record<string, any>)
+              : {};
 
-        const clickedButtonId: string | undefined =
-          interactiveContent.selectedButtonId ||
-          interactiveContent.selectedID ||
-          interactiveContent.selectedRowId ||
-          interactiveContent.singleSelectReply?.selectedRowId ||
-          interactiveContent.buttonReply?.id ||
-          undefined;
+          console.log("[btn-tag] interactiveContent:", JSON.stringify(interactiveContent));
+          console.log("[btn-tag] quoted:", json.message.quoted);
+          console.log("[btn-tag] conversation:", buttonTagLead.conversation?.id);
 
-        console.log("[btn-tag] clickedButtonId:", clickedButtonId);
+          const clickedButtonId: string | undefined =
+            interactiveContent.selectedButtonId ||
+            interactiveContent.selectedID ||
+            interactiveContent.selectedRowId ||
+            interactiveContent.singleSelectReply?.selectedRowId ||
+            interactiveContent.buttonReply?.id ||
+            undefined;
 
-        if (clickedButtonId) {
-          try {
-            // Estratégia 1: quotedMessageData (quando json.message.quoted foi populado)
-            let originalMeta: unknown =
-              (quotedMessageData as any)?.metadata ?? null;
-            console.log("[btn-tag] strategy1 originalMeta:", originalMeta);
+          console.log("[btn-tag] clickedButtonId:", clickedButtonId);
 
-            // Estratégia 2: contextInfo.stanzaId (formato alternativo do uazapi)
-            if (!originalMeta) {
-              const contextStanzaId =
-                interactiveContent.contextInfo?.stanzaId ||
-                interactiveContent.contextInfo?.quotedMessageKey?.id;
-              console.log("[btn-tag] strategy2 contextStanzaId:", contextStanzaId);
-              if (contextStanzaId) {
-                const contextMsg = await prisma.message.findUnique({
-                  where: { messageId: String(contextStanzaId) },
+          if (clickedButtonId) {
+            try {
+              // Estratégia 1: quotedMessageData (quando json.message.quoted foi populado)
+              let originalMeta: unknown = null;
+              const quotedMsgId = (json.message.quoted as any)?.messageId;
+              if (quotedMsgId) {
+                const quotedMsg = await prisma.message.findUnique({
+                  where: { messageId: String(quotedMsgId) },
                   select: { metadata: true },
                 });
-                originalMeta = contextMsg?.metadata ?? null;
-                console.log("[btn-tag] strategy2 result:", originalMeta);
+                originalMeta = quotedMsg?.metadata ?? null;
               }
-            }
+              console.log("[btn-tag] strategy1 originalMeta:", originalMeta);
 
-            // Estratégia 3: mensagem outbound mais recente com buttonTagMap
-            // nesta conversa (fallback quando quoted não está disponível)
-            if (!originalMeta && lead.conversation?.id) {
-              const lastButtonMsg = await prisma.message.findFirst({
-                where: {
-                  conversationId: lead.conversation.id,
-                  fromMe: true,
-                  metadata: { not: Prisma.DbNull },
-                },
-                orderBy: { createdAt: "desc" },
-                select: { metadata: true },
-              });
-              originalMeta = lastButtonMsg?.metadata ?? null;
-              console.log("[btn-tag] strategy3 result:", originalMeta);
-            }
-
-            if (
-              originalMeta &&
-              typeof originalMeta === "object" &&
-              "buttonTagMap" in (originalMeta as object)
-            ) {
-              const buttonTagMap = (
-                originalMeta as { buttonTagMap: Record<string, string> }
-              ).buttonTagMap;
-              const resolvedTagId = buttonTagMap[clickedButtonId];
-              console.log("[btn-tag] buttonTagMap:", buttonTagMap, "resolvedTagId:", resolvedTagId);
-
-              if (resolvedTagId) {
-                const activeTag = await prisma.tag.findFirst({
-                  where: { id: resolvedTagId, archivedAt: null },
-                  select: { id: true },
-                });
-                console.log("[btn-tag] activeTag:", activeTag);
-
-                if (activeTag) {
-                  const { applyTagsByAi } = await import(
-                    "@/features/tracking-chat-ai/lib/apply-tags-by-ai"
-                  );
-                  await applyTagsByAi({
-                    leadId: lead.id,
-                    tagIds: [resolvedTagId],
+              // Estratégia 2: contextInfo.stanzaId (formato alternativo do uazapi)
+              if (!originalMeta) {
+                const contextStanzaId =
+                  interactiveContent.contextInfo?.stanzaId ||
+                  interactiveContent.contextInfo?.quotedMessageKey?.id;
+                console.log("[btn-tag] strategy2 contextStanzaId:", contextStanzaId);
+                if (contextStanzaId) {
+                  const contextMsg = await prisma.message.findUnique({
+                    where: { messageId: String(contextStanzaId) },
+                    select: { metadata: true },
                   });
-                  await pusherServer.trigger(trackingId, "lead:updated", {
-                    leadId: lead.id,
-                  });
-                  console.log("[btn-tag] tag applied successfully:", resolvedTagId);
+                  originalMeta = contextMsg?.metadata ?? null;
+                  console.log("[btn-tag] strategy2 result:", originalMeta);
                 }
               }
-            } else {
-              console.log("[btn-tag] no buttonTagMap found in originalMeta:", originalMeta);
+
+              // Estratégia 3: mensagem outbound mais recente com buttonTagMap
+              // nesta conversa (fallback quando quoted não está disponível)
+              if (!originalMeta && buttonTagLead.conversation?.id) {
+                const lastButtonMsg = await prisma.message.findFirst({
+                  where: {
+                    conversationId: buttonTagLead.conversation.id,
+                    fromMe: true,
+                    metadata: { not: Prisma.DbNull },
+                  },
+                  orderBy: { createdAt: "desc" },
+                  select: { metadata: true },
+                });
+                originalMeta = lastButtonMsg?.metadata ?? null;
+                console.log("[btn-tag] strategy3 result:", originalMeta);
+              }
+
+              if (
+                originalMeta &&
+                typeof originalMeta === "object" &&
+                "buttonTagMap" in (originalMeta as object)
+              ) {
+                const buttonTagMap = (
+                  originalMeta as { buttonTagMap: Record<string, string> }
+                ).buttonTagMap;
+                const resolvedTagId = buttonTagMap[clickedButtonId];
+                console.log("[btn-tag] buttonTagMap:", buttonTagMap, "resolvedTagId:", resolvedTagId);
+
+                if (resolvedTagId) {
+                  const activeTag = await prisma.tag.findFirst({
+                    where: { id: resolvedTagId, archivedAt: null },
+                    select: { id: true },
+                  });
+                  console.log("[btn-tag] activeTag:", activeTag);
+
+                  if (activeTag) {
+                    const { applyTagsByAi } = await import(
+                      "@/features/tracking-chat-ai/lib/apply-tags-by-ai"
+                    );
+                    await applyTagsByAi({
+                      leadId: buttonTagLead.id,
+                      tagIds: [resolvedTagId],
+                    });
+                    await pusherServer.trigger(trackingId, "lead:updated", {
+                      leadId: buttonTagLead.id,
+                    });
+                    console.log("[btn-tag] tag applied successfully:", resolvedTagId);
+                  }
+                }
+              } else {
+                console.log("[btn-tag] no buttonTagMap found in originalMeta:", originalMeta);
+              }
+            } catch (err) {
+              console.error("[webhook:chat] button-tag-apply failed", err);
             }
-          } catch (err) {
-            console.error("[webhook:chat] button-tag-apply failed", err);
           }
         }
       }
 
-      // ── Modo Agente IA: dispatch MESSAGE_INCOMING (texto OU mídia) ──
-      // Único ponto de dispatch — antes ficava só pra TextMessage. Agora
-      // inclui ImageMessage/DocumentMessage/AudioMessage com mediaUrl +
-      // mimetype no payload. Workflows com WAIT_FOR_EVENT("message-incoming")
-      // acordam pra qualquer tipo de mensagem inbound e podem rotear via
-      // AI_VISION (image), READ_PDF (application/pdf), ou texto.
-      // Best-effort — falha não derruba o webhook.
-      if (!fromMe && lead?.id && messageData) {
-        const mediaUrlKey = (messageData as { mediaUrl?: string | null })
-          .mediaUrl;
-        const mimetype = (messageData as { mimetype?: string | null })
-          .mimetype;
-        const fileName = (messageData as { fileName?: string | null })
-          .fileName;
-        // Resolve URL presigned (válida 1h) só se houver mídia — economiza
-        // call ao R2 pra mensagens de texto puro.
-        let presignedUrl: string | undefined;
-        if (mediaUrlKey) {
-          try {
-            const { getPresignedReadUrl } = await import("@/lib/r2-url");
-            presignedUrl = await getPresignedReadUrl(mediaUrlKey, 3600);
-          } catch (err) {
-            console.warn(
-              "[webhook:chat] presigned URL failed pra agent dispatch",
-              err,
-            );
-          }
-        }
-        // Detecta tipo de mídia a partir do mimetype (image/*, video/*,
-        // application/pdf, audio/*). Sem mimetype = texto puro.
-        let mediaType: "image" | "document" | "audio" | "video" | undefined;
-        if (mimetype) {
-          if (mimetype.startsWith("image/")) mediaType = "image";
-          else if (mimetype.startsWith("video/")) mediaType = "video";
-          else if (mimetype.startsWith("audio/")) mediaType = "audio";
-          else if (mimetype === "application/pdf") mediaType = "document";
-          else mediaType = "document"; // fallback pra outros docs
-        }
-        const messageBody =
-          ((messageData as { body?: string | null }).body ?? "") || "";
-
-        if (messageBody || mediaUrlKey) {
-          const { dispatchMessageIncoming } = await import(
-            "@/features/workflows/lib/agent-trigger-helpers"
-          );
-          void dispatchMessageIncoming({
-            leadId: lead.id,
-            organizationId: tracking.organizationId,
-            trackingId,
-            messageText: messageBody,
-            messageId,
-            ...(presignedUrl ? { mediaUrl: presignedUrl } : {}),
-            ...(mediaType ? { mediaType } : {}),
-            ...(mimetype ? { mimetype } : {}),
-            ...(fileName ? { fileName } : {}),
-          });
-        }
-      }
-
-      // ── Pipeline unificado de pós-save ───────────────────────────────
-      // Cópia 1:1 do comportamento anterior — só extraído pra um helper
-      // compartilhado com /api/in-chat/[slug]/messages e /identify.
-      // Garante paridade estrutural de automações em qualquer caminho de
-      // inbound (Sprint 3.5 / Fase J do plano).
-      const { firePostInboundAutomations } = await import(
-        "@/features/tracking-chat/lib/incoming-message-pipeline"
+      // Paridade de status com o handler antigo:
+      //  - revoke: 200
+      //  - "Message type not processed": 201
+      //  - mensagem persistida: 201
+      const persisted = results.some((r) => r.ok && "messageId" in r);
+      return NextResponse.json(
+        { success: true, results },
+        { status: persisted ? 201 : 200 },
       );
-      await firePostInboundAutomations({
-        trackingId,
-        organizationId: tracking.organizationId,
-        globalAiActive: tracking.globalAiActive,
-        lead: {
-          id: lead.id,
-          isActive: lead.isActive,
-          firstResponseAt: lead.firstResponseAt,
-          lastInboundAt: lead.lastInboundAt,
-          conversation: lead.conversation
-            ? { id: lead.conversation.id }
-            : null,
-        },
-        messageId: messageData.id,
-        externalMessageId: messageId,
-        fromMe,
-        channel: "WHATSAPP",
-        messagePayload: messageData,
-        conversationPayload: { ...lead.conversation, lead },
-      });
-
-      return NextResponse.json({ success: true }, { status: 201 });
     }
 
     if (base.data.EventType === "connection") {
@@ -1105,6 +339,12 @@ export async function POST(request: NextRequest) {
           },
           select: { id: true, trackingId: true, baseUrl: true },
         });
+        // Invalida cache outbound (Fix #4) — instância recém-desconectada,
+        // próximos sends devem cair no caminho In-Chat (não no provider
+        // direto, que ia falhar). O `shouldSkipUazapiForConversation` é o
+        // gate principal, mas invalidar mantém o cache coerente com o
+        // novo estado.
+        invalidateOutboundProvider(disconnectedInstance.trackingId);
         // Detecção push-based — dispara a confirmação da queda (carência +
         // checagem de status) que ativa o modo In-Chat se a queda for
         // sustentada. Substitui o contador "3 falhas" e o cron de varredura.

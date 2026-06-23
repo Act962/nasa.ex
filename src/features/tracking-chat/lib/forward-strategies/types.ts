@@ -1,9 +1,16 @@
 import z from "zod";
+import type { WhatsAppChatProvider } from "@/features/tracking-chat/lib/providers";
 
 export interface ForwardContext {
   conversationId: string;
   number: string;
-  token: string;
+  /**
+   * Provider resolvido por-tracking (Fase 6). As strategies despacham via
+   * `provider.sendText/sendMedia/sendLocation/sendContact` em vez de
+   * chamar `@/http/uazapi/*` direto. Compatível com Uazapi e Meta Cloud
+   * sem mudança em call sites.
+   */
+  provider: WhatsAppChatProvider;
   senderName: string;
 }
 
