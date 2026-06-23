@@ -124,7 +124,7 @@ export const moveLeadExecutor: NodeExecutor<MoveLeadNodeData> = async ({
 
       if (trackingChanged || statusChanged) {
         const targetTrackingId = data.trackingId ?? previousTrackingId!;
-        await publishLeadMoved(publish, {
+        await publishLeadMoved({
           leadId: lead.id,
           fromTrackingId: previousTrackingId,
           toTrackingId: targetTrackingId,
