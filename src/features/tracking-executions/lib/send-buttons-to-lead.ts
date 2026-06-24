@@ -29,7 +29,9 @@ export interface SendButtonsToLeadParams {
   trackingId: string;
   bodyText: string;
   footerText?: string;
-  buttons: Array<{ text: string; id: string }>;
+  // tagId opcional por botão — quando presente, grava buttonTagMap no
+  // metadata da Message pra o webhook aplicar a tag no clique do lead.
+  buttons: Array<{ text: string; id: string; tagId?: string }>;
 }
 
 export async function sendButtonsToLead(
@@ -100,6 +102,15 @@ export async function sendButtonsToLead(
 
   // 5. Persiste Message — body inclui texto + opções pro histórico
   const bodyFormatted = formatBodyWithButtons(bodyText, footerText, buttons);
+  // buttonTagMap (buttonId→tagId) — grava no metadata pra o webhook aplicar
+  // a tag quando o lead clicar num botão com tag associada.
+  const buttonTagMap: Record<string, string> = {};
+  for (const button of buttons) {
+    if (button.id && button.tagId) {
+      buttonTagMap[button.id] = button.tagId;
+    }
+  }
+  const hasTagMap = Object.keys(buttonTagMap).length > 0;
   const message = await prisma.message.create({
     data: {
       conversationId: conversation.id,
@@ -109,6 +120,7 @@ export async function sendButtonsToLead(
       status: MessageStatus.SENT,
       quotedMessageId: null,
       viaInChat: skipUazapi,
+      ...(hasTagMap ? { metadata: { buttonTagMap } } : {}),
     },
     include: {
       conversation: { include: { lead: true } },

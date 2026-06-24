@@ -6,6 +6,9 @@ import z from "zod";
 const buttonSchema = z.object({
   text: z.string(),
   id: z.string(),
+  // tagId opcional: ao clicar no botão, o webhook aplica esta tag ao lead
+  // (buttonTagMap = buttonId→tagId). Mesma semântica do modo inline.
+  tagId: z.string().optional(),
 });
 
 export const createAiButtonPreset = base

@@ -31,9 +31,17 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useTags } from "@/features/tags/hooks/use-tags";
 
 import {
   useAiButtonPresets,
@@ -45,6 +53,9 @@ import {
 const buttonItemSchema = z.object({
   text: z.string().min(1, "Texto do botão é obrigatório"),
   id: z.string().min(1, "Identificador é obrigatório"),
+  // tagId opcional: ao clicar no botão, o lead recebe esta tag (e dispara
+  // automações LEAD_TAGGED). Resolvido no webhook via buttonTagMap.
+  tagId: z.string().optional(),
 });
 
 const presetFormSchema = z.object({
@@ -71,6 +82,7 @@ function parseButtons(raw: unknown): ButtonItem[] {
     .map((b) => ({
       text: typeof b.text === "string" ? b.text : "",
       id: typeof b.id === "string" ? b.id : crypto.randomUUID(),
+      tagId: typeof b.tagId === "string" ? b.tagId : undefined,
     }));
 }
 
@@ -177,6 +189,7 @@ function PresetRow({
 }) {
   const updatePreset = useUpdateAiButtonPreset(trackingId);
   const deletePreset = useDeleteAiButtonPreset(trackingId);
+  const { tags } = useTags({ trackingId });
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const form = useForm<PresetFormData>({
@@ -330,6 +343,38 @@ function PresetRow({
                         />
                       )}
                     />
+                    <Controller
+                      control={form.control}
+                      name={`buttons.${index}.tagId`}
+                      render={({ field: tagField }) => (
+                        <Select
+                          value={tagField.value ?? ""}
+                          onValueChange={(value) =>
+                            tagField.onChange(
+                              value === "__none__" ? undefined : value,
+                            )
+                          }
+                        >
+                          <SelectTrigger className="w-44">
+                            <SelectValue placeholder="Tag (opcional)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Sem tag</SelectItem>
+                            {tags.map((tag) => (
+                              <SelectItem key={tag.id} value={tag.id}>
+                                <span
+                                  className="inline-block w-2 h-2 rounded-full mr-1 shrink-0"
+                                  style={{
+                                    backgroundColor: tag.color ?? "#1447e6",
+                                  }}
+                                />
+                                {tag.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
                     <input
                       type="hidden"
                       {...form.register(`buttons.${index}.id`)}
@@ -365,7 +410,8 @@ function PresetRow({
               </div>
               <FieldDescription>
                 Texto exibido ao lead no WhatsApp. O identificador interno é
-                gerado automaticamente.
+                gerado automaticamente. A tag (opcional) é aplicada ao lead
+                quando ele clica no botão.
               </FieldDescription>
             </Field>
           </FieldGroup>

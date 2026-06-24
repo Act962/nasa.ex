@@ -393,7 +393,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
       await import("@/features/tracking-executions/lib/send-buttons-to-lead");
     let bodyText = "";
     let footerText: string | undefined;
-    let buttons: Array<{ text: string; id: string }> = [];
+    let buttons: Array<{ text: string; id: string; tagId?: string }> = [];
 
     if (payload.mode === "preset" && typeof payload.presetId === "string") {
       const { default: prisma } = await import("@/lib/prisma");
@@ -425,6 +425,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
             .map((b) => ({
               text: typeof b.text === "string" ? b.text : "",
               id: typeof b.id === "string" ? b.id : "",
+              tagId: typeof b.tagId === "string" ? b.tagId : undefined,
             }))
             .filter((b) => b.text && b.id)
         : [];
@@ -440,6 +441,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
             .map((b) => ({
               text: typeof b.text === "string" ? b.text : "",
               id: typeof b.id === "string" ? b.id : "",
+              tagId: typeof b.tagId === "string" ? b.tagId : undefined,
             }))
             .filter((b) => b.text && b.id)
         : [];

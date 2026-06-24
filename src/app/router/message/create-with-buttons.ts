@@ -19,12 +19,17 @@ import {
 const buttonSchema = z.object({
   text: z.string().min(1).max(20),
   id: z.string().min(1).max(256),
+  // tagId opcional: ao clicar no botão, o webhook aplica a tag ao lead
+  // (buttonTagMap = buttonId→tagId).
+  tagId: z.string().optional(),
 });
 
 const listRowSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1).max(24),
   description: z.string().max(72).optional(),
+  // tagId opcional: idem botões — aplica a tag quando o lead seleciona a linha.
+  tagId: z.string().optional(),
 });
 
 const listSectionSchema = z.object({
@@ -206,6 +211,26 @@ export const createButtonsMessage = base
       bodyText = `${input.text}\n\n[Lista: ${input.button}]\n${rowList}`;
     }
 
+    // buttonTagMap (buttonId/rowId → tagId) — grava no metadata pra o webhook
+    // aplicar a tag quando o lead clicar num botão/linha com tag associada.
+    const buttonTagMap: Record<string, string> = {};
+    if (input.type === "buttons") {
+      for (const button of input.buttons) {
+        if (button.id && button.tagId) {
+          buttonTagMap[button.id] = button.tagId;
+        }
+      }
+    } else {
+      for (const section of input.sections) {
+        for (const row of section.rows) {
+          if (row.id && row.tagId) {
+            buttonTagMap[row.id] = row.tagId;
+          }
+        }
+      }
+    }
+    const hasTagMap = Object.keys(buttonTagMap).length > 0;
+
     const message = await prisma.message.create({
       data: {
         conversationId: input.conversationId,
@@ -214,6 +239,7 @@ export const createButtonsMessage = base
         fromMe: true,
         status: MessageStatus.SENT,
         senderName: context.user.name,
+        ...(hasTagMap ? { metadata: { buttonTagMap } } : {}),
       },
       select: {
         id: true,
