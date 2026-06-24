@@ -59,6 +59,7 @@ import {
   resolveEffectivePermissions,
   type PaymentResource,
   type PaymentAction,
+  type PaymentPermissionMatrix,
 } from "../../lib/permissions";
 
 type Role = "VIEWER" | "EDITOR" | "ADMIN" | "OWNER";
@@ -181,11 +182,10 @@ export function AccessPanel({ readonly = false }: { readonly?: boolean } = {}) {
     value: boolean,
   ) {
     const effective = resolveEffectivePermissions(role, currentOverride);
-    const next = {
-      ...(currentOverride as Record<string, Record<string, boolean>>),
+    const next: PaymentPermissionMatrix = {
+      ...effective,
+      [resource]: { ...effective[resource], [action]: value },
     };
-    if (!next[resource]) next[resource] = { ...effective[resource] };
-    next[resource][action] = value;
     try {
       await updatePermissions.mutateAsync({ userId, permissions: next });
     } catch {

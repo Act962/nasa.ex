@@ -97,7 +97,7 @@ export function useCashflow(month?: number, year?: number) {
 
 export function usePaymentEntries(params: {
   type?: "RECEIVABLE" | "PAYABLE";
-  status?: "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED";
+  status?: "PENDING_APPROVAL" | "PENDING" | "PARTIAL" | "PAID" | "OVERDUE" | "CANCELLED";
   search?: string;
   page?: number;
   perPage?: number;

@@ -100,7 +100,7 @@ export const paymentDunningFire = inngest.createFunction(
       style: "currency",
       currency: "BRL",
     });
-    const vencimento = entry.dueDate.toLocaleDateString("pt-BR");
+    const vencimento = new Date(entry.dueDate).toLocaleDateString("pt-BR");
     const contatoNome = entry.contact?.name ?? "Cliente";
 
     function interpolate(template: string) {
