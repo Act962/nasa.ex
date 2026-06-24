@@ -15,13 +15,23 @@ type AppKey =
   | "integrations"
   | "explorer"
   | "nbox"
-  | "forge-contracts";
+  | "forge-contracts"
+  | "financeiro";
 
-type PermissionAction = "canView" | "canCreate" | "canEdit" | "canDelete";
+// Actions estendidas (`canApprove`, `canPay`) só são interpretadas pelo
+// servidor quando appKey ∈ APPS_WITH_EXTENDED_ACTIONS (hoje só "financeiro").
+// Pra outros apps, sempre retornam false.
+type PermissionAction =
+  | "canView"
+  | "canCreate"
+  | "canEdit"
+  | "canDelete"
+  | "canApprove"
+  | "canPay";
 
 export function useCheckPermission() {
   const { role, isMaster } = useOrgRole();
-  
+
   const { data } = useQuery({
     ...orpc.permissions.getPermissions.queryOptions(),
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -38,7 +48,7 @@ export function useCheckPermission() {
     const appPerms = rolePerms[appKey];
     if (!appPerms) return false;
 
-    return !!appPerms[action];
+    return !!appPerms[action as keyof typeof appPerms];
   };
 
   return { checkPermission, isLoading: !data && !!role };

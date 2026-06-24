@@ -23,12 +23,16 @@ import { PermissionMatrix } from "./permission-matrix";
 import { MemberList } from "./member-list";
 import { AddMemberDialog } from "./add-member-dialog";
 import { MetaAccountsTab } from "./meta-accounts-tab";
+import { AccessPanel as PaymentAccessPanel } from "@/features/payment/components/access/access-panel";
+import { useMyPaymentAccess } from "@/features/payment/hooks/use-payment";
+import { Landmark } from "lucide-react";
 import { usePermissionsMutations } from "./hooks/use-permissions-mutations";
 
 export function PermissionsTab() {
   const { data: session } = authClient.useSession();
   const [showMatrix, setShowMatrix] = useState(true);
   const [showMetaAccounts, setShowMetaAccounts] = useState(false);
+  const [showPaymentAccess, setShowPaymentAccess] = useState(false);
 
   // Add member dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -37,6 +41,15 @@ export function PermissionsTab() {
   const { data, isLoading } = useQuery({
     ...orpc.permissions.getPermissions.queryOptions(),
   });
+
+  // Acesso financeiro: visível só pra OWNER/ADMIN do Payment (org-owner sem
+  // PaymentAccess autorizado NÃO vê — esse é o ponto da feature)
+  const myPaymentAccess = useMyPaymentAccess();
+  const paymentRole = myPaymentAccess.data?.authorized
+    ? myPaymentAccess.data.role
+    : null;
+  const canSeePaymentAccess = paymentRole === "OWNER" || paymentRole === "ADMIN";
+  const canEditPaymentAccess = paymentRole === "OWNER";
 
   const { updatePerm, updateRole, removeMember, addMember } =
     usePermissionsMutations();
@@ -227,6 +240,38 @@ export function PermissionsTab() {
           </button>
 
           {showMetaAccounts && <MetaAccountsTab />}
+        </div>
+      )}
+
+      {/* ── Acesso Financeiro (NASA Payment) ──────────────────────────────── */}
+      {/* Restrito a OWNER/ADMIN do PaymentAccess — owner da ORG sem registro
+          autorizado em PaymentAccess NÃO vê nada aqui (esse é o ponto da
+          feature). ADMIN vê em read-only; só OWNER edita. */}
+      {canSeePaymentAccess && (
+        <div className="space-y-3">
+          <button
+            className="flex items-center gap-2 text-base font-semibold w-full text-left"
+            onClick={() => setShowPaymentAccess((value) => !value)}
+          >
+            <Landmark className="size-4 text-[#1E90FF]" />
+            Acesso Financeiro
+            {!canEditPaymentAccess && (
+              <span className="text-[10px] font-normal text-muted-foreground border rounded-sm px-1.5">
+                somente leitura
+              </span>
+            )}
+            {showPaymentAccess ? (
+              <ChevronUp className="size-4 ml-auto" />
+            ) : (
+              <ChevronDown className="size-4 ml-auto" />
+            )}
+          </button>
+
+          {showPaymentAccess && (
+            <div className="rounded-xl border p-4">
+              <PaymentAccessPanel readonly={!canEditPaymentAccess} />
+            </div>
+          )}
         </div>
       )}
 
