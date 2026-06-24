@@ -224,12 +224,12 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             presetId?: string;
             bodyText?: string;
             footerText?: string;
-            buttons?: Array<{ text: string; id: string }>;
+            buttons?: Array<{ text: string; id: string; tagId?: string }>;
           };
 
           let bodyText = "";
           let footerText: string | undefined;
-          let buttons: Array<{ text: string; id: string }> = [];
+          let buttons: Array<{ text: string; id: string; tagId?: string }> = [];
 
           if (payload?.mode === "preset" && payload.presetId) {
             const preset = await prisma.aiButtonPreset.findUnique({
@@ -258,6 +258,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
                   .map((b) => ({
                     text: typeof b.text === "string" ? b.text : "",
                     id: typeof b.id === "string" ? b.id : "",
+                    tagId: typeof b.tagId === "string" ? b.tagId : undefined,
                   }))
                   .filter((b) => b.text && b.id)
               : [];
@@ -308,17 +309,13 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             : `${bodyText}\n\n[Botões]\n${summary}`;
 
           // Mapa buttonId→tagId para disparar automações LEAD_TAGGED quando
-          // o lead clicar num botão com tag associada (somente modo inline).
+          // o lead clicar num botão com tag associada. Montado a partir dos
+          // `buttons` já resolvidos — funciona tanto pro modo inline quanto
+          // pro preset (ambos carregam `tagId` por botão agora).
           const buttonTagMap: Record<string, string> = {};
-          if (payload?.mode !== "preset" && Array.isArray(payload?.buttons)) {
-            for (const btn of payload.buttons as Array<{
-              text: string;
-              id: string;
-              tagId?: string;
-            }>) {
-              if (btn.id && btn.tagId) {
-                buttonTagMap[btn.id] = btn.tagId;
-              }
+          for (const button of buttons) {
+            if (button.id && button.tagId) {
+              buttonTagMap[button.id] = button.tagId;
             }
           }
           const hasTagMap = Object.keys(buttonTagMap).length > 0;
